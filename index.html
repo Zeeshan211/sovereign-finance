@@ -7,169 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Sovereign Finance</title>
-  <style>
-    :root {
-      --bg: #0f172a;
-      --surface: #1e293b;
-      --surface-2: #334155;
-      --text: #f1f5f9;
-      --text-dim: #94a3b8;
-      --accent: #10b981;
-      --danger: #ef4444;
-      --warn: #f59e0b;
-      --border: #334155;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 16px 16px 90px;
-      max-width: 600px;
-      margin: 0 auto;
-      -webkit-font-smoothing: antialiased;
-    }
-    a { color: inherit; text-decoration: none; }
-    header { padding: 16px 0 24px; text-align: center; }
-    .brand {
-      font-size: 12px;
-      letter-spacing: 3px;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      font-weight: 500;
-    }
-    .title { font-size: 28px; font-weight: 800; margin-top: 4px; letter-spacing: -0.5px; }
-    .day-badge {
-      display: inline-block;
-      margin-top: 10px;
-      padding: 6px 14px;
-      background: var(--surface-2);
-      border-radius: 999px;
-      font-size: 12px;
-      color: var(--text-dim);
-    }
-    .pulse {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: var(--accent);
-      border-radius: 50%;
-      margin-right: 6px;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-    .net-worth {
-      background: linear-gradient(135deg, var(--surface) 0%, var(--surface-2) 100%);
-      border-radius: 16px;
-      padding: 28px 20px;
-      margin: 8px 0 20px;
-      text-align: center;
-      border: 1px solid var(--border);
-    }
-    .nw-label {
-      font-size: 11px;
-      color: var(--text-dim);
-      margin-bottom: 10px;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-    }
-    .nw-value { font-size: 38px; font-weight: 800; letter-spacing: -1px; }
-    .nw-value.positive { color: var(--accent); }
-    .nw-value.negative { color: var(--danger); }
-    .nw-currency { font-size: 16px; color: var(--text-dim); margin-left: 6px; font-weight: 500; }
-    .stats-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    .stat-card {
-      background: var(--surface);
-      padding: 14px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-    }
-    .stat-label {
-      font-size: 10px;
-      color: var(--text-dim);
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      margin-bottom: 6px;
-    }
-    .stat-value { font-size: 17px; font-weight: 700; }
-    .stat-value.danger { color: var(--danger); }
-    .stat-value.warn { color: var(--warn); }
-    .stat-value.accent { color: var(--accent); }
-    .nav-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    .nav-card {
-      background: var(--surface);
-      padding: 22px 16px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      text-align: center;
-      cursor: pointer;
-      transition: transform 0.15s, border-color 0.15s;
-    }
-    .nav-card:active { transform: scale(0.97); }
-    .nav-card:hover { border-color: var(--accent); }
-    .nav-icon { font-size: 30px; margin-bottom: 8px; }
-    .nav-label { font-size: 14px; font-weight: 600; }
-    .nav-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
-    footer {
-      text-align: center;
-      margin-top: 36px;
-      padding: 20px 0;
-      font-size: 12px;
-      color: var(--text-dim);
-      line-height: 1.6;
-    }
-    footer .v { opacity: 0.5; font-size: 10px; }
-
-    /* ─── Bottom Navigation ─── */
-    .bottom-nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(15, 23, 42, 0.92);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-top: 1px solid var(--border);
-      z-index: 100;
-    }
-    .bottom-nav-inner {
-      display: flex;
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
-    }
-    .nav-item {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 3px;
-      padding: 6px 4px;
-      color: var(--text-dim);
-      transition: color 0.15s, transform 0.1s;
-    }
-    .nav-item:active { transform: scale(0.92); }
-    .nav-item.active { color: var(--accent); }
-    .nav-item.disabled {
-      opacity: 0.35;
-      pointer-events: none;
-    }
-    .nav-emoji { font-size: 22px; line-height: 1; }
-    .nav-text { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
-  </style>
+  <link rel="stylesheet" href="/css/app.css">
 </head>
 <body>
   <header>
@@ -227,7 +65,7 @@
 
   <footer>
     Built one baby step at a time.<br>
-    <span class="v">v0.0.3 · sovereign-finance</span>
+    <span class="v">v0.0.4 · sovereign-finance</span>
   </footer>
 
   <nav class="bottom-nav">
@@ -251,11 +89,6 @@
     </div>
   </nav>
 
-  <script>
-    const QUEST_START = new Date('2026-04-25');
-    const today = new Date();
-    const day = Math.floor((today - QUEST_START) / 86400000) + 1;
-    document.getElementById('dayNum').textContent = day;
-  </script>
+  <script src="/js/app.js"></script>
 </body>
 </html>
