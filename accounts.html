@@ -25,23 +25,13 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      padding: 16px 16px 80px;
+      padding: 16px 16px 90px;
       max-width: 600px;
       margin: 0 auto;
       -webkit-font-smoothing: antialiased;
     }
     a { color: inherit; text-decoration: none; }
-    .back-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      color: var(--text-dim);
-      font-size: 13px;
-      padding: 6px 0;
-      transition: color 0.15s;
-    }
-    .back-btn:hover { color: var(--accent); }
-    header { padding: 8px 0 24px; text-align: center; }
+    header { padding: 16px 0 24px; text-align: center; }
     .brand {
       font-size: 12px;
       letter-spacing: 3px;
@@ -129,11 +119,46 @@
       line-height: 1.6;
     }
     footer .v { opacity: 0.5; font-size: 10px; }
+
+    /* ─── Bottom Navigation ─── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      z-index: 100;
+    }
+    .bottom-nav-inner {
+      display: flex;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    }
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 6px 4px;
+      color: var(--text-dim);
+      transition: color 0.15s, transform 0.1s;
+    }
+    .nav-item:active { transform: scale(0.92); }
+    .nav-item.active { color: var(--accent); }
+    .nav-item.disabled {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+    .nav-emoji { font-size: 22px; line-height: 1; }
+    .nav-text { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
   </style>
 </head>
 <body>
-  <a href="/" class="back-btn">← Hub</a>
-
   <header>
     <div class="brand">Sovereign Ops</div>
     <h1 class="title">Accounts</h1>
@@ -278,8 +303,29 @@
 
   <footer>
     Built one baby step at a time.<br>
-    <span class="v">v0.0.2 · accounts</span>
+    <span class="v">v0.0.3 · accounts</span>
   </footer>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/" class="nav-item">
+        <div class="nav-emoji">🏠</div>
+        <div class="nav-text">Hub</div>
+      </a>
+      <a href="#" class="nav-item disabled">
+        <div class="nav-emoji">➕</div>
+        <div class="nav-text">Add</div>
+      </a>
+      <a href="/accounts.html" class="nav-item active">
+        <div class="nav-emoji">🏦</div>
+        <div class="nav-text">Accounts</div>
+      </a>
+      <a href="#" class="nav-item disabled">
+        <div class="nav-emoji">⋯</div>
+        <div class="nav-text">More</div>
+      </a>
+    </div>
+  </nav>
 
   <script>
     const QUEST_START = new Date('2026-04-25');

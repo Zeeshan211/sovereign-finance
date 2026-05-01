@@ -25,11 +25,12 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
-      padding: 16px 16px 80px;
+      padding: 16px 16px 90px;
       max-width: 600px;
       margin: 0 auto;
       -webkit-font-smoothing: antialiased;
     }
+    a { color: inherit; text-decoration: none; }
     header { padding: 16px 0 24px; text-align: center; }
     .brand {
       font-size: 12px;
@@ -131,6 +132,43 @@
       line-height: 1.6;
     }
     footer .v { opacity: 0.5; font-size: 10px; }
+
+    /* ─── Bottom Navigation ─── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      z-index: 100;
+    }
+    .bottom-nav-inner {
+      display: flex;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    }
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      padding: 6px 4px;
+      color: var(--text-dim);
+      transition: color 0.15s, transform 0.1s;
+    }
+    .nav-item:active { transform: scale(0.92); }
+    .nav-item.active { color: var(--accent); }
+    .nav-item.disabled {
+      opacity: 0.35;
+      pointer-events: none;
+    }
+    .nav-emoji { font-size: 22px; line-height: 1; }
+    .nav-text { font-size: 11px; font-weight: 600; letter-spacing: 0.3px; }
   </style>
 </head>
 <body>
@@ -142,13 +180,13 @@
 
   <section class="net-worth">
     <div class="nw-label">Net Worth</div>
-    <div class="nw-value positive">74,951<span class="nw-currency">PKR</span></div>
+    <div class="nw-value positive">75,048<span class="nw-currency">PKR</span></div>
   </section>
 
   <div class="stats-row">
     <div class="stat-card">
       <div class="stat-label">Liquid</div>
-      <div class="stat-value accent">133,351</div>
+      <div class="stat-value accent">133,448</div>
     </div>
     <div class="stat-card">
       <div class="stat-label">CC Outstanding</div>
@@ -160,43 +198,63 @@
     </div>
     <div class="stat-card">
       <div class="stat-label">True Burden</div>
-      <div class="stat-value danger">-148,549</div>
+      <div class="stat-value danger">-148,452</div>
     </div>
   </div>
 
   <div class="nav-grid">
-    <div class="nav-card">
+    <a href="#" class="nav-card">
       <div class="nav-icon">💸</div>
       <div class="nav-label">Transactions</div>
       <div class="nav-sub">coming soon</div>
-    </div>
-    <div class="nav-card">
+    </a>
+    <a href="/accounts.html" class="nav-card">
       <div class="nav-icon">🏦</div>
       <div class="nav-label">Accounts</div>
-      <div class="nav-sub">10 active</div>
-    </div>
-    <div class="nav-card">
+      <div class="nav-sub">11 active</div>
+    </a>
+    <a href="#" class="nav-card">
       <div class="nav-icon">💳</div>
       <div class="nav-label">Debts</div>
       <div class="nav-sub">2 remaining</div>
-    </div>
-    <div class="nav-card">
+    </a>
+    <a href="#" class="nav-card">
       <div class="nav-icon">📊</div>
       <div class="nav-label">Insights</div>
       <div class="nav-sub">coming soon</div>
-    </div>
+    </a>
   </div>
 
   <footer>
     Built one baby step at a time.<br>
-    <span class="v">v0.0.1 · sovereign-finance</span>
+    <span class="v">v0.0.3 · sovereign-finance</span>
   </footer>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/" class="nav-item active">
+        <div class="nav-emoji">🏠</div>
+        <div class="nav-text">Hub</div>
+      </a>
+      <a href="#" class="nav-item disabled">
+        <div class="nav-emoji">➕</div>
+        <div class="nav-text">Add</div>
+      </a>
+      <a href="/accounts.html" class="nav-item">
+        <div class="nav-emoji">🏦</div>
+        <div class="nav-text">Accounts</div>
+      </a>
+      <a href="#" class="nav-item disabled">
+        <div class="nav-emoji">⋯</div>
+        <div class="nav-text">More</div>
+      </a>
+    </div>
+  </nav>
 
   <script>
     const QUEST_START = new Date('2026-04-25');
     const today = new Date();
-    const diffMs = today - QUEST_START;
-    const day = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+    const day = Math.floor((today - QUEST_START) / 86400000) + 1;
     document.getElementById('dayNum').textContent = day;
   </script>
 </body>
