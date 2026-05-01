@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Add · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header>
+    <div class="brand">Sovereign Ops</div>
+    <h1 class="title">Add Transaction</h1>
+  </header>
+
+  <form id="addForm" autocomplete="off">
+
+    <div class="type-toggle">
+      <button type="button" class="type-btn active" data-type="expense">− Expense</button>
+      <button type="button" class="type-btn" data-type="income">+ Income</button>
+      <button type="button" class="type-btn" data-type="transfer">↔ Transfer</button>
+    </div>
+
+    <label class="field-label">Amount</label>
+    <input
+      id="amountInput"
+      type="number"
+      inputmode="decimal"
+      step="0.01"
+      min="0"
+      placeholder="0"
+      class="amount-input"
+      required>
+
+    <label class="field-label">Account</label>
+    <select id="accountSelect" class="form-select" required></select>
+
+    <label class="field-label">Category</label>
+    <select id="categorySelect" class="form-select"></select>
+
+    <label class="field-label">Date</label>
+    <input id="dateInput" type="date" class="form-input">
+
+    <label class="field-label">Notes <span class="optional">optional</span></label>
+    <input
+      id="notesInput"
+      type="text"
+      maxlength="200"
+      placeholder="What was this for?"
+      class="form-input">
+
+    <button id="submitBtn" type="submit" class="primary-btn" disabled>
+      Save Transaction
+    </button>
+  </form>
+
+  <footer>
+    <span class="v">v0.0.5 · add</span>
+  </footer>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/" class="nav-item">
+        <div class="nav-emoji">🏠</div>
+        <div class="nav-text">Hub</div>
+      </a>
+      <a href="/add.html" class="nav-item active">
+        <div class="nav-emoji">➕</div>
+        <div class="nav-text">Add</div>
+      </a>
+      <a href="/accounts.html" class="nav-item">
+        <div class="nav-emoji">🏦</div>
+        <div class="nav-text">Accounts</div>
+      </a>
+      <a href="/transactions.html" class="nav-item">
+        <div class="nav-emoji">📋</div>
+        <div class="nav-text">List</div>
+      </a>
+    </div>
+  </nav>
+
+  <script src="/js/store.js"></script>
+  <script src="/js/add.js"></script>
+</body>
+</html>
