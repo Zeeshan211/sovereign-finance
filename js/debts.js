@@ -1,4 +1,4 @@
-/* ─── Sovereign Finance · Debts Page v0.3.1 ─── */
+/* ─── Sovereign Finance · Debts Page v0.5.0 ─── */
 
 (function () {
   document.addEventListener('DOMContentLoaded', init);
@@ -21,12 +21,12 @@
     const owed = data.debts.filter(d => d.kind === 'owed' && d.status === 'active');
     const closed = data.debts.filter(d => d.status === 'closed');
 
-    setText('debts-total-owe', fmt(data.total_owe) + ' PKR');
-    setText('debts-total-owed', fmt(data.total_owed) + ' PKR');
+    animate('debts-total-owe', data.total_owe);
+    animate('debts-total-owed', data.total_owed);
     setText('debts-owe-count', owe.length + (owe.length === 1 ? ' debt' : ' debts'));
     setText('debts-owed-count', owed.length + (owed.length === 1 ? ' person' : ' people'));
     setText('debts-summary', closed.length + ' cleared · ' + (owe.length + owed.length) + ' active');
-    setText('debts-net-burden', 'Net: ' + fmt(data.total_owe - data.total_owed) + ' PKR');
+    setText('debts-net-burden', 'Net ' + fmt(data.total_owe - data.total_owed) + ' PKR');
 
     const oweList = document.getElementById('debts-owe-list');
     const owedList = document.getElementById('debts-owed-list');
@@ -51,6 +51,13 @@
     }
   }
 
+  function animate(id, val) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (window.animateNumber) window.animateNumber(el, val);
+    else el.textContent = fmt(val);
+  }
+
   function buildRow(d, isFirst) {
     const original = d.original_amount || 0;
     const paid = d.paid_amount || 0;
@@ -60,12 +67,12 @@
     const progressClass = pct >= 100 ? 'done' : (pct >= 50 ? 'half' : 'start');
 
     const row = document.createElement('div');
-    row.className = 'debt-row' + (isFirst ? ' debt-first' : '');
+    row.className = 'debt-row' + (isFirst && !isReceivable ? ' debt-first' : '');
     row.innerHTML = `
       <div class="debt-header">
         <div class="debt-info">
           <div class="debt-name">
-            ${isFirst ? '<span class="debt-pin">FIRST</span>' : ''}${esc(d.name)}
+            ${isFirst && !isReceivable ? '<span class="debt-pin">FIRST</span>' : ''}${esc(d.name)}
           </div>
           <div class="debt-sub">${isReceivable ? 'owes you' : 'snowball #' + (d.snowball_order || '-')}</div>
         </div>
@@ -164,7 +171,7 @@
   }
 
   async function closeDebt(debt) {
-    if (!confirm('Mark "' + debt.name + '" as fully cleared? (You can reopen later if needed)')) return;
+    if (!confirm('Mark "' + debt.name + '" as fully cleared?')) return;
     try {
       const res = await fetch('/api/debts/' + encodeURIComponent(debt.id), {
         method: 'PUT',

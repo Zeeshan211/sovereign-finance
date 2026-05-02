@@ -1,4 +1,4 @@
-/* ─── Sovereign Finance · Hub Live Numbers v0.1.0 ─── */
+/* ─── Sovereign Finance · Hub v0.5.0 with animated counters ─── */
 
 (function () {
   document.addEventListener('DOMContentLoaded', init);
@@ -22,27 +22,28 @@
     const personalDebts = d.total_owe || 0;
     const trueBurden = netWorth - personalDebts;
 
-    setText('hub-net-worth', fmt(netWorth));
-    setClass('hub-net-worth', netWorth >= 0 ? 'nw-value positive' : 'nw-value negative');
+    animate('hub-net-worth', netWorth);
+    setClass('hub-net-worth', netWorth >= 0 ? 'nw-value positive counter' : 'nw-value negative counter');
 
-    setText('hub-liquid', fmt(liquid));
-    setText('hub-cc', fmt(cc));
-    setText('hub-debts', fmt(personalDebts));
-    setText('hub-burden', fmt(trueBurden));
-    setClass('hub-burden', trueBurden >= 0 ? 'stat-value accent' : 'stat-value danger');
+    animate('hub-liquid', liquid);
+    animate('hub-cc', cc);
+    animate('hub-debts', personalDebts);
+    animate('hub-burden', trueBurden);
+    setClass('hub-burden', trueBurden >= 0 ? 'stat-value accent counter' : 'stat-value danger counter');
   }
 
-  function setText(id, val) {
+  function animate(id, val) {
     const el = document.getElementById(id);
-    if (el) el.textContent = val;
+    if (!el) return;
+    if (window.animateNumber) {
+      window.animateNumber(el, val);
+    } else {
+      el.textContent = Math.round(val).toLocaleString('en-US');
+    }
   }
 
   function setClass(id, cls) {
     const el = document.getElementById(id);
     if (el) el.className = cls;
-  }
-
-  function fmt(n) {
-    return Math.round(n).toLocaleString('en-US');
   }
 })();
