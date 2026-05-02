@@ -1189,3 +1189,209 @@ footer .v {
 .badge-purple { background: rgba(168,85,247,0.12); color: #c084fc; border-color: rgba(168,85,247,0.25); }
 .badge-amber { background: var(--warn-soft); color: var(--warn); border-color: rgba(245,158,11,0.25); }
 .badge-grey { background: var(--surface-2); color: var(--text-dim); border-color: var(--border-strong); }
+
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE DESKTOP LAYOUT v0.6.2
+   Mobile-first base stays. Tablet + Desktop break out.
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── TABLET (768px+) ─── */
+@media (min-width: 768px) {
+  body {
+    max-width: 900px;
+    padding: 28px 32px 110px;
+  }
+
+  .title {
+    font-size: 36px;
+  }
+
+  .nw-value {
+    font-size: 54px;
+  }
+
+  .stats-row {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .nav-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .debt-summary-row {
+    gap: 16px;
+  }
+
+  .debt-summary-value {
+    font-size: 32px;
+  }
+}
+
+/* ─── DESKTOP (1200px+) ─── */
+@media (min-width: 1200px) {
+  body {
+    max-width: 1400px;
+    padding: 36px 48px 48px;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 36px;
+    align-items: start;
+  }
+
+  /* Hide bottom nav on desktop */
+  .bottom-nav {
+    display: none;
+  }
+
+  /* Header spans both columns */
+  header {
+    grid-column: 1 / -1;
+    text-align: left;
+    padding: 0 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+  }
+
+  header .brand {
+    margin: 0;
+  }
+
+  header .title {
+    font-size: 28px;
+    margin: 0;
+    flex: 1;
+  }
+
+  header .day-badge {
+    margin: 0;
+  }
+
+  /* Side nav becomes sticky sidebar */
+  .desktop-nav {
+    position: sticky;
+    top: 28px;
+    background: var(--surface-1);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-lg);
+    padding: 12px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .desktop-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    color: var(--text-muted);
+    border-radius: var(--r-sm);
+    font-size: 14px;
+    font-weight: 600;
+    transition: all var(--t-base) var(--smooth);
+    cursor: pointer;
+  }
+
+  .desktop-nav-item:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+
+  .desktop-nav-item.active {
+    background: linear-gradient(135deg, var(--accent-soft), transparent);
+    color: var(--accent-bright);
+    box-shadow: 0 1px 0 var(--highlight) inset;
+  }
+
+  .desktop-nav-item .nav-emoji {
+    font-size: 18px;
+  }
+
+  .desktop-nav-item .nav-text {
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+
+  /* Main content area */
+  .desktop-main {
+    min-width: 0;
+  }
+
+  /* Bigger hero on desktop */
+  .nw-value {
+    font-size: 64px;
+  }
+
+  /* 6-column stats on desktop */
+  .stats-row {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+  }
+
+  /* Multi-column nav grid */
+  .nav-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  /* Two-column account list on desktop */
+  #acc-assets-list,
+  #acc-liabilities-list,
+  #debts-owe-list,
+  #debts-owed-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  /* Tx list two columns for compact/standard */
+  .view-standard .tx-list-grid,
+  .view-compact .tx-list-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  /* Modal centered on desktop, smaller */
+  .modal-backdrop {
+    align-items: center;
+    padding: 24px;
+  }
+
+  .modal {
+    max-width: 480px;
+    border-radius: var(--r-xl);
+    border-bottom: 1px solid var(--border-strong);
+  }
+
+  .modal::before {
+    display: none;
+  }
+}
+
+/* ─── ULTRAWIDE (1600px+) ─── */
+@media (min-width: 1600px) {
+  body {
+    grid-template-columns: 280px 1fr;
+    gap: 48px;
+  }
+
+  .nav-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+
+/* Hide desktop nav on mobile/tablet */
+.desktop-nav { display: none; }
+@media (min-width: 1200px) {
+  .desktop-nav { display: flex; }
+}
