@@ -1551,3 +1551,90 @@ input[type="number"] {
     display: none !important;
   }
 }
+
+
+
+
+
+/* ═══════════════════════════════════════════════════════
+   ROBUST RESPONSIVE LAYOUT v0.6.6
+   Fixed sidebar + body padding. No grid placement needed.
+   Works automatically with ANY HTML structure.
+   ═══════════════════════════════════════════════════════ */
+
+@media (min-width: 1200px) {
+  /* RESET the grid approach from earlier */
+  body {
+    display: block !important;
+    grid-template-columns: none !important;
+    gap: 0 !important;
+    max-width: 1400px;
+    padding: 36px 48px 48px 308px;
+  }
+
+  /* Sidebar becomes absolutely positioned — out of the document flow */
+  .desktop-nav {
+    position: fixed;
+    top: 36px;
+    left: max(24px, calc((100vw - 1400px) / 2 + 48px));
+    width: 240px;
+    max-height: calc(100vh - 72px);
+    overflow-y: auto;
+    background: var(--surface-1);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r-lg);
+    padding: 14px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 50;
+  }
+
+  /* All body children flow naturally now — no grid columns to fight */
+  body > * {
+    grid-column: unset !important;
+    grid-row: unset !important;
+  }
+
+  /* Header back to left-aligned, full width of main column */
+  header {
+    text-align: left;
+    padding: 0 0 28px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+  }
+
+  header .brand { margin: 0; }
+  header .title { font-size: 28px; margin: 0; flex: 1; }
+  header .day-badge { margin: 0; }
+
+  /* Bottom nav stays hidden on desktop */
+  .bottom-nav { display: none !important; }
+}
+
+/* ─── ULTRAWIDE override ─── */
+@media (min-width: 1600px) {
+  body {
+    max-width: 1500px;
+    padding-right: 48px;
+  }
+  .desktop-nav {
+    width: 260px;
+    left: max(24px, calc((100vw - 1500px) / 2 + 48px));
+  }
+}
+
+/* ─── SAFETY: smaller laptops ─── */
+@media (min-width: 1200px) and (max-width: 1399px) {
+  body {
+    padding-left: 296px;
+  }
+  .desktop-nav {
+    left: 24px;
+    width: 240px;
+  }
+}
