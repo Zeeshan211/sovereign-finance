@@ -1,4 +1,4 @@
-/* ─── Sovereign Finance · Add Transaction Form v0.0.5 ─── */
+/* ─── Sovereign Finance · Add Transaction Form v0.0.9 ─── */
 
 (function () {
   document.addEventListener('DOMContentLoaded', initAddForm);
@@ -25,6 +25,20 @@
       sel.appendChild(opt);
     });
     sel.addEventListener('change', updateSubmitState);
+
+    // Re-populate after API loads (async)
+    window.store.refreshAccounts().then(() => {
+      if (sel.options.length <= window.store.accounts.length) return;
+      const current = sel.value;
+      sel.innerHTML = '<option value="">Pick account…</option>';
+      window.store.accounts.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.id;
+        opt.textContent = a.icon + '  ' + a.name;
+        sel.appendChild(opt);
+      });
+      sel.value = current;
+    });
   }
 
   function populateCategoryDropdown() {
@@ -69,7 +83,7 @@
   function attachSubmitHandler() {
     const form = document.getElementById('addForm');
     if (!form) return;
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
@@ -84,11 +98,12 @@
         notes: document.getElementById('notesInput').value
       };
 
-      const result = window.store.addTransaction(data);
+      const result = await window.store.addTransaction(data);
 
       if (result.ok) {
-        showToast('Saved ✓', 'success');
-        setTimeout(() => { window.location.href = '/transactions.html'; }, 600);
+        const msg = result.queued ? 'Queued (offline) ✓' : 'Saved to cloud ✓';
+        showToast(msg, 'success');
+        setTimeout(() => { window.location.href = '/transactions.html'; }, 700);
       } else {
         showToast(result.error || 'Save failed', 'error');
         btn.disabled = false;

@@ -1,9 +1,13 @@
-/* ─── Sovereign Finance · Transactions List v0.0.5 ─── */
+/* ─── Sovereign Finance · Transactions List v0.0.9 ─── */
 
 (function () {
   document.addEventListener('DOMContentLoaded', init);
 
-  function init() {
+  async function init() {
+    // Show cached immediately for fast paint
+    renderList();
+    // Then refresh from D1
+    await window.store.getAll();
     renderList();
     attachSearch();
   }
@@ -14,7 +18,7 @@
     const countEl = document.getElementById('txCount');
     if (!list) return;
 
-    const all = window.store.getAll();
+    const all = window.store.getCachedAll();
     const filter = (filterText || '').toLowerCase().trim();
 
     const filtered = filter

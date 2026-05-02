@@ -1,11 +1,14 @@
-/* ─── Sovereign Finance · Data Store v0.0.6 ─── */
-/* localStorage layer with realistic bank icons matching D1 */
+/* ─── Sovereign Finance · Data Store v0.0.9 ─── */
+/* D1-backed via /api/* with localStorage offline fallback */
 
 (function () {
-  const STORAGE_KEY = 'sov_transactions_v1';
+  const QUEUE_KEY = 'sov_pending_v1';
+  const CACHE_KEY = 'sov_cache_v1';
+  const ACCOUNTS_KEY = 'sov_accounts_v1';
   const MAX_NOTES_LENGTH = 200;
 
-  const ACCOUNTS = [
+  // Fallback in case API is down on first load
+  const FALLBACK_ACCOUNTS = [
     { id: 'cash',     name: 'Cash',         icon: '💵', kind: 'asset' },
     { id: 'jazzcash', name: 'JazzCash',     icon: '📱', kind: 'asset' },
     { id: 'easypaisa',name: 'Easypaisa',    icon: '📲', kind: 'asset' },
@@ -34,27 +37,27 @@
     { id: 'other',    name: 'Other',         icon: '✨' }
   ];
 
-  function readAll() {
+  let cachedAccounts = readJson(ACCOUNTS_KEY, FALLBACK_ACCOUNTS);
+  let cachedTransactions = readJson(CACHE_KEY, []);
+
+  function readJson(key, fallback) {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      const arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
+      const raw = localStorage.getItem(key);
+      if (!raw) return fallback;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : fallback;
     } catch (e) {
-      console.error('store: read failed, returning empty', e);
-      return [];
+      return fallback;
     }
   }
 
-  function writeAll(arr) {
+  function writeJson(key, value) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
-      return { ok: true };
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
     } catch (e) {
-      console.error('store: write failed', e);
-      return { ok: false, error: e.name === 'QuotaExceededError'
-        ? 'Storage full. Export old data first.'
-        : 'Save failed: ' + e.message };
+      console.error('localStorage write failed', e);
+      return false;
     }
   }
 
@@ -62,63 +65,145 @@
     return 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
   }
 
-  window.store = {
-    accounts: ACCOUNTS,
-    categories: CATEGORIES,
+  // Fetch accounts from API, update cache, fall back to cache on error
+  async function refreshAccounts() {
+    try {
+      const res = await fetch('/api/accounts');
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.accounts)) {
+        cachedAccounts = data.accounts.map(a => ({
+          id: a.id, name: a.name, icon: a.icon, kind: a.type
+        }));
+        writeJson(ACCOUNTS_KEY, cachedAccounts);
+      }
+    } catch (e) {
+      console.warn('accounts API offline, using cache');
+    }
+    return cachedAccounts;
+  }
 
-    addTransaction(input) {
+  async function refreshTransactions() {
+    try {
+      const res = await fetch('/api/transactions');
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.transactions)) {
+        cachedTransactions = data.transactions.map(tx => ({
+          id: tx.id,
+          date: tx.date,
+          type: tx.type,
+          amount: tx.amount,
+          accountId: tx.account_id,
+          categoryId: tx.category_id,
+          notes: tx.notes,
+          createdAt: tx.created_at
+        }));
+        writeJson(CACHE_KEY, cachedTransactions);
+      }
+    } catch (e) {
+      console.warn('transactions API offline, using cache');
+    }
+    return cachedTransactions;
+  }
+
+  // Queue offline writes
+  function enqueue(payload) {
+    const queue = readJson(QUEUE_KEY, []);
+    queue.push({ id: genId(), payload, queuedAt: new Date().toISOString() });
+    writeJson(QUEUE_KEY, queue);
+  }
+
+  async function flushQueue() {
+    const queue = readJson(QUEUE_KEY, []);
+    if (queue.length === 0) return { flushed: 0 };
+    const remaining = [];
+    let ok = 0;
+    for (const item of queue) {
+      try {
+        const res = await fetch('/api/transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(item.payload)
+        });
+        const data = await res.json();
+        if (data.ok) ok++; else remaining.push(item);
+      } catch (e) {
+        remaining.push(item);
+      }
+    }
+    writeJson(QUEUE_KEY, remaining);
+    return { flushed: ok, remaining: remaining.length };
+  }
+
+  // Try to flush on page load
+  flushQueue();
+
+  window.store = {
+    get accounts() { return cachedAccounts; },
+    get categories() { return CATEGORIES; },
+
+    refreshAccounts,
+    refreshTransactions,
+
+    async addTransaction(input) {
       const amount = parseFloat(input.amount);
       if (isNaN(amount) || amount <= 0) return { ok: false, error: 'Amount must be greater than 0' };
       if (!input.accountId) return { ok: false, error: 'Pick an account' };
       if (!input.type) return { ok: false, error: 'Pick a type' };
 
-      const accountExists = ACCOUNTS.find(a => a.id === input.accountId);
-      if (!accountExists) return { ok: false, error: 'Unknown account' };
-
-      const notes = (input.notes || '').slice(0, MAX_NOTES_LENGTH);
-
-      const tx = {
-        id: genId(),
+      const payload = {
         type: input.type,
         amount: amount,
-        accountId: input.accountId,
-        categoryId: input.categoryId || 'other',
+        account_id: input.accountId,
+        category_id: input.categoryId || 'other',
         date: input.date || new Date().toISOString().slice(0, 10),
-        notes: notes,
-        createdAt: new Date().toISOString(),
-        schema: 'v1'
+        notes: (input.notes || '').slice(0, MAX_NOTES_LENGTH)
       };
 
-      const all = readAll();
-      all.push(tx);
-      const result = writeAll(all);
-      if (!result.ok) return result;
-      return { ok: true, id: tx.id };
+      try {
+        const res = await fetch('/api/transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!data.ok) return { ok: false, error: data.error || 'Save failed' };
+        // refresh cache
+        await refreshTransactions();
+        return { ok: true, id: data.id };
+      } catch (e) {
+        // Offline — queue for later
+        enqueue(payload);
+        return { ok: true, id: 'queued', queued: true };
+      }
     },
 
-    getAll() {
-      return readAll().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    async getAll() {
+      await refreshTransactions();
+      return cachedTransactions.sort((a, b) =>
+        (b.createdAt || '').localeCompare(a.createdAt || '')
+      );
     },
 
-    getById(id) {
-      return readAll().find(tx => tx.id === id) || null;
-    },
-
-    delete(id) {
-      const filtered = readAll().filter(tx => tx.id !== id);
-      return writeAll(filtered);
-    },
-
-    clear() {
-      return writeAll([]);
+    getCachedAll() {
+      return cachedTransactions.sort((a, b) =>
+        (b.createdAt || '').localeCompare(a.createdAt || '')
+      );
     },
 
     getAccount(id) {
-      return ACCOUNTS.find(a => a.id === id) || { name: 'Unknown', icon: '❓' };
+      return cachedAccounts.find(a => a.id === id) || { name: 'Unknown', icon: '❓' };
     },
 
     getCategory(id) {
       return CATEGORIES.find(c => c.id === id) || { name: 'Other', icon: '✨' };
+    },
+
+    async clearAllTransactions() {
+      writeJson(CACHE_KEY, []);
+      cachedTransactions = [];
     }
   };
+
+  // Refresh accounts on load (non-blocking)
+  refreshAccounts();
 })();
