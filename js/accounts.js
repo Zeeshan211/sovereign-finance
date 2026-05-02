@@ -1,4 +1,4 @@
-/* ─── Sovereign Finance · Accounts Page Live v0.1.0 ─── */
+/* ─── Sovereign Finance · Accounts Page v0.5.0 ─── */
 
 (function () {
   document.addEventListener('DOMContentLoaded', init);
@@ -16,8 +16,9 @@
     const assets = accounts.filter(a => a.type === 'asset');
     const liabilities = accounts.filter(a => a.type === 'liability');
 
-    setText('acc-net-worth', fmt(b.net_worth || 0));
-    setClass('acc-net-worth', (b.net_worth || 0) >= 0 ? 'nw-value positive' : 'nw-value negative');
+    animate('acc-net-worth', b.net_worth || 0);
+    setClass('acc-net-worth', (b.net_worth || 0) >= 0 ? 'nw-value positive counter' : 'nw-value negative counter');
+
     setText('acc-assets-total', fmt(b.total_assets || 0) + ' PKR');
     setText('acc-liabilities-total', fmt(b.total_liabilities || 0) + ' PKR');
     setText('acc-assets-count', 'Assets · ' + assets.length);
@@ -34,6 +35,13 @@
       liabList.innerHTML = '';
       liabilities.forEach(a => liabList.appendChild(buildRow(a)));
     }
+  }
+
+  function animate(id, val) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (window.animateNumber) window.animateNumber(el, val);
+    else el.textContent = fmt(val);
   }
 
   function buildRow(a) {
@@ -71,17 +79,7 @@
     }[c]));
   }
 
-  function fmt(n) {
-    return Math.round(n).toLocaleString('en-US');
-  }
-
-  function setText(id, val) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = val;
-  }
-
-  function setClass(id, cls) {
-    const el = document.getElementById(id);
-    if (el) el.className = cls;
-  }
+  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+  function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+  function setClass(id, cls) { const el = document.getElementById(id); if (el) el.className = cls; }
 })();
