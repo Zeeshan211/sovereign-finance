@@ -1638,3 +1638,320 @@ input[type="number"] {
     width: 240px;
   }
 }
+
+
+
+/* ═══════════════════════════════════════════════════════
+   ELITE THEME SYSTEM v0.7.0
+   5 themes · smooth transitions · 3D toggle · persistence
+   ═══════════════════════════════════════════════════════ */
+
+/* Smooth color transitions on EVERYTHING when theme switches */
+html, body, body * {
+  transition:
+    background-color 0.4s var(--smooth),
+    border-color 0.4s var(--smooth),
+    color 0.4s var(--smooth),
+    box-shadow 0.4s var(--smooth);
+}
+
+/* ─── THEME 1: MIDNIGHT (current default) ─── */
+[data-theme="midnight"] {
+  --bg-base: #050816;
+  --bg-elevated: #0a0f1f;
+  --surface-1: #0f1628;
+  --surface-2: #161f37;
+  --surface-3: #1f2b4a;
+  --surface-glass: rgba(10, 15, 31, 0.72);
+  --border: rgba(148, 163, 184, 0.08);
+  --border-strong: rgba(148, 163, 184, 0.16);
+  --text: #f8fafc;
+  --text-muted: #cbd5e1;
+  --text-dim: #64748b;
+  --text-faint: #475569;
+  --accent: #10b981;
+  --accent-bright: #34d399;
+  --accent-deep: #059669;
+  --accent-soft: rgba(16, 185, 129, 0.12);
+  --accent-glow: rgba(16, 185, 129, 0.35);
+  --grad-mint: linear-gradient(135deg, #10b981 0%, #06d6a0 100%);
+}
+
+/* ─── THEME 2: OBSIDIAN (pure black, OLED-friendly) ─── */
+[data-theme="obsidian"] {
+  --bg-base: #000000;
+  --bg-elevated: #050505;
+  --surface-1: #0a0a0a;
+  --surface-2: #141414;
+  --surface-3: #1c1c1c;
+  --surface-glass: rgba(0, 0, 0, 0.85);
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text: #ffffff;
+  --text-muted: #d4d4d4;
+  --text-dim: #737373;
+  --text-faint: #525252;
+  --accent: #fafafa;
+  --accent-bright: #ffffff;
+  --accent-deep: #d4d4d4;
+  --accent-soft: rgba(255, 255, 255, 0.08);
+  --accent-glow: rgba(255, 255, 255, 0.25);
+  --grad-mint: linear-gradient(135deg, #ffffff 0%, #d4d4d4 100%);
+}
+
+/* ─── THEME 3: AURORA (deep purple, premium) ─── */
+[data-theme="aurora"] {
+  --bg-base: #0c0a1f;
+  --bg-elevated: #11102a;
+  --surface-1: #181434;
+  --surface-2: #221d44;
+  --surface-3: #2d2858;
+  --surface-glass: rgba(17, 16, 42, 0.75);
+  --border: rgba(167, 139, 250, 0.10);
+  --border-strong: rgba(167, 139, 250, 0.20);
+  --text: #f5f3ff;
+  --text-muted: #ddd6fe;
+  --text-dim: #8b7fc7;
+  --text-faint: #5d5290;
+  --accent: #a78bfa;
+  --accent-bright: #c4b5fd;
+  --accent-deep: #8b5cf6;
+  --accent-soft: rgba(167, 139, 250, 0.14);
+  --accent-glow: rgba(167, 139, 250, 0.4);
+  --grad-mint: linear-gradient(135deg, #a78bfa 0%, #c4b5fd 100%);
+}
+
+/* ─── THEME 4: SLATE (premium grey, business pro) ─── */
+[data-theme="slate"] {
+  --bg-base: #0f1419;
+  --bg-elevated: #161c24;
+  --surface-1: #1d242e;
+  --surface-2: #262e3a;
+  --surface-3: #323b48;
+  --surface-glass: rgba(22, 28, 36, 0.78);
+  --border: rgba(148, 163, 184, 0.10);
+  --border-strong: rgba(148, 163, 184, 0.20);
+  --text: #f1f5f9;
+  --text-muted: #cbd5e1;
+  --text-dim: #94a3b8;
+  --text-faint: #64748b;
+  --accent: #38bdf8;
+  --accent-bright: #7dd3fc;
+  --accent-deep: #0284c7;
+  --accent-soft: rgba(56, 189, 248, 0.12);
+  --accent-glow: rgba(56, 189, 248, 0.35);
+  --grad-mint: linear-gradient(135deg, #38bdf8 0%, #7dd3fc 100%);
+}
+
+/* ─── THEME 5: DAYLIGHT (banking white, professional) ─── */
+[data-theme="daylight"] {
+  --bg-base: #f8fafc;
+  --bg-elevated: #ffffff;
+  --surface-1: #ffffff;
+  --surface-2: #f1f5f9;
+  --surface-3: #e2e8f0;
+  --surface-glass: rgba(255, 255, 255, 0.8);
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.14);
+  --highlight: rgba(0, 0, 0, 0.03);
+  --highlight-strong: rgba(0, 0, 0, 0.06);
+  --text: #0f172a;
+  --text-muted: #334155;
+  --text-dim: #64748b;
+  --text-faint: #94a3b8;
+  --accent: #059669;
+  --accent-bright: #10b981;
+  --accent-deep: #047857;
+  --accent-soft: rgba(5, 150, 105, 0.10);
+  --accent-glow: rgba(5, 150, 105, 0.25);
+  --grad-mint: linear-gradient(135deg, #059669 0%, #10b981 100%);
+}
+
+/* Daylight theme — lighter shadows for white background */
+[data-theme="daylight"] {
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.08);
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 8px 24px -4px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 16px 40px -8px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-xl: 0 30px 80px -10px rgba(15, 23, 42, 0.25), 0 12px 24px rgba(15, 23, 42, 0.1);
+}
+
+/* ─── 3D THEME SWITCHER BUTTON ─── */
+.theme-switcher {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--surface-2), var(--surface-3));
+  border: 1px solid var(--border-strong);
+  color: var(--accent-bright);
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 1px 0 var(--highlight) inset,
+    0 -1px 0 rgba(0,0,0,0.2) inset,
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 4px 12px var(--accent-glow);
+  transition: all 0.3s var(--spring);
+  font-family: inherit;
+}
+.theme-switcher:hover {
+  transform: translateY(-3px) rotate(-15deg);
+  box-shadow:
+    0 1px 0 var(--highlight-strong) inset,
+    0 -1px 0 rgba(0,0,0,0.2) inset,
+    0 12px 32px rgba(0, 0, 0, 0.5),
+    0 6px 18px var(--accent-glow);
+}
+.theme-switcher:active {
+  transform: scale(0.92) rotate(-5deg);
+}
+
+@media (min-width: 1200px) {
+  .theme-switcher {
+    bottom: 24px;
+    right: 24px;
+  }
+}
+
+/* ─── THEME PICKER PANEL ─── */
+.theme-panel {
+  position: fixed;
+  bottom: 156px;
+  right: 20px;
+  width: 280px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-xl);
+  padding: 16px;
+  box-shadow: var(--shadow-xl);
+  z-index: 998;
+  opacity: 0;
+  transform: translateY(20px) scale(0.95);
+  pointer-events: none;
+  transition: all 0.35s var(--spring);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.theme-panel.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+@media (min-width: 1200px) {
+  .theme-panel {
+    bottom: 90px;
+    right: 24px;
+  }
+}
+
+.theme-panel-title {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+  padding: 4px 8px 12px;
+}
+
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  background: var(--surface-1);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: all 0.25s var(--spring);
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text);
+}
+.theme-option:hover {
+  border-color: var(--border-strong);
+  transform: translateX(2px);
+}
+.theme-option.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+
+.theme-swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.08) inset;
+}
+.theme-swatch::before,
+.theme-swatch::after {
+  content: '';
+  position: absolute;
+}
+.theme-swatch::before {
+  top: 0; left: 0; right: 0; bottom: 50%;
+  background: var(--swatch-bg, #050816);
+}
+.theme-swatch::after {
+  top: 50%; left: 0; right: 0; bottom: 0;
+  background: var(--swatch-accent, #10b981);
+}
+
+.theme-option-info {
+  flex: 1;
+  min-width: 0;
+}
+.theme-option-name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+.theme-option-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  font-weight: 500;
+}
+.theme-option-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid var(--border-strong);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s var(--spring);
+}
+.theme-option.active .theme-option-check {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+.theme-option-check::after {
+  content: '✓';
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.25s var(--spring);
+}
+.theme-option.active .theme-option-check::after {
+  opacity: 1;
+  transform: scale(1);
+}
