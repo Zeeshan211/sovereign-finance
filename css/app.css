@@ -1523,3 +1523,31 @@ input[type="number"] {
     font-size: 26px;
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════
+   GRID PLACEMENT FIX v0.6.5
+   Force sidebar into column 1, all other content into column 2.
+   ═══════════════════════════════════════════════════════ */
+
+@media (min-width: 1200px) {
+  /* Sidebar: explicit column 1, spans all rows below header */
+  .desktop-nav {
+    grid-column: 1;
+    grid-row: 2 / 999;
+  }
+
+  /* Every direct child of body EXCEPT header/sidebar/bottom-nav/modal goes in column 2 */
+  body > section,
+  body > div,
+  body > main,
+  body > form,
+  body > footer {
+    grid-column: 2;
+  }
+
+  /* Hide bottom nav properly on desktop */
+  .bottom-nav {
+    display: none !important;
+  }
+}
