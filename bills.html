@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#050816">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Bills · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/theme.js"></script>
+  <script src="/js/nav.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="brand">Sovereign Ops</div>
+    <h1 class="title">Bills</h1>
+    <div class="day-badge"><span id="bills-summary">loading…</span></div>
+  </header>
+
+  <div class="debt-summary-row">
+    <div class="debt-summary-card">
+      <div class="debt-summary-label">Monthly Total</div>
+      <div id="bills-total" class="debt-summary-value accent">—</div>
+      <div id="bills-count" class="debt-summary-sub">— bills</div>
+    </div>
+    <div class="debt-summary-card">
+      <div class="debt-summary-label">Remaining</div>
+      <div id="bills-remaining" class="debt-summary-value danger">—</div>
+      <div id="bills-paid-count" class="debt-summary-sub">— paid</div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-label">All Bills</span>
+    <button id="addBillBtn" class="dense-action">+ Add Bill</button>
+  </div>
+  <div id="bills-list"></div>
+
+  <footer>
+    <span class="v">v0.8.0 · bills</span>
+  </footer>
+
+  <!-- Pay Bill Modal -->
+  <div id="payBillModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title" id="payBillTitle">Pay Bill</div>
+      <div class="modal-sub" id="payBillSub">amount …</div>
+
+      <label class="field-label">Amount</label>
+      <input id="payBillAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" class="amount-input">
+
+      <label class="field-label">From Account</label>
+      <select id="payBillAccount" class="form-select"></select>
+
+      <label class="field-label">Date</label>
+      <input id="payBillDate" type="date" class="form-input">
+
+      <div class="modal-actions">
+        <button id="payBillCancel" class="ghost-btn">Cancel</button>
+        <button id="payBillConfirm" class="primary-btn">Mark Paid</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Bill Modal -->
+  <div id="addBillModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title">Add Recurring Bill</div>
+      <div class="modal-sub">Monthly bills like rent, internet, subscriptions</div>
+
+      <label class="field-label">Bill Name</label>
+      <input id="newBillName" type="text" maxlength="50" placeholder="e.g. Internet, Maid, Netflix" class="form-input">
+
+      <label class="field-label">Amount</label>
+      <input id="newBillAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" class="amount-input">
+
+      <label class="field-label">Due Day of Month (1-31)</label>
+      <input id="newBillDueDay" type="number" min="1" max="31" placeholder="1" class="form-input">
+
+      <label class="field-label">Default Account</label>
+      <select id="newBillAccount" class="form-select"></select>
+
+      <label class="field-label">Category</label>
+      <select id="newBillCategory" class="form-select"></select>
+
+      <div class="modal-actions">
+        <button id="addBillCancel" class="ghost-btn">Cancel</button>
+        <button id="addBillConfirm" class="primary-btn">Add Bill</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/store.js"></script>
+  <script src="/js/numbers.js"></script>
+  <script src="/js/bills.js"></script>
+</body>
+</html>
