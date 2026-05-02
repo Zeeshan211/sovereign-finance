@@ -1,4 +1,4 @@
-/* ─── Sovereign Finance · Debts Page v0.3.0 ─── */
+/* ─── Sovereign Finance · Debts Page v0.3.1 ─── */
 
 (function () {
   document.addEventListener('DOMContentLoaded', init);
@@ -17,59 +17,76 @@
 
   function paint() {
     const data = window.store.debts || { debts: [], total_owe: 0, total_owed: 0 };
-    const owe = data.debts.filter(d => d.kind === 'owe');
-    const owed = data.debts.filter(d => d.kind === 'owed');
+    const owe = data.debts.filter(d => d.kind === 'owe' && d.status === 'active');
+    const owed = data.debts.filter(d => d.kind === 'owed' && d.status === 'active');
+    const closed = data.debts.filter(d => d.status === 'closed');
 
-    setText('debts-total-owe', fmt(data.total_owe));
-    setText('debts-summary',
-      data.debts.length + ' total · ' + owe.length + ' owe · ' + owed.length + ' owed');
-    setText('debts-owe-count', owe.length + ' debts · ' + fmt(data.total_owe) + ' PKR');
-    setText('debts-owed-count', owed.length + ' · ' + fmt(data.total_owed) + ' PKR');
+    setText('debts-total-owe', fmt(data.total_owe) + ' PKR');
+    setText('debts-total-owed', fmt(data.total_owed) + ' PKR');
+    setText('debts-owe-count', owe.length + (owe.length === 1 ? ' debt' : ' debts'));
+    setText('debts-owed-count', owed.length + (owed.length === 1 ? ' person' : ' people'));
+    setText('debts-summary', closed.length + ' cleared · ' + (owe.length + owed.length) + ' active');
+    setText('debts-net-burden', 'Net: ' + fmt(data.total_owe - data.total_owed) + ' PKR');
 
     const oweList = document.getElementById('debts-owe-list');
     const owedList = document.getElementById('debts-owed-list');
+    const rcvHeader = document.getElementById('receivables-header');
     oweList.innerHTML = '';
     owedList.innerHTML = '';
 
-    if (owe.length === 0) oweList.innerHTML = '<div class="empty-state-inline">No debts. Mashallah.</div>';
-    else owe.sort((a, b) => (a.snowball_order || 99) - (b.snowball_order || 99))
-            .forEach(d => oweList.appendChild(buildRow(d)));
+    if (owe.length === 0) {
+      oweList.innerHTML = '<div class="empty-state-inline">No active debts. Mashallah.</div>';
+    } else {
+      owe.sort((a, b) => (a.snowball_order || 99) - (b.snowball_order || 99))
+         .forEach((d, idx) => oweList.appendChild(buildRow(d, idx === 0)));
+    }
 
-    if (owed.length === 0) owedList.innerHTML = '<div class="empty-state-inline">No receivables.</div>';
-    else owed.forEach(d => owedList.appendChild(buildRow(d)));
+    if (owed.length === 0) {
+      rcvHeader.style.display = 'none';
+      owedList.style.display = 'none';
+    } else {
+      rcvHeader.style.display = '';
+      owedList.style.display = '';
+      owed.forEach(d => owedList.appendChild(buildRow(d, false)));
+    }
   }
 
-  function buildRow(d) {
+  function buildRow(d, isFirst) {
     const original = d.original_amount || 0;
     const paid = d.paid_amount || 0;
     const remaining = original - paid;
     const pct = original > 0 ? Math.min(100, Math.round((paid / original) * 100)) : 0;
     const isReceivable = d.kind === 'owed';
+    const progressClass = pct >= 100 ? 'done' : (pct >= 50 ? 'half' : 'start');
 
     const row = document.createElement('div');
-    row.className = 'debt-row';
+    row.className = 'debt-row' + (isFirst ? ' debt-first' : '');
     row.innerHTML = `
       <div class="debt-header">
         <div class="debt-info">
-          <div class="debt-name">${esc(d.name)}</div>
-          <div class="debt-sub">${isReceivable ? '↘️ owes you' : '↗️ snowball #' + (d.snowball_order || '-')}</div>
+          <div class="debt-name">
+            ${isFirst ? '<span class="debt-pin">FIRST</span>' : ''}${esc(d.name)}
+          </div>
+          <div class="debt-sub">${isReceivable ? 'owes you' : 'snowball #' + (d.snowball_order || '-')}</div>
         </div>
         <div class="debt-amount ${isReceivable ? 'positive' : 'negative'}">
           ${fmt(remaining)}<span class="debt-currency">PKR</span>
         </div>
       </div>
       <div class="debt-progress">
-        <div class="debt-progress-bar" style="width:${pct}%"></div>
+        <div class="debt-progress-bar ${progressClass}" style="width:${pct}%"></div>
       </div>
       <div class="debt-meta">
         <span>paid ${fmt(paid)} of ${fmt(original)}</span>
         <span>${pct}%</span>
       </div>
       <div class="debt-actions">
-        <button class="debt-pay-btn" data-id="${d.id}">${isReceivable ? '💰 Receive' : '💸 Pay'}</button>
+        <button class="debt-pay-btn" data-action="pay">${isReceivable ? 'Receive' : 'Pay'}</button>
+        <button class="debt-close-btn" data-action="close">Mark Cleared</button>
       </div>
     `;
-    row.querySelector('.debt-pay-btn').addEventListener('click', () => openPayModal(d));
+    row.querySelector('[data-action="pay"]').addEventListener('click', () => openPayModal(d));
+    row.querySelector('[data-action="close"]').addEventListener('click', () => closeDebt(d));
     return row;
   }
 
@@ -142,7 +159,37 @@
       showToast('Network error', 'error');
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Confirm Payment';
+      btn.textContent = 'Confirm';
+    }
+  }
+
+  async function closeDebt(debt) {
+    if (!confirm('Mark "' + debt.name + '" as fully cleared? (You can reopen later if needed)')) return;
+    try {
+      const res = await fetch('/api/debts/' + encodeURIComponent(debt.id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: debt.name,
+          kind: debt.kind,
+          original_amount: debt.original_amount,
+          paid_amount: debt.original_amount,
+          snowball_order: debt.snowball_order,
+          due_date: debt.due_date,
+          status: 'closed',
+          notes: debt.notes
+        })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        showToast(data.error || 'Failed', 'error');
+      } else {
+        showToast('Cleared ✓', 'success');
+        await Promise.all([window.store.refreshDebts(), window.store.refreshBalances()]);
+        paint();
+      }
+    } catch (e) {
+      showToast('Network error', 'error');
     }
   }
 

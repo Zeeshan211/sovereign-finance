@@ -1,98 +1,101 @@
 
-/* ─── Debts Page v0.3.0 ─── */
-.debt-row {
+/* ─── Debts Page Polish v0.3.1 ─── */
+
+.debt-summary-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 8px 0 24px;
+}
+.debt-summary-card {
   background: var(--surface);
-  padding: 14px 16px;
+  padding: 16px 14px;
   border-radius: 12px;
-  margin-bottom: 12px;
   border: 1px solid var(--border);
+  text-align: center;
 }
-.debt-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 10px;
+.debt-summary-label {
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 600;
+  margin-bottom: 6px;
 }
-.debt-info { flex: 1; min-width: 0; }
-.debt-name { font-size: 16px; font-weight: 700; }
-.debt-sub { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
-.debt-amount { font-size: 17px; font-weight: 800; text-align: right; flex-shrink: 0; }
-.debt-amount.positive { color: var(--accent); }
-.debt-amount.negative { color: var(--danger); }
-.debt-currency { font-size: 11px; color: var(--text-dim); margin-left: 3px; font-weight: 500; }
-.debt-progress {
-  height: 4px;
-  background: var(--surface-2);
-  border-radius: 999px;
-  overflow: hidden;
-  margin: 4px 0 6px;
+.debt-summary-value {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
 }
-.debt-progress-bar {
-  height: 100%;
-  background: var(--accent);
-  transition: width 0.3s;
-}
-.debt-meta {
-  display: flex;
-  justify-content: space-between;
+.debt-summary-value.danger { color: var(--danger); }
+.debt-summary-value.accent { color: var(--accent); }
+.debt-summary-sub {
   font-size: 11px;
   color: var(--text-dim);
-  margin-bottom: 10px;
+  margin-top: 4px;
 }
-.debt-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
+
+.debt-row.debt-first {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2);
 }
-.debt-pay-btn {
+.debt-pin {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: var(--accent);
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.debt-progress-bar.start { background: var(--danger); }
+.debt-progress-bar.half { background: var(--warn); }
+.debt-progress-bar.done { background: var(--accent); }
+
+.debt-close-btn {
   flex: 1;
   padding: 9px 12px;
-  background: var(--surface-2);
-  color: var(--text);
-  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.15s, transform 0.1s;
+  transition: all 0.15s;
 }
-.debt-pay-btn:active { transform: scale(0.97); }
-.debt-pay-btn:hover { background: var(--accent); color: white; }
-
-.empty-state-inline {
-  text-align: center;
-  padding: 24px;
-  color: var(--text-dim);
-  font-size: 13px;
+.debt-close-btn:active { transform: scale(0.97); }
+.debt-close-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+.modal-actions {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 16px;
+  gap: 10px;
+  margin-top: 20px;
 }
-.modal {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 20px;
-  width: 100%;
-  max-width: 400px;
-  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.6);
+.modal-actions .ghost-btn,
+.modal-actions .primary-btn {
+  flex: 1;
+  margin-top: 0;
 }
-.modal-title {
-  font-size: 18px;
-  font-weight: 800;
-  margin-bottom: 4px;
-}
-.modal-sub {
-  font-size: 12px;
+.ghost-btn {
+  padding: 14px;
+  background: transparent;
   color: var(--text-dim);
-  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
 }
+.ghost-btn:active { transform: scale(0.98); }
+.ghost-btn:hover { color: var(--text); border-color: var(--text-dim); }

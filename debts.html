@@ -16,25 +16,32 @@
     <div class="day-badge"><span id="debts-summary">loading…</span></div>
   </header>
 
-  <section class="net-worth">
-    <div class="nw-label">You Owe</div>
-    <div id="debts-total-owe" class="nw-value negative">—<span class="nw-currency">PKR</span></div>
-  </section>
+  <div class="debt-summary-row">
+    <div class="debt-summary-card">
+      <div class="debt-summary-label">You Owe</div>
+      <div id="debts-total-owe" class="debt-summary-value danger">—</div>
+      <div id="debts-owe-count" class="debt-summary-sub">— debts</div>
+    </div>
+    <div class="debt-summary-card">
+      <div class="debt-summary-label">They Owe You</div>
+      <div id="debts-total-owed" class="debt-summary-value accent">—</div>
+      <div id="debts-owed-count" class="debt-summary-sub">— receivables</div>
+    </div>
+  </div>
 
   <div class="section-header">
-    <span class="section-label">Snowball Order · You Owe</span>
-    <span id="debts-owe-count" class="section-total liabilities">— debts</span>
+    <span class="section-label">Snowball Order</span>
+    <span class="section-total liabilities" id="debts-net-burden">—</span>
   </div>
   <div id="debts-owe-list"></div>
 
-  <div class="section-header">
-    <span class="section-label">Owed To You · Receivables</span>
-    <span id="debts-owed-count" class="section-total assets">—</span>
+  <div class="section-header" id="receivables-header">
+    <span class="section-label">Receivables</span>
   </div>
   <div id="debts-owed-list"></div>
 
   <footer>
-    <span class="v">v0.3.0 · debts</span>
+    <span class="v">v0.3.1 · debts</span>
   </footer>
 
   <div id="payModal" class="modal-backdrop" style="display:none;">
@@ -51,8 +58,10 @@
       <label class="field-label">Date</label>
       <input id="payDate" type="date" class="form-input">
 
-      <button id="payConfirm" class="primary-btn">Confirm Payment</button>
-      <button id="payCancel" class="danger-btn">Cancel</button>
+      <div class="modal-actions">
+        <button id="payCancel" class="ghost-btn">Cancel</button>
+        <button id="payConfirm" class="primary-btn">Confirm</button>
+      </div>
     </div>
   </div>
 
