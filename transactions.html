@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Transactions · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header>
+    <div class="brand">Sovereign Ops</div>
+    <h1 class="title">Transactions</h1>
+    <div class="day-badge"><span id="txCount">0 entries</span></div>
+  </header>
+
+  <input
+    id="searchInput"
+    type="search"
+    placeholder="Search account, category, notes…"
+    class="form-input search-input">
+
+  <div id="txList" class="tx-list"></div>
+
+  <div id="emptyState" class="empty-state">No transactions yet. Tap ➕ Add to log your first.</div>
+
+  <footer>
+    <span class="v">v0.0.5 · transactions</span>
+  </footer>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/" class="nav-item">
+        <div class="nav-emoji">🏠</div>
+        <div class="nav-text">Hub</div>
+      </a>
+      <a href="/add.html" class="nav-item">
+        <div class="nav-emoji">➕</div>
+        <div class="nav-text">Add</div>
+      </a>
+      <a href="/accounts.html" class="nav-item">
+        <div class="nav-emoji">🏦</div>
+        <div class="nav-text">Accounts</div>
+      </a>
+      <a href="/transactions.html" class="nav-item active">
+        <div class="nav-emoji">📋</div>
+        <div class="nav-text">List</div>
+      </a>
+    </div>
+  </nav>
+
+  <script src="/js/store.js"></script>
+  <script src="/js/transactions.js"></script>
+</body>
+</html>
