@@ -1406,3 +1406,120 @@ input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
+
+
+/* ═══════════════════════════════════════════════════════
+   DESKTOP LAYOUT FIX v0.6.4 — Mercury × Tremor pattern
+   2-column stats (not 4) · single-column lists · room for data
+   ═══════════════════════════════════════════════════════ */
+
+/* Override the over-cramped 4-column grid */
+@media (min-width: 768px) {
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+  .nav-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  /* Hero gets even more breathing room */
+  .net-worth {
+    padding: 56px 40px;
+  }
+  .nw-value {
+    font-size: 72px;
+    letter-spacing: -2.5px;
+  }
+  .nw-label {
+    font-size: 12px;
+    margin-bottom: 18px;
+  }
+
+  /* 2×2 stats grid instead of 1×4 — numbers never cramped */
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+  .stat-card {
+    padding: 24px 26px;
+  }
+  .stat-label {
+    font-size: 11px;
+    margin-bottom: 12px;
+  }
+  .stat-value {
+    font-size: 28px;
+    letter-spacing: -0.8px;
+  }
+
+  /* Nav grid 4 across is fine since they're navigation, not data */
+  .nav-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  /* Account / Debt lists — SINGLE column on desktop, never cropped */
+  #acc-assets-list,
+  #acc-liabilities-list,
+  #debts-owe-list,
+  #debts-owed-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  /* Account rows get more height + larger fonts */
+  .account-row {
+    padding: 20px 24px;
+  }
+  .account-name {
+    font-size: 16px;
+  }
+  .account-balance {
+    font-size: 20px;
+  }
+  .account-icon {
+    font-size: 30px;
+    width: 42px;
+  }
+
+  /* Debt summary cards 2-column, BIG */
+  .debt-summary-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
+  .debt-summary-card {
+    padding: 28px 24px;
+  }
+  .debt-summary-value {
+    font-size: 36px;
+    letter-spacing: -1.3px;
+  }
+
+  /* Modal stays compact + centered */
+  .modal {
+    max-width: 460px;
+  }
+}
+
+@media (min-width: 1600px) {
+  /* Ultrawide — go even bigger */
+  .nw-value {
+    font-size: 84px;
+  }
+  .stat-value {
+    font-size: 32px;
+  }
+  /* Stats can become 4 across now since cards are still wide enough */
+  .stats-row {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .stat-card {
+    padding: 22px;
+  }
+  .stat-value {
+    font-size: 26px;
+  }
+}
