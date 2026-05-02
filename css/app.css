@@ -1955,3 +1955,212 @@ html, body, body * {
   opacity: 1;
   transform: scale(1);
 }
+
+
+/* ─── Bills Page v0.8.0 ─── */
+
+.bill-row {
+  position: relative;
+}
+
+.bill-status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  margin-right: 8px;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 0 transparent;
+  transition: all var(--t-base) var(--smooth);
+}
+
+.bill-status-overdue .bill-status-dot {
+  background: var(--danger);
+  box-shadow: 0 0 12px var(--danger-glow);
+  animation: pulse-dot 1.6s var(--smooth) infinite;
+}
+.bill-status-due-today .bill-status-dot {
+  background: var(--warn);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+  animation: pulse-dot 2s var(--smooth) infinite;
+}
+.bill-status-due-soon .bill-status-dot {
+  background: var(--warn);
+}
+.bill-status-upcoming .bill-status-dot {
+  background: var(--info);
+}
+.bill-status-paid .bill-status-dot {
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.15); }
+}
+
+.bill-row.bill-status-overdue {
+  border-color: rgba(244, 63, 94, 0.4);
+  box-shadow: var(--shadow-md), 0 0 28px rgba(244, 63, 94, 0.2);
+}
+.bill-row.bill-status-overdue::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--danger), transparent);
+}
+.bill-row.bill-status-paid {
+  opacity: 0.65;
+}
+.bill-row.bill-status-paid .debt-amount {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+
+.bill-status-label {
+  text-transform: uppercase;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+.bill-status-overdue .bill-status-label {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.bill-status-due-today .bill-status-label,
+.bill-status-due-soon .bill-status-label {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.bill-status-paid .bill-status-label {
+  background: var(--accent-soft);
+  color: var(--accent-bright);
+}
+
+#addBillBtn {
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+}
+
+
+/* ═══════════════════════════════════════════════════════
+   THEME-AWARE GRADIENT OVERRIDES v0.7.1
+   Light themes need dark gradient text, dark themes need light.
+   Fixes invisible-text bug on Daylight theme.
+   ═══════════════════════════════════════════════════════ */
+
+/* DAYLIGHT theme: titles use dark gradient instead of white */
+[data-theme="daylight"] .title {
+  background: linear-gradient(180deg, #0f172a 0%, #475569 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* DAYLIGHT: hero net worth uses theme accent gradient (already correct via --grad-mint) */
+/* But ensure the currency span stays readable */
+[data-theme="daylight"] .nw-currency {
+  -webkit-text-fill-color: var(--text-dim);
+  color: var(--text-dim);
+}
+
+/* DAYLIGHT: noise overlay too dark on white — fade it */
+[data-theme="daylight"] body::before {
+  opacity: 0.15;
+  mix-blend-mode: multiply;
+}
+
+/* DAYLIGHT: bottom nav and modal need lighter glass */
+[data-theme="daylight"] .bottom-nav,
+[data-theme="daylight"] .toast {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(15, 23, 42, 0.10);
+}
+
+/* DAYLIGHT: form inputs need visible borders */
+[data-theme="daylight"] .form-input,
+[data-theme="daylight"] .form-select,
+[data-theme="daylight"] .amount-input {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.15);
+}
+
+/* DAYLIGHT: nav active line stays bright */
+[data-theme="daylight"] .nav-item.active::before,
+[data-theme="daylight"] .desktop-nav-item.active {
+  color: var(--accent-deep);
+}
+
+/* DAYLIGHT: dense table header needs darker contrast */
+[data-theme="daylight"] .dense-th {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+/* OBSIDIAN theme: ensure title gradient stays bright */
+[data-theme="obsidian"] .title {
+  background: linear-gradient(180deg, #ffffff 0%, #a3a3a3 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* AURORA theme: title in violet-light gradient */
+[data-theme="aurora"] .title {
+  background: linear-gradient(180deg, #f5f3ff 0%, #c4b5fd 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* SLATE theme: title in slate-bright gradient */
+[data-theme="slate"] .title {
+  background: linear-gradient(180deg, #f1f5f9 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* All themes: ensure gradient hero numbers stay visible */
+/* The .nw-value.positive uses --grad-mint which is per-theme — already correct */
+/* Just need to make sure --grad-rose works on light theme too */
+[data-theme="daylight"] {
+  --grad-rose: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+}
+
+/* Stat cards on Daylight need slightly more border definition */
+[data-theme="daylight"] .stat-card,
+[data-theme="daylight"] .nav-card,
+[data-theme="daylight"] .account-row,
+[data-theme="daylight"] .debt-row,
+[data-theme="daylight"] .debt-summary-card {
+  border-color: rgba(15, 23, 42, 0.10);
+}
+
+/* Fix the global transition rule that was causing fade on theme switch */
+/* The original rule transitions ALL properties on every element — too heavy */
+/* Replace with targeted properties only */
+html, body, body * {
+  transition:
+    background-color 0.4s var(--smooth),
+    border-color 0.4s var(--smooth),
+    color 0.4s var(--smooth);
+}
+
+/* Things that should NOT fade on theme switch (keep their own animations) */
+.toast,
+.modal,
+.modal-backdrop,
+.theme-panel,
+.theme-switcher,
+.debt-progress-bar {
+  transition: all 0.32s var(--spring);
+}
