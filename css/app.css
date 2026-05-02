@@ -2390,3 +2390,52 @@ html, body, body * {
 .bill-status-due-soon-dot { background: var(--warn); }
 .bill-status-upcoming-dot { background: var(--info); }
 .bill-status-paid-dot { background: var(--accent); }
+
+
+
+
+
+/* ═══════════════════════════════════════════════════════
+   SIDEBAR POSITION FIX v0.7.4
+   Stop sidebar from overlapping content.
+   Pin sidebar to left: 24px ALWAYS. Body always reserves 296px.
+   ═══════════════════════════════════════════════════════ */
+
+@media (min-width: 1200px) {
+  /* Sidebar pinned to left edge, NO calc trickery */
+  .desktop-nav {
+    left: 24px !important;
+    width: 248px !important;
+    top: 32px !important;
+    max-height: calc(100vh - 64px);
+  }
+
+  /* Body always leaves 296px on the left for sidebar (24 + 248 + 24 gap) */
+  body {
+    padding-left: 296px !important;
+    padding-right: 32px !important;
+    max-width: none !important;
+  }
+}
+
+@media (min-width: 1600px) {
+  .desktop-nav {
+    width: 264px !important;
+    left: 32px !important;
+  }
+  body {
+    padding-left: 320px !important;
+    padding-right: 48px !important;
+  }
+}
+
+@media (min-width: 1920px) {
+  body {
+    padding-left: 340px !important;
+    padding-right: 56px !important;
+  }
+  .desktop-nav {
+    left: 40px !important;
+  }
+}
+
