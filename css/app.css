@@ -2269,3 +2269,124 @@ html, body, body * {
 /* ─── HUB-SPECIFIC LAYOUT ─── */
 /* When index.html wraps top section in .hub-top-grid we get side-by-side */
 /* Without it (current pages) it stacks normally — backward-compatible */
+
+
+
+
+
+/* ═══════════════════════════════════════════════════════
+   FULL-SCREEN DASHBOARD v0.7.3
+   ═══════════════════════════════════════════════════════ */
+
+@media (min-width: 1200px) {
+  body {
+    max-width: 1800px;
+    padding: 32px 48px 48px 308px;
+  }
+}
+
+@media (min-width: 1600px) {
+  body {
+    max-width: none;
+    padding-right: 56px;
+  }
+}
+
+/* ─── Hub bottom grid (Recent Tx + Top Debts + Due Soon) ─── */
+.hub-bottom-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+@media (min-width: 1200px) {
+  .hub-bottom-grid {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 20px;
+  }
+  .hub-side-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+.hub-panel {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px 20px 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.hub-panel .section-header {
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+/* Mini rows for compact dashboard panels */
+.mini-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  margin-bottom: 6px;
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  color: inherit;
+  transition: all var(--t-base) var(--spring);
+}
+.mini-row:hover {
+  border-color: var(--border-strong);
+  transform: translateX(2px);
+}
+.mini-row:last-child { margin-bottom: 0; }
+.mini-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+.mini-row-name {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+.mini-row-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+.mini-row-amount {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.2px;
+}
+.mini-row-amount.negative { color: var(--text); }
+.mini-row-amount.positive { color: var(--accent-bright); }
+.mini-row-sub {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+/* Bills status dot variations for hub mini-rows */
+.bill-status-overdue-dot {
+  background: var(--danger);
+  box-shadow: 0 0 8px var(--danger-glow);
+}
+.bill-status-due-today-dot {
+  background: var(--warn);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+}
+.bill-status-due-soon-dot { background: var(--warn); }
+.bill-status-upcoming-dot { background: var(--info); }
+.bill-status-paid-dot { background: var(--accent); }

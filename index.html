@@ -18,31 +18,31 @@
     <div class="day-badge"><span class="pulse"></span>Day <span id="dayNum">—</span> of 90</div>
   </header>
 
-  <div class="hub-top-grid"></div>
-  <section class="net-worth">
-    <div class="nw-label">Net Worth</div>
-    <div id="hub-net-worth" class="nw-value positive counter">—<span class="nw-currency">PKR</span></div>
-  </section>
+  <div class="hub-top-grid">
+    <section class="net-worth">
+      <div class="nw-label">Net Worth</div>
+      <div id="hub-net-worth" class="nw-value positive counter">—<span class="nw-currency">PKR</span></div>
+    </section>
 
-  <div class="stats-row">
-    <div class="stat-card">
-      <div class="stat-label">Liquid</div>
-      <div id="hub-liquid" class="stat-value accent counter">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">CC Outstanding</div>
-      <div id="hub-cc" class="stat-value danger counter">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Personal Debts</div>
-      <div id="hub-debts" class="stat-value warn counter">—</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">True Burden</div>
-      <div id="hub-burden" class="stat-value danger counter">—</div>
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Liquid</div>
+        <div id="hub-liquid" class="stat-value accent counter">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">CC Outstanding</div>
+        <div id="hub-cc" class="stat-value danger counter">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Personal Debts</div>
+        <div id="hub-debts" class="stat-value warn counter">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">True Burden</div>
+        <div id="hub-burden" class="stat-value danger counter">—</div>
+      </div>
     </div>
   </div>
-    </div>
 
   <div class="section-header">
     <span class="section-label">Quick Access</span>
@@ -64,80 +64,45 @@
       <div class="nav-label">Debts</div>
       <div class="nav-sub">snowball</div>
     </a>
-    <a href="/add.html" class="nav-card">
-      <div class="nav-icon">➕</div>
-      <div class="nav-label">Add</div>
-      <div class="nav-sub">log entry</div>
+    <a href="/bills.html" class="nav-card">
+      <div class="nav-icon">📅</div>
+      <div class="nav-label">Bills</div>
+      <div class="nav-sub">recurring</div>
     </a>
+  </div>
+
+  <div class="hub-bottom-grid">
+    <div class="hub-panel">
+      <div class="section-header">
+        <span class="section-label">Recent Transactions</span>
+        <a href="/transactions.html" class="dense-action">View All →</a>
+      </div>
+      <div id="hub-recent-tx"></div>
+    </div>
+
+    <div class="hub-side-stack">
+      <div class="hub-panel">
+        <div class="section-header">
+          <span class="section-label">Top Debts</span>
+          <a href="/debts.html" class="dense-action">All →</a>
+        </div>
+        <div id="hub-top-debts"></div>
+      </div>
+
+      <div class="hub-panel">
+        <div class="section-header">
+          <span class="section-label">Due Soon</span>
+          <a href="/bills.html" class="dense-action">All →</a>
+        </div>
+        <div id="hub-due-soon"></div>
+      </div>
+    </div>
   </div>
 
   <footer>
     Built one baby step at a time.<br>
-    <span class="v">v0.5.0 · sovereign-finance</span>
+    <span class="v">v0.7.3 · sovereign-finance</span>
   </footer>
-
-  <aside class="desktop-nav">
-    <a href="/" class="desktop-nav-item active">
-      <span class="nav-emoji">🏠</span>
-      <span class="nav-text">Hub</span>
-    </a>
-    <a href="/add.html" class="desktop-nav-item">
-      <span class="nav-emoji">➕</span>
-      <span class="nav-text">Add Transaction</span>
-    </a>
-    <a href="/transactions.html" class="desktop-nav-item">
-      <span class="nav-emoji">💸</span>
-      <span class="nav-text">Transactions</span>
-    </a>
-    <a href="/accounts.html" class="desktop-nav-item">
-      <span class="nav-emoji">🏦</span>
-      <span class="nav-text">Accounts</span>
-    </a>
-    <a href="/debts.html" class="desktop-nav-item">
-      <span class="nav-emoji">💳</span>
-      <span class="nav-text">Debts</span>
-    </a>
-  </aside>
-
-  <nav class="bottom-nav">
-    <div class="bottom-nav-inner">
-      <a href="/" class="nav-item active">
-        <div class="nav-emoji">🏠</div>
-        <div class="nav-text">Hub</div>
-      </a>
-      <a href="/add.html" class="nav-item">
-        <div class="nav-emoji">➕</div>
-        <div class="nav-text">Add</div>
-      </a>
-      <a href="/accounts.html" class="nav-item">
-        <div class="nav-emoji">🏦</div>
-        <div class="nav-text">Accounts</div>
-      </a>
-      <a href="/debts.html" class="nav-item">
-        <div class="nav-emoji">💳</div>
-        <div class="nav-text">Debts</div>
-      </a>
-    </div>
-  </nav>
-    <div class="bottom-nav-inner">
-      <a href="/" class="nav-item active">
-        <div class="nav-emoji">🏠</div>
-        <div class="nav-text">Hub</div>
-      </a>
-      <a href="/add.html" class="nav-item">
-        <div class="nav-emoji">➕</div>
-        <div class="nav-text">Add</div>
-      </a>
-      <a href="/accounts.html" class="nav-item">
-        <div class="nav-emoji">🏦</div>
-        <div class="nav-text">Accounts</div>
-      </a>
-      <a href="/debts.html" class="nav-item">
-        <div class="nav-emoji">💳</div>
-        <div class="nav-text">Debts</div>
-      </a>
-    </div>
-  </nav>
 
   <script src="/js/app.js"></script>
   <script src="/js/store.js"></script>
