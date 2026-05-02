@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#050816">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Insights · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/theme.js"></script>
+  <script src="/js/nav.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="brand">Sovereign Ops</div>
+    <h1 class="title">Insights</h1>
+    <div class="day-badge"><span id="insights-summary">loading…</span></div>
+  </header>
+
+  <div class="view-controls">
+    <div style="flex: 1; font-size: 13px; color: var(--text-dim); padding: 12px;">
+      Showing data for last <span id="period-label">30</span> days
+    </div>
+    <div class="view-toggle">
+      <button class="view-btn period-btn" data-days="7">7d</button>
+      <button class="view-btn period-btn active" data-days="30">30d</button>
+      <button class="view-btn period-btn" data-days="90">90d</button>
+    </div>
+  </div>
+
+  <div class="hub-top-grid">
+    <section class="net-worth">
+      <div class="nw-label">Net Cash Flow</div>
+      <div id="ins-net" class="nw-value positive counter">—<span class="nw-currency">PKR</span></div>
+    </section>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Income</div>
+        <div id="ins-income" class="stat-value accent counter">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Expense</div>
+        <div id="ins-expense" class="stat-value danger counter">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Daily Avg</div>
+        <div id="ins-avg" class="stat-value warn counter">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Top Category</div>
+        <div id="ins-top-cat" class="stat-value" style="font-size: 14px;">—</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hub-bottom-grid">
+    <div class="hub-panel">
+      <div class="section-header"><span class="section-label">Spending by Category</span></div>
+      <div id="ins-cat-list"></div>
+    </div>
+    <div class="hub-panel">
+      <div class="section-header"><span class="section-label">By Account</span></div>
+      <div id="ins-acc-list"></div>
+    </div>
+  </div>
+
+  <div class="section-header"><span class="section-label">Daily Trend</span></div>
+  <div id="ins-trend-chart" class="hub-panel" style="padding: 20px;"></div>
+
+  <footer><span class="v">v0.9.0 · insights</span></footer>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/store.js"></script>
+  <script src="/js/numbers.js"></script>
+  <script src="/js/insights.js"></script>
+</body>
+</html>
