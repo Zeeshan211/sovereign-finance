@@ -1,5 +1,5 @@
-/* ─── Sovereign Finance · Data Store v0.0.5 ─── */
-/* localStorage layer. Will be swapped for Cloudflare D1 in v0.0.6 */
+/* ─── Sovereign Finance · Data Store v0.0.6 ─── */
+/* localStorage layer with realistic bank icons matching D1 */
 
 (function () {
   const STORAGE_KEY = 'sov_transactions_v1';
@@ -7,16 +7,16 @@
 
   const ACCOUNTS = [
     { id: 'cash',     name: 'Cash',         icon: '💵', kind: 'asset' },
-    { id: 'jazzcash', name: 'JazzCash',     icon: '🟠', kind: 'asset' },
-    { id: 'easypaisa',name: 'Easypaisa',    icon: '🟢', kind: 'asset' },
+    { id: 'jazzcash', name: 'JazzCash',     icon: '📱', kind: 'asset' },
+    { id: 'easypaisa',name: 'Easypaisa',    icon: '📲', kind: 'asset' },
     { id: 'ubl',      name: 'UBL',          icon: '🏦', kind: 'asset' },
-    { id: 'meezan',   name: 'Meezan',       icon: '⭐', kind: 'asset' },
-    { id: 'mashreq',  name: 'Mashreq Bank', icon: '🟦', kind: 'asset' },
-    { id: 'js',       name: 'JS Bank',      icon: '🟪', kind: 'asset' },
-    { id: 'nayapay',  name: 'Naya Pay',     icon: '💜', kind: 'asset' },
-    { id: 'alfalah',  name: 'Bank Alfalah', icon: '🟡', kind: 'asset' },
+    { id: 'meezan',   name: 'Meezan',       icon: '🕌', kind: 'asset' },
+    { id: 'mashreq',  name: 'Mashreq Bank', icon: '🏛', kind: 'asset' },
+    { id: 'js',       name: 'JS Bank',      icon: '💼', kind: 'asset' },
+    { id: 'nayapay',  name: 'Naya Pay',     icon: '💠', kind: 'asset' },
+    { id: 'alfalah',  name: 'Bank Alfalah', icon: '🏢', kind: 'asset' },
     { id: 'ublprep',  name: 'UBL Prepaid',  icon: '💳', kind: 'asset' },
-    { id: 'cc',       name: 'Alfalah CC',   icon: '💳', kind: 'liability' }
+    { id: 'cc',       name: 'Alfalah CC',   icon: '🪪', kind: 'liability' }
   ];
 
   const CATEGORIES = [
