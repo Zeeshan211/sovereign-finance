@@ -1,35 +1,121 @@
-/* ─── Sovereign Finance · Transactions List v0.6.0 ─── */
-/* 3 view modes: compact, standard (default), dense (sheet-like) */
+/* ─── Sovereign Finance · Transactions List v0.9.0 with filters ─── */
 
 (function () {
   document.addEventListener('DOMContentLoaded', init);
 
   const VIEW_KEY = 'sov_tx_view_v1';
+  const FILTERS_KEY = 'sov_tx_filters_v1';
+  let filters = loadFilters();
 
   async function init() {
-    const savedView = localStorage.getItem(VIEW_KEY) ||
-                      (window.innerWidth >= 900 ? 'dense' : 'standard');
+    const savedView = localStorage.getItem(VIEW_KEY) || (window.innerWidth >= 900 ? 'dense' : 'standard');
     setView(savedView);
-
     renderList();
     await window.store.getAll();
+    populateFilterDropdowns();
+    paintFilterValues();
     renderList();
     attachSearch();
     attachViewToggle();
+    attachFilters();
+  }
+
+  function loadFilters() {
+    try { return JSON.parse(localStorage.getItem(FILTERS_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function saveFilters() { try { localStorage.setItem(FILTERS_KEY, JSON.stringify(filters)); } catch (e) {} }
+  function activeCount() { return Object.values(filters).filter(v => v).length; }
+
+  function populateFilterDropdowns() {
+    const accSel = document.getElementById('filterAccount');
+    const catSel = document.getElementById('filterCategory');
+    if (!accSel || !catSel) return;
+    window.store.accounts.forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.id;
+      opt.textContent = a.icon + '  ' + a.name;
+      accSel.appendChild(opt);
+    });
+    window.store.categories.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.icon + '  ' + c.name;
+      catSel.appendChild(opt);
+    });
+  }
+
+  function paintFilterValues() {
+    const map = {
+      filterFrom: 'from', filterTo: 'to', filterType: 'type',
+      filterAccount: 'account', filterCategory: 'category',
+      filterMin: 'min', filterMax: 'max'
+    };
+    Object.keys(map).forEach(id => {
+      const el = document.getElementById(id);
+      if (el && filters[map[id]]) el.value = filters[map[id]];
+    });
+    updateBadge();
+  }
+
+  function updateBadge() {
+    const badge = document.getElementById('filterActiveBadge');
+    const n = activeCount();
+    if (n > 0) { badge.style.display = 'inline-block'; badge.textContent = n; }
+    else { badge.style.display = 'none'; }
+  }
+
+  function attachFilters() {
+    const ids = ['filterFrom', 'filterTo', 'filterType', 'filterAccount', 'filterCategory', 'filterMin', 'filterMax'];
+    const map = {
+      filterFrom: 'from', filterTo: 'to', filterType: 'type',
+      filterAccount: 'account', filterCategory: 'category',
+      filterMin: 'min', filterMax: 'max'
+    };
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('change', () => {
+        filters[map[id]] = el.value || null;
+        saveFilters();
+        updateBadge();
+        renderList(document.getElementById('searchInput').value);
+      });
+    });
+    document.getElementById('filterClear').addEventListener('click', () => {
+      filters = {};
+      saveFilters();
+      paintFilterValues();
+      ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      updateBadge();
+      renderList(document.getElementById('searchInput').value);
+    });
+  }
+
+  function applyFilters(rows) {
+    return rows.filter(tx => {
+      if (filters.from && tx.date < filters.from) return false;
+      if (filters.to && tx.date > filters.to) return false;
+      if (filters.type && tx.type !== filters.type) return false;
+      if (filters.account && tx.accountId !== filters.account) return false;
+      if (filters.category && tx.categoryId !== filters.category) return false;
+      if (filters.min && tx.amount < parseFloat(filters.min)) return false;
+      if (filters.max && tx.amount > parseFloat(filters.max)) return false;
+      return true;
+    });
   }
 
   function setView(view) {
     const list = document.getElementById('txList');
     if (!list) return;
     list.className = 'tx-list view-' + view;
-    document.querySelectorAll('.view-btn').forEach(b => {
+    document.querySelectorAll('.view-btn[data-view]').forEach(b => {
       b.classList.toggle('active', b.dataset.view === view);
     });
     localStorage.setItem(VIEW_KEY, view);
   }
 
   function attachViewToggle() {
-    document.querySelectorAll('.view-btn').forEach(btn => {
+    document.querySelectorAll('.view-btn[data-view]').forEach(btn => {
       btn.addEventListener('click', () => {
         setView(btn.dataset.view);
         renderList(document.getElementById('searchInput').value);
@@ -37,9 +123,7 @@
     });
   }
 
-  function getCurrentView() {
-    return localStorage.getItem(VIEW_KEY) || 'standard';
-  }
+  function getCurrentView() { return localStorage.getItem(VIEW_KEY) || 'standard'; }
 
   function renderList(filterText) {
     const list = document.getElementById('txList');
@@ -49,41 +133,39 @@
 
     const view = getCurrentView();
     const all = window.store.getCachedAll();
-    const filter = (filterText || '').toLowerCase().trim();
+    let working = applyFilters(all);
 
-    const filtered = filter
-      ? all.filter(tx => {
-          const acc = window.store.getAccount(tx.accountId).name.toLowerCase();
-          const cat = window.store.getCategory(tx.categoryId).name.toLowerCase();
-          const notes = (tx.notes || '').toLowerCase();
-          const id = (tx.id || '').toLowerCase();
-          return acc.includes(filter) || cat.includes(filter) || notes.includes(filter) || id.includes(filter);
-        })
-      : all;
+    const ft = (filterText || '').toLowerCase().trim();
+    if (ft) {
+      working = working.filter(tx => {
+        const acc = window.store.getAccount(tx.accountId).name.toLowerCase();
+        const cat = window.store.getCategory(tx.categoryId).name.toLowerCase();
+        const notes = (tx.notes || '').toLowerCase();
+        const id = (tx.id || '').toLowerCase();
+        return acc.includes(ft) || cat.includes(ft) || notes.includes(ft) || id.includes(ft);
+      });
+    }
 
-    countEl.textContent = filtered.length + (filtered.length === 1 ? ' entry' : ' entries');
+    countEl.textContent = working.length + (working.length === 1 ? ' entry' : ' entries');
 
-    if (filtered.length === 0) {
+    if (working.length === 0) {
       list.innerHTML = '';
       empty.style.display = 'block';
-      empty.textContent = filter ? 'No matches.' : 'No transactions yet. Tap ➕ Add to log your first.';
+      empty.textContent = (ft || activeCount() > 0) ? 'No matches.' : 'No transactions yet.';
       return;
     }
     empty.style.display = 'none';
-
     list.innerHTML = '';
 
     if (view === 'dense') {
-      list.appendChild(buildDenseTable(filtered));
+      list.appendChild(buildDenseTable(working));
     } else {
-      // Compact + Standard share grouping by date
       const groups = {};
-      filtered.forEach(tx => {
+      working.forEach(tx => {
         const label = formatDateLabel(tx.date);
         if (!groups[label]) groups[label] = [];
         groups[label].push(tx);
       });
-
       Object.keys(groups).forEach(label => {
         const header = document.createElement('div');
         header.className = 'tx-date-header';
@@ -108,14 +190,11 @@
       link.innerHTML = `
         <div class="tx-left">
           <div class="tx-icon">${cat.icon}</div>
-          <div class="tx-info">
-            <div class="tx-name">${esc(cat.name)}</div>
-          </div>
+          <div class="tx-info"><div class="tx-name">${esc(cat.name)}</div></div>
         </div>
         <div class="tx-amount ${colorClass}">${sign} ${fmt(tx.amount)}<span class="tx-currency">PKR</span></div>
       `;
     } else {
-      // Standard
       link.innerHTML = `
         <div class="tx-left">
           <div class="tx-icon">${cat.icon}</div>
@@ -133,27 +212,18 @@
   function buildDenseTable(rows) {
     const wrap = document.createElement('div');
     wrap.className = 'dense-wrap';
-
     const table = document.createElement('table');
     table.className = 'dense-table';
     table.innerHTML = `
-      <thead>
-        <tr>
-          <th class="dense-th">Date</th>
-          <th class="dense-th">Type</th>
-          <th class="dense-th align-right">Amount</th>
-          <th class="dense-th">Account</th>
-          <th class="dense-th">Category</th>
-          <th class="dense-th">Notes</th>
-          <th class="dense-th">TX ID</th>
-          <th class="dense-th">Created</th>
-          <th class="dense-th align-right">Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    `;
-
+      <thead><tr>
+        <th class="dense-th">Date</th><th class="dense-th">Type</th>
+        <th class="dense-th align-right">Amount</th><th class="dense-th">Account</th>
+        <th class="dense-th">Category</th><th class="dense-th">Notes</th>
+        <th class="dense-th">TX ID</th><th class="dense-th">Created</th>
+        <th class="dense-th align-right">Actions</th>
+      </tr></thead><tbody></tbody>`;
     const tbody = table.querySelector('tbody');
+
     rows.forEach(tx => {
       const acc = window.store.getAccount(tx.accountId);
       const cat = window.store.getCategory(tx.categoryId);
@@ -176,14 +246,11 @@
         <td class="dense-td dense-notes">${esc(tx.notes || '')}</td>
         <td class="dense-td"><code class="tx-id-code" data-id="${esc(tx.id)}" title="Click to copy">${esc(tx.id.slice(-8))}</code></td>
         <td class="dense-td dense-time">${formatTime(tx.createdAt)}</td>
-        <td class="dense-td align-right">
-          <a href="/edit.html?id=${encodeURIComponent(tx.id)}" class="dense-action">Edit</a>
-        </td>
+        <td class="dense-td align-right"><a href="/edit.html?id=${encodeURIComponent(tx.id)}" class="dense-action">Edit</a></td>
       `;
       tbody.appendChild(tr);
     });
 
-    // Copy TX ID on click
     table.addEventListener('click', (e) => {
       const code = e.target.closest('.tx-id-code');
       if (code) {
@@ -205,21 +272,15 @@
     const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     if (iso === today) return 'Today';
     if (iso === yest) return 'Yesterday';
-    const d = new Date(iso + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   function formatTime(iso) {
     if (!iso) return '—';
-    const d = new Date(iso);
-    return d.toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+    return new Date(iso).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
   }
 
-  function esc(s) {
-    return String(s || '').replace(/[&<>"']/g, c => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-    }[c]));
-  }
+  function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
 
   function attachSearch() {
     const input = document.getElementById('searchInput');

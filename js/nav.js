@@ -1,6 +1,4 @@
-/* ─── Sovereign Finance · Dynamic Navigation v0.8.0 ─── */
-/* Single source of truth for sidebar AND bottom nav.
-   Add a new page = add ONE entry here. Done. */
+/* ─── Sovereign Finance · Dynamic Navigation v0.9.0 ─── */
 
 (function () {
   const NAV_ITEMS = [
@@ -9,20 +7,20 @@
     { href: '/transactions.html', emoji: '💸', short: 'Tx',       long: 'Transactions' },
     { href: '/accounts.html',     emoji: '🏦', short: 'Accounts', long: 'Accounts' },
     { href: '/debts.html',        emoji: '💳', short: 'Debts',    long: 'Debts' },
-    { href: '/bills.html',        emoji: '📅', short: 'Bills',    long: 'Bills' }
+    { href: '/bills.html',        emoji: '📅', short: 'Bills',    long: 'Bills' },
+    { href: '/salary.html',       emoji: '💼', short: 'Salary',   long: 'Salary' },
+    { href: '/insights.html',     emoji: '📊', short: 'Insights', long: 'Insights' },
+    { href: '/audit.html',        emoji: '📜', short: 'Audit',    long: 'Audit Log' }
   ];
 
-  const BOTTOM_NAV_LIMIT = 5; // first N items show on mobile bottom nav
+  const BOTTOM_NAV_LIMIT = 5;
 
-  function currentPath() {
-    return window.location.pathname.replace(/\/index\.html$/, '/');
-  }
+  function currentPath() { return window.location.pathname.replace(/\/index\.html$/, '/'); }
 
   function isActive(item) {
     const path = currentPath();
     if (item.matchExact) return path === item.href;
     if (item.href === '/') return path === '/';
-    // /edit.html should highlight Transactions
     if (path === '/edit.html' && item.href === '/transactions.html') return true;
     return path === item.href;
   }
@@ -30,7 +28,6 @@
   function buildSidebar() {
     const old = document.querySelector('.desktop-nav');
     if (old) old.remove();
-
     const aside = document.createElement('aside');
     aside.className = 'desktop-nav';
     NAV_ITEMS.forEach(item => {
@@ -46,12 +43,10 @@
   function buildBottomNav() {
     const old = document.querySelector('.bottom-nav');
     if (old) old.remove();
-
     const nav = document.createElement('nav');
     nav.className = 'bottom-nav';
     const inner = document.createElement('div');
     inner.className = 'bottom-nav-inner';
-
     NAV_ITEMS.slice(0, BOTTOM_NAV_LIMIT).forEach(item => {
       const a = document.createElement('a');
       a.href = item.href;
@@ -63,16 +58,10 @@
     document.body.appendChild(nav);
   }
 
-  function build() {
-    buildSidebar();
-    buildBottomNav();
-  }
+  function build() { buildSidebar(); buildBottomNav(); }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', build);
-  } else {
-    build();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', build);
+  else build();
 
   window.nav = { items: NAV_ITEMS.slice(), refresh: build };
 })();
