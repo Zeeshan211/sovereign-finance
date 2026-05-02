@@ -16,18 +16,26 @@
     <div class="day-badge"><span id="txCount">0 entries</span></div>
   </header>
 
-  <input
-    id="searchInput"
-    type="search"
-    placeholder="Search account, category, notes…"
-    class="form-input search-input">
+  <div class="view-controls">
+    <input
+      id="searchInput"
+      type="search"
+      placeholder="Search account, category, notes, TX ID…"
+      class="form-input search-input">
 
-  <div id="txList" class="tx-list"></div>
+    <div class="view-toggle">
+      <button class="view-btn" data-view="compact" title="Compact">▤</button>
+      <button class="view-btn active" data-view="standard" title="Standard">☰</button>
+      <button class="view-btn" data-view="dense" title="Dense">▦</button>
+    </div>
+  </div>
+
+  <div id="txList" class="tx-list view-standard"></div>
 
   <div id="emptyState" class="empty-state">No transactions yet. Tap ➕ Add to log your first.</div>
 
   <footer>
-    <span class="v">v0.5.0 · transactions</span>
+    <span class="v">v0.6.0 · transactions</span>
   </footer>
 
   <nav class="bottom-nav">
