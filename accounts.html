@@ -13,147 +13,28 @@
   <header>
     <div class="brand">Sovereign Ops</div>
     <h1 class="title">Accounts</h1>
-    <div class="day-badge">11 active · Day <span id="dayNum">—</span> of 90</div>
+    <div class="day-badge"><span id="acc-day-count">— active</span> · Day <span id="dayNum">—</span> of 90</div>
   </header>
 
   <section class="net-worth">
     <div class="nw-label">Net Worth</div>
-    <div class="nw-value positive">75,048<span class="nw-currency">PKR</span></div>
+    <div id="acc-net-worth" class="nw-value positive">—<span class="nw-currency">PKR</span></div>
   </section>
 
   <div class="section-header">
-    <span class="section-label">Assets · 10</span>
-    <span class="section-total assets">133,448 PKR</span>
+    <span id="acc-assets-count" class="section-label">Assets</span>
+    <span id="acc-assets-total" class="section-total assets">—</span>
   </div>
-
-  <div class="account-row">
-    <div class="account-left">
-      <div class="account-icon">💵</div>
-      <div class="account-info">
-        <div class="account-name">Cash</div>
-        <div class="account-kind">In hand</div>
-      </div>
-    </div>
-    <div class="account-balance zero">0<span class="balance-currency">PKR</span></div>
-  </div>
-
-  <div class="account-row">
-    <div class="account-left">
-      <div class="account-icon">📱</div>
-      <div class="account-info">
-        <div class="account-name">JazzCash</div>
-        <div class="account-kind">Mobile wallet</div>
-      </div>
-    </div>
-    <div class="account-balance zero">0<span class="balance-currency">PKR</span></div>
-  </div>
-
-  <div class="account-row">
-    <div class="account-left">
-      <div class="account-icon">📲</div>
-      <div class="account-info">
-        <div class="account-name">Easypaisa</div>
-        <div class="account-kind">Mobile wallet</div>
-      </div>
-    </div>
-    <div class="account-balance zero">0<span class="balance-currency">PKR</span></div>
-  </div>
-
-  <div class="account-row">
-    <div class="account-left">
-      <div class="account-icon">🏦</div>
-      <div class="account-info">
-        <div class="account-name">UBL</div>
-        <div class="account-kind">Bank account</div>
-      </div>
-    </div>
-    <div class="account-balance positive">97<span class="balance-currency">PKR</span></div>
-  </div>
-
-  <div class="account-row">
-    <div class="account-left">
-      <div class="account-icon">🕌</div>
-      <div class="account-info">
-        <div class="account-name">Meezan</div>
-        <div class="account-kind">Salary account</div>
-      </div>
-    </div>
-    <div class="account-balance positive">133,351<span class="balance-currency">PKR</span></div>
-  </div>
-
-  <div class="account-row">
-    <div class="account-left">
-      <div class="account-icon">🏛</div>
-      <div class="account-info">
-        <div class="account-name">Mashreq Bank</div>
-        <div class="account-kind">Bank account</div>
-      </div>
-    </div>
-    <div class="account-balance zero">0<span class="balance-currency">PKR</span></div>
-  </div>
-
-  <div class="account-row">
-    <div class="account-left">
-      <div class="account-icon">💼</div>
-      <div class="account-info">
-        <div class="account-name">JS Bank</div>
-        <div class="account-kind">Bank account</div>
-      </div>
-    </div>
-    <div class="account-balance zero">0<span class="balance-currency">PKR</span></div>
-  </div>
-
-  <div class="account-row">
-    <div class="account-left">
-      <div class="account-icon">💠</div>
-      <div class="account-info">
-        <div class="account-name">Naya Pay</div>
-        <div class="account-kind">Digital wallet</div>
-      </div>
-    </div>
-    <div class="account-balance zero">0<span class="balance-currency">PKR</span></div>
-  </div>
-
-  <div class="account-row">
-    <div class="account-left">
-      <div class="account-icon">🏢</div>
-      <div class="account-info">
-        <div class="account-name">Bank Alfalah</div>
-        <div class="account-kind">Bank account</div>
-      </div>
-    </div>
-    <div class="account-balance zero">0<span class="balance-currency">PKR</span></div>
-  </div>
-
-  <div class="account-row">
-    <div class="account-left">
-      <div class="account-icon">💳</div>
-      <div class="account-info">
-        <div class="account-name">UBL Prepaid</div>
-        <div class="account-kind">Prepaid card</div>
-      </div>
-    </div>
-    <div class="account-balance zero">0<span class="balance-currency">PKR</span></div>
-  </div>
+  <div id="acc-assets-list"></div>
 
   <div class="section-header">
-    <span class="section-label">Liabilities · 1</span>
-    <span class="section-total liabilities">58,400 PKR</span>
+    <span id="acc-liabilities-count" class="section-label">Liabilities</span>
+    <span id="acc-liabilities-total" class="section-total liabilities">—</span>
   </div>
-
-  <div class="account-row">
-    <div class="account-left">
-      <div class="account-icon">🪪</div>
-      <div class="account-info">
-        <div class="account-name">Alfalah CC</div>
-        <div class="account-kind">Credit · Limit 100,000</div>
-      </div>
-    </div>
-    <div class="account-balance negative">58,400<span class="balance-currency">PKR</span></div>
-  </div>
+  <div id="acc-liabilities-list"></div>
 
   <footer>
-    <span class="v">v0.0.6 · accounts</span>
+    <span class="v">v0.1.0 · accounts</span>
   </footer>
 
   <nav class="bottom-nav">
@@ -178,5 +59,7 @@
   </nav>
 
   <script src="/js/app.js"></script>
+  <script src="/js/store.js"></script>
+  <script src="/js/accounts.js"></script>
 </body>
 </html>
