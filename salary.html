@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#050816">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Salary · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/theme.js"></script>
+  <script src="/js/nav.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="brand">Sovereign Ops</div>
+    <h1 class="title">Salary</h1>
+    <div class="day-badge"><span id="salary-summary">loading…</span></div>
+  </header>
+
+  <div class="hub-top-grid">
+    <section class="net-worth">
+      <div class="nw-label">Next Salary Forecast</div>
+      <div id="salary-total" class="nw-value positive counter">—<span class="nw-currency">PKR</span></div>
+    </section>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Days to Payday</div>
+        <div id="salary-days" class="stat-value accent counter">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Next Payday</div>
+        <div id="salary-next-date" class="stat-value">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Components</div>
+        <div id="salary-count" class="stat-value">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Source</div>
+        <div class="stat-value" style="font-size: 14px;">📤 Sheet</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-label">All Components</span>
+    <span class="section-total assets" id="salary-total-label">—</span>
+  </div>
+  <div id="salary-list"></div>
+
+  <footer>
+    <span class="v">v0.9.0 · salary</span>
+  </footer>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/store.js"></script>
+  <script src="/js/numbers.js"></script>
+  <script src="/js/salary.js"></script>
+</body>
+</html>
