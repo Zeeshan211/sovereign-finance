@@ -1,118 +1,191 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="midnight">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sovereign Finance — Hub</title>
-  <link rel="stylesheet" href="/css/app.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050816" />
+  <title>Sovereign Finance · Hub</title>
+  <link rel="stylesheet" href="/css/app.css?v=0.10.0" />
 </head>
 <body>
 
-<header class="topbar">
-  <div class="brand">🛡️ Sovereign Finance</div>
-  <nav class="nav">
-    <a href="/">Hub</a>
-    <a href="/transactions.html">Transactions</a>
-    <a href="/debts.html">Debts</a>
-    <a href="/bills.html">Bills</a>
-    <a href="/audit.html">Audit</a>
-  </nav>
-  <button id="themeToggle" class="theme-btn" title="Toggle theme">🌓</button>
+<header>
+  <div class="brand">Sovereign Finance</div>
+  <div class="title">Hub</div>
 </header>
 
-<main class="container">
+<!-- ─── DESKTOP SIDEBAR (hidden on mobile/tablet) ─── -->
+<aside class="desktop-nav">
+  <a href="/" class="desktop-nav-item active">
+    <span class="nav-emoji">🏠</span><span class="nav-text">Hub</span>
+  </a>
+  <a href="/transactions.html" class="desktop-nav-item">
+    <span class="nav-emoji">📜</span><span class="nav-text">Transactions</span>
+  </a>
+  <a href="/debts.html" class="desktop-nav-item">
+    <span class="nav-emoji">💳</span><span class="nav-text">Debts</span>
+  </a>
+  <a href="/bills.html" class="desktop-nav-item">
+    <span class="nav-emoji">📅</span><span class="nav-text">Bills</span>
+  </a>
+  <a href="/audit.html" class="desktop-nav-item">
+    <span class="nav-emoji">🛡️</span><span class="nav-text">Audit Log</span>
+  </a>
+</aside>
 
-  <!-- ─── ADD TRANSACTION FORM ─────────────────────────────── -->
-  <section class="card">
-    <h2>➕ Add Transaction</h2>
-    <form id="addTxnForm" class="txn-form" autocomplete="off">
-      <div class="row">
-        <label>Date
-          <input type="date" id="f_date" required />
-        </label>
-        <label>Type
-          <select id="f_type" required>
-            <option value="expense">💸 Expense</option>
-            <option value="income">💰 Income</option>
-            <option value="transfer">💱 Transfer</option>
-            <option value="cc_payment">💳 CC Payment</option>
-            <option value="cc_spend">💳 CC Spend</option>
-            <option value="borrow">📥 Borrow (debt in)</option>
-            <option value="repay">📤 Repay (debt out)</option>
-            <option value="atm">🏧 ATM</option>
-          </select>
-        </label>
-        <label>Amount (PKR)
-          <input type="number" id="f_amount" min="0.01" step="0.01" required placeholder="0.00" />
-        </label>
-      </div>
-
-      <div class="row">
-        <label>Account
-          <select id="f_account" required>
-            <option value="">— select —</option>
-          </select>
-        </label>
-        <label id="f_transferLabel" style="display:none">To Account
-          <select id="f_transferTo">
-            <option value="">— select destination —</option>
-          </select>
-        </label>
-        <label>Category
-          <select id="f_category">
-            <option value="other">🎯 Other</option>
-          </select>
-        </label>
-      </div>
-
-      <div class="row">
-        <label class="grow">Notes (optional)
-          <input type="text" id="f_notes" maxlength="200" placeholder="e.g. Foodpanda dinner" />
-        </label>
-        <button type="submit" id="f_submit" class="btn-primary">Add Transaction</button>
-      </div>
-    </form>
+<!-- ─── HERO + STATS ─── -->
+<div class="hub-top-grid">
+  <section class="net-worth">
+    <div class="nw-label">Net Worth</div>
+    <div class="nw-value positive" id="m_networth">—<span class="nw-currency">PKR</span></div>
   </section>
 
-  <!-- ─── SUMMARY CARDS ────────────────────────────────────── -->
-  <section class="summary-grid">
-    <div class="metric-card"><div class="metric-label">Net Worth</div><div class="metric-value" id="m_networth">—</div></div>
-    <div class="metric-card"><div class="metric-label">Liquid Assets</div><div class="metric-value" id="m_liquid">—</div></div>
-    <div class="metric-card"><div class="metric-label">CC Outstanding</div><div class="metric-value" id="m_cc">—</div></div>
-    <div class="metric-card"><div class="metric-label">Personal Debts</div><div class="metric-value" id="m_debts">—</div></div>
-  </section>
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Liquid</div>
+      <div class="stat-value accent" id="m_liquid">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">CC Out</div>
+      <div class="stat-value danger" id="m_cc">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Personal Debts</div>
+      <div class="stat-value warn" id="m_debts">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Bills Due Soon</div>
+      <div class="stat-value" id="m_bills_count">—</div>
+    </div>
+  </div>
+</div>
 
-  <!-- ─── PER-ACCOUNT BALANCES ─────────────────────────────── -->
-  <section class="card">
-    <h2>🏦 Accounts</h2>
-    <div id="accountsList" class="accounts-grid">Loading…</div>
-  </section>
-
-  <!-- ─── TOP DEBTS + BILLS DUE ────────────────────────────── -->
-  <div class="two-col">
-    <section class="card">
-      <h2>💳 Top Debts</h2>
-      <div id="topDebts">Loading…</div>
-    </section>
-    <section class="card">
-      <h2>📅 Bills Due Soon</h2>
-      <div id="billsDue">Loading…</div>
-    </section>
+<!-- ─── ADD TRANSACTION ─── -->
+<section class="hub-panel" style="margin-bottom:24px">
+  <div class="section-header">
+    <div class="section-label">➕ Add Transaction</div>
   </div>
 
-  <!-- ─── RECENT TRANSACTIONS ──────────────────────────────── -->
-  <section class="card">
-    <h2>📜 Recent Transactions</h2>
-    <div id="recentTxns">Loading…</div>
+  <form id="addTxnForm" autocomplete="off">
+    <label class="field-label" for="f_amount">Amount <span class="optional">PKR</span></label>
+    <input type="number" id="f_amount" class="amount-input" placeholder="0.00" min="0.01" step="0.01" inputmode="decimal" required />
+
+    <div class="filter-grid" style="padding:16px 0 0">
+      <div class="filter-field">
+        <label class="field-label" for="f_date">Date</label>
+        <input type="date" id="f_date" class="form-input" required />
+      </div>
+      <div class="filter-field">
+        <label class="field-label" for="f_type">Type</label>
+        <select id="f_type" class="form-select" required>
+          <option value="expense">💸 Expense</option>
+          <option value="income">💰 Income</option>
+          <option value="transfer">💱 Transfer</option>
+          <option value="cc_payment">💳 CC Payment</option>
+          <option value="cc_spend">💳 CC Spend</option>
+          <option value="borrow">📥 Borrow</option>
+          <option value="repay">📤 Repay</option>
+          <option value="atm">🏧 ATM</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label class="field-label" for="f_account">From Account</label>
+        <select id="f_account" class="form-select" required>
+          <option value="">— select —</option>
+        </select>
+      </div>
+      <div class="filter-field" id="f_transferWrap" style="display:none">
+        <label class="field-label" for="f_transferTo">To Account</label>
+        <select id="f_transferTo" class="form-select">
+          <option value="">— select destination —</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label class="field-label" for="f_category">Category</label>
+        <select id="f_category" class="form-select">
+          <option value="other">🎯 Other</option>
+        </select>
+      </div>
+      <div class="filter-field">
+        <label class="field-label" for="f_notes">Notes <span class="optional">optional</span></label>
+        <input type="text" id="f_notes" class="form-input" maxlength="200" placeholder="e.g. Foodpanda dinner" />
+      </div>
+    </div>
+
+    <button type="submit" id="f_submit" class="primary-btn">Add Transaction</button>
+  </form>
+</section>
+
+<!-- ─── ACCOUNTS LIST ─── -->
+<div class="section-header">
+  <div class="section-label">🏦 Accounts</div>
+  <div class="section-total assets" id="acc-total-assets">—</div>
+</div>
+<div id="acc-assets-list">
+  <div class="empty-state-inline">Loading…</div>
+</div>
+
+<!-- ─── BOTTOM GRID: Recent Tx | (Top Debts + Bills Due) ─── -->
+<div class="hub-bottom-grid">
+  <section class="hub-panel">
+    <div class="section-header">
+      <div class="section-label">📜 Recent Transactions</div>
+      <a href="/transactions.html" class="section-total" style="text-decoration:none">View all →</a>
+    </div>
+    <div id="recentTxns" class="tx-list">
+      <div class="empty-state-inline">Loading…</div>
+    </div>
   </section>
 
-</main>
+  <div class="hub-side-stack">
+    <section class="hub-panel">
+      <div class="section-header">
+        <div class="section-label">💳 Top Debts</div>
+        <a href="/debts.html" class="section-total" style="text-decoration:none">All →</a>
+      </div>
+      <div id="topDebts">
+        <div class="empty-state-inline">Loading…</div>
+      </div>
+    </section>
 
-<!-- ─── TOAST ──────────────────────────────────────────────── -->
+    <section class="hub-panel">
+      <div class="section-header">
+        <div class="section-label">📅 Bills Due Soon</div>
+        <a href="/bills.html" class="section-total" style="text-decoration:none">All →</a>
+      </div>
+      <div id="billsDue">
+        <div class="empty-state-inline">Loading…</div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ─── BOTTOM NAV (mobile only) ─── -->
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <a href="/" class="nav-item active">
+      <span class="nav-emoji">🏠</span><span class="nav-text">Hub</span>
+    </a>
+    <a href="/transactions.html" class="nav-item">
+      <span class="nav-emoji">📜</span><span class="nav-text">Tx</span>
+    </a>
+    <a href="/debts.html" class="nav-item">
+      <span class="nav-emoji">💳</span><span class="nav-text">Debts</span>
+    </a>
+    <a href="/bills.html" class="nav-item">
+      <span class="nav-emoji">📅</span><span class="nav-text">Bills</span>
+    </a>
+    <a href="/audit.html" class="nav-item">
+      <span class="nav-emoji">🛡️</span><span class="nav-text">Audit</span>
+    </a>
+  </div>
+</nav>
+
+<!-- ─── TOAST ─── -->
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="/js/store.js"></script>
 <script src="/js/theme.js"></script>
-<script src="/js/hub.js"></script>
+<script src="/js/hub.js?v=0.0.7"></script>
 </body>
 </html>
