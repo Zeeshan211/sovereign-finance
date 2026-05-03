@@ -1,16 +1,15 @@
 // ════════════════════════════════════════════════════════════════════
-// hub.js — Hub renderer using design system v0.7.4 classes
-// LOCKED · Sub-1D-2d (UI fix) · v0.0.7
+// hub.js — Hub renderer · v0.0.8 · Sub-1D-3a
 //
-// All output uses ONLY existing CSS classes:
-//   .net-worth · .stats-row · .stat-card · .account-row · .debt-row
-//   .tx-row · .mini-row · .hub-panel · .toast · .form-* · .primary-btn
+// CHANGES from v0.0.7:
+//   - Recent Tx render groups linked transfer pairs (shows ONE row "A → B")
+//   - Hides "received" half of pair to avoid duplication
+//   - Reverse on a transfer reverses the pair atomically (handled server-side)
 // ════════════════════════════════════════════════════════════════════
 
 (function () {
   'use strict';
 
-  // ─── helpers ──────────────────────────────────────────────────────
   const $ = id => document.getElementById(id);
   const today = () => new Date().toISOString().slice(0, 10);
   const fmtPKR = n => 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
@@ -33,14 +32,12 @@
     return r.json();
   }
 
-  // Type → emoji icon for tx rows / categories where icon missing
   const TYPE_ICON = {
     expense: '💸', income: '💰', transfer: '💱',
     cc_payment: '💳', cc_spend: '💳',
     borrow: '📥', repay: '📤',
     atm: '🏧'
   };
-  // Type → tx-amount color class
   const TYPE_AMT_CLASS = {
     income: 'positive', borrow: 'positive',
     expense: 'negative', repay: 'negative', cc_spend: 'negative', atm: 'negative',
@@ -53,7 +50,6 @@
       const d = await getJSON('/api/balances');
       if (!d.ok) throw new Error(d.error || 'balances failed');
 
-      // Hero
       const nw = Number(d.net_worth || 0);
       $('m_networth').className = 'nw-value ' + (nw < 0 ? 'negative' : 'positive');
       $('m_networth').innerHTML = fmtPKR(nw) + '<span class="nw-currency">PKR</span>';
@@ -62,7 +58,6 @@
       $('m_cc').textContent     = fmtPKR(d.cc_outstanding);
       $('m_debts').textContent  = fmtPKR(d.total_owe || d.total_debts || 0);
 
-      // Accounts
       const accts = d.accounts || [];
       const list  = $('acc-assets-list');
       let totalAssets = 0;
@@ -182,28 +177,52 @@
     try {
       const d = await getJSON('/api/transactions');
       if (!d.ok) throw new Error(d.error || 'txns failed');
-      const txns = (d.transactions || []).slice(0, 12);
 
-      if (!txns.length) {
+      // Build set of "income halves" of transfer pairs (linked_txn_id pointing to a transfer-typed row)
+      // We render the OUT (transfer) row, hide the IN (income+linked) row to prevent duplication
+      const allTxns = d.transactions || [];
+      const txnById = {};
+      allTxns.forEach(t => { txnById[t.id] = t; });
+
+      const hideIds = new Set();
+      allTxns.forEach(t => {
+        // If this is the IN-half of a transfer pair (income + linked + linked-txn is type=transfer)
+        if (t.linked_txn_id && t.type === 'income') {
+          const partner = txnById[t.linked_txn_id];
+          if (partner && partner.type === 'transfer') {
+            hideIds.add(t.id);
+          }
+        }
+      });
+
+      const visible = allTxns.filter(t => !hideIds.has(t.id)).slice(0, 12);
+
+      if (!visible.length) {
         $('recentTxns').innerHTML = '<div class="empty-state-inline">No transactions yet</div>';
         return;
       }
 
-      $('recentTxns').innerHTML = txns.map(t => {
+      $('recentTxns').innerHTML = visible.map(t => {
         const isReversed   = !!t.reversed_by;
         const isReverseRow = t.notes && t.notes.startsWith('REVERSAL of ');
+        const isTransferOut = t.type === 'transfer' && t.linked_txn_id;
         const icon = TYPE_ICON[t.type] || '📝';
         const amtCls = TYPE_AMT_CLASS[t.type] || 'neutral';
-        const amtSign = (t.type === 'expense' || t.type === 'cc_spend' || t.type === 'repay' || t.type === 'atm') ? '−' : (t.type === 'income' || t.type === 'borrow') ? '+' : '';
-        const sub = (isReversed ? '⊘ reversed · ' : isReverseRow ? '↩ reversal · ' : '')
-                  + escHtml(t.account_id)
-                  + (t.transfer_to_account_id ? ' → ' + escHtml(t.transfer_to_account_id) : '')
+        const amtSign = (t.type === 'expense' || t.type === 'cc_spend' || t.type === 'repay' || t.type === 'atm') ? '−'
+                      : (t.type === 'income' || t.type === 'borrow') ? '+'
+                      : '';
+        const subText = (isReversed ? '⊘ reversed · ' : isReverseRow ? '↩ reversal · ' : '')
+                  + (isTransferOut
+                      ? `${escHtml(t.account_id)} → ${escHtml(t.transfer_to_account_id)}`
+                      : escHtml(t.account_id) + (t.transfer_to_account_id ? ' → ' + escHtml(t.transfer_to_account_id) : ''))
                   + ' · ' + escHtml(t.date);
-        const titleNote = t.notes ? escHtml(t.notes.slice(0, 60)) : escHtml(t.type);
+        const titleNote = isTransferOut
+          ? 'Transfer'
+          : (t.notes ? escHtml(t.notes.slice(0, 60)) : escHtml(t.type));
         const opacity = isReversed ? ';opacity:0.55;text-decoration:line-through' : '';
         const canReverse = !isReversed && !isReverseRow;
         const action = canReverse
-          ? `<button class="dense-action" data-rev="${escHtml(t.id)}" data-amount="${t.amount}" data-type="${escHtml(t.type)}" title="Reverse this transaction" style="margin-left:10px;color:var(--danger);background:var(--danger-soft);border:1px solid rgba(244,63,94,0.25);cursor:pointer;font-family:inherit">↩</button>`
+          ? `<button class="dense-action" data-rev="${escHtml(t.id)}" data-amount="${t.amount}" data-type="${escHtml(t.type)}" data-pair="${isTransferOut ? '1' : '0'}" title="Reverse this transaction" style="margin-left:10px;color:var(--danger);background:var(--danger-soft);border:1px solid rgba(244,63,94,0.25);cursor:pointer;font-family:inherit">↩</button>`
           : '';
 
         return `
@@ -212,7 +231,7 @@
               <div class="tx-icon">${icon}</div>
               <div class="tx-info">
                 <div class="tx-name">${titleNote}</div>
-                <div class="tx-sub">${sub}</div>
+                <div class="tx-sub">${subText}</div>
               </div>
             </div>
             <div style="display:flex;align-items:center">
@@ -222,7 +241,6 @@
           </div>`;
       }).join('');
 
-      // Wire reverse buttons
       document.querySelectorAll('button[data-rev]').forEach(btn => {
         btn.addEventListener('click', onReverseClick);
       });
@@ -239,14 +257,15 @@
     const id     = btn.getAttribute('data-rev');
     const amount = parseFloat(btn.getAttribute('data-amount')) || 0;
     const type   = btn.getAttribute('data-type');
+    const isPair = btn.getAttribute('data-pair') === '1';
 
     const ok = window.confirm(
-      `Reverse this transaction?\n\n` +
+      `Reverse this ${isPair ? 'TRANSFER PAIR' : 'transaction'}?\n\n` +
       `Type: ${type}\nAmount: ${fmtPKR(amount)}\nID: ${id}\n\n` +
       `This will:\n` +
       `• Snapshot the database first\n` +
-      `• Insert opposite transaction\n` +
-      `• Mark original as reversed\n` +
+      (isPair ? `• Reverse BOTH legs of the transfer atomically\n` : `• Insert opposite transaction\n`) +
+      `• Mark original${isPair ? '(s)' : ''} as reversed\n` +
       `• Restore debt if applicable\n\nContinue?`
     );
     if (!ok) return;
@@ -266,7 +285,7 @@
         btn.disabled = false; btn.textContent = '↩';
         return;
       }
-      let msg = `✅ Reversed · snap ${data.snapshot_id}`;
+      let msg = `✅ Reversed${data.partner_id ? ' pair' : ''} · snap ${data.snapshot_id}`;
       if (data.debt_restored) msg += ` · ${data.debt_restored.name} +${fmtPKR(data.debt_restored.amount_restored)}`;
       toast(msg);
       await Promise.all([loadBalances(), loadRecentTxns(), loadDebts()]);
@@ -338,7 +357,8 @@
       if (!data.ok) {
         toast('❌ ' + (data.error || 'Save failed'), 'err');
       } else {
-        toast(`✅ Saved · ${fmtPKR(payload.amount)} · ${type}`);
+        const extra = data.linked_id ? ` (paired with ${data.linked_id.slice(-8)})` : '';
+        toast(`✅ Saved · ${fmtPKR(payload.amount)} · ${type}${extra}`);
         $('addTxnForm').reset();
         $('f_date').value = today();
         $('f_transferWrap').style.display = 'none';
