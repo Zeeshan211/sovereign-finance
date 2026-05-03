@@ -1,42 +1,51 @@
-/* ─── /api/audit — read audit_log entries with filters ─── */
+// /api/audit — read audit log (paginated, filterable)
+// Query params: ?limit=50 &offset=0 &action=X &entity=Y &kind=Z
 
-export async function onRequestGet(context) {
+export async function onRequestGet({ request, env }) {
+  const url = new URL(request.url);
+  const limit  = Math.min(parseInt(url.searchParams.get('limit')  || '50', 10), 500);
+  const offset = parseInt(url.searchParams.get('offset') || '0', 10);
+  const action = url.searchParams.get('action');
+  const entity = url.searchParams.get('entity');
+  const kind   = url.searchParams.get('kind');
+
+  const where = [];
+  const binds = [];
+  if (action) { where.push('action = ?'); binds.push(action); }
+  if (entity) { where.push('entity = ?'); binds.push(entity); }
+  if (kind)   { where.push('kind = ?');   binds.push(kind); }
+  const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
   try {
-    const url = new URL(context.request.url);
-    const limit = Math.min(parseInt(url.searchParams.get('limit')) || 200, 500);
-    const action = url.searchParams.get('action') || '';
+    const countRes = await env.DB
+      .prepare(`SELECT COUNT(*) AS n FROM audit_log ${whereSql}`)
+      .bind(...binds).first();
 
-    let query = 'SELECT * FROM audit_log';
-    const binds = [];
-    if (action) {
-      query += ' WHERE action = ?';
-      binds.push(action);
-    }
-    query += ' ORDER BY timestamp DESC LIMIT ?';
-    binds.push(limit);
+    const rowsRes = await env.DB
+      .prepare(
+        `SELECT id, timestamp, action, entity, entity_id, kind, detail, created_by, ip
+         FROM audit_log ${whereSql}
+         ORDER BY timestamp DESC
+         LIMIT ? OFFSET ?`
+      )
+      .bind(...binds, limit, offset).all();
 
-    const stmt = context.env.DB.prepare(query).bind(...binds);
-    const result = await stmt.all();
-    const rows = result.results || [];
-
-    const actionsResult = await context.env.DB.prepare(
-      'SELECT DISTINCT action, COUNT(*) as count FROM audit_log GROUP BY action ORDER BY count DESC'
-    ).all();
-
-    return jsonResponse({
+    return _json({
       ok: true,
-      count: rows.length,
-      entries: rows,
-      actions: actionsResult.results || []
+      total: countRes?.n || 0,
+      limit, offset,
+      rows: rowsRes?.results || []
     });
-  } catch (err) {
-    return jsonResponse({ ok: false, error: err.message }, 500);
+  } catch (e) {
+    return _json({ ok: false, error: e.message || String(e) }, 500);
   }
 }
 
-function jsonResponse(obj, status) {
+export const onRequestPost = () => _json({ ok: false, error: 'Read-only endpoint' }, 405);
+
+function _json(obj, status = 200) {
   return new Response(JSON.stringify(obj), {
-    status: status || 200,
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' }
+    status,
+    headers: { 'Content-Type': 'application/json' }
   });
 }
