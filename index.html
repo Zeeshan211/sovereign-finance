@@ -1,112 +1,118 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#050816">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Sovereign Finance</title>
-  <link rel="stylesheet" href="/css/app.css">
-  <script src="/js/theme.js"></script>
-  <script src="/js/nav.js" defer></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sovereign Finance — Hub</title>
+  <link rel="stylesheet" href="/css/app.css" />
 </head>
 <body>
-  <header>
-    <div class="brand">Sovereign Ops</div>
-    <h1 class="title">Finance</h1>
-    <div class="day-badge"><span class="pulse"></span>Day <span id="dayNum">—</span> of 90</div>
-  </header>
 
-  <div class="hub-top-grid">
-    <section class="net-worth">
-      <div class="nw-label">Net Worth</div>
-      <div id="hub-net-worth" class="nw-value positive counter">—<span class="nw-currency">PKR</span></div>
+<header class="topbar">
+  <div class="brand">🛡️ Sovereign Finance</div>
+  <nav class="nav">
+    <a href="/">Hub</a>
+    <a href="/transactions.html">Transactions</a>
+    <a href="/debts.html">Debts</a>
+    <a href="/bills.html">Bills</a>
+    <a href="/audit.html">Audit</a>
+  </nav>
+  <button id="themeToggle" class="theme-btn" title="Toggle theme">🌓</button>
+</header>
+
+<main class="container">
+
+  <!-- ─── ADD TRANSACTION FORM ─────────────────────────────── -->
+  <section class="card">
+    <h2>➕ Add Transaction</h2>
+    <form id="addTxnForm" class="txn-form" autocomplete="off">
+      <div class="row">
+        <label>Date
+          <input type="date" id="f_date" required />
+        </label>
+        <label>Type
+          <select id="f_type" required>
+            <option value="expense">💸 Expense</option>
+            <option value="income">💰 Income</option>
+            <option value="transfer">💱 Transfer</option>
+            <option value="cc_payment">💳 CC Payment</option>
+            <option value="cc_spend">💳 CC Spend</option>
+            <option value="borrow">📥 Borrow (debt in)</option>
+            <option value="repay">📤 Repay (debt out)</option>
+            <option value="atm">🏧 ATM</option>
+          </select>
+        </label>
+        <label>Amount (PKR)
+          <input type="number" id="f_amount" min="0.01" step="0.01" required placeholder="0.00" />
+        </label>
+      </div>
+
+      <div class="row">
+        <label>Account
+          <select id="f_account" required>
+            <option value="">— select —</option>
+          </select>
+        </label>
+        <label id="f_transferLabel" style="display:none">To Account
+          <select id="f_transferTo">
+            <option value="">— select destination —</option>
+          </select>
+        </label>
+        <label>Category
+          <select id="f_category">
+            <option value="other">🎯 Other</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="row">
+        <label class="grow">Notes (optional)
+          <input type="text" id="f_notes" maxlength="200" placeholder="e.g. Foodpanda dinner" />
+        </label>
+        <button type="submit" id="f_submit" class="btn-primary">Add Transaction</button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ─── SUMMARY CARDS ────────────────────────────────────── -->
+  <section class="summary-grid">
+    <div class="metric-card"><div class="metric-label">Net Worth</div><div class="metric-value" id="m_networth">—</div></div>
+    <div class="metric-card"><div class="metric-label">Liquid Assets</div><div class="metric-value" id="m_liquid">—</div></div>
+    <div class="metric-card"><div class="metric-label">CC Outstanding</div><div class="metric-value" id="m_cc">—</div></div>
+    <div class="metric-card"><div class="metric-label">Personal Debts</div><div class="metric-value" id="m_debts">—</div></div>
+  </section>
+
+  <!-- ─── PER-ACCOUNT BALANCES ─────────────────────────────── -->
+  <section class="card">
+    <h2>🏦 Accounts</h2>
+    <div id="accountsList" class="accounts-grid">Loading…</div>
+  </section>
+
+  <!-- ─── TOP DEBTS + BILLS DUE ────────────────────────────── -->
+  <div class="two-col">
+    <section class="card">
+      <h2>💳 Top Debts</h2>
+      <div id="topDebts">Loading…</div>
     </section>
-
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-label">Liquid</div>
-        <div id="hub-liquid" class="stat-value accent counter">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">CC Outstanding</div>
-        <div id="hub-cc" class="stat-value danger counter">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Personal Debts</div>
-        <div id="hub-debts" class="stat-value warn counter">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">True Burden</div>
-        <div id="hub-burden" class="stat-value danger counter">—</div>
-      </div>
-    </div>
+    <section class="card">
+      <h2>📅 Bills Due Soon</h2>
+      <div id="billsDue">Loading…</div>
+    </section>
   </div>
 
-  <div class="section-header">
-    <span class="section-label">Quick Access</span>
-  </div>
+  <!-- ─── RECENT TRANSACTIONS ──────────────────────────────── -->
+  <section class="card">
+    <h2>📜 Recent Transactions</h2>
+    <div id="recentTxns">Loading…</div>
+  </section>
 
-  <div class="nav-grid">
-    <a href="/transactions.html" class="nav-card">
-      <div class="nav-icon">💸</div>
-      <div class="nav-label">Transactions</div>
-      <div class="nav-sub">view all</div>
-    </a>
-    <a href="/accounts.html" class="nav-card">
-      <div class="nav-icon">🏦</div>
-      <div class="nav-label">Accounts</div>
-      <div class="nav-sub">11 active</div>
-    </a>
-    <a href="/debts.html" class="nav-card">
-      <div class="nav-icon">💳</div>
-      <div class="nav-label">Debts</div>
-      <div class="nav-sub">snowball</div>
-    </a>
-    <a href="/bills.html" class="nav-card">
-      <div class="nav-icon">📅</div>
-      <div class="nav-label">Bills</div>
-      <div class="nav-sub">recurring</div>
-    </a>
-  </div>
+</main>
 
-  <div class="hub-bottom-grid">
-    <div class="hub-panel">
-      <div class="section-header">
-        <span class="section-label">Recent Transactions</span>
-        <a href="/transactions.html" class="dense-action">View All →</a>
-      </div>
-      <div id="hub-recent-tx"></div>
-    </div>
+<!-- ─── TOAST ──────────────────────────────────────────────── -->
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <div class="hub-side-stack">
-      <div class="hub-panel">
-        <div class="section-header">
-          <span class="section-label">Top Debts</span>
-          <a href="/debts.html" class="dense-action">All →</a>
-        </div>
-        <div id="hub-top-debts"></div>
-      </div>
-
-      <div class="hub-panel">
-        <div class="section-header">
-          <span class="section-label">Due Soon</span>
-          <a href="/bills.html" class="dense-action">All →</a>
-        </div>
-        <div id="hub-due-soon"></div>
-      </div>
-    </div>
-  </div>
-
-  <footer>
-    Built one baby step at a time.<br>
-    <span class="v">v0.7.3 · sovereign-finance</span>
-  </footer>
-
-  <script src="/js/app.js"></script>
-  <script src="/js/store.js"></script>
-  <script src="/js/numbers.js"></script>
-  <script src="/js/hub.js"></script>
+<script src="/js/store.js"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/hub.js"></script>
 </body>
 </html>
