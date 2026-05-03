@@ -1,17 +1,25 @@
 // ════════════════════════════════════════════════════════════════════
-// hub.js — Hub renderer · v0.0.8 · Sub-1D-3a
+// hub.js — Hub renderer · v0.0.9 · Sub-1D-3a-fix
 //
-// CHANGES from v0.0.7:
-//   - Recent Tx render groups linked transfer pairs (shows ONE row "A → B")
-//   - Hides "received" half of pair to avoid duplication
-//   - Reverse on a transfer reverses the pair atomically (handled server-side)
+// CHANGES from v0.0.8:
+//   - today() now uses LOCAL date (was UTC, causing day-1 drift in Asia/Karachi mornings)
+//   - All other behavior preserved
 // ════════════════════════════════════════════════════════════════════
 
 (function () {
   'use strict';
 
   const $ = id => document.getElementById(id);
-  const today = () => new Date().toISOString().slice(0, 10);
+
+  // FIX: local date YYYY-MM-DD (was UTC via toISOString)
+  function today() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   const fmtPKR = n => 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
   const fmtPKR2 = n => 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const escHtml = s => String(s == null ? '' : s)
@@ -27,7 +35,7 @@
   }
 
   async function getJSON(url) {
-    const r = await fetch(url);
+    const r = await fetch(url, { cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status + ' on ' + url);
     return r.json();
   }
@@ -35,8 +43,7 @@
   const TYPE_ICON = {
     expense: '💸', income: '💰', transfer: '💱',
     cc_payment: '💳', cc_spend: '💳',
-    borrow: '📥', repay: '📤',
-    atm: '🏧'
+    borrow: '📥', repay: '📤', atm: '🏧'
   };
   const TYPE_AMT_CLASS = {
     income: 'positive', borrow: 'positive',
@@ -44,7 +51,6 @@
     transfer: 'neutral', cc_payment: 'neutral'
   };
 
-  // ─── LOADERS ──────────────────────────────────────────────────────
   async function loadBalances() {
     try {
       const d = await getJSON('/api/balances');
@@ -131,8 +137,8 @@
       const d = await getJSON('/api/bills');
       if (!d.ok) throw new Error(d.error || 'bills failed');
 
-      const today = new Date();
-      const todayDay = today.getDate();
+      const now = new Date();
+      const todayDay = now.getDate();
       const bills = (d.bills || []).map(b => {
         const due = b.due_day || 99;
         const days = due >= todayDay ? (due - todayDay) : (30 - todayDay + due);
@@ -178,20 +184,15 @@
       const d = await getJSON('/api/transactions');
       if (!d.ok) throw new Error(d.error || 'txns failed');
 
-      // Build set of "income halves" of transfer pairs (linked_txn_id pointing to a transfer-typed row)
-      // We render the OUT (transfer) row, hide the IN (income+linked) row to prevent duplication
       const allTxns = d.transactions || [];
       const txnById = {};
       allTxns.forEach(t => { txnById[t.id] = t; });
 
       const hideIds = new Set();
       allTxns.forEach(t => {
-        // If this is the IN-half of a transfer pair (income + linked + linked-txn is type=transfer)
         if (t.linked_txn_id && t.type === 'income') {
           const partner = txnById[t.linked_txn_id];
-          if (partner && partner.type === 'transfer') {
-            hideIds.add(t.id);
-          }
+          if (partner && partner.type === 'transfer') hideIds.add(t.id);
         }
       });
 
@@ -216,13 +217,12 @@
                       ? `${escHtml(t.account_id)} → ${escHtml(t.transfer_to_account_id)}`
                       : escHtml(t.account_id) + (t.transfer_to_account_id ? ' → ' + escHtml(t.transfer_to_account_id) : ''))
                   + ' · ' + escHtml(t.date);
-        const titleNote = isTransferOut
-          ? 'Transfer'
-          : (t.notes ? escHtml(t.notes.slice(0, 60)) : escHtml(t.type));
+        const titleNote = isTransferOut ? 'Transfer'
+                        : (t.notes ? escHtml(t.notes.slice(0, 60)) : escHtml(t.type));
         const opacity = isReversed ? ';opacity:0.55;text-decoration:line-through' : '';
         const canReverse = !isReversed && !isReverseRow;
         const action = canReverse
-          ? `<button class="dense-action" data-rev="${escHtml(t.id)}" data-amount="${t.amount}" data-type="${escHtml(t.type)}" data-pair="${isTransferOut ? '1' : '0'}" title="Reverse this transaction" style="margin-left:10px;color:var(--danger);background:var(--danger-soft);border:1px solid rgba(244,63,94,0.25);cursor:pointer;font-family:inherit">↩</button>`
+          ? `<button class="dense-action" data-rev="${escHtml(t.id)}" data-amount="${t.amount}" data-type="${escHtml(t.type)}" data-pair="${isTransferOut ? '1' : '0'}" title="Reverse" style="margin-left:10px;color:var(--danger);background:var(--danger-soft);border:1px solid rgba(244,63,94,0.25);cursor:pointer;font-family:inherit">↩</button>`
           : '';
 
         return `
@@ -249,7 +249,6 @@
     }
   }
 
-  // ─── REVERSE HANDLER ──────────────────────────────────────────────
   async function onReverseClick(ev) {
     ev.preventDefault();
     ev.stopPropagation();
@@ -262,11 +261,9 @@
     const ok = window.confirm(
       `Reverse this ${isPair ? 'TRANSFER PAIR' : 'transaction'}?\n\n` +
       `Type: ${type}\nAmount: ${fmtPKR(amount)}\nID: ${id}\n\n` +
-      `This will:\n` +
-      `• Snapshot the database first\n` +
+      `This will:\n• Snapshot the database first\n` +
       (isPair ? `• Reverse BOTH legs of the transfer atomically\n` : `• Insert opposite transaction\n`) +
-      `• Mark original${isPair ? '(s)' : ''} as reversed\n` +
-      `• Restore debt if applicable\n\nContinue?`
+      `• Mark original${isPair ? '(s)' : ''} as reversed\n• Restore debt if applicable\n\nContinue?`
     );
     if (!ok) return;
 
@@ -295,7 +292,6 @@
     }
   }
 
-  // ─── DROPDOWN POPULATORS ──────────────────────────────────────────
   async function populateAccounts() {
     try {
       const d = await getJSON('/api/balances');
@@ -322,7 +318,6 @@
     $('f_category').innerHTML = cats.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   }
 
-  // ─── FORM SUBMIT ──────────────────────────────────────────────────
   async function onSubmit(ev) {
     ev.preventDefault();
     const btn = $('f_submit');
@@ -377,7 +372,6 @@
     $('f_transferWrap').style.display = (t === 'transfer') ? '' : 'none';
   }
 
-  // ─── INIT ─────────────────────────────────────────────────────────
   function init() {
     $('f_date').value = today();
     populateAccounts();
