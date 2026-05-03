@@ -1,11 +1,12 @@
 // ════════════════════════════════════════════════════════════════════
-// hub.js — Hub page: Add Txn form + summaries + accounts + debts + bills + recent
-// LOCKED · Sub-1D-2c · v0.0.5
+// hub.js — Hub page: Add Txn form + summaries + accounts + debts + bills + recent + reverse
+// LOCKED · Sub-1D-2d · v0.0.6
 //
-// Loaders: balances, accounts, debts, bills, transactions, categories
-// Form: addTxnForm POST → /api/transactions (audit auto-fires server-side)
-// Toast: success / error feedback
-// Auto-refresh on submit success
+// CHANGES from v0.0.5:
+//   - Recent Transactions table now has Reverse column
+//   - Reversed rows shown with strikethrough + "REVERSED" tag
+//   - Reverse rows (linked back to original) shown with ↩ tag
+//   - Click Reverse → confirm dialog → POST /api/transactions/reverse → toast + refresh
 // ════════════════════════════════════════════════════════════════════
 
 (function () {
@@ -16,6 +17,9 @@
   const fmtPKR = n => 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
   const fmtPKR2 = n => 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const today = () => new Date().toISOString().slice(0, 10);
+  const escHtml = s => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
   function toast(msg, kind = 'ok') {
     const t = $('toast');
@@ -49,8 +53,8 @@
       } else {
         grid.innerHTML = accts.map(a => `
           <div class="acct-card ${a.kind === 'cc' ? 'liab' : 'asset'}">
-            <div class="acct-icon">${a.icon || '🏦'}</div>
-            <div class="acct-name">${a.name}</div>
+            <div class="acct-icon">${escHtml(a.icon || '🏦')}</div>
+            <div class="acct-name">${escHtml(a.name)}</div>
             <div class="acct-bal">${fmtPKR2(a.balance ?? 0)}</div>
           </div>
         `).join('');
@@ -60,7 +64,7 @@
       $('m_liquid').textContent   = '—';
       $('m_cc').textContent       = '—';
       $('m_debts').textContent    = '—';
-      $('accountsList').innerHTML = '<div class="err">Failed to load: ' + e.message + '</div>';
+      $('accountsList').innerHTML = '<div class="err">Failed to load: ' + escHtml(e.message) + '</div>';
     }
   }
 
@@ -77,13 +81,13 @@
         const pct = x.original_amount ? Math.min(100, Math.round((x.paid_amount / x.original_amount) * 100)) : 0;
         return `
           <div class="debt-row">
-            <div class="debt-name">${x.name}</div>
+            <div class="debt-name">${escHtml(x.name)}</div>
             <div class="debt-bar"><div class="debt-fill" style="width:${pct}%"></div></div>
             <div class="debt-amt">${fmtPKR(remaining)} <small>of ${fmtPKR(x.original_amount)}</small></div>
           </div>`;
       }).join('') : '<div class="empty">No active debts 🎉</div>';
     } catch (e) {
-      $('topDebts').innerHTML = '<div class="err">Failed: ' + e.message + '</div>';
+      $('topDebts').innerHTML = '<div class="err">Failed: ' + escHtml(e.message) + '</div>';
     }
   }
 
@@ -97,12 +101,12 @@
 
       $('billsDue').innerHTML = upcoming.length ? upcoming.map(b => `
         <div class="bill-row">
-          <div class="bill-name">${b.name}</div>
+          <div class="bill-name">${escHtml(b.name)}</div>
           <div class="bill-day">Day ${b.due_day || '—'}</div>
           <div class="bill-amt">${fmtPKR(b.amount)}</div>
         </div>`).join('') : '<div class="empty">No bills configured</div>';
     } catch (e) {
-      $('billsDue').innerHTML = '<div class="err">Failed: ' + e.message + '</div>';
+      $('billsDue').innerHTML = '<div class="err">Failed: ' + escHtml(e.message) + '</div>';
     }
   }
 
@@ -110,24 +114,99 @@
     try {
       const d = await getJSON('/api/transactions');
       if (!d.ok) throw new Error(d.error || 'txns failed');
-      const txns = (d.transactions || []).slice(0, 10);
+      const txns = (d.transactions || []).slice(0, 15);
 
-      $('recentTxns').innerHTML = txns.length ? `
+      if (!txns.length) {
+        $('recentTxns').innerHTML = '<div class="empty">No transactions yet</div>';
+        return;
+      }
+
+      const rows = txns.map(t => {
+        const isReversed = !!t.reversed_by;
+        const isReverseRow = t.notes && t.notes.startsWith('REVERSAL of ');
+        const rowClass = `t-${t.type}` + (isReversed ? ' reversed' : '') + (isReverseRow ? ' is-reversal' : '');
+        const tag = isReversed ? '<span class="badge rev">REVERSED</span>' :
+                    isReverseRow ? '<span class="badge rev-link">↩ reversal</span>' : '';
+        const action = (isReversed || isReverseRow)
+          ? '<span class="muted">—</span>'
+          : `<button class="btn-mini btn-danger" data-rev="${escHtml(t.id)}" data-amount="${t.amount}" data-type="${escHtml(t.type)}">↩ Reverse</button>`;
+
+        return `
+          <tr class="${rowClass}">
+            <td>${escHtml(t.date)}</td>
+            <td>${escHtml(t.type)} ${tag}</td>
+            <td>${escHtml(t.account_id)}${t.transfer_to_account_id ? ' → ' + escHtml(t.transfer_to_account_id) : ''}</td>
+            <td class="ellip" title="${escHtml(t.notes || '')}">${escHtml((t.notes || '').slice(0, 40))}</td>
+            <td class="r">${fmtPKR2(t.amount)}</td>
+            <td class="r">${action}</td>
+          </tr>`;
+      }).join('');
+
+      $('recentTxns').innerHTML = `
         <table class="txn-table">
-          <thead><tr><th>Date</th><th>Type</th><th>Account</th><th>Notes</th><th class="r">Amount</th></tr></thead>
-          <tbody>
-            ${txns.map(t => `
-              <tr class="t-${t.type}">
-                <td>${t.date}</td>
-                <td>${t.type}</td>
-                <td>${t.account_id}${t.transfer_to_account_id ? ' → ' + t.transfer_to_account_id : ''}</td>
-                <td class="ellip">${(t.notes || '').slice(0, 40)}</td>
-                <td class="r">${fmtPKR2(t.amount)}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>` : '<div class="empty">No transactions yet</div>';
+          <thead><tr>
+            <th>Date</th><th>Type</th><th>Account</th><th>Notes</th>
+            <th class="r">Amount</th><th class="r">Action</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+
+      // Wire reverse buttons
+      document.querySelectorAll('button[data-rev]').forEach(btn => {
+        btn.addEventListener('click', onReverseClick);
+      });
     } catch (e) {
-      $('recentTxns').innerHTML = '<div class="err">Failed: ' + e.message + '</div>';
+      $('recentTxns').innerHTML = '<div class="err">Failed: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  // ─── REVERSE HANDLER ──────────────────────────────────────────────
+  async function onReverseClick(ev) {
+    const btn = ev.currentTarget;
+    const id     = btn.getAttribute('data-rev');
+    const amount = parseFloat(btn.getAttribute('data-amount')) || 0;
+    const type   = btn.getAttribute('data-type');
+
+    const confirmed = window.confirm(
+      `Reverse this transaction?\n\n` +
+      `Type: ${type}\nAmount: ${fmtPKR(amount)}\nID: ${id}\n\n` +
+      `This will:\n` +
+      `• Snapshot the database first\n` +
+      `• Insert an opposite transaction\n` +
+      `• Mark the original as reversed\n` +
+      `• Restore debt balance if applicable\n\n` +
+      `Continue?`
+    );
+    if (!confirmed) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Reversing…';
+
+    try {
+      const r = await fetch('/api/transactions/reverse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, created_by: 'web-hub' })
+      });
+      const d = await r.json();
+
+      if (!d.ok) {
+        toast('❌ ' + (d.error || 'Reverse failed'), 'err');
+        btn.disabled = false;
+        btn.textContent = '↩ Reverse';
+        return;
+      }
+
+      let msg = `✅ Reversed · snapshot ${d.snapshot_id}`;
+      if (d.debt_restored) {
+        msg += ` · debt ${d.debt_restored.name} restored ${fmtPKR(d.debt_restored.amount_restored)}`;
+      }
+      toast(msg);
+      await Promise.all([loadBalances(), loadRecentTxns(), loadDebts()]);
+    } catch (e) {
+      toast('❌ Network error: ' + e.message, 'err');
+      btn.disabled = false;
+      btn.textContent = '↩ Reverse';
     }
   }
 
@@ -137,17 +216,14 @@
       const d = await getJSON('/api/balances');
       const accts = d.accounts || [];
       const opts = '<option value="">— select —</option>' +
-        accts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
+        accts.map(a => `<option value="${escHtml(a.id)}">${escHtml(a.icon || '')} ${escHtml(a.name)}</option>`).join('');
       $('f_account').innerHTML = opts;
       $('f_transferTo').innerHTML = '<option value="">— select destination —</option>' +
-        accts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
-    } catch (e) {
-      // silent — form still works with manual ids if needed
-    }
+        accts.map(a => `<option value="${escHtml(a.id)}">${escHtml(a.icon || '')} ${escHtml(a.name)}</option>`).join('');
+    } catch (e) {}
   }
 
-  async function populateCategories() {
-    // Categories endpoint not built yet (Sub-1D-2d). For now, hardcode the seeded list.
+  function populateCategories() {
     const cats = [
       ['other',        '🎯 Other'],
       ['food',         '🍔 Food'],
