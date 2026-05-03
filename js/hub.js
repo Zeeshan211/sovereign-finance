@@ -1,171 +1,262 @@
-/* ─── Sovereign Finance · Hub Dashboard v0.7.3 ─── */
+// ════════════════════════════════════════════════════════════════════
+// hub.js — Hub page: Add Txn form + summaries + accounts + debts + bills + recent
+// LOCKED · Sub-1D-2c · v0.0.5
+//
+// Loaders: balances, accounts, debts, bills, transactions, categories
+// Form: addTxnForm POST → /api/transactions (audit auto-fires server-side)
+// Toast: success / error feedback
+// Auto-refresh on submit success
+// ════════════════════════════════════════════════════════════════════
 
 (function () {
-  document.addEventListener('DOMContentLoaded', init);
+  'use strict';
 
-  let billsData = { bills: [] };
+  // ─── helpers ──────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const fmtPKR = n => 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
+  const fmtPKR2 = n => 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const today = () => new Date().toISOString().slice(0, 10);
 
-  async function init() {
-    paint();
-    await Promise.all([
-      window.store.refreshBalances(),
-      window.store.refreshDebts(),
-      window.store.refreshTransactions(),
-      loadBills()
-    ]);
-    paint();
+  function toast(msg, kind = 'ok') {
+    const t = $('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.className = 'toast show ' + (kind === 'err' ? 'err' : 'ok');
+    setTimeout(() => { t.className = 'toast'; }, 3500);
+  }
+
+  async function getJSON(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' on ' + url);
+    return r.json();
+  }
+
+  // ─── LOADERS ──────────────────────────────────────────────────────
+  async function loadBalances() {
+    try {
+      const d = await getJSON('/api/balances');
+      if (!d.ok) throw new Error(d.error || 'balances failed');
+
+      $('m_networth').textContent = fmtPKR(d.net_worth);
+      $('m_liquid').textContent   = fmtPKR(d.total_liquid_assets);
+      $('m_cc').textContent       = fmtPKR(d.cc_outstanding);
+      $('m_debts').textContent    = fmtPKR(d.total_owe || d.total_debts || 0);
+
+      const grid = $('accountsList');
+      const accts = (d.accounts || []).filter(a => a.type === 'asset' || a.kind === 'cc');
+      if (!accts.length) {
+        grid.innerHTML = '<div class="empty">No accounts</div>';
+      } else {
+        grid.innerHTML = accts.map(a => `
+          <div class="acct-card ${a.kind === 'cc' ? 'liab' : 'asset'}">
+            <div class="acct-icon">${a.icon || '🏦'}</div>
+            <div class="acct-name">${a.name}</div>
+            <div class="acct-bal">${fmtPKR2(a.balance ?? 0)}</div>
+          </div>
+        `).join('');
+      }
+    } catch (e) {
+      $('m_networth').textContent = '—';
+      $('m_liquid').textContent   = '—';
+      $('m_cc').textContent       = '—';
+      $('m_debts').textContent    = '—';
+      $('accountsList').innerHTML = '<div class="err">Failed to load: ' + e.message + '</div>';
+    }
+  }
+
+  async function loadDebts() {
+    try {
+      const d = await getJSON('/api/debts');
+      if (!d.ok) throw new Error(d.error || 'debts failed');
+      const owe = (d.debts || []).filter(x => x.kind === 'owe' && x.status === 'active');
+      owe.sort((a, b) => (b.original_amount - b.paid_amount) - (a.original_amount - a.paid_amount));
+      const top = owe.slice(0, 5);
+
+      $('topDebts').innerHTML = top.length ? top.map(x => {
+        const remaining = (x.original_amount || 0) - (x.paid_amount || 0);
+        const pct = x.original_amount ? Math.min(100, Math.round((x.paid_amount / x.original_amount) * 100)) : 0;
+        return `
+          <div class="debt-row">
+            <div class="debt-name">${x.name}</div>
+            <div class="debt-bar"><div class="debt-fill" style="width:${pct}%"></div></div>
+            <div class="debt-amt">${fmtPKR(remaining)} <small>of ${fmtPKR(x.original_amount)}</small></div>
+          </div>`;
+      }).join('') : '<div class="empty">No active debts 🎉</div>';
+    } catch (e) {
+      $('topDebts').innerHTML = '<div class="err">Failed: ' + e.message + '</div>';
+    }
   }
 
   async function loadBills() {
     try {
-      const res = await fetch('/api/bills');
-      const data = await res.json();
-      if (data.ok) billsData = data;
-    } catch (e) {}
-  }
+      const d = await getJSON('/api/bills');
+      if (!d.ok) throw new Error(d.error || 'bills failed');
+      const bills = d.bills || [];
+      const sorted = bills.slice().sort((a, b) => (a.due_day || 99) - (b.due_day || 99));
+      const upcoming = sorted.slice(0, 6);
 
-  function paint() {
-    const b = window.store.balances;
-    const d = window.store.debts;
-
-    const netWorth = b.net_worth || 0;
-    const liquid = b.total_assets || 0;
-    const cc = b.cc_outstanding || 0;
-    const personalDebts = d.total_owe || 0;
-    const trueBurden = netWorth - personalDebts;
-
-    animate('hub-net-worth', netWorth);
-    setClass('hub-net-worth', netWorth >= 0 ? 'nw-value positive counter' : 'nw-value negative counter');
-    animate('hub-liquid', liquid);
-    animate('hub-cc', cc);
-    animate('hub-debts', personalDebts);
-    animate('hub-burden', trueBurden);
-    setClass('hub-burden', trueBurden >= 0 ? 'stat-value accent counter' : 'stat-value danger counter');
-
-    paintRecentTx();
-    paintTopDebts();
-    paintDueSoon();
-  }
-
-  function paintRecentTx() {
-    const wrap = document.getElementById('hub-recent-tx');
-    if (!wrap) return;
-    const all = window.store.getCachedAll();
-    const recent = all.slice(0, 8);
-    wrap.innerHTML = '';
-    if (recent.length === 0) {
-      wrap.innerHTML = '<div class="empty-state-inline">No transactions yet.</div>';
-      return;
+      $('billsDue').innerHTML = upcoming.length ? upcoming.map(b => `
+        <div class="bill-row">
+          <div class="bill-name">${b.name}</div>
+          <div class="bill-day">Day ${b.due_day || '—'}</div>
+          <div class="bill-amt">${fmtPKR(b.amount)}</div>
+        </div>`).join('') : '<div class="empty">No bills configured</div>';
+    } catch (e) {
+      $('billsDue').innerHTML = '<div class="err">Failed: ' + e.message + '</div>';
     }
-    recent.forEach(tx => {
-      const acc = window.store.getAccount(tx.accountId);
-      const cat = window.store.getCategory(tx.categoryId);
-      const sign = tx.type === 'income' ? '+' : (tx.type === 'expense' ? '−' : '↔');
-      const colorClass = tx.type === 'income' ? 'positive' : (tx.type === 'expense' ? 'negative' : 'neutral');
-      const row = document.createElement('a');
-      row.href = '/edit.html?id=' + encodeURIComponent(tx.id);
-      row.className = 'tx-row tx-link';
-      row.innerHTML = `
-        <div class="tx-left">
-          <div class="tx-icon">${cat.icon}</div>
-          <div class="tx-info">
-            <div class="tx-name">${esc(cat.name)}</div>
-            <div class="tx-sub">${formatDateLabel(tx.date)} · ${acc.icon} ${esc(acc.name)}</div>
-          </div>
-        </div>
-        <div class="tx-amount ${colorClass}">${sign} ${fmt(tx.amount)}<span class="tx-currency">PKR</span></div>
-      `;
-      wrap.appendChild(row);
-    });
   }
 
-  function paintTopDebts() {
-    const wrap = document.getElementById('hub-top-debts');
-    if (!wrap) return;
-    const debts = ((window.store.debts && window.store.debts.debts) || [])
-      .filter(d => d.kind === 'owe' && d.status === 'active')
-      .sort((a, b) => (a.snowball_order || 99) - (b.snowball_order || 99))
-      .slice(0, 3);
-    wrap.innerHTML = '';
-    if (debts.length === 0) {
-      wrap.innerHTML = '<div class="empty-state-inline">No active debts. Mashallah.</div>';
-      return;
+  async function loadRecentTxns() {
+    try {
+      const d = await getJSON('/api/transactions');
+      if (!d.ok) throw new Error(d.error || 'txns failed');
+      const txns = (d.transactions || []).slice(0, 10);
+
+      $('recentTxns').innerHTML = txns.length ? `
+        <table class="txn-table">
+          <thead><tr><th>Date</th><th>Type</th><th>Account</th><th>Notes</th><th class="r">Amount</th></tr></thead>
+          <tbody>
+            ${txns.map(t => `
+              <tr class="t-${t.type}">
+                <td>${t.date}</td>
+                <td>${t.type}</td>
+                <td>${t.account_id}${t.transfer_to_account_id ? ' → ' + t.transfer_to_account_id : ''}</td>
+                <td class="ellip">${(t.notes || '').slice(0, 40)}</td>
+                <td class="r">${fmtPKR2(t.amount)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>` : '<div class="empty">No transactions yet</div>';
+    } catch (e) {
+      $('recentTxns').innerHTML = '<div class="err">Failed: ' + e.message + '</div>';
     }
-    debts.forEach((d, i) => {
-      const remaining = (d.original_amount || 0) - (d.paid_amount || 0);
-      const pct = d.original_amount > 0 ? Math.round((d.paid_amount / d.original_amount) * 100) : 0;
-      const row = document.createElement('a');
-      row.href = '/debts.html';
-      row.className = 'mini-row';
-      row.innerHTML = `
-        <div class="mini-row-left">
-          ${i === 0 ? '<span class="debt-pin">FIRST</span>' : ''}
-          <div class="mini-row-name">${esc(d.name)}</div>
-        </div>
-        <div class="mini-row-right">
-          <div class="mini-row-amount negative">${fmt(remaining)} <span class="tx-currency">PKR</span></div>
-          <div class="mini-row-sub">${pct}% paid</div>
-        </div>
-      `;
-      wrap.appendChild(row);
-    });
   }
 
-  function paintDueSoon() {
-    const wrap = document.getElementById('hub-due-soon');
-    if (!wrap) return;
-    const upcoming = (billsData.bills || [])
-      .filter(b => !b.paidThisPeriod && (b.status === 'overdue' || b.status === 'due-today' || b.status === 'due-soon'))
-      .sort((a, b) => a.due_day - b.due_day)
-      .slice(0, 5);
-    wrap.innerHTML = '';
-    if (upcoming.length === 0) {
-      wrap.innerHTML = '<div class="empty-state-inline">No bills due soon.</div>';
-      return;
+  // ─── DROPDOWN POPULATORS (form) ───────────────────────────────────
+  async function populateAccounts() {
+    try {
+      const d = await getJSON('/api/balances');
+      const accts = d.accounts || [];
+      const opts = '<option value="">— select —</option>' +
+        accts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
+      $('f_account').innerHTML = opts;
+      $('f_transferTo').innerHTML = '<option value="">— select destination —</option>' +
+        accts.map(a => `<option value="${a.id}">${a.icon || ''} ${a.name}</option>`).join('');
+    } catch (e) {
+      // silent — form still works with manual ids if needed
     }
-    upcoming.forEach(b => {
-      const row = document.createElement('a');
-      row.href = '/bills.html';
-      row.className = 'mini-row';
-      row.innerHTML = `
-        <div class="mini-row-left">
-          <span class="bill-status-dot bill-status-${b.status}-dot"></span>
-          <div class="mini-row-name">${esc(b.name)}</div>
-        </div>
-        <div class="mini-row-right">
-          <div class="mini-row-amount negative">${fmt(b.amount)} <span class="tx-currency">PKR</span></div>
-          <div class="mini-row-sub">${b.daysLabel}</div>
-        </div>
-      `;
-      wrap.appendChild(row);
-    });
   }
 
-  function animate(id, val) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (window.animateNumber) window.animateNumber(el, val);
-    else el.textContent = Math.round(val).toLocaleString('en-US');
+  async function populateCategories() {
+    // Categories endpoint not built yet (Sub-1D-2d). For now, hardcode the seeded list.
+    const cats = [
+      ['other',        '🎯 Other'],
+      ['food',         '🍔 Food'],
+      ['transport',    '🚗 Transport'],
+      ['bills',        '🏠 Bills'],
+      ['health',       '💊 Health'],
+      ['learning',     '📚 Learning'],
+      ['personal',     '👕 Personal'],
+      ['sadqah',       '🎁 Sadqah/Zakat'],
+      ['family',       '💝 Family'],
+      ['tech',         '📱 Tech'],
+      ['rent',         '🏘️ Rent'],
+      ['internet',     '🌐 Internet'],
+      ['mobile_plan',  '📞 Mobile Plan'],
+      ['debt_payment', '💸 Debt Payment'],
+      ['salary',       '💰 Salary'],
+      ['transfer',     '💱 Transfer'],
+      ['cc_payment',   '💳 CC Payment'],
+      ['cc_spend',     '💳 CC Spend'],
+      ['atm_wd',       '🏧 ATM Withdraw'],
+      ['atm_fee',      '🏧 ATM Fee'],
+      ['intl_sub',     '🌐 Intl Subscription'],
+      ['fx_fee',       '🏦 FX Fee'],
+      ['biller',       '🏦 Biller Charge']
+    ];
+    $('f_category').innerHTML = cats.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
   }
 
-  function setClass(id, cls) {
-    const el = document.getElementById(id);
-    if (el) el.className = cls;
+  // ─── FORM SUBMIT ──────────────────────────────────────────────────
+  async function onSubmit(ev) {
+    ev.preventDefault();
+    const btn = $('f_submit');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    const type = $('f_type').value;
+    const payload = {
+      date:        $('f_date').value || today(),
+      type,
+      amount:      parseFloat($('f_amount').value),
+      account_id:  $('f_account').value,
+      category_id: $('f_category').value || 'other',
+      notes:       $('f_notes').value.trim(),
+      created_by:  'web-hub'
+    };
+
+    if (type === 'transfer') {
+      const dest = $('f_transferTo').value;
+      if (!dest) {
+        toast('Transfer needs a destination account', 'err');
+        btn.disabled = false; btn.textContent = 'Add Transaction';
+        return;
+      }
+      if (dest === payload.account_id) {
+        toast('Source and destination cannot be the same', 'err');
+        btn.disabled = false; btn.textContent = 'Add Transaction';
+        return;
+      }
+      payload.transfer_to_account_id = dest;
+    }
+
+    try {
+      const r = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const d = await r.json();
+
+      if (!d.ok) {
+        toast('❌ ' + (d.error || 'Save failed'), 'err');
+      } else {
+        toast(`✅ Saved · ${fmtPKR(payload.amount)} · ${type}` + (d.audited ? '' : ' (audit log skipped)'));
+        $('addTxnForm').reset();
+        $('f_date').value = today();
+        $('f_transferLabel').style.display = 'none';
+        await Promise.all([loadBalances(), loadRecentTxns()]);
+      }
+    } catch (e) {
+      toast('❌ Network error: ' + e.message, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add Transaction';
+    }
   }
 
-  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
-
-  function esc(s) {
-    return String(s || '').replace(/[&<>"']/g, c => ({
-      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-    }[c]));
+  function onTypeChange() {
+    const t = $('f_type').value;
+    $('f_transferLabel').style.display = (t === 'transfer') ? '' : 'none';
   }
 
-  function formatDateLabel(iso) {
-    const today = new Date().toISOString().slice(0, 10);
-    const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    if (iso === today) return 'Today';
-    if (iso === yest) return 'Yesterday';
-    return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  // ─── INIT ─────────────────────────────────────────────────────────
+  function init() {
+    $('f_date').value = today();
+    populateAccounts();
+    populateCategories();
+
+    $('f_type').addEventListener('change', onTypeChange);
+    $('addTxnForm').addEventListener('submit', onSubmit);
+
+    loadBalances();
+    loadDebts();
+    loadBills();
+    loadRecentTxns();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 })();
