@@ -1,217 +1,387 @@
-/* ─── Sovereign Finance · Debts Page v0.5.0 ─── */
+/* ─── Sovereign Finance · Debts Page · v0.4.0 · Sub-1D-3c-F3 ───
+ * Full CRUD + Pay action.
+ *
+ * Existing v0.0.7 was read-only.
+ * v0.4.0 adds:
+ *   - Stats row (total owe / owed / count)
+ *   - "+ Add Debt" button → POST /api/debts (audit-wired)
+ *   - Per-row [Pay] [Edit] [Delete] buttons
+ *   - Pay      → POST /api/debts/{id}/pay (atomic txn + paid bump + audit)
+ *   - Edit     → PUT  /api/debts/{id}     (snapshot + audit)
+ *   - Delete   → DELETE /api/debts/{id}   (soft-delete + snapshot + audit)
+ *
+ * UX: uses native prompt()/confirm() for now (lightweight, mobile-friendly).
+ * Polished modals can come later as a separate UX pass.
+ *
+ * Cache-bust: every API read uses { cache: 'no-store' }.
+ */
 
 (function () {
-  document.addEventListener('DOMContentLoaded', init);
+  'use strict';
 
-  let activeDebt = null;
+  document.addEventListener('DOMContentLoaded', initDebtsPage);
 
-  async function init() {
-    paint();
-    await Promise.all([
-      window.store.refreshDebts(),
-      window.store.refreshBalances()
-    ]);
-    paint();
-    attachModalEvents();
+  let liveAccounts = [];
+
+  /* ─── INIT ─── */
+  async function initDebtsPage() {
+    /* Wire "+ Add Debt" button if present */
+    const addBtn = document.getElementById('addDebtBtn');
+    if (addBtn) addBtn.addEventListener('click', onAddClick);
+
+    /* Wire optional kind filter */
+    const filterBtns = document.querySelectorAll('.debts-filter');
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderDebts(btn.dataset.filter);
+      });
+    });
+
+    await loadAll();
   }
 
-  function paint() {
-    const data = window.store.debts || { debts: [], total_owe: 0, total_owed: 0 };
-    const owe = data.debts.filter(d => d.kind === 'owe' && d.status === 'active');
-    const owed = data.debts.filter(d => d.kind === 'owed' && d.status === 'active');
-    const closed = data.debts.filter(d => d.status === 'closed');
+  /* ─── LOAD ─── */
+  async function loadAll() {
+    try {
+      const [debtsRes, balRes] = await Promise.all([
+        fetch('/api/debts', { cache: 'no-store' }).then(r => r.json()),
+        fetch('/api/balances', { cache: 'no-store' }).then(r => r.json())
+      ]);
 
-    animate('debts-total-owe', data.total_owe);
-    animate('debts-total-owed', data.total_owed);
-    setText('debts-owe-count', owe.length + (owe.length === 1 ? ' debt' : ' debts'));
-    setText('debts-owed-count', owed.length + (owed.length === 1 ? ' person' : ' people'));
-    setText('debts-summary', closed.length + ' cleared · ' + (owe.length + owed.length) + ' active');
-    setText('debts-net-burden', 'Net ' + fmt(data.total_owe - data.total_owed) + ' PKR');
+      if (!debtsRes.ok) throw new Error(debtsRes.error || 'debts failed');
 
-    const oweList = document.getElementById('debts-owe-list');
-    const owedList = document.getElementById('debts-owed-list');
-    const rcvHeader = document.getElementById('receivables-header');
-    oweList.innerHTML = '';
-    owedList.innerHTML = '';
+      window.store.cachedDebts = debtsRes.debts || [];
+      liveAccounts = balRes.ok ? (balRes.accounts || []) : [];
 
-    if (owe.length === 0) {
-      oweList.innerHTML = '<div class="empty-state-inline">No active debts. Mashallah.</div>';
-    } else {
-      owe.sort((a, b) => (a.snowball_order || 99) - (b.snowball_order || 99))
-         .forEach((d, idx) => oweList.appendChild(buildRow(d, idx === 0)));
-    }
-
-    if (owed.length === 0) {
-      rcvHeader.style.display = 'none';
-      owedList.style.display = 'none';
-    } else {
-      rcvHeader.style.display = '';
-      owedList.style.display = '';
-      owed.forEach(d => owedList.appendChild(buildRow(d, false)));
+      renderStats(debtsRes);
+      renderDebts(getActiveFilter());
+    } catch (err) {
+      const list = document.getElementById('debtsList');
+      if (list) list.innerHTML = `<div class="empty-state-inline">Failed: ${escHtml(err.message)}</div>`;
     }
   }
 
-  function animate(id, val) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (window.animateNumber) window.animateNumber(el, val);
-    else el.textContent = fmt(val);
+  /* ─── STATS ROW ─── */
+  function renderStats(d) {
+    const totalOweEl  = document.getElementById('debts-total-owe');
+    const totalOwedEl = document.getElementById('debts-total-owed');
+    const countEl     = document.getElementById('debts-count');
+    if (totalOweEl)  totalOweEl.textContent  = fmtPKR(d.total_owe || 0);
+    if (totalOwedEl) totalOwedEl.textContent = fmtPKR(d.total_owed || 0);
+    if (countEl)     countEl.textContent     = String(d.count || 0);
   }
 
-  function buildRow(d, isFirst) {
-    const original = d.original_amount || 0;
-    const paid = d.paid_amount || 0;
-    const remaining = original - paid;
-    const pct = original > 0 ? Math.min(100, Math.round((paid / original) * 100)) : 0;
-    const isReceivable = d.kind === 'owed';
-    const progressClass = pct >= 100 ? 'done' : (pct >= 50 ? 'half' : 'start');
+  function getActiveFilter() {
+    const active = document.querySelector('.debts-filter.active');
+    return active ? active.dataset.filter : 'all';
+  }
 
-    const row = document.createElement('div');
-    row.className = 'debt-row' + (isFirst && !isReceivable ? ' debt-first' : '');
-    row.innerHTML = `
-      <div class="debt-header">
-        <div class="debt-info">
-          <div class="debt-name">
-            ${isFirst && !isReceivable ? '<span class="debt-pin">FIRST</span>' : ''}${esc(d.name)}
+  /* ─── RENDER LIST ─── */
+  function renderDebts(filter) {
+    const list = document.getElementById('debtsList');
+    if (!list) return;
+    const debts = (window.store.cachedDebts || []).filter(d => {
+      if (filter === 'owe')  return d.kind === 'owe';
+      if (filter === 'owed') return d.kind === 'owed';
+      return true;
+    });
+
+    if (debts.length === 0) {
+      list.innerHTML = '<div class="empty-state-inline">No debts in this view 🎉</div>';
+      return;
+    }
+
+    list.innerHTML = debts.map(d => {
+      const remaining = (d.original_amount || 0) - (d.paid_amount || 0);
+      const pct = d.original_amount > 0
+        ? Math.round(((d.paid_amount || 0) / d.original_amount) * 100)
+        : 0;
+      const fullyPaid = remaining <= 0.01;
+      const cls = d.kind === 'owe' ? 'negative' : 'positive';
+      const arrow = d.kind === 'owe' ? '↓' : '↑';
+
+      const safeId = escHtml(d.id);
+      const payBtn = fullyPaid
+        ? `<button class="dense-action" disabled style="opacity:0.4;cursor:not-allowed">paid ✓</button>`
+        : `<button class="dense-action" data-act="pay" data-id="${safeId}" title="Log a payment">+ Pay</button>`;
+
+      return `
+        <div class="debt-row" data-debt-id="${safeId}">
+          <div class="debt-header">
+            <div>
+              <div class="debt-name">${escHtml(d.name)}</div>
+              <div class="debt-kind muted">${arrow} ${d.kind === 'owe' ? 'You owe' : 'Owed to you'} · #${d.snowball_order || '—'}${d.notes ? ' · ' + escHtml(d.notes.slice(0, 60)) : ''}</div>
+            </div>
+            <div class="debt-amounts" style="text-align:right">
+              <div class="debt-remaining ${cls}">${fmtPKRfull(remaining)}<span class="amount-currency">PKR</span></div>
+              <div class="debt-original muted">${pct}% paid · of ${fmtPKR(d.original_amount)}</div>
+            </div>
           </div>
-          <div class="debt-sub">${isReceivable ? 'owes you' : 'snowball #' + (d.snowball_order || '-')}</div>
-        </div>
-        <div class="debt-amount ${isReceivable ? 'positive' : 'negative'}">
-          ${fmt(remaining)}<span class="debt-currency">PKR</span>
-        </div>
-      </div>
-      <div class="debt-progress">
-        <div class="debt-progress-bar ${progressClass}" style="width:${pct}%"></div>
-      </div>
-      <div class="debt-meta">
-        <span>paid ${fmt(paid)} of ${fmt(original)}</span>
-        <span>${pct}%</span>
-      </div>
-      <div class="debt-actions">
-        <button class="debt-pay-btn" data-action="pay">${isReceivable ? 'Receive' : 'Pay'}</button>
-        <button class="debt-close-btn" data-action="close">Mark Cleared</button>
-      </div>
-    `;
-    row.querySelector('[data-action="pay"]').addEventListener('click', () => openPayModal(d));
-    row.querySelector('[data-action="close"]').addEventListener('click', () => closeDebt(d));
-    return row;
-  }
+          <div class="progress-bar" style="margin-top:8px">
+            <div class="progress-fill ${cls}" style="width:${pct}%"></div>
+          </div>
+          <div class="debt-actions" style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+            ${payBtn}
+            <button class="dense-action" data-act="edit"   data-id="${safeId}" title="Edit fields">✎ Edit</button>
+            <button class="dense-action" data-act="delete" data-id="${safeId}" title="Soft-delete (audit-safe)" style="color:var(--danger)">🗑 Delete</button>
+          </div>
+        </div>`;
+    }).join('');
 
-  function openPayModal(debt) {
-    activeDebt = debt;
-    const remaining = (debt.original_amount || 0) - (debt.paid_amount || 0);
-    document.getElementById('payModalTitle').textContent =
-      (debt.kind === 'owed' ? 'Receive from ' : 'Pay ') + debt.name;
-    document.getElementById('payModalSub').textContent = 'Remaining: ' + fmt(remaining) + ' PKR';
-    document.getElementById('payAmount').value = '';
-    document.getElementById('payDate').value = new Date().toISOString().slice(0, 10);
-
-    const sel = document.getElementById('payAccount');
-    sel.innerHTML = '';
-    window.store.accounts.filter(a => a.type === 'asset').forEach(a => {
-      const opt = document.createElement('option');
-      opt.value = a.id;
-      opt.textContent = a.icon + '  ' + a.name;
-      sel.appendChild(opt);
-    });
-
-    document.getElementById('payModal').style.display = 'flex';
-  }
-
-  function closeModal() {
-    document.getElementById('payModal').style.display = 'none';
-    activeDebt = null;
-  }
-
-  function attachModalEvents() {
-    document.getElementById('payCancel').addEventListener('click', closeModal);
-    document.getElementById('payConfirm').addEventListener('click', confirmPayment);
-    document.getElementById('payModal').addEventListener('click', (e) => {
-      if (e.target.id === 'payModal') closeModal();
+    /* Wire row buttons */
+    list.querySelectorAll('button[data-act]').forEach(btn => {
+      btn.addEventListener('click', onActionClick);
     });
   }
 
-  async function confirmPayment() {
-    if (!activeDebt) return;
-    const amount = parseFloat(document.getElementById('payAmount').value);
-    const accountId = document.getElementById('payAccount').value;
-    const date = document.getElementById('payDate').value;
-    if (isNaN(amount) || amount <= 0) { showToast('Enter amount', 'error'); return; }
-    if (!accountId) { showToast('Pick account', 'error'); return; }
+  /* ─── ACTIONS ─── */
+  async function onActionClick(ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const btn = ev.currentTarget;
+    const act = btn.getAttribute('data-act');
+    const id  = btn.getAttribute('data-id');
+    if (act === 'pay')    return onPayClick(id);
+    if (act === 'edit')   return onEditClick(id);
+    if (act === 'delete') return onDeleteClick(id);
+  }
 
-    const btn = document.getElementById('payConfirm');
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
+  /* ─── + ADD DEBT ─── */
+  async function onAddClick() {
+    const name = window.prompt('Debt name (e.g. "CRED-7" or "Hassan loan"):');
+    if (!name || !name.trim()) return;
+
+    const kindRaw = window.prompt('Type: owe or owed (default: owe)\n· "owe" = you owe money to them\n· "owed" = they owe money to you', 'owe');
+    if (kindRaw === null) return;
+    const kind = kindRaw.trim().toLowerCase() === 'owed' ? 'owed' : 'owe';
+
+    const amountRaw = window.prompt('Original amount (PKR):');
+    if (amountRaw === null) return;
+    const amount = parseFloat(amountRaw);
+    if (isNaN(amount) || amount <= 0) {
+      toast('❌ Invalid amount', 'err');
+      return;
+    }
+
+    const paidRaw = window.prompt('Already paid so far (PKR, default 0):', '0');
+    if (paidRaw === null) return;
+    const paid = Math.max(0, parseFloat(paidRaw) || 0);
+
+    const notes = window.prompt('Notes (optional):', '') || '';
 
     try {
-      const res = await fetch('/api/debts/' + encodeURIComponent(activeDebt.id) + '/pay', {
+      const r = await fetch('/api/debts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, account_id: accountId, date })
-      });
-      const data = await res.json();
-      if (!data.ok) {
-        showToast(data.error || 'Failed', 'error');
-      } else {
-        showToast('Saved ✓', 'success');
-        closeModal();
-        await Promise.all([
-          window.store.refreshDebts(),
-          window.store.refreshBalances(),
-          window.store.refreshTransactions()
-        ]);
-        paint();
-      }
-    } catch (e) {
-      showToast('Network error', 'error');
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Confirm';
-    }
-  }
-
-  async function closeDebt(debt) {
-    if (!confirm('Mark "' + debt.name + '" as fully cleared?')) return;
-    try {
-      const res = await fetch('/api/debts/' + encodeURIComponent(debt.id), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: debt.name,
-          kind: debt.kind,
-          original_amount: debt.original_amount,
-          paid_amount: debt.original_amount,
-          snowball_order: debt.snowball_order,
-          due_date: debt.due_date,
-          status: 'closed',
-          notes: debt.notes
+          name: name.trim(),
+          kind,
+          original_amount: amount,
+          paid_amount: paid,
+          notes: notes.trim(),
+          created_by: 'web-debts'
         })
       });
-      const data = await res.json();
-      if (!data.ok) {
-        showToast(data.error || 'Failed', 'error');
-      } else {
-        showToast('Cleared ✓', 'success');
-        await Promise.all([window.store.refreshDebts(), window.store.refreshBalances()]);
-        paint();
+      const d = await r.json();
+      if (!d.ok) {
+        toast('❌ ' + (d.error || 'Add failed'), 'err');
+        return;
       }
+      toast(`✅ Added ${d.name} · #${d.snowball_order}`);
+      await loadAll();
     } catch (e) {
-      showToast('Network error', 'error');
+      toast('❌ Network error: ' + e.message, 'err');
     }
   }
 
-  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
-  function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
-  function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+  /* ─── PAY ─── */
+  async function onPayClick(id) {
+    const debt = (window.store.cachedDebts || []).find(d => d.id === id);
+    if (!debt) { toast('❌ Debt not found', 'err'); return; }
+    const remaining = (debt.original_amount || 0) - (debt.paid_amount || 0);
 
-  function showToast(msg, kind) {
+    const amountRaw = window.prompt(
+      `Pay how much to "${debt.name}"?\nRemaining: Rs ${fmtPKR(remaining)}`,
+      String(Math.min(remaining, 1000))
+    );
+    if (amountRaw === null) return;
+    const amount = parseFloat(amountRaw);
+    if (isNaN(amount) || amount <= 0) { toast('❌ Invalid amount', 'err'); return; }
+    if (amount > remaining + 0.01) { toast(`❌ Max ${remaining} for this debt`, 'err'); return; }
+
+    const accountList = liveAccounts
+      .filter(a => a.type === 'asset')
+      .map((a, i) => `${i + 1}. ${a.icon || '🏦'} ${a.name} (Rs ${fmtPKR(a.balance)})`)
+      .join('\n');
+    const accountRaw = window.prompt(
+      `Pay from which account? Type the NUMBER:\n\n${accountList}`,
+      '1'
+    );
+    if (accountRaw === null) return;
+    const accIdx = parseInt(accountRaw, 10) - 1;
+    const assets = liveAccounts.filter(a => a.type === 'asset');
+    if (isNaN(accIdx) || accIdx < 0 || accIdx >= assets.length) {
+      toast('❌ Invalid account choice', 'err');
+      return;
+    }
+    const accountId = assets[accIdx].id;
+
+    const notes = window.prompt('Notes (optional):', '') || '';
+
+    try {
+      const r = await fetch(`/api/debts/${encodeURIComponent(id)}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount,
+          account_id: accountId,
+          notes: notes.trim(),
+          created_by: 'web-debts'
+        })
+      });
+      const d = await r.json();
+      if (!d.ok) { toast('❌ ' + (d.error || 'Pay failed'), 'err'); return; }
+      const status = d.fully_paid ? '🎉 FULLY PAID' : `Rs ${fmtPKR(d.remaining_after)} left`;
+      toast(`✅ Paid Rs ${fmtPKR(amount)} · ${status}`);
+      await loadAll();
+    } catch (e) {
+      toast('❌ Network error: ' + e.message, 'err');
+    }
+  }
+
+  /* ─── EDIT ─── */
+  async function onEditClick(id) {
+    const debt = (window.store.cachedDebts || []).find(d => d.id === id);
+    if (!debt) { toast('❌ Debt not found', 'err'); return; }
+
+    const choice = window.prompt(
+      `Edit which field of "${debt.name}"? Type the NUMBER:\n\n` +
+      `1. Name (current: ${debt.name})\n` +
+      `2. Original amount (current: Rs ${fmtPKR(debt.original_amount)})\n` +
+      `3. Paid amount (current: Rs ${fmtPKR(debt.paid_amount)})\n` +
+      `4. Snowball order (current: ${debt.snowball_order})\n` +
+      `5. Notes (current: ${debt.notes || '—'})\n` +
+      `6. Mark fully paid (sets paid = original)`,
+      '1'
+    );
+    if (choice === null) return;
+
+    const updates = {};
+    switch (choice.trim()) {
+      case '1': {
+        const v = window.prompt('New name:', debt.name);
+        if (v === null || !v.trim()) return;
+        updates.name = v.trim();
+        break;
+      }
+      case '2': {
+        const v = window.prompt('New original amount (PKR):', String(debt.original_amount));
+        if (v === null) return;
+        const n = parseFloat(v);
+        if (isNaN(n) || n <= 0) { toast('❌ Invalid', 'err'); return; }
+        updates.original_amount = n;
+        break;
+      }
+      case '3': {
+        const v = window.prompt('New paid amount (PKR):', String(debt.paid_amount));
+        if (v === null) return;
+        const n = parseFloat(v);
+        if (isNaN(n) || n < 0) { toast('❌ Invalid', 'err'); return; }
+        updates.paid_amount = n;
+        break;
+      }
+      case '4': {
+        const v = window.prompt('New snowball order:', String(debt.snowball_order || ''));
+        if (v === null) return;
+        const n = parseInt(v, 10);
+        if (isNaN(n) || n <= 0) { toast('❌ Invalid', 'err'); return; }
+        updates.snowball_order = n;
+        break;
+      }
+      case '5': {
+        const v = window.prompt('Notes:', debt.notes || '');
+        if (v === null) return;
+        updates.notes = v;
+        break;
+      }
+      case '6': {
+        if (!window.confirm(`Mark "${debt.name}" as fully paid (Rs ${fmtPKR(debt.original_amount)})?`)) return;
+        updates.paid_amount = debt.original_amount;
+        break;
+      }
+      default:
+        toast('❌ Invalid choice', 'err');
+        return;
+    }
+
+    updates.created_by = 'web-debts';
+
+    try {
+      const r = await fetch(`/api/debts/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      });
+      const d = await r.json();
+      if (!d.ok) { toast('❌ ' + (d.error || 'Edit failed'), 'err'); return; }
+      toast(`✅ Updated · snap ${d.snapshot_id}`);
+      await loadAll();
+    } catch (e) {
+      toast('❌ Network error: ' + e.message, 'err');
+    }
+  }
+
+  /* ─── DELETE (soft) ─── */
+  async function onDeleteClick(id) {
+    const debt = (window.store.cachedDebts || []).find(d => d.id === id);
+    if (!debt) { toast('❌ Debt not found', 'err'); return; }
+
+    const ok = window.confirm(
+      `Soft-delete "${debt.name}"?\n\n` +
+      `This sets status='deleted' (the record + audit trail are KEPT).\n` +
+      `It hides from the Debts list but remains in snapshots/audit log.\n\n` +
+      `Continue?`
+    );
+    if (!ok) return;
+
+    try {
+      const r = await fetch(`/api/debts/${encodeURIComponent(id)}?created_by=web-debts`, {
+        method: 'DELETE'
+      });
+      const d = await r.json();
+      if (!d.ok) { toast('❌ ' + (d.error || 'Delete failed'), 'err'); return; }
+      toast(`✅ Deleted · snap ${d.snapshot_id}`);
+      await loadAll();
+    } catch (e) {
+      toast('❌ Network error: ' + e.message, 'err');
+    }
+  }
+
+  /* ─── HELPERS ─── */
+  function fmtPKR(n) {
+    return Math.round(Number(n) || 0).toLocaleString('en-PK');
+  }
+  function fmtPKRfull(n) {
+    return Number(n || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function toast(msg, kind) {
     const existing = document.querySelector('.toast');
     if (existing) existing.remove();
-    const toast = document.createElement('div');
-    toast.className = 'toast toast-' + (kind || 'info');
-    toast.textContent = msg;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 2200);
+    const t = document.createElement('div');
+    t.className = 'toast toast-' + (kind === 'err' || kind === 'error' ? 'error' : 'success');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.classList.add('show'), 10);
+    setTimeout(() => {
+      t.classList.remove('show');
+      setTimeout(() => t.remove(), 300);
+    }, 3500);
   }
 })();
