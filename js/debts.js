@@ -1,19 +1,14 @@
-/* ─── Sovereign Finance · Debts Page · v0.4.0 · Sub-1D-3c-F3 ───
- * Full CRUD + Pay action.
+/* ─── Sovereign Finance · Debts Page · v0.4.1 · Sub-1D-3c-F3-fix ───
+ * RCA from v0.4.0: targeted wrong element IDs (#debtsList, #addDebtBtn etc).
+ * v0.4.1 targets the ACTUAL IDs that exist in debts.html v0.3.1:
+ *   #total-owe · #owe-count · #total-owed · #owed-count · #snowball-order
+ *   #owe-list · #owed-list
  *
- * Existing v0.0.7 was read-only.
- * v0.4.0 adds:
- *   - Stats row (total owe / owed / count)
- *   - "+ Add Debt" button → POST /api/debts (audit-wired)
- *   - Per-row [Pay] [Edit] [Delete] buttons
- *   - Pay      → POST /api/debts/{id}/pay (atomic txn + paid bump + audit)
- *   - Edit     → PUT  /api/debts/{id}     (snapshot + audit)
- *   - Delete   → DELETE /api/debts/{id}   (soft-delete + snapshot + audit)
+ * Adds full CRUD + Pay action via existing list containers.
+ * Each row gets [+Pay] [Edit] [Delete] buttons via .debt-actions overlay.
  *
- * UX: uses native prompt()/confirm() for now (lightweight, mobile-friendly).
- * Polished modals can come later as a separate UX pass.
- *
- * Cache-bust: every API read uses { cache: 'no-store' }.
+ * Add Debt button gets injected into .section-header dynamically (so we don't
+ * need to touch debts.html in Turn 4 — saves a round-trip).
  */
 
 (function () {
@@ -25,21 +20,29 @@
 
   /* ─── INIT ─── */
   async function initDebtsPage() {
-    /* Wire "+ Add Debt" button if present */
-    const addBtn = document.getElementById('addDebtBtn');
-    if (addBtn) addBtn.addEventListener('click', onAddClick);
-
-    /* Wire optional kind filter */
-    const filterBtns = document.querySelectorAll('.debts-filter');
-    filterBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        filterBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        renderDebts(btn.dataset.filter);
-      });
-    });
-
+    injectAddButtons();
     await loadAll();
+  }
+
+  /* Inject "+ Add" button next to each section header (Snowball Order + Receivables) */
+  function injectAddButtons() {
+    document.querySelectorAll('.section-header').forEach(header => {
+      const label = header.querySelector('.section-label');
+      if (!label) return;
+      const labelText = (label.textContent || '').toLowerCase();
+      let kind = null;
+      if (labelText.includes('snowball')) kind = 'owe';
+      else if (labelText.includes('receivable')) kind = 'owed';
+      if (!kind) return;
+      if (header.querySelector('.add-debt-btn')) return; // already injected
+
+      const btn = document.createElement('button');
+      btn.className = 'dense-action add-debt-btn';
+      btn.textContent = '+ Add';
+      btn.title = kind === 'owe' ? 'Add a new debt you owe' : 'Add a new receivable';
+      btn.addEventListener('click', () => onAddClick(kind));
+      header.appendChild(btn);
+    });
   }
 
   /* ─── LOAD ─── */
@@ -50,88 +53,110 @@
         fetch('/api/balances', { cache: 'no-store' }).then(r => r.json())
       ]);
 
-      if (!debtsRes.ok) throw new Error(debtsRes.error || 'debts failed');
+      if (!debtsRes.ok) throw new Error(debtsRes.error || 'debts load failed');
 
       window.store.cachedDebts = debtsRes.debts || [];
       liveAccounts = balRes.ok ? (balRes.accounts || []) : [];
 
       renderStats(debtsRes);
-      renderDebts(getActiveFilter());
+      renderLists(debtsRes.debts || []);
     } catch (err) {
-      const list = document.getElementById('debtsList');
-      if (list) list.innerHTML = `<div class="empty-state-inline">Failed: ${escHtml(err.message)}</div>`;
+      const oweList  = document.getElementById('owe-list');
+      const owedList = document.getElementById('owed-list');
+      const msg = `<div class="empty-state-inline">Failed: ${escHtml(err.message)}</div>`;
+      if (oweList)  oweList.innerHTML  = msg;
+      if (owedList) owedList.innerHTML = msg;
     }
   }
 
-  /* ─── STATS ROW ─── */
+  /* ─── STATS ─── */
   function renderStats(d) {
-    const totalOweEl  = document.getElementById('debts-total-owe');
-    const totalOwedEl = document.getElementById('debts-total-owed');
-    const countEl     = document.getElementById('debts-count');
-    if (totalOweEl)  totalOweEl.textContent  = fmtPKR(d.total_owe || 0);
-    if (totalOwedEl) totalOwedEl.textContent = fmtPKR(d.total_owed || 0);
-    if (countEl)     countEl.textContent     = String(d.count || 0);
+    const owe = (d.debts || []).filter(x => x.kind === 'owe');
+    const owed = (d.debts || []).filter(x => x.kind === 'owed');
+
+    const oweEl = document.getElementById('total-owe');
+    const oweCount = document.getElementById('owe-count');
+    const owedEl = document.getElementById('total-owed');
+    const owedCount = document.getElementById('owed-count');
+    const snowballOrder = document.getElementById('snowball-order');
+
+    if (oweEl)  oweEl.textContent  = fmtPKR(d.total_owe || 0);
+    if (oweCount) oweCount.textContent = `${owe.length} debt${owe.length === 1 ? '' : 's'}`;
+    if (owedEl) owedEl.textContent = fmtPKR(d.total_owed || 0);
+    if (owedCount) owedCount.textContent = `${owed.length} receivable${owed.length === 1 ? '' : 's'}`;
+
+    if (snowballOrder) {
+      const activeOwe = owe.filter(x => (x.original_amount || 0) - (x.paid_amount || 0) > 0)
+                          .sort((a, b) => (a.snowball_order || 99) - (b.snowball_order || 99));
+      if (activeOwe.length === 0) {
+        snowballOrder.textContent = 'all paid 🎉';
+      } else {
+        snowballOrder.textContent = activeOwe.map((d, i) => `${i + 1}. ${d.name}`).slice(0, 3).join(' · ');
+      }
+    }
   }
 
-  function getActiveFilter() {
-    const active = document.querySelector('.debts-filter.active');
-    return active ? active.dataset.filter : 'all';
+  /* ─── RENDER LISTS ─── */
+  function renderLists(debts) {
+    const owe  = debts.filter(d => d.kind === 'owe');
+    const owed = debts.filter(d => d.kind === 'owed');
+    renderOne(owe,  document.getElementById('owe-list'),  'owe');
+    renderOne(owed, document.getElementById('owed-list'), 'owed');
   }
 
-  /* ─── RENDER LIST ─── */
-  function renderDebts(filter) {
-    const list = document.getElementById('debtsList');
-    if (!list) return;
-    const debts = (window.store.cachedDebts || []).filter(d => {
-      if (filter === 'owe')  return d.kind === 'owe';
-      if (filter === 'owed') return d.kind === 'owed';
-      return true;
-    });
-
-    if (debts.length === 0) {
-      list.innerHTML = '<div class="empty-state-inline">No debts in this view 🎉</div>';
+  function renderOne(list, container, kind) {
+    if (!container) return;
+    if (list.length === 0) {
+      const msg = kind === 'owe'
+        ? 'No debts owed. 🎉 Click + Add above to track one.'
+        : 'No receivables. Click + Add above to track money owed to you.';
+      container.innerHTML = `<div class="empty-state-inline">${msg}</div>`;
       return;
     }
 
-    list.innerHTML = debts.map(d => {
+    /* Sort by snowball_order */
+    list = list.slice().sort((a, b) => (a.snowball_order || 99) - (b.snowball_order || 99));
+
+    container.innerHTML = list.map(d => {
       const remaining = (d.original_amount || 0) - (d.paid_amount || 0);
       const pct = d.original_amount > 0
-        ? Math.round(((d.paid_amount || 0) / d.original_amount) * 100)
+        ? Math.min(100, Math.round(((d.paid_amount || 0) / d.original_amount) * 100))
         : 0;
       const fullyPaid = remaining <= 0.01;
-      const cls = d.kind === 'owe' ? 'negative' : 'positive';
-      const arrow = d.kind === 'owe' ? '↓' : '↑';
-
+      const cls = kind === 'owe' ? 'negative' : 'positive';
+      const arrow = kind === 'owe' ? '↓' : '↑';
       const safeId = escHtml(d.id);
+
       const payBtn = fullyPaid
         ? `<button class="dense-action" disabled style="opacity:0.4;cursor:not-allowed">paid ✓</button>`
         : `<button class="dense-action" data-act="pay" data-id="${safeId}" title="Log a payment">+ Pay</button>`;
 
       return `
-        <div class="debt-row" data-debt-id="${safeId}">
-          <div class="debt-header">
-            <div>
-              <div class="debt-name">${escHtml(d.name)}</div>
-              <div class="debt-kind muted">${arrow} ${d.kind === 'owe' ? 'You owe' : 'Owed to you'} · #${d.snowball_order || '—'}${d.notes ? ' · ' + escHtml(d.notes.slice(0, 60)) : ''}</div>
+        <div class="debt-row" data-debt-id="${safeId}" style="padding:12px 14px;border-bottom:1px solid var(--border);background:var(--bg-elev-1);border-radius:8px;margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600">${escHtml(d.name)}</div>
+              <div class="muted" style="font-size:12px;margin-top:2px">
+                ${arrow} ${kind === 'owe' ? 'You owe' : 'Owed to you'} · #${d.snowball_order || '—'}${d.notes ? ' · ' + escHtml(d.notes.slice(0, 60)) : ''}
+              </div>
             </div>
-            <div class="debt-amounts" style="text-align:right">
-              <div class="debt-remaining ${cls}">${fmtPKRfull(remaining)}<span class="amount-currency">PKR</span></div>
-              <div class="debt-original muted">${pct}% paid · of ${fmtPKR(d.original_amount)}</div>
+            <div style="text-align:right;white-space:nowrap">
+              <div class="${cls}" style="font-weight:700;font-variant-numeric:tabular-nums">Rs ${fmtPKRfull(remaining)}</div>
+              <div class="muted" style="font-size:11px">${pct}% paid · of Rs ${fmtPKR(d.original_amount)}</div>
             </div>
           </div>
-          <div class="progress-bar" style="margin-top:8px">
-            <div class="progress-fill ${cls}" style="width:${pct}%"></div>
+          <div style="height:6px;background:var(--bg-elev-2);border-radius:3px;margin-top:8px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:var(--${cls === 'negative' ? 'danger' : 'success'},${cls === 'negative' ? '#ef4444' : '#10b981'});transition:width 0.3s"></div>
           </div>
-          <div class="debt-actions" style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+          <div style="display:flex;gap:6px;margin-top:10px;justify-content:flex-end;flex-wrap:wrap">
             ${payBtn}
             <button class="dense-action" data-act="edit"   data-id="${safeId}" title="Edit fields">✎ Edit</button>
-            <button class="dense-action" data-act="delete" data-id="${safeId}" title="Soft-delete (audit-safe)" style="color:var(--danger)">🗑 Delete</button>
+            <button class="dense-action" data-act="delete" data-id="${safeId}" title="Soft-delete (audit-safe)" style="color:var(--danger,#ef4444)">🗑 Delete</button>
           </div>
         </div>`;
     }).join('');
 
-    /* Wire row buttons */
-    list.querySelectorAll('button[data-act]').forEach(btn => {
+    container.querySelectorAll('button[data-act]').forEach(btn => {
       btn.addEventListener('click', onActionClick);
     });
   }
@@ -148,14 +173,11 @@
     if (act === 'delete') return onDeleteClick(id);
   }
 
-  /* ─── + ADD DEBT ─── */
-  async function onAddClick() {
-    const name = window.prompt('Debt name (e.g. "CRED-7" or "Hassan loan"):');
+  /* ─── + ADD ─── */
+  async function onAddClick(kind) {
+    const label = kind === 'owe' ? 'a new DEBT you owe' : 'a new RECEIVABLE (someone owes you)';
+    const name = window.prompt(`Add ${label}:\n\nName (e.g. "CRED-7" or "Hassan loan"):`);
     if (!name || !name.trim()) return;
-
-    const kindRaw = window.prompt('Type: owe or owed (default: owe)\n· "owe" = you owe money to them\n· "owed" = they owe money to you', 'owe');
-    if (kindRaw === null) return;
-    const kind = kindRaw.trim().toLowerCase() === 'owed' ? 'owed' : 'owe';
 
     const amountRaw = window.prompt('Original amount (PKR):');
     if (amountRaw === null) return;
@@ -211,8 +233,8 @@
     if (isNaN(amount) || amount <= 0) { toast('❌ Invalid amount', 'err'); return; }
     if (amount > remaining + 0.01) { toast(`❌ Max ${remaining} for this debt`, 'err'); return; }
 
-    const accountList = liveAccounts
-      .filter(a => a.type === 'asset')
+    const assets = liveAccounts.filter(a => a.type === 'asset');
+    const accountList = assets
       .map((a, i) => `${i + 1}. ${a.icon || '🏦'} ${a.name} (Rs ${fmtPKR(a.balance)})`)
       .join('\n');
     const accountRaw = window.prompt(
@@ -221,7 +243,6 @@
     );
     if (accountRaw === null) return;
     const accIdx = parseInt(accountRaw, 10) - 1;
-    const assets = liveAccounts.filter(a => a.type === 'asset');
     if (isNaN(accIdx) || accIdx < 0 || accIdx >= assets.length) {
       toast('❌ Invalid account choice', 'err');
       return;
