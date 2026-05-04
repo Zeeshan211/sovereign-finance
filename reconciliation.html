@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#050816">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Reconciliation · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/theme.js"></script>
+  <script src="/js/nav.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="brand">Sovereign Ops</div>
+    <h1 class="title">Reconciliation</h1>
+    <div class="day-badge"><span id="recon-summary">loading…</span></div>
+  </header>
+
+  <div class="debt-summary-row">
+    <div class="debt-summary-card">
+      <div class="debt-summary-label">Clean</div>
+      <div id="recon-clean-count" class="debt-summary-value accent">—</div>
+      <div class="debt-summary-sub">accounts in sync</div>
+    </div>
+    <div class="debt-summary-card">
+      <div class="debt-summary-label">Drifted</div>
+      <div id="recon-drifted-count" class="debt-summary-value liabilities">—</div>
+      <div class="debt-summary-sub">need review</div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-label">Latest Per Account</span>
+    <button id="declareBtn" class="ghost-btn" style="margin-left:auto;font-size:12px;padding:4px 10px">+ Declare Balance</button>
+  </div>
+  <div id="recon-latest-list"></div>
+
+  <div class="section-header">
+    <span class="section-label">All Declarations (last 50)</span>
+  </div>
+  <div id="recon-history-list"></div>
+
+  <footer>
+    <span class="v">v0.1.0 · reconciliation</span>
+  </footer>
+
+  <!-- Declare Balance Modal -->
+  <div id="declareModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title">Declare Real Balance</div>
+      <div class="modal-sub">Enter the actual balance from your bank app or statement. The system computes the diff vs D1 and logs it.</div>
+
+      <label class="field-label">Account</label>
+      <select id="declareAccount" class="form-select"></select>
+
+      <label class="field-label">Real Balance (from bank app)</label>
+      <input id="declareBalance" type="number" inputmode="decimal" step="0.01" placeholder="0" class="amount-input">
+
+      <div id="declarePreview" style="display:none;background:rgba(255,255,255,0.04);padding:10px;border-radius:6px;margin-top:10px;font-size:13px;line-height:1.6">
+        <div>D1 says: <span id="declarePreviewD1" class="accent">—</span></div>
+        <div>You declare: <span id="declarePreviewDeclared" class="liabilities">—</span></div>
+        <div>Diff: <span id="declarePreviewDiff">—</span></div>
+      </div>
+
+      <label class="field-label">Notes (optional)</label>
+      <input id="declareNotes" type="text" placeholder="context, source, branch visited…" class="form-input" maxlength="200">
+
+      <div class="modal-actions">
+        <button id="declareCancel" class="ghost-btn">Cancel</button>
+        <button id="declareConfirm" class="primary-btn">Declare</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Note Modal -->
+  <div id="noteModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title" id="noteModalTitle">Add Note</div>
+      <div class="modal-sub" id="noteModalSub">declaration: …</div>
+
+      <label class="field-label">Note</label>
+      <input id="noteText" type="text" placeholder="resolved · investigated · awaiting bank confirm…" class="form-input" maxlength="200">
+
+      <div class="modal-actions">
+        <button id="noteCancel" class="ghost-btn">Cancel</button>
+        <button id="noteConfirm" class="primary-btn">Append Note</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/" class="nav-item">
+        <div class="nav-emoji">🏠</div>
+        <div class="nav-text">Hub</div>
+      </a>
+      <a href="/accounts.html" class="nav-item">
+        <div class="nav-emoji">🏦</div>
+        <div class="nav-text">Accounts</div>
+      </a>
+      <a href="/reconciliation.html" class="nav-item active">
+        <div class="nav-emoji">⚖️</div>
+        <div class="nav-text">Reconcile</div>
+      </a>
+      <a href="/audit.html" class="nav-item">
+        <div class="nav-emoji">📋</div>
+        <div class="nav-text">Audit</div>
+      </a>
+    </div>
+  </nav>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/store.js"></script>
+  <script src="/js/numbers.js"></script>
+  <script src="/js/reconciliation.js"></script>
+</body>
+</html>
