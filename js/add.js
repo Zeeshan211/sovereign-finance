@@ -1,12 +1,12 @@
-/* ─── Sovereign Finance · Add Transaction Form v0.1.0 · Sub-1D-3a-fix3 ─── */
-/* CHANGES from v0.0.9:
-   - Removed broken window.store.refreshAccounts() call (method doesn't exist → was throwing
-     TypeError → killing the rest of init → category dropdown stayed empty)
-   - Now uses window.store.refreshBalances() which exists AND updates accounts as side effect
-   - today() uses LOCAL date (was UTC, off-by-1 in Karachi mornings)
-   - Defensive re-populate on dropdown focus if list looks empty
-   - Console logs to confirm population fired
-*/
+/* ─── Sovereign Finance · Add Transaction Form v0.1.0 · Sub-1D-3-RESHIP ───
+ * Fixes from v0.0.9:
+ *   - Removed broken window.store.refreshAccounts() call (was throwing TypeError →
+ *     killing init → category dropdown stayed empty)
+ *   - Now uses window.store.refreshBalances() (which exists + updates cachedAccounts)
+ *   - localToday() uses LOCAL date (was UTC, off-by-1 in Karachi mornings)
+ *   - Defensive re-populate on dropdown focus if list looks empty
+ *   - Console logs to confirm population fired
+ */
 
 (function () {
   document.addEventListener('DOMContentLoaded', initAddForm);
@@ -49,7 +49,6 @@
     sel.addEventListener('change', updateSubmitState);
     console.log('[add] populated', sel.options.length - 1, 'accounts (first pass)');
 
-    // Refresh from API and rebuild (use refreshBalances which updates cachedAccounts)
     if (window.store && typeof window.store.refreshBalances === 'function') {
       window.store.refreshBalances().then(() => {
         const current = sel.value;
