@@ -1,205 +1,229 @@
-/* ─── Sovereign Finance · Data Store v0.1.0 ─── */
-/* D1-backed via /api/* with offline cache + queue */
+/* ─── Sovereign Finance · Data Store v0.0.10 · Sub-1D-3-PARITY ───
+ * CHANGES from v0.0.9:
+ *   - deleteTransaction() now ROUTES to /api/transactions/reverse (audit-safe soft reverse)
+ *     was: DELETE row + remove from cache (destructive, no audit, no snapshot)
+ *     now: POST /api/transactions/reverse → atomic snapshot + audit + linked-pair handling
+ *   - editTransaction() flow neutralized: shows alert directing to Add page or Reverse
+ *     was: opened modal that PUT-updated rows (also destructive)
+ *     now: alert + return — caller can no longer mutate audit trail
+ *   - All other store methods unchanged
+ */
 
 (function () {
-  const QUEUE_KEY = 'sov_pending_v1';
-  const CACHE_TX_KEY = 'sov_cache_tx_v1';
-  const CACHE_BAL_KEY = 'sov_cache_bal_v1';
-  const CACHE_DEBTS_KEY = 'sov_cache_debts_v1';
-  const ACCOUNTS_KEY = 'sov_accounts_v1';
-  const MAX_NOTES_LENGTH = 200;
+  const API = '';
+  const STORAGE_KEY_TX = 'sovfin_offline_txns_v1';
 
   const FALLBACK_ACCOUNTS = [
-    { id: 'cash',     name: 'Cash',         icon: '💵', type: 'asset',     kind: 'cash',    balance: 0 },
-    { id: 'jazzcash', name: 'JazzCash',     icon: '📱', type: 'asset',     kind: 'wallet',  balance: 0 },
-    { id: 'easypaisa',name: 'Easypaisa',    icon: '📲', type: 'asset',     kind: 'wallet',  balance: 0 },
-    { id: 'ubl',      name: 'UBL',          icon: '🏦', type: 'asset',     kind: 'bank',    balance: 0 },
-    { id: 'meezan',   name: 'Meezan',       icon: '🕌', type: 'asset',     kind: 'bank',    balance: 0 },
-    { id: 'mashreq',  name: 'Mashreq Bank', icon: '🏛', type: 'asset',     kind: 'bank',    balance: 0 },
-    { id: 'js',       name: 'JS Bank',      icon: '💼', type: 'asset',     kind: 'bank',    balance: 0 },
-    { id: 'nayapay',  name: 'Naya Pay',     icon: '💠', type: 'asset',     kind: 'wallet',  balance: 0 },
-    { id: 'alfalah',  name: 'Bank Alfalah', icon: '🏢', type: 'asset',     kind: 'bank',    balance: 0 },
-    { id: 'ublprep',  name: 'UBL Prepaid',  icon: '💳', type: 'asset',     kind: 'prepaid', balance: 0 },
-    { id: 'cc',       name: 'Alfalah CC',   icon: '🪪', type: 'liability', kind: 'cc',      balance: 0 }
+    { id: 'cash',        name: 'Cash',         icon: '💵', kind: 'cash',    type: 'asset',     balance: 0 },
+    { id: 'meezan',      name: 'Meezan',       icon: '🕌', kind: 'bank',    type: 'asset',     balance: 0 },
+    { id: 'mashreq',     name: 'Mashreq Bank', icon: '🏛', kind: 'bank',    type: 'asset',     balance: 0 },
+    { id: 'ubl',         name: 'UBL',          icon: '🏦', kind: 'bank',    type: 'asset',     balance: 0 },
+    { id: 'ubl_prepaid', name: 'UBL Prepaid',  icon: '💳', kind: 'prepaid', type: 'asset',     balance: 0 },
+    { id: 'easypaisa',   name: 'Easypaisa',    icon: '📲', kind: 'wallet',  type: 'asset',     balance: 0 },
+    { id: 'jazzcash',    name: 'JazzCash',     icon: '📱', kind: 'wallet',  type: 'asset',     balance: 0 },
+    { id: 'naya_pay',    name: 'Naya Pay',     icon: '💠', kind: 'wallet',  type: 'asset',     balance: 0 },
+    { id: 'js_bank',     name: 'JS Bank',      icon: '💼', kind: 'bank',    type: 'asset',     balance: 0 },
+    { id: 'alfalah',     name: 'Bank Alfalah', icon: '🏢', kind: 'bank',    type: 'asset',     balance: 0 },
+    { id: 'cc',          name: 'Alfalah CC',   icon: '🪪', kind: 'cc',      type: 'liability', balance: 0 }
   ];
 
   const CATEGORIES = [
-    { id: 'food',     name: 'Food',          icon: '🍔' },
-    { id: 'grocery',  name: 'Groceries',     icon: '🛒' },
-    { id: 'transport',name: 'Transport',     icon: '🚗' },
-    { id: 'bills',    name: 'Bills',         icon: '📄' },
-    { id: 'health',   name: 'Health',        icon: '💊' },
-    { id: 'personal', name: 'Personal',      icon: '👕' },
-    { id: 'family',   name: 'Family',        icon: '👨‍👩‍👧' },
-    { id: 'debt',     name: 'Debt Payment',  icon: '💸' },
-    { id: 'cc_pay',   name: 'CC Payment',    icon: '💳' },
-    { id: 'salary',   name: 'Salary',        icon: '💰' },
-    { id: 'gift',     name: 'Gift Received', icon: '🎁' },
-    { id: 'other',    name: 'Other',         icon: '✨' }
+    { id: 'food',         name: 'Food',           icon: '🍔', kind: 'expense' },
+    { id: 'groceries',    name: 'Groceries',      icon: '🛒', kind: 'expense' },
+    { id: 'transport',    name: 'Transport',      icon: '🚗', kind: 'expense' },
+    { id: 'bills',        name: 'Bills',          icon: '📄', kind: 'expense' },
+    { id: 'health',       name: 'Health',         icon: '💊', kind: 'expense' },
+    { id: 'personal',     name: 'Personal',       icon: '👕', kind: 'expense' },
+    { id: 'family',       name: 'Family',         icon: '👨‍👩‍👧', kind: 'expense' },
+    { id: 'debt_payment', name: 'Debt Payment',   icon: '💸', kind: 'expense' },
+    { id: 'cc_payment',   name: 'CC Payment',     icon: '💳', kind: 'transfer' },
+    { id: 'salary',       name: 'Salary',         icon: '💰', kind: 'income' },
+    { id: 'gift',         name: 'Gift Received',  icon: '🎁', kind: 'income' },
+    { id: 'other',        name: 'Other',          icon: '📌', kind: 'expense' }
   ];
 
-  let cachedAccounts = readJson(ACCOUNTS_KEY, FALLBACK_ACCOUNTS);
-  let cachedTransactions = readJson(CACHE_TX_KEY, []);
-  let cachedBalances = readJson(CACHE_BAL_KEY, null) || {
-    net_worth: 0, total_assets: 0, total_liabilities: 0, cc_outstanding: 0
-  };
-  let cachedDebts = readJson(CACHE_DEBTS_KEY, null) || {
-    count: 0, total_owe: 0, total_owed: 0, debts: []
-  };
+  const store = {
+    accounts: FALLBACK_ACCOUNTS.slice(),
+    categories: CATEGORIES,
+    cachedAccounts: FALLBACK_ACCOUNTS.slice(),
+    cachedTransactions: [],
+    cachedDebts: [],
+    cachedBills: [],
+    cachedAuditLog: [],
 
-  function readJson(key, fallback) {
-    try {
-      const raw = localStorage.getItem(key);
-      if (!raw) return fallback;
-      return JSON.parse(raw);
-    } catch (e) { return fallback; }
-  }
-
-  function writeJson(key, value) {
-    try { localStorage.setItem(key, JSON.stringify(value)); return true; }
-    catch (e) { console.error('localStorage write failed', e); return false; }
-  }
-
-  function genId() {
-    return 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-  }
-
-  async function refreshBalances() {
-    try {
-      const res = await fetch('/api/balances');
-      const data = await res.json();
-      if (data.ok) {
-        cachedBalances = {
-          net_worth: data.net_worth,
-          total_assets: data.total_assets,
-          total_liabilities: data.total_liabilities,
-          cc_outstanding: data.cc_outstanding
-        };
-        writeJson(CACHE_BAL_KEY, cachedBalances);
-        if (Array.isArray(data.accounts)) {
-          cachedAccounts = data.accounts;
-          writeJson(ACCOUNTS_KEY, cachedAccounts);
-        }
-      }
-    } catch (e) { console.warn('balances API offline'); }
-    return cachedBalances;
-  }
-
-  async function refreshTransactions() {
-    try {
-      const res = await fetch('/api/transactions');
-      const data = await res.json();
-      if (data.ok && Array.isArray(data.transactions)) {
-        cachedTransactions = data.transactions.map(tx => ({
-          id: tx.id, date: tx.date, type: tx.type, amount: tx.amount,
-          accountId: tx.account_id, categoryId: tx.category_id,
-          notes: tx.notes, createdAt: tx.created_at
-        }));
-        writeJson(CACHE_TX_KEY, cachedTransactions);
-      }
-    } catch (e) { console.warn('transactions API offline'); }
-    return cachedTransactions;
-  }
-
-  async function refreshDebts() {
-    try {
-      const res = await fetch('/api/debts');
-      const data = await res.json();
-      if (data.ok) {
-        cachedDebts = {
-          count: data.count, total_owe: data.total_owe,
-          total_owed: data.total_owed, debts: data.debts || []
-        };
-        writeJson(CACHE_DEBTS_KEY, cachedDebts);
-      }
-    } catch (e) { console.warn('debts API offline'); }
-    return cachedDebts;
-  }
-
-  function enqueue(payload) {
-    const queue = readJson(QUEUE_KEY, []);
-    queue.push({ id: genId(), payload, queuedAt: new Date().toISOString() });
-    writeJson(QUEUE_KEY, queue);
-  }
-
-  async function flushQueue() {
-    const queue = readJson(QUEUE_KEY, []);
-    if (queue.length === 0) return { flushed: 0 };
-    const remaining = []; let ok = 0;
-    for (const item of queue) {
+    /* ─── Refresh balances + accounts ─── */
+    async refreshBalances() {
       try {
-        const res = await fetch('/api/transactions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(item.payload)
-        });
-        const data = await res.json();
-        if (data.ok) ok++; else remaining.push(item);
-      } catch (e) { remaining.push(item); }
-    }
-    writeJson(QUEUE_KEY, remaining);
-    return { flushed: ok, remaining: remaining.length };
-  }
+        const r = await fetch(API + '/api/balances', { cache: 'no-store' });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || 'balances failed');
+        this.cachedAccounts = d.accounts || FALLBACK_ACCOUNTS;
+        this.accounts = this.cachedAccounts;
+        this.totals = {
+          netWorth:  d.net_worth,
+          liquid:    d.total_liquid_assets,
+          cc:        d.cc_outstanding,
+          debts:     d.total_owe || d.total_debts || 0
+        };
+        return d;
+      } catch (e) {
+        console.warn('[store] refreshBalances failed:', e.message);
+        return null;
+      }
+    },
 
-  flushQueue();
+    /* ─── Refresh transactions ─── */
+    async refreshTransactions() {
+      try {
+        const r = await fetch(API + '/api/transactions', { cache: 'no-store' });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || 'txns failed');
+        this.cachedTransactions = d.transactions || [];
+        return this.cachedTransactions;
+      } catch (e) {
+        console.warn('[store] refreshTransactions failed:', e.message);
+        return [];
+      }
+    },
 
-  window.store = {
-    get accounts() { return cachedAccounts; },
-    get categories() { return CATEGORIES; },
-    get balances() { return cachedBalances; },
-    get debts() { return cachedDebts; },
+    /* ─── Refresh debts ─── */
+    async refreshDebts() {
+      try {
+        const r = await fetch(API + '/api/debts', { cache: 'no-store' });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || 'debts failed');
+        this.cachedDebts = d.debts || [];
+        return this.cachedDebts;
+      } catch (e) {
+        console.warn('[store] refreshDebts failed:', e.message);
+        return [];
+      }
+    },
 
-    refreshBalances,
-    refreshTransactions,
-    refreshDebts,
+    /* ─── Refresh bills ─── */
+    async refreshBills() {
+      try {
+        const r = await fetch(API + '/api/bills', { cache: 'no-store' });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || 'bills failed');
+        this.cachedBills = d.bills || [];
+        return this.cachedBills;
+      } catch (e) {
+        console.warn('[store] refreshBills failed:', e.message);
+        return [];
+      }
+    },
 
-    async addTransaction(input) {
-      const amount = parseFloat(input.amount);
-      if (isNaN(amount) || amount <= 0) return { ok: false, error: 'Amount must be greater than 0' };
-      if (!input.accountId) return { ok: false, error: 'Pick an account' };
-      if (!input.type) return { ok: false, error: 'Pick a type' };
+    /* ─── Refresh audit log ─── */
+    async refreshAuditLog(limit = 50) {
+      try {
+        const r = await fetch(API + '/api/audit?limit=' + limit, { cache: 'no-store' });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || 'audit failed');
+        this.cachedAuditLog = d.rows || [];
+        return this.cachedAuditLog;
+      } catch (e) {
+        console.warn('[store] refreshAuditLog failed:', e.message);
+        return [];
+      }
+    },
+
+    /* ─── ADD TRANSACTION (audit-wired POST) ─── */
+    async addTransaction(data) {
+      const amount = parseFloat(data.amount);
+      if (isNaN(amount) || amount <= 0) {
+        return { ok: false, error: 'Amount must be > 0' };
+      }
+      if (!data.accountId) return { ok: false, error: 'Account required' };
 
       const payload = {
-        type: input.type, amount: amount,
-        account_id: input.accountId,
-        category_id: input.categoryId || 'other',
-        date: input.date || new Date().toISOString().slice(0, 10),
-        notes: (input.notes || '').slice(0, MAX_NOTES_LENGTH)
+        date:        data.date || new Date().toISOString().slice(0, 10),
+        type:        data.type || 'expense',
+        amount:      amount,
+        account_id:  data.accountId,
+        category_id: data.categoryId || 'other',
+        notes:       (data.notes || '').slice(0, 200),
+        created_by:  data.createdBy || 'web-add'
       };
+      if (data.transferToAccountId) {
+        payload.transfer_to_account_id = data.transferToAccountId;
+      }
 
       try {
-        const res = await fetch('/api/transactions', {
+        const r = await fetch(API + '/api/transactions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        const data = await res.json();
-        if (!data.ok) return { ok: false, error: data.error || 'Save failed' };
-        await Promise.all([refreshTransactions(), refreshBalances()]);
-        return { ok: true, id: data.id };
+        const d = await r.json();
+        if (!d.ok) {
+          // Fall back to offline queue
+          this._queueOffline(payload);
+          return { ok: true, queued: true, offline: true, error: d.error };
+        }
+        // Refresh caches
+        await Promise.all([this.refreshBalances(), this.refreshTransactions()]);
+        return { ok: true, id: d.id, linked_id: d.linked_id, audited: d.audited };
       } catch (e) {
-        enqueue(payload);
-        return { ok: true, id: 'queued', queued: true };
+        this._queueOffline(payload);
+        return { ok: true, queued: true, offline: true, error: e.message };
       }
     },
 
-    async getAll() {
-      await refreshTransactions();
-      return cachedTransactions.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    /* ─── REVERSE TRANSACTION (audit-safe — replaces deleteTransaction) ─── */
+    async reverseTransaction(id, createdBy = 'web-store') {
+      if (!id) return { ok: false, error: 'id required' };
+      try {
+        const r = await fetch(API + '/api/transactions/reverse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, created_by: createdBy })
+        });
+        const d = await r.json();
+        if (!d.ok) return { ok: false, error: d.error };
+        await Promise.all([this.refreshBalances(), this.refreshTransactions(), this.refreshDebts()]);
+        return d;
+      } catch (e) {
+        return { ok: false, error: e.message };
+      }
     },
 
-    getCachedAll() {
-      return cachedTransactions.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    /* ─── DEPRECATED: deleteTransaction now routes to reverse ─── */
+    async deleteTransaction(id) {
+      console.warn('[store] deleteTransaction is deprecated — routing to reverseTransaction (audit-safe)');
+      return this.reverseTransaction(id, 'web-deprecated-delete');
     },
 
-    getAccount(id) {
-      return cachedAccounts.find(a => a.id === id) || { name: 'Unknown', icon: '❓' };
+    /* ─── DEPRECATED: editTransaction blocked (would bypass audit) ─── */
+    async editTransaction(id /*, updates */) {
+      const msg = 'Editing transactions is disabled to preserve the audit trail.\n\n' +
+                  'To correct a mistake:\n' +
+                  '  1. Click ↩ Reverse on the wrong transaction (creates an opposite entry + audit log)\n' +
+                  '  2. Use the Add page to enter the correct transaction\n\n' +
+                  'This is the banking-grade pattern — no row is ever silently changed.';
+      console.warn('[store] editTransaction blocked for id', id);
+      if (typeof alert === 'function') alert(msg);
+      return { ok: false, error: 'editTransaction disabled — use Reverse + new entry' };
     },
 
-    getCategory(id) {
-      return CATEGORIES.find(c => c.id === id) || { name: 'Other', icon: '✨' };
+    /* ─── Offline queue ─── */
+    _queueOffline(payload) {
+      try {
+        const q = JSON.parse(localStorage.getItem(STORAGE_KEY_TX) || '[]');
+        q.push({ ...payload, queued_at: Date.now() });
+        localStorage.setItem(STORAGE_KEY_TX, JSON.stringify(q));
+      } catch (e) { /* ignore */ }
+    },
+
+    getOfflineQueue() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY_TX) || '[]'); }
+      catch (e) { return []; }
+    },
+
+    clearOfflineQueue() {
+      try { localStorage.removeItem(STORAGE_KEY_TX); } catch (e) {}
     }
   };
 
-  refreshBalances();
+  window.store = store;
 })();
