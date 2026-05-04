@@ -43,7 +43,7 @@
   <div id="debts-owed-list"></div>
 
   <footer>
-    <span class="v">v0.3.2 · debts</span>
+    <span class="v">v0.3.3 · debts</span>
   </footer>
 
   <div id="payModal" class="modal-backdrop" style="display:none;">
@@ -89,6 +89,37 @@
       <div class="modal-actions">
         <button id="addDebtCancel" class="ghost-btn">Cancel</button>
         <button id="addDebtConfirm" class="primary-btn">Add Debt</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editDebtModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title" id="editDebtTitle">Edit Debt</div>
+      <div class="modal-sub" id="editDebtSub">id: …</div>
+
+      <label class="field-label">Name</label>
+      <input id="editDebtName" type="text" class="form-input" maxlength="80">
+
+      <label class="field-label">Type</label>
+      <select id="editDebtKind" class="form-select">
+        <option value="owe">I Owe (liability)</option>
+        <option value="owed">They Owe Me (receivable)</option>
+      </select>
+
+      <label class="field-label">Original Amount</label>
+      <input id="editDebtAmount" type="number" inputmode="decimal" step="0.01" min="0" class="amount-input">
+
+      <label class="field-label">Paid So Far</label>
+      <input id="editDebtPaid" type="number" inputmode="decimal" step="0.01" min="0" class="amount-input">
+
+      <label class="field-label">Notes (optional)</label>
+      <input id="editDebtNotes" type="text" class="form-input" maxlength="200">
+
+      <div class="modal-actions">
+        <button id="editDebtDelete" class="ghost-btn">Delete</button>
+        <button id="editDebtCancel" class="ghost-btn">Cancel</button>
+        <button id="editDebtConfirm" class="primary-btn">Save</button>
       </div>
     </div>
   </div>
