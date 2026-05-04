@@ -43,7 +43,7 @@
   <div id="acc-archived-list" style="display:none"></div>
 
   <footer>
-    <span class="v">v0.6.0 · accounts</span>
+    <span class="v">v0.7.0 · accounts</span>
   </footer>
 
   <!-- Add Account Modal -->
@@ -71,6 +71,22 @@
 
       <label class="field-label">Display Order (optional)</label>
       <input id="addAccountOrder" type="number" min="0" placeholder="99" class="form-input">
+
+      <div id="addAccountCCBlock" style="display:none;border-top:1px solid rgba(255,255,255,0.1);margin-top:12px;padding-top:12px">
+        <div class="field-label" style="font-weight:600;color:var(--accent,#22c55e);margin-bottom:8px">💳 Credit Card Settings</div>
+
+        <label class="field-label">Credit Limit (optional)</label>
+        <input id="addAccountCreditLimit" type="number" inputmode="decimal" step="0.01" min="0" placeholder="e.g. 100000" class="amount-input">
+
+        <label class="field-label">Min Payment Amount (optional)</label>
+        <input id="addAccountMinPayment" type="number" inputmode="decimal" step="0.01" min="0" placeholder="e.g. 5000" class="amount-input">
+
+        <label class="field-label">Statement Day of Month (1-31)</label>
+        <input id="addAccountStatementDay" type="number" min="1" max="31" placeholder="e.g. 1" class="form-input">
+
+        <label class="field-label">Payment Due Day of Month (1-31)</label>
+        <input id="addAccountDueDay" type="number" min="1" max="31" placeholder="e.g. 6" class="form-input">
+      </div>
 
       <div class="modal-actions">
         <button id="addAccountCancel" class="ghost-btn">Cancel</button>
@@ -105,6 +121,22 @@
 
       <label class="field-label">Display Order</label>
       <input id="editAccountOrder" type="number" min="0" class="form-input">
+
+      <div id="editAccountCCBlock" style="display:none;border-top:1px solid rgba(255,255,255,0.1);margin-top:12px;padding-top:12px">
+        <div class="field-label" style="font-weight:600;color:var(--accent,#22c55e);margin-bottom:8px">💳 Credit Card Settings</div>
+
+        <label class="field-label">Credit Limit</label>
+        <input id="editAccountCreditLimit" type="number" inputmode="decimal" step="0.01" min="0" placeholder="e.g. 100000" class="amount-input">
+
+        <label class="field-label">Min Payment Amount</label>
+        <input id="editAccountMinPayment" type="number" inputmode="decimal" step="0.01" min="0" placeholder="e.g. 5000" class="amount-input">
+
+        <label class="field-label">Statement Day of Month (1-31)</label>
+        <input id="editAccountStatementDay" type="number" min="1" max="31" class="form-input">
+
+        <label class="field-label">Payment Due Day of Month (1-31)</label>
+        <input id="editAccountDueDay" type="number" min="1" max="31" class="form-input">
+      </div>
 
       <div class="modal-actions">
         <button id="editAccountArchive" class="ghost-btn">Archive</button>
