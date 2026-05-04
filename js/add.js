@@ -1,11 +1,19 @@
-/* ─── Sovereign Finance · Add Transaction Form v0.1.0 · Sub-1D-3-RESHIP ───
- * Fixes from v0.0.9:
- *   - Removed broken window.store.refreshAccounts() call (was throwing TypeError →
- *     killing init → category dropdown stayed empty)
- *   - Now uses window.store.refreshBalances() (which exists + updates cachedAccounts)
- *   - localToday() uses LOCAL date (was UTC, off-by-1 in Karachi mornings)
- *   - Defensive re-populate on dropdown focus if list looks empty
- *   - Console logs to confirm population fired
+/* ─── Sovereign Finance · Add Transaction Form v0.2.0 · Sub-1D-TXFER-FIX ───
+ * Wires up the transfer destination dropdown added in add.html v0.6.0.
+ *
+ * Changes vs v0.1.0:
+ *   - Type toggle now shows/hides transferToWrap + categoryWrap
+ *   - Account label swaps "Account" ↔ "From Account" with type
+ *   - transferToSelect populated from accounts (excludes current source)
+ *   - Source change re-populates destination (excludes new source)
+ *   - Submit validation: transfer requires dest, dest !== source
+ *   - Submit payload includes transferToAccountId for transfer type
+ *
+ * PRESERVED from v0.1.0:
+ *   - localToday() local-date logic
+ *   - Defensive re-populate on focus
+ *   - Console-log instrumentation
+ *   - Defensive null checks (works even if v0.6.0 HTML not yet deployed)
  */
 
 (function () {
@@ -27,14 +35,17 @@
     setDateToToday();
     attachTypeToggle();
     attachAmountValidation();
+    attachSourceChangeHandler();
     attachSubmitHandler();
     attachDefensiveRefocus();
-    console.log('[add] init complete · selectedType=', selectedType);
+    applyTypeMode(selectedType);
+    console.log('[add v0.2.0] init complete · selectedType=', selectedType);
   }
 
-  function buildAccountOptions(sel) {
+  function buildAccountOptions(sel, excludeId) {
     sel.innerHTML = '<option value="">Pick account…</option>';
     (window.store.accounts || []).forEach(a => {
+      if (excludeId && a.id === excludeId) return;
       const opt = document.createElement('option');
       opt.value = a.id;
       opt.textContent = (a.icon || '🏦') + '  ' + a.name;
@@ -54,11 +65,22 @@
         const current = sel.value;
         buildAccountOptions(sel);
         sel.value = current;
+        if (selectedType === 'transfer') populateTransferToDropdown();
         console.log('[add] re-populated', sel.options.length - 1, 'accounts (after API)');
       }).catch(err => {
         console.warn('[add] refreshBalances failed:', err.message);
       });
     }
+  }
+
+  function populateTransferToDropdown() {
+    const sel = document.getElementById('transferToSelect');
+    if (!sel) return;
+    const sourceId = (document.getElementById('accountSelect') || {}).value || '';
+    const current = sel.value;
+    buildAccountOptions(sel, sourceId);
+    if (current && current !== sourceId) sel.value = current;
+    console.log('[add] populated', sel.options.length - 1, 'destination accounts (excluding', sourceId || 'none', ')');
   }
 
   function populateCategoryDropdown() {
@@ -77,6 +99,7 @@
   function attachDefensiveRefocus() {
     const accSel = document.getElementById('accountSelect');
     const catSel = document.getElementById('categorySelect');
+    const toSel = document.getElementById('transferToSelect');
     if (accSel) {
       accSel.addEventListener('focus', () => {
         if (accSel.options.length < 2) populateAccountDropdown();
@@ -87,6 +110,20 @@
         if (catSel.options.length < 2) populateCategoryDropdown();
       });
     }
+    if (toSel) {
+      toSel.addEventListener('focus', () => {
+        if (toSel.options.length < 2) populateTransferToDropdown();
+      });
+      toSel.addEventListener('change', updateSubmitState);
+    }
+  }
+
+  function attachSourceChangeHandler() {
+    const accSel = document.getElementById('accountSelect');
+    if (!accSel) return;
+    accSel.addEventListener('change', () => {
+      if (selectedType === 'transfer') populateTransferToDropdown();
+    });
   }
 
   function setDateToToday() {
@@ -101,8 +138,23 @@
         document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         selectedType = btn.dataset.type;
+        applyTypeMode(selectedType);
+        updateSubmitState();
       });
     });
+  }
+
+  function applyTypeMode(type) {
+    const transferWrap = document.getElementById('transferToWrap');
+    const categoryWrap = document.getElementById('categoryWrap');
+    const fromLabel    = document.getElementById('accountFromLabel');
+    const isTransfer   = type === 'transfer';
+
+    if (transferWrap) transferWrap.hidden = !isTransfer;
+    if (categoryWrap) categoryWrap.hidden = isTransfer;
+    if (fromLabel)    fromLabel.textContent = isTransfer ? 'From Account' : 'Account';
+
+    if (isTransfer) populateTransferToDropdown();
   }
 
   function attachAmountValidation() {
@@ -111,10 +163,16 @@
   }
 
   function updateSubmitState() {
-    const amount = parseFloat(document.getElementById('amountInput').value);
+    const amount  = parseFloat(document.getElementById('amountInput').value);
     const account = document.getElementById('accountSelect').value;
-    const btn = document.getElementById('submitBtn');
-    btn.disabled = !(amount > 0 && account);
+    const btn     = document.getElementById('submitBtn');
+    let ok = (amount > 0 && !!account);
+    if (selectedType === 'transfer') {
+      const destSel = document.getElementById('transferToSelect');
+      const dest = destSel ? destSel.value : '';
+      ok = ok && !!dest && dest !== account;
+    }
+    btn.disabled = !ok;
   }
 
   function attachSubmitHandler() {
@@ -126,19 +184,42 @@
       btn.disabled = true;
       btn.textContent = 'Saving…';
 
+      const sourceId = document.getElementById('accountSelect').value;
       const data = {
-        type: selectedType,
-        amount: document.getElementById('amountInput').value,
-        accountId: document.getElementById('accountSelect').value,
+        type:       selectedType,
+        amount:     document.getElementById('amountInput').value,
+        accountId:  sourceId,
         categoryId: document.getElementById('categorySelect').value,
-        date: document.getElementById('dateInput').value || localToday(),
-        notes: document.getElementById('notesInput').value
+        date:       document.getElementById('dateInput').value || localToday(),
+        notes:      document.getElementById('notesInput').value
       };
+
+      if (selectedType === 'transfer') {
+        const destSel = document.getElementById('transferToSelect');
+        const destId = destSel ? destSel.value : '';
+        if (!destId) {
+          showToast('Pick a destination account for the transfer', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Save Transaction';
+          return;
+        }
+        if (destId === sourceId) {
+          showToast('Source and destination cannot be the same', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Save Transaction';
+          return;
+        }
+        data.transferToAccountId = destId;
+        data.categoryId = ''; // backend hardcodes 'transfer' for transfer rows
+      }
 
       const result = await window.store.addTransaction(data);
 
       if (result.ok) {
-        const msg = result.queued ? 'Queued (offline) ✓' : 'Saved to cloud ✓';
+        let msg;
+        if (result.queued) msg = 'Queued (offline) ✓';
+        else if (selectedType === 'transfer') msg = 'Transfer saved ✓';
+        else msg = 'Saved to cloud ✓';
         showToast(msg, 'success');
         setTimeout(() => { window.location.href = '/transactions.html'; }, 700);
       } else {
