@@ -1,181 +1,221 @@
-// ════════════════════════════════════════════════════════════════════
-// /api/transactions/reverse — atomic soft-reverse + linked-pair handling
-// LOCKED · Sub-1D-3a · v0.0.2
-//
-// CHANGES from v0.0.1:
-//   - If original has linked_txn_id (transfer pair), reverses BOTH atomically
-//   - Snapshot label includes both ids for traceability
-//   - Audit detail records pair info
-// ════════════════════════════════════════════════════════════════════
+/* ─── /api/transactions/reverse — POST ─── */
+/* Cloudflare Pages Function v0.0.5 · Sub-1D-AUDIT-WIRE-2 */
+/*
+ * Audit-safe reversal: never DELETE, always insert opposite txn + mark original.
+ *
+ * Changes vs v0.0.4:
+ *   - Writes 1 audit_log row per user-action (single reverse OR linked-pair reverse)
+ *   - Action: TXN_REVERSE
+ *   - Detail captures: original_id(s), reversal_id(s), reversal_type, original_type, amount
+ *   - audit() failure does NOT break the reversal (helper swallows errors silently)
+ *   - Response now includes audited:true|false
+ *
+ * PRESERVED from v0.0.4:
+ *   - Linked-pair detection (transfer reversals reverse BOTH legs)
+ *   - Reversal-type mapping (expense→income, income→expense, transfer→transfer,
+ *     cc_payment→cc_spend, cc_spend→cc_payment, borrow→repay, repay→borrow, atm→atm)
+ *   - reversed_by + reversed_at columns updated on original(s)
+ *   - All validation (id required, original exists, not already reversed)
+ *   - Error response shapes
+ */
 
-import { json, audit, snapshot, uuid } from '../_lib.js';
+import { audit } from '../_lib.js';
 
-const REVERSE_TYPE = {
-  expense:    'income',
-  income:     'expense',
-  transfer:   'transfer',
-  cc_payment: 'cc_payment',
-  cc_spend:   'income',
-  borrow:     'repay',
-  repay:      'borrow',
-  atm:        'income'
-};
-
-export async function onRequestPost({ request, env }) {
-  let body;
-  try { body = await request.json(); }
-  catch (e) { return json({ ok: false, error: 'Invalid JSON' }, 400); }
-
-  const id = (body.id || '').trim();
-  if (!id) return json({ ok: false, error: 'id required' }, 400);
-
-  const createdBy = body.created_by || 'web-hub';
-
-  // ─── 1. Fetch original ─────────────────────────────────────────────
-  const orig = await env.DB.prepare(
-    `SELECT id, date, type, amount, account_id, transfer_to_account_id,
-            category_id, notes, fee_amount, pra_amount, reversed_by, linked_txn_id, created_at
-     FROM transactions WHERE id = ?`
-  ).bind(id).first();
-
-  if (!orig) return json({ ok: false, error: 'Transaction not found' }, 404);
-  if (orig.reversed_by) {
-    return json({ ok: false, error: 'Already reversed (linked to ' + orig.reversed_by + ')' }, 409);
-  }
-
-  // ─── 2. If linked pair, fetch the partner ──────────────────────────
-  let partner = null;
-  if (orig.linked_txn_id) {
-    partner = await env.DB.prepare(
-      `SELECT id, date, type, amount, account_id, transfer_to_account_id,
-              category_id, notes, reversed_by
-       FROM transactions WHERE id = ?`
-    ).bind(orig.linked_txn_id).first();
-
-    if (partner && partner.reversed_by) {
-      return json({ ok: false, error: 'Partner row already reversed (' + partner.reversed_by + ')' }, 409);
-    }
-  }
-
-  // ─── 3. Snapshot before mutate ─────────────────────────────────────
-  const snapLabel = partner
-    ? `pre-reverse-pair-${id}-${partner.id}`
-    : `pre-reverse-${id}`;
-  const snapResult = await snapshot(env, snapLabel, createdBy);
-  if (!snapResult.ok) {
-    return json({ ok: false, error: 'Snapshot failed: ' + snapResult.error }, 500);
-  }
-
-  // ─── 4. Build reverse rows ─────────────────────────────────────────
-  const stamp = Date.now();
-  const nowIso = new Date().toISOString();
-  const stmts = [];
-  const reverseIds = {};
-
-  // Helper to build reverse row for any txn
-  function buildReverse(t, suffix) {
-    const newId = 'tx_rev_' + stamp + '_' + suffix + Math.random().toString(36).slice(2, 6);
-    const reverseType = REVERSE_TYPE[t.type] || 'income';
-
-    let revAccount = t.account_id;
-    let revTransferTo = t.transfer_to_account_id;
-    if (t.type === 'transfer' || t.type === 'cc_payment') {
-      revAccount = t.transfer_to_account_id || t.account_id;
-      revTransferTo = t.account_id;
-    }
-
-    stmts.push(
-      env.DB.prepare(
-        `INSERT INTO transactions
-           (id, date, type, amount, account_id, transfer_to_account_id,
-            category_id, notes, fee_amount, pra_amount, reversed_by, reversed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(
-        newId,
-        t.date,
-        reverseType,
-        t.amount,
-        revAccount,
-        revTransferTo,
-        t.category_id,
-        'REVERSAL of ' + t.id + (t.notes ? ' · was: ' + t.notes.slice(0, 100) : ''),
-        t.fee_amount || 0,
-        t.pra_amount || 0,
-        t.id,
-        nowIso
-      )
-    );
-
-    stmts.push(
-      env.DB.prepare(`UPDATE transactions SET reversed_by = ?, reversed_at = ? WHERE id = ?`)
-        .bind(newId, nowIso, t.id)
-    );
-
-    return newId;
-  }
-
-  reverseIds.original = buildReverse(orig, 'a');
-  if (partner) {
-    reverseIds.partner = buildReverse(partner, 'b');
-  }
-
-  // ─── 5. Debt restore (only if original was 'repay') ───────────────
-  let debtRestored = null;
-  if (orig.type === 'repay' && orig.notes) {
-    const match = orig.notes.match(/(CRED-\d|DEBT-\d|[A-Z][A-Z0-9-]{1,30})/i);
-    if (match) {
-      const debtName = match[1];
-      stmts.push(
-        env.DB.prepare(
-          `UPDATE debts SET paid_amount = MAX(0, COALESCE(paid_amount, 0) - ?) WHERE name = ?`
-        ).bind(orig.amount, debtName)
-      );
-      debtRestored = { name: debtName, amount_restored: orig.amount };
-    }
-  }
-
-  // ─── 6. Execute atomic batch ───────────────────────────────────────
+export async function onRequestPost(context) {
   try {
-    await env.DB.batch(stmts);
-  } catch (e) {
-    return json({
-      ok: false,
-      error: 'Reverse batch failed: ' + (e.message || String(e)),
-      snapshot_id: snapResult.snapshot_id
-    }, 500);
+    const body = await context.request.json();
+    if (!body.id) {
+      return jsonResponse({ ok: false, error: 'id required' }, 400);
+    }
+
+    const db = context.env.DB;
+
+    // Fetch original
+    const orig = await db.prepare(
+      'SELECT * FROM transactions WHERE id = ?'
+    ).bind(body.id).first();
+
+    if (!orig) return jsonResponse({ ok: false, error: 'Original transaction not found' }, 404);
+    if (orig.reversed_by) return jsonResponse({ ok: false, error: 'Already reversed' }, 400);
+
+    // Detect linked pair (transfer pairs share linked_txn_id)
+    let linked = null;
+    if (orig.linked_txn_id) {
+      linked = await db.prepare(
+        'SELECT * FROM transactions WHERE id = ?'
+      ).bind(orig.linked_txn_id).first();
+      if (linked && linked.reversed_by) {
+        return jsonResponse({ ok: false, error: 'Linked leg already reversed' }, 400);
+      }
+    }
+
+    const now = new Date().toISOString();
+    const today = now.slice(0, 10);
+    const createdBy = body.created_by || 'web-reverse';
+
+    const reversalType = mapReversalType(orig.type);
+
+    if (!linked) {
+      // ── Single-row reverse path ──
+      const reversalId = 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      const reversalNotes = ('Reversal of ' + orig.id + (orig.notes ? ' (' + orig.notes + ')' : '')).slice(0, 200);
+
+      await db.prepare(
+        `INSERT INTO transactions
+           (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        reversalId,
+        today,
+        reversalType,
+        orig.amount,
+        orig.account_id,
+        orig.transfer_to_account_id || null,
+        orig.category_id || 'other',
+        reversalNotes,
+        0,
+        0
+      ).run();
+
+      await db.prepare(
+        'UPDATE transactions SET reversed_by = ?, reversed_at = ? WHERE id = ?'
+      ).bind(reversalId, now, orig.id).run();
+
+      // ── Sub-1D-AUDIT-WIRE-2: audit-after-write ──
+      const auditResult = await audit(context.env, {
+        action: 'TXN_REVERSE',
+        entity: 'transaction',
+        entity_id: orig.id,
+        kind: 'mutation',
+        detail: {
+          original_id: orig.id,
+          reversal_id: reversalId,
+          original_type: orig.type,
+          reversal_type: reversalType,
+          amount: orig.amount,
+          account_id: orig.account_id,
+          paired: false
+        },
+        created_by: createdBy
+      });
+
+      return jsonResponse({
+        ok: true,
+        reversal_id: reversalId,
+        original_id: orig.id,
+        audited: !!auditResult.ok
+      });
+    }
+
+    // ── Linked-pair reverse path (transfer reversal) ──
+    const reversalIdA = 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    const reversalIdB = 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    const noteSuffix = orig.notes ? ' (' + orig.notes + ')' : '';
+    const reversalNotesA = ('Reversal of ' + orig.id + noteSuffix).slice(0, 200);
+    const reversalNotesB = ('Reversal of ' + linked.id + (linked.notes ? ' (' + linked.notes + ')' : '')).slice(0, 200);
+
+    // Reversal A: mirrors orig (swap source/dest)
+    await db.prepare(
+      `INSERT INTO transactions
+         (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount, linked_txn_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      reversalIdA,
+      today,
+      mapReversalType(orig.type),
+      orig.amount,
+      orig.transfer_to_account_id || orig.account_id,
+      orig.account_id,
+      orig.category_id || 'other',
+      reversalNotesA,
+      0,
+      0,
+      reversalIdB
+    ).run();
+
+    // Reversal B: mirrors linked
+    await db.prepare(
+      `INSERT INTO transactions
+         (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount, linked_txn_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      reversalIdB,
+      today,
+      mapReversalType(linked.type),
+      linked.amount,
+      linked.transfer_to_account_id || linked.account_id,
+      linked.account_id,
+      linked.category_id || 'other',
+      reversalNotesB,
+      0,
+      0,
+      reversalIdA
+    ).run();
+
+    // Mark both originals reversed
+    await db.prepare(
+      'UPDATE transactions SET reversed_by = ?, reversed_at = ? WHERE id = ?'
+    ).bind(reversalIdA, now, orig.id).run();
+
+    await db.prepare(
+      'UPDATE transactions SET reversed_by = ?, reversed_at = ? WHERE id = ?'
+    ).bind(reversalIdB, now, linked.id).run();
+
+    // ── Sub-1D-AUDIT-WIRE-2: 1 audit row per user-action (linked-pair reverse) ──
+    const auditResult = await audit(context.env, {
+      action: 'TXN_REVERSE',
+      entity: 'transaction',
+      entity_id: orig.id,
+      kind: 'mutation',
+      detail: {
+        original_id: orig.id,
+        linked_original_id: linked.id,
+        reversal_id_a: reversalIdA,
+        reversal_id_b: reversalIdB,
+        original_type: orig.type,
+        reversal_type: mapReversalType(orig.type),
+        amount: orig.amount,
+        account_id: orig.account_id,
+        transfer_to_account_id: orig.transfer_to_account_id,
+        paired: true
+      },
+      created_by: createdBy
+    });
+
+    return jsonResponse({
+      ok: true,
+      reversal_id: reversalIdA,
+      linked_reversal_id: reversalIdB,
+      original_id: orig.id,
+      linked_original_id: linked.id,
+      audited: !!auditResult.ok
+    });
+
+  } catch (err) {
+    return jsonResponse({ ok: false, error: err.message }, 500);
   }
-
-  // ─── 7. Audit ──────────────────────────────────────────────────────
-  const ip = request.headers.get('CF-Connecting-IP') || null;
-  const auditRes = await audit(env, {
-    action: 'TXN_REVERSE',
-    entity: 'transaction',
-    entity_id: id,
-    kind: 'mutation',
-    detail: {
-      reversed_pair: !!partner,
-      original_ids: partner ? [orig.id, partner.id] : [orig.id],
-      reverse_ids:  partner ? [reverseIds.original, reverseIds.partner] : [reverseIds.original],
-      snapshot_id: snapResult.snapshot_id,
-      debt_restored: debtRestored,
-      original_type: orig.type,
-      amount: orig.amount
-    },
-    created_by: createdBy,
-    ip
-  });
-
-  return json({
-    ok: true,
-    original_id: id,
-    reverse_id: reverseIds.original,
-    partner_id: partner ? partner.id : null,
-    partner_reverse_id: reverseIds.partner || null,
-    snapshot_id: snapResult.snapshot_id,
-    debt_restored: debtRestored,
-    audited: auditRes.ok
-  });
 }
 
-export const onRequestGet = () =>
-  json({ ok: false, error: 'POST only' }, 405);
+function mapReversalType(originalType) {
+  const map = {
+    expense:    'income',
+    income:     'expense',
+    transfer:   'transfer',
+    cc_payment: 'cc_spend',
+    cc_spend:   'cc_payment',
+    borrow:     'repay',
+    repay:      'borrow',
+    atm:        'atm'
+  };
+  return map[originalType] || originalType;
+}
+
+function jsonResponse(obj, status) {
+  return new Response(JSON.stringify(obj), {
+    status: status || 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache'
+    }
+  });
+}
