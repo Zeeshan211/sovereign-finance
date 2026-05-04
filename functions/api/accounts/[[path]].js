@@ -1,28 +1,36 @@
-/* ─── Sovereign Finance · Accounts Catch-All API · v0.2.0 ───
- * Mirrors debts/[[path]].js + bills/[[path]].js v0.2.0 architecture.
+/* ─── Sovereign Finance · Accounts Catch-All API · v0.2.1 ───
+ * Bug fixes from v0.2.0:
+ *   - Credit card detection: kind is 'cc' in D1, not 'credit_card'.
+ *     v0.2.0 set is_credit_card=false on Alfalah CC → CC balance was
+ *     ADDED to total_assets instead of subtracted from net_worth.
+ *     Net worth was overstated by ~157k.
+ *   - E-wallet detection: kind is 'wallet' in D1, not 'ewallet'.
+ *     v0.2.0 left totals.ewallet=0 despite Easypaisa holding 92,300.77.
  *
- * Routes:
- *   GET    /api/accounts                       → list (active only) + computed balances + totals
- *   POST   /api/accounts                       → create (audit + auto-id from name)
- *   GET    /api/accounts/{id}                  → single + balance
- *   PUT    /api/accounts/{id}                  → edit (snapshot + audit)
- *   DELETE /api/accounts/{id}?created_by=web   → smart delete (FK-safe):
- *                                                 hard-delete only if zero refs in transactions+bills,
- *                                                 else 409 with refs_count + suggested_action='archive'
- *   POST   /api/accounts/{id}/archive          → soft-archive (snapshot + audit, FK-safe always)
- *   POST   /api/accounts/{id}/unarchive        → restore archived account
+ * Both root-caused to: assumed enum values without reading live data.
+ * Pattern 4 violation by me, caught by verify-after-deploy step.
  *
- * Backward-compat preserves the v0.0.7 GET response shape:
- *   { ok, accounts:[{id, name, icon, type, kind, opening_balance, currency, color,
- *                    display_order, balance, kind_label, is_credit_card}],
- *     totals:{cash, bank, ewallet, prepaid, credit_card_outstanding, total_assets, net_worth},
- *     asof, count }
- *
- * Banking-grade per Active Principle #2: snap-before-mutate + audit-after-write.
- * FK safety per Sub-1D-3e schema audit (cc=30 txn refs, meezan=27+2, cash=16+4, etc.)
+ * Routes unchanged from v0.2.0:
+ *   GET    /api/accounts                       → list (active only) + balances + totals
+ *   POST   /api/accounts                       → create
+ *   GET    /api/accounts/{id}                  → single
+ *   PUT    /api/accounts/{id}                  → edit
+ *   DELETE /api/accounts/{id}?created_by=web   → smart delete (FK-safe)
+ *   POST   /api/accounts/{id}/archive          → soft-archive
+ *   POST   /api/accounts/{id}/unarchive        → restore
  */
 
 import { json, audit, snapshot } from '../_lib.js';
+
+const VALID_KINDS = ['cash', 'bank', 'wallet', 'prepaid', 'cc'];
+const KIND_LABELS = {
+  cash: 'Cash',
+  bank: 'Bank',
+  wallet: 'Wallet',
+  prepaid: 'Prepaid',
+  cc: 'Credit Card',
+};
+const isCreditCard = kind => kind === 'cc';
 
 /* ─── Helpers ─── */
 function slugifyId(name) {
@@ -35,17 +43,10 @@ function slugifyId(name) {
 }
 
 function kindLabel(kind) {
-  return ({
-    cash: 'Cash',
-    bank: 'Bank',
-    ewallet: 'E-Wallet',
-    prepaid: 'Prepaid',
-    credit_card: 'Credit Card',
-  })[kind] || kind || '—';
+  return KIND_LABELS[kind] || kind || '—';
 }
 
 async function computeBalance(db, accountId, openingBalance) {
-  // Sum of credits - debits + opening_balance (matches existing v0.0.7 logic)
   const r = await db
     .prepare(
       `SELECT
@@ -141,15 +142,15 @@ async function handleList(db) {
       display_order: Number(row.display_order || 0),
       balance,
       kind_label: kindLabel(row.kind),
-      is_credit_card: row.kind === 'credit_card',
+      is_credit_card: isCreditCard(row.kind),
     };
   }));
 
-  // Totals (same shape as v0.0.7)
+  // Totals — use canonical D1 kinds: cash, bank, wallet, prepaid, cc
   const totals = {
     cash: 0,
     bank: 0,
-    ewallet: 0,
+    ewallet: 0, // backward-compat field name; sourced from kind='wallet'
     prepaid: 0,
     credit_card_outstanding: 0,
     total_assets: 0,
@@ -157,10 +158,11 @@ async function handleList(db) {
   };
   for (const a of accounts) {
     if (a.is_credit_card) {
+      // CC balance is negative when money is owed; flip sign for "outstanding"
       totals.credit_card_outstanding += Math.abs(Math.min(0, a.balance));
     } else if (a.kind === 'cash') totals.cash += a.balance;
     else if (a.kind === 'bank') totals.bank += a.balance;
-    else if (a.kind === 'ewallet') totals.ewallet += a.balance;
+    else if (a.kind === 'wallet') totals.ewallet += a.balance;
     else if (a.kind === 'prepaid') totals.prepaid += a.balance;
 
     if (!a.is_credit_card) totals.total_assets += a.balance;
@@ -190,8 +192,8 @@ async function handleCreate(db, request) {
 
   if (!name) return json({ ok: false, error: 'Name is required' }, 400);
   if (name.length > 60) return json({ ok: false, error: 'Name too long (max 60)' }, 400);
-  if (!['cash', 'bank', 'ewallet', 'prepaid', 'credit_card'].includes(kind)) {
-    return json({ ok: false, error: `Invalid kind: ${kind}` }, 400);
+  if (!VALID_KINDS.includes(kind)) {
+    return json({ ok: false, error: `Invalid kind: ${kind}. Must be one of: ${VALID_KINDS.join(', ')}` }, 400);
   }
 
   const id = body.id || slugifyId(name);
@@ -229,7 +231,7 @@ async function handleSingle(db, id) {
       ...row,
       balance,
       kind_label: kindLabel(row.kind),
-      is_credit_card: row.kind === 'credit_card',
+      is_credit_card: isCreditCard(row.kind),
     },
   });
 }
@@ -255,13 +257,12 @@ async function handleEdit(db, id, request) {
     if (n.length > 60) return json({ ok: false, error: 'Name too long' }, 400);
     updates.name = n;
   }
-  if ('kind' in updates && !['cash', 'bank', 'ewallet', 'prepaid', 'credit_card'].includes(updates.kind)) {
-    return json({ ok: false, error: `Invalid kind: ${updates.kind}` }, 400);
+  if ('kind' in updates && !VALID_KINDS.includes(updates.kind)) {
+    return json({ ok: false, error: `Invalid kind: ${updates.kind}. Must be one of: ${VALID_KINDS.join(', ')}` }, 400);
   }
   if ('opening_balance' in updates) updates.opening_balance = Number(updates.opening_balance) || 0;
   if ('display_order' in updates) updates.display_order = Number(updates.display_order) || 0;
 
-  // Snapshot before mutation
   const snapId = await snapshot(db, {
     label: `account_edit_${id}_${Date.now()}`,
     tables: ['accounts'],
@@ -302,7 +303,6 @@ async function handleDelete(db, id, request) {
     }, 409);
   }
 
-  // Safe to hard-delete (zero refs)
   const snapId = await snapshot(db, {
     label: `account_delete_${id}_${Date.now()}`,
     tables: ['accounts'],
@@ -322,7 +322,7 @@ async function handleDelete(db, id, request) {
   return json({ ok: true, id, action: 'ACCOUNT_DELETE', snapshot_id: snapId });
 }
 
-/* ─── POST /api/accounts/{id}/archive — FK-safe soft archive ─── */
+/* ─── POST /api/accounts/{id}/archive ─── */
 async function handleArchive(db, id) {
   const existing = await db.prepare(`SELECT * FROM accounts WHERE id = ?`).bind(id).first();
   if (!existing) return json({ ok: false, error: 'Account not found' }, 404);
@@ -351,7 +351,7 @@ async function handleArchive(db, id) {
   return json({ ok: true, id, action: 'ACCOUNT_ARCHIVE', snapshot_id: snapId });
 }
 
-/* ─── POST /api/accounts/{id}/unarchive — restore from archive ─── */
+/* ─── POST /api/accounts/{id}/unarchive ─── */
 async function handleUnarchive(db, id) {
   const existing = await db.prepare(`SELECT * FROM accounts WHERE id = ?`).bind(id).first();
   if (!existing) return json({ ok: false, error: 'Account not found' }, 404);
