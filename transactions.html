@@ -1,86 +1,134 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="midnight">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#050816">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Transactions · Sovereign Finance</title>
-  <link rel="stylesheet" href="/css/app.css">
-  <script src="/js/theme.js"></script>
-  <script src="/js/nav.js" defer></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050816" />
+  <title>Sovereign Finance · Transactions</title>
+  <link rel="stylesheet" href="/css/app.css?v=0.10.1" />
 </head>
 <body>
-  <header>
-    <div class="brand">Sovereign Ops</div>
-    <h1 class="title">Transactions</h1>
-    <div class="day-badge"><span id="txCount">0 entries</span></div>
-  </header>
 
-  <div class="view-controls">
-    <input id="searchInput" type="search" placeholder="Search account, category, notes, TX ID…" class="form-input search-input">
-    <div class="view-toggle">
-      <button class="view-btn" data-view="compact" title="Compact">▤</button>
-      <button class="view-btn active" data-view="standard" title="Standard">☰</button>
-      <button class="view-btn" data-view="dense" title="Dense">▦</button>
+<header>
+  <div class="brand">Sovereign Finance</div>
+  <div class="title">Transactions</div>
+</header>
+
+<aside class="desktop-nav">
+  <a href="/" class="desktop-nav-item">
+    <span class="nav-emoji">🏠</span><span class="nav-text">Hub</span>
+  </a>
+  <a href="/add.html" class="desktop-nav-item">
+    <span class="nav-emoji">➕</span><span class="nav-text">Add Transaction</span>
+  </a>
+  <a href="/transactions.html" class="desktop-nav-item active">
+    <span class="nav-emoji">📜</span><span class="nav-text">Transactions</span>
+  </a>
+  <a href="/accounts.html" class="desktop-nav-item">
+    <span class="nav-emoji">🏦</span><span class="nav-text">Accounts</span>
+  </a>
+  <a href="/debts.html" class="desktop-nav-item">
+    <span class="nav-emoji">💳</span><span class="nav-text">Debts</span>
+  </a>
+  <a href="/bills.html" class="desktop-nav-item">
+    <span class="nav-emoji">📅</span><span class="nav-text">Bills</span>
+  </a>
+  <a href="/salary.html" class="desktop-nav-item">
+    <span class="nav-emoji">💰</span><span class="nav-text">Salary</span>
+  </a>
+  <a href="/audit.html" class="desktop-nav-item">
+    <span class="nav-emoji">🛡️</span><span class="nav-text">Audit Log</span>
+  </a>
+  <a href="/snapshots.html" class="desktop-nav-item">
+    <span class="nav-emoji">📸</span><span class="nav-text">Snapshots</span>
+  </a>
+</aside>
+
+<!-- ─── STATS STRIP ─── -->
+<div class="stats-row" style="margin-bottom:24px">
+  <div class="stat-card">
+    <div class="stat-label">Showing</div>
+    <div class="stat-value" id="t_count">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Money In</div>
+    <div class="stat-value positive" id="t_in">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Money Out</div>
+    <div class="stat-value negative" id="t_out">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Net</div>
+    <div class="stat-value" id="t_net">—</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Reversed</div>
+    <div class="stat-value" id="t_reversed">—</div>
+  </div>
+</div>
+
+<!-- ─── FILTERS ─── -->
+<section class="hub-panel" style="margin-bottom:24px">
+  <div class="section-header">
+    <div class="section-label">🔍 Filters</div>
+    <button id="refresh_btn" class="primary-btn" style="padding:6px 14px;font-size:13px">Refresh</button>
+  </div>
+
+  <div class="filter-grid">
+    <div class="filter-field">
+      <label class="field-label" for="filter_type">Type</label>
+      <select id="filter_type" class="form-select">
+        <option value="">All types</option>
+        <option value="expense">💸 Expense</option>
+        <option value="income">💰 Income</option>
+        <option value="transfer">💱 Transfer</option>
+        <option value="cc_payment">💳 CC Payment</option>
+        <option value="cc_spend">💳 CC Spend</option>
+        <option value="borrow">📥 Borrow</option>
+        <option value="repay">📤 Repay</option>
+        <option value="atm">🏧 ATM</option>
+      </select>
+    </div>
+    <div class="filter-field">
+      <label class="field-label" for="filter_account">Account</label>
+      <select id="filter_account" class="form-select">
+        <option value="">All accounts</option>
+      </select>
+    </div>
+    <div class="filter-field">
+      <label class="field-label" for="filter_search">Search notes / id</label>
+      <input type="text" id="filter_search" class="form-input" placeholder="e.g. foodpanda, tx_1746…" />
     </div>
   </div>
 
-  <details class="filter-panel" id="filterPanel">
-    <summary class="filter-summary">
-      <span>🎚️ Advanced Filters</span>
-      <span class="filter-active-badge" id="filterActiveBadge" style="display:none;">●</span>
-    </summary>
-    <div class="filter-grid">
-      <div class="filter-field">
-        <label class="field-label">From Date</label>
-        <input id="filterFrom" type="date" class="form-input">
-      </div>
-      <div class="filter-field">
-        <label class="field-label">To Date</label>
-        <input id="filterTo" type="date" class="form-input">
-      </div>
-      <div class="filter-field">
-        <label class="field-label">Type</label>
-        <select id="filterType" class="form-select">
-          <option value="">All types</option>
-          <option value="income">Income</option>
-          <option value="expense">Expense</option>
-          <option value="transfer">Transfer</option>
-          <option value="cc_payment">CC Payment</option>
-          <option value="cc_spend">CC Spend</option>
-        </select>
-      </div>
-      <div class="filter-field">
-        <label class="field-label">Account</label>
-        <select id="filterAccount" class="form-select"><option value="">All accounts</option></select>
-      </div>
-      <div class="filter-field">
-        <label class="field-label">Category</label>
-        <select id="filterCategory" class="form-select"><option value="">All categories</option></select>
-      </div>
-      <div class="filter-field">
-        <label class="field-label">Min Amount</label>
-        <input id="filterMin" type="number" placeholder="0" class="form-input">
-      </div>
-      <div class="filter-field">
-        <label class="field-label">Max Amount</label>
-        <input id="filterMax" type="number" placeholder="∞" class="form-input">
-      </div>
-      <div class="filter-field filter-actions">
-        <button id="filterClear" class="ghost-btn">Clear All</button>
-      </div>
-    </div>
-  </details>
+  <div style="margin-top:14px;padding:10px 14px;background:var(--bg-elev-1);border-radius:8px;font-size:13px;color:var(--text-muted)">
+    💡 <strong>To correct a transaction:</strong> click the <span style="color:var(--danger)">↩ Reverse</span> button — it creates an opposite entry + audit log + auto-snapshot. To enter a fresh transaction, use the <a href="/add.html" style="color:var(--accent)">➕ Add page</a>. Editing is disabled to preserve the audit trail.
+  </div>
+</section>
 
-  <div id="txList" class="tx-list view-standard"></div>
-  <div id="emptyState" class="empty-state">No transactions yet.</div>
+<!-- ─── LIST ─── -->
+<div class="section-header">
+  <div class="section-label">📜 All Transactions</div>
+</div>
+<div id="txn-list">
+  <div class="empty-state-inline">Loading…</div>
+</div>
 
-  <footer><span class="v">v0.9.0 · transactions</span></footer>
+<nav class="bottom-nav">
+  <div class="bottom-nav-inner">
+    <a href="/" class="nav-item"><span class="nav-emoji">🏠</span><span class="nav-text">Hub</span></a>
+    <a href="/add.html" class="nav-item"><span class="nav-emoji">➕</span><span class="nav-text">Add</span></a>
+    <a href="/transactions.html" class="nav-item active"><span class="nav-emoji">📜</span><span class="nav-text">Tx</span></a>
+    <a href="/debts.html" class="nav-item"><span class="nav-emoji">💳</span><span class="nav-text">Debts</span></a>
+    <a href="/bills.html" class="nav-item"><span class="nav-emoji">📅</span><span class="nav-text">Bills</span></a>
+  </div>
+</nav>
 
-  <script src="/js/app.js"></script>
-  <script src="/js/store.js"></script>
-  <script src="/js/transactions.js"></script>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="/js/store.js?v=0.0.10"></script>
+<script src="/js/theme.js"></script>
+<script src="/js/transactions.js?v=0.7.1"></script>
 </body>
 </html>
