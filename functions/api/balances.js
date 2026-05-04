@@ -1,31 +1,18 @@
-/* ─── /api/balances · v0.3.0 · Sub-1D-CC-RECONCILE ─── */
+/* ─── /api/balances · v0.3.1 · Sub-1D-FIELD-RECONCILE ─── */
 /* Cloudflare Pages Function — liability-aware transfer math */
 /*
- * Changes vs v0.1.0:
- *   - Transfer branch now reads source + dest account TYPE (asset vs liability)
- *   - Asset side: amt subtracted (depletion) for source, added (growth) for dest
- *   - Liability side: amt added (drew down → owe more) for source, subtracted (paid down → owe less) for dest
- *   - Fixes: asset → CC payment (was inflating outstanding instead of paying it down)
- *   - Fixes: CC → asset cash advance (was reducing outstanding instead of growing it)
- *   - Fixes: CC → CC balance transfer (was wrong on both sides)
+ * Changes vs v0.3.0:
+ *   - Added `total_liquid_assets` field to response (alias of total_assets for now).
+ *   - store.js reads d.total_liquid_assets — was undefined before this ship.
+ *   - When fixed-deposit / investment account types are introduced later,
+ *     total_liquid_assets will diverge from total_assets (liquid excludes those).
+ *   - Both fields returned for backward + forward compat.
  *
- * Math reference (double-entry sign convention used throughout codebase):
- *   - Asset accounts: positive balance = money you have. Up = good.
- *   - Liability accounts: positive balance = money you owe. Up = bad.
- *   - cc_spend: cc += amt (more owed) ✓
- *   - cc_payment: cc -= amt (less owed) ✓
- *   - transfer NEW: read both account types, apply correct sign per side
- *
- * Net-worth invariants verified for all 4 transfer permutations:
- *   - asset→asset: net worth unchanged ✓
- *   - asset→liability (paying CC): net worth unchanged ✓
- *   - liability→asset (cash advance): net worth unchanged ✓
- *   - liability→liability (BT): net worth unchanged ✓
- *
- * PRESERVED from v0.1.0:
- *   - All other type handlers (income, expense, cc_spend, cc_payment, repay, atm, borrow)
+ * PRESERVED from v0.3.0:
+ *   - Liability-aware transfer math (Sub-1D-CC-RECONCILE)
+ *   - All type handlers (income, expense, cc_spend, cc_payment, repay, atm, borrow, transfer)
  *   - Roll-up logic (totalAssets, totalLiabilities, netWorth)
- *   - Response shape (cc_outstanding, accounts list with balances)
+ *   - cc_outstanding direct from balances['cc']
  *   - Error shape (status 500 on throw)
  */
 
@@ -118,6 +105,7 @@ export async function onRequest(context) {
       ok: true,
       net_worth: Math.round(netWorth * 100) / 100,
       total_assets: Math.round(totalAssets * 100) / 100,
+      total_liquid_assets: Math.round(totalAssets * 100) / 100,
       total_liabilities: Math.round(totalLiabilities * 100) / 100,
       cc_outstanding: Math.round((balances['cc'] || 0) * 100) / 100,
       account_count: accounts.length,
