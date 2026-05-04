@@ -1,0 +1,84 @@
+# ─── Sovereign Finance · gitignore ───
+# Public-readiness per Active Principle #4 — block accidental leaks of
+# local secrets, build artifacts, and editor cruft.
+
+# Cloudflare / wrangler local state (in case wrangler is ever used locally)
+.wrangler/
+.dev.vars
+.dev.vars.*
+wrangler.local.toml
+
+# Node (just in case anyone ever runs npm/pnpm in this repo)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+secrets/
+*_token*
+*_secret*
+*.token
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# Local backups / scratch
+*.bak
+*.backup
+*.orig
+*.local
+scratch/
+tmp/
+.tmp/
+
+# Build outputs (none today, defensive for future)
+dist/
+build/
+out/
+.next/
+.cache/
+.parcel-cache/
+
+# Coverage / test artifacts
+coverage/
+*.lcov
+.nyc_output/
+
+# Logs
+*.log
+logs/
+
+# Cloudflare Pages local preview cache
+.cloudflare/
+
+# Sandbox / experiments folder (operator's local exploration only)
+sandbox/
+experiments/
