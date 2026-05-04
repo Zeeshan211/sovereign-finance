@@ -1,21 +1,22 @@
-// ════════════════════════════════════════════════════════════════════
-// hub.js — Hub renderer · v0.1.0 · Sub-1D-3-RESHIP-fix
-//
-// Targets EXISTING index.html IDs:
-//   hub-net-worth · hub-liquid · hub-cc · hub-debts · hub-burden
-//   hub-recent-tx · hub-top-debts · hub-due-soon
-//
-// FIX from previous: net-worth card was showing raw HTML because numbers.js
-//   uses .textContent which escapes <span>. Now we animate the number portion
-//   only, then set the currency suffix as a separate child element.
-// ════════════════════════════════════════════════════════════════════
+/* ─── Sovereign Finance · Hub Renderer · v0.7.4 · Sub-1D-3-RESHIP-fix ───
+ * Targets EXISTING index.html IDs:
+ *   hub-net-worth · hub-liquid · hub-cc · hub-debts · hub-burden
+ *   hub-recent-tx · hub-top-debts · hub-due-soon
+ *
+ * Fix from v0.7.3:
+ *   - Reads snake_case API fields (total_owe, total_liquid_assets, cc_outstanding, net_worth)
+ *     instead of camelCase that didn't exist (totalDebts, liquid, cc, netWorth → all undefined → 0)
+ *   - Net-worth card: renders number + currency span as separate elements so animator
+ *     doesn't escape HTML (was showing literal "<span class='nw-currency'>PKR</span>" before)
+ *   - Hides any legacy "Day X of 90" badge if present
+ */
 
 (function () {
   'use strict';
 
   const $ = id => document.getElementById(id);
-  const fmtPKR = n => 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
-  const fmtPKRplain = n => (Number(n) || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
+  const fmtPKR = n => 'Rs ' + Math.round(Number(n) || 0).toLocaleString('en-PK');
+  const fmtPKRplain = n => Math.round(Number(n) || 0).toLocaleString('en-PK');
   const escHtml = s => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -26,16 +27,12 @@
     return r.json();
   }
 
-  // Set net worth: animate the number, keep currency span as separate child
   function setNetWorth(value) {
     const el = $('hub-net-worth');
     if (!el) return;
     const numeric = Number(value) || 0;
-
-    // Wipe and rebuild: <text>Rs 95,790</text><span class="nw-currency">PKR</span>
     el.innerHTML = '<span id="hub-net-worth-num">Rs 0</span><span class="nw-currency">PKR</span>';
     const numEl = $('hub-net-worth-num');
-
     if (window.animateNumber && numEl) {
       window.animateNumber(numEl, numeric, {
         format: n => 'Rs ' + Math.round(n).toLocaleString('en-PK')
@@ -45,7 +42,6 @@
     }
   }
 
-  // Set a stat — uses animation if available
   function setStat(elId, value) {
     const el = $(elId);
     if (!el) return;
@@ -77,7 +73,7 @@
 
       const networth = Number(d.net_worth || 0);
       const liquid   = Number(d.total_liquid_assets || 0);
-      const cc       = Number(d.cc_outstanding || 0);
+      const cc       = Math.abs(Number(d.cc_outstanding || 0));
       const debts    = Number(d.total_owe || d.total_debts || 0);
       const burden   = cc + debts;
 
@@ -237,9 +233,7 @@
   }
 
   function init() {
-    // Hide any legacy "Day X of 90" badge
     document.querySelectorAll('.day-badge').forEach(el => el.style.display = 'none');
-
     loadBalances();
     loadRecentTxns();
     loadDebts();
