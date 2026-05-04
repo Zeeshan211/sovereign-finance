@@ -1,12 +1,18 @@
-/* ─── Sovereign Finance · Data Store v0.0.10 · Sub-1D-3-PARITY ───
- * CHANGES from v0.0.9:
- *   - deleteTransaction() now ROUTES to /api/transactions/reverse (audit-safe soft reverse)
- *     was: DELETE row + remove from cache (destructive, no audit, no snapshot)
- *     now: POST /api/transactions/reverse → atomic snapshot + audit + linked-pair handling
- *   - editTransaction() flow neutralized: shows alert directing to Add page or Reverse
- *     was: opened modal that PUT-updated rows (also destructive)
- *     now: alert + return — caller can no longer mutate audit trail
- *   - All other store methods unchanged
+/* ─── Sovereign Finance · Data Store v0.0.10 · Sub-1D-3-RESHIP ───
+ * Replaces v0.1.0 (which had destructive deleteTransaction + editTransaction)
+ *
+ * NEW:
+ *   reverseTransaction(id)     — POSTs to /api/transactions/reverse (audit-safe)
+ *   refreshTransactions()      — refresh tx cache
+ *   refreshDebts() / refreshBills() / refreshAuditLog()
+ *
+ * REMOVED (now blocked / routed):
+ *   deleteTransaction(id)      → routes to reverseTransaction (deprecated alias)
+ *   editTransaction(id)        → blocked with alert (banking-grade: never silent edit)
+ *
+ * PRESERVED:
+ *   accounts, categories, cachedAccounts, refreshBalances(),
+ *   addTransaction(), offline queue
  */
 
 (function () {
@@ -51,7 +57,6 @@
     cachedBills: [],
     cachedAuditLog: [],
 
-    /* ─── Refresh balances + accounts ─── */
     async refreshBalances() {
       try {
         const r = await fetch(API + '/api/balances', { cache: 'no-store' });
@@ -72,7 +77,6 @@
       }
     },
 
-    /* ─── Refresh transactions ─── */
     async refreshTransactions() {
       try {
         const r = await fetch(API + '/api/transactions', { cache: 'no-store' });
@@ -86,7 +90,6 @@
       }
     },
 
-    /* ─── Refresh debts ─── */
     async refreshDebts() {
       try {
         const r = await fetch(API + '/api/debts', { cache: 'no-store' });
@@ -100,7 +103,6 @@
       }
     },
 
-    /* ─── Refresh bills ─── */
     async refreshBills() {
       try {
         const r = await fetch(API + '/api/bills', { cache: 'no-store' });
@@ -114,7 +116,6 @@
       }
     },
 
-    /* ─── Refresh audit log ─── */
     async refreshAuditLog(limit = 50) {
       try {
         const r = await fetch(API + '/api/audit?limit=' + limit, { cache: 'no-store' });
@@ -128,7 +129,26 @@
       }
     },
 
-    /* ─── ADD TRANSACTION (audit-wired POST) ─── */
+    /* ─── Backward-compat: legacy method names some pages still call ─── */
+    async refreshAccounts() { return this.refreshBalances(); },
+    getAccount(id)  { return (this.cachedAccounts || []).find(a => a.id === id) || null; },
+    getCategory(id) { return CATEGORIES.find(c => c.id === id) || null; },
+    async getCachedAll() {
+      await Promise.all([this.refreshBalances(), this.refreshTransactions(), this.refreshDebts(), this.refreshBills()]);
+      return {
+        balances: this.totals,
+        accounts: this.cachedAccounts,
+        transactions: this.cachedTransactions,
+        debts: this.cachedDebts,
+        bills: this.cachedBills
+      };
+    },
+    get balances() { return this.totals || {}; },
+    get debts() { return this.cachedDebts; },
+    get bills() { return this.cachedBills; },
+    get transactions() { return this.cachedTransactions; },
+
+    /* ─── ADD TRANSACTION ─── */
     async addTransaction(data) {
       const amount = parseFloat(data.amount);
       if (isNaN(amount) || amount <= 0) {
@@ -157,11 +177,9 @@
         });
         const d = await r.json();
         if (!d.ok) {
-          // Fall back to offline queue
           this._queueOffline(payload);
           return { ok: true, queued: true, offline: true, error: d.error };
         }
-        // Refresh caches
         await Promise.all([this.refreshBalances(), this.refreshTransactions()]);
         return { ok: true, id: d.id, linked_id: d.linked_id, audited: d.audited };
       } catch (e) {
@@ -170,7 +188,7 @@
       }
     },
 
-    /* ─── REVERSE TRANSACTION (audit-safe — replaces deleteTransaction) ─── */
+    /* ─── REVERSE TRANSACTION (audit-safe) ─── */
     async reverseTransaction(id, createdBy = 'web-store') {
       if (!id) return { ok: false, error: 'id required' };
       try {
@@ -188,19 +206,19 @@
       }
     },
 
-    /* ─── DEPRECATED: deleteTransaction now routes to reverse ─── */
+    /* ─── DEPRECATED: deleteTransaction routes to reverse ─── */
     async deleteTransaction(id) {
-      console.warn('[store] deleteTransaction is deprecated — routing to reverseTransaction (audit-safe)');
+      console.warn('[store] deleteTransaction is deprecated — routing to reverseTransaction');
       return this.reverseTransaction(id, 'web-deprecated-delete');
     },
 
-    /* ─── DEPRECATED: editTransaction blocked (would bypass audit) ─── */
-    async editTransaction(id /*, updates */) {
+    /* ─── DEPRECATED: editTransaction blocked ─── */
+    async editTransaction(id) {
       const msg = 'Editing transactions is disabled to preserve the audit trail.\n\n' +
                   'To correct a mistake:\n' +
-                  '  1. Click ↩ Reverse on the wrong transaction (creates an opposite entry + audit log)\n' +
-                  '  2. Use the Add page to enter the correct transaction\n\n' +
-                  'This is the banking-grade pattern — no row is ever silently changed.';
+                  '  1. Click ↩ Reverse on the wrong transaction\n' +
+                  '  2. Use the Add page to enter the correct one\n\n' +
+                  'Banking-grade pattern — no row is ever silently changed.';
       console.warn('[store] editTransaction blocked for id', id);
       if (typeof alert === 'function') alert(msg);
       return { ok: false, error: 'editTransaction disabled — use Reverse + new entry' };
@@ -212,7 +230,7 @@
         const q = JSON.parse(localStorage.getItem(STORAGE_KEY_TX) || '[]');
         q.push({ ...payload, queued_at: Date.now() });
         localStorage.setItem(STORAGE_KEY_TX, JSON.stringify(q));
-      } catch (e) { /* ignore */ }
+      } catch (e) {}
     },
 
     getOfflineQueue() {
