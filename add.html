@@ -37,11 +37,18 @@
       class="amount-input"
       required>
 
-    <label class="field-label">Account</label>
+    <label class="field-label" id="accountFromLabel">Account</label>
     <select id="accountSelect" class="form-select" required></select>
 
-    <label class="field-label">Category</label>
-    <select id="categorySelect" class="form-select"></select>
+    <div id="transferToWrap" hidden>
+      <label class="field-label">To Account</label>
+      <select id="transferToSelect" class="form-select"></select>
+    </div>
+
+    <div id="categoryWrap">
+      <label class="field-label">Category</label>
+      <select id="categorySelect" class="form-select"></select>
+    </div>
 
     <label class="field-label">Date</label>
     <input id="dateInput" type="date" class="form-input">
@@ -60,7 +67,7 @@
   </form>
 
   <footer>
-    <span class="v">v0.5.0 · add</span>
+    <span class="v">v0.6.0 · add (transfer dest scaffold)</span>
   </footer>
 
     <aside class="desktop-nav">
@@ -68,7 +75,7 @@
       <span class="nav-emoji">🏠</span>
       <span class="nav-text">Hub</span>
     </a>
-    <a href="/add.html" class="desktop-nav-item">
+    <a href="/add.html" class="desktop-nav-item active">
       <span class="nav-emoji">➕</span>
       <span class="nav-text">Add Transaction</span>
     </a>
@@ -76,7 +83,7 @@
       <span class="nav-emoji">💸</span>
       <span class="nav-text">Transactions</span>
     </a>
-    <a href="/accounts.html" class="desktop-nav-item active">
+    <a href="/accounts.html" class="desktop-nav-item">
       <span class="nav-emoji">🏦</span>
       <span class="nav-text">Accounts</span>
     </a>
