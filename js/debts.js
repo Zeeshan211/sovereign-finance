@@ -1,23 +1,18 @@
-/* ─── Sovereign Finance · Debts Page · v0.4.3 · Sub-1D-3c F3 fix ───
- * Renders /debts.html using the EXISTING HTML IDs (verified 2026-05-04):
- *   #debts-summary · #debts-total-owe · #debts-owe-count
- *   #debts-total-owed · #debts-owed-count · #debts-net-burden
- *   #debts-owe-list · #debts-owed-list · #receivables-header
- *   #payModal + payAmount/payAccount/payDate/payCancel/payConfirm
+/* ─── Sovereign Finance · Debts Page · v0.4.4 · Sub-1D-3c F4 ───
+ * Adds:
+ *   - Wire #addDebtModal (Add Debt form ships in debts.html v0.3.2)
+ *   - + Add buttons now open the modal (was placeholder alert)
+ *   - Title swaps "Add Debt" / "Add Receivable" based on kind dropdown
+ *   - Validates → POST /api/debts → reload on success
  *
- * Bug fix from v0.4.2: every selector resolved to false because v0.4.0–v0.4.2
- * targeted IDs that don't exist in the HTML (#total-owe, #snowball-order, etc.).
- * Runtime trace from operator confirmed Pattern 3 (frontend ID mismatch).
+ * Fixes from v0.4.3:
+ *   - confirmPay() was sending body.dt_local but backend reads body.date,
+ *     causing Pay to silently always use today's date instead of user's
+ *     selected date. Renamed field to match backend contract.
  *
- * What ships in this version:
- *   - Summary cards render (You Owe / They Owe You) with animated numbers
- *   - Snowball list renders sorted by remaining balance DESC
- *   - Receivables list renders or section is hidden if empty
- *   - Pay modal wires to POST /api/debts/{id}/pay (backend already live)
- *   - "+ Add" buttons in section headers preserved (placeholder until F4/F5 ships forms)
- *
- * Deferred to next iteration (Sub-1D-3c F4/F5): Add Debt form, Edit Debt form,
- * Delete confirmation. No HTML for those exists yet; do not invent UI here.
+ * Backend contract verified (debts/[[path]].js v0.2.0):
+ *   POST /api/debts        → {name, original_amount, kind?, paid_amount?, notes?}
+ *   POST /api/debts/{id}/pay → {amount, account_id, date?, notes?}
  */
 (function () {
   'use strict';
@@ -25,7 +20,7 @@
   if (window._debtsInited) return;
   window._debtsInited = true;
 
-  const VERSION = 'v0.4.3';
+  const VERSION = 'v0.4.4';
   const $ = id => document.getElementById(id);
 
   const fmtPKR = n => 'Rs ' + Math.round(Number(n) || 0).toLocaleString('en-PK');
@@ -56,7 +51,7 @@
     }
   }
 
-  /* ─────── + Add buttons (preserved from v0.4.2, placeholder until form HTML) ─────── */
+  /* ─────── + Add buttons (now open Add Debt modal) ─────── */
   function injectAddButtons() {
     const headers = document.querySelectorAll('.section-header');
     console.log('[debts] inject + Add into', headers.length, 'section headers');
@@ -71,16 +66,103 @@
       btn.style.padding = '4px 10px';
       btn.textContent = '+ Add';
       btn.dataset.kind = kind;
-      btn.addEventListener('click', () => {
-        // F4 will replace this with a real Add Debt modal
-        alert('Add Debt form ships in Sub-1D-3c F4 — backend POST is already live.');
-      });
+      btn.addEventListener('click', () => openAddDebtModal(kind));
       h.appendChild(btn);
     });
   }
 
+  /* ─────── Add Debt modal ─────── */
+  function wireAddDebtModal() {
+    const cancel = $('addDebtCancel');
+    const confirm = $('addDebtConfirm');
+    const kindSel = $('addDebtKind');
+    const backdrop = $('addDebtModal');
+    if (cancel && !cancel._wired) {
+      cancel.addEventListener('click', closeAddDebtModal);
+      cancel._wired = true;
+    }
+    if (confirm && !confirm._wired) {
+      confirm.addEventListener('click', confirmAddDebt);
+      confirm._wired = true;
+    }
+    if (kindSel && !kindSel._wired) {
+      kindSel.addEventListener('change', () => {
+        const t = $('addDebtTitle');
+        if (t) t.textContent = kindSel.value === 'owed' ? 'Add Receivable' : 'Add Debt';
+      });
+      kindSel._wired = true;
+    }
+    if (backdrop && !backdrop._wired) {
+      backdrop.addEventListener('click', e => {
+        if (e.target === backdrop) closeAddDebtModal();
+      });
+      backdrop._wired = true;
+    }
+  }
+
+  function openAddDebtModal(kind) {
+    const k = kind === 'owed' ? 'owed' : 'owe';
+    const title = $('addDebtTitle');
+    const name = $('addDebtName');
+    const kindSel = $('addDebtKind');
+    const amt = $('addDebtAmount');
+    const notes = $('addDebtNotes');
+    if (title) title.textContent = k === 'owed' ? 'Add Receivable' : 'Add Debt';
+    if (name) name.value = '';
+    if (kindSel) kindSel.value = k;
+    if (amt) amt.value = '';
+    if (notes) notes.value = '';
+    const m = $('addDebtModal');
+    if (m) m.style.display = 'flex';
+    if (name) setTimeout(() => name.focus(), 50);
+  }
+
+  function closeAddDebtModal() {
+    const m = $('addDebtModal');
+    if (m) m.style.display = 'none';
+  }
+
+  async function confirmAddDebt() {
+    const name = (($('addDebtName') || {}).value || '').trim();
+    const kind = (($('addDebtKind') || {}).value || 'owe');
+    const amount = Number(($('addDebtAmount') || {}).value || 0);
+    const notes = (($('addDebtNotes') || {}).value || '').trim();
+
+    if (!name) { alert('Name is required'); return; }
+    if (name.length > 80) { alert('Name max 80 chars'); return; }
+    if (!amount || amount <= 0) { alert('Amount must be greater than 0'); return; }
+
+    const btn = $('addDebtConfirm');
+    if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
+    try {
+      const r = await getJSON('/api/debts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({
+          name,
+          original_amount: amount,
+          kind,
+          notes: notes || undefined
+        })
+      });
+      if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
+        console.log('[debts] addDebt POST →', r.status, 'ok');
+        closeAddDebtModal();
+        await loadAll();
+      } else {
+        const err = (r.body && r.body.error) ? r.body.error : 'HTTP ' + r.status;
+        alert('Add failed: ' + err);
+      }
+    } catch (e) {
+      alert('Add failed: ' + e.message);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Add Debt'; }
+    }
+  }
+
   /* ─────── Pay modal ─────── */
-  let _payContext = null; // { id, name, remaining }
+  let _payContext = null;
 
   function wirePayModal() {
     const cancel = $('payCancel');
@@ -147,15 +229,17 @@
     const btn = $('payConfirm');
     if (btn) { btn.disabled = true; btn.textContent = 'Paying…'; }
     try {
+      // FIX v0.4.4: backend reads body.date (not dt_local). v0.4.3 silently dropped user's selected date.
       const r = await getJSON('/api/debts/' + encodeURIComponent(_payContext.id) + '/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
-        body: JSON.stringify({ amount: amt, account_id: accountId, dt_local: date })
+        body: JSON.stringify({ amount: amt, account_id: accountId, date: date })
       });
       if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
+        console.log('[debts] pay POST →', r.status, 'ok · txn', r.body.txn_id);
         closePayModal();
-        await loadAll(); // refresh in place — no full page reload
+        await loadAll();
       } else {
         alert('Pay failed: ' + (r.body && r.body.error ? r.body.error : 'HTTP ' + r.status));
       }
@@ -297,16 +381,12 @@
     }
   }
 
-  function reloadDebts() { return loadAll(); }
-
   /* ─────── Init ─────── */
   function init() {
     console.log('[debts]', VERSION, 'init');
-    document.querySelectorAll('.day-badge').forEach(el => {
-      // keep #debts-summary visible (it's inside .day-badge) — only hide stale Day-N labels elsewhere
-    });
     injectAddButtons();
     wirePayModal();
+    wireAddDebtModal();
     loadAll();
   }
 
@@ -316,4 +396,3 @@
     init();
   }
 })();
-
