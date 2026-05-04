@@ -1,15 +1,13 @@
 // ════════════════════════════════════════════════════════════════════
 // /api/transactions — GET list, POST create (single OR atomic transfer pair)
-// LOCKED · Sub-1D-3a · v0.0.10
+// LOCKED · Sub-1D-3-RESHIP · v0.0.10
 //
-// CHANGES from v0.0.9:
-//   - POST type=transfer now creates ATOMIC PAIR:
-//       OUT row: from source, type='transfer', amount, linked_txn_id=IN.id
-//       IN  row: to dest,    type='income',   amount, linked_txn_id=OUT.id, category='transfer'
-//   - Both rows in single db.batch() = all-or-nothing
-//   - Validates source ≠ dest, both accounts exist, amount > 0
-//   - Returns { ok, id (OUT), linked_id (IN), audited }
-//   - Non-transfer types unchanged (single insert)
+// Behavior:
+//   GET — returns up to 200 most-recent rows including reversed_by, reversed_at,
+//         linked_txn_id, fee_amount, pra_amount, created_at
+//   POST type='transfer' — atomic OUT+IN pair (linked via linked_txn_id)
+//   POST other types — single insert
+//   Every POST writes 1 audit_log row (TRANSFER for pairs, TXN_ADD for singles)
 // ════════════════════════════════════════════════════════════════════
 
 import { json, audit, uuid } from './_lib.js';
@@ -47,7 +45,6 @@ export async function onRequestPost(context) {
   try { body = await context.request.json(); }
   catch (e) { return json({ ok: false, error: 'Invalid JSON body' }, 400); }
 
-  // ─── Common validation ────────────────────────────────────────────
   const amount = parseFloat(body.amount);
   if (isNaN(amount) || amount <= 0) {
     return json({ ok: false, error: 'Amount must be greater than 0' }, 400);
@@ -74,7 +71,6 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: 'Source and destination cannot be the same' }, 400);
     }
 
-    // Verify both accounts exist
     try {
       const accChk = await context.env.DB.prepare(
         `SELECT id FROM accounts WHERE id IN (?, ?)`
@@ -112,7 +108,6 @@ export async function onRequestPost(context) {
       return json({ ok: false, error: 'Transfer batch failed: ' + e.message }, 500);
     }
 
-    // Audit BOTH rows in one record
     const auditRes = await audit(context.env, {
       action:    'TRANSFER',
       entity:    'transaction',
@@ -140,7 +135,7 @@ export async function onRequestPost(context) {
     });
   }
 
-  // ─── BRANCH: Non-transfer = single insert (v0.0.9 behavior) ────────
+  // ─── BRANCH: Non-transfer = single insert ─────────────────────────
   const id = 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
 
   try {
