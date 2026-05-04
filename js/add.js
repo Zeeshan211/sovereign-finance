@@ -1,9 +1,25 @@
-/* ─── Sovereign Finance · Add Transaction Form v0.0.9 ─── */
+/* ─── Sovereign Finance · Add Transaction Form v0.1.0 · Sub-1D-3a-fix3 ─── */
+/* CHANGES from v0.0.9:
+   - Removed broken window.store.refreshAccounts() call (method doesn't exist → was throwing
+     TypeError → killing the rest of init → category dropdown stayed empty)
+   - Now uses window.store.refreshBalances() which exists AND updates accounts as side effect
+   - today() uses LOCAL date (was UTC, off-by-1 in Karachi mornings)
+   - Defensive re-populate on dropdown focus if list looks empty
+   - Console logs to confirm population fired
+*/
 
 (function () {
   document.addEventListener('DOMContentLoaded', initAddForm);
 
   let selectedType = 'expense';
+
+  function localToday() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 
   function initAddForm() {
     populateAccountDropdown();
@@ -12,50 +28,72 @@
     attachTypeToggle();
     attachAmountValidation();
     attachSubmitHandler();
+    attachDefensiveRefocus();
+    console.log('[add] init complete · selectedType=', selectedType);
+  }
+
+  function buildAccountOptions(sel) {
+    sel.innerHTML = '<option value="">Pick account…</option>';
+    (window.store.accounts || []).forEach(a => {
+      const opt = document.createElement('option');
+      opt.value = a.id;
+      opt.textContent = (a.icon || '🏦') + '  ' + a.name;
+      sel.appendChild(opt);
+    });
   }
 
   function populateAccountDropdown() {
     const sel = document.getElementById('accountSelect');
     if (!sel) return;
-    sel.innerHTML = '<option value="">Pick account…</option>';
-    window.store.accounts.forEach(a => {
-      const opt = document.createElement('option');
-      opt.value = a.id;
-      opt.textContent = a.icon + '  ' + a.name;
-      sel.appendChild(opt);
-    });
+    buildAccountOptions(sel);
     sel.addEventListener('change', updateSubmitState);
+    console.log('[add] populated', sel.options.length - 1, 'accounts (first pass)');
 
-    // Re-populate after API loads (async)
-    window.store.refreshAccounts().then(() => {
-      if (sel.options.length <= window.store.accounts.length) return;
-      const current = sel.value;
-      sel.innerHTML = '<option value="">Pick account…</option>';
-      window.store.accounts.forEach(a => {
-        const opt = document.createElement('option');
-        opt.value = a.id;
-        opt.textContent = a.icon + '  ' + a.name;
-        sel.appendChild(opt);
+    // Refresh from API and rebuild (use refreshBalances which updates cachedAccounts)
+    if (window.store && typeof window.store.refreshBalances === 'function') {
+      window.store.refreshBalances().then(() => {
+        const current = sel.value;
+        buildAccountOptions(sel);
+        sel.value = current;
+        console.log('[add] re-populated', sel.options.length - 1, 'accounts (after API)');
+      }).catch(err => {
+        console.warn('[add] refreshBalances failed:', err.message);
       });
-      sel.value = current;
-    });
+    }
   }
 
   function populateCategoryDropdown() {
     const sel = document.getElementById('categorySelect');
     if (!sel) return;
-    window.store.categories.forEach(c => {
+    sel.innerHTML = '<option value="">Pick category…</option>';
+    (window.store.categories || []).forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = c.icon + '  ' + c.name;
+      opt.textContent = (c.icon || '📝') + '  ' + c.name;
       sel.appendChild(opt);
     });
+    console.log('[add] populated', sel.options.length - 1, 'categories');
+  }
+
+  function attachDefensiveRefocus() {
+    const accSel = document.getElementById('accountSelect');
+    const catSel = document.getElementById('categorySelect');
+    if (accSel) {
+      accSel.addEventListener('focus', () => {
+        if (accSel.options.length < 2) populateAccountDropdown();
+      });
+    }
+    if (catSel) {
+      catSel.addEventListener('focus', () => {
+        if (catSel.options.length < 2) populateCategoryDropdown();
+      });
+    }
   }
 
   function setDateToToday() {
     const dateEl = document.getElementById('dateInput');
     if (!dateEl) return;
-    dateEl.value = new Date().toISOString().slice(0, 10);
+    dateEl.value = localToday();
   }
 
   function attachTypeToggle() {
@@ -94,7 +132,7 @@
         amount: document.getElementById('amountInput').value,
         accountId: document.getElementById('accountSelect').value,
         categoryId: document.getElementById('categorySelect').value,
-        date: document.getElementById('dateInput').value,
+        date: document.getElementById('dateInput').value || localToday(),
         notes: document.getElementById('notesInput').value
       };
 
