@@ -1,290 +1,242 @@
-/* ─── Sovereign Finance · Transactions List v0.9.0 with filters ─── */
+// ════════════════════════════════════════════════════════════════════
+// transactions.js — Standalone Transactions page · v0.7.1 · Sub-1D-3-PARITY
+//
+// CHANGES from v0.7.0:
+//   - Defines window.editTransaction stub that alerts (in case any old onclick="" survives in cache)
+//   - Cache-busted via ?v=0.7.1 in HTML
+// ════════════════════════════════════════════════════════════════════
+
+// Stub the legacy editTransaction in case any cached HTML still references it
+window.editTransaction = function (id) {
+  alert('Editing is disabled to preserve the audit trail.\n\n' +
+        'To correct this transaction, scroll to find it and click the ↩ Reverse button.\n' +
+        'To enter a new transaction, use the ➕ Add page.');
+  console.warn('[transactions] legacy editTransaction(' + id + ') blocked');
+  return false;
+};
+window.deleteTransaction = function (id) {
+  alert('Direct delete is disabled to preserve the audit trail.\n\n' +
+        'To remove a wrong transaction, click the ↩ Reverse button on its row.');
+  console.warn('[transactions] legacy deleteTransaction(' + id + ') blocked');
+  return false;
+};
 
 (function () {
-  document.addEventListener('DOMContentLoaded', init);
+  'use strict';
 
-  const VIEW_KEY = 'sov_tx_view_v1';
-  const FILTERS_KEY = 'sov_tx_filters_v1';
-  let filters = loadFilters();
+  const $ = id => document.getElementById(id);
+  const fmtPKR = n => 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
+  const fmtPKR2 = n => 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const escHtml = s => String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-  async function init() {
-    const savedView = localStorage.getItem(VIEW_KEY) || (window.innerWidth >= 900 ? 'dense' : 'standard');
-    setView(savedView);
-    renderList();
-    await window.store.getAll();
-    populateFilterDropdowns();
-    paintFilterValues();
-    renderList();
-    attachSearch();
-    attachViewToggle();
-    attachFilters();
+  function toast(msg, kind = 'success') {
+    const t = $('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.className = 'toast show ' + (kind === 'err' || kind === 'error' ? 'toast-error' : 'toast-success');
+    setTimeout(() => { t.className = 'toast'; }, 3500);
   }
 
-  function loadFilters() {
-    try { return JSON.parse(localStorage.getItem(FILTERS_KEY)) || {}; } catch (e) { return {}; }
-  }
-  function saveFilters() { try { localStorage.setItem(FILTERS_KEY, JSON.stringify(filters)); } catch (e) {} }
-  function activeCount() { return Object.values(filters).filter(v => v).length; }
-
-  function populateFilterDropdowns() {
-    const accSel = document.getElementById('filterAccount');
-    const catSel = document.getElementById('filterCategory');
-    if (!accSel || !catSel) return;
-    window.store.accounts.forEach(a => {
-      const opt = document.createElement('option');
-      opt.value = a.id;
-      opt.textContent = a.icon + '  ' + a.name;
-      accSel.appendChild(opt);
-    });
-    window.store.categories.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.icon + '  ' + c.name;
-      catSel.appendChild(opt);
-    });
+  async function getJSON(url) {
+    const r = await fetch(url, { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status + ' on ' + url);
+    return r.json();
   }
 
-  function paintFilterValues() {
-    const map = {
-      filterFrom: 'from', filterTo: 'to', filterType: 'type',
-      filterAccount: 'account', filterCategory: 'category',
-      filterMin: 'min', filterMax: 'max'
-    };
-    Object.keys(map).forEach(id => {
-      const el = document.getElementById(id);
-      if (el && filters[map[id]]) el.value = filters[map[id]];
-    });
-    updateBadge();
-  }
+  const TYPE_ICON = {
+    expense: '💸', income: '💰', transfer: '💱',
+    cc_payment: '💳', cc_spend: '💳',
+    borrow: '📥', repay: '📤', atm: '🏧'
+  };
+  const TYPE_AMT_CLASS = {
+    income: 'positive', borrow: 'positive',
+    expense: 'negative', repay: 'negative', cc_spend: 'negative', atm: 'negative',
+    transfer: 'neutral', cc_payment: 'neutral'
+  };
+  const TYPE_LABEL = {
+    expense: 'Expense', income: 'Income', transfer: 'Transfer',
+    cc_payment: 'CC Payment', cc_spend: 'CC Spend',
+    borrow: 'Borrow', repay: 'Repay', atm: 'ATM'
+  };
 
-  function updateBadge() {
-    const badge = document.getElementById('filterActiveBadge');
-    const n = activeCount();
-    if (n > 0) { badge.style.display = 'inline-block'; badge.textContent = n; }
-    else { badge.style.display = 'none'; }
-  }
+  let allTxns = [];
+  let allAccounts = [];
+  let filters = { type: '', account: '', search: '' };
 
-  function attachFilters() {
-    const ids = ['filterFrom', 'filterTo', 'filterType', 'filterAccount', 'filterCategory', 'filterMin', 'filterMax'];
-    const map = {
-      filterFrom: 'from', filterTo: 'to', filterType: 'type',
-      filterAccount: 'account', filterCategory: 'category',
-      filterMin: 'min', filterMax: 'max'
-    };
-    ids.forEach(id => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener('change', () => {
-        filters[map[id]] = el.value || null;
-        saveFilters();
-        updateBadge();
-        renderList(document.getElementById('searchInput').value);
-      });
-    });
-    document.getElementById('filterClear').addEventListener('click', () => {
-      filters = {};
-      saveFilters();
-      paintFilterValues();
-      ids.forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-      updateBadge();
-      renderList(document.getElementById('searchInput').value);
-    });
-  }
+  async function loadAll() {
+    try {
+      const [txnRes, balRes] = await Promise.all([
+        getJSON('/api/transactions'),
+        getJSON('/api/balances')
+      ]);
+      if (!txnRes.ok) throw new Error(txnRes.error || 'txns failed');
+      if (!balRes.ok) throw new Error(balRes.error || 'balances failed');
 
-  function applyFilters(rows) {
-    return rows.filter(tx => {
-      if (filters.from && tx.date < filters.from) return false;
-      if (filters.to && tx.date > filters.to) return false;
-      if (filters.type && tx.type !== filters.type) return false;
-      if (filters.account && tx.accountId !== filters.account) return false;
-      if (filters.category && tx.categoryId !== filters.category) return false;
-      if (filters.min && tx.amount < parseFloat(filters.min)) return false;
-      if (filters.max && tx.amount > parseFloat(filters.max)) return false;
-      return true;
-    });
-  }
+      allTxns = txnRes.transactions || [];
+      allAccounts = balRes.accounts || [];
 
-  function setView(view) {
-    const list = document.getElementById('txList');
-    if (!list) return;
-    list.className = 'tx-list view-' + view;
-    document.querySelectorAll('.view-btn[data-view]').forEach(b => {
-      b.classList.toggle('active', b.dataset.view === view);
-    });
-    localStorage.setItem(VIEW_KEY, view);
-  }
+      const accSel = $('filter_account');
+      if (accSel && accSel.options.length <= 1) {
+        accSel.innerHTML = '<option value="">All accounts</option>' +
+          allAccounts.map(a => `<option value="${escHtml(a.id)}">${escHtml(a.icon || '')} ${escHtml(a.name)}</option>`).join('');
+      }
 
-  function attachViewToggle() {
-    document.querySelectorAll('.view-btn[data-view]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        setView(btn.dataset.view);
-        renderList(document.getElementById('searchInput').value);
-      });
-    });
-  }
-
-  function getCurrentView() { return localStorage.getItem(VIEW_KEY) || 'standard'; }
-
-  function renderList(filterText) {
-    const list = document.getElementById('txList');
-    const empty = document.getElementById('emptyState');
-    const countEl = document.getElementById('txCount');
-    if (!list) return;
-
-    const view = getCurrentView();
-    const all = window.store.getCachedAll();
-    let working = applyFilters(all);
-
-    const ft = (filterText || '').toLowerCase().trim();
-    if (ft) {
-      working = working.filter(tx => {
-        const acc = window.store.getAccount(tx.accountId).name.toLowerCase();
-        const cat = window.store.getCategory(tx.categoryId).name.toLowerCase();
-        const notes = (tx.notes || '').toLowerCase();
-        const id = (tx.id || '').toLowerCase();
-        return acc.includes(ft) || cat.includes(ft) || notes.includes(ft) || id.includes(ft);
-      });
-    }
-
-    countEl.textContent = working.length + (working.length === 1 ? ' entry' : ' entries');
-
-    if (working.length === 0) {
-      list.innerHTML = '';
-      empty.style.display = 'block';
-      empty.textContent = (ft || activeCount() > 0) ? 'No matches.' : 'No transactions yet.';
-      return;
-    }
-    empty.style.display = 'none';
-    list.innerHTML = '';
-
-    if (view === 'dense') {
-      list.appendChild(buildDenseTable(working));
-    } else {
-      const groups = {};
-      working.forEach(tx => {
-        const label = formatDateLabel(tx.date);
-        if (!groups[label]) groups[label] = [];
-        groups[label].push(tx);
-      });
-      Object.keys(groups).forEach(label => {
-        const header = document.createElement('div');
-        header.className = 'tx-date-header';
-        header.textContent = label;
-        list.appendChild(header);
-        groups[label].forEach(tx => list.appendChild(buildRow(tx, view)));
-      });
+      render();
+    } catch (e) {
+      $('txn-list').innerHTML = '<div class="empty-state-inline">Failed: ' + escHtml(e.message) + '</div>';
     }
   }
 
-  function buildRow(tx, view) {
-    const acc = window.store.getAccount(tx.accountId);
-    const cat = window.store.getCategory(tx.categoryId);
-    const sign = tx.type === 'income' ? '+' : (tx.type === 'expense' ? '−' : '↔');
-    const colorClass = tx.type === 'income' ? 'positive' : (tx.type === 'expense' ? 'negative' : 'neutral');
-
-    const link = document.createElement('a');
-    link.href = '/edit.html?id=' + encodeURIComponent(tx.id);
-    link.className = 'tx-row tx-link';
-
-    if (view === 'compact') {
-      link.innerHTML = `
-        <div class="tx-left">
-          <div class="tx-icon">${cat.icon}</div>
-          <div class="tx-info"><div class="tx-name">${esc(cat.name)}</div></div>
-        </div>
-        <div class="tx-amount ${colorClass}">${sign} ${fmt(tx.amount)}<span class="tx-currency">PKR</span></div>
-      `;
-    } else {
-      link.innerHTML = `
-        <div class="tx-left">
-          <div class="tx-icon">${cat.icon}</div>
-          <div class="tx-info">
-            <div class="tx-name">${esc(cat.name)}</div>
-            <div class="tx-sub">${acc.icon} ${esc(acc.name)}${tx.notes ? ' · ' + esc(tx.notes) : ''}</div>
-          </div>
-        </div>
-        <div class="tx-amount ${colorClass}">${sign} ${fmt(tx.amount)}<span class="tx-currency">PKR</span></div>
-      `;
+  function applyFilters(txns) {
+    let out = txns;
+    if (filters.type) out = out.filter(t => t.type === filters.type);
+    if (filters.account) {
+      out = out.filter(t => t.account_id === filters.account || t.transfer_to_account_id === filters.account);
     }
-    return link;
+    if (filters.search) {
+      const q = filters.search.toLowerCase();
+      out = out.filter(t =>
+        (t.notes || '').toLowerCase().includes(q) ||
+        (t.id || '').toLowerCase().includes(q) ||
+        (t.account_id || '').toLowerCase().includes(q)
+      );
+    }
+    return out;
   }
 
-  function buildDenseTable(rows) {
-    const wrap = document.createElement('div');
-    wrap.className = 'dense-wrap';
-    const table = document.createElement('table');
-    table.className = 'dense-table';
-    table.innerHTML = `
-      <thead><tr>
-        <th class="dense-th">Date</th><th class="dense-th">Type</th>
-        <th class="dense-th align-right">Amount</th><th class="dense-th">Account</th>
-        <th class="dense-th">Category</th><th class="dense-th">Notes</th>
-        <th class="dense-th">TX ID</th><th class="dense-th">Created</th>
-        <th class="dense-th align-right">Actions</th>
-      </tr></thead><tbody></tbody>`;
-    const tbody = table.querySelector('tbody');
-
-    rows.forEach(tx => {
-      const acc = window.store.getAccount(tx.accountId);
-      const cat = window.store.getCategory(tx.categoryId);
-      const sign = tx.type === 'income' ? '+' : (tx.type === 'expense' ? '−' : '↔');
-      const colorClass = tx.type === 'income' ? 'positive' : (tx.type === 'expense' ? 'negative' : 'neutral');
-      const typeColor = tx.type === 'income' ? 'badge-green' :
-                        tx.type === 'expense' ? 'badge-red' :
-                        tx.type === 'transfer' ? 'badge-blue' :
-                        tx.type === 'cc_payment' ? 'badge-purple' :
-                        tx.type === 'cc_spend' ? 'badge-amber' : 'badge-grey';
-
-      const tr = document.createElement('tr');
-      tr.className = 'dense-row';
-      tr.innerHTML = `
-        <td class="dense-td">${esc(tx.date)}</td>
-        <td class="dense-td"><span class="type-badge ${typeColor}">${esc(tx.type)}</span></td>
-        <td class="dense-td align-right ${colorClass}"><strong>${sign} ${fmt(tx.amount)}</strong> <span class="tx-currency">PKR</span></td>
-        <td class="dense-td"><span class="dense-icon">${acc.icon}</span> ${esc(acc.name)}</td>
-        <td class="dense-td"><span class="dense-icon">${cat.icon}</span> ${esc(cat.name)}</td>
-        <td class="dense-td dense-notes">${esc(tx.notes || '')}</td>
-        <td class="dense-td"><code class="tx-id-code" data-id="${esc(tx.id)}" title="Click to copy">${esc(tx.id.slice(-8))}</code></td>
-        <td class="dense-td dense-time">${formatTime(tx.createdAt)}</td>
-        <td class="dense-td align-right"><a href="/edit.html?id=${encodeURIComponent(tx.id)}" class="dense-action">Edit</a></td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    table.addEventListener('click', (e) => {
-      const code = e.target.closest('.tx-id-code');
-      if (code) {
-        navigator.clipboard.writeText(code.dataset.id).then(() => {
-          code.classList.add('copied');
-          setTimeout(() => code.classList.remove('copied'), 800);
-        });
+  function render() {
+    const txnById = {};
+    allTxns.forEach(t => { txnById[t.id] = t; });
+    const hideIds = new Set();
+    allTxns.forEach(t => {
+      if (t.linked_txn_id && t.type === 'income') {
+        const partner = txnById[t.linked_txn_id];
+        if (partner && partner.type === 'transfer') hideIds.add(t.id);
       }
     });
 
-    wrap.appendChild(table);
-    return wrap;
+    const visible = applyFilters(allTxns.filter(t => !hideIds.has(t.id)));
+
+    const totalIn = visible
+      .filter(t => !t.reversed_by && (t.type === 'income' || t.type === 'borrow'))
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
+    const totalOut = visible
+      .filter(t => !t.reversed_by && (t.type === 'expense' || t.type === 'cc_spend' || t.type === 'repay' || t.type === 'atm'))
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
+    const txCount = visible.length;
+    const reversedCount = visible.filter(t => t.reversed_by).length;
+
+    if ($('t_count'))    $('t_count').textContent = String(txCount);
+    if ($('t_in'))       $('t_in').textContent = fmtPKR(totalIn);
+    if ($('t_out'))      $('t_out').textContent = fmtPKR(totalOut);
+    if ($('t_net')) {
+      const net = totalIn - totalOut;
+      $('t_net').textContent = fmtPKR(net);
+      $('t_net').className = 'stat-value ' + (net >= 0 ? 'positive' : 'negative');
+    }
+    if ($('t_reversed')) $('t_reversed').textContent = String(reversedCount);
+
+    if (!visible.length) {
+      $('txn-list').innerHTML = '<div class="empty-state-inline">No transactions match filters</div>';
+      return;
+    }
+
+    $('txn-list').innerHTML = visible.map(t => {
+      const isReversed   = !!t.reversed_by;
+      const isReverseRow = t.notes && t.notes.startsWith('REVERSAL of ');
+      const isTransferOut = t.type === 'transfer' && t.linked_txn_id;
+      const icon = TYPE_ICON[t.type] || '📝';
+      const amtCls = TYPE_AMT_CLASS[t.type] || 'neutral';
+      const amtSign = (t.type === 'expense' || t.type === 'cc_spend' || t.type === 'repay' || t.type === 'atm') ? '−'
+                    : (t.type === 'income' || t.type === 'borrow') ? '+'
+                    : '';
+      const accountFlow = isTransferOut
+        ? `${escHtml(t.account_id)} → ${escHtml(t.transfer_to_account_id)}`
+        : escHtml(t.account_id) + (t.transfer_to_account_id ? ' → ' + escHtml(t.transfer_to_account_id) : '');
+      const flagText = isReversed ? '⊘ reversed · ' : isReverseRow ? '↩ reversal · ' : '';
+      const subText = flagText + accountFlow + ' · ' + escHtml(t.date);
+      const titleNote = isTransferOut ? 'Transfer' : (t.notes ? escHtml(t.notes.slice(0, 80)) : (TYPE_LABEL[t.type] || t.type));
+      const opacity = isReversed ? ';opacity:0.55;text-decoration:line-through' : '';
+      const canReverse = !isReversed && !isReverseRow;
+      const action = canReverse
+        ? `<button class="dense-action" data-rev="${escHtml(t.id)}" data-amount="${t.amount}" data-type="${escHtml(t.type)}" data-pair="${isTransferOut ? '1' : '0'}" title="Reverse" style="margin-left:10px;color:var(--danger);background:var(--danger-soft);border:1px solid rgba(244,63,94,0.25);cursor:pointer;font-family:inherit">↩ Reverse</button>`
+        : '';
+
+      return `
+        <div class="tx-row" style="${opacity}">
+          <div class="tx-left">
+            <div class="tx-icon">${icon}</div>
+            <div class="tx-info">
+              <div class="tx-name">${titleNote}</div>
+              <div class="tx-sub">${subText}</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center">
+            <div class="tx-amount ${amtCls}">${amtSign}${fmtPKR2(t.amount)}<span class="tx-currency">PKR</span></div>
+            ${action}
+          </div>
+        </div>`;
+    }).join('');
+
+    document.querySelectorAll('button[data-rev]').forEach(btn => {
+      btn.addEventListener('click', onReverseClick);
+    });
   }
 
-  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+  async function onReverseClick(ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const btn = ev.currentTarget;
+    const id     = btn.getAttribute('data-rev');
+    const amount = parseFloat(btn.getAttribute('data-amount')) || 0;
+    const type   = btn.getAttribute('data-type');
+    const isPair = btn.getAttribute('data-pair') === '1';
 
-  function formatDateLabel(iso) {
-    const today = new Date().toISOString().slice(0, 10);
-    const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    if (iso === today) return 'Today';
-    if (iso === yest) return 'Yesterday';
-    return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const ok = window.confirm(
+      `Reverse this ${isPair ? 'TRANSFER PAIR' : 'transaction'}?\n\n` +
+      `Type: ${type}\nAmount: ${fmtPKR(amount)}\nID: ${id}\n\nContinue?`
+    );
+    if (!ok) return;
+
+    btn.disabled = true;
+    btn.textContent = '…';
+
+    try {
+      const r = await fetch('/api/transactions/reverse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, created_by: 'web-transactions' })
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        toast('❌ ' + (data.error || 'Reverse failed'), 'err');
+        btn.disabled = false; btn.textContent = '↩ Reverse';
+        return;
+      }
+      let msg = `✅ Reversed${data.partner_id ? ' pair' : ''} · snap ${data.snapshot_id}`;
+      if (data.debt_restored) msg += ` · ${data.debt_restored.name} +${fmtPKR(data.debt_restored.amount_restored)}`;
+      toast(msg);
+      await loadAll();
+    } catch (e) {
+      toast('❌ Network error: ' + e.message, 'err');
+      btn.disabled = false; btn.textContent = '↩ Reverse';
+    }
   }
 
-  function formatTime(iso) {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleString('en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+  function init() {
+    if ($('filter_type'))    $('filter_type').addEventListener('change', e => { filters.type = e.target.value; render(); });
+    if ($('filter_account')) $('filter_account').addEventListener('change', e => { filters.account = e.target.value; render(); });
+    if ($('filter_search'))  $('filter_search').addEventListener('input', e => { filters.search = e.target.value.trim(); render(); });
+    if ($('refresh_btn'))    $('refresh_btn').addEventListener('click', () => { loadAll(); toast('Refreshed'); });
+
+    loadAll();
   }
 
-  function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
-
-  function attachSearch() {
-    const input = document.getElementById('searchInput');
-    if (!input) return;
-    input.addEventListener('input', () => renderList(input.value));
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 })();
