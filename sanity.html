@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sovereign Finance — Sanity Dashboard</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .sanity-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin:16px 0 24px }
+    .sanity-card { background:var(--bg-elev-1); padding:16px; border-radius:12px; border:1px solid var(--border) }
+    .sanity-label { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px }
+    .sanity-value { font-size:28px; font-weight:700; margin-top:6px; font-variant-numeric:tabular-nums }
+    .sanity-section { background:var(--bg-elev-1); padding:16px; border-radius:12px; margin-bottom:16px; border:1px solid var(--border) }
+    .recon-table { width:100%; border-collapse:collapse; margin-top:8px }
+    .recon-table th, .recon-table td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--border); font-size:14px }
+    .recon-table th { font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px }
+    .recon-table td.r { text-align:right; font-variant-numeric:tabular-nums }
+    .recon-input { width:100px; padding:6px 8px; border:1px solid var(--border); background:var(--bg-elev-2); color:var(--text); border-radius:6px; font-family:inherit; text-align:right }
+    .drift-ok    { color:#10b981; font-weight:600 }
+    .drift-warn  { color:#f59e0b; font-weight:600 }
+    .drift-bad   { color:#ef4444; font-weight:600 }
+    .drift-zero  { color:var(--text-muted) }
+    .pos { color:#10b981 }
+    .neg { color:#ef4444 }
+    .neu { color:var(--text-muted) }
+    .muted { color:var(--text-muted); font-size:13px }
+    .row-tx { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border) }
+    .row-tx:last-child { border:none }
+    .btn { padding:8px 16px; border:none; background:var(--accent,#3b82f6); color:#fff; border-radius:8px; cursor:pointer; font-family:inherit; font-weight:600 }
+    .btn:hover { opacity:0.9 }
+    .stamp { font-size:11px; color:var(--text-muted); margin-top:4px }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">Sovereign Ops</div>
+    <h1 class="title">Sanity Dashboard</h1>
+  </header>
+
+  <div style="margin:16px 0; padding:12px 14px; background:rgba(59,130,246,0.1); border-radius:8px; border:1px solid rgba(59,130,246,0.3); font-size:13px">
+    📊 <strong>Self-contained truth view</strong> — reads APIs directly, ignores broken Hub. Use this to verify D1 state vs sheet.
+    <button id="refreshBtn" class="btn" style="float:right; padding:4px 12px; font-size:12px">↻ Refresh</button>
+  </div>
+
+  <!-- Live state -->
+  <div class="sanity-grid">
+    <div class="sanity-card">
+      <div class="sanity-label">Net Worth</div>
+      <div class="sanity-value" id="s_networth">—</div>
+      <div class="stamp" id="s_networth_stamp"></div>
+    </div>
+    <div class="sanity-card">
+      <div class="sanity-label">Liquid Assets</div>
+      <div class="sanity-value pos" id="s_liquid">—</div>
+    </div>
+    <div class="sanity-card">
+      <div class="sanity-label">CC Outstanding</div>
+      <div class="sanity-value neg" id="s_cc">—</div>
+    </div>
+    <div class="sanity-card">
+      <div class="sanity-label">Personal Debts</div>
+      <div class="sanity-value neg" id="s_debts">—</div>
+    </div>
+    <div class="sanity-card">
+      <div class="sanity-label">True Burden (CC + Debts)</div>
+      <div class="sanity-value neg" id="s_burden">—</div>
+    </div>
+    <div class="sanity-card">
+      <div class="sanity-label">Tx Count</div>
+      <div class="sanity-value neu" id="s_txcount">—</div>
+    </div>
+  </div>
+
+  <!-- Per-account reconciliation -->
+  <div class="sanity-section">
+    <h2 style="margin:0 0 8px 0">🏦 Per-Account Reconciliation</h2>
+    <div class="muted">D1 column shows what's computed. "Sheet says" column = type your real bank/sheet balance. Drift updates live. ✅ ≤100 PKR · ⚠️ ≤1000 · 🔴 &gt;1000.</div>
+    <table class="recon-table">
+      <thead>
+        <tr>
+          <th>Account</th>
+          <th class="r">D1 Computed</th>
+          <th class="r">Sheet Says</th>
+          <th class="r">Drift</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="recon-body"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
+      <tfoot>
+        <tr style="font-weight:600; border-top:2px solid var(--border)">
+          <td>TOTAL LIQUID</td>
+          <td class="r" id="recon-total-d1">—</td>
+          <td class="r" id="recon-total-sheet">—</td>
+          <td class="r" id="recon-total-drift">—</td>
+          <td id="recon-total-status">—</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <!-- Debts breakdown -->
+  <div class="sanity-section">
+    <h2 style="margin:0 0 8px 0">💳 Personal Debts (D1 → /api/debts)</h2>
+    <div id="debts-body" class="muted">Loading…</div>
+  </div>
+
+  <!-- Recent tx -->
+  <div class="sanity-section">
+    <h2 style="margin:0 0 8px 0">📜 Last 10 Transactions</h2>
+    <div id="tx-body" class="muted">Loading…</div>
+  </div>
+
+  <!-- Help -->
+  <div class="sanity-section" style="background:rgba(245,158,11,0.05); border-color:rgba(245,158,11,0.3)">
+    <h2 style="margin:0 0 8px 0">⚠️ Known State (as of 2026-05-04 migration)</h2>
+    <ul style="margin:0; padding-left:20px; font-size:13px; line-height:1.6">
+      <li>D1 has 99 transactions imported from sheet (may include test entries from this session)</li>
+      <li>If you paid 100k to debt AFTER migration date — that won't show until you re-add it via <a href="/add.html">/add.html</a></li>
+      <li>Transfer rows from migration are SINGLE-row (transfer_to_account_id set but no IN-half) — so destination accounts may undercount</li>
+      <li>CC Outstanding shown as negative (it's a liability) — for "True Burden" we use absolute value</li>
+    </ul>
+  </div>
+
+  <script>
+    'use strict';
+
+    const $ = id => document.getElementById(id);
+    const fmtPKR = n => Math.round(Number(n) || 0).toLocaleString('en-PK');
+    const fmtPKRsigned = n => {
+      const v = Number(n) || 0;
+      const sign = v < 0 ? '−' : '';
+      return sign + 'Rs ' + Math.round(Math.abs(v)).toLocaleString('en-PK');
+    };
+
+    async function getJSON(url) {
+      const r = await fetch(url, { cache: 'no-store' });
+      return r.json();
+    }
+
+    function driftClass(d) {
+      const a = Math.abs(d);
+      if (a === 0) return 'drift-zero';
+      if (a <= 100) return 'drift-ok';
+      if (a <= 1000) return 'drift-warn';
+      return 'drift-bad';
+    }
+    function driftBadge(d) {
+      const a = Math.abs(d);
+      if (a === 0) return '—';
+      if (a <= 100) return '✅ match';
+      if (a <= 1000) return '⚠️ minor';
+      return '🔴 fix';
+    }
+
+    let liveAccounts = [];
+
+    async function loadAll() {
+      try {
+        const [bal, debts, txns] = await Promise.all([
+          getJSON('/api/balances'),
+          getJSON('/api/debts'),
+          getJSON('/api/transactions')
+        ]);
+
+        // Top cards — derive from accounts array (since /api/balances v0.1.0 doesn't have total_owe/total_liquid_assets)
+        liveAccounts = bal.accounts || [];
+        const liquidComputed = liveAccounts
+          .filter(a => a.type === 'asset')
+          .reduce((s, a) => s + Number(a.balance || 0), 0);
+
+        const ccBalance = Math.abs(Number(bal.cc_outstanding || 0));
+        const totalOwe = Number(debts.total_owe || 0);
+        const burden = ccBalance + totalOwe;
+        const networth = Number(bal.net_worth || 0);
+
+        $('s_networth').textContent = (networth < 0 ? '−' : '') + 'Rs ' + fmtPKR(Math.abs(networth));
+        $('s_networth').className = 'sanity-value ' + (networth < 0 ? 'neg' : 'pos');
+        $('s_networth_stamp').textContent = 'Liquid − CC = ' + fmtPKR(liquidComputed) + ' − ' + fmtPKR(ccBalance);
+        $('s_liquid').textContent = 'Rs ' + fmtPKR(liquidComputed);
+        $('s_cc').textContent     = '−Rs ' + fmtPKR(ccBalance);
+        $('s_debts').textContent  = '−Rs ' + fmtPKR(totalOwe);
+        $('s_burden').textContent = '−Rs ' + fmtPKR(burden);
+        $('s_txcount').textContent = String((txns.transactions || []).length);
+
+        // Reconciliation table
+        const reconBody = $('recon-body');
+        reconBody.innerHTML = '';
+        let totalD1 = 0;
+        let totalSheet = 0;
+
+        const stored = JSON.parse(localStorage.getItem('sovfin_sheet_declared_v1') || '{}');
+
+        liveAccounts.forEach(a => {
+          const d1 = Number(a.balance || 0);
+          totalD1 += a.type === 'asset' ? d1 : 0;
+          const sheetVal = stored[a.id] || '';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${a.icon || '🏦'} ${a.name}</td>
+            <td class="r">${fmtPKRsigned(d1)}</td>
+            <td class="r"><input type="number" class="recon-input" data-aid="${a.id}" data-d1="${d1}" value="${sheetVal}" placeholder="—" step="0.01"></td>
+            <td class="r drift-cell" id="drift-${a.id}">—</td>
+            <td class="status-cell" id="status-${a.id}">—</td>`;
+          reconBody.appendChild(tr);
+        });
+
+        // Wire inputs
+        document.querySelectorAll('.recon-input').forEach(inp => {
+          inp.addEventListener('input', recalcDrift);
+        });
+        recalcDrift();
+
+        // Debts list
+        const debtsBody = $('debts-body');
+        const oweList = (debts.debts || []).filter(d => d.kind === 'owe' && d.status === 'active');
+        if (oweList.length === 0) {
+          debtsBody.innerHTML = '<div>No active debts.</div>';
+        } else {
+          debtsBody.innerHTML = oweList.map(d => {
+            const remaining = (d.original_amount || 0) - (d.paid_amount || 0);
+            const pct = d.original_amount > 0 ? Math.round((d.paid_amount / d.original_amount) * 100) : 0;
+            return `<div class="row-tx">
+              <div><strong>${d.name}</strong> <span class="muted">· ${pct}% paid · #${d.snowball_order}</span></div>
+              <div class="neg">−Rs ${fmtPKR(remaining)}</div>
+            </div>`;
+          }).join('') + `<div class="row-tx" style="font-weight:600; padding-top:14px"><div>Total Owed</div><div class="neg">−Rs ${fmtPKR(totalOwe)}</div></div>`;
+        }
+
+        // Tx list
+        const txBody = $('tx-body');
+        const recent = (txns.transactions || []).slice(0, 10);
+        if (recent.length === 0) {
+          txBody.innerHTML = '<div>No transactions.</div>';
+        } else {
+          txBody.innerHTML = recent.map(t => {
+            const sign = (t.type === 'expense' || t.type === 'cc_spend' || t.type === 'repay' || t.type === 'atm') ? '−' :
+                         (t.type === 'income' || t.type === 'borrow') ? '+' : '';
+            const cls = sign === '−' ? 'neg' : sign === '+' ? 'pos' : 'neu';
+            return `<div class="row-tx">
+              <div>
+                <div><strong>${t.type}</strong> · ${t.account_id || '—'}${t.transfer_to_account_id ? ' → ' + t.transfer_to_account_id : ''}</div>
+                <div class="muted" style="font-size:12px">${t.date} · ${t.notes || ''}</div>
+              </div>
+              <div class="${cls}">${sign}Rs ${fmtPKR(t.amount)}</div>
+            </div>`;
+          }).join('');
+        }
+      } catch (e) {
+        $('s_networth').textContent = 'API ERR';
+        console.error(e);
+      }
+    }
+
+    function recalcDrift() {
+      let totalD1 = 0;
+      let totalSheet = 0;
+      const declared = {};
+
+      document.querySelectorAll('.recon-input').forEach(inp => {
+        const aid = inp.getAttribute('data-aid');
+        const d1 = Number(inp.getAttribute('data-d1') || 0);
+        const sheetRaw = inp.value.trim();
+        const sheetVal = sheetRaw === '' ? null : Number(sheetRaw);
+
+        const acc = liveAccounts.find(a => a.id === aid);
+        if (acc && acc.type === 'asset') totalD1 += d1;
+
+        const driftCell = $('drift-' + aid);
+        const statusCell = $('status-' + aid);
+
+        if (sheetVal === null || isNaN(sheetVal)) {
+          driftCell.textContent = '—';
+          driftCell.className = 'r drift-cell drift-zero';
+          statusCell.textContent = '—';
+          statusCell.className = 'status-cell drift-zero';
+        } else {
+          declared[aid] = sheetRaw;
+          if (acc && acc.type === 'asset') totalSheet += sheetVal;
+          const drift = sheetVal - d1;
+          driftCell.textContent = fmtPKRsigned(drift);
+          driftCell.className = 'r drift-cell ' + driftClass(drift);
+          statusCell.textContent = driftBadge(drift);
+          statusCell.className = 'status-cell ' + driftClass(drift);
+        }
+      });
+
+      $('recon-total-d1').textContent = fmtPKRsigned(totalD1);
+      $('recon-total-sheet').textContent = totalSheet === 0 ? '—' : fmtPKRsigned(totalSheet);
+      const totalDrift = totalSheet - totalD1;
+      if (totalSheet === 0) {
+        $('recon-total-drift').textContent = '—';
+        $('recon-total-drift').className = 'r drift-zero';
+        $('recon-total-status').textContent = '—';
+      } else {
+        $('recon-total-drift').textContent = fmtPKRsigned(totalDrift);
+        $('recon-total-drift').className = 'r ' + driftClass(totalDrift);
+        $('recon-total-status').textContent = driftBadge(totalDrift);
+      }
+
+      // Persist declared values
+      localStorage.setItem('sovfin_sheet_declared_v1', JSON.stringify(declared));
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', loadAll);
+    loadAll();
+  </script>
+</body>
+</html>
