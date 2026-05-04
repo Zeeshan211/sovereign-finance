@@ -9,11 +9,13 @@
   <title>Sovereign Finance</title>
   <link rel="stylesheet" href="/css/app.css">
   <script src="/js/theme.js"></script>
+  <script src="/js/nav.js" defer></script>
 </head>
 <body>
   <header>
     <div class="brand">Sovereign Ops</div>
     <h1 class="title">Finance</h1>
+    <div class="day-badge"><span class="pulse"></span>Day <span id="dayNum">—</span> of 90</div>
   </header>
 
   <div class="hub-top-grid">
@@ -27,10 +29,10 @@
         <div class="stat-label">Liquid</div>
         <div id="hub-liquid" class="stat-value accent counter">—</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">CC Outstanding</div>
+      <a href="/cc.html" class="stat-card" style="text-decoration:none;color:inherit;cursor:pointer">
+        <div class="stat-label">CC Outstanding <span style="opacity:0.5;font-size:10px">tap →</span></div>
         <div id="hub-cc" class="stat-value danger counter">—</div>
-      </div>
+      </a>
       <div class="stat-card">
         <div class="stat-label">Personal Debts</div>
         <div id="hub-debts" class="stat-value warn counter">—</div>
@@ -47,11 +49,6 @@
   </div>
 
   <div class="nav-grid">
-    <a href="/add.html" class="nav-card">
-      <div class="nav-icon">➕</div>
-      <div class="nav-label">Add</div>
-      <div class="nav-sub">new entry</div>
-    </a>
     <a href="/transactions.html" class="nav-card">
       <div class="nav-icon">💸</div>
       <div class="nav-label">Transactions</div>
@@ -62,8 +59,13 @@
       <div class="nav-label">Accounts</div>
       <div class="nav-sub">11 active</div>
     </a>
-    <a href="/debts.html" class="nav-card">
+    <a href="/cc.html" class="nav-card">
       <div class="nav-icon">💳</div>
+      <div class="nav-label">CC Planner</div>
+      <div class="nav-sub">payoff scenarios</div>
+    </a>
+    <a href="/debts.html" class="nav-card">
+      <div class="nav-icon">📉</div>
       <div class="nav-label">Debts</div>
       <div class="nav-sub">snowball</div>
     </a>
@@ -72,20 +74,20 @@
       <div class="nav-label">Bills</div>
       <div class="nav-sub">recurring</div>
     </a>
-    <a href="/audit.html" class="nav-card">
-      <div class="nav-icon">🛡️</div>
-      <div class="nav-label">Audit</div>
-      <div class="nav-sub">history</div>
+    <a href="/budgets.html" class="nav-card">
+      <div class="nav-icon">📊</div>
+      <div class="nav-label">Budgets</div>
+      <div class="nav-sub">caps + spent</div>
     </a>
-    <a href="/snapshots.html" class="nav-card">
-      <div class="nav-icon">📸</div>
-      <div class="nav-label">Snapshots</div>
-      <div class="nav-sub">backups</div>
+    <a href="/goals.html" class="nav-card">
+      <div class="nav-icon">🎯</div>
+      <div class="nav-label">Goals</div>
+      <div class="nav-sub">savings targets</div>
     </a>
-    <a href="/salary.html" class="nav-card">
-      <div class="nav-icon">💰</div>
-      <div class="nav-label">Salary</div>
-      <div class="nav-sub">monthly</div>
+    <a href="/reconciliation.html" class="nav-card">
+      <div class="nav-icon">⚖️</div>
+      <div class="nav-label">Reconcile</div>
+      <div class="nav-sub">verify balances</div>
     </a>
   </div>
 
@@ -119,7 +121,7 @@
 
   <footer>
     Built one baby step at a time.<br>
-    <span class="v">v0.7.4 · sovereign-finance</span>
+    <span class="v">v0.7.5 · sovereign-finance</span>
   </footer>
 
   <script src="/js/app.js"></script>
