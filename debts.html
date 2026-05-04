@@ -43,7 +43,7 @@
   <div id="debts-owed-list"></div>
 
   <footer>
-    <span class="v">v0.3.1 · debts</span>
+    <span class="v">v0.3.2 · debts</span>
   </footer>
 
   <div id="payModal" class="modal-backdrop" style="display:none;">
@@ -63,6 +63,32 @@
       <div class="modal-actions">
         <button id="payCancel" class="ghost-btn">Cancel</button>
         <button id="payConfirm" class="primary-btn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="addDebtModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title" id="addDebtTitle">Add Debt</div>
+
+      <label class="field-label">Name</label>
+      <input id="addDebtName" type="text" placeholder="e.g. Bank Loan, Friend Ahmed" class="form-input" maxlength="80">
+
+      <label class="field-label">Type</label>
+      <select id="addDebtKind" class="form-select">
+        <option value="owe">I Owe (liability)</option>
+        <option value="owed">They Owe Me (receivable)</option>
+      </select>
+
+      <label class="field-label">Original Amount</label>
+      <input id="addDebtAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" class="amount-input">
+
+      <label class="field-label">Notes (optional)</label>
+      <input id="addDebtNotes" type="text" placeholder="context, due date, terms…" class="form-input" maxlength="200">
+
+      <div class="modal-actions">
+        <button id="addDebtCancel" class="ghost-btn">Cancel</button>
+        <button id="addDebtConfirm" class="primary-btn">Add Debt</button>
       </div>
     </div>
   </div>
