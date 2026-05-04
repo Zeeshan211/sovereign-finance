@@ -15,7 +15,7 @@
   <header>
     <div class="brand">Sovereign Ops</div>
     <h1 class="title">Accounts</h1>
-    <div class="day-badge"><span id="acc-day-count">—</span> · Day <span id="dayNum">—</span> of 90</div>
+    <div class="day-badge"><span id="acc-summary">loading…</span></div>
   </header>
 
   <section class="net-worth">
@@ -26,6 +26,7 @@
   <div class="section-header">
     <span id="acc-assets-count" class="section-label">Assets</span>
     <span id="acc-assets-total" class="section-total assets">—</span>
+    <button id="addAccountBtn" class="ghost-btn" style="margin-left:auto;font-size:12px;padding:4px 10px">+ Add</button>
   </div>
   <div id="acc-assets-list"></div>
 
@@ -35,9 +36,84 @@
   </div>
   <div id="acc-liabilities-list"></div>
 
+  <div class="section-header" id="acc-archived-header" style="display:none">
+    <span id="acc-archived-count" class="section-label">Archived</span>
+    <button id="acc-archived-toggle" class="ghost-btn" style="margin-left:auto;font-size:12px;padding:4px 10px">Show</button>
+  </div>
+  <div id="acc-archived-list" style="display:none"></div>
+
   <footer>
-    <span class="v">v0.5.0 · accounts</span>
+    <span class="v">v0.6.0 · accounts</span>
   </footer>
+
+  <!-- Add Account Modal -->
+  <div id="addAccountModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title">Add Account</div>
+
+      <label class="field-label">Name</label>
+      <input id="addAccountName" type="text" placeholder="e.g. UBL Savings, Sadapay" class="form-input" maxlength="60">
+
+      <label class="field-label">Icon (emoji)</label>
+      <input id="addAccountIcon" type="text" placeholder="🏦" class="form-input" maxlength="4">
+
+      <label class="field-label">Type</label>
+      <select id="addAccountKind" class="form-select">
+        <option value="bank">Bank</option>
+        <option value="cash">Cash</option>
+        <option value="wallet">E-Wallet</option>
+        <option value="prepaid">Prepaid Card</option>
+        <option value="cc">Credit Card</option>
+      </select>
+
+      <label class="field-label">Opening Balance (optional)</label>
+      <input id="addAccountOpening" type="number" inputmode="decimal" step="0.01" placeholder="0" class="amount-input">
+
+      <label class="field-label">Display Order (optional)</label>
+      <input id="addAccountOrder" type="number" min="0" placeholder="99" class="form-input">
+
+      <div class="modal-actions">
+        <button id="addAccountCancel" class="ghost-btn">Cancel</button>
+        <button id="addAccountConfirm" class="primary-btn">Add Account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Account Modal -->
+  <div id="editAccountModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title" id="editAccountTitle">Edit Account</div>
+      <div class="modal-sub" id="editAccountSub">id: …</div>
+
+      <label class="field-label">Name</label>
+      <input id="editAccountName" type="text" class="form-input" maxlength="60">
+
+      <label class="field-label">Icon (emoji)</label>
+      <input id="editAccountIcon" type="text" class="form-input" maxlength="4">
+
+      <label class="field-label">Type</label>
+      <select id="editAccountKind" class="form-select">
+        <option value="bank">Bank</option>
+        <option value="cash">Cash</option>
+        <option value="wallet">E-Wallet</option>
+        <option value="prepaid">Prepaid Card</option>
+        <option value="cc">Credit Card</option>
+      </select>
+
+      <label class="field-label">Opening Balance</label>
+      <input id="editAccountOpening" type="number" inputmode="decimal" step="0.01" class="amount-input">
+
+      <label class="field-label">Display Order</label>
+      <input id="editAccountOrder" type="number" min="0" class="form-input">
+
+      <div class="modal-actions">
+        <button id="editAccountArchive" class="ghost-btn">Archive</button>
+        <button id="editAccountDelete" class="ghost-btn">Delete</button>
+        <button id="editAccountCancel" class="ghost-btn">Cancel</button>
+        <button id="editAccountConfirm" class="primary-btn">Save</button>
+      </div>
+    </div>
+  </div>
 
   <nav class="bottom-nav">
     <div class="bottom-nav-inner">
