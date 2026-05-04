@@ -1,12 +1,13 @@
 // ════════════════════════════════════════════════════════════════════
-// transactions.js — Standalone Transactions page · v0.7.1 · Sub-1D-3-PARITY
+// transactions.js — Standalone Transactions page · v0.7.1 · Sub-1D-3-RESHIP
 //
-// CHANGES from v0.7.0:
-//   - Defines window.editTransaction stub that alerts (in case any old onclick="" survives in cache)
-//   - Cache-busted via ?v=0.7.1 in HTML
+// Reverse-only pattern (no Edit, no Delete buttons)
+// Hides IN-half of transfer pairs (renders OUT-half as "From → To")
+// Excludes reversed rows from In/Out totals
+// Cache-busts every API read
+// Stubs window.editTransaction + window.deleteTransaction for any cached HTML
 // ════════════════════════════════════════════════════════════════════
 
-// Stub the legacy editTransaction in case any cached HTML still references it
 window.editTransaction = function (id) {
   alert('Editing is disabled to preserve the audit trail.\n\n' +
         'To correct this transaction, scroll to find it and click the ↩ Reverse button.\n' +
@@ -85,7 +86,8 @@ window.deleteTransaction = function (id) {
 
       render();
     } catch (e) {
-      $('txn-list').innerHTML = '<div class="empty-state-inline">Failed: ' + escHtml(e.message) + '</div>';
+      const list = $('txn-list') || $('tx-list');
+      if (list) list.innerHTML = '<div class="empty-state-inline">Failed: ' + escHtml(e.message) + '</div>';
     }
   }
 
@@ -138,12 +140,15 @@ window.deleteTransaction = function (id) {
     }
     if ($('t_reversed')) $('t_reversed').textContent = String(reversedCount);
 
+    const list = $('txn-list') || $('tx-list');
+    if (!list) return;
+
     if (!visible.length) {
-      $('txn-list').innerHTML = '<div class="empty-state-inline">No transactions match filters</div>';
+      list.innerHTML = '<div class="empty-state-inline">No transactions match filters</div>';
       return;
     }
 
-    $('txn-list').innerHTML = visible.map(t => {
+    list.innerHTML = visible.map(t => {
       const isReversed   = !!t.reversed_by;
       const isReverseRow = t.notes && t.notes.startsWith('REVERSAL of ');
       const isTransferOut = t.type === 'transfer' && t.linked_txn_id;
