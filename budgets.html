@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#050816">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Budgets · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/theme.js"></script>
+  <script src="/js/nav.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="brand">Sovereign Ops</div>
+    <h1 class="title">Budgets</h1>
+    <div class="day-badge"><span id="budgets-summary">loading…</span></div>
+  </header>
+
+  <div class="debt-summary-row">
+    <div class="debt-summary-card">
+      <div class="debt-summary-label">Monthly Cap</div>
+      <div id="budgets-total-cap" class="debt-summary-value accent">—</div>
+      <div id="budgets-count" class="debt-summary-sub">— budgets</div>
+    </div>
+    <div class="debt-summary-card">
+      <div class="debt-summary-label">Spent This Month</div>
+      <div id="budgets-total-spent" class="debt-summary-value liabilities">—</div>
+      <div id="budgets-over-count" class="debt-summary-sub">— over</div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-label">Categories</span>
+    <button id="addBudgetBtn" class="ghost-btn" style="margin-left:auto;font-size:12px;padding:4px 10px">+ Add Budget</button>
+  </div>
+  <div id="budgets-list"></div>
+
+  <footer>
+    <span class="v">v0.1.0 · budgets</span>
+  </footer>
+
+  <!-- Add Budget Modal -->
+  <div id="addBudgetModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title">Add Budget</div>
+      <div class="modal-sub">Set a monthly spending cap per category</div>
+
+      <label class="field-label">Category ID</label>
+      <input id="addBudgetCategory" type="text" placeholder="e.g. groceries, utilities, rent" class="form-input" maxlength="40">
+
+      <label class="field-label">Monthly Cap</label>
+      <input id="addBudgetAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" class="amount-input">
+
+      <label class="field-label">Notes (optional)</label>
+      <input id="addBudgetNotes" type="text" placeholder="context, reminders…" class="form-input" maxlength="200">
+
+      <div class="modal-actions">
+        <button id="addBudgetCancel" class="ghost-btn">Cancel</button>
+        <button id="addBudgetConfirm" class="primary-btn">Add Budget</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Budget Modal -->
+  <div id="editBudgetModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title" id="editBudgetTitle">Edit Budget</div>
+      <div class="modal-sub" id="editBudgetSub">category: …</div>
+
+      <label class="field-label">Monthly Cap</label>
+      <input id="editBudgetAmount" type="number" inputmode="decimal" step="0.01" min="0" class="amount-input">
+
+      <label class="field-label">Notes</label>
+      <input id="editBudgetNotes" type="text" class="form-input" maxlength="200">
+
+      <div class="modal-actions">
+        <button id="editBudgetDelete" class="ghost-btn">Delete</button>
+        <button id="editBudgetCancel" class="ghost-btn">Cancel</button>
+        <button id="editBudgetConfirm" class="primary-btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/" class="nav-item">
+        <div class="nav-emoji">🏠</div>
+        <div class="nav-text">Hub</div>
+      </a>
+      <a href="/accounts.html" class="nav-item">
+        <div class="nav-emoji">🏦</div>
+        <div class="nav-text">Accounts</div>
+      </a>
+      <a href="/budgets.html" class="nav-item active">
+        <div class="nav-emoji">📊</div>
+        <div class="nav-text">Budgets</div>
+      </a>
+      <a href="/goals.html" class="nav-item">
+        <div class="nav-emoji">🎯</div>
+        <div class="nav-text">Goals</div>
+      </a>
+    </div>
+  </nav>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/store.js"></script>
+  <script src="/js/numbers.js"></script>
+  <script src="/js/budgets.js"></script>
+</body>
+</html>
