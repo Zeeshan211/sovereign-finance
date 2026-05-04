@@ -1,25 +1,37 @@
-/* ─── Sovereign Finance · Add Transaction Form v0.2.0 · Sub-1D-TXFER-FIX ───
- * Wires up the transfer destination dropdown added in add.html v0.6.0.
+/* ─── Sovereign Finance · Add Transaction Form v0.3.0 · Sub-1D-TXFER-POLISH ───
+ * Honors URL query params from CC planner Pay buttons (and any future deep-link).
  *
- * Changes vs v0.1.0:
- *   - Type toggle now shows/hides transferToWrap + categoryWrap
- *   - Account label swaps "Account" ↔ "From Account" with type
- *   - transferToSelect populated from accounts (excludes current source)
- *   - Source change re-populates destination (excludes new source)
- *   - Submit validation: transfer requires dest, dest !== source
- *   - Submit payload includes transferToAccountId for transfer type
+ * URL contract (matches cc.js v0.1.0 generation):
+ *   /add.html?type=transfer&amount=N&from=ACCT&to=ACCT&notes=ENCODED
+ *   Supported: type ∈ {expense, income, transfer}, amount, from, to, notes
  *
- * PRESERVED from v0.1.0:
- *   - localToday() local-date logic
- *   - Defensive re-populate on focus
- *   - Console-log instrumentation
- *   - Defensive null checks (works even if v0.6.0 HTML not yet deployed)
+ * Design notes:
+ *   - URL consumption is IDEMPOTENT (guards on each field) — safe to call multiple times
+ *   - Re-fires after refreshBalances completes (in case URL `from` only matches D1 ids,
+ *     not FALLBACK_ACCOUNTS)
+ *   - Re-fires after populateTransferToDropdown (so URL `to` lands once dest dropdown is ready)
+ *   - Validates URL values against whitelist (type) and current dropdown options (from/to)
+ *   - Shows a subtle "Prefilled from X — verify before saving" banner so operator knows
+ *     the form was auto-populated
+ *   - Defensive: bad URL values (typos, stale ids) are silently dropped, console.warn logged
+ *
+ * Changes vs v0.2.0:
+ *   - NEW applyURLParams() → reads query string into _pendingURLParams
+ *   - NEW consumeURLParams() → idempotent setter, called from init + after async refreshes
+ *   - NEW showPrefillBanner() → subtle visual cue
+ *   - populateAccountDropdown re-fires consume after API refresh
+ *   - populateTransferToDropdown re-fires consume (so dest URL param lands)
+ *
+ * PRESERVED from v0.2.0:
+ *   All transfer flow logic, type toggle, source-change handler, dual validation,
+ *   defensive null checks for v0.6.0 HTML scaffold, console-log instrumentation.
  */
 
 (function () {
   document.addEventListener('DOMContentLoaded', initAddForm);
 
   let selectedType = 'expense';
+  let _pendingURLParams = null;
 
   function localToday() {
     const d = new Date();
@@ -39,7 +51,8 @@
     attachSubmitHandler();
     attachDefensiveRefocus();
     applyTypeMode(selectedType);
-    console.log('[add v0.2.0] init complete · selectedType=', selectedType);
+    applyURLParams();
+    console.log('[add v0.3.0] init complete · selectedType=', selectedType);
   }
 
   function buildAccountOptions(sel, excludeId) {
@@ -67,6 +80,7 @@
         sel.value = current;
         if (selectedType === 'transfer') populateTransferToDropdown();
         console.log('[add] re-populated', sel.options.length - 1, 'accounts (after API)');
+        consumeURLParams(); // retry any deferred URL params now that real accounts loaded
       }).catch(err => {
         console.warn('[add] refreshBalances failed:', err.message);
       });
@@ -81,6 +95,7 @@
     buildAccountOptions(sel, sourceId);
     if (current && current !== sourceId) sel.value = current;
     console.log('[add] populated', sel.options.length - 1, 'destination accounts (excluding', sourceId || 'none', ')');
+    consumeURLParams(); // retry deferred URL params (esp. transfer dest)
   }
 
   function populateCategoryDropdown() {
@@ -174,6 +189,112 @@
     }
     btn.disabled = !ok;
   }
+
+  /* ─── URL Param Prefill (Sub-1D-TXFER-POLISH) ─── */
+
+  function applyURLParams() {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.toString()) return;
+
+    _pendingURLParams = {
+      type:   params.get('type'),
+      amount: params.get('amount'),
+      from:   params.get('from'),
+      to:     params.get('to'),
+      notes:  params.get('notes')
+    };
+
+    // Visual cue so operator knows the form was auto-populated
+    const source = (_pendingURLParams.notes && _pendingURLParams.notes.toLowerCase().includes('cc paydown'))
+      ? 'CC Planner'
+      : 'link';
+    showPrefillBanner(source);
+
+    consumeURLParams();
+  }
+
+  function consumeURLParams() {
+    if (!_pendingURLParams) return;
+    const p = _pendingURLParams;
+
+    // 1. Type — apply once if valid and different from current
+    const validTypes = ['expense', 'income', 'transfer'];
+    if (p.type && validTypes.includes(p.type) && selectedType !== p.type) {
+      const btn = document.querySelector('.type-btn[data-type="' + p.type + '"]');
+      if (btn) btn.click(); // triggers attachTypeToggle handler → applyTypeMode
+    }
+
+    // 2. Amount — apply once if input still empty
+    if (p.amount && !isNaN(parseFloat(p.amount))) {
+      const amtInput = document.getElementById('amountInput');
+      if (amtInput && !amtInput.value) {
+        amtInput.value = parseFloat(p.amount);
+      }
+    }
+
+    // 3. From — only if option exists and different from current
+    let fromConsumed = !p.from;
+    if (p.from) {
+      const accSel = document.getElementById('accountSelect');
+      if (accSel) {
+        const hasOption = [...accSel.options].some(o => o.value === p.from);
+        if (hasOption) {
+          if (accSel.value !== p.from) {
+            accSel.value = p.from;
+            accSel.dispatchEvent(new Event('change'));
+          }
+          fromConsumed = true;
+        }
+      }
+    }
+
+    // 4. To — only meaningful in transfer mode
+    let toConsumed = !p.to;
+    if (p.to && selectedType === 'transfer') {
+      const toSel = document.getElementById('transferToSelect');
+      if (toSel) {
+        const hasOption = [...toSel.options].some(o => o.value === p.to);
+        if (hasOption) {
+          if (toSel.value !== p.to) toSel.value = p.to;
+          toConsumed = true;
+        }
+      }
+    } else if (p.to && selectedType !== 'transfer') {
+      // Non-transfer with a `to` param — silently ignore (param doesn't apply)
+      toConsumed = true;
+    }
+
+    // 5. Notes — apply once if input still empty
+    if (p.notes) {
+      const notesInput = document.getElementById('notesInput');
+      if (notesInput && !notesInput.value) {
+        notesInput.value = p.notes.slice(0, 200);
+      }
+    }
+
+    updateSubmitState();
+
+    if (fromConsumed && toConsumed) {
+      console.log('[add v0.3.0] URL params fully consumed:', p);
+      _pendingURLParams = null;
+    } else {
+      console.log('[add v0.3.0] URL params partially consumed (from:', fromConsumed, 'to:', toConsumed, ') — will retry on next refresh');
+    }
+  }
+
+  function showPrefillBanner(source) {
+    const form = document.getElementById('addForm');
+    if (!form) return;
+    const existing = document.querySelector('.prefill-banner');
+    if (existing) existing.remove();
+    const banner = document.createElement('div');
+    banner.className = 'prefill-banner';
+    banner.style.cssText = 'background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:var(--accent,#22c55e);padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:12px;text-align:center';
+    banner.textContent = '✨ Prefilled from ' + source + ' — verify before saving';
+    form.insertBefore(banner, form.firstChild);
+  }
+
+  /* ─── Submit ─── */
 
   function attachSubmitHandler() {
     const form = document.getElementById('addForm');
