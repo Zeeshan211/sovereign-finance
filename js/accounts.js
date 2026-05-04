@@ -1,33 +1,14 @@
-/* ─── Sovereign Finance · Accounts Page · v0.6.0 · Sub-1D-3e Ship 5 ───
- * Adds:
- *   - Live summary text in header (replaces Day-N badge)
- *   - + Add Account button + modal → POST /api/accounts
- *   - ✏️ Edit button on every row → Edit modal
- *   - Edit modal Save → PUT /api/accounts/{id}
- *   - Edit modal Archive → POST /api/accounts/{id}/archive (FK-safe always)
- *   - Edit modal Delete → DELETE /api/accounts/{id}
- *       - On 409 with refs payload → auto-offer Archive instead
- *   - Archived section (collapsed by default, toggle to expand)
- *       - Each archived row has 🔄 Restore button → POST /api/accounts/{id}/unarchive
+/* ─── Sovereign Finance · Accounts Page · v0.7.0 · Sub-1D-4e Ship 9 ───
+ * Adds CC validation UI (Sub-1D-4e finishes here):
+ *   - Add modal: CC fields block toggles when kind === 'cc'
+ *   - Edit modal: CC fields block toggles when kind === 'cc' + pre-populates from row
+ *   - Liability row renderer: shows utilization%, status_label, days-to-due, available credit
+ *   - Both Add/Edit POST/PUT now send credit_limit, min_payment_amount, statement_day, payment_due_day
  *
- * Backend contracts (functions/api/accounts/[[path]].js v0.2.1):
- *   GET    /api/accounts          → active list + totals
- *   GET    /api/accounts?include_archived=1 → NOT supported by v0.2.1; we fetch archived via separate query
- *     [TEMP: backend filters status='active' only. To list archived, we add a tiny endpoint contract:
- *      For now we fetch via direct call and filter client-side IF backend later returns 'all'.
- *      Today: archived rows are invisible from /api/accounts. Show empty Archived section
- *      until backend adds ?include_archived=1, OR until you archive something via UI
- *      and we cache it locally.]
- *   POST   /api/accounts          → {name, icon, kind, opening_balance, display_order, type?}
- *   PUT    /api/accounts/{id}     → {name?, icon?, kind?, opening_balance?, display_order?}
- *   DELETE /api/accounts/{id}?created_by=web → 200 if FK refs=0, 409 with refs if blocked
- *   POST   /api/accounts/{id}/archive   → soft-archive
- *   POST   /api/accounts/{id}/unarchive → restore
- *
- * Note on Archived listing: backend v0.2.1 only returns active. To show archived
- * accounts in the UI, we maintain a session-only cache of accounts the user has
- * archived in this browser session. Persistent listing requires a backend tweak
- * (add ?status=archived support to GET) — queued as Ship 7 polish if needed.
+ * Backend contracts (accounts/[[path]].js v0.2.2):
+ *   POST /api/accounts → ...prev fields + credit_limit?, min_payment_amount?, statement_day?, payment_due_day?
+ *   PUT  /api/accounts/{id} → same allowlist + 4 new
+ *   GET response: each account has cc_utilization_pct, available_credit, days_to_payment_due, cc_status_label, outstanding (for CC) or null (for non-CC)
  */
 (function () {
   'use strict';
@@ -35,7 +16,7 @@
   if (window._accountsInited) return;
   window._accountsInited = true;
 
-  const VERSION = 'v0.6.0';
+  const VERSION = 'v0.7.0';
   const $ = id => document.getElementById(id);
 
   const fmtPKR = n => Math.round(Number(n) || 0).toLocaleString('en-PK');
@@ -62,18 +43,29 @@
     if (el) el.innerHTML = html;
   }
 
-  // Session-only archived cache (until backend supports listing archived)
-  const _archivedCache = new Map(); // id → account object
+  const _archivedCache = new Map();
+
+  /* ─────── CC field block toggle helper ─────── */
+  function toggleCCBlock(blockId, kind) {
+    const block = $(blockId);
+    if (!block) return;
+    block.style.display = (kind === 'cc') ? '' : 'none';
+  }
 
   /* ─────── Add Account modal ─────── */
   function wireAddModal() {
     const trigger = $('addAccountBtn');
     const cancel = $('addAccountCancel');
     const confirm = $('addAccountConfirm');
+    const kindSel = $('addAccountKind');
     const backdrop = $('addAccountModal');
     if (trigger && !trigger._wired) { trigger.addEventListener('click', openAddModal); trigger._wired = true; }
     if (cancel && !cancel._wired) { cancel.addEventListener('click', closeAddModal); cancel._wired = true; }
     if (confirm && !confirm._wired) { confirm.addEventListener('click', confirmAdd); confirm._wired = true; }
+    if (kindSel && !kindSel._wired) {
+      kindSel.addEventListener('change', () => toggleCCBlock('addAccountCCBlock', kindSel.value));
+      kindSel._wired = true;
+    }
     if (backdrop && !backdrop._wired) {
       backdrop.addEventListener('click', e => { if (e.target === backdrop) closeAddModal(); });
       backdrop._wired = true;
@@ -81,13 +73,20 @@
   }
 
   function openAddModal() {
-    const name = $('addAccountName'); if (name) name.value = '';
-    const icon = $('addAccountIcon'); if (icon) icon.value = '';
-    const kind = $('addAccountKind'); if (kind) kind.value = 'bank';
-    const opening = $('addAccountOpening'); if (opening) opening.value = '';
-    const order = $('addAccountOrder'); if (order) order.value = '';
+    const fields = {
+      addAccountName: '', addAccountIcon: '', addAccountKind: 'bank',
+      addAccountOpening: '', addAccountOrder: '',
+      addAccountCreditLimit: '', addAccountMinPayment: '',
+      addAccountStatementDay: '', addAccountDueDay: '',
+    };
+    Object.entries(fields).forEach(([id, v]) => {
+      const el = $(id);
+      if (el) el.value = v;
+    });
+    toggleCCBlock('addAccountCCBlock', 'bank');
     const m = $('addAccountModal');
     if (m) m.style.display = 'flex';
+    const name = $('addAccountName');
     if (name) setTimeout(() => name.focus(), 50);
   }
 
@@ -104,6 +103,18 @@
     const display_order = Number(($('addAccountOrder') || {}).value || 99);
     const type = kind === 'cc' ? 'liability' : 'asset';
 
+    const payload = { name, icon, kind, opening_balance, display_order, type };
+    if (kind === 'cc') {
+      const cl = ($('addAccountCreditLimit') || {}).value;
+      const mp = ($('addAccountMinPayment') || {}).value;
+      const sd = ($('addAccountStatementDay') || {}).value;
+      const dd = ($('addAccountDueDay') || {}).value;
+      if (cl !== '') payload.credit_limit = Number(cl);
+      if (mp !== '') payload.min_payment_amount = Number(mp);
+      if (sd !== '') payload.statement_day = Number(sd);
+      if (dd !== '') payload.payment_due_day = Number(dd);
+    }
+
     if (!name) { alert('Name is required'); return; }
     if (name.length > 60) { alert('Name max 60 chars'); return; }
 
@@ -114,7 +125,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
-        body: JSON.stringify({ name, icon, kind, opening_balance, display_order, type })
+        body: JSON.stringify(payload)
       });
       if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
         console.log('[accounts] add POST →', r.status, 'ok ·', r.body.id);
@@ -138,11 +149,16 @@
     const confirm = $('editAccountConfirm');
     const archive = $('editAccountArchive');
     const del = $('editAccountDelete');
+    const kindSel = $('editAccountKind');
     const backdrop = $('editAccountModal');
     if (cancel && !cancel._wired) { cancel.addEventListener('click', closeEditModal); cancel._wired = true; }
     if (confirm && !confirm._wired) { confirm.addEventListener('click', confirmEdit); confirm._wired = true; }
     if (archive && !archive._wired) { archive.addEventListener('click', archiveFromEditModal); archive._wired = true; }
     if (del && !del._wired) { del.addEventListener('click', deleteFromEditModal); del._wired = true; }
+    if (kindSel && !kindSel._wired) {
+      kindSel.addEventListener('change', () => toggleCCBlock('editAccountCCBlock', kindSel.value));
+      kindSel._wired = true;
+    }
     if (backdrop && !backdrop._wired) {
       backdrop.addEventListener('click', e => { if (e.target === backdrop) closeEditModal(); });
       backdrop._wired = true;
@@ -153,11 +169,18 @@
     _editContext = { id: account.id, original: { ...account } };
     setText('editAccountTitle', 'Edit ' + account.name);
     setText('editAccountSub', 'id: ' + account.id);
-    const name = $('editAccountName'); if (name) name.value = account.name || '';
-    const icon = $('editAccountIcon'); if (icon) icon.value = account.icon || '';
-    const kind = $('editAccountKind'); if (kind) kind.value = account.kind || 'bank';
-    const opening = $('editAccountOpening'); if (opening) opening.value = account.opening_balance || 0;
-    const order = $('editAccountOrder'); if (order) order.value = account.display_order || 99;
+    const setVal = (id, v) => { const el = $(id); if (el) el.value = v == null ? '' : v; };
+    setVal('editAccountName', account.name || '');
+    setVal('editAccountIcon', account.icon || '');
+    setVal('editAccountKind', account.kind || 'bank');
+    setVal('editAccountOpening', account.opening_balance || 0);
+    setVal('editAccountOrder', account.display_order || 99);
+    // CC fields (will be hidden if kind !== 'cc')
+    setVal('editAccountCreditLimit', account.credit_limit);
+    setVal('editAccountMinPayment', account.min_payment_amount);
+    setVal('editAccountStatementDay', account.statement_day);
+    setVal('editAccountDueDay', account.payment_due_day);
+    toggleCCBlock('editAccountCCBlock', account.kind);
     const m = $('editAccountModal');
     if (m) m.style.display = 'flex';
   }
@@ -177,6 +200,29 @@
     const display_order = Number(($('editAccountOrder') || {}).value || 99);
     const type = kind === 'cc' ? 'liability' : 'asset';
 
+    const payload = { name, icon, kind, opening_balance, display_order, type };
+
+    // CC fields — always send (even if hidden) to preserve null/clear semantics
+    // Send null when empty so backend can clear the value
+    const ccFields = {
+      credit_limit: 'editAccountCreditLimit',
+      min_payment_amount: 'editAccountMinPayment',
+      statement_day: 'editAccountStatementDay',
+      payment_due_day: 'editAccountDueDay',
+    };
+    Object.entries(ccFields).forEach(([apiName, elId]) => {
+      const el = $(elId);
+      if (!el) return;
+      const v = el.value;
+      if (kind === 'cc') {
+        // For CC: send number or null
+        payload[apiName] = (v === '' || v == null) ? null : Number(v);
+      } else {
+        // For non-CC: explicitly null out CC fields (clean if user changed type away from CC)
+        payload[apiName] = null;
+      }
+    });
+
     if (!name) { alert('Name is required'); return; }
     if (name.length > 60) { alert('Name max 60 chars'); return; }
 
@@ -187,7 +233,7 @@
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
-        body: JSON.stringify({ name, icon, kind, opening_balance, display_order, type })
+        body: JSON.stringify(payload)
       });
       if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
         console.log('[accounts] edit PUT →', r.status, 'ok · fields', r.body.updated_fields);
@@ -209,8 +255,7 @@
     const ok = confirm(
       'Archive "' + name + '"?\n\n' +
       'Archived accounts are hidden from the main list but their historical ' +
-      'transactions and bills are preserved. You can restore from the Archived ' +
-      'section later.'
+      'transactions and bills are preserved.'
     );
     if (!ok) return;
 
@@ -223,7 +268,6 @@
       });
       if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
         console.log('[accounts] archive POST →', r.status, 'ok · snapshot', r.body.snapshot_id);
-        // Cache locally so it appears in Archived section without needing a backend ?status=archived endpoint
         _archivedCache.set(_editContext.id, { ..._editContext.original, status: 'archived' });
         closeEditModal();
         await loadAll();
@@ -242,9 +286,7 @@
     const name = _editContext.original.name || _editContext.id;
     const ok = confirm(
       'Delete "' + name + '" permanently?\n\n' +
-      'This is a HARD delete. If the account has any transactions or active bills, ' +
-      'the delete will be blocked and you\'ll be offered Archive instead.\n\n' +
-      'Snapshot is taken before delete — recoverable via D1 console if needed.'
+      'If account has transactions/bills, delete will be blocked and Archive offered instead.'
     );
     if (!ok) return;
 
@@ -256,20 +298,16 @@
         { method: 'DELETE', cache: 'no-store' }
       );
       if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
-        console.log('[accounts] delete DELETE →', r.status, 'ok · snapshot', r.body.snapshot_id);
+        console.log('[accounts] delete DELETE →', r.status, 'ok');
         closeEditModal();
         await loadAll();
       } else if (r.status === 409 && r.body && r.body.refs) {
-        // FK-blocked → offer Archive as fallback
         const refs = r.body.refs;
         const fallback = confirm(
-          'Cannot hard-delete: account has ' + refs.transactions + ' transaction(s) and ' +
-          refs.bills + ' active bill(s).\n\n' +
-          'Archive instead? (Hides account, preserves history.)'
+          'Cannot hard-delete: ' + refs.transactions + ' txn(s) + ' + refs.bills + ' active bill(s).\n\n' +
+          'Archive instead?'
         );
-        if (fallback) {
-          await archiveFromEditModal();
-        }
+        if (fallback) await archiveFromEditModal();
       } else {
         alert('Delete failed: ' + ((r.body && r.body.error) || 'HTTP ' + r.status));
       }
@@ -315,18 +353,56 @@
   }
 
   /* ─────── Renderers ─────── */
+  function ccStatusClass(label) {
+    if (label === 'over limit' || label === 'critical') return 'negative';
+    if (label === 'warning') return 'liabilities';
+    if (label === 'healthy') return 'accent';
+    return '';
+  }
+
   function renderAccountRow(acc) {
     const balance = Number(acc.balance || 0);
     const isCC = acc.is_credit_card || acc.kind === 'cc';
     const valueClass = isCC ? 'negative' : (balance >= 0 ? 'accent' : 'negative');
     const displayBalance = isCC ? Math.abs(balance) : balance;
-    const subtitle = isCC ? 'outstanding · ' + (acc.kind_label || 'CC') : (acc.kind_label || acc.kind || '—');
+
+    let subtitle;
+    if (isCC) {
+      // CC subtitle: outstanding · utilization · days to due
+      const parts = ['outstanding · ' + (acc.kind_label || 'CC')];
+      if (acc.cc_utilization_pct != null) {
+        parts.push(acc.cc_utilization_pct + '% used');
+      }
+      if (acc.days_to_payment_due != null) {
+        const d = acc.days_to_payment_due;
+        parts.push(d === 0 ? 'due today' : (d === 1 ? 'due tomorrow' : `due in ${d}d`));
+      }
+      subtitle = parts.join(' · ');
+    } else {
+      subtitle = acc.kind_label || acc.kind || '—';
+    }
+
+    const ccBadge = isCC && acc.cc_status_label
+      ? `<span class="dense-badge ${ccStatusClass(acc.cc_status_label)}" style="font-size:10px;padding:2px 6px;margin-left:6px">${escHtml(acc.cc_status_label)}</span>`
+      : '';
+
+    const ccUtilBar = isCC && acc.cc_utilization_pct != null
+      ? `<div style="background:rgba(255,255,255,0.08);border-radius:4px;height:4px;margin-top:6px;overflow:hidden">
+          <div style="width:${Math.min(100, acc.cc_utilization_pct)}%;height:100%;background:var(--${ccStatusClass(acc.cc_status_label) === 'negative' ? 'danger' : ccStatusClass(acc.cc_status_label) === 'liabilities' ? 'warning' : 'accent'},#22c55e);transition:width 0.3s"></div>
+        </div>`
+      : '';
+
+    const availCredit = isCC && acc.available_credit != null
+      ? `<div class="mini-row-sub" style="font-size:11px;margin-top:2px">Rs ${fmtPKR(acc.available_credit)} available</div>`
+      : '';
 
     return `
       <div class="mini-row" data-account-id="${escHtml(acc.id)}">
-        <div class="mini-row-left">
-          <div class="mini-row-name">${escHtml(acc.icon || '')} ${escHtml(acc.name)}</div>
+        <div class="mini-row-left" style="flex:1">
+          <div class="mini-row-name">${escHtml(acc.icon || '')} ${escHtml(acc.name)}${ccBadge}</div>
           <div class="mini-row-sub">${escHtml(subtitle)}</div>
+          ${ccUtilBar}
+          ${availCredit}
         </div>
         <div class="mini-row-right">
           <div class="mini-row-amount ${valueClass}">${fmtPKRSigned(displayBalance * (isCC ? -1 : 1))}</div>
@@ -375,7 +451,6 @@
       const accounts = body.accounts || [];
       const totals = body.totals || {};
 
-      // Header summary + net worth
       setText('acc-summary',
         accounts.length + ' active · ' +
         (Object.values(totals).filter(v => v !== 0).length) + ' positions'
@@ -388,7 +463,6 @@
         nw.classList.toggle('negative', v < 0);
       }
 
-      // Split assets vs liabilities
       const assets = accounts.filter(a => !(a.is_credit_card || a.kind === 'cc'));
       const liabilities = accounts.filter(a => a.is_credit_card || a.kind === 'cc');
       const assetsTotal = assets.reduce((s, a) => s + (Number(a.balance) || 0), 0);
@@ -410,7 +484,6 @@
           : '<div class="empty-state-inline">No liabilities.</div>'
       );
 
-      // Archived section (session cache only — backend supports archive but not list-archived endpoint)
       const archived = Array.from(_archivedCache.values());
       const archHeader = $('acc-archived-header');
       const archList = $('acc-archived-list');
@@ -425,7 +498,6 @@
 
       attachRowHandlers(accounts);
 
-      // Refresh global cache for other pages
       if (window.store) {
         window.store.cachedAccounts = accounts;
       }
