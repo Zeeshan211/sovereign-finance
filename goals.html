@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#050816">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Goals · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/theme.js"></script>
+  <script src="/js/nav.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="brand">Sovereign Ops</div>
+    <h1 class="title">Goals</h1>
+    <div class="day-badge"><span id="goals-summary">loading…</span></div>
+  </header>
+
+  <div class="debt-summary-row">
+    <div class="debt-summary-card">
+      <div class="debt-summary-label">Saved</div>
+      <div id="goals-total-current" class="debt-summary-value accent">—</div>
+      <div id="goals-count" class="debt-summary-sub">— goals</div>
+    </div>
+    <div class="debt-summary-card">
+      <div class="debt-summary-label">To Go</div>
+      <div id="goals-total-remaining" class="debt-summary-value liabilities">—</div>
+      <div id="goals-achieved-count" class="debt-summary-sub">— achieved</div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-label">Active Goals</span>
+    <button id="addGoalBtn" class="ghost-btn" style="margin-left:auto;font-size:12px;padding:4px 10px">+ Add Goal</button>
+  </div>
+  <div id="goals-list"></div>
+
+  <footer>
+    <span class="v">v0.1.0 · goals</span>
+  </footer>
+
+  <!-- Contribute Modal -->
+  <div id="contributeModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title" id="contributeTitle">Add to Goal</div>
+      <div class="modal-sub" id="contributeSub">remaining …</div>
+
+      <label class="field-label">Amount</label>
+      <input id="contributeAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" class="amount-input">
+
+      <label class="field-label">From Account (optional — creates expense txn)</label>
+      <select id="contributeAccount" class="form-select">
+        <option value="">— Just bump goal, no ledger entry —</option>
+      </select>
+
+      <label class="field-label">Date</label>
+      <input id="contributeDate" type="date" class="form-input">
+
+      <label class="field-label">Notes (optional)</label>
+      <input id="contributeNotes" type="text" placeholder="optional context" class="form-input" maxlength="200">
+
+      <div class="modal-actions">
+        <button id="contributeCancel" class="ghost-btn">Cancel</button>
+        <button id="contributeConfirm" class="primary-btn">Contribute</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Goal Modal -->
+  <div id="addGoalModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title">Add Goal</div>
+
+      <label class="field-label">Name</label>
+      <input id="addGoalName" type="text" placeholder="e.g. Hajj, Marriage Fund, Emergency" class="form-input" maxlength="80">
+
+      <label class="field-label">Target Amount</label>
+      <input id="addGoalTarget" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" class="amount-input">
+
+      <label class="field-label">Current Amount (optional)</label>
+      <input id="addGoalCurrent" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" class="amount-input">
+
+      <label class="field-label">Deadline (optional)</label>
+      <input id="addGoalDeadline" type="date" class="form-input">
+
+      <label class="field-label">Source Account (optional)</label>
+      <select id="addGoalAccount" class="form-select">
+        <option value="">— None —</option>
+      </select>
+
+      <label class="field-label">Notes (optional)</label>
+      <input id="addGoalNotes" type="text" placeholder="why this goal matters" class="form-input" maxlength="200">
+
+      <div class="modal-actions">
+        <button id="addGoalCancel" class="ghost-btn">Cancel</button>
+        <button id="addGoalConfirm" class="primary-btn">Add Goal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Goal Modal -->
+  <div id="editGoalModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title" id="editGoalTitle">Edit Goal</div>
+      <div class="modal-sub" id="editGoalSub">id: …</div>
+
+      <label class="field-label">Name</label>
+      <input id="editGoalName" type="text" class="form-input" maxlength="80">
+
+      <label class="field-label">Target Amount</label>
+      <input id="editGoalTarget" type="number" inputmode="decimal" step="0.01" min="0" class="amount-input">
+
+      <label class="field-label">Current Amount</label>
+      <input id="editGoalCurrent" type="number" inputmode="decimal" step="0.01" min="0" class="amount-input">
+
+      <label class="field-label">Deadline</label>
+      <input id="editGoalDeadline" type="date" class="form-input">
+
+      <label class="field-label">Source Account</label>
+      <select id="editGoalAccount" class="form-select">
+        <option value="">— None —</option>
+      </select>
+
+      <label class="field-label">Notes</label>
+      <input id="editGoalNotes" type="text" class="form-input" maxlength="200">
+
+      <div class="modal-actions">
+        <button id="editGoalDelete" class="ghost-btn">Delete</button>
+        <button id="editGoalCancel" class="ghost-btn">Cancel</button>
+        <button id="editGoalConfirm" class="primary-btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/" class="nav-item">
+        <div class="nav-emoji">🏠</div>
+        <div class="nav-text">Hub</div>
+      </a>
+      <a href="/accounts.html" class="nav-item">
+        <div class="nav-emoji">🏦</div>
+        <div class="nav-text">Accounts</div>
+      </a>
+      <a href="/debts.html" class="nav-item">
+        <div class="nav-emoji">💳</div>
+        <div class="nav-text">Debts</div>
+      </a>
+      <a href="/goals.html" class="nav-item active">
+        <div class="nav-emoji">🎯</div>
+        <div class="nav-text">Goals</div>
+      </a>
+    </div>
+  </nav>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/store.js"></script>
+  <script src="/js/numbers.js"></script>
+  <script src="/js/goals.js"></script>
+</body>
+</html>
