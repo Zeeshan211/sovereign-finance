@@ -1,18 +1,13 @@
 // ════════════════════════════════════════════════════════════════════
-// hub.js — Hub renderer · v0.1.0 · Sub-1D-3-PARITY-recovery
+// hub.js — Hub renderer · v0.1.0 · Sub-1D-3-RESHIP-fix
 //
-// PURPOSE: Read-only dashboard. Targets EXISTING index.html IDs:
+// Targets EXISTING index.html IDs:
 //   hub-net-worth · hub-liquid · hub-cc · hub-debts · hub-burden
 //   hub-recent-tx · hub-top-debts · hub-due-soon
 //
-// Add/Edit txn lives on /add.html. Reverse lives on /transactions.html.
-// Hub is dashboard-only.
-//
-// CHANGES from v0.0.11:
-//   - Reverted target IDs to match existing index.html (form was never compatible)
-//   - Added True Burden = CC outstanding + Personal Debts
-//   - Cache-bust on every API call
-//   - Uses window.animateNumber if numbers.js loaded, otherwise plain set
+// FIX from previous: net-worth card was showing raw HTML because numbers.js
+//   uses .textContent which escapes <span>. Now we animate the number portion
+//   only, then set the currency suffix as a separate child element.
 // ════════════════════════════════════════════════════════════════════
 
 (function () {
@@ -20,7 +15,7 @@
 
   const $ = id => document.getElementById(id);
   const fmtPKR = n => 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
-  const fmtPKR2 = n => 'Rs ' + (Number(n) || 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtPKRplain = n => (Number(n) || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
   const escHtml = s => String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -31,20 +26,36 @@
     return r.json();
   }
 
-  // Set a stat — uses animation if available, otherwise plain
-  function setStat(elId, value, currencyHtml) {
+  // Set net worth: animate the number, keep currency span as separate child
+  function setNetWorth(value) {
+    const el = $('hub-net-worth');
+    if (!el) return;
+    const numeric = Number(value) || 0;
+
+    // Wipe and rebuild: <text>Rs 95,790</text><span class="nw-currency">PKR</span>
+    el.innerHTML = '<span id="hub-net-worth-num">Rs 0</span><span class="nw-currency">PKR</span>';
+    const numEl = $('hub-net-worth-num');
+
+    if (window.animateNumber && numEl) {
+      window.animateNumber(numEl, numeric, {
+        format: n => 'Rs ' + Math.round(n).toLocaleString('en-PK')
+      });
+    } else if (numEl) {
+      numEl.textContent = fmtPKR(numeric);
+    }
+  }
+
+  // Set a stat — uses animation if available
+  function setStat(elId, value) {
     const el = $(elId);
     if (!el) return;
     const numeric = Number(value) || 0;
-    const text = Math.round(numeric).toLocaleString('en-PK');
-
     if (window.animateNumber) {
-      // numbers.js available — animate the numeric portion, keep currency suffix
       window.animateNumber(el, numeric, {
-        format: n => Math.round(n).toLocaleString('en-PK') + (currencyHtml || '')
+        format: n => fmtPKRplain(n)
       });
     } else {
-      el.innerHTML = text + (currencyHtml || '');
+      el.textContent = fmtPKRplain(numeric);
     }
   }
 
@@ -59,7 +70,6 @@
     transfer: 'neutral', cc_payment: 'neutral'
   };
 
-  // ─── BALANCES ──────────────────────────────────────────────────────
   async function loadBalances() {
     try {
       const d = await getJSON('/api/balances');
@@ -75,12 +85,11 @@
       if (nwEl) {
         nwEl.className = 'nw-value counter ' + (networth < 0 ? 'negative' : 'positive');
       }
-
-      setStat('hub-net-worth', networth, '<span class="nw-currency">PKR</span>');
-      setStat('hub-liquid',   liquid);
-      setStat('hub-cc',       cc);
-      setStat('hub-debts',    debts);
-      setStat('hub-burden',   burden);
+      setNetWorth(networth);
+      setStat('hub-liquid', liquid);
+      setStat('hub-cc',     cc);
+      setStat('hub-debts',  debts);
+      setStat('hub-burden', burden);
     } catch (e) {
       console.warn('[hub] loadBalances failed:', e.message);
       ['hub-net-worth','hub-liquid','hub-cc','hub-debts','hub-burden'].forEach(id => {
@@ -89,7 +98,6 @@
     }
   }
 
-  // ─── RECENT TRANSACTIONS ───────────────────────────────────────────
   async function loadRecentTxns() {
     const container = $('hub-recent-tx');
     if (!container) return;
@@ -101,7 +109,6 @@
       const txnById = {};
       allTxns.forEach(t => { txnById[t.id] = t; });
 
-      // Hide IN-half of transfer pairs (rendered as part of OUT row)
       const hideIds = new Set();
       allTxns.forEach(t => {
         if (t.linked_txn_id && t.type === 'income') {
@@ -151,7 +158,6 @@
     }
   }
 
-  // ─── TOP DEBTS ─────────────────────────────────────────────────────
   async function loadDebts() {
     const container = $('hub-top-debts');
     if (!container) return;
@@ -185,7 +191,6 @@
     }
   }
 
-  // ─── BILLS DUE SOON ────────────────────────────────────────────────
   async function loadBills() {
     const container = $('hub-due-soon');
     if (!container) return;
@@ -195,13 +200,11 @@
 
       const bills = (d.bills || []).filter(b => !b.paidThisPeriod);
       const upcoming = bills.slice().sort((a, b) => {
-        const sortKey = b => {
-          if (b.status === 'overdue') return -100;
-          if (b.status === 'due-today') return -50;
-          if (b.status === 'due-soon') return 0;
-          return (b.due_day || 99);
-        };
-        return sortKey(a) - sortKey(b);
+        const k = (b) => b.status === 'overdue' ? -100
+                      : b.status === 'due-today' ? -50
+                      : b.status === 'due-soon' ? 0
+                      : (b.due_day || 99);
+        return k(a) - k(b);
       }).slice(0, 6);
 
       if (!upcoming.length) {
@@ -233,11 +236,9 @@
     }
   }
 
-  // ─── INIT ─────────────────────────────────────────────────────────
   function init() {
-    // Hide the legacy "Day X of 90" badge if present
-    const dayBadge = document.querySelector('.day-badge');
-    if (dayBadge) dayBadge.style.display = 'none';
+    // Hide any legacy "Day X of 90" badge
+    document.querySelectorAll('.day-badge').forEach(el => el.style.display = 'none');
 
     loadBalances();
     loadRecentTxns();
