@@ -38,7 +38,7 @@
   <div id="bills-list"></div>
 
   <footer>
-    <span class="v">v0.8.0 · bills</span>
+    <span class="v">v0.9.0 · bills</span>
   </footer>
 
   <!-- Pay Bill Modal -->
@@ -87,6 +87,35 @@
       <div class="modal-actions">
         <button id="addBillCancel" class="ghost-btn">Cancel</button>
         <button id="addBillConfirm" class="primary-btn">Add Bill</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Bill Modal -->
+  <div id="editBillModal" class="modal-backdrop" style="display:none;">
+    <div class="modal">
+      <div class="modal-title" id="editBillTitle">Edit Bill</div>
+      <div class="modal-sub" id="editBillSub">id: …</div>
+
+      <label class="field-label">Bill Name</label>
+      <input id="editBillName" type="text" maxlength="50" class="form-input">
+
+      <label class="field-label">Amount</label>
+      <input id="editBillAmount" type="number" inputmode="decimal" step="0.01" min="0" class="amount-input">
+
+      <label class="field-label">Due Day of Month (1-31)</label>
+      <input id="editBillDueDay" type="number" min="1" max="31" class="form-input">
+
+      <label class="field-label">Default Account</label>
+      <select id="editBillAccount" class="form-select"></select>
+
+      <label class="field-label">Category</label>
+      <select id="editBillCategory" class="form-select"></select>
+
+      <div class="modal-actions">
+        <button id="editBillDelete" class="ghost-btn">Delete</button>
+        <button id="editBillCancel" class="ghost-btn">Cancel</button>
+        <button id="editBillConfirm" class="primary-btn">Save</button>
       </div>
     </div>
   </div>
