@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════
-// hub.js — Hub renderer · v0.0.10 · Sub-1D-3a-fix2
+// hub.js — Hub renderer · v0.0.11 · Sub-1D-3a-fix2
 //
 // CHANGES from v0.0.9:
 //   - CATS hoisted to module-level constant
