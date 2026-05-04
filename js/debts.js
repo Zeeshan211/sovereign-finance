@@ -51,12 +51,12 @@
     }
   }
 
-  /* ─────── + Add buttons (now open Add Debt modal) ─────── */
+  /* ─────── + Add buttons ─────── */
   function injectAddButtons() {
     const headers = document.querySelectorAll('.section-header');
     console.log('[debts] inject + Add into', headers.length, 'section headers');
     headers.forEach(h => {
-      if (h.querySelector('.add-debt-btn')) return; // idempotent
+      if (h.querySelector('.add-debt-btn')) return;
       const label = (h.querySelector('.section-label')?.textContent || '').trim().toLowerCase();
       const kind = label === 'receivables' ? 'owed' : 'owe';
       const btn = document.createElement('button');
