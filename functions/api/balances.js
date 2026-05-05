@@ -1,14 +1,13 @@
 // /functions/api/balances.js
-// v0.4.7 - Include debts table in net worth + add field aliases for hub.js consumers
-// Changes vs v0.4.6:
-//   - NEW: query debts table (active only), sum outstanding (original_amount - paid_amount)
-//   - NEW: response.total_debts + response.total_owe (alias) populated from debts table
-//   - NEW: response.total_liquid_assets (alias for cash_accessible) - hub.js consumes this
-//   - FIX: net_worth formula now includes - total_debts (was missing CRED-1..6 personal debts)
-//   - Defensive: debts query wrapped in try/catch; if table missing or columns differ, debts default to 0
-//   - VERSION bumped from v0.4.6 -> v0.4.7
+// v0.4.8 - CRITICAL: fix borrow/repay sign semantics
+// Changes vs v0.4.7:
+//   - FIX: 'borrow' is money INTO account (loan received) — was subtracting, now ADDS
+//   - FIX: 'repay' is money OUT of account (debt installment paid) — was adding, now SUBTRACTS
+//   - Sheet convention: borrow = inflow when YOU borrow; repay = outflow when YOU pay debt
+//   - Single bug accounts for ~Rs 200k UBL + ~Rs 220k Meezan inflation vs sheet
+//   - VERSION bumped from v0.4.7 -> v0.4.8
 
-const VERSION = 'v0.4.7';
+const VERSION = 'v0.4.8';
 
 export async function onRequest(context) {
   const { env } = context;
@@ -61,7 +60,7 @@ export async function onRequest(context) {
       switch (t.type) {
         case 'expense':
         case 'cc_spend':
-        case 'borrow':
+        case 'repay':
         case 'atm':
           balanceMap[acctId] -= amt;
           if (fee) balanceMap[acctId] -= fee;
@@ -70,7 +69,7 @@ export async function onRequest(context) {
 
         case 'income':
         case 'salary':
-        case 'repay':
+        case 'borrow':
           balanceMap[acctId] += amt;
           break;
 
@@ -134,7 +133,6 @@ export async function onRequest(context) {
       }
     }
 
-    // Sum personal debts from debts table (CRED-1..6 etc, NOT accounts)
     let totalDebts = 0;
     let debtCount = 0;
     let debtsError = null;
@@ -155,7 +153,6 @@ export async function onRequest(context) {
       }
     } catch (e) {
       debtsError = e.message;
-      // fail soft - debts default to 0, surface in debug
     }
 
     const netWorth = Math.round((totalAssets - totalLiabilities - totalDebts) * 100) / 100;
