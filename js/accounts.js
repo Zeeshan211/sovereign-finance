@@ -1,4 +1,4 @@
-/* ─── Sovereign Finance · Accounts Page v0.7.1 · DOM ID FIX ─── */
+/* ─── Sovereign Finance · Accounts Page v0.7.2
 /*
  * Changes vs v0.7.0:
  *   - Targets REAL IDs from deployed accounts.html (acc-* prefix):
@@ -22,7 +22,7 @@
 (function () {
   'use strict';
 
-  console.log('[accounts] v0.7.1 init');
+  console.log('[accounts] v0.7.2 init');
 
   const $ = id => document.getElementById(id);
 
@@ -126,7 +126,7 @@
 
   /* ─── Main load + render ─── */
   async function loadAll() {
-    console.log('[accounts] v0.7.1 loadAll start');
+    console.log('[accounts] v0.7.2 loadAll start');
     try {
       const r = await fetch('/api/accounts?cb=' + Date.now());
       const data = await r.json();
