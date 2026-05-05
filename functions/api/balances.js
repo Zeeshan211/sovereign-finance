@@ -1,63 +1,66 @@
 // /functions/api/balances.js
-// v0.5.0 - Layer 1 rewrite per locked finance spec. Sheet is truth, code mirrors it.
+// v0.5.1 — Spec header corrected (D1 CHECK is canonical vocabulary, not debt_in/debt_out)
+//          Code logic byte-identical to v0.5.0 — only comment block changes.
 //
 // ════════════════════════════════════════════════════════════════════
-// SOVEREIGN FINANCE — FORMULA SPEC (locked 2026-05-05, mirrors sheet)
+// SOVEREIGN FINANCE — FORMULA SPEC (locked 2026-05-05, corrected 2026-05-06)
 // ════════════════════════════════════════════════════════════════════
 //
-// SECTION 1 — TYPE VOCABULARY (canonical)
-// ────────────────────────────────────────
-// Canonical types written by transactions.js POST going forward:
-//   income   - money entering account from outside
-//   expense  - money leaving account to outside
-//   transfer - money moving between two of YOUR accounts (OUT-leg only)
-//   debt_in  - receiving payment from someone who owed you
-//   debt_out - paying someone you owe
-//   opening  - opening balance entry on day-zero
+// SECTION 1 — TYPE VOCABULARY (CORRECTED — D1 CHECK is canonical)
+// ────────────────────────────────────────────────────────────────
+// CANONICAL types per D1 transactions.type CHECK constraint:
+//   'expense','income','transfer','cc_payment','cc_spend','borrow','repay','atm'
 //
-// LEGACY TYPES (read-only, treated as aliases — never written by new code):
-//   borrow      → treated as debt_in
-//   repay       → treated as debt_out
-//   salary      → treated as income
-//   cc_spend    → treated as expense
-//   cc_payment  → treated as transfer (modern format with transfer_to_account_id)
-//   atm         → treated as expense
+// CRITICAL: Earlier Layer 1 spec proposed 'debt_in'/'debt_out' as canonical.
+// THAT WAS WRONG. D1 CHECK constraint rejects those values.
+// migrate-from-sheet v1.4 failed on this. v1.5 fixed by passing through
+// sheet vocabulary directly. balances.js v0.5.1 corrects spec to match.
+//
+// Sheet-side semantic mapping (for human reading, not code):
+//   sheet 'Income'   → D1 'income'    — money entering account from outside
+//   sheet 'Expense'  → D1 'expense'   — money leaving account to outside
+//   sheet 'Transfer' → D1 'transfer'  — money moving between YOUR accounts (OUT-leg)
+//   sheet 'Debt In'  → D1 'borrow'    — receiving payment from someone who owed you
+//   sheet 'Debt Out' → D1 'repay'     — paying someone you owe
+//
+// Other CHECK-allowed types (used by Cloudflare-side flows):
+//   'cc_payment' — payment toward credit card
+//   'cc_spend'   — charge to credit card
+//   'atm'        — ATM withdrawal
 //
 // SECTION 2 — TRANSFER MODEL (locked: 2-row pairs, sheet-match)
 // ─────────────────────────────────────────────────────────────
-// A transfer of Rs X from account A to account B is TWO rows:
-//   Row 1 (OUT): account_id=A, type=transfer, amount=X, notes='To: B [linked: <id-of-row-2>]'
-//   Row 2 (IN):  account_id=B, type=income,   amount=X, notes='From: A [linked: <id-of-row-1>]'
-// IN-leg is type='income' so it auto-counts in +Σ income, no special handling.
+// Transfer of Rs X from A to B is TWO rows:
+//   Row 1 (OUT): account_id=A, type='transfer', amount=X, notes='To: B [linked: id-of-row-2]'
+//   Row 2 (IN):  account_id=B, type='income',   amount=X, notes='From: A [linked: id-of-row-1]'
+// IN-leg is type='income' so auto-counts in +Σ income, no special handling.
 //
-// MODERN 1-ROW format with transfer_to_account_id populated is DEPRECATED but
-// supported defensively in reads (with double-count guard).
+// MODERN 1-ROW format with transfer_to_account_id populated is supported
+// defensively in reads (with double-count guard).
 //
 // SECTION 3 — ACCOUNT BALANCE FORMULA
 // ────────────────────────────────────
 // For any account A:
-//   Balance(A) = Σ income(A) + Σ debt_in(A) + Σ opening(A)
-//              − Σ expense(A) − Σ debt_out(A) − Σ transfer(A)
+//   Balance(A) = Σ income(A) + Σ borrow(A) + Σ opening(A)
+//              − Σ expense(A) − Σ repay(A) − Σ transfer(A)
 // All Σ over rows where account_id=A AND reversed_by IS NULL.
 //
 // SECTION 4 — CC OUTSTANDING (Alfalah-specific)
 // ──────────────────────────────────────────────
-// Alfalah CC uses same balance formula but result is INVERTED:
+// Alfalah CC uses same balance formula, result INVERTED:
 //   CC_Outstanding = MAX(0, − Balance(Alfalah CC))
 //
 // SECTION 5 — DEBTS (people, NOT accounts)
 // ─────────────────────────────────────────
-// Personal debts (CRED-1..N) live in `debts` table, NOT in accounts/transactions.
+// Personal debts (CRED-1..N) live in `debts` table.
 // For each active debt:
 //   Outstanding(creditor) = MAX(0, original_amount − paid_amount)
 //   Total Owed = Σ Outstanding for status='active'
 //
 // SECTION 6 — RECEIVABLES (separate read, optional)
 // ──────────────────────────────────────────────────
-// If a `receivables` table exists with status='open':
-//   Remaining(debtor) = MAX(0, expected_amount − received_amount)
-//   Total Receivables = Σ Remaining for status='open'
-// If table missing, defaults to 0 (defensive, doesn't break API).
+// `receivables` table not currently in D1 schema (verified 2026-05-05).
+// Defensive try/catch keeps total_receivables=0 if table missing.
 //
 // SECTION 7 — THE THREE TOP-LEVEL METRICS
 // ────────────────────────────────────────
@@ -69,16 +72,27 @@
 //
 // SECTION 8 — INVARIANTS (surfaced in debug response)
 // ────────────────────────────────────────────────────
-// INV-1: Modern transfer (transfer_to_account_id NOT NULL) — exactly 1 row, no IN-leg pair
+// INV-1: Modern transfer (transfer_to_account_id NOT NULL) — exactly 1 row
 // INV-2: Legacy transfer OUT — has matching 'income' IN-leg with same amount
 // INV-3: Σ all transfer OUT == Σ all matching IN-legs (across ledger)
-// Violations logged in debug.warnings[] but do not 500 the API.
+// Violations logged in debug.warnings[] but do NOT 500 the API.
 //
+// SECTION 9 — PATTERN 21 RECONCILIATION (added 2026-05-06)
+// ─────────────────────────────────────────────────────────
+// Pattern 21 said "same word every layer." Originally proposed debt_in/debt_out
+// as canonical for that reason. D1 CHECK constraint disagreed.
+//
+// Pattern 21 still holds, but its application: D1 CHECK = single source of truth.
+// All layers (sheet exporter, migrate endpoint, balances.js, hub.js) speak
+// CHECK vocabulary. No translation tax — sheet uses borrow/repay directly.
+// (Pattern 21 v2: "ground truth from constraints, not from spec docs.")
 // ════════════════════════════════════════════════════════════════════
 
-const VERSION = 'v0.5.0';
+const VERSION = 'v0.5.1';
 
-// Type classification — canonical + legacy aliases
+// Type classification — uses CANONICAL D1 CHECK vocabulary
+// (debt_in/debt_out kept in sets defensively in case any legacy data exists,
+//  but writes from migrate v1.5+ use only D1 CHECK vocabulary)
 const TYPE_PLUS  = new Set(['income', 'salary', 'debt_in', 'borrow', 'opening']);
 const TYPE_MINUS = new Set(['expense', 'cc_spend', 'atm', 'debt_out', 'repay', 'transfer']);
 
@@ -113,7 +127,7 @@ export async function onRequest(context) {
       };
     }
 
-    // ── Load all active transactions (reversed_by IS NULL = active) ──
+    // ── Load all active transactions ──
     const txns = await env.DB.prepare(
       `SELECT id, account_id, transfer_to_account_id, amount, type, notes,
               fee_amount, pra_amount, reversed_by
@@ -126,7 +140,6 @@ export async function onRequest(context) {
     let modernTransferSum = 0;
 
     for (const t of txns.results) {
-      // Skip reversed rows entirely (canonical formula: active rows only)
       if (t.reversed_by) continue;
 
       const amt = Number(t.amount) || 0;
@@ -139,7 +152,6 @@ export async function onRequest(context) {
       if (!(acctId in balanceMap)) continue;
 
       // Modern 1-row transfer (or legacy cc_payment with transfer_to_account_id)
-      // Treated separately to avoid double-count with paired IN-leg
       if ((type === 'transfer' || type === 'cc_payment') && toAcctId && (toAcctId in balanceMap)) {
         balanceMap[acctId] -= amt;
         balanceMap[toAcctId] += amt;
@@ -163,7 +175,7 @@ export async function onRequest(context) {
       }
     }
 
-    // ── INV-3 cross-check: legacy transfer OUT sum should match IN-leg sum ──
+    // ── INV-3 cross-check ──
     let legacyTransferOutSum = 0;
     let legacyTransferInSum = 0;
     for (const t of txns.results) {
@@ -228,7 +240,7 @@ export async function onRequest(context) {
       debtsError = e.message;
     }
 
-    // ── Receivables (people who owe you) ──
+    // ── Receivables (defensive — table may not exist) ──
     let totalReceivables = 0;
     let openReceivableCount = 0;
     let receivablesError = null;
@@ -246,11 +258,10 @@ export async function onRequest(context) {
         }
       }
     } catch (e) {
-      // Defensive: receivables table may not exist yet
       receivablesError = e.message;
     }
 
-    // ── The three canonical metrics (sheet match) ──
+    // ── The three canonical metrics ──
     const r2 = (n) => Math.round(n * 100) / 100;
 
     const totalLiquidR     = r2(totalLiquid);
@@ -271,7 +282,7 @@ export async function onRequest(context) {
       net_worth: netWorth,
       true_burden: trueBurden,
 
-      // Supporting numbers (used by accounts page + debug)
+      // Supporting numbers
       cc_outstanding: ccOutstandingR,
       total_owed: totalOwedR,
       total_receivables: totalReceivR,
@@ -280,7 +291,6 @@ export async function onRequest(context) {
       accounts: accountBalances,
 
       // Legacy aliases — kept for backward compat with hub.js v0.7.x and accounts.js v0.7.x
-      // until those ship to v0.8 (next ship in this session)
       cash: totalLiquidR,
       cc: ccOutstandingR,
       total_assets: totalLiquidR,
@@ -310,8 +320,9 @@ export async function onRequest(context) {
         open_receivable_count: openReceivableCount,
         debts_error: debtsError,
         receivables_error: receivablesError,
-        spec_version: 'v0.5.0',
-        formula: 'true_burden = (liquid - cc_outstanding) - total_owed + total_receivables'
+        spec_version: 'v0.5.1',
+        formula: 'true_burden = (liquid - cc_outstanding) - total_owed + total_receivables',
+        canonical_vocab: 'D1 transactions.type CHECK constraint'
       };
     }
 
