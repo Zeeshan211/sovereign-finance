@@ -405,7 +405,7 @@
       const body = await r.json();
       console.log('[bills] /api/bills', r.status, '→', body.count, 'bills');
       if (!body.ok) throw new Error(body.error || 'bills payload not ok');
-      renderStats(body);
+      renderStats({ ...body, bills: body.bills || [], count: (body.bills || []).length });
       renderList(body.bills || []);
     } catch (e) {
       console.error('[bills] loadAll FAILED:', e);
