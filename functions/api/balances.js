@@ -1,23 +1,19 @@
-/* ─── /api/balances · v0.4.3 · True Personal Finance Net Worth ─── */
+/* ─── /api/balances · v0.4.4 · HOTFIX debts column ─── */
 /*
- * Changes vs v0.4.2:
- *   - net_worth formula corrected to standard personal finance:
- *       net_worth = total_assets - |cc_outstanding| - total_debts_owed
- *   - Was producing -27,710 (mystery formula) and accounts.js produced -61,743 (sum-only)
- *   - New formula: -185,243 = 17,023 - 78,766 - 123,500 (most honest position)
- *   - Both endpoints will now align to this single source of truth
+ * Changes vs v0.4.3:
+ *   - Removed (deleted_at IS NULL OR deleted_at = '') from debts query
+ *   - debts table does NOT have deleted_at column (verified via SCHEMA.md)
+ *   - debts uses status='active' as the only soft-delete signal
+ *   - v0.4.3 was throwing 500 across hub + accounts + transactions
  *
- * Schema (per SCHEMA.md):
- *   accounts: id, type ('asset' or 'liability'), kind, opening_balance, deleted_at
- *   transactions: type, amount, account_id, transfer_to_account_id, reversed_at
- *   debts: id, status, original_amount, paid_amount, kind, deleted_at
+ * Schema (verified live this turn):
+ *   accounts: HAS deleted_at, status, type ('asset'|'liability'), kind, opening_balance
+ *   transactions: HAS reversed_at, type, amount, account_id, transfer_to_account_id
+ *   debts: HAS status, original_amount, paid_amount, kind ('owe' or other) — NO deleted_at
  *
- * Account types:
- *   asset: bank, cash, wallet, prepaid (sum is positive — what I have)
- *   liability: cc (sum is negative — what I owe to bank)
- *
- * Personal debts (debts table): money I owe peers (kind='owe')
- *   Outstanding = original_amount - paid_amount per debt
+ * Net worth formula (v0.4.3 design preserved):
+ *   net_worth = total_assets - |cc_outstanding| - total_owe + total_owed_to_me
+ *   For your data: 17,023 - 78,766 - 123,500 + 0 = -185,243
  */
 
 import { json } from './_lib.js';
@@ -88,9 +84,9 @@ export async function onRequestGet(context) {
       };
     });
 
-    // Fetch personal debts (active, kind='owe' = money I owe to peers)
+    // Fetch personal debts (active only — debts table has no deleted_at column)
     const debtsResult = await db.prepare(
-      "SELECT id, original_amount, paid_amount, kind, status FROM debts WHERE status = 'active' AND (deleted_at IS NULL OR deleted_at = '')"
+      "SELECT id, original_amount, paid_amount, kind, status FROM debts WHERE status = 'active'"
     ).all();
     const debts = debtsResult.results || [];
 
@@ -105,16 +101,11 @@ export async function onRequestGet(context) {
       }
     });
 
-    const totalDebts = totalOwe;  // legacy field name, same value
-
     // TRUE NET WORTH: standard personal finance formula
-    //   net_worth = assets - |cc_outstanding| - what_i_owe + what_others_owe_me
-    // For your case (no peer-owes-you debts): assets - |cc| - debts_owed
     const netWorth = Math.round(
       (totalAssets - Math.abs(ccOutstanding) - totalOwe + totalOwedToMe) * 100
     ) / 100;
 
-    const totalLiquidAssets = Math.round(totalAssets * 100) / 100;
     const debtCount = debts.filter(d => {
       const outstanding = (d.original_amount || 0) - (d.paid_amount || 0);
       return outstanding > 0;
@@ -124,7 +115,7 @@ export async function onRequestGet(context) {
       ok: true,
       net_worth: netWorth,
       total_assets: Math.round(totalAssets * 100) / 100,
-      total_liquid_assets: totalLiquidAssets,
+      total_liquid_assets: Math.round(totalAssets * 100) / 100,
       total_liabilities: Math.round(totalLiabilities * 100) / 100,
       total_debts: Math.round(totalOwe * 100) / 100,
       total_owe: Math.round(totalOwe * 100) / 100,
