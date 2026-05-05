@@ -1,22 +1,22 @@
-/* ─── Sovereign Finance · Data Store v0.2.0 · Sub-1D-CATEGORY-RECONCILE Ship B ───
- * Fetches live categories from /api/categories on init.
- * Falls back to FALLBACK_CATEGORIES if API unreachable (offline-friendly).
+/* ─── Sovereign Finance · Data Store v0.2.1 · Sub-1D-STORE-OFFLINE-DRAIN ───
+ * Auto-replays queued offline transactions when network comes back.
  *
- * Changes vs v0.1.0:
- *   - CATEGORIES renamed FALLBACK_CATEGORIES (matches FALLBACK_ACCOUNTS pattern)
- *   - FALLBACK_CATEGORIES updated to match D1 real IDs (was drifted: groceries→grocery, debt_payment→debt, cc_payment→cc_pay, added cc_spend/biller/transfer)
- *   - store.categories now starts as fallback, gets replaced by live D1 data on refreshCategories() success
- *   - New refreshCategories() method — fetches /api/categories, updates store.categories
- *   - getCachedAll() now also calls refreshCategories
- *   - getCategory(id) — unchanged interface, reads from store.categories (now live)
+ * Changes vs v0.2.0:
+ *   - drainOfflineQueue() — reads queue, replays each via /api/transactions
+ *   - On success: removes from queue
+ *   - On 4xx: removes from queue (malformed payload, won't ever succeed)
+ *   - On 5xx/network: leaves in queue for next drain attempt
+ *   - Auto-fires on:
+ *       1. window.online event (network came back)
+ *       2. Script load (in case queue persisted across browser sessions)
+ *   - Console-logged on every drain so operator sees what's happening
  *
- * PRESERVED from v0.1.0:
- *   - All 4xx vs 5xx discrimination logic in addTransaction
- *   - All other refresh* methods
- *   - Offline queue
- *   - All FALLBACK_ACCOUNTS (verified match D1)
- *   - Reverse, deleteTransaction, editTransaction (deprecated)
+ * PRESERVED from v0.2.0:
+ *   - All FALLBACK_ACCOUNTS / FALLBACK_CATEGORIES
+ *   - refreshCategories live fetch on init
+ *   - All 4xx vs 5xx discrimination logic
  *   - All public method signatures unchanged
+ *   - Audit-after-write integration via backend
  */
 
 (function () {
@@ -37,8 +37,6 @@
     { id: 'cc',          name: 'Alfalah CC',   icon: '🪪', kind: 'cc',      type: 'liability', balance: 0 }
   ];
 
-  // FALLBACK only — used when /api/categories unreachable. Real categories live in D1.
-  // IDs MUST match D1 (per SCHEMA.md REAL DATA section, captured 2026-05-04)
   const FALLBACK_CATEGORIES = [
     { id: 'food',      name: 'Food',          icon: '🍔', type: null, display_order: 1 },
     { id: 'grocery',   name: 'Groceries',     icon: '🛒', type: null, display_order: 2 },
@@ -66,6 +64,7 @@
     cachedDebts: [],
     cachedBills: [],
     cachedAuditLog: [],
+    _draining: false,
 
     async refreshBalances() {
       try {
@@ -292,6 +291,91 @@
 
     clearOfflineQueue() {
       try { localStorage.removeItem(STORAGE_KEY_TX); } catch (e) {}
+    },
+
+    /* ─── Sub-1D-STORE-OFFLINE-DRAIN ─── */
+    async drainOfflineQueue() {
+      if (this._draining) {
+        console.log('[store] drain already in progress, skipping');
+        return { drained: 0, failed: 0, kept: 0, skipped: true };
+      }
+      this._draining = true;
+
+      try {
+        const queue = this.getOfflineQueue();
+        if (queue.length === 0) {
+          this._draining = false;
+          return { drained: 0, failed: 0, kept: 0 };
+        }
+
+        console.log('[store] draining offline queue, items:', queue.length);
+
+        let drained = 0;
+        let failed = 0;
+        const remaining = [];
+
+        for (const item of queue) {
+          const { queued_at, ...payload } = item;
+
+          try {
+            const r = await fetch(API + '/api/transactions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            let d = null;
+            try { d = await r.json(); } catch (e) {}
+
+            if (d && d.ok) {
+              drained++;
+              continue; // success, drop from queue
+            }
+
+            if (r.status >= 400 && r.status < 500) {
+              // 4xx = malformed, will never succeed, drop from queue
+              failed++;
+              console.warn('[store] drain dropped 4xx item (' + r.status + '):', d?.error || 'unknown');
+              continue;
+            }
+
+            // 5xx or no JSON = server problem, keep for next drain
+            remaining.push(item);
+
+          } catch (netErr) {
+            // network failed mid-drain, keep item + abort drain (network down again)
+            remaining.push(item);
+            console.warn('[store] drain aborted on network error, items remaining:', queue.length - drained - failed);
+            // push remaining items back unchanged
+            for (let i = queue.indexOf(item) + 1; i < queue.length; i++) {
+              remaining.push(queue[i]);
+            }
+            break;
+          }
+        }
+
+        // Save remaining back to queue (or clear if all drained)
+        if (remaining.length === 0) {
+          this.clearOfflineQueue();
+        } else {
+          localStorage.setItem(STORAGE_KEY_TX, JSON.stringify(remaining));
+        }
+
+        console.log('[store] drain complete · drained:', drained, '· failed:', failed, '· kept:', remaining.length);
+
+        // Refresh balances + transactions if anything drained successfully
+        if (drained > 0) {
+          await Promise.all([this.refreshBalances(), this.refreshTransactions()]);
+        }
+
+        this._draining = false;
+        return { drained, failed, kept: remaining.length };
+
+      } catch (err) {
+        console.warn('[store] drain unexpected error:', err.message);
+        this._draining = false;
+        return { drained: 0, failed: 0, kept: this.getOfflineQueue().length, error: err.message };
+      }
     }
   };
 
@@ -299,4 +383,18 @@
 
   // Auto-refresh categories on script load (non-blocking)
   store.refreshCategories();
+
+  // Sub-1D-STORE-OFFLINE-DRAIN: auto-drain queue on script load + when network comes back
+  if (typeof window !== 'undefined') {
+    // Drain on initial load (handles queue persisted across sessions)
+    if (navigator.onLine !== false) {
+      setTimeout(() => store.drainOfflineQueue(), 2000);
+    }
+
+    // Drain on network reconnect
+    window.addEventListener('online', () => {
+      console.log('[store] network back online, draining queue');
+      store.drainOfflineQueue();
+    });
+  }
 })();
