@@ -7,8 +7,7 @@
  *     No `outstanding` column, no `closed_at` column.
  *   - Outstanding computed as (original_amount - paid_amount).
  *   - Filter on status = 'active' to count only active debts.
- *   - Pattern 7 violated TWICE in this ship arc (v0.4.0 + v0.4.1) — codified
- *     mandatory schema-read rule in memory after second failure.
+ *   - SCHEMA.md committed as single source of truth (Pattern 7 prevention).
  *
  * PRESERVED from v0.4.1:
  *   - total_debts + total_owe + debt_count fields
@@ -38,9 +37,9 @@ export async function onRequest(context) {
     const txResult = await txStmt.all();
     const transactions = txResult.results;
 
-    // Fetch active debts — Sub-1D-DEBT-TOTAL (ground-truth schema)
-    // Real columns: original_amount, paid_amount, status (default 'active')
-    // Outstanding = original_amount - paid_amount
+    // Fetch active debts — Sub-1D-DEBT-TOTAL (ground-truth schema per SCHEMA.md)
+    // debts has NO `outstanding` column — compute as original_amount - paid_amount
+    // debts has NO `closed_at` column — filter on status='active'
     const debtsStmt = db.prepare(
       "SELECT (original_amount - COALESCE(paid_amount, 0)) AS outstanding FROM debts WHERE status = 'active'"
     );
