@@ -172,10 +172,19 @@
         }
       }
 
-      // Compute totals
+     // Compute totals (per-section sums for display)
       const assetsTotal = assets.reduce((s, a) => s + (Number(a.balance) || 0), 0);
       const liabTotal = liabilities.reduce((s, a) => s + (Number(a.balance) || 0), 0);
-      const netWorth = assetsTotal + liabTotal;
+
+      // Net worth from /api/balances (single source of truth — Pattern 4 fix)
+      let netWorth = assetsTotal + liabTotal;  // fallback if /api/balances fails
+      try {
+        const br = await fetch('/api/balances?cb=' + Date.now());
+        const bd = await br.json();
+        if (bd.ok && bd.net_worth != null) netWorth = bd.net_worth;
+      } catch (e) {
+        console.warn('[accounts] /api/balances fetch failed, using local sum:', e.message);
+      }`
 
       // Update summary
       if (assetsCountEl) assetsCountEl.textContent = assets.length;
