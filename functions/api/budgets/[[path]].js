@@ -1,26 +1,14 @@
-/* ─── Sovereign Finance · Budgets Catch-All API · v0.2.0 ───
- * Mirrors goals/debts/bills/accounts pattern.
- *
- * Schema reality:
- *   - category_id is the natural primary key (one budget per category)
- *   - monthly_amount = fixed envelope cap
- *   - status added 2026-05-04 for soft-delete
- *   - notes optional
- *   - "spent_this_period" computed live from transactions WHERE category_id matches AND date >= start of current month
- *
- * Routes:
- *   GET    /api/budgets                  → list (active) + summary + live spent computation
- *   POST   /api/budgets                  → create
- *   GET    /api/budgets/{category_id}    → single + live spent
- *   PUT    /api/budgets/{category_id}    → edit (snapshot + audit)
- *   DELETE /api/budgets/{category_id}?created_by=web → soft-delete (snapshot + audit)
- *
- * Banking-grade per Active Principle #2.
+/* ─── /api/budgets/[[path]] · v0.3.0 · TRACE-AUDIT FIXES ─── */
+/*
+ * Changes vs v0.2.0 (per TRACE audit findings 2, 6):
+ *   - Audit signature fix: was {entity_type, details} → now {entity, detail} per _lib.js contract
+ *   - Snapshot signature fix: was snapshot(db, {label, tables, where}) → now snapshot(env, label, createdBy)
+ *   - All 3 audit calls + 2 snapshot calls corrected
+ *   - audit() and snapshot() now receive env (not db) per _lib.js exports
  */
 
 import { json, audit, snapshot } from '../_lib.js';
 
-/* ─── Helpers ─── */
 function startOfMonthUTC() {
   const d = new Date();
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString().slice(0, 10);
@@ -70,7 +58,6 @@ function computeBudgetUI(b, spent) {
   };
 }
 
-/* ─── Cloudflare Pages Function entry ─── */
 export async function onRequest(context) {
   const { request, env, params } = context;
   const path = params.path;
@@ -81,15 +68,15 @@ export async function onRequest(context) {
   try {
     if (segments.length === 0) {
       if (method === 'GET') return await handleList(db);
-      if (method === 'POST') return await handleCreate(db, request);
+      if (method === 'POST') return await handleCreate(env, request);
       return json({ ok: false, error: 'Method not allowed' }, 405);
     }
 
     if (segments.length === 1) {
       const id = segments[0];
       if (method === 'GET') return await handleSingle(db, id);
-      if (method === 'PUT') return await handleEdit(db, id, request);
-      if (method === 'DELETE') return await handleDelete(db, id, request);
+      if (method === 'PUT') return await handleEdit(env, id, request);
+      if (method === 'DELETE') return await handleDelete(env, id, request);
       return json({ ok: false, error: 'Method not allowed' }, 405);
     }
 
@@ -100,7 +87,6 @@ export async function onRequest(context) {
   }
 }
 
-/* ─── GET /api/budgets ─── */
 async function handleList(db) {
   const rs = await db
     .prepare(`SELECT * FROM budgets WHERE status = 'active' OR status IS NULL ORDER BY monthly_amount DESC, category_id ASC`)
@@ -135,8 +121,8 @@ async function handleList(db) {
   });
 }
 
-/* ─── POST /api/budgets ─── */
-async function handleCreate(db, request) {
+async function handleCreate(env, request) {
+  const db = env.DB;
   const body = await request.json().catch(() => ({}));
   const category_id = (body.category_id || '').trim();
   const monthly_amount = Number(body.monthly_amount);
@@ -160,18 +146,18 @@ async function handleCreate(db, request) {
     .bind(category_id, monthly_amount, notes)
     .run();
 
-  await audit(db, {
+  await audit(env, {
     action: 'BUDGET_CREATE',
-    entity_type: 'budget',
+    entity: 'budget',
     entity_id: category_id,
-    details: { category_id, monthly_amount, notes },
-    created_by: 'web',
+    kind: 'mutation',
+    detail: JSON.stringify({ category_id, monthly_amount, notes }),
+    created_by: body.created_by || 'web-budget-create',
   });
 
   return json({ ok: true, category_id, action: 'BUDGET_CREATE' });
 }
 
-/* ─── GET /api/budgets/{category_id} ─── */
 async function handleSingle(db, categoryId) {
   const row = await db.prepare(`SELECT * FROM budgets WHERE category_id = ?`).bind(categoryId).first();
   if (!row) return json({ ok: false, error: 'Budget not found' }, 404);
@@ -179,8 +165,8 @@ async function handleSingle(db, categoryId) {
   return json({ ok: true, budget: computeBudgetUI(row, spent) });
 }
 
-/* ─── PUT /api/budgets/{category_id} ─── */
-async function handleEdit(db, categoryId, request) {
+async function handleEdit(env, categoryId, request) {
+  const db = env.DB;
   const body = await request.json().catch(() => ({}));
   const existing = await db.prepare(`SELECT * FROM budgets WHERE category_id = ?`).bind(categoryId).first();
   if (!existing) return json({ ok: false, error: 'Budget not found' }, 404);
@@ -201,55 +187,49 @@ async function handleEdit(db, categoryId, request) {
     updates.monthly_amount = a;
   }
 
-  // Snapshot before mutation
-  const snapId = await snapshot(db, {
-    label: `budget_edit_${categoryId}_${Date.now()}`,
-    tables: ['budgets'],
-    where: `category_id = '${categoryId}'`,
-  });
+  // Snapshot before mutation (correct signature)
+  await snapshot(env, 'pre-budget-edit-' + categoryId + '-' + Date.now(), body.created_by || 'web-budget-edit');
 
   const sets = Object.keys(updates).map(k => `${k} = ?`).join(', ');
   const vals = Object.values(updates);
   await db.prepare(`UPDATE budgets SET ${sets} WHERE category_id = ?`).bind(...vals, categoryId).run();
 
-  await audit(db, {
+  await audit(env, {
     action: 'BUDGET_EDIT',
-    entity_type: 'budget',
+    entity: 'budget',
     entity_id: categoryId,
-    details: { before: existing, after: updates, snapshot_id: snapId },
-    created_by: 'web',
+    kind: 'mutation',
+    detail: JSON.stringify({ before: existing, after: updates }),
+    created_by: body.created_by || 'web-budget-edit',
   });
 
-  return json({ ok: true, category_id: categoryId, updated_fields: Object.keys(updates), snapshot_id: snapId });
+  return json({ ok: true, category_id: categoryId, updated_fields: Object.keys(updates) });
 }
 
-/* ─── DELETE /api/budgets/{category_id} ─── */
-async function handleDelete(db, categoryId, request) {
+async function handleDelete(env, categoryId, request) {
+  const db = env.DB;
   const url = new URL(request.url);
-  const created_by = url.searchParams.get('created_by') || 'web';
+  const created_by = url.searchParams.get('created_by') || 'web-budget-delete';
 
   const existing = await db.prepare(`SELECT * FROM budgets WHERE category_id = ?`).bind(categoryId).first();
   if (!existing) return json({ ok: false, error: 'Budget not found' }, 404);
   if (existing.status === 'deleted') return json({ ok: false, error: 'Already deleted' }, 409);
 
-  const snapId = await snapshot(db, {
-    label: `budget_delete_${categoryId}_${Date.now()}`,
-    tables: ['budgets'],
-    where: `category_id = '${categoryId}'`,
-  });
+  await snapshot(env, 'pre-budget-delete-' + categoryId + '-' + Date.now(), created_by);
 
   await db
     .prepare(`UPDATE budgets SET status = 'deleted' WHERE category_id = ?`)
     .bind(categoryId)
     .run();
 
-  await audit(db, {
+  await audit(env, {
     action: 'BUDGET_DELETE',
-    entity_type: 'budget',
+    entity: 'budget',
     entity_id: categoryId,
-    details: { before: existing, snapshot_id: snapId },
+    kind: 'mutation',
+    detail: JSON.stringify({ before: existing }),
     created_by,
   });
 
-  return json({ ok: true, category_id: categoryId, action: 'BUDGET_DELETE', snapshot_id: snapId });
+  return json({ ok: true, category_id: categoryId, action: 'BUDGET_DELETE' });
 }
