@@ -1,20 +1,16 @@
-/* ─── /api/balances · v0.4.0 · Sub-1D-DEBT-TOTAL ─── */
+/* ─── /api/balances · v0.4.1 · Sub-1D-DEBT-TOTAL fix ─── */
 /* Cloudflare Pages Function — liability-aware transfer math + debt totals */
 /*
- * Changes vs v0.3.1:
- *   - Added `total_debts` field (SUM of debts.outstanding from debts table)
- *   - Added `total_owe` field (alias of total_debts for store.js compat)
- *   - Added `debt_count` for hub widget display
- *   - store.js reads `d.total_owe || d.total_debts` — both now defined
- *   - Debts table is separate from liabilities (which are CC-style accounts).
- *     Debts represent IOUs to specific people/entities (CRED-1 through CRED-6 + DEBT-1).
+ * Changes vs v0.4.0:
+ *   - Fixed SQL: debts table has no `status` column. Filter on `closed_at IS NULL`
+ *     to count only active debts. Closed debts have closed_at timestamp set.
+ *   - Pattern 7 fix (assumed schema without reading data) — verified via Sub-1D-3c
+ *     CRUD ship + Finance_Debts.gs schema.
  *
- * PRESERVED from v0.3.1:
- *   - total_liquid_assets alias (Sub-1D-FIELD-RECONCILE)
- *   - Liability-aware transfer math (Sub-1D-CC-RECONCILE)
- *   - All type handlers
- *   - Roll-up logic + cc_outstanding
- *   - Error shape
+ * PRESERVED from v0.4.0:
+ *   - total_debts + total_owe + debt_count fields
+ *   - net_worth = assets - liabilities - debts
+ *   - All v0.3.1 + v0.3.0 logic
  */
 
 export async function onRequest(context) {
@@ -39,9 +35,9 @@ export async function onRequest(context) {
     const txResult = await txStmt.all();
     const transactions = txResult.results;
 
-    // Fetch debts (outstanding only) — Sub-1D-DEBT-TOTAL
+    // Fetch active debts only (closed_at IS NULL = not closed) — Sub-1D-DEBT-TOTAL
     const debtsStmt = db.prepare(
-      "SELECT outstanding FROM debts WHERE status != 'closed' OR status IS NULL"
+      "SELECT outstanding FROM debts WHERE closed_at IS NULL"
     );
     const debtsResult = await debtsStmt.all();
     const debtRows = debtsResult.results;
