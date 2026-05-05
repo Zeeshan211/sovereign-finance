@@ -1,29 +1,22 @@
-/* ─── Sovereign Finance · Data Store v0.1.0 · Sub-1D-STORE-HARDEN ───
- * Banking-grade error discrimination on addTransaction.
+/* ─── Sovereign Finance · Data Store v0.2.0 · Sub-1D-CATEGORY-RECONCILE Ship B ───
+ * Fetches live categories from /api/categories on init.
+ * Falls back to FALLBACK_CATEGORIES if API unreachable (offline-friendly).
  *
- * Changes vs v0.0.10:
- *   - 4xx responses (client error: bad payload, validation reject) NO LONGER queue.
- *     Returns { ok:false, error, status } so caller surfaces the real reason.
- *   - 5xx responses (server error: D1 batch failed, internal error) STILL queue.
- *     Returns { ok:true, queued:true, offline:true, error, status } — legit retry.
- *   - Network failure (fetch throws) STILL queues. Returns same shape with status:0.
- *   - Non-JSON response body (HTML error page, etc.) handled by status code.
- *   - Console.warn instrumentation on 4xx for dev-tools debugging.
+ * Changes vs v0.1.0:
+ *   - CATEGORIES renamed FALLBACK_CATEGORIES (matches FALLBACK_ACCOUNTS pattern)
+ *   - FALLBACK_CATEGORIES updated to match D1 real IDs (was drifted: groceries→grocery, debt_payment→debt, cc_payment→cc_pay, added cc_spend/biller/transfer)
+ *   - store.categories now starts as fallback, gets replaced by live D1 data on refreshCategories() success
+ *   - New refreshCategories() method — fetches /api/categories, updates store.categories
+ *   - getCachedAll() now also calls refreshCategories
+ *   - getCategory(id) — unchanged interface, reads from store.categories (now live)
  *
- * RATIONALE:
- *   Previously, ANY non-ok response triggered offline-queue + green "Queued ✓" toast.
- *   This masked real backend rejections (e.g. missing transfer_to_account_id, source==dest,
- *   invalid type) as silent successes. Operator could see green checkmark while malformed
- *   payloads piled up in localStorage forever. Banking-grade gap closed.
- *
- * BACKWARD-COMPAT:
- *   - 2xx success path: identical { ok:true, id, linked_id, audited }
- *   - 5xx + network: identical { ok:true, queued:true, offline:true, ... } shape
- *   - 4xx: NEW { ok:false, ... } — caller must handle. Verified safe for sole caller add.js v0.2.0.
- *
- * PRESERVED from v0.0.10:
- *   reverseTransaction, refresh*, deleteTransaction (deprecated alias),
- *   editTransaction (blocked), offline queue, FALLBACK_ACCOUNTS, CATEGORIES.
+ * PRESERVED from v0.1.0:
+ *   - All 4xx vs 5xx discrimination logic in addTransaction
+ *   - All other refresh* methods
+ *   - Offline queue
+ *   - All FALLBACK_ACCOUNTS (verified match D1)
+ *   - Reverse, deleteTransaction, editTransaction (deprecated)
+ *   - All public method signatures unchanged
  */
 
 (function () {
@@ -44,25 +37,31 @@
     { id: 'cc',          name: 'Alfalah CC',   icon: '🪪', kind: 'cc',      type: 'liability', balance: 0 }
   ];
 
-  const CATEGORIES = [
-    { id: 'food',         name: 'Food',           icon: '🍔', kind: 'expense' },
-    { id: 'groceries',    name: 'Groceries',      icon: '🛒', kind: 'expense' },
-    { id: 'transport',    name: 'Transport',      icon: '🚗', kind: 'expense' },
-    { id: 'bills',        name: 'Bills',          icon: '📄', kind: 'expense' },
-    { id: 'health',       name: 'Health',         icon: '💊', kind: 'expense' },
-    { id: 'personal',     name: 'Personal',       icon: '👕', kind: 'expense' },
-    { id: 'family',       name: 'Family',         icon: '👨\u200d👩\u200d👧', kind: 'expense' },
-    { id: 'debt_payment', name: 'Debt Payment',   icon: '💸', kind: 'expense' },
-    { id: 'cc_payment',   name: 'CC Payment',     icon: '💳', kind: 'transfer' },
-    { id: 'salary',       name: 'Salary',         icon: '💰', kind: 'income' },
-    { id: 'gift',         name: 'Gift Received',  icon: '🎁', kind: 'income' },
-    { id: 'other',        name: 'Other',          icon: '📌', kind: 'expense' }
+  // FALLBACK only — used when /api/categories unreachable. Real categories live in D1.
+  // IDs MUST match D1 (per SCHEMA.md REAL DATA section, captured 2026-05-04)
+  const FALLBACK_CATEGORIES = [
+    { id: 'food',      name: 'Food',          icon: '🍔', type: null, display_order: 1 },
+    { id: 'grocery',   name: 'Groceries',     icon: '🛒', type: null, display_order: 2 },
+    { id: 'transport', name: 'Transport',     icon: '🚗', type: null, display_order: 3 },
+    { id: 'bills',     name: 'Bills',         icon: '📄', type: null, display_order: 4 },
+    { id: 'health',    name: 'Health',        icon: '💊', type: null, display_order: 5 },
+    { id: 'personal',  name: 'Personal',      icon: '👕', type: null, display_order: 6 },
+    { id: 'family',    name: 'Family',        icon: '👨‍👩‍👧', type: null, display_order: 7 },
+    { id: 'debt',      name: 'Debt Payment',  icon: '💸', type: null, display_order: 8 },
+    { id: 'cc_pay',    name: 'CC Payment',    icon: '💳', type: null, display_order: 9 },
+    { id: 'cc_spend',  name: 'CC Spend',      icon: '🛍', type: null, display_order: 10 },
+    { id: 'biller',    name: 'Biller Charge', icon: '🏷', type: null, display_order: 11 },
+    { id: 'salary',    name: 'Salary',        icon: '💰', type: null, display_order: 12 },
+    { id: 'gift',      name: 'Gift Received', icon: '🎁', type: null, display_order: 13 },
+    { id: 'transfer',  name: 'Transfer',      icon: '↔', type: null, display_order: 14 },
+    { id: 'other',     name: 'Other',         icon: '📌', type: null, display_order: 15 }
   ];
 
   const store = {
     accounts: FALLBACK_ACCOUNTS.slice(),
-    categories: CATEGORIES,
+    categories: FALLBACK_CATEGORIES.slice(),
     cachedAccounts: FALLBACK_ACCOUNTS.slice(),
+    cachedCategories: FALLBACK_CATEGORIES.slice(),
     cachedTransactions: [],
     cachedDebts: [],
     cachedBills: [],
@@ -85,6 +84,22 @@
       } catch (e) {
         console.warn('[store] refreshBalances failed:', e.message);
         return null;
+      }
+    },
+
+    async refreshCategories() {
+      try {
+        const r = await fetch(API + '/api/categories', { cache: 'no-store' });
+        const d = await r.json();
+        if (!d.ok) throw new Error(d.error || 'categories failed');
+        if (Array.isArray(d.categories) && d.categories.length > 0) {
+          this.cachedCategories = d.categories;
+          this.categories = this.cachedCategories;
+        }
+        return this.categories;
+      } catch (e) {
+        console.warn('[store] refreshCategories failed (using fallback):', e.message);
+        return this.categories;
       }
     },
 
@@ -140,26 +155,33 @@
       }
     },
 
-    /* ─── Backward-compat: legacy method names some pages still call ─── */
     async refreshAccounts() { return this.refreshBalances(); },
     getAccount(id)  { return (this.cachedAccounts || []).find(a => a.id === id) || null; },
-    getCategory(id) { return CATEGORIES.find(c => c.id === id) || null; },
+    getCategory(id) { return (this.cachedCategories || []).find(c => c.id === id) || null; },
+
     async getCachedAll() {
-      await Promise.all([this.refreshBalances(), this.refreshTransactions(), this.refreshDebts(), this.refreshBills()]);
+      await Promise.all([
+        this.refreshBalances(),
+        this.refreshCategories(),
+        this.refreshTransactions(),
+        this.refreshDebts(),
+        this.refreshBills()
+      ]);
       return {
         balances: this.totals,
         accounts: this.cachedAccounts,
+        categories: this.cachedCategories,
         transactions: this.cachedTransactions,
         debts: this.cachedDebts,
         bills: this.cachedBills
       };
     },
+
     get balances() { return this.totals || {}; },
     get debts() { return this.cachedDebts; },
     get bills() { return this.cachedBills; },
     get transactions() { return this.cachedTransactions; },
 
-    /* ─── ADD TRANSACTION (banking-grade error discrimination) ─── */
     async addTransaction(data) {
       const amount = parseFloat(data.amount);
       if (isNaN(amount) || amount <= 0) {
@@ -188,14 +210,11 @@
           body: JSON.stringify(payload)
         });
       } catch (netErr) {
-        // Network failure (offline, DNS, CORS preflight, etc.) — legit queue
         console.warn('[store] addTransaction network error — queueing for retry:', netErr.message);
         this._queueOffline(payload);
         return { ok: true, queued: true, offline: true, error: netErr.message, status: 0 };
       }
 
-      // Try to parse JSON. Backend always returns JSON via _lib.json() helper.
-      // If parse fails, treat by HTTP status.
       let d = null;
       try { d = await r.json(); }
       catch (parseErr) {
@@ -204,33 +223,27 @@
           this._queueOffline(payload);
           return { ok: true, queued: true, offline: true, error: 'HTTP ' + r.status + ' (no JSON body)', status: r.status };
         }
-        // 4xx with non-JSON or other unexpected — surface, don't queue
         console.warn('[store] addTransaction non-JSON response — surfacing error:', r.status);
         return { ok: false, error: 'HTTP ' + r.status + ' (no JSON body)', status: r.status };
       }
 
-      // Happy path
       if (d && d.ok) {
         await Promise.all([this.refreshBalances(), this.refreshTransactions()]);
         return { ok: true, id: d.id, linked_id: d.linked_id, audited: d.audited, status: r.status };
       }
 
-      // Backend returned { ok:false, error:... } — discriminate by HTTP status
       const errMsg = (d && d.error) || ('HTTP ' + r.status);
 
       if (r.status >= 500) {
-        // Server error → legitimate retry candidate
         console.warn('[store] addTransaction 5xx — queueing for retry:', errMsg);
         this._queueOffline(payload);
         return { ok: true, queued: true, offline: true, error: errMsg, status: r.status };
       }
 
-      // 4xx (or any other non-2xx, non-5xx) → client error → DO NOT queue
       console.warn('[store] addTransaction rejected (' + r.status + '):', errMsg);
       return { ok: false, error: errMsg, status: r.status };
     },
 
-    /* ─── REVERSE TRANSACTION (audit-safe) ─── */
     async reverseTransaction(id, createdBy = 'web-store') {
       if (!id) return { ok: false, error: 'id required' };
       try {
@@ -248,13 +261,11 @@
       }
     },
 
-    /* ─── DEPRECATED: deleteTransaction routes to reverse ─── */
     async deleteTransaction(id) {
       console.warn('[store] deleteTransaction is deprecated — routing to reverseTransaction');
       return this.reverseTransaction(id, 'web-deprecated-delete');
     },
 
-    /* ─── DEPRECATED: editTransaction blocked ─── */
     async editTransaction(id) {
       const msg = 'Editing transactions is disabled to preserve the audit trail.\n\n' +
                   'To correct a mistake:\n' +
@@ -266,7 +277,6 @@
       return { ok: false, error: 'editTransaction disabled — use Reverse + new entry' };
     },
 
-    /* ─── Offline queue ─── */
     _queueOffline(payload) {
       try {
         const q = JSON.parse(localStorage.getItem(STORAGE_KEY_TX) || '[]');
@@ -286,4 +296,7 @@
   };
 
   window.store = store;
+
+  // Auto-refresh categories on script load (non-blocking)
+  store.refreshCategories();
 })();
