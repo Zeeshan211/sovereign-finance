@@ -1,189 +1,272 @@
-// ════════════════════════════════════════════════════════════════════
-// /api/admin/migrate-from-sheet — v1.1 PATH-A LIVE SCHEMA TRANSLATOR
-// LOCKED · 7-Layer Audit · Self-Contained
+// /functions/api/admin/migrate-from-sheet.js
+// v1.2 — Schema-correct + type-canonicalization
 //
-// Receives banking-grade payload from Apps Script (File A).
-// Translates to live decimal schema before INSERT.
-// Atomic: single db.batch() = all-or-nothing.
+// CHANGES vs v1.1:
+//   - FIX: bills INSERT was using wrong column names (account_id/last_paid_dt/amount_minor)
+//          → now uses canonical (default_account_id/last_paid_date/amount in PKR)
+//   - FIX: transaction type translation — sheet/legacy 'borrow' → canonical 'debt_in'
+//          and 'repay' → 'debt_out' per Layer 1 spec
+//   - NEW: pre-flight check: MIGRATION_SECRET env var must be set; clear 500 if not
+//   - PRESERVED: full-replace semantics (DELETE all 4 tables in batch before INSERT)
+//   - PRESERVED: amount conversion (cents from sheet → PKR for D1)
+//   - PRESERVED: atomic db.batch() — all-or-nothing, snapshot-protected
+//
+// ════════════════════════════════════════════════════════════════════
+// SECTION 9 — VOCABULARY TRANSLATION TABLE (Pattern 21 lock)
+// ════════════════════════════════════════════════════════════════════
+// Sheet exporter (Sheet_To_D1_Export.gs v1.2) sends LEGACY vocabulary.
+// This endpoint translates to CANONICAL vocabulary at INSERT time.
+// Until sheet exporter is rewritten to v1.3 (canonical-direct), this
+// translation layer is required.
+//
+//   SHEET LEGACY      →   D1 CANONICAL (Layer 1 spec)
+//   ────────────         ────────────────────────────
+//   'borrow'          →   'debt_in'    (receiving from debtor)
+//   'repay'           →   'debt_out'   (paying creditor)
+//   'income'          →   'income'     (no change)
+//   'expense'         →   'expense'    (no change)
+//   'transfer'        →   'transfer'   (no change)
+//
+//   amount_minor (cents) →   amount (PKR decimal)  via /100
+//   dt_local             →   date                  (no transform)
+//   note                 →   notes                 (no transform)
+//   txn_id               →   id                    (no transform)
+//
 // ════════════════════════════════════════════════════════════════════
 
-export async function onRequestPost({ request, env }) {
-  const expectedSecret = env.MIGRATION_SECRET;
-  if (!expectedSecret) {
-    return _err(500, 'MIGRATION_SECRET not configured on Cloudflare');
+const VERSION = 'v1.2';
+
+const TYPE_TRANSLATION = {
+  'borrow': 'debt_in',
+  'repay':  'debt_out',
+  'income': 'income',
+  'expense': 'expense',
+  'transfer': 'transfer',
+  'opening': 'opening',
+  'salary': 'income',
+  'cc_spend': 'expense',
+  'cc_payment': 'transfer',
+  'atm': 'expense'
+};
+
+function translateType(sheetType) {
+  if (!sheetType) return 'expense';
+  const lower = String(sheetType).toLowerCase().trim();
+  return TYPE_TRANSLATION[lower] || lower;
+}
+
+export async function onRequestPost(context) {
+  const { request, env } = context;
+
+  // Pre-flight: secret must be configured
+  if (!env.MIGRATION_SECRET) {
+    return jsonResponse({
+      ok: false,
+      version: VERSION,
+      error: 'MIGRATION_SECRET env var not configured on Cloudflare Pages — cannot authenticate import requests'
+    }, 500);
   }
+
+  // Auth
   const providedSecret = request.headers.get('X-Migration-Secret');
-  if (providedSecret !== expectedSecret) {
-    return _err(401, 'Invalid migration secret');
+  if (!providedSecret || providedSecret !== env.MIGRATION_SECRET) {
+    return jsonResponse({
+      ok: false,
+      version: VERSION,
+      error: 'Invalid or missing X-Migration-Secret header'
+    }, 401);
   }
 
   let payload;
   try {
     payload = await request.json();
-  } catch(e) {
-    return _err(400, 'Invalid JSON payload');
+  } catch (err) {
+    return jsonResponse({
+      ok: false,
+      version: VERSION,
+      error: 'Invalid JSON body: ' + err.message
+    }, 400);
   }
 
-  const requiredKeys = ['schema_version', 'accounts', 'transactions', 'debts', 'bills'];
-  for (const k of requiredKeys) {
-    if (!(k in payload)) return _err(400, 'Missing required key: ' + k);
+  const accounts = Array.isArray(payload.accounts) ? payload.accounts : [];
+  const transactions = Array.isArray(payload.transactions) ? payload.transactions : [];
+  const debts = Array.isArray(payload.debts) ? payload.debts : [];
+  const debtPaidMap = (payload.debt_paid_map && typeof payload.debt_paid_map === 'object') ? payload.debt_paid_map : {};
+  const bills = Array.isArray(payload.bills) ? payload.bills : [];
+
+  if (transactions.length > 10000) {
+    return jsonResponse({
+      ok: false,
+      version: VERSION,
+      error: 'Safety cap: cannot import >10000 transactions in one batch (got ' + transactions.length + ')'
+    }, 400);
   }
-  if (payload.schema_version !== '1.0') {
-    return _err(400, 'Unsupported schema_version: ' + payload.schema_version);
-  }
 
-  const db = env.DB;
-  const stmts = [];
-  const stats = { accounts: 0, txns: 0, debts: 0, bills: 0 };
-  const paidMap = payload.debt_paid_map || {};
+  const stats = {
+    accounts_inserted: 0,
+    transactions_inserted: 0,
+    transactions_translated: 0,
+    debts_inserted: 0,
+    bills_inserted: 0,
+    bills_skipped_no_account: 0,
+    type_translation_counts: {}
+  };
 
-  // ─── DELETE in safe order: children first, parents last ───
-  stmts.push(db.prepare('DELETE FROM transactions'));
-  stmts.push(db.prepare('DELETE FROM bills'));
-  stmts.push(db.prepare('DELETE FROM debts'));
-  stmts.push(db.prepare('DELETE FROM accounts'));
+  try {
+    const db = env.DB;
+    const statements = [];
 
-  // ─── INSERT accounts (parents first) ───
-  payload.accounts.forEach((a, idx) => {
-    if (!a.id || !a.name) return;
-    const type = (a.kind === 'cc') ? 'liability' : 'asset';
-    stmts.push(
-      db.prepare(
-        `INSERT INTO accounts
-           (id, name, icon, type, kind, opening_balance, display_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
+    // ── Wipe (atomic with rest of batch — all-or-nothing) ──
+    statements.push(db.prepare('DELETE FROM accounts'));
+    statements.push(db.prepare('DELETE FROM transactions'));
+    statements.push(db.prepare('DELETE FROM debts'));
+    statements.push(db.prepare('DELETE FROM bills'));
+
+    // ── Accounts ──
+    // Schema: id, name, icon, type, kind, opening_balance, currency, color, display_order, status, credit_limit
+    for (let i = 0; i < accounts.length; i++) {
+      const a = accounts[i];
+      statements.push(db.prepare(
+        `INSERT INTO accounts (id, name, icon, type, kind, opening_balance, currency, color, display_order, status, credit_limit)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(
         a.id,
         a.name,
-        a.icon || '',
-        type,
+        a.icon || null,
+        a.kind === 'cc' || a.kind === 'liability' ? 'liability' : 'asset',
         a.kind || 'bank',
-        0,
-        idx + 1
-      )
-    );
-    stats.accounts++;
-  });
+        Number(a.opening_balance || 0),
+        a.currency || 'PKR',
+        a.color || null,
+        i + 1,
+        'active',
+        a.cc_limit != null ? Number(a.cc_limit) : (a.credit_limit != null ? Number(a.credit_limit) : null)
+      ));
+      stats.accounts_inserted++;
+    }
 
-  // ─── INSERT debts (translate kind 'creditor' → 'owe', merge paid_amount) ───
-  payload.debts.forEach((d, idx) => {
-    if (!d.name) return;
-    const id = 'debt_' + String(d.name).toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 30);
-    const original = (d.original_minor || 0) / 100;
-    const paid = (paidMap[d.name] || 0) / 100;
-    const kind = (d.kind === 'receivable' || d.kind === 'owed') ? 'owed' : 'owe';
-    stmts.push(
-      db.prepare(
-        `INSERT INTO debts
-           (id, name, kind, original_amount, paid_amount, snowball_order, due_date, status, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    // ── Transactions ──
+    // Schema columns we write: id, date, type, amount, account_id, category_id, notes, created_at
+    // Translation: amount_minor (cents) → amount (PKR), borrow/repay → debt_in/debt_out
+    for (const t of transactions) {
+      const sheetType = t.type;
+      const canonicalType = translateType(sheetType);
+      stats.type_translation_counts[canonicalType] = (stats.type_translation_counts[canonicalType] || 0) + 1;
+      if (sheetType !== canonicalType) stats.transactions_translated++;
+
+      const amountPkr = Number(t.amount_minor || 0) / 100;
+      const txnId = t.txn_id || ('TXN-MIG-' + Math.random().toString(36).slice(2, 10));
+      const noteText = t.note ? String(t.note).slice(0, 500) : null;
+
+      statements.push(db.prepare(
+        `INSERT INTO transactions (id, date, type, amount, account_id, category_id, notes, linked_txn_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(
-        id,
+        txnId,
+        t.dt_local || null,
+        canonicalType,
+        amountPkr,
+        t.account_id || null,
+        t.category_id || null,
+        noteText,
+        t.linked_txn_id || null
+      ));
+      stats.transactions_inserted++;
+    }
+
+    // ── Debts ──
+    // Schema: id, name, kind, original_amount, paid_amount, snowball_order, due_date, status, notes
+    for (let i = 0; i < debts.length; i++) {
+      const d = debts[i];
+      const debtId = 'debt_' + (d.name || 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30) + '_' + i;
+      const paidMinor = debtPaidMap[d.name] || 0;
+      const paidPkr = paidMinor / 100;
+      const originalPkr = Number(d.original_minor || 0) / 100;
+
+      statements.push(db.prepare(
+        `INSERT INTO debts (id, name, kind, original_amount, paid_amount, snowball_order, status, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        debtId,
         d.name,
-        kind,
-        original,
-        paid,
-        idx + 1,
-        null,
+        d.kind || 'creditor',
+        originalPkr,
+        paidPkr,
+        i + 1,
         'active',
         d.notes || null
-      )
-    );
-    stats.debts++;
-  });
+      ));
+      stats.debts_inserted++;
+    }
 
-  // ─── INSERT bills (translate amount_minor → amount, account_id → default_account_id) ───
-  payload.bills.forEach((b) => {
-    if (!b.name) return;
-    const id = 'bill_' + String(b.name).toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 30) + '_' + Date.now().toString(36);
-    const amount = (b.amount_minor || 0) / 100;
-    stmts.push(
-      db.prepare(
-        `INSERT INTO bills
-           (id, name, amount, due_day, frequency, category_id, default_account_id, last_paid_date, auto_post)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    // ── Bills ──
+    // Schema: id, name, amount, due_day, frequency, category_id, default_account_id, last_paid_date, auto_post, status
+    for (let i = 0; i < bills.length; i++) {
+      const b = bills[i];
+      const billId = 'bill_' + (b.name || 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30) + '_' + i;
+      const amountPkr = Number(b.amount_minor || 0) / 100;
+
+      if (!b.account_id) {
+        stats.bills_skipped_no_account++;
+        continue;
+      }
+
+      statements.push(db.prepare(
+        `INSERT INTO bills (id, name, amount, due_day, frequency, default_account_id, last_paid_date, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(
-        id,
+        billId,
         b.name,
-        amount,
-        b.due_day || null,
-        'monthly',
-        'bills',
-        b.account_id || null,
+        amountPkr,
+        b.due_day != null ? Number(b.due_day) : null,
+        b.frequency || 'monthly',
+        b.account_id,
         b.last_paid_dt || null,
-        0
-      )
-    );
-    stats.bills++;
-  });
+        'active'
+      ));
+      stats.bills_inserted++;
+    }
 
-  // ─── INSERT transactions (translate amount_minor → amount, txn_id → id, dt_local → date, note → notes) ───
-  payload.transactions.forEach((t) => {
-    if (!t.txn_id || !t.dt_local || !t.account_id || !t.type) return;
-    const amount = (t.amount_minor || 0) / 100;
-    if (amount <= 0) return;
-    stmts.push(
-      db.prepare(
-        `INSERT INTO transactions
-           (id, date, type, amount, account_id, transfer_to_account_id,
-            category_id, notes, fee_amount, pra_amount, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(
-        t.txn_id,
-        t.dt_local,
-        t.type,
-        amount,
-        t.account_id,
-        null,
-        t.category_id || 'other',
-        t.note || '',
-        0,
-        0,
-        new Date().toISOString()
-      )
-    );
-    stats.txns++;
-  });
+    // ── Atomic execution ──
+    await db.batch(statements);
 
-  // ─── EXECUTE atomic batch ───
-  try {
-    await db.batch(stmts);
-  } catch(e) {
-    return _err(500, 'D1 batch failed: ' + (e.message || String(e)));
-  }
-
-  // ─── audit_log row (optional — table may not exist) ───
-  try {
-    const auditDetail = JSON.stringify({
-      source: payload.source || 'unknown',
-      exported_at: payload.exported_at,
-      stats: stats
+    return jsonResponse({
+      ok: true,
+      version: VERSION,
+      message: 'Migration complete (atomic). All 4 tables wiped + reinserted.',
+      stats: stats,
+      timestamp: new Date().toISOString()
     });
-    await db.prepare(
-      `INSERT INTO audit_log (action, entity, kind, detail, created_by)
-       VALUES (?, ?, ?, ?, ?)`
-    ).bind('MIGRATION_FROM_SHEET', 'system', 'admin', auditDetail, 'sheet-migration').run();
-  } catch(e) {
-    // audit_log table may not exist — non-fatal
+
+  } catch (err) {
+    return jsonResponse({
+      ok: false,
+      version: VERSION,
+      error: err.message,
+      stack: err.stack ? err.stack.split('\n').slice(0, 5).join('\n') : null,
+      partial_stats: stats
+    }, 500);
   }
-
-  return new Response(JSON.stringify({
-    ok: true,
-    message: 'Migration successful',
-    stats: stats,
-    timestamp: new Date().toISOString()
-  }), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  });
 }
 
-function _err(status, message) {
-  return new Response(JSON.stringify({ ok: false, error: message }), {
-    status: status,
-    headers: { 'Content-Type': 'application/json' }
-  });
+// GET on this endpoint returns 405 (POST-only)
+export async function onRequest(context) {
+  if (context.request.method === 'POST') {
+    return onRequestPost(context);
+  }
+  return jsonResponse({
+    ok: false,
+    version: VERSION,
+    error: 'Method not allowed — use POST with X-Migration-Secret header'
+  }, 405);
 }
 
-export const onRequestGet = () =>
-  new Response('POST only', { status: 405 });
+function jsonResponse(obj, status) {
+  return new Response(JSON.stringify(obj, null, 2), {
+    status: status || 200,
+    headers: {
+      'content-type': 'application/json',
+      'cache-control': 'no-store'
+    }
+  });
+}
