@@ -314,7 +314,7 @@ async function handlePay(request, env, id) {
         `INSERT INTO transactions
           (id, date, type, amount, account_id, transfer_to_account_id,
            category_id, notes, fee_amount, pra_amount)
-         VALUES (?, ?, 'repay', ?, ?, NULL, 'debt_payment', ?, 0, 0)`
+         VALUES (?, ?, 'repay', ?, ?, NULL, 'debt', ?, 0, 0)`
       ).bind(txnId, date, amount, accountId, txnNotes),
 
       env.DB.prepare(
