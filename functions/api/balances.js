@@ -1,12 +1,15 @@
 // /functions/api/balances.js
-// v0.4.5 - Fix modern transfer balance handling (transfer_to_account_id was never read)
-// Changes vs v0.4.4:
-//   - Modern transfer (transfer_to_account_id NOT NULL): subtract from account_id, ADD to transfer_to_account_id
+// v0.4.6 - Schema-correct full rewrite
+// Changes vs v0.4.5:
+//   - FIX: use status='active' (not is_active=1) - is_active doesn't exist
+//   - FIX: select verified columns only (id, name, type, kind, opening_balance, currency, color, status, credit_limit)
+//   - Use 'kind' column for asset/liability/cc classification (not 'type' alone)
+//   - VERSION bumped from v0.4.5 -> v0.4.6
+// Preserved from v0.4.5:
+//   - Modern transfer (transfer_to_account_id NOT NULL): subtract OUT + add IN atomically
 //   - Legacy transfer (transfer_to_account_id IS NULL): unchanged single-leg behavior
-//   - All other types unchanged
-//   - VERSION bumped from v0.4.4 -> v0.4.5
 
-const VERSION = 'v0.4.5';
+const VERSION = 'v0.4.6';
 
 export async function onRequest(context) {
   const { env } = context;
@@ -15,9 +18,9 @@ export async function onRequest(context) {
 
   try {
     const accounts = await env.DB.prepare(
-      `SELECT id, name, type, opening_balance, currency, is_active
+      `SELECT id, name, type, kind, opening_balance, currency, color, status, credit_limit
        FROM accounts
-       WHERE is_active = 1
+       WHERE status = 'active'
        ORDER BY display_order, name`
     ).all();
 
@@ -29,8 +32,11 @@ export async function onRequest(context) {
       accountMeta[a.id] = {
         name: a.name,
         type: a.type,
+        kind: a.kind,
         currency: a.currency || 'PKR',
-        opening_balance: Number(a.opening_balance) || 0
+        color: a.color || null,
+        opening_balance: Number(a.opening_balance) || 0,
+        credit_limit: a.credit_limit != null ? Number(a.credit_limit) : null
       };
     }
 
@@ -70,11 +76,7 @@ export async function onRequest(context) {
           break;
 
         case 'cc_payment':
-          // Cash out from source account
           balanceMap[acctId] -= amt;
-          // Reduce CC balance (which is liability tracked as negative; reducing means += amt back toward 0)
-          // We rely on legacy convention where CC accounts have their own row identification by name.
-          // If transfer_to_account_id is set, treat it as an explicit destination (modern format).
           if (toAcctId && (toAcctId in balanceMap)) {
             balanceMap[toAcctId] += amt;
           }
@@ -82,14 +84,10 @@ export async function onRequest(context) {
 
         case 'transfer':
           if (toAcctId && (toAcctId in balanceMap)) {
-            // Modern single-row transfer: atomic OUT + IN
             balanceMap[acctId] -= amt;
             balanceMap[toAcctId] += amt;
             modernTransferCount++;
           } else {
-            // Legacy 2-row transfer: each row is independent leg
-            // OUT-leg convention (notes contain "To:" or no IN marker): subtract
-            // IN-leg convention (notes contain "From:" or "(IN)"): add
             const notes = t.notes || '';
             const isInLeg = /(^|\s)From: /.test(notes) || /\(IN\)/.test(notes);
             if (isInLeg) {
@@ -102,7 +100,6 @@ export async function onRequest(context) {
           break;
 
         default:
-          // Unknown type - no balance change, log if debug
           if (debug) {
             console.log('[balances] unknown type:', t.type, 'txn:', t.id);
           }
@@ -110,7 +107,6 @@ export async function onRequest(context) {
       }
     }
 
-    // Compute aggregates
     const accountBalances = {};
     for (const id of Object.keys(balanceMap)) {
       accountBalances[id] = {
@@ -119,7 +115,6 @@ export async function onRequest(context) {
       };
     }
 
-    // Net worth: sum of all asset accounts minus sum of liability accounts
     let totalAssets = 0;
     let totalLiabilities = 0;
     let cashAccessible = 0;
@@ -127,15 +122,14 @@ export async function onRequest(context) {
 
     for (const id of Object.keys(accountBalances)) {
       const a = accountBalances[id];
-      if (a.type === 'liability' || a.type === 'cc') {
-        // Liabilities tracked as negative balance accumulator means amount owed
-        // Convention: CC outstanding shown as positive number representing debt
+      const k = (a.kind || a.type || '').toLowerCase();
+      if (k === 'liability' || k === 'cc' || k === 'credit' || k === 'credit_card') {
         const owed = Math.abs(Math.min(0, a.balance));
         totalLiabilities += owed;
-        if (a.type === 'cc') ccOutstanding += owed;
+        if (k === 'cc' || k === 'credit' || k === 'credit_card') ccOutstanding += owed;
       } else {
         totalAssets += a.balance;
-        if (a.type === 'cash' || a.type === 'bank' || a.type === 'wallet') {
+        if (k === 'cash' || k === 'bank' || k === 'wallet' || k === 'asset') {
           cashAccessible += a.balance;
         }
       }
@@ -152,7 +146,6 @@ export async function onRequest(context) {
       cash_accessible: Math.round(cashAccessible * 100) / 100,
       cc_outstanding: Math.round(ccOutstanding * 100) / 100,
       accounts: accountBalances,
-      // legacy fields kept for backward compat with hub.js v0.7.7 and earlier
       cash: Math.round(cashAccessible * 100) / 100,
       cc: Math.round(ccOutstanding * 100) / 100,
       generated_at: new Date().toISOString()
