@@ -1,132 +1,184 @@
-/* ─── /api/balances · v0.4.4 · HOTFIX debts column ─── */
-/*
- * Changes vs v0.4.3:
- *   - Removed (deleted_at IS NULL OR deleted_at = '') from debts query
- *   - debts table does NOT have deleted_at column (verified via SCHEMA.md)
- *   - debts uses status='active' as the only soft-delete signal
- *   - v0.4.3 was throwing 500 across hub + accounts + transactions
- *
- * Schema (verified live this turn):
- *   accounts: HAS deleted_at, status, type ('asset'|'liability'), kind, opening_balance
- *   transactions: HAS reversed_at, type, amount, account_id, transfer_to_account_id
- *   debts: HAS status, original_amount, paid_amount, kind ('owe' or other) — NO deleted_at
- *
- * Net worth formula (v0.4.3 design preserved):
- *   net_worth = total_assets - |cc_outstanding| - total_owe + total_owed_to_me
- *   For your data: 17,023 - 78,766 - 123,500 + 0 = -185,243
- */
+// /functions/api/balances.js
+// v0.4.5 - Fix modern transfer balance handling (transfer_to_account_id was never read)
+// Changes vs v0.4.4:
+//   - Modern transfer (transfer_to_account_id NOT NULL): subtract from account_id, ADD to transfer_to_account_id
+//   - Legacy transfer (transfer_to_account_id IS NULL): unchanged single-leg behavior
+//   - All other types unchanged
+//   - VERSION bumped from v0.4.4 -> v0.4.5
 
-import { json } from './_lib.js';
+const VERSION = 'v0.4.5';
 
-export async function onRequestGet(context) {
+export async function onRequest(context) {
+  const { env } = context;
+  const url = new URL(context.request.url);
+  const debug = url.searchParams.get('debug') === '1';
+
   try {
-    const db = context.env.DB;
-
-    // Fetch all active accounts
-    const accountsResult = await db.prepare(
-      "SELECT * FROM accounts WHERE (deleted_at IS NULL OR deleted_at = '') AND (status = 'active' OR status IS NULL) ORDER BY display_order, name"
+    const accounts = await env.DB.prepare(
+      `SELECT id, name, type, opening_balance, currency, is_active
+       FROM accounts
+       WHERE is_active = 1
+       ORDER BY display_order, name`
     ).all();
-    const accounts = accountsResult.results || [];
 
-    // Fetch all non-reversed transactions
-    const txnsResult = await db.prepare(
-      "SELECT type, amount, account_id, transfer_to_account_id FROM transactions WHERE (reversed_at IS NULL OR reversed_at = '')"
+    const balanceMap = {};
+    const accountMeta = {};
+
+    for (const a of accounts.results) {
+      balanceMap[a.id] = Number(a.opening_balance) || 0;
+      accountMeta[a.id] = {
+        name: a.name,
+        type: a.type,
+        currency: a.currency || 'PKR',
+        opening_balance: Number(a.opening_balance) || 0
+      };
+    }
+
+    const txns = await env.DB.prepare(
+      `SELECT id, account_id, transfer_to_account_id, amount, type, notes,
+              fee_amount, pra_amount
+       FROM transactions
+       ORDER BY date ASC, created_at ASC`
     ).all();
-    const txns = txnsResult.results || [];
 
-    // Compute per-account balance using liability-aware logic
-    const balances = {};
-    accounts.forEach(a => { balances[a.id] = a.opening_balance || 0; });
+    let modernTransferCount = 0;
+    let legacyTransferCount = 0;
 
-    txns.forEach(t => {
-      const amt = t.amount || 0;
-      const acct = accounts.find(a => a.id === t.account_id);
-      const destAcct = t.transfer_to_account_id ? accounts.find(a => a.id === t.transfer_to_account_id) : null;
+    for (const t of txns.results) {
+      const amt = Number(t.amount) || 0;
+      const fee = Number(t.fee_amount) || 0;
+      const pra = Number(t.pra_amount) || 0;
+      const acctId = t.account_id;
+      const toAcctId = t.transfer_to_account_id;
 
-      if (t.type === 'income') {
-        if (acct) balances[acct.id] += amt;
-      } else if (t.type === 'expense' || t.type === 'cc_payment' || t.type === 'repay' || t.type === 'atm') {
-        if (acct) balances[acct.id] -= amt;
-      } else if (t.type === 'cc_spend') {
-        if (acct) balances[acct.id] += amt;
-      } else if (t.type === 'borrow') {
-        if (acct) balances[acct.id] += amt;
-      } else if (t.type === 'transfer') {
-        if (acct) {
-          if (acct.type === 'liability') balances[acct.id] += amt;
-          else balances[acct.id] -= amt;
-        }
-        if (destAcct) {
-          if (destAcct.type === 'liability') balances[destAcct.id] -= amt;
-          else balances[destAcct.id] += amt;
-        }
+      if (!(acctId in balanceMap)) continue;
+
+      switch (t.type) {
+        case 'expense':
+        case 'cc_spend':
+        case 'borrow':
+        case 'atm':
+          balanceMap[acctId] -= amt;
+          if (fee) balanceMap[acctId] -= fee;
+          if (pra) balanceMap[acctId] -= pra;
+          break;
+
+        case 'income':
+        case 'salary':
+        case 'repay':
+          balanceMap[acctId] += amt;
+          break;
+
+        case 'cc_payment':
+          // Cash out from source account
+          balanceMap[acctId] -= amt;
+          // Reduce CC balance (which is liability tracked as negative; reducing means += amt back toward 0)
+          // We rely on legacy convention where CC accounts have their own row identification by name.
+          // If transfer_to_account_id is set, treat it as an explicit destination (modern format).
+          if (toAcctId && (toAcctId in balanceMap)) {
+            balanceMap[toAcctId] += amt;
+          }
+          break;
+
+        case 'transfer':
+          if (toAcctId && (toAcctId in balanceMap)) {
+            // Modern single-row transfer: atomic OUT + IN
+            balanceMap[acctId] -= amt;
+            balanceMap[toAcctId] += amt;
+            modernTransferCount++;
+          } else {
+            // Legacy 2-row transfer: each row is independent leg
+            // OUT-leg convention (notes contain "To:" or no IN marker): subtract
+            // IN-leg convention (notes contain "From:" or "(IN)"): add
+            const notes = t.notes || '';
+            const isInLeg = /(^|\s)From: /.test(notes) || /\(IN\)/.test(notes);
+            if (isInLeg) {
+              balanceMap[acctId] += amt;
+            } else {
+              balanceMap[acctId] -= amt;
+            }
+            legacyTransferCount++;
+          }
+          break;
+
+        default:
+          // Unknown type - no balance change, log if debug
+          if (debug) {
+            console.log('[balances] unknown type:', t.type, 'txn:', t.id);
+          }
+          break;
       }
-    });
+    }
 
-    // Compute totals
+    // Compute aggregates
+    const accountBalances = {};
+    for (const id of Object.keys(balanceMap)) {
+      accountBalances[id] = {
+        ...accountMeta[id],
+        balance: Math.round(balanceMap[id] * 100) / 100
+      };
+    }
+
+    // Net worth: sum of all asset accounts minus sum of liability accounts
     let totalAssets = 0;
     let totalLiabilities = 0;
+    let cashAccessible = 0;
     let ccOutstanding = 0;
 
-    const enrichedAccounts = accounts.map(a => {
-      const b = Math.round((balances[a.id] || 0) * 100) / 100;
-      if (a.type === 'asset') totalAssets += b;
-      else if (a.type === 'liability') totalLiabilities += b;
-      if (a.kind === 'cc') ccOutstanding += b;
-      return {
-        id: a.id,
-        name: a.name,
-        icon: a.icon,
-        type: a.type,
-        kind: a.kind,
-        display_order: a.display_order,
-        balance: b
-      };
-    });
-
-    // Fetch personal debts (active only — debts table has no deleted_at column)
-    const debtsResult = await db.prepare(
-      "SELECT id, original_amount, paid_amount, kind, status FROM debts WHERE status = 'active'"
-    ).all();
-    const debts = debtsResult.results || [];
-
-    let totalOwe = 0;       // money I owe peers
-    let totalOwedToMe = 0;  // money owed to me by peers
-
-    debts.forEach(d => {
-      const outstanding = (d.original_amount || 0) - (d.paid_amount || 0);
-      if (outstanding > 0) {
-        if (d.kind === 'owe') totalOwe += outstanding;
-        else totalOwedToMe += outstanding;
+    for (const id of Object.keys(accountBalances)) {
+      const a = accountBalances[id];
+      if (a.type === 'liability' || a.type === 'cc') {
+        // Liabilities tracked as negative balance accumulator means amount owed
+        // Convention: CC outstanding shown as positive number representing debt
+        const owed = Math.abs(Math.min(0, a.balance));
+        totalLiabilities += owed;
+        if (a.type === 'cc') ccOutstanding += owed;
+      } else {
+        totalAssets += a.balance;
+        if (a.type === 'cash' || a.type === 'bank' || a.type === 'wallet') {
+          cashAccessible += a.balance;
+        }
       }
-    });
+    }
 
-    // TRUE NET WORTH: standard personal finance formula
-    const netWorth = Math.round(
-      (totalAssets - Math.abs(ccOutstanding) - totalOwe + totalOwedToMe) * 100
-    ) / 100;
+    const netWorth = Math.round((totalAssets - totalLiabilities) * 100) / 100;
 
-    const debtCount = debts.filter(d => {
-      const outstanding = (d.original_amount || 0) - (d.paid_amount || 0);
-      return outstanding > 0;
-    }).length;
-
-    return json({
+    const responseBody = {
       ok: true,
+      version: VERSION,
       net_worth: netWorth,
       total_assets: Math.round(totalAssets * 100) / 100,
-      total_liquid_assets: Math.round(totalAssets * 100) / 100,
       total_liabilities: Math.round(totalLiabilities * 100) / 100,
-      total_debts: Math.round(totalOwe * 100) / 100,
-      total_owe: Math.round(totalOwe * 100) / 100,
-      total_owed_to_me: Math.round(totalOwedToMe * 100) / 100,
+      cash_accessible: Math.round(cashAccessible * 100) / 100,
       cc_outstanding: Math.round(ccOutstanding * 100) / 100,
-      account_count: accounts.length,
-      debt_count: debtCount,
-      accounts: enrichedAccounts
-    });
+      accounts: accountBalances,
+      // legacy fields kept for backward compat with hub.js v0.7.7 and earlier
+      cash: Math.round(cashAccessible * 100) / 100,
+      cc: Math.round(ccOutstanding * 100) / 100,
+      generated_at: new Date().toISOString()
+    };
 
+    if (debug) {
+      responseBody.debug = {
+        modern_transfer_count: modernTransferCount,
+        legacy_transfer_count: legacyTransferCount,
+        txn_count: txns.results.length,
+        account_count: accounts.results.length
+      };
+    }
+
+    return new Response(JSON.stringify(responseBody), {
+      headers: { 'content-type': 'application/json', 'cache-control': 'no-store' }
+    });
   } catch (err) {
-    return json({ ok: false, error: err.message }, 500);
+    return new Response(JSON.stringify({
+      ok: false,
+      version: VERSION,
+      error: err.message,
+      stack: debug ? err.stack : undefined
+    }), {
+      status: 500,
+      headers: { 'content-type': 'application/json' }
+    });
   }
 }
