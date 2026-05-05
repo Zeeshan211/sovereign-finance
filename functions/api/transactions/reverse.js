@@ -1,22 +1,20 @@
 /* ─── /api/transactions/reverse — POST ─── */
-/* Cloudflare Pages Function v0.0.5 · Sub-1D-AUDIT-WIRE-2 */
+/* Cloudflare Pages Function v0.0.6 · transfer-direction fix */
 /*
  * Audit-safe reversal: never DELETE, always insert opposite txn + mark original.
  *
- * Changes vs v0.0.4:
- *   - Writes 1 audit_log row per user-action (single reverse OR linked-pair reverse)
- *   - Action: TXN_REVERSE
- *   - Detail captures: original_id(s), reversal_id(s), reversal_type, original_type, amount
- *   - audit() failure does NOT break the reversal (helper swallows errors silently)
- *   - Response now includes audited:true|false
+ * Changes vs v0.0.5:
+ *   - FIX: single-row TRANSFER reversals now SWAP account_id and transfer_to_account_id
+ *     (was creating same-direction copy, silent no-op of the reversal)
+ *   - Other types (expense/income/cc_spend/cc_payment/borrow/repay) unchanged —
+ *     type-mapping handles offset on the same account
  *
- * PRESERVED from v0.0.4:
- *   - Linked-pair detection (transfer reversals reverse BOTH legs)
- *   - Reversal-type mapping (expense→income, income→expense, transfer→transfer,
- *     cc_payment→cc_spend, cc_spend→cc_payment, borrow→repay, repay→borrow, atm→atm)
- *   - reversed_by + reversed_at columns updated on original(s)
- *   - All validation (id required, original exists, not already reversed)
- *   - Error response shapes
+ * PRESERVED from v0.0.5:
+ *   - Audit log: 1 row per user-action with TXN_REVERSE action
+ *   - Linked-pair detection (legacy path retained for old transfers with linked_txn_id)
+ *   - Reversal-type mapping
+ *   - reversed_by + reversed_at on originals
+ *   - Validation + error shapes
  */
 
 import { audit } from '../_lib.js';
@@ -30,7 +28,6 @@ export async function onRequestPost(context) {
 
     const db = context.env.DB;
 
-    // Fetch original
     const orig = await db.prepare(
       'SELECT * FROM transactions WHERE id = ?'
     ).bind(body.id).first();
@@ -38,7 +35,6 @@ export async function onRequestPost(context) {
     if (!orig) return jsonResponse({ ok: false, error: 'Original transaction not found' }, 404);
     if (orig.reversed_by) return jsonResponse({ ok: false, error: 'Already reversed' }, 400);
 
-    // Detect linked pair (transfer pairs share linked_txn_id)
     let linked = null;
     if (orig.linked_txn_id) {
       linked = await db.prepare(
@@ -52,13 +48,19 @@ export async function onRequestPost(context) {
     const now = new Date().toISOString();
     const today = now.slice(0, 10);
     const createdBy = body.created_by || 'web-reverse';
-
     const reversalType = mapReversalType(orig.type);
 
     if (!linked) {
       // ── Single-row reverse path ──
       const reversalId = 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
       const reversalNotes = ('Reversal of ' + orig.id + (orig.notes ? ' (' + orig.notes + ')' : '')).slice(0, 200);
+
+      // v0.0.6 FIX: for transfer, swap account_id and transfer_to_account_id so the reversal
+      // moves money in OPPOSITE direction. For other types, type-mapping (expense→income, etc)
+      // handles the offset on the same account — accounts MUST NOT be swapped.
+      const isTransfer = orig.type === 'transfer';
+      const reversalAccountId    = isTransfer ? (orig.transfer_to_account_id || orig.account_id) : orig.account_id;
+      const reversalTransferToId = isTransfer ? orig.account_id : (orig.transfer_to_account_id || null);
 
       await db.prepare(
         `INSERT INTO transactions
@@ -69,8 +71,8 @@ export async function onRequestPost(context) {
         today,
         reversalType,
         orig.amount,
-        orig.account_id,
-        orig.transfer_to_account_id || null,
+        reversalAccountId,
+        reversalTransferToId,
         orig.category_id || 'other',
         reversalNotes,
         0,
@@ -81,7 +83,6 @@ export async function onRequestPost(context) {
         'UPDATE transactions SET reversed_by = ?, reversed_at = ? WHERE id = ?'
       ).bind(reversalId, now, orig.id).run();
 
-      // ── Sub-1D-AUDIT-WIRE-2: audit-after-write ──
       const auditResult = await audit(context.env, {
         action: 'TXN_REVERSE',
         entity: 'transaction',
@@ -94,6 +95,8 @@ export async function onRequestPost(context) {
           reversal_type: reversalType,
           amount: orig.amount,
           account_id: orig.account_id,
+          transfer_to_account_id: orig.transfer_to_account_id,
+          direction_swapped: isTransfer,
           paired: false
         },
         created_by: createdBy
@@ -107,44 +110,31 @@ export async function onRequestPost(context) {
       });
     }
 
-    // ── Linked-pair reverse path (transfer reversal) ──
+    // ── Linked-pair reverse path (legacy: 2-row transfer pairs with linked_txn_id) ──
     const reversalIdA = 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
     const reversalIdB = 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
     const noteSuffix = orig.notes ? ' (' + orig.notes + ')' : '';
     const reversalNotesA = ('Reversal of ' + orig.id + noteSuffix).slice(0, 200);
     const reversalNotesB = ('Reversal of ' + linked.id + (linked.notes ? ' (' + linked.notes + ')' : '')).slice(0, 200);
 
-    // Reversal A: mirrors orig (swap source/dest)
     await db.prepare(
-    const reversalId = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-    const reversalDate = new Date().toISOString().slice(0, 10);
-
-    // For transfers: swap accounts (same positive amount = opposite direction)
-    // For income/expense: same account, negative amount (offsets original)
-    const isTransfer = txn.type === 'transfer';
-    const reversalAccountId       = isTransfer ? txn.transfer_to_account_id : txn.account_id;
-    const reversalTransferToId    = isTransfer ? txn.account_id             : txn.transfer_to_account_id;
-    const reversalAmount          = isTransfer ? txn.amount                  : -txn.amount;
-
-    await env.DB.prepare(`
-      INSERT INTO transactions (
-        id, date, type, amount, account_id, transfer_to_account_id,
-        category_id, merchant_id, notes, linked_txn_id, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `).bind(
-      reversalId,
-      reversalDate,
-      txn.type,
-      reversalAmount,
-      reversalAccountId,
-      reversalTransferToId,
-      txn.category_id,
-      txn.merchant_id,
-      `Reversal of ${txn.id} (${txn.notes || 'no notes'})`,
-      txn.id
+      `INSERT INTO transactions
+         (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount, linked_txn_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      reversalIdA,
+      today,
+      mapReversalType(orig.type),
+      orig.amount,
+      orig.transfer_to_account_id || orig.account_id,
+      orig.account_id,
+      orig.category_id || 'other',
+      reversalNotesA,
+      0,
+      0,
+      reversalIdB
     ).run();
 
-    // Reversal B: mirrors linked
     await db.prepare(
       `INSERT INTO transactions
          (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount, linked_txn_id)
@@ -163,7 +153,6 @@ export async function onRequestPost(context) {
       reversalIdA
     ).run();
 
-    // Mark both originals reversed
     await db.prepare(
       'UPDATE transactions SET reversed_by = ?, reversed_at = ? WHERE id = ?'
     ).bind(reversalIdA, now, orig.id).run();
@@ -172,7 +161,6 @@ export async function onRequestPost(context) {
       'UPDATE transactions SET reversed_by = ?, reversed_at = ? WHERE id = ?'
     ).bind(reversalIdB, now, linked.id).run();
 
-    // ── Sub-1D-AUDIT-WIRE-2: 1 audit row per user-action (linked-pair reverse) ──
     const auditResult = await audit(context.env, {
       action: 'TXN_REVERSE',
       entity: 'transaction',
