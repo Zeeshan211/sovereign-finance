@@ -1,16 +1,19 @@
 /* ─── /api/transactions — GET list, POST create ─── */
-/* Cloudflare Pages Function v0.1.0 · reversed-row filter */
+/* Cloudflare Pages Function v0.1.1 · sheet reversal marker bridge */
 /*
- * Changes vs v0.0.9:
- *   - GET now excludes reversed transactions by default
- *   - GET now selects reversed_by, reversed_at, linked_txn_id
- *   - Optional audit view: /api/transactions?include_reversed=1
+ * Changes vs v0.1.0:
+ *   - GET still excludes D1 reversed rows by default
+ *   - GET also excludes imported Sheet reversal rows marked in notes:
+ *       [REVERSED BY ...]
+ *       [REVERSAL OF ...]
+ *   - Optional audit view remains: /api/transactions?include_reversed=1
+ *   - Response includes hidden_reversal_count for Ground Zero verification
  *
  * Ground Zero rule:
- *   Active transaction lists must match formula-layer truth.
- *   Reversed originals must not appear in normal UI/API lists.
+ *   Normal transaction lists show active business rows only.
+ *   Audit view can show reversal machinery.
  *
- * PRESERVED from v0.0.9:
+ * PRESERVED:
  *   - POST validation
  *   - POST insert shape
  *   - Audit-after-write behavior
@@ -19,40 +22,50 @@
 
 import { audit } from './_lib.js';
 
-const VERSION = 'v0.1.0';
+const VERSION = 'v0.1.1';
 
 export async function onRequestGet(context) {
   try {
     const url = new URL(context.request.url);
     const includeReversed = url.searchParams.get('include_reversed') === '1';
 
-    const whereClause = includeReversed
-      ? ''
-      : `WHERE (reversed_by IS NULL OR reversed_by = '')
-           AND (reversed_at IS NULL OR reversed_at = '')`;
-
     const stmt = context.env.DB.prepare(
       `SELECT id, date, type, amount, account_id, transfer_to_account_id,
               category_id, notes, fee_amount, pra_amount, created_at,
               reversed_by, reversed_at, linked_txn_id
        FROM transactions
-       ${whereClause}
        ORDER BY date DESC, created_at DESC
        LIMIT 200`
     );
 
     const result = await stmt.all();
+    const allRows = result.results || [];
+
+    const visibleRows = includeReversed
+      ? allRows
+      : allRows.filter(t => !isReversalRow(t));
 
     return jsonResponse({
       ok: true,
       version: VERSION,
       include_reversed: includeReversed,
-      count: result.results.length,
-      transactions: result.results
+      count: visibleRows.length,
+      hidden_reversal_count: allRows.length - visibleRows.length,
+      transactions: visibleRows
     });
   } catch (err) {
     return jsonResponse({ ok: false, error: err.message }, 500);
   }
+}
+
+function isReversalRow(t) {
+  if (!t) return false;
+
+  if (t.reversed_by || t.reversed_at) return true;
+
+  const notes = String(t.notes || '').toUpperCase();
+
+  return notes.includes('[REVERSED BY ') || notes.includes('[REVERSAL OF ');
 }
 
 export async function onRequestPost(context) {
