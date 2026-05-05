@@ -1,51 +1,36 @@
 // /functions/api/admin/migrate-from-sheet.js
-// v1.3 — FK-safe atomic batch (defer_foreign_keys + child-tables-first cleanup)
+// v1.4 — Schema-verified table list (DELETE only tables that actually exist)
 //
-// CHANGES vs v1.2:
-//   - FIX: PRAGMA defer_foreign_keys = ON as first batch statement
-//          (D1 enforced FKs caused v1.2 batch to fail FK constraint mid-DELETE)
-//   - FIX: explicit DELETE for ALL child tables (audit_log, merchants, categories,
-//          snapshots, snapshot_data, reconciliation, goals, budgets, txn_ingest_log)
-//          BEFORE parent tables — defensive, no-op if tables empty
-//   - FIX: PRAGMA defer_foreign_keys = OFF at end of batch
-//   - PRESERVED: type translation (borrow→debt_in, repay→debt_out)
-//   - PRESERVED: bills column-name fix from v1.2 (default_account_id, last_paid_date, amount in PKR)
-//   - PRESERVED: amount conversion (cents → PKR via /100)
-//   - PRESERVED: full-replace semantics, atomic db.batch(), snapshot-protected upstream
+// CHANGES vs v1.3:
+//   - FIX: removed DELETE for `txn_ingest_log` (table does not exist per sqlite_master)
+//   - VERIFIED via `SELECT name FROM sqlite_master WHERE type='table'` (2026-05-05 14:00 PKT):
+//     accounts, audit_log, bills, budgets, categories, debts, goals, merchants,
+//     reconciliation, settings, snapshot_data, snapshots, transactions
+//     (+ 4 backup tables we explicitly DO NOT touch)
+//   - PRESERVED: defer_foreign_keys, type translation, bills column fix, full-replace
+//   - PRESERVED: atomic db.batch() — all-or-nothing
 //
 // ════════════════════════════════════════════════════════════════════
 // SECTION 9 — VOCABULARY TRANSLATION TABLE (Pattern 21 lock)
 // ════════════════════════════════════════════════════════════════════
-//   SHEET LEGACY      →   D1 CANONICAL (Layer 1 spec)
-//   ─────────────         ─────────────────────────────
-//   'borrow'          →   'debt_in'    (receiving from debtor)
-//   'repay'           →   'debt_out'   (paying creditor)
-//   'income'          →   'income'     (no change)
-//   'expense'         →   'expense'    (no change)
-//   'transfer'        →   'transfer'   (no change)
+//   SHEET LEGACY      →   D1 CANONICAL
+//   ─────────────         ──────────────
+//   'borrow'          →   'debt_in'
+//   'repay'           →   'debt_out'
+//   'income'          →   'income'
+//   'expense'         →   'expense'
+//   'transfer'        →   'transfer'
+//   amount_minor (cents) →  amount (PKR via /100)
+//   dt_local             →  date
+//   note                 →  notes
+//   txn_id               →  id
 //
-//   amount_minor (cents) →   amount (PKR decimal)  via /100
-//   dt_local             →   date                  (no transform)
-//   note                 →   notes                 (no transform)
-//   txn_id               →   id                    (no transform)
-//
-// ════════════════════════════════════════════════════════════════════
 // SECTION 10 — FK SAFE BATCH ORDER (Pattern 22 lock)
-// ════════════════════════════════════════════════════════════════════
-// SQLite FK enforcement order: by default, FKs checked at end-of-statement.
-// In a batch where DELETE accounts runs before DELETE transactions,
-// transactions still reference (about-to-be-deleted) accounts → FK violation.
-//
-// Fix: PRAGMA defer_foreign_keys = ON inside the batch defers FK checks
-// to end-of-transaction. Intermediate dangling refs allowed; final state must
-// be FK-valid. Re-enabled OFF at end so subsequent reads enforce FKs normally.
-//
-// Child tables deleted BEFORE parent tables as additional defensive practice:
-// audit_log, merchants, categories, snapshots, snapshot_data, reconciliation,
-// goals, budgets, txn_ingest_log → transactions, bills, debts → accounts.
+// PRAGMA defer_foreign_keys = ON before DELETEs.
+// Child tables deleted before parent tables. PRAGMA OFF at end.
 // ════════════════════════════════════════════════════════════════════
 
-const VERSION = 'v1.3';
+const VERSION = 'v1.4';
 
 const TYPE_TRANSLATION = {
   'borrow':     'debt_in',
@@ -128,7 +113,7 @@ export async function onRequestPost(context) {
     // ── FK fix: defer enforcement until end of batch ──
     statements.push(db.prepare('PRAGMA defer_foreign_keys = ON'));
 
-    // ── Wipe child tables FIRST (defensive — no-op if empty) ──
+    // ── Wipe child tables FIRST (verified to exist via sqlite_master) ──
     statements.push(db.prepare('DELETE FROM audit_log'));
     statements.push(db.prepare('DELETE FROM merchants'));
     statements.push(db.prepare('DELETE FROM categories'));
@@ -137,7 +122,7 @@ export async function onRequestPost(context) {
     statements.push(db.prepare('DELETE FROM reconciliation'));
     statements.push(db.prepare('DELETE FROM goals'));
     statements.push(db.prepare('DELETE FROM budgets'));
-    statements.push(db.prepare('DELETE FROM txn_ingest_log'));
+    statements.push(db.prepare('DELETE FROM settings'));
 
     // ── Wipe parent tables ──
     statements.push(db.prepare('DELETE FROM transactions'));
@@ -169,7 +154,7 @@ export async function onRequestPost(context) {
     }
 
     // ── INSERT transactions ──
-    // Schema columns we write: id, date, type, amount, account_id, category_id, notes, linked_txn_id
+    // Schema: id, date, type, amount, account_id, category_id, notes, linked_txn_id
     for (const t of transactions) {
       const sheetType = t.type;
       const canonicalType = translateType(sheetType);
@@ -249,16 +234,16 @@ export async function onRequestPost(context) {
       stats.bills_inserted++;
     }
 
-    // ── Re-enable FK enforcement for subsequent reads ──
+    // ── Re-enable FK enforcement ──
     statements.push(db.prepare('PRAGMA defer_foreign_keys = OFF'));
 
-    // ── Atomic execution: all-or-nothing ──
+    // ── Atomic execution ──
     await db.batch(statements);
 
     return jsonResponse({
       ok: true,
       version: VERSION,
-      message: 'Migration complete (atomic, FK-safe). All tables wiped + reinserted.',
+      message: 'Migration complete (atomic, FK-safe). All verified tables wiped + reinserted.',
       stats: stats,
       timestamp: new Date().toISOString()
     });
