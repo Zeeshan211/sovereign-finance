@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#050816">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Charts · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/theme.js"></script>
+  <script src="/js/nav.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+  <header>
+    <div class="brand">Sovereign Ops</div>
+    <h1 class="title">Charts</h1>
+    <div class="day-badge"><span id="charts-summary">v0.1.0 placeholders</span></div>
+  </header>
+
+  <div class="section-header">
+    <span class="section-label">Spending by Category</span>
+  </div>
+  <div class="debt-summary-card" style="padding:12px;">
+    <div style="position:relative;height:240px;"><canvas id="chart-spending-by-category"></canvas></div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-label">Income vs Expense Trend</span>
+  </div>
+  <div class="debt-summary-card" style="padding:12px;">
+    <div style="position:relative;height:240px;"><canvas id="chart-income-vs-expense"></canvas></div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-label">CC Utilization</span>
+  </div>
+  <div class="debt-summary-card" style="padding:12px;">
+    <div style="position:relative;height:240px;"><canvas id="chart-cc-utilization"></canvas></div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-label">Top Merchants</span>
+  </div>
+  <div class="debt-summary-card" style="padding:12px;">
+    <div style="position:relative;height:240px;"><canvas id="chart-top-merchants"></canvas></div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-label">Net Worth Trajectory</span>
+  </div>
+  <div class="debt-summary-card" style="padding:12px;">
+    <div style="position:relative;height:240px;"><canvas id="chart-net-worth-trajectory"></canvas></div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-label">Daily Spend Heatmap</span>
+  </div>
+  <div class="debt-summary-card" style="padding:12px;">
+    <div style="position:relative;height:240px;"><canvas id="chart-daily-spend-heatmap"></canvas></div>
+  </div>
+
+  <footer>
+    <span class="v">v0.1.0 · charts</span>
+  </footer>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/" class="nav-item">
+        <div class="nav-emoji">🏠</div>
+        <div class="nav-text">Hub</div>
+      </a>
+      <a href="/accounts.html" class="nav-item">
+        <div class="nav-emoji">🏦</div>
+        <div class="nav-text">Accounts</div>
+      </a>
+      <a href="/budgets.html" class="nav-item">
+        <div class="nav-emoji">📊</div>
+        <div class="nav-text">Budgets</div>
+      </a>
+      <a href="/goals.html" class="nav-item">
+        <div class="nav-emoji">🎯</div>
+        <div class="nav-text">Goals</div>
+      </a>
+    </div>
+  </nav>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/store.js"></script>
+  <script src="/js/numbers.js"></script>
+  <!-- /js/charts.js wired in Ship 2 -->
+</body>
+</html>
