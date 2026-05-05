@@ -1,16 +1,19 @@
-/* ─── /api/balances · v0.4.1 · Sub-1D-DEBT-TOTAL fix ─── */
+/* ─── /api/balances · v0.4.2 · Sub-1D-DEBT-TOTAL ground-truth fix ─── */
 /* Cloudflare Pages Function — liability-aware transfer math + debt totals */
 /*
- * Changes vs v0.4.0:
- *   - Fixed SQL: debts table has no `status` column. Filter on `closed_at IS NULL`
- *     to count only active debts. Closed debts have closed_at timestamp set.
- *   - Pattern 7 fix (assumed schema without reading data) — verified via Sub-1D-3c
- *     CRUD ship + Finance_Debts.gs schema.
+ * Changes vs v0.4.1:
+ *   - Used PRAGMA table_info(debts) ground truth from D1 console.
+ *   - Real columns: original_amount, paid_amount, status (default 'active'). 
+ *     No `outstanding` column, no `closed_at` column.
+ *   - Outstanding computed as (original_amount - paid_amount).
+ *   - Filter on status = 'active' to count only active debts.
+ *   - Pattern 7 violated TWICE in this ship arc (v0.4.0 + v0.4.1) — codified
+ *     mandatory schema-read rule in memory after second failure.
  *
- * PRESERVED from v0.4.0:
+ * PRESERVED from v0.4.1:
  *   - total_debts + total_owe + debt_count fields
  *   - net_worth = assets - liabilities - debts
- *   - All v0.3.1 + v0.3.0 logic
+ *   - All v0.3.1 + v0.3.0 logic (FIELD-RECONCILE alias, CC-RECONCILE math)
  */
 
 export async function onRequest(context) {
@@ -35,9 +38,11 @@ export async function onRequest(context) {
     const txResult = await txStmt.all();
     const transactions = txResult.results;
 
-    // Fetch active debts only (closed_at IS NULL = not closed) — Sub-1D-DEBT-TOTAL
+    // Fetch active debts — Sub-1D-DEBT-TOTAL (ground-truth schema)
+    // Real columns: original_amount, paid_amount, status (default 'active')
+    // Outstanding = original_amount - paid_amount
     const debtsStmt = db.prepare(
-      "SELECT outstanding FROM debts WHERE closed_at IS NULL"
+      "SELECT (original_amount - COALESCE(paid_amount, 0)) AS outstanding FROM debts WHERE status = 'active'"
     );
     const debtsResult = await debtsStmt.all();
     const debtRows = debtsResult.results;
@@ -83,7 +88,7 @@ export async function onRequest(context) {
       else if (a.type === 'liability') totalLiabilities += b;
     });
 
-    // Roll up debts side — Sub-1D-DEBT-TOTAL
+    // Roll up debts side
     let totalDebts = 0;
     debtRows.forEach(d => {
       totalDebts += (d.outstanding || 0);
