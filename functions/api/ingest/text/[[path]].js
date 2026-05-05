@@ -1,12 +1,8 @@
-/* /api/ingest/text/[[path]] v0.1.0 - SMS + notification ingest */
-/* Accepts text from MacroDroid (SMS or notification trigger), parses via per-bank rules, */
-/* creates transaction in D1, logs everything to txn_ingest_log */
-/* Idempotent via raw_hash UNIQUE INDEX */
-/* Schema verified live: txn_ingest_log 18 cols, transactions schema known */
+/* /api/ingest/text/[[path]] v0.1.2 - forced fresh deploy */
+/* Same router order as v0.1.1 (UBL + Mashreq before Easypaisa) but version bump */
+/* forces Cloudflare to invalidate any cached worker bundle from v0.1.0/v0.1.1 */
 
 import { json, audit } from '../../_lib.js';
-
-/* ==== UTILITIES ==== */
 
 async function sha256Hex(s) {
   var enc = new TextEncoder();
@@ -32,19 +28,15 @@ function todayISO() {
 
 function parseDateString(s) {
   if (!s) return todayISO();
-  // Handles: "05-May-2026", "04/05/2026", "2026-05-04", "01-MAY-2026", "26/04/26"
   var m;
-  // YYYY-MM-DD
   m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
   if (m) return m[1] + '-' + m[2] + '-' + m[3];
-  // DD-MMM-YYYY (e.g. 05-May-2026, 02-MAY-2026)
   m = s.match(/(\d{1,2})-([A-Za-z]{3})-(\d{4})/);
   if (m) {
     var months = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
     var mo = months[m[2].toLowerCase()];
     if (mo) return m[3] + '-' + mo + '-' + (m[1].length < 2 ? '0' + m[1] : m[1]);
   }
-  // DD/MM/YYYY or DD/MM/YY
   m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (m) {
     var year = m[3].length === 2 ? '20' + m[3] : m[3];
@@ -57,17 +49,13 @@ function parseDateString(s) {
 
 function parseAmount(s) {
   if (!s) return null;
-  // Strip commas, "Rs", "PKR", whitespace
   var clean = String(s).replace(/[,\s]/g, '').replace(/Rs\.?|PKR/gi, '');
   var n = parseFloat(clean);
   if (isNaN(n) || n <= 0) return null;
   return n;
 }
 
-/* ==== SHOULD-IGNORE FILTERS ==== */
-
 function isPromotional(text) {
-  // JazzCash loan ads, deeplinks, marketing
   if (/loan hasil karein/i.test(text)) return true;
   if (/deeplink/i.test(text)) return true;
   if (/jazzcash\.com\.pk/i.test(text) && /loan|aasani|hasil/i.test(text)) return true;
@@ -75,9 +63,7 @@ function isPromotional(text) {
 }
 
 function isOTP(text) {
-  // OTP patterns
   if (/\bOTP\b.*valid for|is your One-Time-Password|is your OTP/i.test(text)) return true;
-  // 6-digit code at start followed by "is your"
   if (/^\d{6}\s+is your/i.test(text)) return true;
   return false;
 }
@@ -102,9 +88,6 @@ function shouldIgnore(text) {
   return { ignore: false };
 }
 
-/* ==== BANK PARSERS ==== */
-
-// EASYPAISA: "You have Received Rs.X from Y in your Easypaisa Account No. 03110039487. Trx ID T"
 function parseEasypaisa(text) {
   var m = text.match(/You have Received Rs\.?([\d,]+(?:\.\d+)?)\s+from\s+(.+?)\s+in your Easypaisa Account No\.?\s*(\d+)\.?\s*Trx ID\s*(\d+)/i);
   if (m) {
@@ -117,7 +100,6 @@ function parseEasypaisa(text) {
       bank: 'easypaisa'
     };
   }
-  // Sent variant
   m = text.match(/You sent Rs\.?([\d,]+(?:\.\d+)?)\s+to\s+(.+?)(?:\s+at|\s+from)/i);
   if (m && /Easypaisa/i.test(text)) {
     return {
@@ -132,9 +114,7 @@ function parseEasypaisa(text) {
   return null;
 }
 
-// UBL: "PKR X sent to Y from A/C xxx7136" / "PKR X received from Y to your A/C xxx7136"
 function parseUBL(text) {
-  // Sent
   var m = text.match(/PKR\s*([\d,]+(?:\.\d+)?)\s+sent to\s+(.+?)\s+from\s+(?:your\s+)?A\/?C[#\s]*(?:xxx)?(\d+).*?on\s+(\d{1,2}-[A-Za-z]{3}-\d{4})(?:.*?TID:?\s*(\d+))?/i);
   if (m) {
     var acct = m[3];
@@ -151,7 +131,6 @@ function parseUBL(text) {
       bank: 'ubl'
     };
   }
-  // Received
   m = text.match(/PKR\s*([\d,]+(?:\.\d+)?)\s+received from\s+(.+?)\s+to your A\/?C[#\s]*(?:xxx)?(\d+).*?on\s+(\d{1,2}-[A-Za-z]{3}-\d{4})/i);
   if (m) {
     var acct2 = m[3];
@@ -171,9 +150,7 @@ function parseUBL(text) {
   return null;
 }
 
-// MASHREQ: "Your Islamic PayPak Debit Card ending with 8946 was used for cash withdrawal of PKR X at MERCHANT, on DATE TIME"
 function parseMashreq(text) {
-  // ATM withdrawal
   var m = text.match(/Islamic PayPak.*?ending with\s+(\d+)\s+was used for(?:\s+a)?\s+cash withdrawal of PKR\s*([\d,]+(?:\.\d+)?)\s+at\s+(.+?),?\s+on\s+(\d{1,2}-[A-Za-z]{3}-\d{4})/i);
   if (m) {
     return {
@@ -186,7 +163,6 @@ function parseMashreq(text) {
       bank: 'mashreq'
     };
   }
-  // Account credit: "Dear Customer, PKR X was received in ****2796 on DATE. Trx Ref XXX"
   m = text.match(/PKR\s*([\d,]+(?:\.\d+)?)\s+was received in\s+\*+(\d+)\s+on\s+(\d{1,2}-[A-Za-z]{3}-\d{4}).*?Trx Ref\s+(\S+)/i);
   if (m && m[2] === '2796') {
     return {
@@ -199,7 +175,6 @@ function parseMashreq(text) {
       bank: 'mashreq'
     };
   }
-  // Account debit: "PKR X with PKR FEE fee sent from ***2796 to MERCHANT *****YYYY Bank XXX via 1LINK on DATE"
   m = text.match(/PKR\s*([\d,]+(?:\.\d+)?)\s+with PKR\s*([\d,]+(?:\.\d+)?)\s+fee sent from\s+\*+(\d+)\s+to\s+(.+?)\s+via.*?on\s+([\d/]+).*?Trx Ref\s+(\S+)/i);
   if (m && m[3] === '2796') {
     return {
@@ -212,7 +187,6 @@ function parseMashreq(text) {
       bank: 'mashreq'
     };
   }
-  // Reversal: "A POS transaction of PKR X was reversed on DATE TIME. The amount has been successfully credited"
   m = text.match(/POS transaction of PKR\s*([\d,]+(?:\.\d+)?)\s+was reversed on\s+(\d{1,2}-[A-Za-z]{3}-\d{4})/i);
   if (m && /credited to your account/i.test(text)) {
     return {
@@ -228,9 +202,7 @@ function parseMashreq(text) {
   return null;
 }
 
-// ALFALAH CC: "Your Bank Alfalah card (91349) used for PKR X on DATE at TIME at MERCHANT" / "Your Bank Alfalah Credit Card payment for the amount X has been received on DATE"
 function parseAlfalahCC(text) {
-  // CC charge
   var m = text.match(/Bank Alfalah card\s*\((\d+)\)\s+used for PKR\s*([\d,]+(?:\.\d+)?)\s+on\s+([\d/]+)\s+at\s+[\d:]+\s+at\s+(.+?)(?:\.|$)/i);
   if (m && m[1] === '91349') {
     return {
@@ -243,7 +215,6 @@ function parseAlfalahCC(text) {
       bank: 'alfalah_cc'
     };
   }
-  // CC payment received
   m = text.match(/Bank Alfalah Credit Card payment for the amount\s*([\d,]+(?:\.\d+)?)\s+has been received on\s+([\d/]+)/i);
   if (m) {
     return {
@@ -259,7 +230,6 @@ function parseAlfalahCC(text) {
   return null;
 }
 
-// JS Bank: CC closed. Ignore JS Bank CC payment SMS. Other JS Bank SMS not actively parsed yet.
 function parseJSBank(text) {
   if (/JS Bank Credit Card payment/i.test(text)) {
     return { skip: true, skipReason: 'js_bank_cc_closed' };
@@ -267,43 +237,31 @@ function parseJSBank(text) {
   return null;
 }
 
-/* ==== ROUTER ==== */
-
 function detectBankAndParse(text) {
-  // Order matters — most specific first
-
-  // JS Bank — check first to skip CC payments
   if (/JS Bank|JSBL|JS bank card/i.test(text)) {
     var js = parseJSBank(text);
     if (js && js.skip) return { skip: true, skipReason: js.skipReason, bank: 'js_bank' };
     if (js) return js;
-    // No JS Bank parser yet for non-CC — log as failed
   }
 
-  // Alfalah CC
   if (/Bank Alfalah|Alfalah card|Alfalah Credit Card/i.test(text)) {
     return parseAlfalahCC(text);
   }
 
-  // Easypaisa
-  if (/Easypaisa/i.test(text)) {
-    return parseEasypaisa(text);
-  }
-
-  // Mashreq (account ending 2796 OR Islamic PayPak card 8946)
-  if (/Islamic PayPak|Mashreq|\*+2796|ending with 8946/i.test(text)) {
-    return parseMashreq(text);
-  }
-
-  // UBL (A/C 7136 or 4113)
   if (/PKR.*A\/?C.*xxx?(7136|4113)|UBL/i.test(text)) {
     return parseUBL(text);
   }
 
+  if (/Islamic PayPak|Mashreq|\*+2796|ending with 8946/i.test(text)) {
+    return parseMashreq(text);
+  }
+
+  if (/Easypaisa/i.test(text)) {
+    return parseEasypaisa(text);
+  }
+
   return null;
 }
-
-/* ==== MAIN HANDLER ==== */
 
 export async function onRequest(context) {
   var request = context.request;
@@ -351,7 +309,7 @@ async function handleList(db, request) {
   }
   var stmt = db.prepare(query);
   var rs = await stmt.bind.apply(stmt, params).all();
-  return json({ ok: true, log: rs.results || [], count: (rs.results || []).length });
+  return json({ ok: true, log: rs.results || [], count: (rs.results || []).length, version: 'v0.1.2' });
 }
 
 async function handleIngest(env, request) {
@@ -371,7 +329,6 @@ async function handleIngest(env, request) {
   var rawHash = await sha256Hex(text + '|' + (sender || '') + '|' + receivedAt);
   var logId = genId('ING');
 
-  // Check duplicate via raw_hash
   var existing = await db.prepare("SELECT id, parsed_status, created_txn_id FROM txn_ingest_log WHERE raw_hash = ?").bind(rawHash).first();
   if (existing) {
     return json({
@@ -383,35 +340,30 @@ async function handleIngest(env, request) {
     });
   }
 
-  // Apply ignore filters
   var ignoreCheck = shouldIgnore(text);
   if (ignoreCheck.ignore) {
     await db.prepare(
       "INSERT INTO txn_ingest_log (id, raw_text, raw_hash, source, source_app, sender, parsed_status, error_reason, received_at, parsed_at) VALUES (?, ?, ?, ?, ?, ?, 'ignored', ?, ?, datetime('now'))"
     ).bind(logId, text, rawHash, source, sourceApp, sender, ignoreCheck.reason, receivedAt).run();
-    return json({ ok: true, log_id: logId, parsed_status: 'ignored', reason: ignoreCheck.reason });
+    return json({ ok: true, log_id: logId, parsed_status: 'ignored', reason: ignoreCheck.reason, version: 'v0.1.2' });
   }
 
-  // Try to parse
   var parsed = detectBankAndParse(text);
 
-  // Skip case (e.g. JS Bank CC closed)
   if (parsed && parsed.skip) {
     await db.prepare(
       "INSERT INTO txn_ingest_log (id, raw_text, raw_hash, source, source_app, sender, bank_detected, parsed_status, error_reason, received_at, parsed_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'ignored', ?, ?, datetime('now'))"
     ).bind(logId, text, rawHash, source, sourceApp, sender, parsed.bank, parsed.skipReason, receivedAt).run();
-    return json({ ok: true, log_id: logId, parsed_status: 'ignored', reason: parsed.skipReason });
+    return json({ ok: true, log_id: logId, parsed_status: 'ignored', reason: parsed.skipReason, version: 'v0.1.2' });
   }
 
-  // Failed to parse
   if (!parsed || !parsed.amount || !parsed.account_id || !parsed.type) {
     await db.prepare(
       "INSERT INTO txn_ingest_log (id, raw_text, raw_hash, source, source_app, sender, parsed_status, error_reason, received_at, parsed_at) VALUES (?, ?, ?, ?, ?, ?, 'failed', ?, ?, datetime('now'))"
     ).bind(logId, text, rawHash, source, sourceApp, sender, 'no_parser_match_or_incomplete', receivedAt).run();
-    return json({ ok: true, log_id: logId, parsed_status: 'failed', reason: 'no_parser_match_or_incomplete' });
+    return json({ ok: true, log_id: logId, parsed_status: 'failed', reason: 'no_parser_match_or_incomplete', version: 'v0.1.2' });
   }
 
-  // Create transaction
   var txnId = genId('TXN');
   var txnDate = parsed.date || todayISO();
 
@@ -448,7 +400,8 @@ async function handleIngest(env, request) {
         type: parsed.type,
         account_id: parsed.account_id,
         source: source,
-        sender: sender
+        sender: sender,
+        version: 'v0.1.2'
       }),
       created_by: 'auto-ingest-' + (parsed.bank || 'sms')
     });
@@ -462,11 +415,11 @@ async function handleIngest(env, request) {
       amount: parsed.amount,
       account_id: parsed.account_id,
       type: parsed.type,
-      date: txnDate
+      date: txnDate,
+      version: 'v0.1.2'
     });
 
   } catch (e) {
-    // Insert failure: log it
     await db.prepare(
       "INSERT INTO txn_ingest_log (id, raw_text, raw_hash, source, source_app, sender, bank_detected, parsed_status, parsed_amount, parsed_account_id, parsed_type, error_reason, received_at, parsed_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'failed', ?, ?, ?, ?, ?, datetime('now'))"
     ).bind(
@@ -475,6 +428,6 @@ async function handleIngest(env, request) {
       'txn_insert_error: ' + e.message,
       receivedAt
     ).run();
-    return json({ ok: false, log_id: logId, parsed_status: 'failed', error: e.message }, 500);
+    return json({ ok: false, log_id: logId, parsed_status: 'failed', error: e.message, version: 'v0.1.2' }, 500);
   }
 }
