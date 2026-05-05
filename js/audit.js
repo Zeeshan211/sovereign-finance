@@ -1,115 +1,301 @@
-/* ─── Sovereign Finance · Audit Log Page v0.9.0 ─── */
+/* ─── audit.js · Audit Log page · v0.2.0 ─── */
+/*
+ * Layer 2 caller repair.
+ *
+ * Contract:
+ *   GET /api/audit returns:
+ *   {
+ *     ok: true,
+ *     total: number,
+ *     limit: number,
+ *     offset: number,
+ *     rows: [...]
+ *   }
+ *
+ * This file is defensive:
+ *   - Works even if audit.html has old/missing container IDs.
+ *   - Creates its own audit panel if needed.
+ *   - Parses JSON detail safely.
+ *   - Shows empty/error states instead of staying stuck on loading.
+ */
 
 (function () {
-  document.addEventListener('DOMContentLoaded', init);
+  'use strict';
 
-  let data = { entries: [], actions: [], count: 0 };
-  let activeFilter = '';
+  const VERSION = 'v0.2.0';
 
-  async function init() {
-    await window.store.getAll();
-    await load();
-    paint();
-    populateActionFilter();
-    attachEvents();
+  const STATE = {
+    rows: [],
+    limit: 100,
+    offset: 0,
+    loading: false
+  };
+
+  const $ = id => document.getElementById(id);
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
-  async function load() {
+  function fmtTime(ts) {
+    if (!ts) return '—';
+
     try {
-      const url = '/api/audit' + (activeFilter ? '?action=' + encodeURIComponent(activeFilter) : '');
-      const res = await fetch(url);
-      const d = await res.json();
-      if (d.ok) data = d;
-    } catch (e) {}
+      const normalized = String(ts).replace(' ', 'T') + 'Z';
+      const d = new Date(normalized);
+
+      if (Number.isNaN(d.getTime())) return String(ts);
+
+      return d.toLocaleString('en-PK', {
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return String(ts);
+    }
   }
 
-  function populateActionFilter() {
-    const sel = document.getElementById('actionFilter');
-    if (!sel) return;
-    while (sel.options.length > 1) sel.remove(1);
-    data.actions.forEach(a => {
-      const opt = document.createElement('option');
-      opt.value = a.action;
-      opt.textContent = formatAction(a.action) + ' (' + a.count + ')';
-      if (a.action === activeFilter) opt.selected = true;
-      sel.appendChild(opt);
-    });
+  function parseDetail(detail) {
+    if (!detail) return '';
+
+    if (typeof detail === 'object') {
+      return JSON.stringify(detail, null, 2);
+    }
+
+    const raw = String(detail);
+
+    try {
+      return JSON.stringify(JSON.parse(raw), null, 2);
+    } catch (e) {
+      return raw;
+    }
   }
 
-  function paint() {
-    setText('audit-summary', data.count + ' entries' + (activeFilter ? ' · filtered' : ''));
+  function shortDetail(detail) {
+    const text = parseDetail(detail)
+      .replace(/\s+/g, ' ')
+      .trim();
 
-    const list = document.getElementById('audit-list');
-    list.innerHTML = '';
-    if (data.entries.length === 0) {
-      list.innerHTML = '<div class="empty-state-inline">No audit entries.</div>';
+    if (!text) return '—';
+    if (text.length <= 160) return text;
+
+    return text.slice(0, 160) + '…';
+  }
+
+  function getMain() {
+    return document.querySelector('main') ||
+      document.querySelector('.page') ||
+      document.querySelector('.container') ||
+      document.body;
+  }
+
+  function ensurePanel() {
+    let panel =
+      $('audit-panel') ||
+      $('auditLog') ||
+      $('audit-log') ||
+      document.querySelector('[data-audit-panel]');
+
+    if (panel) return panel;
+
+    const main = getMain();
+
+    panel = document.createElement('section');
+    panel.id = 'audit-panel';
+    panel.setAttribute('data-audit-panel', '1');
+    panel.innerHTML = `
+      <div class="audit-head" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin:16px 0">
+        <div>
+          <h2 style="margin:0">Audit Log</h2>
+          <p id="audit-summary" style="margin:4px 0 0;color:var(--muted,#94a3b8);font-size:13px">Loading…</p>
+        </div>
+        <button id="audit-refresh" class="btn" type="button">Refresh</button>
+      </div>
+      <div id="audit-list">Loading…</div>
+    `;
+
+    main.appendChild(panel);
+
+    return panel;
+  }
+
+  function getListEl() {
+    return $('audit-list') ||
+      $('auditRows') ||
+      $('audit-rows') ||
+      $('auditLogRows') ||
+      $('audit-log-rows') ||
+      document.querySelector('[data-audit-list]') ||
+      ensurePanel().querySelector('#audit-list');
+  }
+
+  function setSummary(text) {
+    const el = $('audit-summary') ||
+      $('audit-count') ||
+      document.querySelector('[data-audit-summary]');
+
+    if (el) el.textContent = text;
+  }
+
+  function setLoading() {
+    const list = getListEl();
+    if (list) list.innerHTML = `<div class="empty-state-inline">Loading audit log…</div>`;
+    setSummary('Loading…');
+  }
+
+  function setError(msg) {
+    const list = getListEl();
+    if (list) {
+      list.innerHTML = `
+        <div class="empty-state-inline" style="color:var(--danger,#ef4444)">
+          Audit log failed: ${esc(msg)}
+        </div>
+      `;
+    }
+
+    setSummary('Failed');
+  }
+
+  function actionTone(action) {
+    const a = String(action || '').toUpperCase();
+
+    if (a.includes('DELETE') || a.includes('REVERSE')) return 'danger';
+    if (a.includes('CREATE') || a.includes('ADD') || a.includes('TRANSFER')) return 'success';
+    if (a.includes('UPDATE') || a.includes('EDIT')) return 'warn';
+
+    return 'neutral';
+  }
+
+  function actionBadge(row) {
+    const action = esc(row.action || 'EVENT');
+    const tone = actionTone(row.action);
+
+    const colors = {
+      success: 'background:rgba(34,197,94,.12);color:#22c55e;border-color:rgba(34,197,94,.25)',
+      danger: 'background:rgba(239,68,68,.12);color:#ef4444;border-color:rgba(239,68,68,.25)',
+      warn: 'background:rgba(245,158,11,.12);color:#f59e0b;border-color:rgba(245,158,11,.25)',
+      neutral: 'background:rgba(148,163,184,.12);color:#94a3b8;border-color:rgba(148,163,184,.25)'
+    };
+
+    return `<span style="display:inline-block;border:1px solid;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:700;${colors[tone]}">${action}</span>`;
+  }
+
+  function renderRows(rows) {
+    const list = getListEl();
+
+    if (!list) return;
+
+    if (!rows.length) {
+      list.innerHTML = `<div class="empty-state-inline">No audit events yet.</div>`;
+      setSummary('0 events');
       return;
     }
 
-    const groups = {};
-    data.entries.forEach(e => {
-      const d = (e.timestamp || '').slice(0, 10) || 'unknown';
-      if (!groups[d]) groups[d] = [];
-      groups[d].push(e);
-    });
+    setSummary(`${rows.length} event${rows.length === 1 ? '' : 's'} shown`);
 
-    Object.keys(groups).forEach(date => {
-      const header = document.createElement('div');
-      header.className = 'tx-date-header';
-      header.textContent = formatDateLabel(date) + ' · ' + groups[date].length;
-      list.appendChild(header);
-      groups[date].forEach(e => list.appendChild(buildRow(e)));
-    });
+    list.innerHTML = rows.map(row => {
+      const detail = shortDetail(row.detail);
+      const fullDetail = parseDetail(row.detail);
+      const entity = [row.entity, row.entity_id].filter(Boolean).join(' · ') || '—';
+
+      return `
+        <article class="audit-row" style="
+          border:1px solid var(--border,rgba(148,163,184,.18));
+          background:var(--card,rgba(15,23,42,.72));
+          border-radius:14px;
+          padding:12px 14px;
+          margin:10px 0;
+          box-shadow:0 8px 24px rgba(0,0,0,.12);
+        ">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+            <div style="min-width:0">
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                ${actionBadge(row)}
+                <span style="font-size:12px;color:var(--muted,#94a3b8)">${esc(row.kind || 'event')}</span>
+              </div>
+              <div style="margin-top:8px;font-weight:700;color:var(--text,#e5e7eb);word-break:break-word">${esc(entity)}</div>
+              <div style="margin-top:5px;font-size:12px;color:var(--muted,#94a3b8);word-break:break-word">${esc(detail)}</div>
+            </div>
+            <div style="text-align:right;white-space:nowrap;font-size:12px;color:var(--muted,#94a3b8)">
+              ${esc(fmtTime(row.timestamp))}
+              <div style="margin-top:5px">${esc(row.created_by || 'system')}</div>
+            </div>
+          </div>
+          <details style="margin-top:8px">
+            <summary style="cursor:pointer;color:var(--muted,#94a3b8);font-size:12px">details</summary>
+            <pre style="
+              white-space:pre-wrap;
+              word-break:break-word;
+              overflow:auto;
+              margin:8px 0 0;
+              padding:10px;
+              border-radius:10px;
+              background:rgba(2,6,23,.5);
+              color:var(--text,#e5e7eb);
+              font-size:12px;
+            ">${esc(fullDetail)}</pre>
+          </details>
+        </article>
+      `;
+    }).join('');
   }
 
-  function buildRow(entry) {
-    const time = entry.timestamp ? entry.timestamp.slice(11, 16) : '—';
-    const actionType = (entry.action || '').toLowerCase();
-    let badgeClass = 'badge-grey';
-    if (actionType.indexOf('create') >= 0 || actionType.indexOf('add') >= 0 || actionType.indexOf('insert') >= 0) badgeClass = 'badge-green';
-    else if (actionType.indexOf('delete') >= 0 || actionType.indexOf('remove') >= 0) badgeClass = 'badge-red';
-    else if (actionType.indexOf('update') >= 0 || actionType.indexOf('edit') >= 0 || actionType.indexOf('change') >= 0) badgeClass = 'badge-blue';
-    else if (actionType.indexOf('pay') >= 0 || actionType.indexOf('cleared') >= 0) badgeClass = 'badge-purple';
+  async function loadAudit() {
+    if (STATE.loading) return;
 
-    const row = document.createElement('div');
-    row.className = 'audit-row';
-    row.innerHTML = `
-      <div class="audit-time">${esc(time)}</div>
-      <div class="audit-content">
-        <div class="audit-action">
-          <span class="type-badge ${badgeClass}">${esc(formatAction(entry.action || 'unknown'))}</span>
-        </div>
-        ${entry.details ? `<div class="audit-details">${esc(entry.details)}</div>` : ''}
-        ${entry.entity_id ? `<div class="audit-entity"><code>${esc(entry.entity_id)}</code></div>` : ''}
-      </div>
-    `;
-    return row;
+    STATE.loading = true;
+    setLoading();
+
+    try {
+      const res = await fetch(`/api/audit?limit=${encodeURIComponent(STATE.limit)}&offset=${encodeURIComponent(STATE.offset)}`, {
+        cache: 'no-store'
+      });
+
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+
+      const data = await res.json();
+
+      if (!data.ok) throw new Error(data.error || 'Audit API failed');
+
+      STATE.rows = data.rows || data.audit || data.events || [];
+      renderRows(STATE.rows);
+    } catch (err) {
+      console.error('[audit v0.2.0] load failed:', err);
+      setError(err.message);
+    } finally {
+      STATE.loading = false;
+    }
   }
 
-  function attachEvents() {
-    document.getElementById('actionFilter').addEventListener('change', async (e) => {
-      activeFilter = e.target.value;
-      await load();
-      paint();
-    });
-    document.getElementById('auditRefresh').addEventListener('click', async () => {
-      await load();
-      populateActionFilter();
-      paint();
-    });
+  function bindRefresh() {
+    const btn = $('audit-refresh') ||
+      $('refreshAudit') ||
+      $('refresh_btn') ||
+      document.querySelector('[data-audit-refresh]');
+
+    if (btn) {
+      btn.addEventListener('click', loadAudit);
+    }
   }
 
-  function formatAction(a) { return String(a || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
+  function init() {
+    ensurePanel();
+    bindRefresh();
+    loadAudit();
 
-  function formatDateLabel(iso) {
-    if (iso === 'unknown') return 'Unknown date';
-    const today = new Date().toISOString().slice(0, 10);
-    const yest = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    if (iso === today) return 'Today';
-    if (iso === yest) return 'Yesterday';
-    return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    console.log('[audit v0.2.0] initialized');
   }
 
-  function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
-  function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();
