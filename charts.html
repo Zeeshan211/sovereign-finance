@@ -5,18 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#050816">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Charts · Sovereign Finance</title>
   <link rel="stylesheet" href="/css/app.css">
   <script src="/js/theme.js"></script>
   <script src="/js/nav.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="/js/chart.umd.min.js" defer></script>
 </head>
 <body>
   <header>
     <div class="brand">Sovereign Ops</div>
     <h1 class="title">Charts</h1>
-    <div class="day-badge"><span id="charts-summary">v0.1.0 placeholders</span></div>
+    <div class="day-badge"><span id="charts-summary">v0.1.1 loading…</span></div>
   </header>
 
   <div class="section-header">
@@ -62,7 +63,7 @@
   </div>
 
   <footer>
-    <span class="v">v0.1.0 · charts</span>
+    <span class="v">v0.1.1 · charts</span>
   </footer>
 
   <nav class="bottom-nav">
@@ -89,6 +90,6 @@
   <script src="/js/app.js"></script>
   <script src="/js/store.js"></script>
   <script src="/js/numbers.js"></script>
-  <!-- /js/charts.js wired in Ship 2 -->
+  <script src="/js/charts.js" defer></script>
 </body>
 </html>
