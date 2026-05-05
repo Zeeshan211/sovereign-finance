@@ -1,19 +1,55 @@
-/* ─── /api/accounts/[[path]] · v0.2.4 · FORMULA PARITY WITH /api/balances v0.5.1 ─── */
+/* ─── /api/accounts/[[path]] · v0.2.5 · SHEET REVERSAL BRIDGE ─── */
+/*
+ * Ground Zero rule:
+ *   /api/accounts and /api/balances must use the same formula-layer truth.
+ *
+ * Changes vs v0.2.4:
+ *   - Excludes D1-native reversed rows: reversed_by / reversed_at
+ *   - Excludes imported Sheet reversal markers in notes:
+ *       [REVERSED BY ...]
+ *       [REVERSAL OF ...]
+ *   - Adds optional ?debug=1 counts for parity checks
+ *
+ * Account balance formula:
+ *   Balance(A) = opening
+ *              + income + borrow + debt_in + salary
+ *              - expense - repay - debt_out - atm - cc_spend - transfer
+ *
+ * Transfer handling:
+ *   - Legacy Sheet transfers:
+ *       OUT row = transfer, subtracts from source
+ *       IN row  = income, adds to destination
+ *   - Modern D1 transfers:
+ *       transfer or cc_payment with transfer_to_account_id
+ *       subtracts from source and adds to destination
+ */
 
 import { json, audit } from '../_lib.js';
+
+const VERSION = 'v0.2.5';
 
 const ALLOWED_KINDS = ['cash', 'bank', 'wallet', 'prepaid', 'cc'];
 const ALLOWED_TYPES = ['asset', 'liability'];
 
-const VERSION = 'v0.2.4';
-
 const TYPE_PLUS = new Set(['income', 'salary', 'debt_in', 'borrow', 'opening']);
 const TYPE_MINUS = new Set(['expense', 'cc_spend', 'atm', 'debt_out', 'repay', 'transfer']);
+
+function isReversalRow(t) {
+  if (!t) return false;
+
+  if (t.reversed_by || t.reversed_at) return true;
+
+  const notes = String(t.notes || '').toUpperCase();
+
+  return notes.includes('[REVERSED BY ') || notes.includes('[REVERSAL OF ');
+}
 
 export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
     const path = context.params.path || [];
+    const url = new URL(context.request.url);
+    const debug = url.searchParams.get('debug') === '1';
 
     if (path.length === 1) {
       const id = path[0];
@@ -22,22 +58,35 @@ export async function onRequestGet(context) {
         "SELECT * FROM accounts WHERE id = ? AND (deleted_at IS NULL OR deleted_at = '')"
       ).bind(id).first();
 
-      if (!acct) return json({ ok: false, error: 'Account not found' }, 404);
+      if (!acct) return json({ ok: false, version: VERSION, error: 'Account not found' }, 404);
 
       const txns = await db.prepare(
-        `SELECT id, type, amount, account_id, transfer_to_account_id, fee_amount, pra_amount, reversed_by, reversed_at
+        `SELECT id, type, amount, account_id, transfer_to_account_id, fee_amount, pra_amount,
+                reversed_by, reversed_at, linked_txn_id, notes
          FROM transactions
-         WHERE (account_id = ? OR transfer_to_account_id = ?)
-           AND (reversed_by IS NULL OR reversed_by = '')
-           AND (reversed_at IS NULL OR reversed_at = '')
+         WHERE account_id = ? OR transfer_to_account_id = ?
          ORDER BY date ASC, created_at ASC`
       ).bind(id, id).all();
 
-      return json({
+      const rows = txns.results || [];
+      const activeRows = rows.filter(t => !isReversalRow(t));
+
+      const body = {
         ok: true,
         version: VERSION,
-        account: enrichAccount(acct, txns.results || [])
-      });
+        account: enrichAccount(acct, activeRows)
+      };
+
+      if (debug) {
+        body.debug = {
+          txn_count: rows.length,
+          active_txn_count: activeRows.length,
+          hidden_reversal_count: rows.length - activeRows.length,
+          reversal_bridge: 'reversed_by/reversed_at columns plus Sheet notes markers'
+        };
+      }
+
+      return json(body);
     }
 
     const accounts = await db.prepare(
@@ -45,27 +94,39 @@ export async function onRequestGet(context) {
     ).all();
 
     const allTxns = await db.prepare(
-      `SELECT id, type, amount, account_id, transfer_to_account_id, fee_amount, pra_amount, reversed_by, reversed_at
+      `SELECT id, type, amount, account_id, transfer_to_account_id, fee_amount, pra_amount,
+              reversed_by, reversed_at, linked_txn_id, notes
        FROM transactions
-       WHERE (reversed_by IS NULL OR reversed_by = '')
-         AND (reversed_at IS NULL OR reversed_at = '')
        ORDER BY date ASC, created_at ASC`
     ).all();
 
     const rows = allTxns.results || [];
+    const activeRows = rows.filter(t => !isReversalRow(t));
 
     const enriched = (accounts.results || []).map(acct => {
-      const relevant = rows.filter(t => t.account_id === acct.id || t.transfer_to_account_id === acct.id);
+      const relevant = activeRows.filter(t => t.account_id === acct.id || t.transfer_to_account_id === acct.id);
       return enrichAccount(acct, relevant);
     });
 
-    return json({
+    const body = {
       ok: true,
       version: VERSION,
       accounts: enriched
-    });
+    };
+
+    if (debug) {
+      body.debug = {
+        txn_count: rows.length,
+        active_txn_count: activeRows.length,
+        hidden_reversal_count: rows.length - activeRows.length,
+        account_count: enriched.length,
+        reversal_bridge: 'reversed_by/reversed_at columns plus Sheet notes markers'
+      };
+    }
+
+    return json(body);
   } catch (err) {
-    return json({ ok: false, error: err.message }, 500);
+    return json({ ok: false, version: VERSION, error: err.message }, 500);
   }
 }
 
@@ -73,14 +134,14 @@ function computeBalance(acct, txns) {
   let balance = Number(acct.opening_balance) || 0;
 
   txns.forEach(t => {
-    if (t.reversed_by || t.reversed_at) return;
+    if (isReversalRow(t)) return;
 
     const amt = Number(t.amount) || 0;
     const fee = Number(t.fee_amount) || 0;
     const pra = Number(t.pra_amount) || 0;
     const acctId = t.account_id;
     const toAcctId = t.transfer_to_account_id;
-    const type = (t.type || '').toLowerCase();
+    const type = String(t.type || '').toLowerCase();
 
     if ((type === 'transfer' || type === 'cc_payment') && toAcctId) {
       if (acctId === acct.id) {
@@ -128,7 +189,7 @@ function enrichAccount(acct, txns) {
     const limit = Number(acct.credit_limit) || 0;
     const outstanding = Math.max(0, -balance);
 
-    enriched.cc_outstanding = outstanding;
+    enriched.cc_outstanding = round2(outstanding);
     enriched.cc_utilization_pct = limit > 0 ? round1((outstanding / limit) * 100) : null;
     enriched.available_credit = limit > 0 ? Math.max(0, round2(limit - outstanding)) : null;
     enriched.days_to_payment_due = computeDaysToPaymentDue(acct.payment_due_day);
@@ -179,7 +240,7 @@ export async function onRequestPost(context) {
 
     if (path.length === 0) {
       if (!body.id || !body.name || !ALLOWED_KINDS.includes(body.kind) || !ALLOWED_TYPES.includes(body.type)) {
-        return json({ ok: false, error: 'Missing or invalid required fields (id, name, kind, type)' }, 400);
+        return json({ ok: false, version: VERSION, error: 'Missing or invalid required fields (id, name, kind, type)' }, 400);
       }
 
       await db.prepare(
@@ -209,12 +270,12 @@ export async function onRequestPost(context) {
         created_by: body.created_by || 'web-account-create'
       });
 
-      return json({ ok: true, id: body.id });
+      return json({ ok: true, version: VERSION, id: body.id });
     }
 
-    return json({ ok: false, error: 'Path not supported for POST' }, 400);
+    return json({ ok: false, version: VERSION, error: 'Path not supported for POST' }, 400);
   } catch (err) {
-    return json({ ok: false, error: err.message }, 500);
+    return json({ ok: false, version: VERSION, error: err.message }, 500);
   }
 }
 
@@ -223,7 +284,7 @@ export async function onRequestPut(context) {
     const db = context.env.DB;
     const path = context.params.path || [];
 
-    if (path.length !== 1) return json({ ok: false, error: 'Path requires account id' }, 400);
+    if (path.length !== 1) return json({ ok: false, version: VERSION, error: 'Path requires account id' }, 400);
 
     const id = path[0];
     const body = await context.request.json();
@@ -250,7 +311,7 @@ export async function onRequestPut(context) {
       }
     });
 
-    if (updates.length === 0) return json({ ok: false, error: 'Nothing to update' }, 400);
+    if (updates.length === 0) return json({ ok: false, version: VERSION, error: 'Nothing to update' }, 400);
 
     values.push(id);
 
@@ -265,9 +326,9 @@ export async function onRequestPut(context) {
       created_by: body.created_by || 'web-account-update'
     });
 
-    return json({ ok: true, id });
+    return json({ ok: true, version: VERSION, id });
   } catch (err) {
-    return json({ ok: false, error: err.message }, 500);
+    return json({ ok: false, version: VERSION, error: err.message }, 500);
   }
 }
 
@@ -276,7 +337,7 @@ export async function onRequestDelete(context) {
     const db = context.env.DB;
     const path = context.params.path || [];
 
-    if (path.length !== 1) return json({ ok: false, error: 'Path requires account id' }, 400);
+    if (path.length !== 1) return json({ ok: false, version: VERSION, error: 'Path requires account id' }, 400);
 
     const id = path[0];
     const url = new URL(context.request.url);
@@ -294,7 +355,7 @@ export async function onRequestDelete(context) {
         created_by: 'web-account-archive'
       });
 
-      return json({ ok: true, id, status: 'archived' });
+      return json({ ok: true, version: VERSION, id, status: 'archived' });
     }
 
     await db.prepare("UPDATE accounts SET status = 'deleted', deleted_at = datetime('now') WHERE id = ?").bind(id).run();
@@ -308,8 +369,8 @@ export async function onRequestDelete(context) {
       created_by: 'web-account-delete'
     });
 
-    return json({ ok: true, id, status: 'deleted' });
+    return json({ ok: true, version: VERSION, id, status: 'deleted' });
   } catch (err) {
-    return json({ ok: false, error: err.message }, 500);
+    return json({ ok: false, version: VERSION, error: err.message }, 500);
   }
 }
