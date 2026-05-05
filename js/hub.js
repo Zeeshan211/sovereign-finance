@@ -1,25 +1,24 @@
-/* ─── Sovereign Finance · Hub Bootstrap v0.7.5c · KPI render restored ─── */
-/* Renders Quick Access tiles + hero KPIs from /api/balances */
+/* ─── Sovereign Finance · Hub Bootstrap v0.7.5d · REAL ID FIX ─── */
+/* Renders hero KPIs from /api/balances on home page */
 /*
- * Changes vs v0.7.5b (broken — removed only KPI renderer):
- *   - Restored loadBalances() with VERIFIED element IDs from index.html live read:
- *       kpi-net (was wrongly netWorthValue in v0.7.5)
- *       kpi-liquid (was wrongly liquidValue)
- *       kpi-cc (was wrongly ccValue)
- *       kpi-debts (was wrongly debtsValue)
- *   - Pattern 7 fix #2: read index.html before assuming element IDs
- *   - Removed comment claiming "index.html has inline loadKpis" (it does NOT)
+ * Changes vs v0.7.5c (broken — wrong IDs from wrong repo):
+ *   - Real IDs verified live from deployed index.html via Console fetch:
+ *       hub-net-worth (was wrongly kpi-net)
+ *       hub-liquid    (was wrongly kpi-liquid)
+ *       hub-cc        (was wrongly kpi-cc)
+ *       hub-debts     (was wrongly kpi-debts)
+ *   - REMOVED tile rendering (page has nav-grid with nav-card items already in HTML —
+ *     no quickAccessGrid element exists)
+ *   - REMOVED dynamic subtitle update (no [data-subtitle] elements exist)
+ *   - Pattern 7 fix #3 (final): read DEPLOYED index.html, not assumed file from another repo
  *
- * Element IDs verified live in index.html sections:
- *   <div class="kpi-value" id="kpi-net">Rs —</div>
- *   <div class="kpi-value" id="kpi-liquid">Rs —</div>
- *   <div class="kpi-value" id="kpi-cc">Rs —</div>
- *   <div class="kpi-value" id="kpi-debts">Rs —</div>
+ * Element IDs verified via:
+ *   fetch('/?cb=...').then(r=>r.text()).then(t=>t.match(/id="[^"]+"/g))
+ *   Returned: dayNum, hub-net-worth, hub-liquid, hub-cc, hub-debts, hub-burden,
+ *             hub-recent-tx, hub-top-debts, hub-due-soon
  *
- * PRESERVED:
- *   - Quick Access tile rendering
- *   - Dynamic Accounts/Debts subtitles
- *   - Defensive null checks
+ * SCOPE: KPI hero rendering only. Other hub elements (recent tx, top debts, due soon,
+ * burden, dayNum) NOT rendered by this ship — separate work if those need wiring.
  */
 
 (function () {
@@ -30,29 +29,6 @@
     const sign = amount < 0 ? '-' : '';
     const abs = Math.abs(amount);
     return 'Rs ' + sign + abs.toLocaleString('en-PK', { maximumFractionDigits: 0 });
-  }
-
-  const tiles = [
-    { id: 'add',          label: 'Add',           icon: '➕', href: '/add.html',          subtitle: 'New transaction' },
-    { id: 'transactions', label: 'Transactions',  icon: '📋', href: '/transactions.html', subtitle: 'History' },
-    { id: 'accounts',     label: 'Accounts',      icon: '🏦', href: '/accounts.html',     subtitle: 'Manage' },
-    { id: 'debts',        label: 'Debts',         icon: '💸', href: '/debts.html',        subtitle: 'Track' },
-    { id: 'bills',        label: 'Bills',         icon: '📄', href: '/bills.html',        subtitle: 'Recurring' },
-    { id: 'cc',           label: 'CC Planner',    icon: '🪪', href: '/cc.html',           subtitle: 'Payoff' },
-    { id: 'reconcile',    label: 'Reconcile',     icon: '⚖',  href: '/reconciliation.html', subtitle: 'Balance check' },
-    { id: 'audit',        label: 'Audit',         icon: '📊', href: '/audit.html',        subtitle: 'Activity log' }
-  ];
-
-  function renderTiles() {
-    const grid = document.getElementById('quickAccessGrid');
-    if (!grid) return;
-    grid.innerHTML = tiles.map(t => `
-      <a href="${t.href}" class="qa-tile" data-tile="${t.id}">
-        <div class="qa-icon">${t.icon}</div>
-        <div class="qa-label">${t.label}</div>
-        <div class="qa-subtitle" data-subtitle="${t.id}">${t.subtitle}</div>
-      </a>
-    `).join('');
   }
 
   async function loadBalances() {
@@ -68,43 +44,27 @@
         return;
       }
 
-      // Hero KPIs (verified IDs from index.html live read)
-      const netEl = document.getElementById('kpi-net');
+      const netEl = document.getElementById('hub-net-worth');
       if (netEl) netEl.textContent = fmtPKR(d.net_worth);
 
-      const liquidEl = document.getElementById('kpi-liquid');
+      const liquidEl = document.getElementById('hub-liquid');
       if (liquidEl) liquidEl.textContent = fmtPKR(d.total_liquid_assets);
 
-      const ccEl = document.getElementById('kpi-cc');
+      const ccEl = document.getElementById('hub-cc');
       if (ccEl) ccEl.textContent = fmtPKR(Math.abs(d.cc_outstanding));
 
-      const debtsEl = document.getElementById('kpi-debts');
+      const debtsEl = document.getElementById('hub-debts');
       if (debtsEl) debtsEl.textContent = fmtPKR(d.total_debts || d.total_owe || 0);
 
-      // Dynamic tile subtitles
-      const accountsSub = document.querySelector('[data-subtitle="accounts"]');
-      if (accountsSub && d.account_count != null) {
-        accountsSub.textContent = d.account_count + ' active';
-      }
-
-      const debtsSub = document.querySelector('[data-subtitle="debts"]');
-      if (debtsSub && d.debt_count != null) {
-        debtsSub.textContent = d.debt_count + ' active';
-      }
-
+      console.log('[hub] KPIs rendered · net:', d.net_worth, '· liquid:', d.total_liquid_assets, '· cc:', d.cc_outstanding, '· debts:', d.total_debts);
     } catch (e) {
       console.warn('[hub] loadBalances threw:', e.message);
     }
   }
 
-  function init() {
-    renderTiles();
-    loadBalances();
-  }
-
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', loadBalances);
   } else {
-    init();
+    loadBalances();
   }
 })();
