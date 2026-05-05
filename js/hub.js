@@ -1,34 +1,48 @@
-/* ─── Sovereign Finance · Hub Bootstrap v0.7.5d · REAL ID FIX ─── */
-/* Renders hero KPIs from /api/balances on home page */
+/* ─── Sovereign Finance · Hub Bootstrap v0.7.6 · Live freshness indicator ─── */
+/* Renders hero KPIs + live "last updated" indicator from /api/balances */
 /*
- * Changes vs v0.7.5c (broken — wrong IDs from wrong repo):
- *   - Real IDs verified live from deployed index.html via Console fetch:
- *       hub-net-worth (was wrongly kpi-net)
- *       hub-liquid    (was wrongly kpi-liquid)
- *       hub-cc        (was wrongly kpi-cc)
- *       hub-debts     (was wrongly kpi-debts)
- *   - REMOVED tile rendering (page has nav-grid with nav-card items already in HTML —
- *     no quickAccessGrid element exists)
- *   - REMOVED dynamic subtitle update (no [data-subtitle] elements exist)
- *   - Pattern 7 fix #3 (final): read DEPLOYED index.html, not assumed file from another repo
+ * Changes vs v0.7.5d:
+ *   - Added live freshness indicator (#hub-freshness) — replaces retired Day-N badge
+ *   - Format: "Live · just now" / "Live · 5m ago" / "Live · 1h ago" / "Live · 2h ago"
+ *   - Updates on every loadBalances() call
+ *   - Auto-refresh every 30 seconds (lightweight, just re-fetches /api/balances)
  *
- * Element IDs verified via:
- *   fetch('/?cb=...').then(r=>r.text()).then(t=>t.match(/id="[^"]+"/g))
- *   Returned: dayNum, hub-net-worth, hub-liquid, hub-cc, hub-debts, hub-burden,
- *             hub-recent-tx, hub-top-debts, hub-due-soon
- *
- * SCOPE: KPI hero rendering only. Other hub elements (recent tx, top debts, due soon,
- * burden, dayNum) NOT rendered by this ship — separate work if those need wiring.
+ * PRESERVED from v0.7.5d:
+ *   - All 4 KPI renders with verified IDs (hub-net-worth, hub-liquid, hub-cc, hub-debts)
+ *   - PKR formatting helper
+ *   - Defensive null checks on every element
+ *   - Console log on success for debugging
  */
 
 (function () {
   'use strict';
+
+  let lastFetchedAt = null;
 
   function fmtPKR(amount) {
     if (amount == null || isNaN(amount)) return 'Rs —';
     const sign = amount < 0 ? '-' : '';
     const abs = Math.abs(amount);
     return 'Rs ' + sign + abs.toLocaleString('en-PK', { maximumFractionDigits: 0 });
+  }
+
+  function fmtAgo(ms) {
+    if (!ms) return 'just now';
+    const sec = Math.floor(ms / 1000);
+    if (sec < 60) return 'just now';
+    const min = Math.floor(sec / 60);
+    if (min < 60) return min + 'm ago';
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return hr + 'h ago';
+    const day = Math.floor(hr / 24);
+    return day + 'd ago';
+  }
+
+  function updateFreshnessLabel() {
+    const el = document.getElementById('hub-freshness');
+    if (!el || !lastFetchedAt) return;
+    const ago = Date.now() - lastFetchedAt;
+    el.textContent = 'Live · ' + fmtAgo(ago);
   }
 
   async function loadBalances() {
@@ -56,15 +70,26 @@
       const debtsEl = document.getElementById('hub-debts');
       if (debtsEl) debtsEl.textContent = fmtPKR(d.total_debts || d.total_owe || 0);
 
+      lastFetchedAt = Date.now();
+      updateFreshnessLabel();
+
       console.log('[hub] KPIs rendered · net:', d.net_worth, '· liquid:', d.total_liquid_assets, '· cc:', d.cc_outstanding, '· debts:', d.total_debts);
     } catch (e) {
       console.warn('[hub] loadBalances threw:', e.message);
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadBalances);
-  } else {
+  function init() {
     loadBalances();
+    // Refresh freshness label every 30 seconds without re-fetching
+    setInterval(updateFreshnessLabel, 30000);
+    // Re-fetch balances every 2 minutes (silent, just to keep data fresh on long views)
+    setInterval(loadBalances, 120000);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 })();
