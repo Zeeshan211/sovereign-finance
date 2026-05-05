@@ -1,17 +1,16 @@
-/* ─── Sovereign Finance · Hub Bootstrap v0.7.6 · Live freshness indicator ─── */
-/* Renders hero KPIs + live "last updated" indicator from /api/balances */
+/* ─── Sovereign Finance · Hub Bootstrap v0.7.7 · True Burden render ─── */
+/* Renders hero KPIs + True Burden + live freshness from /api/balances */
 /*
- * Changes vs v0.7.5d:
- *   - Added live freshness indicator (#hub-freshness) — replaces retired Day-N badge
- *   - Format: "Live · just now" / "Live · 5m ago" / "Live · 1h ago" / "Live · 2h ago"
- *   - Updates on every loadBalances() call
- *   - Auto-refresh every 30 seconds (lightweight, just re-fetches /api/balances)
+ * Changes vs v0.7.6:
+ *   - Added True Burden render (#hub-burden)
+ *   - Formula: true_burden = cc_outstanding + total_debts
+ *     Honest "what I owe in total" — separate from net worth which subtracts assets
  *
- * PRESERVED from v0.7.5d:
- *   - All 4 KPI renders with verified IDs (hub-net-worth, hub-liquid, hub-cc, hub-debts)
- *   - PKR formatting helper
+ * PRESERVED from v0.7.6:
+ *   - All 4 KPI renders + freshness indicator
+ *   - 30s freshness label refresh
+ *   - 2min auto re-fetch of balances
  *   - Defensive null checks on every element
- *   - Console log on success for debugging
  */
 
 (function () {
@@ -70,10 +69,18 @@
       const debtsEl = document.getElementById('hub-debts');
       if (debtsEl) debtsEl.textContent = fmtPKR(d.total_debts || d.total_owe || 0);
 
+      // True Burden — honest total of all I owe (CC + Personal Debts)
+      const burdenEl = document.getElementById('hub-burden');
+      if (burdenEl) {
+        const ccAbs = Math.abs(d.cc_outstanding || 0);
+        const debtsAbs = Math.abs(d.total_debts || d.total_owe || 0);
+        burdenEl.textContent = fmtPKR(ccAbs + debtsAbs);
+      }
+
       lastFetchedAt = Date.now();
       updateFreshnessLabel();
 
-      console.log('[hub] KPIs rendered · net:', d.net_worth, '· liquid:', d.total_liquid_assets, '· cc:', d.cc_outstanding, '· debts:', d.total_debts);
+      console.log('[hub] KPIs rendered · net:', d.net_worth, '· liquid:', d.total_liquid_assets, '· cc:', d.cc_outstanding, '· debts:', d.total_debts, '· burden:', Math.abs(d.cc_outstanding||0) + Math.abs(d.total_debts||0));
     } catch (e) {
       console.warn('[hub] loadBalances threw:', e.message);
     }
@@ -81,9 +88,7 @@
 
   function init() {
     loadBalances();
-    // Refresh freshness label every 30 seconds without re-fetching
     setInterval(updateFreshnessLabel, 30000);
-    // Re-fetch balances every 2 minutes (silent, just to keep data fresh on long views)
     setInterval(loadBalances, 120000);
   }
 
