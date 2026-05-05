@@ -90,7 +90,6 @@
     };
   }
 
-  // 1. Spending by Category (current month, expenses only)
   function renderSpendingByCategory(txns, cats) {
     return ensureChart('chart-spending-by-category', function () {
       var thisMonth = new Date().toISOString().slice(0, 7);
@@ -130,7 +129,6 @@
     }, 'No expenses this month');
   }
 
-  // 2. Income vs Expense Trend (last 6 months, bar)
   function renderIncomeVsExpense(txns) {
     return ensureChart('chart-income-vs-expense', function () {
       var months = [];
@@ -164,7 +162,6 @@
     }, 'No data in last 6 months');
   }
 
-  // 3. CC Utilization (donut, outstanding vs available against placeholder limit)
   function renderCCUtil(balances) {
     return ensureChart('chart-cc-utilization', function () {
       var outstanding = Math.abs(Number(balances && balances.cc) || 0);
@@ -197,7 +194,6 @@
     }, 'No CC outstanding');
   }
 
-  // 4. Top Merchants (horizontal bar by learned_count)
   function renderTopMerchants(merchants) {
     return ensureChart('chart-top-merchants', function () {
       if (!merchants || merchants.length === 0) return null;
@@ -233,7 +229,6 @@
     }, 'No merchants yet — add via /merchants.html');
   }
 
-  // 5. Net Worth Trajectory (line, snapshots over time)
   function renderNetWorthTrajectory(snapshots) {
     return ensureChart('chart-net-worth-trajectory', function () {
       if (!snapshots || snapshots.length < 2) return null;
@@ -283,7 +278,6 @@
     }, 'Need at least 2 snapshots to plot trajectory');
   }
 
-  // 6. Daily Spend Last 30 Days (intensity-colored bar; not true heatmap)
   function renderDailySpend(txns) {
     return ensureChart('chart-daily-spend-heatmap', function () {
       var days = [];
