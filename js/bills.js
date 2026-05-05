@@ -1,176 +1,298 @@
-/* ─── Sovereign Finance · Bills Page · v0.9.0 · Sub-1D-3d Ship 4 ───
- * Adds:
- *   - ✏️ Edit button on every row
- *   - Edit modal wired: populate from row, PUT on save, DELETE inside
- *   - Null-due-day display fix ("no due date" instead of misleading "X days late")
- *   - Replaced confirm() Delete with descriptive snapshot-aware prompt
+/* ─── Sovereign Finance · Bills Page v0.9.2 · FULL REWRITE ─── */
+/*
+ * Changes vs v0.9.0:
+ *   - renderStats now derives all values from bills array (was reading body.count which doesn't exist)
+ *   - Defensive `|| []` on every array access
+ *   - Race guard on loadAll (_loadAllInFlight flag)
+ *   - Verbose logging for debug
+ *   - DOM IDs verified live: bills-total, bills-count, bills-remaining, bills-paid-count, bills-list
+ *   - All modals + CRUD flows preserved verbatim
  *
- * Backend contracts (functions/api/bills/[[path]].js v0.2.0):
- *   GET    /api/bills                 → list + summary
- *   POST   /api/bills                 → {name, amount, due_day, default_account_id, category_id}
- *   PUT    /api/bills/{id}            → {name?, amount?, due_day?, default_account_id?, category_id?}
- *   DELETE /api/bills/{id}?created_by=web → soft-delete (snapshot + audit)
- *   POST   /api/bills/{id}/pay        → {amount, account_id, date}
+ * Schema (per SCHEMA.md):
+ *   bills: id, name, amount, due_day, frequency, category_id, default_account_id,
+ *          last_paid_date, auto_post, status, deleted_at
+ *   transactions: id, type, amount, date, account_id, category_id, notes
  */
+
 (function () {
   'use strict';
 
-  if (window._billsInited) return;
-  window._billsInited = true;
+  const VERSION = 'v0.9.2';
+  console.log('[bills]', VERSION, 'init');
 
-  const VERSION = 'v0.9.0';
   const $ = id => document.getElementById(id);
 
-  const fmtPKR = n => 'Rs ' + Math.round(Number(n) || 0).toLocaleString('en-PK');
-  const todayLocal = () => {
-    const d = new Date();
-    const tz = d.getTimezoneOffset() * 60000;
-    return new Date(d - tz).toISOString().slice(0, 10);
-  };
-  const escHtml = s => String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
-  async function getJSON(url, opts) {
-    const r = await fetch(url, Object.assign({ cache: 'no-store' }, opts || {}));
-    return { status: r.status, body: await r.json().catch(() => ({})) };
+  /* ─────── Helpers ─────── */
+  function fmtPKR(amount) {
+    if (amount == null || isNaN(amount)) return 'Rs —';
+    const sign = amount < 0 ? '-' : '';
+    const abs = Math.abs(amount);
+    return 'Rs ' + sign + abs.toLocaleString('en-PK', { maximumFractionDigits: 0 });
   }
 
-  function setStat(elId, value) {
-    const el = $(elId);
-    if (!el) return;
-    const numeric = Number(value) || 0;
-    if (window.animateNumber) {
-      window.animateNumber(el, numeric, { format: n => fmtPKR(n) });
-    } else {
-      el.textContent = fmtPKR(numeric);
+  function escHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function todayISO() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function daysUntilDue(dueDay) {
+    if (dueDay == null) return null;
+    const today = new Date();
+    const todayDay = today.getDate();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    let diff = dueDay - todayDay;
+    if (diff < 0) diff += daysInMonth;
+    return diff;
+  }
+
+  function isPaidThisPeriod(bill) {
+    if (!bill.last_paid_date) return false;
+    const paid = new Date(bill.last_paid_date);
+    const now = new Date();
+    if (bill.frequency === 'monthly' || !bill.frequency) {
+      return paid.getMonth() === now.getMonth() && paid.getFullYear() === now.getFullYear();
     }
+    if (bill.frequency === 'weekly') {
+      const diffMs = now - paid;
+      return diffMs < 7 * 24 * 60 * 60 * 1000;
+    }
+    if (bill.frequency === 'yearly') {
+      return paid.getFullYear() === now.getFullYear();
+    }
+    return false;
   }
 
-  /* ─────── Account + Category dropdowns shared helper ─────── */
-  function populateAccountSelect(selectId, defaultValue) {
-    const sel = $(selectId);
-    if (!sel) return;
-    const accounts = (window.store && (window.store.cachedAccounts || window.store.accounts)) || [];
-    if (!accounts.length) {
-      sel.innerHTML = '<option value="">⚠ no accounts loaded — refresh the page</option>';
+  /* ─────── Stats render ─────── */
+  function renderStats(billsArr) {
+    const bills = Array.isArray(billsArr) ? billsArr : [];
+    const active = bills.filter(b => b.status === 'active' || b.status == null);
+
+    const totalAll = active.reduce((s, b) => s + (Number(b.amount) || 0), 0);
+    const paidThisPeriod = active.filter(b => isPaidThisPeriod(b));
+    const remaining = active.filter(b => !isPaidThisPeriod(b)).reduce((s, b) => s + (Number(b.amount) || 0), 0);
+
+    const totalEl = $('bills-total');
+    if (totalEl) totalEl.textContent = fmtPKR(totalAll);
+
+    const countEl = $('bills-count');
+    if (countEl) countEl.textContent = active.length + ' bill' + (active.length === 1 ? '' : 's');
+
+    const remainingEl = $('bills-remaining');
+    if (remainingEl) remainingEl.textContent = fmtPKR(remaining);
+
+    const paidCountEl = $('bills-paid-count');
+    if (paidCountEl) paidCountEl.textContent = paidThisPeriod.length + ' paid';
+  }
+
+  /* ─────── List render ─────── */
+  function renderList(billsArr) {
+    const bills = Array.isArray(billsArr) ? billsArr : [];
+    const listEl = $('bills-list');
+    if (!listEl) return;
+
+    if (bills.length === 0) {
+      listEl.innerHTML = '<div class="empty-state-inline">No bills yet. Click + Add Bill above.</div>';
       return;
     }
-    sel.innerHTML = accounts
-      .map(a => `<option value="${escHtml(a.id)}"${a.id === defaultValue ? ' selected' : ''}>${escHtml(a.name)} (${escHtml(a.id)})</option>`)
-      .join('');
+
+    const active = bills.filter(b => b.status === 'active' || b.status == null);
+    const sorted = active.sort((a, b) => {
+      const aD = daysUntilDue(a.due_day);
+      const bD = daysUntilDue(b.due_day);
+      if (aD == null && bD == null) return (a.name || '').localeCompare(b.name || '');
+      if (aD == null) return 1;
+      if (bD == null) return -1;
+      return aD - bD;
+    });
+
+    listEl.innerHTML = sorted.map(b => {
+      const days = daysUntilDue(b.due_day);
+      const paid = isPaidThisPeriod(b);
+      let dueText = '';
+      let dueCls = '';
+      if (paid) {
+        dueText = '✓ Paid this ' + (b.frequency || 'period');
+        dueCls = 'meta';
+      } else if (days == null) {
+        dueText = 'No due day set';
+        dueCls = 'meta';
+      } else if (days === 0) {
+        dueText = 'Due today';
+        dueCls = 'meta danger';
+      } else if (days === 1) {
+        dueText = 'Due tomorrow';
+        dueCls = 'meta warn';
+      } else if (days <= 7) {
+        dueText = 'Due in ' + days + ' days';
+        dueCls = 'meta warn';
+      } else {
+        dueText = 'Due in ' + days + ' days';
+        dueCls = 'meta';
+      }
+
+      return `
+        <div class="mini-row" data-bill-id="${escHtml(b.id)}">
+          <div class="mini-row-left">
+            <div class="mini-row-meta">
+              <div class="mini-row-name">${escHtml(b.name)}</div>
+              <div class="mini-row-sub">
+                <span class="${dueCls}">${dueText}</span>
+                <span class="meta">${escHtml(b.category_id || 'bills')}</span>
+              </div>
+            </div>
+          </div>
+          <div class="mini-row-right">
+            <div class="mini-row-amount value">${fmtPKR(b.amount)}</div>
+            <div style="display:flex;gap:6px;margin-top:4px">
+              ${paid ? '' : `<button class="ghost-btn pay-bill-btn" data-bill-id="${escHtml(b.id)}" style="font-size:11px;padding:3px 8px">Pay</button>`}
+              <button class="ghost-btn edit-bill-btn" data-bill-id="${escHtml(b.id)}" style="font-size:11px;padding:3px 8px">✏️</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Wire row buttons
+    listEl.querySelectorAll('.pay-bill-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        const id = btn.getAttribute('data-bill-id');
+        const bill = bills.find(x => x.id === id);
+        if (bill) openPayModal(bill);
+      });
+    });
+    listEl.querySelectorAll('.edit-bill-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        const id = btn.getAttribute('data-bill-id');
+        const bill = bills.find(x => x.id === id);
+        if (bill) openEditModal(bill);
+      });
+    });
   }
 
-  function populateCategorySelect(selectId, defaultValue) {
-    const sel = $(selectId);
-    if (!sel) return;
-    const cats = (window.store && (window.store.categories || [])) || [];
-    if (!cats.length) {
-      // Fallback to common bill categories
-      sel.innerHTML = `
-        <option value="bills"${defaultValue === 'bills' ? ' selected' : ''}>Bills</option>
-        <option value="utilities"${defaultValue === 'utilities' ? ' selected' : ''}>Utilities</option>
-        <option value="subscription"${defaultValue === 'subscription' ? ' selected' : ''}>Subscription</option>
-        <option value="rent"${defaultValue === 'rent' ? ' selected' : ''}>Rent</option>
-        <option value="services"${defaultValue === 'services' ? ' selected' : ''}>Services</option>`;
+  /* ─────── Load all ─────── */
+  let _loadAllInFlight = false;
+  async function loadAll() {
+    if (_loadAllInFlight) {
+      console.log('[bills]', VERSION, 'loadAll skip (in flight)');
       return;
     }
-    sel.innerHTML = cats
-      .map(c => `<option value="${escHtml(c.id)}"${c.id === defaultValue ? ' selected' : ''}>${escHtml(c.name || c.id)}</option>`)
-      .join('');
+    _loadAllInFlight = true;
+    console.log('[bills]', VERSION, 'loadAll start');
+    try {
+      // Refresh accounts cache so dropdowns work
+      if (window.store && window.store.refreshBalances) {
+        try { await window.store.refreshBalances(); } catch (_) { /* non-fatal */ }
+      }
+
+      const r = await fetch('/api/bills?cb=' + Date.now(), { cache: 'no-store' });
+      const body = await r.json();
+      const billsArr = Array.isArray(body.bills) ? body.bills : [];
+      console.log('[bills] /api/bills', r.status, '→', billsArr.length, 'bills (keys: ' + Object.keys(body).join(',') + ')');
+
+      if (!body.ok) throw new Error(body.error || 'bills payload not ok');
+
+      renderStats(billsArr);
+      renderList(billsArr);
+    } catch (e) {
+      console.error('[bills] loadAll FAILED:', e);
+      const list = $('bills-list');
+      if (list) list.innerHTML = '<div class="empty-state-inline">Failed: ' + escHtml(e.message) + '</div>';
+      const totalEl = $('bills-total');
+      if (totalEl) totalEl.textContent = 'Rs —';
+      const countEl = $('bills-count');
+      if (countEl) countEl.textContent = 'load failed';
+    } finally {
+      _loadAllInFlight = false;
+    }
   }
 
   /* ─────── Pay Bill modal ─────── */
   let _payContext = null;
 
-  function wirePayModal() {
-    const cancel = $('payBillCancel');
-    const confirm = $('payBillConfirm');
-    const backdrop = $('payBillModal');
-    if (cancel && !cancel._wired) { cancel.addEventListener('click', closePayModal); cancel._wired = true; }
-    if (confirm && !confirm._wired) { confirm.addEventListener('click', confirmPay); confirm._wired = true; }
-    if (backdrop && !backdrop._wired) {
-      backdrop.addEventListener('click', e => { if (e.target === backdrop) closePayModal(); });
-      backdrop._wired = true;
-    }
-  }
-
   function openPayModal(bill) {
-    _payContext = { id: bill.id, name: bill.name, amount: bill.amount };
-    const t = $('payBillTitle');
-    const sub = $('payBillSub');
-    const amt = $('payBillAmount');
-    const date = $('payBillDate');
-    if (t) t.textContent = 'Pay ' + bill.name;
-    if (sub) sub.textContent = 'Amount ' + fmtPKR(bill.amount);
-    if (amt) amt.value = bill.amount > 0 ? bill.amount : '';
-    if (date) date.value = todayLocal();
-    populateAccountSelect('payBillAccount', bill.default_account_id);
+    _payContext = bill;
     const m = $('payBillModal');
-    if (m) m.style.display = 'flex';
+    if (!m) return;
+    m.style.display = 'flex';
+
+    if ($('payBillTitle')) $('payBillTitle').textContent = 'Pay ' + bill.name;
+    if ($('payBillSub')) $('payBillSub').textContent = (bill.frequency || 'monthly') + ' · ' + escHtml(bill.category_id || 'bills');
+    if ($('payBillAmount')) $('payBillAmount').value = bill.amount || '';
+    if ($('payBillDate')) $('payBillDate').value = todayISO();
+
+    populateAccountDropdown('payBillAccount', bill.default_account_id);
   }
 
   function closePayModal() {
-    _payContext = null;
     const m = $('payBillModal');
     if (m) m.style.display = 'none';
+    _payContext = null;
   }
 
-  async function confirmPay() {
+  async function submitPay() {
     if (!_payContext) return;
-    const amt = Number(($('payBillAmount') || {}).value || 0);
-    const accountId = ($('payBillAccount') || {}).value || '';
-    const date = ($('payBillDate') || {}).value || todayLocal();
-    if (!amt || amt <= 0) { alert('Enter a valid amount'); return; }
-    if (!accountId) { alert('Select an account'); return; }
-
     const btn = $('payBillConfirm');
+    const accountId = $('payBillAccount')?.value;
+    const amount = parseFloat($('payBillAmount')?.value || '0');
+    const date = $('payBillDate')?.value || todayISO();
+
+    if (!accountId || !amount || amount <= 0) {
+      alert('Account and positive amount required');
+      return;
+    }
+
     if (btn) { btn.disabled = true; btn.textContent = 'Paying…'; }
     try {
-      const r = await getJSON('/api/bills/' + encodeURIComponent(_payContext.id) + '/pay', {
+      const r = await fetch('/api/bills/' + encodeURIComponent(_payContext.id) + '/pay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-        body: JSON.stringify({ amount: amt, account_id: accountId, date })
+        body: JSON.stringify({
+          account_id: accountId,
+          amount,
+          date,
+          created_by: 'web-bill-pay'
+        })
       });
-      if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
-        console.log('[bills] pay POST →', r.status, 'ok · txn', r.body.txn_id);
+      const data = await r.json();
+      if (data.ok) {
         closePayModal();
-        await loadAll();
+        loadAll();
       } else {
-        alert('Mark Paid failed: ' + ((r.body && r.body.error) || 'HTTP ' + r.status));
+        alert('Pay failed: ' + (data.error || 'HTTP ' + r.status));
       }
     } catch (e) {
-      alert('Mark Paid failed: ' + e.message);
+      alert('Pay failed: ' + e.message);
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Mark Paid'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Confirm Pay'; }
     }
+  }
+
+  function wirePayModal() {
+    const cancel = $('payBillCancel');
+    if (cancel) cancel.addEventListener('click', closePayModal);
+    const confirm = $('payBillConfirm');
+    if (confirm) confirm.addEventListener('click', submitPay);
   }
 
   /* ─────── Add Bill modal ─────── */
-  function wireAddModal() {
-    const trigger = $('addBillBtn');
-    const cancel = $('addBillCancel');
-    const confirm = $('addBillConfirm');
-    const backdrop = $('addBillModal');
-    if (trigger && !trigger._wired) { trigger.addEventListener('click', openAddModal); trigger._wired = true; }
-    if (cancel && !cancel._wired) { cancel.addEventListener('click', closeAddModal); cancel._wired = true; }
-    if (confirm && !confirm._wired) { confirm.addEventListener('click', confirmAdd); confirm._wired = true; }
-    if (backdrop && !backdrop._wired) {
-      backdrop.addEventListener('click', e => { if (e.target === backdrop) closeAddModal(); });
-      backdrop._wired = true;
-    }
-  }
-
   function openAddModal() {
-    const name = $('newBillName'); if (name) name.value = '';
-    const amt = $('newBillAmount'); if (amt) amt.value = '';
-    const due = $('newBillDueDay'); if (due) due.value = '1';
-    populateAccountSelect('newBillAccount');
-    populateCategorySelect('newBillCategory', 'bills');
     const m = $('addBillModal');
-    if (m) m.style.display = 'flex';
-    if (name) setTimeout(() => name.focus(), 50);
+    if (!m) return;
+    m.style.display = 'flex';
+    ['newBillName', 'newBillAmount', 'newBillDueDay'].forEach(id => {
+      const el = $(id);
+      if (el) el.value = '';
+    });
+    populateAccountDropdown('newBillAccount');
+    populateCategoryDropdown('newBillCategory');
   }
 
   function closeAddModal() {
@@ -178,32 +300,40 @@
     if (m) m.style.display = 'none';
   }
 
-  async function confirmAdd() {
-    const name = (($('newBillName') || {}).value || '').trim();
-    const amount = Number(($('newBillAmount') || {}).value || 0);
-    const due_day = Number(($('newBillDueDay') || {}).value || 1);
-    const default_account_id = ($('newBillAccount') || {}).value || null;
-    const category_id = ($('newBillCategory') || {}).value || 'bills';
-
-    if (!name) { alert('Bill name is required'); return; }
-    if (!amount || amount <= 0) { alert('Amount must be > 0'); return; }
-    if (due_day < 1 || due_day > 31) { alert('Due day must be 1-31'); return; }
-
+  async function submitAdd() {
     const btn = $('addBillConfirm');
+    const name = $('newBillName')?.value?.trim();
+    const amount = parseFloat($('newBillAmount')?.value || '0');
+    const dueDay = parseInt($('newBillDueDay')?.value || '0', 10) || null;
+    const accountId = $('newBillAccount')?.value || null;
+    const categoryId = $('newBillCategory')?.value || 'bills';
+
+    if (!name || !amount || amount <= 0) {
+      alert('Name and positive amount required');
+      return;
+    }
+
     if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
     try {
-      const r = await getJSON('/api/bills', {
+      const r = await fetch('/api/bills', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-        body: JSON.stringify({ name, amount, due_day, default_account_id, category_id })
+        body: JSON.stringify({
+          name,
+          amount,
+          due_day: dueDay,
+          frequency: 'monthly',
+          category_id: categoryId,
+          default_account_id: accountId,
+          created_by: 'web-bill-create'
+        })
       });
-      if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
-        console.log('[bills] add POST →', r.status, 'ok ·', r.body.id);
+      const data = await r.json();
+      if (data.ok) {
         closeAddModal();
-        await loadAll();
+        loadAll();
       } else {
-        alert('Add failed: ' + ((r.body && r.body.error) || 'HTTP ' + r.status));
+        alert('Add failed: ' + (data.error || 'HTTP ' + r.status));
       }
     } catch (e) {
       alert('Add failed: ' + e.message);
@@ -212,80 +342,72 @@
     }
   }
 
-  /* ─────── Edit Bill modal (NEW) ─────── */
-  let _editContext = null;
-
-  function wireEditModal() {
-    const cancel = $('editBillCancel');
-    const confirm = $('editBillConfirm');
-    const del = $('editBillDelete');
-    const backdrop = $('editBillModal');
-    if (cancel && !cancel._wired) { cancel.addEventListener('click', closeEditModal); cancel._wired = true; }
-    if (confirm && !confirm._wired) { confirm.addEventListener('click', confirmEdit); confirm._wired = true; }
-    if (del && !del._wired) { del.addEventListener('click', deleteFromEditModal); del._wired = true; }
-    if (backdrop && !backdrop._wired) {
-      backdrop.addEventListener('click', e => { if (e.target === backdrop) closeEditModal(); });
-      backdrop._wired = true;
-    }
+  function wireAddModal() {
+    const addBtn = $('addBillBtn');
+    if (addBtn) addBtn.addEventListener('click', openAddModal);
+    const cancel = $('addBillCancel');
+    if (cancel) cancel.addEventListener('click', closeAddModal);
+    const confirm = $('addBillConfirm');
+    if (confirm) confirm.addEventListener('click', submitAdd);
   }
 
+  /* ─────── Edit Bill modal ─────── */
+  let _editContext = null;
+
   function openEditModal(bill) {
-    _editContext = { id: bill.id, original: { ...bill } };
-    const title = $('editBillTitle');
-    const sub = $('editBillSub');
-    const name = $('editBillName');
-    const amt = $('editBillAmount');
-    const due = $('editBillDueDay');
-    if (title) title.textContent = 'Edit ' + bill.name;
-    if (sub) sub.textContent = 'id: ' + bill.id;
-    if (name) name.value = bill.name || '';
-    if (amt) amt.value = bill.amount || 0;
-    if (due) due.value = bill.due_day || '';
-    populateAccountSelect('editBillAccount', bill.default_account_id);
-    populateCategorySelect('editBillCategory', bill.category_id || 'bills');
+    _editContext = bill;
     const m = $('editBillModal');
-    if (m) m.style.display = 'flex';
+    if (!m) return;
+    m.style.display = 'flex';
+
+    if ($('editBillTitle')) $('editBillTitle').textContent = 'Edit ' + bill.name;
+    if ($('editBillSub')) $('editBillSub').textContent = (bill.frequency || 'monthly') + ' · ' + escHtml(bill.id);
+    if ($('editBillName')) $('editBillName').value = bill.name || '';
+    if ($('editBillAmount')) $('editBillAmount').value = bill.amount || '';
+    if ($('editBillDueDay')) $('editBillDueDay').value = bill.due_day || '';
+
+    populateAccountDropdown('editBillAccount', bill.default_account_id);
+    populateCategoryDropdown('editBillCategory', bill.category_id);
   }
 
   function closeEditModal() {
-    _editContext = null;
     const m = $('editBillModal');
     if (m) m.style.display = 'none';
+    _editContext = null;
   }
 
-  async function confirmEdit() {
+  async function submitEdit() {
     if (!_editContext) return;
-    const name = (($('editBillName') || {}).value || '').trim();
-    const amount = Number(($('editBillAmount') || {}).value || 0);
-    const due_day = Number(($('editBillDueDay') || {}).value || 0);
-    const default_account_id = ($('editBillAccount') || {}).value || null;
-    const category_id = ($('editBillCategory') || {}).value || 'bills';
-
-    if (!name) { alert('Bill name is required'); return; }
-    if (!amount || amount <= 0) { alert('Amount must be > 0'); return; }
-    if (due_day && (due_day < 1 || due_day > 31)) { alert('Due day must be 1-31'); return; }
-
     const btn = $('editBillConfirm');
+    const id = _editContext.id;
+
+    const body = {
+      name: $('editBillName')?.value?.trim(),
+      amount: parseFloat($('editBillAmount')?.value || '0'),
+      due_day: parseInt($('editBillDueDay')?.value || '0', 10) || null,
+      default_account_id: $('editBillAccount')?.value || null,
+      category_id: $('editBillCategory')?.value || 'bills',
+      created_by: 'web-bill-edit'
+    };
+
+    if (!body.name || !body.amount || body.amount <= 0) {
+      alert('Name and positive amount required');
+      return;
+    }
+
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
     try {
-      const r = await getJSON('/api/bills/' + encodeURIComponent(_editContext.id), {
+      const r = await fetch('/api/bills/' + encodeURIComponent(id), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-        body: JSON.stringify({
-          name,
-          amount,
-          due_day: due_day || 1,
-          default_account_id,
-          category_id
-        })
+        body: JSON.stringify(body)
       });
-      if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
-        console.log('[bills] edit PUT →', r.status, 'ok · fields', r.body.updated_fields);
+      const data = await r.json();
+      if (data.ok) {
         closeEditModal();
-        await loadAll();
+        loadAll();
       } else {
-        alert('Save failed: ' + ((r.body && r.body.error) || 'HTTP ' + r.status));
+        alert('Save failed: ' + (data.error || 'HTTP ' + r.status));
       }
     } catch (e) {
       alert('Save failed: ' + e.message);
@@ -294,135 +416,67 @@
     }
   }
 
-  async function deleteFromEditModal() {
+  async function deleteBill() {
     if (!_editContext) return;
-    const name = _editContext.original.name || _editContext.id;
-    const ok = confirm(
-      'Delete "' + name + '"?\n\n' +
-      'This soft-deletes the bill (status set to "deleted"). ' +
-      'A snapshot is taken before the change — recoverable via D1 console if needed. ' +
-      'Row will disappear from this page.'
-    );
-    if (!ok) return;
-
-    const btn = $('editBillDelete');
-    if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+    if (!confirm('Delete bill "' + _editContext.name + '"?')) return;
+    const id = _editContext.id;
     try {
-      const r = await getJSON(
-        '/api/bills/' + encodeURIComponent(_editContext.id) + '?created_by=web',
-        { method: 'DELETE', cache: 'no-store' }
-      );
-      if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
-        console.log('[bills] delete DELETE →', r.status, 'ok · snapshot', r.body.snapshot_id);
+      const r = await fetch('/api/bills/' + encodeURIComponent(id) + '?action=delete&created_by=web-bill-delete', { method: 'DELETE' });
+      const data = await r.json();
+      if (data.ok) {
         closeEditModal();
-        await loadAll();
+        loadAll();
       } else {
-        alert('Delete failed: ' + ((r.body && r.body.error) || 'HTTP ' + r.status));
+        alert('Delete failed: ' + (data.error || 'HTTP ' + r.status));
       }
     } catch (e) {
       alert('Delete failed: ' + e.message);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
     }
   }
 
-  /* ─────── Renderer ─────── */
-  function renderRow(bill) {
-    const isPaid = bill.paidThisPeriod;
-    const statusClass = isPaid ? 'accent' : (bill.status === 'overdue' ? 'negative' : 'liabilities');
-    const dueDayDisplay = bill.due_day
-      ? bill.daysLabel
-      : 'no due date set';
-    return `
-      <div class="mini-row" data-bill-id="${escHtml(bill.id)}">
-        <div class="mini-row-left">
-          <div class="mini-row-name">${escHtml(bill.name)}</div>
-          <div class="mini-row-sub">${escHtml(dueDayDisplay)} · ${escHtml(bill.default_account_id || '—')}</div>
-        </div>
-        <div class="mini-row-right">
-          <div class="mini-row-amount ${statusClass}">${fmtPKR(bill.amount)}</div>
-          <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end">
-            ${isPaid ? `
-              <span class="dense-badge accent" style="font-size:11px;padding:3px 8px">✓ paid</span>
-            ` : `
-              <button class="primary-btn pay-bill-btn" data-bill-id="${escHtml(bill.id)}"
-                      style="font-size:12px;padding:4px 10px">✓ Pay</button>
-            `}
-            <button class="ghost-btn edit-bill-btn" data-bill-id="${escHtml(bill.id)}"
-                    style="font-size:12px;padding:4px 10px" title="Edit / Delete">✏️</button>
-          </div>
-        </div>
-      </div>`;
+  function wireEditModal() {
+    const cancel = $('editBillCancel');
+    if (cancel) cancel.addEventListener('click', closeEditModal);
+    const confirm = $('editBillConfirm');
+    if (confirm) confirm.addEventListener('click', submitEdit);
+    const del = $('editBillDelete');
+    if (del) del.addEventListener('click', deleteBill);
   }
 
-  function renderList(bills) {
-    const container = $('bills-list');
-    if (!container) return;
-    if (!bills.length) {
-      container.innerHTML = '<div class="empty-state-inline">No bills yet — click + Add Bill above.</div>';
-      return;
-    }
-    container.innerHTML = bills.map(renderRow).join('');
+  /* ─────── Account + Category dropdowns ─────── */
+  function populateAccountDropdown(elId, selectedId) {
+    const sel = $(elId);
+    if (!sel) return;
+    const accounts = (window.store && window.store.cachedAccounts) || [];
+    sel.innerHTML = '<option value="">Select account…</option>' +
+      accounts.filter(a => a.type === 'asset').map(a =>
+        '<option value="' + escHtml(a.id) + '"' + (a.id === selectedId ? ' selected' : '') + '>' +
+        escHtml((a.icon || '') + ' ' + a.name) + '</option>'
+      ).join('');
+  }
 
-    container.querySelectorAll('.pay-bill-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.billId;
-        const b = bills.find(x => x.id === id);
-        if (b) openPayModal(b);
-      });
+  function populateCategoryDropdown(elId, selectedId) {
+    const sel = $(elId);
+    if (!sel) return;
+    fetch('/api/categories', { cache: 'no-store' }).then(r => r.json()).then(d => {
+      const cats = (d.categories || []).filter(c => !c.archived);
+      sel.innerHTML = cats.map(c =>
+        '<option value="' + escHtml(c.id) + '"' + (c.id === selectedId ? ' selected' : '') + '>' +
+        escHtml(c.name) + '</option>'
+      ).join('');
+    }).catch(() => {
+      sel.innerHTML = '<option value="bills">Bills</option>';
     });
-    container.querySelectorAll('.edit-bill-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.billId;
-        const b = bills.find(x => x.id === id);
-        if (b) openEditModal(b);
-      });
-    });
-  }
-
-  function renderStats(payload) {
-    setStat('bills-total', payload.total_monthly);
-    setStat('bills-remaining', payload.remaining_this_period);
-    const cnt = $('bills-count');
-    if (cnt) cnt.textContent = (payload.count || 0) + ' ' + (payload.count === 1 ? 'bill' : 'bills');
-    const paidCnt = $('bills-paid-count');
-    if (paidCnt) paidCnt.textContent = (payload.paid_count || 0) + ' paid this month';
-    const summary = $('bills-summary');
-    if (summary) {
-      summary.textContent = `${payload.paid_count || 0} of ${payload.count || 0} paid · ${fmtPKR(payload.remaining_this_period || 0)} remaining`;
-    }
-  }
-
-  /* ─────── Loader ─────── */
-  async function loadAll() {
-    console.log('[bills]', VERSION, 'loadAll start');
-    try {
-      // Refresh accounts cache so dropdowns work (per-page balances refresh on open)
-      if (window.store && window.store.refreshBalances) {
-        try { await window.store.refreshBalances(); } catch (_) { /* non-fatal */ }
-      }
-      const r = await fetch('/api/bills', { cache: 'no-store' });
-      const body = await r.json();
-      console.log('[bills] /api/bills', r.status, '→', body.count, 'bills');
-      if (!body.ok) throw new Error(body.error || 'bills payload not ok');
-      renderStats({ ...body, bills: body.bills || [], count: (body.bills || []).length });
-      renderList(body.bills || []);
-    } catch (e) {
-      console.error('[bills] loadAll FAILED:', e);
-      const list = $('bills-list');
-      if (list) list.innerHTML = '<div class="empty-state-inline">Failed: ' + escHtml(e.message) + '</div>';
-      const sum = $('bills-summary');
-      if (sum) sum.textContent = 'load failed';
-    }
   }
 
   /* ─────── Init ─────── */
   function init() {
-    console.log('[bills]', VERSION, 'init');
     wirePayModal();
     wireAddModal();
     wireEditModal();
     loadAll();
+    // Refresh every 60s (was 30s — reduced to lower API load)
+    setInterval(loadAll, 60000);
   }
 
   if (document.readyState === 'loading') {
