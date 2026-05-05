@@ -1,50 +1,38 @@
-/* ─── Sovereign Finance · Accounts Page v0.7.2
-/*
- * Changes vs v0.7.0:
- *   - Targets REAL IDs from deployed accounts.html (acc-* prefix):
- *       acc-net-worth (was account-net-worth)
- *       acc-assets-list + acc-liabilities-list (split, was single account-list)
- *       acc-assets-count + acc-assets-total (was summary-asset-count)
- *       acc-liabilities-count + acc-liabilities-total (NEW separate)
- *       acc-archived-list + acc-archived-count + acc-archived-toggle (NEW)
- *   - Renders assets and liabilities into SEPARATE sections matching new layout
- *   - Renders archived section collapsible
- *   - Uses /api/accounts (already correct math after Ship 1 v0.2.3)
- *
- * PRESERVED from v0.7.0:
- *   - Add Account modal (all addAccount* IDs match)
- *   - Edit Account modal (all editAccount* IDs match)
- *   - Archive/Delete flows
- *   - CC enrichment display
- *   - Validation logic
- */
+/* Sovereign Finance - Accounts Page v0.7.2 - Full rewrite, syntax-safe */
+/* Fetches /api/balances for net worth (Pattern 4 single source of truth) */
+/* Reads /api/accounts for per-account balances */
+/* All DOM IDs verified live from accounts.html */
 
 (function () {
   'use strict';
 
-  console.log('[accounts] v0.7.2 init');
+  var VERSION = 'v0.7.2';
+  console.log('[accounts] ' + VERSION + ' init');
 
-  const $ = id => document.getElementById(id);
+  function $(id) { return document.getElementById(id); }
 
   function fmtPKR(amount) {
-    if (amount == null || isNaN(amount)) return 'Rs —';
-    const sign = amount < 0 ? '-' : '';
-    const abs = Math.abs(amount);
+    if (amount == null || isNaN(amount)) return 'Rs -';
+    var sign = amount < 0 ? '-' : '';
+    var abs = Math.abs(amount);
     return 'Rs ' + sign + abs.toLocaleString('en-PK', { maximumFractionDigits: 0 });
   }
 
-  function escapeHtml(s) {
+  function escHtml(s) {
     if (s == null) return '';
-    return String(s).replace(/[&<>"']/g, c => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[c]));
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
-  /* ─── DOM refs (read once on init) ─── */
-  let netWorthEl, assetsCountEl, assetsTotalEl, assetsListEl;
-  let liabCountEl, liabTotalEl, liabListEl;
-  let archivedHeaderEl, archivedCountEl, archivedToggleEl, archivedListEl;
-  let archivedExpanded = false;
+  /* DOM refs */
+  var netWorthEl, assetsCountEl, assetsTotalEl, assetsListEl;
+  var liabCountEl, liabTotalEl, liabListEl;
+  var archivedHeaderEl, archivedCountEl, archivedToggleEl, archivedListEl;
+  var archivedExpanded = false;
 
   function bindDOMRefs() {
     netWorthEl = $('acc-net-worth');
@@ -60,383 +48,419 @@
     archivedListEl = $('acc-archived-list');
   }
 
-  /* ─── Render account row ─── */
+  /* Render account row using string concat (no nested template literals) */
   function renderAccountRow(acct, isLiability) {
-    const balance = Number(acct.balance) || 0;
-    const balanceCls = isLiability
-      ? (balance < 0 ? 'value danger' : 'value')
-      : (balance < 0 ? 'value danger' : 'value');
-    const showBalance = isLiability ? Math.abs(balance) : balance;
+    var balance = Number(acct.balance) || 0;
+    var showBalance = isLiability ? Math.abs(balance) : balance;
+    var balanceCls = balance < 0 ? 'value danger' : 'value';
 
-    let ccBadge = '';
+    var ccBadge = '';
     if (acct.is_credit_card && acct.utilization_pct != null) {
-      const pct = acct.utilization_pct;
-      const cls = pct >= 90 ? 'danger' : pct >= 70 ? 'warn' : 'accent';
-      ccBadge = `<span class="meta ${cls}">${pct}% used</span>`;
+      var pct = acct.utilization_pct;
+      var cls = pct >= 90 ? 'danger' : (pct >= 70 ? 'warn' : 'accent');
+      ccBadge = '<span class="meta ' + cls + '">' + pct + '% used</span>';
     }
 
-    let dueBadge = '';
+    var dueBadge = '';
     if (acct.is_credit_card && acct.days_to_payment_due != null) {
-      const days = acct.days_to_payment_due;
-      const dueText = days === 0 ? 'due today' : days === 1 ? 'due tomorrow' : `due in ${days}d`;
-      const cls = days <= 2 ? 'danger' : days <= 7 ? 'warn' : '';
-      dueBadge = `<span class="meta ${cls}">${dueText}</span>`;
+      var days = acct.days_to_payment_due;
+      var dueText;
+      if (days === 0) dueText = 'due today';
+      else if (days === 1) dueText = 'due tomorrow';
+      else dueText = 'due in ' + days + 'd';
+      var dueCls = days <= 2 ? 'danger' : (days <= 7 ? 'warn' : '');
+      dueBadge = '<span class="meta ' + dueCls + '">' + dueText + '</span>';
     }
 
-    return `
-      <div class="mini-row" data-account-id="${escapeHtml(acct.id)}">
-        <div class="mini-row-left">
-          <div class="mini-row-icon">${escapeHtml(acct.icon || '🏦')}</div>
-          <div class="mini-row-meta">
-            <div class="mini-row-name">${escapeHtml(acct.name)}</div>
-            <div class="mini-row-sub">
-              <span class="meta">${escapeHtml(acct.kind_label || acct.kind)}</span>
-              ${ccBadge}
-              ${dueBadge}
-            </div>
-          </div>
-        </div>
-        <div class="mini-row-right">
-          <div class="mini-row-amount ${balanceCls}">${fmtPKR(showBalance)}</div>
-          <button class="ghost-btn edit-account-btn" data-account-id="${escapeHtml(acct.id)}" style="font-size:12px;padding:4px 10px;margin-top:4px" title="Edit / Archive / Delete">✏️</button>
-        </div>
-      </div>
-    `;
+    var html = '';
+    html += '<div class="mini-row" data-account-id="' + escHtml(acct.id) + '">';
+    html += '<div class="mini-row-left">';
+    html += '<div class="mini-row-icon">' + escHtml(acct.icon || '') + '</div>';
+    html += '<div class="mini-row-meta">';
+    html += '<div class="mini-row-name">' + escHtml(acct.name) + '</div>';
+    html += '<div class="mini-row-sub">';
+    html += '<span class="meta">' + escHtml(acct.kind_label || acct.kind) + '</span>';
+    html += ccBadge;
+    html += dueBadge;
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+    html += '<div class="mini-row-right">';
+    html += '<div class="mini-row-amount ' + balanceCls + '">' + fmtPKR(showBalance) + '</div>';
+    html += '<button class="ghost-btn edit-account-btn" data-account-id="' + escHtml(acct.id) + '" style="font-size:12px;padding:4px 10px;margin-top:4px" title="Edit">edit</button>';
+    html += '</div>';
+    html += '</div>';
+    return html;
   }
 
-  /* ─── Render archived row (read-only display) ─── */
   function renderArchivedRow(acct) {
-    return `
-      <div class="mini-row archived-row" data-account-id="${escapeHtml(acct.id)}">
-        <div class="mini-row-left">
-          <div class="mini-row-icon" style="opacity:0.5">${escapeHtml(acct.icon || '🏦')}</div>
-          <div class="mini-row-meta">
-            <div class="mini-row-name" style="opacity:0.7">${escapeHtml(acct.name)}</div>
-            <div class="mini-row-sub">
-              <span class="meta">${escapeHtml(acct.kind_label || acct.kind)} · archived</span>
-            </div>
-          </div>
-        </div>
-        <div class="mini-row-right">
-          <div class="mini-row-amount" style="opacity:0.6">${fmtPKR(Math.abs(Number(acct.balance) || 0))}</div>
-        </div>
-      </div>
-    `;
+    var html = '';
+    html += '<div class="mini-row archived-row" data-account-id="' + escHtml(acct.id) + '">';
+    html += '<div class="mini-row-left">';
+    html += '<div class="mini-row-icon" style="opacity:0.5">' + escHtml(acct.icon || '') + '</div>';
+    html += '<div class="mini-row-meta">';
+    html += '<div class="mini-row-name" style="opacity:0.7">' + escHtml(acct.name) + '</div>';
+    html += '<div class="mini-row-sub"><span class="meta">' + escHtml(acct.kind_label || acct.kind) + ' archived</span></div>';
+    html += '</div>';
+    html += '</div>';
+    html += '<div class="mini-row-right">';
+    html += '<div class="mini-row-amount" style="opacity:0.6">' + fmtPKR(Math.abs(Number(acct.balance) || 0)) + '</div>';
+    html += '</div>';
+    html += '</div>';
+    return html;
   }
 
-  /* ─── Main load + render ─── */
-  async function loadAll() {
-    console.log('[accounts] v0.7.2 loadAll start');
-    try {
-      const r = await fetch('/api/accounts?cb=' + Date.now());
-      const data = await r.json();
-      console.log('[accounts] /api/accounts ' + r.status + ' →', data.accounts?.length, 'accounts');
+  /* Main load + render */
+  function loadAll() {
+    console.log('[accounts] ' + VERSION + ' loadAll start');
+    var allAccounts = [];
 
-      if (!data.ok) {
-        console.warn('[accounts] API error:', data.error);
-        if (assetsListEl) assetsListEl.innerHTML = '<div class="mini-row"><span class="meta">Error: ' + escapeHtml(data.error || 'Unknown') + '</span></div>';
-        return;
-      }
-
-      const accounts = data.accounts || [];
-      const active = accounts.filter(a => a.status !== 'archived' && a.status !== 'deleted');
-      const archived = accounts.filter(a => a.status === 'archived');
-
-      const assets = active.filter(a => a.type === 'asset').sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-      const liabilities = active.filter(a => a.type === 'liability').sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-
-      // Render assets list
-      if (assetsListEl) {
-        if (assets.length === 0) {
-          assetsListEl.innerHTML = '<div class="mini-row"><span class="meta">No active asset accounts.</span></div>';
-        } else {
-          assetsListEl.innerHTML = assets.map(a => renderAccountRow(a, false)).join('');
+    fetch('/api/accounts?cb=' + Date.now())
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        console.log('[accounts] /api/accounts ' + (data.ok ? 'ok' : 'err') + ' count: ' + (data.accounts ? data.accounts.length : 0));
+        if (!data.ok) {
+          if (assetsListEl) assetsListEl.innerHTML = '<div class="mini-row"><span class="meta">Error: ' + escHtml(data.error || 'Unknown') + '</span></div>';
+          return;
         }
-      }
 
-      // Render liabilities list
-      if (liabListEl) {
-        if (liabilities.length === 0) {
-          liabListEl.innerHTML = '<div class="mini-row"><span class="meta">No liability accounts.</span></div>';
-        } else {
-          liabListEl.innerHTML = liabilities.map(a => renderAccountRow(a, true)).join('');
+        allAccounts = data.accounts || [];
+        var active = allAccounts.filter(function (a) { return a.status !== 'archived' && a.status !== 'deleted'; });
+        var archived = allAccounts.filter(function (a) { return a.status === 'archived'; });
+
+        var assets = active.filter(function (a) { return a.type === 'asset'; })
+          .sort(function (a, b) { return (a.display_order || 0) - (b.display_order || 0); });
+        var liabilities = active.filter(function (a) { return a.type === 'liability'; })
+          .sort(function (a, b) { return (a.display_order || 0) - (b.display_order || 0); });
+
+        // Render assets
+        if (assetsListEl) {
+          if (assets.length === 0) {
+            assetsListEl.innerHTML = '<div class="mini-row"><span class="meta">No active asset accounts.</span></div>';
+          } else {
+            assetsListEl.innerHTML = assets.map(function (a) { return renderAccountRow(a, false); }).join('');
+          }
         }
-      }
 
-      // Render archived list
-      if (archivedListEl) {
-        if (archived.length === 0) {
-          archivedListEl.innerHTML = '<div class="mini-row"><span class="meta">No archived accounts.</span></div>';
-        } else {
-          archivedListEl.innerHTML = archived.map(renderArchivedRow).join('');
+        // Render liabilities
+        if (liabListEl) {
+          if (liabilities.length === 0) {
+            liabListEl.innerHTML = '<div class="mini-row"><span class="meta">No liability accounts.</span></div>';
+          } else {
+            liabListEl.innerHTML = liabilities.map(function (a) { return renderAccountRow(a, true); }).join('');
+          }
         }
-      }
 
-     // Compute totals (per-section sums for display)
-      const assetsTotal = assets.reduce((s, a) => s + (Number(a.balance) || 0), 0);
-      const liabTotal = liabilities.reduce((s, a) => s + (Number(a.balance) || 0), 0);
+        // Render archived
+        if (archivedListEl) {
+          if (archived.length === 0) {
+            archivedListEl.innerHTML = '<div class="mini-row"><span class="meta">No archived accounts.</span></div>';
+          } else {
+            archivedListEl.innerHTML = archived.map(renderArchivedRow).join('');
+          }
+        }
 
-      // Net worth from /api/balances (single source of truth — Pattern 4 fix)
-      let netWorth = assetsTotal + liabTotal;  // fallback if /api/balances fails
-      try {
-        const br = await fetch('/api/balances?cb=' + Date.now());
-        const bd = await br.json();
-        if (bd.ok && bd.net_worth != null) netWorth = bd.net_worth;
-      } catch (e) {
-        console.warn('[accounts] /api/balances fetch failed, using local sum:', e.message);
-      }`
+        // Sub-totals from per-account balances
+        var assetsTotal = assets.reduce(function (s, a) { return s + (Number(a.balance) || 0); }, 0);
+        var liabTotal = liabilities.reduce(function (s, a) { return s + (Number(a.balance) || 0); }, 0);
 
-      // Update summary
-      if (assetsCountEl) assetsCountEl.textContent = assets.length;
-      if (assetsTotalEl) assetsTotalEl.textContent = fmtPKR(assetsTotal);
-      if (liabCountEl) liabCountEl.textContent = liabilities.length;
-      if (liabTotalEl) liabTotalEl.textContent = fmtPKR(Math.abs(liabTotal));
-      if (netWorthEl) netWorthEl.textContent = fmtPKR(netWorth);
-      if (archivedCountEl) archivedCountEl.textContent = archived.length;
+        if (assetsCountEl) assetsCountEl.textContent = assets.length;
+        if (assetsTotalEl) assetsTotalEl.textContent = fmtPKR(assetsTotal);
+        if (liabCountEl) liabCountEl.textContent = liabilities.length;
+        if (liabTotalEl) liabTotalEl.textContent = fmtPKR(Math.abs(liabTotal));
+        if (archivedCountEl) archivedCountEl.textContent = archived.length;
 
-      // Wire edit buttons (delegated each render)
-      document.querySelectorAll('.edit-account-btn').forEach(btn => {
-        btn.addEventListener('click', e => {
-          e.preventDefault();
-          const id = btn.getAttribute('data-account-id');
-          const acct = accounts.find(a => a.id === id);
-          if (acct) openEditModal(acct);
-        });
+        // Wire edit buttons
+        var btns = document.querySelectorAll('.edit-account-btn');
+        for (var i = 0; i < btns.length; i++) {
+          (function (btn) {
+            btn.addEventListener('click', function (e) {
+              e.preventDefault();
+              var id = btn.getAttribute('data-account-id');
+              var acct = null;
+              for (var j = 0; j < allAccounts.length; j++) {
+                if (allAccounts[j].id === id) { acct = allAccounts[j]; break; }
+              }
+              if (acct) openEditModal(acct);
+            });
+          })(btns[i]);
+        }
+
+        // Net worth from /api/balances (single source of truth)
+        return fetch('/api/balances?cb=' + Date.now())
+          .then(function (r) { return r.json(); })
+          .then(function (bd) {
+            if (bd.ok && bd.net_worth != null) {
+              if (netWorthEl) netWorthEl.textContent = fmtPKR(bd.net_worth);
+              console.log('[accounts] net worth from /api/balances: ' + bd.net_worth);
+            } else {
+              // Fallback: local sum if balances endpoint fails
+              if (netWorthEl) netWorthEl.textContent = fmtPKR(assetsTotal + liabTotal);
+              console.warn('[accounts] /api/balances failed, using local sum');
+            }
+          })
+          .catch(function (e) {
+            if (netWorthEl) netWorthEl.textContent = fmtPKR(assetsTotal + liabTotal);
+            console.warn('[accounts] /api/balances threw: ' + e.message);
+          });
+      })
+      .catch(function (e) {
+        console.error('[accounts] loadAll failed: ' + e.message);
+        if (assetsListEl) assetsListEl.innerHTML = '<div class="mini-row"><span class="meta">Failed to load. Check console.</span></div>';
       });
-
-      console.log('[accounts] render complete · assets:', assets.length, '· liabs:', liabilities.length, '· archived:', archived.length, '· net worth:', netWorth);
-
-    } catch (e) {
-      console.error('[accounts] loadAll failed:', e);
-      if (assetsListEl) assetsListEl.innerHTML = '<div class="mini-row"><span class="meta">Failed to load. Check console.</span></div>';
-    }
   }
 
-  /* ─── Add Account modal ─── */
+  /* Add Account modal */
   function openAddModal() {
-    const m = $('addAccountModal');
+    var m = $('addAccountModal');
     if (!m) return;
     m.style.display = 'flex';
-    ['addAccountName', 'addAccountIcon', 'addAccountOpening', 'addAccountOrder',
-     'addAccountCreditLimit', 'addAccountMinPayment', 'addAccountStatementDay', 'addAccountDueDay'].forEach(id => {
-      const el = $(id);
+    var ids = ['addAccountName', 'addAccountIcon', 'addAccountOpening', 'addAccountOrder', 'addAccountCreditLimit', 'addAccountMinPayment', 'addAccountStatementDay', 'addAccountDueDay'];
+    for (var i = 0; i < ids.length; i++) {
+      var el = $(ids[i]);
       if (el) el.value = '';
-    });
-    const kindSel = $('addAccountKind');
+    }
+    var kindSel = $('addAccountKind');
     if (kindSel) kindSel.value = 'bank';
     toggleAddCCBlock();
   }
 
   function closeAddModal() {
-    const m = $('addAccountModal');
+    var m = $('addAccountModal');
     if (m) m.style.display = 'none';
   }
 
   function toggleAddCCBlock() {
-    const kind = $('addAccountKind')?.value;
-    const block = $('addAccountCCBlock');
+    var kindSel = $('addAccountKind');
+    var kind = kindSel ? kindSel.value : '';
+    var block = $('addAccountCCBlock');
     if (block) block.style.display = (kind === 'cc') ? 'block' : 'none';
   }
 
-  async function submitAddAccount() {
-    const btn = $('addAccountConfirm');
-    const name = $('addAccountName')?.value?.trim();
-    const icon = $('addAccountIcon')?.value?.trim();
-    const kind = $('addAccountKind')?.value;
-    const opening = parseFloat($('addAccountOpening')?.value || '0');
-    const order = parseInt($('addAccountOrder')?.value || '0', 10);
+  function submitAddAccount() {
+    var btn = $('addAccountConfirm');
+    var nameEl = $('addAccountName');
+    var name = nameEl ? (nameEl.value || '').trim() : '';
+    var iconEl = $('addAccountIcon');
+    var icon = iconEl ? (iconEl.value || '').trim() : '';
+    var kindEl = $('addAccountKind');
+    var kind = kindEl ? kindEl.value : '';
+    var openingEl = $('addAccountOpening');
+    var opening = openingEl ? parseFloat(openingEl.value || '0') : 0;
+    var orderEl = $('addAccountOrder');
+    var order = orderEl ? parseInt(orderEl.value || '0', 10) : 0;
 
     if (!name || !kind) {
       alert('Name and kind are required.');
       return;
     }
 
-    const type = kind === 'cc' ? 'liability' : 'asset';
-    const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30);
+    var type = kind === 'cc' ? 'liability' : 'asset';
+    var id = name.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30);
 
-    const body = {
-      id, name, icon: icon || null, kind, type,
+    var body = {
+      id: id,
+      name: name,
+      icon: icon || null,
+      kind: kind,
+      type: type,
       opening_balance: opening || 0,
       display_order: order || 0,
       created_by: 'web-account-create'
     };
 
     if (kind === 'cc') {
-      body.credit_limit = parseFloat($('addAccountCreditLimit')?.value || '0') || null;
-      body.min_payment_amount = parseFloat($('addAccountMinPayment')?.value || '0') || null;
-      body.statement_day = parseInt($('addAccountStatementDay')?.value || '0', 10) || null;
-      body.payment_due_day = parseInt($('addAccountDueDay')?.value || '0', 10) || null;
+      var clEl = $('addAccountCreditLimit');
+      var mpEl = $('addAccountMinPayment');
+      var sdEl = $('addAccountStatementDay');
+      var ddEl = $('addAccountDueDay');
+      body.credit_limit = clEl ? (parseFloat(clEl.value || '0') || null) : null;
+      body.min_payment_amount = mpEl ? (parseFloat(mpEl.value || '0') || null) : null;
+      body.statement_day = sdEl ? (parseInt(sdEl.value || '0', 10) || null) : null;
+      body.payment_due_day = ddEl ? (parseInt(ddEl.value || '0', 10) || null) : null;
     }
 
-    if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
-    try {
-      const r = await fetch('/api/accounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+    if (btn) { btn.disabled = true; btn.textContent = 'Adding...'; }
+
+    fetch('/api/accounts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          closeAddModal();
+          loadAll();
+        } else {
+          alert('Add failed: ' + (data.error || 'request error'));
+        }
+      })
+      .catch(function (e) { alert('Add failed: ' + e.message); })
+      .then(function () {
+        if (btn) { btn.disabled = false; btn.textContent = 'Add Account'; }
       });
-      const data = await r.json();
-      if (data.ok) {
-        closeAddModal();
-        loadAll();
-      } else {
-        alert('Add failed: ' + (data.error || 'HTTP ' + r.status));
-      }
-    } catch (e) {
-      alert('Add failed: ' + e.message);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Add Account'; }
-    }
   }
 
-  /* ─── Edit Account modal ─── */
-  let _editContext = null;
+  /* Edit Account modal */
+  var _editContext = null;
 
   function openEditModal(acct) {
     _editContext = acct;
-    const m = $('editAccountModal');
+    var m = $('editAccountModal');
     if (!m) return;
     m.style.display = 'flex';
 
-    if ($('editAccountTitle')) $('editAccountTitle').textContent = 'Edit ' + acct.name;
-    if ($('editAccountSub')) $('editAccountSub').textContent = (acct.kind_label || acct.kind) + ' · ' + (acct.id);
-    if ($('editAccountName')) $('editAccountName').value = acct.name || '';
-    if ($('editAccountIcon')) $('editAccountIcon').value = acct.icon || '';
-    if ($('editAccountKind')) $('editAccountKind').value = acct.kind || 'bank';
-    if ($('editAccountOpening')) $('editAccountOpening').value = acct.opening_balance || 0;
-    if ($('editAccountOrder')) $('editAccountOrder').value = acct.display_order || 0;
-    if ($('editAccountCreditLimit')) $('editAccountCreditLimit').value = acct.credit_limit || '';
-    if ($('editAccountMinPayment')) $('editAccountMinPayment').value = acct.min_payment_amount || '';
-    if ($('editAccountStatementDay')) $('editAccountStatementDay').value = acct.statement_day || '';
-    if ($('editAccountDueDay')) $('editAccountDueDay').value = acct.payment_due_day || '';
+    var titleEl = $('editAccountTitle');
+    if (titleEl) titleEl.textContent = 'Edit ' + acct.name;
+    var subEl = $('editAccountSub');
+    if (subEl) subEl.textContent = (acct.kind_label || acct.kind) + ' - ' + acct.id;
 
-    const ccBlock = $('editAccountCCBlock');
+    var nameEl = $('editAccountName');
+    if (nameEl) nameEl.value = acct.name || '';
+    var iconEl = $('editAccountIcon');
+    if (iconEl) iconEl.value = acct.icon || '';
+    var kindEl = $('editAccountKind');
+    if (kindEl) kindEl.value = acct.kind || 'bank';
+    var openingEl = $('editAccountOpening');
+    if (openingEl) openingEl.value = acct.opening_balance || 0;
+    var orderEl = $('editAccountOrder');
+    if (orderEl) orderEl.value = acct.display_order || 0;
+    var clEl = $('editAccountCreditLimit');
+    if (clEl) clEl.value = acct.credit_limit || '';
+    var mpEl = $('editAccountMinPayment');
+    if (mpEl) mpEl.value = acct.min_payment_amount || '';
+    var sdEl = $('editAccountStatementDay');
+    if (sdEl) sdEl.value = acct.statement_day || '';
+    var ddEl = $('editAccountDueDay');
+    if (ddEl) ddEl.value = acct.payment_due_day || '';
+
+    var ccBlock = $('editAccountCCBlock');
     if (ccBlock) ccBlock.style.display = (acct.kind === 'cc') ? 'block' : 'none';
   }
 
   function closeEditModal() {
-    const m = $('editAccountModal');
+    var m = $('editAccountModal');
     if (m) m.style.display = 'none';
     _editContext = null;
   }
 
-  async function submitEditAccount() {
+  function submitEditAccount() {
     if (!_editContext) return;
-    const btn = $('editAccountConfirm');
-    const id = _editContext.id;
+    var btn = $('editAccountConfirm');
+    var id = _editContext.id;
 
-    const body = {
-      name: $('editAccountName')?.value?.trim(),
-      icon: $('editAccountIcon')?.value?.trim() || null,
-      opening_balance: parseFloat($('editAccountOpening')?.value || '0') || 0,
-      display_order: parseInt($('editAccountOrder')?.value || '0', 10),
+    var nameEl = $('editAccountName');
+    var iconEl = $('editAccountIcon');
+    var openingEl = $('editAccountOpening');
+    var orderEl = $('editAccountOrder');
+
+    var body = {
+      name: nameEl ? (nameEl.value || '').trim() : '',
+      icon: iconEl ? ((iconEl.value || '').trim() || null) : null,
+      opening_balance: openingEl ? (parseFloat(openingEl.value || '0') || 0) : 0,
+      display_order: orderEl ? parseInt(orderEl.value || '0', 10) : 0,
       created_by: 'web-account-edit'
     };
 
     if (_editContext.kind === 'cc') {
-      body.credit_limit = parseFloat($('editAccountCreditLimit')?.value || '0') || null;
-      body.min_payment_amount = parseFloat($('editAccountMinPayment')?.value || '0') || null;
-      body.statement_day = parseInt($('editAccountStatementDay')?.value || '0', 10) || null;
-      body.payment_due_day = parseInt($('editAccountDueDay')?.value || '0', 10) || null;
+      var clEl = $('editAccountCreditLimit');
+      var mpEl = $('editAccountMinPayment');
+      var sdEl = $('editAccountStatementDay');
+      var ddEl = $('editAccountDueDay');
+      body.credit_limit = clEl ? (parseFloat(clEl.value || '0') || null) : null;
+      body.min_payment_amount = mpEl ? (parseFloat(mpEl.value || '0') || null) : null;
+      body.statement_day = sdEl ? (parseInt(sdEl.value || '0', 10) || null) : null;
+      body.payment_due_day = ddEl ? (parseInt(ddEl.value || '0', 10) || null) : null;
     }
 
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-    try {
-      const r = await fetch('/api/accounts/' + encodeURIComponent(id), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+    fetch('/api/accounts/' + encodeURIComponent(id), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          closeEditModal();
+          loadAll();
+        } else {
+          alert('Save failed: ' + (data.error || 'request error'));
+        }
+      })
+      .catch(function (e) { alert('Save failed: ' + e.message); })
+      .then(function () {
+        if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
       });
-      const data = await r.json();
-      if (data.ok) {
-        closeEditModal();
-        loadAll();
-      } else {
-        alert('Save failed: ' + (data.error || 'HTTP ' + r.status));
-      }
-    } catch (e) {
-      alert('Save failed: ' + e.message);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
-    }
   }
 
-  async function archiveAccount() {
+  function archiveAccount() {
     if (!_editContext) return;
-    if (!confirm('Archive ' + _editContext.name + '? It will move to the archived section.')) return;
-    const id = _editContext.id;
-    try {
-      const r = await fetch('/api/accounts/' + encodeURIComponent(id) + '?action=archive&created_by=web-account-archive', { method: 'DELETE' });
-      const data = await r.json();
-      if (data.ok) {
-        closeEditModal();
-        loadAll();
-      } else {
-        alert('Archive failed: ' + (data.error || 'HTTP ' + r.status));
-      }
-    } catch (e) {
-      alert('Archive failed: ' + e.message);
-    }
+    if (!confirm('Archive ' + _editContext.name + '?')) return;
+    var id = _editContext.id;
+    fetch('/api/accounts/' + encodeURIComponent(id) + '?action=archive&created_by=web-account-archive', { method: 'DELETE' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          closeEditModal();
+          loadAll();
+        } else {
+          alert('Archive failed: ' + (data.error || 'request error'));
+        }
+      })
+      .catch(function (e) { alert('Archive failed: ' + e.message); });
   }
 
-  async function deleteAccount() {
+  function deleteAccount() {
     if (!_editContext) return;
-    if (!confirm('PERMANENTLY DELETE ' + _editContext.name + '?\n\nThis is a soft delete (data preserved in DB) but the account will not appear anywhere in the app.')) return;
-    const id = _editContext.id;
-    try {
-      const r = await fetch('/api/accounts/' + encodeURIComponent(id) + '?action=delete&created_by=web-account-delete', { method: 'DELETE' });
-      const data = await r.json();
-      if (data.ok) {
-        closeEditModal();
-        loadAll();
-      } else {
-        alert('Delete failed: ' + (data.error || 'HTTP ' + r.status));
-      }
-    } catch (e) {
-      alert('Delete failed: ' + e.message);
-    }
+    if (!confirm('PERMANENTLY DELETE ' + _editContext.name + '? This is a soft delete (data preserved in DB).')) return;
+    var id = _editContext.id;
+    fetch('/api/accounts/' + encodeURIComponent(id) + '?action=delete&created_by=web-account-delete', { method: 'DELETE' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          closeEditModal();
+          loadAll();
+        } else {
+          alert('Delete failed: ' + (data.error || 'request error'));
+        }
+      })
+      .catch(function (e) { alert('Delete failed: ' + e.message); });
   }
 
-  /* ─── Archived toggle ─── */
   function toggleArchived() {
     archivedExpanded = !archivedExpanded;
     if (archivedListEl) archivedListEl.style.display = archivedExpanded ? 'block' : 'none';
-    if (archivedToggleEl) archivedToggleEl.textContent = archivedExpanded ? '▾' : '▸';
+    if (archivedToggleEl) archivedToggleEl.textContent = archivedExpanded ? 'v' : '>';
   }
 
-  /* ─── Init ─── */
   function init() {
     bindDOMRefs();
 
-    // Wire add button
-    const addBtn = $('addAccountBtn');
+    var addBtn = $('addAccountBtn');
     if (addBtn) addBtn.addEventListener('click', openAddModal);
 
-    // Wire add modal buttons
-    const addCancel = $('addAccountCancel');
+    var addCancel = $('addAccountCancel');
     if (addCancel) addCancel.addEventListener('click', closeAddModal);
-    const addConfirm = $('addAccountConfirm');
+    var addConfirm = $('addAccountConfirm');
     if (addConfirm) addConfirm.addEventListener('click', submitAddAccount);
-    const addKind = $('addAccountKind');
+    var addKind = $('addAccountKind');
     if (addKind) addKind.addEventListener('change', toggleAddCCBlock);
 
-    // Wire edit modal buttons
-    const editCancel = $('editAccountCancel');
+    var editCancel = $('editAccountCancel');
     if (editCancel) editCancel.addEventListener('click', closeEditModal);
-    const editConfirm = $('editAccountConfirm');
+    var editConfirm = $('editAccountConfirm');
     if (editConfirm) editConfirm.addEventListener('click', submitEditAccount);
-    const editArchive = $('editAccountArchive');
+    var editArchive = $('editAccountArchive');
     if (editArchive) editArchive.addEventListener('click', archiveAccount);
-    const editDelete = $('editAccountDelete');
+    var editDelete = $('editAccountDelete');
     if (editDelete) editDelete.addEventListener('click', deleteAccount);
 
-    // Wire archived toggle
     if (archivedHeaderEl) archivedHeaderEl.addEventListener('click', toggleArchived);
 
-    // Initial load
     loadAll();
-
-    // Refresh every 60s
     setInterval(loadAll, 60000);
   }
 
