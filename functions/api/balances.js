@@ -1,15 +1,14 @@
 // /functions/api/balances.js
-// v0.4.6 - Schema-correct full rewrite
-// Changes vs v0.4.5:
-//   - FIX: use status='active' (not is_active=1) - is_active doesn't exist
-//   - FIX: select verified columns only (id, name, type, kind, opening_balance, currency, color, status, credit_limit)
-//   - Use 'kind' column for asset/liability/cc classification (not 'type' alone)
-//   - VERSION bumped from v0.4.5 -> v0.4.6
-// Preserved from v0.4.5:
-//   - Modern transfer (transfer_to_account_id NOT NULL): subtract OUT + add IN atomically
-//   - Legacy transfer (transfer_to_account_id IS NULL): unchanged single-leg behavior
+// v0.4.7 - Include debts table in net worth + add field aliases for hub.js consumers
+// Changes vs v0.4.6:
+//   - NEW: query debts table (active only), sum outstanding (original_amount - paid_amount)
+//   - NEW: response.total_debts + response.total_owe (alias) populated from debts table
+//   - NEW: response.total_liquid_assets (alias for cash_accessible) - hub.js consumes this
+//   - FIX: net_worth formula now includes - total_debts (was missing CRED-1..6 personal debts)
+//   - Defensive: debts query wrapped in try/catch; if table missing or columns differ, debts default to 0
+//   - VERSION bumped from v0.4.6 -> v0.4.7
 
-const VERSION = 'v0.4.6';
+const VERSION = 'v0.4.7';
 
 export async function onRequest(context) {
   const { env } = context;
@@ -135,7 +134,31 @@ export async function onRequest(context) {
       }
     }
 
-    const netWorth = Math.round((totalAssets - totalLiabilities) * 100) / 100;
+    // Sum personal debts from debts table (CRED-1..6 etc, NOT accounts)
+    let totalDebts = 0;
+    let debtCount = 0;
+    let debtsError = null;
+    try {
+      const debts = await env.DB.prepare(
+        `SELECT name, original_amount, paid_amount, status
+         FROM debts
+         WHERE status = 'active'`
+      ).all();
+      for (const d of (debts.results || [])) {
+        const orig = Number(d.original_amount) || 0;
+        const paid = Number(d.paid_amount) || 0;
+        const outstanding = orig - paid;
+        if (outstanding > 0) {
+          totalDebts += outstanding;
+          debtCount++;
+        }
+      }
+    } catch (e) {
+      debtsError = e.message;
+      // fail soft - debts default to 0, surface in debug
+    }
+
+    const netWorth = Math.round((totalAssets - totalLiabilities - totalDebts) * 100) / 100;
 
     const responseBody = {
       ok: true,
@@ -143,7 +166,10 @@ export async function onRequest(context) {
       net_worth: netWorth,
       total_assets: Math.round(totalAssets * 100) / 100,
       total_liabilities: Math.round(totalLiabilities * 100) / 100,
+      total_debts: Math.round(totalDebts * 100) / 100,
+      total_owe: Math.round(totalDebts * 100) / 100,
       cash_accessible: Math.round(cashAccessible * 100) / 100,
+      total_liquid_assets: Math.round(cashAccessible * 100) / 100,
       cc_outstanding: Math.round(ccOutstanding * 100) / 100,
       accounts: accountBalances,
       cash: Math.round(cashAccessible * 100) / 100,
@@ -156,7 +182,9 @@ export async function onRequest(context) {
         modern_transfer_count: modernTransferCount,
         legacy_transfer_count: legacyTransferCount,
         txn_count: txns.results.length,
-        account_count: accounts.results.length
+        account_count: accounts.results.length,
+        active_debt_count: debtCount,
+        debts_error: debtsError
       };
     }
 
