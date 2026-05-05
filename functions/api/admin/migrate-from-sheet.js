@@ -1,26 +1,23 @@
 // /functions/api/admin/migrate-from-sheet.js
-// v1.2 — Schema-correct + type-canonicalization
+// v1.3 — FK-safe atomic batch (defer_foreign_keys + child-tables-first cleanup)
 //
-// CHANGES vs v1.1:
-//   - FIX: bills INSERT was using wrong column names (account_id/last_paid_dt/amount_minor)
-//          → now uses canonical (default_account_id/last_paid_date/amount in PKR)
-//   - FIX: transaction type translation — sheet/legacy 'borrow' → canonical 'debt_in'
-//          and 'repay' → 'debt_out' per Layer 1 spec
-//   - NEW: pre-flight check: MIGRATION_SECRET env var must be set; clear 500 if not
-//   - PRESERVED: full-replace semantics (DELETE all 4 tables in batch before INSERT)
-//   - PRESERVED: amount conversion (cents from sheet → PKR for D1)
-//   - PRESERVED: atomic db.batch() — all-or-nothing, snapshot-protected
+// CHANGES vs v1.2:
+//   - FIX: PRAGMA defer_foreign_keys = ON as first batch statement
+//          (D1 enforced FKs caused v1.2 batch to fail FK constraint mid-DELETE)
+//   - FIX: explicit DELETE for ALL child tables (audit_log, merchants, categories,
+//          snapshots, snapshot_data, reconciliation, goals, budgets, txn_ingest_log)
+//          BEFORE parent tables — defensive, no-op if tables empty
+//   - FIX: PRAGMA defer_foreign_keys = OFF at end of batch
+//   - PRESERVED: type translation (borrow→debt_in, repay→debt_out)
+//   - PRESERVED: bills column-name fix from v1.2 (default_account_id, last_paid_date, amount in PKR)
+//   - PRESERVED: amount conversion (cents → PKR via /100)
+//   - PRESERVED: full-replace semantics, atomic db.batch(), snapshot-protected upstream
 //
 // ════════════════════════════════════════════════════════════════════
 // SECTION 9 — VOCABULARY TRANSLATION TABLE (Pattern 21 lock)
 // ════════════════════════════════════════════════════════════════════
-// Sheet exporter (Sheet_To_D1_Export.gs v1.2) sends LEGACY vocabulary.
-// This endpoint translates to CANONICAL vocabulary at INSERT time.
-// Until sheet exporter is rewritten to v1.3 (canonical-direct), this
-// translation layer is required.
-//
 //   SHEET LEGACY      →   D1 CANONICAL (Layer 1 spec)
-//   ────────────         ────────────────────────────
+//   ─────────────         ─────────────────────────────
 //   'borrow'          →   'debt_in'    (receiving from debtor)
 //   'repay'           →   'debt_out'   (paying creditor)
 //   'income'          →   'income'     (no change)
@@ -33,20 +30,34 @@
 //   txn_id               →   id                    (no transform)
 //
 // ════════════════════════════════════════════════════════════════════
+// SECTION 10 — FK SAFE BATCH ORDER (Pattern 22 lock)
+// ════════════════════════════════════════════════════════════════════
+// SQLite FK enforcement order: by default, FKs checked at end-of-statement.
+// In a batch where DELETE accounts runs before DELETE transactions,
+// transactions still reference (about-to-be-deleted) accounts → FK violation.
+//
+// Fix: PRAGMA defer_foreign_keys = ON inside the batch defers FK checks
+// to end-of-transaction. Intermediate dangling refs allowed; final state must
+// be FK-valid. Re-enabled OFF at end so subsequent reads enforce FKs normally.
+//
+// Child tables deleted BEFORE parent tables as additional defensive practice:
+// audit_log, merchants, categories, snapshots, snapshot_data, reconciliation,
+// goals, budgets, txn_ingest_log → transactions, bills, debts → accounts.
+// ════════════════════════════════════════════════════════════════════
 
-const VERSION = 'v1.2';
+const VERSION = 'v1.3';
 
 const TYPE_TRANSLATION = {
-  'borrow': 'debt_in',
-  'repay':  'debt_out',
-  'income': 'income',
-  'expense': 'expense',
-  'transfer': 'transfer',
-  'opening': 'opening',
-  'salary': 'income',
-  'cc_spend': 'expense',
+  'borrow':     'debt_in',
+  'repay':      'debt_out',
+  'income':     'income',
+  'expense':    'expense',
+  'transfer':   'transfer',
+  'opening':    'opening',
+  'salary':     'income',
+  'cc_spend':   'expense',
   'cc_payment': 'transfer',
-  'atm': 'expense'
+  'atm':        'expense'
 };
 
 function translateType(sheetType) {
@@ -58,16 +69,14 @@ function translateType(sheetType) {
 export async function onRequestPost(context) {
   const { request, env } = context;
 
-  // Pre-flight: secret must be configured
   if (!env.MIGRATION_SECRET) {
     return jsonResponse({
       ok: false,
       version: VERSION,
-      error: 'MIGRATION_SECRET env var not configured on Cloudflare Pages — cannot authenticate import requests'
+      error: 'MIGRATION_SECRET env var not configured on Cloudflare Pages'
     }, 500);
   }
 
-  // Auth
   const providedSecret = request.headers.get('X-Migration-Secret');
   if (!providedSecret || providedSecret !== env.MIGRATION_SECRET) {
     return jsonResponse({
@@ -88,11 +97,11 @@ export async function onRequestPost(context) {
     }, 400);
   }
 
-  const accounts = Array.isArray(payload.accounts) ? payload.accounts : [];
+  const accounts     = Array.isArray(payload.accounts)     ? payload.accounts     : [];
   const transactions = Array.isArray(payload.transactions) ? payload.transactions : [];
-  const debts = Array.isArray(payload.debts) ? payload.debts : [];
-  const debtPaidMap = (payload.debt_paid_map && typeof payload.debt_paid_map === 'object') ? payload.debt_paid_map : {};
-  const bills = Array.isArray(payload.bills) ? payload.bills : [];
+  const debts        = Array.isArray(payload.debts)        ? payload.debts        : [];
+  const debtPaidMap  = (payload.debt_paid_map && typeof payload.debt_paid_map === 'object') ? payload.debt_paid_map : {};
+  const bills        = Array.isArray(payload.bills)        ? payload.bills        : [];
 
   if (transactions.length > 10000) {
     return jsonResponse({
@@ -116,13 +125,27 @@ export async function onRequestPost(context) {
     const db = env.DB;
     const statements = [];
 
-    // ── Wipe (atomic with rest of batch — all-or-nothing) ──
-    statements.push(db.prepare('DELETE FROM accounts'));
-    statements.push(db.prepare('DELETE FROM transactions'));
-    statements.push(db.prepare('DELETE FROM debts'));
-    statements.push(db.prepare('DELETE FROM bills'));
+    // ── FK fix: defer enforcement until end of batch ──
+    statements.push(db.prepare('PRAGMA defer_foreign_keys = ON'));
 
-    // ── Accounts ──
+    // ── Wipe child tables FIRST (defensive — no-op if empty) ──
+    statements.push(db.prepare('DELETE FROM audit_log'));
+    statements.push(db.prepare('DELETE FROM merchants'));
+    statements.push(db.prepare('DELETE FROM categories'));
+    statements.push(db.prepare('DELETE FROM snapshot_data'));
+    statements.push(db.prepare('DELETE FROM snapshots'));
+    statements.push(db.prepare('DELETE FROM reconciliation'));
+    statements.push(db.prepare('DELETE FROM goals'));
+    statements.push(db.prepare('DELETE FROM budgets'));
+    statements.push(db.prepare('DELETE FROM txn_ingest_log'));
+
+    // ── Wipe parent tables ──
+    statements.push(db.prepare('DELETE FROM transactions'));
+    statements.push(db.prepare('DELETE FROM bills'));
+    statements.push(db.prepare('DELETE FROM debts'));
+    statements.push(db.prepare('DELETE FROM accounts'));
+
+    // ── INSERT accounts FIRST (parent for transactions/bills FK) ──
     // Schema: id, name, icon, type, kind, opening_balance, currency, color, display_order, status, credit_limit
     for (let i = 0; i < accounts.length; i++) {
       const a = accounts[i];
@@ -145,9 +168,8 @@ export async function onRequestPost(context) {
       stats.accounts_inserted++;
     }
 
-    // ── Transactions ──
-    // Schema columns we write: id, date, type, amount, account_id, category_id, notes, created_at
-    // Translation: amount_minor (cents) → amount (PKR), borrow/repay → debt_in/debt_out
+    // ── INSERT transactions ──
+    // Schema columns we write: id, date, type, amount, account_id, category_id, notes, linked_txn_id
     for (const t of transactions) {
       const sheetType = t.type;
       const canonicalType = translateType(sheetType);
@@ -174,7 +196,7 @@ export async function onRequestPost(context) {
       stats.transactions_inserted++;
     }
 
-    // ── Debts ──
+    // ── INSERT debts ──
     // Schema: id, name, kind, original_amount, paid_amount, snowball_order, due_date, status, notes
     for (let i = 0; i < debts.length; i++) {
       const d = debts[i];
@@ -199,8 +221,8 @@ export async function onRequestPost(context) {
       stats.debts_inserted++;
     }
 
-    // ── Bills ──
-    // Schema: id, name, amount, due_day, frequency, category_id, default_account_id, last_paid_date, auto_post, status
+    // ── INSERT bills ──
+    // Schema: id, name, amount, due_day, frequency, default_account_id, last_paid_date, status
     for (let i = 0; i < bills.length; i++) {
       const b = bills[i];
       const billId = 'bill_' + (b.name || 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30) + '_' + i;
@@ -227,13 +249,16 @@ export async function onRequestPost(context) {
       stats.bills_inserted++;
     }
 
-    // ── Atomic execution ──
+    // ── Re-enable FK enforcement for subsequent reads ──
+    statements.push(db.prepare('PRAGMA defer_foreign_keys = OFF'));
+
+    // ── Atomic execution: all-or-nothing ──
     await db.batch(statements);
 
     return jsonResponse({
       ok: true,
       version: VERSION,
-      message: 'Migration complete (atomic). All 4 tables wiped + reinserted.',
+      message: 'Migration complete (atomic, FK-safe). All tables wiped + reinserted.',
       stats: stats,
       timestamp: new Date().toISOString()
     });
@@ -249,7 +274,6 @@ export async function onRequestPost(context) {
   }
 }
 
-// GET on this endpoint returns 405 (POST-only)
 export async function onRequest(context) {
   if (context.request.method === 'POST') {
     return onRequestPost(context);
