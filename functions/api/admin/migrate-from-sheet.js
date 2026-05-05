@@ -1,55 +1,32 @@
 // /functions/api/admin/migrate-from-sheet.js
-// v1.4 — Schema-verified table list (DELETE only tables that actually exist)
+// v1.5 — Drop type translation, passthrough sheet vocabulary (D1 CHECK is canonical)
 //
-// CHANGES vs v1.3:
-//   - FIX: removed DELETE for `txn_ingest_log` (table does not exist per sqlite_master)
-//   - VERIFIED via `SELECT name FROM sqlite_master WHERE type='table'` (2026-05-05 14:00 PKT):
-//     accounts, audit_log, bills, budgets, categories, debts, goals, merchants,
-//     reconciliation, settings, snapshot_data, snapshots, transactions
-//     (+ 4 backup tables we explicitly DO NOT touch)
-//   - PRESERVED: defer_foreign_keys, type translation, bills column fix, full-replace
-//   - PRESERVED: atomic db.batch() — all-or-nothing
+// CHANGES vs v1.4:
+//   - REMOVED: TYPE_TRANSLATION table + translateType() function entirely
+//   - FIX: INSERT directly writes sheet's vocabulary (borrow/repay/etc.) — D1 CHECK accepts these
+//   - NEW: defensive skip for amount<=0 rows (would fail CHECK(amount > 0))
+//   - PRESERVED: defer_foreign_keys, child-tables-first cleanup, atomic batch
+//   - PRESERVED: bills column-name fix (default_account_id, last_paid_date, amount in PKR)
+//   - PRESERVED: amount conversion (cents → PKR via /100)
 //
 // ════════════════════════════════════════════════════════════════════
-// SECTION 9 — VOCABULARY TRANSLATION TABLE (Pattern 21 lock)
+// SECTION 9 — VOCABULARY (Pattern 21 corrected)
 // ════════════════════════════════════════════════════════════════════
-//   SHEET LEGACY      →   D1 CANONICAL
-//   ─────────────         ──────────────
-//   'borrow'          →   'debt_in'
-//   'repay'           →   'debt_out'
-//   'income'          →   'income'
-//   'expense'         →   'expense'
-//   'transfer'        →   'transfer'
-//   amount_minor (cents) →  amount (PKR via /100)
-//   dt_local             →  date
-//   note                 →  notes
-//   txn_id               →  id
+// D1 transactions.type CHECK constraint IS the canonical vocabulary:
+//   'expense','income','transfer','cc_payment','cc_spend','borrow','repay','atm'
 //
-// SECTION 10 — FK SAFE BATCH ORDER (Pattern 22 lock)
+// Sheet exporter sends these same names. NO translation needed.
+// Layer 1 spec in balances.js v0.5.0 had this WRONG (proposed debt_in/debt_out).
+// balances.js v0.5.1 will update spec header to align with D1 CHECK as truth.
+//
+// ════════════════════════════════════════════════════════════════════
+// SECTION 10 — FK SAFE BATCH ORDER (Pattern 22)
+// ════════════════════════════════════════════════════════════════════
 // PRAGMA defer_foreign_keys = ON before DELETEs.
-// Child tables deleted before parent tables. PRAGMA OFF at end.
+// Child tables deleted before parent. PRAGMA OFF at end.
 // ════════════════════════════════════════════════════════════════════
 
-const VERSION = 'v1.4';
-
-const TYPE_TRANSLATION = {
-  'borrow':     'debt_in',
-  'repay':      'debt_out',
-  'income':     'income',
-  'expense':    'expense',
-  'transfer':   'transfer',
-  'opening':    'opening',
-  'salary':     'income',
-  'cc_spend':   'expense',
-  'cc_payment': 'transfer',
-  'atm':        'expense'
-};
-
-function translateType(sheetType) {
-  if (!sheetType) return 'expense';
-  const lower = String(sheetType).toLowerCase().trim();
-  return TYPE_TRANSLATION[lower] || lower;
-}
+const VERSION = 'v1.5';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -99,11 +76,11 @@ export async function onRequestPost(context) {
   const stats = {
     accounts_inserted: 0,
     transactions_inserted: 0,
-    transactions_translated: 0,
+    transactions_skipped_zero_amount: 0,
     debts_inserted: 0,
     bills_inserted: 0,
     bills_skipped_no_account: 0,
-    type_translation_counts: {}
+    type_counts: {}
   };
 
   try {
@@ -113,7 +90,7 @@ export async function onRequestPost(context) {
     // ── FK fix: defer enforcement until end of batch ──
     statements.push(db.prepare('PRAGMA defer_foreign_keys = ON'));
 
-    // ── Wipe child tables FIRST (verified to exist via sqlite_master) ──
+    // ── Wipe child tables FIRST (verified to exist via sqlite_master 2026-05-05) ──
     statements.push(db.prepare('DELETE FROM audit_log'));
     statements.push(db.prepare('DELETE FROM merchants'));
     statements.push(db.prepare('DELETE FROM categories'));
@@ -132,6 +109,7 @@ export async function onRequestPost(context) {
 
     // ── INSERT accounts FIRST (parent for transactions/bills FK) ──
     // Schema: id, name, icon, type, kind, opening_balance, currency, color, display_order, status, credit_limit
+    // CHECK: type IN ('asset','liability')
     for (let i = 0; i < accounts.length; i++) {
       const a = accounts[i];
       statements.push(db.prepare(
@@ -154,14 +132,22 @@ export async function onRequestPost(context) {
     }
 
     // ── INSERT transactions ──
-    // Schema: id, date, type, amount, account_id, category_id, notes, linked_txn_id
+    // Schema: id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, linked_txn_id
+    // CHECK: type IN ('expense','income','transfer','cc_payment','cc_spend','borrow','repay','atm')
+    // CHECK: amount > 0
+    // FK:    account_id REFERENCES accounts(id)
     for (const t of transactions) {
-      const sheetType = t.type;
-      const canonicalType = translateType(sheetType);
-      stats.type_translation_counts[canonicalType] = (stats.type_translation_counts[canonicalType] || 0) + 1;
-      if (sheetType !== canonicalType) stats.transactions_translated++;
-
+      const sheetType = (t.type || 'expense').toLowerCase().trim();
       const amountPkr = Number(t.amount_minor || 0) / 100;
+
+      // Defensive: skip zero or negative amounts (CHECK > 0 would reject)
+      if (amountPkr <= 0) {
+        stats.transactions_skipped_zero_amount++;
+        continue;
+      }
+
+      stats.type_counts[sheetType] = (stats.type_counts[sheetType] || 0) + 1;
+
       const txnId = t.txn_id || ('TXN-MIG-' + Math.random().toString(36).slice(2, 10));
       const noteText = t.note ? String(t.note).slice(0, 500) : null;
 
@@ -171,7 +157,7 @@ export async function onRequestPost(context) {
       ).bind(
         txnId,
         t.dt_local || null,
-        canonicalType,
+        sheetType,
         amountPkr,
         t.account_id || null,
         t.category_id || null,
@@ -243,7 +229,7 @@ export async function onRequestPost(context) {
     return jsonResponse({
       ok: true,
       version: VERSION,
-      message: 'Migration complete (atomic, FK-safe). All verified tables wiped + reinserted.',
+      message: 'Migration complete (atomic, FK-safe, no type translation).',
       stats: stats,
       timestamp: new Date().toISOString()
     });
