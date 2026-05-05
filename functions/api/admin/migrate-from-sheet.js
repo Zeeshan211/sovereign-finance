@@ -1,32 +1,47 @@
 // /functions/api/admin/migrate-from-sheet.js
-// v1.5 — Drop type translation, passthrough sheet vocabulary (D1 CHECK is canonical)
+// v1.6 — Translate debts.kind ('creditor' → 'owe', 'debtor' → 'owed') per D1 CHECK
 //
-// CHANGES vs v1.4:
-//   - REMOVED: TYPE_TRANSLATION table + translateType() function entirely
-//   - FIX: INSERT directly writes sheet's vocabulary (borrow/repay/etc.) — D1 CHECK accepts these
-//   - NEW: defensive skip for amount<=0 rows (would fail CHECK(amount > 0))
+// CHANGES vs v1.5:
+//   - FIX: debts INSERT translates kind field per D1 CHECK constraint
+//          ('creditor' → 'owe', 'debtor' → 'owed', default 'owe')
+//   - NEW: stats.debt_kind_counts tracks translation distribution
 //   - PRESERVED: defer_foreign_keys, child-tables-first cleanup, atomic batch
-//   - PRESERVED: bills column-name fix (default_account_id, last_paid_date, amount in PKR)
 //   - PRESERVED: amount conversion (cents → PKR via /100)
+//   - PRESERVED: transactions type passthrough (D1 CHECK accepts sheet vocab)
+//   - PRESERVED: defensive skip for amount<=0 rows
 //
 // ════════════════════════════════════════════════════════════════════
-// SECTION 9 — VOCABULARY (Pattern 21 corrected)
+// SECTION 9 — D1 CHECK CONSTRAINTS (ALL VERIFIED 2026-05-06)
 // ════════════════════════════════════════════════════════════════════
-// D1 transactions.type CHECK constraint IS the canonical vocabulary:
-//   'expense','income','transfer','cc_payment','cc_spend','borrow','repay','atm'
+// accounts.type:      ('asset', 'liability')
+// transactions.type:  ('expense','income','transfer','cc_payment','cc_spend',
+//                      'borrow','repay','atm')
+// transactions.amount: > 0
+// debts.kind:         ('owe', 'owed')   ← NEW translation in v1.6
+// bills:              no CHECK constraints
 //
-// Sheet exporter sends these same names. NO translation needed.
-// Layer 1 spec in balances.js v0.5.0 had this WRONG (proposed debt_in/debt_out).
-// balances.js v0.5.1 will update spec header to align with D1 CHECK as truth.
-//
-// ════════════════════════════════════════════════════════════════════
-// SECTION 10 — FK SAFE BATCH ORDER (Pattern 22)
-// ════════════════════════════════════════════════════════════════════
-// PRAGMA defer_foreign_keys = ON before DELETEs.
-// Child tables deleted before parent. PRAGMA OFF at end.
+// FKs noted:
+//   transactions.account_id → accounts(id)
+//   transactions.transfer_to_account_id → accounts(id)
+//   transactions.category_id → categories(id)
+//   bills.category_id → categories(id)
+//   bills.default_account_id → accounts(id)
+// FK enforcement deferred until end-of-batch via PRAGMA defer_foreign_keys.
 // ════════════════════════════════════════════════════════════════════
 
-const VERSION = 'v1.5';
+const VERSION = 'v1.6';
+
+// Translation map for debts.kind (sheet → D1 CHECK)
+const DEBT_KIND_TRANSLATION = {
+  'creditor': 'owe',   // operator owes them
+  'debtor':   'owed'   // they owe operator
+};
+
+function translateDebtKind(sheetKind) {
+  if (!sheetKind) return 'owe';
+  const lower = String(sheetKind).toLowerCase().trim();
+  return DEBT_KIND_TRANSLATION[lower] || 'owe';
+}
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -78,6 +93,7 @@ export async function onRequestPost(context) {
     transactions_inserted: 0,
     transactions_skipped_zero_amount: 0,
     debts_inserted: 0,
+    debt_kind_counts: {},
     bills_inserted: 0,
     bills_skipped_no_account: 0,
     type_counts: {}
@@ -133,14 +149,12 @@ export async function onRequestPost(context) {
 
     // ── INSERT transactions ──
     // Schema: id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, linked_txn_id
-    // CHECK: type IN ('expense','income','transfer','cc_payment','cc_spend','borrow','repay','atm')
-    // CHECK: amount > 0
-    // FK:    account_id REFERENCES accounts(id)
+    // CHECK: type IN (8-value vocab) + amount > 0
+    // FK: account_id REFERENCES accounts(id)
     for (const t of transactions) {
       const sheetType = (t.type || 'expense').toLowerCase().trim();
       const amountPkr = Number(t.amount_minor || 0) / 100;
 
-      // Defensive: skip zero or negative amounts (CHECK > 0 would reject)
       if (amountPkr <= 0) {
         stats.transactions_skipped_zero_amount++;
         continue;
@@ -169,12 +183,16 @@ export async function onRequestPost(context) {
 
     // ── INSERT debts ──
     // Schema: id, name, kind, original_amount, paid_amount, snowball_order, due_date, status, notes
+    // CHECK: kind IN ('owe','owed')   ← NEW v1.6 translation
     for (let i = 0; i < debts.length; i++) {
       const d = debts[i];
       const debtId = 'debt_' + (d.name || 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30) + '_' + i;
       const paidMinor = debtPaidMap[d.name] || 0;
       const paidPkr = paidMinor / 100;
       const originalPkr = Number(d.original_minor || 0) / 100;
+      const d1Kind = translateDebtKind(d.kind);
+
+      stats.debt_kind_counts[d1Kind] = (stats.debt_kind_counts[d1Kind] || 0) + 1;
 
       statements.push(db.prepare(
         `INSERT INTO debts (id, name, kind, original_amount, paid_amount, snowball_order, status, notes)
@@ -182,7 +200,7 @@ export async function onRequestPost(context) {
       ).bind(
         debtId,
         d.name,
-        d.kind || 'creditor',
+        d1Kind,
         originalPkr,
         paidPkr,
         i + 1,
@@ -194,6 +212,7 @@ export async function onRequestPost(context) {
 
     // ── INSERT bills ──
     // Schema: id, name, amount, due_day, frequency, default_account_id, last_paid_date, status
+    // No CHECK constraints
     for (let i = 0; i < bills.length; i++) {
       const b = bills[i];
       const billId = 'bill_' + (b.name || 'unknown').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 30) + '_' + i;
@@ -229,7 +248,7 @@ export async function onRequestPost(context) {
     return jsonResponse({
       ok: true,
       version: VERSION,
-      message: 'Migration complete (atomic, FK-safe, no type translation).',
+      message: 'Migration complete (atomic, FK-safe, debts.kind translated).',
       stats: stats,
       timestamp: new Date().toISOString()
     });
