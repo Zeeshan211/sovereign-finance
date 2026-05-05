@@ -1,28 +1,23 @@
 /* ─── /api/transactions — GET list, POST create ─── */
-/* Cloudflare Pages Function v0.1.1 · sheet reversal marker bridge */
+/* Cloudflare Pages Function v0.1.2 · Layer 2 transfer write contract */
 /*
- * Changes vs v0.1.0:
- *   - GET still excludes D1 reversed rows by default
- *   - GET also excludes imported Sheet reversal rows marked in notes:
- *       [REVERSED BY ...]
- *       [REVERSAL OF ...]
- *   - Optional audit view remains: /api/transactions?include_reversed=1
- *   - Response includes hidden_reversal_count for Ground Zero verification
+ * Changes vs v0.1.1:
+ *   - POST transfer now writes Sheet-compatible 2-row pair:
+ *       OUT row: type=transfer, source account
+ *       IN row:  type=income, destination account
+ *   - Transfer pair is linked in notes using [linked: ...]
+ *   - Audit detail is JSON.stringified so audit failure does not break successful transaction writes
+ *   - GET keeps active/audit split and adds stable datewise ordering
  *
- * Ground Zero rule:
- *   Normal transaction lists show active business rows only.
- *   Audit view can show reversal machinery.
- *
- * PRESERVED:
- *   - POST validation
- *   - POST insert shape
- *   - Audit-after-write behavior
- *   - Response shape
+ * Formula spec:
+ *   Legacy Sheet transfers are canonical for write path.
+ *   Modern transfer_to_account_id reads are still supported by /api/balances,
+ *   but new web writes use 2-row Sheet-compatible pairs.
  */
 
 import { audit } from './_lib.js';
 
-const VERSION = 'v0.1.1';
+const VERSION = 'v0.1.2';
 
 export async function onRequestGet(context) {
   try {
@@ -34,7 +29,7 @@ export async function onRequestGet(context) {
               category_id, notes, fee_amount, pra_amount, created_at,
               reversed_by, reversed_at, linked_txn_id
        FROM transactions
-       ORDER BY date DESC, created_at DESC
+       ORDER BY date DESC, datetime(created_at) DESC, id DESC
        LIMIT 200`
     );
 
@@ -54,7 +49,7 @@ export async function onRequestGet(context) {
       transactions: visibleRows
     });
   } catch (err) {
-    return jsonResponse({ ok: false, error: err.message }, 500);
+    return jsonResponse({ ok: false, version: VERSION, error: err.message }, 500);
   }
 }
 
@@ -70,80 +65,223 @@ function isReversalRow(t) {
 
 export async function onRequestPost(context) {
   try {
+    const db = context.env.DB;
     const body = await context.request.json();
 
     const amount = parseFloat(body.amount);
     if (isNaN(amount) || amount <= 0) {
-      return jsonResponse({ ok: false, error: 'Amount must be greater than 0' }, 400);
+      return jsonResponse({ ok: false, version: VERSION, error: 'Amount must be greater than 0' }, 400);
     }
 
     if (!body.account_id) {
-      return jsonResponse({ ok: false, error: 'account_id required' }, 400);
+      return jsonResponse({ ok: false, version: VERSION, error: 'account_id required' }, 400);
     }
 
     if (!body.type) {
-      return jsonResponse({ ok: false, error: 'type required' }, 400);
+      return jsonResponse({ ok: false, version: VERSION, error: 'type required' }, 400);
     }
 
     const allowedTypes = ['expense', 'income', 'transfer', 'cc_payment', 'cc_spend', 'borrow', 'repay', 'atm'];
     if (!allowedTypes.includes(body.type)) {
-      return jsonResponse({ ok: false, error: 'Invalid type' }, 400);
+      return jsonResponse({ ok: false, version: VERSION, error: 'Invalid type' }, 400);
     }
 
-    const id = 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-    const date = body.date || new Date().toISOString().slice(0, 10);
-    const notes = (body.notes || '').slice(0, 200);
+    if (body.type === 'transfer') {
+      return createTransferPair(context, body, amount);
+    }
 
-    const stmt = context.env.DB.prepare(
-      `INSERT INTO transactions
-        (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(
-      id,
-      date,
-      body.type,
-      amount,
-      body.account_id,
-      body.transfer_to_account_id || null,
-      body.category_id || 'other',
-      notes,
-      body.fee_amount || 0,
-      body.pra_amount || 0
-    );
-
-    await stmt.run();
-
-    let action;
-    if (body.type === 'transfer') action = 'TRANSFER';
-    else if (body.type === 'cc_payment') action = 'CC_PAYMENT';
-    else action = 'TXN_ADD';
-
-    const auditResult = await audit(context.env, {
-      action: action,
-      entity: 'transaction',
-      entity_id: id,
-      kind: 'mutation',
-      detail: {
-        type: body.type,
-        amount: amount,
-        account_id: body.account_id,
-        transfer_to_account_id: body.transfer_to_account_id || null,
-        category_id: body.category_id || 'other',
-        date: date,
-        notes: notes.slice(0, 80)
-      },
-      created_by: body.created_by || 'web-add'
-    });
-
-    return jsonResponse({
-      ok: true,
-      version: VERSION,
-      id: id,
-      audited: !!auditResult.ok
-    });
+    return createSingleTransaction(context, body, amount);
   } catch (err) {
-    return jsonResponse({ ok: false, error: err.message }, 500);
+    return jsonResponse({ ok: false, version: VERSION, error: err.message }, 500);
   }
+}
+
+async function createSingleTransaction(context, body, amount) {
+  const db = context.env.DB;
+  const id = makeTxnId('tx');
+  const date = body.date || new Date().toISOString().slice(0, 10);
+  const notes = cleanNotes(body.notes);
+
+  await db.prepare(
+    `INSERT INTO transactions
+      (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    id,
+    date,
+    body.type,
+    amount,
+    body.account_id,
+    body.transfer_to_account_id || null,
+    body.category_id || 'other',
+    notes,
+    body.fee_amount || 0,
+    body.pra_amount || 0
+  ).run();
+
+  const auditResult = await safeAudit(context, {
+    action: body.type === 'cc_payment' ? 'CC_PAYMENT' : 'TXN_ADD',
+    entity: 'transaction',
+    entity_id: id,
+    kind: 'mutation',
+    detail: {
+      type: body.type,
+      amount,
+      account_id: body.account_id,
+      transfer_to_account_id: body.transfer_to_account_id || null,
+      category_id: body.category_id || 'other',
+      date,
+      notes: notes.slice(0, 80)
+    },
+    created_by: body.created_by || 'web-add'
+  });
+
+  return jsonResponse({
+    ok: true,
+    version: VERSION,
+    id,
+    audited: auditResult.ok,
+    audit_error: auditResult.error || null
+  });
+}
+
+async function createTransferPair(context, body, amount) {
+  const db = context.env.DB;
+  const date = body.date || new Date().toISOString().slice(0, 10);
+  const fromId = body.account_id;
+  const toId = body.transfer_to_account_id;
+
+  if (!toId) {
+    return jsonResponse({ ok: false, version: VERSION, error: 'transfer_to_account_id required for transfer' }, 400);
+  }
+
+  if (fromId === toId) {
+    return jsonResponse({ ok: false, version: VERSION, error: 'source and destination accounts cannot match' }, 400);
+  }
+
+  const accounts = await loadAccountNames(db, [fromId, toId]);
+  const fromName = accounts[fromId] || fromId;
+  const toName = accounts[toId] || toId;
+
+  const outId = makeTxnId('txout');
+  const inId = makeTxnId('txin');
+  const baseNotes = cleanNotes(body.notes || 'Transfer');
+
+  const outNotes = `To: ${toName} · ${baseNotes} (OUT) [linked: ${inId}]`.slice(0, 200);
+  const inNotes = `From: ${fromName} · ${baseNotes} (IN) [linked: ${outId}]`.slice(0, 200);
+
+  const outStmt = db.prepare(
+    `INSERT INTO transactions
+      (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    outId,
+    date,
+    'transfer',
+    amount,
+    fromId,
+    null,
+    body.category_id || 'transfer',
+    outNotes,
+    body.fee_amount || 0,
+    body.pra_amount || 0
+  );
+
+  const inStmt = db.prepare(
+    `INSERT INTO transactions
+      (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    inId,
+    date,
+    'income',
+    amount,
+    toId,
+    null,
+    body.category_id || 'transfer',
+    inNotes,
+    0,
+    0
+  );
+
+  await db.batch([outStmt, inStmt]);
+
+  const auditResult = await safeAudit(context, {
+    action: 'TRANSFER',
+    entity: 'transaction',
+    entity_id: outId,
+    kind: 'mutation',
+    detail: {
+      type: 'transfer',
+      amount,
+      from_account_id: fromId,
+      to_account_id: toId,
+      out_id: outId,
+      in_id: inId,
+      category_id: body.category_id || 'transfer',
+      date,
+      notes: baseNotes.slice(0, 80)
+    },
+    created_by: body.created_by || 'web-add'
+  });
+
+  return jsonResponse({
+    ok: true,
+    version: VERSION,
+    id: outId,
+    linked_id: inId,
+    ids: [outId, inId],
+    transfer_model: 'legacy_2_row',
+    audited: auditResult.ok,
+    audit_error: auditResult.error || null
+  });
+}
+
+async function loadAccountNames(db, ids) {
+  const out = {};
+
+  for (const id of ids) {
+    if (!id) continue;
+
+    try {
+      const row = await db.prepare(
+        `SELECT id, name FROM accounts WHERE id = ?`
+      ).bind(id).first();
+
+      if (row && row.id) out[row.id] = row.name || row.id;
+    } catch (e) {}
+  }
+
+  return out;
+}
+
+async function safeAudit(context, event) {
+  try {
+    const payload = {
+      ...event,
+      detail: typeof event.detail === 'string' ? event.detail : JSON.stringify(event.detail || {})
+    };
+
+    const result = await audit(context.env, payload);
+
+    return {
+      ok: !!(result && result.ok),
+      error: result && result.error ? result.error : null
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err.message
+    };
+  }
+}
+
+function makeTxnId(prefix) {
+  return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+}
+
+function cleanNotes(notes) {
+  return String(notes || '').trim().slice(0, 200);
 }
 
 function jsonResponse(obj, status) {
