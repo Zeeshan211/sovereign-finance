@@ -1,13 +1,14 @@
-/* /api/merchants/[[path]] v0.1.0 - CRUD endpoint */
-/* Schema (per SCHEMA.md): id, name, default_category_id, normalized_pattern, alias, last_used_at, hit_count, created_at */
-/* No deleted_at column - hard delete only for now */
-/* Pattern: matches debts/[[path]].js v0.2.1 with audit-after-write */
+/* /api/merchants/[[path]] v0.1.1 - REAL columns from D1 PRAGMA */
+/* D1 schema verified live: id, name, aliases, default_category_id, default_account_id, is_pra_required, learned_count, created_at */
+/* SCHEMA.md was wrong (claimed normalized_pattern + hit_count + alias + last_used_at) */
+/* aliases is plural — stored as comma-separated or JSON string */
+/* Dedup by name (lowercase normalized) since no normalized_pattern column */
 
 import { json, audit, snapshot } from '../_lib.js';
 
-function normalizePattern(s) {
+function normalizeName(s) {
   if (!s) return '';
-  return String(s).toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+  return String(s).toLowerCase().trim();
 }
 
 export async function onRequest(context) {
@@ -50,7 +51,7 @@ export async function onRequest(context) {
 
 async function handleList(db) {
   var rs = await db.prepare(
-    "SELECT * FROM merchants ORDER BY hit_count DESC, name ASC"
+    "SELECT * FROM merchants ORDER BY learned_count DESC, name ASC"
   ).all();
   var rows = rs.results || [];
   return json({ ok: true, merchants: rows, count: rows.length });
@@ -71,34 +72,34 @@ async function handleCreate(env, request) {
 
   var name = body.name ? String(body.name).trim() : '';
   var defaultCategoryId = body.default_category_id || null;
-  var alias = body.alias ? String(body.alias).trim() : null;
-  var explicitPattern = body.normalized_pattern ? String(body.normalized_pattern).trim() : null;
-  var pattern = explicitPattern || normalizePattern(name);
+  var defaultAccountId = body.default_account_id || null;
+  var aliases = body.aliases ? String(body.aliases).trim() : null;
+  var isPraRequired = body.is_pra_required ? 1 : 0;
   var createdBy = body.created_by || 'web-merchant-create';
 
   if (!name) return json({ ok: false, error: 'name is required' }, 400);
   if (name.length > 100) return json({ ok: false, error: 'name too long (max 100)' }, 400);
-  if (!pattern) return json({ ok: false, error: 'normalized_pattern could not be derived' }, 400);
 
+  var normName = normalizeName(name);
   var existing = await db.prepare(
-    "SELECT id FROM merchants WHERE normalized_pattern = ?"
-  ).bind(pattern).first();
+    "SELECT id, name FROM merchants WHERE LOWER(TRIM(name)) = ?"
+  ).bind(normName).first();
   if (existing) {
-    return json({ ok: false, error: 'Merchant with this pattern already exists', existing_id: existing.id }, 409);
+    return json({ ok: false, error: 'Merchant with this name already exists', existing_id: existing.id, existing_name: existing.name }, 409);
   }
 
   var id = body.id || ('MER-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
 
   await db.prepare(
-    "INSERT INTO merchants (id, name, default_category_id, normalized_pattern, alias, hit_count, created_at) VALUES (?, ?, ?, ?, ?, 0, datetime('now'))"
-  ).bind(id, name, defaultCategoryId, pattern, alias).run();
+    "INSERT INTO merchants (id, name, aliases, default_category_id, default_account_id, is_pra_required, learned_count, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'))"
+  ).bind(id, name, aliases, defaultCategoryId, defaultAccountId, isPraRequired).run();
 
   await audit(env, {
     action: 'MERCHANT_CREATE',
     entity: 'merchant',
     entity_id: id,
     kind: 'mutation',
-    detail: JSON.stringify({ id: id, name: name, default_category_id: defaultCategoryId, normalized_pattern: pattern, alias: alias }),
+    detail: JSON.stringify({ id: id, name: name, aliases: aliases, default_category_id: defaultCategoryId, default_account_id: defaultAccountId, is_pra_required: isPraRequired }),
     created_by: createdBy
   });
 
@@ -113,11 +114,13 @@ async function handleEdit(env, id, request) {
   var existing = await db.prepare("SELECT * FROM merchants WHERE id = ?").bind(id).first();
   if (!existing) return json({ ok: false, error: 'Merchant not found' }, 404);
 
-  var allowed = ['name', 'default_category_id', 'normalized_pattern', 'alias'];
+  var allowed = ['name', 'aliases', 'default_category_id', 'default_account_id', 'is_pra_required'];
   var updates = {};
   for (var i = 0; i < allowed.length; i++) {
     var k = allowed[i];
-    if (k in body && body[k] !== undefined) updates[k] = body[k];
+    if (k in body && body[k] !== undefined) {
+      updates[k] = body[k];
+    }
   }
 
   if (Object.keys(updates).length === 0) {
@@ -128,20 +131,19 @@ async function handleEdit(env, id, request) {
     var n = String(updates.name).trim();
     if (!n) return json({ ok: false, error: 'name cannot be empty' }, 400);
     if (n.length > 100) return json({ ok: false, error: 'name too long' }, 400);
+
+    var normName = normalizeName(n);
+    var conflict = await db.prepare(
+      "SELECT id FROM merchants WHERE LOWER(TRIM(name)) = ? AND id != ?"
+    ).bind(normName, id).first();
+    if (conflict) {
+      return json({ ok: false, error: 'Another merchant has this name', conflict_id: conflict.id }, 409);
+    }
     updates.name = n;
   }
 
-  if ('normalized_pattern' in updates) {
-    var p = String(updates.normalized_pattern).trim();
-    if (!p) return json({ ok: false, error: 'normalized_pattern cannot be empty' }, 400);
-
-    var conflict = await db.prepare(
-      "SELECT id FROM merchants WHERE normalized_pattern = ? AND id != ?"
-    ).bind(p, id).first();
-    if (conflict) {
-      return json({ ok: false, error: 'Another merchant has this pattern', conflict_id: conflict.id }, 409);
-    }
-    updates.normalized_pattern = p;
+  if ('is_pra_required' in updates) {
+    updates.is_pra_required = updates.is_pra_required ? 1 : 0;
   }
 
   await snapshot(env, 'pre-merchant-edit-' + id + '-' + Date.now(), body.created_by || 'web-merchant-edit');
@@ -151,7 +153,8 @@ async function handleEdit(env, id, request) {
   var vals = keys.map(function (k) { return updates[k]; });
   vals.push(id);
 
-  await db.prepare("UPDATE merchants SET " + sets + " WHERE id = ?").bind.apply(null, [].concat(vals)).run();
+  var stmt = db.prepare("UPDATE merchants SET " + sets + " WHERE id = ?");
+  await stmt.bind.apply(stmt, vals).run();
 
   await audit(env, {
     action: 'MERCHANT_EDIT',
