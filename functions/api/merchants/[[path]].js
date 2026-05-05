@@ -1,8 +1,12 @@
-/* /api/merchants/[[path]] v0.1.1 - REAL columns from D1 PRAGMA */
+/* /api/merchants/[[path]] v0.1.2 - adds POST /touch (increment learned_count) */
 /* D1 schema verified live: id, name, aliases, default_category_id, default_account_id, is_pra_required, learned_count, created_at */
-/* SCHEMA.md was wrong (claimed normalized_pattern + hit_count + alias + last_used_at) */
-/* aliases is plural — stored as comma-separated or JSON string */
-/* Dedup by name (lowercase normalized) since no normalized_pattern column */
+/* Routes: */
+/*   GET    /api/merchants            - list all */
+/*   GET    /api/merchants/{id}       - get single */
+/*   POST   /api/merchants            - create */
+/*   POST   /api/merchants/{id}/touch - increment learned_count (auto-rules learning) */
+/*   PUT    /api/merchants/{id}       - edit */
+/*   DELETE /api/merchants/{id}       - delete */
 
 import { json, audit, snapshot } from '../_lib.js';
 
@@ -40,6 +44,12 @@ export async function onRequest(context) {
       if (method === 'PUT') return await handleEdit(env, id, request);
       if (method === 'DELETE') return await handleDelete(env, id, request);
       return json({ ok: false, error: 'Method not allowed' }, 405);
+    }
+
+    if (segments.length === 2 && segments[1] === 'touch') {
+      var touchId = segments[0];
+      if (method === 'POST') return await handleTouch(env, touchId, request);
+      return json({ ok: false, error: 'Method not allowed for /touch' }, 405);
     }
 
     return json({ ok: false, error: 'Not found' }, 404);
@@ -190,4 +200,28 @@ async function handleDelete(env, id, request) {
   });
 
   return json({ ok: true, id: id, action: 'MERCHANT_DELETE' });
+}
+
+async function handleTouch(env, id, request) {
+  var db = env.DB;
+  var body;
+  try { body = await request.json(); } catch (_) { body = {}; }
+
+  var existing = await db.prepare("SELECT id, learned_count FROM merchants WHERE id = ?").bind(id).first();
+  if (!existing) return json({ ok: false, error: 'Merchant not found' }, 404);
+
+  // Increment learned_count by 1
+  await db.prepare("UPDATE merchants SET learned_count = COALESCE(learned_count, 0) + 1 WHERE id = ?").bind(id).run();
+
+  // Light audit (no snapshot — touch is non-destructive, high-frequency)
+  await audit(env, {
+    action: 'MERCHANT_TOUCH',
+    entity: 'merchant',
+    entity_id: id,
+    kind: 'event',
+    detail: JSON.stringify({ prev_count: existing.learned_count || 0, source: body.source || 'add-txn' }),
+    created_by: body.created_by || 'web-merchant-touch'
+  });
+
+  return json({ ok: true, id: id, action: 'MERCHANT_TOUCH', new_count: (existing.learned_count || 0) + 1 });
 }
