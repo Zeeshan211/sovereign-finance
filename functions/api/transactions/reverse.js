@@ -116,21 +116,32 @@ export async function onRequestPost(context) {
 
     // Reversal A: mirrors orig (swap source/dest)
     await db.prepare(
-      `INSERT INTO transactions
-         (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount, linked_txn_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(
-      reversalIdA,
-      today,
-      mapReversalType(orig.type),
-      orig.amount,
-      orig.transfer_to_account_id || orig.account_id,
-      orig.account_id,
-      orig.category_id || 'other',
-      reversalNotesA,
-      0,
-      0,
-      reversalIdB
+    const reversalId = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    const reversalDate = new Date().toISOString().slice(0, 10);
+
+    // For transfers: swap accounts (same positive amount = opposite direction)
+    // For income/expense: same account, negative amount (offsets original)
+    const isTransfer = txn.type === 'transfer';
+    const reversalAccountId       = isTransfer ? txn.transfer_to_account_id : txn.account_id;
+    const reversalTransferToId    = isTransfer ? txn.account_id             : txn.transfer_to_account_id;
+    const reversalAmount          = isTransfer ? txn.amount                  : -txn.amount;
+
+    await env.DB.prepare(`
+      INSERT INTO transactions (
+        id, date, type, amount, account_id, transfer_to_account_id,
+        category_id, merchant_id, notes, linked_txn_id, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).bind(
+      reversalId,
+      reversalDate,
+      txn.type,
+      reversalAmount,
+      reversalAccountId,
+      reversalTransferToId,
+      txn.category_id,
+      txn.merchant_id,
+      `Reversal of ${txn.id} (${txn.notes || 'no notes'})`,
+      txn.id
     ).run();
 
     // Reversal B: mirrors linked
