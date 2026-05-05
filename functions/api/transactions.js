@@ -1,23 +1,20 @@
 /* ─── /api/transactions — GET list, POST create ─── */
-/* Cloudflare Pages Function v0.1.2 · Layer 2 transfer write contract */
+/* Cloudflare Pages Function v0.1.3 · Layer 2 POST category contract fix */
 /*
- * Changes vs v0.1.1:
- *   - POST transfer now writes Sheet-compatible 2-row pair:
+ * Changes vs v0.1.2:
+ *   - Keeps GET active/audit split.
+ *   - Keeps datewise ordering.
+ *   - Keeps transfer POST as Sheet-compatible 2-row pair:
  *       OUT row: type=transfer, source account
  *       IN row:  type=income, destination account
- *   - Transfer pair is linked in notes using [linked: ...]
- *   - Audit detail is JSON.stringified so audit failure does not break successful transaction writes
- *   - GET keeps active/audit split and adds stable datewise ordering
- *
- * Formula spec:
- *   Legacy Sheet transfers are canonical for write path.
- *   Modern transfer_to_account_id reads are still supported by /api/balances,
- *   but new web writes use 2-row Sheet-compatible pairs.
+ *   - Writes category_id as NULL for new rows.
+ *     Reason: migrated working rows already use category_id:null, and FK/category drift can break POST.
+ *   - Keeps audit safe-wrapped so audit failure cannot break transaction insert.
  */
 
 import { audit } from './_lib.js';
 
-const VERSION = 'v0.1.2';
+const VERSION = 'v0.1.3';
 
 export async function onRequestGet(context) {
   try {
@@ -53,19 +50,8 @@ export async function onRequestGet(context) {
   }
 }
 
-function isReversalRow(t) {
-  if (!t) return false;
-
-  if (t.reversed_by || t.reversed_at) return true;
-
-  const notes = String(t.notes || '').toUpperCase();
-
-  return notes.includes('[REVERSED BY ') || notes.includes('[REVERSAL OF ');
-}
-
 export async function onRequestPost(context) {
   try {
-    const db = context.env.DB;
     const body = await context.request.json();
 
     const amount = parseFloat(body.amount);
@@ -82,6 +68,7 @@ export async function onRequestPost(context) {
     }
 
     const allowedTypes = ['expense', 'income', 'transfer', 'cc_payment', 'cc_spend', 'borrow', 'repay', 'atm'];
+
     if (!allowedTypes.includes(body.type)) {
       return jsonResponse({ ok: false, version: VERSION, error: 'Invalid type' }, 400);
     }
@@ -99,7 +86,7 @@ export async function onRequestPost(context) {
 async function createSingleTransaction(context, body, amount) {
   const db = context.env.DB;
   const id = makeTxnId('tx');
-  const date = body.date || new Date().toISOString().slice(0, 10);
+  const date = body.date || todayISO();
   const notes = cleanNotes(body.notes);
 
   await db.prepare(
@@ -113,10 +100,10 @@ async function createSingleTransaction(context, body, amount) {
     amount,
     body.account_id,
     body.transfer_to_account_id || null,
-    body.category_id || 'other',
+    null,
     notes,
-    body.fee_amount || 0,
-    body.pra_amount || 0
+    Number(body.fee_amount) || 0,
+    Number(body.pra_amount) || 0
   ).run();
 
   const auditResult = await safeAudit(context, {
@@ -129,7 +116,7 @@ async function createSingleTransaction(context, body, amount) {
       amount,
       account_id: body.account_id,
       transfer_to_account_id: body.transfer_to_account_id || null,
-      category_id: body.category_id || 'other',
+      category_id: null,
       date,
       notes: notes.slice(0, 80)
     },
@@ -147,7 +134,7 @@ async function createSingleTransaction(context, body, amount) {
 
 async function createTransferPair(context, body, amount) {
   const db = context.env.DB;
-  const date = body.date || new Date().toISOString().slice(0, 10);
+  const date = body.date || todayISO();
   const fromId = body.account_id;
   const toId = body.transfer_to_account_id;
 
@@ -181,10 +168,10 @@ async function createTransferPair(context, body, amount) {
     amount,
     fromId,
     null,
-    body.category_id || 'transfer',
+    null,
     outNotes,
-    body.fee_amount || 0,
-    body.pra_amount || 0
+    Number(body.fee_amount) || 0,
+    Number(body.pra_amount) || 0
   );
 
   const inStmt = db.prepare(
@@ -198,7 +185,7 @@ async function createTransferPair(context, body, amount) {
     amount,
     toId,
     null,
-    body.category_id || 'transfer',
+    null,
     inNotes,
     0,
     0
@@ -218,7 +205,7 @@ async function createTransferPair(context, body, amount) {
       to_account_id: toId,
       out_id: outId,
       in_id: inId,
-      category_id: body.category_id || 'transfer',
+      category_id: null,
       date,
       notes: baseNotes.slice(0, 80)
     },
@@ -235,6 +222,16 @@ async function createTransferPair(context, body, amount) {
     audited: auditResult.ok,
     audit_error: auditResult.error || null
   });
+}
+
+function isReversalRow(t) {
+  if (!t) return false;
+
+  if (t.reversed_by || t.reversed_at) return true;
+
+  const notes = String(t.notes || '').toUpperCase();
+
+  return notes.includes('[REVERSED BY ') || notes.includes('[REVERSAL OF ');
 }
 
 async function loadAccountNames(db, ids) {
@@ -278,6 +275,10 @@ async function safeAudit(context, event) {
 
 function makeTxnId(prefix) {
   return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+}
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function cleanNotes(notes) {
