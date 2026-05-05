@@ -1,41 +1,52 @@
 /* ─── /api/transactions — GET list, POST create ─── */
-/* Cloudflare Pages Function v0.0.9 · Sub-1D-AUDIT-WIRE */
+/* Cloudflare Pages Function v0.1.0 · reversed-row filter */
 /*
- * Changes vs v0.0.8:
- *   - POST now writes 1 audit_log row after successful insert
- *   - Action mapped from body.type:
- *       transfer    → TRANSFER
- *       cc_payment  → CC_PAYMENT
- *       all others  → TXN_ADD
- *   - audit() failure NEVER breaks the mutation (helper swallows errors)
- *   - Audit detail captures: type, amount, account_id, transfer_to_account_id,
- *     category_id, notes (truncated to 80 in detail for log readability)
- *   - Response now includes audited:true|false so caller can verify
+ * Changes vs v0.0.9:
+ *   - GET now excludes reversed transactions by default
+ *   - GET now selects reversed_by, reversed_at, linked_txn_id
+ *   - Optional audit view: /api/transactions?include_reversed=1
  *
- * PRESERVED from v0.0.8:
- *   - GET list endpoint byte-identical
- *   - POST validation (amount, account_id, type, allowedTypes whitelist)
- *   - ID format ('tx_' + timestamp + random)
- *   - INSERT statement structure
- *   - Local jsonResponse helper with Cache-Control header
- *   - Error response shape (status 500 on insert throw)
+ * Ground Zero rule:
+ *   Active transaction lists must match formula-layer truth.
+ *   Reversed originals must not appear in normal UI/API lists.
+ *
+ * PRESERVED from v0.0.9:
+ *   - POST validation
+ *   - POST insert shape
+ *   - Audit-after-write behavior
+ *   - Response shape
  */
 
 import { audit } from './_lib.js';
 
+const VERSION = 'v0.1.0';
+
 export async function onRequestGet(context) {
   try {
+    const url = new URL(context.request.url);
+    const includeReversed = url.searchParams.get('include_reversed') === '1';
+
+    const whereClause = includeReversed
+      ? ''
+      : `WHERE (reversed_by IS NULL OR reversed_by = '')
+           AND (reversed_at IS NULL OR reversed_at = '')`;
+
     const stmt = context.env.DB.prepare(
       `SELECT id, date, type, amount, account_id, transfer_to_account_id,
-              category_id, notes, fee_amount, pra_amount, created_at
+              category_id, notes, fee_amount, pra_amount, created_at,
+              reversed_by, reversed_at, linked_txn_id
        FROM transactions
+       ${whereClause}
        ORDER BY date DESC, created_at DESC
        LIMIT 200`
     );
+
     const result = await stmt.all();
 
     return jsonResponse({
       ok: true,
+      version: VERSION,
+      include_reversed: includeReversed,
       count: result.results.length,
       transactions: result.results
     });
@@ -48,29 +59,28 @@ export async function onRequestPost(context) {
   try {
     const body = await context.request.json();
 
-    // Validate required fields
     const amount = parseFloat(body.amount);
     if (isNaN(amount) || amount <= 0) {
       return jsonResponse({ ok: false, error: 'Amount must be greater than 0' }, 400);
     }
+
     if (!body.account_id) {
       return jsonResponse({ ok: false, error: 'account_id required' }, 400);
     }
+
     if (!body.type) {
       return jsonResponse({ ok: false, error: 'type required' }, 400);
     }
 
-    const allowedTypes = ['expense','income','transfer','cc_payment','cc_spend','borrow','repay','atm'];
+    const allowedTypes = ['expense', 'income', 'transfer', 'cc_payment', 'cc_spend', 'borrow', 'repay', 'atm'];
     if (!allowedTypes.includes(body.type)) {
       return jsonResponse({ ok: false, error: 'Invalid type' }, 400);
     }
 
-    // Generate ID and timestamps
     const id = 'tx_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
     const date = body.date || new Date().toISOString().slice(0, 10);
     const notes = (body.notes || '').slice(0, 200);
 
-    // Insert
     const stmt = context.env.DB.prepare(
       `INSERT INTO transactions
         (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount)
@@ -90,7 +100,6 @@ export async function onRequestPost(context) {
 
     await stmt.run();
 
-    // ── Sub-1D-AUDIT-WIRE: audit-after-write ──
     let action;
     if (body.type === 'transfer') action = 'TRANSFER';
     else if (body.type === 'cc_payment') action = 'CC_PAYMENT';
@@ -115,6 +124,7 @@ export async function onRequestPost(context) {
 
     return jsonResponse({
       ok: true,
+      version: VERSION,
       id: id,
       audited: !!auditResult.ok
     });
