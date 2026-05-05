@@ -1,13 +1,16 @@
-/* Sovereign Finance — Charts v0.1.0 — Ship 2
+/* Sovereign Finance — Charts v0.1.1 — Ship 2c
  * Wires 6 charts to existing APIs (transactions, balances, merchants, snapshots).
  * Defensive: handles empty data, missing Chart.js, missing snapshots.
+ * v0.1.1: capped boot() retry at 10 attempts each for Chart.js + store; surfaces error in badge instead of bashing forever.
  * No template literals (locked rule).
  */
 (function () {
-  var VERSION = 'v0.1.0';
+  var VERSION = 'v0.1.1';
   console.log('[charts] script loaded ' + VERSION);
 
   var CC_LIMIT = 100000; // TODO: replace with real Alfalah CC limit; /api/balances does not expose this yet
+  var MAX_CHART_RETRIES = 10; // 10 × 500ms = 5s
+  var MAX_STORE_RETRIES = 10; // 10 × 200ms = 2s
 
   var PALETTE = ['#06b6d4', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#ec4899', '#84cc16', '#f97316', '#14b8a6'];
   var INCOME_COLOR = '#10b981';
@@ -15,6 +18,7 @@
   var ACCENT_COLOR = '#06b6d4';
   var MUTED_COLOR  = '#1f2937';
   var TEXT_COLOR   = '#e5e7eb';
+  var ERROR_COLOR  = '#ef4444';
 
   function fmtPKR(n) {
     if (typeof window.fmt === 'function') {
@@ -31,6 +35,13 @@
   }
 
   function ymKey(d) { return ymd(d).slice(0, 7); }
+
+  function setSummary(text, isError) {
+    var summary = document.getElementById('charts-summary');
+    if (!summary) return;
+    summary.textContent = text;
+    summary.style.color = isError ? ERROR_COLOR : '';
+  }
 
   function emptyState(canvasId, msg) {
     var canvas = document.getElementById(canvasId);
@@ -317,18 +328,35 @@
     }, 'No spend in last 30 days');
   }
 
-  async function boot() {
-    var summary = document.getElementById('charts-summary');
-    if (summary) summary.textContent = VERSION + ' · loading…';
+  async function boot(chartAttempt, storeAttempt) {
+    chartAttempt = chartAttempt || 0;
+    storeAttempt = storeAttempt || 0;
+
+    if (chartAttempt === 0 && storeAttempt === 0) {
+      setSummary(VERSION + ' · loading…', false);
+    }
 
     if (typeof Chart === 'undefined') {
-      console.warn('[charts] Chart.js not available, retrying in 500ms…');
-      setTimeout(boot, 500);
+      if (chartAttempt >= MAX_CHART_RETRIES) {
+        var msg = 'Chart.js failed to load after ' + MAX_CHART_RETRIES + ' retries (5s)';
+        console.warn('[charts] ' + msg + ' — giving up');
+        setSummary(VERSION + ' · ' + msg, true);
+        return;
+      }
+      console.warn('[charts] Chart.js not available, retry ' + (chartAttempt + 1) + '/' + MAX_CHART_RETRIES);
+      setTimeout(function () { boot(chartAttempt + 1, storeAttempt); }, 500);
       return;
     }
+
     if (!window.store) {
-      console.warn('[charts] window.store not ready, retrying in 200ms…');
-      setTimeout(boot, 200);
+      if (storeAttempt >= MAX_STORE_RETRIES) {
+        var msg2 = 'window.store not ready after ' + MAX_STORE_RETRIES + ' retries (2s)';
+        console.warn('[charts] ' + msg2 + ' — giving up');
+        setSummary(VERSION + ' · ' + msg2, true);
+        return;
+      }
+      console.warn('[charts] window.store not ready, retry ' + (storeAttempt + 1) + '/' + MAX_STORE_RETRIES);
+      setTimeout(function () { boot(chartAttempt, storeAttempt + 1); }, 200);
       return;
     }
 
@@ -356,18 +384,16 @@
       renderNetWorthTrajectory(snapshots);
       renderDailySpend(txns);
 
-      if (summary) {
-        summary.textContent = VERSION + ' · ' + txns.length + ' txns · ' + snapshots.length + ' snapshots';
-      }
+      setSummary(VERSION + ' · ' + txns.length + ' txns · ' + snapshots.length + ' snapshots', false);
     } catch (e) {
       console.warn('[charts] boot failed:', e.message);
-      if (summary) summary.textContent = VERSION + ' · error: ' + e.message;
+      setSummary(VERSION + ' · error: ' + e.message, true);
     }
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(boot, 100); });
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(function () { boot(0, 0); }, 100); });
   } else {
-    setTimeout(boot, 100);
+    setTimeout(function () { boot(0, 0); }, 100);
   }
 })();
