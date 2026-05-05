@@ -1,24 +1,37 @@
-/* ─── Sovereign Finance · Hub Bootstrap v0.7.5b · Polish FIX ─── */
-/* Renders Quick Access tiles + dynamic subtitle counts */
+/* ─── Sovereign Finance · Hub Bootstrap v0.7.5c · KPI render restored ─── */
+/* Renders Quick Access tiles + hero KPIs from /api/balances */
 /*
- * Changes vs v0.7.5 (broken):
- *   - REMOVED loadBalances() KPI rendering — that's index.html's inline loadKpis() job
- *     (was using wrong element IDs: netWorthValue/liquidValue/ccValue/debtsValue
- *      should have been kpi-net/kpi-liquid/kpi-cc/kpi-debts per index.html)
- *   - hub.js now ONLY does: render Quick Access tiles + update tile subtitles from /api/balances
- *   - No conflict with inline loadKpis() — both fetch same endpoint independently
- *   - Pattern 7 fix: read index.html before assuming element IDs
+ * Changes vs v0.7.5b (broken — removed only KPI renderer):
+ *   - Restored loadBalances() with VERIFIED element IDs from index.html live read:
+ *       kpi-net (was wrongly netWorthValue in v0.7.5)
+ *       kpi-liquid (was wrongly liquidValue)
+ *       kpi-cc (was wrongly ccValue)
+ *       kpi-debts (was wrongly debtsValue)
+ *   - Pattern 7 fix #2: read index.html before assuming element IDs
+ *   - Removed comment claiming "index.html has inline loadKpis" (it does NOT)
  *
- * PRESERVED from v0.7.5 intent:
- *   - Dynamic Accounts subtitle from d.account_count
- *   - Dynamic Debts subtitle from d.debt_count
- *   - Falls back to default subtitle if API unreachable
+ * Element IDs verified live in index.html sections:
+ *   <div class="kpi-value" id="kpi-net">Rs —</div>
+ *   <div class="kpi-value" id="kpi-liquid">Rs —</div>
+ *   <div class="kpi-value" id="kpi-cc">Rs —</div>
+ *   <div class="kpi-value" id="kpi-debts">Rs —</div>
+ *
+ * PRESERVED:
+ *   - Quick Access tile rendering
+ *   - Dynamic Accounts/Debts subtitles
+ *   - Defensive null checks
  */
 
 (function () {
   'use strict';
 
-  // Quick Access tile data (matches existing index.html structure)
+  function fmtPKR(amount) {
+    if (amount == null || isNaN(amount)) return 'Rs —';
+    const sign = amount < 0 ? '-' : '';
+    const abs = Math.abs(amount);
+    return 'Rs ' + sign + abs.toLocaleString('en-PK', { maximumFractionDigits: 0 });
+  }
+
   const tiles = [
     { id: 'add',          label: 'Add',           icon: '➕', href: '/add.html',          subtitle: 'New transaction' },
     { id: 'transactions', label: 'Transactions',  icon: '📋', href: '/transactions.html', subtitle: 'History' },
@@ -42,40 +55,51 @@
     `).join('');
   }
 
-  async function updateSubtitles() {
+  async function loadBalances() {
     try {
       const r = await fetch('/api/balances', { cache: 'no-store' });
       if (!r.ok) {
-        console.warn('[hub] subtitle update failed: HTTP ' + r.status);
+        console.warn('[hub] loadBalances failed: HTTP ' + r.status);
         return;
       }
       const d = await r.json();
       if (!d.ok) {
-        console.warn('[hub] subtitle update failed:', d.error);
+        console.warn('[hub] loadBalances failed:', d.error);
         return;
       }
 
-      // Dynamic Accounts subtitle (was hardcoded "11 active")
+      // Hero KPIs (verified IDs from index.html live read)
+      const netEl = document.getElementById('kpi-net');
+      if (netEl) netEl.textContent = fmtPKR(d.net_worth);
+
+      const liquidEl = document.getElementById('kpi-liquid');
+      if (liquidEl) liquidEl.textContent = fmtPKR(d.total_liquid_assets);
+
+      const ccEl = document.getElementById('kpi-cc');
+      if (ccEl) ccEl.textContent = fmtPKR(Math.abs(d.cc_outstanding));
+
+      const debtsEl = document.getElementById('kpi-debts');
+      if (debtsEl) debtsEl.textContent = fmtPKR(d.total_debts || d.total_owe || 0);
+
+      // Dynamic tile subtitles
       const accountsSub = document.querySelector('[data-subtitle="accounts"]');
       if (accountsSub && d.account_count != null) {
         accountsSub.textContent = d.account_count + ' active';
       }
 
-      // Dynamic Debts subtitle
       const debtsSub = document.querySelector('[data-subtitle="debts"]');
       if (debtsSub && d.debt_count != null) {
         debtsSub.textContent = d.debt_count + ' active';
       }
 
     } catch (e) {
-      console.warn('[hub] updateSubtitles threw:', e.message);
+      console.warn('[hub] loadBalances threw:', e.message);
     }
   }
 
-  // Init on DOMContentLoaded
   function init() {
     renderTiles();
-    updateSubtitles();
+    loadBalances();
   }
 
   if (document.readyState === 'loading') {
