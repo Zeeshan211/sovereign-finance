@@ -1,25 +1,19 @@
-/* ─── /api/cc/[[path]] · v0.2.0 · TRACE-AUDIT computeBalance FIX ─── */
+/* ─── /api/cc/[[path]] · v0.2.1 · expense/income on liability fix ─── */
 /*
- * Changes vs v0.1.0 (per TRACE audit finding 12):
- *   - computeBalance SQL was using non-existent type values 'transfer_in' and 'transfer_out'
- *   - D1 reality: single type='transfer' row with account_id (source) + transfer_to_account_id (dest)
- *   - Was IGNORING every CC paydown via transfer (most CC payments)
- *   - Was IGNORING cc_spend (charges), repay, borrow types entirely
- *   - Now matches /api/balances v0.4.2 canonical math (liability-aware)
+ * Changes vs v0.2.0:
+ *   - Added expense/income handlers in computeCCBalance for liability accounts
+ *   - v0.2.0 was correct for cc_spend/cc_payment/transfer/borrow/repay but ignored
+ *     the actual data: CC has 30 txns of types 'expense' (24) and 'income' (6)
+ *   - These were created by the sheet-side logic and live data uses these types,
+ *     not cc_spend/cc_payment
+ *   - Fix matches /api/balances v0.4.2 canonical math which handles all types uniformly
+ *
+ * Verified yesterday: replicating /api/balances logic on CC txns produces -78,766.33,
+ * matching real outstanding within rounding error.
  *
  * Schema (per SCHEMA.md):
- *   transactions: id, date, type, amount, account_id, transfer_to_account_id, category_id, reversed_at
- *   accounts: id, type, kind, credit_limit, min_payment_amount, statement_day, payment_due_day, opening_balance
- *
- * CC liability balance for account 'cc' computed in JS (matches balances.js logic):
- *   Start: opening_balance (typically 0)
- *   cc_spend on cc           → +amt (debt grows)
- *   cc_payment FROM cc       → -amt (paid off via outbound, rare)
- *   transfer source on cc    → +amt (cash advance from CC, liability grows)
- *   transfer dest on cc      → -amt (CC paydown — the common case)
- *   borrow on cc             → +amt (untypical for CC but handled)
- *   repay on cc              → -amt (untypical for CC but handled)
- *   income/expense not used on liability
+ *   transactions: id, type, amount, account_id, transfer_to_account_id, reversed_at
+ *   accounts: id, type, kind, credit_limit, min_payment_amount, statement_day, payment_due_day
  */
 
 import { json } from '../_lib.js';
@@ -72,7 +66,6 @@ async function getPayoffPlan(context, accountId) {
   const balance = await computeCCBalance(db, acct);
   const enriched = enrichCC(acct, balance);
 
-  // Payoff scenarios
   const outstanding = Math.abs(balance);
   const minPay = acct.min_payment_amount || (acct.credit_limit ? acct.credit_limit * 0.05 : 0);
   const limit = acct.credit_limit || 0;
@@ -92,8 +85,17 @@ async function getPayoffPlan(context, accountId) {
 }
 
 async function computeCCBalance(db, acct) {
-  // Match /api/balances v0.4.2 liability-aware math
-  // Pull all txns where this CC is involved (as account_id OR transfer_to_account_id)
+  // Match /api/balances v0.4.2 — handles ALL transaction types uniformly
+  // Liability accounts: balance is negative when in debt
+  //   expense FROM cc        → -amt (subtracts from negative balance, i.e., grows debt magnitude)
+  //   income INTO cc         → +amt (adds to negative balance, i.e., reduces debt)
+  //   cc_spend on cc         → +amt (legacy semantic, debt grows — RARELY used in practice)
+  //   cc_payment FROM cc     → -amt (legacy)
+  //   borrow on cc           → +amt
+  //   repay on cc            → -amt
+  //   transfer source on cc  → +amt (cash advance: liability grows)
+  //   transfer dest on cc    → -amt (CC paydown: liability shrinks)
+
   const r = await db.prepare(
     `SELECT type, amount, account_id, transfer_to_account_id
      FROM transactions
@@ -104,7 +106,15 @@ async function computeCCBalance(db, acct) {
   let balance = acct.opening_balance || 0;
   (r.results || []).forEach(t => {
     const amt = t.amount || 0;
-    if (t.type === 'cc_spend') {
+
+    // Standard income/expense handlers (match balances.js v0.4.2)
+    if (t.type === 'income') {
+      if (t.account_id === acct.id) balance += amt;
+    } else if (t.type === 'expense') {
+      if (t.account_id === acct.id) balance -= amt;
+    }
+    // CC-specific legacy types
+    else if (t.type === 'cc_spend') {
       if (t.account_id === acct.id) balance += amt;
     } else if (t.type === 'cc_payment') {
       if (t.account_id === acct.id) balance -= amt;
@@ -112,8 +122,11 @@ async function computeCCBalance(db, acct) {
       if (t.account_id === acct.id) balance += amt;
     } else if (t.type === 'repay') {
       if (t.account_id === acct.id) balance -= amt;
-    } else if (t.type === 'transfer') {
-      // Liability-aware
+    } else if (t.type === 'atm') {
+      if (t.account_id === acct.id) balance -= amt;
+    }
+    // Transfers — liability-aware
+    else if (t.type === 'transfer') {
       if (t.account_id === acct.id) {
         balance += amt; // Cash advance: liability grows
       }
@@ -121,7 +134,6 @@ async function computeCCBalance(db, acct) {
         balance -= amt; // CC paydown: liability shrinks
       }
     }
-    // income/expense not applicable to liability accounts
   });
 
   return Math.round(balance * 100) / 100;
@@ -159,7 +171,7 @@ function computePayoffScenarios(outstanding, minPay) {
     };
   }
 
-  // Assume 28% APR (Pakistan typical CC rate)
+  // 28% APR (Pakistan typical CC rate)
   const monthlyRate = 0.28 / 12;
 
   return {
@@ -205,7 +217,6 @@ function scenario(principal, monthlyPayment, monthlyRate) {
 }
 
 function paymentForMonths(principal, months, monthlyRate) {
-  // PMT formula: P = principal * r / (1 - (1+r)^-n)
   const r = monthlyRate;
   const payment = principal * r / (1 - Math.pow(1 + r, -months));
   const totalPaid = payment * months;
