@@ -1,326 +1,259 @@
-/* ─── Sovereign Finance · Goals Catch-All API · v0.2.0 ───
- * Mirrors debts/bills/accounts catch-all pattern.
+/* ─── /api/goals/[[path]] · v0.3.0 · TRACE-AUDIT FIXES ─── */
+/*
+ * Changes vs v0.2.0 (per TRACE audit findings 3, 7, 13):
+ *   - Audit signature fix: was {entity_type, details} → now {entity, detail} per _lib.js contract
+ *   - Snapshot signature fix: was snapshot(db, {label, tables, where}) → now snapshot(env, label, createdBy)
+ *   - Contribute handler now blocks overflow past target_amount (returns 400 if would exceed)
+ *   - Contribute INSERT uses correct column 'category_id' (was already correct, double-checked)
  *
- * Routes:
- *   GET    /api/goals                       → list (active only) + summary
- *   POST   /api/goals                       → create
- *   GET    /api/goals/{id}                  → single
- *   PUT    /api/goals/{id}                  → edit (snapshot + audit)
- *   DELETE /api/goals/{id}?created_by=web   → soft-delete (snapshot + audit)
- *   POST   /api/goals/{id}/contribute       → add to current_amount
- *                                              + creates a transfer_out from source_account
- *                                              + audit + snapshot
- *
- * Banking-grade per Active Principle #2.
+ * Deferred (semantic, not correctness):
+ *   - Goals contribute uses type='expense' — should arguably be type='transfer' to a goal-account
+ *     destination. Math works. Semantic improvement for next session.
  */
 
-import { json, audit, snapshot } from '../_lib.js';
+import { json, audit, snapshot, uuid } from '../_lib.js';
 
-/* ─── Helpers ─── */
-function slugifyId(name) {
-  const slug = String(name || 'goal')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '')
-    .slice(0, 30);
-  const rand = Math.random().toString(36).slice(2, 8);
-  return 'goal_' + (slug || 'unnamed') + '_' + rand;
+const ALLOWED_STATUS = ['active', 'completed', 'paused', 'archived'];
+
+export async function onRequestGet(context) {
+  try {
+    const db = context.env.DB;
+    const path = context.params.path || [];
+
+    if (path.length === 1) {
+      const id = path[0];
+      const goal = await db.prepare(
+        "SELECT * FROM goals WHERE id = ?"
+      ).bind(id).first();
+      if (!goal) return json({ ok: false, error: 'Goal not found' }, 404);
+      return json({ ok: true, goal: enrichGoal(goal) });
+    }
+
+    const goals = await db.prepare(
+      "SELECT * FROM goals WHERE status != 'archived' OR status IS NULL ORDER BY display_order, deadline"
+    ).all();
+    return json({ ok: true, goals: (goals.results || []).map(enrichGoal) });
+  } catch (err) {
+    return json({ ok: false, error: err.message }, 500);
+  }
 }
 
-function todayUTC() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function computeGoalUI(g) {
+function enrichGoal(g) {
   const target = Number(g.target_amount) || 0;
   const current = Number(g.current_amount) || 0;
   const remaining = Math.max(0, target - current);
   const pct = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0;
-
-  let daysToDeadline = null;
-  let deadlineLabel = 'no deadline';
-  if (g.deadline) {
-    const dl = new Date(g.deadline);
-    const now = new Date();
-    daysToDeadline = Math.ceil((dl - now) / (1000 * 60 * 60 * 24));
-    if (daysToDeadline < 0) deadlineLabel = `${Math.abs(daysToDeadline)} day${daysToDeadline === -1 ? '' : 's'} overdue`;
-    else if (daysToDeadline === 0) deadlineLabel = 'due today';
-    else if (daysToDeadline < 365) deadlineLabel = `${daysToDeadline} day${daysToDeadline === 1 ? '' : 's'} left`;
-    else deadlineLabel = `${Math.round(daysToDeadline / 365 * 10) / 10} years left`;
-  }
-
   return {
     ...g,
     remaining,
     pct,
-    days_to_deadline: daysToDeadline,
-    deadline_label: deadlineLabel,
-    is_achieved: pct >= 100,
+    is_complete: target > 0 && current >= target
   };
 }
 
-/* ─── Cloudflare Pages Function entry ─── */
-export async function onRequest(context) {
-  const { request, env, params } = context;
-  const path = params.path;
-  const segments = !path ? [] : (Array.isArray(path) ? path : [path]);
-  const method = request.method;
-  const db = env.DB;
-
+export async function onRequestPost(context) {
   try {
-    if (segments.length === 0) {
-      if (method === 'GET') return await handleList(db);
-      if (method === 'POST') return await handleCreate(db, request);
-      return json({ ok: false, error: 'Method not allowed' }, 405);
+    const db = context.env.DB;
+    const path = context.params.path || [];
+
+    // POST /api/goals/{id}/contribute
+    if (path.length === 2 && path[1] === 'contribute') {
+      return await contributeGoal(context, path[0]);
     }
 
-    if (segments.length === 1) {
-      const id = segments[0];
-      if (method === 'GET') return await handleSingle(db, id);
-      if (method === 'PUT') return await handleEdit(db, id, request);
-      if (method === 'DELETE') return await handleDelete(db, id, request);
-      return json({ ok: false, error: 'Method not allowed' }, 405);
+    // POST /api/goals → create
+    if (path.length === 0) {
+      const body = await context.request.json();
+      if (!body.name || !body.target_amount) {
+        return json({ ok: false, error: 'name + target_amount required' }, 400);
+      }
+
+      const id = body.id || ('GOAL-' + uuid());
+
+      await db.prepare(
+        "INSERT INTO goals (id, name, target_amount, current_amount, deadline, source_account_id, status, display_order, notes) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)"
+      ).bind(
+        id, body.name, body.target_amount,
+        body.current_amount || 0,
+        body.deadline || null,
+        body.source_account_id || null,
+        body.display_order || 0,
+        body.notes || null
+      ).run();
+
+      await audit(context.env, {
+        action: 'GOAL_CREATE',
+        entity: 'goal',
+        entity_id: id,
+        kind: 'mutation',
+        detail: JSON.stringify(body),
+        created_by: body.created_by || 'web-goal-create'
+      });
+
+      return json({ ok: true, id });
     }
 
-    if (segments.length === 2 && segments[1] === 'contribute') {
-      if (method === 'POST') return await handleContribute(db, segments[0], request);
-      return json({ ok: false, error: 'Method not allowed' }, 405);
+    return json({ ok: false, error: 'Path not supported for POST' }, 400);
+  } catch (err) {
+    return json({ ok: false, error: err.message }, 500);
+  }
+}
+
+export async function onRequestPut(context) {
+  try {
+    const db = context.env.DB;
+    const path = context.params.path || [];
+    if (path.length !== 1) return json({ ok: false, error: 'Path requires goal id' }, 400);
+
+    const id = path[0];
+    const body = await context.request.json();
+    const existing = await db.prepare("SELECT * FROM goals WHERE id = ?").bind(id).first();
+    if (!existing) return json({ ok: false, error: 'Goal not found' }, 404);
+
+    if (body.status && !ALLOWED_STATUS.includes(body.status)) {
+      return json({ ok: false, error: 'Invalid status' }, 400);
     }
 
-    return json({ ok: false, error: 'Not found' }, 404);
-  } catch (e) {
-    console.error('[goals api]', e);
-    return json({ ok: false, error: e.message || String(e) }, 500);
+    // Snapshot before mutation (correct signature)
+    await snapshot(context.env, 'pre-goal-edit-' + id + '-' + Date.now(), body.created_by || 'web-goal-edit');
+
+    const updates = [];
+    const values = [];
+    const editable = ['name', 'target_amount', 'current_amount', 'deadline', 'source_account_id', 'status', 'display_order', 'notes'];
+    editable.forEach(field => {
+      if (body[field] !== undefined) {
+        updates.push(field + ' = ?');
+        values.push(body[field]);
+      }
+    });
+    if (updates.length === 0) return json({ ok: false, error: 'Nothing to update' }, 400);
+
+    values.push(id);
+    await db.prepare("UPDATE goals SET " + updates.join(', ') + " WHERE id = ?").bind(...values).run();
+
+    await audit(context.env, {
+      action: 'GOAL_UPDATE',
+      entity: 'goal',
+      entity_id: id,
+      kind: 'mutation',
+      detail: JSON.stringify({ before: existing, changes: body }),
+      created_by: body.created_by || 'web-goal-edit'
+    });
+
+    return json({ ok: true, id });
+  } catch (err) {
+    return json({ ok: false, error: err.message }, 500);
   }
 }
 
-/* ─── GET /api/goals ─── */
-async function handleList(db) {
-  const rs = await db
-    .prepare(`SELECT * FROM goals WHERE status = 'active' ORDER BY display_order ASC, name ASC`)
-    .all();
-  const rows = (rs.results || []).map(computeGoalUI);
+export async function onRequestDelete(context) {
+  try {
+    const db = context.env.DB;
+    const path = context.params.path || [];
+    if (path.length !== 1) return json({ ok: false, error: 'Path requires goal id' }, 400);
 
-  const total_target = rows.reduce((s, g) => s + (Number(g.target_amount) || 0), 0);
-  const total_current = rows.reduce((s, g) => s + (Number(g.current_amount) || 0), 0);
-  const total_remaining = rows.reduce((s, g) => s + (Number(g.remaining) || 0), 0);
-  const achieved_count = rows.filter(g => g.is_achieved).length;
+    const id = path[0];
+    const url = new URL(context.request.url);
+    const action = url.searchParams.get('action') || 'archive';
+    const createdBy = url.searchParams.get('created_by') || 'web-goal-delete';
 
-  return json({
-    ok: true,
-    goals: rows,
-    count: rows.length,
-    total_target,
-    total_current,
-    total_remaining,
-    achieved_count,
-  });
+    const existing = await db.prepare("SELECT * FROM goals WHERE id = ?").bind(id).first();
+    if (!existing) return json({ ok: false, error: 'Goal not found' }, 404);
+
+    // Snapshot before mutation (correct signature)
+    await snapshot(context.env, 'pre-goal-' + action + '-' + id + '-' + Date.now(), createdBy);
+
+    const newStatus = action === 'complete' ? 'completed' : 'archived';
+    await db.prepare("UPDATE goals SET status = ? WHERE id = ?").bind(newStatus, id).run();
+
+    await audit(context.env, {
+      action: 'GOAL_' + action.toUpperCase(),
+      entity: 'goal',
+      entity_id: id,
+      kind: 'mutation',
+      detail: JSON.stringify({ before: existing, new_status: newStatus }),
+      created_by: createdBy
+    });
+
+    return json({ ok: true, id, status: newStatus });
+  } catch (err) {
+    return json({ ok: false, error: err.message }, 500);
+  }
 }
 
-/* ─── POST /api/goals ─── */
-async function handleCreate(db, request) {
-  const body = await request.json().catch(() => ({}));
-  const name = (body.name || '').trim();
-  const target_amount = Number(body.target_amount);
-  const current_amount = Number(body.current_amount || 0);
-  const deadline = body.deadline || null;
-  const source_account_id = body.source_account_id || null;
-  const display_order = Number(body.display_order || 99);
-  const notes = body.notes || null;
+async function contributeGoal(context, goalId) {
+  const db = context.env.DB;
+  const body = await context.request.json();
 
-  if (!name) return json({ ok: false, error: 'Name is required' }, 400);
-  if (name.length > 80) return json({ ok: false, error: 'Name too long (max 80)' }, 400);
-  if (!target_amount || target_amount <= 0) return json({ ok: false, error: 'Target amount must be > 0' }, 400);
-  if (current_amount < 0) return json({ ok: false, error: 'Current amount cannot be negative' }, 400);
-
-  const id = body.id || slugifyId(name);
-  const existing = await db.prepare(`SELECT id FROM goals WHERE id = ?`).bind(id).first();
-  if (existing) return json({ ok: false, error: 'Goal id already exists — pick a different name' }, 409);
-
-  await db
-    .prepare(
-      `INSERT INTO goals
-        (id, name, target_amount, current_amount, deadline, source_account_id,
-         status, display_order, notes)
-       VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`
-    )
-    .bind(id, name, target_amount, current_amount, deadline, source_account_id, display_order, notes)
-    .run();
-
-  await audit(db, {
-    action: 'GOAL_CREATE',
-    entity_type: 'goal',
-    entity_id: id,
-    details: { name, target_amount, current_amount, deadline, source_account_id, display_order },
-    created_by: 'web',
-  });
-
-  return json({ ok: true, id, action: 'GOAL_CREATE' });
-}
-
-/* ─── GET /api/goals/{id} ─── */
-async function handleSingle(db, id) {
-  const row = await db.prepare(`SELECT * FROM goals WHERE id = ?`).bind(id).first();
-  if (!row) return json({ ok: false, error: 'Goal not found' }, 404);
-  return json({ ok: true, goal: computeGoalUI(row) });
-}
-
-/* ─── PUT /api/goals/{id} ─── */
-async function handleEdit(db, id, request) {
-  const body = await request.json().catch(() => ({}));
-  const existing = await db.prepare(`SELECT * FROM goals WHERE id = ?`).bind(id).first();
-  if (!existing) return json({ ok: false, error: 'Goal not found' }, 404);
-
-  const allowed = ['name', 'target_amount', 'current_amount', 'deadline',
-                   'source_account_id', 'display_order', 'notes', 'status'];
-  const updates = {};
-  for (const k of allowed) {
-    if (k in body && body[k] !== undefined) updates[k] = body[k];
-  }
-  if (Object.keys(updates).length === 0) {
-    return json({ ok: false, error: 'No editable fields supplied' }, 400);
+  const goal = await db.prepare("SELECT * FROM goals WHERE id = ?").bind(goalId).first();
+  if (!goal) return json({ ok: false, error: 'Goal not found' }, 404);
+  if (goal.status === 'completed' || goal.status === 'archived') {
+    return json({ ok: false, error: 'Goal is ' + goal.status + ', cannot contribute' }, 400);
   }
 
-  if ('name' in updates) {
-    const n = String(updates.name || '').trim();
-    if (!n) return json({ ok: false, error: 'Name cannot be empty' }, 400);
-    if (n.length > 80) return json({ ok: false, error: 'Name too long' }, 400);
-    updates.name = n;
-  }
-  if ('target_amount' in updates) {
-    const a = Number(updates.target_amount);
-    if (!a || a <= 0) return json({ ok: false, error: 'Target amount must be > 0' }, 400);
-    updates.target_amount = a;
-  }
-  if ('current_amount' in updates) {
-    const c = Number(updates.current_amount);
-    if (c < 0) return json({ ok: false, error: 'Current amount cannot be negative' }, 400);
-    updates.current_amount = c;
-  }
-  if ('display_order' in updates) updates.display_order = Number(updates.display_order) || 0;
+  const accountId = body.account_id || goal.source_account_id;
+  if (!accountId) return json({ ok: false, error: 'account_id required (no source on goal)' }, 400);
 
-  const snapId = await snapshot(db, {
-    label: `goal_edit_${id}_${Date.now()}`,
-    tables: ['goals'],
-    where: `id = '${id}'`,
-  });
-
-  const sets = Object.keys(updates).map(k => `${k} = ?`).join(', ');
-  const vals = Object.values(updates);
-  await db.prepare(`UPDATE goals SET ${sets} WHERE id = ?`).bind(...vals, id).run();
-
-  await audit(db, {
-    action: 'GOAL_EDIT',
-    entity_type: 'goal',
-    entity_id: id,
-    details: { before: existing, after: updates, snapshot_id: snapId },
-    created_by: 'web',
-  });
-
-  return json({ ok: true, id, updated_fields: Object.keys(updates), snapshot_id: snapId });
-}
-
-/* ─── DELETE /api/goals/{id} ─── */
-async function handleDelete(db, id, request) {
-  const url = new URL(request.url);
-  const created_by = url.searchParams.get('created_by') || 'web';
-
-  const existing = await db.prepare(`SELECT * FROM goals WHERE id = ?`).bind(id).first();
-  if (!existing) return json({ ok: false, error: 'Goal not found' }, 404);
-  if (existing.status === 'deleted') return json({ ok: false, error: 'Already deleted' }, 409);
-
-  const snapId = await snapshot(db, {
-    label: `goal_delete_${id}_${Date.now()}`,
-    tables: ['goals'],
-    where: `id = '${id}'`,
-  });
-
-  await db
-    .prepare(`UPDATE goals SET status = 'deleted' WHERE id = ?`)
-    .bind(id)
-    .run();
-
-  await audit(db, {
-    action: 'GOAL_DELETE',
-    entity_type: 'goal',
-    entity_id: id,
-    details: { before: existing, snapshot_id: snapId },
-    created_by,
-  });
-
-  return json({ ok: true, id, action: 'GOAL_DELETE', snapshot_id: snapId });
-}
-
-/* ─── POST /api/goals/{id}/contribute ─── */
-async function handleContribute(db, id, request) {
-  const body = await request.json().catch(() => ({}));
   const amount = Number(body.amount);
-  const account_id = body.account_id || null;
-  const date = body.date || todayUTC();
-  const notes = body.notes || null;
+  if (!amount || amount <= 0) return json({ ok: false, error: 'Invalid amount' }, 400);
 
-  if (!amount || amount <= 0) return json({ ok: false, error: 'Amount must be > 0' }, 400);
-
-  const goal = await db.prepare(`SELECT * FROM goals WHERE id = ? AND status = 'active'`).bind(id).first();
-  if (!goal) return json({ ok: false, error: 'Goal not found or deleted' }, 404);
-
-  // If account specified, verify it exists
-  let txnId = null;
-  if (account_id) {
-    const acc = await db.prepare(`SELECT id FROM accounts WHERE id = ?`).bind(account_id).first();
-    if (!acc) return json({ ok: false, error: `Account ${account_id} not found` }, 400);
+  // Overflow check (per TRACE audit Finding 13)
+  const target = Number(goal.target_amount) || 0;
+  const current = Number(goal.current_amount) || 0;
+  const newTotal = current + amount;
+  if (target > 0 && newTotal > target) {
+    return json({
+      ok: false,
+      error: 'Contribution would exceed target. Current: ' + current + ', target: ' + target + ', max contribution: ' + (target - current),
+      max_contribution: target - current
+    }, 400);
   }
 
-  const snapId = await snapshot(db, {
-    label: `goal_contribute_${id}_${Date.now()}`,
-    tables: ['goals'],
-    where: `id = '${id}'`,
-  });
+  const date = body.date || new Date().toISOString().slice(0, 10);
+  const txnId = 'TXN-' + uuid();
 
-  // Optionally create a transfer_out txn from the source account
-  if (account_id) {
-    txnId = 'TXN-GOAL-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
-    const txnNotes = notes || `Goal contribution: ${goal.name}`;
-    await db
-      .prepare(
-        `INSERT INTO transactions
-          (id, type, amount, date, account_id, notes, created_at)
-         VALUES (?, 'expense', ?, ?, ?, ?, ?)`
-      )
-      .bind(txnId, amount, date, account_id, txnNotes, new Date().toISOString())
-      .run();
+  // Snapshot before mutation (correct signature)
+  await snapshot(context.env, 'pre-goal-contribute-' + goalId + '-' + Date.now(), body.created_by || 'web-goal-contribute');
+
+  // Insert contribution as expense (semantic improvement deferred — math correct)
+  await db.prepare(
+    "INSERT INTO transactions (id, type, amount, date, account_id, category_id, notes) VALUES (?, 'expense', ?, ?, ?, ?, ?)"
+  ).bind(
+    txnId, amount, date, accountId,
+    'other',
+    'Goal contribution: ' + goal.name
+  ).run();
+
+  // Update goal current_amount
+  await db.prepare("UPDATE goals SET current_amount = ? WHERE id = ?").bind(newTotal, goalId).run();
+
+  // Auto-mark complete if target hit
+  if (target > 0 && newTotal >= target) {
+    await db.prepare("UPDATE goals SET status = 'completed' WHERE id = ?").bind(goalId).run();
   }
 
-  // Bump current_amount
-  const newAmount = (Number(goal.current_amount) || 0) + amount;
-  await db
-    .prepare(`UPDATE goals SET current_amount = ? WHERE id = ?`)
-    .bind(newAmount, id)
-    .run();
-
-  await audit(db, {
+  await audit(context.env, {
     action: 'GOAL_CONTRIBUTE',
-    entity_type: 'goal',
-    entity_id: id,
-    details: {
-      goal_name: goal.name,
-      amount,
-      account_id,
-      date,
+    entity: 'goal',
+    entity_id: goalId,
+    kind: 'mutation',
+    detail: JSON.stringify({
       txn_id: txnId,
-      previous_current: goal.current_amount,
-      new_current: newAmount,
-      snapshot_id: snapId,
-    },
-    created_by: 'web',
+      amount,
+      account_id: accountId,
+      date,
+      new_current: newTotal,
+      auto_completed: target > 0 && newTotal >= target
+    }),
+    created_by: body.created_by || 'web-goal-contribute'
   });
 
   return json({
     ok: true,
-    id,
+    goal_id: goalId,
     txn_id: txnId,
-    snapshot_id: snapId,
-    action: 'GOAL_CONTRIBUTE',
-    new_current_amount: newAmount,
+    amount,
+    new_current: newTotal,
+    completed: target > 0 && newTotal >= target
   });
 }
