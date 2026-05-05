@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0d0f12" />
+  <title>Merchants - Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+
+  <header>
+    <div class="brand">Sovereign Ops</div>
+    <h1 class="title">Merchants</h1>
+    <div class="day-badge"><span class="pulse"></span><span id="merch-freshness">Loading</span></div>
+  </header>
+
+  <nav class="page-nav">
+    <a href="/">Hub</a>
+    <a href="/transactions.html">Transactions</a>
+    <a href="/accounts.html">Accounts</a>
+    <a href="/debts.html">Debts</a>
+    <a href="/bills.html">Bills</a>
+    <a href="/merchants.html" class="active">Merchants</a>
+  </nav>
+
+  <main>
+
+    <section class="hub-panel" id="merch-summary">
+      <div class="section-header">
+        <span class="section-label">Summary</span>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Total Merchants</div>
+          <div id="merch-count" class="stat-value accent">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Hits</div>
+          <div id="merch-learned-total" class="stat-value">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">PRA Required</div>
+          <div id="merch-pra-count" class="stat-value warn">0</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="hub-panel">
+      <div class="section-header">
+        <span class="section-label">All Merchants</span>
+        <button id="addMerchBtn" class="dense-action">+ Add</button>
+      </div>
+      <div id="merch-list">
+        <div class="mini-row"><span class="meta">Loading merchants...</span></div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    Built one baby step at a time.<br>
+    <span class="v">v0.1.0 - sovereign-finance</span>
+  </footer>
+
+  <!-- Add Merchant modal -->
+  <div id="addMerchModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">Add Merchant</div>
+      </div>
+      <div class="modal-body">
+        <label class="field-label">Name</label>
+        <input id="addMerchName" type="text" class="field-input" placeholder="e.g. Easypaisa" />
+
+        <label class="field-label">Aliases (comma-separated, optional)</label>
+        <input id="addMerchAliases" type="text" class="field-input" placeholder="e.g. EP, Easy Paisa" />
+
+        <label class="field-label">Default Category</label>
+        <select id="addMerchCategory" class="field-input">
+          <option value="">Select category</option>
+        </select>
+
+        <label class="field-label">Default Account</label>
+        <select id="addMerchAccount" class="field-input">
+          <option value="">Select account</option>
+        </select>
+
+        <label class="field-label" style="display:flex;align-items:center;gap:8px">
+          <input id="addMerchPra" type="checkbox" />
+          <span>PRA tax required</span>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button id="addMerchCancel" class="ghost-btn">Cancel</button>
+        <button id="addMerchConfirm" class="primary-btn">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Merchant modal -->
+  <div id="editMerchModal" class="modal" style="display:none">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="editMerchTitle">Edit Merchant</div>
+        <div class="modal-sub" id="editMerchSub"></div>
+      </div>
+      <div class="modal-body">
+        <label class="field-label">Name</label>
+        <input id="editMerchName" type="text" class="field-input" />
+
+        <label class="field-label">Aliases (comma-separated)</label>
+        <input id="editMerchAliases" type="text" class="field-input" />
+
+        <label class="field-label">Default Category</label>
+        <select id="editMerchCategory" class="field-input"></select>
+
+        <label class="field-label">Default Account</label>
+        <select id="editMerchAccount" class="field-input"></select>
+
+        <label class="field-label" style="display:flex;align-items:center;gap:8px">
+          <input id="editMerchPra" type="checkbox" />
+          <span>PRA tax required</span>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button id="editMerchDelete" class="danger-btn">Delete</button>
+        <button id="editMerchCancel" class="ghost-btn">Cancel</button>
+        <button id="editMerchConfirm" class="primary-btn">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/store.js"></script>
+  <script src="/js/theme.js"></script>
+  <script src="/js/numbers.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/merchants.js"></script>
+
+</body>
+</html>
