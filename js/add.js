@@ -1,37 +1,28 @@
-/* ─── Sovereign Finance · Add Transaction Form v0.3.0 · Sub-1D-TXFER-POLISH ───
- * Honors URL query params from CC planner Pay buttons (and any future deep-link).
+/* ─── Sovereign Finance · Add Transaction Form v0.3.1 · Layer 2 caller repair ─── */
+/*
+ * Changes vs v0.3.0:
+ *   - Awaits store.refreshBalances() and store.refreshCategories() before first render.
+ *   - Works with store v0.2.2 normalized accounts array.
+ *   - Keeps URL prefill contract:
+ *       /add.html?type=transfer&amount=N&from=ACCT&to=ACCT&notes=ENCODED
+ *   - Keeps transfer validation: source and destination cannot match.
+ *   - Keeps no-delete/no-edit audit-safe flow.
  *
- * URL contract (matches cc.js v0.1.0 generation):
- *   /add.html?type=transfer&amount=N&from=ACCT&to=ACCT&notes=ENCODED
- *   Supported: type ∈ {expense, income, transfer}, amount, from, to, notes
- *
- * Design notes:
- *   - URL consumption is IDEMPOTENT (guards on each field) — safe to call multiple times
- *   - Re-fires after refreshBalances completes (in case URL `from` only matches D1 ids,
- *     not FALLBACK_ACCOUNTS)
- *   - Re-fires after populateTransferToDropdown (so URL `to` lands once dest dropdown is ready)
- *   - Validates URL values against whitelist (type) and current dropdown options (from/to)
- *   - Shows a subtle "Prefilled from X — verify before saving" banner so operator knows
- *     the form was auto-populated
- *   - Defensive: bad URL values (typos, stale ids) are silently dropped, console.warn logged
- *
- * Changes vs v0.2.0:
- *   - NEW applyURLParams() → reads query string into _pendingURLParams
- *   - NEW consumeURLParams() → idempotent setter, called from init + after async refreshes
- *   - NEW showPrefillBanner() → subtle visual cue
- *   - populateAccountDropdown re-fires consume after API refresh
- *   - populateTransferToDropdown re-fires consume (so dest URL param lands)
- *
- * PRESERVED from v0.2.0:
- *   All transfer flow logic, type toggle, source-change handler, dual validation,
- *   defensive null checks for v0.6.0 HTML scaffold, console-log instrumentation.
+ * Layer 2 rule:
+ *   Add page must use store.js as caller contract.
+ *   It must not care whether /api/balances returns accounts as object map or array.
  */
 
 (function () {
+  'use strict';
+
   document.addEventListener('DOMContentLoaded', initAddForm);
 
   let selectedType = 'expense';
-  let _pendingURLParams = null;
+  let pendingURLParams = null;
+  let isSubmitting = false;
+
+  const $ = id => document.getElementById(id);
 
   function localToday() {
     const d = new Date();
@@ -41,108 +32,155 @@
     return `${y}-${m}-${day}`;
   }
 
-  function initAddForm() {
-    populateAccountDropdown();
-    populateCategoryDropdown();
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  async function initAddForm() {
     setDateToToday();
+    captureURLParams();
     attachTypeToggle();
     attachAmountValidation();
     attachSourceChangeHandler();
     attachSubmitHandler();
     attachDefensiveRefocus();
+
+    await loadStoreData();
+    populateAccountDropdown();
+    populateCategoryDropdown();
     applyTypeMode(selectedType);
-    applyURLParams();
-    console.log('[add v0.3.0] init complete · selectedType=', selectedType);
+    consumeURLParams();
+    updateSubmitState();
+
+    console.log('[add v0.3.1] init complete · selectedType=', selectedType);
+  }
+
+  async function loadStoreData() {
+    if (!window.store) {
+      console.warn('[add v0.3.1] window.store missing');
+      return;
+    }
+
+    const jobs = [];
+
+    if (typeof window.store.refreshBalances === 'function') {
+      jobs.push(window.store.refreshBalances());
+    }
+
+    if (typeof window.store.refreshCategories === 'function') {
+      jobs.push(window.store.refreshCategories());
+    }
+
+    try {
+      await Promise.all(jobs);
+    } catch (e) {
+      console.warn('[add v0.3.1] store refresh warning:', e.message);
+    }
+  }
+
+  function accountsArray() {
+    if (!window.store) return [];
+
+    if (Array.isArray(window.store.accounts)) return window.store.accounts;
+    if (Array.isArray(window.store.cachedAccounts)) return window.store.cachedAccounts;
+
+    if (window.store.accounts && typeof window.store.accounts === 'object') {
+      return Object.keys(window.store.accounts).map(id => ({
+        id,
+        ...window.store.accounts[id]
+      }));
+    }
+
+    return [];
+  }
+
+  function categoriesArray() {
+    if (!window.store) return [];
+
+    if (Array.isArray(window.store.categories)) return window.store.categories;
+    if (Array.isArray(window.store.cachedCategories)) return window.store.cachedCategories;
+
+    return [];
   }
 
   function buildAccountOptions(sel, excludeId) {
-    sel.innerHTML = '<option value="">Pick account…</option>';
-    (window.store.accounts || []).forEach(a => {
+    const rows = accountsArray();
+
+    sel.innerHTML = '<option value="">Pick account...</option>';
+
+    rows.forEach(a => {
+      if (!a || !a.id) return;
       if (excludeId && a.id === excludeId) return;
+
       const opt = document.createElement('option');
       opt.value = a.id;
-      opt.textContent = (a.icon || '🏦') + '  ' + a.name;
+      opt.textContent = ((a.icon || '🏦') + '  ' + (a.name || a.id)).trim();
       sel.appendChild(opt);
     });
   }
 
   function populateAccountDropdown() {
-    const sel = document.getElementById('accountSelect');
+    const sel = $('accountSelect');
     if (!sel) return;
-    buildAccountOptions(sel);
-    sel.addEventListener('change', updateSubmitState);
-    console.log('[add] populated', sel.options.length - 1, 'accounts (first pass)');
 
-    if (window.store && typeof window.store.refreshBalances === 'function') {
-      window.store.refreshBalances().then(() => {
-        const current = sel.value;
-        buildAccountOptions(sel);
-        sel.value = current;
-        if (selectedType === 'transfer') populateTransferToDropdown();
-        console.log('[add] re-populated', sel.options.length - 1, 'accounts (after API)');
-        consumeURLParams(); // retry any deferred URL params now that real accounts loaded
-      }).catch(err => {
-        console.warn('[add] refreshBalances failed:', err.message);
-      });
+    const current = sel.value;
+    buildAccountOptions(sel);
+
+    if (current && [...sel.options].some(o => o.value === current)) {
+      sel.value = current;
     }
+
+    console.log('[add v0.3.1] populated', sel.options.length - 1, 'accounts');
   }
 
   function populateTransferToDropdown() {
-    const sel = document.getElementById('transferToSelect');
+    const sel = $('transferToSelect');
     if (!sel) return;
-    const sourceId = (document.getElementById('accountSelect') || {}).value || '';
+
+    const sourceId = ($('accountSelect') || {}).value || '';
     const current = sel.value;
+
     buildAccountOptions(sel, sourceId);
-    if (current && current !== sourceId) sel.value = current;
-    console.log('[add] populated', sel.options.length - 1, 'destination accounts (excluding', sourceId || 'none', ')');
-    consumeURLParams(); // retry deferred URL params (esp. transfer dest)
+
+    if (current && current !== sourceId && [...sel.options].some(o => o.value === current)) {
+      sel.value = current;
+    }
+
+    console.log('[add v0.3.1] populated', sel.options.length - 1, 'destination accounts');
   }
 
   function populateCategoryDropdown() {
-    const sel = document.getElementById('categorySelect');
+    const sel = $('categorySelect');
     if (!sel) return;
-    sel.innerHTML = '<option value="">Pick category…</option>';
-    (window.store.categories || []).forEach(c => {
+
+    const current = sel.value;
+    const rows = categoriesArray();
+
+    sel.innerHTML = '<option value="">Pick category...</option>';
+
+    rows.forEach(c => {
+      if (!c || !c.id) return;
+
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = (c.icon || '📝') + '  ' + c.name;
+      opt.textContent = ((c.icon || '📝') + '  ' + (c.name || c.id)).trim();
       sel.appendChild(opt);
     });
-    console.log('[add] populated', sel.options.length - 1, 'categories');
-  }
 
-  function attachDefensiveRefocus() {
-    const accSel = document.getElementById('accountSelect');
-    const catSel = document.getElementById('categorySelect');
-    const toSel = document.getElementById('transferToSelect');
-    if (accSel) {
-      accSel.addEventListener('focus', () => {
-        if (accSel.options.length < 2) populateAccountDropdown();
-      });
+    if (current && [...sel.options].some(o => o.value === current)) {
+      sel.value = current;
     }
-    if (catSel) {
-      catSel.addEventListener('focus', () => {
-        if (catSel.options.length < 2) populateCategoryDropdown();
-      });
-    }
-    if (toSel) {
-      toSel.addEventListener('focus', () => {
-        if (toSel.options.length < 2) populateTransferToDropdown();
-      });
-      toSel.addEventListener('change', updateSubmitState);
-    }
-  }
 
-  function attachSourceChangeHandler() {
-    const accSel = document.getElementById('accountSelect');
-    if (!accSel) return;
-    accSel.addEventListener('change', () => {
-      if (selectedType === 'transfer') populateTransferToDropdown();
-    });
+    console.log('[add v0.3.1] populated', sel.options.length - 1, 'categories');
   }
 
   function setDateToToday() {
-    const dateEl = document.getElementById('dateInput');
+    const dateEl = $('dateInput');
     if (!dateEl) return;
     dateEl.value = localToday();
   }
@@ -152,213 +190,299 @@
       btn.addEventListener('click', () => {
         document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        selectedType = btn.dataset.type;
+
+        selectedType = btn.dataset.type || 'expense';
+
         applyTypeMode(selectedType);
+        consumeURLParams();
         updateSubmitState();
       });
     });
   }
 
   function applyTypeMode(type) {
-    const transferWrap = document.getElementById('transferToWrap');
-    const categoryWrap = document.getElementById('categoryWrap');
-    const fromLabel    = document.getElementById('accountFromLabel');
-    const isTransfer   = type === 'transfer';
+    const transferWrap = $('transferToWrap');
+    const categoryWrap = $('categoryWrap');
+    const fromLabel = $('accountFromLabel');
+    const isTransfer = type === 'transfer';
 
     if (transferWrap) transferWrap.hidden = !isTransfer;
     if (categoryWrap) categoryWrap.hidden = isTransfer;
-    if (fromLabel)    fromLabel.textContent = isTransfer ? 'From Account' : 'Account';
+    if (fromLabel) fromLabel.textContent = isTransfer ? 'From Account' : 'Account';
 
     if (isTransfer) populateTransferToDropdown();
   }
 
   function attachAmountValidation() {
-    const amt = document.getElementById('amountInput');
+    const amt = $('amountInput');
     if (amt) amt.addEventListener('input', updateSubmitState);
   }
 
+  function attachSourceChangeHandler() {
+    const accSel = $('accountSelect');
+    if (!accSel) return;
+
+    accSel.addEventListener('change', () => {
+      if (selectedType === 'transfer') populateTransferToDropdown();
+      consumeURLParams();
+      updateSubmitState();
+    });
+  }
+
+  function attachDefensiveRefocus() {
+    const accSel = $('accountSelect');
+    const catSel = $('categorySelect');
+    const toSel = $('transferToSelect');
+
+    if (accSel) {
+      accSel.addEventListener('focus', async () => {
+        if (accSel.options.length < 2) {
+          await loadStoreData();
+          populateAccountDropdown();
+          updateSubmitState();
+        }
+      });
+
+      accSel.addEventListener('change', updateSubmitState);
+    }
+
+    if (catSel) {
+      catSel.addEventListener('focus', async () => {
+        if (catSel.options.length < 2) {
+          await loadStoreData();
+          populateCategoryDropdown();
+        }
+      });
+    }
+
+    if (toSel) {
+      toSel.addEventListener('focus', async () => {
+        if (toSel.options.length < 2) {
+          await loadStoreData();
+          populateTransferToDropdown();
+          updateSubmitState();
+        }
+      });
+
+      toSel.addEventListener('change', updateSubmitState);
+    }
+  }
+
   function updateSubmitState() {
-    const amount  = parseFloat(document.getElementById('amountInput').value);
-    const account = document.getElementById('accountSelect').value;
-    const btn     = document.getElementById('submitBtn');
-    let ok = (amount > 0 && !!account);
+    const amountEl = $('amountInput');
+    const accountEl = $('accountSelect');
+    const btn = $('submitBtn');
+
+    if (!amountEl || !accountEl || !btn) return;
+
+    const amount = parseFloat(amountEl.value);
+    const account = accountEl.value;
+
+    let ok = amount > 0 && !!account && !isSubmitting;
+
     if (selectedType === 'transfer') {
-      const destSel = document.getElementById('transferToSelect');
+      const destSel = $('transferToSelect');
       const dest = destSel ? destSel.value : '';
       ok = ok && !!dest && dest !== account;
     }
+
     btn.disabled = !ok;
   }
 
-  /* ─── URL Param Prefill (Sub-1D-TXFER-POLISH) ─── */
-
-  function applyURLParams() {
+  function captureURLParams() {
     const params = new URLSearchParams(window.location.search);
     if (!params.toString()) return;
 
-    _pendingURLParams = {
-      type:   params.get('type'),
+    pendingURLParams = {
+      type: params.get('type'),
       amount: params.get('amount'),
-      from:   params.get('from'),
-      to:     params.get('to'),
-      notes:  params.get('notes')
+      from: params.get('from'),
+      to: params.get('to'),
+      notes: params.get('notes')
     };
 
-    // Visual cue so operator knows the form was auto-populated
-    const source = (_pendingURLParams.notes && _pendingURLParams.notes.toLowerCase().includes('cc paydown'))
+    const source = pendingURLParams.notes && pendingURLParams.notes.toLowerCase().includes('cc paydown')
       ? 'CC Planner'
       : 'link';
-    showPrefillBanner(source);
 
-    consumeURLParams();
+    showPrefillBanner(source);
   }
 
   function consumeURLParams() {
-    if (!_pendingURLParams) return;
-    const p = _pendingURLParams;
+    if (!pendingURLParams) return;
 
-    // 1. Type — apply once if valid and different from current
+    const p = pendingURLParams;
+
     const validTypes = ['expense', 'income', 'transfer'];
     if (p.type && validTypes.includes(p.type) && selectedType !== p.type) {
       const btn = document.querySelector('.type-btn[data-type="' + p.type + '"]');
-      if (btn) btn.click(); // triggers attachTypeToggle handler → applyTypeMode
+      if (btn) btn.click();
     }
 
-    // 2. Amount — apply once if input still empty
     if (p.amount && !isNaN(parseFloat(p.amount))) {
-      const amtInput = document.getElementById('amountInput');
-      if (amtInput && !amtInput.value) {
-        amtInput.value = parseFloat(p.amount);
-      }
+      const amtInput = $('amountInput');
+      if (amtInput && !amtInput.value) amtInput.value = parseFloat(p.amount);
     }
 
-    // 3. From — only if option exists and different from current
     let fromConsumed = !p.from;
     if (p.from) {
-      const accSel = document.getElementById('accountSelect');
+      const accSel = $('accountSelect');
+
       if (accSel) {
         const hasOption = [...accSel.options].some(o => o.value === p.from);
+
         if (hasOption) {
           if (accSel.value !== p.from) {
             accSel.value = p.from;
             accSel.dispatchEvent(new Event('change'));
           }
+
           fromConsumed = true;
         }
       }
     }
 
-    // 4. To — only meaningful in transfer mode
     let toConsumed = !p.to;
     if (p.to && selectedType === 'transfer') {
-      const toSel = document.getElementById('transferToSelect');
+      const toSel = $('transferToSelect');
+
       if (toSel) {
         const hasOption = [...toSel.options].some(o => o.value === p.to);
+
         if (hasOption) {
           if (toSel.value !== p.to) toSel.value = p.to;
           toConsumed = true;
         }
       }
     } else if (p.to && selectedType !== 'transfer') {
-      // Non-transfer with a `to` param — silently ignore (param doesn't apply)
       toConsumed = true;
     }
 
-    // 5. Notes — apply once if input still empty
     if (p.notes) {
-      const notesInput = document.getElementById('notesInput');
-      if (notesInput && !notesInput.value) {
-        notesInput.value = p.notes.slice(0, 200);
-      }
+      const notesInput = $('notesInput');
+      if (notesInput && !notesInput.value) notesInput.value = p.notes.slice(0, 200);
     }
 
     updateSubmitState();
 
     if (fromConsumed && toConsumed) {
-      console.log('[add v0.3.0] URL params fully consumed:', p);
-      _pendingURLParams = null;
-    } else {
-      console.log('[add v0.3.0] URL params partially consumed (from:', fromConsumed, 'to:', toConsumed, ') — will retry on next refresh');
+      console.log('[add v0.3.1] URL params consumed:', p);
+      pendingURLParams = null;
     }
   }
 
   function showPrefillBanner(source) {
-    const form = document.getElementById('addForm');
+    const form = $('addForm');
     if (!form) return;
+
     const existing = document.querySelector('.prefill-banner');
     if (existing) existing.remove();
+
     const banner = document.createElement('div');
     banner.className = 'prefill-banner';
     banner.style.cssText = 'background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);color:var(--accent,#22c55e);padding:8px 12px;border-radius:6px;margin-bottom:12px;font-size:12px;text-align:center';
-    banner.textContent = '✨ Prefilled from ' + source + ' — verify before saving';
+    banner.textContent = 'Prefilled from ' + source + ' - verify before saving';
+
     form.insertBefore(banner, form.firstChild);
   }
 
-  /* ─── Submit ─── */
-
   function attachSubmitHandler() {
-    const form = document.getElementById('addForm');
+    const form = $('addForm');
     if (!form) return;
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('submitBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving…';
 
-      const sourceId = document.getElementById('accountSelect').value;
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+
+      if (isSubmitting) return;
+
+      const btn = $('submitBtn');
+      const sourceId = ($('accountSelect') || {}).value || '';
+      const amount = ($('amountInput') || {}).value || '';
+
+      if (!sourceId || !(parseFloat(amount) > 0)) {
+        showToast('Amount and account are required', 'error');
+        updateSubmitState();
+        return;
+      }
+
       const data = {
-        type:       selectedType,
-        amount:     document.getElementById('amountInput').value,
-        accountId:  sourceId,
-        categoryId: document.getElementById('categorySelect').value,
-        date:       document.getElementById('dateInput').value || localToday(),
-        notes:      document.getElementById('notesInput').value
+        type: selectedType,
+        amount,
+        accountId: sourceId,
+        categoryId: ($('categorySelect') || {}).value || 'other',
+        date: ($('dateInput') || {}).value || localToday(),
+        notes: ($('notesInput') || {}).value || ''
       };
 
       if (selectedType === 'transfer') {
-        const destSel = document.getElementById('transferToSelect');
-        const destId = destSel ? destSel.value : '';
+        const destId = ($('transferToSelect') || {}).value || '';
+
         if (!destId) {
           showToast('Pick a destination account for the transfer', 'error');
-          btn.disabled = false;
-          btn.textContent = 'Save Transaction';
           return;
         }
+
         if (destId === sourceId) {
           showToast('Source and destination cannot be the same', 'error');
-          btn.disabled = false;
-          btn.textContent = 'Save Transaction';
           return;
         }
+
         data.transferToAccountId = destId;
-        data.categoryId = ''; // backend hardcodes 'transfer' for transfer rows
+        data.categoryId = 'transfer';
       }
 
-      const result = await window.store.addTransaction(data);
+      isSubmitting = true;
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+      }
 
-      if (result.ok) {
-        let msg;
-        if (result.queued) msg = 'Queued (offline) ✓';
-        else if (selectedType === 'transfer') msg = 'Transfer saved ✓';
-        else msg = 'Saved to cloud ✓';
-        showToast(msg, 'success');
-        setTimeout(() => { window.location.href = '/transactions.html'; }, 700);
-      } else {
+      try {
+        const result = await window.store.addTransaction(data);
+
+        if (result.ok) {
+          let msg;
+
+          if (result.queued) msg = 'Queued offline';
+          else if (selectedType === 'transfer') msg = 'Transfer saved';
+          else msg = 'Saved to cloud';
+
+          showToast(msg, 'success');
+
+          setTimeout(() => {
+            window.location.href = '/transactions.html';
+          }, 700);
+
+          return;
+        }
+
         showToast(result.error || 'Save failed', 'error');
-        btn.disabled = false;
+      } catch (e) {
+        showToast(e.message || 'Save failed', 'error');
+      }
+
+      isSubmitting = false;
+
+      if (btn) {
         btn.textContent = 'Save Transaction';
       }
+
+      updateSubmitState();
     });
   }
 
   function showToast(msg, kind) {
     const existing = document.querySelector('.toast');
     if (existing) existing.remove();
+
     const toast = document.createElement('div');
     toast.className = 'toast toast-' + (kind || 'info');
     toast.textContent = msg;
+
     document.body.appendChild(toast);
+
     setTimeout(() => toast.classList.add('show'), 10);
+
     setTimeout(() => {
       toast.classList.remove('show');
       setTimeout(() => toast.remove(), 300);
