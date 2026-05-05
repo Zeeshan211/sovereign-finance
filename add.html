@@ -1,119 +1,308 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-page="add">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#050816">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Add · Sovereign Finance</title>
-  <link rel="stylesheet" href="/css/app.css">
-  <script src="/js/theme.js"></script>
-  <script src="/js/nav.js" defer></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+
+  <title>Add Transaction · Sovereign Finance</title>
+
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Sovereign Finance" />
+
+  <link rel="stylesheet" href="/css/app.css?v=0.7.5" />
+
+  <style>
+    .add-shell {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 18px 14px 90px;
+    }
+
+    .add-hero {
+      border: 1px solid var(--border, rgba(148, 163, 184, .18));
+      background: var(--card, rgba(15, 23, 42, .72));
+      border-radius: 20px;
+      padding: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 16px 42px rgba(0, 0, 0, .18);
+    }
+
+    .add-title {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.1;
+      letter-spacing: -.02em;
+    }
+
+    .add-subtitle {
+      margin: 8px 0 0;
+      color: var(--muted, #94a3b8);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .type-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .type-btn {
+      border: 1px solid var(--border, rgba(148, 163, 184, .2));
+      background: rgba(15, 23, 42, .45);
+      color: var(--text, #e5e7eb);
+      border-radius: 16px;
+      padding: 12px 10px;
+      font-family: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .type-btn span {
+      font-size: 20px;
+    }
+
+    .type-btn small {
+      font-size: 11px;
+      color: var(--muted, #94a3b8);
+      font-weight: 700;
+    }
+
+    .type-btn.active {
+      border-color: rgba(34, 197, 94, .45);
+      background: rgba(34, 197, 94, .12);
+      color: var(--accent, #22c55e);
+    }
+
+    .form-card {
+      border: 1px solid var(--border, rgba(148, 163, 184, .18));
+      background: var(--card, rgba(15, 23, 42, .72));
+      border-radius: 20px;
+      padding: 16px;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      display: block;
+      margin: 0 0 6px;
+      color: var(--muted, #94a3b8);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--border, rgba(148, 163, 184, .2));
+      background: rgba(2, 6, 23, .42);
+      color: var(--text, #e5e7eb);
+      border-radius: 14px;
+      padding: 12px 13px;
+      font: inherit;
+      outline: none;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: rgba(34, 197, 94, .5);
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, .12);
+    }
+
+    .field textarea {
+      min-height: 88px;
+      resize: vertical;
+    }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .submit-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 16px;
+    }
+
+    .primary-btn {
+      width: 100%;
+      border: 0;
+      border-radius: 16px;
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #052e16;
+      font-family: inherit;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 14px 30px rgba(34, 197, 94, .24);
+    }
+
+    .primary-btn:disabled {
+      cursor: not-allowed;
+      opacity: .45;
+      box-shadow: none;
+    }
+
+    .safety-note {
+      margin-top: 12px;
+      color: var(--muted, #94a3b8);
+      font-size: 12px;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%) translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 9999;
+      max-width: min(520px, calc(100vw - 28px));
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, .22);
+      background: rgba(15, 23, 42, .96);
+      color: #e5e7eb;
+      box-shadow: 0 18px 50px rgba(0,0,0,.3);
+      transition: .22s ease;
+      font-size: 13px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .toast-success {
+      border-color: rgba(34, 197, 94, .35);
+    }
+
+    .toast-error {
+      border-color: rgba(239, 68, 68, .45);
+    }
+
+    @media (max-width: 640px) {
+      .row-2 {
+        grid-template-columns: 1fr;
+      }
+
+      .type-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
+
 <body>
-  <header>
-    <div class="brand">Sovereign Ops</div>
-    <h1 class="title">Add Transaction</h1>
-    <div class="day-badge">Logging in real time</div>
-  </header>
+  <div id="app">
+    <main class="add-shell">
+      <section class="add-hero">
+        <h1 class="add-title">Add Transaction</h1>
+        <p class="add-subtitle">
+          Add one clean ledger event. Transfers write as a two-row pair: source OUT and destination IN.
+        </p>
 
-  <form id="addForm" autocomplete="off">
+        <div class="type-grid" aria-label="Transaction type">
+          <button class="type-btn active" type="button" data-type="expense">
+            <span>💸</span>
+            Expense
+            <small>money out</small>
+          </button>
 
-    <div class="type-toggle">
-      <button type="button" class="type-btn active" data-type="expense">− Expense</button>
-      <button type="button" class="type-btn" data-type="income">+ Income</button>
-      <button type="button" class="type-btn" data-type="transfer">↔ Transfer</button>
-    </div>
+          <button class="type-btn" type="button" data-type="income">
+            <span>💰</span>
+            Income
+            <small>money in</small>
+          </button>
 
-    <label class="field-label">Amount</label>
-    <input
-      id="amountInput"
-      type="number"
-      inputmode="decimal"
-      step="0.01"
-      min="0"
-      placeholder="0"
-      class="amount-input"
-      required>
+          <button class="type-btn" type="button" data-type="transfer">
+            <span>💱</span>
+            Transfer
+            <small>between accounts</small>
+          </button>
+        </div>
+      </section>
 
-    <label class="field-label" id="accountFromLabel">Account</label>
-    <select id="accountSelect" class="form-select" required></select>
+      <section class="form-card">
+        <form id="addForm" autocomplete="off">
+          <div class="row-2">
+            <div class="field">
+              <label for="dateInput">Date</label>
+              <input id="dateInput" name="date" type="date" required />
+            </div>
 
-    <div id="transferToWrap" hidden>
-      <label class="field-label">To Account</label>
-      <select id="transferToSelect" class="form-select"></select>
-    </div>
+            <div class="field">
+              <label for="amountInput">Amount</label>
+              <input id="amountInput" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+            </div>
+          </div>
 
-    <div id="categoryWrap">
-      <label class="field-label">Category</label>
-      <select id="categorySelect" class="form-select"></select>
-    </div>
+          <div class="field">
+            <label id="accountFromLabel" for="accountSelect">Account</label>
+            <select id="accountSelect" name="account" required>
+              <option value="">Pick account...</option>
+            </select>
+          </div>
 
-    <label class="field-label">Date</label>
-    <input id="dateInput" type="date" class="form-input">
+          <div class="field" id="transferToWrap" hidden>
+            <label for="transferToSelect">To Account</label>
+            <select id="transferToSelect" name="transfer_to_account">
+              <option value="">Pick account...</option>
+            </select>
+          </div>
 
-    <label class="field-label">Notes <span class="optional">optional</span></label>
-    <input
-      id="notesInput"
-      type="text"
-      maxlength="200"
-      placeholder="What was this for?"
-      class="form-input">
+          <div class="field" id="categoryWrap">
+            <label for="categorySelect">Category</label>
+            <select id="categorySelect" name="category">
+              <option value="">Pick category...</option>
+            </select>
+          </div>
 
-    <button id="submitBtn" type="submit" class="primary-btn" disabled>
-      Save Transaction
-    </button>
-  </form>
+          <div class="field">
+            <label for="notesInput">Notes</label>
+            <textarea id="notesInput" name="notes" maxlength="200" placeholder="What happened?"></textarea>
+          </div>
 
-  <footer>
-    <span class="v">v0.6.0 · add (transfer dest scaffold)</span>
-  </footer>
+          <div class="submit-row">
+            <button id="submitBtn" class="primary-btn" type="submit" disabled>
+              Save Transaction
+            </button>
+          </div>
 
-    <aside class="desktop-nav">
-    <a href="/" class="desktop-nav-item">
-      <span class="nav-emoji">🏠</span>
-      <span class="nav-text">Hub</span>
-    </a>
-    <a href="/add.html" class="desktop-nav-item active">
-      <span class="nav-emoji">➕</span>
-      <span class="nav-text">Add Transaction</span>
-    </a>
-    <a href="/transactions.html" class="desktop-nav-item">
-      <span class="nav-emoji">💸</span>
-      <span class="nav-text">Transactions</span>
-    </a>
-    <a href="/accounts.html" class="desktop-nav-item">
-      <span class="nav-emoji">🏦</span>
-      <span class="nav-text">Accounts</span>
-    </a>
-    <a href="/debts.html" class="desktop-nav-item">
-      <span class="nav-emoji">💳</span>
-      <span class="nav-text">Debts</span>
-    </a>
-  </aside>
-    <div class="bottom-nav-inner">
-      <a href="/" class="nav-item">
-        <div class="nav-emoji">🏠</div>
-        <div class="nav-text">Hub</div>
-      </a>
-      <a href="/add.html" class="nav-item active">
-        <div class="nav-emoji">➕</div>
-        <div class="nav-text">Add</div>
-      </a>
-      <a href="/accounts.html" class="nav-item">
-        <div class="nav-emoji">🏦</div>
-        <div class="nav-text">Accounts</div>
-      </a>
-      <a href="/debts.html" class="nav-item">
-        <div class="nav-emoji">💳</div>
-        <div class="nav-text">Debts</div>
-      </a>
-    </div>
-  </nav>
+          <p class="safety-note">
+            If saving fails, the transaction is not silently queued. Fix the error and submit again once.
+          </p>
+        </form>
+      </section>
 
-  <script src="/js/app.js"></script>
-  <script src="/js/store.js"></script>
-  <script src="/js/add.js"></script>
+      <footer style="margin-top:18px;text-align:center;color:var(--muted,#94a3b8);font-size:12px">
+        <span class="v">v0.6.2 · add full rewrite · store v0.2.3 · add v0.3.1</span>
+      </footer>
+    </main>
+  </div>
+
+  <script src="/js/theme.js?v=0.7.5"></script>
+  <script src="/js/nav.js?v=0.7.5"></script>
+  <script src="/js/store.js?v=0.2.3"></script>
+  <script src="/js/add.js?v=0.3.1"></script>
 </body>
 </html>
