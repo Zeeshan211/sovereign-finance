@@ -1,29 +1,24 @@
-/* ─── Sovereign Finance · Hub Bootstrap v0.7.5 · Polish ─── */
-/* Renders Quick Access tiles + loads live balances on home page */
+/* ─── Sovereign Finance · Hub Bootstrap v0.7.5b · Polish FIX ─── */
+/* Renders Quick Access tiles + dynamic subtitle counts */
 /*
- * Changes vs v0.7.4:
- *   - Accounts hub card subtitle now dynamic from live data
- *   - Was hardcoded "11 active" — now reads d.account_count from /api/balances
- *   - Falls back to "Manage" if API unreachable (no broken display)
+ * Changes vs v0.7.5 (broken):
+ *   - REMOVED loadBalances() KPI rendering — that's index.html's inline loadKpis() job
+ *     (was using wrong element IDs: netWorthValue/liquidValue/ccValue/debtsValue
+ *      should have been kpi-net/kpi-liquid/kpi-cc/kpi-debts per index.html)
+ *   - hub.js now ONLY does: render Quick Access tiles + update tile subtitles from /api/balances
+ *   - No conflict with inline loadKpis() — both fetch same endpoint independently
+ *   - Pattern 7 fix: read index.html before assuming element IDs
  *
- * PRESERVED from v0.7.4:
- *   - All other tile rendering
- *   - loadBalances logic, currency formatting
- *   - Day-N badge (separate ship to retire)
+ * PRESERVED from v0.7.5 intent:
+ *   - Dynamic Accounts subtitle from d.account_count
+ *   - Dynamic Debts subtitle from d.debt_count
+ *   - Falls back to default subtitle if API unreachable
  */
 
 (function () {
   'use strict';
 
-  // Format PKR currency
-  function fmtPKR(amount) {
-    if (amount == null || isNaN(amount)) return 'Rs —';
-    const sign = amount < 0 ? '-' : '';
-    const abs = Math.abs(amount);
-    return 'Rs ' + sign + abs.toLocaleString('en-PK', { maximumFractionDigits: 0 });
-  }
-
-  // Quick Access tile data
+  // Quick Access tile data (matches existing index.html structure)
   const tiles = [
     { id: 'add',          label: 'Add',           icon: '➕', href: '/add.html',          subtitle: 'New transaction' },
     { id: 'transactions', label: 'Transactions',  icon: '📋', href: '/transactions.html', subtitle: 'History' },
@@ -47,57 +42,45 @@
     `).join('');
   }
 
-  async function loadBalances() {
+  async function updateSubtitles() {
     try {
       const r = await fetch('/api/balances', { cache: 'no-store' });
       if (!r.ok) {
-        console.warn('[hub] loadBalances failed: HTTP ' + r.status + ' on /api/balances');
+        console.warn('[hub] subtitle update failed: HTTP ' + r.status);
         return;
       }
       const d = await r.json();
       if (!d.ok) {
-        console.warn('[hub] loadBalances failed:', d.error);
+        console.warn('[hub] subtitle update failed:', d.error);
         return;
       }
 
-      // Update hero stats
-      const netWorthEl = document.getElementById('netWorthValue');
-      if (netWorthEl) netWorthEl.textContent = fmtPKR(d.net_worth);
-
-      const liquidEl = document.getElementById('liquidValue');
-      if (liquidEl) liquidEl.textContent = fmtPKR(d.total_liquid_assets);
-
-      const ccEl = document.getElementById('ccValue');
-      if (ccEl) ccEl.textContent = fmtPKR(d.cc_outstanding);
-
-      const debtsEl = document.getElementById('debtsValue');
-      if (debtsEl) debtsEl.textContent = fmtPKR(d.total_debts || d.total_owe || 0);
-
-      // Polish: dynamic accounts subtitle (was hardcoded "11 active")
+      // Dynamic Accounts subtitle (was hardcoded "11 active")
       const accountsSub = document.querySelector('[data-subtitle="accounts"]');
       if (accountsSub && d.account_count != null) {
         accountsSub.textContent = d.account_count + ' active';
       }
 
-      // Polish: dynamic debts subtitle if count available
+      // Dynamic Debts subtitle
       const debtsSub = document.querySelector('[data-subtitle="debts"]');
       if (debtsSub && d.debt_count != null) {
         debtsSub.textContent = d.debt_count + ' active';
       }
 
     } catch (e) {
-      console.warn('[hub] loadBalances threw:', e.message);
+      console.warn('[hub] updateSubtitles threw:', e.message);
     }
   }
 
   // Init on DOMContentLoaded
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      renderTiles();
-      loadBalances();
-    });
-  } else {
+  function init() {
     renderTiles();
-    loadBalances();
+    updateSubtitles();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 })();
