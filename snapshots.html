@@ -358,13 +358,13 @@
     }
 
     function renderSnapshots(rows) {
-      $('snapCount').textContent = String(rows.length);
+      document.getElementById('snapCount').textContent = String(rows.length);
 
       const latest = rows[0] ? createdFor(rows[0]) : null;
-      $('snapLatest').textContent = latest ? fmtTime(latest) : 'None';
+      document.getElementById('snapLatest').textContent = latest ? fmtTime(latest) : 'None';
 
       if (!rows.length) {
-        $('snapList').innerHTML = `
+        document.getElementById('snapList').innerHTML = `
           <div class="snap-empty">
             <strong>No snapshots saved yet.</strong>
             Snapshot API is working, but there are no restore points in storage.
@@ -374,7 +374,7 @@
         return;
       }
 
-      $('snapList').innerHTML = rows.map(snapshot => `
+      document.getElementById('snapList').innerHTML = rows.map(snapshot => `
         <article class="snap-card">
           <div class="snap-icon">📸</div>
 
@@ -392,7 +392,7 @@
     }
 
     async function loadSnapshots() {
-      $('snapList').innerHTML = '<div class="snap-empty">Loading snapshots…</div>';
+      document.getElementById('snapList').innerHTML = '<div class="snap-empty">Loading snapshots…</div>';
 
       try {
         const data = await fetchJSON('/api/snapshots');
@@ -400,13 +400,13 @@
 
         renderSnapshots(rows);
       } catch (err) {
-        $('snapCount').textContent = '0';
-        $('snapLatest').textContent = 'Error';
-        $('snapList').innerHTML = `<div class="snap-empty"><strong>Snapshots failed.</strong>${esc(err.message)}</div>`;
+        document.getElementById('snapCount').textContent = '0';
+        document.getElementById('snapLatest').textContent = 'Error';
+        document.getElementById('snapList').innerHTML = `<div class="snap-empty"><strong>Snapshots failed.</strong>${esc(err.message)}</div>`;
       }
     }
 
-    $('refreshBtn').addEventListener('click', loadSnapshots);
+    document.getElementById('refreshBtn').addEventListener('click', loadSnapshots);
 
     loadSnapshots();
   </script>
