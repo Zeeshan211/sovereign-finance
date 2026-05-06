@@ -1,12 +1,13 @@
-/* ─── Sovereign Finance · nav.js v1.0.1 · Layer 3 shared navigation ─── */
+/* ─── Sovereign Finance · nav.js v1.0.2 · Layer 4B tool packing ─── */
 /*
  * Purpose:
  *   One navigation source for the whole app.
  *
- * Fixes:
- *   - Goals exists but was missing from shared nav.
- *   - Charts exists and stays discoverable.
- *   - Pages with old hardcoded nav get normalized at runtime.
+ * Layer 4B fixes:
+ *   - CC Planner is now globally visible.
+ *   - Bottom nav prioritizes daily operating tools:
+ *       Hub, Add, Transactions, Bills, CC
+ *   - Charts stays visible in desktop/sidebar, but no longer steals bottom-nav priority from CC.
  *
  * Contract:
  *   - Replaces existing .desktop-nav and .bottom-nav if present.
@@ -18,13 +19,14 @@
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.1';
+  const VERSION = 'v1.0.2';
 
   const NAV_ITEMS = [
     { key: 'hub', label: 'Hub', short: 'Hub', href: '/', aliases: ['/index.html'], emoji: '🏠' },
     { key: 'add', label: 'Add Transaction', short: 'Add', href: '/add.html', aliases: [], emoji: '➕' },
     { key: 'transactions', label: 'Transactions', short: 'Tx', href: '/transactions.html', aliases: [], emoji: '📜' },
     { key: 'accounts', label: 'Accounts', short: 'Accts', href: '/accounts.html', aliases: [], emoji: '🏦' },
+    { key: 'cc', label: 'CC Planner', short: 'CC', href: '/cc.html', aliases: [], emoji: '🪪' },
     { key: 'debts', label: 'Debts', short: 'Debts', href: '/debts.html', aliases: [], emoji: '💳' },
     { key: 'bills', label: 'Bills', short: 'Bills', href: '/bills.html', aliases: [], emoji: '📅' },
     { key: 'goals', label: 'Goals', short: 'Goals', href: '/goals.html', aliases: [], emoji: '🎯' },
@@ -36,12 +38,14 @@
     { key: 'snapshots', label: 'Snapshots', short: 'Snaps', href: '/snapshots.html', aliases: [], emoji: '📸' }
   ];
 
-  const BOTTOM_KEYS = ['hub', 'add', 'transactions', 'bills', 'charts'];
+  const BOTTOM_KEYS = ['hub', 'add', 'transactions', 'bills', 'cc'];
 
   function normalizePath(pathname) {
     let path = pathname || '/';
+
     if (!path.startsWith('/')) path = '/' + path;
     if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
+
     return path;
   }
 
@@ -51,6 +55,7 @@
 
   function isActive(item, path) {
     if (normalizePath(item.href) === path) return true;
+
     return (item.aliases || []).some(alias => normalizePath(alias) === path);
   }
 
