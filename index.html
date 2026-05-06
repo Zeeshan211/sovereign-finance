@@ -21,7 +21,7 @@
     }
 
     .hub-wrap {
-      max-width: 1340px;
+      max-width: 1360px;
       margin: 0 auto;
     }
 
@@ -71,7 +71,7 @@
     .hero-content {
       position: relative;
       z-index: 2;
-      max-width: 900px;
+      max-width: 920px;
     }
 
     .kicker {
@@ -104,7 +104,7 @@
       font-size: 15px;
       line-height: 1.6;
       font-weight: 750;
-      max-width: 780px;
+      max-width: 820px;
     }
 
     .fresh {
@@ -131,6 +131,7 @@
 
     .signal-card,
     .truth-card,
+    .cc-card,
     .panel,
     .action-card,
     .risk-card {
@@ -145,12 +146,13 @@
       min-width: 0;
     }
 
-    .signal-label {
+    .signal-label,
+    .label {
       color: #64748b;
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 950;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.09em;
     }
 
     .signal-value {
@@ -170,7 +172,7 @@
 
     .grid-top {
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(390px, 0.9fr);
+      grid-template-columns: minmax(0, 1.05fr) minmax(380px, 0.95fr);
       gap: 18px;
       margin-bottom: 18px;
     }
@@ -179,7 +181,7 @@
       position: relative;
       overflow: hidden;
       padding: 26px;
-      min-height: 286px;
+      min-height: 310px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -195,14 +197,6 @@
       border-radius: 999px;
       background: radial-gradient(circle, rgba(34, 197, 94, 0.18), transparent 70%);
       pointer-events: none;
-    }
-
-    .label {
-      color: #64748b;
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.09em;
     }
 
     .net-value {
@@ -238,7 +232,8 @@
       margin-top: 18px;
     }
 
-    .micro {
+    .micro,
+    .cc-pill {
       background: #f8fafc;
       border: 1px solid rgba(15, 23, 42, 0.08);
       border-radius: 16px;
@@ -246,7 +241,8 @@
       min-width: 0;
     }
 
-    .micro-label {
+    .micro-label,
+    .cc-pill-label {
       color: #64748b;
       font-size: 10px;
       font-weight: 950;
@@ -254,7 +250,8 @@
       letter-spacing: 0.07em;
     }
 
-    .micro-value {
+    .micro-value,
+    .cc-pill-value {
       margin-top: 5px;
       color: #0f172a;
       font-size: 14px;
@@ -265,19 +262,166 @@
       text-overflow: ellipsis;
     }
 
-    .micro-value.negative { color: #dc2626; }
-    .micro-value.positive { color: #15803d; }
-    .micro-value.warn { color: #d97706; }
+    .micro-value.negative,
+    .cc-pill-value.negative { color: #dc2626; }
+    .micro-value.positive,
+    .cc-pill-value.positive { color: #15803d; }
+    .micro-value.warn,
+    .cc-pill-value.warn { color: #d97706; }
+
+    .cc-card {
+      position: relative;
+      overflow: hidden;
+      padding: 22px;
+      min-height: 310px;
+      border-left: 7px solid #f59e0b;
+    }
+
+    .cc-card::after {
+      content: "";
+      position: absolute;
+      right: -70px;
+      top: -70px;
+      width: 220px;
+      height: 220px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.22), transparent 70%);
+      pointer-events: none;
+    }
+
+    .cc-head {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+
+    .cc-title {
+      color: #0f172a;
+      font-size: 22px;
+      font-weight: 950;
+      letter-spacing: -0.04em;
+    }
+
+    .cc-sub {
+      margin-top: 4px;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .cc-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: rgba(245, 158, 11, 0.14);
+      color: #b45309;
+      border: 1px solid rgba(245, 158, 11, 0.24);
+      font-size: 11px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .cc-main {
+      position: relative;
+      z-index: 2;
+      margin-top: 10px;
+    }
+
+    .cc-main-label {
+      color: #64748b;
+      font-size: 10px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .cc-main-value {
+      margin-top: 6px;
+      color: #dc2626;
+      font-size: clamp(34px, 5vw, 54px);
+      font-weight: 950;
+      line-height: 0.95;
+      letter-spacing: -0.06em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cc-meter {
+      position: relative;
+      z-index: 2;
+      height: 16px;
+      margin: 16px 0 12px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .cc-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #22c55e, #f59e0b, #dc2626);
+      transition: width 0.45s ease;
+    }
+
+    .cc-pill-grid {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .cc-actions {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .cc-action-primary,
+    .cc-action-secondary {
+      flex: 1;
+      min-height: 44px;
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .cc-action-primary {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #052e16;
+      border: 0;
+      box-shadow: 0 12px 24px rgba(34, 197, 94, 0.18);
+    }
+
+    .cc-action-secondary {
+      background: #ffffff;
+      color: #0f172a;
+      border: 1px solid rgba(15, 23, 42, 0.14);
+    }
 
     .actions-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 12px;
+      margin-bottom: 18px;
     }
 
     .action-card {
-      padding: 18px;
-      min-height: 132px;
+      padding: 16px;
+      min-height: 120px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -290,14 +434,14 @@
     }
 
     .action-icon {
-      font-size: 30px;
+      font-size: 29px;
       line-height: 1;
     }
 
     .action-title {
-      margin-top: 12px;
+      margin-top: 11px;
       color: #0f172a;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 950;
     }
 
@@ -455,7 +599,8 @@
 
     @media (max-width: 1180px) {
       .signal-strip,
-      .risk-grid {
+      .risk-grid,
+      .actions-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
@@ -469,8 +614,13 @@
       .signal-strip,
       .risk-grid,
       .actions-grid,
-      .truth-micro {
+      .truth-micro,
+      .cc-pill-grid {
         grid-template-columns: 1fr;
+      }
+
+      .cc-actions {
+        flex-direction: column;
       }
 
       .mini-row {
@@ -545,8 +695,8 @@
             <div id="liquid" class="micro-value positive">—</div>
           </div>
           <div class="micro">
-            <div class="micro-label">CC</div>
-            <div id="ccOutstanding" class="micro-value negative">—</div>
+            <div class="micro-label">Personal Debts</div>
+            <div id="debts" class="micro-value warn">—</div>
           </div>
           <div class="micro">
             <div class="micro-label">Burden</div>
@@ -555,44 +705,138 @@
         </div>
       </div>
 
-      <div class="actions-grid">
-        <a href="/add.html" class="action-card">
-          <div class="action-icon">➕</div>
+      <aside class="cc-card">
+        <div class="cc-head">
           <div>
-            <div class="action-title">Add Transaction</div>
-            <div class="action-sub">record the next ledger event</div>
+            <div class="cc-title">Alfalah CC</div>
+            <div class="cc-sub">Credit card control stays visible here.</div>
           </div>
-        </a>
+          <div id="ccStatusBadge" class="cc-badge">Loading</div>
+        </div>
 
-        <a href="/reconciliation.html" class="action-card">
-          <div class="action-icon">⚖️</div>
-          <div>
-            <div class="action-title">Reconcile</div>
-            <div class="action-sub">compare bank truth to D1</div>
-          </div>
-        </a>
+        <div class="cc-main">
+          <div class="cc-main-label">Outstanding</div>
+          <div id="ccOutstanding" class="cc-main-value">—</div>
+        </div>
 
-        <a href="/charts.html" class="action-card">
-          <div class="action-icon">📊</div>
-          <div>
-            <div class="action-title">Charts</div>
-            <div class="action-sub">see the burden and trend visually</div>
-          </div>
-        </a>
+        <div class="cc-meter">
+          <div id="ccFill" class="cc-fill"></div>
+        </div>
 
-        <a href="/audit.html" class="action-card">
-          <div class="action-icon">🛡️</div>
-          <div>
-            <div class="action-title">Audit</div>
-            <div class="action-sub">verify recent writes</div>
+        <div class="cc-pill-grid">
+          <div class="cc-pill">
+            <div class="cc-pill-label">Utilization</div>
+            <div id="ccUtil" class="cc-pill-value warn">—</div>
           </div>
-        </a>
-      </div>
+          <div class="cc-pill">
+            <div class="cc-pill-label">Available</div>
+            <div id="ccAvailable" class="cc-pill-value positive">—</div>
+          </div>
+          <div class="cc-pill">
+            <div class="cc-pill-label">Limit</div>
+            <div id="ccLimit" class="cc-pill-value">—</div>
+          </div>
+          <div class="cc-pill">
+            <div class="cc-pill-label">Due</div>
+            <div id="ccDue" class="cc-pill-value">—</div>
+          </div>
+        </div>
+
+        <div class="cc-actions">
+          <a class="cc-action-primary" href="/cc.html">Open CC Planner</a>
+          <a class="cc-action-secondary" href="/add.html">Pay / Adjust</a>
+        </div>
+      </aside>
+    </section>
+
+    <section class="actions-grid">
+      <a href="/add.html" class="action-card">
+        <div class="action-icon">➕</div>
+        <div>
+          <div class="action-title">Add Transaction</div>
+          <div class="action-sub">record the next ledger event</div>
+        </div>
+      </a>
+
+      <a href="/transactions.html" class="action-card">
+        <div class="action-icon">📜</div>
+        <div>
+          <div class="action-title">Transactions</div>
+          <div class="action-sub">inspect active ledger rows</div>
+        </div>
+      </a>
+
+      <a href="/accounts.html" class="action-card">
+        <div class="action-icon">🏦</div>
+        <div>
+          <div class="action-title">Accounts</div>
+          <div class="action-sub">see where money sits</div>
+        </div>
+      </a>
+
+      <a href="/cc.html" class="action-card">
+        <div class="action-icon">🪪</div>
+        <div>
+          <div class="action-title">CC Planner</div>
+          <div class="action-sub">manage card pressure</div>
+        </div>
+      </a>
+
+      <a href="/bills.html" class="action-card">
+        <div class="action-icon">📅</div>
+        <div>
+          <div class="action-title">Bills</div>
+          <div class="action-sub">track obligations</div>
+        </div>
+      </a>
+
+      <a href="/debts.html" class="action-card">
+        <div class="action-icon">💳</div>
+        <div>
+          <div class="action-title">Debts</div>
+          <div class="action-sub">snowball and paydowns</div>
+        </div>
+      </a>
+
+      <a href="/reconciliation.html" class="action-card">
+        <div class="action-icon">⚖️</div>
+        <div>
+          <div class="action-title">Reconcile</div>
+          <div class="action-sub">bank truth vs D1</div>
+        </div>
+      </a>
+
+      <a href="/audit.html" class="action-card">
+        <div class="action-icon">🛡️</div>
+        <div>
+          <div class="action-title">Audit</div>
+          <div class="action-sub">verify recent writes</div>
+        </div>
+      </a>
+
+      <a href="/charts.html" class="action-card">
+        <div class="action-icon">📊</div>
+        <div>
+          <div class="action-title">Charts</div>
+          <div class="action-sub">visual cockpit</div>
+        </div>
+      </a>
+
+      <a href="/goals.html" class="action-card">
+        <div class="action-icon">🎯</div>
+        <div>
+          <div class="action-title">Goals</div>
+          <div class="action-sub">savings targets</div>
+        </div>
+      </a>
     </section>
 
     <h2 class="section-title">What needs attention</h2>
     <section id="riskGrid" class="risk-grid">
-      <div class="risk-card"><div class="risk-title">Loading…</div><div class="risk-copy">Checking live data.</div></div>
+      <div class="risk-card">
+        <div class="risk-title">Loading…</div>
+        <div class="risk-copy">Checking live data.</div>
+      </div>
     </section>
 
     <section class="lower-grid">
@@ -618,7 +862,7 @@
     </section>
 
     <footer class="page-footer">
-      <span class="v">v0.9.1 · layer 4 command center · nav v1.0.1 · app.css v1.0.0</span>
+      <span class="v">v0.9.2 · layer 4 hub cc visibility · nav v1.0.1 · app.css v1.0.0</span>
     </footer>
   </main>
 
@@ -701,26 +945,47 @@
       return found ? ((found.icon || '') + ' ' + found.name).trim() : (id || 'No account');
     }
 
-    function renderBalances(data) {
+    function findCC(accounts) {
+      return (accounts || []).find(account => account.id === 'cc') ||
+        (accounts || []).find(account => String(account.kind || '').toLowerCase() === 'cc') ||
+        null;
+    }
+
+    function renderBalances(data, accounts) {
       const net = Number(data.net_worth) || 0;
       const liquid = Number(data.total_liquid || data.total_liquid_assets || data.cash || 0);
-      const cc = Number(data.cc_outstanding || data.cc || 0);
+      const debts = Number(data.total_owed || data.total_owe || data.total_debts || 0);
       const burden = Number(data.true_burden || 0);
+      const ccAccount = findCC(accounts) || {};
+      const ccOutstanding = Number(ccAccount.cc_outstanding || data.cc_outstanding || data.cc || Math.abs(Number(ccAccount.balance) || 0)) || 0;
+      const ccLimit = Number(ccAccount.credit_limit || 100000) || 100000;
+      const ccAvailable = Number(ccAccount.available_credit != null ? ccAccount.available_credit : Math.max(0, ccLimit - ccOutstanding));
+      const ccPct = Number(ccAccount.cc_utilization_pct != null ? ccAccount.cc_utilization_pct : ((ccOutstanding / ccLimit) * 100)) || 0;
 
       $('netWorth').textContent = money(net);
       $('netWorth').className = 'net-value ' + (net >= 0 ? 'positive' : 'negative');
       $('netSub').textContent = net >= 0 ? 'Positive position' : 'Burden exceeds current net position';
 
       $('liquid').textContent = money(liquid);
-      $('ccOutstanding').textContent = money(cc);
+      $('debts').textContent = money(debts);
       $('burden').textContent = money(burden);
 
       $('sigLiquid').textContent = money(liquid);
       $('sigLiquid').className = 'signal-value ' + (liquid > 0 ? 'positive' : 'negative');
 
-      const ccPct = cc > 0 ? Math.min(999, (cc / 100000) * 100) : 0;
       $('sigCC').textContent = ccPct.toFixed(1) + '%';
       $('sigCC').className = 'signal-value ' + (ccPct >= 75 ? 'negative' : ccPct >= 40 ? 'warn' : 'positive');
+
+      $('ccOutstanding').textContent = money(ccOutstanding);
+      $('ccUtil').textContent = ccPct.toFixed(1) + '%';
+      $('ccUtil').className = 'cc-pill-value ' + (ccPct >= 75 ? 'negative' : ccPct >= 40 ? 'warn' : 'positive');
+      $('ccAvailable').textContent = money(ccAvailable);
+      $('ccLimit').textContent = money(ccLimit);
+      $('ccDue').textContent = ccAccount.payment_due_day || ccAccount.days_to_payment_due || 'Not set';
+      $('ccFill').style.width = Math.max(0, Math.min(100, ccPct)) + '%';
+
+      const status = ccAccount.cc_status_label || (ccPct >= 75 ? '🟠 High' : ccPct >= 40 ? '🟡 Moderate' : '🟢 Controlled');
+      $('ccStatusBadge').textContent = status;
     }
 
     function renderTransactions(rows, accounts) {
@@ -818,13 +1083,13 @@
       }
     }
 
-    function renderRisks(balances, bills, transactions, recon) {
+    function renderRisks(balances, accounts, bills, recon) {
       const risks = [];
-
-      const cc = Number(balances.cc_outstanding || balances.cc || 0);
+      const ccAccount = findCC(accounts) || {};
+      const cc = Number(ccAccount.cc_outstanding || balances.cc_outstanding || balances.cc || Math.abs(Number(ccAccount.balance) || 0)) || 0;
+      const limit = Number(ccAccount.credit_limit || 100000) || 100000;
+      const ccPct = Number(ccAccount.cc_utilization_pct != null ? ccAccount.cc_utilization_pct : ((cc / limit) * 100)) || 0;
       const liquid = Number(balances.total_liquid || balances.total_liquid_assets || balances.cash || 0);
-      const burden = Number(balances.true_burden || 0);
-      const ccPct = cc > 0 ? (cc / 100000) * 100 : 0;
 
       risks.push({
         level: ccPct >= 75 ? 'bad' : ccPct >= 40 ? 'warn' : 'good',
@@ -865,20 +1130,22 @@
         const [balances, transactions, accounts, bills, audit, recon] = await Promise.all([
           fetchJSON('/api/balances?debug=1'),
           fetchJSON('/api/transactions'),
-          fetchJSON('/api/accounts'),
+          fetchJSON('/api/accounts?debug=1'),
           fetchJSON('/api/bills'),
           safeJSON('/api/audit?limit=1', { rows: [] }),
           safeJSON('/api/reconciliation', {})
         ]);
 
-        renderBalances(balances);
-        renderTransactions(transactions.transactions || [], accounts.accounts || []);
+        const accountRows = accounts.accounts || [];
+
+        renderBalances(balances, accountRows);
+        renderTransactions(transactions.transactions || [], accountRows);
         renderBills(bills.bills || []);
         renderLastWrite(audit);
         renderRecon(recon);
-        renderRisks(balances, bills.bills || [], transactions.transactions || [], recon);
+        renderRisks(balances, accountRows, bills.bills || [], recon);
 
-        $('freshnessText').textContent = 'Live · balances, transactions, bills, audit checked';
+        $('freshnessText').textContent = 'Live · balances, accounts, transactions, bills, audit checked';
       } catch (err) {
         $('freshnessText').textContent = 'Load error';
         $('recentTransactions').innerHTML = '<div class="empty">Hub failed: ' + esc(err.message) + '</div>';
