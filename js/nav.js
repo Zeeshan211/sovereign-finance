@@ -1,30 +1,30 @@
-/* ─── Sovereign Finance · nav.js v1.0.2 · Layer 4B tool packing ─── */
+/* ─── Sovereign Finance · nav.js v1.0.3 · Layer 5B ATM integration ─── */
 /*
  * Purpose:
  *   One navigation source for the whole app.
  *
- * Layer 4B fixes:
- *   - CC Planner is now globally visible.
- *   - Bottom nav prioritizes daily operating tools:
+ * Layer 5B fixes:
+ *   - ATM is now a real module and is globally visible in desktop/sidebar navigation.
+ *   - Bottom nav remains focused on daily core tools:
  *       Hub, Add, Transactions, Bills, CC
- *   - Charts stays visible in desktop/sidebar, but no longer steals bottom-nav priority from CC.
+ *   - No ledger/API writes.
  *
  * Contract:
  *   - Replaces existing .desktop-nav and .bottom-nav if present.
  *   - Injects nav if a page forgot it.
  *   - Active state is based on current pathname.
- *   - No ledger/API writes.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.2';
+  const VERSION = 'v1.0.3';
 
   const NAV_ITEMS = [
     { key: 'hub', label: 'Hub', short: 'Hub', href: '/', aliases: ['/index.html'], emoji: '🏠' },
     { key: 'add', label: 'Add Transaction', short: 'Add', href: '/add.html', aliases: [], emoji: '➕' },
     { key: 'transactions', label: 'Transactions', short: 'Tx', href: '/transactions.html', aliases: [], emoji: '📜' },
+    { key: 'atm', label: 'ATM', short: 'ATM', href: '/atm.html', aliases: [], emoji: '🏧' },
     { key: 'accounts', label: 'Accounts', short: 'Accts', href: '/accounts.html', aliases: [], emoji: '🏦' },
     { key: 'cc', label: 'CC Planner', short: 'CC', href: '/cc.html', aliases: [], emoji: '🪪' },
     { key: 'debts', label: 'Debts', short: 'Debts', href: '/debts.html', aliases: [], emoji: '💳' },
