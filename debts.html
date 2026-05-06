@@ -1,174 +1,838 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="midnight" data-page="debts">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#0f172a">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+
   <title>Debts · Sovereign Finance</title>
-  <link rel="stylesheet" href="/css/app.css">
-  <script src="/js/theme.js"></script>
-  <script src="/js/nav.js" defer></script>
+
+  <link rel="stylesheet" href="/css/app.css?v=1.0.0" />
+
+  <style>
+    .debts-wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    .debts-hero {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-md);
+      padding: 24px;
+      margin-bottom: 18px;
+    }
+
+    .debts-kicker {
+      display: inline-flex;
+      padding: 7px 11px;
+      border-radius: var(--r-pill);
+      background: var(--danger-soft);
+      color: var(--danger);
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 12px;
+    }
+
+    .debts-heading {
+      color: var(--text);
+      font-size: clamp(32px, 5vw, 50px);
+      line-height: 1.02;
+      font-weight: 950;
+      letter-spacing: -0.05em;
+      margin: 0;
+    }
+
+    .debts-copy {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.55;
+      font-weight: 750;
+      margin-top: 12px;
+      max-width: 780px;
+    }
+
+    .debts-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .debts-primary {
+      min-height: 46px;
+      border: 0;
+      border-radius: var(--r-md);
+      background: var(--grad-mint);
+      color: #052e16;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 950;
+      box-shadow: 0 12px 24px rgba(34, 197, 94, 0.18);
+    }
+
+    .debts-secondary {
+      min-height: 46px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--r-md);
+      background: #ffffff;
+      color: var(--text);
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 950;
+    }
+
+    .debts-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .debt-stat {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-sm);
+      padding: 16px;
+    }
+
+    .debt-stat-label {
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .debt-stat-value {
+      margin-top: 7px;
+      color: var(--text);
+      font-size: 23px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .debt-stat-value.positive { color: var(--accent-deep); }
+    .debt-stat-value.negative { color: var(--danger); }
+    .debt-stat-value.warn { color: var(--warn); }
+
+    .debts-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 0.85fr);
+      gap: 18px;
+    }
+
+    .debts-panel {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-sm);
+      padding: 16px;
+      min-width: 0;
+    }
+
+    .debts-panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .debts-panel-title {
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 950;
+    }
+
+    .debts-panel-sub {
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .debt-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .debt-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 14px;
+    }
+
+    .debt-top {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .debt-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      font-size: 22px;
+    }
+
+    .debt-title {
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 950;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .debt-sub {
+      margin-top: 3px;
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .debt-amount {
+      color: var(--danger);
+      font-size: 16px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .debt-progress-wrap {
+      margin-top: 12px;
+    }
+
+    .debt-progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 850;
+      margin-bottom: 7px;
+    }
+
+    .debt-progress-track {
+      height: 11px;
+      background: var(--surface-3);
+      border: 1px solid var(--border);
+      border-radius: var(--r-pill);
+      overflow: hidden;
+    }
+
+    .debt-progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: var(--r-pill);
+      background: linear-gradient(90deg, #22c55e, #16a34a);
+      transition: width 0.45s ease;
+    }
+
+    .debt-actions-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .debt-pay-btn,
+    .debt-refresh-btn {
+      flex: 1;
+      min-height: 40px;
+      border-radius: var(--r-md);
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .debt-pay-btn {
+      border: 0;
+      background: var(--grad-mint);
+      color: #052e16;
+    }
+
+    .debt-refresh-btn {
+      border: 1px solid var(--border-strong);
+      background: #ffffff;
+      color: var(--text);
+    }
+
+    .debt-empty {
+      background: var(--surface-2);
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--r-lg);
+      padding: 24px;
+      text-align: center;
+      color: var(--text-muted);
+      font-weight: 850;
+      line-height: 1.5;
+    }
+
+    .pay-modal-backdrop,
+    .debt-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 2500;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(15, 23, 42, 0.58);
+    }
+
+    .pay-modal-backdrop.open,
+    .debt-modal-backdrop.open {
+      display: flex;
+    }
+
+    .pay-modal,
+    .debt-modal {
+      width: min(620px, 100%);
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-xl);
+      padding: 22px;
+    }
+
+    .pay-title,
+    .debt-modal-title {
+      color: var(--text);
+      font-size: 24px;
+      font-weight: 950;
+      margin: 0 0 6px;
+    }
+
+    .pay-sub,
+    .debt-modal-sub {
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 750;
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+
+    .pay-grid,
+    .debt-modal-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .pay-actions,
+    .debt-modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .pay-actions button,
+    .debt-modal-actions button {
+      flex: 1;
+    }
+
+    @media (max-width: 980px) {
+      .debts-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .debts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .debts-stats {
+        grid-template-columns: 1fr;
+      }
+
+      .debt-top {
+        grid-template-columns: 40px minmax(0, 1fr);
+      }
+
+      .debt-amount {
+        grid-column: 2;
+        text-align: left;
+      }
+    }
+  </style>
 </head>
+
 <body>
   <header>
-    <div class="brand">Sovereign Ops</div>
-    <h1 class="title">Debts</h1>
-    <div class="day-badge"><span id="debts-summary">loading…</span></div>
+    <div>
+      <div class="brand">Sovereign Finance</div>
+      <div class="title">Debts</div>
+    </div>
   </header>
 
-  <div class="debt-summary-row">
-    <div class="debt-summary-card">
-      <div class="debt-summary-label">You Owe</div>
-      <div id="debts-total-owe" class="debt-summary-value danger">—</div>
-      <div id="debts-owe-count" class="debt-summary-sub">— debts</div>
-    </div>
-    <div class="debt-summary-card">
-      <div class="debt-summary-label">They Owe You</div>
-      <div id="debts-total-owed" class="debt-summary-value accent">—</div>
-      <div id="debts-owed-count" class="debt-summary-sub">— receivables</div>
-    </div>
-  </div>
+  <main class="debts-wrap">
+    <section class="debts-hero">
+      <div class="debts-kicker">Debt snowball</div>
+      <h1 class="debts-heading">Debts</h1>
+      <p class="debts-copy">
+        Track who is owed, what remains, and paydowns that create real ledger entries without silent category drift.
+      </p>
 
-  <div class="section-header">
-    <span class="section-label">Snowball Order</span>
-    <span class="section-total liabilities" id="debts-net-burden">—</span>
-  </div>
-  <div id="debts-owe-list"></div>
-
-  <div class="section-header" id="receivables-header">
-    <span class="section-label">Receivables</span>
-  </div>
-  <div id="debts-owed-list"></div>
-
-  <footer>
-    <span class="v">v0.3.3 · debts</span>
-  </footer>
-
-  <div id="payModal" class="modal-backdrop" style="display:none;">
-    <div class="modal">
-      <div class="modal-title" id="payModalTitle">Pay Debt</div>
-      <div class="modal-sub" id="payModalSub">remaining …</div>
-
-      <label class="field-label">Amount</label>
-      <input id="payAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" class="amount-input">
-
-      <label class="field-label">From Account</label>
-      <select id="payAccount" class="form-select"></select>
-
-      <label class="field-label">Date</label>
-      <input id="payDate" type="date" class="form-input">
-
-      <div class="modal-actions">
-        <button id="payCancel" class="ghost-btn">Cancel</button>
-        <button id="payConfirm" class="primary-btn">Confirm</button>
+      <div class="debts-actions">
+        <button id="addDebtBtn" class="debts-primary" type="button">+ Add Debt</button>
+        <button id="refreshBtn" class="debts-secondary" type="button">Refresh</button>
       </div>
-    </div>
-  </div>
+    </section>
 
-  <div id="addDebtModal" class="modal-backdrop" style="display:none;">
-    <div class="modal">
-      <div class="modal-title" id="addDebtTitle">Add Debt</div>
-
-      <label class="field-label">Name</label>
-      <input id="addDebtName" type="text" placeholder="e.g. Bank Loan, Friend Ahmed" class="form-input" maxlength="80">
-
-      <label class="field-label">Type</label>
-      <select id="addDebtKind" class="form-select">
-        <option value="owe">I Owe (liability)</option>
-        <option value="owed">They Owe Me (receivable)</option>
-      </select>
-
-      <label class="field-label">Original Amount</label>
-      <input id="addDebtAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" class="amount-input">
-
-      <label class="field-label">Notes (optional)</label>
-      <input id="addDebtNotes" type="text" placeholder="context, due date, terms…" class="form-input" maxlength="200">
-
-      <div class="modal-actions">
-        <button id="addDebtCancel" class="ghost-btn">Cancel</button>
-        <button id="addDebtConfirm" class="primary-btn">Add Debt</button>
+    <section class="debts-stats">
+      <div class="debt-stat">
+        <div class="debt-stat-label">Total Owe</div>
+        <div id="totalOwe" class="debt-stat-value negative">—</div>
       </div>
-    </div>
-  </div>
-
-  <div id="editDebtModal" class="modal-backdrop" style="display:none;">
-    <div class="modal">
-      <div class="modal-title" id="editDebtTitle">Edit Debt</div>
-      <div class="modal-sub" id="editDebtSub">id: …</div>
-
-      <label class="field-label">Name</label>
-      <input id="editDebtName" type="text" class="form-input" maxlength="80">
-
-      <label class="field-label">Type</label>
-      <select id="editDebtKind" class="form-select">
-        <option value="owe">I Owe (liability)</option>
-        <option value="owed">They Owe Me (receivable)</option>
-      </select>
-
-      <label class="field-label">Original Amount</label>
-      <input id="editDebtAmount" type="number" inputmode="decimal" step="0.01" min="0" class="amount-input">
-
-      <label class="field-label">Paid So Far</label>
-      <input id="editDebtPaid" type="number" inputmode="decimal" step="0.01" min="0" class="amount-input">
-
-      <label class="field-label">Notes (optional)</label>
-      <input id="editDebtNotes" type="text" class="form-input" maxlength="200">
-
-      <div class="modal-actions">
-        <button id="editDebtDelete" class="ghost-btn">Delete</button>
-        <button id="editDebtCancel" class="ghost-btn">Cancel</button>
-        <button id="editDebtConfirm" class="primary-btn">Save</button>
+      <div class="debt-stat">
+        <div class="debt-stat-label">Total Owed</div>
+        <div id="totalOwed" class="debt-stat-value positive">—</div>
       </div>
+      <div class="debt-stat">
+        <div class="debt-stat-label">Active Debts</div>
+        <div id="debtCount" class="debt-stat-value">—</div>
+      </div>
+      <div class="debt-stat">
+        <div class="debt-stat-label">Paid Down</div>
+        <div id="paidDown" class="debt-stat-value positive">—</div>
+      </div>
+    </section>
+
+    <section class="debts-grid">
+      <div class="debts-panel">
+        <div class="debts-panel-head">
+          <div>
+            <div class="debts-panel-title">I Owe</div>
+            <div id="oweSub" class="debts-panel-sub">Loading…</div>
+          </div>
+        </div>
+
+        <div id="oweList" class="debt-list">
+          <div class="debt-empty">Loading debts…</div>
+        </div>
+      </div>
+
+      <div class="debts-panel">
+        <div class="debts-panel-head">
+          <div>
+            <div class="debts-panel-title">Owed To Me</div>
+            <div id="owedSub" class="debts-panel-sub">Loading…</div>
+          </div>
+        </div>
+
+        <div id="owedList" class="debt-list">
+          <div class="debt-empty">Loading receivables…</div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="page-footer">
+      <span class="v">v0.8.0 · layer 3 debts rendering · api v0.2.1</span>
+    </footer>
+  </main>
+
+  <div id="payModal" class="pay-modal-backdrop" aria-hidden="true">
+    <div class="pay-modal">
+      <h2 class="pay-title">Record Payment</h2>
+      <p id="paySub" class="pay-sub">Create a real transaction and update paid amount.</p>
+
+      <form id="payForm" class="pay-grid">
+        <input id="payDebtId" type="hidden" />
+
+        <div class="field">
+          <label for="payAmount">Amount</label>
+          <input id="payAmount" class="input" type="number" min="0.01" step="0.01" required />
+        </div>
+
+        <div class="field">
+          <label for="payAccount">Account</label>
+          <select id="payAccount" class="select" required>
+            <option value="">Pick account...</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="payDate">Date</label>
+          <input id="payDate" class="input" type="date" required />
+        </div>
+
+        <div class="field">
+          <label for="payNotes">Notes <small>optional</small></label>
+          <textarea id="payNotes" class="textarea" maxlength="200"></textarea>
+        </div>
+
+        <div class="pay-actions">
+          <button id="cancelPayBtn" class="ghost-btn" type="button">Cancel</button>
+          <button class="primary-submit" type="submit">Save Payment</button>
+        </div>
+      </form>
     </div>
   </div>
 
-    <aside class="desktop-nav">
-    <a href="/" class="desktop-nav-item">
-      <span class="nav-emoji">🏠</span>
-      <span class="nav-text">Hub</span>
-    </a>
-    <a href="/add.html" class="desktop-nav-item">
-      <span class="nav-emoji">➕</span>
-      <span class="nav-text">Add Transaction</span>
-    </a>
-    <a href="/transactions.html" class="desktop-nav-item">
-      <span class="nav-emoji">💸</span>
-      <span class="nav-text">Transactions</span>
-    </a>
-    <a href="/accounts.html" class="desktop-nav-item">
-      <span class="nav-emoji">🏦</span>
-      <span class="nav-text">Accounts</span>
-    </a>
-    <a href="/debts.html" class="desktop-nav-item active">
-      <span class="nav-emoji">💳</span>
-      <span class="nav-text">Debts</span>
-    </a>
-  </aside>
-    <div class="bottom-nav-inner">
-      <a href="/" class="nav-item">
-        <div class="nav-emoji">🏠</div>
-        <div class="nav-text">Hub</div>
-      </a>
-      <a href="/add.html" class="nav-item">
-        <div class="nav-emoji">➕</div>
-        <div class="nav-text">Add</div>
-      </a>
-      <a href="/accounts.html" class="nav-item">
-        <div class="nav-emoji">🏦</div>
-        <div class="nav-text">Accounts</div>
-      </a>
-      <a href="/debts.html" class="nav-item active">
-        <div class="nav-emoji">💳</div>
-        <div class="nav-text">Debts</div>
-      </a>
-    </div>
-  </nav>
+  <div id="debtModal" class="debt-modal-backdrop" aria-hidden="true">
+    <div class="debt-modal">
+      <h2 class="debt-modal-title">Add Debt</h2>
+      <p class="debt-modal-sub">Add a debt/receivable record. Ledger writes happen when payments are recorded.</p>
 
-  <script src="/js/app.js"></script>
-  <script src="/js/store.js"></script>
-  <script src="/js/numbers.js"></script>
-  <script src="/js/debts.js"></script>
+      <form id="debtForm" class="debt-modal-grid">
+        <div class="field">
+          <label for="debtName">Name</label>
+          <input id="debtName" class="input" type="text" maxlength="80" required />
+        </div>
+
+        <div class="field">
+          <label for="debtKind">Kind</label>
+          <select id="debtKind" class="select">
+            <option value="owe">I owe</option>
+            <option value="owed">Owed to me</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="debtOriginal">Original Amount</label>
+          <input id="debtOriginal" class="input" type="number" min="0.01" step="0.01" required />
+        </div>
+
+        <div class="field">
+          <label for="debtPaid">Already Paid</label>
+          <input id="debtPaid" class="input" type="number" min="0" step="0.01" placeholder="0" />
+        </div>
+
+        <div class="field">
+          <label for="debtNotes">Notes <small>optional</small></label>
+          <textarea id="debtNotes" class="textarea" maxlength="500"></textarea>
+        </div>
+
+        <div class="debt-modal-actions">
+          <button id="cancelDebtBtn" class="ghost-btn" type="button">Cancel</button>
+          <button class="primary-submit" type="submit">Add Debt</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="/js/theme.js?v=0.7.5"></script>
+  <script src="/js/nav.js?v=1.0.0"></script>
+
+  <script>
+    const state = {
+      debts: [],
+      accounts: []
+    };
+
+    const $ = id => document.getElementById(id);
+
+    function todayLocal() {
+      const d = new Date();
+      return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0')
+      ].join('-');
+    }
+
+    function esc(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function money(value) {
+      const n = Number(value) || 0;
+      const sign = n < 0 ? '-' : '';
+      return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
+        maximumFractionDigits: 2
+      });
+    }
+
+    function toast(message, kind = 'success') {
+      const el = $('toast');
+      el.textContent = message;
+      el.className = 'toast toast-' + kind + ' show';
+      setTimeout(() => {
+        el.className = 'toast';
+      }, 2600);
+    }
+
+    async function fetchJSON(url, options) {
+      const res = await fetch(url, { cache: 'no-store', ...(options || {}) });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data || data.ok === false) {
+        throw new Error((data && data.error) || ('HTTP ' + res.status));
+      }
+
+      return data;
+    }
+
+    function remaining(debt) {
+      return Math.max(0, (Number(debt.original_amount) || 0) - (Number(debt.paid_amount) || 0));
+    }
+
+    function paidPct(debt) {
+      const original = Number(debt.original_amount) || 0;
+      if (original <= 0) return 0;
+      return Math.max(0, Math.min(100, ((Number(debt.paid_amount) || 0) / original) * 100));
+    }
+
+    function accountName(id) {
+      const found = state.accounts.find(account => account.id === id);
+      return found ? ((found.icon || '') + ' ' + found.name).trim() : (id || 'No account');
+    }
+
+    function fillAccounts() {
+      const sel = $('payAccount');
+      const current = sel.value;
+
+      sel.innerHTML = '<option value="">Pick account...</option>';
+
+      state.accounts.forEach(account => {
+        const opt = document.createElement('option');
+        opt.value = account.id;
+        opt.textContent = accountName(account.id);
+        sel.appendChild(opt);
+      });
+
+      if (current && [...sel.options].some(option => option.value === current)) {
+        sel.value = current;
+      }
+    }
+
+    function renderStats() {
+      const owe = state.debts.filter(debt => debt.kind !== 'owed');
+      const owed = state.debts.filter(debt => debt.kind === 'owed');
+
+      const totalOwe = owe.reduce((sum, debt) => sum + remaining(debt), 0);
+      const totalOwed = owed.reduce((sum, debt) => sum + remaining(debt), 0);
+      const paid = state.debts.reduce((sum, debt) => sum + (Number(debt.paid_amount) || 0), 0);
+
+      $('totalOwe').textContent = money(totalOwe);
+      $('totalOwed').textContent = money(totalOwed);
+      $('debtCount').textContent = String(state.debts.length);
+      $('paidDown').textContent = money(paid);
+
+      $('oweSub').textContent = owe.length + ' debt' + (owe.length === 1 ? '' : 's') + ' · ' + money(totalOwe);
+      $('owedSub').textContent = owed.length + ' receivable' + (owed.length === 1 ? '' : 's') + ' · ' + money(totalOwed);
+    }
+
+    function renderDebtCard(debt) {
+      const rem = remaining(debt);
+      const pct = paidPct(debt);
+      const fullyPaid = rem <= 0.01;
+
+      return `
+        <article class="debt-card">
+          <div class="debt-top">
+            <div class="debt-icon">${debt.kind === 'owed' ? '📥' : '📤'}</div>
+            <div>
+              <div class="debt-title">${esc(debt.name)}</div>
+              <div class="debt-sub">
+                Original ${money(debt.original_amount)} · Paid ${money(debt.paid_amount)}
+              </div>
+            </div>
+            <div class="debt-amount">${money(rem)}</div>
+          </div>
+
+          <div class="debt-progress-wrap">
+            <div class="debt-progress-meta">
+              <span>${pct.toFixed(1)}% paid</span>
+              <span>${fullyPaid ? 'Complete' : 'Remaining ' + money(rem)}</span>
+            </div>
+            <div class="debt-progress-track">
+              <div class="debt-progress-fill" style="width:${pct}%"></div>
+            </div>
+          </div>
+
+          <div class="debt-actions-row">
+            <button class="debt-pay-btn" type="button" data-pay="${esc(debt.id)}" ${fullyPaid ? 'disabled' : ''}>
+              ${debt.kind === 'owed' ? 'Receive' : 'Pay'}
+            </button>
+            <button class="debt-refresh-btn" type="button" data-refresh="1">Refresh</button>
+          </div>
+        </article>
+      `;
+    }
+
+    function renderLists() {
+      const owe = state.debts.filter(debt => debt.kind !== 'owed');
+      const owed = state.debts.filter(debt => debt.kind === 'owed');
+
+      $('oweList').innerHTML = owe.length
+        ? owe.map(renderDebtCard).join('')
+        : '<div class="debt-empty">No active debts owed.</div>';
+
+      $('owedList').innerHTML = owed.length
+        ? owed.map(renderDebtCard).join('')
+        : '<div class="debt-empty">No receivables owed to you.</div>';
+
+      document.querySelectorAll('[data-pay]').forEach(btn => {
+        btn.addEventListener('click', () => openPay(btn.dataset.pay));
+      });
+
+      document.querySelectorAll('[data-refresh]').forEach(btn => {
+        btn.addEventListener('click', loadDebts);
+      });
+    }
+
+    function openPay(id) {
+      const debt = state.debts.find(item => item.id === id);
+      if (!debt) return;
+
+      $('payDebtId').value = debt.id;
+      $('payAmount').value = remaining(debt);
+      $('payDate').value = todayLocal();
+      $('payNotes').value = '';
+      $('paySub').textContent = debt.name + ' · remaining ' + money(remaining(debt));
+
+      fillAccounts();
+
+      $('payModal').classList.add('open');
+      $('payModal').setAttribute('aria-hidden', 'false');
+    }
+
+    function closePay() {
+      $('payModal').classList.remove('open');
+      $('payModal').setAttribute('aria-hidden', 'true');
+    }
+
+    function openDebt() {
+      $('debtName').value = '';
+      $('debtKind').value = 'owe';
+      $('debtOriginal').value = '';
+      $('debtPaid').value = '';
+      $('debtNotes').value = '';
+      $('debtModal').classList.add('open');
+      $('debtModal').setAttribute('aria-hidden', 'false');
+    }
+
+    function closeDebt() {
+      $('debtModal').classList.remove('open');
+      $('debtModal').setAttribute('aria-hidden', 'true');
+    }
+
+    async function submitPay(event) {
+      event.preventDefault();
+
+      const id = $('payDebtId').value;
+      const amount = Number($('payAmount').value);
+      const accountId = $('payAccount').value;
+      const date = $('payDate').value || todayLocal();
+      const notes = $('payNotes').value.trim();
+
+      if (!id || !(amount > 0) || !accountId) {
+        toast('Debt, amount, and account are required.', 'error');
+        return;
+      }
+
+      try {
+        await fetchJSON('/api/debts/' + encodeURIComponent(id) + '/pay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount,
+            account_id: accountId,
+            date,
+            notes,
+            created_by: 'web-debts'
+          })
+        });
+
+        closePay();
+        toast('Payment recorded.');
+        await loadDebts();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    }
+
+    async function submitDebt(event) {
+      event.preventDefault();
+
+      const name = $('debtName').value.trim();
+      const kind = $('debtKind').value;
+      const original = Number($('debtOriginal').value);
+      const paid = Number($('debtPaid').value || 0);
+      const notes = $('debtNotes').value.trim();
+
+      if (!name || !(original > 0)) {
+        toast('Name and original amount are required.', 'error');
+        return;
+      }
+
+      try {
+        await fetchJSON('/api/debts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            kind,
+            original_amount: original,
+            paid_amount: paid,
+            notes,
+            created_by: 'web-debts'
+          })
+        });
+
+        closeDebt();
+        toast('Debt added.');
+        await loadDebts();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    }
+
+    async function loadDebts() {
+      $('oweList').innerHTML = '<div class="debt-empty">Loading debts…</div>';
+      $('owedList').innerHTML = '<div class="debt-empty">Loading receivables…</div>';
+
+      try {
+        const [debtsData, accountsData] = await Promise.all([
+          fetchJSON('/api/debts'),
+          fetchJSON('/api/accounts')
+        ]);
+
+        state.debts = debtsData.debts || [];
+        state.accounts = accountsData.accounts || [];
+
+        renderStats();
+        renderLists();
+        fillAccounts();
+      } catch (err) {
+        $('oweList').innerHTML = `<div class="debt-empty">Debts failed: ${esc(err.message)}</div>`;
+        $('owedList').innerHTML = '<div class="debt-empty">No receivable data.</div>';
+      }
+    }
+
+    $('addDebtBtn').addEventListener('click', openDebt);
+    $('refreshBtn').addEventListener('click', loadDebts);
+    $('cancelPayBtn').addEventListener('click', closePay);
+    $('cancelDebtBtn').addEventListener('click', closeDebt);
+    $('payForm').addEventListener('submit', submitPay);
+    $('debtForm').addEventListener('submit', submitDebt);
+
+    loadDebts();
+  </script>
 </body>
 </html>
