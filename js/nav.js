@@ -1,4 +1,4 @@
-/* ─── Sovereign Finance · nav.js v1.0.7 · Mobile module drawer ─── */
+/* ─── Sovereign Finance · nav.js v1.0.8 · Global app shell identity ─── */
 /*
  * Purpose:
  *   One navigation source for the whole app.
@@ -32,16 +32,22 @@
  *   - Drawer closes on backdrop, close button, Escape key, or module selection.
  *   - No ledger/API writes.
  *
+ * Layer UI v1.0.8:
+ *   - Adds global app shell identity below the page header.
+ *   - Every page gets purpose, proof mode, and next-action language.
+ *   - Uses static page metadata only. No fake money, no API writes, no ledger mutation.
+ *   - Makes each module feel intentional instead of generic.
+ *
  * Contract:
- *   - Replaces existing .desktop-nav, .bottom-nav, and .mobile-module-drawer if present.
- *   - Injects nav if a page forgot it.
+ *   - Replaces existing .desktop-nav, .bottom-nav, .mobile-module-drawer, and .sov-app-shell if present.
+ *   - Injects nav/shell if a page forgot it.
  *   - Active state is based on current pathname.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.7';
+  const VERSION = 'v1.0.8';
   const MOBILE_STYLE_ID = 'sov-nav-mobile-guard';
   const PREMIUM_STYLE_ID = 'sov-nav-premium-rail';
   const DRAWER_ID = 'sov-mobile-module-drawer';
@@ -76,6 +82,121 @@
     { key: 'snapshots', group: 'proof', label: 'Snapshots', short: 'Snaps', href: '/snapshots.html', aliases: [], emoji: '📸' }
   ];
 
+  const PAGE_META = {
+    hub: {
+      eyebrow: 'Today Command Center',
+      title: 'Am I safe right now?',
+      purpose: 'Start here to understand money position, urgent actions, and where to go next.',
+      proof: 'Real account, bill, transaction, and planning data only.',
+      next: 'Check alerts, then act on the highest-pressure item.'
+    },
+    add: {
+      eyebrow: 'Capture Flow',
+      title: 'Record what changed.',
+      purpose: 'Add the movement once, clearly, so the rest of the system can stay truthful.',
+      proof: 'No silent ledger mutation outside the submitted form.',
+      next: 'Choose account, amount, category, and save only when the entry is real.'
+    },
+    transactions: {
+      eyebrow: 'Ledger Timeline',
+      title: 'See the money trail.',
+      purpose: 'Review what happened, when it happened, and how the running history changed.',
+      proof: 'Transaction rows are the audit surface for financial movement.',
+      next: 'Scan recent activity and open the item that needs correction or review.'
+    },
+    bills: {
+      eyebrow: 'Obligation Control',
+      title: 'Know what needs action.',
+      purpose: 'Separate paid, due, overdue, and upcoming bills without guessing.',
+      proof: 'Paid status must be backed by bill state and payment source.',
+      next: 'Handle the nearest real obligation first.'
+    },
+    cc: {
+      eyebrow: 'Credit Discipline',
+      title: 'Protect the statement cycle.',
+      purpose: 'Track card pressure, due timing, and minimum-payment awareness.',
+      proof: 'Card values must stay tied to real account and transaction state.',
+      next: 'Check what is due, what is safe, and what should not be pushed forward.'
+    },
+    accounts: {
+      eyebrow: 'Money Location',
+      title: 'Know where cash is sitting.',
+      purpose: 'See each account as a live pocket of money, not just a label.',
+      proof: 'Balances must reconcile against real ledger and declared balance state.',
+      next: 'Open the account that looks wrong or needs reconciliation.'
+    },
+    atm: {
+      eyebrow: 'Cash Movement',
+      title: 'Track physical money clearly.',
+      purpose: 'Keep cash movement visible so withdrawals and usage do not disappear mentally.',
+      proof: 'ATM movement must remain tied to real transactions and account effects.',
+      next: 'Review recent cash movement before adding or correcting anything.'
+    },
+    nano: {
+      eyebrow: 'Small Loan Ledger',
+      title: 'Keep small obligations visible.',
+      purpose: 'Track who owes what, what was repaid, and what remains without mental math.',
+      proof: 'Loan movement must only reflect real create, repay, or push actions.',
+      next: 'Review open balances before taking action.'
+    },
+    debts: {
+      eyebrow: 'Debt Pressure Map',
+      title: 'See what still has weight.',
+      purpose: 'Understand owed and owing balances, progress, and pressure order.',
+      proof: 'Debt state must match ledger movement and audit trail.',
+      next: 'Act on the debt with the clearest next payment or correction.'
+    },
+    salary: {
+      eyebrow: 'Income Breakdown',
+      title: 'Understand what came in.',
+      purpose: 'Turn salary into components, deductions, tax awareness, and usable money.',
+      proof: 'Salary figures must come from real income records or explicit user entry.',
+      next: 'Review components before planning the month.'
+    },
+    goals: {
+      eyebrow: 'Future Builder',
+      title: 'Connect money to direction.',
+      purpose: 'Make savings and targets visible so progress does not stay abstract.',
+      proof: 'Goal progress must be calculated from real saved values only.',
+      next: 'Check which goal needs funding or cleanup.'
+    },
+    insights: {
+      eyebrow: 'Pattern Reader',
+      title: 'Find the signal inside the numbers.',
+      purpose: 'Surface patterns that help decisions without inventing conclusions.',
+      proof: 'Insights must be computed from existing transactions and balances.',
+      next: 'Use patterns as prompts, not as fake certainty.'
+    },
+    charts: {
+      eyebrow: 'Visual Intelligence',
+      title: 'Make patterns visible.',
+      purpose: 'Show movement, pressure, and trend without hiding source data.',
+      proof: 'Every bar, ring, and line must render from real values only.',
+      next: 'Look for the longest bar, sharpest change, or strange gap.'
+    },
+    reconciliation: {
+      eyebrow: 'Truth Matching',
+      title: 'Does app truth match real balance?',
+      purpose: 'Compare declared reality against system state before trusting conclusions.',
+      proof: 'Reconciliation scope must be stated. Clean only means clean for checked scope.',
+      next: 'Declare real balance only when verified outside the app.'
+    },
+    audit: {
+      eyebrow: 'Change Ledger',
+      title: 'See what changed.',
+      purpose: 'Keep every important system action traceable and reviewable.',
+      proof: 'Audit rows are proof trail, not decoration.',
+      next: 'Search the entity or action that needs explanation.'
+    },
+    snapshots: {
+      eyebrow: 'Rollback Safety',
+      title: 'Know whether you can rewind.',
+      purpose: 'Protect recovery confidence before risky work or major corrections.',
+      proof: 'Snapshot status is safety context, not a guarantee until restore is proven.',
+      next: 'Check latest snapshot before trusting rollback coverage.'
+    }
+  };
+
   const BOTTOM_KEYS = ['hub', 'add', 'transactions', 'bills', 'cc'];
 
   function normalizePath(pathname) {
@@ -95,6 +216,15 @@
     if (normalizePath(item.href) === path) return true;
 
     return (item.aliases || []).some(alias => normalizePath(alias) === path);
+  }
+
+  function getActiveItem(path) {
+    return NAV_ITEMS.find(item => isActive(item, path)) || NAV_ITEMS[0];
+  }
+
+  function getActiveMeta(path) {
+    const active = getActiveItem(path);
+    return PAGE_META[active.key] || PAGE_META.hub;
   }
 
   function navItemHTML(item, path, mode) {
@@ -212,6 +342,30 @@
           </div>
         </aside>
       </div>
+    `;
+  }
+
+  function shellHTML(path) {
+    const active = getActiveItem(path);
+    const meta = getActiveMeta(path);
+
+    return `
+      <section class="sov-app-shell" data-shell-page="${active.key}" data-shell-version="${VERSION}" aria-label="Page identity">
+        <div class="sov-shell-orb" aria-hidden="true">${active.emoji}</div>
+        <div class="sov-shell-main">
+          <div class="sov-shell-eyebrow">${meta.eyebrow}</div>
+          <h1 class="sov-shell-title">${meta.title}</h1>
+          <p class="sov-shell-purpose">${meta.purpose}</p>
+        </div>
+        <div class="sov-shell-proof">
+          <div class="sov-shell-proof-pill">
+            <span class="sov-shell-pulse"></span>
+            <span>Real data mode</span>
+          </div>
+          <div class="sov-shell-proof-line">${meta.proof}</div>
+          <div class="sov-shell-next">${meta.next}</div>
+        </div>
+      </section>
     `;
   }
 
@@ -341,6 +495,17 @@
         from {
           opacity: 0;
           transform: translateY(20px) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      @keyframes sov-shell-rise {
+        from {
+          opacity: 0;
+          transform: translateY(-8px) scale(0.992);
         }
         to {
           opacity: 1;
@@ -564,6 +729,116 @@
         }
       }
 
+      .sov-app-shell {
+        width: min(1120px, calc(100% - 32px));
+        margin: 14px auto 18px;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) minmax(260px, 0.78fr);
+        align-items: center;
+        gap: 16px;
+        padding: 16px;
+        border-radius: 28px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background:
+          radial-gradient(circle at 7% 0%, rgba(34, 197, 94, 0.16), transparent 15rem),
+          radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.12), transparent 14rem),
+          rgba(255, 255, 255, 0.72);
+        box-shadow:
+          0 18px 50px rgba(15, 23, 42, 0.10),
+          inset 0 1px 0 rgba(255, 255, 255, 0.70);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        animation: sov-shell-rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+
+      .sov-shell-orb {
+        width: 58px;
+        height: 58px;
+        display: grid;
+        place-items: center;
+        border-radius: 22px;
+        background:
+          radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.90), transparent 2.8rem),
+          linear-gradient(135deg, rgba(34, 197, 94, 0.22), rgba(59, 130, 246, 0.14));
+        box-shadow:
+          0 14px 32px rgba(34, 197, 94, 0.14),
+          inset 0 1px 0 rgba(255, 255, 255, 0.78);
+        font-size: 27px;
+      }
+
+      .sov-shell-main {
+        min-width: 0;
+      }
+
+      .sov-shell-eyebrow {
+        color: var(--accent-deep, #047857);
+        font-size: 11px;
+        font-weight: 1000;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      .sov-shell-title {
+        margin: 4px 0 0;
+        color: var(--text-main, #0f172a);
+        font-size: clamp(22px, 3.3vw, 34px);
+        line-height: 0.98;
+        font-weight: 1000;
+        letter-spacing: -0.065em;
+      }
+
+      .sov-shell-purpose {
+        margin: 8px 0 0;
+        max-width: 680px;
+        color: var(--text-muted, #64748b);
+        font-size: 13px;
+        line-height: 1.45;
+        font-weight: 750;
+      }
+
+      .sov-shell-proof {
+        min-width: 0;
+        padding: 12px;
+        border-radius: 22px;
+        background: rgba(15, 23, 42, 0.045);
+        border: 1px solid rgba(15, 23, 42, 0.055);
+      }
+
+      .sov-shell-proof-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        color: #047857;
+        background: rgba(34, 197, 94, 0.10);
+        border: 1px solid rgba(34, 197, 94, 0.18);
+        font-size: 11px;
+        font-weight: 950;
+      }
+
+      .sov-shell-pulse {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #22c55e;
+        animation: sov-rail-pulse 2.4s ease-in-out infinite;
+      }
+
+      .sov-shell-proof-line,
+      .sov-shell-next {
+        margin-top: 8px;
+        color: var(--text-muted, #64748b);
+        font-size: 12px;
+        line-height: 1.38;
+        font-weight: 760;
+      }
+
+      .sov-shell-next {
+        color: var(--text-main, #0f172a);
+        font-weight: 900;
+      }
+
       @media (min-width: 1600px) {
         body {
           padding-left: 352px !important;
@@ -627,7 +902,42 @@
         }
       }
 
+      @media (max-width: 980px) {
+        .sov-app-shell {
+          grid-template-columns: auto minmax(0, 1fr);
+        }
+
+        .sov-shell-proof {
+          grid-column: 1 / -1;
+        }
+      }
+
       @media (max-width: 860px) {
+        .sov-app-shell {
+          width: min(100% - 22px, 720px);
+          margin: 10px auto 14px;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 12px;
+          padding: 14px;
+          border-radius: 24px;
+        }
+
+        .sov-shell-orb {
+          width: 48px;
+          height: 48px;
+          border-radius: 18px;
+          font-size: 23px;
+        }
+
+        .sov-shell-title {
+          font-size: 26px;
+          letter-spacing: -0.055em;
+        }
+
+        .sov-shell-purpose {
+          font-size: 12.5px;
+        }
+
         .mobile-module-toggle {
           position: fixed;
           right: 14px;
@@ -859,6 +1169,18 @@
           grid-template-columns: 1fr;
         }
       }
+
+      @media (prefers-reduced-motion: reduce) {
+        .desktop-nav,
+        .sov-app-shell,
+        .mobile-drawer-panel,
+        .desktop-nav-pulse,
+        .sov-shell-pulse,
+        .mobile-drawer-pulse {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
     `;
 
     document.head.appendChild(style);
@@ -888,18 +1210,36 @@
     document.body.insertAdjacentHTML('beforeend', drawerHTML(path));
   }
 
+  function replaceAppShell(path) {
+    document.querySelectorAll('.sov-app-shell').forEach(node => node.remove());
+
+    const header = document.querySelector('header');
+    const html = shellHTML(path);
+
+    if (header) {
+      header.insertAdjacentHTML('afterend', html);
+      return;
+    }
+
+    const main = document.querySelector('main, .wrap, .container');
+    if (main) {
+      main.insertAdjacentHTML('beforebegin', html);
+      return;
+    }
+
+    document.body.insertAdjacentHTML('afterbegin', html);
+  }
+
   function setHeaderTitle(path) {
     const titleEl = document.querySelector('header .title');
     if (!titleEl) return;
 
-    const active = NAV_ITEMS.find(item => isActive(item, path));
-    if (!active) return;
-
+    const active = getActiveItem(path);
     titleEl.textContent = active.label;
   }
 
   function markBodyPage(path) {
-    const active = NAV_ITEMS.find(item => isActive(item, path));
+    const active = getActiveItem(path);
 
     if (active) {
       document.documentElement.setAttribute('data-page', active.key);
@@ -948,6 +1288,7 @@
     injectMobileBottomNavGuard();
     injectPremiumRailStyle();
     replaceDesktopNav(path);
+    replaceAppShell(path);
     replaceBottomNav(path);
     replaceMobileDrawer(path);
     setHeaderTitle(path);
@@ -958,8 +1299,11 @@
       version: VERSION,
       items: NAV_ITEMS.slice(),
       groups: NAV_GROUPS.slice(),
+      pageMeta: Object.assign({}, PAGE_META),
       bottomKeys: BOTTOM_KEYS.slice(),
       activePath: path,
+      activeItem: getActiveItem(path),
+      activeMeta: getActiveMeta(path),
       mobileGuard: MOBILE_STYLE_ID,
       premiumRail: PREMIUM_STYLE_ID,
       mobileDrawer: DRAWER_ID,
