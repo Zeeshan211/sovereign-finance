@@ -1,189 +1,248 @@
 <!doctype html>
-<html lang="en" data-page="add">
+<html lang="en" data-theme="midnight" data-page="add">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-
-  <title>Add Transaction · Sovereign Finance</title>
-
-  <meta name="theme-color" content="#0f172a" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050816" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-title" content="Sovereign Finance" />
 
-  <link rel="stylesheet" href="/css/app.css?v=0.7.5" />
+  <title>Sovereign Finance · Add Transaction</title>
+
+  <link rel="stylesheet" href="/css/app.css?v=0.10.1" />
 
   <style>
-    .add-shell {
-      max-width: 760px;
+    .add-page {
+      max-width: 820px;
       margin: 0 auto;
-      padding: 18px 14px 90px;
+      padding: 22px 16px 96px;
     }
 
-    .add-hero {
-      border: 1px solid var(--border, rgba(148, 163, 184, .18));
-      background: var(--card, rgba(15, 23, 42, .72));
-      border-radius: 20px;
-      padding: 18px;
-      margin-bottom: 16px;
-      box-shadow: 0 16px 42px rgba(0, 0, 0, .18);
+    .add-header-card {
+      background: var(--card, rgba(15, 23, 42, 0.78));
+      border: 1px solid var(--border, rgba(148, 163, 184, 0.18));
+      border-radius: 24px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+    }
+
+    .eyebrow {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted, #94a3b8);
+      font-weight: 800;
+      margin-bottom: 8px;
     }
 
     .add-title {
       margin: 0;
-      font-size: 24px;
-      line-height: 1.1;
-      letter-spacing: -.02em;
+      font-size: clamp(28px, 5vw, 44px);
+      line-height: 1.02;
+      letter-spacing: -0.045em;
+      color: var(--text, #e5e7eb);
     }
 
     .add-subtitle {
-      margin: 8px 0 0;
+      margin: 10px 0 0;
       color: var(--muted, #94a3b8);
-      font-size: 13px;
-      line-height: 1.45;
+      font-size: 14px;
+      line-height: 1.5;
+      max-width: 620px;
     }
 
     .type-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin: 16px 0;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
     }
 
     .type-btn {
-      border: 1px solid var(--border, rgba(148, 163, 184, .2));
-      background: rgba(15, 23, 42, .45);
+      border: 1px solid var(--border, rgba(148, 163, 184, 0.2));
+      background: rgba(2, 6, 23, 0.42);
       color: var(--text, #e5e7eb);
-      border-radius: 16px;
-      padding: 12px 10px;
-      font-family: inherit;
-      font-weight: 800;
+      border-radius: 18px;
+      padding: 14px 12px;
+      min-height: 86px;
+      font: inherit;
+      font-weight: 900;
       cursor: pointer;
       display: flex;
       flex-direction: column;
+      justify-content: center;
       align-items: center;
-      gap: 5px;
+      transition: 0.18s ease;
     }
 
-    .type-btn span {
-      font-size: 20px;
+    .type-btn .emoji {
+      font-size: 24px;
+      line-height: 1;
+      margin-bottom: 8px;
     }
 
-    .type-btn small {
+    .type-btn .hint {
+      margin-top: 4px;
       font-size: 11px;
-      color: var(--muted, #94a3b8);
       font-weight: 700;
+      color: var(--muted, #94a3b8);
+    }
+
+    .type-btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(34, 197, 94, 0.34);
     }
 
     .type-btn.active {
-      border-color: rgba(34, 197, 94, .45);
-      background: rgba(34, 197, 94, .12);
+      background: rgba(34, 197, 94, 0.13);
+      border-color: rgba(34, 197, 94, 0.5);
       color: var(--accent, #22c55e);
+      box-shadow: 0 16px 36px rgba(34, 197, 94, 0.12);
     }
 
     .form-card {
-      border: 1px solid var(--border, rgba(148, 163, 184, .18));
-      background: var(--card, rgba(15, 23, 42, .72));
-      border-radius: 20px;
-      padding: 16px;
+      background: var(--card, rgba(15, 23, 42, 0.78));
+      border: 1px solid var(--border, rgba(148, 163, 184, 0.18));
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
     }
 
     .field {
       margin-bottom: 14px;
     }
 
-    .field label {
-      display: block;
-      margin: 0 0 6px;
-      color: var(--muted, #94a3b8);
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: .02em;
-      text-transform: uppercase;
+    .field.full {
+      grid-column: 1 / -1;
     }
 
-    .field input,
-    .field select,
-    .field textarea {
+    .field label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 7px;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--muted, #94a3b8);
+    }
+
+    .field small {
+      text-transform: none;
+      letter-spacing: 0;
+      font-weight: 700;
+      color: rgba(148, 163, 184, 0.72);
+    }
+
+    .input,
+    .select,
+    .textarea {
       width: 100%;
       box-sizing: border-box;
-      border: 1px solid var(--border, rgba(148, 163, 184, .2));
-      background: rgba(2, 6, 23, .42);
+      border: 1px solid var(--border, rgba(148, 163, 184, 0.2));
+      background: rgba(2, 6, 23, 0.48);
       color: var(--text, #e5e7eb);
-      border-radius: 14px;
-      padding: 12px 13px;
+      border-radius: 16px;
+      padding: 13px 14px;
       font: inherit;
       outline: none;
+      min-height: 48px;
     }
 
-    .field input:focus,
-    .field select:focus,
-    .field textarea:focus {
-      border-color: rgba(34, 197, 94, .5);
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, .12);
-    }
-
-    .field textarea {
-      min-height: 88px;
+    .textarea {
+      min-height: 96px;
       resize: vertical;
+      line-height: 1.45;
     }
 
-    .row-2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+    .input:focus,
+    .select:focus,
+    .textarea:focus {
+      border-color: rgba(34, 197, 94, 0.55);
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
     }
 
-    .submit-row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      margin-top: 16px;
-    }
-
-    .primary-btn {
-      width: 100%;
-      border: 0;
+    .transfer-note {
+      display: none;
+      margin: -2px 0 14px;
+      padding: 12px 14px;
+      border: 1px solid rgba(34, 197, 94, 0.22);
+      background: rgba(34, 197, 94, 0.08);
+      color: var(--accent, #22c55e);
       border-radius: 16px;
-      padding: 14px 16px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    body.transfer-mode .transfer-note {
+      display: block;
+    }
+
+    .submit-area {
+      margin-top: 8px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .primary-submit {
+      border: 0;
+      border-radius: 18px;
+      padding: 15px 18px;
       background: linear-gradient(135deg, #22c55e, #16a34a);
       color: #052e16;
-      font-family: inherit;
-      font-weight: 900;
+      font: inherit;
+      font-weight: 950;
       cursor: pointer;
-      box-shadow: 0 14px 30px rgba(34, 197, 94, .24);
+      min-height: 54px;
+      box-shadow: 0 18px 42px rgba(34, 197, 94, 0.22);
     }
 
-    .primary-btn:disabled {
+    .primary-submit:disabled {
+      opacity: 0.45;
       cursor: not-allowed;
-      opacity: .45;
       box-shadow: none;
     }
 
-    .safety-note {
-      margin-top: 12px;
+    .safety-copy {
+      margin: 0;
       color: var(--muted, #94a3b8);
       font-size: 12px;
       line-height: 1.45;
       text-align: center;
     }
 
+    .page-footer {
+      margin-top: 18px;
+      text-align: center;
+      color: var(--muted, #94a3b8);
+      font-size: 12px;
+    }
+
     .toast {
       position: fixed;
       left: 50%;
-      bottom: 22px;
+      bottom: 24px;
+      z-index: 9999;
+      max-width: min(560px, calc(100vw - 28px));
       transform: translateX(-50%) translateY(20px);
       opacity: 0;
       pointer-events: none;
-      z-index: 9999;
-      max-width: min(520px, calc(100vw - 28px));
-      padding: 12px 14px;
-      border-radius: 14px;
-      border: 1px solid rgba(148, 163, 184, .22);
-      background: rgba(15, 23, 42, .96);
+      padding: 13px 15px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      background: rgba(15, 23, 42, 0.96);
       color: #e5e7eb;
-      box-shadow: 0 18px 50px rgba(0,0,0,.3);
-      transition: .22s ease;
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+      transition: 0.22s ease;
       font-size: 13px;
     }
 
@@ -193,116 +252,187 @@
     }
 
     .toast-success {
-      border-color: rgba(34, 197, 94, .35);
+      border-color: rgba(34, 197, 94, 0.42);
     }
 
     .toast-error {
-      border-color: rgba(239, 68, 68, .45);
+      border-color: rgba(239, 68, 68, 0.48);
     }
 
-    @media (max-width: 640px) {
-      .row-2 {
+    @media (max-width: 720px) {
+      .add-page {
+        padding-top: 16px;
+      }
+
+      .type-grid,
+      .form-grid {
         grid-template-columns: 1fr;
       }
 
-      .type-grid {
-        grid-template-columns: 1fr;
+      .type-btn {
+        min-height: 76px;
       }
     }
   </style>
 </head>
 
 <body>
-  <div id="app">
-    <main class="add-shell">
-      <section class="add-hero">
-        <h1 class="add-title">Add Transaction</h1>
-        <p class="add-subtitle">
-          Add one clean ledger event. Transfers write as a two-row pair: source OUT and destination IN.
-        </p>
+  <header>
+    <div class="brand">Sovereign Finance</div>
+    <div class="title">Add Transaction</div>
+  </header>
 
-        <div class="type-grid" aria-label="Transaction type">
-          <button class="type-btn active" type="button" data-type="expense">
-            <span>💸</span>
-            Expense
-            <small>money out</small>
-          </button>
+  <aside class="desktop-nav">
+    <a href="/" class="desktop-nav-item">
+      <span class="nav-emoji">🏠</span><span class="nav-text">Hub</span>
+    </a>
+    <a href="/add.html" class="desktop-nav-item active">
+      <span class="nav-emoji">➕</span><span class="nav-text">Add Transaction</span>
+    </a>
+    <a href="/transactions.html" class="desktop-nav-item">
+      <span class="nav-emoji">📜</span><span class="nav-text">Transactions</span>
+    </a>
+    <a href="/accounts.html" class="desktop-nav-item">
+      <span class="nav-emoji">🏦</span><span class="nav-text">Accounts</span>
+    </a>
+    <a href="/debts.html" class="desktop-nav-item">
+      <span class="nav-emoji">💳</span><span class="nav-text">Debts</span>
+    </a>
+    <a href="/bills.html" class="desktop-nav-item">
+      <span class="nav-emoji">📅</span><span class="nav-text">Bills</span>
+    </a>
+    <a href="/salary.html" class="desktop-nav-item">
+      <span class="nav-emoji">💰</span><span class="nav-text">Salary</span>
+    </a>
+    <a href="/audit.html" class="desktop-nav-item">
+      <span class="nav-emoji">🛡️</span><span class="nav-text">Audit Log</span>
+    </a>
+    <a href="/snapshots.html" class="desktop-nav-item">
+      <span class="nav-emoji">📸</span><span class="nav-text">Snapshots</span>
+    </a>
+  </aside>
 
-          <button class="type-btn" type="button" data-type="income">
-            <span>💰</span>
-            Income
-            <small>money in</small>
-          </button>
+  <main class="add-page">
+    <section class="add-header-card">
+      <div class="eyebrow">Ledger write path</div>
+      <h1 class="add-title">Add Transaction</h1>
+      <p class="add-subtitle">
+        Add one clean ledger event. Transfers write as two linked rows, so balances stay aligned with the finance formula spec.
+      </p>
 
-          <button class="type-btn" type="button" data-type="transfer">
-            <span>💱</span>
-            Transfer
-            <small>between accounts</small>
-          </button>
+      <div class="type-grid" aria-label="Transaction type">
+        <button class="type-btn active" type="button" data-type="expense">
+          <span class="emoji">💸</span>
+          Expense
+          <span class="hint">money out</span>
+        </button>
+
+        <button class="type-btn" type="button" data-type="income">
+          <span class="emoji">💰</span>
+          Income
+          <span class="hint">money in</span>
+        </button>
+
+        <button class="type-btn" type="button" data-type="transfer">
+          <span class="emoji">💱</span>
+          Transfer
+          <span class="hint">between accounts</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="form-card">
+      <form id="addForm" autocomplete="off">
+        <div class="transfer-note">
+          Transfers create two rows: one transfer OUT from the source account and one income IN to the destination account.
         </div>
-      </section>
 
-      <section class="form-card">
-        <form id="addForm" autocomplete="off">
-          <div class="row-2">
-            <div class="field">
-              <label for="dateInput">Date</label>
-              <input id="dateInput" name="date" type="date" required />
-            </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="amountInput">Amount</label>
+            <input id="amountInput" class="input" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+          </div>
 
-            <div class="field">
-              <label for="amountInput">Amount</label>
-              <input id="amountInput" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
-            </div>
+          <div class="field">
+            <label for="dateInput">Date</label>
+            <input id="dateInput" class="input" name="date" type="date" required />
           </div>
 
           <div class="field">
             <label id="accountFromLabel" for="accountSelect">Account</label>
-            <select id="accountSelect" name="account" required>
+            <select id="accountSelect" class="select" name="account" required>
               <option value="">Pick account...</option>
             </select>
           </div>
 
           <div class="field" id="transferToWrap" hidden>
             <label for="transferToSelect">To Account</label>
-            <select id="transferToSelect" name="transfer_to_account">
+            <select id="transferToSelect" class="select" name="transfer_to_account">
               <option value="">Pick account...</option>
             </select>
           </div>
 
           <div class="field" id="categoryWrap">
-            <label for="categorySelect">Category</label>
-            <select id="categorySelect" name="category">
+            <label for="categorySelect">
+              Category
+              <small>optional</small>
+            </label>
+            <select id="categorySelect" class="select" name="category">
               <option value="">Pick category...</option>
             </select>
           </div>
 
-          <div class="field">
-            <label for="notesInput">Notes</label>
-            <textarea id="notesInput" name="notes" maxlength="200" placeholder="What happened?"></textarea>
+          <div class="field full">
+            <label for="notesInput">
+              Notes
+              <small>max 200 chars</small>
+            </label>
+            <textarea id="notesInput" class="textarea" name="notes" maxlength="200" placeholder="What happened?"></textarea>
           </div>
+        </div>
 
-          <div class="submit-row">
-            <button id="submitBtn" class="primary-btn" type="submit" disabled>
-              Save Transaction
-            </button>
-          </div>
+        <div class="submit-area">
+          <button id="submitBtn" class="primary-submit" type="submit" disabled>
+            Save Transaction
+          </button>
 
-          <p class="safety-note">
-            If saving fails, the transaction is not silently queued. Fix the error and submit again once.
+          <p class="safety-copy">
+            If saving fails, the transaction is not silently queued. Fix the error and submit once.
           </p>
-        </form>
-      </section>
+        </div>
+      </form>
+    </section>
 
-      <footer style="margin-top:18px;text-align:center;color:var(--muted,#94a3b8);font-size:12px">
-        <span class="v">v0.6.2 · add full rewrite · store v0.2.3 · add v0.3.1</span>
-      </footer>
-    </main>
-  </div>
+    <footer class="page-footer">
+      v0.6.4 · layer 3 add rendering · store v0.2.3 · add v0.3.2
+    </footer>
+  </main>
+
+  <nav class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <a href="/" class="nav-item">
+        <span class="nav-emoji">🏠</span><span class="nav-text">Hub</span>
+      </a>
+      <a href="/add.html" class="nav-item active">
+        <span class="nav-emoji">➕</span><span class="nav-text">Add</span>
+      </a>
+      <a href="/transactions.html" class="nav-item">
+        <span class="nav-emoji">📜</span><span class="nav-text">Tx</span>
+      </a>
+      <a href="/debts.html" class="nav-item">
+        <span class="nav-emoji">💳</span><span class="nav-text">Debts</span>
+      </a>
+      <a href="/bills.html" class="nav-item">
+        <span class="nav-emoji">📅</span><span class="nav-text">Bills</span>
+      </a>
+    </div>
+  </nav>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="/js/theme.js?v=0.7.5"></script>
   <script src="/js/nav.js?v=0.7.5"></script>
   <script src="/js/store.js?v=0.2.3"></script>
-  <script src="/js/add.js?v=0.3.1"></script>
+  <script src="/js/add.js?v=0.3.2"></script>
 </body>
 </html>
