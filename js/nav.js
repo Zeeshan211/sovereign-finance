@@ -1,4 +1,4 @@
-/* ─── Sovereign Finance · nav.js v1.0.6 · Layered premium navigation rail ─── */
+/* ─── Sovereign Finance · nav.js v1.0.7 · Mobile module drawer ─── */
 /*
  * Purpose:
  *   One navigation source for the whole app.
@@ -25,8 +25,15 @@
  *   - Mobile bottom nav remains daily-core only.
  *   - No ledger/API writes.
  *
+ * Layer UI v1.0.7:
+ *   - Adds mobile full-module drawer without bloating bottom nav.
+ *   - Bottom nav remains daily-core only.
+ *   - Drawer exposes every module in the same layered structure as desktop.
+ *   - Drawer closes on backdrop, close button, Escape key, or module selection.
+ *   - No ledger/API writes.
+ *
  * Contract:
- *   - Replaces existing .desktop-nav and .bottom-nav if present.
+ *   - Replaces existing .desktop-nav, .bottom-nav, and .mobile-module-drawer if present.
  *   - Injects nav if a page forgot it.
  *   - Active state is based on current pathname.
  */
@@ -34,9 +41,11 @@
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.6';
+  const VERSION = 'v1.0.7';
   const MOBILE_STYLE_ID = 'sov-nav-mobile-guard';
   const PREMIUM_STYLE_ID = 'sov-nav-premium-rail';
+  const DRAWER_ID = 'sov-mobile-module-drawer';
+  const DRAWER_TOGGLE_ID = 'sov-mobile-module-toggle';
 
   const NAV_GROUPS = [
     { key: 'daily', label: 'Daily Core' },
@@ -101,6 +110,18 @@
     `;
   }
 
+  function drawerItemHTML(item, path) {
+    const active = isActive(item, path) ? ' active' : '';
+
+    return `
+      <a href="${item.href}" class="mobile-drawer-item${active}" data-nav-key="${item.key}" data-nav-group="${item.group}">
+        <span class="mobile-drawer-icon">${item.emoji}</span>
+        <span class="mobile-drawer-label">${item.label}</span>
+        <span class="mobile-drawer-dot" aria-hidden="true"></span>
+      </a>
+    `;
+  }
+
   function desktopGroupHTML(group, path) {
     const items = NAV_ITEMS.filter(item => item.group === group.key);
 
@@ -111,6 +132,21 @@
         <div class="desktop-nav-layer-title">${group.label}</div>
         <div class="desktop-nav-layer-items">
           ${items.map(item => navItemHTML(item, path, 'desktop')).join('')}
+        </div>
+      </section>
+    `;
+  }
+
+  function drawerGroupHTML(group, path) {
+    const items = NAV_ITEMS.filter(item => item.group === group.key);
+
+    if (!items.length) return '';
+
+    return `
+      <section class="mobile-drawer-layer" data-nav-layer="${group.key}">
+        <div class="mobile-drawer-layer-title">${group.label}</div>
+        <div class="mobile-drawer-layer-grid">
+          ${items.map(item => drawerItemHTML(item, path)).join('')}
         </div>
       </section>
     `;
@@ -149,6 +185,36 @@
     `;
   }
 
+  function drawerHTML(path) {
+    return `
+      <button id="${DRAWER_TOGGLE_ID}" class="mobile-module-toggle" type="button" aria-label="Open all modules" aria-controls="${DRAWER_ID}" aria-expanded="false">
+        <span class="mobile-module-toggle-icon">☰</span>
+        <span class="mobile-module-toggle-text">All</span>
+      </button>
+
+      <div id="${DRAWER_ID}" class="mobile-module-drawer" aria-hidden="true">
+        <div class="mobile-drawer-backdrop" data-drawer-close="true"></div>
+        <aside class="mobile-drawer-panel" role="dialog" aria-modal="true" aria-label="All Sovereign Finance modules">
+          <div class="mobile-drawer-handle" aria-hidden="true"></div>
+          <div class="mobile-drawer-head">
+            <div>
+              <div class="mobile-drawer-kicker">Sovereign Finance</div>
+              <div class="mobile-drawer-title">All Modules</div>
+            </div>
+            <button class="mobile-drawer-close" type="button" aria-label="Close modules" data-drawer-close="true">×</button>
+          </div>
+          <div class="mobile-drawer-pill">
+            <span class="mobile-drawer-pulse"></span>
+            <span>Real data mode · no demo values</span>
+          </div>
+          <div class="mobile-drawer-layers">
+            ${NAV_GROUPS.map(group => drawerGroupHTML(group, path)).join('')}
+          </div>
+        </aside>
+      </div>
+    `;
+  }
+
   function injectMobileBottomNavGuard() {
     const existing = document.getElementById(MOBILE_STYLE_ID);
     if (existing) existing.remove();
@@ -163,7 +229,7 @@
 
         body {
           min-height: 100%;
-          padding-bottom: calc(86px + env(safe-area-inset-bottom)) !important;
+          padding-bottom: calc(96px + env(safe-area-inset-bottom)) !important;
         }
 
         .bottom-nav {
@@ -231,7 +297,9 @@
       }
 
       @media (min-width: 861px) {
-        .bottom-nav {
+        .bottom-nav,
+        .mobile-module-toggle,
+        .mobile-module-drawer {
           display: none !important;
         }
       }
@@ -266,6 +334,17 @@
         }
         50% {
           box-shadow: 0 0 20px rgba(34, 197, 94, 0.36);
+        }
+      }
+
+      @keyframes sov-drawer-rise {
+        from {
+          opacity: 0;
+          transform: translateY(20px) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
         }
       }
 
@@ -547,6 +626,239 @@
           font-size: 13px !important;
         }
       }
+
+      @media (max-width: 860px) {
+        .mobile-module-toggle {
+          position: fixed;
+          right: 14px;
+          bottom: calc(86px + env(safe-area-inset-bottom));
+          z-index: 2410;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          min-width: 66px;
+          height: 42px;
+          padding: 0 13px;
+          border: 1px solid rgba(148, 163, 184, 0.35);
+          border-radius: 999px;
+          color: #ecfdf5;
+          background:
+            radial-gradient(circle at 30% 0%, rgba(134, 239, 172, 0.24), transparent 5rem),
+            rgba(15, 23, 42, 0.94);
+          box-shadow: 0 16px 36px rgba(15, 23, 42, 0.22);
+          backdrop-filter: blur(16px);
+          -webkit-backdrop-filter: blur(16px);
+          font-weight: 950;
+          letter-spacing: -0.02em;
+        }
+
+        .mobile-module-toggle-icon {
+          font-size: 15px;
+          line-height: 1;
+        }
+
+        .mobile-module-toggle-text {
+          font-size: 12px;
+          line-height: 1;
+        }
+
+        .mobile-module-drawer {
+          position: fixed;
+          inset: 0;
+          z-index: 3000;
+          display: none;
+          pointer-events: none;
+        }
+
+        .mobile-module-drawer.open {
+          display: block;
+          pointer-events: auto;
+        }
+
+        .mobile-drawer-backdrop {
+          position: absolute;
+          inset: 0;
+          background: rgba(15, 23, 42, 0.52);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+        }
+
+        .mobile-drawer-panel {
+          position: absolute;
+          left: 10px;
+          right: 10px;
+          bottom: calc(10px + env(safe-area-inset-bottom));
+          max-height: min(78vh, 680px);
+          overflow-y: auto;
+          padding: 10px 12px 14px;
+          border-radius: 28px;
+          color: #e2e8f0;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          background:
+            radial-gradient(circle at 15% 0%, rgba(34, 197, 94, 0.22), transparent 13rem),
+            radial-gradient(circle at 90% 18%, rgba(59, 130, 246, 0.14), transparent 11rem),
+            linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+          box-shadow: 0 30px 80px rgba(2, 6, 23, 0.38);
+          animation: sov-drawer-rise 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
+        .mobile-drawer-handle {
+          width: 44px;
+          height: 5px;
+          margin: 2px auto 12px;
+          border-radius: 999px;
+          background: rgba(226, 232, 240, 0.26);
+        }
+
+        .mobile-drawer-head {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 0 4px 8px;
+        }
+
+        .mobile-drawer-kicker {
+          color: rgba(203, 213, 225, 0.70);
+          font-size: 10px;
+          font-weight: 950;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+        }
+
+        .mobile-drawer-title {
+          margin-top: 2px;
+          color: #ffffff;
+          font-size: 24px;
+          line-height: 1;
+          font-weight: 1000;
+          letter-spacing: -0.055em;
+        }
+
+        .mobile-drawer-close {
+          width: 38px;
+          height: 38px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 999px;
+          color: #e2e8f0;
+          background: rgba(255, 255, 255, 0.06);
+          font-size: 26px;
+          line-height: 1;
+          font-weight: 500;
+        }
+
+        .mobile-drawer-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin: 0 4px 10px;
+          padding: 7px 10px;
+          border-radius: 999px;
+          color: #bbf7d0;
+          background: rgba(34, 197, 94, 0.10);
+          border: 1px solid rgba(134, 239, 172, 0.16);
+          font-size: 11px;
+          font-weight: 900;
+        }
+
+        .mobile-drawer-pulse {
+          width: 7px;
+          height: 7px;
+          border-radius: 50%;
+          background: #22c55e;
+          animation: sov-rail-pulse 2.4s ease-in-out infinite;
+        }
+
+        .mobile-drawer-layers {
+          display: flex;
+          flex-direction: column;
+          gap: 9px;
+        }
+
+        .mobile-drawer-layer {
+          padding: 9px;
+          border-radius: 22px;
+          background: rgba(255, 255, 255, 0.045);
+          border: 1px solid rgba(255, 255, 255, 0.055);
+        }
+
+        .mobile-drawer-layer-title {
+          margin: 0 4px 7px;
+          color: rgba(203, 213, 225, 0.72);
+          font-size: 9px;
+          line-height: 1;
+          font-weight: 1000;
+          text-transform: uppercase;
+          letter-spacing: 0.15em;
+        }
+
+        .mobile-drawer-layer-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 7px;
+        }
+
+        .mobile-drawer-item {
+          min-width: 0;
+          min-height: 48px;
+          display: grid;
+          grid-template-columns: 28px minmax(0, 1fr) 6px;
+          align-items: center;
+          gap: 8px;
+          padding: 8px;
+          border-radius: 16px;
+          color: rgba(226, 232, 240, 0.80);
+          background: rgba(255, 255, 255, 0.035);
+          border: 1px solid rgba(255, 255, 255, 0.055);
+          text-decoration: none;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .mobile-drawer-item.active {
+          color: #dcfce7;
+          background: linear-gradient(135deg, rgba(34, 197, 94, 0.24), rgba(34, 197, 94, 0.10));
+          border-color: rgba(134, 239, 172, 0.28);
+          box-shadow: 0 10px 28px rgba(34, 197, 94, 0.14);
+        }
+
+        .mobile-drawer-icon {
+          width: 28px;
+          height: 28px;
+          display: grid;
+          place-items: center;
+          border-radius: 11px;
+          background: rgba(255, 255, 255, 0.075);
+          font-size: 15px;
+          line-height: 1;
+        }
+
+        .mobile-drawer-label {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .mobile-drawer-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: transparent;
+        }
+
+        .mobile-drawer-item.active .mobile-drawer-dot {
+          background: #86efac;
+          box-shadow: 0 0 14px rgba(134, 239, 172, 0.70);
+        }
+      }
+
+      @media (max-width: 420px) {
+        .mobile-drawer-layer-grid {
+          grid-template-columns: 1fr;
+        }
+      }
     `;
 
     document.head.appendChild(style);
@@ -571,6 +883,11 @@
     document.body.insertAdjacentHTML('beforeend', bottomHTML(path));
   }
 
+  function replaceMobileDrawer(path) {
+    document.querySelectorAll('.mobile-module-toggle, .mobile-module-drawer').forEach(node => node.remove());
+    document.body.insertAdjacentHTML('beforeend', drawerHTML(path));
+  }
+
   function setHeaderTitle(path) {
     const titleEl = document.querySelector('header .title');
     if (!titleEl) return;
@@ -590,6 +907,41 @@
     }
   }
 
+  function setDrawerOpen(isOpen) {
+    const drawer = document.getElementById(DRAWER_ID);
+    const toggle = document.getElementById(DRAWER_TOGGLE_ID);
+
+    if (!drawer || !toggle) return;
+
+    drawer.classList.toggle('open', isOpen);
+    drawer.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    document.documentElement.classList.toggle('mobile-drawer-open', isOpen);
+  }
+
+  function bindDrawerEvents() {
+    const drawer = document.getElementById(DRAWER_ID);
+    const toggle = document.getElementById(DRAWER_TOGGLE_ID);
+
+    if (!drawer || !toggle) return;
+
+    toggle.addEventListener('click', () => {
+      setDrawerOpen(!drawer.classList.contains('open'));
+    });
+
+    drawer.querySelectorAll('[data-drawer-close="true"]').forEach(node => {
+      node.addEventListener('click', () => setDrawerOpen(false));
+    });
+
+    drawer.querySelectorAll('.mobile-drawer-item').forEach(node => {
+      node.addEventListener('click', () => setDrawerOpen(false));
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') setDrawerOpen(false);
+    });
+  }
+
   function initNav() {
     const path = currentPath();
 
@@ -597,8 +949,10 @@
     injectPremiumRailStyle();
     replaceDesktopNav(path);
     replaceBottomNav(path);
+    replaceMobileDrawer(path);
     setHeaderTitle(path);
     markBodyPage(path);
+    bindDrawerEvents();
 
     window.SOV_NAV = {
       version: VERSION,
@@ -607,7 +961,10 @@
       bottomKeys: BOTTOM_KEYS.slice(),
       activePath: path,
       mobileGuard: MOBILE_STYLE_ID,
-      premiumRail: PREMIUM_STYLE_ID
+      premiumRail: PREMIUM_STYLE_ID,
+      mobileDrawer: DRAWER_ID,
+      openDrawer: () => setDrawerOpen(true),
+      closeDrawer: () => setDrawerOpen(false)
     };
 
     console.log('[nav ' + VERSION + '] loaded', path);
