@@ -1,4 +1,4 @@
-/* ─── Sovereign Finance · app.css v1.0.0 · Layer 3 visual foundation ─── */
+/* ─── Sovereign Finance · app.css v1.0.1 · Layer 4A motion foundation ─── */
 /*
   Goal:
   - One stable shell across all pages
@@ -6,6 +6,8 @@
   - No dark-on-dark controls
   - No competing desktop layout systems
   - Shared cards/lists/forms/nav usable before Layer 4 polish
+  - Shared motion foundation for all public pages
+  - Animate the interface, not the numbers
 */
 
 :root,
@@ -68,6 +70,15 @@
   --t-fast: 0.18s;
   --t-base: 0.28s;
   --t-slow: 0.5s;
+
+  --motion-fast: 180ms;
+  --motion-base: 320ms;
+  --motion-slow: 620ms;
+  --motion-page: 760ms;
+  --motion-stagger: 70ms;
+  --motion-lift: translateY(-4px);
+  --motion-lift-soft: translateY(-2px);
+  --motion-scale: scale(1.012);
 }
 
 [data-theme="obsidian"] {
@@ -135,6 +146,7 @@ body {
   padding: 18px 14px 96px;
   max-width: 760px;
   margin: 0 auto;
+  animation: sf-page-enter var(--motion-page) var(--smooth) both;
 }
 
 a {
@@ -155,6 +167,354 @@ button {
 
 [hidden] {
   display: none !important;
+}
+
+/* Layer 4A motion foundation */
+@keyframes sf-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: saturate(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: saturate(1);
+  }
+}
+
+@keyframes sf-reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sf-reveal-soft {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sf-row-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes sf-orb-float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(14px, -16px, 0) scale(1.06);
+  }
+}
+
+@keyframes sf-pulse-soft {
+  0%, 100% {
+    box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(34, 197, 94, 0.18);
+  }
+}
+
+@keyframes sf-warn-glow {
+  0%, 100% {
+    box-shadow: var(--shadow-sm);
+  }
+  50% {
+    box-shadow: 0 18px 42px rgba(245, 158, 11, 0.18);
+  }
+}
+
+@keyframes sf-danger-glow {
+  0%, 100% {
+    box-shadow: var(--shadow-sm);
+  }
+  50% {
+    box-shadow: 0 18px 42px rgba(220, 38, 38, 0.16);
+  }
+}
+
+@keyframes sf-meter-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.motion-page,
+.sf-page-enter {
+  animation: sf-page-enter var(--motion-page) var(--smooth) both;
+}
+
+.motion-reveal,
+.sf-reveal {
+  animation: sf-reveal-up var(--motion-slow) var(--smooth) both;
+}
+
+.motion-reveal-soft,
+.sf-reveal-soft {
+  animation: sf-reveal-soft var(--motion-base) var(--smooth) both;
+}
+
+.motion-row,
+.sf-row-enter {
+  animation: sf-row-enter var(--motion-base) var(--smooth) both;
+}
+
+.motion-hover,
+.sf-hover-card {
+  transition:
+    transform var(--motion-base) var(--smooth),
+    box-shadow var(--motion-base) var(--smooth),
+    border-color var(--motion-base) var(--smooth),
+    background var(--motion-base) var(--smooth);
+}
+
+.motion-hover:hover,
+.sf-hover-card:hover {
+  transform: var(--motion-lift);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-strong);
+}
+
+.motion-orb,
+.sf-orb {
+  animation: sf-orb-float 9s ease-in-out infinite;
+}
+
+.motion-meter,
+.sf-meter-fill,
+.debt-progress-bar,
+.trend-bar-fill,
+.cat-bar-fill {
+  transform-origin: left center;
+  animation: sf-meter-fill var(--motion-slow) var(--smooth) both;
+}
+
+.motion-stagger > *:nth-child(1),
+.sf-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.motion-stagger > *:nth-child(2),
+.sf-stagger > *:nth-child(2) { animation-delay: 70ms; }
+.motion-stagger > *:nth-child(3),
+.sf-stagger > *:nth-child(3) { animation-delay: 140ms; }
+.motion-stagger > *:nth-child(4),
+.sf-stagger > *:nth-child(4) { animation-delay: 210ms; }
+.motion-stagger > *:nth-child(5),
+.sf-stagger > *:nth-child(5) { animation-delay: 280ms; }
+.motion-stagger > *:nth-child(6),
+.sf-stagger > *:nth-child(6) { animation-delay: 350ms; }
+.motion-stagger > *:nth-child(7),
+.sf-stagger > *:nth-child(7) { animation-delay: 420ms; }
+.motion-stagger > *:nth-child(8),
+.sf-stagger > *:nth-child(8) { animation-delay: 490ms; }
+.motion-stagger > *:nth-child(9),
+.sf-stagger > *:nth-child(9) { animation-delay: 560ms; }
+.motion-stagger > *:nth-child(10),
+.sf-stagger > *:nth-child(10) { animation-delay: 630ms; }
+
+.motion-stagger > *,
+.sf-stagger > * {
+  animation: sf-reveal-up var(--motion-slow) var(--smooth) both;
+}
+
+.motion-row-stagger > * {
+  animation: sf-row-enter var(--motion-base) var(--smooth) both;
+}
+
+.motion-row-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.motion-row-stagger > *:nth-child(2) { animation-delay: 45ms; }
+.motion-row-stagger > *:nth-child(3) { animation-delay: 90ms; }
+.motion-row-stagger > *:nth-child(4) { animation-delay: 135ms; }
+.motion-row-stagger > *:nth-child(5) { animation-delay: 180ms; }
+.motion-row-stagger > *:nth-child(6) { animation-delay: 225ms; }
+.motion-row-stagger > *:nth-child(7) { animation-delay: 270ms; }
+.motion-row-stagger > *:nth-child(8) { animation-delay: 315ms; }
+.motion-row-stagger > *:nth-child(9) { animation-delay: 360ms; }
+.motion-row-stagger > *:nth-child(10) { animation-delay: 405ms; }
+
+.motion-empty,
+.empty-panel,
+.premium-empty {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(34, 197, 94, 0.10), transparent 16rem),
+    var(--surface-2);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--r-xl);
+  color: var(--text-dim);
+  font-weight: 850;
+}
+
+.motion-error,
+.premium-error {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(220, 38, 38, 0.10), transparent 16rem),
+    #fef2f2;
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  border-radius: var(--r-xl);
+  color: #7f1d1d;
+  font-weight: 850;
+}
+
+.motion-loading,
+.premium-loading {
+  background:
+    linear-gradient(90deg, rgba(248, 250, 252, 0.86), rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.86));
+  background-size: 220% 100%;
+  animation: sf-loading-shimmer 1.7s ease-in-out infinite;
+}
+
+@keyframes sf-loading-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+/* automatic shared motion */
+header,
+.net-worth,
+.stat-card,
+.nav-card,
+.account-row,
+.debt-row,
+.debt-summary-card,
+.hub-panel,
+.filter-panel,
+.form-card,
+.add-header-card,
+.bill-row,
+.audit-row,
+.dense-wrap,
+.modal,
+.theme-panel,
+.empty-state,
+.empty-state-inline {
+  animation: sf-reveal-up var(--motion-slow) var(--smooth) both;
+}
+
+.stat-card,
+.nav-card,
+.account-row,
+.debt-row,
+.debt-summary-card,
+.hub-panel,
+.filter-panel,
+.form-card,
+.add-header-card,
+.bill-row,
+.audit-row,
+.dense-wrap,
+.modal,
+.theme-switcher,
+.theme-option,
+.type-btn,
+.view-btn,
+.primary-btn,
+.primary-submit,
+.danger-btn,
+.ghost-btn,
+.debt-pay-btn,
+.debt-close-btn,
+.dense-action {
+  transition:
+    transform var(--motion-base) var(--smooth),
+    box-shadow var(--motion-base) var(--smooth),
+    border-color var(--motion-base) var(--smooth),
+    background var(--motion-base) var(--smooth),
+    color var(--motion-base) var(--smooth),
+    opacity var(--motion-base) var(--smooth);
+}
+
+.stat-card:hover,
+.nav-card:hover,
+.account-row:hover,
+.debt-row:hover,
+.debt-summary-card:hover,
+.hub-panel:hover,
+.filter-panel:hover,
+.form-card:hover,
+.add-header-card:hover,
+.bill-row:hover,
+.audit-row:hover,
+.theme-option:hover {
+  transform: var(--motion-lift-soft);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+.primary-btn:hover:not(:disabled),
+.primary-submit:hover:not(:disabled),
+.debt-pay-btn:hover:not(:disabled),
+.dense-action:hover,
+.theme-switcher:hover {
+  transform: var(--motion-lift-soft);
+  box-shadow: var(--shadow-lg);
+}
+
+.ghost-btn:hover:not(:disabled),
+.danger-btn:hover:not(:disabled),
+.debt-close-btn:hover:not(:disabled),
+.type-btn:hover,
+.view-btn:hover {
+  transform: var(--motion-lift-soft);
+  border-color: var(--border-bright);
+}
+
+.tx-row,
+.mini-row,
+.cat-bar-row,
+.dense-table tbody tr {
+  animation: sf-row-enter var(--motion-base) var(--smooth) both;
+  transition:
+    transform var(--motion-base) var(--smooth),
+    background var(--motion-base) var(--smooth),
+    border-color var(--motion-base) var(--smooth),
+    box-shadow var(--motion-base) var(--smooth);
+}
+
+.tx-row:hover,
+.mini-row:hover,
+.cat-bar-row:hover,
+.dense-table tbody tr:hover {
+  transform: translateX(3px);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.pulse {
+  animation: sf-pulse-soft 2.2s ease-in-out infinite;
+}
+
+.bill-status-overdue,
+.motion-danger {
+  animation: sf-danger-glow 2.8s ease-in-out infinite;
+}
+
+.bill-status-due-today,
+.bill-status-due-soon,
+.motion-warn {
+  animation: sf-warn-glow 3s ease-in-out infinite;
 }
 
 /* shell */
@@ -243,6 +603,15 @@ header {
   padding: 7px 4px;
   border-radius: var(--r-md);
   font-weight: 800;
+  transition:
+    transform var(--motion-base) var(--smooth),
+    background var(--motion-base) var(--smooth),
+    color var(--motion-base) var(--smooth);
+}
+
+.nav-item:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .nav-item.active {
@@ -486,6 +855,10 @@ select {
   font-weight: 750;
   outline: none;
   box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.04);
+  transition:
+    border-color var(--motion-base) var(--smooth),
+    box-shadow var(--motion-base) var(--smooth),
+    transform var(--motion-base) var(--smooth);
 }
 
 .amount-input {
@@ -532,6 +905,7 @@ input:focus,
 select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px var(--accent-soft), inset 0 1px 0 rgba(15, 23, 42, 0.04);
+  transform: translateY(-1px);
 }
 
 .type-toggle {
@@ -1461,11 +1835,16 @@ footer .v,
     color: #cbd5e1;
     font-size: 14px;
     font-weight: 850;
+    transition:
+      transform var(--motion-base) var(--smooth),
+      background var(--motion-base) var(--smooth),
+      color var(--motion-base) var(--smooth);
   }
 
   .desktop-nav-item:hover {
     background: rgba(255, 255, 255, 0.08);
     color: #ffffff;
+    transform: translateX(3px);
   }
 
   .desktop-nav-item.active {
@@ -1603,4 +1982,16 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
+}
+
+/* reduced motion safety */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
 }
