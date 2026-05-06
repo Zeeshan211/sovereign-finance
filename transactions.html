@@ -89,6 +89,9 @@
       white-space: nowrap;
     }
 
+    .tx-stat-value.positive { color: var(--accent-deep); }
+    .tx-stat-value.negative { color: var(--danger); }
+
     .tx-toolbar {
       background: var(--surface-1);
       border: 1px solid var(--border);
@@ -161,10 +164,6 @@
       gap: 10px;
     }
 
-    .tx-date-group {
-      margin-top: 8px;
-    }
-
     .tx-date-label {
       color: var(--text-dim);
       font-size: 11px;
@@ -184,6 +183,7 @@
       grid-template-columns: 44px minmax(0, 1fr) auto;
       gap: 13px;
       align-items: center;
+      margin-bottom: 8px;
     }
 
     .tx-icon {
@@ -236,17 +236,9 @@
       text-align: right;
     }
 
-    .tx-amount.positive {
-      color: var(--accent-deep);
-    }
-
-    .tx-amount.negative {
-      color: var(--danger);
-    }
-
-    .tx-amount.neutral {
-      color: var(--text-muted);
-    }
+    .tx-amount.positive { color: var(--accent-deep); }
+    .tx-amount.negative { color: var(--danger); }
+    .tx-amount.neutral { color: var(--text-muted); }
 
     .tx-reverse {
       border: 1px solid rgba(220, 38, 38, 0.24);
@@ -373,7 +365,7 @@
     </section>
 
     <footer class="page-footer">
-      <span class="v">v0.8.0 · layer 3 transactions rendering · api v0.1.3</span>
+      <span class="v">v0.8.1 · layer 3 transactions rendering · api v0.1.3</span>
     </footer>
   </main>
 
@@ -392,8 +384,6 @@
 
     const TYPE_IN = new Set(['income', 'borrow']);
     const TYPE_OUT = new Set(['expense', 'repay', 'cc_spend', 'atm']);
-    const TYPE_NEUTRAL = new Set(['transfer', 'cc_payment']);
-
     const TYPE_ICON = {
       income: '💰',
       expense: '💸',
@@ -464,7 +454,7 @@
     }
 
     async function loadData() {
-      $('txList').innerHTML = '<div class="tx-empty">Loading transactions…</div>';
+      document.getElementById('txList').innerHTML = '<div class="tx-empty">Loading transactions…</div>';
 
       try {
         const [txData, accData] = await Promise.all([
@@ -479,12 +469,12 @@
         fillAccounts();
         applyFilters();
       } catch (err) {
-        $('txList').innerHTML = `<div class="tx-empty">Transactions failed: ${esc(err.message)}</div>`;
+        document.getElementById('txList').innerHTML = `<div class="tx-empty">Transactions failed: ${esc(err.message)}</div>`;
       }
     }
 
     function fillAccounts() {
-      const sel = $('filterAccount');
+      const sel = document.getElementById('filterAccount');
       const current = sel.value;
 
       sel.innerHTML = '<option value="">All accounts</option>';
@@ -502,9 +492,9 @@
     }
 
     function applyFilters() {
-      const type = $('filterType').value;
-      const account = $('filterAccount').value;
-      const q = $('filterSearch').value.toLowerCase().trim();
+      const type = document.getElementById('filterType').value;
+      const account = document.getElementById('filterAccount').value;
+      const q = document.getElementById('filterSearch').value.toLowerCase().trim();
 
       state.filtered = state.rows.filter(row => {
         if (type && row.type !== type) return false;
@@ -543,12 +533,12 @@
 
       const net = totalIn - totalOut;
 
-      $('statCount').textContent = String(rows.length);
-      $('statIn').textContent = money(totalIn);
-      $('statOut').textContent = money(totalOut);
-      $('statNet').textContent = money(net);
-      $('statNet').className = 'tx-stat-value ' + (net >= 0 ? 'positive' : 'negative');
-      $('statReversed').textContent = String(state.hiddenReversals);
+      document.getElementById('statCount').textContent = String(rows.length);
+      document.getElementById('statIn').textContent = money(totalIn);
+      document.getElementById('statOut').textContent = money(totalOut);
+      document.getElementById('statNet').textContent = money(net);
+      document.getElementById('statNet').className = 'tx-stat-value ' + (net >= 0 ? 'positive' : 'negative');
+      document.getElementById('statReversed').textContent = String(state.hiddenReversals);
     }
 
     function groupByDate(rows) {
@@ -566,7 +556,7 @@
     }
 
     function renderRows() {
-      const list = $('txList');
+      const list = document.getElementById('txList');
 
       if (!state.filtered.length) {
         list.innerHTML = '<div class="tx-empty">No transactions match this filter.</div>';
@@ -612,7 +602,7 @@
     }
 
     function toast(message, kind = 'success') {
-      const el = $('toast');
+      const el = document.getElementById('toast');
       el.textContent = message;
       el.className = 'toast toast-' + kind + ' show';
       setTimeout(() => {
@@ -638,10 +628,10 @@
       }
     }
 
-    $('filterType').addEventListener('change', applyFilters);
-    $('filterAccount').addEventListener('change', applyFilters);
-    $('filterSearch').addEventListener('input', applyFilters);
-    $('refreshBtn').addEventListener('click', loadData);
+    document.getElementById('filterType').addEventListener('change', applyFilters);
+    document.getElementById('filterAccount').addEventListener('change', applyFilters);
+    document.getElementById('filterSearch').addEventListener('input', applyFilters);
+    document.getElementById('refreshBtn').addEventListener('click', loadData);
 
     loadData();
   </script>
