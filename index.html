@@ -558,6 +558,10 @@
       background: rgba(245, 158, 11, 0.18);
     }
 
+    .tool-card.nano-tool::after {
+      background: rgba(168, 85, 247, 0.16);
+    }
+
     .tool-card:hover {
       transform: translateY(-3px);
       box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
@@ -623,6 +627,7 @@
     .risk-card.good::before { background: #22c55e; }
     .risk-card.warn::before { background: #f59e0b; }
     .risk-card.bad::before { background: #dc2626; }
+    .risk-card.info::before { background: #8b5cf6; }
 
     .risk-title {
       color: #0f172a;
@@ -793,14 +798,15 @@
   <main class="hub-wrap">
     <section class="cinema-hero motion-reveal">
       <div class="hero-content">
-        <div class="hub-kicker">Layer 5B · ATM integrated</div>
+        <div class="hub-kicker">Layer 5C · Nano Loans integrated</div>
         <h1 class="hub-heading">Finance cockpit</h1>
         <p class="hub-copy">
-          The daily control screen: safety signal, true burden, CC pressure, ATM cash movement, recent writes, obligations, and next actions in one premium view.
+          The daily control screen: safety signal, true burden, CC pressure, ATM cash movement, Nano Loans, recent writes, obligations, and next actions in one premium view.
         </p>
 
         <div class="hero-pills">
           <span class="hero-pill primary" id="freshnessText">Loading live data...</span>
+          <a class="hero-pill" href="/nano-loans.html">Nano Loans</a>
           <a class="hero-pill" href="/atm.html">ATM Control</a>
           <a class="hero-pill" href="/charts.html">Open Charts</a>
           <a class="hero-pill" href="/add.html">Add Transaction</a>
@@ -931,7 +937,7 @@
 
     <div class="section-title-row">
       <h2 class="section-title">Daily tools</h2>
-      <div class="section-note">Fast paths stay visible. ATM is live. Nano Loans and Sheet parity remain parked.</div>
+      <div class="section-note">Fast paths stay visible. ATM and Nano Loans are live. Sheet parity remains parked.</div>
     </div>
 
     <section class="tool-grid motion-stagger">
@@ -948,6 +954,14 @@
         <div>
           <div class="tool-title">ATM Control</div>
           <div class="tool-sub">cash movement plus fee reversal tracking</div>
+        </div>
+      </a>
+
+      <a href="/nano-loans.html" class="tool-card primary nano-tool">
+        <div class="tool-icon">🤝</div>
+        <div>
+          <div class="tool-title">Nano Loans</div>
+          <div class="tool-sub">small lending with repay and push-to-CC control</div>
         </div>
       </a>
 
@@ -1067,14 +1081,14 @@
     </section>
 
     <footer class="page-footer">
-      <span class="v">v0.9.6 · layer 5B ATM-integrated hub · nav v1.0.3 · app.css v1.0.1</span>
+      <span class="v">v0.9.7 · layer 5C Nano Hub-integrated · nav v1.0.5 · app.css v1.0.1</span>
     </footer>
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="/js/theme.js?v=0.7.1"></script>
-  <script src="/js/nav.js?v=1.0.3"></script>
+  <script src="/js/nav.js?v=1.0.5"></script>
 
   <script>
     const TYPE_IN = new Set(['income', 'borrow']);
@@ -1313,6 +1327,12 @@
         level: pendingAtmFees ? 'warn' : 'good',
         title: 'ATM reversals',
         copy: pendingAtmFees ? pendingAtmFees + ' pending fee(s) · ' + money(pendingAtmValue) : 'No pending ATM fee reversals'
+      });
+
+      risks.push({
+        level: 'info',
+        title: 'Nano Loans',
+        copy: 'Nano Loans are linked from Hub and global navigation'
       });
 
       risks.push({
