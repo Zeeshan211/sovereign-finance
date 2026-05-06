@@ -9,7 +9,7 @@
 
   <title>Sovereign Finance · Hub</title>
 
-  <link rel="stylesheet" href="/css/app.css?v=1.0.0" />
+  <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
 
   <style>
     body {
@@ -38,7 +38,6 @@
       border: 1px solid rgba(148, 163, 184, 0.22);
       color: #f8fafc;
       box-shadow: 0 26px 80px rgba(15, 23, 42, 0.28);
-      transform-style: preserve-3d;
     }
 
     .cinema-hero::before,
@@ -77,7 +76,7 @@
     .hero-content {
       position: relative;
       z-index: 2;
-      max-width: 860px;
+      max-width: 880px;
     }
 
     .hub-kicker {
@@ -148,24 +147,30 @@
       margin-bottom: 18px;
     }
 
+    .metric-card,
+    .viz-panel,
+    .tool-card,
+    .risk-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(15, 23, 42, 0.1);
+      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.12);
+    }
+
     .metric-card {
       position: relative;
       overflow: hidden;
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(15, 23, 42, 0.1);
       border-radius: 24px;
-      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.12);
       padding: 18px;
-      transform: translateZ(0);
       min-width: 0;
     }
 
     .metric-card::after {
       content: "";
       position: absolute;
-      inset: auto -40px -70px auto;
-      width: 130px;
-      height: 130px;
+      right: -42px;
+      bottom: -72px;
+      width: 135px;
+      height: 135px;
       border-radius: 999px;
       background: rgba(34, 197, 94, 0.12);
       pointer-events: none;
@@ -214,16 +219,9 @@
     .viz-panel {
       position: relative;
       overflow: hidden;
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(15, 23, 42, 0.1);
       border-radius: 28px;
-      box-shadow: 0 20px 52px rgba(15, 23, 42, 0.13);
       padding: 18px;
       min-width: 0;
-    }
-
-    .viz-panel.wide {
-      grid-column: 1 / -1;
     }
 
     .panel-head {
@@ -310,7 +308,6 @@
       box-shadow:
         0 26px 60px rgba(15, 23, 42, 0.18),
         inset 0 1px 0 rgba(255, 255, 255, 0.9);
-      transform: rotateX(8deg);
     }
 
     .core-label {
@@ -374,10 +371,6 @@
       text-overflow: ellipsis;
     }
 
-    .cc-panel {
-      border-left: 0;
-    }
-
     .cc-stage {
       border-radius: 24px;
       padding: 18px;
@@ -387,14 +380,6 @@
         linear-gradient(180deg, #fff7ed, #f8fafc);
       border: 1px solid rgba(245, 158, 11, 0.18);
       overflow: hidden;
-    }
-
-    .cc-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 14px;
-      align-items: flex-start;
-      margin-bottom: 18px;
     }
 
     .cc-badge {
@@ -548,13 +533,9 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(15, 23, 42, 0.1);
       border-radius: 24px;
-      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.12);
       padding: 18px;
-      transform: translateZ(0);
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
     }
 
     .tool-card::after {
@@ -571,6 +552,10 @@
 
     .tool-card.primary::after {
       background: rgba(34, 197, 94, 0.14);
+    }
+
+    .tool-card.atm-tool::after {
+      background: rgba(245, 158, 11, 0.18);
     }
 
     .tool-card:hover {
@@ -620,10 +605,7 @@
     .risk-card {
       position: relative;
       overflow: hidden;
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(15, 23, 42, 0.1);
       border-radius: 24px;
-      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.12);
       padding: 18px;
       min-width: 0;
     }
@@ -809,39 +791,44 @@
   </header>
 
   <main class="hub-wrap">
-    <section class="cinema-hero">
+    <section class="cinema-hero motion-reveal">
       <div class="hero-content">
-        <div class="hub-kicker">Layer 4 command center</div>
+        <div class="hub-kicker">Layer 5B · ATM integrated</div>
         <h1 class="hub-heading">Finance cockpit</h1>
         <p class="hub-copy">
-          The same daily control screen, now matched to the Charts standard: safety signal, true burden, CC pressure, recent writes, and next actions in one premium view.
+          The daily control screen: safety signal, true burden, CC pressure, ATM cash movement, recent writes, obligations, and next actions in one premium view.
         </p>
 
         <div class="hero-pills">
           <span class="hero-pill primary" id="freshnessText">Loading live data...</span>
+          <a class="hero-pill" href="/atm.html">ATM Control</a>
           <a class="hero-pill" href="/charts.html">Open Charts</a>
           <a class="hero-pill" href="/add.html">Add Transaction</a>
         </div>
       </div>
     </section>
 
-    <section class="metric-grid">
+    <section class="metric-grid motion-stagger">
       <div class="metric-card">
         <div class="metric-label">Am I Safe?</div>
         <div id="sigSafe" class="metric-value">—</div>
       </div>
+
       <div class="metric-card">
         <div class="metric-label">Available Liquid</div>
         <div id="sigLiquid" class="metric-value positive">—</div>
       </div>
+
       <div class="metric-card warn-orb">
         <div class="metric-label">CC Pressure</div>
         <div id="sigCC" class="metric-value warn">—</div>
       </div>
+
       <div class="metric-card blue-orb">
-        <div class="metric-label">Bills Due</div>
-        <div id="sigBills" class="metric-value">—</div>
+        <div class="metric-label">ATM Pending</div>
+        <div id="sigATM" class="metric-value">—</div>
       </div>
+
       <div class="metric-card">
         <div class="metric-label">Last Write</div>
         <div id="sigWrite" class="metric-value">—</div>
@@ -875,14 +862,17 @@
             <div class="sat-label">Liquid</div>
             <div id="liquid" class="sat-value">—</div>
           </div>
+
           <div class="satellite b">
             <div class="sat-label">Debts</div>
             <div id="debts" class="sat-value">—</div>
           </div>
+
           <div class="satellite c">
             <div class="sat-label">Burden</div>
             <div id="burden" class="sat-value">—</div>
           </div>
+
           <div class="satellite d">
             <div class="sat-label">Safety</div>
             <div id="orbitSafety" class="sat-value">—</div>
@@ -890,7 +880,7 @@
         </div>
       </div>
 
-      <aside class="viz-panel cc-panel">
+      <aside class="viz-panel">
         <div class="panel-head">
           <div>
             <div class="panel-title">Alfalah CC Control</div>
@@ -900,11 +890,9 @@
         </div>
 
         <div class="cc-stage">
-          <div class="cc-top">
-            <div>
-              <div class="cc-label">Outstanding</div>
-              <div id="ccOutstanding" class="cc-value">—</div>
-            </div>
+          <div>
+            <div class="cc-label">Outstanding</div>
+            <div id="ccOutstanding" class="cc-value">—</div>
           </div>
 
           <div class="cc-meter">
@@ -916,14 +904,17 @@
               <div class="cc-pill-label">Utilization</div>
               <div id="ccUtil" class="cc-pill-value warn">—</div>
             </div>
+
             <div class="cc-pill">
               <div class="cc-pill-label">Available</div>
               <div id="ccAvailable" class="cc-pill-value positive">—</div>
             </div>
+
             <div class="cc-pill">
               <div class="cc-pill-label">Limit</div>
               <div id="ccLimit" class="cc-pill-value">—</div>
             </div>
+
             <div class="cc-pill">
               <div class="cc-pill-label">Due</div>
               <div id="ccDue" class="cc-pill-value">Not set</div>
@@ -940,15 +931,23 @@
 
     <div class="section-title-row">
       <h2 class="section-title">Daily tools</h2>
-      <div class="section-note">Fast paths stay visible. Nano Loans, ATM, and Sheet parity remain parked after Layer 4.</div>
+      <div class="section-note">Fast paths stay visible. ATM is live. Nano Loans and Sheet parity remain parked.</div>
     </div>
 
-    <section class="tool-grid">
+    <section class="tool-grid motion-stagger">
       <a href="/add.html" class="tool-card primary">
         <div class="tool-icon">➕</div>
         <div>
           <div class="tool-title">Add Transaction</div>
           <div class="tool-sub">record the next ledger event</div>
+        </div>
+      </a>
+
+      <a href="/atm.html" class="tool-card primary atm-tool">
+        <div class="tool-icon">🏧</div>
+        <div>
+          <div class="tool-title">ATM Control</div>
+          <div class="tool-sub">cash movement plus fee reversal tracking</div>
         </div>
       </a>
 
@@ -1027,10 +1026,10 @@
 
     <div class="section-title-row">
       <h2 class="section-title">What needs action</h2>
-      <div class="section-note">No test rows. Live read-only risk view.</div>
+      <div class="section-note">Live read-only risk view. No test rows.</div>
     </div>
 
-    <section id="riskGrid" class="risk-grid">
+    <section id="riskGrid" class="risk-grid motion-stagger">
       <div class="risk-card">
         <div class="risk-title">Loading...</div>
         <div class="risk-copy">Checking live data.</div>
@@ -1047,7 +1046,7 @@
           <a href="/transactions.html" class="panel-link">View all →</a>
         </div>
 
-        <div id="recentTransactions" class="mini-list">
+        <div id="recentTransactions" class="mini-list motion-row-stagger">
           <div class="empty-panel">Loading recent transactions...</div>
         </div>
       </div>
@@ -1061,21 +1060,21 @@
           <a href="/bills.html" class="panel-link">Bills →</a>
         </div>
 
-        <div id="dueSoon" class="mini-list">
+        <div id="dueSoon" class="mini-list motion-row-stagger">
           <div class="empty-panel">Loading bills...</div>
         </div>
       </div>
     </section>
 
     <footer class="page-footer">
-      <span class="v">v0.9.5 · layer 4 charts-standard hub · nav v1.0.2 · app.css v1.0.0</span>
+      <span class="v">v0.9.6 · layer 5B ATM-integrated hub · nav v1.0.3 · app.css v1.0.1</span>
     </footer>
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <script src="/js/theme.js?v=0.7.5"></script>
-  <script src="/js/nav.js?v=1.0.2"></script>
+  <script src="/js/theme.js?v=0.7.1"></script>
+  <script src="/js/nav.js?v=1.0.3"></script>
 
   <script>
     const TYPE_IN = new Set(['income', 'borrow']);
@@ -1159,33 +1158,37 @@
         null;
     }
 
-    function safetyLabel(liquid, ccPct, urgentBills, drifted) {
-      if (drifted > 0) return { text: 'Check Recon', cls: 'negative' };
-      if (ccPct >= 75) return { text: 'CC High', cls: 'negative' };
-      if (urgentBills > 0) return { text: urgentBills + ' Action', cls: 'warn' };
-      if (liquid < 5000) return { text: 'Thin Cash', cls: 'warn' };
-      return { text: 'Stable', cls: 'positive' };
-    }
-
     function billRisk(bill) {
       if (bill.last_paid_date) return 99;
       if (!bill.due_day) return 50;
       return Number(bill.due_day) - new Date().getDate();
     }
 
-    function renderBalances(data, accounts, bills, recon) {
+    function safetyLabel(liquid, ccPct, urgentBills, drifted, pendingAtmFees) {
+      if (drifted > 0) return { text: 'Check Recon', cls: 'negative' };
+      if (ccPct >= 75) return { text: 'CC High', cls: 'negative' };
+      if (pendingAtmFees > 0) return { text: pendingAtmFees + ' ATM Fee', cls: 'warn' };
+      if (urgentBills > 0) return { text: urgentBills + ' Action', cls: 'warn' };
+      if (liquid < 5000) return { text: 'Thin Cash', cls: 'warn' };
+      return { text: 'Stable', cls: 'positive' };
+    }
+
+    function renderBalances(data, accounts, bills, recon, atm) {
       const net = Number(data.net_worth) || 0;
       const liquid = Number(data.total_liquid || data.total_liquid_assets || data.cash || 0);
       const debts = Number(data.total_owed || data.total_owe || data.total_debts || 0);
       const burden = Number(data.true_burden || 0);
+
       const ccAccount = findCC(accounts) || {};
       const ccOutstanding = Number(ccAccount.cc_outstanding || data.cc_outstanding || data.cc || Math.abs(Number(ccAccount.balance) || 0)) || 0;
       const ccLimit = Number(ccAccount.credit_limit || 100000) || 100000;
       const ccAvailable = Number(ccAccount.available_credit != null ? ccAccount.available_credit : Math.max(0, ccLimit - ccOutstanding));
       const ccPct = Number(ccAccount.cc_utilization_pct != null ? ccAccount.cc_utilization_pct : ((ccOutstanding / ccLimit) * 100)) || 0;
+
       const urgentBills = (bills || []).filter(bill => billRisk(bill) <= 3 && !bill.last_paid_date).length;
       const drifted = Number(recon && (recon.drifted_count || recon.drift_count || 0)) || 0;
-      const safe = safetyLabel(liquid, ccPct, urgentBills, drifted);
+      const pendingAtmFees = Number(atm && atm.pending_count) || 0;
+      const safe = safetyLabel(liquid, ccPct, urgentBills, drifted, pendingAtmFees);
 
       $('netWorth').textContent = money(net);
       $('netWorth').className = 'core-value ' + (net >= 0 ? 'positive' : 'negative');
@@ -1205,6 +1208,9 @@
 
       $('sigCC').textContent = ccPct.toFixed(1) + '%';
       $('sigCC').className = 'metric-value ' + (ccPct >= 75 ? 'negative' : ccPct >= 40 ? 'warn' : 'positive');
+
+      $('sigATM').textContent = pendingAtmFees ? pendingAtmFees + ' fee(s)' : 'Clear';
+      $('sigATM').className = 'metric-value ' + (pendingAtmFees ? 'warn' : 'positive');
 
       $('ccOutstanding').textContent = money(ccOutstanding);
       $('ccUtil').textContent = ccPct.toFixed(1) + '%';
@@ -1264,14 +1270,8 @@
 
       if (!rows.length) {
         box.innerHTML = '<div class="empty-panel">No bills found.</div>';
-        $('sigBills').textContent = 'None';
-        $('sigBills').className = 'metric-value positive';
         return;
       }
-
-      const urgent = rows.filter(b => billRisk(b) <= 3 && !b.last_paid_date).length;
-      $('sigBills').textContent = urgent ? urgent + ' soon' : 'Clear';
-      $('sigBills').className = 'metric-value ' + (urgent ? 'warn' : 'positive');
 
       box.innerHTML = rows.map(bill => `
         <article class="mini-row">
@@ -1287,17 +1287,12 @@
 
     function renderLastWrite(audit) {
       const row = audit && audit.rows && audit.rows[0];
-
-      if (!row) {
-        $('sigWrite').textContent = 'None';
-        return;
-      }
-
-      $('sigWrite').textContent = row.action || 'Event';
+      $('sigWrite').textContent = row ? (row.action || 'Event') : 'None';
     }
 
-    function renderRisks(balances, accounts, bills, recon) {
+    function renderRisks(balances, accounts, bills, recon, atm) {
       const risks = [];
+
       const ccAccount = findCC(accounts) || {};
       const cc = Number(ccAccount.cc_outstanding || balances.cc_outstanding || balances.cc || Math.abs(Number(ccAccount.balance) || 0)) || 0;
       const limit = Number(ccAccount.credit_limit || 100000) || 100000;
@@ -1305,11 +1300,19 @@
       const liquid = Number(balances.total_liquid || balances.total_liquid_assets || balances.cash || 0);
       const urgentBills = (bills || []).filter(bill => billRisk(bill) <= 3 && !bill.last_paid_date);
       const drifted = Number(recon && (recon.drifted_count || recon.drift_count || 0)) || 0;
+      const pendingAtmFees = Number(atm && atm.pending_count) || 0;
+      const pendingAtmValue = Number(atm && atm.total_pending_pkr) || 0;
 
       risks.push({
         level: ccPct >= 75 ? 'bad' : ccPct >= 40 ? 'warn' : 'good',
         title: 'CC pressure',
         copy: ccPct.toFixed(1) + '% utilization · outstanding ' + money(cc)
+      });
+
+      risks.push({
+        level: pendingAtmFees ? 'warn' : 'good',
+        title: 'ATM reversals',
+        copy: pendingAtmFees ? pendingAtmFees + ' pending fee(s) · ' + money(pendingAtmValue) : 'No pending ATM fee reversals'
       });
 
       risks.push({
@@ -1340,25 +1343,26 @@
 
     async function loadHub() {
       try {
-        const [balances, transactions, accounts, bills, audit, recon] = await Promise.all([
+        const [balances, transactions, accounts, bills, audit, recon, atm] = await Promise.all([
           fetchJSON('/api/balances?debug=1'),
           fetchJSON('/api/transactions'),
           fetchJSON('/api/accounts?debug=1'),
           fetchJSON('/api/bills'),
           safeJSON('/api/audit?limit=1', { rows: [] }),
-          safeJSON('/api/reconciliation', {})
+          safeJSON('/api/reconciliation', {}),
+          safeJSON('/api/atm', { pending_count: 0, total_pending_pkr: 0 })
         ]);
 
         const accountRows = accounts.accounts || [];
         const billRows = bills.bills || [];
 
-        renderBalances(balances, accountRows, billRows, recon);
+        renderBalances(balances, accountRows, billRows, recon, atm);
         renderTransactions(transactions.transactions || [], accountRows);
         renderBills(billRows);
         renderLastWrite(audit);
-        renderRisks(balances, accountRows, billRows, recon);
+        renderRisks(balances, accountRows, billRows, recon, atm);
 
-        $('freshnessText').textContent = 'Live · balances, accounts, transactions, bills, audit checked';
+        $('freshnessText').textContent = 'Live · balances, transactions, bills, audit, ATM checked';
       } catch (err) {
         $('freshnessText').textContent = 'Load error';
         $('recentTransactions').innerHTML = '<div class="empty-panel">Hub failed: ' + esc(err.message) + '</div>';
