@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#050816" />
+  <meta name="theme-color" content="#0f172a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
 
@@ -12,111 +12,173 @@
   <link rel="stylesheet" href="/css/app.css?v=0.10.1" />
 
   <style>
+    :root {
+      --add-bg: #eef4ff;
+      --add-card: #ffffff;
+      --add-card-soft: #f8fafc;
+      --add-text: #0f172a;
+      --add-muted: #475569;
+      --add-faint: #64748b;
+      --add-border: #cbd5e1;
+      --add-border-strong: #94a3b8;
+      --add-green: #15803d;
+      --add-green-soft: #dcfce7;
+      --add-blue: #1d4ed8;
+      --add-blue-soft: #dbeafe;
+      --add-red: #b91c1c;
+      --add-red-soft: #fee2e2;
+      --add-shadow: 0 18px 45px rgba(15, 23, 42, 0.14);
+    }
+
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(34, 197, 94, 0.16), transparent 34rem),
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 34rem),
+        var(--add-bg) !important;
+      color: var(--add-text);
+    }
+
+    header {
+      background: rgba(15, 23, 42, 0.96);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+      color: #f8fafc;
+    }
+
+    .desktop-nav {
+      background: rgba(15, 23, 42, 0.96);
+      border-right: 1px solid rgba(148, 163, 184, 0.22);
+    }
+
     .add-page {
-      max-width: 820px;
+      max-width: 860px;
       margin: 0 auto;
-      padding: 22px 16px 96px;
+      padding: 24px 16px 100px;
     }
 
     .add-header-card {
-      background: var(--card, rgba(15, 23, 42, 0.78));
-      border: 1px solid var(--border, rgba(148, 163, 184, 0.18));
-      border-radius: 24px;
-      padding: 20px;
+      background: linear-gradient(135deg, #ffffff, #f8fafc);
+      border: 1px solid var(--add-border);
+      border-radius: 26px;
+      padding: 22px;
       margin-bottom: 18px;
-      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+      box-shadow: var(--add-shadow);
     }
 
     .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--add-blue-soft);
+      color: var(--add-blue);
       font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted, #94a3b8);
-      font-weight: 800;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
     }
 
     .add-title {
       margin: 0;
-      font-size: clamp(28px, 5vw, 44px);
+      color: var(--add-text);
+      font-size: clamp(30px, 5vw, 46px);
       line-height: 1.02;
       letter-spacing: -0.045em;
-      color: var(--text, #e5e7eb);
+      font-weight: 950;
     }
 
     .add-subtitle {
-      margin: 10px 0 0;
-      color: var(--muted, #94a3b8);
-      font-size: 14px;
-      line-height: 1.5;
-      max-width: 620px;
+      margin: 12px 0 0;
+      color: var(--add-muted);
+      font-size: 15px;
+      line-height: 1.55;
+      max-width: 680px;
     }
 
     .type-grid {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
-      margin-top: 18px;
+      margin-top: 20px;
     }
 
     .type-btn {
-      border: 1px solid var(--border, rgba(148, 163, 184, 0.2));
-      background: rgba(2, 6, 23, 0.42);
-      color: var(--text, #e5e7eb);
-      border-radius: 18px;
-      padding: 14px 12px;
-      min-height: 86px;
+      border: 2px solid var(--add-border);
+      background: #ffffff;
+      color: var(--add-text);
+      border-radius: 20px;
+      padding: 15px 12px;
+      min-height: 92px;
       font: inherit;
-      font-weight: 900;
+      font-weight: 950;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
       transition: 0.18s ease;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
     }
 
     .type-btn .emoji {
-      font-size: 24px;
+      font-size: 26px;
       line-height: 1;
       margin-bottom: 8px;
     }
 
     .type-btn .hint {
-      margin-top: 4px;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--muted, #94a3b8);
+      margin-top: 5px;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--add-muted);
     }
 
     .type-btn:hover {
       transform: translateY(-1px);
-      border-color: rgba(34, 197, 94, 0.34);
+      border-color: var(--add-border-strong);
     }
 
     .type-btn.active {
-      background: rgba(34, 197, 94, 0.13);
-      border-color: rgba(34, 197, 94, 0.5);
-      color: var(--accent, #22c55e);
-      box-shadow: 0 16px 36px rgba(34, 197, 94, 0.12);
+      background: var(--add-green-soft);
+      border-color: #22c55e;
+      color: #14532d;
+      box-shadow: 0 14px 28px rgba(34, 197, 94, 0.18);
     }
 
     .form-card {
-      background: var(--card, rgba(15, 23, 42, 0.78));
-      border: 1px solid var(--border, rgba(148, 163, 184, 0.18));
-      border-radius: 24px;
-      padding: 20px;
-      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+      background: var(--add-card);
+      border: 1px solid var(--add-border);
+      border-radius: 26px;
+      padding: 22px;
+      box-shadow: var(--add-shadow);
+    }
+
+    .transfer-note {
+      display: none;
+      margin: 0 0 16px;
+      padding: 13px 14px;
+      border: 1px solid #86efac;
+      background: var(--add-green-soft);
+      color: #14532d;
+      border-radius: 16px;
+      font-size: 14px;
+      font-weight: 750;
+      line-height: 1.45;
+    }
+
+    body.transfer-mode .transfer-note {
+      display: block;
     }
 
     .form-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
+      gap: 16px;
     }
 
     .field {
-      margin-bottom: 14px;
+      margin: 0;
     }
 
     .field.full {
@@ -125,22 +187,23 @@
 
     .field label {
       display: flex;
-      align-items: center;
       justify-content: space-between;
+      align-items: center;
       gap: 10px;
-      margin-bottom: 7px;
-      font-size: 12px;
-      font-weight: 900;
-      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+      color: var(--add-text);
+      font-size: 13px;
+      font-weight: 950;
+      letter-spacing: 0.025em;
       text-transform: uppercase;
-      color: var(--muted, #94a3b8);
     }
 
     .field small {
-      text-transform: none;
+      color: var(--add-faint);
+      font-size: 12px;
+      font-weight: 800;
       letter-spacing: 0;
-      font-weight: 700;
-      color: rgba(148, 163, 184, 0.72);
+      text-transform: none;
     }
 
     .input,
@@ -148,47 +211,53 @@
     .textarea {
       width: 100%;
       box-sizing: border-box;
-      border: 1px solid var(--border, rgba(148, 163, 184, 0.2));
-      background: rgba(2, 6, 23, 0.48);
-      color: var(--text, #e5e7eb);
+      min-height: 52px;
+      border: 2px solid var(--add-border);
+      background: #ffffff;
+      color: var(--add-text);
       border-radius: 16px;
       padding: 13px 14px;
       font: inherit;
+      font-size: 16px;
+      font-weight: 750;
       outline: none;
-      min-height: 48px;
+      box-shadow: inset 0 1px 0 rgba(15, 23, 42, 0.04);
+    }
+
+    .input::placeholder,
+    .textarea::placeholder {
+      color: #94a3b8;
+      font-weight: 650;
+    }
+
+    .select {
+      appearance: auto;
+      color: var(--add-text);
+      background-color: #ffffff;
+    }
+
+    .select option {
+      background: #ffffff;
+      color: #0f172a;
     }
 
     .textarea {
-      min-height: 96px;
+      min-height: 108px;
       resize: vertical;
-      line-height: 1.45;
+      line-height: 1.5;
     }
 
     .input:focus,
     .select:focus,
     .textarea:focus {
-      border-color: rgba(34, 197, 94, 0.55);
-      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
-    }
-
-    .transfer-note {
-      display: none;
-      margin: -2px 0 14px;
-      padding: 12px 14px;
-      border: 1px solid rgba(34, 197, 94, 0.22);
-      background: rgba(34, 197, 94, 0.08);
-      color: var(--accent, #22c55e);
-      border-radius: 16px;
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    body.transfer-mode .transfer-note {
-      display: block;
+      border-color: #22c55e;
+      box-shadow:
+        0 0 0 4px rgba(34, 197, 94, 0.18),
+        inset 0 1px 0 rgba(15, 23, 42, 0.04);
     }
 
     .submit-area {
-      margin-top: 8px;
+      margin-top: 18px;
       display: grid;
       gap: 10px;
     }
@@ -196,26 +265,30 @@
     .primary-submit {
       border: 0;
       border-radius: 18px;
-      padding: 15px 18px;
+      padding: 16px 18px;
+      min-height: 56px;
       background: linear-gradient(135deg, #22c55e, #16a34a);
       color: #052e16;
       font: inherit;
+      font-size: 16px;
       font-weight: 950;
       cursor: pointer;
-      min-height: 54px;
-      box-shadow: 0 18px 42px rgba(34, 197, 94, 0.22);
+      box-shadow: 0 18px 38px rgba(22, 163, 74, 0.28);
     }
 
     .primary-submit:disabled {
-      opacity: 0.45;
+      opacity: 0.5;
       cursor: not-allowed;
       box-shadow: none;
+      background: #cbd5e1;
+      color: #475569;
     }
 
     .safety-copy {
       margin: 0;
-      color: var(--muted, #94a3b8);
-      font-size: 12px;
+      color: var(--add-muted);
+      font-size: 13px;
+      font-weight: 700;
       line-height: 1.45;
       text-align: center;
     }
@@ -223,8 +296,14 @@
     .page-footer {
       margin-top: 18px;
       text-align: center;
-      color: var(--muted, #94a3b8);
+      color: var(--add-muted);
       font-size: 12px;
+      font-weight: 750;
+    }
+
+    .bottom-nav {
+      background: rgba(15, 23, 42, 0.96);
+      border-top: 1px solid rgba(148, 163, 184, 0.24);
     }
 
     .toast {
@@ -238,12 +317,13 @@
       pointer-events: none;
       padding: 13px 15px;
       border-radius: 16px;
-      border: 1px solid rgba(148, 163, 184, 0.24);
-      background: rgba(15, 23, 42, 0.96);
-      color: #e5e7eb;
-      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--add-border);
+      background: #ffffff;
+      color: var(--add-text);
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.22);
       transition: 0.22s ease;
-      font-size: 13px;
+      font-size: 14px;
+      font-weight: 850;
     }
 
     .toast.show {
@@ -252,16 +332,26 @@
     }
 
     .toast-success {
-      border-color: rgba(34, 197, 94, 0.42);
+      border-color: #22c55e;
+      background: #f0fdf4;
+      color: #14532d;
     }
 
     .toast-error {
-      border-color: rgba(239, 68, 68, 0.48);
+      border-color: #ef4444;
+      background: #fef2f2;
+      color: #7f1d1d;
     }
 
     @media (max-width: 720px) {
       .add-page {
-        padding-top: 16px;
+        padding: 18px 12px 96px;
+      }
+
+      .add-header-card,
+      .form-card {
+        border-radius: 22px;
+        padding: 18px;
       }
 
       .type-grid,
@@ -270,7 +360,7 @@
       }
 
       .type-btn {
-        min-height: 76px;
+        min-height: 78px;
       }
     }
   </style>
@@ -317,7 +407,7 @@
       <div class="eyebrow">Ledger write path</div>
       <h1 class="add-title">Add Transaction</h1>
       <p class="add-subtitle">
-        Add one clean ledger event. Transfers write as two linked rows, so balances stay aligned with the finance formula spec.
+        This is the clean entry point for real ledger writes. Values must be readable before they are trusted.
       </p>
 
       <div class="type-grid" aria-label="Transaction type">
@@ -344,7 +434,7 @@
     <section class="form-card">
       <form id="addForm" autocomplete="off">
         <div class="transfer-note">
-          Transfers create two rows: one transfer OUT from the source account and one income IN to the destination account.
+          Transfers create two linked rows: transfer OUT from the source account and income IN to the destination account.
         </div>
 
         <div class="form-grid">
@@ -397,14 +487,14 @@
           </button>
 
           <p class="safety-copy">
-            If saving fails, the transaction is not silently queued. Fix the error and submit once.
+            If saving fails, nothing is silently queued. Fix the issue and submit once.
           </p>
         </div>
       </form>
     </section>
 
     <footer class="page-footer">
-      v0.6.4 · layer 3 add rendering · store v0.2.3 · add v0.3.2
+      v0.6.5 · layer 3 readability · store v0.2.3 · add v0.3.2
     </footer>
   </main>
 
