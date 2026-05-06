@@ -1,21 +1,25 @@
-/* ─── Sovereign Finance · nav.js v1.0.9 · App shell overlap guard ─── */
+/* ─── Sovereign Finance · nav.js v1.0.10 · Premium card system foundation ─── */
 /*
  * Purpose:
  *   One navigation source for the whole app.
  *
- * Layer UI v1.0.9:
- *   - Fixes theme button / app shell overlap.
- *   - Adds shell-safe spacing and z-index rules.
- *   - Keeps theme controls above shell without covering shell content.
- *   - No ledger/API writes.
+ * Layer UI v1.0.10:
+ *   - Keeps layered desktop rail.
+ *   - Keeps mobile full-module drawer.
+ *   - Keeps global app shell.
+ *   - Keeps theme/app-shell overlap guard.
+ *   - Adds premium card foundation to existing cards/panels only.
+ *   - Adds reveal motion, layered borders, soft depth, hover lift, and real-data badges.
+ *   - Does not change values, forms, API calls, ledger logic, schema, or business rules.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.9';
+  const VERSION = 'v1.0.10';
   const MOBILE_STYLE_ID = 'sov-nav-mobile-guard';
   const PREMIUM_STYLE_ID = 'sov-nav-premium-rail';
+  const CARD_STYLE_ID = 'sov-premium-card-system';
   const DRAWER_ID = 'sov-mobile-module-drawer';
   const DRAWER_TOGGLE_ID = 'sov-mobile-module-toggle';
 
@@ -338,9 +342,7 @@
     style.id = MOBILE_STYLE_ID;
     style.textContent = `
       @media (max-width: 860px) {
-        html {
-          min-height: 100%;
-        }
+        html { min-height: 100%; }
 
         body {
           min-height: 100%;
@@ -431,52 +433,26 @@
     style.id = PREMIUM_STYLE_ID;
     style.textContent = `
       @keyframes sov-rail-enter {
-        from {
-          opacity: 0;
-          transform: translateX(-14px) scale(0.985);
-          filter: saturate(0.92);
-        }
-        to {
-          opacity: 1;
-          transform: translateX(0) scale(1);
-          filter: saturate(1);
-        }
+        from { opacity: 0; transform: translateX(-14px) scale(0.985); filter: saturate(0.92); }
+        to { opacity: 1; transform: translateX(0) scale(1); filter: saturate(1); }
       }
 
       @keyframes sov-rail-pulse {
-        0%, 100% {
-          box-shadow: 0 0 0 rgba(34, 197, 94, 0);
-        }
-        50% {
-          box-shadow: 0 0 20px rgba(34, 197, 94, 0.36);
-        }
+        0%, 100% { box-shadow: 0 0 0 rgba(34, 197, 94, 0); }
+        50% { box-shadow: 0 0 20px rgba(34, 197, 94, 0.36); }
       }
 
       @keyframes sov-drawer-rise {
-        from {
-          opacity: 0;
-          transform: translateY(20px) scale(0.985);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
+        from { opacity: 0; transform: translateY(20px) scale(0.985); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
       }
 
       @keyframes sov-shell-rise {
-        from {
-          opacity: 0;
-          transform: translateY(-8px) scale(0.992);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
+        from { opacity: 0; transform: translateY(-8px) scale(0.992); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
       }
 
-      :root {
-        --sov-theme-safe-top: 52px;
-      }
+      :root { --sov-theme-safe-top: 52px; }
 
       header,
       .topbar,
@@ -497,9 +473,7 @@
       }
 
       @media (min-width: 1200px) {
-        body {
-          padding-left: 332px !important;
-        }
+        body { padding-left: 332px !important; }
 
         .desktop-nav {
           display: flex !important;
@@ -561,9 +535,7 @@
           box-shadow: 0 14px 30px rgba(34, 197, 94, 0.24);
         }
 
-        .desktop-nav-brand-copy {
-          min-width: 0;
-        }
+        .desktop-nav-brand-copy { min-width: 0; }
 
         .desktop-nav-kicker {
           color: rgba(226, 232, 240, 0.64);
@@ -760,9 +732,7 @@
         font-size: 27px;
       }
 
-      .sov-shell-main {
-        min-width: 0;
-      }
+      .sov-shell-main { min-width: 0; }
 
       .sov-shell-eyebrow {
         color: var(--accent-deep, #047857);
@@ -834,14 +804,8 @@
       }
 
       @media (min-width: 1600px) {
-        body {
-          padding-left: 352px !important;
-        }
-
-        .desktop-nav {
-          left: 30px !important;
-          width: 292px !important;
-        }
+        body { padding-left: 352px !important; }
+        .desktop-nav { left: 30px !important; width: 292px !important; }
       }
 
       @media (min-width: 1200px) and (max-height: 820px) {
@@ -852,9 +816,7 @@
           padding: 12px !important;
         }
 
-        .desktop-nav-brand {
-          padding-bottom: 0;
-        }
+        .desktop-nav-brand { padding-bottom: 0; }
 
         .desktop-nav-mark {
           width: 36px;
@@ -863,24 +825,10 @@
           border-radius: 14px;
         }
 
-        .desktop-nav-name {
-          font-size: 15px;
-        }
-
-        .desktop-nav-system-pill {
-          padding: 5px 9px;
-          font-size: 10px;
-        }
-
-        .desktop-nav-layer {
-          padding: 6px;
-          border-radius: 18px;
-        }
-
-        .desktop-nav-layer-title {
-          margin-bottom: 4px;
-          font-size: 8px;
-        }
+        .desktop-nav-name { font-size: 15px; }
+        .desktop-nav-system-pill { padding: 5px 9px; font-size: 10px; }
+        .desktop-nav-layer { padding: 6px; border-radius: 18px; }
+        .desktop-nav-layer-title { margin-bottom: 4px; font-size: 8px; }
 
         .desktop-nav-item {
           min-height: 30px !important;
@@ -897,13 +845,8 @@
       }
 
       @media (max-width: 980px) {
-        .sov-app-shell {
-          grid-template-columns: auto minmax(0, 1fr);
-        }
-
-        .sov-shell-proof {
-          grid-column: 1 / -1;
-        }
+        .sov-app-shell { grid-template-columns: auto minmax(0, 1fr); }
+        .sov-shell-proof { grid-column: 1 / -1; }
       }
 
       @media (max-width: 860px) {
@@ -928,9 +871,7 @@
           letter-spacing: -0.055em;
         }
 
-        .sov-shell-purpose {
-          font-size: 12.5px;
-        }
+        .sov-shell-purpose { font-size: 12.5px; }
 
         .mobile-module-toggle {
           position: fixed;
@@ -957,15 +898,8 @@
           letter-spacing: -0.02em;
         }
 
-        .mobile-module-toggle-icon {
-          font-size: 15px;
-          line-height: 1;
-        }
-
-        .mobile-module-toggle-text {
-          font-size: 12px;
-          line-height: 1;
-        }
+        .mobile-module-toggle-icon { font-size: 15px; line-height: 1; }
+        .mobile-module-toggle-text { font-size: 12px; line-height: 1; }
 
         .mobile-module-drawer {
           position: fixed;
@@ -1159,9 +1093,7 @@
       }
 
       @media (max-width: 420px) {
-        .mobile-drawer-layer-grid {
-          grid-template-columns: 1fr;
-        }
+        .mobile-drawer-layer-grid { grid-template-columns: 1fr; }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -1180,9 +1112,213 @@
     document.head.appendChild(style);
   }
 
+  function injectPremiumCardSystem() {
+    const existing = document.getElementById(CARD_STYLE_ID);
+    if (existing) existing.remove();
+
+    const style = document.createElement('style');
+    style.id = CARD_STYLE_ID;
+    style.textContent = `
+      @keyframes sov-card-rise {
+        from {
+          opacity: 0;
+          transform: translateY(12px) scale(0.992);
+          filter: saturate(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+          filter: saturate(1);
+        }
+      }
+
+      @keyframes sov-card-sheen {
+        from { transform: translateX(-120%) rotate(10deg); opacity: 0; }
+        35% { opacity: 0.55; }
+        to { transform: translateX(220%) rotate(10deg); opacity: 0; }
+      }
+
+      .sov-card-upgraded {
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+        border-radius: clamp(20px, 2.2vw, 30px) !important;
+        border: 1px solid rgba(148, 163, 184, 0.22) !important;
+        background:
+          radial-gradient(circle at 12% 0%, rgba(34, 197, 94, 0.105), transparent 14rem),
+          radial-gradient(circle at 100% 10%, rgba(59, 130, 246, 0.08), transparent 13rem),
+          rgba(255, 255, 255, 0.78) !important;
+        box-shadow:
+          0 18px 48px rgba(15, 23, 42, 0.095),
+          inset 0 1px 0 rgba(255, 255, 255, 0.74) !important;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        transform: translateZ(0);
+        animation: sov-card-rise 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+        animation-delay: calc(var(--sov-card-index, 0) * 38ms);
+        transition:
+          transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+          box-shadow 240ms cubic-bezier(0.16, 1, 0.3, 1),
+          border-color 240ms cubic-bezier(0.16, 1, 0.3, 1),
+          background 240ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+      }
+
+      .sov-card-upgraded::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: -1;
+        border-radius: inherit;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.52), transparent 38%),
+          radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.36), transparent 11rem);
+      }
+
+      .sov-card-upgraded::after {
+        content: "";
+        position: absolute;
+        top: -30%;
+        left: -40%;
+        width: 34%;
+        height: 160%;
+        pointer-events: none;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.46), transparent);
+        transform: translateX(-120%) rotate(10deg);
+        opacity: 0;
+      }
+
+      .sov-card-upgraded:hover {
+        transform: translateY(-3px) scale(1.006);
+        border-color: rgba(34, 197, 94, 0.24) !important;
+        box-shadow:
+          0 24px 64px rgba(15, 23, 42, 0.13),
+          0 0 0 1px rgba(34, 197, 94, 0.06),
+          inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
+      }
+
+      .sov-card-upgraded:hover::after {
+        animation: sov-card-sheen 920ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+
+      .sov-card-upgraded h1,
+      .sov-card-upgraded h2,
+      .sov-card-upgraded h3,
+      .sov-card-upgraded .title,
+      .sov-card-upgraded .card-title {
+        letter-spacing: -0.045em;
+      }
+
+      .sov-card-upgraded .amount,
+      .sov-card-upgraded .balance,
+      .sov-card-upgraded .value,
+      .sov-card-upgraded .metric,
+      .sov-card-upgraded [data-value],
+      .sov-card-upgraded [data-amount] {
+        letter-spacing: -0.055em;
+        text-wrap: balance;
+      }
+
+      .sov-card-upgraded table {
+        border-collapse: separate;
+        border-spacing: 0;
+      }
+
+      .sov-card-upgraded input,
+      .sov-card-upgraded select,
+      .sov-card-upgraded textarea {
+        border-radius: 14px;
+      }
+
+      .sov-card-proof-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 3;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: calc(100% - 24px);
+        padding: 6px 9px;
+        border-radius: 999px;
+        color: #047857;
+        background: rgba(34, 197, 94, 0.10);
+        border: 1px solid rgba(34, 197, 94, 0.16);
+        font-size: 10px;
+        line-height: 1;
+        font-weight: 950;
+        letter-spacing: 0.02em;
+        pointer-events: none;
+      }
+
+      .sov-card-proof-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: #22c55e;
+        box-shadow: 0 0 14px rgba(34, 197, 94, 0.42);
+      }
+
+      .sov-card-upgraded.sov-card-has-proof {
+        padding-top: max(var(--sov-original-padding-top, 0px), 18px);
+      }
+
+      html[data-page="audit"] .sov-card-proof-badge,
+      html[data-page="transactions"] .sov-card-proof-badge,
+      html[data-page="reconciliation"] .sov-card-proof-badge,
+      html[data-page="snapshots"] .sov-card-proof-badge {
+        color: #1d4ed8;
+        background: rgba(59, 130, 246, 0.10);
+        border-color: rgba(59, 130, 246, 0.16);
+      }
+
+      html[data-page="audit"] .sov-card-proof-dot,
+      html[data-page="transactions"] .sov-card-proof-dot,
+      html[data-page="reconciliation"] .sov-card-proof-dot,
+      html[data-page="snapshots"] .sov-card-proof-dot {
+        background: #3b82f6;
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.42);
+      }
+
+      @media (max-width: 860px) {
+        .sov-card-upgraded {
+          border-radius: 22px !important;
+          box-shadow:
+            0 14px 34px rgba(15, 23, 42, 0.09),
+            inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+        }
+
+        .sov-card-upgraded:hover {
+          transform: none;
+        }
+
+        .sov-card-proof-badge {
+          position: relative;
+          top: auto;
+          right: auto;
+          margin: 0 0 10px;
+          width: fit-content;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sov-card-upgraded,
+        .sov-card-upgraded::after {
+          animation: none !important;
+          transition: none !important;
+        }
+
+        .sov-card-upgraded:hover {
+          transform: none !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
   function replaceDesktopNav(path) {
     document.querySelectorAll('.desktop-nav').forEach(node => node.remove());
-
     const header = document.querySelector('header');
     const html = desktopHTML(path);
 
@@ -1206,7 +1342,6 @@
 
   function replaceAppShell(path) {
     document.querySelectorAll('.sov-app-shell').forEach(node => node.remove());
-
     const header = document.querySelector('header');
     const html = shellHTML(path);
 
@@ -1241,6 +1376,85 @@
     }
   }
 
+  function enhanceExistingCards() {
+    const selectors = [
+      '.card',
+      '.panel',
+      '.stat-card',
+      '.summary-card',
+      '.account-card',
+      '.bill-card',
+      '.debt-card',
+      '.goal-card',
+      '.budget-card',
+      '.snapshot-card',
+      '.audit-card',
+      '.metric-card',
+      '.kpi-card',
+      '.hero-card',
+      '.glass-card',
+      '.tile',
+      '.box',
+      'section.card',
+      'article.card'
+    ];
+
+    const ignored = [
+      '.desktop-nav',
+      '.desktop-nav *',
+      '.bottom-nav',
+      '.bottom-nav *',
+      '.mobile-module-drawer',
+      '.mobile-module-drawer *',
+      '.mobile-module-toggle',
+      '.sov-app-shell',
+      '.sov-app-shell *'
+    ];
+
+    const nodes = Array.from(document.querySelectorAll(selectors.join(',')))
+      .filter(node => {
+        if (!node || node.nodeType !== 1) return false;
+        if (node.classList.contains('sov-card-upgraded')) return false;
+        return !ignored.some(selector => node.matches(selector));
+      });
+
+    nodes.forEach((node, index) => {
+      node.classList.add('sov-card-upgraded');
+      node.style.setProperty('--sov-card-index', String(Math.min(index, 14)));
+
+      const hasActionForm = node.querySelector('form, input, select, textarea, button');
+      const hasTable = node.querySelector('table');
+      const hasMoneySignal = /\b(rs|pkr|balance|amount|paid|due|owed|cash|salary|bill|debt|goal|transaction|snapshot|audit)\b/i.test(node.textContent || '');
+
+      if ((hasMoneySignal || hasTable) && !hasActionForm && !node.querySelector('.sov-card-proof-badge')) {
+        const badge = document.createElement('div');
+        badge.className = 'sov-card-proof-badge';
+        badge.innerHTML = '<span class="sov-card-proof-dot"></span><span>Real data</span>';
+        node.classList.add('sov-card-has-proof');
+        node.insertAdjacentElement('afterbegin', badge);
+      }
+    });
+  }
+
+  function observeCards() {
+    const main = document.querySelector('main, .wrap, .container, body');
+    if (!main) return;
+
+    let timer = null;
+
+    const observer = new MutationObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(enhanceExistingCards, 80);
+    });
+
+    observer.observe(main, {
+      childList: true,
+      subtree: true
+    });
+
+    window.SOV_CARD_OBSERVER = observer;
+  }
+
   function setDrawerOpen(isOpen) {
     const drawer = document.getElementById(DRAWER_ID);
     const toggle = document.getElementById(DRAWER_TOGGLE_ID);
@@ -1263,7 +1477,7 @@
       setDrawerOpen(!drawer.classList.contains('open'));
     });
 
-    drawer.querySelectorAll('[data-drawer-close="true"]')..forEach(node => {
+    drawer.querySelectorAll('[data-drawer-close="true"]').forEach(node => {
       node.addEventListener('click', () => setDrawerOpen(false));
     });
 
@@ -1281,6 +1495,7 @@
 
     injectMobileBottomNavGuard();
     injectPremiumRailStyle();
+    injectPremiumCardSystem();
     replaceDesktopNav(path);
     replaceAppShell(path);
     replaceBottomNav(path);
@@ -1288,6 +1503,8 @@
     setHeaderTitle(path);
     markBodyPage(path);
     bindDrawerEvents();
+    enhanceExistingCards();
+    observeCards();
 
     window.SOV_NAV = {
       version: VERSION,
@@ -1300,9 +1517,11 @@
       activeMeta: getActiveMeta(path),
       mobileGuard: MOBILE_STYLE_ID,
       premiumRail: PREMIUM_STYLE_ID,
+      cardSystem: CARD_STYLE_ID,
       mobileDrawer: DRAWER_ID,
       openDrawer: () => setDrawerOpen(true),
-      closeDrawer: () => setDrawerOpen(false)
+      closeDrawer: () => setDrawerOpen(false),
+      enhanceCards: enhanceExistingCards
     };
 
     console.log('[nav ' + VERSION + '] loaded', path);
