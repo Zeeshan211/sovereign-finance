@@ -1,16 +1,16 @@
-/* ─── Sovereign Finance · nav.js v1.0.0 · Layer 3 shared navigation ─── */
+/* ─── Sovereign Finance · nav.js v1.0.1 · Layer 3 shared navigation ─── */
 /*
  * Purpose:
  *   One navigation source for the whole app.
  *
  * Fixes:
- *   - Charts page exists but was not discoverable.
- *   - Pages had duplicated hardcoded nav.
- *   - Desktop/sidebar and bottom nav could drift page-by-page.
+ *   - Goals exists but was missing from shared nav.
+ *   - Charts exists and stays discoverable.
+ *   - Pages with old hardcoded nav get normalized at runtime.
  *
  * Contract:
- *   - This file replaces existing .desktop-nav and .bottom-nav if present.
- *   - It injects missing nav if a page forgot it.
+ *   - Replaces existing .desktop-nav and .bottom-nav if present.
+ *   - Injects nav if a page forgot it.
  *   - Active state is based on current pathname.
  *   - No ledger/API writes.
  */
@@ -18,115 +18,30 @@
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.0';
+  const VERSION = 'v1.0.1';
 
   const NAV_ITEMS = [
-    {
-      key: 'hub',
-      label: 'Hub',
-      short: 'Hub',
-      href: '/',
-      aliases: ['/index.html'],
-      emoji: '🏠'
-    },
-    {
-      key: 'add',
-      label: 'Add Transaction',
-      short: 'Add',
-      href: '/add.html',
-      aliases: [],
-      emoji: '➕'
-    },
-    {
-      key: 'transactions',
-      label: 'Transactions',
-      short: 'Tx',
-      href: '/transactions.html',
-      aliases: [],
-      emoji: '📜'
-    },
-    {
-      key: 'accounts',
-      label: 'Accounts',
-      short: 'Accts',
-      href: '/accounts.html',
-      aliases: [],
-      emoji: '🏦'
-    },
-    {
-      key: 'debts',
-      label: 'Debts',
-      short: 'Debts',
-      href: '/debts.html',
-      aliases: [],
-      emoji: '💳'
-    },
-    {
-      key: 'bills',
-      label: 'Bills',
-      short: 'Bills',
-      href: '/bills.html',
-      aliases: [],
-      emoji: '📅'
-    },
-    {
-      key: 'salary',
-      label: 'Salary',
-      short: 'Salary',
-      href: '/salary.html',
-      aliases: [],
-      emoji: '💰'
-    },
-    {
-      key: 'insights',
-      label: 'Insights',
-      short: 'Insights',
-      href: '/insights.html',
-      aliases: [],
-      emoji: '🧠'
-    },
-    {
-      key: 'charts',
-      label: 'Charts',
-      short: 'Charts',
-      href: '/charts.html',
-      aliases: [],
-      emoji: '📊'
-    },
-    {
-      key: 'reconciliation',
-      label: 'Reconciliation',
-      short: 'Recon',
-      href: '/reconciliation.html',
-      aliases: [],
-      emoji: '⚖️'
-    },
-    {
-      key: 'audit',
-      label: 'Audit Log',
-      short: 'Audit',
-      href: '/audit.html',
-      aliases: [],
-      emoji: '🛡️'
-    },
-    {
-      key: 'snapshots',
-      label: 'Snapshots',
-      short: 'Snaps',
-      href: '/snapshots.html',
-      aliases: [],
-      emoji: '📸'
-    }
+    { key: 'hub', label: 'Hub', short: 'Hub', href: '/', aliases: ['/index.html'], emoji: '🏠' },
+    { key: 'add', label: 'Add Transaction', short: 'Add', href: '/add.html', aliases: [], emoji: '➕' },
+    { key: 'transactions', label: 'Transactions', short: 'Tx', href: '/transactions.html', aliases: [], emoji: '📜' },
+    { key: 'accounts', label: 'Accounts', short: 'Accts', href: '/accounts.html', aliases: [], emoji: '🏦' },
+    { key: 'debts', label: 'Debts', short: 'Debts', href: '/debts.html', aliases: [], emoji: '💳' },
+    { key: 'bills', label: 'Bills', short: 'Bills', href: '/bills.html', aliases: [], emoji: '📅' },
+    { key: 'goals', label: 'Goals', short: 'Goals', href: '/goals.html', aliases: [], emoji: '🎯' },
+    { key: 'salary', label: 'Salary', short: 'Salary', href: '/salary.html', aliases: [], emoji: '💰' },
+    { key: 'insights', label: 'Insights', short: 'Insights', href: '/insights.html', aliases: [], emoji: '🧠' },
+    { key: 'charts', label: 'Charts', short: 'Charts', href: '/charts.html', aliases: [], emoji: '📊' },
+    { key: 'reconciliation', label: 'Reconciliation', short: 'Recon', href: '/reconciliation.html', aliases: [], emoji: '⚖️' },
+    { key: 'audit', label: 'Audit Log', short: 'Audit', href: '/audit.html', aliases: [], emoji: '🛡️' },
+    { key: 'snapshots', label: 'Snapshots', short: 'Snaps', href: '/snapshots.html', aliases: [], emoji: '📸' }
   ];
 
   const BOTTOM_KEYS = ['hub', 'add', 'transactions', 'bills', 'charts'];
 
   function normalizePath(pathname) {
     let path = pathname || '/';
-
     if (!path.startsWith('/')) path = '/' + path;
     if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
-
     return path;
   }
 
@@ -136,7 +51,6 @@
 
   function isActive(item, path) {
     if (normalizePath(item.href) === path) return true;
-
     return (item.aliases || []).some(alias => normalizePath(alias) === path);
   }
 
@@ -174,9 +88,7 @@
   }
 
   function replaceDesktopNav(path) {
-    const existing = document.querySelectorAll('.desktop-nav');
-
-    existing.forEach(node => node.remove());
+    document.querySelectorAll('.desktop-nav').forEach(node => node.remove());
 
     const header = document.querySelector('header');
     const html = desktopHTML(path);
@@ -190,10 +102,7 @@
   }
 
   function replaceBottomNav(path) {
-    const existing = document.querySelectorAll('.bottom-nav');
-
-    existing.forEach(node => node.remove());
-
+    document.querySelectorAll('.bottom-nav').forEach(node => node.remove());
     document.body.insertAdjacentHTML('beforeend', bottomHTML(path));
   }
 
