@@ -1,38 +1,518 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="midnight" data-page="audit">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#050816">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+
   <title>Audit Log · Sovereign Finance</title>
-  <link rel="stylesheet" href="/css/app.css">
-  <script src="/js/theme.js"></script>
-  <script src="/js/nav.js" defer></script>
+
+  <link rel="stylesheet" href="/css/app.css?v=1.0.0" />
+
+  <style>
+    .audit-wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .audit-hero {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-md);
+      padding: 24px;
+      margin-bottom: 18px;
+    }
+
+    .audit-kicker {
+      display: inline-flex;
+      padding: 7px 11px;
+      border-radius: var(--r-pill);
+      background: var(--info-soft);
+      color: var(--info);
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 12px;
+    }
+
+    .audit-heading {
+      color: var(--text);
+      font-size: clamp(32px, 5vw, 48px);
+      line-height: 1.02;
+      font-weight: 950;
+      letter-spacing: -0.05em;
+      margin: 0;
+    }
+
+    .audit-copy {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.55;
+      font-weight: 750;
+      margin-top: 12px;
+      max-width: 740px;
+    }
+
+    .audit-toolbar {
+      display: grid;
+      grid-template-columns: 1fr 180px 140px;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .audit-toolbar input,
+    .audit-toolbar select {
+      width: 100%;
+      min-height: 48px;
+      padding: 12px 14px;
+      border: 2px solid var(--border-strong);
+      border-radius: var(--r-md);
+      background: #ffffff;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .audit-refresh {
+      min-height: 48px;
+      border: 0;
+      border-radius: var(--r-md);
+      background: var(--grad-mint);
+      color: #052e16;
+      font-size: 15px;
+      font-weight: 950;
+      box-shadow: 0 12px 24px rgba(34, 197, 94, 0.18);
+    }
+
+    .audit-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .audit-stat {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-sm);
+      padding: 16px;
+    }
+
+    .audit-stat-label {
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .audit-stat-value {
+      margin-top: 7px;
+      color: var(--text);
+      font-size: 24px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .audit-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .audit-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-sm);
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 170px minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .audit-time {
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.4;
+    }
+
+    .audit-action-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    .audit-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--r-pill);
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .audit-badge.transfer {
+      background: var(--info-soft);
+      color: var(--info);
+    }
+
+    .audit-badge.add {
+      background: var(--accent-soft);
+      color: var(--accent-deep);
+    }
+
+    .audit-badge.reverse {
+      background: var(--warn-soft);
+      color: var(--warn);
+    }
+
+    .audit-badge.default {
+      background: var(--surface-3);
+      color: var(--text-muted);
+    }
+
+    .audit-entity {
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 850;
+      word-break: break-word;
+    }
+
+    .audit-summary {
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 1.45;
+      margin-bottom: 8px;
+    }
+
+    .audit-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .audit-pill {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 9px 10px;
+      min-width: 0;
+    }
+
+    .audit-pill-label {
+      color: var(--text-dim);
+      font-size: 10px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+
+    .audit-pill-value {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 900;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    details.audit-raw {
+      margin-top: 10px;
+    }
+
+    details.audit-raw summary {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    details.audit-raw pre {
+      margin-top: 8px;
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: var(--r-md);
+      padding: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      overflow: auto;
+    }
+
+    .audit-empty {
+      background: var(--surface-1);
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--r-xl);
+      padding: 28px;
+      text-align: center;
+      color: var(--text-muted);
+      font-weight: 850;
+    }
+
+    @media (max-width: 820px) {
+      .audit-toolbar,
+      .audit-stats,
+      .audit-detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .audit-card {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
+
 <body>
   <header>
-    <div class="brand">Sovereign Ops</div>
-    <h1 class="title">Audit Log</h1>
-    <div class="day-badge"><span id="audit-summary">loading…</span></div>
+    <div>
+      <div class="brand">Sovereign Finance</div>
+      <div class="title">Audit Log</div>
+    </div>
   </header>
 
-  <div class="view-controls">
-    <select id="actionFilter" class="form-select" style="flex: 1; max-width: 320px;">
-      <option value="">All actions</option>
-    </select>
-    <div class="view-toggle">
-      <button id="auditRefresh" class="view-btn active" title="Refresh">↻</button>
+  <aside class="desktop-nav" aria-label="Desktop navigation">
+    <a href="/" class="desktop-nav-item"><span class="nav-emoji">🏠</span><span class="nav-text">Hub</span></a>
+    <a href="/add.html" class="desktop-nav-item"><span class="nav-emoji">➕</span><span class="nav-text">Add Transaction</span></a>
+    <a href="/transactions.html" class="desktop-nav-item"><span class="nav-emoji">📜</span><span class="nav-text">Transactions</span></a>
+    <a href="/accounts.html" class="desktop-nav-item"><span class="nav-emoji">🏦</span><span class="nav-text">Accounts</span></a>
+    <a href="/debts.html" class="desktop-nav-item"><span class="nav-emoji">💳</span><span class="nav-text">Debts</span></a>
+    <a href="/bills.html" class="desktop-nav-item"><span class="nav-emoji">📅</span><span class="nav-text">Bills</span></a>
+    <a href="/salary.html" class="desktop-nav-item"><span class="nav-emoji">💰</span><span class="nav-text">Salary</span></a>
+    <a href="/audit.html" class="desktop-nav-item active"><span class="nav-emoji">🛡️</span><span class="nav-text">Audit Log</span></a>
+    <a href="/snapshots.html" class="desktop-nav-item"><span class="nav-emoji">📸</span><span class="nav-text">Snapshots</span></a>
+  </aside>
+
+  <main class="audit-wrap">
+    <section class="audit-hero">
+      <div class="audit-kicker">Immutable activity trail</div>
+      <h1 class="audit-heading">Audit Log</h1>
+      <p class="audit-copy">
+        Every real write should leave an audit event. This page is for checking what happened without touching the ledger.
+      </p>
+
+      <div class="audit-toolbar">
+        <input id="auditSearch" type="search" placeholder="Search action, account, notes, transaction id..." />
+        <select id="auditAction">
+          <option value="">All actions</option>
+          <option value="TXN_ADD">TXN_ADD</option>
+          <option value="TRANSFER">TRANSFER</option>
+          <option value="TXN_REVERSE">TXN_REVERSE</option>
+          <option value="DEBT_PAY">DEBT_PAY</option>
+          <option value="BILL_PAY">BILL_PAY</option>
+        </select>
+        <button id="auditRefresh" class="audit-refresh" type="button">Refresh</button>
+      </div>
+    </section>
+
+    <section class="audit-stats">
+      <div class="audit-stat">
+        <div class="audit-stat-label">Loaded</div>
+        <div id="auditLoaded" class="audit-stat-value">—</div>
+      </div>
+      <div class="audit-stat">
+        <div class="audit-stat-label">Total</div>
+        <div id="auditTotal" class="audit-stat-value">—</div>
+      </div>
+      <div class="audit-stat">
+        <div class="audit-stat-label">Filter</div>
+        <div id="auditFilter" class="audit-stat-value">All</div>
+      </div>
+    </section>
+
+    <section id="auditList" class="audit-list">
+      <div class="audit-empty">Loading audit events…</div>
+    </section>
+
+    <footer class="page-footer">
+      <span class="v">v0.3.0 · layer 3 audit rendering · api v0.2.0</span>
+    </footer>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Bottom navigation">
+    <div class="bottom-nav-inner">
+      <a href="/" class="nav-item"><span class="nav-emoji">🏠</span><span class="nav-text">Hub</span></a>
+      <a href="/add.html" class="nav-item"><span class="nav-emoji">➕</span><span class="nav-text">Add</span></a>
+      <a href="/transactions.html" class="nav-item"><span class="nav-emoji">📜</span><span class="nav-text">Tx</span></a>
+      <a href="/debts.html" class="nav-item"><span class="nav-emoji">💳</span><span class="nav-text">Debts</span></a>
+      <a href="/bills.html" class="nav-item"><span class="nav-emoji">📅</span><span class="nav-text">Bills</span></a>
     </div>
-  </div>
+  </nav>
 
-  <div id="audit-list"></div>
+  <script src="/js/theme.js?v=0.7.5"></script>
+  <script src="/js/nav.js?v=0.7.5"></script>
 
-  <footer><span class="v">v0.9.0 · audit</span></footer>
+  <script>
+    const state = {
+      rows: [],
+      filtered: []
+    };
 
-  <script src="/js/app.js"></script>
-  <script src="/js/store.js"></script>
- <script src="/js/audit.js?v=0.2.0"></script>
+    const $ = id => document.getElementById(id);
+
+    function esc(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function fmtTime(ts) {
+      if (!ts) return '—';
+      const d = new Date(String(ts).replace(' ', 'T') + 'Z');
+      if (Number.isNaN(d.getTime())) return ts;
+      return d.toLocaleString('en-PK', {
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function badgeClass(action) {
+      const a = String(action || '').toUpperCase();
+      if (a === 'TRANSFER') return 'transfer';
+      if (a.includes('ADD')) return 'add';
+      if (a.includes('REVERSE')) return 'reverse';
+      return 'default';
+    }
+
+    function summarize(row) {
+      const d = row.detail_json || {};
+      const action = String(row.action || '');
+
+      if (action === 'TRANSFER') {
+        return `Transfer Rs ${num(d.amount)} from ${d.from_account_id || 'source'} to ${d.to_account_id || 'destination'}`;
+      }
+
+      if (action === 'TXN_ADD') {
+        return `${d.type || 'Transaction'} Rs ${num(d.amount)} on ${d.account_id || 'account'}${d.notes ? ' · ' + d.notes : ''}`;
+      }
+
+      if (action === 'TXN_REVERSE') {
+        return `Reversed Rs ${num(d.amount)} on ${d.account_id || 'account'}`;
+      }
+
+      return action || 'Audit event';
+    }
+
+    function num(value) {
+      const n = Number(value) || 0;
+      return n.toLocaleString('en-PK', { maximumFractionDigits: 2 });
+    }
+
+    function pill(label, value) {
+      return `
+        <div class="audit-pill">
+          <div class="audit-pill-label">${esc(label)}</div>
+          <div class="audit-pill-value" title="${esc(value)}">${esc(value == null || value === '' ? '—' : value)}</div>
+        </div>
+      `;
+    }
+
+    function render() {
+      const list = $('auditList');
+      const q = ($('auditSearch').value || '').toLowerCase().trim();
+      const action = $('auditAction').value || '';
+
+      state.filtered = state.rows.filter(row => {
+        if (action && row.action !== action) return false;
+        if (!q) return true;
+        return JSON.stringify(row).toLowerCase().includes(q);
+      });
+
+      $('auditLoaded').textContent = String(state.filtered.length);
+      $('auditFilter').textContent = action || 'All';
+
+      if (!state.filtered.length) {
+        list.innerHTML = '<div class="audit-empty">No audit events match this filter.</div>';
+        return;
+      }
+
+      list.innerHTML = state.filtered.map(row => {
+        const d = row.detail_json || {};
+        const raw = JSON.stringify(d, null, 2);
+
+        return `
+          <article class="audit-card">
+            <div class="audit-time">
+              ${esc(fmtTime(row.timestamp))}
+              <br />
+              <span>${esc(row.created_by || 'system')}</span>
+            </div>
+
+            <div>
+              <div class="audit-action-row">
+                <span class="audit-badge ${badgeClass(row.action)}">${esc(row.action || 'EVENT')}</span>
+                <span class="audit-entity">${esc(row.entity || 'entity')} · ${esc(row.entity_id || '—')}</span>
+              </div>
+
+              <div class="audit-summary">${esc(summarize(row))}</div>
+
+              <div class="audit-detail-grid">
+                ${pill('Amount', d.amount != null ? 'Rs ' + num(d.amount) : null)}
+                ${pill('Account', d.account_id || d.from_account_id || null)}
+                ${pill('To', d.to_account_id || d.transfer_to_account_id || null)}
+              </div>
+
+              <details class="audit-raw">
+                <summary>Raw event</summary>
+                <pre>${esc(raw)}</pre>
+              </details>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    async function loadAudit() {
+      const action = $('auditAction').value || '';
+      const url = action
+        ? `/api/audit?action=${encodeURIComponent(action)}&limit=100`
+        : '/api/audit?limit=100';
+
+      $('auditList').innerHTML = '<div class="audit-empty">Loading audit events…</div>';
+
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json();
+
+        if (!data.ok) throw new Error(data.error || 'Audit API failed');
+
+        state.rows = data.rows || [];
+        $('auditTotal').textContent = String(data.total || state.rows.length);
+        render();
+      } catch (err) {
+        $('auditList').innerHTML = `<div class="audit-empty">Audit failed: ${esc(err.message)}</div>`;
+        $('auditLoaded').textContent = '0';
+      }
+    }
+
+    $('auditSearch').addEventListener('input', render);
+    $('auditAction').addEventListener('change', loadAudit);
+    $('auditRefresh').addEventListener('click', loadAudit);
+
+    loadAudit();
+  </script>
 </body>
 </html>
