@@ -14,73 +14,87 @@
   <style>
     body {
       background:
-        radial-gradient(circle at 10% 0%, rgba(34,197,94,.16), transparent 34rem),
-        radial-gradient(circle at 95% 12%, rgba(37,99,235,.16), transparent 34rem),
-        radial-gradient(circle at 50% 90%, rgba(168,85,247,.10), transparent 34rem),
+        radial-gradient(circle at 8% 0%, rgba(34, 197, 94, 0.16), transparent 34rem),
+        radial-gradient(circle at 95% 10%, rgba(37, 99, 235, 0.18), transparent 36rem),
+        radial-gradient(circle at 50% 95%, rgba(168, 85, 247, 0.10), transparent 34rem),
         #eef4ff;
     }
 
     .hub-wrap {
-      max-width: 1320px;
+      max-width: 1340px;
       margin: 0 auto;
     }
 
     .hero {
       position: relative;
       overflow: hidden;
-      border-radius: 30px;
-      padding: 28px;
+      border-radius: 32px;
+      padding: 30px;
       margin-bottom: 18px;
       background:
-        linear-gradient(135deg, rgba(15,23,42,.97), rgba(30,41,59,.94)),
-        radial-gradient(circle at 20% 20%, rgba(34,197,94,.35), transparent 28rem);
-      border: 1px solid rgba(148,163,184,.22);
-      color: #fff;
-      box-shadow: 0 28px 80px rgba(15,23,42,.28);
+        linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.94)),
+        radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.35), transparent 28rem);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      color: #ffffff;
+      box-shadow: 0 30px 86px rgba(15, 23, 42, 0.30);
     }
 
-    .hero:before {
+    .hero::before {
       content: "";
       position: absolute;
       right: -90px;
       top: -90px;
-      width: 280px;
-      height: 280px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(34,197,94,.38), transparent 70%);
+      width: 300px;
+      height: 300px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.38), transparent 70%);
       animation: floatOrb 9s ease-in-out infinite;
     }
 
+    .hero::after {
+      content: "";
+      position: absolute;
+      left: 48%;
+      bottom: -140px;
+      width: 280px;
+      height: 280px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.26), transparent 70%);
+      animation: floatOrb 11s ease-in-out infinite reverse;
+    }
+
     @keyframes floatOrb {
-      0%,100% { transform: translate3d(0,0,0) scale(1); }
-      50% { transform: translate3d(18px,-14px,0) scale(1.08); }
+      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+      50% { transform: translate3d(18px, -14px, 0) scale(1.08); }
     }
 
     .hero-content {
       position: relative;
       z-index: 2;
-      max-width: 850px;
+      max-width: 900px;
     }
 
     .kicker {
       display: inline-flex;
+      align-items: center;
+      gap: 8px;
       padding: 7px 11px;
       border-radius: 999px;
-      background: rgba(34,197,94,.14);
+      background: rgba(34, 197, 94, 0.14);
       color: #86efac;
-      border: 1px solid rgba(34,197,94,.24);
+      border: 1px solid rgba(34, 197, 94, 0.24);
       font-size: 12px;
       font-weight: 950;
       text-transform: uppercase;
-      letter-spacing: .09em;
+      letter-spacing: 0.09em;
       margin-bottom: 14px;
     }
 
     .hero h1 {
       margin: 0;
-      font-size: clamp(40px, 6vw, 78px);
-      line-height: .95;
-      letter-spacing: -.07em;
+      font-size: clamp(42px, 6vw, 82px);
+      line-height: 0.95;
+      letter-spacing: -0.075em;
       font-weight: 950;
     }
 
@@ -90,7 +104,7 @@
       font-size: 15px;
       line-height: 1.6;
       font-weight: 750;
-      max-width: 760px;
+      max-width: 780px;
     }
 
     .fresh {
@@ -100,50 +114,86 @@
       margin-top: 18px;
       padding: 9px 12px;
       border-radius: 999px;
-      background: rgba(255,255,255,.08);
-      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       color: #e2e8f0;
       font-size: 12px;
       font-weight: 850;
       backdrop-filter: blur(12px);
     }
 
+    .signal-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .signal-card,
+    .truth-card,
+    .panel,
+    .action-card,
+    .risk-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(15, 23, 42, 0.10);
+      border-radius: 24px;
+      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.12);
+    }
+
+    .signal-card {
+      padding: 15px;
+      min-width: 0;
+    }
+
+    .signal-label {
+      color: #64748b;
+      font-size: 10px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .signal-value {
+      margin-top: 7px;
+      color: #0f172a;
+      font-size: 17px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .signal-value.positive { color: #15803d; }
+    .signal-value.negative { color: #dc2626; }
+    .signal-value.warn { color: #d97706; }
+
     .grid-top {
       display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr);
+      grid-template-columns: minmax(0, 1.1fr) minmax(390px, 0.9fr);
       gap: 18px;
       margin-bottom: 18px;
     }
 
-    .net-card,
-    .panel,
-    .stat,
-    .quick-card {
-      background: rgba(255,255,255,.94);
-      border: 1px solid rgba(15,23,42,.1);
-      border-radius: 26px;
-      box-shadow: 0 20px 52px rgba(15,23,42,.12);
-    }
-
-    .net-card {
+    .truth-card {
       position: relative;
       overflow: hidden;
       padding: 26px;
-      min-height: 250px;
+      min-height: 286px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
     }
 
-    .net-card:after {
+    .truth-card::after {
       content: "";
       position: absolute;
-      right: -80px;
-      bottom: -80px;
-      width: 240px;
-      height: 240px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(34,197,94,.18), transparent 70%);
+      right: -90px;
+      bottom: -90px;
+      width: 260px;
+      height: 260px;
+      border-radius: 999px;
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.18), transparent 70%);
       pointer-events: none;
     }
 
@@ -152,24 +202,24 @@
       font-size: 11px;
       font-weight: 950;
       text-transform: uppercase;
-      letter-spacing: .09em;
+      letter-spacing: 0.09em;
     }
 
     .net-value {
       position: relative;
       z-index: 2;
       margin-top: 12px;
-      font-size: clamp(44px, 7vw, 76px);
-      line-height: .95;
+      font-size: clamp(44px, 7vw, 78px);
+      line-height: 0.95;
       font-weight: 950;
-      letter-spacing: -.065em;
+      letter-spacing: -0.065em;
       font-variant-numeric: tabular-nums;
     }
 
     .net-value.positive { color: #15803d; }
     .net-value.negative { color: #dc2626; }
 
-    .net-sub {
+    .truth-sub {
       position: relative;
       z-index: 2;
       margin-top: 16px;
@@ -179,85 +229,79 @@
       line-height: 1.45;
     }
 
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0,1fr));
-      gap: 12px;
-    }
-
-    .stat {
-      padding: 18px;
-      overflow: hidden;
+    .truth-micro {
       position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
     }
 
-    .stat:after {
-      content: "";
-      position: absolute;
-      right: -38px;
-      bottom: -52px;
-      width: 110px;
-      height: 110px;
-      border-radius: 50%;
-      background: rgba(37,99,235,.08);
+    .micro {
+      background: #f8fafc;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 16px;
+      padding: 11px;
+      min-width: 0;
     }
 
-    .stat-value {
-      margin-top: 8px;
-      color: #0f172a;
-      font-size: 24px;
+    .micro-label {
+      color: #64748b;
+      font-size: 10px;
       font-weight: 950;
-      letter-spacing: -.04em;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+
+    .micro-value {
+      margin-top: 5px;
+      color: #0f172a;
+      font-size: 14px;
+      font-weight: 950;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .stat-value.positive { color: #15803d; }
-    .stat-value.negative { color: #dc2626; }
-    .stat-value.warn { color: #d97706; }
+    .micro-value.negative { color: #dc2626; }
+    .micro-value.positive { color: #15803d; }
+    .micro-value.warn { color: #d97706; }
 
-    .section-title {
-      margin: 24px 0 12px;
-      color: #0f172a;
-      font-size: 20px;
-      font-weight: 950;
-      letter-spacing: -.03em;
-    }
-
-    .quick-grid {
+    .actions-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0,1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
-      margin-bottom: 18px;
     }
 
-    .quick-card {
-      min-height: 136px;
+    .action-card {
       padding: 18px;
+      min-height: 132px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      transition: transform .18s ease, box-shadow .18s ease;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
 
-    .quick-card:hover {
+    .action-card:hover {
       transform: translateY(-3px);
-      box-shadow: 0 24px 60px rgba(15,23,42,.16);
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
     }
 
-    .quick-icon {
-      font-size: 32px;
+    .action-icon {
+      font-size: 30px;
       line-height: 1;
     }
 
-    .quick-title {
+    .action-title {
       margin-top: 12px;
       color: #0f172a;
       font-size: 15px;
       font-weight: 950;
     }
 
-    .quick-sub {
+    .action-sub {
       margin-top: 4px;
       color: #64748b;
       font-size: 12px;
@@ -265,9 +309,51 @@
       line-height: 1.35;
     }
 
+    .section-title {
+      margin: 24px 0 12px;
+      color: #0f172a;
+      font-size: 20px;
+      font-weight: 950;
+      letter-spacing: -0.03em;
+    }
+
+    .risk-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .risk-card {
+      padding: 16px;
+      min-width: 0;
+      border-left: 5px solid #94a3b8;
+    }
+
+    .risk-card.good { border-left-color: #22c55e; }
+    .risk-card.warn { border-left-color: #f59e0b; }
+    .risk-card.bad { border-left-color: #dc2626; }
+
+    .risk-title {
+      color: #0f172a;
+      font-size: 14px;
+      font-weight: 950;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .risk-copy {
+      margin-top: 5px;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.38;
+    }
+
     .lower-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(360px, .8fr);
+      grid-template-columns: minmax(0, 1.2fr) minmax(380px, 0.8fr);
       gap: 18px;
     }
 
@@ -294,6 +380,7 @@
       color: #15803d;
       font-size: 12px;
       font-weight: 950;
+      white-space: nowrap;
     }
 
     .mini-list {
@@ -304,11 +391,11 @@
 
     .mini-row {
       display: grid;
-      grid-template-columns: 40px minmax(0,1fr) auto;
+      grid-template-columns: 40px minmax(0, 1fr) auto;
       gap: 10px;
       align-items: center;
       background: #f8fafc;
-      border: 1px solid rgba(15,23,42,.08);
+      border: 1px solid rgba(15, 23, 42, 0.08);
       border-radius: 16px;
       padding: 11px;
     }
@@ -319,8 +406,8 @@
       border-radius: 14px;
       display: grid;
       place-items: center;
-      background: #fff;
-      border: 1px solid rgba(15,23,42,.08);
+      background: #ffffff;
+      border: 1px solid rgba(15, 23, 42, 0.08);
       font-size: 20px;
     }
 
@@ -358,7 +445,7 @@
 
     .empty {
       background: #f8fafc;
-      border: 1px dashed rgba(15,23,42,.2);
+      border: 1px dashed rgba(15, 23, 42, 0.20);
       border-radius: 18px;
       padding: 24px;
       text-align: center;
@@ -366,25 +453,28 @@
       font-weight: 850;
     }
 
-    @media (max-width: 1100px) {
+    @media (max-width: 1180px) {
+      .signal-strip,
+      .risk-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .grid-top,
       .lower-grid {
         grid-template-columns: 1fr;
       }
-
-      .quick-grid {
-        grid-template-columns: repeat(2, minmax(0,1fr));
-      }
     }
 
-    @media (max-width: 640px) {
-      .stats-grid,
-      .quick-grid {
+    @media (max-width: 720px) {
+      .signal-strip,
+      .risk-grid,
+      .actions-grid,
+      .truth-micro {
         grid-template-columns: 1fr;
       }
 
       .mini-row {
-        grid-template-columns: 38px minmax(0,1fr);
+        grid-template-columns: 38px minmax(0, 1fr);
       }
 
       .mini-amount {
@@ -409,7 +499,7 @@
         <div class="kicker">Layer 4 command center</div>
         <h1>Sovereign Finance</h1>
         <p>
-          Live cockpit for balances, burden, recent activity, bills, and the core routes you use to control the ledger.
+          Answer the 10-second questions: am I safe, what changed, what needs attention, and where do I go next?
         </p>
         <div class="fresh">
           <span class="pulse"></span>
@@ -418,51 +508,97 @@
       </div>
     </section>
 
-    <section class="grid-top">
-      <div class="net-card">
-        <div>
-          <div class="label">Net Worth</div>
-          <div id="netWorth" class="net-value">—</div>
-        </div>
-        <div id="netSub" class="net-sub">Live D1 formula layer</div>
+    <section class="signal-strip">
+      <div class="signal-card">
+        <div class="signal-label">Available Liquid</div>
+        <div id="sigLiquid" class="signal-value positive">—</div>
       </div>
-
-      <div class="stats-grid">
-        <div class="stat">
-          <div class="label">Liquid</div>
-          <div id="liquid" class="stat-value positive">—</div>
-        </div>
-        <div class="stat">
-          <div class="label">CC Outstanding</div>
-          <div id="ccOutstanding" class="stat-value negative">—</div>
-        </div>
-        <div class="stat">
-          <div class="label">Debts</div>
-          <div id="debts" class="stat-value warn">—</div>
-        </div>
-        <div class="stat">
-          <div class="label">True Burden</div>
-          <div id="burden" class="stat-value negative">—</div>
-        </div>
+      <div class="signal-card">
+        <div class="signal-label">CC Pressure</div>
+        <div id="sigCC" class="signal-value warn">—</div>
+      </div>
+      <div class="signal-card">
+        <div class="signal-label">Bills Due</div>
+        <div id="sigBills" class="signal-value">—</div>
+      </div>
+      <div class="signal-card">
+        <div class="signal-label">Last Write</div>
+        <div id="sigWrite" class="signal-value">—</div>
+      </div>
+      <div class="signal-card">
+        <div class="signal-label">Recon</div>
+        <div id="sigRecon" class="signal-value">—</div>
       </div>
     </section>
 
-    <h2 class="section-title">Quick Access</h2>
-    <section class="quick-grid">
-      <a href="/add.html" class="quick-card"><div class="quick-icon">➕</div><div><div class="quick-title">Add Transaction</div><div class="quick-sub">clean ledger write</div></div></a>
-      <a href="/transactions.html" class="quick-card"><div class="quick-icon">📜</div><div><div class="quick-title">Transactions</div><div class="quick-sub">active ledger rows</div></div></a>
-      <a href="/accounts.html" class="quick-card"><div class="quick-icon">🏦</div><div><div class="quick-title">Accounts</div><div class="quick-sub">balances and cards</div></div></a>
-      <a href="/charts.html" class="quick-card"><div class="quick-icon">📊</div><div><div class="quick-title">Charts</div><div class="quick-sub">premium visual cockpit</div></div></a>
-      <a href="/goals.html" class="quick-card"><div class="quick-icon">🎯</div><div><div class="quick-title">Goals</div><div class="quick-sub">savings targets</div></div></a>
-      <a href="/debts.html" class="quick-card"><div class="quick-icon">💳</div><div><div class="quick-title">Debts</div><div class="quick-sub">snowball and paydowns</div></div></a>
-      <a href="/bills.html" class="quick-card"><div class="quick-icon">📅</div><div><div class="quick-title">Bills</div><div class="quick-sub">recurring obligations</div></div></a>
-      <a href="/reconciliation.html" class="quick-card"><div class="quick-icon">⚖️</div><div><div class="quick-title">Reconciliation</div><div class="quick-sub">bank vs D1 checks</div></div></a>
+    <section class="grid-top">
+      <div class="truth-card">
+        <div>
+          <div class="label">Financial Truth</div>
+          <div id="netWorth" class="net-value">—</div>
+          <div id="netSub" class="truth-sub">Live D1 formula layer</div>
+        </div>
+
+        <div class="truth-micro">
+          <div class="micro">
+            <div class="micro-label">Liquid</div>
+            <div id="liquid" class="micro-value positive">—</div>
+          </div>
+          <div class="micro">
+            <div class="micro-label">CC</div>
+            <div id="ccOutstanding" class="micro-value negative">—</div>
+          </div>
+          <div class="micro">
+            <div class="micro-label">Burden</div>
+            <div id="burden" class="micro-value negative">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions-grid">
+        <a href="/add.html" class="action-card">
+          <div class="action-icon">➕</div>
+          <div>
+            <div class="action-title">Add Transaction</div>
+            <div class="action-sub">record the next ledger event</div>
+          </div>
+        </a>
+
+        <a href="/reconciliation.html" class="action-card">
+          <div class="action-icon">⚖️</div>
+          <div>
+            <div class="action-title">Reconcile</div>
+            <div class="action-sub">compare bank truth to D1</div>
+          </div>
+        </a>
+
+        <a href="/charts.html" class="action-card">
+          <div class="action-icon">📊</div>
+          <div>
+            <div class="action-title">Charts</div>
+            <div class="action-sub">see the burden and trend visually</div>
+          </div>
+        </a>
+
+        <a href="/audit.html" class="action-card">
+          <div class="action-icon">🛡️</div>
+          <div>
+            <div class="action-title">Audit</div>
+            <div class="action-sub">verify recent writes</div>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <h2 class="section-title">What needs attention</h2>
+    <section id="riskGrid" class="risk-grid">
+      <div class="risk-card"><div class="risk-title">Loading…</div><div class="risk-copy">Checking live data.</div></div>
     </section>
 
     <section class="lower-grid">
       <div class="panel">
         <div class="panel-head">
-          <div class="panel-title">Recent Transactions</div>
+          <div class="panel-title">What changed recently</div>
           <a href="/transactions.html" class="panel-link">View all →</a>
         </div>
         <div id="recentTransactions" class="mini-list">
@@ -472,7 +608,7 @@
 
       <div class="panel">
         <div class="panel-head">
-          <div class="panel-title">Due Soon</div>
+          <div class="panel-title">Obligations</div>
           <a href="/bills.html" class="panel-link">Bills →</a>
         </div>
         <div id="dueSoon" class="mini-list">
@@ -482,7 +618,7 @@
     </section>
 
     <footer class="page-footer">
-      <span class="v">v0.9.0 · layer 4 premium hub · nav v1.0.1 · app.css v1.0.0</span>
+      <span class="v">v0.9.1 · layer 4 command center · nav v1.0.1 · app.css v1.0.0</span>
     </footer>
   </main>
 
@@ -494,14 +630,26 @@
   <script>
     const TYPE_IN = new Set(['income', 'borrow']);
     const TYPE_OUT = new Set(['expense', 'repay', 'cc_spend', 'atm']);
-    const TYPE_ICON = { income:'💰', expense:'💸', transfer:'💱', borrow:'📥', repay:'📤', cc_spend:'💳', cc_payment:'💳', atm:'🏧' };
+    const TYPE_ICON = {
+      income: '💰',
+      expense: '💸',
+      transfer: '💱',
+      borrow: '📥',
+      repay: '📤',
+      cc_spend: '💳',
+      cc_payment: '💳',
+      atm: '🏧'
+    };
 
     const $ = id => document.getElementById(id);
 
     function esc(value) {
       return String(value == null ? '' : value)
-        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     function money(value) {
@@ -513,8 +661,20 @@
     async function fetchJSON(url) {
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data || data.ok === false) throw new Error((data && data.error) || ('HTTP ' + res.status));
+
+      if (!res.ok || !data || data.ok === false) {
+        throw new Error((data && data.error) || ('HTTP ' + res.status));
+      }
+
       return data;
+    }
+
+    async function safeJSON(url, fallback) {
+      try {
+        return await fetchJSON(url);
+      } catch (err) {
+        return fallback;
+      }
     }
 
     function amountClass(row) {
@@ -543,14 +703,24 @@
 
     function renderBalances(data) {
       const net = Number(data.net_worth) || 0;
+      const liquid = Number(data.total_liquid || data.total_liquid_assets || data.cash || 0);
+      const cc = Number(data.cc_outstanding || data.cc || 0);
+      const burden = Number(data.true_burden || 0);
+
       $('netWorth').textContent = money(net);
       $('netWorth').className = 'net-value ' + (net >= 0 ? 'positive' : 'negative');
-      $('netSub').textContent = net >= 0 ? 'Positive position' : 'Burden exceeds liquid position';
+      $('netSub').textContent = net >= 0 ? 'Positive position' : 'Burden exceeds current net position';
 
-      $('liquid').textContent = money(data.total_liquid || data.total_liquid_assets || data.cash || 0);
-      $('ccOutstanding').textContent = money(data.cc_outstanding || data.cc || 0);
-      $('debts').textContent = money(data.total_owed || data.total_owe || data.total_debts || 0);
-      $('burden').textContent = money(data.true_burden || 0);
+      $('liquid').textContent = money(liquid);
+      $('ccOutstanding').textContent = money(cc);
+      $('burden').textContent = money(burden);
+
+      $('sigLiquid').textContent = money(liquid);
+      $('sigLiquid').className = 'signal-value ' + (liquid > 0 ? 'positive' : 'negative');
+
+      const ccPct = cc > 0 ? Math.min(999, (cc / 100000) * 100) : 0;
+      $('sigCC').textContent = ccPct.toFixed(1) + '%';
+      $('sigCC').className = 'signal-value ' + (ccPct >= 75 ? 'negative' : ccPct >= 40 ? 'warn' : 'positive');
     }
 
     function renderTransactions(rows, accounts) {
@@ -565,6 +735,7 @@
       box.innerHTML = recent.map(row => {
         const type = String(row.type || '').toLowerCase();
         const cls = amountClass(row);
+
         return `
           <article class="mini-row">
             <div class="mini-icon">${TYPE_ICON[type] || '🧾'}</div>
@@ -581,20 +752,36 @@
     function billStatus(bill) {
       if (bill.last_paid_date) return 'Paid ' + bill.last_paid_date;
       if (!bill.due_day) return 'No due day';
+
       const diff = Number(bill.due_day) - new Date().getDate();
+
       if (diff === 0) return 'Due today';
       if (diff > 0) return 'Due in ' + diff + 'd';
       return 'Overdue by ' + Math.abs(diff) + 'd';
     }
 
+    function billRisk(bill) {
+      if (bill.last_paid_date) return 99;
+      if (!bill.due_day) return 50;
+      return Number(bill.due_day) - new Date().getDate();
+    }
+
     function renderBills(bills) {
       const box = $('dueSoon');
-      const rows = (bills || []).slice().sort((a,b) => (a.due_day || 99) - (b.due_day || 99)).slice(0, 6);
+      const rows = (bills || [])
+        .slice()
+        .sort((a, b) => billRisk(a) - billRisk(b))
+        .slice(0, 6);
 
       if (!rows.length) {
         box.innerHTML = '<div class="empty">No bills found.</div>';
+        $('sigBills').textContent = 'None';
         return;
       }
+
+      const urgent = rows.filter(b => billRisk(b) <= 3 && !b.last_paid_date).length;
+      $('sigBills').textContent = urgent ? urgent + ' soon' : 'Clear';
+      $('sigBills').className = 'signal-value ' + (urgent ? 'warn' : 'positive');
 
       box.innerHTML = rows.map(bill => `
         <article class="mini-row">
@@ -608,20 +795,90 @@
       `).join('');
     }
 
+    function renderLastWrite(audit) {
+      const row = audit && audit.rows && audit.rows[0];
+
+      if (!row) {
+        $('sigWrite').textContent = 'None';
+        return;
+      }
+
+      $('sigWrite').textContent = row.action || 'Event';
+    }
+
+    function renderRecon(recon) {
+      const drifted = Number(recon && (recon.drifted_count || recon.drift_count || 0)) || 0;
+
+      if (drifted > 0) {
+        $('sigRecon').textContent = drifted + ' drift';
+        $('sigRecon').className = 'signal-value negative';
+      } else {
+        $('sigRecon').textContent = 'Clean';
+        $('sigRecon').className = 'signal-value positive';
+      }
+    }
+
+    function renderRisks(balances, bills, transactions, recon) {
+      const risks = [];
+
+      const cc = Number(balances.cc_outstanding || balances.cc || 0);
+      const liquid = Number(balances.total_liquid || balances.total_liquid_assets || balances.cash || 0);
+      const burden = Number(balances.true_burden || 0);
+      const ccPct = cc > 0 ? (cc / 100000) * 100 : 0;
+
+      risks.push({
+        level: ccPct >= 75 ? 'bad' : ccPct >= 40 ? 'warn' : 'good',
+        title: 'CC pressure',
+        copy: ccPct.toFixed(1) + '% utilization · outstanding ' + money(cc)
+      });
+
+      risks.push({
+        level: liquid <= 0 ? 'bad' : liquid < 5000 ? 'warn' : 'good',
+        title: 'Liquid runway',
+        copy: 'Available liquid: ' + money(liquid)
+      });
+
+      const urgentBills = (bills || []).filter(bill => billRisk(bill) <= 3 && !bill.last_paid_date);
+      risks.push({
+        level: urgentBills.length ? 'warn' : 'good',
+        title: 'Bills due soon',
+        copy: urgentBills.length ? urgentBills.length + ' bill(s) need attention' : 'No immediate bill pressure'
+      });
+
+      const drifted = Number(recon && (recon.drifted_count || recon.drift_count || 0)) || 0;
+      risks.push({
+        level: drifted ? 'bad' : 'good',
+        title: 'Reconciliation',
+        copy: drifted ? drifted + ' account(s) drifted' : 'No declared drift reported'
+      });
+
+      $('riskGrid').innerHTML = risks.map(risk => `
+        <article class="risk-card ${risk.level}">
+          <div class="risk-title">${esc(risk.title)}</div>
+          <div class="risk-copy">${esc(risk.copy)}</div>
+        </article>
+      `).join('');
+    }
+
     async function loadHub() {
       try {
-        const [balances, transactions, accounts, bills] = await Promise.all([
+        const [balances, transactions, accounts, bills, audit, recon] = await Promise.all([
           fetchJSON('/api/balances?debug=1'),
           fetchJSON('/api/transactions'),
           fetchJSON('/api/accounts'),
-          fetchJSON('/api/bills')
+          fetchJSON('/api/bills'),
+          safeJSON('/api/audit?limit=1', { rows: [] }),
+          safeJSON('/api/reconciliation', {})
         ]);
 
         renderBalances(balances);
         renderTransactions(transactions.transactions || [], accounts.accounts || []);
         renderBills(bills.bills || []);
+        renderLastWrite(audit);
+        renderRecon(recon);
+        renderRisks(balances, bills.bills || [], transactions.transactions || [], recon);
 
-        $('freshnessText').textContent = 'Live · balances, transactions, bills loaded';
+        $('freshnessText').textContent = 'Live · balances, transactions, bills, audit checked';
       } catch (err) {
         $('freshnessText').textContent = 'Load error';
         $('recentTransactions').innerHTML = '<div class="empty">Hub failed: ' + esc(err.message) + '</div>';
