@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#050816" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
 
@@ -12,285 +12,339 @@
   <link rel="stylesheet" href="/css/app.css?v=1.0.0" />
 
   <style>
+    body {
+      background:
+        radial-gradient(circle at 10% 0%, rgba(34,197,94,.16), transparent 34rem),
+        radial-gradient(circle at 95% 12%, rgba(37,99,235,.16), transparent 34rem),
+        radial-gradient(circle at 50% 90%, rgba(168,85,247,.10), transparent 34rem),
+        #eef4ff;
+    }
+
     .hub-wrap {
-      max-width: 1280px;
+      max-width: 1320px;
       margin: 0 auto;
     }
 
-    .hub-hero {
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: var(--r-xl);
-      box-shadow: var(--shadow-md);
-      padding: 24px;
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 30px;
+      padding: 28px;
       margin-bottom: 18px;
+      background:
+        linear-gradient(135deg, rgba(15,23,42,.97), rgba(30,41,59,.94)),
+        radial-gradient(circle at 20% 20%, rgba(34,197,94,.35), transparent 28rem);
+      border: 1px solid rgba(148,163,184,.22);
+      color: #fff;
+      box-shadow: 0 28px 80px rgba(15,23,42,.28);
     }
 
-    .hub-kicker {
+    .hero:before {
+      content: "";
+      position: absolute;
+      right: -90px;
+      top: -90px;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(34,197,94,.38), transparent 70%);
+      animation: floatOrb 9s ease-in-out infinite;
+    }
+
+    @keyframes floatOrb {
+      0%,100% { transform: translate3d(0,0,0) scale(1); }
+      50% { transform: translate3d(18px,-14px,0) scale(1.08); }
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 850px;
+    }
+
+    .kicker {
       display: inline-flex;
       padding: 7px 11px;
-      border-radius: var(--r-pill);
-      background: var(--accent-soft);
-      color: var(--accent-deep);
+      border-radius: 999px;
+      background: rgba(34,197,94,.14);
+      color: #86efac;
+      border: 1px solid rgba(34,197,94,.24);
       font-size: 12px;
       font-weight: 950;
       text-transform: uppercase;
-      letter-spacing: 0.07em;
-      margin-bottom: 12px;
+      letter-spacing: .09em;
+      margin-bottom: 14px;
     }
 
-    .hub-heading {
-      color: var(--text);
-      font-size: clamp(34px, 5vw, 54px);
-      line-height: 1.02;
-      font-weight: 950;
-      letter-spacing: -0.055em;
+    .hero h1 {
       margin: 0;
+      font-size: clamp(40px, 6vw, 78px);
+      line-height: .95;
+      letter-spacing: -.07em;
+      font-weight: 950;
     }
 
-    .hub-copy {
-      color: var(--text-muted);
+    .hero p {
+      margin-top: 14px;
+      color: #cbd5e1;
       font-size: 15px;
-      line-height: 1.55;
+      line-height: 1.6;
       font-weight: 750;
-      margin-top: 12px;
       max-width: 760px;
     }
 
-    .hub-freshness {
-      margin-top: 14px;
+    .fresh {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
-      border-radius: var(--r-pill);
-      background: var(--surface-2);
-      color: var(--text-muted);
-      border: 1px solid var(--border);
+      margin-top: 18px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      color: #e2e8f0;
       font-size: 12px;
       font-weight: 850;
+      backdrop-filter: blur(12px);
     }
 
-    .hub-main-grid {
+    .grid-top {
       display: grid;
-      grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
+      grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr);
       gap: 18px;
       margin-bottom: 18px;
     }
 
-    .hub-metric-card {
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: var(--r-xl);
-      box-shadow: var(--shadow-md);
-      padding: 24px;
+    .net-card,
+    .panel,
+    .stat,
+    .quick-card {
+      background: rgba(255,255,255,.94);
+      border: 1px solid rgba(15,23,42,.1);
+      border-radius: 26px;
+      box-shadow: 0 20px 52px rgba(15,23,42,.12);
     }
 
-    .hub-metric-label {
-      color: var(--text-dim);
+    .net-card {
+      position: relative;
+      overflow: hidden;
+      padding: 26px;
+      min-height: 250px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .net-card:after {
+      content: "";
+      position: absolute;
+      right: -80px;
+      bottom: -80px;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(34,197,94,.18), transparent 70%);
+      pointer-events: none;
+    }
+
+    .label {
+      color: #64748b;
       font-size: 11px;
       font-weight: 950;
-      letter-spacing: 0.08em;
       text-transform: uppercase;
+      letter-spacing: .09em;
     }
 
-    .hub-net-value {
-      margin-top: 8px;
-      color: var(--text);
-      font-size: clamp(42px, 7vw, 72px);
+    .net-value {
+      position: relative;
+      z-index: 2;
+      margin-top: 12px;
+      font-size: clamp(44px, 7vw, 76px);
+      line-height: .95;
       font-weight: 950;
-      letter-spacing: -0.06em;
-      line-height: 1;
+      letter-spacing: -.065em;
       font-variant-numeric: tabular-nums;
     }
 
-    .hub-net-value.negative {
-      color: var(--danger);
+    .net-value.positive { color: #15803d; }
+    .net-value.negative { color: #dc2626; }
+
+    .net-sub {
+      position: relative;
+      z-index: 2;
+      margin-top: 16px;
+      color: #475569;
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.45;
     }
 
-    .hub-net-value.positive {
-      color: var(--accent-deep);
-    }
-
-    .hub-stats-grid {
+    .stats-grid {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0,1fr));
       gap: 12px;
     }
 
-    .hub-stat {
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: var(--r-lg);
-      box-shadow: var(--shadow-sm);
-      padding: 16px;
+    .stat {
+      padding: 18px;
+      overflow: hidden;
+      position: relative;
     }
 
-    .hub-stat-label {
-      color: var(--text-dim);
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+    .stat:after {
+      content: "";
+      position: absolute;
+      right: -38px;
+      bottom: -52px;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: rgba(37,99,235,.08);
     }
 
-    .hub-stat-value {
-      margin-top: 7px;
-      color: var(--text);
-      font-size: 22px;
+    .stat-value {
+      margin-top: 8px;
+      color: #0f172a;
+      font-size: 24px;
       font-weight: 950;
+      letter-spacing: -.04em;
       font-variant-numeric: tabular-nums;
+      white-space: nowrap;
     }
 
-    .hub-stat-value.positive {
-      color: var(--accent-deep);
-    }
+    .stat-value.positive { color: #15803d; }
+    .stat-value.negative { color: #dc2626; }
+    .stat-value.warn { color: #d97706; }
 
-    .hub-stat-value.negative {
-      color: var(--danger);
-    }
-
-    .hub-stat-value.warn {
-      color: var(--warn);
-    }
-
-    .hub-section-title {
-      color: var(--text);
-      font-size: 18px;
-      font-weight: 950;
+    .section-title {
       margin: 24px 0 12px;
+      color: #0f172a;
+      font-size: 20px;
+      font-weight: 950;
+      letter-spacing: -.03em;
     }
 
-    .hub-access-grid {
+    .quick-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0,1fr));
       gap: 12px;
       margin-bottom: 18px;
     }
 
-    .hub-access-card {
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: var(--r-xl);
-      box-shadow: var(--shadow-sm);
+    .quick-card {
+      min-height: 136px;
       padding: 18px;
-      min-height: 128px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      transition: transform .18s ease, box-shadow .18s ease;
     }
 
-    .hub-access-card:hover {
-      transform: translateY(-2px);
-      border-color: var(--border-strong);
-      box-shadow: var(--shadow-md);
+    .quick-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 24px 60px rgba(15,23,42,.16);
     }
 
-    .hub-access-icon {
-      font-size: 30px;
+    .quick-icon {
+      font-size: 32px;
       line-height: 1;
     }
 
-    .hub-access-label {
+    .quick-title {
       margin-top: 12px;
-      color: var(--text);
+      color: #0f172a;
       font-size: 15px;
       font-weight: 950;
     }
 
-    .hub-access-sub {
+    .quick-sub {
       margin-top: 4px;
-      color: var(--text-dim);
+      color: #64748b;
       font-size: 12px;
-      font-weight: 750;
+      font-weight: 800;
       line-height: 1.35;
     }
 
-    .hub-lower-grid {
+    .lower-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
+      grid-template-columns: minmax(0, 1.2fr) minmax(360px, .8fr);
       gap: 18px;
     }
 
-    .hub-panel {
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: var(--r-xl);
-      box-shadow: var(--shadow-sm);
-      padding: 16px;
+    .panel {
+      padding: 18px;
       min-width: 0;
     }
 
-    .hub-panel-head {
+    .panel-head {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
 
-    .hub-panel-title {
-      color: var(--text);
-      font-size: 16px;
+    .panel-title {
+      color: #0f172a;
+      font-size: 18px;
       font-weight: 950;
     }
 
-    .hub-panel-link {
-      color: var(--accent-deep);
+    .panel-link {
+      color: #15803d;
       font-size: 12px;
       font-weight: 950;
     }
 
-    .hub-mini-list {
+    .mini-list {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 9px;
     }
 
-    .hub-mini-row {
+    .mini-row {
       display: grid;
-      grid-template-columns: 36px minmax(0, 1fr) auto;
+      grid-template-columns: 40px minmax(0,1fr) auto;
       gap: 10px;
       align-items: center;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--r-md);
-      padding: 10px;
+      background: #f8fafc;
+      border: 1px solid rgba(15,23,42,.08);
+      border-radius: 16px;
+      padding: 11px;
     }
 
-    .hub-mini-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: 12px;
+    .mini-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
       display: grid;
       place-items: center;
-      background: #ffffff;
-      border: 1px solid var(--border);
-      font-size: 19px;
+      background: #fff;
+      border: 1px solid rgba(15,23,42,.08);
+      font-size: 20px;
     }
 
-    .hub-mini-title {
-      color: var(--text);
+    .mini-title {
+      color: #0f172a;
       font-size: 13px;
-      font-weight: 900;
+      font-weight: 950;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .hub-mini-sub {
+    .mini-sub {
       margin-top: 2px;
-      color: var(--text-dim);
+      color: #64748b;
       font-size: 11px;
-      font-weight: 750;
+      font-weight: 800;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .hub-mini-amount {
-      color: var(--text);
+    .mini-amount {
+      color: #0f172a;
       font-size: 13px;
       font-weight: 950;
       font-variant-numeric: tabular-nums;
@@ -298,50 +352,42 @@
       text-align: right;
     }
 
-    .hub-mini-amount.positive {
-      color: var(--accent-deep);
-    }
+    .mini-amount.positive { color: #15803d; }
+    .mini-amount.negative { color: #dc2626; }
+    .mini-amount.neutral { color: #64748b; }
 
-    .hub-mini-amount.negative {
-      color: var(--danger);
-    }
-
-    .hub-mini-amount.neutral {
-      color: var(--text-muted);
-    }
-
-    .hub-empty {
-      background: var(--surface-2);
-      border: 1px dashed var(--border-strong);
-      border-radius: var(--r-lg);
-      padding: 22px;
+    .empty {
+      background: #f8fafc;
+      border: 1px dashed rgba(15,23,42,.2);
+      border-radius: 18px;
+      padding: 24px;
       text-align: center;
-      color: var(--text-muted);
+      color: #64748b;
       font-weight: 850;
     }
 
     @media (max-width: 1100px) {
-      .hub-main-grid,
-      .hub-lower-grid {
+      .grid-top,
+      .lower-grid {
         grid-template-columns: 1fr;
       }
 
-      .hub-access-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+      .quick-grid {
+        grid-template-columns: repeat(2, minmax(0,1fr));
       }
     }
 
     @media (max-width: 640px) {
-      .hub-access-grid,
-      .hub-stats-grid {
+      .stats-grid,
+      .quick-grid {
         grid-template-columns: 1fr;
       }
 
-      .hub-mini-row {
-        grid-template-columns: 34px minmax(0, 1fr);
+      .mini-row {
+        grid-template-columns: 38px minmax(0,1fr);
       }
 
-      .hub-mini-amount {
+      .mini-amount {
         grid-column: 2;
         text-align: left;
       }
@@ -358,174 +404,117 @@
   </header>
 
   <main class="hub-wrap">
-    <section class="hub-hero">
-      <div class="hub-kicker">Finance command center</div>
-      <h1 class="hub-heading">Sovereign Finance</h1>
-      <p class="hub-copy">
-        One readable view of cash, debt, burden, recent ledger activity, and the tools needed to keep the system clean.
-      </p>
-      <div class="hub-freshness">
-        <span class="pulse"></span>
-        <span id="freshnessText">Loading live data…</span>
-      </div>
-    </section>
-
-    <section class="hub-main-grid">
-      <div class="hub-metric-card">
-        <div class="hub-metric-label">Net Worth</div>
-        <div id="netWorth" class="hub-net-value">—</div>
-      </div>
-
-      <div class="hub-stats-grid">
-        <div class="hub-stat">
-          <div class="hub-stat-label">Liquid</div>
-          <div id="liquid" class="hub-stat-value positive">—</div>
-        </div>
-        <div class="hub-stat">
-          <div class="hub-stat-label">CC Outstanding</div>
-          <div id="ccOutstanding" class="hub-stat-value negative">—</div>
-        </div>
-        <div class="hub-stat">
-          <div class="hub-stat-label">Personal Debts</div>
-          <div id="debts" class="hub-stat-value warn">—</div>
-        </div>
-        <div class="hub-stat">
-          <div class="hub-stat-label">True Burden</div>
-          <div id="burden" class="hub-stat-value negative">—</div>
+    <section class="hero">
+      <div class="hero-content">
+        <div class="kicker">Layer 4 command center</div>
+        <h1>Sovereign Finance</h1>
+        <p>
+          Live cockpit for balances, burden, recent activity, bills, and the core routes you use to control the ledger.
+        </p>
+        <div class="fresh">
+          <span class="pulse"></span>
+          <span id="freshnessText">Loading live data…</span>
         </div>
       </div>
     </section>
 
-    <h2 class="hub-section-title">Quick Access</h2>
-    <section class="hub-access-grid">
-      <a href="/add.html" class="hub-access-card">
-        <div class="hub-access-icon">➕</div>
+    <section class="grid-top">
+      <div class="net-card">
         <div>
-          <div class="hub-access-label">Add Transaction</div>
-          <div class="hub-access-sub">clean ledger write path</div>
+          <div class="label">Net Worth</div>
+          <div id="netWorth" class="net-value">—</div>
         </div>
-      </a>
+        <div id="netSub" class="net-sub">Live D1 formula layer</div>
+      </div>
 
-      <a href="/transactions.html" class="hub-access-card">
-        <div class="hub-access-icon">📜</div>
-        <div>
-          <div class="hub-access-label">Transactions</div>
-          <div class="hub-access-sub">active ledger rows</div>
+      <div class="stats-grid">
+        <div class="stat">
+          <div class="label">Liquid</div>
+          <div id="liquid" class="stat-value positive">—</div>
         </div>
-      </a>
-
-      <a href="/accounts.html" class="hub-access-card">
-        <div class="hub-access-icon">🏦</div>
-        <div>
-          <div class="hub-access-label">Accounts</div>
-          <div class="hub-access-sub">balances and cards</div>
+        <div class="stat">
+          <div class="label">CC Outstanding</div>
+          <div id="ccOutstanding" class="stat-value negative">—</div>
         </div>
-      </a>
-
-      <a href="/charts.html" class="hub-access-card">
-        <div class="hub-access-icon">📊</div>
-        <div>
-          <div class="hub-access-label">Charts</div>
-          <div class="hub-access-sub">visual finance view</div>
+        <div class="stat">
+          <div class="label">Debts</div>
+          <div id="debts" class="stat-value warn">—</div>
         </div>
-      </a>
-
-      <a href="/debts.html" class="hub-access-card">
-        <div class="hub-access-icon">💳</div>
-        <div>
-          <div class="hub-access-label">Debts</div>
-          <div class="hub-access-sub">snowball and paydowns</div>
+        <div class="stat">
+          <div class="label">True Burden</div>
+          <div id="burden" class="stat-value negative">—</div>
         </div>
-      </a>
-
-      <a href="/bills.html" class="hub-access-card">
-        <div class="hub-access-icon">📅</div>
-        <div>
-          <div class="hub-access-label">Bills</div>
-          <div class="hub-access-sub">recurring obligations</div>
-        </div>
-      </a>
-
-      <a href="/insights.html" class="hub-access-card">
-        <div class="hub-access-icon">🧠</div>
-        <div>
-          <div class="hub-access-label">Insights</div>
-          <div class="hub-access-sub">spending analytics</div>
-        </div>
-      </a>
-
-      <a href="/reconciliation.html" class="hub-access-card">
-        <div class="hub-access-icon">⚖️</div>
-        <div>
-          <div class="hub-access-label">Reconciliation</div>
-          <div class="hub-access-sub">bank vs D1 checks</div>
-        </div>
-      </a>
+      </div>
     </section>
 
-    <section class="hub-lower-grid">
-      <div class="hub-panel">
-        <div class="hub-panel-head">
-          <div class="hub-panel-title">Recent Transactions</div>
-          <a href="/transactions.html" class="hub-panel-link">View all →</a>
+    <h2 class="section-title">Quick Access</h2>
+    <section class="quick-grid">
+      <a href="/add.html" class="quick-card"><div class="quick-icon">➕</div><div><div class="quick-title">Add Transaction</div><div class="quick-sub">clean ledger write</div></div></a>
+      <a href="/transactions.html" class="quick-card"><div class="quick-icon">📜</div><div><div class="quick-title">Transactions</div><div class="quick-sub">active ledger rows</div></div></a>
+      <a href="/accounts.html" class="quick-card"><div class="quick-icon">🏦</div><div><div class="quick-title">Accounts</div><div class="quick-sub">balances and cards</div></div></a>
+      <a href="/charts.html" class="quick-card"><div class="quick-icon">📊</div><div><div class="quick-title">Charts</div><div class="quick-sub">premium visual cockpit</div></div></a>
+      <a href="/goals.html" class="quick-card"><div class="quick-icon">🎯</div><div><div class="quick-title">Goals</div><div class="quick-sub">savings targets</div></div></a>
+      <a href="/debts.html" class="quick-card"><div class="quick-icon">💳</div><div><div class="quick-title">Debts</div><div class="quick-sub">snowball and paydowns</div></div></a>
+      <a href="/bills.html" class="quick-card"><div class="quick-icon">📅</div><div><div class="quick-title">Bills</div><div class="quick-sub">recurring obligations</div></div></a>
+      <a href="/reconciliation.html" class="quick-card"><div class="quick-icon">⚖️</div><div><div class="quick-title">Reconciliation</div><div class="quick-sub">bank vs D1 checks</div></div></a>
+    </section>
+
+    <section class="lower-grid">
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Recent Transactions</div>
+          <a href="/transactions.html" class="panel-link">View all →</a>
         </div>
-        <div id="recentTransactions" class="hub-mini-list">
-          <div class="hub-empty">Loading recent transactions…</div>
+        <div id="recentTransactions" class="mini-list">
+          <div class="empty">Loading recent transactions…</div>
         </div>
       </div>
 
-      <div class="hub-panel">
-        <div class="hub-panel-head">
-          <div class="hub-panel-title">Due Soon</div>
-          <a href="/bills.html" class="hub-panel-link">Bills →</a>
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Due Soon</div>
+          <a href="/bills.html" class="panel-link">Bills →</a>
         </div>
-        <div id="dueSoon" class="hub-mini-list">
-          <div class="hub-empty">Loading bills…</div>
+        <div id="dueSoon" class="mini-list">
+          <div class="empty">Loading bills…</div>
         </div>
       </div>
     </section>
 
     <footer class="page-footer">
-      <span class="v">v0.8.0 · layer 3 hub rendering · nav v1.0.0 · app.css v1.0.0</span>
+      <span class="v">v0.9.0 · layer 4 premium hub · nav v1.0.1 · app.css v1.0.0</span>
     </footer>
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="/js/theme.js?v=0.7.5"></script>
-  <script src="/js/nav.js?v=1.0.0"></script>
+  <script src="/js/nav.js?v=1.0.1"></script>
 
   <script>
     const TYPE_IN = new Set(['income', 'borrow']);
     const TYPE_OUT = new Set(['expense', 'repay', 'cc_spend', 'atm']);
-    const TYPE_ICON = {
-      income: '💰',
-      expense: '💸',
-      transfer: '💱',
-      borrow: '📥',
-      repay: '📤',
-      cc_spend: '💳',
-      cc_payment: '💳',
-      atm: '🏧'
-    };
+    const TYPE_ICON = { income:'💰', expense:'💸', transfer:'💱', borrow:'📥', repay:'📤', cc_spend:'💳', cc_payment:'💳', atm:'🏧' };
 
     const $ = id => document.getElementById(id);
 
     function esc(value) {
       return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
     function money(value) {
       const n = Number(value) || 0;
       const sign = n < 0 ? '-' : '';
-      return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
-        maximumFractionDigits: 2
-      });
+      return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
+    }
+
+    async function fetchJSON(url) {
+      const res = await fetch(url, { cache: 'no-store' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || data.ok === false) throw new Error((data && data.error) || ('HTTP ' + res.status));
+      return data;
     }
 
     function amountClass(row) {
@@ -543,19 +532,8 @@
       return money(amount);
     }
 
-    async function fetchJSON(url) {
-      const res = await fetch(url, { cache: 'no-store' });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data || data.ok === false) {
-        throw new Error((data && data.error) || ('HTTP ' + res.status));
-      }
-      return data;
-    }
-
     function titleFor(row) {
-      const notes = String(row.notes || '').trim();
-      if (notes) return notes;
-      return String(row.type || 'Transaction').replace(/_/g, ' ');
+      return String(row.notes || '').trim() || String(row.type || 'Transaction').replace(/_/g, ' ');
     }
 
     function accountName(id, accounts) {
@@ -566,7 +544,8 @@
     function renderBalances(data) {
       const net = Number(data.net_worth) || 0;
       $('netWorth').textContent = money(net);
-      $('netWorth').className = 'hub-net-value ' + (net >= 0 ? 'positive' : 'negative');
+      $('netWorth').className = 'net-value ' + (net >= 0 ? 'positive' : 'negative');
+      $('netSub').textContent = net >= 0 ? 'Positive position' : 'Burden exceeds liquid position';
 
       $('liquid').textContent = money(data.total_liquid || data.total_liquid_assets || data.cash || 0);
       $('ccOutstanding').textContent = money(data.cc_outstanding || data.cc || 0);
@@ -579,22 +558,21 @@
       const recent = (rows || []).slice(0, 8);
 
       if (!recent.length) {
-        box.innerHTML = '<div class="hub-empty">No recent transactions.</div>';
+        box.innerHTML = '<div class="empty">No recent transactions.</div>';
         return;
       }
 
       box.innerHTML = recent.map(row => {
         const type = String(row.type || '').toLowerCase();
         const cls = amountClass(row);
-
         return `
-          <article class="hub-mini-row">
-            <div class="hub-mini-icon">${TYPE_ICON[type] || '🧾'}</div>
+          <article class="mini-row">
+            <div class="mini-icon">${TYPE_ICON[type] || '🧾'}</div>
             <div>
-              <div class="hub-mini-title" title="${esc(titleFor(row))}">${esc(titleFor(row))}</div>
-              <div class="hub-mini-sub">${esc(accountName(row.account_id, accounts))} · ${esc(row.date || '')}</div>
+              <div class="mini-title" title="${esc(titleFor(row))}">${esc(titleFor(row))}</div>
+              <div class="mini-sub">${esc(accountName(row.account_id, accounts))} · ${esc(row.date || '')}</div>
             </div>
-            <div class="hub-mini-amount ${cls}">${esc(signedMoney(row))}</div>
+            <div class="mini-amount ${cls}">${esc(signedMoney(row))}</div>
           </article>
         `;
       }).join('');
@@ -603,10 +581,7 @@
     function billStatus(bill) {
       if (bill.last_paid_date) return 'Paid ' + bill.last_paid_date;
       if (!bill.due_day) return 'No due day';
-
-      const today = new Date();
-      const diff = Number(bill.due_day) - today.getDate();
-
+      const diff = Number(bill.due_day) - new Date().getDate();
       if (diff === 0) return 'Due today';
       if (diff > 0) return 'Due in ' + diff + 'd';
       return 'Overdue by ' + Math.abs(diff) + 'd';
@@ -614,25 +589,21 @@
 
     function renderBills(bills) {
       const box = $('dueSoon');
-      const rows = (bills || []).slice().sort((a, b) => {
-        const ad = a.due_day || 99;
-        const bd = b.due_day || 99;
-        return ad - bd || String(a.name).localeCompare(String(b.name));
-      }).slice(0, 6);
+      const rows = (bills || []).slice().sort((a,b) => (a.due_day || 99) - (b.due_day || 99)).slice(0, 6);
 
       if (!rows.length) {
-        box.innerHTML = '<div class="hub-empty">No bills found.</div>';
+        box.innerHTML = '<div class="empty">No bills found.</div>';
         return;
       }
 
       box.innerHTML = rows.map(bill => `
-        <article class="hub-mini-row">
-          <div class="hub-mini-icon">📅</div>
+        <article class="mini-row">
+          <div class="mini-icon">📅</div>
           <div>
-            <div class="hub-mini-title">${esc(bill.name)}</div>
-            <div class="hub-mini-sub">${esc(billStatus(bill))}</div>
+            <div class="mini-title">${esc(bill.name)}</div>
+            <div class="mini-sub">${esc(billStatus(bill))}</div>
           </div>
-          <div class="hub-mini-amount neutral">${money(bill.amount)}</div>
+          <div class="mini-amount neutral">${money(bill.amount)}</div>
         </article>
       `).join('');
     }
@@ -646,16 +617,14 @@
           fetchJSON('/api/bills')
         ]);
 
-        const accountRows = accounts.accounts || [];
-
         renderBalances(balances);
-        renderTransactions(transactions.transactions || [], accountRows);
+        renderTransactions(transactions.transactions || [], accounts.accounts || []);
         renderBills(bills.bills || []);
 
         $('freshnessText').textContent = 'Live · balances, transactions, bills loaded';
       } catch (err) {
         $('freshnessText').textContent = 'Load error';
-        $('recentTransactions').innerHTML = '<div class="hub-empty">Hub failed: ' + esc(err.message) + '</div>';
+        $('recentTransactions').innerHTML = '<div class="empty">Hub failed: ' + esc(err.message) + '</div>';
       }
     }
 
