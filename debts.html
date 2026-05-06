@@ -74,6 +74,7 @@
       font-size: 14px;
       font-weight: 950;
       box-shadow: 0 12px 24px rgba(34, 197, 94, 0.18);
+      cursor: pointer;
     }
 
     .debts-secondary {
@@ -85,6 +86,7 @@
       padding: 12px 16px;
       font-size: 14px;
       font-weight: 950;
+      cursor: pointer;
     }
 
     .debts-stats {
@@ -217,6 +219,10 @@
       text-align: right;
     }
 
+    .debt-amount.positive {
+      color: var(--accent-deep);
+    }
+
     .debt-progress-wrap {
       margin-top: 12px;
     }
@@ -248,18 +254,20 @@
     }
 
     .debt-actions-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: 1fr 0.8fr 0.8fr;
       gap: 8px;
       margin-top: 12px;
     }
 
     .debt-pay-btn,
+    .debt-edit-btn,
     .debt-refresh-btn {
-      flex: 1;
       min-height: 40px;
       border-radius: var(--r-md);
       font-size: 13px;
       font-weight: 950;
+      cursor: pointer;
     }
 
     .debt-pay-btn {
@@ -268,10 +276,18 @@
       color: #052e16;
     }
 
+    .debt-edit-btn,
     .debt-refresh-btn {
       border: 1px solid var(--border-strong);
       background: #ffffff;
       color: var(--text);
+    }
+
+    .debt-pay-btn:disabled,
+    .debt-edit-btn:disabled,
+    .debt-refresh-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
     }
 
     .debt-empty {
@@ -310,6 +326,8 @@
       border-radius: var(--r-xl);
       box-shadow: var(--shadow-xl);
       padding: 22px;
+      max-height: calc(100vh - 32px);
+      overflow: auto;
     }
 
     .pay-title,
@@ -329,6 +347,23 @@
       margin-bottom: 14px;
     }
 
+    .debt-correction-note {
+      display: none;
+      margin: 0 0 14px;
+      padding: 12px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .debt-correction-note.show {
+      display: block;
+    }
+
     .pay-grid,
     .debt-modal-grid {
       display: grid;
@@ -345,6 +380,24 @@
     .pay-actions button,
     .debt-modal-actions button {
       flex: 1;
+    }
+
+    .danger-btn {
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      background: var(--danger-soft);
+      color: var(--danger);
+      border-radius: var(--r-md);
+      font-size: 14px;
+      font-weight: 950;
+      min-height: 44px;
+      cursor: pointer;
+      display: none;
+    }
+
+    .danger-btn.show {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     @media (max-width: 980px) {
@@ -369,6 +422,15 @@
       .debt-amount {
         grid-column: 2;
         text-align: left;
+      }
+
+      .debt-actions-row {
+        grid-template-columns: 1fr;
+      }
+
+      .pay-actions,
+      .debt-modal-actions {
+        flex-direction: column;
       }
     }
   </style>
@@ -444,7 +506,7 @@
     </section>
 
     <footer class="page-footer">
-      <span class="v">v0.8.0 · layer 3 debts rendering · api v0.2.1</span>
+      <span class="v">v0.8.1 · layer 5A debt correction edit · api v0.2.4</span>
     </footer>
   </main>
 
@@ -488,10 +550,15 @@
 
   <div id="debtModal" class="debt-modal-backdrop" aria-hidden="true">
     <div class="debt-modal">
-      <h2 class="debt-modal-title">Add Debt</h2>
-      <p class="debt-modal-sub">Add a debt/receivable record. Ledger writes happen when payments are recorded.</p>
+      <h2 id="debtModalTitle" class="debt-modal-title">Add Debt</h2>
+      <p id="debtModalSub" class="debt-modal-sub">Add a debt/receivable record. Ledger writes happen when payments are recorded.</p>
+      <p id="debtCorrectionNote" class="debt-correction-note">
+        Correction mode updates the debt row only. It does not reverse or rewrite old payment transactions. Use this for wrong amount, wrong name, or wrong I owe/Owed to me classification.
+      </p>
 
       <form id="debtForm" class="debt-modal-grid">
+        <input id="debtId" type="hidden" />
+
         <div class="field">
           <label for="debtName">Name</label>
           <input id="debtName" class="input" type="text" maxlength="80" required />
@@ -522,7 +589,8 @@
 
         <div class="debt-modal-actions">
           <button id="cancelDebtBtn" class="ghost-btn" type="button">Cancel</button>
-          <button class="primary-submit" type="submit">Add Debt</button>
+          <button id="cancelDebtRecordBtn" class="danger-btn" type="button">Cancel Record</button>
+          <button id="saveDebtBtn" class="primary-submit" type="submit">Add Debt</button>
         </div>
       </form>
     </div>
@@ -531,12 +599,15 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="/js/theme.js?v=0.7.5"></script>
-  <script src="/js/nav.js?v=1.0.0"></script>
+  <script src="/js/nav.js?v=1.0.2"></script>
 
   <script>
+    const PAGE_VERSION = 'v0.8.1';
+
     const state = {
       debts: [],
-      accounts: []
+      accounts: [],
+      editingDebtId: null
     };
 
     const $ = id => document.getElementById(id);
@@ -602,6 +673,12 @@
       return found ? ((found.icon || '') + ' ' + found.name).trim() : (id || 'No account');
     }
 
+    function setBusy(button, busy, textWhenBusy, textWhenReady) {
+      if (!button) return;
+      button.disabled = !!busy;
+      button.textContent = busy ? textWhenBusy : textWhenReady;
+    }
+
     function fillAccounts() {
       const sel = $('payAccount');
       const current = sel.value;
@@ -621,16 +698,17 @@
     }
 
     function renderStats() {
-      const owe = state.debts.filter(debt => debt.kind !== 'owed');
-      const owed = state.debts.filter(debt => debt.kind === 'owed');
+      const activeDebts = state.debts.filter(debt => (debt.status || 'active') === 'active');
+      const owe = activeDebts.filter(debt => debt.kind !== 'owed');
+      const owed = activeDebts.filter(debt => debt.kind === 'owed');
 
       const totalOwe = owe.reduce((sum, debt) => sum + remaining(debt), 0);
       const totalOwed = owed.reduce((sum, debt) => sum + remaining(debt), 0);
-      const paid = state.debts.reduce((sum, debt) => sum + (Number(debt.paid_amount) || 0), 0);
+      const paid = activeDebts.reduce((sum, debt) => sum + (Number(debt.paid_amount) || 0), 0);
 
       $('totalOwe').textContent = money(totalOwe);
       $('totalOwed').textContent = money(totalOwed);
-      $('debtCount').textContent = String(state.debts.length);
+      $('debtCount').textContent = String(activeDebts.length);
       $('paidDown').textContent = money(paid);
 
       $('oweSub').textContent = owe.length + ' debt' + (owe.length === 1 ? '' : 's') + ' · ' + money(totalOwe);
@@ -641,18 +719,20 @@
       const rem = remaining(debt);
       const pct = paidPct(debt);
       const fullyPaid = rem <= 0.01;
+      const isOwed = debt.kind === 'owed';
+      const amountClass = isOwed ? 'debt-amount positive' : 'debt-amount';
 
       return `
         <article class="debt-card">
           <div class="debt-top">
-            <div class="debt-icon">${debt.kind === 'owed' ? '📥' : '📤'}</div>
+            <div class="debt-icon">${isOwed ? '📥' : '📤'}</div>
             <div>
               <div class="debt-title">${esc(debt.name)}</div>
               <div class="debt-sub">
                 Original ${money(debt.original_amount)} · Paid ${money(debt.paid_amount)}
               </div>
             </div>
-            <div class="debt-amount">${money(rem)}</div>
+            <div class="${amountClass}">${money(rem)}</div>
           </div>
 
           <div class="debt-progress-wrap">
@@ -667,8 +747,9 @@
 
           <div class="debt-actions-row">
             <button class="debt-pay-btn" type="button" data-pay="${esc(debt.id)}" ${fullyPaid ? 'disabled' : ''}>
-              ${debt.kind === 'owed' ? 'Receive' : 'Pay'}
+              ${isOwed ? 'Receive' : 'Pay'}
             </button>
+            <button class="debt-edit-btn" type="button" data-edit="${esc(debt.id)}">Edit</button>
             <button class="debt-refresh-btn" type="button" data-refresh="1">Refresh</button>
           </div>
         </article>
@@ -676,8 +757,9 @@
     }
 
     function renderLists() {
-      const owe = state.debts.filter(debt => debt.kind !== 'owed');
-      const owed = state.debts.filter(debt => debt.kind === 'owed');
+      const activeDebts = state.debts.filter(debt => (debt.status || 'active') === 'active');
+      const owe = activeDebts.filter(debt => debt.kind !== 'owed');
+      const owed = activeDebts.filter(debt => debt.kind === 'owed');
 
       $('oweList').innerHTML = owe.length
         ? owe.map(renderDebtCard).join('')
@@ -689,6 +771,10 @@
 
       document.querySelectorAll('[data-pay]').forEach(btn => {
         btn.addEventListener('click', () => openPay(btn.dataset.pay));
+      });
+
+      document.querySelectorAll('[data-edit]').forEach(btn => {
+        btn.addEventListener('click', () => openDebtEdit(btn.dataset.edit));
       });
 
       document.querySelectorAll('[data-refresh]').forEach(btn => {
@@ -717,19 +803,104 @@
       $('payModal').setAttribute('aria-hidden', 'true');
     }
 
-    function openDebt() {
+    function resetDebtForm() {
+      $('debtId').value = '';
       $('debtName').value = '';
       $('debtKind').value = 'owe';
       $('debtOriginal').value = '';
       $('debtPaid').value = '';
       $('debtNotes').value = '';
+      state.editingDebtId = null;
+    }
+
+    function openDebtAdd() {
+      resetDebtForm();
+
+      $('debtModalTitle').textContent = 'Add Debt';
+      $('debtModalSub').textContent = 'Add a debt/receivable record. Ledger writes happen when payments are recorded.';
+      $('debtCorrectionNote').classList.remove('show');
+      $('cancelDebtRecordBtn').classList.remove('show');
+      $('saveDebtBtn').textContent = 'Add Debt';
+
       $('debtModal').classList.add('open');
       $('debtModal').setAttribute('aria-hidden', 'false');
+
+      setTimeout(() => $('debtName').focus(), 50);
+    }
+
+    function openDebtEdit(id) {
+      const debt = state.debts.find(item => item.id === id);
+      if (!debt) {
+        toast('Debt not found in current page data.', 'error');
+        return;
+      }
+
+      state.editingDebtId = debt.id;
+
+      $('debtId').value = debt.id;
+      $('debtName').value = debt.name || '';
+      $('debtKind').value = debt.kind === 'owed' ? 'owed' : 'owe';
+      $('debtOriginal').value = Number(debt.original_amount) || 0;
+      $('debtPaid').value = Number(debt.paid_amount) || 0;
+      $('debtNotes').value = debt.notes || '';
+
+      $('debtModalTitle').textContent = debt.kind === 'owed' ? 'Edit Receivable' : 'Edit Debt';
+      $('debtModalSub').textContent = 'Correct wrong name, amount, paid value, notes, or I owe/Owed to me classification.';
+      $('debtCorrectionNote').classList.add('show');
+      $('cancelDebtRecordBtn').classList.add('show');
+      $('saveDebtBtn').textContent = 'Save Correction';
+
+      $('debtModal').classList.add('open');
+      $('debtModal').setAttribute('aria-hidden', 'false');
+
+      setTimeout(() => $('debtName').focus(), 50);
     }
 
     function closeDebt() {
       $('debtModal').classList.remove('open');
       $('debtModal').setAttribute('aria-hidden', 'true');
+      resetDebtForm();
+    }
+
+    function readDebtForm() {
+      const id = $('debtId').value.trim();
+      const name = $('debtName').value.trim();
+      const kind = $('debtKind').value;
+      const original = Number($('debtOriginal').value);
+      const paid = Number($('debtPaid').value || 0);
+      const notes = $('debtNotes').value.trim();
+
+      if (!name) {
+        return { ok: false, error: 'Name is required.' };
+      }
+
+      if (!(original > 0)) {
+        return { ok: false, error: 'Original amount must be greater than 0.' };
+      }
+
+      if (paid < 0) {
+        return { ok: false, error: 'Already paid cannot be negative.' };
+      }
+
+      if (paid > original) {
+        return { ok: false, error: 'Already paid cannot exceed original amount.' };
+      }
+
+      if (!['owe', 'owed'].includes(kind)) {
+        return { ok: false, error: 'Kind must be I owe or Owed to me.' };
+      }
+
+      return {
+        ok: true,
+        id,
+        payload: {
+          name,
+          kind,
+          original_amount: original,
+          paid_amount: paid,
+          notes
+        }
+      };
     }
 
     async function submitPay(event) {
@@ -746,6 +917,9 @@
         return;
       }
 
+      const submitBtn = event.submitter || $('payForm').querySelector('button[type="submit"]');
+      setBusy(submitBtn, true, 'Saving...', 'Save Payment');
+
       try {
         await fetchJSON('/api/debts/' + encodeURIComponent(id) + '/pay', {
           method: 'POST',
@@ -755,7 +929,7 @@
             account_id: accountId,
             date,
             notes,
-            created_by: 'web-debts'
+            created_by: 'web-debts-pay'
           })
         });
 
@@ -764,33 +938,49 @@
         await loadDebts();
       } catch (err) {
         toast(err.message, 'error');
+      } finally {
+        setBusy(submitBtn, false, 'Saving...', 'Save Payment');
       }
     }
 
     async function submitDebt(event) {
       event.preventDefault();
 
-      const name = $('debtName').value.trim();
-      const kind = $('debtKind').value;
-      const original = Number($('debtOriginal').value);
-      const paid = Number($('debtPaid').value || 0);
-      const notes = $('debtNotes').value.trim();
+      const form = readDebtForm();
 
-      if (!name || !(original > 0)) {
-        toast('Name and original amount are required.', 'error');
+      if (!form.ok) {
+        toast(form.error, 'error');
         return;
       }
 
+      const submitBtn = $('saveDebtBtn');
+      const isEdit = !!state.editingDebtId;
+      const readyText = isEdit ? 'Save Correction' : 'Add Debt';
+
+      setBusy(submitBtn, true, isEdit ? 'Saving...' : 'Adding...', readyText);
+
       try {
+        if (isEdit) {
+          await fetchJSON('/api/debts/' + encodeURIComponent(state.editingDebtId), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...form.payload,
+              created_by: 'web-debts-edit'
+            })
+          });
+
+          closeDebt();
+          toast('Debt corrected.');
+          await loadDebts();
+          return;
+        }
+
         await fetchJSON('/api/debts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name,
-            kind,
-            original_amount: original,
-            paid_amount: paid,
-            notes,
+            ...form.payload,
             created_by: 'web-debts'
           })
         });
@@ -800,12 +990,49 @@
         await loadDebts();
       } catch (err) {
         toast(err.message, 'error');
+      } finally {
+        setBusy(submitBtn, false, isEdit ? 'Saving...' : 'Adding...', readyText);
+      }
+    }
+
+    async function cancelDebtRecord() {
+      if (!state.editingDebtId) {
+        toast('No debt selected.', 'error');
+        return;
+      }
+
+      const debt = state.debts.find(item => item.id === state.editingDebtId);
+      const label = debt ? debt.name : state.editingDebtId;
+
+      const ok = confirm(
+        'Cancel this debt record?\n\n' +
+        label + '\n\n' +
+        'This does not hard-delete the row. It marks the record as cancelled and writes an audit event.'
+      );
+
+      if (!ok) return;
+
+      const btn = $('cancelDebtRecordBtn');
+      setBusy(btn, true, 'Cancelling...', 'Cancel Record');
+
+      try {
+        await fetchJSON('/api/debts/' + encodeURIComponent(state.editingDebtId) + '?created_by=web-debts-edit', {
+          method: 'DELETE'
+        });
+
+        closeDebt();
+        toast('Debt record cancelled.');
+        await loadDebts();
+      } catch (err) {
+        toast(err.message, 'error');
+      } finally {
+        setBusy(btn, false, 'Cancelling...', 'Cancel Record');
       }
     }
 
     async function loadDebts() {
-      $('oweList').innerHTML = '<div class="debt-empty">Loading debts…</div>';
-      $('owedList').innerHTML = '<div class="debt-empty">Loading receivables…</div>';
+      $('oweList').innerHTML = '<div class="debt-empty">Loading debts...</div>';
+      $('owedList').innerHTML = '<div class="debt-empty">Loading receivables...</div>';
 
       try {
         const [debtsData, accountsData] = await Promise.all([
@@ -819,18 +1046,35 @@
         renderStats();
         renderLists();
         fillAccounts();
+
+        console.log('[debts ' + PAGE_VERSION + '] loaded', state.debts.length, 'records');
       } catch (err) {
         $('oweList').innerHTML = `<div class="debt-empty">Debts failed: ${esc(err.message)}</div>`;
         $('owedList').innerHTML = '<div class="debt-empty">No receivable data.</div>';
       }
     }
 
-    $('addDebtBtn').addEventListener('click', openDebt);
+    $('addDebtBtn').addEventListener('click', openDebtAdd);
     $('refreshBtn').addEventListener('click', loadDebts);
     $('cancelPayBtn').addEventListener('click', closePay);
     $('cancelDebtBtn').addEventListener('click', closeDebt);
+    $('cancelDebtRecordBtn').addEventListener('click', cancelDebtRecord);
     $('payForm').addEventListener('submit', submitPay);
     $('debtForm').addEventListener('submit', submitDebt);
+
+    $('payModal').addEventListener('click', event => {
+      if (event.target === $('payModal')) closePay();
+    });
+
+    $('debtModal').addEventListener('click', event => {
+      if (event.target === $('debtModal')) closeDebt();
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      if ($('payModal').classList.contains('open')) closePay();
+      if ($('debtModal').classList.contains('open')) closeDebt();
+    });
 
     loadDebts();
   </script>
