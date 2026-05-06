@@ -1,4 +1,4 @@
-/* ─── Sovereign Finance · nav.js v1.0.4 · Layer 5D mobile bottom nav guard ─── */
+/* ─── Sovereign Finance · nav.js v1.0.5 · Layer 5C Nano Loans nav ─── */
 /*
  * Purpose:
  *   One navigation source for the whole app.
@@ -12,6 +12,10 @@
  *   - Bottom nav is forced fixed at the bottom on mobile.
  *   - Body gets mobile safe-area padding so content is not hidden behind nav.
  *   - Guard is injected by nav.js so pages with stale CSS still behave correctly.
+ *
+ * Layer 5C v1.0.5:
+ *   - Nano Loans is now a real module in global desktop/sidebar navigation.
+ *   - Nano Loans is not added to mobile bottom nav; bottom nav remains daily-core only.
  *   - No ledger/API writes.
  *
  * Contract:
@@ -23,7 +27,7 @@
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.4';
+  const VERSION = 'v1.0.5';
   const STYLE_ID = 'sov-nav-mobile-guard';
 
   const NAV_ITEMS = [
@@ -31,6 +35,7 @@
     { key: 'add', label: 'Add Transaction', short: 'Add', href: '/add.html', aliases: [], emoji: '➕' },
     { key: 'transactions', label: 'Transactions', short: 'Tx', href: '/transactions.html', aliases: [], emoji: '📜' },
     { key: 'atm', label: 'ATM', short: 'ATM', href: '/atm.html', aliases: [], emoji: '🏧' },
+    { key: 'nano', label: 'Nano Loans', short: 'Nano', href: '/nano-loans.html', aliases: [], emoji: '🤝' },
     { key: 'accounts', label: 'Accounts', short: 'Accts', href: '/accounts.html', aliases: [], emoji: '🏦' },
     { key: 'cc', label: 'CC Planner', short: 'CC', href: '/cc.html', aliases: [], emoji: '🪪' },
     { key: 'debts', label: 'Debts', short: 'Debts', href: '/debts.html', aliases: [], emoji: '💳' },
