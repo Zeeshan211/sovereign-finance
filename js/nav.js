@@ -1,53 +1,19 @@
-/* ─── Sovereign Finance · nav.js v1.0.8 · Global app shell identity ─── */
+/* ─── Sovereign Finance · nav.js v1.0.9 · App shell overlap guard ─── */
 /*
  * Purpose:
  *   One navigation source for the whole app.
  *
- * Layer 5B:
- *   - ATM is a real module and globally visible in desktop/sidebar navigation.
- *   - Bottom nav remains focused on daily core tools:
- *       Hub, Add, Transactions, Bills, CC
- *
- * Layer 5D v1.0.4:
- *   - Bottom nav is forced fixed at the bottom on mobile.
- *   - Body gets mobile safe-area padding so content is not hidden behind nav.
- *   - Guard is injected by nav.js so pages with stale CSS still behave correctly.
- *
- * Layer 5C v1.0.5:
- *   - Nano Loans is now a real module in global desktop/sidebar navigation.
- *   - Nano Loans is not added to mobile bottom nav; bottom nav remains daily-core only.
+ * Layer UI v1.0.9:
+ *   - Fixes theme button / app shell overlap.
+ *   - Adds shell-safe spacing and z-index rules.
+ *   - Keeps theme controls above shell without covering shell content.
  *   - No ledger/API writes.
- *
- * Layer UI v1.0.6:
- *   - Desktop side rail becomes layered, grouped, premium, compact, and non-scrolling in normal desktop height.
- *   - Adds section layers: Daily Core, Money Control, Planning, Proof.
- *   - Adds active glow, rail header, compact item density, and soft animated depth.
- *   - Mobile bottom nav remains daily-core only.
- *   - No ledger/API writes.
- *
- * Layer UI v1.0.7:
- *   - Adds mobile full-module drawer without bloating bottom nav.
- *   - Bottom nav remains daily-core only.
- *   - Drawer exposes every module in the same layered structure as desktop.
- *   - Drawer closes on backdrop, close button, Escape key, or module selection.
- *   - No ledger/API writes.
- *
- * Layer UI v1.0.8:
- *   - Adds global app shell identity below the page header.
- *   - Every page gets purpose, proof mode, and next-action language.
- *   - Uses static page metadata only. No fake money, no API writes, no ledger mutation.
- *   - Makes each module feel intentional instead of generic.
- *
- * Contract:
- *   - Replaces existing .desktop-nav, .bottom-nav, .mobile-module-drawer, and .sov-app-shell if present.
- *   - Injects nav/shell if a page forgot it.
- *   - Active state is based on current pathname.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.8';
+  const VERSION = 'v1.0.9';
   const MOBILE_STYLE_ID = 'sov-nav-mobile-guard';
   const PREMIUM_STYLE_ID = 'sov-nav-premium-rail';
   const DRAWER_ID = 'sov-mobile-module-drawer';
@@ -201,10 +167,8 @@
 
   function normalizePath(pathname) {
     let path = pathname || '/';
-
     if (!path.startsWith('/')) path = '/' + path;
     if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
-
     return path;
   }
 
@@ -214,7 +178,6 @@
 
   function isActive(item, path) {
     if (normalizePath(item.href) === path) return true;
-
     return (item.aliases || []).some(alias => normalizePath(alias) === path);
   }
 
@@ -254,7 +217,6 @@
 
   function desktopGroupHTML(group, path) {
     const items = NAV_ITEMS.filter(item => item.group === group.key);
-
     if (!items.length) return '';
 
     return `
@@ -269,7 +231,6 @@
 
   function drawerGroupHTML(group, path) {
     const items = NAV_ITEMS.filter(item => item.group === group.key);
-
     if (!items.length) return '';
 
     return `
@@ -513,6 +474,28 @@
         }
       }
 
+      :root {
+        --sov-theme-safe-top: 52px;
+      }
+
+      header,
+      .topbar,
+      .app-header,
+      .page-header {
+        position: relative;
+        z-index: 120;
+      }
+
+      .theme-toggle,
+      .theme-button,
+      .theme-btn,
+      #themeToggle,
+      #theme-toggle,
+      [data-theme-toggle] {
+        position: relative;
+        z-index: 3200 !important;
+      }
+
       @media (min-width: 1200px) {
         body {
           padding-left: 332px !important;
@@ -688,8 +671,7 @@
 
         .desktop-nav-item.active {
           color: #dcfce7 !important;
-          background:
-            linear-gradient(135deg, rgba(34, 197, 94, 0.24), rgba(34, 197, 94, 0.10)) !important;
+          background: linear-gradient(135deg, rgba(34, 197, 94, 0.24), rgba(34, 197, 94, 0.10)) !important;
           border-color: rgba(134, 239, 172, 0.28) !important;
           box-shadow:
             0 10px 28px rgba(34, 197, 94, 0.14),
@@ -730,8 +712,10 @@
       }
 
       .sov-app-shell {
+        position: relative;
+        z-index: 40;
         width: min(1120px, calc(100% - 32px));
-        margin: 14px auto 18px;
+        margin: clamp(22px, 4vw, 42px) auto 18px;
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) minmax(260px, 0.78fr);
         align-items: center;
@@ -749,6 +733,16 @@
         backdrop-filter: blur(18px);
         -webkit-backdrop-filter: blur(18px);
         animation: sov-shell-rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+        isolation: isolate;
+      }
+
+      .sov-app-shell::before {
+        content: "";
+        position: absolute;
+        inset: -14px -10px auto -10px;
+        height: var(--sov-theme-safe-top);
+        pointer-events: none;
+        z-index: -1;
       }
 
       .sov-shell-orb {
@@ -915,7 +909,7 @@
       @media (max-width: 860px) {
         .sov-app-shell {
           width: min(100% - 22px, 720px);
-          margin: 10px auto 14px;
+          margin: 18px auto 14px;
           grid-template-columns: minmax(0, 1fr);
           gap: 12px;
           padding: 14px;
@@ -1269,7 +1263,7 @@
       setDrawerOpen(!drawer.classList.contains('open'));
     });
 
-    drawer.querySelectorAll('[data-drawer-close="true"]').forEach(node => {
+    drawer.querySelectorAll('[data-drawer-close="true"]')..forEach(node => {
       node.addEventListener('click', () => setDrawerOpen(false));
     });
 
