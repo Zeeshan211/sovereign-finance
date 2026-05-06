@@ -1,62 +1,127 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="midnight" data-page="salary">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#050816">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+
   <title>Salary · Sovereign Finance</title>
-  <link rel="stylesheet" href="/css/app.css">
-  <script src="/js/theme.js"></script>
-  <script src="/js/nav.js" defer></script>
-</head>
-<body>
-  <header>
-    <div class="brand">Sovereign Ops</div>
-    <h1 class="title">Salary</h1>
-    <div class="day-badge"><span id="salary-summary">loading…</span></div>
-  </header>
 
-  <div class="hub-top-grid">
-    <section class="net-worth">
-      <div class="nw-label">Next Salary Forecast</div>
-      <div id="salary-total" class="nw-value positive counter">—<span class="nw-currency">PKR</span></div>
-    </section>
+  <link rel="stylesheet" href="/css/app.css?v=1.0.0" />
 
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-label">Days to Payday</div>
-        <div id="salary-days" class="stat-value accent counter">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Next Payday</div>
-        <div id="salary-next-date" class="stat-value">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Components</div>
-        <div id="salary-count" class="stat-value">—</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Source</div>
-        <div class="stat-value" style="font-size: 14px;">📤 Sheet</div>
-      </div>
-    </div>
-  </div>
+  <style>
+    .salary-wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
 
-  <div class="section-header">
-    <span class="section-label">All Components</span>
-    <span class="section-total assets" id="salary-total-label">—</span>
-  </div>
-  <div id="salary-list"></div>
+    .salary-hero {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-md);
+      padding: 24px;
+      margin-bottom: 18px;
+    }
 
-  <footer>
-    <span class="v">v0.9.0 · salary</span>
-  </footer>
+    .salary-kicker {
+      display: inline-flex;
+      padding: 7px 11px;
+      border-radius: var(--r-pill);
+      background: var(--accent-soft);
+      color: var(--accent-deep);
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 12px;
+    }
 
-  <script src="/js/app.js"></script>
-  <script src="/js/store.js"></script>
-  <script src="/js/numbers.js"></script>
-  <script src="/js/salary.js"></script>
-</body>
-</html>
+    .salary-heading {
+      color: var(--text);
+      font-size: clamp(32px, 5vw, 50px);
+      line-height: 1.02;
+      font-weight: 950;
+      letter-spacing: -0.05em;
+      margin: 0;
+    }
+
+    .salary-copy {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.55;
+      font-weight: 750;
+      margin-top: 12px;
+      max-width: 760px;
+    }
+
+    .salary-toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: end;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .salary-toolbar label {
+      display: block;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+
+    .salary-toolbar input {
+      min-height: 46px;
+      padding: 11px 13px;
+      border: 2px solid var(--border-strong);
+      border-radius: var(--r-md);
+      background: #ffffff;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 850;
+    }
+
+    .salary-refresh {
+      min-height: 46px;
+      border: 0;
+      border-radius: var(--r-md);
+      background: var(--grad-mint);
+      color: #052e16;
+      padding: 11px 16px;
+      font-size: 14px;
+      font-weight: 950;
+      box-shadow: 0 12px 24px rgba(34, 197, 94, 0.18);
+    }
+
+    .salary-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .salary-stat {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--shadow-sm);
+      padding: 16px;
+    }
+
+    .salary-stat-label {
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .salary-stat-value {
+      margin-top: 7px;
+      color: var(--text);
+      font-size:
