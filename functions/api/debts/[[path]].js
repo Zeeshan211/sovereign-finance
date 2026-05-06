@@ -1,4 +1,4 @@
-/* ─── /api/debts/[[path]] · v0.2.2 · editable debt correction contract ─── */
+/* ─── /api/debts/[[path]] · v0.2.3 · safe debt edit/correction contract ─── */
 /*
  * Handles:
  *   GET    /api/debts
@@ -9,33 +9,36 @@
  *   POST   /api/debts/{id}/pay
  *
  * Contract:
- *   - Debts are editable because wrong-section entry is a real operating risk.
- *   - Changing kind owe <-> owed is allowed and audited.
- *   - Cancel is soft-only: status='cancelled'. No hard delete.
- *   - Pay/receive creates a transaction and updates paid_amount.
- *   - category_id stays NULL in generated transactions until merchant/category engine is active.
- *   - Snapshot before edit/cancel/pay.
- *   - Audit failure does not break successful DB mutation.
+ *   - Allows safe correction of wrong debt kind: owe <-> owed.
+ *   - PUT binds only defined/sanitized values. No undefined reaches D1.
+ *   - Cancel is soft-only: status='cancelled'.
+ *   - Payment/receive creates transaction and updates paid_amount.
+ *   - Generated debt transactions keep category_id NULL until merchant/category engine is active.
+ *   - Audit is best-effort; mutation success is not blocked by audit failure.
  */
 
-import { json, audit, snapshot, uuid } from '../_lib.js';
+import { json, audit, uuid } from '../_lib.js';
 
-const VERSION = 'v0.2.2';
+const VERSION = 'v0.2.3';
 const ACTIVE_CONDITION = "(status IS NULL OR status = 'active')";
 
 export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
-    const path = context.params.path || [];
+    const path = getPath(context);
 
     if (path.length === 1) {
       const id = path[0];
 
       const debt = await db.prepare(
-        `SELECT * FROM debts WHERE id = ?`
+        `SELECT id, name, kind, original_amount, paid_amount, snowball_order, due_date, status, notes, created_at
+         FROM debts
+         WHERE id = ?`
       ).bind(id).first();
 
-      if (!debt) return json({ ok: false, version: VERSION, error: 'Debt not found' }, 404);
+      if (!debt) {
+        return json({ ok: false, version: VERSION, error: 'Debt not found' }, 404);
+      }
 
       return json({ ok: true, version: VERSION, debt: normalizeDebt(debt) });
     }
@@ -43,8 +46,13 @@ export async function onRequestGet(context) {
     const includeInactive = new URL(context.request.url).searchParams.get('include_inactive') === '1';
 
     const sql = includeInactive
-      ? `SELECT * FROM debts ORDER BY kind, snowball_order, name`
-      : `SELECT * FROM debts WHERE ${ACTIVE_CONDITION} ORDER BY kind, snowball_order, name`;
+      ? `SELECT id, name, kind, original_amount, paid_amount, snowball_order, due_date, status, notes, created_at
+         FROM debts
+         ORDER BY kind, snowball_order, name`
+      : `SELECT id, name, kind, original_amount, paid_amount, snowball_order, due_date, status, notes, created_at
+         FROM debts
+         WHERE ${ACTIVE_CONDITION}
+         ORDER BY kind, snowball_order, name`;
 
     const res = await db.prepare(sql).all();
     const debts = (res.results || []).map(normalizeDebt);
@@ -64,7 +72,7 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   try {
-    const path = context.params.path || [];
+    const path = getPath(context);
 
     if (path.length === 2 && path[1] === 'pay') {
       return payDebt(context, path[0]);
@@ -83,7 +91,7 @@ export async function onRequestPost(context) {
 export async function onRequestPut(context) {
   try {
     const db = context.env.DB;
-    const path = context.params.path || [];
+    const path = getPath(context);
 
     if (path.length !== 1) {
       return json({ ok: false, version: VERSION, error: 'Path requires debt id' }, 400);
@@ -91,66 +99,71 @@ export async function onRequestPut(context) {
 
     const id = path[0];
     const body = await readJSON(context.request);
+    const createdBy = safeText(body.created_by, 'web-debts-edit', 80);
 
     const before = await db.prepare(
-      `SELECT * FROM debts WHERE id = ?`
+      `SELECT id, name, kind, original_amount, paid_amount, snowball_order, due_date, status, notes, created_at
+       FROM debts
+       WHERE id = ?`
     ).bind(id).first();
 
-    if (!before) return json({ ok: false, version: VERSION, error: 'Debt not found' }, 404);
-
-    const snap = await safeSnapshot(context.env, 'pre-debt-edit-' + id + '-' + Date.now(), body.created_by || 'web-debts-edit');
-    if (!snap.ok) return json({ ok: false, version: VERSION, error: 'Snapshot failed: ' + snap.error }, 500);
+    if (!before) {
+      return json({ ok: false, version: VERSION, error: 'Debt not found' }, 404);
+    }
 
     const updates = [];
     const values = [];
 
-    if (body.name !== undefined) {
-      const name = String(body.name || '').trim();
+    if (Object.prototype.hasOwnProperty.call(body, 'name')) {
+      const name = safeText(body.name, '', 80);
       if (!name) return json({ ok: false, version: VERSION, error: 'name cannot be empty' }, 400);
-      if (name.length > 80) return json({ ok: false, version: VERSION, error: 'name max 80 chars' }, 400);
       updates.push('name = ?');
       values.push(name);
     }
 
-    if (body.kind !== undefined) {
+    if (Object.prototype.hasOwnProperty.call(body, 'kind')) {
       const kind = normalizeKind(body.kind);
       if (!kind) return json({ ok: false, version: VERSION, error: 'kind must be owe or owed' }, 400);
       updates.push('kind = ?');
       values.push(kind);
     }
 
-    if (body.original_amount !== undefined) {
+    if (Object.prototype.hasOwnProperty.call(body, 'original_amount')) {
       const original = Number(body.original_amount);
-      if (!(original >= 0)) return json({ ok: false, version: VERSION, error: 'original_amount must be 0 or greater' }, 400);
+      if (!Number.isFinite(original) || original < 0) {
+        return json({ ok: false, version: VERSION, error: 'original_amount must be 0 or greater' }, 400);
+      }
       updates.push('original_amount = ?');
       values.push(original);
     }
 
-    if (body.paid_amount !== undefined) {
+    if (Object.prototype.hasOwnProperty.call(body, 'paid_amount')) {
       const paid = Number(body.paid_amount);
-      if (!(paid >= 0)) return json({ ok: false, version: VERSION, error: 'paid_amount must be 0 or greater' }, 400);
+      if (!Number.isFinite(paid) || paid < 0) {
+        return json({ ok: false, version: VERSION, error: 'paid_amount must be 0 or greater' }, 400);
+      }
       updates.push('paid_amount = ?');
       values.push(paid);
     }
 
-    if (body.snowball_order !== undefined) {
+    if (Object.prototype.hasOwnProperty.call(body, 'snowball_order')) {
       const order = body.snowball_order === '' || body.snowball_order == null ? null : Number(body.snowball_order);
       updates.push('snowball_order = ?');
-      values.push(order);
+      values.push(Number.isFinite(order) ? order : null);
     }
 
-    if (body.due_date !== undefined) {
+    if (Object.prototype.hasOwnProperty.call(body, 'due_date')) {
       updates.push('due_date = ?');
-      values.push(body.due_date || null);
+      values.push(body.due_date ? safeText(body.due_date, '', 20) : null);
     }
 
-    if (body.notes !== undefined) {
+    if (Object.prototype.hasOwnProperty.call(body, 'notes')) {
       updates.push('notes = ?');
-      values.push(String(body.notes || '').slice(0, 500));
+      values.push(safeText(body.notes, '', 500));
     }
 
-    if (body.status !== undefined) {
-      const status = String(body.status || 'active').trim().toLowerCase();
+    if (Object.prototype.hasOwnProperty.call(body, 'status')) {
+      const status = safeText(body.status, 'active', 20).toLowerCase();
       if (!['active', 'cancelled', 'closed'].includes(status)) {
         return json({ ok: false, version: VERSION, error: 'Invalid status' }, 400);
       }
@@ -158,7 +171,7 @@ export async function onRequestPut(context) {
       values.push(status);
     }
 
-    if (updates.length === 0) {
+    if (!updates.length) {
       return json({ ok: false, version: VERSION, error: 'Nothing to update' }, 400);
     }
 
@@ -169,7 +182,9 @@ export async function onRequestPut(context) {
     ).bind(...values).run();
 
     const after = await db.prepare(
-      `SELECT * FROM debts WHERE id = ?`
+      `SELECT id, name, kind, original_amount, paid_amount, snowball_order, due_date, status, notes, created_at
+       FROM debts
+       WHERE id = ?`
     ).bind(id).first();
 
     const auditResult = await safeAudit(context.env, {
@@ -178,12 +193,11 @@ export async function onRequestPut(context) {
       entity_id: id,
       kind: 'mutation',
       detail: {
-        snapshot_id: snap.snapshot_id || null,
         before: normalizeDebt(before),
         after: normalizeDebt(after),
         updated_fields: updates.map(x => x.split(' = ')[0])
       },
-      created_by: body.created_by || 'web-debts-edit'
+      created_by: createdBy
     });
 
     return json({
@@ -191,7 +205,6 @@ export async function onRequestPut(context) {
       version: VERSION,
       id,
       debt: normalizeDebt(after),
-      snapshot_id: snap.snapshot_id || null,
       audited: auditResult.ok,
       audit_error: auditResult.error || null
     });
@@ -203,7 +216,7 @@ export async function onRequestPut(context) {
 export async function onRequestDelete(context) {
   try {
     const db = context.env.DB;
-    const path = context.params.path || [];
+    const path = getPath(context);
 
     if (path.length !== 1) {
       return json({ ok: false, version: VERSION, error: 'Path requires debt id' }, 400);
@@ -211,16 +224,17 @@ export async function onRequestDelete(context) {
 
     const id = path[0];
     const url = new URL(context.request.url);
-    const createdBy = url.searchParams.get('created_by') || 'web-debts-cancel';
+    const createdBy = safeText(url.searchParams.get('created_by'), 'web-debts-cancel', 80);
 
     const before = await db.prepare(
-      `SELECT * FROM debts WHERE id = ?`
+      `SELECT id, name, kind, original_amount, paid_amount, snowball_order, due_date, status, notes, created_at
+       FROM debts
+       WHERE id = ?`
     ).bind(id).first();
 
-    if (!before) return json({ ok: false, version: VERSION, error: 'Debt not found' }, 404);
-
-    const snap = await safeSnapshot(context.env, 'pre-debt-cancel-' + id + '-' + Date.now(), createdBy);
-    if (!snap.ok) return json({ ok: false, version: VERSION, error: 'Snapshot failed: ' + snap.error }, 500);
+    if (!before) {
+      return json({ ok: false, version: VERSION, error: 'Debt not found' }, 404);
+    }
 
     await db.prepare(
       `UPDATE debts SET status = 'cancelled' WHERE id = ?`
@@ -232,7 +246,6 @@ export async function onRequestDelete(context) {
       entity_id: id,
       kind: 'mutation',
       detail: {
-        snapshot_id: snap.snapshot_id || null,
         before: normalizeDebt(before),
         soft_cancel: true
       },
@@ -245,7 +258,6 @@ export async function onRequestDelete(context) {
       id,
       status: 'cancelled',
       soft_cancel: true,
-      snapshot_id: snap.snapshot_id || null,
       audited: auditResult.ok,
       audit_error: auditResult.error || null
     });
@@ -258,17 +270,20 @@ async function createDebt(context) {
   const db = context.env.DB;
   const body = await readJSON(context.request);
 
-  const name = String(body.name || '').trim();
+  const name = safeText(body.name, '', 80);
   const kind = normalizeKind(body.kind || 'owe');
   const original = Number(body.original_amount);
   const paid = Number(body.paid_amount || 0);
+  const id = body.id ? safeText(body.id, '', 120) : ('debt_' + uuid());
 
   if (!name) return json({ ok: false, version: VERSION, error: 'name required' }, 400);
   if (!kind) return json({ ok: false, version: VERSION, error: 'kind must be owe or owed' }, 400);
-  if (!(original > 0)) return json({ ok: false, version: VERSION, error: 'original_amount must be greater than 0' }, 400);
-  if (!(paid >= 0)) return json({ ok: false, version: VERSION, error: 'paid_amount must be 0 or greater' }, 400);
-
-  const id = body.id || ('debt_' + uuid());
+  if (!Number.isFinite(original) || original <= 0) {
+    return json({ ok: false, version: VERSION, error: 'original_amount must be greater than 0' }, 400);
+  }
+  if (!Number.isFinite(paid) || paid < 0) {
+    return json({ ok: false, version: VERSION, error: 'paid_amount must be 0 or greater' }, 400);
+  }
 
   await db.prepare(
     `INSERT INTO debts
@@ -281,8 +296,8 @@ async function createDebt(context) {
     original,
     paid,
     body.snowball_order == null || body.snowball_order === '' ? null : Number(body.snowball_order),
-    body.due_date || null,
-    String(body.notes || '').slice(0, 500)
+    body.due_date ? safeText(body.due_date, '', 20) : null,
+    safeText(body.notes, '', 500)
   ).run();
 
   const auditResult = await safeAudit(context.env, {
@@ -297,7 +312,7 @@ async function createDebt(context) {
       original_amount: original,
       paid_amount: paid
     },
-    created_by: body.created_by || 'web-debts'
+    created_by: safeText(body.created_by, 'web-debts', 80)
   });
 
   return json({
@@ -314,22 +329,29 @@ async function payDebt(context, debtId) {
   const body = await readJSON(context.request);
 
   const debt = await db.prepare(
-    `SELECT * FROM debts WHERE id = ? AND ${ACTIVE_CONDITION}`
+    `SELECT id, name, kind, original_amount, paid_amount, snowball_order, due_date, status, notes, created_at
+     FROM debts
+     WHERE id = ?
+       AND ${ACTIVE_CONDITION}`
   ).bind(debtId).first();
 
-  if (!debt) return json({ ok: false, version: VERSION, error: 'Debt not found' }, 404);
+  if (!debt) {
+    return json({ ok: false, version: VERSION, error: 'Debt not found' }, 404);
+  }
 
   const amount = Number(body.amount);
-  const accountId = body.account_id;
-  const date = body.date || new Date().toISOString().slice(0, 10);
-  const notes = String(body.notes || ('Debt payment: ' + debt.name)).slice(0, 200);
-  const createdBy = body.created_by || 'web-debts-pay';
+  const accountId = safeText(body.account_id, '', 80);
+  const date = safeText(body.date, new Date().toISOString().slice(0, 10), 20);
+  const notes = safeText(body.notes, 'Debt payment: ' + debt.name, 200);
+  const createdBy = safeText(body.created_by, 'web-debts-pay', 80);
 
-  if (!(amount > 0)) return json({ ok: false, version: VERSION, error: 'amount must be greater than 0' }, 400);
-  if (!accountId) return json({ ok: false, version: VERSION, error: 'account_id required' }, 400);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return json({ ok: false, version: VERSION, error: 'amount must be greater than 0' }, 400);
+  }
 
-  const snap = await safeSnapshot(context.env, 'pre-debt-pay-' + debtId + '-' + Date.now(), createdBy);
-  if (!snap.ok) return json({ ok: false, version: VERSION, error: 'Snapshot failed: ' + snap.error }, 500);
+  if (!accountId) {
+    return json({ ok: false, version: VERSION, error: 'account_id required' }, 400);
+  }
 
   const txnId = 'TXN-' + uuid();
   const txnType = normalizeKind(debt.kind) === 'owed' ? 'income' : 'expense';
@@ -353,7 +375,6 @@ async function payDebt(context, debtId) {
     entity_id: debtId,
     kind: 'mutation',
     detail: {
-      snapshot_id: snap.snapshot_id || null,
       txn_id: txnId,
       debt_id: debtId,
       debt_kind: normalizeKind(debt.kind),
@@ -371,19 +392,30 @@ async function payDebt(context, debtId) {
     txn_id: txnId,
     amount,
     new_paid_amount: newPaid,
-    snapshot_id: snap.snapshot_id || null,
     audited: auditResult.ok,
     audit_error: auditResult.error || null
   });
 }
 
+function getPath(context) {
+  const raw = context.params && context.params.path;
+
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.filter(Boolean).map(String);
+
+  return String(raw).split('/').filter(Boolean);
+}
+
 function normalizeDebt(row) {
+  const original = Number(row.original_amount) || 0;
+  const paid = Number(row.paid_amount) || 0;
+
   return {
     ...row,
     kind: normalizeKind(row.kind) || 'owe',
-    original_amount: Number(row.original_amount) || 0,
-    paid_amount: Number(row.paid_amount) || 0,
-    remaining_amount: Math.max(0, (Number(row.original_amount) || 0) - (Number(row.paid_amount) || 0))
+    original_amount: original,
+    paid_amount: paid,
+    remaining_amount: Math.max(0, original - paid)
   };
 }
 
@@ -400,6 +432,11 @@ function sumRemaining(rows) {
   return rows.reduce((sum, debt) => sum + Math.max(0, (Number(debt.original_amount) || 0) - (Number(debt.paid_amount) || 0)), 0);
 }
 
+function safeText(value, fallback, maxLen) {
+  const raw = value == null ? fallback : value;
+  return String(raw == null ? '' : raw).trim().slice(0, maxLen || 500);
+}
+
 function round2(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
@@ -412,32 +449,20 @@ async function readJSON(request) {
   }
 }
 
-async function safeSnapshot(env, label, createdBy) {
-  try {
-    const result = await snapshot(env, label, createdBy);
-
-    return {
-      ok: !!(result && result.ok),
-      snapshot_id: result && result.snapshot_id ? result.snapshot_id : null,
-      error: result && result.error ? result.error : null
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      snapshot_id: null,
-      error: err.message
-    };
-  }
-}
-
 async function safeAudit(env, event) {
   try {
-    const payload = {
-      ...event,
-      detail: typeof event.detail === 'string' ? event.detail : JSON.stringify(event.detail || {})
-    };
+    const detail = typeof event.detail === 'string'
+      ? event.detail
+      : JSON.stringify(event.detail || {});
 
-    const result = await audit(env, payload);
+    const result = await audit(env, {
+      action: safeText(event.action, 'UNKNOWN', 80),
+      entity: safeText(event.entity, 'unknown', 80),
+      entity_id: safeText(event.entity_id, '', 160),
+      kind: safeText(event.kind, 'event', 40),
+      detail,
+      created_by: safeText(event.created_by, 'system', 80)
+    });
 
     return {
       ok: !!(result && result.ok),
