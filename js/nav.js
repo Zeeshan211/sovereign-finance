@@ -1,12 +1,17 @@
-/* ─── Sovereign Finance · nav.js v1.0.3 · Layer 5B ATM integration ─── */
+/* ─── Sovereign Finance · nav.js v1.0.4 · Layer 5D mobile bottom nav guard ─── */
 /*
  * Purpose:
  *   One navigation source for the whole app.
  *
- * Layer 5B fixes:
- *   - ATM is now a real module and is globally visible in desktop/sidebar navigation.
+ * Layer 5B:
+ *   - ATM is a real module and globally visible in desktop/sidebar navigation.
  *   - Bottom nav remains focused on daily core tools:
  *       Hub, Add, Transactions, Bills, CC
+ *
+ * Layer 5D v1.0.4:
+ *   - Bottom nav is forced fixed at the bottom on mobile.
+ *   - Body gets mobile safe-area padding so content is not hidden behind nav.
+ *   - Guard is injected by nav.js so pages with stale CSS still behave correctly.
  *   - No ledger/API writes.
  *
  * Contract:
@@ -18,7 +23,8 @@
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.3';
+  const VERSION = 'v1.0.4';
+  const STYLE_ID = 'sov-nav-mobile-guard';
 
   const NAV_ITEMS = [
     { key: 'hub', label: 'Hub', short: 'Hub', href: '/', aliases: ['/index.html'], emoji: '🏠' },
@@ -92,6 +98,97 @@
     `;
   }
 
+  function injectMobileBottomNavGuard() {
+    const existing = document.getElementById(STYLE_ID);
+    if (existing) existing.remove();
+
+    const style = document.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = `
+      @media (max-width: 860px) {
+        html {
+          min-height: 100%;
+        }
+
+        body {
+          min-height: 100%;
+          padding-bottom: calc(86px + env(safe-area-inset-bottom)) !important;
+        }
+
+        .bottom-nav {
+          position: fixed !important;
+          left: 0 !important;
+          right: 0 !important;
+          bottom: 0 !important;
+          z-index: 2400 !important;
+          display: block !important;
+          width: 100% !important;
+          padding: 8px 10px calc(8px + env(safe-area-inset-bottom)) !important;
+          margin: 0 !important;
+          background: rgba(255, 255, 255, 0.94) !important;
+          border-top: 1px solid rgba(148, 163, 184, 0.35) !important;
+          box-shadow: 0 -14px 32px rgba(15, 23, 42, 0.14) !important;
+          backdrop-filter: blur(16px) !important;
+          -webkit-backdrop-filter: blur(16px) !important;
+        }
+
+        .bottom-nav-inner {
+          display: grid !important;
+          grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+          gap: 6px !important;
+          width: min(560px, 100%) !important;
+          margin: 0 auto !important;
+          padding: 0 !important;
+        }
+
+        .bottom-nav .nav-item {
+          min-width: 0 !important;
+          min-height: 52px !important;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          justify-content: center !important;
+          gap: 3px !important;
+          border-radius: 16px !important;
+          color: var(--text-muted, #64748b) !important;
+          text-decoration: none !important;
+          font-size: 11px !important;
+          font-weight: 900 !important;
+          line-height: 1.05 !important;
+          -webkit-tap-highlight-color: transparent !important;
+        }
+
+        .bottom-nav .nav-item.active {
+          color: var(--accent-deep, #047857) !important;
+          background: var(--accent-soft, rgba(16, 185, 129, 0.12)) !important;
+        }
+
+        .bottom-nav .nav-emoji {
+          display: block !important;
+          font-size: 18px !important;
+          line-height: 1 !important;
+          height: 20px !important;
+        }
+
+        .bottom-nav .nav-text {
+          display: block !important;
+          max-width: 100% !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+        }
+      }
+
+      @media (min-width: 861px) {
+        .bottom-nav {
+          display: none !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
   function replaceDesktopNav(path) {
     document.querySelectorAll('.desktop-nav').forEach(node => node.remove());
 
@@ -133,6 +230,7 @@
   function initNav() {
     const path = currentPath();
 
+    injectMobileBottomNavGuard();
     replaceDesktopNav(path);
     replaceBottomNav(path);
     setHeaderTitle(path);
@@ -142,7 +240,8 @@
       version: VERSION,
       items: NAV_ITEMS.slice(),
       bottomKeys: BOTTOM_KEYS.slice(),
-      activePath: path
+      activePath: path,
+      mobileGuard: STYLE_ID
     };
 
     console.log('[nav ' + VERSION + '] loaded', path);
