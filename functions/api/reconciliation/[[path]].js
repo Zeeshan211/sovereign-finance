@@ -1,4 +1,4 @@
-/*  Sovereign Finance  /api/reconciliation/[[path]]  v0.2.0  Truth Mode Summary  */
+/*  Sovereign Finance  /api/reconciliation/[[path]]  v0.2.1  Reversal-safe Truth Mode  */
 /*
  * Routes:
  *   GET    /api/reconciliation
@@ -10,16 +10,21 @@
  *   - GET is read-only.
  *   - Reconciliation compares app balance vs declared real-world balance.
  *   - Balance computation supports current transaction types:
- *       income, salary, borrow, debt_in, expense, repay, cc_spend,
- *       atm, debt_out, transfer, cc_payment, fees, PRA, transfer target.
+ *       income, salary, borrow, debt_in, opening,
+ *       expense, repay, cc_spend, atm, debt_out,
+ *       transfer, cc_payment, fee_amount, pra_amount, transfer target.
+ *   - Reversal-safe balance math:
+ *       exclude rows with reversed_by
+ *       exclude rows with reversed_at
+ *       exclude rows with notes containing [REVERSAL OF
+ *       exclude rows with notes containing [REVERSED BY
  *   - POST declaration does not mutate ledger transactions.
  *   - Existing account declarations update the same reconciliation row.
- *   - Snapshot failure blocks update only when snapshot is attempted and fails.
  */
 
 import { json, audit, snapshot, uuid } from '../_lib.js';
 
-const VERSION = 'v0.2.0';
+const VERSION = 'v0.2.1';
 const DRIFT_THRESHOLD = 1;
 const STALE_DAYS = 7;
 
@@ -28,7 +33,6 @@ const TYPE_MINUS = new Set(['expense', 'repay', 'cc_spend', 'atm', 'debt_out']);
 
 export async function onRequest(context) {
   const { request, env, params } = context;
-  const db = env.DB;
   const path = getPath(params);
   const method = request.method;
 
@@ -82,9 +86,7 @@ async function handleList(env) {
     ).all(),
     db.prepare(
       `SELECT *
-       FROM transactions
-       WHERE (reversed_by IS NULL OR reversed_by = '')
-         AND (reversed_at IS NULL OR reversed_at = '')`
+       FROM transactions`
     ).all()
   ]);
 
@@ -146,9 +148,8 @@ async function handleAccountHistory(env, accountId) {
     db.prepare(
       `SELECT *
        FROM transactions
-       WHERE (account_id = ? OR transfer_to_account_id = ?)
-         AND (reversed_by IS NULL OR reversed_by = '')
-         AND (reversed_at IS NULL OR reversed_at = '')`
+       WHERE account_id = ?
+          OR transfer_to_account_id = ?`
     ).bind(accountId, accountId).all(),
     db.prepare(
       `SELECT *
@@ -205,9 +206,8 @@ async function handleCreateOrUpdate(env, request) {
   const txnsRes = await db.prepare(
     `SELECT *
      FROM transactions
-     WHERE (account_id = ? OR transfer_to_account_id = ?)
-       AND (reversed_by IS NULL OR reversed_by = '')
-       AND (reversed_at IS NULL OR reversed_at = '')`
+     WHERE account_id = ?
+        OR transfer_to_account_id = ?`
   ).bind(accountId, accountId).all();
 
   const appBalance = computeSingleBalance(account, txnsRes.results || []);
@@ -427,7 +427,7 @@ function computeSingleBalance(account, transactions) {
 }
 
 function applyTransactionToBalances(balances, activeIds, txn) {
-  if (!txn) return;
+  if (!txn || isReversalRelated(txn)) return;
 
   const type = text(txn.type).toLowerCase();
   const amount = number(txn.amount);
@@ -462,6 +462,20 @@ function applyTransactionToBalances(balances, activeIds, txn) {
     balances[origin] -= fee;
     balances[origin] -= pra;
   }
+}
+
+function isReversalRelated(txn) {
+  if (!txn) return false;
+
+  if (txn.reversed_by != null && text(txn.reversed_by)) return true;
+  if (txn.reversed_at != null && text(txn.reversed_at)) return true;
+
+  const notes = text(txn.notes).toUpperCase();
+
+  if (notes.includes('[REVERSAL OF ')) return true;
+  if (notes.includes('[REVERSED BY ')) return true;
+
+  return false;
 }
 
 function latestDeclarationsByAccount(rows) {
