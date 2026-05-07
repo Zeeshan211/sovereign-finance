@@ -37,7 +37,7 @@
 }
 .recon-copy {
   margin-top: 12px;
-  max-width: 780px;
+  max-width: 800px;
   color: var(--text-muted);
   font-size: 15px;
   line-height: 1.55;
@@ -173,6 +173,37 @@
 .truth-value.good { color: var(--accent-deep); }
 .truth-value.bad { color: var(--danger); }
 .truth-value.warn { color: var(--warn); }
+.truth-explain {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.45;
+}
+.truth-explain.matched {
+  border-color: rgba(34,197,94,.24);
+  background: rgba(34,197,94,.09);
+  color: var(--accent-deep);
+}
+.truth-explain.drifted {
+  border-color: rgba(220,38,38,.24);
+  background: rgba(220,38,38,.08);
+  color: var(--danger);
+}
+.truth-explain.stale {
+  border-color: rgba(245,158,11,.24);
+  background: rgba(245,158,11,.10);
+  color: var(--warn);
+}
+.truth-explain.undeclared {
+  border-color: rgba(100,116,139,.22);
+  background: rgba(100,116,139,.08);
+  color: var(--text-muted);
+}
 .truth-card-actions {
   display: flex;
   flex-wrap: wrap;
@@ -291,7 +322,7 @@
 <div class="recon-kicker">Truth Mode</div>
 <h1 class="recon-heading">Reconciliation</h1>
 <p class="recon-copy">
-Compare app balances against real declared balances. Declare the real bank/cash balance when you check the account app. This is metadata only and does not create a transaction.
+Compare app balances against real declared balances at the correct cutoff. If transactions happened after the last declaration, the account becomes stale, not drifted. Declare again to verify current truth.
 </p>
 <div class="recon-actions">
 <button id="refreshBtn" class="recon-btn primary" type="button">Refresh Truth</button>
@@ -325,7 +356,7 @@ Compare app balances against real declared balances. Declare the real bank/cash 
 </section>
 
 <footer class="page-footer">
-<span class="v">v0.4.1 · Declare Balance flow · api v0.2.1 · nav v1.0.16 · theme v0.7.2</span>
+<span class="v">v0.4.2 · Stale vs Drift explanation · api v0.2.2 · nav v1.0.16 · theme v0.7.2</span>
 </footer>
 </main>
 
@@ -419,9 +450,32 @@ function declaredText(row) {
   return row.last_declared_at || row.declared_at || 'Declared';
 }
 
+function simpleDate(value) {
+  if (!value) return 'None';
+  return String(value).slice(0, 10);
+}
+
+function truthExplanation(row) {
+  if (row.truth_explanation) return row.truth_explanation;
+
+  const status = String(row.truth_status || 'undeclared').toLowerCase();
+  const count = Number(row.transactions_after_declaration_count || 0);
+
+  if (status === 'undeclared') return 'No real-world balance has been declared yet.';
+  if (status === 'stale') {
+    if (count > 0) return count + ' ledger transaction(s) happened after the last declaration. Declare again to verify current truth.';
+    return 'The declaration is old. Declare again to verify current truth.';
+  }
+  if (status === 'drifted') return 'Declared real balance and app balance differ at the same cutoff.';
+  if (status === 'matched') return 'Declared real balance matches app balance at the current cutoff.';
+  return 'Truth status loaded.';
+}
+
 function card(row) {
   const status = String(row.truth_status || 'undeclared').toLowerCase();
   const drift = row.drift_amount;
+  const txAfter = Number(row.transactions_after_declaration_count || 0);
+  const explanation = truthExplanation(row);
 
   return `
 <article class="truth-card ${esc(status)}">
@@ -451,14 +505,16 @@ function card(row) {
       <div class="truth-value">${esc(declaredText(row))}</div>
     </div>
     <div class="truth-pill">
-      <div class="truth-label">Declared By</div>
-      <div class="truth-value">${esc(row.declared_by || 'N/A')}</div>
+      <div class="truth-label">Latest Transaction</div>
+      <div class="truth-value">${esc(simpleDate(row.latest_transaction_date))}</div>
     </div>
     <div class="truth-pill">
-      <div class="truth-label">Status</div>
-      <div class="truth-value ${driftClass(drift, status)}">${esc(statusLabel(status))}</div>
+      <div class="truth-label">Txns After Declaration</div>
+      <div class="truth-value ${txAfter > 0 ? 'warn' : 'good'}">${esc(String(txAfter))}</div>
     </div>
   </div>
+
+  <div class="truth-explain ${esc(status)}">${esc(explanation)}</div>
 
   <div class="truth-card-actions">
     <button class="truth-action-btn" type="button" data-declare="${esc(row.account_id)}">Declare Balance</button>
