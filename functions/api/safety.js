@@ -1,4 +1,4 @@
-/*  Sovereign Finance  /api/safety  v0.1.1  Credit Card Due Engine wiring  */
+/*  Sovereign Finance  /api/safety  v0.1.2  Debt Schedule Safety wiring  */
 /*
  * Purpose:
  * - Answer: Am I safe, why or why not, what changed, and what action protects me now?
@@ -13,18 +13,23 @@
  * - Missing optional tables become warnings, not crashes.
  *
  * v0.1.1:
- * - Credit Card safety now uses statement day, 55-day interest-free period,
+ * - Credit Card safety uses statement day, 55-day interest-free period,
  *   payment due date, due status, and minimum-payment fields.
+ *
+ * v0.1.2:
+ * - Debt safety uses due_date / due_day / installment_amount / frequency / last_paid_date.
+ * - Distinguishes debts I owe from receivables owed to me.
  */
 
 import { json } from './_lib.js';
 
-const VERSION = 'v0.1.1';
+const VERSION = 'v0.1.2';
 
 const LOW_LIQUID_UNSAFE = 5000;
 const LOW_LIQUID_WATCH = 10000;
 
 const BILL_DUE_WATCH_DAYS = 3;
+const DEBT_DUE_WATCH_DAYS = 3;
 
 const DEFAULT_CC_STATEMENT_DAY = 12;
 const DEFAULT_CC_INTEREST_FREE_DAYS = 55;
@@ -117,6 +122,7 @@ export async function onRequest(context) {
         low_liquid_watch: LOW_LIQUID_WATCH,
         low_liquid_unsafe: LOW_LIQUID_UNSAFE,
         bill_due_watch_days: BILL_DUE_WATCH_DAYS,
+        debt_due_watch_days: DEBT_DUE_WATCH_DAYS,
         cc_statement_day_default: DEFAULT_CC_STATEMENT_DAY,
         cc_interest_free_days_default: DEFAULT_CC_INTEREST_FREE_DAYS,
         cc_due_watch_days: CC_DUE_WATCH_DAYS,
@@ -277,7 +283,7 @@ function computeBalanceSummary(accounts, accountBalances, debts) {
   for (const debt of debts) {
     const kind = normalizeDebtKind(debt.kind);
     if (kind !== 'owed') {
-      totalOwed += Math.max(0, number(debt.original_amount) - number(debt.paid_amount));
+      totalOwed += remainingDebtAmount(debt);
     }
   }
 
@@ -396,63 +402,190 @@ function evaluateBills(reasons, actions, bills, now) {
 
 function evaluateDebts(reasons, actions, debts, now) {
   for (const debt of debts) {
-    const remaining = Math.max(0, number(debt.original_amount) - number(debt.paid_amount));
+    const remaining = remainingDebtAmount(debt);
     if (remaining <= 0) continue;
 
-    const due = debtDueDate(debt, now);
-    if (!due) continue;
+    const kind = normalizeDebtKind(debt.kind);
+    const schedule = computeDebtSchedule(debt, now);
 
-    const days = daysBetween(startOfDay(now), due);
-
-    if (days < 0) {
+    if (schedule.schedule_missing) {
       pushReason(reasons, {
-        code: 'DEBT_OVERDUE',
-        severity: 'unsafe',
-        title: `${safeName(debt.name, 'Debt')} installment is overdue`,
-        detail: `${safeName(debt.name, 'Debt')} is overdue by ${Math.abs(days)} day(s).`,
-        next_risk_date: dateOnly(due),
+        code: 'DEBT_SCHEDULE_MISSING',
+        severity: 'watch',
+        title: `${safeName(debt.name, 'Debt')} has no due schedule`,
+        detail: `${safeName(debt.name, 'Debt')} needs due_date or due_day for safety forecasting.`,
         evidence: {
           debt_id: debt.id || null,
           debt_name: debt.name || null,
+          kind,
           remaining_amount: round2(remaining),
-          due_date: dateOnly(due),
-          days_overdue: Math.abs(days)
+          missing_fields: ['due_date', 'due_day']
         }
       });
       pushAction(actions, {
-        reason_code: 'DEBT_OVERDUE',
-        label: `Review overdue debt: ${safeName(debt.name, 'debt')}`,
+        reason_code: 'DEBT_SCHEDULE_MISSING',
+        label: `Add due schedule for ${safeName(debt.name, 'debt')}`,
         module: 'debts',
         href: '/debts.html',
-        priority: 1
+        priority: 2
       });
       continue;
     }
 
-    if (days <= BILL_DUE_WATCH_DAYS) {
+    const dueLabel = kind === 'owed' ? 'receivable' : 'debt';
+    const titleName = safeName(debt.name, kind === 'owed' ? 'Receivable' : 'Debt');
+    const evidence = {
+      debt_id: debt.id || null,
+      debt_name: debt.name || null,
+      kind,
+      remaining_amount: round2(remaining),
+      installment_amount: nullableRound2(debt.installment_amount),
+      due_date: normalizeDate(debt.due_date),
+      due_day: normalizeDueDay(debt.due_day),
+      next_due_date: schedule.next_due_date,
+      days_until_due: schedule.days_until_due,
+      days_overdue: schedule.days_overdue,
+      due_status: schedule.due_status,
+      frequency: text(debt.frequency || 'monthly'),
+      last_paid_date: normalizeDate(debt.last_paid_date)
+    };
+
+    if (schedule.due_status === 'overdue') {
       pushReason(reasons, {
-        code: 'DEBT_DUE_SOON',
-        severity: 'watch',
-        title: `${safeName(debt.name, 'Debt')} installment is due soon`,
-        detail: `${safeName(debt.name, 'Debt')} is due in ${days} day(s).`,
-        next_risk_date: dateOnly(due),
-        evidence: {
-          debt_id: debt.id || null,
-          debt_name: debt.name || null,
-          remaining_amount: round2(remaining),
-          due_date: dateOnly(due),
-          days_until_due: days
-        }
+        code: kind === 'owed' ? 'RECEIVABLE_OVERDUE' : 'DEBT_OVERDUE',
+        severity: kind === 'owed' ? 'watch' : 'unsafe',
+        title: `${titleName} ${dueLabel} is overdue`,
+        detail: `${titleName} is overdue by ${schedule.days_overdue} day(s). Remaining ${money(remaining)}.`,
+        next_risk_date: schedule.next_due_date,
+        evidence
       });
       pushAction(actions, {
-        reason_code: 'DEBT_DUE_SOON',
-        label: `Plan installment for ${safeName(debt.name, 'debt')}`,
+        reason_code: kind === 'owed' ? 'RECEIVABLE_OVERDUE' : 'DEBT_OVERDUE',
+        label: kind === 'owed'
+          ? `Follow up on ${safeName(debt.name, 'receivable')}`
+          : `Review overdue payment for ${safeName(debt.name, 'debt')}`,
+        module: 'debts',
+        href: '/debts.html',
+        priority: kind === 'owed' ? 2 : 1
+      });
+      continue;
+    }
+
+    if (schedule.due_status === 'due_today') {
+      pushReason(reasons, {
+        code: kind === 'owed' ? 'RECEIVABLE_DUE_TODAY' : 'DEBT_DUE_TODAY',
+        severity: kind === 'owed' ? 'watch' : 'unsafe',
+        title: `${titleName} ${dueLabel} is due today`,
+        detail: `${titleName} is due today. Remaining ${money(remaining)}.`,
+        next_risk_date: schedule.next_due_date,
+        evidence
+      });
+      pushAction(actions, {
+        reason_code: kind === 'owed' ? 'RECEIVABLE_DUE_TODAY' : 'DEBT_DUE_TODAY',
+        label: kind === 'owed'
+          ? `Check expected receipt from ${safeName(debt.name, 'receivable')}`
+          : `Prepare payment for ${safeName(debt.name, 'debt')}`,
+        module: 'debts',
+        href: '/debts.html',
+        priority: kind === 'owed' ? 2 : 1
+      });
+      continue;
+    }
+
+    if (schedule.due_status === 'due_soon') {
+      pushReason(reasons, {
+        code: kind === 'owed' ? 'RECEIVABLE_DUE_SOON' : 'DEBT_DUE_SOON',
+        severity: 'watch',
+        title: `${titleName} ${dueLabel} is due soon`,
+        detail: `${titleName} is due in ${schedule.days_until_due} day(s). Remaining ${money(remaining)}.`,
+        next_risk_date: schedule.next_due_date,
+        evidence
+      });
+      pushAction(actions, {
+        reason_code: kind === 'owed' ? 'RECEIVABLE_DUE_SOON' : 'DEBT_DUE_SOON',
+        label: kind === 'owed'
+          ? `Track expected receipt from ${safeName(debt.name, 'receivable')}`
+          : `Plan payment for ${safeName(debt.name, 'debt')}`,
         module: 'debts',
         href: '/debts.html',
         priority: 2
       });
     }
   }
+}
+
+function computeDebtSchedule(debt, now) {
+  const remaining = remainingDebtAmount(debt);
+  if (remaining <= 0) {
+    return {
+      next_due_date: null,
+      days_until_due: null,
+      days_overdue: null,
+      due_status: 'paid_off',
+      schedule_missing: false
+    };
+  }
+
+  let due = null;
+  const dueDate = normalizeDate(debt.due_date);
+  const dueDay = normalizeDueDay(debt.due_day);
+
+  if (dueDate) {
+    due = parseDate(dueDate);
+  } else if (dueDay != null) {
+    due = nextDueFromDay(dueDay, normalizeDate(debt.last_paid_date), now);
+  }
+
+  if (!due) {
+    return {
+      next_due_date: null,
+      days_until_due: null,
+      days_overdue: null,
+      due_status: 'no_schedule',
+      schedule_missing: true
+    };
+  }
+
+  const today = startOfDay(now);
+  const days = daysBetween(today, due);
+
+  if (days < 0) {
+    return {
+      next_due_date: dateOnly(due),
+      days_until_due: 0,
+      days_overdue: Math.abs(days),
+      due_status: 'overdue',
+      schedule_missing: false
+    };
+  }
+
+  if (days === 0) {
+    return {
+      next_due_date: dateOnly(due),
+      days_until_due: 0,
+      days_overdue: 0,
+      due_status: 'due_today',
+      schedule_missing: false
+    };
+  }
+
+  if (days <= DEBT_DUE_WATCH_DAYS) {
+    return {
+      next_due_date: dateOnly(due),
+      days_until_due: days,
+      days_overdue: 0,
+      due_status: 'due_soon',
+      schedule_missing: false
+    };
+  }
+
+  return {
+    next_due_date: dateOnly(due),
+    days_until_due: days,
+    days_overdue: 0,
+    due_status: 'scheduled',
+    schedule_missing: false
+  };
 }
 
 function evaluateCreditCards(reasons, actions, accounts, accountBalances, now) {
@@ -813,25 +946,27 @@ function evaluateMissingTruth(reasons, actions, accounts, bills, debts) {
     });
   }
 
-  const debtsWithoutDue = debts.filter(debt => {
-    const remaining = Math.max(0, number(debt.original_amount) - number(debt.paid_amount));
-    return remaining > 0 && !text(debt.due_date) && !text(debt.due_day);
+  const unscheduledActiveDebts = debts.filter(debt => {
+    const remaining = remainingDebtAmount(debt);
+    if (remaining <= 0) return false;
+    return computeDebtSchedule(debt, new Date()).schedule_missing;
   });
 
-  if (debtsWithoutDue.length) {
+  if (unscheduledActiveDebts.length) {
     pushReason(reasons, {
-      code: 'MISSING_REQUIRED_DATA',
+      code: 'DEBT_SCHEDULE_MISSING',
       severity: 'watch',
-      title: 'Some debts have no due schedule',
-      detail: `${debtsWithoutDue.length} active debt(s) need due_date or due_day for safety forecasting.`,
+      title: 'Some debts still have no due schedule',
+      detail: `${unscheduledActiveDebts.length} active debt(s) need due_date or due_day for safety forecasting.`,
       evidence: {
-        count: debtsWithoutDue.length,
-        missing_field: 'due_date'
+        count: unscheduledActiveDebts.length,
+        missing_field: 'due_date_or_due_day',
+        debt_ids: unscheduledActiveDebts.map(debt => debt.id).filter(Boolean)
       }
     });
     pushAction(actions, {
-      reason_code: 'MISSING_REQUIRED_DATA',
-      label: 'Add debt due dates',
+      reason_code: 'DEBT_SCHEDULE_MISSING',
+      label: 'Add remaining debt due schedules',
       module: 'debts',
       href: '/debts.html',
       priority: 2
@@ -856,11 +991,6 @@ function latestReconByAccount(rows) {
 function billDueDate(bill, now) {
   if (bill.due_date) return parseDate(bill.due_date);
   return dayOfMonthDate(bill.due_day, now);
-}
-
-function debtDueDate(debt, now) {
-  if (debt.due_date) return parseDate(debt.due_date);
-  return dayOfMonthDate(debt.due_day, now);
 }
 
 function dayOfMonthDate(dayRaw, now) {
@@ -895,6 +1025,19 @@ function nextDayOfMonth(day, now) {
   let candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth(), day);
 
   if (candidate <= today) {
+    candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
+  }
+
+  return candidate;
+}
+
+function nextDueFromDay(day, lastPaidDate, now) {
+  const today = startOfDay(now);
+  let candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth(), day);
+
+  if (lastPaidDate && lastPaidDate.slice(0, 7) === today.toISOString().slice(0, 7)) {
+    candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
+  } else if (candidate < today) {
     candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
   }
 
@@ -1029,6 +1172,10 @@ function severityRank(severity) {
   return 3;
 }
 
+function remainingDebtAmount(debt) {
+  return Math.max(0, number(debt.original_amount) - number(debt.paid_amount));
+}
+
 function normalizeDebtKind(kind) {
   const val = text(kind).toLowerCase();
   if (['owed', 'owed_me', 'receivable', 'to_me'].includes(val)) return 'owed';
@@ -1040,11 +1187,24 @@ function isCreditCardKind(kind) {
 }
 
 function parseDate(value) {
-  const raw = text(value);
-  if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
-  const d = new Date(raw.slice(0, 10) + 'T00:00:00.000Z');
+  const raw = normalizeDate(value);
+  if (!raw) return null;
+  const d = new Date(raw + 'T00:00:00.000Z');
   if (Number.isNaN(d.getTime())) return null;
   return d;
+}
+
+function normalizeDate(value) {
+  const raw = text(value);
+  if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
+  return raw.slice(0, 10);
+}
+
+function normalizeDueDay(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const day = Number(value);
+  if (!Number.isFinite(day) || day < 1 || day > 31) return null;
+  return Math.floor(day);
 }
 
 function startOfDay(date) {
@@ -1079,6 +1239,13 @@ function firstPositive(values) {
     if (Number.isFinite(n) && n > 0) return n;
   }
   return null;
+}
+
+function nullableRound2(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return round2(n);
 }
 
 function number(value) {
