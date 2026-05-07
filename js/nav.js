@@ -1,11 +1,14 @@
-/* ─── Sovereign Finance · nav.js v1.0.13 · Real-data motion foundation ─── */
+/* ─── Sovereign Finance · nav.js v1.0.14 · Hub-only shell + wording cleanup ─── */
 /*
  * Contract:
  * - Mobile <= 860px: bottom nav visible.
  * - Mobile <= 860px: All drawer visible.
  * - Web/tablet >= 861px: side rail visible.
- * - App shell stays below header/theme controls.
- * - Existing cards/panels get premium visual treatment.
+ * - Big app shell appears ONLY on Hub.
+ * - Other pages keep normal page content without duplicate wrapper.
+ * - CC wording changed to Credit Card.
+ * - Account amount / Real data overlap prevented.
+ * - Existing cards/panels get safe premium treatment.
  * - Existing real percentage/progress elements get motion.
  * - No fake numbers.
  * - No ledger/API/schema/business-logic changes.
@@ -14,7 +17,7 @@
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.13';
+  const VERSION = 'v1.0.14';
   const STYLE_ID = 'sov-nav-contract-style';
   const CARD_STYLE_ID = 'sov-premium-card-style';
   const MOTION_STYLE_ID = 'sov-real-data-motion-style';
@@ -33,7 +36,7 @@
     { key: 'add', group: 'daily', label: 'Add Transaction', short: 'Add', href: '/add.html', aliases: [], icon: '+' },
     { key: 'transactions', group: 'daily', label: 'Transactions', short: 'Tx', href: '/transactions.html', aliases: [], icon: '≡' },
     { key: 'bills', group: 'daily', label: 'Bills', short: 'Bills', href: '/bills.html', aliases: [], icon: '□' },
-    { key: 'cc', group: 'daily', label: 'CC Planner', short: 'CC', href: '/cc.html', aliases: [], icon: '◈' },
+    { key: 'credit-card', group: 'daily', label: 'Credit Card', short: 'Card', href: '/cc.html', aliases: [], icon: '◈' },
 
     { key: 'accounts', group: 'money', label: 'Accounts', short: 'Accts', href: '/accounts.html', aliases: [], icon: '▣' },
     { key: 'atm', group: 'money', label: 'ATM', short: 'ATM', href: '/atm.html', aliases: [], icon: '▤' },
@@ -50,26 +53,7 @@
     { key: 'snapshots', group: 'proof', label: 'Snapshots', short: 'Snaps', href: '/snapshots.html', aliases: [], icon: '▧' }
   ];
 
-  const PAGE_META = {
-    hub: ['Today Command Center', 'Am I safe right now?', 'Start here to understand money position, urgent actions, and where to go next.', 'Real account, bill, transaction, and planning data only.', 'Check alerts, then act on the highest-pressure item.'],
-    add: ['Capture Flow', 'Record what changed.', 'Add the movement once, clearly, so the rest of the system can stay truthful.', 'No silent ledger mutation outside the submitted form.', 'Save only when the entry is real.'],
-    transactions: ['Ledger Timeline', 'See the money trail.', 'Review what happened, when it happened, and how the running history changed.', 'Transaction rows are the audit surface for movement.', 'Scan recent activity and open what needs review.'],
-    bills: ['Obligation Control', 'Know what needs action.', 'Separate paid, due, overdue, and upcoming bills without guessing.', 'Paid status must be backed by bill state and payment source.', 'Handle the nearest real obligation first.'],
-    cc: ['Credit Discipline', 'Protect the statement cycle.', 'Track card pressure, due timing, and minimum-payment awareness.', 'Card values must stay tied to real account and transaction state.', 'Check what is due and what should not be pushed forward.'],
-    accounts: ['Money Location', 'Know where cash is sitting.', 'See each account as a live pocket of money, not just a label.', 'Balances must reconcile against real ledger and declared state.', 'Open the account that looks wrong.'],
-    atm: ['Cash Movement', 'Track physical money clearly.', 'Keep cash movement visible so withdrawals and usage do not disappear mentally.', 'ATM movement must remain tied to real transactions.', 'Review recent cash movement before changing anything.'],
-    nano: ['Small Loan Ledger', 'Keep small obligations visible.', 'Track who owes what, what was repaid, and what remains without mental math.', 'Loan movement must only reflect real create, repay, or push actions.', 'Review open balances before action.'],
-    debts: ['Debt Pressure Map', 'See what still has weight.', 'Understand owed and owing balances, progress, and pressure order.', 'Debt state must match ledger movement and audit trail.', 'Act on the clearest next payment or correction.'],
-    salary: ['Income Breakdown', 'Understand what came in.', 'Turn salary into components, deductions, tax awareness, and usable money.', 'Salary figures must come from real records or explicit entry.', 'Review components before planning the month.'],
-    goals: ['Future Builder', 'Connect money to direction.', 'Make savings and targets visible so progress does not stay abstract.', 'Goal progress must be calculated from real saved values only.', 'Check which goal needs funding or cleanup.'],
-    insights: ['Pattern Reader', 'Find the signal inside the numbers.', 'Surface patterns that help decisions without inventing conclusions.', 'Insights must be computed from existing transactions and balances.', 'Use patterns as prompts, not fake certainty.'],
-    charts: ['Visual Intelligence', 'Make patterns visible.', 'Show movement, pressure, and trend without hiding source data.', 'Every visual must render from real values only.', 'Look for the longest bar, sharpest change, or strange gap.'],
-    reconciliation: ['Truth Matching', 'Does app truth match real balance?', 'Compare declared reality against system state before trusting conclusions.', 'Clean only means clean for checked scope.', 'Declare real balance only when verified outside the app.'],
-    audit: ['Change Ledger', 'See what changed.', 'Keep every important system action traceable and reviewable.', 'Audit rows are proof trail, not decoration.', 'Search the entity or action that needs explanation.'],
-    snapshots: ['Rollback Safety', 'Know whether you can rewind.', 'Protect recovery confidence before risky work or major corrections.', 'Snapshot status is safety context, not a guarantee until restore is proven.', 'Check latest snapshot before trusting rollback coverage.']
-  };
-
-  const BOTTOM_KEYS = ['hub', 'add', 'transactions', 'bills', 'cc'];
+  const BOTTOM_KEYS = ['hub', 'add', 'transactions', 'bills', 'credit-card'];
 
   function normalizePath(pathname) {
     let path = pathname || '/';
@@ -89,10 +73,6 @@
 
   function activeItem(path) {
     return NAV_ITEMS.find(item => isActive(item, path)) || NAV_ITEMS[0];
-  }
-
-  function activeMeta(path) {
-    return PAGE_META[activeItem(path).key] || PAGE_META.hub;
   }
 
   function clampPercent(value) {
@@ -219,22 +199,19 @@
     `;
   }
 
-  function shellHTML(path) {
-    const item = activeItem(path);
-    const meta = activeMeta(path);
-
+  function hubShellHTML() {
     return `
-      <section class="sov-app-shell" data-shell-page="${item.key}" data-shell-version="${VERSION}" aria-label="Page identity">
-        <div class="sov-shell-orb">${item.icon}</div>
+      <section class="sov-app-shell sov-hub-shell" data-shell-page="hub" data-shell-version="${VERSION}" aria-label="Hub safety summary">
+        <div class="sov-shell-orb">⌂</div>
         <div class="sov-shell-main">
-          <div class="sov-shell-eyebrow">${meta[0]}</div>
-          <h1 class="sov-shell-title">${meta[1]}</h1>
-          <p class="sov-shell-purpose">${meta[2]}</p>
+          <div class="sov-shell-eyebrow">Today Command Center</div>
+          <h1 class="sov-shell-title">Hub Cockpit</h1>
+          <p class="sov-shell-purpose">This screen should answer: what needs attention, what changed, and where I go next.</p>
         </div>
         <div class="sov-shell-proof">
-          <div class="sov-shell-proof-pill"><span class="desktop-nav-pulse"></span><span>Real data mode</span></div>
-          <div class="sov-shell-proof-line">${meta[3]}</div>
-          <div class="sov-shell-next">${meta[4]}</div>
+          <div class="sov-shell-proof-pill"><span class="desktop-nav-pulse"></span><span>Safety check</span></div>
+          <div class="sov-shell-proof-line">Unsafe means: overdue bill, Credit Card pressure, cash mismatch, debt pressure, or unreconciled balance.</div>
+          <div class="sov-shell-next">Use the cards below as the real signal source.</div>
         </div>
       </section>
     `;
@@ -310,10 +287,10 @@
         background:
           radial-gradient(circle at 7% 0%, rgba(34, 197, 94, 0.16), transparent 15rem),
           radial-gradient(circle at 100% 0%, rgba(59, 130, 246, 0.12), transparent 14rem),
-          rgba(255, 255, 255, 0.72);
+          var(--card, rgba(255, 255, 255, 0.72));
         box-shadow:
           0 18px 50px rgba(15, 23, 42, 0.10),
-          inset 0 1px 0 rgba(255, 255, 255, 0.70);
+          inset 0 1px 0 rgba(255, 255, 255, 0.50);
         backdrop-filter: blur(18px);
         -webkit-backdrop-filter: blur(18px);
         animation: sov-shell-rise 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -903,16 +880,8 @@
     style.id = CARD_STYLE_ID;
     style.textContent = `
       @keyframes sov-card-rise {
-        from {
-          opacity: 0;
-          transform: translateY(12px) scale(0.992);
-          filter: saturate(0.94);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-          filter: saturate(1);
-        }
+        from { opacity: 0; transform: translateY(12px) scale(0.992); filter: saturate(0.94); }
+        to { opacity: 1; transform: translateY(0) scale(1); filter: saturate(1); }
       }
 
       @keyframes sov-card-sheen {
@@ -930,10 +899,10 @@
         background:
           radial-gradient(circle at 12% 0%, rgba(34, 197, 94, 0.105), transparent 14rem),
           radial-gradient(circle at 100% 10%, rgba(59, 130, 246, 0.08), transparent 13rem),
-          rgba(255, 255, 255, 0.78) !important;
+          var(--card, rgba(255, 255, 255, 0.78)) !important;
         box-shadow:
           0 18px 48px rgba(15, 23, 42, 0.095),
-          inset 0 1px 0 rgba(255, 255, 255, 0.74) !important;
+          inset 0 1px 0 rgba(255, 255, 255, 0.50) !important;
         backdrop-filter: blur(14px);
         -webkit-backdrop-filter: blur(14px);
         transform: translateZ(0);
@@ -953,8 +922,8 @@
         z-index: -1;
         border-radius: inherit;
         background:
-          linear-gradient(135deg, rgba(255, 255, 255, 0.52), transparent 38%),
-          radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.36), transparent 11rem);
+          linear-gradient(135deg, rgba(255, 255, 255, 0.42), transparent 38%),
+          radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.26), transparent 11rem);
       }
 
       .sov-card-upgraded::after {
@@ -965,7 +934,7 @@
         width: 34%;
         height: 160%;
         pointer-events: none;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.46), transparent);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.40), transparent);
         transform: translateX(-130%) rotate(10deg);
         opacity: 0;
       }
@@ -976,7 +945,7 @@
         box-shadow:
           0 24px 64px rgba(15, 23, 42, 0.13),
           0 0 0 1px rgba(34, 197, 94, 0.06),
-          inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
+          inset 0 1px 0 rgba(255, 255, 255, 0.62) !important;
       }
 
       .sov-card-upgraded:hover::after {
@@ -1035,6 +1004,11 @@
         box-shadow: 0 0 14px rgba(34, 197, 94, 0.42);
       }
 
+      html[data-page="accounts"] .sov-card-proof-badge,
+      .account-card .sov-card-proof-badge {
+        display: none !important;
+      }
+
       html[data-page="audit"] .sov-card-proof-badge,
       html[data-page="transactions"] .sov-card-proof-badge,
       html[data-page="reconciliation"] .sov-card-proof-badge,
@@ -1057,7 +1031,7 @@
           border-radius: 22px !important;
           box-shadow:
             0 14px 34px rgba(15, 23, 42, 0.09),
-            inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+            inset 0 1px 0 rgba(255, 255, 255, 0.50) !important;
         }
 
         .sov-card-upgraded:hover {
@@ -1111,9 +1085,7 @@
         50% { transform: translateY(-2px); }
       }
 
-      .sov-motion-ready {
-        --sov-motion-fill: 0%;
-      }
+      .sov-motion-ready { --sov-motion-fill: 0%; }
 
       .sov-motion-bar {
         position: relative;
@@ -1141,28 +1113,11 @@
         animation: sov-fill-grow 780ms cubic-bezier(0.16, 1, 0.3, 1) both;
       }
 
-      .sov-motion-value {
-        animation: sov-value-glow 2.8s ease-in-out 1;
-      }
-
-      .sov-motion-float {
-        animation: sov-soft-float 5.4s ease-in-out infinite;
-      }
-
-      .sov-card-upgraded:nth-of-type(2n) {
-        animation-delay: 60ms;
-      }
-
-      .sov-card-upgraded:nth-of-type(3n) {
-        animation-delay: 110ms;
-      }
-
-      .sov-card-upgraded:nth-of-type(4n) {
-        animation-delay: 160ms;
-      }
+      .sov-motion-value { animation: sov-value-glow 2.8s ease-in-out 1; }
+      .sov-motion-float { animation: sov-soft-float 5.4s ease-in-out infinite; }
 
       html[data-page="bills"] .sov-motion-bar .sov-motion-fill,
-      html[data-page="cc"] .sov-motion-bar .sov-motion-fill,
+      html[data-page="credit-card"] .sov-motion-bar .sov-motion-fill,
       html[data-page="debts"] .sov-motion-bar .sov-motion-fill {
         background:
           linear-gradient(90deg, rgba(245, 158, 11, 0.92), rgba(34, 197, 94, 0.72)),
@@ -1264,16 +1219,16 @@
       node.classList.add('sov-card-upgraded');
       node.style.setProperty('--sov-card-index', String(Math.min(index, 14)));
 
-      if (index < 5) {
-        node.classList.add('sov-motion-float');
-      }
+      if (index < 5) node.classList.add('sov-motion-float');
 
       const hasForm = !!node.querySelector('form, input, select, textarea, button');
+      const isAccountsPage = document.documentElement.getAttribute('data-page') === 'accounts';
+      const isAccountCard = node.classList.contains('account-card') || !!node.closest('.account-card');
       const hasTable = !!node.querySelector('table');
       const text = node.textContent || '';
       const hasMoneySignal = /\b(rs|pkr|balance|amount|paid|due|owed|cash|salary|bill|debt|goal|transaction|snapshot|audit|reconcile)\b/i.test(text);
 
-      if ((hasMoneySignal || hasTable) && !hasForm && !node.querySelector('.sov-card-proof-badge')) {
+      if (!isAccountsPage && !isAccountCard && (hasMoneySignal || hasTable) && !hasForm && !node.querySelector('.sov-card-proof-badge')) {
         const badge = document.createElement('div');
         badge.className = 'sov-card-proof-badge';
         badge.innerHTML = '<span class="sov-card-proof-dot"></span><span>Real data</span>';
@@ -1329,24 +1284,13 @@
       }
     });
 
-    const valueSelectors = [
-      '.amount',
-      '.balance',
-      '.value',
-      '.metric',
-      '[data-value]',
-      '[data-amount]'
-    ];
-
-    const values = Array.from(document.querySelectorAll(valueSelectors.join(','))).filter(node => {
+    const values = Array.from(document.querySelectorAll('.amount, .balance, .value, .metric, [data-value], [data-amount]')).filter(node => {
       if (!node || node.nodeType !== 1) return false;
       if (node.classList.contains('sov-motion-value')) return false;
       return !excluded.some(selector => node.matches(selector));
     });
 
-    values.slice(0, 24).forEach(node => {
-      node.classList.add('sov-motion-value');
-    });
+    values.slice(0, 24).forEach(node => node.classList.add('sov-motion-value'));
   }
 
   function observeEnhancements() {
@@ -1404,6 +1348,7 @@
 
   function initNav() {
     const path = currentPath();
+    const item = activeItem(path);
 
     injectStyles();
     injectCardStyles();
@@ -1411,7 +1356,9 @@
     markPage(path);
 
     replaceNodes('.desktop-nav', desktopHTML(path), 'after-header');
-    replaceNodes('.sov-app-shell', shellHTML(path), 'after-header');
+    document.querySelectorAll('.sov-app-shell').forEach(node => node.remove());
+    if (item.key === 'hub') replaceNodes('.sov-app-shell', hubShellHTML(), 'after-header');
+
     replaceNodes('.bottom-nav', bottomHTML(path), 'body-end');
     replaceNodes('.mobile-module-toggle, .mobile-module-drawer', drawerHTML(path), 'body-end');
 
@@ -1427,7 +1374,7 @@
       groups: NAV_GROUPS.slice(),
       bottomKeys: BOTTOM_KEYS.slice(),
       activePath: path,
-      activeItem: activeItem(path),
+      activeItem: item,
       enhanceCards: enhanceCards,
       enhanceMotion: enhanceRealDataMotion,
       openDrawer: function () { setDrawerOpen(true); },
