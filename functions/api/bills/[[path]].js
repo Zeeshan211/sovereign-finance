@@ -1,4 +1,4 @@
-/*  Sovereign Finance  /api/bills/[[path]] · v0.3.2 · Bill payment account control  */
+/*  Sovereign Finance  /api/bills/[[path]]  v0.3.4  Correct Rs 0 Mark Done backend  */
 /*
  * Handles:
  *   GET    /api/bills
@@ -8,20 +8,21 @@
  *   DELETE /api/bills/{id}
  *   POST   /api/bills/{id}/pay
  *
- * Layer 2 contract:
- *   - Bill payments write expense transactions using category_id NULL.
- *   - Bill payments validate the selected payment account.
- *   - Bill payments save last_paid_account_id for account-level truth.
- *   - Snapshot is required before bill edit/delete/pay mutations.
+ * Contract:
+ *   - Bill payments validate selected payment account.
+ *   - Non-zero payments create expense transactions.
+ *   - Rs 0 bills can be marked done without creating fake Rs 0 transactions.
+ *   - last_paid_date and last_paid_account_id are saved.
+ *   - Snapshot is attempted before bill edit/delete/pay mutations.
+ *   - Snapshot failure blocks destructive edit/delete and real non-zero payment.
+ *   - Rs 0 mark-done is allowed to proceed even if snapshot fails, because it only updates bill paid metadata.
  *   - Audit failure does not break successful DB mutations.
  *   - Delete/archive stays soft-only.
- *   - No silent transaction queue here.
  */
 
 import { json, audit, snapshot, uuid } from '../_lib.js';
 
-const VERSION = 'v0.3.2';
-
+const VERSION = 'v0.3.4';
 const ALLOWED_FREQ = ['monthly', 'weekly', 'yearly', 'custom'];
 const CONDITION_VISIBLE_BILL = "(deleted_at IS NULL OR deleted_at = '')";
 
@@ -41,7 +42,7 @@ export async function onRequestGet(context) {
 
       if (!bill) return json({ ok: false, version: VERSION, error: 'Bill not found' }, 404);
 
-      return json({ ok: true, version: VERSION, bill });
+      return json({ ok: true, version: VERSION, bill: decorateBill(bill) });
     }
 
     const bills = await db.prepare(
@@ -54,7 +55,7 @@ export async function onRequestGet(context) {
       ok: true,
       version: VERSION,
       count: (bills.results || []).length,
-      bills: bills.results || []
+      bills: (bills.results || []).map(decorateBill)
     });
   } catch (err) {
     return json({ ok: false, version: VERSION, error: err.message }, 500);
@@ -88,16 +89,16 @@ async function createBill(context) {
 
   if (!name) return json({ ok: false, version: VERSION, error: 'name required' }, 400);
   if (name.length > 80) return json({ ok: false, version: VERSION, error: 'name max 80 chars' }, 400);
-  if (!(amount > 0)) return json({ ok: false, version: VERSION, error: 'amount must be greater than 0' }, 400);
+  if (!Number.isFinite(amount) || amount < 0) {
+    return json({ ok: false, version: VERSION, error: 'amount must be 0 or greater' }, 400);
+  }
 
   const frequency = body.frequency || 'monthly';
   if (!ALLOWED_FREQ.includes(frequency)) {
     return json({ ok: false, version: VERSION, error: 'Invalid frequency' }, 400);
   }
 
-  const dueDay = body.due_day == null || body.due_day === ''
-    ? null
-    : Number(body.due_day);
+  const dueDay = body.due_day == null || body.due_day === '' ? null : Number(body.due_day);
 
   if (dueDay != null && (dueDay < 1 || dueDay > 31)) {
     return json({ ok: false, version: VERSION, error: 'due_day must be 1-31' }, 400);
@@ -181,7 +182,17 @@ export async function onRequestPut(context) {
 
     const updates = [];
     const values = [];
-    const editable = ['name', 'amount', 'due_day', 'frequency', 'category_id', 'default_account_id', 'auto_post'];
+    const editable = [
+      'name',
+      'amount',
+      'due_day',
+      'frequency',
+      'category_id',
+      'default_account_id',
+      'auto_post',
+      'last_paid_date',
+      'last_paid_account_id'
+    ];
 
     for (const field of editable) {
       if (body[field] === undefined) continue;
@@ -197,7 +208,9 @@ export async function onRequestPut(context) {
 
       if (field === 'amount') {
         const amount = Number(body[field]);
-        if (!(amount > 0)) return json({ ok: false, version: VERSION, error: 'amount must be greater than 0' }, 400);
+        if (!Number.isFinite(amount) || amount < 0) {
+          return json({ ok: false, version: VERSION, error: 'amount must be 0 or greater' }, 400);
+        }
         updates.push('amount = ?');
         values.push(amount);
         continue;
@@ -229,14 +242,24 @@ export async function onRequestPut(context) {
         continue;
       }
 
-      if (field === 'default_account_id') {
-        const defaultAccountId = cleanNullable(body[field]);
-        if (defaultAccountId) {
-          const accountCheck = await validateAccount(db, defaultAccountId);
+      if (field === 'default_account_id' || field === 'last_paid_account_id') {
+        const accountId = cleanNullable(body[field]);
+        if (accountId) {
+          const accountCheck = await validateAccount(db, accountId);
           if (!accountCheck.ok) return json({ ok: false, version: VERSION, error: accountCheck.error }, 400);
         }
         updates.push(field + ' = ?');
-        values.push(defaultAccountId);
+        values.push(accountId);
+        continue;
+      }
+
+      if (field === 'last_paid_date') {
+        const date = cleanNullable(body[field]);
+        if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          return json({ ok: false, version: VERSION, error: 'last_paid_date must be YYYY-MM-DD' }, 400);
+        }
+        updates.push('last_paid_date = ?');
+        values.push(date);
         continue;
       }
 
@@ -383,46 +406,96 @@ async function payBill(context, billId) {
   const defaultAccountId = cleanNullable(bill.default_account_id);
   const accountId = requestedAccountId || defaultAccountId;
 
-  if (!accountId) {
+  const amount = body.amount == null || body.amount === '' ? Number(bill.amount) : Number(body.amount);
+
+  if (!Number.isFinite(amount) || amount < 0) {
+    return json({ ok: false, version: VERSION, error: 'amount must be 0 or greater' }, 400);
+  }
+
+  let accountCheck = { ok: true, account: null };
+
+  if (accountId) {
+    accountCheck = await validateAccount(db, accountId);
+    if (!accountCheck.ok) return json({ ok: false, version: VERSION, error: accountCheck.error }, 400);
+  }
+
+  if (amount > 0 && !accountId) {
     return json({
       ok: false,
       version: VERSION,
-      error: 'account_id required. Select a payment account or set default_account_id on this bill.'
+      error: 'account_id required for paid bill. Select a payment account or set default_account_id on this bill.'
     }, 400);
   }
 
-  const accountCheck = await validateAccount(db, accountId);
-  if (!accountCheck.ok) return json({ ok: false, version: VERSION, error: accountCheck.error }, 400);
-
-  const amount = body.amount == null || body.amount === ''
-    ? Number(bill.amount)
-    : Number(body.amount);
-
-  if (!(amount > 0)) return json({ ok: false, version: VERSION, error: 'amount must be greater than 0' }, 400);
-
   const date = body.date || new Date().toISOString().slice(0, 10);
-  const createdBy = body.created_by || 'web-bill-pay';
-  const txnId = 'TXN-' + uuid();
-  const notes = String(body.notes || ('Bill payment: ' + bill.name)).slice(0, 200);
-  const accountSource = requestedAccountId ? 'request.account_id' : 'bill.default_account_id';
+  const createdBy = body.created_by || (amount === 0 ? 'web-bill-mark-done' : 'web-bill-pay');
+  const accountSource = requestedAccountId ? 'request.account_id' : accountId ? 'bill.default_account_id' : 'none_zero_amount';
+
+  if (amount === 0) {
+    const snap = await safeSnapshot(context.env, 'pre-bill-mark-done-' + billId + '-' + Date.now(), createdBy);
+
+    await db.prepare(
+      `UPDATE bills
+       SET last_paid_date = ?,
+           last_paid_account_id = ?
+       WHERE id = ?`
+    ).bind(date, accountId || null, billId).run();
+
+    const auditResult = await safeAudit(context.env, {
+      action: 'BILL_MARK_DONE',
+      entity: 'bill',
+      entity_id: billId,
+      kind: 'mutation',
+      detail: {
+        amount,
+        account_id: accountId || null,
+        account_name: accountCheck.account ? accountCheck.account.name : null,
+        account_source: accountSource,
+        date,
+        bill_name: bill.name,
+        snapshot_id: snap.snapshot_id || null,
+        snapshot_ok: snap.ok,
+        snapshot_error: snap.error || null,
+        transaction_created: false
+      },
+      created_by: createdBy
+    });
+
+    return json({
+      ok: true,
+      version: VERSION,
+      mode: 'mark_done',
+      bill_id: billId,
+      txn_id: null,
+      transaction_created: false,
+      amount,
+      date,
+      account_id: accountId || null,
+      account_name: accountCheck.account ? accountCheck.account.name : null,
+      account_source: accountSource,
+      last_paid_account_id: accountId || null,
+      snapshot_id: snap.snapshot_id || null,
+      snapshot_ok: snap.ok,
+      snapshot_error: snap.error || null,
+      audited: auditResult.ok,
+      audit_error: auditResult.error || null
+    });
+  }
 
   const snap = await safeSnapshot(context.env, 'pre-bill-pay-' + billId + '-' + Date.now(), createdBy);
   if (!snap.ok) {
     return json({ ok: false, version: VERSION, error: 'Snapshot failed: ' + snap.error }, 500);
   }
 
+  const txnId = 'TXN-' + uuid();
+  const notes = String(body.notes || ('Bill payment: ' + bill.name)).slice(0, 200);
+
   await db.batch([
     db.prepare(
       `INSERT INTO transactions
         (id, type, amount, date, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount)
        VALUES (?, 'expense', ?, ?, ?, NULL, NULL, ?, 0, 0)`
-    ).bind(
-      txnId,
-      amount,
-      date,
-      accountId,
-      notes
-    ),
+    ).bind(txnId, amount, date, accountId, notes),
 
     db.prepare(
       `UPDATE bills
@@ -441,11 +514,12 @@ async function payBill(context, billId) {
       txn_id: txnId,
       amount,
       account_id: accountId,
-      account_name: accountCheck.account.name || null,
+      account_name: accountCheck.account ? accountCheck.account.name : null,
       account_source: accountSource,
       date,
       bill_name: bill.name,
-      snapshot_id: snap.snapshot_id || null
+      snapshot_id: snap.snapshot_id || null,
+      transaction_created: true
     },
     created_by: createdBy
   });
@@ -453,12 +527,14 @@ async function payBill(context, billId) {
   return json({
     ok: true,
     version: VERSION,
+    mode: 'paid',
     bill_id: billId,
     txn_id: txnId,
+    transaction_created: true,
     amount,
     date,
     account_id: accountId,
-    account_name: accountCheck.account.name || null,
+    account_name: accountCheck.account ? accountCheck.account.name : null,
     account_source: accountSource,
     last_paid_account_id: accountId,
     snapshot_id: snap.snapshot_id || null,
@@ -482,6 +558,25 @@ async function validateAccount(db, accountId) {
   }
 
   return { ok: true, account };
+}
+
+function decorateBill(bill) {
+  const lastPaidDate = cleanNullable(bill.last_paid_date);
+
+  return {
+    ...bill,
+    paid_this_month: isPaidThisMonth(lastPaidDate),
+    can_mark_done: Number(bill.amount) === 0
+  };
+}
+
+function isPaidThisMonth(dateText) {
+  if (!dateText || !/^\d{4}-\d{2}-\d{2}/.test(dateText)) return false;
+
+  const now = new Date();
+  const currentMonth = now.toISOString().slice(0, 7);
+
+  return dateText.slice(0, 7) === currentMonth;
 }
 
 function cleanNullable(value) {
