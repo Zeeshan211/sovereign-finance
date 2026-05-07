@@ -1,4 +1,4 @@
-/* ─── Sovereign Finance · nav.js v1.0.12 · Premium card system on restored nav contract ─── */
+/* ─── Sovereign Finance · nav.js v1.0.13 · Real-data motion foundation ─── */
 /*
  * Contract:
  * - Mobile <= 860px: bottom nav visible.
@@ -6,15 +6,18 @@
  * - Web/tablet >= 861px: side rail visible.
  * - App shell stays below header/theme controls.
  * - Existing cards/panels get premium visual treatment.
+ * - Existing real percentage/progress elements get motion.
+ * - No fake numbers.
  * - No ledger/API/schema/business-logic changes.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.12';
+  const VERSION = 'v1.0.13';
   const STYLE_ID = 'sov-nav-contract-style';
   const CARD_STYLE_ID = 'sov-premium-card-style';
+  const MOTION_STYLE_ID = 'sov-real-data-motion-style';
   const DRAWER_ID = 'sov-mobile-module-drawer';
   const DRAWER_TOGGLE_ID = 'sov-mobile-module-toggle';
 
@@ -90,6 +93,34 @@
 
   function activeMeta(path) {
     return PAGE_META[activeItem(path).key] || PAGE_META.hub;
+  }
+
+  function clampPercent(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return null;
+    return Math.max(0, Math.min(100, num));
+  }
+
+  function percentFromNode(node) {
+    if (!node) return null;
+
+    const attrs = [
+      node.getAttribute('data-percent'),
+      node.getAttribute('data-percentage'),
+      node.getAttribute('data-progress'),
+      node.getAttribute('aria-valuenow')
+    ];
+
+    for (const attr of attrs) {
+      const pct = clampPercent(attr);
+      if (pct !== null) return pct;
+    }
+
+    const text = (node.textContent || '').trim();
+    const match = text.match(/(\d+(?:\.\d+)?)\s*%/);
+    if (!match) return null;
+
+    return clampPercent(match[1]);
   }
 
   function navLink(item, path, mode) {
@@ -1058,6 +1089,107 @@
     document.head.appendChild(style);
   }
 
+  function injectMotionStyles() {
+    const old = document.getElementById(MOTION_STYLE_ID);
+    if (old) old.remove();
+
+    const style = document.createElement('style');
+    style.id = MOTION_STYLE_ID;
+    style.textContent = `
+      @keyframes sov-fill-grow {
+        from { transform: scaleX(0); }
+        to { transform: scaleX(1); }
+      }
+
+      @keyframes sov-value-glow {
+        0%, 100% { text-shadow: 0 0 0 rgba(34, 197, 94, 0); }
+        50% { text-shadow: 0 0 18px rgba(34, 197, 94, 0.22); }
+      }
+
+      @keyframes sov-soft-float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-2px); }
+      }
+
+      .sov-motion-ready {
+        --sov-motion-fill: 0%;
+      }
+
+      .sov-motion-bar {
+        position: relative;
+        overflow: hidden;
+        min-height: 10px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.075);
+        box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
+      }
+
+      .sov-motion-bar .sov-motion-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: var(--sov-motion-fill);
+        min-width: 0;
+        max-width: 100%;
+        border-radius: inherit;
+        transform-origin: left center;
+        background:
+          linear-gradient(90deg, rgba(16, 185, 129, 0.92), rgba(34, 197, 94, 0.72)),
+          radial-gradient(circle at 100% 50%, rgba(255, 255, 255, 0.42), transparent 2.6rem);
+        box-shadow:
+          0 0 18px rgba(34, 197, 94, 0.20),
+          inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        animation: sov-fill-grow 780ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+
+      .sov-motion-value {
+        animation: sov-value-glow 2.8s ease-in-out 1;
+      }
+
+      .sov-motion-float {
+        animation: sov-soft-float 5.4s ease-in-out infinite;
+      }
+
+      .sov-card-upgraded:nth-of-type(2n) {
+        animation-delay: 60ms;
+      }
+
+      .sov-card-upgraded:nth-of-type(3n) {
+        animation-delay: 110ms;
+      }
+
+      .sov-card-upgraded:nth-of-type(4n) {
+        animation-delay: 160ms;
+      }
+
+      html[data-page="bills"] .sov-motion-bar .sov-motion-fill,
+      html[data-page="cc"] .sov-motion-bar .sov-motion-fill,
+      html[data-page="debts"] .sov-motion-bar .sov-motion-fill {
+        background:
+          linear-gradient(90deg, rgba(245, 158, 11, 0.92), rgba(34, 197, 94, 0.72)),
+          radial-gradient(circle at 100% 50%, rgba(255, 255, 255, 0.42), transparent 2.6rem);
+      }
+
+      html[data-page="audit"] .sov-motion-bar .sov-motion-fill,
+      html[data-page="transactions"] .sov-motion-bar .sov-motion-fill,
+      html[data-page="reconciliation"] .sov-motion-bar .sov-motion-fill,
+      html[data-page="snapshots"] .sov-motion-bar .sov-motion-fill {
+        background:
+          linear-gradient(90deg, rgba(59, 130, 246, 0.92), rgba(34, 197, 94, 0.72)),
+          radial-gradient(circle at 100% 50%, rgba(255, 255, 255, 0.42), transparent 2.6rem);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sov-motion-bar .sov-motion-fill,
+        .sov-motion-value,
+        .sov-motion-float {
+          animation: none !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
   function replaceNodes(selector, html, location) {
     document.querySelectorAll(selector).forEach(node => node.remove());
 
@@ -1132,6 +1264,10 @@
       node.classList.add('sov-card-upgraded');
       node.style.setProperty('--sov-card-index', String(Math.min(index, 14)));
 
+      if (index < 5) {
+        node.classList.add('sov-motion-float');
+      }
+
       const hasForm = !!node.querySelector('form, input, select, textarea, button');
       const hasTable = !!node.querySelector('table');
       const text = node.textContent || '';
@@ -1146,18 +1282,88 @@
     });
   }
 
-  function observeCards() {
+  function enhanceRealDataMotion() {
+    const excluded = [
+      '.desktop-nav',
+      '.desktop-nav *',
+      '.bottom-nav',
+      '.bottom-nav *',
+      '.mobile-module-drawer',
+      '.mobile-module-drawer *',
+      '.mobile-module-toggle',
+      '.sov-app-shell',
+      '.sov-app-shell *'
+    ];
+
+    const barSelectors = [
+      '[data-percent]',
+      '[data-percentage]',
+      '[data-progress]',
+      '[aria-valuenow]',
+      '.progress',
+      '.progress-bar',
+      '.meter',
+      '.meter-bar',
+      '.bar',
+      '.bar-fill'
+    ];
+
+    const bars = Array.from(document.querySelectorAll(barSelectors.join(','))).filter(node => {
+      if (!node || node.nodeType !== 1) return false;
+      if (node.classList.contains('sov-motion-done')) return false;
+      return !excluded.some(selector => node.matches(selector));
+    });
+
+    bars.forEach(node => {
+      const percent = percentFromNode(node);
+      if (percent === null) return;
+
+      node.classList.add('sov-motion-ready', 'sov-motion-bar', 'sov-motion-done');
+      node.style.setProperty('--sov-motion-fill', percent + '%');
+
+      if (!node.querySelector('.sov-motion-fill')) {
+        const fill = document.createElement('span');
+        fill.className = 'sov-motion-fill';
+        fill.setAttribute('aria-hidden', 'true');
+        node.insertAdjacentElement('afterbegin', fill);
+      }
+    });
+
+    const valueSelectors = [
+      '.amount',
+      '.balance',
+      '.value',
+      '.metric',
+      '[data-value]',
+      '[data-amount]'
+    ];
+
+    const values = Array.from(document.querySelectorAll(valueSelectors.join(','))).filter(node => {
+      if (!node || node.nodeType !== 1) return false;
+      if (node.classList.contains('sov-motion-value')) return false;
+      return !excluded.some(selector => node.matches(selector));
+    });
+
+    values.slice(0, 24).forEach(node => {
+      node.classList.add('sov-motion-value');
+    });
+  }
+
+  function observeEnhancements() {
     const root = document.querySelector('main, .wrap, .container, body');
-    if (!root || window.SOV_CARD_OBSERVER) return;
+    if (!root || window.SOV_UI_OBSERVER) return;
 
     let timer = null;
     const observer = new MutationObserver(() => {
       clearTimeout(timer);
-      timer = setTimeout(enhanceCards, 100);
+      timer = setTimeout(() => {
+        enhanceCards();
+        enhanceRealDataMotion();
+      }, 120);
     });
 
     observer.observe(root, { childList: true, subtree: true });
-    window.SOV_CARD_OBSERVER = observer;
+    window.SOV_UI_OBSERVER = observer;
   }
 
   function setDrawerOpen(open) {
@@ -1201,6 +1407,7 @@
 
     injectStyles();
     injectCardStyles();
+    injectMotionStyles();
     markPage(path);
 
     replaceNodes('.desktop-nav', desktopHTML(path), 'after-header');
@@ -1211,7 +1418,8 @@
     setHeaderTitle(path);
     bindDrawer();
     enhanceCards();
-    observeCards();
+    enhanceRealDataMotion();
+    observeEnhancements();
 
     window.SOV_NAV = {
       version: VERSION,
@@ -1221,6 +1429,7 @@
       activePath: path,
       activeItem: activeItem(path),
       enhanceCards: enhanceCards,
+      enhanceMotion: enhanceRealDataMotion,
       openDrawer: function () { setDrawerOpen(true); },
       closeDrawer: function () { setDrawerOpen(false); }
     };
