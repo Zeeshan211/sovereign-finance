@@ -1,1395 +1,1201 @@
-<!doctype html>
-<html lang="en" data-theme="midnight" data-page="hub">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#050816" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-
-  <title>Sovereign Finance · Hub</title>
-
-  <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
-
-  <style>
-    body {
-      background:
-        radial-gradient(circle at 10% 0%, rgba(34, 197, 94, 0.18), transparent 34rem),
-        radial-gradient(circle at 90% 10%, rgba(59, 130, 246, 0.18), transparent 36rem),
-        radial-gradient(circle at 55% 90%, rgba(168, 85, 247, 0.12), transparent 34rem),
-        #eef4ff;
-    }
-
-    .hub-wrap {
-      max-width: 1320px;
-      margin: 0 auto;
-    }
-
-    .cinema-hero {
-      position: relative;
-      overflow: hidden;
-      min-height: 270px;
-      border-radius: 30px;
-      padding: 28px;
-      margin-bottom: 18px;
-      background:
-        linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92)),
-        radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.35), transparent 26rem);
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      color: #f8fafc;
-      box-shadow: 0 26px 80px rgba(15, 23, 42, 0.28);
-    }
-
-    .cinema-hero::before,
-    .cinema-hero::after {
-      content: "";
-      position: absolute;
-      border-radius: 999px;
-      filter: blur(2px);
-      opacity: 0.8;
-      pointer-events: none;
-      animation: floatOrb 9s ease-in-out infinite;
-    }
-
-    .cinema-hero::before {
-      width: 260px;
-      height: 260px;
-      right: -80px;
-      top: -70px;
-      background: radial-gradient(circle, rgba(34, 197, 94, 0.42), transparent 70%);
-    }
-
-    .cinema-hero::after {
-      width: 220px;
-      height: 220px;
-      left: 42%;
-      bottom: -110px;
-      background: radial-gradient(circle, rgba(59, 130, 246, 0.32), transparent 70%);
-      animation-delay: -3s;
-    }
-
-    @keyframes floatOrb {
-      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-      50% { transform: translate3d(14px, -16px, 18px) scale(1.08); }
-    }
-
-    .hero-content {
-      position: relative;
-      z-index: 2;
-      max-width: 880px;
-    }
-
-    .hub-kicker {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 11px;
-      border-radius: 999px;
-      background: rgba(34, 197, 94, 0.14);
-      color: #86efac;
-      border: 1px solid rgba(34, 197, 94, 0.24);
-      font-size: 12px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.09em;
-      margin-bottom: 14px;
-    }
-
-    .hub-heading {
-      margin: 0;
-      font-size: clamp(38px, 6vw, 76px);
-      line-height: 0.95;
-      letter-spacing: -0.07em;
-      font-weight: 950;
-      color: #ffffff;
-    }
-
-    .hub-copy {
-      margin-top: 14px;
-      max-width: 780px;
-      color: #cbd5e1;
-      font-size: 15px;
-      line-height: 1.6;
-      font-weight: 750;
-    }
-
-    .hero-pills {
-      position: relative;
-      z-index: 3;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 22px;
-    }
-
-    .hero-pill {
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      background: rgba(255, 255, 255, 0.08);
-      color: #e2e8f0;
-      border-radius: 999px;
-      padding: 11px 15px;
-      font-size: 13px;
-      font-weight: 950;
-      backdrop-filter: blur(12px);
-    }
-
-    .hero-pill.primary {
-      background: #86efac;
-      color: #052e16;
-      border-color: rgba(134, 239, 172, 0.6);
-      box-shadow: 0 14px 32px rgba(34, 197, 94, 0.24);
-    }
-
-    .metric-grid {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 14px;
-      margin-bottom: 18px;
-    }
-
-    .metric-card,
-    .viz-panel,
-    .tool-card,
-    .risk-card {
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(15, 23, 42, 0.1);
-      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.12);
-    }
-
-    .metric-card {
-      position: relative;
-      overflow: hidden;
-      border-radius: 24px;
-      padding: 18px;
-      min-width: 0;
-    }
-
-    .metric-card::after {
-      content: "";
-      position: absolute;
-      right: -42px;
-      bottom: -72px;
-      width: 135px;
-      height: 135px;
-      border-radius: 999px;
-      background: rgba(34, 197, 94, 0.12);
-      pointer-events: none;
-    }
-
-    .metric-card.warn-orb::after { background: rgba(245, 158, 11, 0.14); }
-    .metric-card.bad-orb::after { background: rgba(220, 38, 38, 0.12); }
-    .metric-card.blue-orb::after { background: rgba(37, 99, 235, 0.13); }
-
-    .metric-label {
-      position: relative;
-      z-index: 2;
-      color: #64748b;
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.09em;
-    }
-
-    .metric-value {
-      position: relative;
-      z-index: 2;
-      margin-top: 8px;
-      color: #0f172a;
-      font-size: 22px;
-      font-weight: 950;
-      letter-spacing: -0.04em;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .positive { color: #15803d !important; }
-    .negative { color: #dc2626 !important; }
-    .warn { color: #d97706 !important; }
-    .neutral { color: #0f172a !important; }
-
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.05fr) minmax(390px, 0.95fr);
-      gap: 18px;
-      margin-bottom: 18px;
-    }
-
-    .viz-panel {
-      position: relative;
-      overflow: hidden;
-      border-radius: 28px;
-      padding: 18px;
-      min-width: 0;
-    }
-
-    .panel-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: flex-start;
-      margin-bottom: 16px;
-    }
-
-    .panel-title {
-      color: #0f172a;
-      font-size: 19px;
-      font-weight: 950;
-      letter-spacing: -0.02em;
-    }
-
-    .panel-sub {
-      color: #64748b;
-      font-size: 12px;
-      font-weight: 850;
-      margin-top: 3px;
-    }
-
-    .panel-link {
-      color: #15803d;
-      font-size: 12px;
-      font-weight: 950;
-      white-space: nowrap;
-    }
-
-    .depth-stage {
-      position: relative;
-      min-height: 360px;
-      perspective: 1100px;
-      border-radius: 24px;
-      background:
-        radial-gradient(circle at 50% 36%, rgba(34, 197, 94, 0.13), transparent 18rem),
-        linear-gradient(180deg, #f8fafc, #eef4ff);
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      overflow: hidden;
-    }
-
-    .orbit {
-      position: absolute;
-      inset: 34px;
-      border-radius: 50%;
-      border: 1px dashed rgba(15, 23, 42, 0.12);
-      transform: rotateX(62deg) rotateZ(-8deg);
-      animation: slowSpin 28s linear infinite;
-    }
-
-    .orbit.two {
-      inset: 72px;
-      animation-duration: 22s;
-      animation-direction: reverse;
-      opacity: 0.72;
-    }
-
-    @keyframes slowSpin {
-      from { transform: rotateX(62deg) rotateZ(0deg); }
-      to { transform: rotateX(62deg) rotateZ(360deg); }
-    }
-
-    .core-number {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      text-align: center;
-      z-index: 3;
-    }
-
-    .core-number-inner {
-      width: min(290px, 72%);
-      aspect-ratio: 1;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      background:
-        radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.95), rgba(226, 232, 240, 0.96)),
-        linear-gradient(135deg, rgba(34, 197, 94, 0.22), rgba(59, 130, 246, 0.18));
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      box-shadow:
-        0 26px 60px rgba(15, 23, 42, 0.18),
-        inset 0 1px 0 rgba(255, 255, 255, 0.9);
-    }
-
-    .core-label {
-      color: #64748b;
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-
-    .core-value {
-      color: #0f172a;
-      font-size: clamp(30px, 4vw, 46px);
-      line-height: 1;
-      font-weight: 950;
-      letter-spacing: -0.055em;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .core-sub {
-      margin-top: 9px;
-      color: #64748b;
-      font-size: 12px;
-      font-weight: 850;
-    }
-
-    .satellite {
-      position: absolute;
-      z-index: 4;
-      width: 132px;
-      border-radius: 18px;
-      padding: 12px;
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid rgba(15, 23, 42, 0.1);
-      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
-      backdrop-filter: blur(14px);
-    }
-
-    .satellite.a { top: 34px; left: 46px; }
-    .satellite.b { top: 58px; right: 42px; }
-    .satellite.c { bottom: 42px; left: 54px; }
-    .satellite.d { bottom: 48px; right: 52px; }
-
-    .sat-label {
-      color: #64748b;
-      font-size: 10px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .sat-value {
-      margin-top: 5px;
-      color: #0f172a;
-      font-size: 14px;
-      font-weight: 950;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .cc-stage {
-      border-radius: 24px;
-      padding: 18px;
-      min-height: 360px;
-      background:
-        radial-gradient(circle at 78% 18%, rgba(245, 158, 11, 0.20), transparent 18rem),
-        linear-gradient(180deg, #fff7ed, #f8fafc);
-      border: 1px solid rgba(245, 158, 11, 0.18);
-      overflow: hidden;
-    }
-
-    .cc-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 999px;
-      padding: 7px 11px;
-      background: rgba(245, 158, 11, 0.14);
-      color: #b45309;
-      border: 1px solid rgba(245, 158, 11, 0.24);
-      font-size: 11px;
-      font-weight: 950;
-      white-space: nowrap;
-    }
-
-    .cc-label {
-      color: #64748b;
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: 0.09em;
-      text-transform: uppercase;
-    }
-
-    .cc-value {
-      margin-top: 8px;
-      color: #dc2626;
-      font-size: clamp(36px, 5vw, 58px);
-      line-height: 0.95;
-      font-weight: 950;
-      letter-spacing: -0.06em;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .cc-meter {
-      height: 16px;
-      margin: 18px 0 14px;
-      background: #e2e8f0;
-      border-radius: 999px;
-      overflow: hidden;
-      border: 1px solid rgba(15, 23, 42, 0.08);
-    }
-
-    .cc-fill {
-      height: 100%;
-      width: 0%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #22c55e, #f59e0b, #dc2626);
-      transition: width 0.45s ease;
-    }
-
-    .cc-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    .cc-pill {
-      background: rgba(255, 255, 255, 0.82);
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      border-radius: 16px;
-      padding: 11px;
-      min-width: 0;
-    }
-
-    .cc-pill-label {
-      color: #64748b;
-      font-size: 10px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-    }
-
-    .cc-pill-value {
-      margin-top: 5px;
-      color: #0f172a;
-      font-size: 14px;
-      font-weight: 950;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .cc-actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 18px;
-    }
-
-    .cc-action-primary,
-    .cc-action-secondary {
-      flex: 1;
-      min-height: 44px;
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-      border-radius: 14px;
-      font-size: 13px;
-      font-weight: 950;
-    }
-
-    .cc-action-primary {
-      background: linear-gradient(135deg, #22c55e, #16a34a);
-      color: #052e16;
-      border: 0;
-      box-shadow: 0 12px 24px rgba(34, 197, 94, 0.18);
-    }
-
-    .cc-action-secondary {
-      background: #ffffff;
-      color: #0f172a;
-      border: 1px solid rgba(15, 23, 42, 0.14);
-    }
-
-    .section-title-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      gap: 12px;
-      margin: 24px 0 12px;
-    }
-
-    .section-title {
-      margin: 0;
-      color: #0f172a;
-      font-size: 22px;
-      font-weight: 950;
-      letter-spacing: -0.035em;
-    }
-
-    .section-note {
-      color: #64748b;
-      font-size: 12px;
-      font-weight: 850;
-      text-align: right;
-    }
-
-    .tool-grid {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 14px;
-      margin-bottom: 18px;
-    }
-
-    .tool-card {
-      position: relative;
-      overflow: hidden;
-      min-height: 130px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      border-radius: 24px;
-      padding: 18px;
-      transition: transform 0.25s ease, box-shadow 0.25s ease;
-    }
-
-    .tool-card::after {
-      content: "";
-      position: absolute;
-      right: -44px;
-      bottom: -78px;
-      width: 140px;
-      height: 140px;
-      border-radius: 999px;
-      background: rgba(59, 130, 246, 0.10);
-      pointer-events: none;
-    }
-
-    .tool-card.primary::after {
-      background: rgba(34, 197, 94, 0.14);
-    }
-
-    .tool-card.atm-tool::after {
-      background: rgba(245, 158, 11, 0.18);
-    }
-
-    .tool-card.nano-tool::after {
-      background: rgba(168, 85, 247, 0.16);
-    }
-
-    .tool-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
-    }
-
-    .tool-icon {
-      position: relative;
-      z-index: 2;
-      width: 42px;
-      height: 42px;
-      display: grid;
-      place-items: center;
-      border-radius: 16px;
-      background: #f8fafc;
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      font-size: 24px;
-    }
-
-    .tool-title {
-      position: relative;
-      z-index: 2;
-      margin-top: 13px;
-      color: #0f172a;
-      font-size: 14px;
-      font-weight: 950;
-    }
-
-    .tool-sub {
-      position: relative;
-      z-index: 2;
-      margin-top: 4px;
-      color: #64748b;
-      font-size: 12px;
-      font-weight: 800;
-      line-height: 1.35;
-    }
-
-    .risk-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-      margin-bottom: 18px;
-    }
-
-    .risk-card {
-      position: relative;
-      overflow: hidden;
-      border-radius: 24px;
-      padding: 18px;
-      min-width: 0;
-    }
-
-    .risk-card::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 6px;
-      background: #94a3b8;
-    }
-
-    .risk-card.good::before { background: #22c55e; }
-    .risk-card.warn::before { background: #f59e0b; }
-    .risk-card.bad::before { background: #dc2626; }
-    .risk-card.info::before { background: #8b5cf6; }
-
-    .risk-title {
-      color: #0f172a;
-      font-size: 14px;
-      font-weight: 950;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .risk-copy {
-      margin-top: 5px;
-      color: #64748b;
-      font-size: 12px;
-      font-weight: 800;
-      line-height: 1.38;
-    }
-
-    .lower-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(380px, 0.8fr);
-      gap: 18px;
-    }
-
-    .mini-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .mini-row {
-      display: grid;
-      grid-template-columns: 40px minmax(0, 1fr) auto;
-      gap: 10px;
-      align-items: center;
-      background: #f8fafc;
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      border-radius: 16px;
-      padding: 11px;
-    }
-
-    .mini-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 14px;
-      display: grid;
-      place-items: center;
-      background: #ffffff;
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      font-size: 20px;
-    }
-
-    .mini-title {
-      color: #0f172a;
-      font-size: 13px;
-      font-weight: 950;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .mini-sub {
-      margin-top: 2px;
-      color: #64748b;
-      font-size: 11px;
-      font-weight: 800;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .mini-amount {
-      color: #0f172a;
-      font-size: 13px;
-      font-weight: 950;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      text-align: right;
-    }
-
-    .empty-panel {
-      background: #f8fafc;
-      border: 1px dashed rgba(15, 23, 42, 0.2);
-      border-radius: 18px;
-      padding: 24px;
-      text-align: center;
-      color: #64748b;
-      font-weight: 850;
-    }
-
-    @media (max-width: 1180px) {
-      .metric-grid,
-      .tool-grid,
-      .risk-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .dashboard-grid,
-      .lower-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 1000px) {
-      .satellite {
-        position: static;
-        width: auto;
-        margin: 8px;
-      }
-
-      .depth-stage {
-        display: grid;
-        gap: 8px;
-        padding: 12px;
-      }
-
-      .core-number {
-        position: static;
-        min-height: 260px;
-      }
-
-      .orbit {
-        display: none;
-      }
-    }
-
-    @media (max-width: 720px) {
-      .metric-grid,
-      .tool-grid,
-      .risk-grid,
-      .cc-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .section-title-row {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      .section-note {
-        text-align: left;
-      }
-
-      .cc-actions {
-        flex-direction: column;
-      }
-
-      .mini-row {
-        grid-template-columns: 38px minmax(0, 1fr);
-      }
-
-      .mini-amount {
-        grid-column: 2;
-        text-align: left;
-      }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#050816" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Sovereign Finance Hub</title>
+<link rel="stylesheet" href="/css/app.css?v=1.0.1" />
+<style>
+body {
+background:
+radial-gradient(circle at 10% 0%, rgba(34, 197, 94, 0.18), transparent 34rem),
+radial-gradient(circle at 90% 10%, rgba(59, 130, 246, 0.18), transparent 36rem),
+radial-gradient(circle at 55% 90%, rgba(168, 85, 247, 0.12), transparent 34rem),
+#eef4ff;
+}
+.hub-wrap {
+max-width: 1320px;
+margin: 0 auto;
+}
+.cinema-hero {
+position: relative;
+overflow: hidden;
+min-height: 270px;
+border-radius: 30px;
+padding: 28px;
+margin-bottom: 18px;
+background:
+linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92)),
+radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.35), transparent 26rem);
+border: 1px solid rgba(148, 163, 184, 0.22);
+color: #f8fafc;
+box-shadow: 0 26px 80px rgba(15, 23, 42, 0.28);
+}
+.cinema-hero::before,
+.cinema-hero::after {
+content: "";
+position: absolute;
+border-radius: 999px;
+filter: blur(2px);
+opacity: 0.8;
+pointer-events: none;
+animation: floatOrb 9s ease-in-out infinite;
+}
+.cinema-hero::before {
+width: 260px;
+height: 260px;
+right: -80px;
+top: -70px;
+background: radial-gradient(circle, rgba(34, 197, 94, 0.42), transparent 70%);
+}
+.cinema-hero::after {
+width: 220px;
+height: 220px;
+left: 42%;
+bottom: -110px;
+background: radial-gradient(circle, rgba(59, 130, 246, 0.32), transparent 70%);
+animation-delay: -3s;
+}
+@keyframes floatOrb {
+0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+50% { transform: translate3d(14px, -16px, 18px) scale(1.08); }
+}
+.hero-content {
+position: relative;
+z-index: 2;
+max-width: 880px;
+}
+.hub-kicker {
+display: inline-flex;
+align-items: center;
+gap: 8px;
+padding: 7px 11px;
+border-radius: 999px;
+background: rgba(34, 197, 94, 0.14);
+color: #86efac;
+border: 1px solid rgba(34, 197, 94, 0.24);
+font-size: 12px;
+font-weight: 950;
+text-transform: uppercase;
+letter-spacing: 0.09em;
+margin-bottom: 14px;
+}
+.hub-heading {
+margin: 0;
+font-size: clamp(38px, 6vw, 76px);
+line-height: 0.95;
+letter-spacing: -0.07em;
+font-weight: 950;
+color: #ffffff;
+}
+.hub-copy {
+margin-top: 14px;
+max-width: 780px;
+color: #cbd5e1;
+font-size: 15px;
+line-height: 1.6;
+font-weight: 750;
+}
+.hero-pills {
+position: relative;
+z-index: 3;
+display: flex;
+flex-wrap: wrap;
+gap: 10px;
+margin-top: 22px;
+}
+.hero-pill {
+border: 1px solid rgba(255, 255, 255, 0.14);
+background: rgba(255, 255, 255, 0.08);
+color: #e2e8f0;
+border-radius: 999px;
+padding: 11px 15px;
+font-size: 13px;
+font-weight: 950;
+backdrop-filter: blur(12px);
+}
+.hero-pill.primary {
+background: #86efac;
+color: #052e16;
+border-color: rgba(134, 239, 172, 0.6);
+box-shadow: 0 14px 32px rgba(34, 197, 94, 0.24);
+}
+.metric-grid {
+display: grid;
+grid-template-columns: repeat(5, minmax(0, 1fr));
+gap: 14px;
+margin-bottom: 18px;
+}
+.metric-card,
+.viz-panel,
+.tool-card,
+.risk-card {
+background: rgba(255, 255, 255, 0.94);
+border: 1px solid rgba(15, 23, 42, 0.1);
+box-shadow: 0 18px 46px rgba(15, 23, 42, 0.12);
+}
+.metric-card {
+position: relative;
+overflow: hidden;
+border-radius: 24px;
+padding: 18px;
+min-width: 0;
+}
+.metric-card::after {
+content: "";
+position: absolute;
+right: -42px;
+bottom: -72px;
+width: 135px;
+height: 135px;
+border-radius: 999px;
+background: rgba(34, 197, 94, 0.12);
+pointer-events: none;
+}
+.metric-card.warn-orb::after { background: rgba(245, 158, 11, 0.14); }
+.metric-card.bad-orb::after { background: rgba(220, 38, 38, 0.12); }
+.metric-card.blue-orb::after { background: rgba(37, 99, 235, 0.13); }
+.metric-label {
+position: relative;
+z-index: 2;
+color: #64748b;
+font-size: 11px;
+font-weight: 950;
+text-transform: uppercase;
+letter-spacing: 0.09em;
+}
+.metric-value {
+position: relative;
+z-index: 2;
+margin-top: 8px;
+color: #0f172a;
+font-size: 22px;
+font-weight: 950;
+letter-spacing: -0.04em;
+font-variant-numeric: tabular-nums;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.positive { color: #15803d !important; }
+.negative { color: #dc2626 !important; }
+.warn { color: #d97706 !important; }
+.neutral { color: #0f172a !important; }
+.dashboard-grid {
+display: grid;
+grid-template-columns: minmax(0, 1.05fr) minmax(390px, 0.95fr);
+gap: 18px;
+margin-bottom: 18px;
+}
+.viz-panel {
+position: relative;
+overflow: hidden;
+border-radius: 28px;
+padding: 18px;
+min-width: 0;
+}
+.panel-head {
+display: flex;
+justify-content: space-between;
+gap: 12px;
+align-items: flex-start;
+margin-bottom: 16px;
+}
+.panel-title {
+color: #0f172a;
+font-size: 19px;
+font-weight: 950;
+letter-spacing: -0.02em;
+}
+.panel-sub {
+color: #64748b;
+font-size: 12px;
+font-weight: 850;
+margin-top: 3px;
+}
+.panel-link {
+color: #15803d;
+font-size: 12px;
+font-weight: 950;
+white-space: nowrap;
+}
+.depth-stage {
+position: relative;
+min-height: 360px;
+perspective: 1100px;
+border-radius: 24px;
+background:
+radial-gradient(circle at 50% 36%, rgba(34, 197, 94, 0.13), transparent 18rem),
+linear-gradient(180deg, #f8fafc, #eef4ff);
+border: 1px solid rgba(15, 23, 42, 0.08);
+overflow: hidden;
+}
+.orbit {
+position: absolute;
+inset: 34px;
+border-radius: 50%;
+border: 1px dashed rgba(15, 23, 42, 0.12);
+transform: rotateX(62deg) rotateZ(-8deg);
+animation: slowSpin 28s linear infinite;
+}
+.orbit.two {
+inset: 72px;
+animation-duration: 22s;
+animation-direction: reverse;
+opacity: 0.72;
+}
+@keyframes slowSpin {
+from { transform: rotateX(62deg) rotateZ(0deg); }
+to { transform: rotateX(62deg) rotateZ(360deg); }
+}
+.core-number {
+position: absolute;
+inset: 0;
+display: grid;
+place-items: center;
+text-align: center;
+z-index: 3;
+}
+.core-number-inner {
+width: min(290px, 72%);
+aspect-ratio: 1;
+border-radius: 50%;
+display: grid;
+place-items: center;
+background:
+radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.95), rgba(226, 232, 240, 0.96)),
+linear-gradient(135deg, rgba(34, 197, 94, 0.22), rgba(59, 130, 246, 0.18));
+border: 1px solid rgba(15, 23, 42, 0.08);
+box-shadow:
+0 26px 60px rgba(15, 23, 42, 0.18),
+inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.core-label {
+color: #64748b;
+font-size: 11px;
+font-weight: 950;
+letter-spacing: 0.1em;
+text-transform: uppercase;
+margin-bottom: 8px;
+}
+.core-value {
+color: #0f172a;
+font-size: clamp(30px, 4vw, 46px);
+line-height: 1;
+font-weight: 950;
+letter-spacing: -0.055em;
+font-variant-numeric: tabular-nums;
+}
+.core-sub {
+margin-top: 9px;
+color: #64748b;
+font-size: 12px;
+font-weight: 850;
+}
+.satellite {
+position: absolute;
+z-index: 4;
+width: 132px;
+border-radius: 18px;
+padding: 12px;
+background: rgba(255, 255, 255, 0.92);
+border: 1px solid rgba(15, 23, 42, 0.1);
+box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+backdrop-filter: blur(14px);
+}
+.satellite.a { top: 34px; left: 46px; }
+.satellite.b { top: 58px; right: 42px; }
+.satellite.c { bottom: 42px; left: 54px; }
+.satellite.d { bottom: 48px; right: 52px; }
+.sat-label {
+color: #64748b;
+font-size: 10px;
+font-weight: 950;
+text-transform: uppercase;
+letter-spacing: 0.08em;
+}
+.sat-value {
+margin-top: 5px;
+color: #0f172a;
+font-size: 14px;
+font-weight: 950;
+font-variant-numeric: tabular-nums;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.cc-stage {
+border-radius: 24px;
+padding: 18px;
+min-height: 360px;
+background:
+radial-gradient(circle at 78% 18%, rgba(245, 158, 11, 0.20), transparent 18rem),
+linear-gradient(180deg, #fff7ed, #f8fafc);
+border: 1px solid rgba(245, 158, 11, 0.18);
+overflow: hidden;
+}
+.cc-badge {
+display: inline-flex;
+align-items: center;
+justify-content: center;
+border-radius: 999px;
+padding: 7px 11px;
+background: rgba(245, 158, 11, 0.14);
+color: #b45309;
+border: 1px solid rgba(245, 158, 11, 0.24);
+font-size: 11px;
+font-weight: 950;
+white-space: nowrap;
+}
+.cc-label {
+color: #64748b;
+font-size: 11px;
+font-weight: 950;
+letter-spacing: 0.09em;
+text-transform: uppercase;
+}
+.cc-value {
+margin-top: 8px;
+color: #dc2626;
+font-size: clamp(36px, 5vw, 58px);
+line-height: 0.95;
+font-weight: 950;
+letter-spacing: -0.06em;
+font-variant-numeric: tabular-nums;
+}
+.cc-meter {
+height: 16px;
+margin: 18px 0 14px;
+background: #e2e8f0;
+border-radius: 999px;
+overflow: hidden;
+border: 1px solid rgba(15, 23, 42, 0.08);
+}
+.cc-fill {
+height: 100%;
+width: 0%;
+border-radius: 999px;
+background: linear-gradient(90deg, #22c55e, #f59e0b, #dc2626);
+transition: width 0.45s ease;
+}
+.cc-grid {
+display: grid;
+grid-template-columns: repeat(2, minmax(0, 1fr));
+gap: 10px;
+margin-top: 14px;
+}
+.cc-pill {
+background: rgba(255, 255, 255, 0.82);
+border: 1px solid rgba(15, 23, 42, 0.08);
+border-radius: 16px;
+padding: 11px;
+min-width: 0;
+}
+.cc-pill-label {
+color: #64748b;
+font-size: 10px;
+font-weight: 950;
+text-transform: uppercase;
+letter-spacing: 0.07em;
+}
+.cc-pill-value {
+margin-top: 5px;
+color: #0f172a;
+font-size: 14px;
+font-weight: 950;
+font-variant-numeric: tabular-nums;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.cc-actions {
+display: flex;
+gap: 10px;
+margin-top: 18px;
+}
+.cc-action-primary,
+.cc-action-secondary {
+flex: 1;
+min-height: 44px;
+display: inline-flex;
+justify-content: center;
+align-items: center;
+border-radius: 14px;
+font-size: 13px;
+font-weight: 950;
+}
+.cc-action-primary {
+background: linear-gradient(135deg, #22c55e, #16a34a);
+color: #052e16;
+border: 0;
+box-shadow: 0 12px 24px rgba(34, 197, 94, 0.18);
+}
+.cc-action-secondary {
+background: #ffffff;
+color: #0f172a;
+border: 1px solid rgba(15, 23, 42, 0.14);
+}
+.section-title-row {
+display: flex;
+justify-content: space-between;
+align-items: flex-end;
+gap: 12px;
+margin: 24px 0 12px;
+}
+.section-title {
+margin: 0;
+color: #0f172a;
+font-size: 22px;
+font-weight: 950;
+letter-spacing: -0.035em;
+}
+.section-note {
+color: #64748b;
+font-size: 12px;
+font-weight: 850;
+text-align: right;
+}
+.tool-grid {
+display: grid;
+grid-template-columns: repeat(5, minmax(0, 1fr));
+gap: 14px;
+margin-bottom: 18px;
+}
+.tool-card {
+position: relative;
+overflow: hidden;
+min-height: 130px;
+display: flex;
+flex-direction: column;
+justify-content: space-between;
+border-radius: 24px;
+padding: 18px;
+transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.tool-card::after {
+content: "";
+position: absolute;
+right: -44px;
+bottom: -78px;
+width: 140px;
+height: 140px;
+border-radius: 999px;
+background: rgba(59, 130, 246, 0.10);
+pointer-events: none;
+}
+.tool-card.primary::after {
+background: rgba(34, 197, 94, 0.14);
+}
+.tool-card.atm-tool::after {
+background: rgba(245, 158, 11, 0.18);
+}
+.tool-card.nano-tool::after {
+background: rgba(168, 85, 247, 0.16);
+}
+.tool-card:hover {
+transform: translateY(-3px);
+box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
+}
+.tool-icon {
+position: relative;
+z-index: 2;
+width: 42px;
+height: 42px;
+display: grid;
+place-items: center;
+border-radius: 16px;
+background: #f8fafc;
+border: 1px solid rgba(15, 23, 42, 0.08);
+font-size: 24px;
+}
+.tool-title {
+position: relative;
+z-index: 2;
+margin-top: 13px;
+color: #0f172a;
+font-size: 14px;
+font-weight: 950;
+}
+.tool-sub {
+position: relative;
+z-index: 2;
+margin-top: 4px;
+color: #64748b;
+font-size: 12px;
+font-weight: 800;
+line-height: 1.35;
+}
+.risk-grid {
+display: grid;
+grid-template-columns: repeat(4, minmax(0, 1fr));
+gap: 14px;
+margin-bottom: 18px;
+}
+.risk-card {
+position: relative;
+overflow: hidden;
+border-radius: 24px;
+padding: 18px;
+min-width: 0;
+}
+.risk-card::before {
+content: "";
+position: absolute;
+left: 0;
+top: 0;
+bottom: 0;
+width: 6px;
+background: #94a3b8;
+}
+.risk-card.good::before { background: #22c55e; }
+.risk-card.warn::before { background: #f59e0b; }
+.risk-card.bad::before { background: #dc2626; }
+.risk-card.info::before { background: #8b5cf6; }
+.risk-title {
+color: #0f172a;
+font-size: 14px;
+font-weight: 950;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.risk-copy {
+margin-top: 5px;
+color: #64748b;
+font-size: 12px;
+font-weight: 800;
+line-height: 1.38;
+}
+.lower-grid {
+display: grid;
+grid-template-columns: minmax(0, 1.2fr) minmax(380px, 0.8fr);
+gap: 18px;
+}
+.mini-list {
+display: flex;
+flex-direction: column;
+gap: 10px;
+}
+.mini-row {
+display: grid;
+grid-template-columns: 40px minmax(0, 1fr) auto;
+gap: 10px;
+align-items: center;
+background: #f8fafc;
+border: 1px solid rgba(15, 23, 42, 0.08);
+border-radius: 16px;
+padding: 11px;
+}
+.mini-icon {
+width: 38px;
+height: 38px;
+border-radius: 14px;
+display: grid;
+place-items: center;
+background: #ffffff;
+border: 1px solid rgba(15, 23, 42, 0.08);
+font-size: 20px;
+}
+.mini-title {
+color: #0f172a;
+font-size: 13px;
+font-weight: 950;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.mini-sub {
+margin-top: 2px;
+color: #64748b;
+font-size: 11px;
+font-weight: 800;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.mini-amount {
+color: #0f172a;
+font-size: 13px;
+font-weight: 950;
+font-variant-numeric: tabular-nums;
+white-space: nowrap;
+text-align: right;
+}
+.empty-panel {
+background: #f8fafc;
+border: 1px dashed rgba(15, 23, 42, 0.2);
+border-radius: 18px;
+padding: 24px;
+text-align: center;
+color: #64748b;
+font-weight: 850;
+}
+@media (max-width: 1180px) {
+.metric-grid,
+.tool-grid,
+.risk-grid {
+grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.dashboard-grid,
+.lower-grid {
+grid-template-columns: 1fr;
+}
+}
+@media (max-width: 1000px) {
+.satellite {
+position: static;
+width: auto;
+margin: 8px;
+}
+.depth-stage {
+display: grid;
+gap: 8px;
+padding: 12px;
+}
+.core-number {
+position: static;
+min-height: 260px;
+}
+.orbit {
+display: none;
+}
+}
+@media (max-width: 720px) {
+.metric-grid,
+.tool-grid,
+.risk-grid,
+.cc-grid {
+grid-template-columns: 1fr;
+}
+.section-title-row {
+align-items: flex-start;
+flex-direction: column;
+}
+.section-note {
+text-align: left;
+}
+.cc-actions {
+flex-direction: column;
+}
+.mini-row {
+grid-template-columns: 38px minmax(0, 1fr);
+}
+.mini-amount {
+grid-column: 2;
+text-align: left;
+}
+}
+</style>
 </head>
-
 <body>
-  <header>
-    <div>
-      <div class="brand">Sovereign Finance</div>
-      <div class="title">Hub</div>
-    </div>
-  </header>
-
-  <main class="hub-wrap">
-    <section class="cinema-hero motion-reveal">
-      <div class="hero-content">
-        <div class="hub-kicker">Layer 5C · Nano Loans integrated</div>
-        <h1 class="hub-heading">Finance cockpit</h1>
-        <p class="hub-copy">
-          The daily control screen: safety signal, true burden, CC pressure, ATM cash movement, Nano Loans, recent writes, obligations, and next actions in one premium view.
-        </p>
-
-        <div class="hero-pills">
-          <span class="hero-pill primary" id="freshnessText">Loading live data...</span>
-          <a class="hero-pill" href="/nano-loans.html">Nano Loans</a>
-          <a class="hero-pill" href="/atm.html">ATM Control</a>
-          <a class="hero-pill" href="/charts.html">Open Charts</a>
-          <a class="hero-pill" href="/add.html">Add Transaction</a>
-        </div>
-      </div>
-    </section>
-
-    <section class="metric-grid motion-stagger">
-      <div class="metric-card">
-        <div class="metric-label">Am I Safe?</div>
-        <div id="sigSafe" class="metric-value">—</div>
-      </div>
-
-      <div class="metric-card">
-        <div class="metric-label">Available Liquid</div>
-        <div id="sigLiquid" class="metric-value positive">—</div>
-      </div>
-
-      <div class="metric-card warn-orb">
-        <div class="metric-label">CC Pressure</div>
-        <div id="sigCC" class="metric-value warn">—</div>
-      </div>
-
-      <div class="metric-card blue-orb">
-        <div class="metric-label">ATM Pending</div>
-        <div id="sigATM" class="metric-value">—</div>
-      </div>
-
-      <div class="metric-card">
-        <div class="metric-label">Last Write</div>
-        <div id="sigWrite" class="metric-value">—</div>
-      </div>
-    </section>
-
-    <section class="dashboard-grid">
-      <div class="viz-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">True Burden Orbit</div>
-            <div class="panel-sub">Liquid, debts, burden, and safety in one depth view</div>
-          </div>
-        </div>
-
-        <div class="depth-stage">
-          <div class="orbit"></div>
-          <div class="orbit two"></div>
-
-          <div class="core-number">
-            <div class="core-number-inner">
-              <div>
-                <div class="core-label">Net Position</div>
-                <div id="netWorth" class="core-value">—</div>
-                <div id="netSub" class="core-sub">Live D1 formula layer</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="satellite a">
-            <div class="sat-label">Liquid</div>
-            <div id="liquid" class="sat-value">—</div>
-          </div>
-
-          <div class="satellite b">
-            <div class="sat-label">Debts</div>
-            <div id="debts" class="sat-value">—</div>
-          </div>
-
-          <div class="satellite c">
-            <div class="sat-label">Burden</div>
-            <div id="burden" class="sat-value">—</div>
-          </div>
-
-          <div class="satellite d">
-            <div class="sat-label">Safety</div>
-            <div id="orbitSafety" class="sat-value">—</div>
-          </div>
-        </div>
-      </div>
-
-      <aside class="viz-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Alfalah CC Control</div>
-            <div class="panel-sub">Card pressure remains visible before every daily action</div>
-          </div>
-          <div id="ccStatusBadge" class="cc-badge">Loading</div>
-        </div>
-
-        <div class="cc-stage">
-          <div>
-            <div class="cc-label">Outstanding</div>
-            <div id="ccOutstanding" class="cc-value">—</div>
-          </div>
-
-          <div class="cc-meter">
-            <div id="ccFill" class="cc-fill"></div>
-          </div>
-
-          <div class="cc-grid">
-            <div class="cc-pill">
-              <div class="cc-pill-label">Utilization</div>
-              <div id="ccUtil" class="cc-pill-value warn">—</div>
-            </div>
-
-            <div class="cc-pill">
-              <div class="cc-pill-label">Available</div>
-              <div id="ccAvailable" class="cc-pill-value positive">—</div>
-            </div>
-
-            <div class="cc-pill">
-              <div class="cc-pill-label">Limit</div>
-              <div id="ccLimit" class="cc-pill-value">—</div>
-            </div>
-
-            <div class="cc-pill">
-              <div class="cc-pill-label">Due</div>
-              <div id="ccDue" class="cc-pill-value">Not set</div>
-            </div>
-          </div>
-
-          <div class="cc-actions">
-            <a class="cc-action-primary" href="/cc.html">Open CC Planner</a>
-            <a class="cc-action-secondary" href="/add.html">Pay / Adjust</a>
-          </div>
-        </div>
-      </aside>
-    </section>
-
-    <div class="section-title-row">
-      <h2 class="section-title">Daily tools</h2>
-      <div class="section-note">Fast paths stay visible. ATM and Nano Loans are live. Sheet parity remains parked.</div>
-    </div>
-
-    <section class="tool-grid motion-stagger">
-      <a href="/add.html" class="tool-card primary">
-        <div class="tool-icon">➕</div>
-        <div>
-          <div class="tool-title">Add Transaction</div>
-          <div class="tool-sub">record the next ledger event</div>
-        </div>
-      </a>
-
-      <a href="/atm.html" class="tool-card primary atm-tool">
-        <div class="tool-icon">🏧</div>
-        <div>
-          <div class="tool-title">ATM Control</div>
-          <div class="tool-sub">cash movement plus fee reversal tracking</div>
-        </div>
-      </a>
-
-      <a href="/nano-loans.html" class="tool-card primary nano-tool">
-        <div class="tool-icon">🤝</div>
-        <div>
-          <div class="tool-title">Nano Loans</div>
-          <div class="tool-sub">small lending with repay and push-to-CC control</div>
-        </div>
-      </a>
-
-      <a href="/transactions.html" class="tool-card primary">
-        <div class="tool-icon">📜</div>
-        <div>
-          <div class="tool-title">Transactions</div>
-          <div class="tool-sub">inspect active ledger rows</div>
-        </div>
-      </a>
-
-      <a href="/bills.html" class="tool-card primary">
-        <div class="tool-icon">📅</div>
-        <div>
-          <div class="tool-title">Bills</div>
-          <div class="tool-sub">track obligations</div>
-        </div>
-      </a>
-
-      <a href="/cc.html" class="tool-card primary">
-        <div class="tool-icon">🪪</div>
-        <div>
-          <div class="tool-title">CC Planner</div>
-          <div class="tool-sub">manage card pressure</div>
-        </div>
-      </a>
-
-      <a href="/charts.html" class="tool-card primary">
-        <div class="tool-icon">📊</div>
-        <div>
-          <div class="tool-title">Charts</div>
-          <div class="tool-sub">premium visual cockpit</div>
-        </div>
-      </a>
-
-      <a href="/accounts.html" class="tool-card">
-        <div class="tool-icon">🏦</div>
-        <div>
-          <div class="tool-title">Accounts</div>
-          <div class="tool-sub">see where money sits</div>
-        </div>
-      </a>
-
-      <a href="/debts.html" class="tool-card">
-        <div class="tool-icon">💳</div>
-        <div>
-          <div class="tool-title">Debts</div>
-          <div class="tool-sub">snowball and corrections</div>
-        </div>
-      </a>
-
-      <a href="/reconciliation.html" class="tool-card">
-        <div class="tool-icon">⚖️</div>
-        <div>
-          <div class="tool-title">Reconcile</div>
-          <div class="tool-sub">bank truth vs D1</div>
-        </div>
-      </a>
-
-      <a href="/audit.html" class="tool-card">
-        <div class="tool-icon">🛡️</div>
-        <div>
-          <div class="tool-title">Audit</div>
-          <div class="tool-sub">verify recent writes</div>
-        </div>
-      </a>
-
-      <a href="/goals.html" class="tool-card">
-        <div class="tool-icon">🎯</div>
-        <div>
-          <div class="tool-title">Goals</div>
-          <div class="tool-sub">savings targets</div>
-        </div>
-      </a>
-    </section>
-
-    <div class="section-title-row">
-      <h2 class="section-title">What needs action</h2>
-      <div class="section-note">Live read-only risk view. No test rows.</div>
-    </div>
-
-    <section id="riskGrid" class="risk-grid motion-stagger">
-      <div class="risk-card">
-        <div class="risk-title">Loading...</div>
-        <div class="risk-copy">Checking live data.</div>
-      </div>
-    </section>
-
-    <section class="lower-grid">
-      <div class="viz-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">What changed recently</div>
-            <div class="panel-sub">Latest ledger movement</div>
-          </div>
-          <a href="/transactions.html" class="panel-link">View all →</a>
-        </div>
-
-        <div id="recentTransactions" class="mini-list motion-row-stagger">
-          <div class="empty-panel">Loading recent transactions...</div>
-        </div>
-      </div>
-
-      <div class="viz-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Obligations</div>
-            <div class="panel-sub">Bills sorted by pressure</div>
-          </div>
-          <a href="/bills.html" class="panel-link">Bills →</a>
-        </div>
-
-        <div id="dueSoon" class="mini-list motion-row-stagger">
-          <div class="empty-panel">Loading bills...</div>
-        </div>
-      </div>
-    </section>
-
-    <footer class="page-footer">
-      <span class="v">v0.9.7 · layer 5C Nano Hub-integrated · nav v1.0.5 · app.css v1.0.1</span>
-    </footer>
-  </main>
-
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-  <script src="/js/theme.js?v=0.7.1"></script>
-  <script src="/js/nav.js?v=1.0.5"></script>
-
-  <script>
-    const TYPE_IN = new Set(['income', 'borrow']);
-    const TYPE_OUT = new Set(['expense', 'repay', 'cc_spend', 'atm']);
-    const TYPE_ICON = {
-      income: '💰',
-      expense: '💸',
-      transfer: '💱',
-      borrow: '📥',
-      repay: '📤',
-      cc_spend: '💳',
-      cc_payment: '💳',
-      atm: '🏧'
-    };
-
-    const $ = id => document.getElementById(id);
-
-    function esc(value) {
-      return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
-
-    function money(value) {
-      const n = Number(value) || 0;
-      const sign = n < 0 ? '-' : '';
-      return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
-    }
-
-    async function fetchJSON(url) {
-      const res = await fetch(url, { cache: 'no-store' });
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok || !data || data.ok === false) {
-        throw new Error((data && data.error) || ('HTTP ' + res.status));
-      }
-
-      return data;
-    }
-
-    async function safeJSON(url, fallback) {
-      try {
-        return await fetchJSON(url);
-      } catch (err) {
-        return fallback;
-      }
-    }
-
-    function amountClass(row) {
-      const type = String(row.type || '').toLowerCase();
-      if (TYPE_IN.has(type)) return 'positive';
-      if (TYPE_OUT.has(type)) return 'negative';
-      return 'neutral';
-    }
-
-    function signedMoney(row) {
-      const amount = Number(row.amount) || 0;
-      const type = String(row.type || '').toLowerCase();
-
-      if (TYPE_IN.has(type)) return '+' + money(amount);
-      if (TYPE_OUT.has(type)) return '-' + money(amount);
-
-      return money(amount);
-    }
-
-    function titleFor(row) {
-      return String(row.notes || '').trim() || String(row.type || 'Transaction').replace(/_/g, ' ');
-    }
-
-    function accountName(id, accounts) {
-      const found = accounts.find(account => account.id === id);
-      return found ? ((found.icon || '') + ' ' + found.name).trim() : (id || 'No account');
-    }
-
-    function findCC(accounts) {
-      return (accounts || []).find(account => account.id === 'cc') ||
-        (accounts || []).find(account => String(account.kind || '').toLowerCase() === 'cc') ||
-        null;
-    }
-
-    function billRisk(bill) {
-      if (bill.last_paid_date) return 99;
-      if (!bill.due_day) return 50;
-      return Number(bill.due_day) - new Date().getDate();
-    }
-
-    function safetyLabel(liquid, ccPct, urgentBills, drifted, pendingAtmFees) {
-      if (drifted > 0) return { text: 'Check Recon', cls: 'negative' };
-      if (ccPct >= 75) return { text: 'CC High', cls: 'negative' };
-      if (pendingAtmFees > 0) return { text: pendingAtmFees + ' ATM Fee', cls: 'warn' };
-      if (urgentBills > 0) return { text: urgentBills + ' Action', cls: 'warn' };
-      if (liquid < 5000) return { text: 'Thin Cash', cls: 'warn' };
-      return { text: 'Stable', cls: 'positive' };
-    }
-
-    function renderBalances(data, accounts, bills, recon, atm) {
-      const net = Number(data.net_worth) || 0;
-      const liquid = Number(data.total_liquid || data.total_liquid_assets || data.cash || 0);
-      const debts = Number(data.total_owed || data.total_owe || data.total_debts || 0);
-      const burden = Number(data.true_burden || 0);
-
-      const ccAccount = findCC(accounts) || {};
-      const ccOutstanding = Number(ccAccount.cc_outstanding || data.cc_outstanding || data.cc || Math.abs(Number(ccAccount.balance) || 0)) || 0;
-      const ccLimit = Number(ccAccount.credit_limit || 100000) || 100000;
-      const ccAvailable = Number(ccAccount.available_credit != null ? ccAccount.available_credit : Math.max(0, ccLimit - ccOutstanding));
-      const ccPct = Number(ccAccount.cc_utilization_pct != null ? ccAccount.cc_utilization_pct : ((ccOutstanding / ccLimit) * 100)) || 0;
-
-      const urgentBills = (bills || []).filter(bill => billRisk(bill) <= 3 && !bill.last_paid_date).length;
-      const drifted = Number(recon && (recon.drifted_count || recon.drift_count || 0)) || 0;
-      const pendingAtmFees = Number(atm && atm.pending_count) || 0;
-      const safe = safetyLabel(liquid, ccPct, urgentBills, drifted, pendingAtmFees);
-
-      $('netWorth').textContent = money(net);
-      $('netWorth').className = 'core-value ' + (net >= 0 ? 'positive' : 'negative');
-      $('netSub').textContent = net >= 0 ? 'Positive position' : 'Burden exceeds current net position';
-
-      $('liquid').textContent = money(liquid);
-      $('debts').textContent = money(debts);
-      $('burden').textContent = money(burden);
-      $('orbitSafety').textContent = safe.text;
-      $('orbitSafety').className = 'sat-value ' + safe.cls;
-
-      $('sigSafe').textContent = safe.text;
-      $('sigSafe').className = 'metric-value ' + safe.cls;
-
-      $('sigLiquid').textContent = money(liquid);
-      $('sigLiquid').className = 'metric-value ' + (liquid > 0 ? 'positive' : 'negative');
-
-      $('sigCC').textContent = ccPct.toFixed(1) + '%';
-      $('sigCC').className = 'metric-value ' + (ccPct >= 75 ? 'negative' : ccPct >= 40 ? 'warn' : 'positive');
-
-      $('sigATM').textContent = pendingAtmFees ? pendingAtmFees + ' fee(s)' : 'Clear';
-      $('sigATM').className = 'metric-value ' + (pendingAtmFees ? 'warn' : 'positive');
-
-      $('ccOutstanding').textContent = money(ccOutstanding);
-      $('ccUtil').textContent = ccPct.toFixed(1) + '%';
-      $('ccUtil').className = 'cc-pill-value ' + (ccPct >= 75 ? 'negative' : ccPct >= 40 ? 'warn' : 'positive');
-      $('ccAvailable').textContent = money(ccAvailable);
-      $('ccLimit').textContent = money(ccLimit);
-      $('ccDue').textContent = ccAccount.payment_due_day || ccAccount.days_to_payment_due || 'Not set';
-      $('ccFill').style.width = Math.max(0, Math.min(100, ccPct)) + '%';
-
-      const status = ccAccount.cc_status_label || (ccPct >= 75 ? 'High' : ccPct >= 40 ? 'Moderate' : 'Controlled');
-      $('ccStatusBadge').textContent = status;
-    }
-
-    function renderTransactions(rows, accounts) {
-      const box = $('recentTransactions');
-      const recent = (rows || []).slice(0, 8);
-
-      if (!recent.length) {
-        box.innerHTML = '<div class="empty-panel">No recent transactions.</div>';
-        return;
-      }
-
-      box.innerHTML = recent.map(row => {
-        const type = String(row.type || '').toLowerCase();
-        const cls = amountClass(row);
-
-        return `
-          <article class="mini-row">
-            <div class="mini-icon">${TYPE_ICON[type] || '🧾'}</div>
-            <div>
-              <div class="mini-title" title="${esc(titleFor(row))}">${esc(titleFor(row))}</div>
-              <div class="mini-sub">${esc(accountName(row.account_id, accounts))} · ${esc(row.date || '')}</div>
-            </div>
-            <div class="mini-amount ${cls}">${esc(signedMoney(row))}</div>
-          </article>
-        `;
-      }).join('');
-    }
-
-    function billStatus(bill) {
-      if (bill.last_paid_date) return 'Paid ' + bill.last_paid_date;
-      if (!bill.due_day) return 'No due day';
-
-      const diff = Number(bill.due_day) - new Date().getDate();
-
-      if (diff === 0) return 'Due today';
-      if (diff > 0) return 'Due in ' + diff + 'd';
-      return 'Overdue by ' + Math.abs(diff) + 'd';
-    }
-
-    function renderBills(bills) {
-      const box = $('dueSoon');
-      const rows = (bills || [])
-        .slice()
-        .sort((a, b) => billRisk(a) - billRisk(b))
-        .slice(0, 6);
-
-      if (!rows.length) {
-        box.innerHTML = '<div class="empty-panel">No bills found.</div>';
-        return;
-      }
-
-      box.innerHTML = rows.map(bill => `
-        <article class="mini-row">
-          <div class="mini-icon">📅</div>
-          <div>
-            <div class="mini-title">${esc(bill.name)}</div>
-            <div class="mini-sub">${esc(billStatus(bill))}</div>
-          </div>
-          <div class="mini-amount neutral">${money(bill.amount)}</div>
-        </article>
-      `).join('');
-    }
-
-    function renderLastWrite(audit) {
-      const row = audit && audit.rows && audit.rows[0];
-      $('sigWrite').textContent = row ? (row.action || 'Event') : 'None';
-    }
-
-    function renderRisks(balances, accounts, bills, recon, atm) {
-      const risks = [];
-
-      const ccAccount = findCC(accounts) || {};
-      const cc = Number(ccAccount.cc_outstanding || balances.cc_outstanding || balances.cc || Math.abs(Number(ccAccount.balance) || 0)) || 0;
-      const limit = Number(ccAccount.credit_limit || 100000) || 100000;
-      const ccPct = Number(ccAccount.cc_utilization_pct != null ? ccAccount.cc_utilization_pct : ((cc / limit) * 100)) || 0;
-      const liquid = Number(balances.total_liquid || balances.total_liquid_assets || balances.cash || 0);
-      const urgentBills = (bills || []).filter(bill => billRisk(bill) <= 3 && !bill.last_paid_date);
-      const drifted = Number(recon && (recon.drifted_count || recon.drift_count || 0)) || 0;
-      const pendingAtmFees = Number(atm && atm.pending_count) || 0;
-      const pendingAtmValue = Number(atm && atm.total_pending_pkr) || 0;
-
-      risks.push({
-        level: ccPct >= 75 ? 'bad' : ccPct >= 40 ? 'warn' : 'good',
-        title: 'CC pressure',
-        copy: ccPct.toFixed(1) + '% utilization · outstanding ' + money(cc)
-      });
-
-      risks.push({
-        level: pendingAtmFees ? 'warn' : 'good',
-        title: 'ATM reversals',
-        copy: pendingAtmFees ? pendingAtmFees + ' pending fee(s) · ' + money(pendingAtmValue) : 'No pending ATM fee reversals'
-      });
-
-      risks.push({
-        level: 'info',
-        title: 'Nano Loans',
-        copy: 'Nano Loans are linked from Hub and global navigation'
-      });
-
-      risks.push({
-        level: liquid <= 0 ? 'bad' : liquid < 5000 ? 'warn' : 'good',
-        title: 'Liquid runway',
-        copy: 'Available liquid: ' + money(liquid)
-      });
-
-      risks.push({
-        level: urgentBills.length ? 'warn' : 'good',
-        title: 'Bills due soon',
-        copy: urgentBills.length ? urgentBills.length + ' bill(s) need attention' : 'No immediate bill pressure'
-      });
-
-      risks.push({
-        level: drifted ? 'bad' : 'good',
-        title: 'Reconciliation',
-        copy: drifted ? drifted + ' account(s) drifted' : 'No declared drift reported'
-      });
-
-      $('riskGrid').innerHTML = risks.map(risk => `
-        <article class="risk-card ${risk.level}">
-          <div class="risk-title">${esc(risk.title)}</div>
-          <div class="risk-copy">${esc(risk.copy)}</div>
-        </article>
-      `).join('');
-    }
-
-    async function loadHub() {
-      try {
-        const [balances, transactions, accounts, bills, audit, recon, atm] = await Promise.all([
-          fetchJSON('/api/balances?debug=1'),
-          fetchJSON('/api/transactions'),
-          fetchJSON('/api/accounts?debug=1'),
-          fetchJSON('/api/bills'),
-          safeJSON('/api/audit?limit=1', { rows: [] }),
-          safeJSON('/api/reconciliation', {}),
-          safeJSON('/api/atm', { pending_count: 0, total_pending_pkr: 0 })
-        ]);
-
-        const accountRows = accounts.accounts || [];
-        const billRows = bills.bills || [];
-
-        renderBalances(balances, accountRows, billRows, recon, atm);
-        renderTransactions(transactions.transactions || [], accountRows);
-        renderBills(billRows);
-        renderLastWrite(audit);
-        renderRisks(balances, accountRows, billRows, recon, atm);
-
-        $('freshnessText').textContent = 'Live · balances, transactions, bills, audit, ATM checked';
-      } catch (err) {
-        $('freshnessText').textContent = 'Load error';
-        $('recentTransactions').innerHTML = '<div class="empty-panel">Hub failed: ' + esc(err.message) + '</div>';
-      }
-    }
-
-    loadHub();
-  </script>
+<header>
+<div>
+<div class="brand">Sovereign Finance</div>
+<div class="title">Hub</div>
+</div>
+</header>
+<main class="hub-wrap">
+<section class="cinema-hero motion-reveal">
+<div class="hero-content">
+<div class="hub-kicker">Layer 5C  Nano Loans integrated</div>
+<h1 class="hub-heading">Finance cockpit</h1>
+<p class="hub-copy">
+The daily control screen: safety signal, true burden, CC pressure, ATM cash movement, Nano Loans, recent writes, obligations, and next actions in one premium view.
+</p>
+<div class="hero-pills">
+<span class="hero-pill primary" id="freshnessText">Loading live data...</span>
+<a class="hero-pill" href="/nano-loans.html">Nano Loans</a>
+<a class="hero-pill" href="/atm.html">ATM Control</a>
+<a class="hero-pill" href="/charts.html">Open Charts</a>
+<a class="hero-pill" href="/add.html">Add Transaction</a>
+</div>
+</div>
+</section>
+<section class="metric-grid motion-stagger">
+<div class="metric-card">
+<div class="metric-label">Am I Safe?</div>
+<div id="sigSafe" class="metric-value"></div>
+</div>
+<div class="metric-card">
+<div class="metric-label">Available Liquid</div>
+<div id="sigLiquid" class="metric-value positive"></div>
+</div>
+<div class="metric-card warn-orb">
+<div class="metric-label">Credit Card Pressure</div>
+<div id="sigCC" class="metric-value warn"></div>
+</div>
+<div class="metric-card blue-orb">
+<div class="metric-label">ATM Pending</div>
+<div id="sigATM" class="metric-value"></div>
+</div>
+<div class="metric-card">
+<div class="metric-label">Last Write</div>
+<div id="sigWrite" class="metric-value"></div>
+</div>
+</section>
+<section class="dashboard-grid">
+<div class="viz-panel">
+<div class="panel-head">
+<div>
+<div class="panel-title">True Burden Orbit</div>
+<div class="panel-sub">Liquid, debts, burden, and safety in one depth view</div>
+</div>
+</div>
+<div class="depth-stage">
+<div class="orbit"></div>
+<div class="orbit two"></div>
+<div class="core-number">
+<div class="core-number-inner">
+<div>
+<div class="core-label">Net Position</div>
+<div id="netWorth" class="core-value"></div>
+<div id="netSub" class="core-sub">Live D1 formula layer</div>
+</div>
+</div>
+</div>
+<div class="satellite a">
+<div class="sat-label">Liquid</div>
+<div id="liquid" class="sat-value"></div>
+</div>
+<div class="satellite b">
+<div class="sat-label">Debts</div>
+<div id="debts" class="sat-value"></div>
+</div>
+<div class="satellite c">
+<div class="sat-label">Burden</div>
+<div id="burden" class="sat-value"></div>
+</div>
+<div class="satellite d">
+<div class="sat-label">Safety</div>
+<div id="orbitSafety" class="sat-value"></div>
+</div>
+</div>
+</div>
+<aside class="viz-panel">
+<div class="panel-head">
+<div>
+<div class="panel-title">Alfalah Credit Card Control</div>
+<div class="panel-sub">Card pressure remains visible before every daily action</div>
+</div>
+<div id="ccStatusBadge" class="cc-badge">Loading</div>
+</div>
+<div class="cc-stage">
+<div>
+<div class="cc-label">Outstanding</div>
+<div id="ccOutstanding" class="cc-value"></div>
+</div>
+<div class="cc-meter">
+<div id="ccFill" class="cc-fill"></div>
+</div>
+<div class="cc-grid">
+<div class="cc-pill">
+<div class="cc-pill-label">Utilization</div>
+<div id="ccUtil" class="cc-pill-value warn"></div>
+</div>
+<div class="cc-pill">
+<div class="cc-pill-label">Available</div>
+<div id="ccAvailable" class="cc-pill-value positive"></div>
+</div>
+<div class="cc-pill">
+<div class="cc-pill-label">Limit</div>
+<div id="ccLimit" class="cc-pill-value"></div>
+</div>
+<div class="cc-pill">
+<div class="cc-pill-label">Due</div>
+<div id="ccDue" class="cc-pill-value">Not set</div>
+</div>
+</div>
+<div class="cc-actions">
+<a class="cc-action-primary" href="/cc.html">Open Credit Card</a>
+<a class="cc-action-secondary" href="/add.html">Pay / Adjust</a>
+</div>
+</div>
+</aside>
+</section>
+<div class="section-title-row">
+<h2 class="section-title">Daily tools</h2>
+<div class="section-note">Fast paths stay visible. ATM and Nano Loans are live. Sheet parity remains parked.</div>
+</div>
+<section class="tool-grid motion-stagger">
+<a href="/add.html" class="tool-card primary">
+<div class="tool-icon"></div>
+<div>
+<div class="tool-title">Add Transaction</div>
+<div class="tool-sub">record the next ledger event</div>
+</div>
+</a>
+<a href="/atm.html" class="tool-card primary atm-tool">
+<div class="tool-icon"></div>
+<div>
+<div class="tool-title">ATM Control</div>
+<div class="tool-sub">cash movement plus fee reversal tracking</div>
+</div>
+</a>
+<a href="/nano-loans.html" class="tool-card primary nano-tool">
+<div class="tool-icon"></div>
+<div>
+<div class="tool-title">Nano Loans</div>
+<div class="tool-sub">small lending with repay and push-to-CC control</div>
+</div>
+</a>
+<a href="/transactions.html" class="tool-card primary">
+<div class="tool-icon"></div>
+<div>
+<div class="tool-title">Transactions</div>
+<div class="tool-sub">inspect active ledger rows</div>
+</div>
+</a>
+<a href="/bills.html" class="tool-card primary">
+<div class="tool-icon"></div>
+<div>
+<div class="tool-title">Bills</div>
+<div class="tool-sub">track obligations</div>
+</div>
+</a>
+<a href="/cc.html" class="tool-card primary">
+<div class="tool-icon"></div>
+<div>
+<div class="tool-title">Credit Card</div>
+<div class="tool-sub">manage Credit Card pressure</div>
+</div>
+</a>
+<a href="/charts.html" class="tool-card primary">
+<div class="tool-icon"></div>
+<div>
+<div class="tool-title">Charts</div>
+<div class="tool-sub">premium visual cockpit</div>
+</div>
+</a>
+<a href="/accounts.html" class="tool-card">
+<div class="tool-icon"></div>
+<div>
+<div class="tool-title">Accounts</div>
+<div class="tool-sub">see where money sits</div>
+</div>
+</a>
+<a href="/debts.html" class="tool-card">
+<div class="tool-icon"></div>
+<div>
+<div class="tool-title">Debts</div>
+<div class="tool-sub">snowball and corrections</div>
+</div>
+</a>
+<a href="/reconciliation.html" class="tool-card">
+<div class="tool-icon"></div>
+<div>
+<div class="tool-title">Reconcile</div>
+<div class="tool-sub">bank truth vs D1</div>
+</div>
+</a>
+<a href="/audit.html" class="tool-card">
+<div class="tool-icon"></div>
+<div>
+<div class="tool-title">Audit</div>
+<div class="tool-sub">verify recent writes</div>
+</div>
+</a>
+<a href="/goals.html" class="tool-card">
+<div class="tool-icon"></div>
+<div>
+<div class="tool-title">Goals</div>
+<div class="tool-sub">savings targets</div>
+</div>
+</a>
+</section>
+<div class="section-title-row">
+<h2 class="section-title">What needs action</h2>
+<div class="section-note">Live read-only risk view. No test rows.</div>
+</div>
+<section id="riskGrid" class="risk-grid motion-stagger">
+<div class="risk-card">
+<div class="risk-title">Loading...</div>
+<div class="risk-copy">Checking live data.</div>
+</div>
+</section>
+<section class="lower-grid">
+<div class="viz-panel">
+<div class="panel-head">
+<div>
+<div class="panel-title">What changed recently</div>
+<div class="panel-sub">Latest ledger movement</div>
+</div>
+<a href="/transactions.html" class="panel-link">View all </a>
+</div>
+<div id="recentTransactions" class="mini-list motion-row-stagger">
+<div class="empty-panel">Loading recent transactions...</div>
+</div>
+</div>
+<div class="viz-panel">
+<div class="panel-head">
+<div>
+<div class="panel-title">Obligations</div>
+<div class="panel-sub">Bills sorted by pressure</div>
+</div>
+<a href="/bills.html" class="panel-link">Bills </a>
+</div>
+<div id="dueSoon" class="mini-list motion-row-stagger">
+<div class="empty-panel">Loading bills...</div>
+</div>
+</div>
+</section>
+<footer class="page-footer">
+<span class="v">v0.9.8  layer UI Hub copy/cache aligned  nav v1.0.15  theme v0.7.2  app.css v1.0.1</span>
+</footer>
+</main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="/js/theme.js?v=0.7.2"></script>
+<script src="/js/nav.js?v=1.0.15"></script>
+<script>
+const TYPE_IN = new Set(['income', 'borrow']);
+const TYPE_OUT = new Set(['expense', 'repay', 'cc_spend', 'atm']);
+const TYPE_ICON = {
+income: '',
+expense: '',
+transfer: '',
+borrow: '',
+repay: '',
+cc_spend: '',
+cc_payment: '',
+atm: ''
+};
+const $ = id => document.getElementById(id);
+function esc(value) {
+return String(value == null ? '' : value)
+.replace(/&/g, '&amp;')
+.replace(/</g, '&lt;')
+.replace(/>/g, '&gt;')
+.replace(/"/g, '&quot;')
+.replace(/'/g, '&#39;');
+}
+function money(value) {
+const n = Number(value) || 0;
+const sign = n < 0 ? '-' : '';
+return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
+}
+async function fetchJSON(url) {
+const res = await fetch(url, { cache: 'no-store' });
+const data = await res.json().catch(() => null);
+if (!res.ok || !data || data.ok === false) {
+throw new Error((data && data.error) || ('HTTP ' + res.status));
+}
+return data;
+}
+async function safeJSON(url, fallback) {
+try {
+return await fetchJSON(url);
+} catch (err) {
+return fallback;
+}
+}
+function amountClass(row) {
+const type = String(row.type || '').toLowerCase();
+if (TYPE_IN.has(type)) return 'positive';
+if (TYPE_OUT.has(type)) return 'negative';
+return 'neutral';
+}
+function signedMoney(row) {
+const amount = Number(row.amount) || 0;
+const type = String(row.type || '').toLowerCase();
+if (TYPE_IN.has(type)) return '+' + money(amount);
+if (TYPE_OUT.has(type)) return '-' + money(amount);
+return money(amount);
+}
+function titleFor(row) {
+return String(row.notes || '').trim() || String(row.type || 'Transaction').replace(/_/g, ' ');
+}
+function accountName(id, accounts) {
+const found = accounts.find(account => account.id === id);
+return found ? ((found.icon || '') + ' ' + found.name).trim() : (id || 'No account');
+}
+function findCC(accounts) {
+return (accounts || []).find(account => account.id === 'cc') ||
+(accounts || []).find(account => String(account.kind || '').toLowerCase() === 'cc') ||
+null;
+}
+function billRisk(bill) {
+if (bill.last_paid_date) return 99;
+if (!bill.due_day) return 50;
+return Number(bill.due_day) - new Date().getDate();
+}
+function safetyLabel(liquid, ccPct, urgentBills, drifted, pendingAtmFees) {
+if (drifted > 0) return { text: 'Check Recon', cls: 'negative' };
+if (ccPct >= 75) return { text: 'Card High', cls: 'negative' };
+if (pendingAtmFees > 0) return { text: pendingAtmFees + ' ATM Fee', cls: 'warn' };
+if (urgentBills > 0) return { text: urgentBills + ' Action', cls: 'warn' };
+if (liquid < 5000) return { text: 'Thin Cash', cls: 'warn' };
+return { text: 'Stable', cls: 'positive' };
+}
+function renderBalances(data, accounts, bills, recon, atm) {
+const net = Number(data.net_worth) || 0;
+const liquid = Number(data.total_liquid || data.total_liquid_assets || data.cash || 0);
+const debts = Number(data.total_owed || data.total_owe || data.total_debts || 0);
+const burden = Number(data.true_burden || 0);
+const ccAccount = findCC(accounts) || {};
+const ccOutstanding = Number(ccAccount.cc_outstanding || data.cc_outstanding || data.cc || Math.abs(Number(ccAccount.balance) || 0)) || 0;
+const ccLimit = Number(ccAccount.credit_limit || 100000) || 100000;
+const ccAvailable = Number(ccAccount.available_credit != null ? ccAccount.available_credit : Math.max(0, ccLimit - ccOutstanding));
+const ccPct = Number(ccAccount.cc_utilization_pct != null ? ccAccount.cc_utilization_pct : ((ccOutstanding / ccLimit) * 100)) || 0;
+const urgentBills = (bills || []).filter(bill => billRisk(bill) <= 3 && !bill.last_paid_date).length;
+const drifted = Number(recon && (recon.drifted_count || recon.drift_count || 0)) || 0;
+const pendingAtmFees = Number(atm && atm.pending_count) || 0;
+const safe = safetyLabel(liquid, ccPct, urgentBills, drifted, pendingAtmFees);
+$('netWorth').textContent = money(net);
+$('netWorth').className = 'core-value ' + (net >= 0 ? 'positive' : 'negative');
+$('netSub').textContent = net >= 0 ? 'Positive position' : 'Burden exceeds current net position';
+$('liquid').textContent = money(liquid);
+$('debts').textContent = money(debts);
+$('burden').textContent = money(burden);
+$('orbitSafety').textContent = safe.text;
+$('orbitSafety').className = 'sat-value ' + safe.cls;
+$('sigSafe').textContent = safe.text;
+$('sigSafe').className = 'metric-value ' + safe.cls;
+$('sigLiquid').textContent = money(liquid);
+$('sigLiquid').className = 'metric-value ' + (liquid > 0 ? 'positive' : 'negative');
+$('sigCC').textContent = ccPct.toFixed(1) + '%';
+$('sigCC').className = 'metric-value ' + (ccPct >= 75 ? 'negative' : ccPct >= 40 ? 'warn' : 'positive');
+$('sigATM').textContent = pendingAtmFees ? pendingAtmFees + ' fee(s)' : 'Clear';
+$('sigATM').className = 'metric-value ' + (pendingAtmFees ? 'warn' : 'positive');
+$('ccOutstanding').textContent = money(ccOutstanding);
+$('ccUtil').textContent = ccPct.toFixed(1) + '%';
+$('ccUtil').className = 'cc-pill-value ' + (ccPct >= 75 ? 'negative' : ccPct >= 40 ? 'warn' : 'positive');
+$('ccAvailable').textContent = money(ccAvailable);
+$('ccLimit').textContent = money(ccLimit);
+$('ccDue').textContent = ccAccount.payment_due_day || ccAccount.days_to_payment_due || 'Not set';
+$('ccFill').style.width = Math.max(0, Math.min(100, ccPct)) + '%';
+const status = ccAccount.cc_status_label || (ccPct >= 75 ? 'High' : ccPct >= 40 ? 'Moderate' : 'Controlled');
+$('ccStatusBadge').textContent = status;
+}
+function renderTransactions(rows, accounts) {
+const box = $('recentTransactions');
+const recent = (rows || []).slice(0, 8);
+if (!recent.length) {
+box.innerHTML = '<div class="empty-panel">No recent transactions.</div>';
+return;
+}
+box.innerHTML = recent.map(row => {
+const type = String(row.type || '').toLowerCase();
+const cls = amountClass(row);
+return `
+<article class="mini-row">
+<div class="mini-icon">${TYPE_ICON[type] || ''}</div>
+<div>
+<div class="mini-title" title="${esc(titleFor(row))}">${esc(titleFor(row))}</div>
+<div class="mini-sub">${esc(accountName(row.account_id, accounts))}  ${esc(row.date || '')}</div>
+</div>
+<div class="mini-amount ${cls}">${esc(signedMoney(row))}</div>
+</article>
+`;
+}).join('');
+}
+function billStatus(bill) {
+if (bill.last_paid_date) return 'Paid ' + bill.last_paid_date;
+if (!bill.due_day) return 'No due day';
+const diff = Number(bill.due_day) - new Date().getDate();
+if (diff === 0) return 'Due today';
+if (diff > 0) return 'Due in ' + diff + 'd';
+return 'Overdue by ' + Math.abs(diff) + 'd';
+}
+function renderBills(bills) {
+const box = $('dueSoon');
+const rows = (bills || [])
+.slice()
+.sort((a, b) => billRisk(a) - billRisk(b))
+.slice(0, 6);
+if (!rows.length) {
+box.innerHTML = '<div class="empty-panel">No bills found.</div>';
+return;
+}
+box.innerHTML = rows.map(bill => `
+<article class="mini-row">
+<div class="mini-icon"></div>
+<div>
+<div class="mini-title">${esc(bill.name)}</div>
+<div class="mini-sub">${esc(billStatus(bill))}</div>
+</div>
+<div class="mini-amount neutral">${money(bill.amount)}</div>
+</article>
+`).join('');
+}
+function renderLastWrite(audit) {
+const row = audit && audit.rows && audit.rows[0];
+$('sigWrite').textContent = row ? (row.action || 'Event') : 'None';
+}
+function renderRisks(balances, accounts, bills, recon, atm) {
+const risks = [];
+const ccAccount = findCC(accounts) || {};
+const cc = Number(ccAccount.cc_outstanding || balances.cc_outstanding || balances.cc || Math.abs(Number(ccAccount.balance) || 0)) || 0;
+const limit = Number(ccAccount.credit_limit || 100000) || 100000;
+const ccPct = Number(ccAccount.cc_utilization_pct != null ? ccAccount.cc_utilization_pct : ((cc / limit) * 100)) || 0;
+const liquid = Number(balances.total_liquid || balances.total_liquid_assets || balances.cash || 0);
+const urgentBills = (bills || []).filter(bill => billRisk(bill) <= 3 && !bill.last_paid_date);
+const drifted = Number(recon && (recon.drifted_count || recon.drift_count || 0)) || 0;
+const pendingAtmFees = Number(atm && atm.pending_count) || 0;
+const pendingAtmValue = Number(atm && atm.total_pending_pkr) || 0;
+risks.push({
+level: ccPct >= 75 ? 'bad' : ccPct >= 40 ? 'warn' : 'good',
+title: 'Credit Card pressure',
+copy: ccPct.toFixed(1) + '% utilization  outstanding ' + money(cc)
+});
+risks.push({
+level: pendingAtmFees ? 'warn' : 'good',
+title: 'ATM reversals',
+copy: pendingAtmFees ? pendingAtmFees + ' pending fee(s)  ' + money(pendingAtmValue) : 'No pending ATM fee reversals'
+});
+risks.push({
+level: 'info',
+title: 'Nano Loans',
+copy: 'Nano Loans are linked from Hub and global navigation'
+});
+risks.push({
+level: liquid <= 0 ? 'bad' : liquid < 5000 ? 'warn' : 'good',
+title: 'Liquid runway',
+copy: 'Available liquid: ' + money(liquid)
+});
+risks.push({
+level: urgentBills.length ? 'warn' : 'good',
+title: 'Bills due soon',
+copy: urgentBills.length ? urgentBills.length + ' bill(s) need attention' : 'No immediate bill pressure'
+});
+risks.push({
+level: drifted ? 'bad' : 'good',
+title: 'Reconciliation',
+copy: drifted ? drifted + ' account(s) drifted' : 'No declared drift reported'
+});
+$('riskGrid').innerHTML = risks.map(risk => `
+<article class="risk-card ${risk.level}">
+<div class="risk-title">${esc(risk.title)}</div>
+<div class="risk-copy">${esc(risk.copy)}</div>
+</article>
+`).join('');
+}
+async function loadHub() {
+try {
+const [balances, transactions, accounts, bills, audit, recon, atm] = await Promise.all([
+fetchJSON('/api/balances?debug=1'),
+fetchJSON('/api/transactions'),
+fetchJSON('/api/accounts?debug=1'),
+fetchJSON('/api/bills'),
+safeJSON('/api/audit?limit=1', { rows: [] }),
+safeJSON('/api/reconciliation', {}),
+safeJSON('/api/atm', { pending_count: 0, total_pending_pkr: 0 })
+]);
+const accountRows = accounts.accounts || [];
+const billRows = bills.bills || [];
+renderBalances(balances, accountRows, billRows, recon, atm);
+renderTransactions(transactions.transactions || [], accountRows);
+renderBills(billRows);
+renderLastWrite(audit);
+renderRisks(balances, accountRows, billRows, recon, atm);
+$('freshnessText').textContent = 'Live  balances, transactions, bills, audit, ATM checked';
+} catch (err) {
+$('freshnessText').textContent = 'Load error';
+$('recentTransactions').innerHTML = '<div class="empty-panel">Hub failed: ' + esc(err.message) + '</div>';
+}
+}
+loadHub();
+</script>
 </body>
 </html>
