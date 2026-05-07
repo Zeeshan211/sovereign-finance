@@ -1,26 +1,45 @@
-/*  Sovereign Finance  nav.js v1.0.15  Clean-route Hub shell gate fix  */
+/*  Sovereign Finance  nav.js v1.0.16  Premium icons restore  */
 /*
-* Contract:
-* - Mobile <= 860px: bottom nav visible.
-* - Mobile <= 860px: All drawer visible.
-* - Web/tablet >= 861px: side rail visible.
-* - Big app shell appears ONLY on true Hub routes: /, /index, /index.html.
-* - Other pages keep normal page content without duplicate wrapper.
-* - CC wording changed to Credit Card.
-* - Account amount / Real data overlap prevented.
-* - Existing cards/panels get safe premium treatment.
-* - Existing real percentage/progress elements get motion.
-* - No fake numbers.
-* - No ledger/API/schema/business-logic changes.
-*/
+ * Contract:
+ * - Desktop/tablet >= 861px: side rail visible.
+ * - Mobile <= 860px: bottom nav visible.
+ * - Mobile <= 860px: All drawer visible.
+ * - Big app shell appears ONLY on true Hub route: /, /index, /index.html.
+ * - Premium inline SVG icons restored globally.
+ * - Hub tool-card icons auto-filled from href/text.
+ * - Credit Card wording preserved.
+ * - Theme button remains clickable above nav/cards.
+ * - No fake numbers.
+ * - No ledger/API/schema/business-logic changes.
+ */
 (function () {
 'use strict';
-const VERSION = 'v1.0.15';
+
+const VERSION = 'v1.0.16';
 const STYLE_ID = 'sov-nav-contract-style';
 const CARD_STYLE_ID = 'sov-premium-card-style';
 const MOTION_STYLE_ID = 'sov-real-data-motion-style';
 const DRAWER_ID = 'sov-mobile-module-drawer';
 const DRAWER_TOGGLE_ID = 'sov-mobile-module-toggle';
+
+const ICONS = {
+hub: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 4l8 7.5v7.25A1.25 1.25 0 0 1 18.75 20h-4.5v-5.25h-4.5V20h-4.5A1.25 1.25 0 0 1 4 18.75V11.5Z" fill="currentColor"/></svg>',
+add: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.75A1.25 1.25 0 0 1 13.25 6v4.75H18a1.25 1.25 0 1 1 0 2.5h-4.75V18a1.25 1.25 0 1 1-2.5 0v-4.75H6a1.25 1.25 0 1 1 0-2.5h4.75V6A1.25 1.25 0 0 1 12 4.75Z" fill="currentColor"/></svg>',
+transactions: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 5.75h13A1.75 1.75 0 0 1 20.25 7.5v9a1.75 1.75 0 0 1-1.75 1.75h-13A1.75 1.75 0 0 1 3.75 16.5v-9A1.75 1.75 0 0 1 5.5 5.75Zm1.5 4h10v-1.5H7v1.5Zm0 3h6.75v-1.5H7v1.5Zm0 3h4.75v-1.5H7v1.5Z" fill="currentColor"/></svg>',
+bills: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.75h10A1.75 1.75 0 0 1 18.75 5.5v15l-2.5-1.35-2.25 1.35-2.25-1.35-2.25 1.35-2.25-1.35-2.5 1.35v-15A1.75 1.75 0 0 1 7 3.75Zm2 5.5h6v-1.5H9v1.5Zm0 3h6v-1.5H9v1.5Zm0 3h4v-1.5H9v1.5Z" fill="currentColor"/></svg>',
+card: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.75 6.5A2.25 2.25 0 0 1 7 4.25h10a2.25 2.25 0 0 1 2.25 2.25v1.25H4.75V6.5Zm0 3.75h14.5v7.25A2.25 2.25 0 0 1 17 19.75H7a2.25 2.25 0 0 1-2.25-2.25v-7.25Zm2.5 5.25v1.25h4.5V15.5h-4.5Z" fill="currentColor"/></svg>',
+accounts: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.75 4.25 7.5v1.75h15.5V7.5L12 3.75Zm-5.5 7v6.75H5.25v1.75h13.5V17.5H17.5v-6.75h-2.25v6.75h-2.13v-6.75h-2.24v6.75H8.75v-6.75H6.5Z" fill="currentColor"/></svg>',
+atm: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.75 4.5h12.5A1.75 1.75 0 0 1 20 6.25v11.5a1.75 1.75 0 0 1-1.75 1.75H5.75A1.75 1.75 0 0 1 4 17.75V6.25A1.75 1.75 0 0 1 5.75 4.5Zm2 3v2h8.5v-2h-8.5Zm1.5 5.75a2.75 2.75 0 1 0 5.5 0 2.75 2.75 0 0 0-5.5 0Z" fill="currentColor"/></svg>',
+nano: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.75c4.56 0 8.25 2.35 8.25 5.25 0 1.4-.86 2.67-2.27 3.61.18.45.27.92.27 1.39 0 2.9-3.69 5.25-8.25 5.25S1.75 16.9 1.75 14c0-1.33.78-2.55 2.08-3.47A4.1 4.1 0 0 1 3.75 9c0-2.9 3.69-5.25 8.25-5.25Zm0 2C8.54 5.75 5.75 7.2 5.75 9S8.54 12.25 12 12.25 18.25 10.8 18.25 9 15.46 5.75 12 5.75Z" fill="currentColor"/></svg>',
+debts: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4.25h9a2.25 2.25 0 0 1 2.25 2.25v11a2.25 2.25 0 0 1-2.25 2.25h-9a2.25 2.25 0 0 1-2.25-2.25v-11A2.25 2.25 0 0 1 7.5 4.25Zm2 4h5v-1.5h-5v1.5Zm0 3h5v-1.5h-5v1.5Zm0 3h3v-1.5h-3v1.5Z" fill="currentColor"/></svg>',
+salary: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.75A5.25 5.25 0 0 1 17.25 9v1.25H18a2.25 2.25 0 0 1 2.25 2.25v5A2.25 2.25 0 0 1 18 19.75H6a2.25 2.25 0 0 1-2.25-2.25v-5A2.25 2.25 0 0 1 6 10.25h.75V9A5.25 5.25 0 0 1 12 3.75Zm0 2A3.25 3.25 0 0 0 8.75 9v1.25h6.5V9A3.25 3.25 0 0 0 12 5.75Z" fill="currentColor"/></svg>',
+goals: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.75a8.25 8.25 0 1 1 0 16.5 8.25 8.25 0 0 1 0-16.5Zm0 3a5.25 5.25 0 1 0 0 10.5 5.25 5.25 0 0 0 0-10.5Zm0 3a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5Z" fill="currentColor"/></svg>',
+insights: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.75 13.25h2.5v6h-2.5v-6Zm4-4.5h2.5v10.5h-2.5V8.75Zm4-4h2.5v14.5h-2.5V4.75ZM5 4.75h1.75v14.5H5V4.75Zm13.25 14.5H20v1.5H5v-1.5h13.25Z" fill="currentColor"/></svg>',
+charts: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.75 5.5A1.75 1.75 0 0 1 6.5 3.75h11a1.75 1.75 0 0 1 1.75 1.75v13a1.75 1.75 0 0 1-1.75 1.75h-11a1.75 1.75 0 0 1-1.75-1.75v-13Zm3 10.75H10v-4.5H7.75v4.5Zm3.13 0h2.24v-8.5h-2.24v8.5Zm3.12 0h2.25V10H14v6.25Z" fill="currentColor"/></svg>',
+reconciliation: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.5 4.75h9a1.75 1.75 0 0 1 1.75 1.75v3.25h-2V7h-8.5v10h8.5v-2.75h2v3.25a1.75 1.75 0 0 1-1.75 1.75h-9a1.75 1.75 0 0 1-1.75-1.75v-11A1.75 1.75 0 0 1 7.5 4.75Zm9.9 5.05 1.35 1.35-4.4 4.4-2.6-2.6 1.35-1.35 1.25 1.25 3.05-3.05Z" fill="currentColor"/></svg>',
+audit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3.75h8a1.75 1.75 0 0 1 1.75 1.75v14.75L12 17.5l-5.75 2.75V5.5A1.75 1.75 0 0 1 8 3.75Zm1.5 4.5h5v-1.5h-5v1.5Zm0 3h5v-1.5h-5v1.5Zm0 3h3.25v-1.5H9.5v1.5Z" fill="currentColor"/></svg>',
+snapshots: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.25A7.75 7.75 0 1 1 4.52 14h2.1A5.75 5.75 0 1 0 8.1 8.1L10 10H4.75V4.75L6.7 6.7A7.72 7.72 0 0 1 12 4.25Zm1 3.75v4.3l3.25 1.95-1 1.62L11 13.3V8h2Z" fill="currentColor"/></svg>'
+};
 
 const NAV_GROUPS = [
 { key: 'daily', label: 'Daily Core' },
@@ -30,22 +49,22 @@ const NAV_GROUPS = [
 ];
 
 const NAV_ITEMS = [
-{ key: 'hub', group: 'daily', label: 'Hub', short: 'Hub', href: '/', aliases: ['/index.html'], icon: '' },
-{ key: 'add', group: 'daily', label: 'Add Transaction', short: 'Add', href: '/add.html', aliases: [], icon: '+' },
-{ key: 'transactions', group: 'daily', label: 'Transactions', short: 'Tx', href: '/transactions.html', aliases: [], icon: '' },
-{ key: 'bills', group: 'daily', label: 'Bills', short: 'Bills', href: '/bills.html', aliases: [], icon: '' },
-{ key: 'credit-card', group: 'daily', label: 'Credit Card', short: 'Card', href: '/cc.html', aliases: [], icon: '' },
-{ key: 'accounts', group: 'money', label: 'Accounts', short: 'Accts', href: '/accounts.html', aliases: [], icon: '' },
-{ key: 'atm', group: 'money', label: 'ATM', short: 'ATM', href: '/atm.html', aliases: [], icon: '' },
-{ key: 'nano', group: 'money', label: 'Nano Loans', short: 'Nano', href: '/nano-loans.html', aliases: [], icon: '' },
-{ key: 'debts', group: 'money', label: 'Debts', short: 'Debts', href: '/debts.html', aliases: [], icon: '' },
-{ key: 'salary', group: 'money', label: 'Salary', short: 'Salary', href: '/salary.html', aliases: [], icon: '' },
-{ key: 'goals', group: 'plan', label: 'Goals', short: 'Goals', href: '/goals.html', aliases: [], icon: '' },
-{ key: 'insights', group: 'plan', label: 'Insights', short: 'Insights', href: '/insights.html', aliases: [], icon: '' },
-{ key: 'charts', group: 'plan', label: 'Charts', short: 'Charts', href: '/charts.html', aliases: [], icon: '' },
-{ key: 'reconciliation', group: 'proof', label: 'Reconciliation', short: 'Recon', href: '/reconciliation.html', aliases: [], icon: '' },
-{ key: 'audit', group: 'proof', label: 'Audit Log', short: 'Audit', href: '/audit.html', aliases: [], icon: '' },
-{ key: 'snapshots', group: 'proof', label: 'Snapshots', short: 'Snaps', href: '/snapshots.html', aliases: [], icon: '' }
+{ key: 'hub', group: 'daily', label: 'Hub', short: 'Hub', href: '/', aliases: ['/index.html', '/index'], icon: ICONS.hub },
+{ key: 'add', group: 'daily', label: 'Add Transaction', short: 'Add', href: '/add.html', aliases: ['/add'], icon: ICONS.add },
+{ key: 'transactions', group: 'daily', label: 'Transactions', short: 'Tx', href: '/transactions.html', aliases: ['/transactions'], icon: ICONS.transactions },
+{ key: 'bills', group: 'daily', label: 'Bills', short: 'Bills', href: '/bills.html', aliases: ['/bills'], icon: ICONS.bills },
+{ key: 'credit-card', group: 'daily', label: 'Credit Card', short: 'Card', href: '/cc.html', aliases: ['/cc'], icon: ICONS.card },
+{ key: 'accounts', group: 'money', label: 'Accounts', short: 'Accts', href: '/accounts.html', aliases: ['/accounts'], icon: ICONS.accounts },
+{ key: 'atm', group: 'money', label: 'ATM', short: 'ATM', href: '/atm.html', aliases: ['/atm'], icon: ICONS.atm },
+{ key: 'nano', group: 'money', label: 'Nano Loans', short: 'Nano', href: '/nano-loans.html', aliases: ['/nano-loans'], icon: ICONS.nano },
+{ key: 'debts', group: 'money', label: 'Debts', short: 'Debts', href: '/debts.html', aliases: ['/debts'], icon: ICONS.debts },
+{ key: 'salary', group: 'money', label: 'Salary', short: 'Salary', href: '/salary.html', aliases: ['/salary'], icon: ICONS.salary },
+{ key: 'goals', group: 'plan', label: 'Goals', short: 'Goals', href: '/goals.html', aliases: ['/goals'], icon: ICONS.goals },
+{ key: 'insights', group: 'plan', label: 'Insights', short: 'Insights', href: '/insights.html', aliases: ['/insights'], icon: ICONS.insights },
+{ key: 'charts', group: 'plan', label: 'Charts', short: 'Charts', href: '/charts.html', aliases: ['/charts'], icon: ICONS.charts },
+{ key: 'reconciliation', group: 'proof', label: 'Reconciliation', short: 'Recon', href: '/reconciliation.html', aliases: ['/reconciliation'], icon: ICONS.reconciliation },
+{ key: 'audit', group: 'proof', label: 'Audit Log', short: 'Audit', href: '/audit.html', aliases: ['/audit'], icon: ICONS.audit },
+{ key: 'snapshots', group: 'proof', label: 'Snapshots', short: 'Snaps', href: '/snapshots.html', aliases: ['/snapshots'], icon: ICONS.snapshots }
 ];
 
 const BOTTOM_KEYS = ['hub', 'add', 'transactions', 'bills', 'credit-card'];
@@ -74,30 +93,6 @@ return NAV_ITEMS.find(item => isActive(item, path)) || null;
 
 function shouldShowHubShell(path, item) {
 return !!item && item.key === 'hub' && path === '/';
-}
-
-function clampPercent(value) {
-const num = Number(value);
-if (!Number.isFinite(num)) return null;
-return Math.max(0, Math.min(100, num));
-}
-
-function percentFromNode(node) {
-if (!node) return null;
-const attrs = [
-node.getAttribute('data-percent'),
-node.getAttribute('data-percentage'),
-node.getAttribute('data-progress'),
-node.getAttribute('aria-valuenow')
-];
-for (const attr of attrs) {
-const pct = clampPercent(attr);
-if (pct !== null) return pct;
-}
-const text = (node.textContent || '').trim();
-const match = text.match(/(\d+(?:\.\d+)?)\s*%/);
-if (!match) return null;
-return clampPercent(match[1]);
 }
 
 function navLink(item, path, mode) {
@@ -170,7 +165,7 @@ ${items.map(item => navLink(item, path, 'bottom')).join('')}
 function drawerHTML(path) {
 return `
 <button id="${DRAWER_TOGGLE_ID}" class="mobile-module-toggle" type="button" aria-label="Open all modules" aria-controls="${DRAWER_ID}" aria-expanded="false">
-<span></span>
+<span class="mobile-module-toggle-icon">${ICONS.charts}</span>
 <span>All</span>
 </button>
 <div id="${DRAWER_ID}" class="mobile-module-drawer" aria-hidden="true">
@@ -182,11 +177,11 @@ return `
 <div class="mobile-drawer-kicker">Sovereign Finance</div>
 <div class="mobile-drawer-title">All Modules</div>
 </div>
-<button class="mobile-drawer-close" type="button" data-drawer-close="true" aria-label="Close modules"></button>
+<button class="mobile-drawer-close" type="button" data-drawer-close="true" aria-label="Close modules">×</button>
 </div>
 <div class="mobile-drawer-pill">
 <span class="desktop-nav-pulse"></span>
-<span>Real data mode  no demo values</span>
+<span>Real data mode · no demo values</span>
 </div>
 <div class="mobile-drawer-layers">
 ${NAV_GROUPS.map(group => groupHTML(group, path, 'mobile-drawer')).join('')}
@@ -199,7 +194,7 @@ ${NAV_GROUPS.map(group => groupHTML(group, path, 'mobile-drawer')).join('')}
 function hubShellHTML() {
 return `
 <section class="sov-app-shell sov-hub-shell" data-shell-page="hub" data-shell-version="${VERSION}" aria-label="Hub safety summary">
-<div class="sov-shell-orb"></div>
+<div class="sov-shell-orb">${ICONS.hub}</div>
 <div class="sov-shell-main">
 <div class="sov-shell-eyebrow">Today Command Center</div>
 <h1 class="sov-shell-title">Hub Cockpit</h1>
@@ -214,9 +209,60 @@ return `
 `;
 }
 
+function iconForHref(href, text) {
+const raw = String(href || '').toLowerCase();
+const label = String(text || '').toLowerCase();
+
+if (raw === '/' || raw.includes('index') || label.includes('hub')) return ICONS.hub;
+if (raw.includes('add') || label.includes('add')) return ICONS.add;
+if (raw.includes('transactions') || label.includes('transaction')) return ICONS.transactions;
+if (raw.includes('bills') || label.includes('bill')) return ICONS.bills;
+if (raw.includes('cc') || label.includes('credit card') || label.includes('card')) return ICONS.card;
+if (raw.includes('accounts') || label.includes('account')) return ICONS.accounts;
+if (raw.includes('atm') || label.includes('atm')) return ICONS.atm;
+if (raw.includes('nano') || label.includes('nano')) return ICONS.nano;
+if (raw.includes('debts') || label.includes('debt')) return ICONS.debts;
+if (raw.includes('salary') || label.includes('salary')) return ICONS.salary;
+if (raw.includes('goals') || label.includes('goal')) return ICONS.goals;
+if (raw.includes('insights') || label.includes('insight')) return ICONS.insights;
+if (raw.includes('charts') || label.includes('chart')) return ICONS.charts;
+if (raw.includes('reconciliation') || label.includes('reconcile')) return ICONS.reconciliation;
+if (raw.includes('audit') || label.includes('audit')) return ICONS.audit;
+if (raw.includes('snapshots') || label.includes('snapshot')) return ICONS.snapshots;
+
+return ICONS.hub;
+}
+
+function clampPercent(value) {
+const num = Number(value);
+if (!Number.isFinite(num)) return null;
+return Math.max(0, Math.min(100, num));
+}
+
+function percentFromNode(node) {
+if (!node) return null;
+const attrs = [
+node.getAttribute('data-percent'),
+node.getAttribute('data-percentage'),
+node.getAttribute('data-progress'),
+node.getAttribute('aria-valuenow')
+];
+
+for (const attr of attrs) {
+const pct = clampPercent(attr);
+if (pct !== null) return pct;
+}
+
+const text = (node.textContent || '').trim();
+const match = text.match(/(\d+(?:\.\d+)?)\s*%/);
+if (!match) return null;
+return clampPercent(match[1]);
+}
+
 function injectStyles() {
 const old = document.getElementById(STYLE_ID);
 if (old) old.remove();
+
 const style = document.createElement('style');
 style.id = STYLE_ID;
 style.textContent = `
@@ -244,6 +290,7 @@ z-index: 140;
 .theme-toggle,
 .theme-button,
 .theme-btn,
+.theme-switcher,
 #themeToggle,
 #theme-toggle,
 [data-theme-toggle] {
@@ -264,6 +311,54 @@ box-sizing: border-box;
 .mobile-module-toggle,
 .mobile-module-drawer {
 display: none;
+}
+
+.nav-icon svg,
+.tool-icon svg,
+.sov-premium-icon svg,
+.mobile-module-toggle-icon svg,
+.sov-shell-orb svg {
+width: 18px;
+height: 18px;
+display: block;
+}
+
+.sov-shell-orb svg {
+width: 27px;
+height: 27px;
+}
+
+.mobile-module-toggle-icon svg {
+width: 15px;
+height: 15px;
+}
+
+.desktop-nav-item .nav-icon,
+.mobile-drawer-item .nav-icon,
+.bottom-nav .nav-icon,
+.tool-icon {
+color: var(--accent-bright, #22c55e);
+background:
+radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.42), transparent 2.2rem),
+linear-gradient(135deg, rgba(34, 197, 94, 0.18), rgba(59, 130, 246, 0.12)) !important;
+border: 1px solid rgba(148, 163, 184, 0.18);
+box-shadow:
+inset 0 1px 0 rgba(255, 255, 255, 0.32),
+0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
+.desktop-nav-item.active .nav-icon,
+.mobile-drawer-item.active .nav-icon,
+.bottom-nav .nav-item.active .nav-icon {
+color: #dcfce7;
+background:
+radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.30), transparent 2.2rem),
+linear-gradient(135deg, rgba(34, 197, 94, 0.42), rgba(16, 185, 129, 0.24)) !important;
+border-color: rgba(134, 239, 172, 0.28);
+}
+
+.tool-icon {
+color: var(--accent-deep, #047857);
 }
 
 .sov-app-shell {
@@ -301,11 +396,11 @@ background:
 radial-gradient(circle at 35% 20%, rgba(255, 255, 255, 0.90), transparent 2.8rem),
 linear-gradient(135deg, rgba(34, 197, 94, 0.24), rgba(59, 130, 246, 0.16));
 box-shadow: 0 14px 32px rgba(34, 197, 94, 0.14);
-font-size: 25px;
-font-weight: 1000;
 }
 
-.sov-shell-main { min-width: 0; }
+.sov-shell-main {
+min-width: 0;
+}
 
 .sov-shell-eyebrow {
 color: var(--accent-deep, #047857);
@@ -380,7 +475,9 @@ font-weight: 900;
 }
 
 @media (min-width: 861px) {
-body { padding-left: 308px !important; }
+body {
+padding-left: 308px !important;
+}
 
 .desktop-nav {
 display: flex !important;
@@ -500,6 +597,7 @@ border: 1px solid transparent !important;
 font-size: 12px !important;
 font-weight: 850 !important;
 text-decoration: none !important;
+transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
 .desktop-nav-item:hover {
@@ -522,10 +620,8 @@ height: 24px !important;
 display: grid !important;
 place-items: center !important;
 border-radius: 10px !important;
-font-size: 13px !important;
 line-height: 1 !important;
 text-align: center !important;
-background: rgba(255, 255, 255, 0.075);
 }
 
 .desktop-nav-item .nav-text {
@@ -543,7 +639,9 @@ display: none !important;
 }
 
 @media (min-width: 1200px) {
-body { padding-left: 332px !important; }
+body {
+padding-left: 332px !important;
+}
 
 .desktop-nav {
 top: 24px !important;
@@ -560,7 +658,9 @@ font-size: 13px !important;
 }
 
 @media (max-width: 860px) {
-html { min-height: 100%; }
+html {
+min-height: 100%;
+}
 
 body {
 min-height: 100%;
@@ -568,7 +668,9 @@ padding-left: 0 !important;
 padding-bottom: calc(100px + env(safe-area-inset-bottom)) !important;
 }
 
-.desktop-nav { display: none !important; }
+.desktop-nav {
+display: none !important;
+}
 
 .sov-app-shell {
 width: min(100% - 22px, 720px);
@@ -583,7 +685,6 @@ border-radius: 24px;
 width: 48px;
 height: 48px;
 border-radius: 18px;
-font-size: 22px;
 }
 
 .sov-shell-title {
@@ -591,7 +692,9 @@ font-size: 26px;
 letter-spacing: -0.055em;
 }
 
-.sov-shell-purpose { font-size: 12.5px; }
+.sov-shell-purpose {
+font-size: 12.5px;
+}
 
 .bottom-nav {
 position: fixed !important;
@@ -642,11 +745,16 @@ background: var(--accent-soft, rgba(16, 185, 129, 0.12)) !important;
 }
 
 .bottom-nav .nav-icon {
+width: 30px !important;
+height: 26px !important;
 display: grid !important;
 place-items: center !important;
-font-size: 17px !important;
-line-height: 1 !important;
-height: 20px !important;
+border-radius: 12px !important;
+}
+
+.bottom-nav .nav-icon svg {
+width: 16px !important;
+height: 16px !important;
 }
 
 .bottom-nav .nav-text {
@@ -678,6 +786,11 @@ backdrop-filter: blur(16px) !important;
 -webkit-backdrop-filter: blur(16px) !important;
 font-size: 12px !important;
 font-weight: 950 !important;
+}
+
+.mobile-module-toggle-icon {
+display: grid;
+place-items: center;
 }
 
 .mobile-module-drawer {
@@ -828,9 +941,11 @@ height: 28px;
 display: grid;
 place-items: center;
 border-radius: 11px;
-background: rgba(255, 255, 255, 0.075);
-font-size: 14px;
-line-height: 1;
+}
+
+.mobile-drawer-item .nav-icon svg {
+width: 16px;
+height: 16px;
 }
 
 .mobile-drawer-item .nav-text {
@@ -850,7 +965,9 @@ box-shadow: 0 0 14px rgba(134, 239, 172, 0.70);
 }
 
 @media (max-width: 420px) {
-.mobile-drawer-nav-layer-items { grid-template-columns: 1fr; }
+.mobile-drawer-nav-layer-items {
+grid-template-columns: 1fr;
+}
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -868,6 +985,7 @@ document.head.appendChild(style);
 function injectCardStyles() {
 const old = document.getElementById(CARD_STYLE_ID);
 if (old) old.remove();
+
 const style = document.createElement('style');
 style.id = CARD_STYLE_ID;
 style.textContent = `
@@ -1056,6 +1174,7 @@ document.head.appendChild(style);
 function injectMotionStyles() {
 const old = document.getElementById(MOTION_STYLE_ID);
 if (old) old.remove();
+
 const style = document.createElement('style');
 style.id = MOTION_STYLE_ID;
 style.textContent = `
@@ -1072,7 +1191,9 @@ to { transform: scaleX(1); }
 50% { transform: translateY(-2px); }
 }
 
-.sov-motion-ready { --sov-motion-fill: 0%; }
+.sov-motion-ready {
+--sov-motion-fill: 0%;
+}
 
 .sov-motion-bar {
 position: relative;
@@ -1100,9 +1221,13 @@ inset 0 1px 0 rgba(255, 255, 255, 0.35);
 animation: sov-fill-grow 780ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.sov-motion-value { animation: sov-value-glow 2.8s ease-in-out 1; }
+.sov-motion-value {
+animation: sov-value-glow 2.8s ease-in-out 1;
+}
 
-.sov-motion-float { animation: sov-soft-float 5.4s ease-in-out infinite; }
+.sov-motion-float {
+animation: sov-soft-float 5.4s ease-in-out infinite;
+}
 
 html[data-page="bills"] .sov-motion-bar .sov-motion-fill,
 html[data-page="credit-card"] .sov-motion-bar .sov-motion-fill,
@@ -1134,15 +1259,18 @@ document.head.appendChild(style);
 
 function replaceNodes(selector, html, location) {
 document.querySelectorAll(selector).forEach(node => node.remove());
+
 if (location === 'body-end') {
 document.body.insertAdjacentHTML('beforeend', html);
 return;
 }
+
 const header = document.querySelector('header');
 if (header) {
 header.insertAdjacentHTML('afterend', html);
 return;
 }
+
 document.body.insertAdjacentHTML('afterbegin', html);
 }
 
@@ -1156,6 +1284,24 @@ function markPage(item) {
 const key = item ? item.key : 'unknown';
 document.documentElement.setAttribute('data-page', key);
 document.body.setAttribute('data-page', key);
+}
+
+function enhancePremiumIcons() {
+document.querySelectorAll('.tool-card').forEach(card => {
+const iconBox = card.querySelector('.tool-icon');
+if (!iconBox) return;
+if (iconBox.querySelector('svg')) {
+iconBox.classList.add('sov-premium-icon');
+return;
+}
+
+iconBox.innerHTML = iconForHref(card.getAttribute('href'), card.textContent);
+iconBox.classList.add('sov-premium-icon');
+});
+
+document.querySelectorAll('.nav-icon, .tool-icon, .sov-shell-orb').forEach(icon => {
+if (icon.querySelector('svg')) icon.classList.add('sov-premium-icon');
+});
 }
 
 function enhanceCards() {
@@ -1285,6 +1431,7 @@ const observer = new MutationObserver(() => {
 clearTimeout(timer);
 timer = setTimeout(() => {
 enhanceCards();
+enhancePremiumIcons();
 enhanceRealDataMotion();
 }, 120);
 });
@@ -1339,8 +1486,11 @@ injectMotionStyles();
 markPage(item);
 
 replaceNodes('.desktop-nav', desktopHTML(path), 'after-header');
+
 document.querySelectorAll('.sov-app-shell, .sov-hub-shell, [data-shell-page]').forEach(node => node.remove());
-if (shouldShowHubShell(path, item)) replaceNodes('.sov-app-shell', hubShellHTML(), 'after-header');
+if (shouldShowHubShell(path, item)) {
+replaceNodes('.sov-app-shell', hubShellHTML(), 'after-header');
+}
 
 replaceNodes('.bottom-nav', bottomHTML(path), 'body-end');
 replaceNodes('.mobile-module-toggle, .mobile-module-drawer', drawerHTML(path), 'body-end');
@@ -1348,17 +1498,20 @@ replaceNodes('.mobile-module-toggle, .mobile-module-drawer', drawerHTML(path), '
 setHeaderTitle(item);
 bindDrawer();
 enhanceCards();
+enhancePremiumIcons();
 enhanceRealDataMotion();
 observeEnhancements();
 
 window.SOV_NAV = {
 version: VERSION,
+icons: ICONS,
 items: NAV_ITEMS.slice(),
 groups: NAV_GROUPS.slice(),
 bottomKeys: BOTTOM_KEYS.slice(),
 activePath: path,
 activeItem: item,
 enhanceCards: enhanceCards,
+enhanceIcons: enhancePremiumIcons,
 enhanceMotion: enhanceRealDataMotion,
 openDrawer: function () { setDrawerOpen(true); },
 closeDrawer: function () { setDrawerOpen(false); }
