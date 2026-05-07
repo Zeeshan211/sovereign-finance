@@ -44,7 +44,7 @@ font-size: 15px;
 line-height: 1.55;
 font-weight: 750;
 margin-top: 12px;
-max-width: 740px;
+max-width: 760px;
 }
 .bills-actions {
 margin-top: 18px;
@@ -198,6 +198,41 @@ font-weight: 950;
 padding: 0 12px;
 white-space: nowrap;
 }
+.bill-trust-line {
+display: flex;
+flex-wrap: wrap;
+gap: 8px;
+margin-top: 12px;
+}
+.bill-trust-chip {
+display: inline-flex;
+align-items: center;
+width: fit-content;
+padding: 6px 9px;
+border-radius: var(--r-pill);
+border: 1px solid var(--border);
+background: var(--surface-2);
+color: var(--text-muted);
+font-size: 10px;
+font-weight: 950;
+letter-spacing: 0.03em;
+text-transform: uppercase;
+}
+.bill-trust-chip.transaction {
+border-color: rgba(245, 158, 11, 0.24);
+background: rgba(245, 158, 11, 0.10);
+color: var(--warn);
+}
+.bill-trust-chip.metadata {
+border-color: rgba(37, 99, 235, 0.22);
+background: var(--info-soft);
+color: var(--info);
+}
+.bill-trust-chip.safe {
+border-color: rgba(34, 197, 94, 0.24);
+background: rgba(34, 197, 94, 0.10);
+color: var(--accent-deep);
+}
 .bill-card-actions {
 display: flex;
 gap: 8px;
@@ -269,6 +304,26 @@ font-weight: 750;
 line-height: 1.45;
 margin-bottom: 14px;
 }
+.bill-modal-trust {
+display: inline-flex;
+align-items: center;
+width: fit-content;
+padding: 8px 10px;
+margin-bottom: 14px;
+border-radius: var(--r-pill);
+border: 1px solid rgba(37, 99, 235, 0.22);
+background: var(--info-soft);
+color: var(--info);
+font-size: 11px;
+font-weight: 950;
+text-transform: uppercase;
+letter-spacing: 0.03em;
+}
+.bill-modal-trust.transaction {
+border-color: rgba(245, 158, 11, 0.24);
+background: rgba(245, 158, 11, 0.10);
+color: var(--warn);
+}
 .bill-modal-grid { display: grid; gap: 12px; }
 .bill-modal-actions {
 display: flex;
@@ -280,6 +335,8 @@ margin-top: 16px;
 .bills-stats,
 .bills-list { grid-template-columns: 1fr; }
 .bill-account-row { grid-template-columns: 1fr; }
+.bill-card-actions { flex-direction: column; }
+.bill-modal-actions { flex-direction: column; }
 }
 </style>
 </head>
@@ -296,7 +353,7 @@ margin-top: 16px;
 <div class="bills-kicker">Recurring obligations</div>
 <h1 class="bills-heading">Bills</h1>
 <p class="bills-copy">
-Track monthly obligations, choose which account pays each bill, and mark Rs 0 obligations done without creating fake transactions.
+Track true recurring obligations, choose which account pays each bill, and clearly see whether an action creates a transaction or only updates metadata.
 </p>
 <div class="bills-actions">
 <button id="addBillBtn" class="bills-action-btn" type="button">+ Add Bill</button>
@@ -324,7 +381,7 @@ Track monthly obligations, choose which account pays each bill, and mark Rs 0 ob
 </section>
 
 <footer class="page-footer">
-<span class="v">v0.4.1 · real bill account control · api v0.3.3 · nav v1.0.16 · theme v0.7.2</span>
+<span class="v">v0.4.3 · Bills trust labels + Rs 0 frontend lock · api v0.3.5 · nav v1.0.16 · theme v0.7.2</span>
 </footer>
 </main>
 
@@ -334,6 +391,7 @@ Track monthly obligations, choose which account pays each bill, and mark Rs 0 ob
 <div class="bill-modal">
 <h2 id="payModalTitle" class="bill-modal-title">Pay Bill</h2>
 <p id="payModalSub" class="bill-modal-sub">Mark this bill paid.</p>
+<div id="payModalTrust" class="bill-modal-trust">Metadata only · no transaction</div>
 <form id="payBillForm" class="bill-modal-grid">
 <input id="payBillId" type="hidden" />
 <div class="field">
@@ -362,6 +420,7 @@ Track monthly obligations, choose which account pays each bill, and mark Rs 0 ob
 <div class="bill-modal">
 <h2 class="bill-modal-title">Add Recurring Bill</h2>
 <p class="bill-modal-sub">Monthly bills, subscriptions, and Rs 0 obligations that still need a done marker.</p>
+<div class="bill-modal-trust">Creates bill metadata · no transaction</div>
 <form id="addBillForm" class="bill-modal-grid">
 <div class="field">
 <label for="billName">Bill Name</label>
@@ -534,6 +593,11 @@ const paid = isPaidThisMonth(bill);
 const amount = Number(bill.amount) || 0;
 const actionText = amount === 0 ? 'Mark Done' : 'Pay';
 const lastAccount = bill.last_paid_account_id ? accountName(bill.last_paid_account_id) : 'Not paid yet';
+const actionType = paid
+  ? { cls: 'safe', text: 'No action needed' }
+  : amount === 0
+    ? { cls: 'metadata', text: 'Metadata only · no transaction' }
+    : { cls: 'transaction', text: 'Creates transaction' };
 
 return `
 <article class="bill-card">
@@ -564,6 +628,11 @@ ${accountOptions(bill.default_account_id || '')}
 </select>
 </div>
 <button class="bill-account-save" type="button" data-save-account="${esc(bill.id)}">Save Account</button>
+</div>
+
+<div class="bill-trust-line">
+<span class="bill-trust-chip metadata">Save Account: metadata only</span>
+<span class="bill-trust-chip ${actionType.cls}">${actionType.text}</span>
 </div>
 
 <div class="bill-card-actions">
@@ -619,12 +688,22 @@ if (!bill) return;
 const amount = Number(bill.amount) || 0;
 
 $('payBillId').value = bill.id;
-$('payAmount').value = amount;
-$('payAmount').min = '0';
+$('payAmount').value = amount === 0 ? 0 : amount;
+$('payAmount').min = amount === 0 ? '0' : '0.01';
+$('payAmount').disabled = amount === 0;
+$('payAmount').readOnly = amount === 0;
 $('payDate').value = todayLocal();
 $('payModalTitle').textContent = amount === 0 ? 'Mark Bill Done' : 'Pay Bill';
 $('confirmPayBtn').textContent = amount === 0 ? 'Mark Done' : 'Mark Paid';
-$('payModalSub').textContent = bill.name + ' · ' + money(bill.amount);
+$('payModalSub').textContent = amount === 0
+  ? bill.name + ' · metadata only · no transaction will be created'
+  : bill.name + ' · creates transaction · ' + money(bill.amount);
+$('payModalTrust').textContent = amount === 0
+  ? 'Metadata only · no transaction'
+  : 'Creates transaction · changes ledger balance';
+$('payModalTrust').className = amount === 0
+  ? 'bill-modal-trust'
+  : 'bill-modal-trust transaction';
 
 fillAccountSelects();
 
@@ -642,6 +721,8 @@ $('payModal').setAttribute('aria-hidden', 'false');
 function closePay() {
 $('payModal').classList.remove('open');
 $('payModal').setAttribute('aria-hidden', 'true');
+$('payAmount').disabled = false;
+$('payAmount').readOnly = false;
 }
 
 function openAdd() {
@@ -672,7 +753,7 @@ created_by: 'web-bills-account'
 })
 });
 
-toast('Bill account saved.');
+toast('Bill account saved. Metadata only.');
 await loadBills();
 } catch (err) {
 toast(err.message, 'error');
@@ -683,7 +764,9 @@ async function payBill(event) {
 event.preventDefault();
 
 const id = $('payBillId').value;
-const amount = Number($('payAmount').value);
+const bill = state.bills.find(item => item.id === id);
+const billAmount = bill ? Number(bill.amount) || 0 : Number($('payAmount').value);
+const amount = billAmount === 0 ? 0 : Number($('payAmount').value);
 const accountId = $('payAccount').value || null;
 const date = $('payDate').value || todayLocal();
 
@@ -710,7 +793,7 @@ created_by: amount === 0 ? 'web-bills-mark-done' : 'web-bills-pay'
 });
 
 closePay();
-toast(result.transaction_created ? 'Bill marked paid.' : 'Bill marked done.');
+toast(result.transaction_created ? 'Bill marked paid. Transaction created.' : 'Bill marked done. Metadata only.');
 await loadBills();
 } catch (err) {
 toast(err.message, 'error');
@@ -745,7 +828,7 @@ created_by: 'web-bills'
 });
 
 closeAdd();
-toast('Bill added.');
+toast('Bill added. Metadata only.');
 await loadBills();
 } catch (err) {
 toast(err.message, 'error');
@@ -758,6 +841,20 @@ $('cancelPayBtn').addEventListener('click', closePay);
 $('cancelAddBtn').addEventListener('click', closeAdd);
 $('payBillForm').addEventListener('submit', payBill);
 $('addBillForm').addEventListener('submit', addBill);
+
+$('payModal').addEventListener('click', event => {
+if (event.target === $('payModal')) closePay();
+});
+
+$('addModal').addEventListener('click', event => {
+if (event.target === $('addModal')) closeAdd();
+});
+
+document.addEventListener('keydown', event => {
+if (event.key !== 'Escape') return;
+if ($('payModal').classList.contains('open')) closePay();
+if ($('addModal').classList.contains('open')) closeAdd();
+});
 
 loadBills();
 </script>
