@@ -1,4 +1,4 @@
-/*  Sovereign Finance  /api/safety  v0.1.0  Read-only Safety Engine  */
+/*  Sovereign Finance  /api/safety  v0.1.1  Credit Card Due Engine wiring  */
 /*
  * Purpose:
  * - Answer: Am I safe, why or why not, what changed, and what action protects me now?
@@ -11,19 +11,29 @@
  * - No audit writes.
  * - No fake values.
  * - Missing optional tables become warnings, not crashes.
+ *
+ * v0.1.1:
+ * - Credit Card safety now uses statement day, 55-day interest-free period,
+ *   payment due date, due status, and minimum-payment fields.
  */
 
 import { json } from './_lib.js';
 
-const VERSION = 'v0.1.0';
+const VERSION = 'v0.1.1';
 
 const LOW_LIQUID_UNSAFE = 5000;
 const LOW_LIQUID_WATCH = 10000;
+
 const BILL_DUE_WATCH_DAYS = 3;
+
+const DEFAULT_CC_STATEMENT_DAY = 12;
+const DEFAULT_CC_INTEREST_FREE_DAYS = 55;
+const DEFAULT_CC_MIN_PAYMENT_PCT = 0.05;
 const CC_DUE_WATCH_DAYS = 7;
 const CC_DUE_UNSAFE_DAYS = 3;
 const CC_UTIL_WATCH = 40;
 const CC_UTIL_UNSAFE = 75;
+
 const ATM_REVERSAL_WINDOW_DAYS = 10;
 const RECON_DRIFT_THRESHOLD = 1;
 
@@ -107,10 +117,13 @@ export async function onRequest(context) {
         low_liquid_watch: LOW_LIQUID_WATCH,
         low_liquid_unsafe: LOW_LIQUID_UNSAFE,
         bill_due_watch_days: BILL_DUE_WATCH_DAYS,
+        cc_statement_day_default: DEFAULT_CC_STATEMENT_DAY,
+        cc_interest_free_days_default: DEFAULT_CC_INTEREST_FREE_DAYS,
         cc_due_watch_days: CC_DUE_WATCH_DAYS,
         cc_due_unsafe_days: CC_DUE_UNSAFE_DAYS,
         cc_utilization_watch_pct: CC_UTIL_WATCH,
         cc_utilization_unsafe_pct: CC_UTIL_UNSAFE,
+        cc_minimum_payment_estimate_pct: DEFAULT_CC_MIN_PAYMENT_PCT,
         reconciliation_drift_threshold: RECON_DRIFT_THRESHOLD,
         atm_reversal_window_days: ATM_REVERSAL_WINDOW_DAYS
       },
@@ -251,10 +264,10 @@ function computeBalanceSummary(accounts, accountBalances, debts) {
     const id = account.id;
     const bal = accountBalances[id] ? number(accountBalances[id].balance) : 0;
     const kind = text(account.kind || account.type).toLowerCase();
-    const isCC = kind === 'cc' || kind === 'credit' || kind === 'credit_card';
+    const isCC = isCreditCardKind(kind);
 
     if (isCC) {
-      ccOutstanding += Math.max(0, -bal);
+      ccOutstanding += Math.max(0, Math.abs(bal));
     } else if (kind !== 'liability') {
       totalLiquid += bal;
     }
@@ -445,16 +458,17 @@ function evaluateDebts(reasons, actions, debts, now) {
 function evaluateCreditCards(reasons, actions, accounts, accountBalances, now) {
   const ccAccounts = accounts.filter(account => {
     const kind = text(account.kind || account.type).toLowerCase();
-    return kind === 'cc' || kind === 'credit' || kind === 'credit_card';
+    return isCreditCardKind(kind);
   });
 
   for (const account of ccAccounts) {
     const bal = accountBalances[account.id] ? number(accountBalances[account.id].balance) : number(account.opening_balance);
-    const outstanding = Math.max(0, -bal);
+    const outstanding = Math.max(0, Math.abs(bal));
+    if (outstanding <= 0) continue;
+
     const limit = number(account.credit_limit);
     const utilization = limit > 0 ? round1((outstanding / limit) * 100) : null;
-
-    if (outstanding <= 0) continue;
+    const due = computeCreditCardDue(account, outstanding, utilization, now);
 
     if (utilization != null && utilization >= CC_UTIL_UNSAFE) {
       pushReason(reasons, {
@@ -467,7 +481,8 @@ function evaluateCreditCards(reasons, actions, accounts, accountBalances, now) {
           account_name: account.name || null,
           outstanding: round2(outstanding),
           credit_limit: round2(limit),
-          utilization_pct: utilization
+          utilization_pct: utilization,
+          utilization_status: 'high'
         }
       });
       pushAction(actions, {
@@ -488,7 +503,8 @@ function evaluateCreditCards(reasons, actions, accounts, accountBalances, now) {
           account_name: account.name || null,
           outstanding: round2(outstanding),
           credit_limit: round2(limit),
-          utilization_pct: utilization
+          utilization_pct: utilization,
+          utilization_status: 'watch'
         }
       });
       pushAction(actions, {
@@ -500,45 +516,29 @@ function evaluateCreditCards(reasons, actions, accounts, accountBalances, now) {
       });
     }
 
-    const dueDay = account.payment_due_day || account.due_day;
-    const due = dayOfMonthDate(dueDay, now);
-    if (!due) {
-      pushReason(reasons, {
-        code: 'MISSING_REQUIRED_DATA',
-        severity: 'watch',
-        title: `${safeName(account.name, 'Credit Card')} due date is missing`,
-        detail: 'Credit Card has outstanding balance but no payment_due_day configured.',
-        evidence: {
-          account_id: account.id,
-          account_name: account.name || null,
-          outstanding: round2(outstanding),
-          missing_field: 'payment_due_day'
-        }
-      });
-      pushAction(actions, {
-        reason_code: 'MISSING_REQUIRED_DATA',
-        label: 'Set Credit Card payment due day',
-        module: 'credit-card',
-        href: '/cc.html',
-        priority: 2
-      });
-      continue;
-    }
-
-    const days = daysBetween(startOfDay(now), due);
-    if (days <= CC_DUE_UNSAFE_DAYS) {
+    if (due.due_status === 'overdue' || due.due_status === 'due_urgent') {
       pushReason(reasons, {
         code: 'CC_DUE_SOON',
         severity: 'unsafe',
-        title: `${safeName(account.name, 'Credit Card')} payment is due soon`,
-        detail: `Credit Card payment is due in ${days} day(s).`,
-        next_risk_date: dateOnly(due),
+        title: `${safeName(account.name, 'Credit Card')} payment is due now`,
+        detail: due.due_headline,
+        next_risk_date: due.payment_due_date,
         evidence: {
           account_id: account.id,
           account_name: account.name || null,
           outstanding: round2(outstanding),
-          due_date: dateOnly(due),
-          days_until_due: days
+          statement_day: due.statement_day,
+          interest_free_days: due.interest_free_days,
+          latest_statement_date: due.latest_statement_date,
+          next_statement_date: due.next_statement_date,
+          payment_due_date: due.payment_due_date,
+          days_until_payment_due: due.days_until_payment_due,
+          minimum_payment_amount: due.minimum_payment_amount,
+          minimum_payment_source: due.minimum_payment_source,
+          minimum_payment_is_estimate: due.minimum_payment_is_estimate,
+          minimum_payment_formula: due.minimum_payment_formula,
+          due_status: due.due_status,
+          due_headline: due.due_headline
         }
       });
       pushAction(actions, {
@@ -548,19 +548,29 @@ function evaluateCreditCards(reasons, actions, accounts, accountBalances, now) {
         href: '/cc.html',
         priority: 1
       });
-    } else if (days <= CC_DUE_WATCH_DAYS) {
+    } else if (due.due_status === 'due_soon') {
       pushReason(reasons, {
         code: 'CC_DUE_SOON',
         severity: 'watch',
         title: `${safeName(account.name, 'Credit Card')} due date is approaching`,
-        detail: `Credit Card payment is due in ${days} day(s).`,
-        next_risk_date: dateOnly(due),
+        detail: due.due_headline,
+        next_risk_date: due.payment_due_date,
         evidence: {
           account_id: account.id,
           account_name: account.name || null,
           outstanding: round2(outstanding),
-          due_date: dateOnly(due),
-          days_until_due: days
+          statement_day: due.statement_day,
+          interest_free_days: due.interest_free_days,
+          latest_statement_date: due.latest_statement_date,
+          next_statement_date: due.next_statement_date,
+          payment_due_date: due.payment_due_date,
+          days_until_payment_due: due.days_until_payment_due,
+          minimum_payment_amount: due.minimum_payment_amount,
+          minimum_payment_source: due.minimum_payment_source,
+          minimum_payment_is_estimate: due.minimum_payment_is_estimate,
+          minimum_payment_formula: due.minimum_payment_formula,
+          due_status: due.due_status,
+          due_headline: due.due_headline
         }
       });
       pushAction(actions, {
@@ -572,6 +582,108 @@ function evaluateCreditCards(reasons, actions, accounts, accountBalances, now) {
       });
     }
   }
+}
+
+function computeCreditCardDue(account, outstanding, utilizationPct, now) {
+  const statementDay = validDay(account.statement_day) || DEFAULT_CC_STATEMENT_DAY;
+  const interestFreeDays = positiveInt(account.interest_free_days) || DEFAULT_CC_INTEREST_FREE_DAYS;
+
+  const latestStatement = latestDayOfMonth(statementDay, now);
+  const nextStatement = nextDayOfMonth(statementDay, now);
+  const paymentDueDate = addDays(latestStatement, interestFreeDays);
+
+  const daysUntilDue = daysBetween(startOfDay(now), paymentDueDate);
+  const daysUntilStatement = daysBetween(startOfDay(now), nextStatement);
+
+  const minPayment = computeMinimumPayment(account, outstanding);
+
+  return {
+    statement_day: statementDay,
+    interest_free_days: interestFreeDays,
+    latest_statement_date: dateOnly(latestStatement),
+    next_statement_date: dateOnly(nextStatement),
+    payment_due_date: dateOnly(paymentDueDate),
+    days_until_payment_due: daysUntilDue,
+    days_until_statement: daysUntilStatement,
+    minimum_payment_amount: minPayment.amount,
+    minimum_payment_source: minPayment.source,
+    minimum_payment_is_estimate: minPayment.is_estimate,
+    minimum_payment_formula: minPayment.formula,
+    due_status: creditCardDueStatus(daysUntilDue, outstanding),
+    due_headline: creditCardDueHeadline(daysUntilDue, outstanding, utilizationPct, minPayment)
+  };
+}
+
+function computeMinimumPayment(account, outstanding) {
+  const exact = firstPositive([
+    account.minimum_payment_amount,
+    account.min_payment_amount
+  ]);
+
+  if (exact != null) {
+    return {
+      amount: round2(exact),
+      source: 'account_configured',
+      is_estimate: false,
+      formula: 'account.minimum_payment_amount or account.min_payment_amount'
+    };
+  }
+
+  if (outstanding <= 0) {
+    return {
+      amount: 0,
+      source: 'none_no_outstanding',
+      is_estimate: false,
+      formula: '0 because outstanding is 0'
+    };
+  }
+
+  return {
+    amount: round2(outstanding * DEFAULT_CC_MIN_PAYMENT_PCT),
+    source: 'estimated_outstanding_5pct',
+    is_estimate: true,
+    formula: 'outstanding * 0.05 because no official minimum payment is configured'
+  };
+}
+
+function creditCardDueStatus(daysUntilDue, outstanding) {
+  if (outstanding <= 0) return 'clear';
+  if (daysUntilDue < 0) return 'overdue';
+  if (daysUntilDue <= CC_DUE_UNSAFE_DAYS) return 'due_urgent';
+  if (daysUntilDue <= CC_DUE_WATCH_DAYS) return 'due_soon';
+  return 'scheduled';
+}
+
+function creditCardDueHeadline(daysUntilDue, outstanding, utilizationPct, minPayment) {
+  if (outstanding <= 0) {
+    return 'Credit Card has no outstanding balance.';
+  }
+
+  const minText = minPayment.is_estimate
+    ? `Estimated minimum payment is ${money(minPayment.amount)}.`
+    : `Minimum payment is ${money(minPayment.amount)}.`;
+
+  if (daysUntilDue < 0) {
+    return `Credit Card payment is overdue by ${Math.abs(daysUntilDue)} day(s). ${minText}`;
+  }
+
+  if (daysUntilDue <= CC_DUE_UNSAFE_DAYS) {
+    return `Credit Card payment is due in ${daysUntilDue} day(s). ${minText}`;
+  }
+
+  if (daysUntilDue <= CC_DUE_WATCH_DAYS) {
+    return `Credit Card due date is approaching in ${daysUntilDue} day(s). ${minText}`;
+  }
+
+  if (utilizationPct != null && utilizationPct >= CC_UTIL_UNSAFE) {
+    return `Credit Card utilization is high at ${utilizationPct}%. ${minText}`;
+  }
+
+  if (utilizationPct != null && utilizationPct >= CC_UTIL_WATCH) {
+    return `Credit Card utilization needs attention at ${utilizationPct}%. ${minText}`;
+  }
+
+  return `Credit Card payment is scheduled in ${daysUntilDue} day(s). ${minText}`;
 }
 
 function evaluateReconciliation(reasons, actions, rows, accountBalances) {
@@ -725,31 +837,6 @@ function evaluateMissingTruth(reasons, actions, accounts, bills, debts) {
       priority: 2
     });
   }
-
-  const ccWithoutDue = accounts.filter(account => {
-    const kind = text(account.kind || account.type).toLowerCase();
-    return (kind === 'cc' || kind === 'credit' || kind === 'credit_card') && !account.payment_due_day && !account.due_day;
-  });
-
-  if (ccWithoutDue.length) {
-    pushReason(reasons, {
-      code: 'MISSING_REQUIRED_DATA',
-      severity: 'watch',
-      title: 'Credit Card due day is not fully configured',
-      detail: `${ccWithoutDue.length} Credit Card account(s) need payment_due_day for due risk.`,
-      evidence: {
-        count: ccWithoutDue.length,
-        missing_field: 'payment_due_day'
-      }
-    });
-    pushAction(actions, {
-      reason_code: 'MISSING_REQUIRED_DATA',
-      label: 'Configure Credit Card due day',
-      module: 'credit-card',
-      href: '/cc.html',
-      priority: 2
-    });
-  }
 }
 
 function latestReconByAccount(rows) {
@@ -792,10 +879,38 @@ function dayOfMonthDate(dayRaw, now) {
   return due;
 }
 
+function latestDayOfMonth(day, now) {
+  const today = startOfDay(now);
+  let candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth(), day);
+
+  if (candidate > today) {
+    candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth() - 1, day);
+  }
+
+  return candidate;
+}
+
+function nextDayOfMonth(day, now) {
+  const today = startOfDay(now);
+  let candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth(), day);
+
+  if (candidate <= today) {
+    candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
+  }
+
+  return candidate;
+}
+
 function safeUtcDate(year, monthIndex, day) {
   const max = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
   const safeDay = Math.min(day, max);
   return new Date(Date.UTC(year, monthIndex, safeDay));
+}
+
+function addDays(date, days) {
+  const out = new Date(date.getTime());
+  out.setUTCDate(out.getUTCDate() + days);
+  return out;
 }
 
 function billPaidThisCycle(bill, dueDate) {
@@ -920,6 +1035,10 @@ function normalizeDebtKind(kind) {
   return 'owe';
 }
 
+function isCreditCardKind(kind) {
+  return kind === 'cc' || kind === 'credit' || kind === 'credit_card';
+}
+
 function parseDate(value) {
   const raw = text(value);
   if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
@@ -939,6 +1058,27 @@ function daysBetween(from, to) {
 
 function dateOnly(date) {
   return date.toISOString().slice(0, 10);
+}
+
+function validDay(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  if (n < 1 || n > 31) return null;
+  return Math.floor(n);
+}
+
+function positiveInt(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.floor(n);
+}
+
+function firstPositive(values) {
+  for (const value of values) {
+    const n = Number(value);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
 }
 
 function number(value) {
