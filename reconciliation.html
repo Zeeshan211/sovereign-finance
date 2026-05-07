@@ -51,6 +51,10 @@
   font-size: 14px;
   font-weight: 950;
   cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .recon-btn.primary {
   border: 0;
@@ -169,6 +173,37 @@
 .truth-value.good { color: var(--accent-deep); }
 .truth-value.bad { color: var(--danger); }
 .truth-value.warn { color: var(--warn); }
+.truth-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.truth-action-btn {
+  min-height: 40px;
+  border-radius: var(--r-md);
+  border: 0;
+  background: var(--grad-mint);
+  color: #052e16;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 950;
+  cursor: pointer;
+}
+.truth-action-chip {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 8px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid rgba(37, 99, 235, .22);
+  background: var(--info-soft);
+  color: var(--info);
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
 .recon-empty {
   grid-column: 1 / -1;
   background: var(--surface-2);
@@ -179,9 +214,67 @@
   font-weight: 850;
   text-align: center;
 }
+.declare-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, .58);
+}
+.declare-backdrop.open { display: flex; }
+.declare-modal {
+  width: min(560px, 100%);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-xl);
+  padding: 22px;
+}
+.declare-title {
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 950;
+  margin: 0 0 6px;
+}
+.declare-sub {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+.declare-trust {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 8px 10px;
+  margin-bottom: 14px;
+  border-radius: var(--r-pill);
+  border: 1px solid rgba(37, 99, 235, .22);
+  background: var(--info-soft);
+  color: var(--info);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+.declare-grid { display: grid; gap: 12px; }
+.declare-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 8px;
+}
+.declare-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+.declare-actions button { flex: 1; }
 @media (max-width: 900px) {
-  .recon-stats, .truth-grid { grid-template-columns: 1fr; }
-  .truth-values { grid-template-columns: 1fr; }
+  .recon-stats, .truth-grid, .truth-values, .declare-summary { grid-template-columns: 1fr; }
+  .declare-actions { flex-direction: column; }
 }
 </style>
 </head>
@@ -198,7 +291,7 @@
 <div class="recon-kicker">Truth Mode</div>
 <h1 class="recon-heading">Reconciliation</h1>
 <p class="recon-copy">
-Compare app balances against real declared balances. This page tells whether each account is matched, drifted, stale, or still undeclared.
+Compare app balances against real declared balances. Declare the real bank/cash balance when you check the account app. This is metadata only and does not create a transaction.
 </p>
 <div class="recon-actions">
 <button id="refreshBtn" class="recon-btn primary" type="button">Refresh Truth</button>
@@ -232,9 +325,47 @@ Compare app balances against real declared balances. This page tells whether eac
 </section>
 
 <footer class="page-footer">
-<span class="v">v0.4.0 · Reconciliation Truth Mode · api v0.2.0 · nav v1.0.16 · theme v0.7.2</span>
+<span class="v">v0.4.1 · Declare Balance flow · api v0.2.1 · nav v1.0.16 · theme v0.7.2</span>
 </footer>
 </main>
+
+<div id="declareModal" class="declare-backdrop" aria-hidden="true">
+<div class="declare-modal">
+<h2 class="declare-title">Declare Real Balance</h2>
+<p id="declareSub" class="declare-sub">Declare the real balance from your bank/cash app.</p>
+<div class="declare-trust">Metadata only · no transaction · no ledger row</div>
+
+<form id="declareForm" class="declare-grid">
+<input id="declareAccountId" type="hidden" />
+
+<div class="declare-summary">
+<div class="truth-pill">
+<div class="truth-label">Account</div>
+<div id="declareAccountName" class="truth-value"></div>
+</div>
+<div class="truth-pill">
+<div class="truth-label">App Balance</div>
+<div id="declareAppBalance" class="truth-value"></div>
+</div>
+</div>
+
+<div class="field">
+<label for="declareBalance">Real Balance</label>
+<input id="declareBalance" class="input" type="number" step="0.01" required />
+</div>
+
+<div class="field">
+<label for="declareNotes">Notes <small>optional</small></label>
+<textarea id="declareNotes" class="textarea" maxlength="220" placeholder="Example: Declared from bank app"></textarea>
+</div>
+
+<div class="declare-actions">
+<button id="cancelDeclareBtn" class="ghost-btn" type="button">Cancel</button>
+<button id="saveDeclareBtn" class="primary-submit" type="submit">Save Declaration</button>
+</div>
+</form>
+</div>
+</div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -242,6 +373,7 @@ Compare app balances against real declared balances. This page tells whether eac
 <script src="/js/nav.js?v=1.0.16"></script>
 <script>
 const $ = id => document.getElementById(id);
+const state = { rows: [] };
 
 function esc(value) {
   return String(value == null ? '' : value)
@@ -257,6 +389,13 @@ function money(value) {
   const n = Number(value) || 0;
   const sign = n < 0 ? '-' : '';
   return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
+}
+
+function toast(message, kind = 'success') {
+  const el = $('toast');
+  el.textContent = message;
+  el.className = 'toast toast-' + kind + ' show';
+  setTimeout(() => { el.className = 'toast'; }, 2600);
 }
 
 function statusLabel(status) {
@@ -320,11 +459,16 @@ function card(row) {
       <div class="truth-value ${driftClass(drift, status)}">${esc(statusLabel(status))}</div>
     </div>
   </div>
+
+  <div class="truth-card-actions">
+    <button class="truth-action-btn" type="button" data-declare="${esc(row.account_id)}">Declare Balance</button>
+    <span class="truth-action-chip">Metadata only · no transaction</span>
+  </div>
 </article>`;
 }
 
-async function fetchJSON(url) {
-  const res = await fetch(url, { cache: 'no-store' });
+async function fetchJSON(url, options) {
+  const res = await fetch(url, { cache: 'no-store', ...(options || {}) });
   const data = await res.json().catch(() => null);
   if (!res.ok || !data || data.ok === false) {
     throw new Error((data && data.error) || ('HTTP ' + res.status));
@@ -344,6 +488,7 @@ async function loadTruth() {
     $('staleCount').textContent = data.stale_count ?? 0;
 
     const rows = data.truth_accounts || data.accounts_latest || [];
+    state.rows = rows;
 
     if (!rows.length) {
       $('truthGrid').innerHTML = '<div class="recon-empty">No account truth rows found.</div>';
@@ -351,12 +496,95 @@ async function loadTruth() {
     }
 
     $('truthGrid').innerHTML = rows.map(card).join('');
+
+    document.querySelectorAll('[data-declare]').forEach(btn => {
+      btn.addEventListener('click', () => openDeclare(btn.dataset.declare));
+    });
   } catch (err) {
     $('truthGrid').innerHTML = '<div class="recon-empty">Reconciliation failed: ' + esc(err.message) + '</div>';
   }
 }
 
+function openDeclare(accountId) {
+  const row = state.rows.find(item => item.account_id === accountId);
+  if (!row) {
+    toast('Account row not found.', 'error');
+    return;
+  }
+
+  $('declareAccountId').value = row.account_id;
+  $('declareAccountName').textContent = ((row.icon || '') + ' ' + row.account_name).trim();
+  $('declareAppBalance').textContent = money(row.app_balance);
+  $('declareBalance').value = row.declared_balance == null ? '' : row.declared_balance;
+  $('declareNotes').value = '';
+  $('declareSub').textContent = 'Declare real balance for ' + row.account_name + '. App balance is ' + money(row.app_balance) + '.';
+
+  $('declareModal').classList.add('open');
+  $('declareModal').setAttribute('aria-hidden', 'false');
+
+  setTimeout(() => $('declareBalance').focus(), 50);
+}
+
+function closeDeclare() {
+  $('declareModal').classList.remove('open');
+  $('declareModal').setAttribute('aria-hidden', 'true');
+}
+
+async function submitDeclare(event) {
+  event.preventDefault();
+
+  const accountId = $('declareAccountId').value;
+  const declaredBalance = Number($('declareBalance').value);
+  const notes = $('declareNotes').value.trim();
+
+  if (!accountId) {
+    toast('Account is missing.', 'error');
+    return;
+  }
+
+  if (!Number.isFinite(declaredBalance)) {
+    toast('Enter a valid real balance.', 'error');
+    return;
+  }
+
+  $('saveDeclareBtn').disabled = true;
+  $('saveDeclareBtn').textContent = 'Saving...';
+
+  try {
+    await fetchJSON('/api/reconciliation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        account_id: accountId,
+        declared_balance: declaredBalance,
+        notes: notes || 'Declared from Reconciliation page.',
+        declared_by: 'operator'
+      })
+    });
+
+    closeDeclare();
+    toast('Balance declared. Truth status refreshed.');
+    await loadTruth();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    $('saveDeclareBtn').disabled = false;
+    $('saveDeclareBtn').textContent = 'Save Declaration';
+  }
+}
+
 $('refreshBtn').addEventListener('click', loadTruth);
+$('cancelDeclareBtn').addEventListener('click', closeDeclare);
+$('declareForm').addEventListener('submit', submitDeclare);
+
+$('declareModal').addEventListener('click', event => {
+  if (event.target === $('declareModal')) closeDeclare();
+});
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && $('declareModal').classList.contains('open')) closeDeclare();
+});
+
 loadTruth();
 </script>
 </body>
