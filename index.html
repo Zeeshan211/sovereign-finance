@@ -569,6 +569,13 @@ font-size: 12px;
 font-weight: 800;
 line-height: 1.38;
 }
+.risk-action {
+margin-top: 10px;
+display: inline-flex;
+font-size: 11px;
+font-weight: 950;
+color: #15803d;
+}
 .lower-grid {
 display: grid;
 grid-template-columns: minmax(0, 1.2fr) minmax(380px, 0.8fr);
@@ -700,10 +707,10 @@ text-align: left;
 <main class="hub-wrap">
 <section class="cinema-hero motion-reveal">
 <div class="hero-content">
-<div class="hub-kicker">Layer 5C  Nano Loans integrated</div>
+<div class="hub-kicker">Finance Brain connected</div>
 <h1 class="hub-heading">Finance cockpit</h1>
 <p class="hub-copy">
-The daily control screen: safety signal, true burden, CC pressure, ATM cash movement, Nano Loans, recent writes, obligations, and next actions in one premium view.
+The daily control screen: safety signal, true burden, Credit Card pressure, ATM cash movement, Nano Loans, recent writes, obligations, and next actions in one view.
 </p>
 <div class="hero-pills">
 <span class="hero-pill primary" id="freshnessText">Loading live data...</span>
@@ -714,6 +721,7 @@ The daily control screen: safety signal, true burden, CC pressure, ATM cash move
 </div>
 </div>
 </section>
+
 <section class="metric-grid motion-stagger">
 <div class="metric-card">
 <div class="metric-label">Am I Safe?</div>
@@ -736,6 +744,7 @@ The daily control screen: safety signal, true burden, CC pressure, ATM cash move
 <div id="sigWrite" class="metric-value"></div>
 </div>
 </section>
+
 <section class="dashboard-grid">
 <div class="viz-panel">
 <div class="panel-head">
@@ -774,6 +783,7 @@ The daily control screen: safety signal, true burden, CC pressure, ATM cash move
 </div>
 </div>
 </div>
+
 <aside class="viz-panel">
 <div class="panel-head">
 <div>
@@ -815,6 +825,7 @@ The daily control screen: safety signal, true burden, CC pressure, ATM cash move
 </div>
 </aside>
 </section>
+
 <div class="section-title-row">
 <h2 class="section-title">Daily tools</h2>
 <div class="section-note">Fast paths stay visible. ATM and Nano Loans are live. Sheet parity remains parked.</div>
@@ -905,9 +916,10 @@ The daily control screen: safety signal, true burden, CC pressure, ATM cash move
 </div>
 </a>
 </section>
+
 <div class="section-title-row">
 <h2 class="section-title">What needs action</h2>
-<div class="section-note">Live read-only risk view. No test rows.</div>
+<div class="section-note">Safety Engine reasons appear first. No test rows.</div>
 </div>
 <section id="riskGrid" class="risk-grid motion-stagger">
 <div class="risk-card">
@@ -915,6 +927,7 @@ The daily control screen: safety signal, true burden, CC pressure, ATM cash move
 <div class="risk-copy">Checking live data.</div>
 </div>
 </section>
+
 <section class="lower-grid">
 <div class="viz-panel">
 <div class="panel-head">
@@ -922,7 +935,7 @@ The daily control screen: safety signal, true burden, CC pressure, ATM cash move
 <div class="panel-title">What changed recently</div>
 <div class="panel-sub">Latest ledger movement</div>
 </div>
-<a href="/transactions.html" class="panel-link">View all </a>
+<a href="/transactions.html" class="panel-link">View all</a>
 </div>
 <div id="recentTransactions" class="mini-list motion-row-stagger">
 <div class="empty-panel">Loading recent transactions...</div>
@@ -934,20 +947,21 @@ The daily control screen: safety signal, true burden, CC pressure, ATM cash move
 <div class="panel-title">Obligations</div>
 <div class="panel-sub">Bills sorted by pressure</div>
 </div>
-<a href="/bills.html" class="panel-link">Bills </a>
+<a href="/bills.html" class="panel-link">Bills</a>
 </div>
 <div id="dueSoon" class="mini-list motion-row-stagger">
 <div class="empty-panel">Loading bills...</div>
 </div>
 </div>
 </section>
+
 <footer class="page-footer">
-<span class="v">v0.9.8  layer UI Hub copy/cache aligned  nav v1.0.15  theme v0.7.2  app.css v1.0.1</span>
+<span class="v">v0.9.9 · Finance Brain Hub wiring · safety v0.1.0 · nav v1.0.16 · theme v0.7.2 · app.css v1.0.1</span>
 </footer>
 </main>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script src="/js/theme.js?v=0.7.2"></script>
-<script src="/js/nav.js?v=1.0.15"></script>
+<script src="/js/nav.js?v=1.0.16"></script>
 <script>
 const TYPE_IN = new Set(['income', 'borrow']);
 const TYPE_OUT = new Set(['expense', 'repay', 'cc_spend', 'atm']);
@@ -962,6 +976,7 @@ cc_payment: '',
 atm: ''
 };
 const $ = id => document.getElementById(id);
+
 function esc(value) {
 return String(value == null ? '' : value)
 .replace(/&/g, '&amp;')
@@ -970,11 +985,13 @@ return String(value == null ? '' : value)
 .replace(/"/g, '&quot;')
 .replace(/'/g, '&#39;');
 }
+
 function money(value) {
 const n = Number(value) || 0;
 const sign = n < 0 ? '-' : '';
 return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
 }
+
 async function fetchJSON(url) {
 const res = await fetch(url, { cache: 'no-store' });
 const data = await res.json().catch(() => null);
@@ -983,6 +1000,7 @@ throw new Error((data && data.error) || ('HTTP ' + res.status));
 }
 return data;
 }
+
 async function safeJSON(url, fallback) {
 try {
 return await fetchJSON(url);
@@ -990,12 +1008,14 @@ return await fetchJSON(url);
 return fallback;
 }
 }
+
 function amountClass(row) {
 const type = String(row.type || '').toLowerCase();
 if (TYPE_IN.has(type)) return 'positive';
 if (TYPE_OUT.has(type)) return 'negative';
 return 'neutral';
 }
+
 function signedMoney(row) {
 const amount = Number(row.amount) || 0;
 const type = String(row.type || '').toLowerCase();
@@ -1003,23 +1023,29 @@ if (TYPE_IN.has(type)) return '+' + money(amount);
 if (TYPE_OUT.has(type)) return '-' + money(amount);
 return money(amount);
 }
+
 function titleFor(row) {
 return String(row.notes || '').trim() || String(row.type || 'Transaction').replace(/_/g, ' ');
 }
+
 function accountName(id, accounts) {
 const found = accounts.find(account => account.id === id);
 return found ? ((found.icon || '') + ' ' + found.name).trim() : (id || 'No account');
 }
+
 function findCC(accounts) {
 return (accounts || []).find(account => account.id === 'cc') ||
 (accounts || []).find(account => String(account.kind || '').toLowerCase() === 'cc') ||
+(accounts || []).find(account => String(account.kind || '').toLowerCase() === 'credit_card') ||
 null;
 }
+
 function billRisk(bill) {
 if (bill.last_paid_date) return 99;
 if (!bill.due_day) return 50;
 return Number(bill.due_day) - new Date().getDate();
 }
+
 function safetyLabel(liquid, ccPct, urgentBills, drifted, pendingAtmFees) {
 if (drifted > 0) return { text: 'Check Recon', cls: 'negative' };
 if (ccPct >= 75) return { text: 'Card High', cls: 'negative' };
@@ -1028,6 +1054,37 @@ if (urgentBills > 0) return { text: urgentBills + ' Action', cls: 'warn' };
 if (liquid < 5000) return { text: 'Thin Cash', cls: 'warn' };
 return { text: 'Stable', cls: 'positive' };
 }
+
+function statusClass(status) {
+const val = String(status || '').toLowerCase();
+if (val === 'safe') return 'positive';
+if (val === 'watch') return 'warn';
+if (val === 'unsafe') return 'negative';
+return 'neutral';
+}
+
+function severityCardClass(severity) {
+const val = String(severity || '').toLowerCase();
+if (val === 'unsafe') return 'bad';
+if (val === 'watch') return 'warn';
+if (val === 'safe' || val === 'good') return 'good';
+return 'info';
+}
+
+function renderSafety(safety) {
+if (!safety || safety.ok !== true) return;
+
+const label = String(safety.status || 'unknown').toUpperCase();
+$('sigSafe').textContent = label;
+$('sigSafe').className = 'metric-value ' + statusClass(safety.status);
+$('orbitSafety').textContent = label;
+$('orbitSafety').className = 'sat-value ' + statusClass(safety.status);
+
+if (safety.headline) {
+$('freshnessText').textContent = 'Safety Engine: ' + safety.headline;
+}
+}
+
 function renderBalances(data, accounts, bills, recon, atm) {
 const net = Number(data.net_worth) || 0;
 const liquid = Number(data.total_liquid || data.total_liquid_assets || data.cash || 0);
@@ -1042,6 +1099,7 @@ const urgentBills = (bills || []).filter(bill => billRisk(bill) <= 3 && !bill.la
 const drifted = Number(recon && (recon.drifted_count || recon.drift_count || 0)) || 0;
 const pendingAtmFees = Number(atm && atm.pending_count) || 0;
 const safe = safetyLabel(liquid, ccPct, urgentBills, drifted, pendingAtmFees);
+
 $('netWorth').textContent = money(net);
 $('netWorth').className = 'core-value ' + (net >= 0 ? 'positive' : 'negative');
 $('netSub').textContent = net >= 0 ? 'Positive position' : 'Burden exceeds current net position';
@@ -1068,6 +1126,7 @@ $('ccFill').style.width = Math.max(0, Math.min(100, ccPct)) + '%';
 const status = ccAccount.cc_status_label || (ccPct >= 75 ? 'High' : ccPct >= 40 ? 'Moderate' : 'Controlled');
 $('ccStatusBadge').textContent = status;
 }
+
 function renderTransactions(rows, accounts) {
 const box = $('recentTransactions');
 const recent = (rows || []).slice(0, 8);
@@ -1083,13 +1142,14 @@ return `
 <div class="mini-icon">${TYPE_ICON[type] || ''}</div>
 <div>
 <div class="mini-title" title="${esc(titleFor(row))}">${esc(titleFor(row))}</div>
-<div class="mini-sub">${esc(accountName(row.account_id, accounts))}  ${esc(row.date || '')}</div>
+<div class="mini-sub">${esc(accountName(row.account_id, accounts))} · ${esc(row.date || '')}</div>
 </div>
 <div class="mini-amount ${cls}">${esc(signedMoney(row))}</div>
 </article>
 `;
 }).join('');
 }
+
 function billStatus(bill) {
 if (bill.last_paid_date) return 'Paid ' + bill.last_paid_date;
 if (!bill.due_day) return 'No due day';
@@ -1098,6 +1158,7 @@ if (diff === 0) return 'Due today';
 if (diff > 0) return 'Due in ' + diff + 'd';
 return 'Overdue by ' + Math.abs(diff) + 'd';
 }
+
 function renderBills(bills) {
 const box = $('dueSoon');
 const rows = (bills || [])
@@ -1119,12 +1180,38 @@ box.innerHTML = rows.map(bill => `
 </article>
 `).join('');
 }
+
 function renderLastWrite(audit) {
 const row = audit && audit.rows && audit.rows[0];
 $('sigWrite').textContent = row ? (row.action || 'Event') : 'None';
 }
-function renderRisks(balances, accounts, bills, recon, atm) {
+
+function safetyReasonCards(safety) {
+if (!safety || safety.ok !== true || !Array.isArray(safety.reasons) || !safety.reasons.length) {
+return [];
+}
+
+return safety.reasons.slice(0, 6).map(reason => {
+const action = Array.isArray(safety.actions)
+? safety.actions.find(item => item.reason_code === reason.code)
+: null;
+
+return {
+level: severityCardClass(reason.severity),
+title: reason.code || reason.title || 'Safety reason',
+copy: reason.detail || reason.title || 'Safety Engine detected a condition that needs attention.',
+action: action ? action.label : null,
+href: action ? action.href : null
+};
+});
+}
+
+function renderRisks(balances, accounts, bills, recon, atm, safety) {
 const risks = [];
+const safetyCards = safetyReasonCards(safety);
+
+safetyCards.forEach(card => risks.push(card));
+
 const ccAccount = findCC(accounts) || {};
 const cc = Number(ccAccount.cc_outstanding || balances.cc_outstanding || balances.cc || Math.abs(Number(ccAccount.balance) || 0)) || 0;
 const limit = Number(ccAccount.credit_limit || 100000) || 100000;
@@ -1134,67 +1221,103 @@ const urgentBills = (bills || []).filter(bill => billRisk(bill) <= 3 && !bill.la
 const drifted = Number(recon && (recon.drifted_count || recon.drift_count || 0)) || 0;
 const pendingAtmFees = Number(atm && atm.pending_count) || 0;
 const pendingAtmValue = Number(atm && atm.total_pending_pkr) || 0;
+
+if (!safetyCards.length && safety && safety.ok === true) {
+risks.push({
+level: statusClass(safety.status) === 'positive' ? 'good' : 'info',
+title: 'Safety Engine',
+copy: safety.headline || 'Safety Engine returned a live result.',
+action: 'Open raw safety JSON',
+href: '/api/safety'
+});
+}
+
 risks.push({
 level: ccPct >= 75 ? 'bad' : ccPct >= 40 ? 'warn' : 'good',
 title: 'Credit Card pressure',
-copy: ccPct.toFixed(1) + '% utilization  outstanding ' + money(cc)
+copy: ccPct.toFixed(1) + '% utilization · outstanding ' + money(cc),
+action: 'Open Credit Card',
+href: '/cc.html'
 });
 risks.push({
 level: pendingAtmFees ? 'warn' : 'good',
 title: 'ATM reversals',
-copy: pendingAtmFees ? pendingAtmFees + ' pending fee(s)  ' + money(pendingAtmValue) : 'No pending ATM fee reversals'
+copy: pendingAtmFees ? pendingAtmFees + ' pending fee(s) · ' + money(pendingAtmValue) : 'No pending ATM fee reversals',
+action: 'Open ATM',
+href: '/atm.html'
 });
 risks.push({
 level: 'info',
 title: 'Nano Loans',
-copy: 'Nano Loans are linked from Hub and global navigation'
+copy: 'Nano Loans are linked from Hub and global navigation',
+action: 'Open Nano Loans',
+href: '/nano-loans.html'
 });
 risks.push({
 level: liquid <= 0 ? 'bad' : liquid < 5000 ? 'warn' : 'good',
 title: 'Liquid runway',
-copy: 'Available liquid: ' + money(liquid)
+copy: 'Available liquid: ' + money(liquid),
+action: 'Open Accounts',
+href: '/accounts.html'
 });
 risks.push({
 level: urgentBills.length ? 'warn' : 'good',
 title: 'Bills due soon',
-copy: urgentBills.length ? urgentBills.length + ' bill(s) need attention' : 'No immediate bill pressure'
+copy: urgentBills.length ? urgentBills.length + ' bill(s) need attention' : 'No immediate bill pressure',
+action: 'Open Bills',
+href: '/bills.html'
 });
 risks.push({
 level: drifted ? 'bad' : 'good',
 title: 'Reconciliation',
-copy: drifted ? drifted + ' account(s) drifted' : 'No declared drift reported'
+copy: drifted ? drifted + ' account(s) drifted' : 'No declared drift reported',
+action: 'Open Reconciliation',
+href: '/reconciliation.html'
 });
-$('riskGrid').innerHTML = risks.map(risk => `
+
+$('riskGrid').innerHTML = risks.slice(0, 10).map(risk => `
 <article class="risk-card ${risk.level}">
 <div class="risk-title">${esc(risk.title)}</div>
 <div class="risk-copy">${esc(risk.copy)}</div>
+${risk.href ? `<a class="risk-action" href="${esc(risk.href)}">${esc(risk.action || 'Open')}</a>` : ''}
 </article>
 `).join('');
 }
+
 async function loadHub() {
 try {
-const [balances, transactions, accounts, bills, audit, recon, atm] = await Promise.all([
+const [balances, transactions, accounts, bills, audit, recon, atm, safety] = await Promise.all([
 fetchJSON('/api/balances?debug=1'),
 fetchJSON('/api/transactions'),
 fetchJSON('/api/accounts?debug=1'),
 fetchJSON('/api/bills'),
 safeJSON('/api/audit?limit=1', { rows: [] }),
 safeJSON('/api/reconciliation', {}),
-safeJSON('/api/atm', { pending_count: 0, total_pending_pkr: 0 })
+safeJSON('/api/atm', { pending_count: 0, total_pending_pkr: 0 }),
+safeJSON('/api/safety', null)
 ]);
+
 const accountRows = accounts.accounts || [];
 const billRows = bills.bills || [];
+
 renderBalances(balances, accountRows, billRows, recon, atm);
+renderSafety(safety);
 renderTransactions(transactions.transactions || [], accountRows);
 renderBills(billRows);
 renderLastWrite(audit);
-renderRisks(balances, accountRows, billRows, recon, atm);
-$('freshnessText').textContent = 'Live  balances, transactions, bills, audit, ATM checked';
+renderRisks(balances, accountRows, billRows, recon, atm, safety);
+
+if (!safety || safety.ok !== true) {
+$('freshnessText').textContent = 'Live data loaded · Safety Engine unavailable';
+} else {
+$('freshnessText').textContent = 'Safety Engine: ' + (safety.headline || safety.status || 'computed');
+}
 } catch (err) {
 $('freshnessText').textContent = 'Load error';
 $('recentTransactions').innerHTML = '<div class="empty-panel">Hub failed: ' + esc(err.message) + '</div>';
 }
 }
+
 loadHub();
 </script>
 </body>
