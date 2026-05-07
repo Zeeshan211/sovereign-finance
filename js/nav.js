@@ -1,19 +1,20 @@
-/* ─── Sovereign Finance · nav.js v1.0.11 · Navigation contract restore ─── */
+/* ─── Sovereign Finance · nav.js v1.0.12 · Premium card system on restored nav contract ─── */
 /*
- * Restores the UI navigation contract:
- * - Mobile <= 860px: bottom nav is always visible.
- * - Mobile <= 860px: All drawer is always available.
- * - Web/tablet >= 861px: side rail is always visible.
- * - No dead viewport band between mobile and desktop.
- * - App shell stays below header without covering theme controls.
+ * Contract:
+ * - Mobile <= 860px: bottom nav visible.
+ * - Mobile <= 860px: All drawer visible.
+ * - Web/tablet >= 861px: side rail visible.
+ * - App shell stays below header/theme controls.
+ * - Existing cards/panels get premium visual treatment.
  * - No ledger/API/schema/business-logic changes.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.11';
+  const VERSION = 'v1.0.12';
   const STYLE_ID = 'sov-nav-contract-style';
+  const CARD_STYLE_ID = 'sov-premium-card-style';
   const DRAWER_ID = 'sov-mobile-module-drawer';
   const DRAWER_TOGGLE_ID = 'sov-mobile-module-toggle';
 
@@ -256,14 +257,8 @@
         box-sizing: border-box;
       }
 
-      .desktop-nav {
-        display: none;
-      }
-
-      .bottom-nav {
-        display: none;
-      }
-
+      .desktop-nav,
+      .bottom-nav,
       .mobile-module-toggle,
       .mobile-module-drawer {
         display: none;
@@ -308,9 +303,7 @@
         font-weight: 1000;
       }
 
-      .sov-shell-main {
-        min-width: 0;
-      }
+      .sov-shell-main { min-width: 0; }
 
       .sov-shell-eyebrow {
         color: var(--accent-deep, #047857);
@@ -385,9 +378,7 @@
       }
 
       @media (min-width: 861px) {
-        body {
-          padding-left: 308px !important;
-        }
+        body { padding-left: 308px !important; }
 
         .desktop-nav {
           display: flex !important;
@@ -550,9 +541,7 @@
       }
 
       @media (min-width: 1200px) {
-        body {
-          padding-left: 332px !important;
-        }
+        body { padding-left: 332px !important; }
 
         .desktop-nav {
           top: 24px !important;
@@ -569,9 +558,7 @@
       }
 
       @media (max-width: 860px) {
-        html {
-          min-height: 100%;
-        }
+        html { min-height: 100%; }
 
         body {
           min-height: 100%;
@@ -579,9 +566,7 @@
           padding-bottom: calc(100px + env(safe-area-inset-bottom)) !important;
         }
 
-        .desktop-nav {
-          display: none !important;
-        }
+        .desktop-nav { display: none !important; }
 
         .sov-app-shell {
           width: min(100% - 22px, 720px);
@@ -604,9 +589,7 @@
           letter-spacing: -0.055em;
         }
 
-        .sov-shell-purpose {
-          font-size: 12.5px;
-        }
+        .sov-shell-purpose { font-size: 12.5px; }
 
         .bottom-nav {
           position: fixed !important;
@@ -865,9 +848,7 @@
       }
 
       @media (max-width: 420px) {
-        .mobile-drawer-nav-layer-items {
-          grid-template-columns: 1fr;
-        }
+        .mobile-drawer-nav-layer-items { grid-template-columns: 1fr; }
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -876,6 +857,200 @@
         .desktop-nav-pulse {
           animation: none !important;
           transition: none !important;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  function injectCardStyles() {
+    const old = document.getElementById(CARD_STYLE_ID);
+    if (old) old.remove();
+
+    const style = document.createElement('style');
+    style.id = CARD_STYLE_ID;
+    style.textContent = `
+      @keyframes sov-card-rise {
+        from {
+          opacity: 0;
+          transform: translateY(12px) scale(0.992);
+          filter: saturate(0.94);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+          filter: saturate(1);
+        }
+      }
+
+      @keyframes sov-card-sheen {
+        from { transform: translateX(-130%) rotate(10deg); opacity: 0; }
+        35% { opacity: 0.48; }
+        to { transform: translateX(230%) rotate(10deg); opacity: 0; }
+      }
+
+      .sov-card-upgraded {
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+        border-radius: clamp(20px, 2.1vw, 30px) !important;
+        border: 1px solid rgba(148, 163, 184, 0.22) !important;
+        background:
+          radial-gradient(circle at 12% 0%, rgba(34, 197, 94, 0.105), transparent 14rem),
+          radial-gradient(circle at 100% 10%, rgba(59, 130, 246, 0.08), transparent 13rem),
+          rgba(255, 255, 255, 0.78) !important;
+        box-shadow:
+          0 18px 48px rgba(15, 23, 42, 0.095),
+          inset 0 1px 0 rgba(255, 255, 255, 0.74) !important;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        transform: translateZ(0);
+        animation: sov-card-rise 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+        animation-delay: calc(var(--sov-card-index, 0) * 38ms);
+        transition:
+          transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+          box-shadow 240ms cubic-bezier(0.16, 1, 0.3, 1),
+          border-color 240ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+      }
+
+      .sov-card-upgraded::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: -1;
+        border-radius: inherit;
+        background:
+          linear-gradient(135deg, rgba(255, 255, 255, 0.52), transparent 38%),
+          radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.36), transparent 11rem);
+      }
+
+      .sov-card-upgraded::after {
+        content: "";
+        position: absolute;
+        top: -30%;
+        left: -40%;
+        width: 34%;
+        height: 160%;
+        pointer-events: none;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.46), transparent);
+        transform: translateX(-130%) rotate(10deg);
+        opacity: 0;
+      }
+
+      .sov-card-upgraded:hover {
+        transform: translateY(-3px) scale(1.006);
+        border-color: rgba(34, 197, 94, 0.24) !important;
+        box-shadow:
+          0 24px 64px rgba(15, 23, 42, 0.13),
+          0 0 0 1px rgba(34, 197, 94, 0.06),
+          inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
+      }
+
+      .sov-card-upgraded:hover::after {
+        animation: sov-card-sheen 920ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+
+      .sov-card-upgraded h1,
+      .sov-card-upgraded h2,
+      .sov-card-upgraded h3,
+      .sov-card-upgraded .title,
+      .sov-card-upgraded .card-title {
+        letter-spacing: -0.045em;
+      }
+
+      .sov-card-upgraded .amount,
+      .sov-card-upgraded .balance,
+      .sov-card-upgraded .value,
+      .sov-card-upgraded .metric,
+      .sov-card-upgraded [data-value],
+      .sov-card-upgraded [data-amount] {
+        letter-spacing: -0.055em;
+        text-wrap: balance;
+      }
+
+      .sov-card-upgraded input,
+      .sov-card-upgraded select,
+      .sov-card-upgraded textarea {
+        border-radius: 14px;
+      }
+
+      .sov-card-proof-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 3;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        max-width: calc(100% - 24px);
+        padding: 6px 9px;
+        border-radius: 999px;
+        color: #047857;
+        background: rgba(34, 197, 94, 0.10);
+        border: 1px solid rgba(34, 197, 94, 0.16);
+        font-size: 10px;
+        line-height: 1;
+        font-weight: 950;
+        pointer-events: none;
+      }
+
+      .sov-card-proof-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: #22c55e;
+        box-shadow: 0 0 14px rgba(34, 197, 94, 0.42);
+      }
+
+      html[data-page="audit"] .sov-card-proof-badge,
+      html[data-page="transactions"] .sov-card-proof-badge,
+      html[data-page="reconciliation"] .sov-card-proof-badge,
+      html[data-page="snapshots"] .sov-card-proof-badge {
+        color: #1d4ed8;
+        background: rgba(59, 130, 246, 0.10);
+        border-color: rgba(59, 130, 246, 0.16);
+      }
+
+      html[data-page="audit"] .sov-card-proof-dot,
+      html[data-page="transactions"] .sov-card-proof-dot,
+      html[data-page="reconciliation"] .sov-card-proof-dot,
+      html[data-page="snapshots"] .sov-card-proof-dot {
+        background: #3b82f6;
+        box-shadow: 0 0 14px rgba(59, 130, 246, 0.42);
+      }
+
+      @media (max-width: 860px) {
+        .sov-card-upgraded {
+          border-radius: 22px !important;
+          box-shadow:
+            0 14px 34px rgba(15, 23, 42, 0.09),
+            inset 0 1px 0 rgba(255, 255, 255, 0.72) !important;
+        }
+
+        .sov-card-upgraded:hover {
+          transform: none;
+        }
+
+        .sov-card-proof-badge {
+          position: relative;
+          top: auto;
+          right: auto;
+          margin: 0 0 10px;
+          width: fit-content;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .sov-card-upgraded,
+        .sov-card-upgraded::after {
+          animation: none !important;
+          transition: none !important;
+        }
+
+        .sov-card-upgraded:hover {
+          transform: none !important;
         }
       }
     `;
@@ -910,6 +1085,79 @@
     const item = activeItem(path);
     document.documentElement.setAttribute('data-page', item.key);
     document.body.setAttribute('data-page', item.key);
+  }
+
+  function enhanceCards() {
+    const selectors = [
+      '.card',
+      '.panel',
+      '.stat-card',
+      '.summary-card',
+      '.account-card',
+      '.bill-card',
+      '.debt-card',
+      '.goal-card',
+      '.budget-card',
+      '.snapshot-card',
+      '.audit-card',
+      '.metric-card',
+      '.kpi-card',
+      '.hero-card',
+      '.glass-card',
+      '.tile',
+      '.box',
+      'section.card',
+      'article.card'
+    ];
+
+    const excluded = [
+      '.desktop-nav',
+      '.desktop-nav *',
+      '.bottom-nav',
+      '.bottom-nav *',
+      '.mobile-module-drawer',
+      '.mobile-module-drawer *',
+      '.mobile-module-toggle',
+      '.sov-app-shell',
+      '.sov-app-shell *'
+    ];
+
+    const nodes = Array.from(document.querySelectorAll(selectors.join(','))).filter(node => {
+      if (!node || node.nodeType !== 1) return false;
+      if (node.classList.contains('sov-card-upgraded')) return false;
+      return !excluded.some(selector => node.matches(selector));
+    });
+
+    nodes.forEach((node, index) => {
+      node.classList.add('sov-card-upgraded');
+      node.style.setProperty('--sov-card-index', String(Math.min(index, 14)));
+
+      const hasForm = !!node.querySelector('form, input, select, textarea, button');
+      const hasTable = !!node.querySelector('table');
+      const text = node.textContent || '';
+      const hasMoneySignal = /\b(rs|pkr|balance|amount|paid|due|owed|cash|salary|bill|debt|goal|transaction|snapshot|audit|reconcile)\b/i.test(text);
+
+      if ((hasMoneySignal || hasTable) && !hasForm && !node.querySelector('.sov-card-proof-badge')) {
+        const badge = document.createElement('div');
+        badge.className = 'sov-card-proof-badge';
+        badge.innerHTML = '<span class="sov-card-proof-dot"></span><span>Real data</span>';
+        node.insertAdjacentElement('afterbegin', badge);
+      }
+    });
+  }
+
+  function observeCards() {
+    const root = document.querySelector('main, .wrap, .container, body');
+    if (!root || window.SOV_CARD_OBSERVER) return;
+
+    let timer = null;
+    const observer = new MutationObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(enhanceCards, 100);
+    });
+
+    observer.observe(root, { childList: true, subtree: true });
+    window.SOV_CARD_OBSERVER = observer;
   }
 
   function setDrawerOpen(open) {
@@ -952,6 +1200,7 @@
     const path = currentPath();
 
     injectStyles();
+    injectCardStyles();
     markPage(path);
 
     replaceNodes('.desktop-nav', desktopHTML(path), 'after-header');
@@ -961,6 +1210,8 @@
 
     setHeaderTitle(path);
     bindDrawer();
+    enhanceCards();
+    observeCards();
 
     window.SOV_NAV = {
       version: VERSION,
@@ -969,6 +1220,7 @@
       bottomKeys: BOTTOM_KEYS.slice(),
       activePath: path,
       activeItem: activeItem(path),
+      enhanceCards: enhanceCards,
       openDrawer: function () { setDrawerOpen(true); },
       closeDrawer: function () { setDrawerOpen(false); }
     };
