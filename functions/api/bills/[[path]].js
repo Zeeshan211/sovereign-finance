@@ -1,4 +1,4 @@
-/*  Sovereign Finance  /api/bills/[[path]]  v0.3.4  Correct Rs 0 Mark Done backend  */
+/*  Sovereign Finance  /api/bills/[[path]]  v0.3.5  Rs 0 bill backend trust guard  */
 /*
  * Handles:
  *   GET    /api/bills
@@ -10,19 +10,19 @@
  *
  * Contract:
  *   - Bill payments validate selected payment account.
- *   - Non-zero payments create expense transactions.
- *   - Rs 0 bills can be marked done without creating fake Rs 0 transactions.
+ *   - Non-zero DB bills create expense transactions.
+ *   - Rs 0 DB bills are always mark_done, regardless of browser-sent amount.
+ *   - Rs 0 bills never create fake Rs 0 or Rs 1 transactions.
  *   - last_paid_date and last_paid_account_id are saved.
- *   - Snapshot is attempted before bill edit/delete/pay mutations.
  *   - Snapshot failure blocks destructive edit/delete and real non-zero payment.
- *   - Rs 0 mark-done is allowed to proceed even if snapshot fails, because it only updates bill paid metadata.
+ *   - Rs 0 mark_done may proceed even if snapshot fails because it only updates bill paid metadata.
  *   - Audit failure does not break successful DB mutations.
  *   - Delete/archive stays soft-only.
  */
 
 import { json, audit, snapshot, uuid } from '../_lib.js';
 
-const VERSION = 'v0.3.4';
+const VERSION = 'v0.3.5';
 const ALLOWED_FREQ = ['monthly', 'weekly', 'yearly', 'custom'];
 const CONDITION_VISIBLE_BILL = "(deleted_at IS NULL OR deleted_at = '')";
 
@@ -402,11 +402,25 @@ async function payBill(context, billId) {
 
   if (!bill) return json({ ok: false, version: VERSION, error: 'Bill not found' }, 404);
 
+  const dbBillAmount = Number(bill.amount);
+  if (!Number.isFinite(dbBillAmount) || dbBillAmount < 0) {
+    return json({ ok: false, version: VERSION, error: 'Stored bill amount is invalid' }, 400);
+  }
+
   const requestedAccountId = cleanNullable(body.account_id);
   const defaultAccountId = cleanNullable(bill.default_account_id);
   const accountId = requestedAccountId || defaultAccountId;
 
-  const amount = body.amount == null || body.amount === '' ? Number(bill.amount) : Number(body.amount);
+  /*
+   * TRUST BOUNDARY:
+   * The database bill amount decides whether this is mark_done or paid.
+   * Browser/body amount must never upgrade a Rs 0 bill into a transaction.
+   */
+  const amount = dbBillAmount === 0
+    ? 0
+    : body.amount == null || body.amount === ''
+      ? dbBillAmount
+      : Number(body.amount);
 
   if (!Number.isFinite(amount) || amount < 0) {
     return json({ ok: false, version: VERSION, error: 'amount must be 0 or greater' }, 400);
@@ -447,7 +461,9 @@ async function payBill(context, billId) {
       entity_id: billId,
       kind: 'mutation',
       detail: {
-        amount,
+        amount: 0,
+        db_bill_amount: dbBillAmount,
+        browser_amount_ignored: body.amount == null ? null : Number(body.amount),
         account_id: accountId || null,
         account_name: accountCheck.account ? accountCheck.account.name : null,
         account_source: accountSource,
@@ -468,7 +484,9 @@ async function payBill(context, billId) {
       bill_id: billId,
       txn_id: null,
       transaction_created: false,
-      amount,
+      amount: 0,
+      db_bill_amount: dbBillAmount,
+      browser_amount_ignored: body.amount == null ? null : Number(body.amount),
       date,
       account_id: accountId || null,
       account_name: accountCheck.account ? accountCheck.account.name : null,
@@ -513,6 +531,7 @@ async function payBill(context, billId) {
     detail: {
       txn_id: txnId,
       amount,
+      db_bill_amount: dbBillAmount,
       account_id: accountId,
       account_name: accountCheck.account ? accountCheck.account.name : null,
       account_source: accountSource,
@@ -532,6 +551,7 @@ async function payBill(context, billId) {
     txn_id: txnId,
     transaction_created: true,
     amount,
+    db_bill_amount: dbBillAmount,
     date,
     account_id: accountId,
     account_name: accountCheck.account ? accountCheck.account.name : null,
