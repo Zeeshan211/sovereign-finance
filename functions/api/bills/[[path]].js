@@ -1,4 +1,4 @@
-/* ─── /api/bills/[[path]] · v0.3.1 · Layer 2 bill write contract ─── */
+/*  Sovereign Finance  /api/bills/[[path]] · v0.3.2 · Bill payment account control  */
 /*
  * Handles:
  *   GET    /api/bills
@@ -10,6 +10,8 @@
  *
  * Layer 2 contract:
  *   - Bill payments write expense transactions using category_id NULL.
+ *   - Bill payments validate the selected payment account.
+ *   - Bill payments save last_paid_account_id for account-level truth.
  *   - Snapshot is required before bill edit/delete/pay mutations.
  *   - Audit failure does not break successful DB mutations.
  *   - Delete/archive stays soft-only.
@@ -18,7 +20,7 @@
 
 import { json, audit, snapshot, uuid } from '../_lib.js';
 
-const VERSION = 'v0.3.1';
+const VERSION = 'v0.3.2';
 
 const ALLOWED_FREQ = ['monthly', 'weekly', 'yearly', 'custom'];
 const CONDITION_VISIBLE_BILL = "(deleted_at IS NULL OR deleted_at = '')";
@@ -103,6 +105,12 @@ async function createBill(context) {
 
   const id = body.id || ('BILL-' + uuid());
   const autoPost = body.auto_post ? 1 : 0;
+  const defaultAccountId = cleanNullable(body.default_account_id);
+
+  if (defaultAccountId) {
+    const accountCheck = await validateAccount(db, defaultAccountId);
+    if (!accountCheck.ok) return json({ ok: false, version: VERSION, error: accountCheck.error }, 400);
+  }
 
   await db.prepare(
     `INSERT INTO bills
@@ -115,7 +123,7 @@ async function createBill(context) {
     dueDay,
     frequency,
     body.category_id || null,
-    body.default_account_id || null,
+    defaultAccountId,
     autoPost
   ).run();
 
@@ -131,7 +139,7 @@ async function createBill(context) {
       due_day: dueDay,
       frequency,
       category_id: body.category_id || null,
-      default_account_id: body.default_account_id || null,
+      default_account_id: defaultAccountId,
       auto_post: !!autoPost
     },
     created_by: body.created_by || 'web-bill-create'
@@ -218,6 +226,17 @@ export async function onRequestPut(context) {
       if (field === 'auto_post') {
         updates.push('auto_post = ?');
         values.push(body[field] ? 1 : 0);
+        continue;
+      }
+
+      if (field === 'default_account_id') {
+        const defaultAccountId = cleanNullable(body[field]);
+        if (defaultAccountId) {
+          const accountCheck = await validateAccount(db, defaultAccountId);
+          if (!accountCheck.ok) return json({ ok: false, version: VERSION, error: accountCheck.error }, 400);
+        }
+        updates.push(field + ' = ?');
+        values.push(defaultAccountId);
         continue;
       }
 
@@ -360,8 +379,20 @@ async function payBill(context, billId) {
 
   if (!bill) return json({ ok: false, version: VERSION, error: 'Bill not found' }, 404);
 
-  const accountId = body.account_id || bill.default_account_id;
-  if (!accountId) return json({ ok: false, version: VERSION, error: 'account_id required' }, 400);
+  const requestedAccountId = cleanNullable(body.account_id);
+  const defaultAccountId = cleanNullable(bill.default_account_id);
+  const accountId = requestedAccountId || defaultAccountId;
+
+  if (!accountId) {
+    return json({
+      ok: false,
+      version: VERSION,
+      error: 'account_id required. Select a payment account or set default_account_id on this bill.'
+    }, 400);
+  }
+
+  const accountCheck = await validateAccount(db, accountId);
+  if (!accountCheck.ok) return json({ ok: false, version: VERSION, error: accountCheck.error }, 400);
 
   const amount = body.amount == null || body.amount === ''
     ? Number(bill.amount)
@@ -373,6 +404,7 @@ async function payBill(context, billId) {
   const createdBy = body.created_by || 'web-bill-pay';
   const txnId = 'TXN-' + uuid();
   const notes = String(body.notes || ('Bill payment: ' + bill.name)).slice(0, 200);
+  const accountSource = requestedAccountId ? 'request.account_id' : 'bill.default_account_id';
 
   const snap = await safeSnapshot(context.env, 'pre-bill-pay-' + billId + '-' + Date.now(), createdBy);
   if (!snap.ok) {
@@ -394,9 +426,10 @@ async function payBill(context, billId) {
 
     db.prepare(
       `UPDATE bills
-       SET last_paid_date = ?
+       SET last_paid_date = ?,
+           last_paid_account_id = ?
        WHERE id = ?`
-    ).bind(date, billId)
+    ).bind(date, accountId, billId)
   ]);
 
   const auditResult = await safeAudit(context.env, {
@@ -408,6 +441,8 @@ async function payBill(context, billId) {
       txn_id: txnId,
       amount,
       account_id: accountId,
+      account_name: accountCheck.account.name || null,
+      account_source: accountSource,
       date,
       bill_name: bill.name,
       snapshot_id: snap.snapshot_id || null
@@ -422,10 +457,36 @@ async function payBill(context, billId) {
     txn_id: txnId,
     amount,
     date,
+    account_id: accountId,
+    account_name: accountCheck.account.name || null,
+    account_source: accountSource,
+    last_paid_account_id: accountId,
     snapshot_id: snap.snapshot_id || null,
     audited: auditResult.ok,
     audit_error: auditResult.error || null
   });
+}
+
+async function validateAccount(db, accountId) {
+  const account = await db.prepare(
+    `SELECT * FROM accounts WHERE id = ? LIMIT 1`
+  ).bind(accountId).first();
+
+  if (!account) {
+    return { ok: false, error: 'Payment account not found: ' + accountId };
+  }
+
+  const status = String(account.status || 'active').toLowerCase();
+  if (status && status !== 'active') {
+    return { ok: false, error: 'Payment account is not active: ' + accountId };
+  }
+
+  return { ok: true, account };
+}
+
+function cleanNullable(value) {
+  const text = String(value == null ? '' : value).trim();
+  return text ? text : null;
 }
 
 async function readJSON(request) {
