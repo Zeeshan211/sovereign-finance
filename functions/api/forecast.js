@@ -1,5 +1,5 @@
-/* Sovereign Finance /api/forecast v0.1.1
- * Live salary + cash forecast with manual variable income and PK salaried tax formula.
+/* Sovereign Finance /api/forecast v0.2.0
+ * Live salary + 30-day cash forecast with manual variable income and PK salaried tax formula.
  *
  * GET  /api/forecast
  * POST /api/forecast
@@ -8,15 +8,24 @@
  * - updates manual variable forecast inputs
  * - no ledger mutation
  * - no transaction creation
+ *
+ * Layer 4 adds:
+ * - 30-day daily cash projection
+ * - lowest projected balance
+ * - first unsafe date
+ * - salary-day injection
+ * - bills/debts/receivables timeline
+ * - conservative baseline using guaranteed salary + WFH only
  */
 
 import { json } from './_lib.js';
 
-const VERSION = 'v0.1.1';
+const VERSION = 'v0.2.0';
 const DEFAULT_SALARY_ID = 'salary_primary';
 const DEFAULT_FX_URL = 'https://open.er-api.com/v6/latest/USD';
 const LOW_LIQUID_UNSAFE = 5000;
 const LOW_LIQUID_WATCH = 10000;
+const PROJECTION_DAYS = 30;
 
 const TYPE_PLUS = new Set(['income', 'salary', 'borrow', 'debt_in', 'opening']);
 const TYPE_MINUS = new Set(['expense', 'repay', 'cc_spend', 'atm', 'debt_out']);
@@ -112,18 +121,32 @@ async function getForecast(context) {
 
     const fx = await fetchUsdPkr(config.fx_source_url || DEFAULT_FX_URL);
     const salary = computeSalary(config, payslip, components, fx, now);
-
     const balances = computeAccountBalances(accounts, transactions);
     const position = computeCurrentPosition(accounts, balances);
+
     const obligations = computeObligationsBeforeSalary({
       bills,
       debts,
       salaryDate: salary.next_salary_date,
       now
     });
+
     const truth = computeReconciliationTruth(accounts, balances, reconciliation, transactions);
-    const baseline = computeBaselineForecast({ salary, position, obligations });
+    const baseline = computeBaselineForecast({ salary, position, obligations, now });
+    const dailyProjection = computeDailyCashProjection30d({
+      now,
+      salary,
+      position,
+      bills,
+      debts
+    });
     const confidence = computeForecastConfidence(truth);
+    const debtFree = computeDebtFreeForecast({
+      debts,
+      baseline,
+      salary,
+      dailyProjection
+    });
 
     return json({
       ok: true,
@@ -133,11 +156,21 @@ async function getForecast(context) {
       current_position: position,
       obligations_before_salary: obligations,
       baseline_forecast: baseline,
+      daily_cash_projection_30d: dailyProjection.days,
+      cash_projection_summary: dailyProjection.summary,
+      debt_free_forecast: debtFree,
       scenarios: {
         confirmed_variable: {
           amount: round2(salary.manual_variable_total_pkr),
           projected_cash_after_salary: round2(baseline.projected_cash_after_salary),
+          projected_cash_after_salary_with_manual_variables: round2(dailyProjection.summary.cash_after_salary_and_obligations_with_manual_variables),
           note: 'Manual variable fields are included in forecast net salary but are visible separately from base.'
+        },
+        conservative_baseline: {
+          forecast_net_salary: round2(salary.baseline_net_without_manual_variables_pkr),
+          projection_mode: 'base_salary_plus_wfh_only',
+          manual_variables_included: false,
+          projected_cash_after_salary_and_obligations: round2(dailyProjection.summary.cash_after_salary_and_obligations)
         },
         baseline_without_manual_variables: {
           forecast_net_salary: round2(salary.baseline_net_without_manual_variables_pkr),
@@ -196,8 +229,8 @@ function computeSalary(config, payslip, components, fx, now) {
   const payslipAnnualTax = number(payslip.annual_tax_liability);
   const incomeTaxPaidYtd = number(payslip.income_tax_paid_ytd);
   const remainingTaxPayable = number(payslip.remaining_tax_payable);
-
   const baseIncomeTax = projectedBaseIncomeTax(payslip);
+
   const taxableVariableThisMonth = round2(wfhPkr + manualVariableTotal);
   const annualTaxableWithVariables = round2(payslipAnnualTaxable + taxableVariableThisMonth);
   const annualTaxWithVariables = calculatePkSalariedTax(annualTaxableWithVariables);
@@ -209,15 +242,13 @@ function computeSalary(config, payslip, components, fx, now) {
   const grossWithoutManual = round2(baseSalary + wfhPkr);
   const variableTaxWithoutManual = round2(Math.max(0, calculatePkSalariedTax(payslipAnnualTaxable + wfhPkr) - payslipAnnualTax));
   const netWithoutManual = round2(grossWithoutManual - eobi - baseIncomeTax - variableTaxWithoutManual);
-
-  const nextSalaryDate = normalizeDate(config.next_salary_date) || nextDayOfMonth(number(config.salary_day || 1), now);
+  const nextSalaryDate = normalizeDate(config.next_salary_date) || dateOnly(nextDayOfMonth(number(config.salary_day || 1), now));
 
   return {
     next_salary_date: nextSalaryDate,
     days_until_salary: daysUntil(now, nextSalaryDate),
     last_salary_received_date: normalizeDate(config.last_salary_received_date),
     salary_day: number(config.salary_day || 1),
-
     base_salary_pkr: round2(baseSalary),
     wfh_usd_amount: round2(wfhUsd),
     salary_day_fx_rate: fxRate,
@@ -226,28 +257,23 @@ function computeSalary(config, payslip, components, fx, now) {
     fx_fetched_at: fx.fetched_at,
     fx_status: fx.status,
     fx_error: fx.error || null,
-
     wfh_taxable_pkr: round2(wfhPkr),
     manual_variables: manualVariables,
     manual_variable_total_pkr: round2(manualVariableTotal),
-
     gross_salary_forecast_pkr: grossForecast,
     eobi_deduction_pkr: round2(eobi),
     base_income_tax_pkr: round2(baseIncomeTax),
     variable_income_tax_pkr: round2(variableIncomeTax),
     forecast_net_salary_pkr: forecastNet,
-
     baseline_net_without_manual_variables_pkr: netWithoutManual,
     baseline_includes_wfh: true,
     safety_baseline_note: 'Safety forecast uses base salary plus WFH live FX, with manual variables defaulting to 0 unless operator enters them.',
-
     active_payslip_id: config.active_payslip_id || payslip.id || null,
     payslip_month: payslip.payslip_month || null,
     actual_last_net_salary: number(payslip.actual_net_salary),
     actual_last_gross_salary: number(payslip.actual_gross_salary),
     projected_next_net_salary_from_payslip: number(payslip.projected_next_net_salary),
     projected_following_net_salary_from_payslip: number(payslip.projected_following_net_salary),
-
     tax_formula_version: config.tax_formula_version || 'PK_SALARIED_2025_26',
     tax: {
       annual_taxable_income_from_payslip: round2(payslipAnnualTaxable),
@@ -260,7 +286,6 @@ function computeSalary(config, payslip, components, fx, now) {
       variable_income_tax_pkr: round2(variableIncomeTax),
       tax_rate_percent_from_payslip: number(payslip.tax_rate_percent)
     },
-
     payslip_components: components.map(row => ({
       name: row.component_name,
       type: row.component_type,
@@ -273,7 +298,6 @@ function computeSalary(config, payslip, components, fx, now) {
 
 function calculatePkSalariedTax(annualTaxableIncome) {
   const income = number(annualTaxableIncome);
-
   if (income <= 600000) return 0;
   if (income <= 1200000) return round2((income - 600000) * 0.01);
   if (income <= 2200000) return round2(6000 + ((income - 1200000) * 0.11));
@@ -291,16 +315,18 @@ function projectedBaseIncomeTax(payslip) {
   return 930;
 }
 
-function computeBaselineForecast({ salary, position, obligations }) {
+function computeBaselineForecast({ salary, position, obligations, now }) {
   const beforeSalary = round2(position.total_liquid + obligations.net_expected_before_salary);
   const afterSalary = round2(beforeSalary + salary.forecast_net_salary_pkr);
+  const afterSalaryConservative = round2(beforeSalary + salary.baseline_net_without_manual_variables_pkr);
   const freeAfterObligations = round2(salary.forecast_net_salary_pkr - obligations.total_committed_before_salary);
+  const freeAfterObligationsConservative = round2(salary.baseline_net_without_manual_variables_pkr - obligations.total_committed_before_salary);
 
   let firstUnsafeDate = null;
   let topAction = null;
 
   if (beforeSalary < LOW_LIQUID_UNSAFE) {
-    firstUnsafeDate = new Date().toISOString().slice(0, 10);
+    firstUnsafeDate = dateOnly(startOfDay(now));
     topAction = 'Liquid cash falls below unsafe threshold before salary. Review obligations due before salary.';
   } else if (beforeSalary < LOW_LIQUID_WATCH) {
     topAction = 'Liquid cash is thin before salary. Avoid non-essential spending.';
@@ -309,7 +335,9 @@ function computeBaselineForecast({ salary, position, obligations }) {
   return {
     projected_cash_before_salary: beforeSalary,
     projected_cash_after_salary: afterSalary,
+    projected_cash_after_salary_conservative: afterSalaryConservative,
     free_salary_after_obligations: freeAfterObligations,
+    free_salary_after_obligations_conservative: freeAfterObligationsConservative,
     salary_already_committed: round2(obligations.total_committed_before_salary),
     first_unsafe_date: firstUnsafeDate,
     top_action: topAction,
@@ -329,7 +357,7 @@ function computeObligationsBeforeSalary({ bills, debts, salaryDate, now }) {
 
   for (const bill of bills) {
     const due = billDueDate(bill, now);
-    if (!due || !isOnOrBefore(due, salaryDay)) continue;
+    if (!due || !salaryDay || !isOnOrBefore(due, salaryDay)) continue;
     if (isPaidThisMonth(bill)) continue;
 
     billsDue.push({
@@ -347,7 +375,7 @@ function computeObligationsBeforeSalary({ bills, debts, salaryDate, now }) {
     if (remaining <= 0) continue;
 
     const due = debtDueDate(debt, now);
-    if (!due || !isOnOrBefore(due, salaryDay)) continue;
+    if (!due || !salaryDay || !isOnOrBefore(due, salaryDay)) continue;
 
     const row = {
       id: debt.id,
@@ -380,12 +408,186 @@ function computeObligationsBeforeSalary({ bills, debts, salaryDate, now }) {
   };
 }
 
+function computeDailyCashProjection30d({ now, salary, position, bills, debts }) {
+  const today = startOfDay(now);
+  let running = round2(position.total_liquid);
+  let runningWithManual = round2(position.total_liquid);
+  let lowest = running;
+  let lowestDate = dateOnly(today);
+  let firstUnsafeDate = running < LOW_LIQUID_UNSAFE ? dateOnly(today) : null;
+  let firstWatchDate = running < LOW_LIQUID_WATCH ? dateOnly(today) : null;
+  let salaryDateSeen = false;
+  let cashAfterSalaryAndObligations = null;
+  let cashAfterSalaryAndObligationsWithManual = null;
+
+  const salaryDate = parseDate(salary.next_salary_date);
+  const days = [];
+
+  for (let index = 0; index < PROJECTION_DAYS; index++) {
+    const day = addDays(today, index);
+    const dayText = dateOnly(day);
+    const openingBalance = running;
+    const openingBalanceWithManual = runningWithManual;
+
+    const billEvents = billsDueOnDate(bills, day, now);
+    const debtEvents = debtsDueOnDate(debts, day, now, 'owe');
+    const receivableEvents = debtsDueOnDate(debts, day, now, 'owed');
+
+    const billsOutflow = billEvents.reduce((sum, row) => sum + number(row.amount), 0);
+    const debtOutflow = debtEvents.reduce((sum, row) => sum + number(row.amount), 0);
+    const receivableInflow = receivableEvents.reduce((sum, row) => sum + number(row.amount), 0);
+
+    const salaryInflow = salaryDate && sameDay(day, salaryDate)
+      ? number(salary.baseline_net_without_manual_variables_pkr)
+      : 0;
+
+    const manualVariableScenarioInflow = salaryDate && sameDay(day, salaryDate)
+      ? number(salary.forecast_net_salary_pkr) - number(salary.baseline_net_without_manual_variables_pkr)
+      : 0;
+
+    const totalInflow = round2(receivableInflow + salaryInflow);
+    const totalOutflow = round2(billsOutflow + debtOutflow);
+
+    running = round2(running + totalInflow - totalOutflow);
+    runningWithManual = round2(runningWithManual + totalInflow + manualVariableScenarioInflow - totalOutflow);
+
+    if (running < lowest) {
+      lowest = running;
+      lowestDate = dayText;
+    }
+
+    if (!firstUnsafeDate && running < LOW_LIQUID_UNSAFE) firstUnsafeDate = dayText;
+    if (!firstWatchDate && running < LOW_LIQUID_WATCH) firstWatchDate = dayText;
+
+    if (salaryInflow > 0) {
+      salaryDateSeen = true;
+      cashAfterSalaryAndObligations = running;
+      cashAfterSalaryAndObligationsWithManual = runningWithManual;
+    }
+
+    days.push({
+      date: dayText,
+      day_index: index,
+      opening_balance: round2(openingBalance),
+      bills_due: billEvents,
+      debts_due: debtEvents,
+      receivables_due: receivableEvents,
+      salary_inflow: round2(salaryInflow),
+      manual_variable_scenario_inflow: round2(manualVariableScenarioInflow),
+      receivable_inflow: round2(receivableInflow),
+      total_inflow: round2(totalInflow),
+      bills_outflow: round2(billsOutflow),
+      debt_outflow: round2(debtOutflow),
+      total_outflow: round2(totalOutflow),
+      closing_balance: round2(running),
+      closing_balance_with_manual_variables: round2(runningWithManual),
+      status: running < LOW_LIQUID_UNSAFE
+        ? 'unsafe'
+        : running < LOW_LIQUID_WATCH
+          ? 'watch'
+          : 'safe'
+    });
+  }
+
+  const finalDay = days[days.length - 1] || null;
+  const summary = {
+    projection_days: PROJECTION_DAYS,
+    projection_start_date: dateOnly(today),
+    projection_end_date: finalDay ? finalDay.date : null,
+    conservative_mode: true,
+    conservative_salary_used: round2(salary.baseline_net_without_manual_variables_pkr),
+    manual_variables_separated: true,
+    manual_variable_total: round2(salary.manual_variable_total_pkr),
+    starting_liquid_cash: round2(position.total_liquid),
+    ending_balance_30d: finalDay ? round2(finalDay.closing_balance) : round2(position.total_liquid),
+    ending_balance_30d_with_manual_variables: finalDay ? round2(finalDay.closing_balance_with_manual_variables) : round2(position.total_liquid),
+    lowest_projected_balance: round2(lowest),
+    lowest_projected_balance_date: lowestDate,
+    first_unsafe_date: firstUnsafeDate,
+    first_watch_date: firstWatchDate,
+    salary_date: salary.next_salary_date,
+    salary_date_in_projection: salaryDateSeen,
+    cash_after_salary_and_obligations: cashAfterSalaryAndObligations == null
+      ? null
+      : round2(cashAfterSalaryAndObligations),
+    cash_after_salary_and_obligations_with_manual_variables: cashAfterSalaryAndObligationsWithManual == null
+      ? null
+      : round2(cashAfterSalaryAndObligationsWithManual),
+    runway_status: firstUnsafeDate
+      ? 'unsafe_in_30d'
+      : firstWatchDate
+        ? 'watch_in_30d'
+        : 'safe_30d',
+    top_action: projectionTopAction(firstUnsafeDate, firstWatchDate, lowest, salary.next_salary_date)
+  };
+
+  return { days, summary };
+}
+
+function projectionTopAction(firstUnsafeDate, firstWatchDate, lowest, salaryDate) {
+  if (firstUnsafeDate) {
+    return `Cash is projected to fall below ${LOW_LIQUID_UNSAFE} on ${firstUnsafeDate}. Reduce or delay obligations before that date.`;
+  }
+
+  if (firstWatchDate) {
+    return `Cash is projected to enter watch range on ${firstWatchDate}. Keep spending tight until salary date ${salaryDate}.`;
+  }
+
+  return `30-day conservative projection stays above watch threshold. Lowest projected balance is ${round2(lowest)}.`;
+}
+
+function computeDebtFreeForecast({ debts, baseline, salary, dailyProjection }) {
+  const owedByMe = debts
+    .filter(debt => normalizeDebtKind(debt.kind) !== 'owed')
+    .map(debt => ({
+      id: debt.id,
+      name: debt.name,
+      remaining_amount: round2(remainingDebtAmount(debt)),
+      installment_amount: nullableRound2(debt.installment_amount)
+    }))
+    .filter(debt => debt.remaining_amount > 0);
+
+  const totalRemaining = owedByMe.reduce((sum, row) => sum + number(row.remaining_amount), 0);
+  const conservativeMonthlyFreeCash = Math.max(0, number(baseline.free_salary_after_obligations_conservative));
+  const scenarioMonthlyFreeCash = Math.max(0, number(baseline.free_salary_after_obligations));
+  const monthsConservative = conservativeMonthlyFreeCash > 0
+    ? Math.ceil(totalRemaining / conservativeMonthlyFreeCash)
+    : null;
+  const monthsScenario = scenarioMonthlyFreeCash > 0
+    ? Math.ceil(totalRemaining / scenarioMonthlyFreeCash)
+    : null;
+
+  return {
+    total_debt_remaining: round2(totalRemaining),
+    debt_count: owedByMe.length,
+    conservative_monthly_free_cash_after_obligations: round2(conservativeMonthlyFreeCash),
+    scenario_monthly_free_cash_after_obligations: round2(scenarioMonthlyFreeCash),
+    months_to_debt_free_conservative: monthsConservative,
+    months_to_debt_free_with_manual_variables: monthsScenario,
+    estimated_debt_free_date_conservative: monthsConservative == null
+      ? null
+      : dateOnly(addMonths(new Date(), monthsConservative)),
+    estimated_debt_free_date_with_manual_variables: monthsScenario == null
+      ? null
+      : dateOnly(addMonths(new Date(), monthsScenario)),
+    manual_variables_in_conservative_math: false,
+    note: totalRemaining <= 0
+      ? 'No active payable debt remaining.'
+      : 'Debt-free forecast uses free salary after known obligations. Conservative path excludes manual variables.',
+    cash_projection_runway_status: dailyProjection.summary.runway_status,
+    salary_baseline_used: round2(salary.baseline_net_without_manual_variables_pkr)
+  };
+}
+
 /* Shared helpers */
 
 async function readAll(db, sql, binds) {
   try {
     const stmt = db.prepare(sql);
-    const res = binds && binds.length ? await stmt.bind(...binds).all() : await stmt.all();
+    const res = binds && binds.length
+      ? await stmt.bind(...binds).all()
+      : await stmt.all();
+
     return { ok: true, rows: res.results || [], error: null };
   } catch (err) {
     return { ok: false, rows: [], error: err.message || String(err) };
@@ -395,7 +597,10 @@ async function readAll(db, sql, binds) {
 async function readFirst(db, sql, binds) {
   try {
     const stmt = db.prepare(sql);
-    const row = binds && binds.length ? await stmt.bind(...binds).first() : await stmt.first();
+    const row = binds && binds.length
+      ? await stmt.bind(...binds).first()
+      : await stmt.first();
+
     return { ok: true, row: row || null, error: null };
   } catch (err) {
     return { ok: false, row: null, error: err.message || String(err) };
@@ -454,7 +659,10 @@ function computeCurrentPosition(accounts, balances) {
 function computeReconciliationTruth(accounts, balances, rows, transactions) {
   const latest = latestReconByAccount(rows);
   const latestTxn = latestTxnDateByAccount(accounts, transactions);
-  let matched = 0, stale = 0, drifted = 0, undeclared = 0;
+  let matched = 0;
+  let stale = 0;
+  let drifted = 0;
+  let undeclared = 0;
 
   for (const account of accounts) {
     const declaration = latest[account.id] || null;
@@ -470,7 +678,12 @@ function computeReconciliationTruth(accounts, balances, rows, transactions) {
     else matched++;
   }
 
-  return { matched_count: matched, stale_count: stale, drifted_count: drifted, undeclared_count: undeclared };
+  return {
+    matched_count: matched,
+    stale_count: stale,
+    drifted_count: drifted,
+    undeclared_count: undeclared
+  };
 }
 
 function computeForecastConfidence(truth) {
@@ -542,16 +755,19 @@ function computeAccountBalances(accounts, transactions) {
 function latestReconByAccount(rows) {
   const sorted = rows.slice().sort((a, b) => text(b.declared_at).localeCompare(text(a.declared_at)));
   const out = {};
+
   for (const row of sorted) {
     const id = text(row.account_id);
     if (id && !out[id]) out[id] = row;
   }
+
   return out;
 }
 
 function latestTxnDateByAccount(accounts, transactions) {
   const ids = new Set(accounts.map(a => a.id));
   const out = {};
+
   for (const account of accounts) out[account.id] = null;
 
   for (const txn of transactions) {
@@ -568,17 +784,69 @@ function latestTxnDateByAccount(accounts, transactions) {
   return out;
 }
 
+function billsDueOnDate(bills, day, now) {
+  const out = [];
+
+  for (const bill of bills) {
+    if (isPaidThisMonth(bill)) continue;
+
+    const due = billDueDate(bill, now);
+    if (!due || !sameDay(due, day)) continue;
+
+    out.push({
+      id: bill.id,
+      name: bill.name,
+      amount: round2(number(bill.amount)),
+      due_date: dateOnly(due),
+      default_account_id: bill.default_account_id || null
+    });
+  }
+
+  return out;
+}
+
+function debtsDueOnDate(debts, day, now, targetKind) {
+  const out = [];
+
+  for (const debt of debts) {
+    const kind = normalizeDebtKind(debt.kind);
+    if (kind !== targetKind) continue;
+
+    const remaining = remainingDebtAmount(debt);
+    if (remaining <= 0) continue;
+
+    const due = debtDueDate(debt, now);
+    if (!due || !sameDay(due, day)) continue;
+
+    out.push({
+      id: debt.id,
+      name: debt.name,
+      kind,
+      amount: round2(number(debt.installment_amount || remaining)),
+      remaining_amount: round2(remaining),
+      installment_amount: nullableRound2(debt.installment_amount),
+      due_date: dateOnly(due)
+    });
+  }
+
+  return out;
+}
+
 function billDueDate(bill, now) {
   if (bill.due_date) return parseDate(bill.due_date);
+
   const day = number(bill.due_day);
   if (!day || day < 1 || day > 31) return null;
+
   return nextDayOfMonth(day, now);
 }
 
 function debtDueDate(debt, now) {
   if (debt.due_date) return parseDate(debt.due_date);
+
   const day = number(debt.due_day);
   if (!day || day < 1 || day > 31) return null;
+
   return nextDayOfMonth(day, now);
 }
 
@@ -591,6 +859,7 @@ function isPaidThisMonth(bill) {
 function nextDayOfMonth(day, now) {
   const today = startOfDay(now);
   let candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth(), day);
+
   if (candidate < today) candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
   return candidate;
 }
@@ -598,6 +867,18 @@ function nextDayOfMonth(day, now) {
 function safeUtcDate(year, monthIndex, day) {
   const max = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
   return new Date(Date.UTC(year, monthIndex, Math.min(day, max)));
+}
+
+function addDays(date, days) {
+  const d = startOfDay(date);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+function addMonths(date, months) {
+  const d = startOfDay(date);
+  d.setUTCMonth(d.getUTCMonth() + months);
+  return d;
 }
 
 function remainingDebtAmount(debt) {
@@ -618,6 +899,7 @@ function isReversalRelated(txn) {
   if (!txn) return false;
   if (text(txn.reversed_by)) return true;
   if (text(txn.reversed_at)) return true;
+
   const notes = text(txn.notes).toUpperCase();
   return notes.includes('[REVERSAL OF ') || notes.includes('[REVERSED BY ');
 }
@@ -627,9 +909,15 @@ function isOnOrBefore(date, cutoff) {
   return startOfDay(date).getTime() <= startOfDay(cutoff).getTime();
 }
 
+function sameDay(a, b) {
+  if (!a || !b) return false;
+  return dateOnly(a) === dateOnly(b);
+}
+
 function parseDate(value) {
   const raw = normalizeDate(value);
   if (!raw) return null;
+
   const d = new Date(raw + 'T00:00:00.000Z');
   if (Number.isNaN(d.getTime())) return null;
   return d;
@@ -657,6 +945,7 @@ function daysUntil(now, dateText) {
 
 function moneyInput(value, fallback) {
   if (value === undefined || value === null || value === '') return fallback == null ? 0 : fallback;
+
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
