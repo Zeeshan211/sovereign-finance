@@ -1,1361 +1,156 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#f7f2e8" />
-  <title>Salah - Sovereign Life OS</title>
-  <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
-
-  <style>
-    :root {
-      --bg: #f7f2e8;
-      --paper: rgba(255, 255, 255, 0.78);
-      --paper-strong: rgba(255, 255, 255, 0.94);
-      --ink: #17201c;
-      --muted: #6f766f;
-      --line: rgba(23, 32, 28, 0.10);
-      --line-strong: rgba(23, 32, 28, 0.18);
-
-      --emerald: #087f5b;
-      --emerald-soft: #d8f3e8;
-      --gold: #d69e2e;
-      --gold-soft: #fff3cf;
-      --rose: #c2415d;
-      --rose-soft: #ffe4ea;
-      --sky: #2f80ed;
-      --sky-soft: #e3f0ff;
-      --violet: #7c3aed;
-      --violet-soft: #efe7ff;
-
-      --fajr: #2f80ed;
-      --dhuhr: #d69e2e;
-      --asr: #e07a2f;
-      --maghrib: #c2415d;
-      --isha: #5b4cc4;
-      --nafl: #087f5b;
-
-      --shadow: 0 20px 60px rgba(23, 32, 28, 0.10), 0 2px 8px rgba(23, 32, 28, 0.05);
-      --shadow-soft: 0 10px 30px rgba(23, 32, 28, 0.08);
-      --radius-xl: 34px;
-      --radius-lg: 24px;
-      --radius-md: 18px;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html {
-      scroll-behavior: smooth;
-    }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      color: var(--ink);
-      background:
-        radial-gradient(circle at 18% 4%, rgba(47, 128, 237, 0.16), transparent 28rem),
-        radial-gradient(circle at 88% 10%, rgba(8, 127, 91, 0.15), transparent 30rem),
-        radial-gradient(circle at 50% 94%, rgba(214, 158, 46, 0.16), transparent 34rem),
-        linear-gradient(180deg, #fbf7ee 0%, var(--bg) 46%, #efe7d9 100%);
-      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
-    header {
-      display: none;
-    }
-
-    button,
-    a {
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    .page {
-      width: min(1160px, calc(100% - 28px));
-      margin: 0 auto;
-      padding: 18px 0 34px;
-    }
-
-    .nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      margin-bottom: 18px;
-      animation: rise 0.38s ease both;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
-    }
-
-    .mark {
-      width: 52px;
-      height: 52px;
-      border-radius: 22px;
-      display: grid;
-      place-items: center;
-      font-size: 25px;
-      background:
-        radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.60), transparent 34%),
-        linear-gradient(135deg, #d8f3e8, #fff3cf);
-      box-shadow: var(--shadow-soft);
-    }
-
-    .brand-title {
-      margin: 0;
-      font-size: 17px;
-      font-weight: 900;
-      letter-spacing: -0.03em;
-    }
-
-    .brand-sub {
-      margin: 2px 0 0;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .nav-actions {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .btn {
-      min-height: 40px;
-      padding: 9px 14px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: var(--paper);
-      color: var(--ink);
-      text-decoration: none;
-      font-size: 12px;
-      font-weight: 850;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.16s ease, background 0.18s ease, border-color 0.18s ease;
-      backdrop-filter: blur(18px);
-    }
-
-    .btn:hover {
-      transform: translateY(-1px);
-      background: var(--paper-strong);
-      border-color: var(--line-strong);
-    }
-
-    .btn:active {
-      transform: scale(0.97);
-    }
-
-    .btn.primary {
-      background: var(--emerald);
-      color: white;
-      border-color: transparent;
-    }
-
-    .hero {
-      position: relative;
-      overflow: hidden;
-      border-radius: 40px;
-      background:
-        linear-gradient(135deg, rgba(255,255,255,0.88), rgba(255,255,255,0.58)),
-        radial-gradient(circle at 86% 18%, rgba(214,158,46,0.20), transparent 22rem);
-      border: 1px solid rgba(255,255,255,0.72);
-      box-shadow: var(--shadow);
-      padding: clamp(26px, 5vw, 52px);
-      margin-bottom: 16px;
-      animation: rise 0.42s ease 0.04s both;
-    }
-
-    .hero-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
-      gap: 28px;
-      align-items: center;
-    }
-
-    .kicker {
-      width: fit-content;
-      border-radius: 999px;
-      padding: 7px 11px;
-      background: var(--emerald-soft);
-      color: var(--emerald);
-      font-size: 11px;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 16px;
-    }
-
-    h1 {
-      margin: 0;
-      max-width: 780px;
-      font-size: clamp(44px, 8vw, 86px);
-      line-height: 0.92;
-      letter-spacing: -0.075em;
-      font-weight: 950;
-    }
-
-    .hero-copy {
-      max-width: 720px;
-      margin: 18px 0 0;
-      color: #44504a;
-      font-size: 15px;
-      line-height: 1.65;
-      font-weight: 650;
-    }
-
-    .ayah {
-      margin-top: 18px;
-      max-width: 760px;
-      border-left: 3px solid var(--emerald);
-      padding: 10px 0 10px 14px;
-      color: #24332d;
-      font-size: 13px;
-      line-height: 1.55;
-      font-weight: 700;
-    }
-
-    .ayah span {
-      display: block;
-      margin-top: 4px;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 750;
-    }
-
-    .focus {
-      border-radius: 30px;
-      background:
-        linear-gradient(180deg, rgba(8,127,91,0.10), rgba(255,255,255,0.62));
-      border: 1px solid var(--line);
-      padding: 18px;
-      box-shadow: var(--shadow-soft);
-    }
-
-    .focus-label {
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 900;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .focus-title {
-      margin-top: 8px;
-      font-size: 34px;
-      line-height: 1;
-      font-weight: 940;
-      letter-spacing: -0.055em;
-      color: var(--emerald);
-    }
-
-    .focus-copy {
-      margin-top: 10px;
-      color: #44504a;
-      font-size: 13px;
-      line-height: 1.45;
-      font-weight: 650;
-    }
-
-    .metrics {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      margin-bottom: 16px;
-      animation: rise 0.42s ease 0.08s both;
-    }
-
-    .metric {
-      border-radius: 28px;
-      background: var(--paper);
-      border: 1px solid rgba(255,255,255,0.70);
-      box-shadow: var(--shadow-soft);
-      padding: 18px;
-      min-width: 0;
-      backdrop-filter: blur(18px);
-      transition: transform 0.18s ease, background 0.18s ease;
-    }
-
-    .metric:hover {
-      transform: translateY(-2px);
-      background: var(--paper-strong);
-    }
-
-    .label {
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .value {
-      margin-top: 8px;
-      font-size: 29px;
-      font-weight: 940;
-      letter-spacing: -0.045em;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .hint {
-      margin-top: 5px;
-      color: var(--muted);
-      font-size: 11px;
-      line-height: 1.35;
-      font-weight: 650;
-    }
-
-    .emerald { color: var(--emerald); }
-    .gold { color: var(--gold); }
-    .rose { color: var(--rose); }
-    .sky { color: var(--sky); }
-
-    .layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 360px;
-      gap: 16px;
-      align-items: start;
-      animation: rise 0.42s ease 0.12s both;
-    }
-
-    .stack {
-      display: grid;
-      gap: 16px;
-    }
-
-    .panel {
-      border-radius: var(--radius-xl);
-      background: var(--paper);
-      border: 1px solid rgba(255,255,255,0.72);
-      box-shadow: var(--shadow-soft);
-      padding: 18px;
-      backdrop-filter: blur(18px);
-    }
-
-    .panel-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .panel-title {
-      font-size: 19px;
-      font-weight: 920;
-      letter-spacing: -0.025em;
-    }
-
-    .panel-sub {
-      margin-top: 3px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.35;
-      font-weight: 650;
-    }
-
-    .prayer-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .prayer {
-      position: relative;
-      overflow: hidden;
-      border-radius: 28px;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.58));
-      border: 1px solid var(--line);
-      padding: 16px;
-      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
-    }
-
-    .prayer:hover {
-      transform: translateY(-2px);
-      border-color: var(--line-strong);
-      box-shadow: var(--shadow-soft);
-    }
-
-    .prayer::after {
-      content: "";
-      position: absolute;
-      inset: auto 0 0;
-      height: 4px;
-      background: var(--accent, var(--emerald));
-    }
-
-    .fajr { --accent: var(--fajr); }
-    .dhuhr { --accent: var(--dhuhr); }
-    .asr { --accent: var(--asr); }
-    .maghrib { --accent: var(--maghrib); }
-    .isha { --accent: var(--isha); }
-    .jumuah, .tahajjud, .witr, .ishraq, .duha, .awwabin, .nafl { --accent: var(--nafl); }
-
-    .prayer.logged {
-      border-color: rgba(8,127,91,0.24);
-    }
-
-    .prayer.udhr {
-      border-color: rgba(47,128,237,0.25);
-      background:
-        linear-gradient(180deg, rgba(227,240,255,0.92), rgba(255,255,255,0.64));
-    }
-
-    .prayer.qaza {
-      border-color: rgba(194,65,93,0.28);
-      background:
-        linear-gradient(180deg, rgba(255,228,234,0.94), rgba(255,255,255,0.64));
-    }
-
-    .prayer-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .prayer-name {
-      font-size: 19px;
-      font-weight: 930;
-      letter-spacing: -0.03em;
-    }
-
-    .prayer-time {
-      margin-top: 3px;
-      color: var(--accent, var(--emerald));
-      font-size: 12px;
-      font-weight: 850;
-    }
-
-    .chip {
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      background: white;
-      color: var(--muted);
-      padding: 6px 9px;
-      font-size: 10px;
-      font-weight: 900;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-
-    .chip.active {
-      color: white;
-      background: var(--accent, var(--emerald));
-      border-color: transparent;
-    }
-
-    .status {
-      margin-top: 14px;
-      color: var(--ink);
-      font-size: 15px;
-      font-weight: 850;
-    }
-
-    .stamp {
-      min-height: 32px;
-      margin-top: 5px;
-      color: var(--muted);
-      font-size: 11px;
-      line-height: 1.35;
-      font-weight: 620;
-    }
-
-    .actions {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 8px;
-      margin-top: 14px;
-    }
-
-    .logbtn {
-      min-height: 38px;
-      border-radius: 15px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.74);
-      color: var(--ink);
-      font-size: 11px;
-      font-weight: 850;
-      cursor: pointer;
-      transition: transform 0.15s ease, background 0.18s ease, border-color 0.18s ease;
-    }
-
-    .logbtn:hover {
-      transform: translateY(-1px);
-      background: white;
-      border-color: var(--line-strong);
-    }
-
-    .logbtn:active {
-      transform: scale(0.97);
-    }
-
-    .logbtn.masjid { color: var(--emerald); }
-    .logbtn.home { color: var(--sky); }
-    .logbtn.work { color: var(--gold); }
-    .logbtn.udhr { color: var(--violet); }
-    .logbtn.late { color: var(--asr); }
-    .logbtn.qaza { color: var(--rose); }
-
-    .chart-card {
-      border-radius: 26px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.66);
-      padding: 16px;
-    }
-
-    .ring-wrap {
-      display: grid;
-      grid-template-columns: 144px 1fr;
-      gap: 14px;
-      align-items: center;
-    }
-
-    .ring {
-      width: 144px;
-      height: 144px;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      background:
-        radial-gradient(circle at center, #fffaf1 0 54%, transparent 55%),
-        conic-gradient(var(--emerald) calc(var(--pct) * 1%), rgba(23,32,28,0.10) 0);
-      box-shadow: inset 0 0 30px rgba(255,255,255,0.65), var(--shadow-soft);
-    }
-
-    .ring span {
-      color: var(--emerald);
-      font-size: 28px;
-      font-weight: 940;
-      letter-spacing: -0.05em;
-    }
-
-    .pie {
-      width: 168px;
-      height: 168px;
-      border-radius: 50%;
-      margin: 0 auto;
-      background:
-        radial-gradient(circle at center, #fffaf1 0 51%, transparent 52%),
-        conic-gradient(
-          var(--emerald) 0 calc(var(--masjid) * 1%),
-          var(--sky) 0 calc((var(--masjid) + var(--home)) * 1%),
-          var(--gold) 0 calc((var(--masjid) + var(--home) + var(--work)) * 1%),
-          var(--violet) 0 calc((var(--masjid) + var(--home) + var(--work) + var(--udhr)) * 1%),
-          var(--rose) 0 100%
-        );
-      box-shadow: inset 0 0 30px rgba(255,255,255,0.65), var(--shadow-soft);
-    }
-
-    .legend {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-      margin-top: 14px;
-    }
-
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 760;
-    }
-
-    .dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: var(--c);
-    }
-
-    .bars {
-      display: grid;
-      gap: 9px;
-    }
-
-    .bar-row {
-      display: grid;
-      grid-template-columns: 88px 1fr 42px;
-      gap: 8px;
-      align-items: center;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 760;
-    }
-
-    .bar {
-      height: 10px;
-      border-radius: 999px;
-      background: rgba(23,32,28,0.08);
-      overflow: hidden;
-    }
-
-    .bar i {
-      display: block;
-      width: calc(var(--w) * 1%);
-      height: 100%;
-      border-radius: inherit;
-      background: linear-gradient(90deg, var(--emerald), var(--gold));
-    }
-
-    .list {
-      display: grid;
-      gap: 9px;
-    }
-
-    .row {
-      border-radius: 18px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.62);
-      padding: 12px;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .row-title {
-      font-size: 13px;
-      font-weight: 850;
-    }
-
-    .row-copy {
-      margin-top: 3px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.35;
-      font-weight: 620;
-    }
-
-    .row-tag {
-      color: var(--emerald);
-      font-size: 11px;
-      font-weight: 850;
-      white-space: nowrap;
-    }
-
-    .reflection {
-      border-radius: 24px;
-      border: 1px solid rgba(8,127,91,0.18);
-      background:
-        radial-gradient(circle at 14% 12%, rgba(8,127,91,0.10), transparent 18rem),
-        rgba(255,255,255,0.64);
-      padding: 16px;
-    }
-
-    .reflection-title {
-      color: var(--emerald);
-      font-size: 15px;
-      font-weight: 900;
-      letter-spacing: -0.02em;
-    }
-
-    .reflection-copy {
-      margin-top: 8px;
-      color: #44504a;
-      font-size: 13px;
-      line-height: 1.55;
-      font-weight: 650;
-    }
-
-    .empty {
-      border: 1px dashed var(--line-strong);
-      border-radius: 20px;
-      background: rgba(255,255,255,0.54);
-      padding: 22px;
-      color: var(--muted);
-      text-align: center;
-      font-weight: 650;
-      line-height: 1.45;
-    }
-
-    .toast {
-      position: fixed;
-      left: 50%;
-      bottom: 18px;
-      transform: translateX(-50%) translateY(120px);
-      width: min(460px, calc(100% - 28px));
-      border: 1px solid var(--line);
-      background: rgba(23,32,28,0.92);
-      color: white;
-      box-shadow: var(--shadow);
-      border-radius: 18px;
-      padding: 13px 15px;
-      font-weight: 760;
-      z-index: 20;
-      opacity: 0;
-      transition: opacity 0.2s ease, transform 0.2s ease;
-    }
-
-    .toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-
-    .footer {
-      text-align: center;
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 650;
-      margin: 18px 0 4px;
-    }
-
-    @keyframes rise {
-      from { opacity: 0; transform: translateY(14px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    @media screen and (max-width: 980px) {
-      .hero-grid,
-      .layout {
-        grid-template-columns: 1fr;
-      }
-
-      .metrics {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .ring-wrap {
-        grid-template-columns: 1fr;
-        justify-items: center;
-        text-align: center;
-      }
-    }
-
-    @media screen and (max-width: 700px) {
-      .page {
-        width: min(100% - 20px, 1160px);
-      }
-
-      .nav {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      .nav-actions {
-        justify-content: flex-start;
-      }
-
-      .metrics,
-      .prayer-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .actions {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .row {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media print {
-      body {
-        margin: 0;
-        padding: 0.4in 0.6in;
-        background: #fff;
-        print-color-adjust: exact;
-        -webkit-print-color-adjust: exact;
-      }
-
-      .page, .shell, main {
-        max-width: 100% !important;
-        width: 100% !important;
-      }
-
-      .nav,
-      .actions,
-      .toast,
-      button,
-      [role="button"] {
-        display: none !important;
-      }
-
-      section,
-      .hero,
-      .metric,
-      .panel,
-      .prayer,
-      .chart-card {
-        break-inside: avoid;
-        box-shadow: none !important;
-      }
-
-      *, *::before, *::after {
-        animation: none !important;
-        transition: none !important;
-      }
-    }
-  </style>
-</head>
-
-<body>
-  <main class="page">
-    <nav class="nav">
-      <div class="brand">
-        <div class="mark">🕌</div>
-        <div>
-          <p class="brand-title">Salah Cockpit</p>
-          <p class="brand-sub">Prayer · remembrance · return</p>
-        </div>
-      </div>
-
-      <div class="nav-actions">
-        <a class="btn" href="/index.html">Command Centre</a>
-        <button class="btn primary" id="refreshBtn">Refresh</button>
-      </div>
-    </nav>
-
-    <section class="hero">
-      <div class="hero-grid">
-        <div>
-          <div class="kicker" id="badge">Reading Salah state</div>
-          <h1>Come back to prayer.</h1>
-          <p class="hero-copy" id="heroCopy">
-            Every prayer is a return. Log the truth, protect the rhythm, and keep the next opening close.
-          </p>
-          <div class="ayah">
-            “Indeed, prayer prohibits immorality and wrongdoing, and the remembrance of Allah is greater.”
-            <span>Qur’an 29:45</span>
-          </div>
-        </div>
-
-        <aside class="focus">
-          <div class="focus-label">Current focus</div>
-          <div class="focus-title" id="focusPrayer">Loading</div>
-          <div class="focus-copy" id="focusNote">Finding the next prayer that needs attention.</div>
-        </aside>
-      </div>
-    </section>
-
-    <section class="metrics">
-      <article class="metric">
-        <div class="label">Today Score</div>
-        <div class="value emerald" id="score">...</div>
-        <div class="hint">A mirror, not a judgment.</div>
-      </article>
-
-      <article class="metric">
-        <div class="label">Daily Logged</div>
-        <div class="value sky" id="logged">...</div>
-        <div class="hint">Five daily prayers.</div>
-      </article>
-
-      <article class="metric">
-        <div class="label">Qaza</div>
-        <div class="value rose" id="qaza">...</div>
-        <div class="hint">Recovery stays visible.</div>
-      </article>
-
-      <article class="metric">
-        <div class="label">Bonus Prayers</div>
-        <div class="value gold" id="bonus">...</div>
-        <div class="hint">Tahajjud, Witr, Ishraq, Duha and more.</div>
-      </article>
-    </section>
-
-    <section class="layout">
-      <div class="stack">
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">Five daily prayers</div>
-              <div class="panel-sub" id="daySub">Each button writes live with a timestamp.</div>
-            </div>
-          </div>
-          <div class="prayer-grid" id="dailyPrayers">
-            <div class="empty">Loading daily prayers...</div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">Bonus prayers</div>
-              <div class="panel-sub">Jumuah, Tahajjud, Witr, Ishraq, Duha, Awwabin, Nafl. Logged only when you tap.</div>
-            </div>
-          </div>
-          <div class="prayer-grid" id="bonusPrayers">
-            <div class="empty">Loading bonus prayers...</div>
-          </div>
-        </section>
-      </div>
-
-      <aside class="stack">
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">Visual read</div>
-              <div class="panel-sub">Built only from today’s D1 data.</div>
-            </div>
-          </div>
-
-          <div class="stack">
-            <div class="chart-card">
-              <div class="ring-wrap">
-                <div class="ring" id="scoreRing" style="--pct:0">
-                  <span id="ringText">0%</span>
-                </div>
-                <div>
-                  <div class="row-title">Salah strength</div>
-                  <div class="row-copy">Score progress toward 10. This is a signal for direction.</div>
-                </div>
-              </div>
-            </div>
-
-            <div class="chart-card">
-              <div class="pie" id="pie" style="--masjid:0;--home:0;--work:0;--udhr:0"></div>
-              <div class="legend">
-                <div class="legend-item"><i class="dot" style="--c:var(--emerald)"></i>Masjid</div>
-                <div class="legend-item"><i class="dot" style="--c:var(--sky)"></i>Home</div>
-                <div class="legend-item"><i class="dot" style="--c:var(--gold)"></i>Work</div>
-                <div class="legend-item"><i class="dot" style="--c:var(--violet)"></i>Udhr</div>
-              </div>
-            </div>
-
-            <div class="chart-card">
-              <div class="bars" id="bars"></div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">Prayer times</div>
-              <div class="panel-sub">Multan · Asia/Karachi</div>
-            </div>
-          </div>
-          <div class="list" id="times">
-            <div class="empty">Loading times...</div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">Reflection</div>
-              <div class="panel-sub">A calm read from today’s state.</div>
-            </div>
-          </div>
-          <div class="reflection">
-            <div class="reflection-title" id="reflectionTitle">Loading reflection</div>
-            <div class="reflection-copy" id="reflectionCopy">Your Salah record will appear here once loaded.</div>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <div class="panel-title">Source freshness</div>
-              <div class="panel-sub">No fake state. No Finance data.</div>
-            </div>
-          </div>
-          <div class="list" id="source">
-            <div class="empty">Loading source...</div>
-          </div>
-        </section>
-      </aside>
-    </section>
-
-    <div class="footer">
-      Salah page v0.6.0 · Centered inspirational cockpit · Live logging · D1 backed · Finance untouched
-    </div>
-  </main>
-
-  <div class="toast" id="toast"></div>
-
-  <script>
-    const API_TODAY = '/api/salah/today';
-    const API_LOG = '/api/salah/log';
-
-    const DAILY = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
-    const BONUS = ['jumuah', 'tahajjud', 'witr', 'ishraq', 'duha', 'awwabin', 'nafl'];
-
-    const LABELS = {
-      fajr: 'Fajr',
-      dhuhr: 'Dhuhr',
-      asr: 'Asr',
-      maghrib: 'Maghrib',
-      isha: 'Isha',
-      jumuah: 'Jumuah',
-      tahajjud: 'Tahajjud',
-      witr: 'Witr',
-      ishraq: 'Ishraq',
-      duha: 'Duha',
-      awwabin: 'Awwabin',
-      nafl: 'Nafl'
-    };
-
-    const TIME_KEYS = {
-      fajr: 'fajr_time',
-      dhuhr: 'dhuhr_time',
-      asr: 'asr_time',
-      maghrib: 'maghrib_time',
-      isha: 'isha_time'
-    };
-
-    const els = {
-      badge: byId('badge'),
-      heroCopy: byId('heroCopy'),
-      focusPrayer: byId('focusPrayer'),
-      focusNote: byId('focusNote'),
-      score: byId('score'),
-      logged: byId('logged'),
-      qaza: byId('qaza'),
-      bonus: byId('bonus'),
-      daySub: byId('daySub'),
-      dailyPrayers: byId('dailyPrayers'),
-      bonusPrayers: byId('bonusPrayers'),
-      times: byId('times'),
-      source: byId('source'),
-      reflectionTitle: byId('reflectionTitle'),
-      reflectionCopy: byId('reflectionCopy'),
-      toast: byId('toast'),
-      refreshBtn: byId('refreshBtn'),
-      scoreRing: byId('scoreRing'),
-      ringText: byId('ringText'),
-      pie: byId('pie'),
-      bars: byId('bars')
-    };
-
-    let state = null;
-
-    els.refreshBtn.addEventListener('click', load);
-    load();
-
-    async function load() {
-      try {
-        els.badge.textContent = 'Reading live record';
-        const res = await fetch(`${API_TODAY}?t=${Date.now()}`, { cache: 'no-store' });
-        const data = await res.json();
-
-        if (!res.ok || !data.ok) {
-          throw new Error(data.error || 'Salah API failed');
-        }
-
-        state = data;
-        render(data);
-      } catch (err) {
-        renderError(err);
-      }
-    }
-
-    async function logPrayer(prayer, code) {
-      try {
-        toast(`Logging ${LABELS[prayer]}...`);
-
-        const res = await fetch(API_LOG, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            prayer,
-            code,
-            day: state && state.day ? state.day : undefined
-          })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok || !data.ok) {
-          throw new Error(data.error || 'Log failed');
-        }
-
-        toast(data.message || `${LABELS[prayer]} logged`);
-        await load();
-      } catch (err) {
-        toast(err.message || 'Log failed');
-      }
-    }
-
-    function render(data) {
-      if (!data.connected) {
-        renderEmpty(data);
-        return;
-      }
-
-      const tally = data.tally || {};
-      const freshness = data.source_freshness || {};
-      const focus = data.focus || {};
-
-      els.badge.textContent = 'Live from D1';
-      els.heroCopy.textContent = `${data.day} · ${freshness.source_system || 'source'} · every button writes to the Salah record with a timestamp.`;
-
-      els.focusPrayer.textContent = focus.title || 'Prayer';
-      els.focusNote.textContent = focus.message || 'Keep the next prayer close.';
-
-      els.score.textContent = formatScore(tally.score);
-      els.logged.textContent = `${num(tally.logged_count)}/5`;
-      els.qaza.textContent = `${num(tally.qaza_count)}`;
-      els.bonus.textContent = `${num(tally.bonus_logged_count)}`;
-
-      els.daySub.textContent = `${data.day} · updated ${short(freshness.updated_at || freshness.exported_at)}`;
-
-      const prayers = data.prayers || [];
-      renderPrayerSection(els.dailyPrayers, DAILY, prayers, data.prayer_times || {}, false);
-      renderPrayerSection(els.bonusPrayers, BONUS, prayers, data.prayer_times || {}, true);
-      renderTimes(data.prayer_times || {});
-      renderCharts(data);
-      renderReflection(tally);
-      renderSource(freshness);
-    }
-
-    function renderEmpty(data) {
-      els.badge.textContent = 'No live row';
-      els.heroCopy.textContent = data.message || 'Seed or log today first. This page will not invent Salah state.';
-      els.focusPrayer.textContent = 'Seed today';
-      els.focusNote.textContent = 'No D1 row found for today yet.';
-
-      els.score.textContent = 'N/A';
-      els.logged.textContent = '0/5';
-      els.qaza.textContent = '0';
-      els.bonus.textContent = '0';
-
-      els.dailyPrayers.innerHTML = '<div class="empty">No Salah row found for today.</div>';
-      els.bonusPrayers.innerHTML = '<div class="empty">Bonus prayers appear after today is connected.</div>';
-      els.times.innerHTML = '<div class="empty">No prayer times found yet.</div>';
-      els.source.innerHTML = '<div class="empty">No source freshness available.</div>';
-      els.reflectionTitle.textContent = 'No live record yet';
-      els.reflectionCopy.textContent = 'Once today is seeded or logged, this page will show your real Salah state.';
-    }
-
-    function renderPrayerSection(target, names, prayers, times, bonus) {
-      const byName = new Map(prayers.map(p => [p.prayer_name, p]));
-
-      target.innerHTML = names.map(name => {
-        const p = byName.get(name) || {
-          prayer_name: name,
-          label: LABELS[name],
-          is_logged: false
-        };
-
-        const time = times && TIME_KEYS[name] ? times[TIME_KEYS[name]] : '';
-        const klass = [
-          'prayer',
-          name,
-          p.is_qaza ? 'qaza' : '',
-          p.has_valid_udhr ? 'udhr' : '',
-          p.is_logged ? 'logged' : ''
-        ].filter(Boolean).join(' ');
-
-        const status = p.is_logged
-          ? `${safe(p.location_label || p.raw_code || p.normalized_code)}${p.score_value !== null && p.score_value !== undefined ? ` · ${p.score_value}` : ''}`
-          : bonus ? 'Optional opening. Log only if done.' : 'Not logged yet';
-
-        const stamp = p.logged_at
-          ? `Logged at ${safe(p.logged_at)}`
-          : 'Tap a button to update this prayer with a timestamp.';
-
-        return `
-          <article class="${klass}">
-            <div class="prayer-top">
-              <div>
-                <div class="prayer-name">${safe(LABELS[name])}</div>
-                ${time ? `<div class="prayer-time">${safe(time)}</div>` : ''}
-              </div>
-              <div class="chip ${p.normalized_code ? 'active' : ''}">${safe(p.normalized_code || 'empty')}</div>
-            </div>
-
-            <div class="status">${status}</div>
-            <div class="stamp">${stamp}</div>
-
-            <div class="actions">
-              ${bonus ? bonusButtons(name) : dailyButtons(name)}
-            </div>
-          </article>
-        `;
-      }).join('');
-    }
-
-    function dailyButtons(name) {
-      return `
-        <button class="logbtn masjid" onclick="logPrayer('${name}','M')">Masjid</button>
-        <button class="logbtn home" onclick="logPrayer('${name}','H')">Home</button>
-        <button class="logbtn work" onclick="logPrayer('${name}','W')">Work</button>
-        <button class="logbtn udhr" onclick="logPrayer('${name}','HU')">Home U</button>
-        <button class="logbtn udhr" onclick="logPrayer('${name}','WU')">Work U</button>
-        <button class="logbtn late" onclick="logPrayer('${name}','L')">Late</button>
-        <button class="logbtn qaza" onclick="logPrayer('${name}','Q')">Qaza</button>
-        <button class="logbtn masjid" onclick="logPrayer('${name}','J')">Jamaat</button>
-      `;
-    }
-
-    function bonusButtons(name) {
-      return `
-        <button class="logbtn masjid" onclick="logPrayer('${name}','YES')">Done</button>
-        <button class="logbtn" onclick="logPrayer('${name}','NO')">Not today</button>
-        <button class="logbtn masjid" onclick="logPrayer('${name}','M')">Masjid</button>
-        <button class="logbtn home" onclick="logPrayer('${name}','H')">Home</button>
-      `;
-    }
-
-    function renderTimes(times) {
-      if (!times || !times.day) {
-        els.times.innerHTML = '<div class="empty">No prayer-time row available.</div>';
-        return;
-      }
-
-      els.times.innerHTML = [
-        row('Fajr', times.fajr_time || 'N/A', 'dawn'),
-        row('Dhuhr', times.dhuhr_time || 'N/A', 'midday'),
-        row('Asr', times.asr_time || 'N/A', 'afternoon'),
-        row('Maghrib', times.maghrib_time || 'N/A', 'sunset'),
-        row('Isha', times.isha_time || 'N/A', 'night')
-      ].join('');
-    }
-
-    function renderCharts(data) {
-      const tally = data.tally || {};
-      const charts = data.charts || {};
-      const scorePct = clamp(charts.score_percent || 0);
-      const completionPct = clamp(charts.completion_percent || 0);
-      const dist = charts.distribution || {};
-
-      els.scoreRing.style.setProperty('--pct', scorePct);
-      els.ringText.textContent = `${scorePct}%`;
-
-      els.pie.style.setProperty('--masjid', clamp(dist.masjid || 0));
-      els.pie.style.setProperty('--home', clamp(dist.home || 0));
-      els.pie.style.setProperty('--work', clamp(dist.work || 0));
-      els.pie.style.setProperty('--udhr', clamp(dist.udhr || 0));
-
-      els.bars.innerHTML = [
-        bar('Daily logged', completionPct),
-        bar('Score strength', scorePct),
-        bar('Masjid share', dist.masjid || 0),
-        bar('Udhr share', dist.udhr || 0),
-        bar('Qaza pressure', dist.qaza || 0)
-      ].join('');
-    }
-
-    function renderReflection(tally) {
-      const logged = num(tally.logged_count);
-      const qaza = num(tally.qaza_count);
-      const score = Number(tally.score || 0);
-
-      if (qaza > 0) {
-        els.reflectionTitle.textContent = 'Recovery is the next honest move';
-        els.reflectionCopy.textContent = 'There is Qaza on the board. Do not hide it. Keep it visible and recover it cleanly.';
-        return;
-      }
-
-      if (logged >= 5) {
-        els.reflectionTitle.textContent = 'The record is complete today';
-        els.reflectionCopy.textContent = 'All five daily prayers have a logged status. Protect the rest of the day.';
-        return;
-      }
-
-      if (score >= 6) {
-        els.reflectionTitle.textContent = 'A strong day is forming';
-        els.reflectionCopy.textContent = 'You are above the Good line. Keep the next prayer close and do not let momentum leak.';
-        return;
-      }
-
-      els.reflectionTitle.textContent = 'Build from the next prayer';
-      els.reflectionCopy.textContent = 'No shame, no noise. The next prayer is the next opening. Log it honestly and keep moving.';
-    }
-
-    function renderSource(f) {
-      els.source.innerHTML = [
-        row('Source', f.source_system || 'N/A', 'D1'),
-        row('Tab', f.source_tab || 'N/A', 'sheet'),
-        row('Version', f.source_version || 'N/A', 'logic'),
-        row('Batch', f.export_batch_id || 'N/A', 'batch'),
-        row('Updated', short(f.updated_at || f.exported_at), 'fresh')
-      ].join('');
-    }
-
-    function renderError(err) {
-      els.badge.textContent = 'API error';
-      els.heroCopy.textContent = err.message || 'Unknown Salah API error.';
-      els.focusPrayer.textContent = 'Fix API';
-      els.focusNote.textContent = 'The page is loaded, but live data failed.';
-      els.dailyPrayers.innerHTML = `<div class="empty">${safe(err.message || 'Unknown error')}</div>`;
-      els.bonusPrayers.innerHTML = `<div class="empty">${safe(err.message || 'Unknown error')}</div>`;
-      els.times.innerHTML = `<div class="empty">${safe(err.message || 'Unknown error')}</div>`;
-      els.source.innerHTML = `<div class="empty">${safe(err.message || 'Unknown error')}</div>`;
-    }
-
-    function row(title, copy, tag) {
-      return `
-        <article class="row">
-          <div>
-            <div class="row-title">${safe(title)}</div>
-            <div class="row-copy">${safe(copy)}</div>
-          </div>
-          <div class="row-tag">${safe(tag)}</div>
-        </article>
-      `;
-    }
-
-    function bar(title, pct) {
-      const safePct = clamp(pct);
-      return `
-        <div class="bar-row">
-          <span>${safe(title)}</span>
-          <div class="bar"><i style="--w:${safePct}"></i></div>
-          <span>${safePct}%</span>
-        </div>
-      `;
-    }
-
-    function toast(message) {
-      els.toast.textContent = message;
-      els.toast.classList.add('show');
-      clearTimeout(window.__toastTimer);
-      window.__toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2300);
-    }
-
-    function formatScore(value) {
-      const n = Number(value);
-      return Number.isFinite(n) ? `${n.toFixed(1)}/10` : 'N/A';
-    }
-
-    function num(value) {
-      const n = Number(value || 0);
-      return Number.isFinite(n) ? n : 0;
-    }
-
-    function clamp(value) {
-      const n = Number(value || 0);
-      if (!Number.isFinite(n)) return 0;
-      return Math.max(0, Math.min(100, Math.round(n)));
-    }
-
-    function short(value) {
-      if (!value) return 'N/A';
-      return String(value).replace('T', ' ').replace('Z', ' UTC');
-    }
-
-    function safe(value) {
-      return String(value === null || value === undefined ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-    function byId(id) {
-      return document.getElementById(id);
-    }
-  </script>
-</body>
-</html>
+Conversation
+Call started • 5/8/2026, 05:33:53 PM GMT+5
+
+Jay B
+ joined the conversation • 
+05:36:15 PM GMT+5
+I
+
++19522660866 • 5/8/2026, 5:36:25 PM
+Hi, thank you so very much for calling Mote. My name is Jay from technical support. How can I help you?
+
+Agent • 5/8/2026, 5:36:28 PM
+uh, yes, sir, uh, I just got a new company. This is a new, a new driver, uh, uh, on a truck, but I have an account with motives. I'm trying to
+
++19522660866 • 5/8/2026, 5:36:38 PM
+connect to to the new DOT company.
+
++19522660866 • 5/8/2026, 5:36:41 PM
+I just don't know how
+
++19522660866 • 5/8/2026, 5:36:44 PM
+Sorry, uh, you are working for a new company now?
+
+Agent • 5/8/2026, 5:36:47 PM
+Uh, yes.
+
++19522660866 • 5/8/2026, 5:36:50 PM
+and you want to migrate your account from old one to the new one?
+
+Agent • 5/8/2026, 5:36:55 PM
+yes
+
++19522660866 • 5/8/2026, 5:36:57 PM
+OK
+
+Agent • 5/8/2026, 5:36:58 PM
+Uh, do you have the DOT number of your new company?
+
+Agent • 5/8/2026, 5:37:01 PM
+Yes
+
++19522660866 • 5/8/2026, 5:37:03 PM
+OK. Please confirm me the DOT number of your new company.
+
+Agent • 5/8/2026, 5:37:07 PM
+It's uh 4437803.
+
++19522660866 • 5/8/2026, 5:37:11 PM
+443-78003.
+
+Agent • 5/8/2026, 5:37:15 PM
+Yes, sir
+
++19522660866 • 5/8/2026, 5:37:17 PM
+OK. Uh, please verify me the company name.
+
+Agent • 5/8/2026, 5:37:20 PM
+Uh, through Pa cargo.
+
++19522660866 • 5/8/2026, 5:37:24 PM
+OK. Do you, do you have the motive Driver app logged in?
+
+Agent • 5/8/2026, 5:37:29 PM
+Uh yes, sir.
+
++19522660866 • 5/8/2026, 5:37:34 PM
+But I can confirm you, sir, this is not an active account with us. They say the pipeline company that has not yet been activated.
+
+Agent • 5/8/2026, 5:37:41 PM
+Uh, so, uh, should I connect to the owner of the company through the phone?
+
++19522660866 • 5/8/2026, 5:37:49 PM
+You have to reach out to them, you have to request them what is your company's original DOT number, the active one, and uh instead of you going in here from our side, they can do that from their dashboard.
+
+Agent • 5/8/2026, 5:38:03 PM
+you know, the motive dashboard.
+
+Agent • 5/8/2026, 5:38:06 PM
+Yeah, but, uh, yeah, but I, I talked to them, but, uh, they couldn't figure it out by themselves and whenever they're trying to set up me for a new account they can because I already I already have existing account.
+
++19522660866 • 5/8/2026, 5:38:16 PM
+Can you confirm me your email address so I can release your email and then they can use that one. Please verify me your email address.
+
+Agent • 5/8/2026, 5:38:23 PM
+it's um M O H A A L L I
+
++19522660866 • 5/8/2026, 5:38:29 PM
+47 at yahoo.
+
++19522660866 • 5/8/2026, 5:38:31 PM
+Uh sorry
+
+Agent • 5/8/2026, 5:38:31 PM
+Sorry, sir, you're going a bit fast. Can you repeat one more time? M O
+
+Agent • 5/8/2026, 5:38:35 PM
+uh HA
+
++19522660866 • 5/8/2026, 5:38:38 PM
+H A
+
+Agent • 5/8/2026, 5:38:39 PM
+A
+
++19522660866 • 5/8/2026, 5:38:41 PM
+A
+
+Agent • 5/8/2026, 5:38:42 PM
+L L I
+
++19522660866 • 5/8/2026, 5:38:44 PM
+L L I
+
+Agent • 5/8/2026, 5:38:46 PM
+47@yahoo.com.
+
++19522660866 • 5/8/2026, 5:38:50 PM
+Let me find your account real quick, sir.
+
+Agent • 5/8/2026, 5:38:56 PM
+It's for Mohammad Ali.
+
+Agent • 5/8/2026, 5:39:01 PM
+Yes, sir
+
++19522660866 • 5/8/2026, 5:39:03 PM
+OK
+
+Agent • 5/8/2026, 5:39:05 PM
+I'm
+
++19522660866 • 5/8/2026, 5:39:49 PM
+Give it a moment, sir. I will be releasing that email for you and then your uh fleet admin, they will be able to use that success.
+
+Agent • 5/8/2026, 5:39:49 PM
+OK
+
++19522660866 • 5/8/2026, 5:39:51 PM
+Thank you. Anything else apart from that you want me to help you in?
+
+Agent • 5/8/2026, 5:39:56 PM
+Uh, no, that'll be all, boss
+
++19522660866 • 5/8/2026, 5:39:58 PM
+Uh no, sir. Please stay connected in that case.
+
+Agent • 5/8/2026, 5:40:00 PM
+Alright, I'll just talk to the owner and tell him to just, uh, the email's been deleted.
+
++19522660866 • 5/8/2026, 5:40:08 PM
+Call ended • 5/8/2026, 05:40:14 PM GMT+5
+
+Wrap-Up
+Wrap-Up
+Einstein Recommendations Applied
+
