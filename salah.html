@@ -11,11 +11,12 @@
       --salah-bg: #f3f7fb;
       --salah-ink: #0f172a;
       --salah-muted: #64748b;
-      --salah-soft: rgba(255,255,255,.9);
+      --salah-soft: rgba(255,255,255,.92);
       --salah-line: rgba(15,23,42,.1);
       --salah-blue: #2563eb;
       --salah-green: #16a34a;
       --salah-amber: #d97706;
+      --salah-red: #dc2626;
       --salah-shadow: 0 20px 60px rgba(15,23,42,.12);
     }
 
@@ -104,6 +105,11 @@
       color: #1d4ed8;
     }
 
+    .btn:disabled {
+      opacity: .55;
+      cursor: wait;
+    }
+
     .hero,
     .panel,
     .card {
@@ -146,7 +152,7 @@
 
     .copy {
       margin-top: 16px;
-      max-width: 820px;
+      max-width: 860px;
       color: var(--salah-muted);
       font-size: 15px;
       line-height: 1.65;
@@ -187,6 +193,7 @@
     .blue { color: var(--salah-blue) !important; }
     .green { color: var(--salah-green) !important; }
     .amber { color: var(--salah-amber) !important; }
+    .red { color: var(--salah-red) !important; }
 
     .grid {
       display: grid;
@@ -227,7 +234,7 @@
 
     .prayer-grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0,1fr));
+      grid-template-columns: repeat(6, minmax(0,1fr));
       gap: 10px;
     }
 
@@ -236,15 +243,32 @@
       background: #f8fafc;
       border: 1px solid var(--salah-line);
       padding: 14px;
-      min-height: 116px;
+      min-height: 128px;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
     }
 
+    .prayer-card.logged {
+      background: linear-gradient(180deg, rgba(22,163,74,.08), #f8fafc);
+      border-color: rgba(22,163,74,.2);
+    }
+
+    .prayer-card.udhr {
+      background: linear-gradient(180deg, rgba(37,99,235,.08), #f8fafc);
+      border-color: rgba(37,99,235,.2);
+    }
+
     .prayer-name {
       color: var(--salah-ink);
       font-size: 15px;
+      font-weight: 950;
+    }
+
+    .prayer-time {
+      margin-top: 3px;
+      color: var(--salah-blue);
+      font-size: 12px;
       font-weight: 950;
     }
 
@@ -269,6 +293,18 @@
       font-weight: 950;
       text-transform: uppercase;
       letter-spacing: .06em;
+    }
+
+    .prayer-chip.good {
+      color: var(--salah-green);
+      border-color: rgba(22,163,74,.22);
+      background: rgba(22,163,74,.08);
+    }
+
+    .prayer-chip.udhr {
+      color: var(--salah-blue);
+      border-color: rgba(37,99,235,.22);
+      background: rgba(37,99,235,.08);
     }
 
     .list {
@@ -327,9 +363,14 @@
       margin: 18px 0 4px;
     }
 
-    @media (max-width: 980px) {
-      .status-grid,
+    @media (max-width: 1100px) {
       .prayer-grid {
+        grid-template-columns: repeat(3, minmax(0,1fr));
+      }
+    }
+
+    @media (max-width: 980px) {
+      .status-grid {
         grid-template-columns: repeat(2, minmax(0,1fr));
       }
 
@@ -346,7 +387,6 @@
       .prayer-grid {
         grid-template-columns: 1fr;
       }
-
       .row {
         grid-template-columns: 1fr;
       }
@@ -357,7 +397,7 @@
   <main class="wrap">
     <nav class="topbar" aria-label="Salah navigation">
       <div class="brand">
-        <div class="mark">S</div>
+        <div class="mark">🕌</div>
         <div>
           <div class="brand-title">Salah Cockpit</div>
           <div class="brand-sub">Sovereign Life OS</div>
@@ -365,35 +405,34 @@
       </div>
       <div class="top-actions">
         <a class="btn" href="/index.html">Command Centre</a>
-        <a class="btn primary" href="/salah.html">Salah</a>
+        <a class="btn primary" href="/salah.html">Refresh Salah</a>
       </div>
     </nav>
 
     <section class="hero">
-      <div class="kicker">Salah Shell v0.1</div>
-      <h1>Salah is its own cockpit.</h1>
-      <p class="copy">
-        This section is intentionally separate from Finance. No balances, bills, debts, forecasts, or money widgets appear here.
-        Live prayer data is not connected yet, so this shell shows structure only: today, recovery, streaks, reflection, and future insights.
+      <div class="kicker" id="liveBadge">Loading live Salah data</div>
+      <h1>Today’s Salah is live.</h1>
+      <p class="copy" id="heroCopy">
+        Reading today’s Salah state from D1. Finance, ledger, bills, debts, salary, and reconciliation data are not used here.
       </p>
     </section>
 
     <section class="status-grid">
       <div class="card">
-        <div class="label">Today Status</div>
-        <div class="value blue">Pending Export</div>
+        <div class="label">Today Score</div>
+        <div class="value blue" id="scoreValue">Loading</div>
       </div>
       <div class="card">
-        <div class="label">Recovery</div>
-        <div class="value amber">Queued</div>
+        <div class="label">Logged</div>
+        <div class="value green" id="loggedValue">Loading</div>
       </div>
       <div class="card">
-        <div class="label">Streaks</div>
-        <div class="value blue">Not Connected</div>
+        <div class="label">Qaza</div>
+        <div class="value amber" id="qazaValue">Loading</div>
       </div>
       <div class="card">
-        <div class="label">Insights</div>
-        <div class="value green">Planned</div>
+        <div class="label">Valid Udhr</div>
+        <div class="value blue" id="udhrValue">Loading</div>
       </div>
     </section>
 
@@ -401,50 +440,11 @@
       <div class="panel-head">
         <div>
           <div class="panel-title">Today’s Prayers</div>
-          <div class="panel-sub">Placeholder structure only. No fake prayer state.</div>
+          <div class="panel-sub" id="prayerSub">Live status from /api/salah/today.</div>
         </div>
       </div>
-
-      <div class="prayer-grid">
-        <article class="prayer-card">
-          <div>
-            <div class="prayer-name">Fajr</div>
-            <div class="prayer-status">Live status will appear after Salah export.</div>
-          </div>
-          <div class="prayer-chip">Awaiting data</div>
-        </article>
-
-        <article class="prayer-card">
-          <div>
-            <div class="prayer-name">Dhuhr</div>
-            <div class="prayer-status">No fake completion status shown.</div>
-          </div>
-          <div class="prayer-chip">Awaiting data</div>
-        </article>
-
-        <article class="prayer-card">
-          <div>
-            <div class="prayer-name">Asr</div>
-            <div class="prayer-status">Recovery logic will be added after API.</div>
-          </div>
-          <div class="prayer-chip">Awaiting data</div>
-        </article>
-
-        <article class="prayer-card">
-          <div>
-            <div class="prayer-name">Maghrib</div>
-            <div class="prayer-status">Timeline stays separate from Finance.</div>
-          </div>
-          <div class="prayer-chip">Awaiting data</div>
-        </article>
-
-        <article class="prayer-card">
-          <div>
-            <div class="prayer-name">Isha</div>
-            <div class="prayer-status">Reflection appears only when real data exists.</div>
-          </div>
-          <div class="prayer-chip">Awaiting data</div>
-        </article>
+      <div class="prayer-grid" id="prayerGrid">
+        <div class="empty">Loading today’s prayers...</div>
       </div>
     </section>
 
@@ -452,70 +452,24 @@
       <div class="panel">
         <div class="panel-head">
           <div>
-            <div class="panel-title">Recovery Lane</div>
-            <div class="panel-sub">For missed/Qaza recovery, without shame language.</div>
+            <div class="panel-title">Today’s Tally</div>
+            <div class="panel-sub">Simple operational read. No shame language, no fake streaks.</div>
           </div>
         </div>
-
-        <div class="list">
-          <article class="row">
-            <div>
-              <div class="row-title">Recovery status</div>
-              <div class="row-copy">Will read missed prayer recovery data after the Salah API exists.</div>
-            </div>
-            <div class="row-tag">Planned</div>
-          </article>
-
-          <article class="row">
-            <div>
-              <div class="row-title">Next best action</div>
-              <div class="row-copy">Will suggest the next clean action only from real logged data.</div>
-            </div>
-            <div class="row-tag">Planned</div>
-          </article>
-
-          <article class="row">
-            <div>
-              <div class="row-title">Weekly weak point</div>
-              <div class="row-copy">Will identify recurring weak prayers after enough history is available.</div>
-            </div>
-            <div class="row-tag">Planned</div>
-          </article>
+        <div class="list" id="tallyList">
+          <div class="empty">Loading tally...</div>
         </div>
       </div>
 
       <div class="panel">
         <div class="panel-head">
           <div>
-            <div class="panel-title">Salah Export Plan</div>
-            <div class="panel-sub">Next implementation layer.</div>
+            <div class="panel-title">Prayer Times</div>
+            <div class="panel-sub">Multan prayer-time snapshot from Salah source data.</div>
           </div>
         </div>
-
-        <div class="list">
-          <article class="row">
-            <div>
-              <div class="row-title">D1 schema</div>
-              <div class="row-copy">salah_logs, salah_daily_status, salah_recovery, salah_insights.</div>
-            </div>
-            <div class="row-tag">Layer 2A</div>
-          </article>
-
-          <article class="row">
-            <div>
-              <div class="row-title">API</div>
-              <div class="row-copy">/api/salah/today and /api/salah/insights.</div>
-            </div>
-            <div class="row-tag">Layer 2B</div>
-          </article>
-
-          <article class="row">
-            <div>
-              <div class="row-title">Live UI</div>
-              <div class="row-copy">Replace placeholders only after real API returns real prayer data.</div>
-            </div>
-            <div class="row-tag">Layer 2C</div>
-          </article>
+        <div class="list" id="timeList">
+          <div class="empty">Loading prayer times...</div>
         </div>
       </div>
     </section>
@@ -523,43 +477,257 @@
     <section class="panel wide">
       <div class="panel-head">
         <div>
-          <div class="panel-title">Separation Contract</div>
-          <div class="panel-sub">This is the rule that protects Life OS from becoming messy.</div>
+          <div class="panel-title">Source Freshness</div>
+          <div class="panel-sub">Shows exactly where today’s Salah data came from.</div>
         </div>
       </div>
+      <div class="list" id="freshnessList">
+        <div class="empty">Loading source freshness...</div>
+      </div>
+    </section>
 
+    <section class="panel wide">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Separation Contract</div>
+          <div class="panel-sub">This page is intentionally isolated from Finance.</div>
+        </div>
+      </div>
       <div class="list">
         <article class="row">
           <div>
             <div class="row-title">No Finance contamination</div>
-            <div class="row-copy">Salah will not display balances, ledger rows, bills, debts, salary, Credit Card, or reconciliation data.</div>
+            <div class="row-copy">This page does not read balances, ledger rows, bills, debts, salary, Credit Card, or reconciliation data.</div>
           </div>
           <div class="row-tag">Locked</div>
         </article>
-
         <article class="row">
           <div>
             <div class="row-title">No fake prayer data</div>
-            <div class="row-copy">Until the Google Sheet export/API is live, this page shows placeholders only.</div>
+            <div class="row-copy">If D1 has no Salah row for today, the page shows a clean empty state instead of inventing status.</div>
           </div>
           <div class="row-tag">Locked</div>
         </article>
-
         <article class="row">
           <div>
-            <div class="row-title">AI reads summaries later</div>
-            <div class="row-copy">AI Curator can later read Salah summary state, but not invent prayer status.</div>
+            <div class="row-title">Today-first live mode</div>
+            <div class="row-copy">Current build proves today’s D1 read path before month-sync automation is added.</div>
           </div>
-          <div class="row-tag">Locked</div>
+          <div class="row-tag">Active</div>
         </article>
       </div>
     </section>
 
     <div class="footer-note">
-      v0.1.0 - Salah Cockpit Shell - separate domain - no finance widgets - no fake Salah data - no schema changes
+      v0.2.0 - Salah today-live page - D1 backed - no finance widgets - no fake future rows
     </div>
   </main>
 
   <script src="/js/theme.js?v=0.7.5"></script>
+  <script>
+    const API_URL = '/api/salah/today';
+
+    const prayerTimesMap = {
+      fajr: 'fajr_time',
+      dhuhr: 'dhuhr_time',
+      asr: 'asr_time',
+      maghrib: 'maghrib_time',
+      isha: 'isha_time',
+      jumuah: ''
+    };
+
+    const els = {
+      liveBadge: document.getElementById('liveBadge'),
+      heroCopy: document.getElementById('heroCopy'),
+      scoreValue: document.getElementById('scoreValue'),
+      loggedValue: document.getElementById('loggedValue'),
+      qazaValue: document.getElementById('qazaValue'),
+      udhrValue: document.getElementById('udhrValue'),
+      prayerSub: document.getElementById('prayerSub'),
+      prayerGrid: document.getElementById('prayerGrid'),
+      tallyList: document.getElementById('tallyList'),
+      timeList: document.getElementById('timeList'),
+      freshnessList: document.getElementById('freshnessList')
+    };
+
+    init();
+
+    async function init() {
+      try {
+        const res = await fetch(API_URL, { cache: 'no-store' });
+        const data = await res.json();
+
+        if (!res.ok || !data.ok) {
+          throw new Error(data && data.error ? data.error : 'Salah API failed');
+        }
+
+        render(data);
+      } catch (err) {
+        renderError(err);
+      }
+    }
+
+    function render(data) {
+      if (!data.connected) {
+        renderEmpty(data);
+        return;
+      }
+
+      const tally = data.tally || {};
+      const daily = data.daily || {};
+      const freshness = data.source_freshness || {};
+
+      els.liveBadge.textContent = 'Live from D1';
+      els.heroCopy.textContent = `Showing ${data.day} from ${freshness.source_tab || 'Salah source'} · ${freshness.source_version || 'source version unknown'} · batch ${freshness.export_batch_id || 'not stamped'}.`;
+
+      els.scoreValue.textContent = formatScore(tally.score);
+      els.loggedValue.textContent = `${num(tally.logged_count)} logged`;
+      els.qazaValue.textContent = `${num(tally.qaza_count)} qaza`;
+      els.udhrValue.textContent = `${num(tally.udhr_count)} udhr`;
+
+      els.prayerSub.textContent = `Day ${daily.day_of_month || ''} · ${data.day} · source updated ${shortDate(freshness.updated_at || freshness.exported_at)}`;
+
+      renderPrayers(data.prayers || [], data.prayer_times || {});
+      renderTally(tally);
+      renderTimes(data.prayer_times || {});
+      renderFreshness(freshness);
+    }
+
+    function renderEmpty(data) {
+      els.liveBadge.textContent = 'No live row for today';
+      els.heroCopy.textContent = data.message || 'Seed or sync today before showing live Salah state. No fake prayer status is displayed.';
+
+      els.scoreValue.textContent = 'No data';
+      els.loggedValue.textContent = '0 logged';
+      els.qazaValue.textContent = '0 qaza';
+      els.udhrValue.textContent = '0 udhr';
+
+      els.prayerSub.textContent = 'No D1 Salah row found for today.';
+      els.prayerGrid.innerHTML = '<div class="empty">No Salah data found for today. Seed or sync today first.</div>';
+      els.tallyList.innerHTML = '<div class="empty">No tally available yet.</div>';
+      els.timeList.innerHTML = '<div class="empty">No prayer-time row available yet.</div>';
+      els.freshnessList.innerHTML = '<div class="empty">No source freshness because today is not connected yet.</div>';
+    }
+
+    function renderPrayers(prayers, times) {
+      if (!prayers.length) {
+        els.prayerGrid.innerHTML = '<div class="empty">No prayer entries returned by the API.</div>';
+        return;
+      }
+
+      els.prayerGrid.innerHTML = prayers.map(prayer => {
+        const timeKey = prayerTimesMap[prayer.prayer_name] || '';
+        const time = timeKey && times ? times[timeKey] : '';
+        const loggedClass = prayer.has_valid_udhr ? 'udhr' : prayer.is_logged ? 'logged' : '';
+        const chipClass = prayer.has_valid_udhr ? 'udhr' : prayer.is_logged ? 'good' : '';
+        const status = prayer.is_logged
+          ? `${safe(prayer.location_label || prayer.raw_code || prayer.normalized_code)}${prayer.score_value !== null ? ` · ${prayer.score_value}` : ''}`
+          : 'Not logged';
+
+        return `
+          <article class="prayer-card ${loggedClass}">
+            <div>
+              <div class="prayer-name">${safe(prayer.label || prayer.prayer_name)}</div>
+              ${time ? `<div class="prayer-time">${safe(time)}</div>` : ''}
+              <div class="prayer-status">${status}</div>
+            </div>
+            <div class="prayer-chip ${chipClass}">${safe(prayer.normalized_code || 'empty')}</div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function renderTally(tally) {
+      els.tallyList.innerHTML = [
+        row('Score', formatScore(tally.score), 'Today'),
+        row('Logged prayers', `${num(tally.logged_count)} entries`, 'Live'),
+        row('Masjid', `${num(tally.masjid_count)} entries`, 'Live'),
+        row('Home', `${num(tally.home_count)} entries`, 'Live'),
+        row('Valid udhr', `${num(tally.udhr_count)} entries`, 'Live'),
+        row('Qaza', `${num(tally.qaza_count)} entries`, 'Live')
+      ].join('');
+    }
+
+    function renderTimes(times) {
+      if (!times || !times.day) {
+        els.timeList.innerHTML = '<div class="empty">No prayer times found for today.</div>';
+        return;
+      }
+
+      els.timeList.innerHTML = [
+        row('Fajr', times.fajr_time || 'N/A', 'Multan'),
+        row('Dhuhr', times.dhuhr_time || 'N/A', 'Multan'),
+        row('Asr', times.asr_time || 'N/A', 'Multan'),
+        row('Maghrib', times.maghrib_time || 'N/A', 'Multan'),
+        row('Isha', times.isha_time || 'N/A', 'Multan'),
+        row('Provider', `${safe(times.provider || 'unknown')} · ${safe(times.timezone || '')}`, times.is_fallback ? 'Fallback' : 'Live')
+      ].join('');
+    }
+
+    function renderFreshness(freshness) {
+      els.freshnessList.innerHTML = [
+        row('Source system', freshness.source_system || 'N/A', 'D1'),
+        row('Source tab', freshness.source_tab || 'N/A', 'Sheet'),
+        row('Source version', freshness.source_version || 'N/A', 'Logic'),
+        row('Export batch', freshness.export_batch_id || 'N/A', 'Batch'),
+        row('Exported at', shortDate(freshness.exported_at), 'Source'),
+        row('API queried at', shortDate(freshness.api_queried_at), 'Now')
+      ].join('');
+    }
+
+    function renderError(err) {
+      els.liveBadge.textContent = 'Salah API error';
+      els.heroCopy.textContent = err && err.message ? err.message : 'Unknown Salah API error.';
+
+      els.scoreValue.textContent = 'Error';
+      els.loggedValue.textContent = 'Error';
+      els.qazaValue.textContent = 'Error';
+      els.udhrValue.textContent = 'Error';
+
+      const msg = safe(err && err.message ? err.message : 'Unknown error');
+      els.prayerGrid.innerHTML = `<div class="empty">${msg}</div>`;
+      els.tallyList.innerHTML = `<div class="empty">${msg}</div>`;
+      els.timeList.innerHTML = `<div class="empty">${msg}</div>`;
+      els.freshnessList.innerHTML = `<div class="empty">${msg}</div>`;
+    }
+
+    function row(title, copy, tag) {
+      return `
+        <article class="row">
+          <div>
+            <div class="row-title">${safe(title)}</div>
+            <div class="row-copy">${safe(copy)}</div>
+          </div>
+          <div class="row-tag">${safe(tag)}</div>
+        </article>
+      `;
+    }
+
+    function formatScore(value) {
+      if (value === null || value === undefined || value === '') return 'No score';
+      const n = Number(value);
+      if (!Number.isFinite(n)) return 'No score';
+      return `${n.toFixed(1)}/10`;
+    }
+
+    function num(value) {
+      const n = Number(value || 0);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function shortDate(value) {
+      if (!value) return 'N/A';
+      return String(value).replace('T', ' ').replace('Z', ' UTC');
+    }
+
+    function safe(value) {
+      return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
 </body>
 </html>
