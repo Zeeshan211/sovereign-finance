@@ -1,7 +1,8 @@
-/*  Sovereign Finance  /api/safety  v0.1.2  Debt Schedule Safety wiring  */
-/*
+/* Sovereign Finance /api/safety v0.2.0
+ * Layer 5A - Safety Engine v2
+ *
  * Purpose:
- * - Answer: Am I safe, why or why not, what changed, and what action protects me now?
+ * - Answer: Am I safe, why, next risk date, what happens if no action, and top action.
  *
  * Contract:
  * - GET /api/safety
@@ -10,36 +11,25 @@
  * - No ledger mutation.
  * - No audit writes.
  * - No fake values.
- * - Missing optional tables become warnings, not crashes.
  *
- * v0.1.1:
- * - Credit Card safety uses statement day, 55-day interest-free period,
- *   payment due date, due status, and minimum-payment fields.
- *
- * v0.1.2:
- * - Debt safety uses due_date / due_day / installment_amount / frequency / last_paid_date.
- * - Distinguishes debts I owe from receivables owed to me.
+ * Safety truth:
+ * - Uses conservative forecast baseline only.
+ * - Manual MBO/overtime/referral/bonus/kitty/other variables are scenario-only.
+ * - Safety status never depends on manual variable income.
  */
 
 import { json } from './_lib.js';
 
-const VERSION = 'v0.1.2';
+const VERSION = 'v0.2.0';
 
 const LOW_LIQUID_UNSAFE = 5000;
 const LOW_LIQUID_WATCH = 10000;
-
+const OBLIGATION_PRESSURE_UNSAFE = 0.75;
+const OBLIGATION_PRESSURE_WATCH = 0.5;
+const CC_PRESSURE_UNSAFE = 0.75;
+const CC_PRESSURE_WATCH = 0.4;
 const BILL_DUE_WATCH_DAYS = 3;
 const DEBT_DUE_WATCH_DAYS = 3;
-
-const DEFAULT_CC_STATEMENT_DAY = 12;
-const DEFAULT_CC_INTEREST_FREE_DAYS = 55;
-const DEFAULT_CC_MIN_PAYMENT_PCT = 0.05;
-const CC_DUE_WATCH_DAYS = 7;
-const CC_DUE_UNSAFE_DAYS = 3;
-const CC_UTIL_WATCH = 40;
-const CC_UTIL_UNSAFE = 75;
-
-const ATM_REVERSAL_WINDOW_DAYS = 10;
 const RECON_DRIFT_THRESHOLD = 1;
 
 const TYPE_PLUS = new Set(['income', 'salary', 'debt_in', 'borrow', 'opening']);
@@ -50,13 +40,13 @@ export async function onRequest(context) {
   const now = new Date();
 
   try {
-    const [accountsRes, txnsRes, billsRes, debtsRes, reconRes, nanoRes] = await Promise.all([
+    const [forecastRes, accountsRes, txnsRes, billsRes, debtsRes, reconRes] = await Promise.all([
+      readForecast(context),
       readTable(db, 'accounts'),
       readTable(db, 'transactions'),
       readTable(db, 'bills'),
       readTable(db, 'debts'),
-      readTable(db, 'reconciliation'),
-      readTable(db, 'nano_loans')
+      readTable(db, 'reconciliation')
     ]);
 
     const accounts = activeAccounts(accountsRes.rows);
@@ -64,76 +54,109 @@ export async function onRequest(context) {
     const bills = visibleBills(billsRes.rows);
     const debts = activeDebts(debtsRes.rows);
     const reconciliation = reconRes.rows || [];
-    const nanoLoans = nanoRes.rows || [];
 
-    const accountBalances = computeAccountBalances(accounts, transactions);
-    const balanceSummary = computeBalanceSummary(accounts, accountBalances, debts);
+    const balances = computeAccountBalances(accounts, transactions);
+    const position = computeCurrentPosition(accounts, balances);
+    const reconciliationTruth = computeReconciliationTruth(accounts, balances, reconciliation, transactions);
+    const forecast = forecastRes.data || null;
 
-    const reasons = [];
+    const drivers = [];
     const actions = [];
-    const health = [];
 
-    collectReadHealth(health, {
-      accounts: accountsRes,
-      transactions: txnsRes,
-      bills: billsRes,
-      debts: debtsRes,
-      reconciliation: reconRes,
-      nano_loans: nanoRes
-    });
+    evaluateForecastSafety(drivers, actions, forecast, now);
+    evaluateCurrentLiquidity(drivers, actions, position);
+    evaluateObligationPressure(drivers, actions, forecast);
+    evaluateCreditCardPressure(drivers, actions, forecast, position);
+    evaluateReconciliationTruth(drivers, actions, reconciliationTruth);
+    evaluateBills(drivers, actions, bills, now);
+    evaluateDebts(drivers, actions, debts, now);
+    evaluateMissingData(drivers, actions, bills, debts);
 
-    evaluateLiquidity(reasons, actions, balanceSummary);
-    evaluateBills(reasons, actions, bills, now);
-    evaluateDebts(reasons, actions, debts, now);
-    evaluateCreditCards(reasons, actions, accounts, accountBalances, now);
-    evaluateReconciliation(reasons, actions, reconciliation, accountBalances);
-    evaluateATM(reasons, actions, transactions, now);
-    evaluateNanoLoans(reasons, actions, nanoLoans);
-    evaluateMissingTruth(reasons, actions, accounts, bills, debts);
-
-    const uniqueReasons = dedupeReasons(reasons);
+    const uniqueDrivers = dedupeDrivers(drivers);
     const uniqueActions = dedupeActions(actions);
-    const score = computeScore(uniqueReasons);
-    const status = computeStatus(score, uniqueReasons);
-    const nextRiskDate = computeNextRiskDate(uniqueReasons);
-    const headline = buildHeadline(status, uniqueReasons, balanceSummary);
+    const safetyStatus = computeSafetyStatus(uniqueDrivers);
+    const topAction = computeTopAction(safetyStatus, uniqueDrivers, uniqueActions);
+    const nextRiskDate = computeNextRiskDate(uniqueDrivers);
+    const noAction = computeNoActionOutcome(safetyStatus, uniqueDrivers, forecast);
+    const confidence = computeConfidence(forecastRes, reconciliationTruth, accountsRes, txnsRes, billsRes, debtsRes, reconRes);
 
     return json({
       ok: true,
       version: VERSION,
-      status,
-      score,
-      headline,
-      reasons: uniqueReasons,
-      actions: uniqueActions,
-      next_risk_date: nextRiskDate,
       computed_at: now.toISOString(),
+
+      safety_status: safetyStatus,
+      status: safetyStatus,
+      headline: buildHeadline(safetyStatus, uniqueDrivers, position),
+      top_action: topAction,
+      next_risk_date: nextRiskDate,
+      what_happens_if_no_action: noAction,
+
+      manual_variables_used_for_safety: false,
+      safety_baseline: {
+        mode: 'conservative',
+        includes_base_salary: true,
+        includes_wfh_live_fx: true,
+        excludes_manual_variables: true,
+        note: 'Safety uses conservative salary baseline. Manual variables remain scenario-only.'
+      },
+
+      drivers: uniqueDrivers,
+      reasons: uniqueDrivers,
+      actions: uniqueActions,
+
+      forecast_source: {
+        ok: forecastRes.ok,
+        version: forecast && forecast.version ? forecast.version : null,
+        error: forecastRes.error || null,
+        cash_projection_summary_present: !!(forecast && forecast.cash_projection_summary),
+        daily_projection_present: !!(forecast && Array.isArray(forecast.daily_cash_projection_30d)),
+        salary_present: !!(forecast && forecast.salary)
+      },
+
+      confidence,
+
       summary: {
-        total_liquid: round2(balanceSummary.total_liquid),
-        net_worth: round2(balanceSummary.net_worth),
-        true_burden: round2(balanceSummary.true_burden),
-        cc_outstanding: round2(balanceSummary.cc_outstanding),
-        total_owed: round2(balanceSummary.total_owed),
+        total_liquid: round2(position.total_liquid),
+        cc_outstanding: round2(position.cc_outstanding),
+        net_cash_after_cc: round2(position.net_cash_after_cc),
+        forecast_lowest_projected_balance: forecast && forecast.cash_projection_summary
+          ? nullableRound2(forecast.cash_projection_summary.lowest_projected_balance)
+          : null,
+        forecast_first_unsafe_date: forecast && forecast.cash_projection_summary
+          ? forecast.cash_projection_summary.first_unsafe_date || null
+          : null,
+        conservative_net_salary: forecast && forecast.salary
+          ? nullableRound2(forecast.salary.baseline_net_without_manual_variables_pkr)
+          : null,
+        manual_variable_total: forecast && forecast.salary
+          ? nullableRound2(forecast.salary.manual_variable_total_pkr)
+          : null,
         active_bill_count: bills.length,
         active_debt_count: debts.length,
         active_account_count: accounts.length
       },
+
       thresholds: {
-        low_liquid_watch: LOW_LIQUID_WATCH,
         low_liquid_unsafe: LOW_LIQUID_UNSAFE,
+        low_liquid_watch: LOW_LIQUID_WATCH,
+        obligation_pressure_unsafe: OBLIGATION_PRESSURE_UNSAFE,
+        obligation_pressure_watch: OBLIGATION_PRESSURE_WATCH,
+        cc_pressure_unsafe: CC_PRESSURE_UNSAFE,
+        cc_pressure_watch: CC_PRESSURE_WATCH,
         bill_due_watch_days: BILL_DUE_WATCH_DAYS,
         debt_due_watch_days: DEBT_DUE_WATCH_DAYS,
-        cc_statement_day_default: DEFAULT_CC_STATEMENT_DAY,
-        cc_interest_free_days_default: DEFAULT_CC_INTEREST_FREE_DAYS,
-        cc_due_watch_days: CC_DUE_WATCH_DAYS,
-        cc_due_unsafe_days: CC_DUE_UNSAFE_DAYS,
-        cc_utilization_watch_pct: CC_UTIL_WATCH,
-        cc_utilization_unsafe_pct: CC_UTIL_UNSAFE,
-        cc_minimum_payment_estimate_pct: DEFAULT_CC_MIN_PAYMENT_PCT,
-        reconciliation_drift_threshold: RECON_DRIFT_THRESHOLD,
-        atm_reversal_window_days: ATM_REVERSAL_WINDOW_DAYS
+        reconciliation_drift_threshold: RECON_DRIFT_THRESHOLD
       },
-      health
+
+      health: [
+        healthRow('forecast', forecastRes),
+        healthRow('accounts', accountsRes),
+        healthRow('transactions', txnsRes),
+        healthRow('bills', billsRes),
+        healthRow('debts', debtsRes),
+        healthRow('reconciliation', reconRes)
+      ]
     });
   } catch (err) {
     return json({
@@ -142,6 +165,55 @@ export async function onRequest(context) {
       error: err.message || String(err),
       computed_at: now.toISOString()
     }, 500);
+  }
+}
+
+async function readForecast(context) {
+  try {
+    const url = new URL(context.request.url);
+    url.pathname = '/api/forecast';
+    url.search = '';
+
+    const headers = new Headers();
+    const cookie = context.request.headers.get('cookie');
+    const cfAccessJwt = context.request.headers.get('cf-access-jwt-assertion');
+
+    if (cookie) headers.set('cookie', cookie);
+    if (cfAccessJwt) headers.set('cf-access-jwt-assertion', cfAccessJwt);
+
+    const res = await fetch(url.toString(), {
+      method: 'GET',
+      headers,
+      cf: { cacheTtl: 0, cacheEverything: false }
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data || data.ok === false) {
+      return {
+        ok: false,
+        table: 'forecast',
+        rows: [],
+        data: null,
+        error: data && data.error ? data.error : `forecast HTTP ${res.status}`
+      };
+    }
+
+    return {
+      ok: true,
+      table: 'forecast',
+      rows: [data],
+      data,
+      error: null
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      table: 'forecast',
+      rows: [],
+      data: null,
+      error: err.message || String(err)
+    };
   }
 }
 
@@ -164,155 +236,150 @@ async function readTable(db, table) {
   }
 }
 
-function collectReadHealth(health, reads) {
-  for (const key of Object.keys(reads)) {
-    const item = reads[key];
-    health.push({
-      table: key,
-      ok: item.ok,
-      row_count: item.rows.length,
-      error: item.error || null
+function evaluateForecastSafety(drivers, actions, forecast, now) {
+  if (!forecast || !forecast.cash_projection_summary) {
+    pushDriver(drivers, {
+      code: 'FORECAST_UNAVAILABLE',
+      severity: 'watch',
+      title: 'Forecast source is unavailable',
+      detail: 'Safety could not read /api/forecast, so 30-day safety is incomplete.',
+      source: 'forecast',
+      confidence: 'low',
+      evidence: {}
+    });
+    pushAction(actions, {
+      reason_code: 'FORECAST_UNAVAILABLE',
+      label: 'Verify /api/forecast before trusting safety status',
+      module: 'forecast',
+      href: '/forecast.html',
+      priority: 1
+    });
+    return;
+  }
+
+  const summary = forecast.cash_projection_summary;
+  const projectionLow = number(summary.lowest_projected_balance);
+  const firstUnsafe = summary.first_unsafe_date || null;
+  const firstWatch = summary.first_watch_date || null;
+  const salaryDate = forecast.salary ? forecast.salary.next_salary_date : null;
+  const cashAfterSalary = nullableNumber(summary.cash_after_salary_and_obligations);
+
+  if (projectionLow < 0) {
+    pushDriver(drivers, {
+      code: 'PROJECTION_NEGATIVE',
+      severity: 'critical',
+      title: '30-day projection goes negative',
+      detail: `Projected cash falls to ${money(projectionLow)} on ${summary.lowest_projected_balance_date || 'unknown date'}.`,
+      next_risk_date: summary.lowest_projected_balance_date || firstUnsafe,
+      source: 'forecast',
+      confidence: 'high',
+      evidence: {
+        lowest_projected_balance: round2(projectionLow),
+        lowest_projected_balance_date: summary.lowest_projected_balance_date || null,
+        salary_date: salaryDate
+      }
+    });
+    pushAction(actions, {
+      reason_code: 'PROJECTION_NEGATIVE',
+      label: 'Reduce or delay obligations before the lowest-balance date',
+      module: 'forecast',
+      href: '/forecast.html',
+      priority: 1
+    });
+    return;
+  }
+
+  if (firstUnsafe) {
+    const beforeSalary = salaryDate ? firstUnsafe <= salaryDate : true;
+    pushDriver(drivers, {
+      code: 'PROJECTION_UNSAFE',
+      severity: beforeSalary ? 'critical' : 'unsafe',
+      title: beforeSalary ? 'Cash becomes unsafe before salary' : 'Cash becomes unsafe in the 30-day window',
+      detail: `Projected cash falls below ${money(LOW_LIQUID_UNSAFE)} on ${firstUnsafe}.`,
+      next_risk_date: firstUnsafe,
+      source: 'forecast',
+      confidence: 'high',
+      evidence: {
+        first_unsafe_date: firstUnsafe,
+        salary_date: salaryDate,
+        lowest_projected_balance: round2(projectionLow),
+        lowest_projected_balance_date: summary.lowest_projected_balance_date || null
+      }
+    });
+    pushAction(actions, {
+      reason_code: 'PROJECTION_UNSAFE',
+      label: 'Open Forecast and fix the first unsafe date',
+      module: 'forecast',
+      href: '/forecast.html',
+      priority: 1
+    });
+    return;
+  }
+
+  if (cashAfterSalary != null && cashAfterSalary < 0) {
+    pushDriver(drivers, {
+      code: 'NEGATIVE_AFTER_SALARY',
+      severity: 'unsafe',
+      title: 'Cash after salary and obligations is negative',
+      detail: `Cash after salary and known obligations is ${money(cashAfterSalary)}.`,
+      next_risk_date: salaryDate,
+      source: 'forecast',
+      confidence: 'high',
+      evidence: {
+        cash_after_salary_and_obligations: round2(cashAfterSalary),
+        salary_date: salaryDate
+      }
+    });
+    pushAction(actions, {
+      reason_code: 'NEGATIVE_AFTER_SALARY',
+      label: 'Review obligations that consume salary',
+      module: 'forecast',
+      href: '/forecast.html',
+      priority: 1
+    });
+  }
+
+  if (firstWatch || projectionLow < LOW_LIQUID_WATCH) {
+    pushDriver(drivers, {
+      code: 'PROJECTION_WATCH',
+      severity: 'watch',
+      title: '30-day projection enters watch range',
+      detail: `Lowest projected balance is ${money(projectionLow)}.`,
+      next_risk_date: firstWatch || summary.lowest_projected_balance_date || null,
+      source: 'forecast',
+      confidence: 'high',
+      evidence: {
+        first_watch_date: firstWatch,
+        lowest_projected_balance: round2(projectionLow),
+        lowest_projected_balance_date: summary.lowest_projected_balance_date || null
+      }
+    });
+    pushAction(actions, {
+      reason_code: 'PROJECTION_WATCH',
+      label: 'Keep spending tight until salary and obligations clear',
+      module: 'forecast',
+      href: '/forecast.html',
+      priority: 2
     });
   }
 }
 
-function activeAccounts(rows) {
-  return (rows || []).filter(row => {
-    const status = text(row.status || 'active').toLowerCase();
-    const deleted = text(row.deleted_at);
-    const archived = text(row.archived_at);
-    return !deleted && !archived && (!status || status === 'active');
-  });
-}
-
-function activeTransactions(rows) {
-  return (rows || []).filter(row => !isReversalRow(row));
-}
-
-function visibleBills(rows) {
-  return (rows || []).filter(row => {
-    const status = text(row.status || 'active').toLowerCase();
-    const deleted = text(row.deleted_at);
-    return !deleted && status !== 'deleted' && status !== 'archived';
-  });
-}
-
-function activeDebts(rows) {
-  return (rows || []).filter(row => {
-    const status = text(row.status || 'active').toLowerCase();
-    return !status || status === 'active';
-  });
-}
-
-function isReversalRow(row) {
-  if (!row) return false;
-  if (row.reversed_by || row.reversed_at) return true;
-  const notes = text(row.notes).toUpperCase();
-  return notes.includes('[REVERSED BY ') || notes.includes('[REVERSAL OF ');
-}
-
-function computeAccountBalances(accounts, transactions) {
-  const balances = {};
-  const meta = {};
-
-  for (const account of accounts) {
-    balances[account.id] = number(account.opening_balance);
-    meta[account.id] = account;
-  }
-
-  for (const txn of transactions) {
-    const amount = number(txn.amount);
-    const fee = number(txn.fee_amount);
-    const pra = number(txn.pra_amount);
-    const accountId = txn.account_id;
-    const toAccountId = txn.transfer_to_account_id;
-    const type = text(txn.type).toLowerCase();
-
-    if (type === 'transfer' || type === 'cc_payment') {
-      if (accountId && balances[accountId] != null) {
-        balances[accountId] -= amount;
-        balances[accountId] -= fee;
-        balances[accountId] -= pra;
-      }
-      if (toAccountId && balances[toAccountId] != null) {
-        balances[toAccountId] += amount;
-      }
-      continue;
-    }
-
-    if (!accountId || balances[accountId] == null) continue;
-
-    if (TYPE_PLUS.has(type)) {
-      balances[accountId] += amount;
-    } else if (TYPE_MINUS.has(type)) {
-      balances[accountId] -= amount;
-      balances[accountId] -= fee;
-      balances[accountId] -= pra;
-    }
-  }
-
-  const output = {};
-  for (const id of Object.keys(balances)) {
-    output[id] = {
-      account: meta[id],
-      balance: round2(balances[id])
-    };
-  }
-
-  return output;
-}
-
-function computeBalanceSummary(accounts, accountBalances, debts) {
-  let totalLiquid = 0;
-  let ccOutstanding = 0;
-
-  for (const account of accounts) {
-    const id = account.id;
-    const bal = accountBalances[id] ? number(accountBalances[id].balance) : 0;
-    const kind = text(account.kind || account.type).toLowerCase();
-    const isCC = isCreditCardKind(kind);
-
-    if (isCC) {
-      ccOutstanding += Math.max(0, Math.abs(bal));
-    } else if (kind !== 'liability') {
-      totalLiquid += bal;
-    }
-  }
-
-  let totalOwed = 0;
-  for (const debt of debts) {
-    const kind = normalizeDebtKind(debt.kind);
-    if (kind !== 'owed') {
-      totalOwed += remainingDebtAmount(debt);
-    }
-  }
-
-  const netWorth = totalLiquid - ccOutstanding;
-  const trueBurden = netWorth - totalOwed;
-
-  return {
-    total_liquid: round2(totalLiquid),
-    cc_outstanding: round2(ccOutstanding),
-    total_owed: round2(totalOwed),
-    net_worth: round2(netWorth),
-    true_burden: round2(trueBurden)
-  };
-}
-
-function evaluateLiquidity(reasons, actions, summary) {
-  const liquid = number(summary.total_liquid);
+function evaluateCurrentLiquidity(drivers, actions, position) {
+  const liquid = number(position.total_liquid);
 
   if (liquid < LOW_LIQUID_UNSAFE) {
-    pushReason(reasons, {
+    pushDriver(drivers, {
       code: 'LOW_LIQUID',
       severity: 'unsafe',
       title: 'Liquid cash is below unsafe threshold',
-      detail: `Available liquid is ${money(liquid)}, below ${money(LOW_LIQUID_UNSAFE)}.`,
+      detail: `Current liquid cash is ${money(liquid)}, below ${money(LOW_LIQUID_UNSAFE)}.`,
+      source: 'accounts',
+      confidence: 'high',
       evidence: { total_liquid: round2(liquid), threshold: LOW_LIQUID_UNSAFE }
     });
     pushAction(actions, {
       reason_code: 'LOW_LIQUID',
-      label: 'Review cash position before any new spending',
+      label: 'Review cash before any new spending',
       module: 'accounts',
       href: '/accounts.html',
       priority: 1
@@ -321,44 +388,221 @@ function evaluateLiquidity(reasons, actions, summary) {
   }
 
   if (liquid < LOW_LIQUID_WATCH) {
-    pushReason(reasons, {
+    pushDriver(drivers, {
       code: 'LOW_LIQUID',
       severity: 'watch',
       title: 'Liquid cash is thin',
-      detail: `Available liquid is ${money(liquid)}, below watch threshold ${money(LOW_LIQUID_WATCH)}.`,
+      detail: `Current liquid cash is ${money(liquid)}, below watch threshold ${money(LOW_LIQUID_WATCH)}.`,
+      source: 'accounts',
+      confidence: 'high',
       evidence: { total_liquid: round2(liquid), threshold: LOW_LIQUID_WATCH }
     });
     pushAction(actions, {
       reason_code: 'LOW_LIQUID',
-      label: 'Check upcoming bills before spending',
-      module: 'accounts',
-      href: '/accounts.html',
+      label: 'Check upcoming obligations before spending',
+      module: 'forecast',
+      href: '/forecast.html',
       priority: 2
     });
   }
 }
 
-function evaluateBills(reasons, actions, bills, now) {
+function evaluateObligationPressure(drivers, actions, forecast) {
+  if (!forecast || !forecast.salary || !forecast.obligations_before_salary) return;
+
+  const conservativeSalary = number(forecast.salary.baseline_net_without_manual_variables_pkr);
+  const committed = number(forecast.obligations_before_salary.total_committed_before_salary);
+  if (conservativeSalary <= 0) return;
+
+  const pressure = round4(committed / conservativeSalary);
+
+  if (pressure >= OBLIGATION_PRESSURE_UNSAFE) {
+    pushDriver(drivers, {
+      code: 'HIGH_OBLIGATION_PRESSURE',
+      severity: 'unsafe',
+      title: 'Known obligations consume most of conservative salary',
+      detail: `Committed obligations before salary equal ${percent(pressure)} of conservative salary.`,
+      source: 'forecast',
+      confidence: 'high',
+      evidence: {
+        committed_before_salary: round2(committed),
+        conservative_salary: round2(conservativeSalary),
+        obligation_pressure_ratio: pressure
+      }
+    });
+    pushAction(actions, {
+      reason_code: 'HIGH_OBLIGATION_PRESSURE',
+      label: 'Reduce or reschedule obligations before salary',
+      module: 'forecast',
+      href: '/forecast.html',
+      priority: 1
+    });
+    return;
+  }
+
+  if (pressure >= OBLIGATION_PRESSURE_WATCH) {
+    pushDriver(drivers, {
+      code: 'OBLIGATION_PRESSURE_WATCH',
+      severity: 'watch',
+      title: 'Obligation pressure is elevated',
+      detail: `Committed obligations before salary equal ${percent(pressure)} of conservative salary.`,
+      source: 'forecast',
+      confidence: 'high',
+      evidence: {
+        committed_before_salary: round2(committed),
+        conservative_salary: round2(conservativeSalary),
+        obligation_pressure_ratio: pressure
+      }
+    });
+    pushAction(actions, {
+      reason_code: 'OBLIGATION_PRESSURE_WATCH',
+      label: 'Review bills and debts due before salary',
+      module: 'forecast',
+      href: '/forecast.html',
+      priority: 2
+    });
+  }
+}
+
+function evaluateCreditCardPressure(drivers, actions, forecast, position) {
+  const conservativeSalary = forecast && forecast.salary
+    ? number(forecast.salary.baseline_net_without_manual_variables_pkr)
+    : 0;
+
+  const ccOutstanding = number(position.cc_outstanding);
+  if (ccOutstanding <= 0 || conservativeSalary <= 0) return;
+
+  const pressure = round4(ccOutstanding / conservativeSalary);
+
+  if (pressure >= CC_PRESSURE_UNSAFE) {
+    pushDriver(drivers, {
+      code: 'CC_PRESSURE_HIGH',
+      severity: 'unsafe',
+      title: 'Credit Card pressure is high',
+      detail: `Credit Card outstanding equals ${percent(pressure)} of conservative salary.`,
+      source: 'credit_card',
+      confidence: 'high',
+      evidence: {
+        cc_outstanding: round2(ccOutstanding),
+        conservative_salary: round2(conservativeSalary),
+        cc_pressure_ratio: pressure
+      }
+    });
+    pushAction(actions, {
+      reason_code: 'CC_PRESSURE_HIGH',
+      label: 'Open Credit Card planner and reduce outstanding',
+      module: 'credit-card',
+      href: '/cc.html',
+      priority: 1
+    });
+    return;
+  }
+
+  if (pressure >= CC_PRESSURE_WATCH) {
+    pushDriver(drivers, {
+      code: 'CC_PRESSURE_WATCH',
+      severity: 'watch',
+      title: 'Credit Card pressure needs attention',
+      detail: `Credit Card outstanding equals ${percent(pressure)} of conservative salary.`,
+      source: 'credit_card',
+      confidence: 'high',
+      evidence: {
+        cc_outstanding: round2(ccOutstanding),
+        conservative_salary: round2(conservativeSalary),
+        cc_pressure_ratio: pressure
+      }
+    });
+    pushAction(actions, {
+      reason_code: 'CC_PRESSURE_WATCH',
+      label: 'Review Credit Card payoff plan',
+      module: 'credit-card',
+      href: '/cc.html',
+      priority: 2
+    });
+  }
+}
+
+function evaluateReconciliationTruth(drivers, actions, truth) {
+  if (truth.drifted_count > 0) {
+    pushDriver(drivers, {
+      code: 'RECONCILIATION_DRIFT',
+      severity: 'unsafe',
+      title: 'Reconciliation drift weakens safety confidence',
+      detail: `${truth.drifted_count} account(s) are drifted.`,
+      source: 'reconciliation',
+      confidence: 'high',
+      evidence: truth
+    });
+    pushAction(actions, {
+      reason_code: 'RECONCILIATION_DRIFT',
+      label: 'Open Reconciliation and resolve drift',
+      module: 'reconciliation',
+      href: '/reconciliation.html',
+      priority: 1
+    });
+    return;
+  }
+
+  if (truth.undeclared_count > 0) {
+    pushDriver(drivers, {
+      code: 'RECONCILIATION_UNDECLARED',
+      severity: 'watch',
+      title: 'Some accounts are undeclared',
+      detail: `${truth.undeclared_count} account(s) have no declared real-world balance.`,
+      source: 'reconciliation',
+      confidence: 'medium',
+      evidence: truth
+    });
+    pushAction(actions, {
+      reason_code: 'RECONCILIATION_UNDECLARED',
+      label: 'Declare missing real-world balances',
+      module: 'reconciliation',
+      href: '/reconciliation.html',
+      priority: 2
+    });
+    return;
+  }
+
+  if (truth.stale_count > 0) {
+    pushDriver(drivers, {
+      code: 'RECONCILIATION_STALE',
+      severity: 'watch',
+      title: 'Some declarations are stale',
+      detail: `${truth.stale_count} account declaration(s) are stale after newer transactions.`,
+      source: 'reconciliation',
+      confidence: 'medium',
+      evidence: truth
+    });
+    pushAction(actions, {
+      reason_code: 'RECONCILIATION_STALE',
+      label: 'Refresh stale account declarations',
+      module: 'reconciliation',
+      href: '/reconciliation.html',
+      priority: 2
+    });
+  }
+}
+
+function evaluateBills(drivers, actions, bills, now) {
   for (const bill of bills) {
-    const amount = number(bill.amount);
     const due = billDueDate(bill, now);
     if (!due) continue;
+    if (billPaidThisCycle(bill, due)) continue;
 
     const days = daysBetween(startOfDay(now), due);
-    const paidThisCycle = billPaidThisCycle(bill, due);
-
-    if (paidThisCycle) continue;
+    const amount = number(bill.amount);
 
     if (days < 0) {
-      pushReason(reasons, {
+      pushDriver(drivers, {
         code: 'BILL_OVERDUE',
         severity: 'unsafe',
         title: `${safeName(bill.name, 'Bill')} is overdue`,
         detail: `${safeName(bill.name, 'Bill')} is overdue by ${Math.abs(days)} day(s).`,
         next_risk_date: dateOnly(due),
+        source: 'bills',
+        confidence: 'high',
         evidence: {
           bill_id: bill.id || null,
-          bill_name: bill.name || null,
           amount: round2(amount),
           due_date: dateOnly(due),
           days_overdue: Math.abs(days)
@@ -375,15 +619,16 @@ function evaluateBills(reasons, actions, bills, now) {
     }
 
     if (days <= BILL_DUE_WATCH_DAYS) {
-      pushReason(reasons, {
+      pushDriver(drivers, {
         code: 'BILL_DUE_SOON',
         severity: 'watch',
         title: `${safeName(bill.name, 'Bill')} is due soon`,
         detail: `${safeName(bill.name, 'Bill')} is due in ${days} day(s).`,
         next_risk_date: dateOnly(due),
+        source: 'bills',
+        confidence: 'high',
         evidence: {
           bill_id: bill.id || null,
-          bill_name: bill.name || null,
           amount: round2(amount),
           due_date: dateOnly(due),
           days_until_due: days
@@ -400,112 +645,67 @@ function evaluateBills(reasons, actions, bills, now) {
   }
 }
 
-function evaluateDebts(reasons, actions, debts, now) {
+function evaluateDebts(drivers, actions, debts, now) {
   for (const debt of debts) {
     const remaining = remainingDebtAmount(debt);
     if (remaining <= 0) continue;
 
     const kind = normalizeDebtKind(debt.kind);
-    const schedule = computeDebtSchedule(debt, now);
+    if (kind === 'owed') continue;
 
-    if (schedule.schedule_missing) {
-      pushReason(reasons, {
-        code: 'DEBT_SCHEDULE_MISSING',
-        severity: 'watch',
-        title: `${safeName(debt.name, 'Debt')} has no due schedule`,
-        detail: `${safeName(debt.name, 'Debt')} needs due_date or due_day for safety forecasting.`,
+    const due = debtDueDate(debt, now);
+    if (!due) continue;
+
+    const days = daysBetween(startOfDay(now), due);
+    const amount = number(debt.installment_amount || remaining);
+
+    if (days < 0) {
+      pushDriver(drivers, {
+        code: 'DEBT_OVERDUE',
+        severity: 'unsafe',
+        title: `${safeName(debt.name, 'Debt')} is overdue`,
+        detail: `${safeName(debt.name, 'Debt')} is overdue by ${Math.abs(days)} day(s).`,
+        next_risk_date: dateOnly(due),
+        source: 'debts',
+        confidence: 'high',
         evidence: {
           debt_id: debt.id || null,
-          debt_name: debt.name || null,
-          kind,
+          amount: round2(amount),
           remaining_amount: round2(remaining),
-          missing_fields: ['due_date', 'due_day']
+          due_date: dateOnly(due),
+          days_overdue: Math.abs(days)
         }
       });
       pushAction(actions, {
-        reason_code: 'DEBT_SCHEDULE_MISSING',
-        label: `Add due schedule for ${safeName(debt.name, 'debt')}`,
+        reason_code: 'DEBT_OVERDUE',
+        label: `Review overdue payment for ${safeName(debt.name, 'debt')}`,
         module: 'debts',
         href: '/debts.html',
-        priority: 2
+        priority: 1
       });
       continue;
     }
 
-    const dueLabel = kind === 'owed' ? 'receivable' : 'debt';
-    const titleName = safeName(debt.name, kind === 'owed' ? 'Receivable' : 'Debt');
-    const evidence = {
-      debt_id: debt.id || null,
-      debt_name: debt.name || null,
-      kind,
-      remaining_amount: round2(remaining),
-      installment_amount: nullableRound2(debt.installment_amount),
-      due_date: normalizeDate(debt.due_date),
-      due_day: normalizeDueDay(debt.due_day),
-      next_due_date: schedule.next_due_date,
-      days_until_due: schedule.days_until_due,
-      days_overdue: schedule.days_overdue,
-      due_status: schedule.due_status,
-      frequency: text(debt.frequency || 'monthly'),
-      last_paid_date: normalizeDate(debt.last_paid_date)
-    };
-
-    if (schedule.due_status === 'overdue') {
-      pushReason(reasons, {
-        code: kind === 'owed' ? 'RECEIVABLE_OVERDUE' : 'DEBT_OVERDUE',
-        severity: kind === 'owed' ? 'watch' : 'unsafe',
-        title: `${titleName} ${dueLabel} is overdue`,
-        detail: `${titleName} is overdue by ${schedule.days_overdue} day(s). Remaining ${money(remaining)}.`,
-        next_risk_date: schedule.next_due_date,
-        evidence
-      });
-      pushAction(actions, {
-        reason_code: kind === 'owed' ? 'RECEIVABLE_OVERDUE' : 'DEBT_OVERDUE',
-        label: kind === 'owed'
-          ? `Follow up on ${safeName(debt.name, 'receivable')}`
-          : `Review overdue payment for ${safeName(debt.name, 'debt')}`,
-        module: 'debts',
-        href: '/debts.html',
-        priority: kind === 'owed' ? 2 : 1
-      });
-      continue;
-    }
-
-    if (schedule.due_status === 'due_today') {
-      pushReason(reasons, {
-        code: kind === 'owed' ? 'RECEIVABLE_DUE_TODAY' : 'DEBT_DUE_TODAY',
-        severity: kind === 'owed' ? 'watch' : 'unsafe',
-        title: `${titleName} ${dueLabel} is due today`,
-        detail: `${titleName} is due today. Remaining ${money(remaining)}.`,
-        next_risk_date: schedule.next_due_date,
-        evidence
-      });
-      pushAction(actions, {
-        reason_code: kind === 'owed' ? 'RECEIVABLE_DUE_TODAY' : 'DEBT_DUE_TODAY',
-        label: kind === 'owed'
-          ? `Check expected receipt from ${safeName(debt.name, 'receivable')}`
-          : `Prepare payment for ${safeName(debt.name, 'debt')}`,
-        module: 'debts',
-        href: '/debts.html',
-        priority: kind === 'owed' ? 2 : 1
-      });
-      continue;
-    }
-
-    if (schedule.due_status === 'due_soon') {
-      pushReason(reasons, {
-        code: kind === 'owed' ? 'RECEIVABLE_DUE_SOON' : 'DEBT_DUE_SOON',
+    if (days <= DEBT_DUE_WATCH_DAYS) {
+      pushDriver(drivers, {
+        code: 'DEBT_DUE_SOON',
         severity: 'watch',
-        title: `${titleName} ${dueLabel} is due soon`,
-        detail: `${titleName} is due in ${schedule.days_until_due} day(s). Remaining ${money(remaining)}.`,
-        next_risk_date: schedule.next_due_date,
-        evidence
+        title: `${safeName(debt.name, 'Debt')} is due soon`,
+        detail: `${safeName(debt.name, 'Debt')} is due in ${days} day(s).`,
+        next_risk_date: dateOnly(due),
+        source: 'debts',
+        confidence: 'high',
+        evidence: {
+          debt_id: debt.id || null,
+          amount: round2(amount),
+          remaining_amount: round2(remaining),
+          due_date: dateOnly(due),
+          days_until_due: days
+        }
       });
       pushAction(actions, {
-        reason_code: kind === 'owed' ? 'RECEIVABLE_DUE_SOON' : 'DEBT_DUE_SOON',
-        label: kind === 'owed'
-          ? `Track expected receipt from ${safeName(debt.name, 'receivable')}`
-          : `Plan payment for ${safeName(debt.name, 'debt')}`,
+        reason_code: 'DEBT_DUE_SOON',
+        label: `Plan payment for ${safeName(debt.name, 'debt')}`,
         module: 'debts',
         href: '/debts.html',
         priority: 2
@@ -514,459 +714,52 @@ function evaluateDebts(reasons, actions, debts, now) {
   }
 }
 
-function computeDebtSchedule(debt, now) {
-  const remaining = remainingDebtAmount(debt);
-  if (remaining <= 0) {
-    return {
-      next_due_date: null,
-      days_until_due: null,
-      days_overdue: null,
-      due_status: 'paid_off',
-      schedule_missing: false
-    };
-  }
-
-  let due = null;
-  const dueDate = normalizeDate(debt.due_date);
-  const dueDay = normalizeDueDay(debt.due_day);
-
-  if (dueDate) {
-    due = parseDate(dueDate);
-  } else if (dueDay != null) {
-    due = nextDueFromDay(dueDay, normalizeDate(debt.last_paid_date), now);
-  }
-
-  if (!due) {
-    return {
-      next_due_date: null,
-      days_until_due: null,
-      days_overdue: null,
-      due_status: 'no_schedule',
-      schedule_missing: true
-    };
-  }
-
-  const today = startOfDay(now);
-  const days = daysBetween(today, due);
-
-  if (days < 0) {
-    return {
-      next_due_date: dateOnly(due),
-      days_until_due: 0,
-      days_overdue: Math.abs(days),
-      due_status: 'overdue',
-      schedule_missing: false
-    };
-  }
-
-  if (days === 0) {
-    return {
-      next_due_date: dateOnly(due),
-      days_until_due: 0,
-      days_overdue: 0,
-      due_status: 'due_today',
-      schedule_missing: false
-    };
-  }
-
-  if (days <= DEBT_DUE_WATCH_DAYS) {
-    return {
-      next_due_date: dateOnly(due),
-      days_until_due: days,
-      days_overdue: 0,
-      due_status: 'due_soon',
-      schedule_missing: false
-    };
-  }
-
-  return {
-    next_due_date: dateOnly(due),
-    days_until_due: days,
-    days_overdue: 0,
-    due_status: 'scheduled',
-    schedule_missing: false
-  };
-}
-
-function evaluateCreditCards(reasons, actions, accounts, accountBalances, now) {
-  const ccAccounts = accounts.filter(account => {
-    const kind = text(account.kind || account.type).toLowerCase();
-    return isCreditCardKind(kind);
-  });
-
-  for (const account of ccAccounts) {
-    const bal = accountBalances[account.id] ? number(accountBalances[account.id].balance) : number(account.opening_balance);
-    const outstanding = Math.max(0, Math.abs(bal));
-    if (outstanding <= 0) continue;
-
-    const limit = number(account.credit_limit);
-    const utilization = limit > 0 ? round1((outstanding / limit) * 100) : null;
-    const due = computeCreditCardDue(account, outstanding, utilization, now);
-
-    if (utilization != null && utilization >= CC_UTIL_UNSAFE) {
-      pushReason(reasons, {
-        code: 'CC_HIGH_UTILIZATION',
-        severity: 'unsafe',
-        title: `${safeName(account.name, 'Credit Card')} utilization is high`,
-        detail: `${safeName(account.name, 'Credit Card')} utilization is ${utilization}%.`,
-        evidence: {
-          account_id: account.id,
-          account_name: account.name || null,
-          outstanding: round2(outstanding),
-          credit_limit: round2(limit),
-          utilization_pct: utilization,
-          utilization_status: 'high'
-        }
-      });
-      pushAction(actions, {
-        reason_code: 'CC_HIGH_UTILIZATION',
-        label: 'Reduce Credit Card outstanding',
-        module: 'credit-card',
-        href: '/cc.html',
-        priority: 1
-      });
-    } else if (utilization != null && utilization >= CC_UTIL_WATCH) {
-      pushReason(reasons, {
-        code: 'CC_HIGH_UTILIZATION',
-        severity: 'watch',
-        title: `${safeName(account.name, 'Credit Card')} utilization needs attention`,
-        detail: `${safeName(account.name, 'Credit Card')} utilization is ${utilization}%.`,
-        evidence: {
-          account_id: account.id,
-          account_name: account.name || null,
-          outstanding: round2(outstanding),
-          credit_limit: round2(limit),
-          utilization_pct: utilization,
-          utilization_status: 'watch'
-        }
-      });
-      pushAction(actions, {
-        reason_code: 'CC_HIGH_UTILIZATION',
-        label: 'Review Credit Card payoff plan',
-        module: 'credit-card',
-        href: '/cc.html',
-        priority: 2
-      });
-    }
-
-    if (due.due_status === 'overdue' || due.due_status === 'due_urgent') {
-      pushReason(reasons, {
-        code: 'CC_DUE_SOON',
-        severity: 'unsafe',
-        title: `${safeName(account.name, 'Credit Card')} payment is due now`,
-        detail: due.due_headline,
-        next_risk_date: due.payment_due_date,
-        evidence: {
-          account_id: account.id,
-          account_name: account.name || null,
-          outstanding: round2(outstanding),
-          statement_day: due.statement_day,
-          interest_free_days: due.interest_free_days,
-          latest_statement_date: due.latest_statement_date,
-          next_statement_date: due.next_statement_date,
-          payment_due_date: due.payment_due_date,
-          days_until_payment_due: due.days_until_payment_due,
-          minimum_payment_amount: due.minimum_payment_amount,
-          minimum_payment_source: due.minimum_payment_source,
-          minimum_payment_is_estimate: due.minimum_payment_is_estimate,
-          minimum_payment_formula: due.minimum_payment_formula,
-          due_status: due.due_status,
-          due_headline: due.due_headline
-        }
-      });
-      pushAction(actions, {
-        reason_code: 'CC_DUE_SOON',
-        label: 'Prepare Credit Card payment',
-        module: 'credit-card',
-        href: '/cc.html',
-        priority: 1
-      });
-    } else if (due.due_status === 'due_soon') {
-      pushReason(reasons, {
-        code: 'CC_DUE_SOON',
-        severity: 'watch',
-        title: `${safeName(account.name, 'Credit Card')} due date is approaching`,
-        detail: due.due_headline,
-        next_risk_date: due.payment_due_date,
-        evidence: {
-          account_id: account.id,
-          account_name: account.name || null,
-          outstanding: round2(outstanding),
-          statement_day: due.statement_day,
-          interest_free_days: due.interest_free_days,
-          latest_statement_date: due.latest_statement_date,
-          next_statement_date: due.next_statement_date,
-          payment_due_date: due.payment_due_date,
-          days_until_payment_due: due.days_until_payment_due,
-          minimum_payment_amount: due.minimum_payment_amount,
-          minimum_payment_source: due.minimum_payment_source,
-          minimum_payment_is_estimate: due.minimum_payment_is_estimate,
-          minimum_payment_formula: due.minimum_payment_formula,
-          due_status: due.due_status,
-          due_headline: due.due_headline
-        }
-      });
-      pushAction(actions, {
-        reason_code: 'CC_DUE_SOON',
-        label: 'Check Credit Card payment requirement',
-        module: 'credit-card',
-        href: '/cc.html',
-        priority: 2
-      });
-    }
-  }
-}
-
-function computeCreditCardDue(account, outstanding, utilizationPct, now) {
-  const statementDay = validDay(account.statement_day) || DEFAULT_CC_STATEMENT_DAY;
-  const interestFreeDays = positiveInt(account.interest_free_days) || DEFAULT_CC_INTEREST_FREE_DAYS;
-
-  const latestStatement = latestDayOfMonth(statementDay, now);
-  const nextStatement = nextDayOfMonth(statementDay, now);
-  const paymentDueDate = addDays(latestStatement, interestFreeDays);
-
-  const daysUntilDue = daysBetween(startOfDay(now), paymentDueDate);
-  const daysUntilStatement = daysBetween(startOfDay(now), nextStatement);
-
-  const minPayment = computeMinimumPayment(account, outstanding);
-
-  return {
-    statement_day: statementDay,
-    interest_free_days: interestFreeDays,
-    latest_statement_date: dateOnly(latestStatement),
-    next_statement_date: dateOnly(nextStatement),
-    payment_due_date: dateOnly(paymentDueDate),
-    days_until_payment_due: daysUntilDue,
-    days_until_statement: daysUntilStatement,
-    minimum_payment_amount: minPayment.amount,
-    minimum_payment_source: minPayment.source,
-    minimum_payment_is_estimate: minPayment.is_estimate,
-    minimum_payment_formula: minPayment.formula,
-    due_status: creditCardDueStatus(daysUntilDue, outstanding),
-    due_headline: creditCardDueHeadline(daysUntilDue, outstanding, utilizationPct, minPayment)
-  };
-}
-
-function computeMinimumPayment(account, outstanding) {
-  const exact = firstPositive([
-    account.minimum_payment_amount,
-    account.min_payment_amount
-  ]);
-
-  if (exact != null) {
-    return {
-      amount: round2(exact),
-      source: 'account_configured',
-      is_estimate: false,
-      formula: 'account.minimum_payment_amount or account.min_payment_amount'
-    };
-  }
-
-  if (outstanding <= 0) {
-    return {
-      amount: 0,
-      source: 'none_no_outstanding',
-      is_estimate: false,
-      formula: '0 because outstanding is 0'
-    };
-  }
-
-  return {
-    amount: round2(outstanding * DEFAULT_CC_MIN_PAYMENT_PCT),
-    source: 'estimated_outstanding_5pct',
-    is_estimate: true,
-    formula: 'outstanding * 0.05 because no official minimum payment is configured'
-  };
-}
-
-function creditCardDueStatus(daysUntilDue, outstanding) {
-  if (outstanding <= 0) return 'clear';
-  if (daysUntilDue < 0) return 'overdue';
-  if (daysUntilDue <= CC_DUE_UNSAFE_DAYS) return 'due_urgent';
-  if (daysUntilDue <= CC_DUE_WATCH_DAYS) return 'due_soon';
-  return 'scheduled';
-}
-
-function creditCardDueHeadline(daysUntilDue, outstanding, utilizationPct, minPayment) {
-  if (outstanding <= 0) {
-    return 'Credit Card has no outstanding balance.';
-  }
-
-  const minText = minPayment.is_estimate
-    ? `Estimated minimum payment is ${money(minPayment.amount)}.`
-    : `Minimum payment is ${money(minPayment.amount)}.`;
-
-  if (daysUntilDue < 0) {
-    return `Credit Card payment is overdue by ${Math.abs(daysUntilDue)} day(s). ${minText}`;
-  }
-
-  if (daysUntilDue <= CC_DUE_UNSAFE_DAYS) {
-    return `Credit Card payment is due in ${daysUntilDue} day(s). ${minText}`;
-  }
-
-  if (daysUntilDue <= CC_DUE_WATCH_DAYS) {
-    return `Credit Card due date is approaching in ${daysUntilDue} day(s). ${minText}`;
-  }
-
-  if (utilizationPct != null && utilizationPct >= CC_UTIL_UNSAFE) {
-    return `Credit Card utilization is high at ${utilizationPct}%. ${minText}`;
-  }
-
-  if (utilizationPct != null && utilizationPct >= CC_UTIL_WATCH) {
-    return `Credit Card utilization needs attention at ${utilizationPct}%. ${minText}`;
-  }
-
-  return `Credit Card payment is scheduled in ${daysUntilDue} day(s). ${minText}`;
-}
-
-function evaluateReconciliation(reasons, actions, rows, accountBalances) {
-  const latest = latestReconByAccount(rows);
-
-  for (const accountId of Object.keys(latest)) {
-    const row = latest[accountId];
-    if (!accountBalances[accountId]) continue;
-
-    const declared = number(row.declared_balance);
-    const live = number(accountBalances[accountId].balance);
-    const drift = round2(declared - live);
-
-    if (Math.abs(drift) >= RECON_DRIFT_THRESHOLD) {
-      pushReason(reasons, {
-        code: 'RECONCILIATION_DRIFT',
-        severity: 'unsafe',
-        title: `${safeName(row.account_id, 'Account')} balance drift detected`,
-        detail: `Declared balance differs from app balance by ${money(drift)}.`,
-        evidence: {
-          account_id: accountId,
-          declared_balance: round2(declared),
-          app_balance: round2(live),
-          drift_amount: drift,
-          declared_at: row.declared_at || null
-        }
-      });
-      pushAction(actions, {
-        reason_code: 'RECONCILIATION_DRIFT',
-        label: 'Open reconciliation and resolve balance drift',
-        module: 'reconciliation',
-        href: '/reconciliation.html',
-        priority: 1
-      });
-    }
-  }
-}
-
-function evaluateATM(reasons, actions, transactions, now) {
-  const pending = transactions.filter(txn => {
-    const type = text(txn.type).toLowerCase();
-    const notes = text(txn.notes);
-    const reversed = notes.includes('[ATM_FEE_REVERSED');
-    return !reversed && (
-      (type === 'atm' && notes.includes('[ATM_FEE_PENDING]')) ||
-      (notes.includes('PENDING reversal') && notes.includes('ATM'))
-    );
-  });
-
-  if (!pending.length) return;
-
-  const total = pending.reduce((sum, txn) => sum + number(txn.amount), 0);
-  const overdue = pending.filter(txn => {
-    const dt = parseDate(txn.date);
-    if (!dt) return false;
-    return daysBetween(dt, startOfDay(now)) > ATM_REVERSAL_WINDOW_DAYS;
-  });
-
-  pushReason(reasons, {
-    code: 'ATM_FEE_PENDING',
-    severity: overdue.length ? 'unsafe' : 'watch',
-    title: overdue.length ? 'ATM fee reversal is overdue' : 'ATM fee reversal is pending',
-    detail: `${pending.length} ATM fee(s) pending, total ${money(total)}.`,
-    evidence: {
-      pending_count: pending.length,
-      overdue_count: overdue.length,
-      total_pending_pkr: round2(total)
-    }
-  });
-  pushAction(actions, {
-    reason_code: 'ATM_FEE_PENDING',
-    label: 'Review ATM pending fee reversals',
-    module: 'atm',
-    href: '/atm.html',
-    priority: overdue.length ? 1 : 2
-  });
-}
-
-function evaluateNanoLoans(reasons, actions, loans) {
-  const active = (loans || []).filter(loan => text(loan.status || 'active').toLowerCase() === 'active');
-  if (!active.length) return;
-
-  const remaining = active.reduce((sum, loan) => {
-    return sum + Math.max(0, number(loan.total_owed) - number(loan.repaid_amount));
-  }, 0);
-
-  if (remaining <= 0) return;
-
-  pushReason(reasons, {
-    code: 'NANO_EXPOSURE_ACTIVE',
-    severity: 'watch',
-    title: 'Nano Loan exposure is active',
-    detail: `${active.length} active Nano Loan(s), remaining ${money(remaining)}.`,
-    evidence: {
-      active_count: active.length,
-      remaining_amount: round2(remaining)
-    }
-  });
-  pushAction(actions, {
-    reason_code: 'NANO_EXPOSURE_ACTIVE',
-    label: 'Review Nano Loans before new borrowing',
-    module: 'nano-loans',
-    href: '/nano-loans.html',
-    priority: 2
-  });
-}
-
-function evaluateMissingTruth(reasons, actions, accounts, bills, debts) {
-  const activeBillsWithoutAccount = bills.filter(bill => !text(bill.default_account_id));
-  if (activeBillsWithoutAccount.length) {
-    pushReason(reasons, {
-      code: 'MISSING_REQUIRED_DATA',
+function evaluateMissingData(drivers, actions, bills, debts) {
+  const billsWithoutAccount = bills.filter(bill => !text(bill.default_account_id));
+  if (billsWithoutAccount.length) {
+    pushDriver(drivers, {
+      code: 'MISSING_BILL_PAYMENT_ACCOUNT',
       severity: 'watch',
-      title: 'Some bills have no default payment account',
-      detail: `${activeBillsWithoutAccount.length} bill(s) need default_account_id for accurate payment planning.`,
+      title: 'Some bills have no payment account',
+      detail: `${billsWithoutAccount.length} bill(s) need a default payment account for stronger forecast logic.`,
+      source: 'bills',
+      confidence: 'medium',
       evidence: {
-        count: activeBillsWithoutAccount.length,
+        count: billsWithoutAccount.length,
         missing_field: 'default_account_id'
       }
     });
     pushAction(actions, {
-      reason_code: 'MISSING_REQUIRED_DATA',
-      label: 'Set default payment accounts for bills',
+      reason_code: 'MISSING_BILL_PAYMENT_ACCOUNT',
+      label: 'Set payment accounts for bills',
       module: 'bills',
       href: '/bills.html',
       priority: 2
     });
   }
 
-  const unscheduledActiveDebts = debts.filter(debt => {
-    const remaining = remainingDebtAmount(debt);
-    if (remaining <= 0) return false;
-    return computeDebtSchedule(debt, new Date()).schedule_missing;
+  const unscheduledDebts = debts.filter(debt => {
+    if (remainingDebtAmount(debt) <= 0) return false;
+    if (normalizeDebtKind(debt.kind) === 'owed') return false;
+    return !debtDueDate(debt, new Date());
   });
 
-  if (unscheduledActiveDebts.length) {
-    pushReason(reasons, {
+  if (unscheduledDebts.length) {
+    pushDriver(drivers, {
       code: 'DEBT_SCHEDULE_MISSING',
       severity: 'watch',
-      title: 'Some debts still have no due schedule',
-      detail: `${unscheduledActiveDebts.length} active debt(s) need due_date or due_day for safety forecasting.`,
+      title: 'Some debts have no due schedule',
+      detail: `${unscheduledDebts.length} active payable debt(s) need due_date or due_day.`,
+      source: 'debts',
+      confidence: 'medium',
       evidence: {
-        count: unscheduledActiveDebts.length,
-        missing_field: 'due_date_or_due_day',
-        debt_ids: unscheduledActiveDebts.map(debt => debt.id).filter(Boolean)
+        count: unscheduledDebts.length,
+        missing_field: 'due_date_or_due_day'
       }
     });
     pushAction(actions, {
       reason_code: 'DEBT_SCHEDULE_MISSING',
-      label: 'Add remaining debt due schedules',
+      label: 'Add due schedules for active debts',
       module: 'debts',
       href: '/debts.html',
       priority: 2
@@ -974,86 +767,278 @@ function evaluateMissingTruth(reasons, actions, accounts, bills, debts) {
   }
 }
 
-function latestReconByAccount(rows) {
-  const sorted = (rows || []).slice().sort((a, b) => {
-    return text(b.declared_at).localeCompare(text(a.declared_at));
+function computeSafetyStatus(drivers) {
+  if (drivers.some(driver => driver.severity === 'critical')) return 'critical';
+  if (drivers.some(driver => driver.severity === 'unsafe')) return 'unsafe';
+  if (drivers.some(driver => driver.severity === 'watch')) return 'watch';
+  return 'safe';
+}
+
+function computeTopAction(status, drivers, actions) {
+  if (!actions.length) {
+    if (status === 'safe') return 'No immediate action required. Keep the forecast and reconciliation current.';
+    return 'Open Forecast and review the top safety driver.';
+  }
+
+  const first = actions.slice().sort((a, b) => (a.priority || 9) - (b.priority || 9))[0];
+  return first.label;
+}
+
+function computeNextRiskDate(drivers) {
+  const dates = drivers
+    .map(driver => driver.next_risk_date)
+    .filter(Boolean)
+    .sort();
+
+  return dates.length ? dates[0] : null;
+}
+
+function computeNoActionOutcome(status, drivers, forecast) {
+  const first = drivers[0] || null;
+
+  if (status === 'critical') {
+    return first
+      ? `If no action is taken, ${first.title.toLowerCase()} remains the immediate risk.`
+      : 'If no action is taken, the critical cash risk remains unresolved.';
+  }
+
+  if (status === 'unsafe') {
+    return first
+      ? `If no action is taken, ${first.title.toLowerCase()} can affect cash safety before the next stable point.`
+      : 'If no action is taken, the unsafe condition remains active.';
+  }
+
+  if (status === 'watch') {
+    return first
+      ? `If no action is taken, ${first.title.toLowerCase()} may become unsafe if cash movement worsens.`
+      : 'If no action is taken, watch items should still be reviewed before they become urgent.';
+  }
+
+  const summary = forecast && forecast.cash_projection_summary ? forecast.cash_projection_summary : null;
+  if (summary && summary.lowest_projected_balance != null) {
+    return `If no action is taken, the conservative 30-day projection still stays above the watch threshold. Lowest projected balance is ${money(summary.lowest_projected_balance)}.`;
+  }
+
+  return 'If no action is taken, no immediate safety break is detected from available data.';
+}
+
+function buildHeadline(status, drivers, position) {
+  if (status === 'safe') {
+    return `Safe right now. Liquid cash is ${money(position.total_liquid)} and no urgent 30-day risk was detected.`;
+  }
+
+  const first = drivers[0];
+  if (!first) return 'Safety status computed.';
+
+  if (status === 'critical') return `Critical: ${first.title}.`;
+  if (status === 'unsafe') return `Unsafe: ${first.title}.`;
+  return `Watch: ${first.title}.`;
+}
+
+function computeConfidence(forecastRes, truth, accountsRes, txnsRes, billsRes, debtsRes, reconRes) {
+  const blockers = [];
+
+  if (!forecastRes.ok) blockers.push('forecast_unavailable');
+  if (!accountsRes.ok) blockers.push('accounts_unavailable');
+  if (!txnsRes.ok) blockers.push('transactions_unavailable');
+  if (!billsRes.ok) blockers.push('bills_unavailable');
+  if (!debtsRes.ok) blockers.push('debts_unavailable');
+  if (!reconRes.ok) blockers.push('reconciliation_unavailable');
+  if (truth.drifted_count > 0) blockers.push('reconciliation_drift');
+  if (truth.undeclared_count > 0) blockers.push('undeclared_accounts');
+  if (truth.stale_count > 0) blockers.push('stale_declarations');
+
+  let level = 'high';
+  if (blockers.includes('forecast_unavailable') || blockers.includes('accounts_unavailable') || blockers.includes('transactions_unavailable') || blockers.includes('reconciliation_drift')) {
+    level = 'low';
+  } else if (blockers.length) {
+    level = 'medium';
+  }
+
+  return {
+    level,
+    blockers,
+    reconciliation: truth,
+    reason: blockers.length
+      ? `Confidence reduced by: ${blockers.join(', ')}.`
+      : 'Forecast, ledger reads, and reconciliation checks are available.'
+  };
+}
+
+function healthRow(name, res) {
+  return {
+    source: name,
+    ok: !!res.ok,
+    row_count: res.rows ? res.rows.length : 0,
+    error: res.error || null
+  };
+}
+
+function activeAccounts(rows) {
+  return (rows || []).filter(row => {
+    const status = text(row.status || 'active').toLowerCase();
+    return !text(row.deleted_at) && !text(row.archived_at) && (!status || status === 'active');
   });
+}
+
+function activeTransactions(rows) {
+  return (rows || []).filter(row => !isReversalRow(row));
+}
+
+function visibleBills(rows) {
+  return (rows || []).filter(row => {
+    const status = text(row.status || 'active').toLowerCase();
+    return !text(row.deleted_at) && status !== 'deleted' && status !== 'archived';
+  });
+}
+
+function activeDebts(rows) {
+  return (rows || []).filter(row => {
+    const status = text(row.status || 'active').toLowerCase();
+    return !status || status === 'active';
+  });
+}
+
+function isReversalRow(row) {
+  if (!row) return false;
+  if (row.reversed_by || row.reversed_at) return true;
+
+  const notes = text(row.notes).toUpperCase();
+  return notes.includes('[REVERSED BY ') || notes.includes('[REVERSAL OF ');
+}
+
+function computeAccountBalances(accounts, transactions) {
+  const balances = {};
+  const ids = new Set();
+
+  for (const account of accounts) {
+    balances[account.id] = number(account.opening_balance);
+    ids.add(account.id);
+  }
+
+  for (const txn of transactions) {
+    const amount = number(txn.amount);
+    const fee = number(txn.fee_amount);
+    const pra = number(txn.pra_amount);
+    const accountId = text(txn.account_id);
+    const toAccountId = text(txn.transfer_to_account_id);
+    const type = text(txn.type).toLowerCase();
+
+    if (type === 'transfer' || type === 'cc_payment') {
+      if (accountId && ids.has(accountId)) balances[accountId] -= amount + fee + pra;
+      if (toAccountId && ids.has(toAccountId)) balances[toAccountId] += amount;
+      continue;
+    }
+
+    if (!accountId || !ids.has(accountId)) continue;
+
+    if (TYPE_PLUS.has(type)) balances[accountId] += amount;
+    else if (TYPE_MINUS.has(type)) balances[accountId] -= amount + fee + pra;
+  }
 
   const out = {};
+  for (const id of Object.keys(balances)) out[id] = round2(balances[id]);
+  return out;
+}
+
+function computeCurrentPosition(accounts, balances) {
+  let totalLiquid = 0;
+  let ccOutstanding = 0;
+
+  for (const account of accounts) {
+    const bal = balances[account.id] || 0;
+    const kind = text(account.kind || account.type).toLowerCase();
+
+    if (isCreditCardKind(kind)) ccOutstanding += Math.max(0, Math.abs(bal));
+    else if (kind !== 'liability') totalLiquid += bal;
+  }
+
+  return {
+    total_liquid: round2(totalLiquid),
+    cc_outstanding: round2(ccOutstanding),
+    net_cash_after_cc: round2(totalLiquid - ccOutstanding)
+  };
+}
+
+function computeReconciliationTruth(accounts, balances, rows, transactions) {
+  const latest = latestReconByAccount(rows);
+  const latestTxn = latestTxnDateByAccount(accounts, transactions);
+
+  let matched = 0;
+  let stale = 0;
+  let drifted = 0;
+  let undeclared = 0;
+
+  for (const account of accounts) {
+    const declaration = latest[account.id] || null;
+    const appBalance = balances[account.id] || 0;
+    const declared = declaration ? number(declaration.declared_balance) : null;
+    const drift = declaration ? round2(declared - appBalance) : null;
+    const latestTransactionDate = latestTxn[account.id] || null;
+    const declaredDate = declaration ? normalizeDate(declaration.declared_at) : null;
+
+    if (!declaration) undeclared++;
+    else if (latestTransactionDate && declaredDate && latestTransactionDate > declaredDate) stale++;
+    else if (Math.abs(number(drift)) >= RECON_DRIFT_THRESHOLD) drifted++;
+    else matched++;
+  }
+
+  return {
+    matched_count: matched,
+    stale_count: stale,
+    drifted_count: drifted,
+    undeclared_count: undeclared
+  };
+}
+
+function latestReconByAccount(rows) {
+  const sorted = (rows || []).slice().sort((a, b) => text(b.declared_at).localeCompare(text(a.declared_at)));
+  const out = {};
+
   for (const row of sorted) {
     const accountId = text(row.account_id);
-    if (!accountId) continue;
-    if (!out[accountId]) out[accountId] = row;
+    if (accountId && !out[accountId]) out[accountId] = row;
   }
+
+  return out;
+}
+
+function latestTxnDateByAccount(accounts, transactions) {
+  const ids = new Set(accounts.map(account => account.id));
+  const out = {};
+
+  for (const account of accounts) out[account.id] = null;
+
+  for (const txn of transactions) {
+    const date = normalizeDate(txn.date);
+    if (!date) continue;
+
+    const accountId = text(txn.account_id);
+    const toAccountId = text(txn.transfer_to_account_id);
+
+    if (accountId && ids.has(accountId) && (!out[accountId] || date > out[accountId])) out[accountId] = date;
+    if (toAccountId && ids.has(toAccountId) && (!out[toAccountId] || date > out[toAccountId])) out[toAccountId] = date;
+  }
+
   return out;
 }
 
 function billDueDate(bill, now) {
   if (bill.due_date) return parseDate(bill.due_date);
-  return dayOfMonthDate(bill.due_day, now);
+
+  const day = normalizeDueDay(bill.due_day);
+  if (day == null) return null;
+
+  return nextDayOfMonth(day, now);
 }
 
-function dayOfMonthDate(dayRaw, now) {
-  const day = Number(dayRaw);
-  if (!Number.isFinite(day) || day < 1 || day > 31) return null;
+function debtDueDate(debt, now) {
+  if (debt.due_date) return parseDate(debt.due_date);
 
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth();
-  const today = startOfDay(now);
-  let due = safeUtcDate(y, m, day);
+  const day = normalizeDueDay(debt.due_day);
+  if (day == null) return null;
 
-  if (due < today) {
-    due = safeUtcDate(y, m + 1, day);
-  }
-
-  return due;
-}
-
-function latestDayOfMonth(day, now) {
-  const today = startOfDay(now);
-  let candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth(), day);
-
-  if (candidate > today) {
-    candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth() - 1, day);
-  }
-
-  return candidate;
-}
-
-function nextDayOfMonth(day, now) {
-  const today = startOfDay(now);
-  let candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth(), day);
-
-  if (candidate <= today) {
-    candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
-  }
-
-  return candidate;
-}
-
-function nextDueFromDay(day, lastPaidDate, now) {
-  const today = startOfDay(now);
-  let candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth(), day);
-
-  if (lastPaidDate && lastPaidDate.slice(0, 7) === today.toISOString().slice(0, 7)) {
-    candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
-  } else if (candidate < today) {
-    candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
-  }
-
-  return candidate;
-}
-
-function safeUtcDate(year, monthIndex, day) {
-  const max = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-  const safeDay = Math.min(day, max);
-  return new Date(Date.UTC(year, monthIndex, safeDay));
-}
-
-function addDays(date, days) {
-  const out = new Date(date.getTime());
-  out.setUTCDate(out.getUTCDate() + days);
-  return out;
+  return nextDayOfMonth(day, now);
 }
 
 function billPaidThisCycle(bill, dueDate) {
@@ -1066,14 +1051,43 @@ function billPaidThisCycle(bill, dueDate) {
   );
 }
 
-function pushReason(reasons, reason) {
-  reasons.push({
-    code: reason.code,
-    severity: reason.severity || 'watch',
-    title: reason.title,
-    detail: reason.detail,
-    evidence: reason.evidence || {},
-    next_risk_date: reason.next_risk_date || null
+function nextDayOfMonth(day, now) {
+  const today = startOfDay(now);
+  let candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth(), day);
+
+  if (candidate < today) candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
+  return candidate;
+}
+
+function safeUtcDate(year, monthIndex, day) {
+  const max = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, monthIndex, Math.min(day, max)));
+}
+
+function remainingDebtAmount(debt) {
+  return Math.max(0, number(debt.original_amount) - number(debt.paid_amount));
+}
+
+function normalizeDebtKind(kind) {
+  const val = text(kind).toLowerCase();
+  if (['owed', 'owed_me', 'receivable', 'to_me'].includes(val)) return 'owed';
+  return 'owe';
+}
+
+function isCreditCardKind(kind) {
+  return kind === 'cc' || kind === 'credit' || kind === 'credit_card';
+}
+
+function pushDriver(drivers, driver) {
+  drivers.push({
+    code: driver.code,
+    severity: driver.severity || 'watch',
+    title: driver.title,
+    detail: driver.detail,
+    source: driver.source || 'computed',
+    confidence: driver.confidence || 'medium',
+    evidence: driver.evidence || {},
+    next_risk_date: driver.next_risk_date || null
   });
 }
 
@@ -1087,21 +1101,21 @@ function pushAction(actions, action) {
   });
 }
 
-function dedupeReasons(reasons) {
+function dedupeDrivers(drivers) {
   const seen = new Set();
   const out = [];
 
-  for (const reason of reasons) {
+  for (const driver of drivers) {
     const key = [
-      reason.code,
-      reason.severity,
-      reason.title,
-      reason.next_risk_date || ''
+      driver.code,
+      driver.severity,
+      driver.title,
+      driver.next_risk_date || ''
     ].join('|');
 
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push(reason);
+    out.push(driver);
   }
 
   return out.sort((a, b) => severityRank(a.severity) - severityRank(b.severity));
@@ -1121,74 +1135,17 @@ function dedupeActions(actions) {
   return out.sort((a, b) => (a.priority || 9) - (b.priority || 9));
 }
 
-function computeScore(reasons) {
-  let score = 100;
-
-  for (const reason of reasons) {
-    if (reason.severity === 'unsafe') score -= 25;
-    else if (reason.severity === 'watch') score -= 10;
-    else score -= 5;
-  }
-
-  return Math.max(0, Math.min(100, score));
-}
-
-function computeStatus(score, reasons) {
-  if (reasons.some(reason => reason.severity === 'unsafe')) return 'unsafe';
-  if (score < 80 || reasons.some(reason => reason.severity === 'watch')) return 'watch';
-  return 'safe';
-}
-
-function computeNextRiskDate(reasons) {
-  const dates = reasons
-    .map(reason => reason.next_risk_date)
-    .filter(Boolean)
-    .sort();
-
-  return dates.length ? dates[0] : null;
-}
-
-function buildHeadline(status, reasons, summary) {
-  if (status === 'safe') {
-    return `Safe right now. Liquid cash is ${money(summary.total_liquid)} and no urgent risk was detected.`;
-  }
-
-  const firstUnsafe = reasons.find(reason => reason.severity === 'unsafe');
-  if (firstUnsafe) {
-    return `Unsafe: ${firstUnsafe.title}.`;
-  }
-
-  const firstWatch = reasons.find(reason => reason.severity === 'watch');
-  if (firstWatch) {
-    return `Watch: ${firstWatch.title}.`;
-  }
-
-  return 'Safety status computed.';
-}
-
 function severityRank(severity) {
+  if (severity === 'critical') return 0;
   if (severity === 'unsafe') return 1;
   if (severity === 'watch') return 2;
   return 3;
 }
 
-function remainingDebtAmount(debt) {
-  return Math.max(0, number(debt.original_amount) - number(debt.paid_amount));
-}
-
-function normalizeDebtKind(kind) {
-  const val = text(kind).toLowerCase();
-  if (['owed', 'owed_me', 'receivable', 'to_me'].includes(val)) return 'owed';
-  return 'owe';
-}
-
-function isCreditCardKind(kind) {
-  return kind === 'cc' || kind === 'credit' || kind === 'credit_card';
-}
-
 function parseDate(value) {
   const raw = normalizeDate(value);
   if (!raw) return null;
+
   const d = new Date(raw + 'T00:00:00.000Z');
   if (Number.isNaN(d.getTime())) return null;
   return d;
@@ -1202,6 +1159,7 @@ function normalizeDate(value) {
 
 function normalizeDueDay(value) {
   if (value === undefined || value === null || value === '') return null;
+
   const day = Number(value);
   if (!Number.isFinite(day) || day < 1 || day > 31) return null;
   return Math.floor(day);
@@ -1216,36 +1174,14 @@ function daysBetween(from, to) {
   return Math.round(ms / 86400000);
 }
 
-function dateOnly(date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function validDay(value) {
+function nullableNumber(value) {
   const n = Number(value);
-  if (!Number.isFinite(n)) return null;
-  if (n < 1 || n > 31) return null;
-  return Math.floor(n);
-}
-
-function positiveInt(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  return Math.floor(n);
-}
-
-function firstPositive(values) {
-  for (const value of values) {
-    const n = Number(value);
-    if (Number.isFinite(n) && n > 0) return n;
-  }
-  return null;
+  return Number.isFinite(n) ? n : null;
 }
 
 function nullableRound2(value) {
-  if (value === undefined || value === null || value === '') return null;
-  const n = Number(value);
-  if (!Number.isFinite(n)) return null;
-  return round2(n);
+  const n = nullableNumber(value);
+  return n == null ? null : round2(n);
 }
 
 function number(value) {
@@ -1257,8 +1193,12 @@ function round2(value) {
   return Math.round(number(value) * 100) / 100;
 }
 
-function round1(value) {
-  return Math.round(number(value) * 10) / 10;
+function round4(value) {
+  return Math.round(number(value) * 10000) / 10000;
+}
+
+function percent(value) {
+  return `${Math.round(number(value) * 1000) / 10}%`;
 }
 
 function text(value) {
@@ -1267,6 +1207,10 @@ function text(value) {
 
 function safeName(value, fallback) {
   return text(value) || fallback;
+}
+
+function dateOnly(date) {
+  return date.toISOString().slice(0, 10);
 }
 
 function money(value) {
