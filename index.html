@@ -531,7 +531,7 @@
       </div>
       <div class="top-actions">
         <a class="top-btn primary" href="/forecast.html">Finance</a>
-        <button class="top-btn" type="button" data-domain-jump="salah">Salah</button>
+        <a class="top-btn" href="/salah.html">Salah</a>
         <button class="top-btn" type="button" data-domain-jump="habits">Habits</button>
         <button class="top-btn" type="button" data-domain-jump="mission">Mission</button>
         <button class="top-btn" type="button" data-domain-jump="ai">AI</button>
@@ -539,7 +539,7 @@
     </nav>
 
     <section class="hero">
-      <div class="kicker">Life OS Shell v0.1</div>
+      <div class="kicker">Life OS Shell v0.1.1</div>
       <h1 class="heading">One command centre. Separate life domains.</h1>
       <p class="copy">
         Finance is now one cockpit inside a wider system. Salah, Habits, Mission, and AI stay isolated from Finance, but the Main Command Centre can read high-level signals and show what needs attention without mixing ledgers, prayers, habits, or mission work.
@@ -552,7 +552,7 @@
         </div>
         <div class="hero-chip">
           <div class="chip-label">Salah</div>
-          <div class="chip-value">Not exported yet</div>
+          <div class="chip-value">Shell live</div>
         </div>
         <div class="hero-chip">
           <div class="chip-label">Habits</div>
@@ -576,7 +576,7 @@
       </div>
       <div class="status-card">
         <div class="label">Salah</div>
-        <div class="value blue">Separate</div>
+        <div class="value blue">Shell Live</div>
       </div>
       <div class="status-card">
         <div class="label">Habits</div>
@@ -616,10 +616,10 @@
             <div class="domain-icon">S</div>
             <div class="domain-title">Salah</div>
             <div class="domain-copy">Prayer cockpit only: today status, prayer timeline, missed recovery, streaks, weekly reflection. No finance contamination.</div>
-            <div class="domain-status blue">Export queued</div>
+            <div class="domain-status blue">Shell live</div>
           </div>
           <div class="domain-actions">
-            <button class="mini-link" type="button" data-show-plan="salah">View plan</button>
+            <a class="mini-link" href="/salah.html">Open Salah</a>
           </div>
         </article>
 
@@ -692,8 +692,8 @@
           <div class="timeline-row">
             <div class="timeline-time">Salah</div>
             <div>
-              <div class="timeline-title">Awaiting Salah export</div>
-              <div class="timeline-copy">Next layer will add live prayer data without showing finance inside Salah.</div>
+              <div class="timeline-title">Salah shell live</div>
+              <div class="timeline-copy">Salah has its own cockpit page now. Next layer will export real prayer data without showing finance inside Salah.</div>
             </div>
           </div>
           <div class="timeline-row">
@@ -722,12 +722,12 @@
         </div>
       </div>
       <div id="planPanel" class="empty">
-        Select Salah, Habits, Mission, or AI to view the next build layer.
+        Open Salah directly, or select Habits, Mission, or AI to view the next build layer.
       </div>
     </section>
 
     <div class="footer-note">
-      v0.1.0 - Life OS Shell - root Command Centre - Finance isolated - Salah/Habits/Mission/AI separated - no schema/ledger/formula changes
+      v0.1.1 - Life OS Shell - Salah linked - Finance isolated - Salah/Habits/Mission/AI separated - no schema/ledger/formula changes
     </div>
   </main>
 
@@ -736,16 +736,6 @@
     const $ = id => document.getElementById(id);
 
     const PLANS = {
-      salah: {
-        title: 'Salah Cockpit',
-        status: 'Next recommended export',
-        points: [
-          'Create salah_logs / salah_daily_status / salah_recovery tables.',
-          'Build /api/salah/today and /api/salah/insights.',
-          'Create salah.html with today timeline, missed recovery, streaks, and reflection.',
-          'No finance cards, no ledger data, no money widgets inside Salah.'
-        ]
-      },
       habits: {
         title: 'Habits Cockpit',
         status: 'After Salah foundation',
@@ -785,14 +775,6 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-    }
-
-    function money(value) {
-      if (value == null || value === '') return 'N/A';
-      const n = Number(value);
-      if (!Number.isFinite(n)) return 'N/A';
-      const sign = n < 0 ? '-' : '';
-      return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
     }
 
     function num(value) {
