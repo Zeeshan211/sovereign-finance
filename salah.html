@@ -8,10 +8,25 @@
   <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
 
   <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
     :root {
       --bg: #f7f2e8;
-      --paper: rgba(255,255,255,.82);
-      --paper-strong: rgba(255,255,255,.96);
+      --paper: rgba(255,255,255,.84);
+      --paper-strong: rgba(255,255,255,.98);
       --ink: #17201c;
       --muted: #6f766f;
       --line: rgba(23,32,28,.10);
@@ -35,8 +50,6 @@
       --shadow-soft: 0 10px 30px rgba(23,32,28,.08);
     }
 
-    * { box-sizing: border-box; }
-
     body {
       margin: 0;
       min-height: 100vh;
@@ -47,16 +60,24 @@
         radial-gradient(circle at 50% 96%, rgba(214,158,46,.16), transparent 38rem),
         linear-gradient(180deg, #fbf7ee 0%, var(--bg) 48%, #efe7d9 100%);
       font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: block !important;
     }
 
-    header { display: none; }
+    header {
+      display: none !important;
+    }
 
-    button, a { -webkit-tap-highlight-color: transparent; }
+    button,
+    a {
+      -webkit-tap-highlight-color: transparent;
+    }
 
     .page {
-      width: min(1760px, calc(100vw - clamp(20px, 4vw, 72px)));
+      width: 100%;
+      max-width: 1480px;
       margin: 0 auto;
-      padding: clamp(14px, 2vw, 22px) 0 34px;
+      padding: clamp(14px, 2vw, 22px) clamp(12px, 2vw, 24px) 34px;
+      overflow-x: hidden;
     }
 
     .nav {
@@ -65,6 +86,8 @@
       justify-content: space-between;
       gap: 14px;
       margin-bottom: 18px;
+      width: 100%;
+      min-width: 0;
     }
 
     .brand {
@@ -88,12 +111,18 @@
       flex: 0 0 auto;
     }
 
+    .brand-text {
+      min-width: 0;
+    }
+
     .brand-title {
       margin: 0;
       font-size: 17px;
       font-weight: 950;
       letter-spacing: -.03em;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .brand-sub {
@@ -101,6 +130,9 @@
       color: var(--muted);
       font-size: 12px;
       font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .nav-actions {
@@ -109,6 +141,7 @@
       justify-content: flex-end;
       flex-wrap: wrap;
       gap: 8px;
+      min-width: 0;
     }
 
     .btn {
@@ -127,6 +160,7 @@
       justify-content: center;
       transition: transform .16s ease, background .18s ease, border-color .18s ease;
       backdrop-filter: blur(18px);
+      white-space: nowrap;
     }
 
     .btn:hover {
@@ -142,26 +176,35 @@
     }
 
     .hero {
-      border-radius: clamp(26px, 3vw, 42px);
+      width: 100%;
+      min-width: 0;
+      border-radius: clamp(24px, 3vw, 38px);
       background:
-        linear-gradient(135deg, rgba(255,255,255,.90), rgba(255,255,255,.62)),
+        linear-gradient(135deg, rgba(255,255,255,.92), rgba(255,255,255,.64)),
         radial-gradient(circle at 86% 18%, rgba(214,158,46,.20), transparent 26rem);
       border: 1px solid rgba(255,255,255,.72);
       box-shadow: var(--shadow);
-      padding: clamp(24px, 4.5vw, 56px);
+      padding: clamp(22px, 4vw, 50px);
       margin-bottom: 16px;
       overflow: hidden;
     }
 
     .hero-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(300px, 470px);
-      gap: clamp(20px, 3vw, 44px);
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+      gap: clamp(18px, 3vw, 36px);
       align-items: center;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .hero-main {
+      min-width: 0;
     }
 
     .kicker {
       width: fit-content;
+      max-width: 100%;
       border-radius: 999px;
       padding: 7px 11px;
       background: var(--emerald-soft);
@@ -171,15 +214,19 @@
       letter-spacing: .08em;
       text-transform: uppercase;
       margin-bottom: 16px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     h1 {
       margin: 0;
-      max-width: 900px;
-      font-size: clamp(44px, 6.6vw, 108px);
+      max-width: 100%;
+      font-size: clamp(42px, 6vw, 88px);
       line-height: .9;
-      letter-spacing: -.078em;
+      letter-spacing: -.07em;
       font-weight: 970;
+      overflow-wrap: anywhere;
     }
 
     .hero-copy {
@@ -211,12 +258,13 @@
     }
 
     .focus {
-      border-radius: 30px;
+      width: 100%;
+      min-width: 0;
+      border-radius: 28px;
       background: linear-gradient(180deg, rgba(8,127,91,.10), rgba(255,255,255,.68));
       border: 1px solid var(--line);
       padding: 20px;
       box-shadow: var(--shadow-soft);
-      min-width: 0;
     }
 
     .focus-label {
@@ -229,11 +277,12 @@
 
     .focus-title {
       margin-top: 8px;
-      font-size: clamp(30px, 3vw, 46px);
+      font-size: clamp(30px, 3vw, 44px);
       line-height: 1;
       font-weight: 950;
       letter-spacing: -.055em;
       color: var(--emerald);
+      overflow-wrap: anywhere;
     }
 
     .focus-copy {
@@ -246,23 +295,29 @@
 
     .metrics {
       display: grid;
-      grid-template-columns: repeat(4, minmax(180px, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
       margin-bottom: 16px;
+      width: 100%;
+      min-width: 0;
     }
 
-    .metric, .panel, .prayer, .chart-card {
+    .metric,
+    .panel,
+    .prayer,
+    .chart-card {
       background: var(--paper);
       border: 1px solid rgba(255,255,255,.72);
       box-shadow: var(--shadow-soft);
       backdrop-filter: blur(18px);
+      min-width: 0;
     }
 
     .metric {
-      border-radius: 28px;
+      border-radius: 26px;
       padding: 18px;
-      min-width: 0;
       transition: transform .18s ease, background .18s ease;
+      overflow: hidden;
     }
 
     .metric:hover {
@@ -280,7 +335,7 @@
 
     .value {
       margin-top: 8px;
-      font-size: clamp(24px, 2.4vw, 36px);
+      font-size: clamp(24px, 2.2vw, 34px);
       font-weight: 950;
       letter-spacing: -.045em;
       white-space: nowrap;
@@ -303,21 +358,26 @@
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
       gap: 18px;
       align-items: start;
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .stack {
       display: grid;
       gap: 16px;
       min-width: 0;
+      width: 100%;
     }
 
     .panel {
-      border-radius: 34px;
+      border-radius: 30px;
       padding: 18px;
-      min-width: 0;
+      width: 100%;
+      overflow: hidden;
     }
 
     .panel-head {
@@ -326,6 +386,7 @@
       justify-content: space-between;
       gap: 12px;
       margin-bottom: 16px;
+      min-width: 0;
     }
 
     .panel-title {
@@ -344,19 +405,21 @@
 
     .prayer-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 12px;
+      width: 100%;
+      min-width: 0;
     }
 
     .prayer {
       position: relative;
       overflow: hidden;
-      border-radius: 28px;
+      border-radius: 26px;
       background: linear-gradient(180deg, rgba(255,255,255,.90), rgba(255,255,255,.62));
       border: 1px solid var(--line);
       padding: 16px;
-      min-width: 0;
       transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+      width: 100%;
     }
 
     .prayer:hover {
@@ -397,12 +460,14 @@
       align-items: flex-start;
       justify-content: space-between;
       gap: 10px;
+      min-width: 0;
     }
 
     .prayer-name {
       font-size: 19px;
       font-weight: 930;
       letter-spacing: -.03em;
+      overflow-wrap: anywhere;
     }
 
     .prayer-time {
@@ -446,13 +511,16 @@
       font-size: 11px;
       line-height: 1.35;
       font-weight: 620;
+      overflow-wrap: anywhere;
     }
 
     .actions {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
       gap: 8px;
       margin-top: 14px;
+      width: 100%;
+      min-width: 0;
     }
 
     .logbtn {
@@ -465,6 +533,10 @@
       font-weight: 850;
       cursor: pointer;
       transition: transform .15s ease, background .18s ease, border-color .18s ease;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .logbtn:hover {
@@ -483,21 +555,23 @@
     .logbtn.qaza { color: var(--rose); }
 
     .chart-card {
-      border-radius: 26px;
+      border-radius: 24px;
       padding: 16px;
-      min-width: 0;
+      width: 100%;
+      overflow: hidden;
     }
 
     .ring-wrap {
       display: grid;
-      grid-template-columns: 144px 1fr;
+      grid-template-columns: 132px minmax(0, 1fr);
       gap: 14px;
       align-items: center;
+      min-width: 0;
     }
 
     .ring {
-      width: 144px;
-      height: 144px;
+      width: 132px;
+      height: 132px;
       border-radius: 50%;
       display: grid;
       place-items: center;
@@ -505,17 +579,18 @@
         radial-gradient(circle at center, #fffaf1 0 54%, transparent 55%),
         conic-gradient(var(--emerald) calc(var(--pct) * 1%), rgba(23,32,28,.10) 0);
       box-shadow: inset 0 0 30px rgba(255,255,255,.65), var(--shadow-soft);
+      flex: 0 0 auto;
     }
 
     .ring span {
       color: var(--emerald);
-      font-size: 28px;
+      font-size: 26px;
       font-weight: 940;
       letter-spacing: -.05em;
     }
 
     .pie {
-      width: min(168px, 60vw);
+      width: min(160px, 100%);
       aspect-ratio: 1;
       border-radius: 50%;
       margin: 0 auto;
@@ -536,6 +611,7 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
       margin-top: 14px;
+      min-width: 0;
     }
 
     .legend-item {
@@ -545,6 +621,7 @@
       color: var(--muted);
       font-size: 11px;
       font-weight: 760;
+      min-width: 0;
     }
 
     .dot {
@@ -558,16 +635,19 @@
     .bars {
       display: grid;
       gap: 9px;
+      width: 100%;
+      min-width: 0;
     }
 
     .bar-row {
       display: grid;
-      grid-template-columns: 88px 1fr 42px;
+      grid-template-columns: 82px minmax(0, 1fr) 38px;
       gap: 8px;
       align-items: center;
       color: var(--muted);
       font-size: 11px;
       font-weight: 760;
+      min-width: 0;
     }
 
     .bar {
@@ -575,6 +655,7 @@
       border-radius: 999px;
       background: rgba(23,32,28,.08);
       overflow: hidden;
+      min-width: 0;
     }
 
     .bar i {
@@ -588,6 +669,8 @@
     .list {
       display: grid;
       gap: 9px;
+      width: 100%;
+      min-width: 0;
     }
 
     .row {
@@ -599,11 +682,13 @@
       grid-template-columns: minmax(0, 1fr) auto;
       gap: 8px;
       align-items: center;
+      min-width: 0;
     }
 
     .row-title {
       font-size: 13px;
       font-weight: 850;
+      overflow-wrap: anywhere;
     }
 
     .row-copy {
@@ -629,6 +714,7 @@
         radial-gradient(circle at 14% 12%, rgba(8,127,91,.10), transparent 18rem),
         rgba(255,255,255,.66);
       padding: 16px;
+      min-width: 0;
     }
 
     .reflection-title {
@@ -655,6 +741,7 @@
       text-align: center;
       font-weight: 650;
       line-height: 1.45;
+      min-width: 0;
     }
 
     .toast {
@@ -662,7 +749,7 @@
       left: 50%;
       bottom: 18px;
       transform: translateX(-50%) translateY(120px);
-      width: min(460px, calc(100% - 28px));
+      width: min(460px, calc(100vw - 28px));
       border: 1px solid var(--line);
       background: rgba(23,32,28,.92);
       color: #fff;
@@ -688,18 +775,7 @@
       margin: 18px 0 4px;
     }
 
-    @media (min-width: 1500px) {
-      .layout {
-        grid-template-columns: minmax(0, 1fr) 520px;
-        gap: 22px;
-      }
-
-      .prayer-grid {
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      }
-    }
-
-    @media (max-width: 1180px) {
+    @media screen and (max-width: 1180px) {
       .layout,
       .hero-grid {
         grid-template-columns: 1fr;
@@ -716,9 +792,10 @@
       }
     }
 
-    @media (max-width: 700px) {
+    @media screen and (max-width: 700px) {
       .page {
-        width: min(100% - 20px, 1760px);
+        padding-left: 10px;
+        padding-right: 10px;
       }
 
       .nav {
@@ -728,6 +805,7 @@
 
       .nav-actions {
         justify-content: flex-start;
+        width: 100%;
       }
 
       .metrics,
@@ -740,7 +818,7 @@
       }
 
       h1 {
-        letter-spacing: -.06em;
+        letter-spacing: -.055em;
       }
     }
   </style>
@@ -751,7 +829,7 @@
     <nav class="nav">
       <div class="brand">
         <div class="mark">🕌</div>
-        <div>
+        <div class="brand-text">
           <p class="brand-title">Salah Cockpit</p>
           <p class="brand-sub">Prayer · remembrance · return</p>
         </div>
@@ -765,7 +843,7 @@
 
     <section class="hero">
       <div class="hero-grid">
-        <div>
+        <div class="hero-main">
           <div class="kicker" id="badge">Reading Salah state</div>
           <h1>Come back to prayer.</h1>
           <p class="hero-copy" id="heroCopy">
@@ -913,7 +991,7 @@
     </section>
 
     <div class="footer">
-      Salah page v0.7.1 · Fully responsive cockpit · Live logging · D1 backed · Finance untouched
+      Salah page v0.8.0 · Overflow-safe responsive cockpit · Live logging · D1 backed · Finance untouched
     </div>
   </main>
 
