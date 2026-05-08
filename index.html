@@ -21,21 +21,20 @@
       --life-red: #dc2626;
       --life-blue: #2563eb;
       --life-violet: #7c3aed;
+      --life-teal: #0f766e;
       --life-radius: 28px;
     }
 
     body {
       background:
-        radial-gradient(circle at 8% 0%, rgba(34, 197, 94, 0.18), transparent 34rem),
-        radial-gradient(circle at 92% 8%, rgba(59, 130, 246, 0.18), transparent 36rem),
-        radial-gradient(circle at 52% 92%, rgba(168, 85, 247, 0.12), transparent 34rem),
+        radial-gradient(circle at 8% 0%, rgba(34,197,94,.18), transparent 34rem),
+        radial-gradient(circle at 92% 8%, rgba(59,130,246,.18), transparent 36rem),
+        radial-gradient(circle at 52% 92%, rgba(168,85,247,.12), transparent 34rem),
         var(--life-bg);
       color: var(--life-ink);
     }
 
-    header {
-      display: none;
-    }
+    header { display: none; }
 
     .life-wrap {
       max-width: 1360px;
@@ -106,7 +105,6 @@
       display: inline-flex;
       align-items: center;
       gap: 7px;
-      cursor: pointer;
     }
 
     .top-btn.primary {
@@ -248,6 +246,7 @@
     .neutral { color: var(--life-ink) !important; }
     .blue { color: var(--life-blue) !important; }
     .violet { color: var(--life-violet) !important; }
+    .teal { color: var(--life-teal) !important; }
 
     .main-grid {
       display: grid;
@@ -532,17 +531,17 @@
       <div class="top-actions">
         <a class="top-btn primary" href="/forecast.html">Finance</a>
         <a class="top-btn" href="/salah.html">Salah</a>
-        <button class="top-btn" type="button" data-domain-jump="habits">Habits</button>
-        <button class="top-btn" type="button" data-domain-jump="mission">Mission</button>
-        <button class="top-btn" type="button" data-domain-jump="ai">AI</button>
+        <a class="top-btn" href="/habits.html">Habits</a>
+        <a class="top-btn" href="/mission.html">Mission</a>
+        <a class="top-btn" href="/ai.html">AI</a>
       </div>
     </nav>
 
     <section class="hero">
-      <div class="kicker">Life OS Shell v0.1.1</div>
+      <div class="kicker">Life OS Shell v0.1.2</div>
       <h1 class="heading">One command centre. Separate life domains.</h1>
       <p class="copy">
-        Finance is now one cockpit inside a wider system. Salah, Habits, Mission, and AI stay isolated from Finance, but the Main Command Centre can read high-level signals and show what needs attention without mixing ledgers, prayers, habits, or mission work.
+        Finance is one cockpit inside a wider system. Salah, Habits, Mission, and AI stay isolated from Finance, but the Main Command Centre can route to each domain and show high-level signals without mixing ledgers, prayers, habits, mission work, or AI decisions.
       </p>
 
       <div class="hero-grid">
@@ -556,11 +555,11 @@
         </div>
         <div class="hero-chip">
           <div class="chip-label">Habits</div>
-          <div class="chip-value">Not exported yet</div>
+          <div class="chip-value">Shell live</div>
         </div>
         <div class="hero-chip">
           <div class="chip-label">AI Curator</div>
-          <div class="chip-value">Queued after domains</div>
+          <div class="chip-value">Shell live</div>
         </div>
       </div>
     </section>
@@ -580,11 +579,11 @@
       </div>
       <div class="status-card">
         <div class="label">Habits</div>
-        <div class="value warn">Queued</div>
+        <div class="value warn">Shell Live</div>
       </div>
       <div class="status-card">
         <div class="label">AI Decisions</div>
-        <div class="value violet">Planned</div>
+        <div class="value teal">Shell Live</div>
       </div>
     </section>
 
@@ -628,10 +627,10 @@
             <div class="domain-icon">H</div>
             <div class="domain-title">Habits</div>
             <div class="domain-copy">Daily execution cockpit: checklist, momentum, weak habits, recovery suggestions, workday/off-day pattern.</div>
-            <div class="domain-status warn">Export queued</div>
+            <div class="domain-status warn">Shell live</div>
           </div>
           <div class="domain-actions">
-            <button class="mini-link" type="button" data-show-plan="habits">View plan</button>
+            <a class="mini-link" href="/habits.html">Open Habits</a>
           </div>
         </article>
 
@@ -640,10 +639,10 @@
             <div class="domain-icon">M</div>
             <div class="domain-title">Mission</div>
             <div class="domain-copy">Direction cockpit: current priority, active project, milestone, blockers, weekly direction, roadmap.</div>
-            <div class="domain-status violet">Planned</div>
+            <div class="domain-status violet">Shell live</div>
           </div>
           <div class="domain-actions">
-            <button class="mini-link" type="button" data-show-plan="mission">View plan</button>
+            <a class="mini-link" href="/mission.html">Open Mission</a>
           </div>
         </article>
 
@@ -652,10 +651,10 @@
             <div class="domain-icon">AI</div>
             <div class="domain-title">AI Curator</div>
             <div class="domain-copy">Cross-domain brain: reads domain summaries, curates decisions, prepares Telegram relay. No direct mutation first.</div>
-            <div class="domain-status good">Architecture planned</div>
+            <div class="domain-status teal">Shell live</div>
           </div>
           <div class="domain-actions">
-            <button class="mini-link" type="button" data-show-plan="ai">View plan</button>
+            <a class="mini-link" href="/ai.html">Open AI</a>
           </div>
         </article>
       </div>
@@ -666,7 +665,7 @@
         <div class="panel-head">
           <div>
             <div class="panel-title">What Needs Action</div>
-            <div class="panel-sub">Finance live signals first. Other domains stay placeholder until exported.</div>
+            <div class="panel-sub">Finance live signals first. Other domains remain shell-only until export APIs exist.</div>
           </div>
         </div>
         <div id="actionList" class="action-list">
@@ -678,7 +677,7 @@
         <div class="panel-head">
           <div>
             <div class="panel-title">Today Timeline</div>
-            <div class="panel-sub">Cross-domain timeline shell. Salah/Habits become live after export.</div>
+            <div class="panel-sub">Cross-domain timeline shell. Domain data becomes live after export layers.</div>
           </div>
         </div>
         <div class="timeline">
@@ -693,21 +692,28 @@
             <div class="timeline-time">Salah</div>
             <div>
               <div class="timeline-title">Salah shell live</div>
-              <div class="timeline-copy">Salah has its own cockpit page now. Next layer will export real prayer data without showing finance inside Salah.</div>
+              <div class="timeline-copy">Salah has its own cockpit page. Next layer will export real prayer data without showing finance inside Salah.</div>
             </div>
           </div>
           <div class="timeline-row">
             <div class="timeline-time">Habits</div>
             <div>
-              <div class="timeline-title">Awaiting Habits export</div>
-              <div class="timeline-copy">Habits will get its own cockpit after Salah foundation.</div>
+              <div class="timeline-title">Habits shell live</div>
+              <div class="timeline-copy">Habits has its own cockpit page. Next layer will export real habit data without showing finance or Salah internals.</div>
+            </div>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-time">Mission</div>
+            <div>
+              <div class="timeline-title">Mission shell live</div>
+              <div class="timeline-copy">Mission has its own direction page. It will later read project and milestone status without exposing raw domain tables.</div>
             </div>
           </div>
           <div class="timeline-row">
             <div class="timeline-time">AI</div>
             <div>
-              <div class="timeline-title">Curator after domains</div>
-              <div class="timeline-copy">AI should read multiple live domains before Telegram relay is enabled.</div>
+              <div class="timeline-title">AI Curator shell live</div>
+              <div class="timeline-copy">AI should read multiple live domain summaries before Telegram relay is enabled.</div>
             </div>
           </div>
         </div>
@@ -717,56 +723,50 @@
     <section class="panel wide">
       <div class="panel-head">
         <div>
-          <div class="panel-title">Selected Domain Plan</div>
-          <div class="panel-sub">This is planning only. No fake live data is shown for domains not exported yet.</div>
+          <div class="panel-title">Next Build Queue</div>
+          <div class="panel-sub">All section shells are reachable. Next phase is real data export, starting with Salah.</div>
         </div>
       </div>
-      <div id="planPanel" class="empty">
-        Open Salah directly, or select Habits, Mission, or AI to view the next build layer.
+      <div class="action-list">
+        <article class="action-card">
+          <div>
+            <div class="action-title">Layer 2A: Salah D1 schema/export</div>
+            <div class="action-copy">salah_logs, salah_daily_status, salah_recovery, salah_insights. No finance contamination.</div>
+          </div>
+          <a class="action-link" href="/salah.html">Open Salah</a>
+        </article>
+        <article class="action-card">
+          <div>
+            <div class="action-title">Layer 3A: Habits D1 schema/export</div>
+            <div class="action-copy">habit_definitions, habit_logs, habit_daily_status, habit_insights. No fake completion data.</div>
+          </div>
+          <a class="action-link" href="/habits.html">Open Habits</a>
+        </article>
+        <article class="action-card">
+          <div>
+            <div class="action-title">Layer 4A: Mission status foundation</div>
+            <div class="action-copy">mission_projects, mission_milestones, mission_reviews, mission_priorities.</div>
+          </div>
+          <a class="action-link" href="/mission.html">Open Mission</a>
+        </article>
+        <article class="action-card">
+          <div>
+            <div class="action-title">Layer 5A: AI Curator</div>
+            <div class="action-copy">AI briefing and decision queue after Finance + Salah + Habits have live APIs.</div>
+          </div>
+          <a class="action-link" href="/ai.html">Open AI</a>
+        </article>
       </div>
     </section>
 
     <div class="footer-note">
-      v0.1.1 - Life OS Shell - Salah linked - Finance isolated - Salah/Habits/Mission/AI separated - no schema/ledger/formula changes
+      v0.1.2 - Life OS Shell - all section shells linked - Finance/Salah/Habits/Mission/AI separated - no schema/ledger/formula changes
     </div>
   </main>
 
   <script src="/js/theme.js?v=0.7.5"></script>
   <script>
     const $ = id => document.getElementById(id);
-
-    const PLANS = {
-      habits: {
-        title: 'Habits Cockpit',
-        status: 'After Salah foundation',
-        points: [
-          'Create habit_definitions / habit_logs / habit_daily_status tables.',
-          'Build /api/habits/today and /api/habits/insights.',
-          'Create habits.html with checklist, momentum, weak habits, recovery, workday/off-day pattern.',
-          'No bills, debts, balances, or finance noise inside Habits.'
-        ]
-      },
-      mission: {
-        title: 'Mission Cockpit',
-        status: 'Direction layer',
-        points: [
-          'Create mission_projects / mission_milestones / mission_reviews.',
-          'Build /api/mission/status.',
-          'Create mission.html with active priority, current project, milestone, blockers, roadmap.',
-          'Mission explains direction without exposing full private domain tables.'
-        ]
-      },
-      ai: {
-        title: 'AI Curator',
-        status: 'After at least Finance + Salah + Habits are live',
-        points: [
-          'Build /api/ai/briefing and /api/ai/decision-queue.',
-          'AI reads domain summaries, not raw unrestricted private tables.',
-          'Curates what matters, what changed, what needs action, and what can wait.',
-          'Telegram relay sends only approved curated messages.'
-        ]
-      }
-    };
 
     function esc(value) {
       return String(value == null ? '' : value)
@@ -775,11 +775,6 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-    }
-
-    function num(value) {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : 0;
     }
 
     function statusClass(value) {
@@ -884,37 +879,6 @@
       `).join('');
     }
 
-    function renderPlan(key) {
-      const plan = PLANS[key];
-      if (!plan) return;
-
-      $('planPanel').className = 'panel';
-      $('planPanel').innerHTML = `
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">${esc(plan.title)}</div>
-            <div class="panel-sub">${esc(plan.status)}</div>
-          </div>
-        </div>
-        <div class="action-list">
-          ${plan.points.map(point => `
-            <article class="action-card">
-              <div>
-                <div class="action-title">${esc(point)}</div>
-                <div class="action-copy">Queued layer. No fake live data displayed.</div>
-              </div>
-            </article>
-          `).join('')}
-        </div>
-      `;
-    }
-
-    function jumpDomain(key) {
-      const el = document.getElementById('domain-' + key);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (PLANS[key]) renderPlan(key);
-    }
-
     async function loadCommandCentre() {
       const [forecast, safety, insights, close] = await Promise.all([
         safeJSON('/api/forecast', {}),
@@ -925,14 +889,6 @@
 
       renderFinance(forecast, safety, insights, close);
     }
-
-    document.querySelectorAll('[data-show-plan]').forEach(btn => {
-      btn.addEventListener('click', () => renderPlan(btn.dataset.showPlan));
-    });
-
-    document.querySelectorAll('[data-domain-jump]').forEach(btn => {
-      btn.addEventListener('click', () => jumpDomain(btn.dataset.domainJump));
-    });
 
     loadCommandCentre().catch(err => {
       $('actionList').innerHTML = `
