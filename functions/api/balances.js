@@ -1,21 +1,20 @@
-// /functions/api/balances.js
-// v0.5.2 — Sheet reversal marker bridge for formula-layer active rows
+// v0.5.3  Debt/Receivable split correction for formula-layer truth
 //
-// SOVEREIGN FINANCE — FORMULA SPEC
+// SOVEREIGN FINANCE  FORMULA SPEC
 //
 // Canonical D1 transaction types:
-//   expense, income, transfer, cc_payment, cc_spend, borrow, repay, atm
+//   expense, income, transfer, cc_payment, cc_spend, borrow, repay, atm, salary, opening, debt_in, debt_out
 //
 // Sheet semantic mapping:
 //   Income   -> income
 //   Expense  -> expense
 //   Transfer -> transfer
-//   Debt In  -> borrow
-//   Debt Out -> repay
+//   Debt In  -> borrow / debt_in
+//   Debt Out -> repay / debt_out
 //
 // Account balance formula:
-//   Balance(A) = income(A) + borrow(A) + opening(A)
-//              - expense(A) - repay(A) - transfer(A)
+//   Balance(A) = income(A) + salary(A) + borrow(A) + debt_in(A) + opening(A)
+//              - expense(A) - repay(A) - debt_out(A) - cc_spend(A) - atm(A) - transfer(A)
 //
 // Active rows exclude:
 //   1. D1-native reversals using reversed_by / reversed_at
@@ -24,27 +23,42 @@
 //      [REVERSAL OF ...]
 //
 // Top metrics:
-//   Total Liquid = sum asset account balances, excluding credit card
-//   Net Worth    = Total Liquid - CC Outstanding
-//   True Burden  = Net Worth - Total Owed + Total Receivables
+//   Total Liquid      = sum asset account balances, excluding credit card
+//   Net Worth         = Total Liquid - CC Outstanding
+//   Payable Debt      = debts.kind='owe' active remaining amount
+//   Receivables       = debts.kind='owed' active remaining amount + legacy receivables table if present
+//   True Burden       = Net Worth - Payable Debt + Receivables
+//
+// v0.5.3 fix:
+//   - Active debts are split by kind.
+//   - kind='owe' counts as payable debt.
+//   - kind='owed' counts as receivable.
+//   - all_active_debt_remaining is exposed only as debug/diagnostic, never as debt burden.
 
-const VERSION = 'v0.5.2';
+const VERSION = 'v0.5.3';
 
 const TYPE_PLUS = new Set(['income', 'salary', 'debt_in', 'borrow', 'opening']);
 const TYPE_MINUS = new Set(['expense', 'cc_spend', 'atm', 'debt_out', 'repay', 'transfer']);
 
 function isReversalRow(t) {
   if (!t) return false;
-
   if (t.reversed_by || t.reversed_at) return true;
 
   const notes = String(t.notes || '').toUpperCase();
-
   return notes.includes('[REVERSED BY ') || notes.includes('[REVERSAL OF ');
 }
 
 function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
+}
+
+function normalizeKind(kind) {
+  const value = String(kind || '').trim().toLowerCase();
+
+  if (['owe', 'i_owe', 'payable', 'debt'].includes(value)) return 'owe';
+  if (['owed', 'owed_me', 'receivable', 'to_me'].includes(value)) return 'owed';
+
+  return value || 'unknown';
 }
 
 export async function onRequest(context) {
@@ -106,7 +120,6 @@ export async function onRequest(context) {
       if ((type === 'transfer' || type === 'cc_payment') && toAcctId && (toAcctId in balanceMap)) {
         balanceMap[acctId] -= amt;
         balanceMap[toAcctId] += amt;
-
         modernTransferCount++;
         modernTransferSum += amt;
 
@@ -147,9 +160,9 @@ export async function onRequest(context) {
     if (Math.abs(legacyTransferOutSum - legacyTransferInSum) > 0.5) {
       warnings.push(
         'inv3_violation:transfer_out_sum=' +
-          legacyTransferOutSum +
-          ',in_leg_sum=' +
-          legacyTransferInSum
+        legacyTransferOutSum +
+        ',in_leg_sum=' +
+        legacyTransferInSum
       );
     }
 
@@ -178,13 +191,18 @@ export async function onRequest(context) {
       }
     }
 
-    let totalOwed = 0;
+    let payableDebt = 0;
+    let debtReceivables = 0;
+    let allActiveDebtRemaining = 0;
     let activeDebtCount = 0;
+    let activePayableDebtCount = 0;
+    let openReceivableDebtCount = 0;
+    let unknownDebtKindCount = 0;
     let debtsError = null;
 
     try {
       const debts = await env.DB.prepare(
-        `SELECT name, original_amount, paid_amount, status
+        `SELECT name, kind, original_amount, paid_amount, status
          FROM debts
          WHERE status = 'active'`
       ).all();
@@ -193,18 +211,30 @@ export async function onRequest(context) {
         const orig = Number(d.original_amount) || 0;
         const paid = Number(d.paid_amount) || 0;
         const outstanding = Math.max(0, orig - paid);
+        const kind = normalizeKind(d.kind);
 
-        if (outstanding > 0) {
-          totalOwed += outstanding;
-          activeDebtCount++;
+        if (outstanding <= 0) continue;
+
+        allActiveDebtRemaining += outstanding;
+        activeDebtCount++;
+
+        if (kind === 'owe') {
+          payableDebt += outstanding;
+          activePayableDebtCount++;
+        } else if (kind === 'owed') {
+          debtReceivables += outstanding;
+          openReceivableDebtCount++;
+        } else {
+          unknownDebtKindCount++;
+          warnings.push('unknown_debt_kind:' + kind + ':' + String(d.name || '').slice(0, 40));
         }
       }
     } catch (e) {
       debtsError = e.message;
     }
 
-    let totalReceivables = 0;
-    let openReceivableCount = 0;
+    let legacyReceivables = 0;
+    let legacyReceivableCount = 0;
     let receivablesError = null;
 
     try {
@@ -220,42 +250,60 @@ export async function onRequest(context) {
         const remaining = Math.max(0, exp - got);
 
         if (remaining > 0) {
-          totalReceivables += remaining;
-          openReceivableCount++;
+          legacyReceivables += remaining;
+          legacyReceivableCount++;
         }
       }
     } catch (e) {
       receivablesError = e.message;
     }
 
+    const totalReceivables = debtReceivables + legacyReceivables;
+
     const totalLiquidR = round2(totalLiquid);
     const ccOutstandingR = round2(ccOutstanding);
-    const totalOwedR = round2(totalOwed);
+    const payableDebtR = round2(payableDebt);
     const totalReceivablesR = round2(totalReceivables);
-
+    const debtReceivablesR = round2(debtReceivables);
+    const legacyReceivablesR = round2(legacyReceivables);
+    const allActiveDebtRemainingR = round2(allActiveDebtRemaining);
     const netWorth = round2(totalLiquidR - ccOutstandingR);
-    const trueBurden = round2(netWorth - totalOwedR + totalReceivablesR);
+    const trueBurden = round2(netWorth - payableDebtR + totalReceivablesR);
+
+    if (allActiveDebtRemainingR > payableDebtR && debtReceivablesR > 0) {
+      warnings.push(
+        'debt_split_applied:all_active_debt_remaining=' +
+        allActiveDebtRemainingR +
+        ',payable_debt=' +
+        payableDebtR +
+        ',receivables_from_debts=' +
+        debtReceivablesR
+      );
+    }
 
     const responseBody = {
       ok: true,
       version: VERSION,
-
       total_liquid: totalLiquidR,
       net_worth: netWorth,
       true_burden: trueBurden,
-
       cc_outstanding: ccOutstandingR,
-      total_owed: totalOwedR,
+
+      total_owed: payableDebtR,
+      total_debts: payableDebtR,
+      total_owe: payableDebtR,
+      payable_debt_remaining: payableDebtR,
+
       total_receivables: totalReceivablesR,
+      receivables_from_debts: debtReceivablesR,
+      receivables_from_legacy_table: legacyReceivablesR,
 
       accounts: accountBalances,
 
       cash: totalLiquidR,
       cc: ccOutstandingR,
       total_assets: totalLiquidR,
-      total_liabilities: round2(ccOutstandingR + totalOwedR),
-      total_debts: totalOwedR,
-      total_owe: totalOwedR,
+      total_liabilities: round2(ccOutstandingR + payableDebtR),
       cash_accessible: totalLiquidR,
       total_liquid_assets: totalLiquidR,
 
@@ -272,20 +320,28 @@ export async function onRequest(context) {
         legacy_transfer_out_sum: round2(legacyTransferOutSum),
         legacy_transfer_in_sum: round2(legacyTransferInSum),
         in_out_diff: round2(legacyTransferOutSum - legacyTransferInSum),
-
         txn_count: allTxns.length,
         active_txn_count: activeTxns.length,
         hidden_reversal_count: hiddenReversalCount,
-
         account_count: accountRows.length,
+
         active_debt_count: activeDebtCount,
-        open_receivable_count: openReceivableCount,
+        active_payable_debt_count: activePayableDebtCount,
+        open_receivable_debt_count: openReceivableDebtCount,
+        legacy_receivable_count: legacyReceivableCount,
+        unknown_debt_kind_count: unknownDebtKindCount,
+
+        payable_debt_remaining: payableDebtR,
+        debt_receivables_remaining: debtReceivablesR,
+        legacy_receivables_remaining: legacyReceivablesR,
+        all_active_debt_remaining: allActiveDebtRemainingR,
 
         debts_error: debtsError,
         receivables_error: receivablesError,
 
-        spec_version: 'v0.5.2',
-        formula: 'true_burden = (liquid - cc_outstanding) - total_owed + total_receivables',
+        spec_version: 'v0.5.3',
+        formula: 'true_burden = (liquid - cc_outstanding) - payable_debt_remaining + total_receivables',
+        debt_split_rule: "debts.kind='owe' => payable debt; debts.kind='owed' => receivable",
         canonical_vocab: 'D1 transactions.type CHECK constraint',
         reversal_bridge: 'reversed_by/reversed_at columns plus Sheet notes markers'
       };
