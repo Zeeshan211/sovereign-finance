@@ -1,17 +1,32 @@
-// functions/api/salah/log.js v0.1.0
-// Salah log endpoint
+// functions/api/salah/log.js v0.2.0
+// Salah live logging endpoint
 //
 // Scope:
 // - Writes only salah_daily_status and salah_prayer_entries
-// - Reads/writes only salah_* tables
+// - Supports daily prayers + bonus prayers
 // - Does not touch Finance, ledger, transactions, bills, debts, salary, or monthly close
 
 import { json } from '../_lib.js';
 
-const VERSION = 'salah-log-api-v0.1.0';
+const VERSION = 'salah-log-api-v0.2.0';
 const TZ = 'Asia/Karachi';
 
-const PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'jumuah'];
+const PRAYERS = [
+  'fajr',
+  'dhuhr',
+  'asr',
+  'maghrib',
+  'isha',
+  'jumuah',
+  'tahajjud',
+  'witr',
+  'ishraq',
+  'duha',
+  'awwabin',
+  'nafl'
+];
+
+const DAILY_PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
 
 const CODE_MAP = {
   M: { raw: 'Masjid', normalized: 'M', label: 'Masjid', score: 2.0, masjid: 1 },
@@ -21,7 +36,9 @@ const CODE_MAP = {
   HU: { raw: 'Home·U', normalized: 'HU', label: 'Home Udhr', score: 0.8, home: 1, udhr: 1 },
   WU: { raw: 'Work·U', normalized: 'WU', label: 'Work Udhr', score: 0.8, work: 1, udhr: 1 },
   L: { raw: 'Late', normalized: 'L', label: 'Late', score: 0.3, late: 1 },
-  Q: { raw: 'Qaza', normalized: 'Q', label: 'Qaza', score: -1.5, qaza: 1 }
+  Q: { raw: 'Qaza', normalized: 'Q', label: 'Qaza', score: -1.5, qaza: 1 },
+  YES: { raw: 'Yes', normalized: 'YES', label: 'Completed', score: 0.5, bonus: 1 },
+  NO: { raw: 'No', normalized: 'NO', label: 'Not Completed', score: 0, bonus: 1 }
 };
 
 export async function onRequestPost({ request, env }) {
@@ -57,7 +74,7 @@ export async function onRequestPost({ request, env }) {
         has_valid_udhr, is_jam_combined, jam_type, logged_at, note,
         source_system, source_tab, source_version, source_row, source_column,
         source_checksum, export_batch_id, exported_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, 'salah_page', '🕌 Salah', 'salah-log-api-v0.1.0', NULL, NULL, ?, ?, ?, datetime('now'))`
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, 'salah_page', '🕌 Salah', ?, NULL, NULL, ?, ?, ?, datetime('now'))`
     ).bind(
       id,
       day,
@@ -66,6 +83,7 @@ export async function onRequestPost({ request, env }) {
       meta.normalized,
       meta.label,
       meta.score,
+      code === 'NO' ? 0 : 1,
       meta.masjid ? 1 : 0,
       meta.jamaat ? 1 : 0,
       meta.work ? 1 : 0,
@@ -73,8 +91,9 @@ export async function onRequestPost({ request, env }) {
       meta.late ? 1 : 0,
       meta.qaza ? 1 : 0,
       meta.udhr ? 1 : 0,
-      stamp,
+      code === 'NO' ? null : stamp,
       note || null,
+      VERSION,
       `page_log_${day}_${prayer}_${code}`,
       `salah_page_log_${day}`,
       stamp
@@ -88,8 +107,8 @@ export async function onRequestPost({ request, env }) {
       day,
       prayer,
       code,
-      logged_at: stamp,
-      message: `${prayer} logged as ${meta.label}`
+      logged_at: code === 'NO' ? null : stamp,
+      message: `${displayPrayer(prayer)} logged as ${meta.label}`
     });
   } catch (err) {
     return json({
@@ -118,8 +137,8 @@ async function ensureDailyRow(db, day, stamp) {
       day, day_of_month, score, tier_label, qaza_count, logged_count, masjid_count,
       jamaat_count, work_count, home_count, late_count, source_system, source_tab,
       source_version, source_layout, export_batch_id, exported_at, updated_at
-    ) VALUES (?, ?, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 'salah_page', '🕌 Salah', 'salah-log-api-v0.1.0', 'today_live', ?, ?, datetime('now'))`
-  ).bind(day, dayOfMonth, `salah_page_log_${day}`, stamp).run();
+    ) VALUES (?, ?, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 'salah_page', '🕌 Salah', ?, 'today_live', ?, ?, datetime('now'))`
+  ).bind(day, dayOfMonth, VERSION, `salah_page_log_${day}`, stamp).run();
 }
 
 async function recalcDaily(db, day, stamp) {
@@ -137,8 +156,11 @@ async function recalcDaily(db, day, stamp) {
     return row ? row[key] : null;
   };
 
-  const score = rows.reduce((sum, row) => sum + Number(row.score_value || 0), 0);
-  const logged = rows.filter(r => Number(r.is_logged || 0) === 1 && r.prayer_name !== 'jumuah').length;
+  const coreRows = rows.filter(r => DAILY_PRAYERS.includes(r.prayer_name));
+  const scoreRows = rows.filter(r => r.normalized_code !== 'NO');
+
+  const score = scoreRows.reduce((sum, row) => sum + Number(row.score_value || 0), 0);
+  const logged = coreRows.filter(r => Number(r.is_logged || 0) === 1).length;
   const masjid = rows.filter(r => Number(r.is_masjid || 0) === 1).length;
   const jamaat = rows.filter(r => Number(r.is_jamaat || 0) === 1).length;
   const work = rows.filter(r => Number(r.is_work || 0) === 1).length;
@@ -154,6 +176,7 @@ async function recalcDaily(db, day, stamp) {
       raw_maghrib_code = ?,
       raw_isha_code = ?,
       raw_jumuah_code = ?,
+      raw_tahajjud_status = ?,
       normalized_fajr_code = ?,
       normalized_dhuhr_code = ?,
       normalized_asr_code = ?,
@@ -170,7 +193,7 @@ async function recalcDaily(db, day, stamp) {
       home_count = ?,
       late_count = ?,
       source_system = 'salah_page',
-      source_version = 'salah-log-api-v0.1.0',
+      source_version = ?,
       source_layout = 'today_live',
       export_batch_id = ?,
       exported_at = ?,
@@ -183,6 +206,7 @@ async function recalcDaily(db, day, stamp) {
     get('maghrib', 'raw_code'),
     get('isha', 'raw_code'),
     get('jumuah', 'raw_code'),
+    get('tahajjud', 'raw_code'),
     get('fajr', 'normalized_code'),
     get('dhuhr', 'normalized_code'),
     get('asr', 'normalized_code'),
@@ -198,6 +222,7 @@ async function recalcDaily(db, day, stamp) {
     work,
     home,
     late,
+    VERSION,
     `salah_page_log_${day}`,
     stamp,
     day
@@ -222,6 +247,12 @@ function cleanText(value) {
   return String(value || '').trim().slice(0, 500);
 }
 
+function displayPrayer(value) {
+  return String(value || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function todayPk() {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: TZ,
@@ -234,7 +265,6 @@ function todayPk() {
 }
 
 function nowPkIso() {
-  const now = new Date();
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: TZ,
     year: 'numeric',
@@ -244,7 +274,7 @@ function nowPkIso() {
     minute: '2-digit',
     second: '2-digit',
     hour12: false
-  }).formatToParts(now);
+  }).formatToParts(new Date());
 
   return `${part(parts, 'year')}-${part(parts, 'month')}-${part(parts, 'day')}T${part(parts, 'hour')}:${part(parts, 'minute')}:${part(parts, 'second')}+05:00`;
 }
@@ -260,7 +290,7 @@ function round1(value) {
 function tier(score) {
   if (score >= 9) return '🟢 Excellent';
   if (score >= 6) return '🟡 Good';
-  if (score >= 3) return '🟠 Mediocre';
-  if (score >= 0) return '🔴 Low';
-  return '⚫ Negative';
+  if (score >= 3) return '🟠 Steady';
+  if (score >= 0) return '🔴 Needs Recovery';
+  return '⚫ Recovery Needed';
 }
