@@ -2,70 +2,138 @@
 <html lang="en" data-page="home">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050816" />
   <title>Sovereign Finance Hub</title>
   <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
   <style>
+    :root {
+      --bg: #eef4ff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: rgba(15,23,42,.10);
+      --shadow: 0 22px 70px rgba(15,23,42,.14);
+      --green: #16a34a;
+      --red: #dc2626;
+      --blue: #2563eb;
+      --amber: #d97706;
+      --violet: #7c3aed;
+    }
+
     body {
-      background: #eef4ff;
-      color: #0f172a;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       margin: 0;
+      background:
+        radial-gradient(circle at 8% 0%, rgba(34,197,94,.20), transparent 34rem),
+        radial-gradient(circle at 92% 8%, rgba(59,130,246,.20), transparent 34rem),
+        radial-gradient(circle at 50% 100%, rgba(168,85,247,.14), transparent 34rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     main {
-      max-width: 1180px;
+      max-width: 1320px;
       margin: 0 auto;
       padding: 22px;
     }
 
-    .hero,
-    .card,
-    .panel {
-      background: rgba(255,255,255,.92);
-      border: 1px solid rgba(15,23,42,.1);
-      border-radius: 24px;
-      box-shadow: 0 18px 50px rgba(15,23,42,.12);
-    }
-
     .hero {
-      padding: 28px;
+      position: relative;
+      overflow: hidden;
+      border-radius: 34px;
+      padding: clamp(26px, 5vw, 46px);
       margin-bottom: 18px;
-      background: linear-gradient(135deg, #0f172a, #1e293b);
+      background:
+        radial-gradient(circle at 18% 10%, rgba(34,197,94,.38), transparent 26rem),
+        radial-gradient(circle at 86% 18%, rgba(37,99,235,.30), transparent 28rem),
+        linear-gradient(135deg, rgba(15,23,42,.98), rgba(30,41,59,.96));
       color: white;
+      box-shadow: 0 30px 90px rgba(15,23,42,.28);
+      border: 1px solid rgba(148,163,184,.24);
     }
 
     .kicker {
-      display: inline-block;
-      padding: 7px 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
       border-radius: 999px;
       background: rgba(34,197,94,.16);
       color: #86efac;
+      border: 1px solid rgba(34,197,94,.26);
       font-size: 12px;
-      font-weight: 900;
+      font-weight: 950;
       text-transform: uppercase;
       letter-spacing: .08em;
-      margin-bottom: 12px;
+      margin-bottom: 15px;
     }
 
     h1 {
       margin: 0;
-      font-size: clamp(38px, 7vw, 72px);
-      line-height: .95;
-      letter-spacing: -.06em;
+      max-width: 900px;
+      font-size: clamp(42px, 7vw, 84px);
+      line-height: .92;
+      letter-spacing: -.075em;
+      font-weight: 950;
     }
 
-    .copy {
-      margin-top: 14px;
+    .hero-copy {
+      margin-top: 16px;
+      max-width: 920px;
       color: #cbd5e1;
-      max-width: 850px;
-      font-weight: 700;
-      line-height: 1.6;
+      font-size: 15px;
+      line-height: 1.65;
+      font-weight: 760;
+    }
+
+    .hero-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .hero-chip,
+    .card,
+    .panel,
+    .tool {
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .hero-chip {
+      background: rgba(255,255,255,.08);
+      border-color: rgba(255,255,255,.14);
+      box-shadow: none;
+      padding: 14px;
+      color: white;
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .hero-chip .label { color: #94a3b8; }
+
+    .chip-value {
+      margin-top: 6px;
+      font-size: 15px;
+      font-weight: 950;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0,1fr));
       gap: 14px;
       margin-bottom: 18px;
     }
@@ -75,185 +143,370 @@
       min-width: 0;
     }
 
-    .label {
-      color: #64748b;
-      font-size: 11px;
-      font-weight: 900;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-    }
-
     .value {
       margin-top: 8px;
       font-size: 22px;
       font-weight: 950;
+      letter-spacing: -.03em;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .good { color: #16a34a; }
-    .bad { color: #dc2626; }
-    .blue { color: #2563eb; }
+    .note {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .good { color: var(--green) !important; }
+    .bad { color: var(--red) !important; }
+    .blue { color: var(--blue) !important; }
+    .warn { color: var(--amber) !important; }
+    .violet { color: var(--violet) !important; }
 
     .panel {
       padding: 18px;
       margin-bottom: 18px;
     }
 
-    .panel-title {
-      font-size: 20px;
-      font-weight: 950;
-      margin-bottom: 6px;
-    }
-
-    .panel-copy {
-      color: #64748b;
-      font-size: 13px;
-      font-weight: 750;
-      line-height: 1.5;
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
       margin-bottom: 14px;
     }
 
-    .actions {
+    .panel-title {
+      font-size: 20px;
+      font-weight: 950;
+      letter-spacing: -.02em;
+    }
+
+    .panel-sub {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 820;
+      line-height: 1.4;
+    }
+
+    .tools {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 12px;
+    }
+
+    .tool {
+      display: block;
+      min-height: 118px;
+      padding: 16px;
+      text-decoration: none;
+      color: var(--ink);
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+
+    .tool:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 28px 80px rgba(15,23,42,.18);
+    }
+
+    .tool-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      font-size: 23px;
+      margin-bottom: 12px;
+    }
+
+    .tool-title {
+      font-size: 15px;
+      font-weight: 950;
+    }
+
+    .tool-copy {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .action-list {
+      display: grid;
       gap: 10px;
     }
 
     .action {
-      display: block;
-      text-decoration: none;
-      color: #0f172a;
+      display: grid;
+      grid-template-columns: 42px minmax(0,1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 13px;
       background: #f8fafc;
-      border: 1px solid rgba(15,23,42,.1);
-      border-radius: 16px;
-      padding: 14px;
-      font-weight: 900;
+      border: 1px solid var(--line);
+      border-radius: 18px;
     }
 
-    .small {
-      display: block;
-      color: #64748b;
-      font-size: 12px;
-      font-weight: 750;
-      margin-top: 5px;
+    .action-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      background: white;
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+    }
+
+    .action-title {
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .action-copy {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
       line-height: 1.35;
+    }
+
+    .action-link {
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 950;
+      text-decoration: none;
+      white-space: nowrap;
     }
 
     footer {
       text-align: center;
-      color: #64748b;
+      color: var(--muted);
       font-size: 12px;
       font-weight: 800;
       padding: 16px 0 6px;
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 1150px) {
       .grid,
-      .actions {
-        grid-template-columns: 1fr 1fr;
+      .hero-strip,
+      .tools {
+        grid-template-columns: repeat(2, minmax(0,1fr));
       }
     }
 
-    @media (max-width: 560px) {
+    @media (max-width: 650px) {
       main { padding: 14px; }
+
       .grid,
-      .actions {
+      .hero-strip,
+      .tools {
         grid-template-columns: 1fr;
+      }
+
+      .action {
+        grid-template-columns: 38px minmax(0,1fr);
+      }
+
+      .action-link {
+        grid-column: 2;
       }
     }
   </style>
 </head>
+
 <body>
   <main>
     <section class="hero">
-      <div class="kicker">Hub v0.1.3</div>
-      <h1>Sovereign Finance Hub</h1>
-      <div class="copy">
-        This Hub reads the corrected balances truth layer directly from <code>/api/balances?debug=1</code>.
-        Payable debt and receivables are split. The combined active debt number is diagnostic only.
+      <div class="kicker">✨ Finance Hub v0.1.4</div>
+      <h1>Finance is alive again.</h1>
+      <div class="hero-copy">
+        This Hub restores the visual cockpit while keeping the audit corrections intact.
+        It reads <code>/api/balances?debug=1</code>, so payable debt and receivables stay separated.
+      </div>
+
+      <div class="hero-strip">
+        <div class="hero-chip">
+          <div class="label">💰 Liquid</div>
+          <div id="heroLiquid" class="chip-value">Loading</div>
+        </div>
+
+        <div class="hero-chip">
+          <div class="label">💳 Card Pressure</div>
+          <div id="heroCC" class="chip-value">Loading</div>
+        </div>
+
+        <div class="hero-chip">
+          <div class="label">🪨 Debt Truth</div>
+          <div id="heroDebt" class="chip-value">Loading</div>
+        </div>
+
+        <div class="hero-chip">
+          <div class="label">🛡️ Audit Guard</div>
+          <div class="chip-value">Active</div>
+        </div>
       </div>
     </section>
 
     <section class="grid">
       <div class="card">
-        <div class="label">Liquid Cash</div>
+        <div class="label">💰 Liquid Cash</div>
         <div id="liquid" class="value">Loading</div>
+        <div class="note">Cash, banks, wallets, prepaid.</div>
       </div>
 
       <div class="card">
-        <div class="label">CC Outstanding</div>
+        <div class="label">💳 CC Outstanding</div>
         <div id="cc" class="value bad">Loading</div>
+        <div class="note">Liability model.</div>
       </div>
 
       <div class="card">
-        <div class="label">Payable Debt</div>
+        <div class="label">🪨 Payable Debt</div>
         <div id="debt" class="value bad">Loading</div>
+        <div class="note">Only debts.kind = owe.</div>
       </div>
 
       <div class="card">
-        <div class="label">Receivables</div>
+        <div class="label">🤝 Receivables</div>
         <div id="recv" class="value good">Loading</div>
+        <div class="note">Only debts.kind = owed.</div>
       </div>
 
       <div class="card">
-        <div class="label">True Burden</div>
+        <div class="label">🔥 True Burden</div>
         <div id="burden" class="value bad">Loading</div>
+        <div class="note">Net worth - debt + receivables.</div>
       </div>
     </section>
 
     <section class="grid">
       <div class="card">
-        <div class="label">Balances API</div>
+        <div class="label">🧠 Balances API</div>
         <div id="version" class="value blue">Loading</div>
+        <div class="note">Must be v0.5.3.</div>
       </div>
 
       <div class="card">
-        <div class="label">All Active Debt</div>
-        <div id="allDebt" class="value">Diagnostic</div>
+        <div class="label">📊 All Active Debt</div>
+        <div id="allDebt" class="value blue">Loading</div>
+        <div class="note">Diagnostic only. Not debt burden.</div>
       </div>
 
       <div class="card">
-        <div class="label">Debt Split</div>
+        <div class="label">⚖️ Debt Split</div>
         <div id="split" class="value good">Loading</div>
+        <div class="note">Payable vs receivable.</div>
       </div>
 
       <div class="card">
-        <div class="label">Transactions API</div>
+        <div class="label">📒 Transactions API</div>
         <div class="value blue">v0.1.4</div>
+        <div class="note">FK guard active.</div>
       </div>
 
       <div class="card">
-        <div class="label">Snapshot Control</div>
+        <div class="label">📸 Snapshots</div>
         <div class="value good">Live</div>
+        <div class="note">Manual safety points.</div>
       </div>
     </section>
 
     <section class="panel">
-      <div class="panel-title">Audit correction status</div>
-      <div class="panel-copy">
-        Hub now shows corrected finance truth: payable debt uses <code>debts.kind = owe</code>,
-        receivables use <code>debts.kind = owed</code>, and <code>141,820</code> must not be shown as debt burden.
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">⚡ Daily Tools</div>
+          <div class="panel-sub">Fast routes. Emojis restored. Finance cockpit alive again.</div>
+        </div>
       </div>
 
-      <div class="actions">
-        <a class="action" href="/forecast.html">Forecast<span class="small">Salary and runway projection</span></a>
-        <a class="action" href="/transactions.html">Transactions<span class="small">Ledger with corrected semantics</span></a>
-        <a class="action" href="/debts.html">Debts<span class="small">Payable debt and receivables</span></a>
-        <a class="action" href="/snapshots.html">Snapshots<span class="small">Manual safety points</span></a>
-        <a class="action" href="/cc.html">Credit Card<span class="small">CC liability cockpit</span></a>
-        <a class="action" href="/accounts.html">Accounts<span class="small">Account balances</span></a>
-        <a class="action" href="/bills.html">Bills<span class="small">Bill schedule and payments</span></a>
-        <a class="action" href="/audit.html">Audit<span class="small">System audit trail</span></a>
+      <div class="tools">
+        <a class="tool" href="/add.html">
+          <div class="tool-icon">➕</div>
+          <div class="tool-title">Add Transaction</div>
+          <div class="tool-copy">Save income, expense, transfer, CC payment.</div>
+        </a>
+
+        <a class="tool" href="/transactions.html">
+          <div class="tool-icon">📒</div>
+          <div class="tool-title">Transactions</div>
+          <div class="tool-copy">Ledger view with corrected semantics.</div>
+        </a>
+
+        <a class="tool" href="/forecast.html">
+          <div class="tool-icon">🔮</div>
+          <div class="tool-title">Forecast</div>
+          <div class="tool-copy">Salary, runway, risk, upcoming pressure.</div>
+        </a>
+
+        <a class="tool" href="/cc.html">
+          <div class="tool-icon">💳</div>
+          <div class="tool-title">Credit Card</div>
+          <div class="tool-copy">Outstanding, due pressure, utilization.</div>
+        </a>
+
+        <a class="tool" href="/debts.html">
+          <div class="tool-icon">🪨</div>
+          <div class="tool-title">Debts</div>
+          <div class="tool-copy">Payable debt and receivables.</div>
+        </a>
+
+        <a class="tool" href="/bills.html">
+          <div class="tool-icon">🧾</div>
+          <div class="tool-title">Bills</div>
+          <div class="tool-copy">Due dates and payment accounts.</div>
+        </a>
+
+        <a class="tool" href="/accounts.html">
+          <div class="tool-icon">🏦</div>
+          <div class="tool-title">Accounts</div>
+          <div class="tool-copy">Cash, banks, wallets, card liability.</div>
+        </a>
+
+        <a class="tool" href="/snapshots.html">
+          <div class="tool-icon">📸</div>
+          <div class="tool-title">Snapshots</div>
+          <div class="tool-copy">Manual safety point before risky work.</div>
+        </a>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">🛠️ What Needs Action</div>
+          <div class="panel-sub">Audit path only. No drift.</div>
+        </div>
+      </div>
+
+      <div id="actions" class="action-list">
+        <div class="action">
+          <div class="action-icon">⏳</div>
+          <div>
+            <div class="action-title">Loading Finance truth</div>
+            <div class="action-copy">Reading /api/balances?debug=1.</div>
+          </div>
+          <a class="action-link" href="/audit.html">Audit</a>
+        </div>
       </div>
     </section>
 
     <footer>
-      index.html v0.1.3 · Hub aligned to /api/balances v0.5.3 · no schema change
+      index.html v0.1.4 · alive finance hub · emoji nav v1.0.19 · balances v0.5.3 · no D1 mutation
     </footer>
   </main>
+
+  <script src="/js/theme.js?v=0.7.5"></script>
+  <script src="/js/nav.js?v=1.0.19"></script>
 
   <script>
     function money(value) {
@@ -272,13 +525,24 @@
       if (cls) el.className = 'value ' + cls;
     }
 
+    function action(icon, title, copy, href, label) {
+      return `
+        <div class="action">
+          <div class="action-icon">${icon}</div>
+          <div>
+            <div class="action-title">${title}</div>
+            <div class="action-copy">${copy}</div>
+          </div>
+          <a class="action-link" href="${href}">${label}</a>
+        </div>
+      `;
+    }
+
     async function loadHub() {
       const res = await fetch('/api/balances?debug=1', { cache: 'no-store' });
       const data = await res.json();
 
-      if (!res.ok || !data.ok) {
-        throw new Error(data.error || 'Balances failed');
-      }
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Balances failed');
 
       const liquid = Number(data.total_liquid || data.cash || 0);
       const cc = Number(data.cc_outstanding || data.cc || 0);
@@ -295,16 +559,59 @@
       set('version', data.version || 'unknown', 'blue');
       set('allDebt', money(allActiveDebt), 'blue');
       set('split', 'Applied', 'good');
+
+      document.getElementById('heroLiquid').textContent = money(liquid);
+      document.getElementById('heroCC').textContent = money(cc);
+      document.getElementById('heroDebt').textContent = money(payableDebt) + ' / +' + money(receivables);
+
+      const actions = [];
+
+      actions.push(action(
+        '⚖️',
+        'Debt split is active',
+        'Payable debt is separated from receivables. Combined active debt is diagnostic only.',
+        '/debts.html',
+        'Debts'
+      ));
+
+      if (cc > 0) {
+        actions.push(action(
+          '💳',
+          'Credit Card pressure visible',
+          'CC outstanding is being read from the liability balance model.',
+          '/cc.html',
+          'Card'
+        ));
+      }
+
+      actions.push(action(
+        '📸',
+        'Snapshot before risky work',
+        'Manual snapshot control is live. Use it before any high-risk repair.',
+        '/snapshots.html',
+        'Snapshot'
+      ));
+
+      actions.push(action(
+        '📒',
+        'Transaction guard active',
+        'Add Transaction now blocks bad account/category references instead of corrupting ledger state.',
+        '/transactions.html',
+        'Ledger'
+      ));
+
+      document.getElementById('actions').innerHTML = actions.join('');
     }
 
     loadHub().catch(err => {
-      set('liquid', 'Error', 'bad');
-      set('cc', 'Error', 'bad');
-      set('debt', err.message, 'bad');
-      set('recv', 'Error', 'bad');
-      set('burden', 'Error', 'bad');
-      set('version', 'Error', 'bad');
-      set('split', 'Failed', 'bad');
+      ['liquid','cc','debt','recv','burden','version','allDebt','split'].forEach(id => set(id, 'Error', 'bad'));
+      document.getElementById('actions').innerHTML = action(
+        '❌',
+        'Hub load failed',
+        err.message,
+        '/audit.html',
+        'Audit'
+      );
     });
   </script>
 </body>
