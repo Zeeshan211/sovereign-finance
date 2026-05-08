@@ -1,1324 +1,723 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#050816" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<title>Sovereign Finance Hub</title>
-<link rel="stylesheet" href="/css/app.css?v=1.0.1" />
-<style>
-body {
-background:
-radial-gradient(circle at 10% 0%, rgba(34, 197, 94, 0.18), transparent 34rem),
-radial-gradient(circle at 90% 10%, rgba(59, 130, 246, 0.18), transparent 36rem),
-radial-gradient(circle at 55% 90%, rgba(168, 85, 247, 0.12), transparent 34rem),
-#eef4ff;
-}
-.hub-wrap {
-max-width: 1320px;
-margin: 0 auto;
-}
-.cinema-hero {
-position: relative;
-overflow: hidden;
-min-height: 270px;
-border-radius: 30px;
-padding: 28px;
-margin-bottom: 18px;
-background:
-linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92)),
-radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.35), transparent 26rem);
-border: 1px solid rgba(148, 163, 184, 0.22);
-color: #f8fafc;
-box-shadow: 0 26px 80px rgba(15, 23, 42, 0.28);
-}
-.cinema-hero::before,
-.cinema-hero::after {
-content: "";
-position: absolute;
-border-radius: 999px;
-filter: blur(2px);
-opacity: 0.8;
-pointer-events: none;
-animation: floatOrb 9s ease-in-out infinite;
-}
-.cinema-hero::before {
-width: 260px;
-height: 260px;
-right: -80px;
-top: -70px;
-background: radial-gradient(circle, rgba(34, 197, 94, 0.42), transparent 70%);
-}
-.cinema-hero::after {
-width: 220px;
-height: 220px;
-left: 42%;
-bottom: -110px;
-background: radial-gradient(circle, rgba(59, 130, 246, 0.32), transparent 70%);
-animation-delay: -3s;
-}
-@keyframes floatOrb {
-0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-50% { transform: translate3d(14px, -16px, 18px) scale(1.08); }
-}
-.hero-content {
-position: relative;
-z-index: 2;
-max-width: 880px;
-}
-.hub-kicker {
-display: inline-flex;
-align-items: center;
-gap: 8px;
-padding: 7px 11px;
-border-radius: 999px;
-background: rgba(34, 197, 94, 0.14);
-color: #86efac;
-border: 1px solid rgba(34, 197, 94, 0.24);
-font-size: 12px;
-font-weight: 950;
-text-transform: uppercase;
-letter-spacing: 0.09em;
-margin-bottom: 14px;
-}
-.hub-heading {
-margin: 0;
-font-size: clamp(38px, 6vw, 76px);
-line-height: 0.95;
-letter-spacing: -0.07em;
-font-weight: 950;
-color: #ffffff;
-}
-.hub-copy {
-margin-top: 14px;
-max-width: 780px;
-color: #cbd5e1;
-font-size: 15px;
-line-height: 1.6;
-font-weight: 750;
-}
-.hero-pills {
-position: relative;
-z-index: 3;
-display: flex;
-flex-wrap: wrap;
-gap: 10px;
-margin-top: 22px;
-}
-.hero-pill {
-border: 1px solid rgba(255, 255, 255, 0.14);
-background: rgba(255, 255, 255, 0.08);
-color: #e2e8f0;
-border-radius: 999px;
-padding: 11px 15px;
-font-size: 13px;
-font-weight: 950;
-backdrop-filter: blur(12px);
-}
-.hero-pill.primary {
-background: #86efac;
-color: #052e16;
-border-color: rgba(134, 239, 172, 0.6);
-box-shadow: 0 14px 32px rgba(34, 197, 94, 0.24);
-}
-.metric-grid {
-display: grid;
-grid-template-columns: repeat(5, minmax(0, 1fr));
-gap: 14px;
-margin-bottom: 18px;
-}
-.metric-card,
-.viz-panel,
-.tool-card,
-.risk-card {
-background: rgba(255, 255, 255, 0.94);
-border: 1px solid rgba(15, 23, 42, 0.1);
-box-shadow: 0 18px 46px rgba(15, 23, 42, 0.12);
-}
-.metric-card {
-position: relative;
-overflow: hidden;
-border-radius: 24px;
-padding: 18px;
-min-width: 0;
-}
-.metric-card::after {
-content: "";
-position: absolute;
-right: -42px;
-bottom: -72px;
-width: 135px;
-height: 135px;
-border-radius: 999px;
-background: rgba(34, 197, 94, 0.12);
-pointer-events: none;
-}
-.metric-card.warn-orb::after { background: rgba(245, 158, 11, 0.14); }
-.metric-card.bad-orb::after { background: rgba(220, 38, 38, 0.12); }
-.metric-card.blue-orb::after { background: rgba(37, 99, 235, 0.13); }
-.metric-label {
-position: relative;
-z-index: 2;
-color: #64748b;
-font-size: 11px;
-font-weight: 950;
-text-transform: uppercase;
-letter-spacing: 0.09em;
-}
-.metric-value {
-position: relative;
-z-index: 2;
-margin-top: 8px;
-color: #0f172a;
-font-size: 22px;
-font-weight: 950;
-letter-spacing: -0.04em;
-font-variant-numeric: tabular-nums;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-}
-.positive { color: #15803d !important; }
-.negative { color: #dc2626 !important; }
-.warn { color: #d97706 !important; }
-.neutral { color: #0f172a !important; }
-.dashboard-grid {
-display: grid;
-grid-template-columns: minmax(0, 1.05fr) minmax(390px, 0.95fr);
-gap: 18px;
-margin-bottom: 18px;
-}
-.viz-panel {
-position: relative;
-overflow: hidden;
-border-radius: 28px;
-padding: 18px;
-min-width: 0;
-}
-.panel-head {
-display: flex;
-justify-content: space-between;
-gap: 12px;
-align-items: flex-start;
-margin-bottom: 16px;
-}
-.panel-title {
-color: #0f172a;
-font-size: 19px;
-font-weight: 950;
-letter-spacing: -0.02em;
-}
-.panel-sub {
-color: #64748b;
-font-size: 12px;
-font-weight: 850;
-margin-top: 3px;
-}
-.panel-link {
-color: #15803d;
-font-size: 12px;
-font-weight: 950;
-white-space: nowrap;
-}
-.depth-stage {
-position: relative;
-min-height: 360px;
-perspective: 1100px;
-border-radius: 24px;
-background:
-radial-gradient(circle at 50% 36%, rgba(34, 197, 94, 0.13), transparent 18rem),
-linear-gradient(180deg, #f8fafc, #eef4ff);
-border: 1px solid rgba(15, 23, 42, 0.08);
-overflow: hidden;
-}
-.orbit {
-position: absolute;
-inset: 34px;
-border-radius: 50%;
-border: 1px dashed rgba(15, 23, 42, 0.12);
-transform: rotateX(62deg) rotateZ(-8deg);
-animation: slowSpin 28s linear infinite;
-}
-.orbit.two {
-inset: 72px;
-animation-duration: 22s;
-animation-direction: reverse;
-opacity: 0.72;
-}
-@keyframes slowSpin {
-from { transform: rotateX(62deg) rotateZ(0deg); }
-to { transform: rotateX(62deg) rotateZ(360deg); }
-}
-.core-number {
-position: absolute;
-inset: 0;
-display: grid;
-place-items: center;
-text-align: center;
-z-index: 3;
-}
-.core-number-inner {
-width: min(290px, 72%);
-aspect-ratio: 1;
-border-radius: 50%;
-display: grid;
-place-items: center;
-background:
-radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.95), rgba(226, 232, 240, 0.96)),
-linear-gradient(135deg, rgba(34, 197, 94, 0.22), rgba(59, 130, 246, 0.18));
-border: 1px solid rgba(15, 23, 42, 0.08);
-box-shadow:
-0 26px 60px rgba(15, 23, 42, 0.18),
-inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-.core-label {
-color: #64748b;
-font-size: 11px;
-font-weight: 950;
-letter-spacing: 0.1em;
-text-transform: uppercase;
-margin-bottom: 8px;
-}
-.core-value {
-color: #0f172a;
-font-size: clamp(30px, 4vw, 46px);
-line-height: 1;
-font-weight: 950;
-letter-spacing: -0.055em;
-font-variant-numeric: tabular-nums;
-}
-.core-sub {
-margin-top: 9px;
-color: #64748b;
-font-size: 12px;
-font-weight: 850;
-}
-.satellite {
-position: absolute;
-z-index: 4;
-width: 132px;
-border-radius: 18px;
-padding: 12px;
-background: rgba(255, 255, 255, 0.92);
-border: 1px solid rgba(15, 23, 42, 0.1);
-box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
-backdrop-filter: blur(14px);
-}
-.satellite.a { top: 34px; left: 46px; }
-.satellite.b { top: 58px; right: 42px; }
-.satellite.c { bottom: 42px; left: 54px; }
-.satellite.d { bottom: 48px; right: 52px; }
-.sat-label {
-color: #64748b;
-font-size: 10px;
-font-weight: 950;
-text-transform: uppercase;
-letter-spacing: 0.08em;
-}
-.sat-value {
-margin-top: 5px;
-color: #0f172a;
-font-size: 14px;
-font-weight: 950;
-font-variant-numeric: tabular-nums;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-}
-.cc-stage {
-border-radius: 24px;
-padding: 18px;
-min-height: 360px;
-background:
-radial-gradient(circle at 78% 18%, rgba(245, 158, 11, 0.20), transparent 18rem),
-linear-gradient(180deg, #fff7ed, #f8fafc);
-border: 1px solid rgba(245, 158, 11, 0.18);
-overflow: hidden;
-}
-.cc-badge {
-display: inline-flex;
-align-items: center;
-justify-content: center;
-border-radius: 999px;
-padding: 7px 11px;
-background: rgba(245, 158, 11, 0.14);
-color: #b45309;
-border: 1px solid rgba(245, 158, 11, 0.24);
-font-size: 11px;
-font-weight: 950;
-white-space: nowrap;
-}
-.cc-label {
-color: #64748b;
-font-size: 11px;
-font-weight: 950;
-letter-spacing: 0.09em;
-text-transform: uppercase;
-}
-.cc-value {
-margin-top: 8px;
-color: #dc2626;
-font-size: clamp(36px, 5vw, 58px);
-line-height: 0.95;
-font-weight: 950;
-letter-spacing: -0.06em;
-font-variant-numeric: tabular-nums;
-}
-.cc-meter {
-height: 16px;
-margin: 18px 0 14px;
-background: #e2e8f0;
-border-radius: 999px;
-overflow: hidden;
-border: 1px solid rgba(15, 23, 42, 0.08);
-}
-.cc-fill {
-height: 100%;
-width: 0%;
-border-radius: 999px;
-background: linear-gradient(90deg, #22c55e, #f59e0b, #dc2626);
-transition: width 0.45s ease;
-}
-.cc-grid {
-display: grid;
-grid-template-columns: repeat(2, minmax(0, 1fr));
-gap: 10px;
-margin-top: 14px;
-}
-.cc-pill {
-background: rgba(255, 255, 255, 0.82);
-border: 1px solid rgba(15, 23, 42, 0.08);
-border-radius: 16px;
-padding: 11px;
-min-width: 0;
-}
-.cc-pill-label {
-color: #64748b;
-font-size: 10px;
-font-weight: 950;
-text-transform: uppercase;
-letter-spacing: 0.07em;
-}
-.cc-pill-value {
-margin-top: 5px;
-color: #0f172a;
-font-size: 14px;
-font-weight: 950;
-font-variant-numeric: tabular-nums;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-}
-.cc-actions {
-display: flex;
-gap: 10px;
-margin-top: 18px;
-}
-.cc-action-primary,
-.cc-action-secondary {
-flex: 1;
-min-height: 44px;
-display: inline-flex;
-justify-content: center;
-align-items: center;
-border-radius: 14px;
-font-size: 13px;
-font-weight: 950;
-}
-.cc-action-primary {
-background: linear-gradient(135deg, #22c55e, #16a34a);
-color: #052e16;
-border: 0;
-box-shadow: 0 12px 24px rgba(34, 197, 94, 0.18);
-}
-.cc-action-secondary {
-background: #ffffff;
-color: #0f172a;
-border: 1px solid rgba(15, 23, 42, 0.14);
-}
-.section-title-row {
-display: flex;
-justify-content: space-between;
-align-items: flex-end;
-gap: 12px;
-margin: 24px 0 12px;
-}
-.section-title {
-margin: 0;
-color: #0f172a;
-font-size: 22px;
-font-weight: 950;
-letter-spacing: -0.035em;
-}
-.section-note {
-color: #64748b;
-font-size: 12px;
-font-weight: 850;
-text-align: right;
-}
-.tool-grid {
-display: grid;
-grid-template-columns: repeat(5, minmax(0, 1fr));
-gap: 14px;
-margin-bottom: 18px;
-}
-.tool-card {
-position: relative;
-overflow: hidden;
-min-height: 130px;
-display: flex;
-flex-direction: column;
-justify-content: space-between;
-border-radius: 24px;
-padding: 18px;
-transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-.tool-card::after {
-content: "";
-position: absolute;
-right: -44px;
-bottom: -78px;
-width: 140px;
-height: 140px;
-border-radius: 999px;
-background: rgba(59, 130, 246, 0.10);
-pointer-events: none;
-}
-.tool-card.primary::after {
-background: rgba(34, 197, 94, 0.14);
-}
-.tool-card.atm-tool::after {
-background: rgba(245, 158, 11, 0.18);
-}
-.tool-card.nano-tool::after {
-background: rgba(168, 85, 247, 0.16);
-}
-.tool-card:hover {
-transform: translateY(-3px);
-box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
-}
-.tool-icon {
-position: relative;
-z-index: 2;
-width: 42px;
-height: 42px;
-display: grid;
-place-items: center;
-border-radius: 16px;
-background: #f8fafc;
-border: 1px solid rgba(15, 23, 42, 0.08);
-font-size: 24px;
-}
-.tool-title {
-position: relative;
-z-index: 2;
-margin-top: 13px;
-color: #0f172a;
-font-size: 14px;
-font-weight: 950;
-}
-.tool-sub {
-position: relative;
-z-index: 2;
-margin-top: 4px;
-color: #64748b;
-font-size: 12px;
-font-weight: 800;
-line-height: 1.35;
-}
-.risk-grid {
-display: grid;
-grid-template-columns: repeat(4, minmax(0, 1fr));
-gap: 14px;
-margin-bottom: 18px;
-}
-.risk-card {
-position: relative;
-overflow: hidden;
-border-radius: 24px;
-padding: 18px;
-min-width: 0;
-}
-.risk-card::before {
-content: "";
-position: absolute;
-left: 0;
-top: 0;
-bottom: 0;
-width: 6px;
-background: #94a3b8;
-}
-.risk-card.good::before { background: #22c55e; }
-.risk-card.warn::before { background: #f59e0b; }
-.risk-card.bad::before { background: #dc2626; }
-.risk-card.info::before { background: #8b5cf6; }
-.risk-title {
-color: #0f172a;
-font-size: 14px;
-font-weight: 950;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-}
-.risk-copy {
-margin-top: 5px;
-color: #64748b;
-font-size: 12px;
-font-weight: 800;
-line-height: 1.38;
-}
-.risk-action {
-margin-top: 10px;
-display: inline-flex;
-font-size: 11px;
-font-weight: 950;
-color: #15803d;
-}
-.lower-grid {
-display: grid;
-grid-template-columns: minmax(0, 1.2fr) minmax(380px, 0.8fr);
-gap: 18px;
-}
-.mini-list {
-display: flex;
-flex-direction: column;
-gap: 10px;
-}
-.mini-row {
-display: grid;
-grid-template-columns: 40px minmax(0, 1fr) auto;
-gap: 10px;
-align-items: center;
-background: #f8fafc;
-border: 1px solid rgba(15, 23, 42, 0.08);
-border-radius: 16px;
-padding: 11px;
-}
-.mini-icon {
-width: 38px;
-height: 38px;
-border-radius: 14px;
-display: grid;
-place-items: center;
-background: #ffffff;
-border: 1px solid rgba(15, 23, 42, 0.08);
-font-size: 20px;
-}
-.mini-title {
-color: #0f172a;
-font-size: 13px;
-font-weight: 950;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-}
-.mini-sub {
-margin-top: 2px;
-color: #64748b;
-font-size: 11px;
-font-weight: 800;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-}
-.mini-amount {
-color: #0f172a;
-font-size: 13px;
-font-weight: 950;
-font-variant-numeric: tabular-nums;
-white-space: nowrap;
-text-align: right;
-}
-.empty-panel {
-background: #f8fafc;
-border: 1px dashed rgba(15, 23, 42, 0.2);
-border-radius: 18px;
-padding: 24px;
-text-align: center;
-color: #64748b;
-font-weight: 850;
-}
-@media (max-width: 1180px) {
-.metric-grid,
-.tool-grid,
-.risk-grid {
-grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.dashboard-grid,
-.lower-grid {
-grid-template-columns: 1fr;
-}
-}
-@media (max-width: 1000px) {
-.satellite {
-position: static;
-width: auto;
-margin: 8px;
-}
-.depth-stage {
-display: grid;
-gap: 8px;
-padding: 12px;
-}
-.core-number {
-position: static;
-min-height: 260px;
-}
-.orbit {
-display: none;
-}
-}
-@media (max-width: 720px) {
-.metric-grid,
-.tool-grid,
-.risk-grid,
-.cc-grid {
-grid-template-columns: 1fr;
-}
-.section-title-row {
-align-items: flex-start;
-flex-direction: column;
-}
-.section-note {
-text-align: left;
-}
-.cc-actions {
-flex-direction: column;
-}
-.mini-row {
-grid-template-columns: 38px minmax(0, 1fr);
-}
-.mini-amount {
-grid-column: 2;
-text-align: left;
-}
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050816" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Sovereign Finance Hub</title>
+  <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
+  <style>
+    body {
+      background:
+        radial-gradient(circle at 10% 0%, rgba(34, 197, 94, 0.18), transparent 34rem),
+        radial-gradient(circle at 90% 10%, rgba(59, 130, 246, 0.18), transparent 36rem),
+        radial-gradient(circle at 55% 90%, rgba(168, 85, 247, 0.12), transparent 34rem),
+        #eef4ff;
+    }
+    .hub-wrap { max-width: 1320px; margin: 0 auto; }
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 30px;
+      padding: 28px;
+      margin-bottom: 18px;
+      background:
+        linear-gradient(135deg, rgba(15,23,42,.96), rgba(30,41,59,.92)),
+        radial-gradient(circle at 20% 20%, rgba(34,197,94,.35), transparent 26rem);
+      color: #f8fafc;
+      border: 1px solid rgba(148,163,184,.22);
+      box-shadow: 0 26px 80px rgba(15,23,42,.28);
+    }
+    .kicker {
+      display: inline-flex;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(34,197,94,.14);
+      color: #86efac;
+      border: 1px solid rgba(34,197,94,.24);
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+      margin-bottom: 14px;
+    }
+    .heading {
+      margin: 0;
+      font-size: clamp(38px, 6vw, 72px);
+      line-height: .95;
+      letter-spacing: -.07em;
+      font-weight: 950;
+      color: #fff;
+    }
+    .copy {
+      margin-top: 14px;
+      max-width: 820px;
+      color: #cbd5e1;
+      font-size: 15px;
+      line-height: 1.6;
+      font-weight: 750;
+    }
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+    .hero-pill {
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.08);
+      color: #e2e8f0;
+      border-radius: 999px;
+      padding: 11px 15px;
+      font-size: 13px;
+      font-weight: 950;
+      text-decoration: none;
+      backdrop-filter: blur(12px);
+    }
+    .hero-pill.primary {
+      background: #86efac;
+      color: #052e16;
+      border-color: rgba(134,239,172,.6);
+      box-shadow: 0 14px 32px rgba(34,197,94,.24);
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .card, .panel, .tool-card, .risk-card {
+      background: rgba(255,255,255,.94);
+      border: 1px solid rgba(15,23,42,.1);
+      box-shadow: 0 18px 46px rgba(15,23,42,.12);
+      border-radius: 24px;
+    }
+    .card {
+      padding: 18px;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .label {
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .09em;
+    }
+    .value {
+      margin-top: 8px;
+      color: #0f172a;
+      font-size: 22px;
+      font-weight: 950;
+      letter-spacing: -.04em;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .good { color: #15803d !important; }
+    .warn { color: #d97706 !important; }
+    .bad { color: #dc2626 !important; }
+    .neutral { color: #0f172a !important; }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) minmax(390px,.9fr);
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .panel { padding: 18px; min-width: 0; }
+    .panel.wide { grid-column: 1 / -1; }
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .panel-title {
+      color: #0f172a;
+      font-size: 19px;
+      font-weight: 950;
+      letter-spacing: -.02em;
+    }
+    .panel-sub {
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 850;
+      margin-top: 3px;
+    }
+    .panel-link {
+      color: #15803d;
+      font-size: 12px;
+      font-weight: 950;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+    .brain-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 12px;
+    }
+    .brain-card {
+      min-height: 138px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 16px;
+      border-radius: 22px;
+      background: #f8fafc;
+      border: 1px solid rgba(15,23,42,.08);
+      text-decoration: none;
+      color: inherit;
+    }
+    .brain-card.primary {
+      background: linear-gradient(135deg, rgba(34,197,94,.12), rgba(37,99,235,.08));
+      border-color: rgba(34,197,94,.22);
+    }
+    .brain-title {
+      color: #0f172a;
+      font-size: 15px;
+      font-weight: 950;
+    }
+    .brain-sub {
+      margin-top: 6px;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.38;
+    }
+    .brain-status {
+      margin-top: 14px;
+      color: #15803d;
+      font-size: 12px;
+      font-weight: 950;
+    }
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .tool-card {
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 18px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform .22s ease, box-shadow .22s ease;
+    }
+    .tool-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 24px 60px rgba(15,23,42,.16);
+    }
+    .tool-title {
+      color: #0f172a;
+      font-size: 14px;
+      font-weight: 950;
+    }
+    .tool-sub {
+      margin-top: 5px;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+    .risk-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .risk-card {
+      position: relative;
+      overflow: hidden;
+      padding: 18px;
+      min-width: 0;
+    }
+    .risk-card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 6px;
+      background: #94a3b8;
+    }
+    .risk-card.good::before { background: #22c55e; }
+    .risk-card.warn::before { background: #f59e0b; }
+    .risk-card.bad::before { background: #dc2626; }
+    .risk-card.info::before { background: #8b5cf6; }
+    .risk-title {
+      color: #0f172a;
+      font-size: 14px;
+      font-weight: 950;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .risk-copy {
+      margin-top: 5px;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.38;
+    }
+    .risk-action {
+      margin-top: 10px;
+      display: inline-flex;
+      font-size: 11px;
+      font-weight: 950;
+      color: #15803d;
+      text-decoration: none;
+    }
+    .mini-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .mini-row {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) auto;
+      gap: 10px;
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid rgba(15,23,42,.08);
+      border-radius: 16px;
+      padding: 11px;
+    }
+    .mini-title {
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 950;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mini-sub {
+      margin-top: 2px;
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mini-amount {
+      color: #0f172a;
+      font-size: 13px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      text-align: right;
+    }
+    .empty {
+      background: #f8fafc;
+      border: 1px dashed rgba(15,23,42,.2);
+      border-radius: 18px;
+      padding: 24px;
+      text-align: center;
+      color: #64748b;
+      font-weight: 850;
+    }
+    @media (max-width: 1180px) {
+      .stats, .tool-grid, .risk-grid, .brain-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .stats, .tool-grid, .risk-grid, .brain-grid { grid-template-columns: 1fr; }
+      .mini-row { grid-template-columns: 1fr; }
+      .mini-amount { text-align: left; }
+    }
+  </style>
 </head>
 <body>
-<header>
-<div>
-<div class="brand">Sovereign Finance</div>
-<div class="title">Hub</div>
-</div>
-</header>
-<main class="hub-wrap">
-<section class="cinema-hero motion-reveal">
-<div class="hero-content">
-<div class="hub-kicker">Finance Brain connected</div>
-<h1 class="hub-heading">Finance cockpit</h1>
-<p class="hub-copy">
-The daily control screen: safety signal, true burden, Credit Card pressure, ATM cash movement, Nano Loans, recent writes, obligations, and next actions in one view.
-</p>
-<div class="hero-pills">
-<span class="hero-pill primary" id="freshnessText">Loading live data...</span>
-<a class="hero-pill" href="/nano-loans.html">Nano Loans</a>
-<a class="hero-pill" href="/atm.html">ATM Control</a>
-<a class="hero-pill" href="/charts.html">Open Charts</a>
-<a class="hero-pill" href="/add.html">Add Transaction</a>
-</div>
-</div>
-</section>
+  <header>
+    <div>
+      <div class="brand">Sovereign Finance</div>
+      <div class="title">Hub</div>
+    </div>
+  </header>
 
-<section class="metric-grid motion-stagger">
-<div class="metric-card">
-<div class="metric-label">Am I Safe?</div>
-<div id="sigSafe" class="metric-value"></div>
-</div>
-<div class="metric-card">
-<div class="metric-label">Available Liquid</div>
-<div id="sigLiquid" class="metric-value positive"></div>
-</div>
-<div class="metric-card warn-orb">
-<div class="metric-label">Credit Card Pressure</div>
-<div id="sigCC" class="metric-value warn"></div>
-</div>
-<div class="metric-card blue-orb">
-<div class="metric-label">ATM Pending</div>
-<div id="sigATM" class="metric-value"></div>
-</div>
-<div class="metric-card">
-<div class="metric-label">Last Write</div>
-<div id="sigWrite" class="metric-value"></div>
-</div>
-</section>
+  <main class="hub-wrap">
+    <section class="hero">
+      <div class="kicker">Finance Core complete</div>
+      <h1 class="heading">Finance cockpit</h1>
+      <p class="copy">
+        Forecast, Safety, Insights, and Monthly Close are now live. This Hub is the final Finance landing screen before we move the wider Sovereign Life OS into separate sections for Salah, Habits, Health, Mission, and AI.
+      </p>
+      <div class="hero-pills">
+        <span class="hero-pill primary" id="freshnessText">Loading live brain state...</span>
+        <a class="hero-pill" href="/forecast.html">Forecast</a>
+        <a class="hero-pill" href="/insights.html">Insights</a>
+        <a class="hero-pill" href="/monthly-close.html">Monthly Close</a>
+        <a class="hero-pill" href="/reconciliation.html">Reconciliation</a>
+      </div>
+    </section>
 
-<section class="dashboard-grid">
-<div class="viz-panel">
-<div class="panel-head">
-<div>
-<div class="panel-title">True Burden Orbit</div>
-<div class="panel-sub">Liquid, debts, burden, and safety in one depth view</div>
-</div>
-</div>
-<div class="depth-stage">
-<div class="orbit"></div>
-<div class="orbit two"></div>
-<div class="core-number">
-<div class="core-number-inner">
-<div>
-<div class="core-label">Net Position</div>
-<div id="netWorth" class="core-value"></div>
-<div id="netSub" class="core-sub">Live D1 formula layer</div>
-</div>
-</div>
-</div>
-<div class="satellite a">
-<div class="sat-label">Liquid</div>
-<div id="liquid" class="sat-value"></div>
-</div>
-<div class="satellite b">
-<div class="sat-label">Debts</div>
-<div id="debts" class="sat-value"></div>
-</div>
-<div class="satellite c">
-<div class="sat-label">Burden</div>
-<div id="burden" class="sat-value"></div>
-</div>
-<div class="satellite d">
-<div class="sat-label">Safety</div>
-<div id="orbitSafety" class="sat-value"></div>
-</div>
-</div>
-</div>
+    <section class="stats">
+      <div class="card">
+        <div class="label">Safety</div>
+        <div id="sigSafe" class="value">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Liquid Now</div>
+        <div id="sigLiquid" class="value">-</div>
+      </div>
+      <div class="card">
+        <div class="label">30D Low</div>
+        <div id="sigLow" class="value">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Top Insight</div>
+        <div id="sigInsight" class="value">-</div>
+      </div>
+      <div class="card">
+        <div class="label">Audit Readiness</div>
+        <div id="sigClose" class="value">-</div>
+      </div>
+    </section>
 
-<aside class="viz-panel">
-<div class="panel-head">
-<div>
-<div class="panel-title">Alfalah Credit Card Control</div>
-<div class="panel-sub">Card pressure remains visible before every daily action</div>
-</div>
-<div id="ccStatusBadge" class="cc-badge">Loading</div>
-</div>
-<div class="cc-stage">
-<div>
-<div class="cc-label">Outstanding</div>
-<div id="ccOutstanding" class="cc-value"></div>
-</div>
-<div class="cc-meter">
-<div id="ccFill" class="cc-fill"></div>
-</div>
-<div class="cc-grid">
-<div class="cc-pill">
-<div class="cc-pill-label">Utilization</div>
-<div id="ccUtil" class="cc-pill-value warn"></div>
-</div>
-<div class="cc-pill">
-<div class="cc-pill-label">Available</div>
-<div id="ccAvailable" class="cc-pill-value positive"></div>
-</div>
-<div class="cc-pill">
-<div class="cc-pill-label">Limit</div>
-<div id="ccLimit" class="cc-pill-value"></div>
-</div>
-<div class="cc-pill">
-<div class="cc-pill-label">Due</div>
-<div id="ccDue" class="cc-pill-value">Not set</div>
-</div>
-</div>
-<div class="cc-actions">
-<a class="cc-action-primary" href="/cc.html">Open Credit Card</a>
-<a class="cc-action-secondary" href="/add.html">Pay / Adjust</a>
-</div>
-</div>
-</aside>
-</section>
+    <section class="grid">
+      <div class="panel wide">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Finance Brain</div>
+            <div class="panel-sub">The four live brain layers that close Finance Core</div>
+          </div>
+        </div>
+        <div class="brain-grid">
+          <a href="/forecast.html" class="brain-card primary">
+            <div>
+              <div class="brain-title">Forecast</div>
+              <div class="brain-sub">30-day runway, salary forecast, obligations, debt-free estimate.</div>
+            </div>
+            <div id="forecastBrainStatus" class="brain-status">Loading</div>
+          </a>
+          <a href="/forecast.html" class="brain-card primary">
+            <div>
+              <div class="brain-title">Safety</div>
+              <div class="brain-sub">Am I safe, why, next risk date, no-action outcome, drivers.</div>
+            </div>
+            <div id="safetyBrainStatus" class="brain-status">Loading</div>
+          </a>
+          <a href="/insights.html" class="brain-card primary">
+            <div>
+              <div class="brain-title">Insights</div>
+              <div class="brain-sub">Rule-based action cards from forecast, safety, ledger, debts, CC.</div>
+            </div>
+            <div id="insightBrainStatus" class="brain-status">Loading</div>
+          </a>
+          <a href="/monthly-close.html" class="brain-card primary">
+            <div>
+              <div class="brain-title">Monthly Close</div>
+              <div class="brain-sub">Month report, blockers, warnings, source health, audit readiness.</div>
+            </div>
+            <div id="closeBrainStatus" class="brain-status">Loading</div>
+          </a>
+        </div>
+      </div>
 
-<div class="section-title-row">
-<h2 class="section-title">Daily tools</h2>
-<div class="section-note">Fast paths stay visible. ATM and Nano Loans are live. Sheet parity remains parked.</div>
-</div>
-<section class="tool-grid motion-stagger">
-<a href="/add.html" class="tool-card primary">
-<div class="tool-icon"></div>
-<div>
-<div class="tool-title">Add Transaction</div>
-<div class="tool-sub">record the next ledger event</div>
-</div>
-</a>
-<a href="/atm.html" class="tool-card primary atm-tool">
-<div class="tool-icon"></div>
-<div>
-<div class="tool-title">ATM Control</div>
-<div class="tool-sub">cash movement plus fee reversal tracking</div>
-</div>
-</a>
-<a href="/nano-loans.html" class="tool-card primary nano-tool">
-<div class="tool-icon"></div>
-<div>
-<div class="tool-title">Nano Loans</div>
-<div class="tool-sub">small lending with repay and push-to-CC control</div>
-</div>
-</a>
-<a href="/transactions.html" class="tool-card primary">
-<div class="tool-icon"></div>
-<div>
-<div class="tool-title">Transactions</div>
-<div class="tool-sub">inspect active ledger rows</div>
-</div>
-</a>
-<a href="/bills.html" class="tool-card primary">
-<div class="tool-icon"></div>
-<div>
-<div class="tool-title">Bills</div>
-<div class="tool-sub">track obligations</div>
-</div>
-</a>
-<a href="/cc.html" class="tool-card primary">
-<div class="tool-icon"></div>
-<div>
-<div class="tool-title">Credit Card</div>
-<div class="tool-sub">manage Credit Card pressure</div>
-</div>
-</a>
-<a href="/charts.html" class="tool-card primary">
-<div class="tool-icon"></div>
-<div>
-<div class="tool-title">Charts</div>
-<div class="tool-sub">premium visual cockpit</div>
-</div>
-</a>
-<a href="/accounts.html" class="tool-card">
-<div class="tool-icon"></div>
-<div>
-<div class="tool-title">Accounts</div>
-<div class="tool-sub">see where money sits</div>
-</div>
-</a>
-<a href="/debts.html" class="tool-card">
-<div class="tool-icon"></div>
-<div>
-<div class="tool-title">Debts</div>
-<div class="tool-sub">snowball and corrections</div>
-</div>
-</a>
-<a href="/reconciliation.html" class="tool-card">
-<div class="tool-icon"></div>
-<div>
-<div class="tool-title">Reconcile</div>
-<div class="tool-sub">bank truth vs D1</div>
-</div>
-</a>
-<a href="/audit.html" class="tool-card">
-<div class="tool-icon"></div>
-<div>
-<div class="tool-title">Audit</div>
-<div class="tool-sub">verify recent writes</div>
-</div>
-</a>
-<a href="/goals.html" class="tool-card">
-<div class="tool-icon"></div>
-<div>
-<div class="tool-title">Goals</div>
-<div class="tool-sub">savings targets</div>
-</div>
-</a>
-</section>
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Current Position</div>
+            <div class="panel-sub">Live from Forecast / Safety layer</div>
+          </div>
+          <a class="panel-link" href="/forecast.html">Open Forecast</a>
+        </div>
+        <div class="mini-list">
+          <div class="mini-row">
+            <div>
+              <div class="mini-title">Liquid cash</div>
+              <div class="mini-sub">Current available liquid</div>
+            </div>
+            <div id="liquidRow" class="mini-amount">-</div>
+          </div>
+          <div class="mini-row">
+            <div>
+              <div class="mini-title">Credit Card outstanding</div>
+              <div class="mini-sub">Pressure remains visible</div>
+            </div>
+            <div id="ccRow" class="mini-amount">-</div>
+          </div>
+          <div class="mini-row">
+            <div>
+              <div class="mini-title">Cash after salary</div>
+              <div class="mini-sub">After known obligations</div>
+            </div>
+            <div id="salaryRow" class="mini-amount">-</div>
+          </div>
+        </div>
+      </div>
 
-<div class="section-title-row">
-<h2 class="section-title">What needs action</h2>
-<div class="section-note">Safety Engine reasons appear first. No test rows.</div>
-</div>
-<section id="riskGrid" class="risk-grid motion-stagger">
-<div class="risk-card">
-<div class="risk-title">Loading...</div>
-<div class="risk-copy">Checking live data.</div>
-</div>
-</section>
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Close Status</div>
+            <div class="panel-sub">Finance is built; final audit certification is separate</div>
+          </div>
+          <a class="panel-link" href="/monthly-close.html">Open Close</a>
+        </div>
+        <div class="mini-list">
+          <div class="mini-row">
+            <div>
+              <div class="mini-title">Audit readiness</div>
+              <div class="mini-sub">Ready or not ready from Monthly Close</div>
+            </div>
+            <div id="readyRow" class="mini-amount">-</div>
+          </div>
+          <div class="mini-row">
+            <div>
+              <div class="mini-title">Blockers</div>
+              <div class="mini-sub">Hard blockers before final audit</div>
+            </div>
+            <div id="blockerRow" class="mini-amount">-</div>
+          </div>
+          <div class="mini-row">
+            <div>
+              <div class="mini-title">Warnings</div>
+              <div class="mini-sub">Cleanup before certification</div>
+            </div>
+            <div id="warningRow" class="mini-amount">-</div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-<section class="lower-grid">
-<div class="viz-panel">
-<div class="panel-head">
-<div>
-<div class="panel-title">What changed recently</div>
-<div class="panel-sub">Latest ledger movement</div>
-</div>
-<a href="/transactions.html" class="panel-link">View all</a>
-</div>
-<div id="recentTransactions" class="mini-list motion-row-stagger">
-<div class="empty-panel">Loading recent transactions...</div>
-</div>
-</div>
-<div class="viz-panel">
-<div class="panel-head">
-<div>
-<div class="panel-title">Obligations</div>
-<div class="panel-sub">Bills sorted by pressure</div>
-</div>
-<a href="/bills.html" class="panel-link">Bills</a>
-</div>
-<div id="dueSoon" class="mini-list motion-row-stagger">
-<div class="empty-panel">Loading bills...</div>
-</div>
-</div>
-</section>
+    <section class="panel wide">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Daily Tools</div>
+          <div class="panel-sub">Finance tools remain here; Salah and Habits will move into separate Life OS sections</div>
+        </div>
+      </div>
+      <div class="tool-grid">
+        <a href="/add.html" class="tool-card"><div><div class="tool-title">Add Transaction</div><div class="tool-sub">Record the next ledger event</div></div></a>
+        <a href="/transactions.html" class="tool-card"><div><div class="tool-title">Transactions</div><div class="tool-sub">Inspect ledger rows</div></div></a>
+        <a href="/bills.html" class="tool-card"><div><div class="tool-title">Bills</div><div class="tool-sub">Track obligations</div></div></a>
+        <a href="/cc.html" class="tool-card"><div><div class="tool-title">Credit Card</div><div class="tool-sub">Manage Credit Card pressure</div></div></a>
+        <a href="/debts.html" class="tool-card"><div><div class="tool-title">Debts</div><div class="tool-sub">Snowball and corrections</div></div></a>
+        <a href="/accounts.html" class="tool-card"><div><div class="tool-title">Accounts</div><div class="tool-sub">See where money sits</div></div></a>
+        <a href="/reconciliation.html" class="tool-card"><div><div class="tool-title">Reconciliation</div><div class="tool-sub">Bank truth vs D1</div></div></a>
+        <a href="/atm.html" class="tool-card"><div><div class="tool-title">ATM</div><div class="tool-sub">Cash movement and fee reversals</div></div></a>
+        <a href="/nano-loans.html" class="tool-card"><div><div class="tool-title">Nano Loans</div><div class="tool-sub">Small lending controls</div></div></a>
+        <a href="/audit.html" class="tool-card"><div><div class="tool-title">Audit</div><div class="tool-sub">Verify recent writes</div></div></a>
+      </div>
+    </section>
 
-<footer class="page-footer">
-<span class="v">v0.9.9 · Finance Brain Hub wiring · safety v0.1.0 · nav v1.0.16 · theme v0.7.2 · app.css v1.0.1</span>
-</footer>
-</main>
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script src="/js/theme.js?v=0.7.2"></script>
-<script src="/js/nav.js?v=1.0.16"></script>
-<script>
-const TYPE_IN = new Set(['income', 'borrow']);
-const TYPE_OUT = new Set(['expense', 'repay', 'cc_spend', 'atm']);
-const TYPE_ICON = {
-income: '',
-expense: '',
-transfer: '',
-borrow: '',
-repay: '',
-cc_spend: '',
-cc_payment: '',
-atm: ''
-};
-const $ = id => document.getElementById(id);
+    <div class="panel wide" style="margin-top:18px;">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">What needs action</div>
+          <div class="panel-sub">Safety and Monthly Close reasons first</div>
+        </div>
+      </div>
+      <section id="riskGrid" class="risk-grid">
+        <div class="risk-card info">
+          <div class="risk-title">Loading</div>
+          <div class="risk-copy">Checking live brain state.</div>
+        </div>
+      </section>
+    </div>
 
-function esc(value) {
-return String(value == null ? '' : value)
-.replace(/&/g, '&amp;')
-.replace(/</g, '&lt;')
-.replace(/>/g, '&gt;')
-.replace(/"/g, '&quot;')
-.replace(/'/g, '&#39;');
-}
+    <footer class="page-footer">
+      <span class="v">v1.0.0 - Finance Core Hub closeout - forecast v0.2.0 - safety v0.2.0 - insights v0.3.0 - monthly-close v0.1.0 - nav v1.0.18</span>
+    </footer>
+  </main>
 
-function money(value) {
-const n = Number(value) || 0;
-const sign = n < 0 ? '-' : '';
-return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
-}
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-async function fetchJSON(url) {
-const res = await fetch(url, { cache: 'no-store' });
-const data = await res.json().catch(() => null);
-if (!res.ok || !data || data.ok === false) {
-throw new Error((data && data.error) || ('HTTP ' + res.status));
-}
-return data;
-}
+  <script src="/js/theme.js?v=0.7.5"></script>
+  <script src="/js/nav.js?v=1.0.18"></script>
+  <script>
+    const $ = id => document.getElementById(id);
 
-async function safeJSON(url, fallback) {
-try {
-return await fetchJSON(url);
-} catch (err) {
-return fallback;
-}
-}
+    function esc(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
 
-function amountClass(row) {
-const type = String(row.type || '').toLowerCase();
-if (TYPE_IN.has(type)) return 'positive';
-if (TYPE_OUT.has(type)) return 'negative';
-return 'neutral';
-}
+    function money(value) {
+      if (value == null || value === '') return 'N/A';
+      const n = Number(value);
+      if (!Number.isFinite(n)) return 'N/A';
+      const sign = n < 0 ? '-' : '';
+      return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
+    }
 
-function signedMoney(row) {
-const amount = Number(row.amount) || 0;
-const type = String(row.type || '').toLowerCase();
-if (TYPE_IN.has(type)) return '+' + money(amount);
-if (TYPE_OUT.has(type)) return '-' + money(amount);
-return money(amount);
-}
+    function plain(value, fallback = 'N/A') {
+      if (value == null || value === '') return fallback;
+      return String(value);
+    }
 
-function titleFor(row) {
-return String(row.notes || '').trim() || String(row.type || 'Transaction').replace(/_/g, ' ');
-}
+    function num(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : 0;
+    }
 
-function accountName(id, accounts) {
-const found = accounts.find(account => account.id === id);
-return found ? ((found.icon || '') + ' ' + found.name).trim() : (id || 'No account');
-}
+    function statusClass(value) {
+      const v = String(value || '').toLowerCase();
+      if (['safe', 'ready', 'high', 'ok', 'clear', 'manageable'].includes(v)) return 'good';
+      if (['watch', 'medium', 'medium_low'].includes(v)) return 'warn';
+      if (['unsafe', 'critical', 'not_ready', 'low', 'risk', 'high_pressure'].includes(v)) return 'bad';
+      return 'neutral';
+    }
 
-function findCC(accounts) {
-return (accounts || []).find(account => account.id === 'cc') ||
-(accounts || []).find(account => String(account.kind || '').toLowerCase() === 'cc') ||
-(accounts || []).find(account => String(account.kind || '').toLowerCase() === 'credit_card') ||
-null;
-}
+    function setText(id, value, className) {
+      const el = $(id);
+      if (!el) return;
+      el.textContent = value;
+      if (className) el.className = className;
+    }
 
-function billRisk(bill) {
-if (bill.last_paid_date) return 99;
-if (!bill.due_day) return 50;
-return Number(bill.due_day) - new Date().getDate();
-}
+    async function fetchJSON(url) {
+      const res = await fetch(url, { cache: 'no-store' });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || data.ok === false) {
+        throw new Error((data && data.error) || ('HTTP ' + res.status));
+      }
+      return data;
+    }
 
-function safetyLabel(liquid, ccPct, urgentBills, drifted, pendingAtmFees) {
-if (drifted > 0) return { text: 'Check Recon', cls: 'negative' };
-if (ccPct >= 75) return { text: 'Card High', cls: 'negative' };
-if (pendingAtmFees > 0) return { text: pendingAtmFees + ' ATM Fee', cls: 'warn' };
-if (urgentBills > 0) return { text: urgentBills + ' Action', cls: 'warn' };
-if (liquid < 5000) return { text: 'Thin Cash', cls: 'warn' };
-return { text: 'Stable', cls: 'positive' };
-}
+    async function safeJSON(url, fallback) {
+      try {
+        return await fetchJSON(url);
+      } catch (err) {
+        return fallback;
+      }
+    }
 
-function statusClass(status) {
-const val = String(status || '').toLowerCase();
-if (val === 'safe') return 'positive';
-if (val === 'watch') return 'warn';
-if (val === 'unsafe') return 'negative';
-return 'neutral';
-}
+    function renderStats(forecast, safety, insights, close) {
+      const position = forecast.current_position || {};
+      const projection = forecast.cash_projection_summary || {};
+      const topInsight = insights.top_insight || {};
+      const readiness = close.audit_readiness || {};
+      const closeSummary = close.summary || {};
 
-function severityCardClass(severity) {
-const val = String(severity || '').toLowerCase();
-if (val === 'unsafe') return 'bad';
-if (val === 'watch') return 'warn';
-if (val === 'safe' || val === 'good') return 'good';
-return 'info';
-}
+      const safetyStatus = safety.safety_status || safety.status || 'unknown';
+      const readyStatus = readiness.status || closeSummary.audit_readiness_status || 'unknown';
 
-function renderSafety(safety) {
-if (!safety || safety.ok !== true) return;
+      setText('sigSafe', safetyStatus.toUpperCase(), 'value ' + statusClass(safetyStatus));
+      setText('sigLiquid', money(position.total_liquid), 'value ' + (num(position.total_liquid) >= 0 ? 'good' : 'bad'));
+      setText('sigLow', money(projection.lowest_projected_balance), 'value ' + (num(projection.lowest_projected_balance) < 5000 ? 'bad' : num(projection.lowest_projected_balance) < 10000 ? 'warn' : 'good'));
+      setText('sigInsight', plain(topInsight.severity, 'info').toUpperCase(), 'value ' + statusClass(topInsight.severity));
+      setText('sigClose', readyStatus.replace('_', ' ').toUpperCase(), 'value ' + statusClass(readyStatus));
 
-const label = String(safety.status || 'unknown').toUpperCase();
-$('sigSafe').textContent = label;
-$('sigSafe').className = 'metric-value ' + statusClass(safety.status);
-$('orbitSafety').textContent = label;
-$('orbitSafety').className = 'sat-value ' + statusClass(safety.status);
+      setText('forecastBrainStatus', 'Live v' + plain(forecast.version));
+      setText('safetyBrainStatus', 'Live v' + plain(safety.version));
+      setText('insightBrainStatus', 'Live v' + plain(insights.version));
+      setText('closeBrainStatus', 'Live v' + plain(close.version));
 
-if (safety.headline) {
-$('freshnessText').textContent = 'Safety Engine: ' + safety.headline;
-}
-}
+      setText('liquidRow', money(position.total_liquid), 'mini-amount ' + (num(position.total_liquid) >= 0 ? 'good' : 'bad'));
+      setText('ccRow', money(position.cc_outstanding), 'mini-amount bad');
+      setText('salaryRow', money(projection.cash_after_salary_and_obligations), 'mini-amount ' + (num(projection.cash_after_salary_and_obligations) >= 0 ? 'good' : 'bad'));
 
-function renderBalances(data, accounts, bills, recon, atm) {
-const net = Number(data.net_worth) || 0;
-const liquid = Number(data.total_liquid || data.total_liquid_assets || data.cash || 0);
-const debts = Number(data.total_owed || data.total_owe || data.total_debts || 0);
-const burden = Number(data.true_burden || 0);
-const ccAccount = findCC(accounts) || {};
-const ccOutstanding = Number(ccAccount.cc_outstanding || data.cc_outstanding || data.cc || Math.abs(Number(ccAccount.balance) || 0)) || 0;
-const ccLimit = Number(ccAccount.credit_limit || 100000) || 100000;
-const ccAvailable = Number(ccAccount.available_credit != null ? ccAccount.available_credit : Math.max(0, ccLimit - ccOutstanding));
-const ccPct = Number(ccAccount.cc_utilization_pct != null ? ccAccount.cc_utilization_pct : ((ccOutstanding / ccLimit) * 100)) || 0;
-const urgentBills = (bills || []).filter(bill => billRisk(bill) <= 3 && !bill.last_paid_date).length;
-const drifted = Number(recon && (recon.drifted_count || recon.drift_count || 0)) || 0;
-const pendingAtmFees = Number(atm && atm.pending_count) || 0;
-const safe = safetyLabel(liquid, ccPct, urgentBills, drifted, pendingAtmFees);
+      setText('readyRow', readyStatus.replace('_', ' ').toUpperCase(), 'mini-amount ' + statusClass(readyStatus));
+      setText('blockerRow', String((readiness.blockers || []).length), 'mini-amount ' + ((readiness.blockers || []).length ? 'bad' : 'good'));
+      setText('warningRow', String((readiness.warnings || []).length), 'mini-amount ' + ((readiness.warnings || []).length ? 'warn' : 'good'));
 
-$('netWorth').textContent = money(net);
-$('netWorth').className = 'core-value ' + (net >= 0 ? 'positive' : 'negative');
-$('netSub').textContent = net >= 0 ? 'Positive position' : 'Burden exceeds current net position';
-$('liquid').textContent = money(liquid);
-$('debts').textContent = money(debts);
-$('burden').textContent = money(burden);
-$('orbitSafety').textContent = safe.text;
-$('orbitSafety').className = 'sat-value ' + safe.cls;
-$('sigSafe').textContent = safe.text;
-$('sigSafe').className = 'metric-value ' + safe.cls;
-$('sigLiquid').textContent = money(liquid);
-$('sigLiquid').className = 'metric-value ' + (liquid > 0 ? 'positive' : 'negative');
-$('sigCC').textContent = ccPct.toFixed(1) + '%';
-$('sigCC').className = 'metric-value ' + (ccPct >= 75 ? 'negative' : ccPct >= 40 ? 'warn' : 'positive');
-$('sigATM').textContent = pendingAtmFees ? pendingAtmFees + ' fee(s)' : 'Clear';
-$('sigATM').className = 'metric-value ' + (pendingAtmFees ? 'warn' : 'positive');
-$('ccOutstanding').textContent = money(ccOutstanding);
-$('ccUtil').textContent = ccPct.toFixed(1) + '%';
-$('ccUtil').className = 'cc-pill-value ' + (ccPct >= 75 ? 'negative' : ccPct >= 40 ? 'warn' : 'positive');
-$('ccAvailable').textContent = money(ccAvailable);
-$('ccLimit').textContent = money(ccLimit);
-$('ccDue').textContent = ccAccount.payment_due_day || ccAccount.days_to_payment_due || 'Not set';
-$('ccFill').style.width = Math.max(0, Math.min(100, ccPct)) + '%';
-const status = ccAccount.cc_status_label || (ccPct >= 75 ? 'High' : ccPct >= 40 ? 'Moderate' : 'Controlled');
-$('ccStatusBadge').textContent = status;
-}
+      $('freshnessText').textContent = 'Finance Core: Forecast + Safety + Insights + Monthly Close live';
+    }
 
-function renderTransactions(rows, accounts) {
-const box = $('recentTransactions');
-const recent = (rows || []).slice(0, 8);
-if (!recent.length) {
-box.innerHTML = '<div class="empty-panel">No recent transactions.</div>';
-return;
-}
-box.innerHTML = recent.map(row => {
-const type = String(row.type || '').toLowerCase();
-const cls = amountClass(row);
-return `
-<article class="mini-row">
-<div class="mini-icon">${TYPE_ICON[type] || ''}</div>
-<div>
-<div class="mini-title" title="${esc(titleFor(row))}">${esc(titleFor(row))}</div>
-<div class="mini-sub">${esc(accountName(row.account_id, accounts))} · ${esc(row.date || '')}</div>
-</div>
-<div class="mini-amount ${cls}">${esc(signedMoney(row))}</div>
-</article>
-`;
-}).join('');
-}
+    function renderRisks(safety, insights, close) {
+      const risks = [];
+      const readiness = close.audit_readiness || {};
+      const blockers = readiness.blockers || [];
+      const warnings = readiness.warnings || [];
+      const safetyDrivers = Array.isArray(safety.drivers) ? safety.drivers : [];
+      const insightRows = Array.isArray(insights.insights) ? insights.insights : [];
 
-function billStatus(bill) {
-if (bill.last_paid_date) return 'Paid ' + bill.last_paid_date;
-if (!bill.due_day) return 'No due day';
-const diff = Number(bill.due_day) - new Date().getDate();
-if (diff === 0) return 'Due today';
-if (diff > 0) return 'Due in ' + diff + 'd';
-return 'Overdue by ' + Math.abs(diff) + 'd';
-}
+      safetyDrivers.slice(0, 3).forEach(driver => {
+        risks.push({
+          level: statusClass(driver.severity),
+          title: driver.title || driver.code || 'Safety driver',
+          copy: driver.detail || 'Safety Engine driver',
+          href: '/forecast.html',
+          action: 'Open Forecast'
+        });
+      });
 
-function renderBills(bills) {
-const box = $('dueSoon');
-const rows = (bills || [])
-.slice()
-.sort((a, b) => billRisk(a) - billRisk(b))
-.slice(0, 6);
-if (!rows.length) {
-box.innerHTML = '<div class="empty-panel">No bills found.</div>';
-return;
-}
-box.innerHTML = rows.map(bill => `
-<article class="mini-row">
-<div class="mini-icon"></div>
-<div>
-<div class="mini-title">${esc(bill.name)}</div>
-<div class="mini-sub">${esc(billStatus(bill))}</div>
-</div>
-<div class="mini-amount neutral">${money(bill.amount)}</div>
-</article>
-`).join('');
-}
+      blockers.slice(0, 3).forEach(blocker => {
+        risks.push({
+          level: 'bad',
+          title: 'Audit blocker',
+          copy: blocker,
+          href: '/monthly-close.html',
+          action: 'Open Monthly Close'
+        });
+      });
 
-function renderLastWrite(audit) {
-const row = audit && audit.rows && audit.rows[0];
-$('sigWrite').textContent = row ? (row.action || 'Event') : 'None';
-}
+      warnings.slice(0, 3).forEach(warning => {
+        risks.push({
+          level: 'warn',
+          title: 'Audit warning',
+          copy: warning,
+          href: '/monthly-close.html',
+          action: 'Open Monthly Close'
+        });
+      });
 
-function safetyReasonCards(safety) {
-if (!safety || safety.ok !== true || !Array.isArray(safety.reasons) || !safety.reasons.length) {
-return [];
-}
+      insightRows.slice(0, 3).forEach(insight => {
+        risks.push({
+          level: statusClass(insight.severity),
+          title: insight.title || 'Insight',
+          copy: insight.meaning || insight.action || 'Insight action card',
+          href: '/insights.html',
+          action: 'Open Insights'
+        });
+      });
 
-return safety.reasons.slice(0, 6).map(reason => {
-const action = Array.isArray(safety.actions)
-? safety.actions.find(item => item.reason_code === reason.code)
-: null;
+      if (!risks.length) {
+        risks.push({
+          level: 'good',
+          title: 'Finance Core assembled',
+          copy: 'No live Safety, Insight, or Monthly Close blocker returned from available APIs.',
+          href: '/monthly-close.html',
+          action: 'Open Monthly Close'
+        });
+      }
 
-return {
-level: severityCardClass(reason.severity),
-title: reason.code || reason.title || 'Safety reason',
-copy: reason.detail || reason.title || 'Safety Engine detected a condition that needs attention.',
-action: action ? action.label : null,
-href: action ? action.href : null
-};
-});
-}
+      $('riskGrid').innerHTML = risks.slice(0, 10).map(risk => `
+        <article class="risk-card ${esc(risk.level || 'info')}">
+          <div class="risk-title">${esc(risk.title)}</div>
+          <div class="risk-copy">${esc(risk.copy)}</div>
+          <a class="risk-action" href="${esc(risk.href)}">${esc(risk.action || 'Open')}</a>
+        </article>
+      `).join('');
+    }
 
-function renderRisks(balances, accounts, bills, recon, atm, safety) {
-const risks = [];
-const safetyCards = safetyReasonCards(safety);
+    async function loadHub() {
+      try {
+        const [forecast, safety, insights, close] = await Promise.all([
+          fetchJSON('/api/forecast'),
+          fetchJSON('/api/safety'),
+          fetchJSON('/api/insights?days=30'),
+          fetchJSON('/api/monthly-close')
+        ]);
 
-safetyCards.forEach(card => risks.push(card));
+        renderStats(forecast, safety, insights, close);
+        renderRisks(safety, insights, close);
+      } catch (err) {
+        $('freshnessText').textContent = 'Hub load error';
+        $('riskGrid').innerHTML = `
+          <article class="risk-card bad">
+            <div class="risk-title">Hub failed</div>
+            <div class="risk-copy">${esc(err.message)}</div>
+            <a class="risk-action" href="/api/monthly-close">Open Monthly Close API</a>
+          </article>
+        `;
+      }
+    }
 
-const ccAccount = findCC(accounts) || {};
-const cc = Number(ccAccount.cc_outstanding || balances.cc_outstanding || balances.cc || Math.abs(Number(ccAccount.balance) || 0)) || 0;
-const limit = Number(ccAccount.credit_limit || 100000) || 100000;
-const ccPct = Number(ccAccount.cc_utilization_pct != null ? ccAccount.cc_utilization_pct : ((cc / limit) * 100)) || 0;
-const liquid = Number(balances.total_liquid || balances.total_liquid_assets || balances.cash || 0);
-const urgentBills = (bills || []).filter(bill => billRisk(bill) <= 3 && !bill.last_paid_date);
-const drifted = Number(recon && (recon.drifted_count || recon.drift_count || 0)) || 0;
-const pendingAtmFees = Number(atm && atm.pending_count) || 0;
-const pendingAtmValue = Number(atm && atm.total_pending_pkr) || 0;
-
-if (!safetyCards.length && safety && safety.ok === true) {
-risks.push({
-level: statusClass(safety.status) === 'positive' ? 'good' : 'info',
-title: 'Safety Engine',
-copy: safety.headline || 'Safety Engine returned a live result.',
-action: 'Open raw safety JSON',
-href: '/api/safety'
-});
-}
-
-risks.push({
-level: ccPct >= 75 ? 'bad' : ccPct >= 40 ? 'warn' : 'good',
-title: 'Credit Card pressure',
-copy: ccPct.toFixed(1) + '% utilization · outstanding ' + money(cc),
-action: 'Open Credit Card',
-href: '/cc.html'
-});
-risks.push({
-level: pendingAtmFees ? 'warn' : 'good',
-title: 'ATM reversals',
-copy: pendingAtmFees ? pendingAtmFees + ' pending fee(s) · ' + money(pendingAtmValue) : 'No pending ATM fee reversals',
-action: 'Open ATM',
-href: '/atm.html'
-});
-risks.push({
-level: 'info',
-title: 'Nano Loans',
-copy: 'Nano Loans are linked from Hub and global navigation',
-action: 'Open Nano Loans',
-href: '/nano-loans.html'
-});
-risks.push({
-level: liquid <= 0 ? 'bad' : liquid < 5000 ? 'warn' : 'good',
-title: 'Liquid runway',
-copy: 'Available liquid: ' + money(liquid),
-action: 'Open Accounts',
-href: '/accounts.html'
-});
-risks.push({
-level: urgentBills.length ? 'warn' : 'good',
-title: 'Bills due soon',
-copy: urgentBills.length ? urgentBills.length + ' bill(s) need attention' : 'No immediate bill pressure',
-action: 'Open Bills',
-href: '/bills.html'
-});
-risks.push({
-level: drifted ? 'bad' : 'good',
-title: 'Reconciliation',
-copy: drifted ? drifted + ' account(s) drifted' : 'No declared drift reported',
-action: 'Open Reconciliation',
-href: '/reconciliation.html'
-});
-
-$('riskGrid').innerHTML = risks.slice(0, 10).map(risk => `
-<article class="risk-card ${risk.level}">
-<div class="risk-title">${esc(risk.title)}</div>
-<div class="risk-copy">${esc(risk.copy)}</div>
-${risk.href ? `<a class="risk-action" href="${esc(risk.href)}">${esc(risk.action || 'Open')}</a>` : ''}
-</article>
-`).join('');
-}
-
-async function loadHub() {
-try {
-const [balances, transactions, accounts, bills, audit, recon, atm, safety] = await Promise.all([
-fetchJSON('/api/balances?debug=1'),
-fetchJSON('/api/transactions'),
-fetchJSON('/api/accounts?debug=1'),
-fetchJSON('/api/bills'),
-safeJSON('/api/audit?limit=1', { rows: [] }),
-safeJSON('/api/reconciliation', {}),
-safeJSON('/api/atm', { pending_count: 0, total_pending_pkr: 0 }),
-safeJSON('/api/safety', null)
-]);
-
-const accountRows = accounts.accounts || [];
-const billRows = bills.bills || [];
-
-renderBalances(balances, accountRows, billRows, recon, atm);
-renderSafety(safety);
-renderTransactions(transactions.transactions || [], accountRows);
-renderBills(billRows);
-renderLastWrite(audit);
-renderRisks(balances, accountRows, billRows, recon, atm, safety);
-
-if (!safety || safety.ok !== true) {
-$('freshnessText').textContent = 'Live data loaded · Safety Engine unavailable';
-} else {
-$('freshnessText').textContent = 'Safety Engine: ' + (safety.headline || safety.status || 'computed');
-}
-} catch (err) {
-$('freshnessText').textContent = 'Load error';
-$('recentTransactions').innerHTML = '<div class="empty-panel">Hub failed: ' + esc(err.message) + '</div>';
-}
-}
-
-loadHub();
-</script>
+    loadHub();
+  </script>
 </body>
 </html>
