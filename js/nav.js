@@ -1,60 +1,53 @@
-/* Sovereign Finance shared navigation v1.0.18
- * Finance Core closeout navigation
- *
- * Contract:
- * - Pure frontend navigation helper.
- * - No data mutation.
- * - No API writes.
- * - No ledger interaction.
- * - Desktop/sidebar gets full finance navigation.
- * - Mobile bottom nav stays daily-core only.
+/* Sovereign Finance shared navigation v1.0.19
+ * Emoji navigation restore
+ * No data mutation. No API writes. No ledger interaction.
  */
 
 (function () {
   'use strict';
 
-  const NAV_VERSION = '1.0.18';
+  const NAV_VERSION = '1.0.19';
 
   const PRIMARY_LINKS = [
-    { key: 'hub', label: 'Hub', href: '/index.html', icon: 'H', group: 'core' },
-    { key: 'forecast', label: 'Forecast', href: '/forecast.html', icon: 'F', group: 'brain' },
-    { key: 'insights', label: 'Insights', href: '/insights.html', icon: 'I', group: 'brain' },
-    { key: 'monthly-close', label: 'Monthly Close', href: '/monthly-close.html', icon: 'M', group: 'brain' },
-    { key: 'add', label: 'Add', href: '/add.html', icon: '+', group: 'core' },
-    { key: 'transactions', label: 'Transactions', href: '/transactions.html', icon: 'T', group: 'core' },
-    { key: 'accounts', label: 'Accounts', href: '/accounts.html', icon: 'A', group: 'truth' },
-    { key: 'reconciliation', label: 'Reconciliation', href: '/reconciliation.html', icon: 'R', group: 'truth' },
-    { key: 'bills', label: 'Bills', href: '/bills.html', icon: 'B', group: 'obligations' },
-    { key: 'cc', label: 'Credit Card', href: '/cc.html', icon: 'C', group: 'obligations' },
-    { key: 'debts', label: 'Debts', href: '/debts.html', icon: 'D', group: 'obligations' },
-    { key: 'salary', label: 'Salary', href: '/salary.html', icon: 'S', group: 'income' },
-    { key: 'atm', label: 'ATM', href: '/atm.html', icon: 'A', group: 'tools' },
-    { key: 'nano-loans', label: 'Nano Loans', href: '/nano-loans.html', icon: 'N', group: 'tools' },
-    { key: 'snapshots', label: 'Snapshots', href: '/snapshots.html', icon: 'S', group: 'audit' },
-    { key: 'audit', label: 'Audit', href: '/audit.html', icon: '!', group: 'audit' },
-    { key: 'charts', label: 'Charts', href: '/charts.html', icon: 'C', group: 'analysis' },
-    { key: 'budgets', label: 'Budgets', href: '/budgets.html', icon: 'B', group: 'planning' },
-    { key: 'goals', label: 'Goals', href: '/goals.html', icon: 'G', group: 'planning' }
+    { key: 'hub', label: 'Hub', href: '/index.html', icon: '🏠', group: 'core' },
+    { key: 'forecast', label: 'Forecast', href: '/forecast.html', icon: '🔮', group: 'brain' },
+    { key: 'insights', label: 'Insights', href: '/insights.html', icon: '💡', group: 'brain' },
+    { key: 'monthly-close', label: 'Monthly Close', href: '/monthly-close.html', icon: '✅', group: 'brain' },
+    { key: 'add', label: 'Add', href: '/add.html', icon: '➕', group: 'core' },
+    { key: 'transactions', label: 'Transactions', href: '/transactions.html', icon: '📒', group: 'core' },
+    { key: 'accounts', label: 'Accounts', href: '/accounts.html', icon: '🏦', group: 'truth' },
+    { key: 'reconciliation', label: 'Reconciliation', href: '/reconciliation.html', icon: '⚖️', group: 'truth' },
+    { key: 'bills', label: 'Bills', href: '/bills.html', icon: '🧾', group: 'obligations' },
+    { key: 'cc', label: 'Credit Card', href: '/cc.html', icon: '💳', group: 'obligations' },
+    { key: 'debts', label: 'Debts', href: '/debts.html', icon: '🪨', group: 'obligations' },
+    { key: 'salary', label: 'Salary', href: '/salary.html', icon: '💼', group: 'income' },
+    { key: 'atm', label: 'ATM', href: '/atm.html', icon: '🏧', group: 'tools' },
+    { key: 'nano-loans', label: 'Nano Loans', href: '/nano-loans.html', icon: '🧩', group: 'tools' },
+    { key: 'snapshots', label: 'Snapshots', href: '/snapshots.html', icon: '📸', group: 'audit' },
+    { key: 'audit', label: 'Audit', href: '/audit.html', icon: '🛡️', group: 'audit' },
+    { key: 'charts', label: 'Charts', href: '/charts.html', icon: '📊', group: 'analysis' },
+    { key: 'budgets', label: 'Budgets', href: '/budgets.html', icon: '🎯', group: 'planning' },
+    { key: 'goals', label: 'Goals', href: '/goals.html', icon: '🏁', group: 'planning' }
   ];
 
   const MOBILE_LINKS = [
-    { key: 'hub', label: 'Hub', href: '/index.html', icon: 'H' },
-    { key: 'add', label: 'Add', href: '/add.html', icon: '+' },
-    { key: 'forecast', label: 'Forecast', href: '/forecast.html', icon: 'F' },
-    { key: 'insights', label: 'Insights', href: '/insights.html', icon: 'I' },
-    { key: 'monthly-close', label: 'Close', href: '/monthly-close.html', icon: 'M' }
+    { key: 'hub', label: 'Hub', href: '/index.html', icon: '🏠' },
+    { key: 'add', label: 'Add', href: '/add.html', icon: '➕' },
+    { key: 'transactions', label: 'Ledger', href: '/transactions.html', icon: '📒' },
+    { key: 'forecast', label: 'Forecast', href: '/forecast.html', icon: '🔮' },
+    { key: 'cc', label: 'Card', href: '/cc.html', icon: '💳' }
   ];
 
   const GROUP_LABELS = {
-    core: 'Daily Core',
-    brain: 'Finance Brain',
-    truth: 'Truth + Accounts',
-    obligations: 'Obligations',
-    income: 'Income',
-    tools: 'Tools',
-    audit: 'Audit',
-    analysis: 'Analysis',
-    planning: 'Planning'
+    core: '⚡ Daily Core',
+    brain: '🧠 Finance Brain',
+    truth: '🏦 Truth + Accounts',
+    obligations: '🔥 Obligations',
+    income: '💼 Income',
+    tools: '🛠️ Tools',
+    audit: '🛡️ Audit',
+    analysis: '📊 Analysis',
+    planning: '🎯 Planning'
   };
 
   function normalizePath(pathname) {
@@ -68,12 +61,6 @@
     const p = normalizePath(window.location.pathname);
     const found = PRIMARY_LINKS.find(link => normalizePath(link.href) === p);
     if (found) return found.key;
-    if (p.includes('monthly-close')) return 'monthly-close';
-    if (p.includes('insights')) return 'insights';
-    if (p.includes('forecast')) return 'forecast';
-    if (p.includes('nano-loans')) return 'nano-loans';
-    if (p.includes('reconciliation')) return 'reconciliation';
-    if (p.includes('transactions')) return 'transactions';
     return 'hub';
   }
 
@@ -123,12 +110,13 @@
       <aside class="sf-shell-nav" data-nav-version="${NAV_VERSION}">
         <div class="sf-shell-nav-inner">
           <a class="sf-shell-brand" href="/index.html">
-            <span class="sf-shell-brand-mark">SF</span>
+            <span class="sf-shell-brand-mark">💰</span>
             <span>
               <strong>Sovereign</strong>
               <small>Finance Core</small>
             </span>
           </a>
+
           <div class="sf-nav-groups">
             ${groupedLinks().map(group => `
               <section class="sf-nav-group" data-group="${escapeHtml(group.key)}">
@@ -139,9 +127,10 @@
               </section>
             `).join('')}
           </div>
+
           <div class="sf-nav-footer">
             <span>nav v${NAV_VERSION}</span>
-            <span>Finance core complete</span>
+            <span>✨ alive</span>
           </div>
         </div>
       </aside>
@@ -163,10 +152,12 @@
     style.id = 'sf-nav-style';
     style.textContent = `
       :root {
-        --sf-nav-width: 258px;
-        --sf-mobile-nav-height: 76px;
+        --sf-nav-width: 266px;
+        --sf-mobile-nav-height: 78px;
       }
+
       body { min-height: 100vh; }
+
       .sf-shell-nav {
         position: fixed;
         inset: 0 auto 0 0;
@@ -175,124 +166,139 @@
         padding: 14px;
         pointer-events: none;
       }
+
       .sf-shell-nav-inner {
         height: 100%;
-        background: rgba(255, 255, 255, 0.92);
-        border: 1px solid var(--border, rgba(148, 163, 184, 0.28));
-        border-radius: 24px;
-        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
-        backdrop-filter: blur(18px);
+        background: rgba(255,255,255,.94);
+        border: 1px solid rgba(148,163,184,.28);
+        border-radius: 26px;
+        box-shadow: 0 24px 70px rgba(15,23,42,.15);
+        backdrop-filter: blur(20px);
         overflow: hidden;
         display: flex;
         flex-direction: column;
         pointer-events: auto;
       }
+
       .sf-shell-brand {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 11px;
         padding: 16px 14px 12px;
-        color: var(--text, #0f172a);
+        color: #0f172a;
         text-decoration: none;
       }
+
       .sf-shell-brand-mark {
-        width: 38px;
-        height: 38px;
-        border-radius: 14px;
+        width: 42px;
+        height: 42px;
+        border-radius: 16px;
         display: grid;
         place-items: center;
-        background: linear-gradient(135deg, #bbf7d0, #86efac);
-        color: #052e16;
-        font-size: 12px;
-        font-weight: 950;
-        letter-spacing: -0.03em;
+        background: linear-gradient(135deg, #bbf7d0, #93c5fd);
+        font-size: 21px;
+        box-shadow: 0 12px 30px rgba(15,23,42,.12);
       }
+
       .sf-shell-brand strong {
         display: block;
         font-size: 15px;
         font-weight: 950;
         line-height: 1.1;
       }
+
       .sf-shell-brand small {
         display: block;
         margin-top: 2px;
-        color: var(--text-dim, #64748b);
+        color: #64748b;
         font-size: 11px;
         font-weight: 850;
       }
+
       .sf-nav-groups {
         flex: 1;
         overflow: auto;
         padding: 4px 10px 10px;
       }
+
       .sf-nav-group { margin: 10px 0 14px; }
+
       .sf-nav-group-title {
         margin: 0 8px 7px;
-        color: var(--text-dim, #64748b);
+        color: #64748b;
         font-size: 10px;
         font-weight: 950;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
+        letter-spacing: .07em;
       }
+
       .sf-nav-group-links {
         display: grid;
         gap: 5px;
       }
+
       .sf-nav-item {
         display: flex;
         align-items: center;
         gap: 10px;
-        min-height: 40px;
+        min-height: 42px;
         padding: 9px 10px;
-        border-radius: 14px;
-        color: var(--text-muted, #475569);
+        border-radius: 15px;
+        color: #475569;
         text-decoration: none;
         font-size: 13px;
         font-weight: 900;
         border: 1px solid transparent;
+        transition: all .18s ease;
       }
+
       .sf-nav-item:hover {
-        background: var(--surface-2, #f8fafc);
-        color: var(--text, #0f172a);
+        background: #f8fafc;
+        color: #0f172a;
+        transform: translateX(2px);
       }
+
       .sf-nav-item.active {
-        background: linear-gradient(135deg, rgba(34, 197, 94, 0.14), rgba(37, 99, 235, 0.08));
-        border-color: rgba(34, 197, 94, 0.22);
-        color: var(--text, #0f172a);
+        background: linear-gradient(135deg, rgba(34,197,94,.16), rgba(37,99,235,.10));
+        border-color: rgba(34,197,94,.25);
+        color: #0f172a;
       }
+
       .sf-nav-icon {
-        width: 26px;
-        height: 26px;
-        border-radius: 10px;
+        width: 29px;
+        height: 29px;
+        border-radius: 11px;
         display: grid;
         place-items: center;
-        background: #ffffff;
-        border: 1px solid var(--border, rgba(148, 163, 184, 0.28));
-        font-size: 12px;
-        font-weight: 950;
+        background: #fff;
+        border: 1px solid rgba(148,163,184,.28);
+        font-size: 16px;
         flex: 0 0 auto;
       }
+
       .sf-nav-item.active .sf-nav-icon {
         background: #dcfce7;
-        color: #166534;
-        border-color: rgba(34, 197, 94, 0.26);
+        border-color: rgba(34,197,94,.30);
       }
+
       .sf-nav-label {
         min-width: 0;
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
       }
+
       .sf-nav-footer {
         display: flex;
         justify-content: space-between;
         gap: 8px;
         padding: 10px 14px 14px;
-        color: var(--text-dim, #64748b);
+        color: #64748b;
         font-size: 10px;
         font-weight: 850;
-        border-top: 1px solid var(--border, rgba(148, 163, 184, 0.22));
+        border-top: 1px solid rgba(148,163,184,.22);
       }
+
       .sf-mobile-nav {
         position: fixed;
         left: 10px;
@@ -301,15 +307,16 @@
         z-index: 1300;
         min-height: var(--sf-mobile-nav-height);
         display: none;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0,1fr));
         gap: 6px;
         padding: 8px;
         border-radius: 24px;
-        background: rgba(255, 255, 255, 0.94);
-        border: 1px solid var(--border, rgba(148, 163, 184, 0.28));
-        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.16);
+        background: rgba(255,255,255,.95);
+        border: 1px solid rgba(148,163,184,.28);
+        box-shadow: 0 18px 44px rgba(15,23,42,.16);
         backdrop-filter: blur(18px);
       }
+
       .sf-mobile-nav-item {
         min-width: 0;
         display: grid;
@@ -317,36 +324,38 @@
         gap: 4px;
         padding: 7px 4px;
         border-radius: 16px;
-        color: var(--text-muted, #475569);
+        color: #475569;
         text-decoration: none;
         font-size: 10px;
         font-weight: 950;
         border: 1px solid transparent;
       }
+
       .sf-mobile-nav-item.active {
-        background: rgba(34, 197, 94, 0.13);
-        border-color: rgba(34, 197, 94, 0.22);
-        color: var(--text, #0f172a);
+        background: rgba(34,197,94,.13);
+        border-color: rgba(34,197,94,.22);
+        color: #0f172a;
       }
+
       .sf-mobile-nav-icon {
-        width: 24px;
-        height: 24px;
+        width: 26px;
+        height: 26px;
         border-radius: 10px;
         display: grid;
         place-items: center;
-        background: #ffffff;
-        border: 1px solid var(--border, rgba(148, 163, 184, 0.28));
-        font-size: 11px;
-        font-weight: 950;
+        background: #fff;
+        border: 1px solid rgba(148,163,184,.28);
+        font-size: 15px;
       }
+
       .sf-mobile-nav-label {
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
         max-width: 100%;
       }
+
       body.sf-nav-ready { padding-left: calc(var(--sf-nav-width) + 18px); }
-      body.sf-nav-ready > header { margin-left: 0; }
 
       @media (max-width: 980px) {
         .sf-shell-nav { display: none; }
@@ -357,14 +366,17 @@
         }
         main { padding-bottom: calc(var(--sf-mobile-nav-height) + 16px); }
       }
+
       @media print {
-        .sf-shell-nav, .sf-mobile-nav { display: none !important; }
+        .sf-shell-nav,
+        .sf-mobile-nav { display: none !important; }
         body.sf-nav-ready {
           padding-left: 0 !important;
           padding-bottom: 0 !important;
         }
       }
     `;
+
     document.head.appendChild(style);
   }
 
