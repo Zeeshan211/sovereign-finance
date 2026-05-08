@@ -1,5 +1,5 @@
-/* Sovereign Finance shared navigation v1.0.17
- * Forecast nav wiring
+/* Sovereign Finance shared navigation v1.0.18
+ * Finance Core closeout navigation
  *
  * Contract:
  * - Pure frontend navigation helper.
@@ -13,34 +13,36 @@
 (function () {
   'use strict';
 
-  const NAV_VERSION = '1.0.17';
+  const NAV_VERSION = '1.0.18';
 
   const PRIMARY_LINKS = [
-    { key: 'hub', label: 'Hub', href: '/index.html', icon: '⌂', group: 'core' },
-    { key: 'forecast', label: 'Forecast', href: '/forecast.html', icon: '↗', group: 'brain' },
+    { key: 'hub', label: 'Hub', href: '/index.html', icon: 'H', group: 'core' },
+    { key: 'forecast', label: 'Forecast', href: '/forecast.html', icon: 'F', group: 'brain' },
+    { key: 'insights', label: 'Insights', href: '/insights.html', icon: 'I', group: 'brain' },
+    { key: 'monthly-close', label: 'Monthly Close', href: '/monthly-close.html', icon: 'M', group: 'brain' },
     { key: 'add', label: 'Add', href: '/add.html', icon: '+', group: 'core' },
-    { key: 'transactions', label: 'Transactions', href: '/transactions.html', icon: '⇄', group: 'core' },
-    { key: 'accounts', label: 'Accounts', href: '/accounts.html', icon: '◫', group: 'truth' },
-    { key: 'reconciliation', label: 'Reconciliation', href: '/reconciliation.html', icon: '✓', group: 'truth' },
-    { key: 'bills', label: 'Bills', href: '/bills.html', icon: '□', group: 'obligations' },
-    { key: 'cc', label: 'Credit Card', href: '/cc.html', icon: '▣', group: 'obligations' },
-    { key: 'debts', label: 'Debts', href: '/debts.html', icon: '↔', group: 'obligations' },
-    { key: 'salary', label: 'Salary', href: '/salary.html', icon: '₨', group: 'income' },
+    { key: 'transactions', label: 'Transactions', href: '/transactions.html', icon: 'T', group: 'core' },
+    { key: 'accounts', label: 'Accounts', href: '/accounts.html', icon: 'A', group: 'truth' },
+    { key: 'reconciliation', label: 'Reconciliation', href: '/reconciliation.html', icon: 'R', group: 'truth' },
+    { key: 'bills', label: 'Bills', href: '/bills.html', icon: 'B', group: 'obligations' },
+    { key: 'cc', label: 'Credit Card', href: '/cc.html', icon: 'C', group: 'obligations' },
+    { key: 'debts', label: 'Debts', href: '/debts.html', icon: 'D', group: 'obligations' },
+    { key: 'salary', label: 'Salary', href: '/salary.html', icon: 'S', group: 'income' },
     { key: 'atm', label: 'ATM', href: '/atm.html', icon: 'A', group: 'tools' },
     { key: 'nano-loans', label: 'Nano Loans', href: '/nano-loans.html', icon: 'N', group: 'tools' },
     { key: 'snapshots', label: 'Snapshots', href: '/snapshots.html', icon: 'S', group: 'audit' },
     { key: 'audit', label: 'Audit', href: '/audit.html', icon: '!', group: 'audit' },
-    { key: 'charts', label: 'Charts', href: '/charts.html', icon: '∿', group: 'analysis' },
+    { key: 'charts', label: 'Charts', href: '/charts.html', icon: 'C', group: 'analysis' },
     { key: 'budgets', label: 'Budgets', href: '/budgets.html', icon: 'B', group: 'planning' },
     { key: 'goals', label: 'Goals', href: '/goals.html', icon: 'G', group: 'planning' }
   ];
 
   const MOBILE_LINKS = [
-    { key: 'hub', label: 'Hub', href: '/index.html', icon: '⌂' },
+    { key: 'hub', label: 'Hub', href: '/index.html', icon: 'H' },
     { key: 'add', label: 'Add', href: '/add.html', icon: '+' },
-    { key: 'transactions', label: 'Txn', href: '/transactions.html', icon: '⇄' },
-    { key: 'bills', label: 'Bills', href: '/bills.html', icon: '□' },
-    { key: 'forecast', label: 'Forecast', href: '/forecast.html', icon: '↗' }
+    { key: 'forecast', label: 'Forecast', href: '/forecast.html', icon: 'F' },
+    { key: 'insights', label: 'Insights', href: '/insights.html', icon: 'I' },
+    { key: 'monthly-close', label: 'Close', href: '/monthly-close.html', icon: 'M' }
   ];
 
   const GROUP_LABELS = {
@@ -57,29 +59,21 @@
 
   function normalizePath(pathname) {
     let p = String(pathname || '/').split('?')[0].split('#')[0];
-
     if (p === '/' || p === '') return '/index.html';
-    if (!p.endsWith('.html') && !p.includes('/api/')) {
-      p = p.replace(/\/$/, '') + '.html';
-    }
-
+    if (!p.endsWith('.html') && !p.includes('/api/')) p = p.replace(/\/$/, '') + '.html';
     return p;
   }
 
   function currentKey() {
     const p = normalizePath(window.location.pathname);
-
-    const found = PRIMARY_LINKS.find(link => {
-      return normalizePath(link.href) === p;
-    });
-
+    const found = PRIMARY_LINKS.find(link => normalizePath(link.href) === p);
     if (found) return found.key;
-
+    if (p.includes('monthly-close')) return 'monthly-close';
+    if (p.includes('insights')) return 'insights';
+    if (p.includes('forecast')) return 'forecast';
     if (p.includes('nano-loans')) return 'nano-loans';
     if (p.includes('reconciliation')) return 'reconciliation';
     if (p.includes('transactions')) return 'transactions';
-    if (p.includes('forecast')) return 'forecast';
-
     return 'hub';
   }
 
@@ -98,20 +92,14 @@
 
   function groupedLinks() {
     const groups = [];
-
     for (const link of PRIMARY_LINKS) {
       let group = groups.find(item => item.key === link.group);
       if (!group) {
-        group = {
-          key: link.group,
-          label: GROUP_LABELS[link.group] || link.group,
-          links: []
-        };
+        group = { key: link.group, label: GROUP_LABELS[link.group] || link.group, links: [] };
         groups.push(group);
       }
       group.links.push(link);
     }
-
     return groups;
   }
 
@@ -138,10 +126,9 @@
             <span class="sf-shell-brand-mark">SF</span>
             <span>
               <strong>Sovereign</strong>
-              <small>Finance OS</small>
+              <small>Finance Core</small>
             </span>
           </a>
-
           <div class="sf-nav-groups">
             ${groupedLinks().map(group => `
               <section class="sf-nav-group" data-group="${escapeHtml(group.key)}">
@@ -152,10 +139,9 @@
               </section>
             `).join('')}
           </div>
-
           <div class="sf-nav-footer">
             <span>nav v${NAV_VERSION}</span>
-            <span>Forecast wired</span>
+            <span>Finance core complete</span>
           </div>
         </div>
       </aside>
@@ -180,11 +166,7 @@
         --sf-nav-width: 258px;
         --sf-mobile-nav-height: 76px;
       }
-
-      body {
-        min-height: 100vh;
-      }
-
+      body { min-height: 100vh; }
       .sf-shell-nav {
         position: fixed;
         inset: 0 auto 0 0;
@@ -193,7 +175,6 @@
         padding: 14px;
         pointer-events: none;
       }
-
       .sf-shell-nav-inner {
         height: 100%;
         background: rgba(255, 255, 255, 0.92);
@@ -206,7 +187,6 @@
         flex-direction: column;
         pointer-events: auto;
       }
-
       .sf-shell-brand {
         display: flex;
         align-items: center;
@@ -215,7 +195,6 @@
         color: var(--text, #0f172a);
         text-decoration: none;
       }
-
       .sf-shell-brand-mark {
         width: 38px;
         height: 38px;
@@ -228,14 +207,12 @@
         font-weight: 950;
         letter-spacing: -0.03em;
       }
-
       .sf-shell-brand strong {
         display: block;
         font-size: 15px;
         font-weight: 950;
         line-height: 1.1;
       }
-
       .sf-shell-brand small {
         display: block;
         margin-top: 2px;
@@ -243,17 +220,12 @@
         font-size: 11px;
         font-weight: 850;
       }
-
       .sf-nav-groups {
         flex: 1;
         overflow: auto;
         padding: 4px 10px 10px;
       }
-
-      .sf-nav-group {
-        margin: 10px 0 14px;
-      }
-
+      .sf-nav-group { margin: 10px 0 14px; }
       .sf-nav-group-title {
         margin: 0 8px 7px;
         color: var(--text-dim, #64748b);
@@ -262,12 +234,10 @@
         text-transform: uppercase;
         letter-spacing: 0.08em;
       }
-
       .sf-nav-group-links {
         display: grid;
         gap: 5px;
       }
-
       .sf-nav-item {
         display: flex;
         align-items: center;
@@ -281,18 +251,15 @@
         font-weight: 900;
         border: 1px solid transparent;
       }
-
       .sf-nav-item:hover {
         background: var(--surface-2, #f8fafc);
         color: var(--text, #0f172a);
       }
-
       .sf-nav-item.active {
         background: linear-gradient(135deg, rgba(34, 197, 94, 0.14), rgba(37, 99, 235, 0.08));
         border-color: rgba(34, 197, 94, 0.22);
         color: var(--text, #0f172a);
       }
-
       .sf-nav-icon {
         width: 26px;
         height: 26px;
@@ -301,24 +268,21 @@
         place-items: center;
         background: #ffffff;
         border: 1px solid var(--border, rgba(148, 163, 184, 0.28));
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 950;
         flex: 0 0 auto;
       }
-
       .sf-nav-item.active .sf-nav-icon {
         background: #dcfce7;
         color: #166534;
         border-color: rgba(34, 197, 94, 0.26);
       }
-
       .sf-nav-label {
         min-width: 0;
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
       }
-
       .sf-nav-footer {
         display: flex;
         justify-content: space-between;
@@ -329,7 +293,6 @@
         font-weight: 850;
         border-top: 1px solid var(--border, rgba(148, 163, 184, 0.22));
       }
-
       .sf-mobile-nav {
         position: fixed;
         left: 10px;
@@ -347,7 +310,6 @@
         box-shadow: 0 18px 44px rgba(15, 23, 42, 0.16);
         backdrop-filter: blur(18px);
       }
-
       .sf-mobile-nav-item {
         min-width: 0;
         display: grid;
@@ -361,13 +323,11 @@
         font-weight: 950;
         border: 1px solid transparent;
       }
-
       .sf-mobile-nav-item.active {
         background: rgba(34, 197, 94, 0.13);
         border-color: rgba(34, 197, 94, 0.22);
         color: var(--text, #0f172a);
       }
-
       .sf-mobile-nav-icon {
         width: 24px;
         height: 24px;
@@ -376,57 +336,35 @@
         place-items: center;
         background: #ffffff;
         border: 1px solid var(--border, rgba(148, 163, 184, 0.28));
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 950;
       }
-
       .sf-mobile-nav-label {
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
         max-width: 100%;
       }
-
-      body.sf-nav-ready {
-        padding-left: calc(var(--sf-nav-width) + 18px);
-      }
-
-      body.sf-nav-ready > header {
-        margin-left: 0;
-      }
+      body.sf-nav-ready { padding-left: calc(var(--sf-nav-width) + 18px); }
+      body.sf-nav-ready > header { margin-left: 0; }
 
       @media (max-width: 980px) {
-        .sf-shell-nav {
-          display: none;
-        }
-
-        .sf-mobile-nav {
-          display: grid;
-        }
-
+        .sf-shell-nav { display: none; }
+        .sf-mobile-nav { display: grid; }
         body.sf-nav-ready {
           padding-left: 0;
           padding-bottom: calc(var(--sf-mobile-nav-height) + 24px);
         }
-
-        main {
-          padding-bottom: calc(var(--sf-mobile-nav-height) + 16px);
-        }
+        main { padding-bottom: calc(var(--sf-mobile-nav-height) + 16px); }
       }
-
       @media print {
-        .sf-shell-nav,
-        .sf-mobile-nav {
-          display: none !important;
-        }
-
+        .sf-shell-nav, .sf-mobile-nav { display: none !important; }
         body.sf-nav-ready {
           padding-left: 0 !important;
           padding-bottom: 0 !important;
         }
       }
     `;
-
     document.head.appendChild(style);
   }
 
@@ -436,10 +374,8 @@
 
   function mount() {
     if (!document.body) return;
-
     addStyles();
     removeExistingNav();
-
     document.body.insertAdjacentHTML('afterbegin', desktopNavHtml());
     document.body.insertAdjacentHTML('beforeend', mobileNavHtml());
     document.body.classList.add('sf-nav-ready');
