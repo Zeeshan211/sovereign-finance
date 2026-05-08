@@ -1,43 +1,35 @@
-/* ─── Sovereign Finance · Add Transaction Form v0.3.2 · hard caller repair ─── */
+/*  Sovereign Finance  Add Transaction Form v0.3.3  D1 Category Source Alignment  */
 /*
- * Layer 2 contract:
- * - Add page must populate accounts/categories even if store preload timing fails.
- * - It fetches /api/accounts directly first.
- * - It fetches /api/categories directly, with local fallback.
- * - It writes through window.store.addTransaction if available.
- * - If store is unavailable, it writes directly to /api/transactions.
- * - No silent offline queue.
- */
+* Audit correction:
+* - Removes phantom hardcoded category fallback.
+* - Category dropdown now uses ONLY categories returned by /api/categories.
+* - If D1 categories are empty/unavailable, category stays optional and submits as null.
+* - This prevents UI from offering "Groceries" or any other category that D1 will reject.
+*
+* Contract:
+* - Add page must populate accounts directly from /api/accounts.
+* - It may use store.addTransaction if available.
+* - If store is unavailable, it writes directly to /api/transactions.
+* - No silent offline queue.
+* - No phantom category IDs.
+*/
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.3.2';
-
-  const FALLBACK_CATEGORIES = [
-    { id: 'food', name: 'Food', icon: '🍔' },
-    { id: 'grocery', name: 'Groceries', icon: '🛒' },
-    { id: 'transport', name: 'Transport', icon: '🚗' },
-    { id: 'bills', name: 'Bills', icon: '📄' },
-    { id: 'health', name: 'Health', icon: '💊' },
-    { id: 'personal', name: 'Personal', icon: '👕' },
-    { id: 'family', name: 'Family', icon: '👨‍👩‍👧' },
-    { id: 'debt', name: 'Debt Payment', icon: '💸' },
-    { id: 'cc_pay', name: 'CC Payment', icon: '💳' },
-    { id: 'salary', name: 'Salary', icon: '💰' },
-    { id: 'transfer', name: 'Transfer', icon: '↔' },
-    { id: 'other', name: 'Other', icon: '📌' }
-  ];
+  const VERSION = 'v0.3.3';
 
   let selectedType = 'expense';
   let accounts = [];
-  let categories = FALLBACK_CATEGORIES.slice();
+  let categories = [];
+  let categoriesLoaded = false;
   let submitting = false;
 
   const $ = id => document.getElementById(id);
 
   function todayLocal() {
     const d = new Date();
+
     return [
       d.getFullYear(),
       String(d.getMonth() + 1).padStart(2, '0'),
@@ -47,22 +39,26 @@
 
   function toast(msg, kind) {
     const old = document.querySelector('.toast');
+
     if (old) old.remove();
 
     const el = document.createElement('div');
+
     el.className = 'toast toast-' + (kind || 'info');
     el.textContent = msg;
+
     document.body.appendChild(el);
 
     setTimeout(() => el.classList.add('show'), 20);
     setTimeout(() => {
       el.classList.remove('show');
       setTimeout(() => el.remove(), 250);
-    }, 2600);
+    }, 3000);
   }
 
   function setSubmitText(text) {
     const btn = $('submitBtn');
+
     if (btn) btn.textContent = text;
   }
 
@@ -90,12 +86,26 @@
     return [];
   }
 
+  function normalizeCategories(raw) {
+    if (!Array.isArray(raw)) return [];
+
+    return raw
+      .filter(c => c && c.id)
+      .map(c => ({
+        id: String(c.id || '').trim(),
+        name: String(c.name || c.id || '').trim(),
+        icon: String(c.icon || '').trim()
+      }))
+      .filter(c => c.id);
+  }
+
   async function loadAccounts() {
     try {
       const data = await fetchJSON('/api/accounts?debug=1');
+
       accounts = normalizeAccounts(data.accounts);
     } catch (e1) {
-      console.warn('[add v0.3.2] /api/accounts failed:', e1.message);
+      console.warn('[add v0.3.3] /api/accounts failed:', e1.message);
 
       try {
         if (window.store && typeof window.store.refreshBalances === 'function') {
@@ -103,7 +113,7 @@
           accounts = normalizeAccounts(window.store.accounts || window.store.cachedAccounts || []);
         }
       } catch (e2) {
-        console.warn('[add v0.3.2] store account fallback failed:', e2.message);
+        console.warn('[add v0.3.3] store account fallback failed:', e2.message);
       }
     }
 
@@ -113,23 +123,27 @@
   }
 
   async function loadCategories() {
+    categoriesLoaded = false;
+    categories = [];
+
     try {
       const data = await fetchJSON('/api/categories');
-      categories = Array.isArray(data.categories) && data.categories.length
-        ? data.categories
-        : FALLBACK_CATEGORIES.slice();
+
+      categories = normalizeCategories(data.categories);
+      categoriesLoaded = true;
     } catch (e) {
-      console.warn('[add v0.3.2] categories fallback:', e.message);
-      categories = FALLBACK_CATEGORIES.slice();
+      console.warn('[add v0.3.3] /api/categories failed:', e.message);
+      categories = [];
+      categoriesLoaded = false;
     }
   }
 
   function accountLabel(a) {
-    return ((a.icon || '🏦') + '  ' + (a.name || a.id)).trim();
+    return ((a.icon || '') + '  ' + (a.name || a.id)).trim();
   }
 
   function categoryLabel(c) {
-    return ((c.icon || '📝') + '  ' + (c.name || c.id)).trim();
+    return ((c.icon || '') + '  ' + (c.name || c.id)).trim();
   }
 
   function fillAccounts() {
@@ -138,14 +152,17 @@
 
     if (source) {
       const old = source.value;
+
       source.innerHTML = '<option value="">Pick account...</option>';
 
       accounts.forEach(a => {
         if (!a || !a.id) return;
 
         const opt = document.createElement('option');
+
         opt.value = a.id;
         opt.textContent = accountLabel(a);
+
         source.appendChild(opt);
       });
 
@@ -172,8 +189,10 @@
       if (!a || !a.id || a.id === from) return;
 
       const opt = document.createElement('option');
+
       opt.value = a.id;
       opt.textContent = accountLabel(a);
+
       dest.appendChild(opt);
     });
 
@@ -184,24 +203,43 @@
 
   function fillCategories() {
     const sel = $('categorySelect');
+
     if (!sel) return;
 
     const old = sel.value;
 
-    sel.innerHTML = '<option value="">Pick category...</option>';
+    sel.innerHTML = '';
+
+    const empty = document.createElement('option');
+
+    empty.value = '';
+
+    if (categories.length) {
+      empty.textContent = 'No category';
+    } else if (categoriesLoaded) {
+      empty.textContent = 'No categories in D1 - save without category';
+    } else {
+      empty.textContent = 'Categories unavailable - save without category';
+    }
+
+    sel.appendChild(empty);
 
     categories.forEach(c => {
-      if (!c || !c.id) return;
-
       const opt = document.createElement('option');
+
       opt.value = c.id;
       opt.textContent = categoryLabel(c);
+
       sel.appendChild(opt);
     });
 
     if (old && [...sel.options].some(o => o.value === old)) {
       sel.value = old;
+    } else {
+      sel.value = '';
     }
+
+    sel.disabled = !categories.length;
   }
 
   function setType(type) {
@@ -223,6 +261,7 @@
 
   function updateButton() {
     const btn = $('submitBtn');
+
     if (!btn) return;
 
     const amount = parseFloat(($('amountInput') || {}).value || '0');
@@ -261,7 +300,9 @@
     if (selectedType === 'transfer') {
       if (!to) throw new Error('Pick a destination account');
       if (to === from) throw new Error('Source and destination cannot match');
+
       payload.transferToAccountId = to;
+      payload.categoryId = null;
     }
 
     return payload;
@@ -306,6 +347,7 @@
       }, 650);
     } catch (err) {
       toast(err.message || 'Save failed', 'error');
+
       submitting = false;
       setSubmitText('Save Transaction');
       updateButton();
@@ -318,7 +360,7 @@
       type: payload.type,
       amount: payload.amount,
       account_id: payload.accountId,
-      category_id: payload.categoryId,
+      category_id: payload.categoryId || null,
       notes: payload.notes,
       created_by: 'web-add-direct'
     };
@@ -352,6 +394,7 @@
 
     ['amountInput', 'accountSelect', 'transferToSelect', 'categorySelect'].forEach(id => {
       const el = $(id);
+
       if (!el) return;
 
       el.addEventListener('input', updateButton);
@@ -362,13 +405,15 @@
     });
 
     const form = $('addForm');
+
     if (form) form.addEventListener('submit', submit);
   }
 
   async function init() {
-    console.log('[add v0.3.2] init');
+    console.log('[add v0.3.3] init');
 
     const date = $('dateInput');
+
     if (date && !date.value) date.value = todayLocal();
 
     wireEvents();
@@ -383,9 +428,10 @@
     setType(selectedType);
     updateButton();
 
-    console.log('[add v0.3.2] ready', {
+    console.log('[add v0.3.3] ready', {
       accounts: accounts.length,
       categories: categories.length,
+      categoriesLoaded,
       store: window.store && window.store.version
     });
   }
