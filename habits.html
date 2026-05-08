@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Habits - Sovereign Life OS</title>
+  <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
+  <style>
+    body { background: linear-gradient(135deg,#fff7ed,#f8fafc); color:#0f172a; }
+    header { display:none; }
+    main { max-width:1180px; margin:0 auto; padding:22px; }
+    .top { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:18px; }
+    .brand { font-weight:950; font-size:18px; }
+    .sub { color:#64748b; font-size:12px; font-weight:850; margin-top:3px; }
+    .btn { border:1px solid rgba(15,23,42,.12); background:#fff; color:#0f172a; border-radius:999px; padding:10px 14px; text-decoration:none; font-size:12px; font-weight:950; }
+    .hero,.panel,.card { background:rgba(255,255,255,.9); border:1px solid rgba(15,23,42,.1); border-radius:28px; box-shadow:0 20px 60px rgba(15,23,42,.1); }
+    .hero { padding:34px; margin-bottom:18px; }
+    .kicker { display:inline-flex; background:#ffedd5; color:#c2410c; border-radius:999px; padding:7px 11px; font-size:12px; font-weight:950; letter-spacing:.08em; text-transform:uppercase; margin-bottom:14px; }
+    h1 { margin:0; font-size:clamp(40px,7vw,72px); line-height:.95; letter-spacing:-.07em; }
+    .copy { color:#64748b; max-width:820px; line-height:1.6; font-weight:760; margin-top:15px; }
+    .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
+    .card { padding:18px; }
+    .label { color:#64748b; font-size:11px; font-weight:950; letter-spacing:.08em; text-transform:uppercase; }
+    .value { margin-top:8px; font-size:22px; font-weight:950; color:#ea580c; }
+    .grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(340px,.85fr); gap:18px; }
+    .panel { padding:18px; margin-bottom:18px; }
+    .wide { grid-column:1/-1; }
+    .title { font-size:19px; font-weight:950; }
+    .hint { color:#64748b; font-size:12px; font-weight:850; margin-top:3px; }
+    .rows { display:grid; gap:10px; margin-top:16px; }
+    .row { background:#f8fafc; border:1px solid rgba(15,23,42,.08); border-radius:18px; padding:13px; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; }
+    .row-title { font-size:13px; font-weight:950; }
+    .row-copy { color:#64748b; font-size:12px; font-weight:820; margin-top:3px; line-height:1.35; }
+    .tag { color:#ea580c; font-size:11px; font-weight:950; white-space:nowrap; }
+    @media(max-width:900px){ .stats,.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column} }
+  </style>
+</head>
+<body>
+  <main>
+    <nav class="top">
+      <div>
+        <div class="brand">Habits Cockpit</div>
+        <div class="sub">Sovereign Life OS · separate domain</div>
+      </div>
+      <a class="btn" href="/index.html">Command Centre</a>
+    </nav>
+
+    <section class="hero">
+      <div class="kicker">Habits Shell v0.1</div>
+      <h1>Habits get their own execution cockpit.</h1>
+      <p class="copy">This page is intentionally separate from Finance and Salah. No balances, bills, prayer logs, or fake completion scores appear here. Live habit data will only appear after the Habits export/API layer is built.</p>
+    </section>
+
+    <section class="stats">
+      <div class="card"><div class="label">Today</div><div class="value">Pending Export</div></div>
+      <div class="card"><div class="label">Momentum</div><div class="value">Queued</div></div>
+      <div class="card"><div class="label">Recovery</div><div class="value">Planned</div></div>
+      <div class="card"><div class="label">Insights</div><div class="value">Planned</div></div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <div class="title">Today Checklist</div>
+        <div class="hint">Placeholder only. No fake habit completion data.</div>
+        <div class="rows">
+          <div class="row"><div><div class="row-title">Daily habits</div><div class="row-copy">Will load live checklist after /api/habits/today exists.</div></div><div class="tag">Layer 3B</div></div>
+          <div class="row"><div><div class="row-title">Workday vs off-day</div><div class="row-copy">Will separate expectations based on shift/off-day pattern.</div></div><div class="tag">Planned</div></div>
+          <div class="row"><div><div class="row-title">Recovery lane</div><div class="row-copy">Will show next best recovery action without shame language.</div></div><div class="tag">Planned</div></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="title">Habits Export Plan</div>
+        <div class="hint">Next implementation layer after shell.</div>
+        <div class="rows">
+          <div class="row"><div><div class="row-title">D1 schema</div><div class="row-copy">habit_definitions, habit_logs, habit_daily_status, habit_insights.</div></div><div class="tag">Layer 3A</div></div>
+          <div class="row"><div><div class="row-title">API</div><div class="row-copy">/api/habits/today and /api/habits/insights.</div></div><div class="tag">Layer 3B</div></div>
+          <div class="row"><div><div class="row-title">Live UI</div><div class="row-copy">Replace placeholders only after real data is available.</div></div><div class="tag">Layer 3C</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel wide">
+      <div class="title">Separation Contract</div>
+      <div class="hint">Habits stay clean.</div>
+      <div class="rows">
+        <div class="row"><div><div class="row-title">No Finance contamination</div><div class="row-copy">No balances, bills, debts, salary, Credit Card, or reconciliation data.</div></div><div class="tag">Locked</div></div>
+        <div class="row"><div><div class="row-title">No Salah contamination</div><div class="row-copy">No prayer status or recovery logic inside Habits.</div></div><div class="tag">Locked</div></div>
+        <div class="row"><div><div class="row-title">No fake habit data</div><div class="row-copy">Until API exists, only structure and plan are shown.</div></div><div class="tag">Locked</div></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
