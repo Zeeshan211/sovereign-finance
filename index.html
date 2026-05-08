@@ -6,30 +6,130 @@
   <meta name="theme-color" content="#050816" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Sovereign Finance Hub</title>
+  <title>Sovereign Life OS</title>
   <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
   <style>
+    :root {
+      --life-bg: #eef4ff;
+      --life-ink: #0f172a;
+      --life-muted: #64748b;
+      --life-soft: rgba(255,255,255,.88);
+      --life-line: rgba(15,23,42,.10);
+      --life-shadow: 0 22px 70px rgba(15,23,42,.14);
+      --life-green: #16a34a;
+      --life-amber: #d97706;
+      --life-red: #dc2626;
+      --life-blue: #2563eb;
+      --life-violet: #7c3aed;
+      --life-radius: 28px;
+    }
+
     body {
       background:
-        radial-gradient(circle at 10% 0%, rgba(34, 197, 94, 0.18), transparent 34rem),
-        radial-gradient(circle at 90% 10%, rgba(59, 130, 246, 0.18), transparent 36rem),
-        radial-gradient(circle at 55% 90%, rgba(168, 85, 247, 0.12), transparent 34rem),
-        #eef4ff;
+        radial-gradient(circle at 8% 0%, rgba(34, 197, 94, 0.18), transparent 34rem),
+        radial-gradient(circle at 92% 8%, rgba(59, 130, 246, 0.18), transparent 36rem),
+        radial-gradient(circle at 52% 92%, rgba(168, 85, 247, 0.12), transparent 34rem),
+        var(--life-bg);
+      color: var(--life-ink);
     }
-    .hub-wrap { max-width: 1320px; margin: 0 auto; }
+
+    header {
+      display: none;
+    }
+
+    .life-wrap {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .brand-lockup {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 46px;
+      height: 46px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #bbf7d0, #93c5fd);
+      color: #052e16;
+      font-size: 13px;
+      font-weight: 950;
+      box-shadow: 0 14px 34px rgba(15,23,42,.12);
+      flex: 0 0 auto;
+    }
+
+    .brand-name {
+      color: var(--life-ink);
+      font-size: 16px;
+      font-weight: 950;
+      line-height: 1.1;
+    }
+
+    .brand-sub {
+      color: var(--life-muted);
+      font-size: 12px;
+      font-weight: 850;
+      margin-top: 2px;
+    }
+
+    .top-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .top-btn {
+      min-height: 40px;
+      border-radius: 999px;
+      border: 1px solid var(--life-line);
+      background: rgba(255,255,255,.82);
+      color: var(--life-ink);
+      padding: 9px 13px;
+      font-size: 12px;
+      font-weight: 950;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+    }
+
+    .top-btn.primary {
+      background: #86efac;
+      color: #052e16;
+      border-color: rgba(22,163,74,.24);
+    }
+
     .hero {
       position: relative;
       overflow: hidden;
-      border-radius: 30px;
-      padding: 28px;
+      border-radius: 34px;
+      padding: clamp(24px, 4vw, 42px);
       margin-bottom: 18px;
       background:
-        linear-gradient(135deg, rgba(15,23,42,.96), rgba(30,41,59,.92)),
-        radial-gradient(circle at 20% 20%, rgba(34,197,94,.35), transparent 26rem);
+        linear-gradient(135deg, rgba(15,23,42,.97), rgba(30,41,59,.94)),
+        radial-gradient(circle at 18% 18%, rgba(34,197,94,.34), transparent 28rem),
+        radial-gradient(circle at 82% 16%, rgba(37,99,235,.24), transparent 28rem);
       color: #f8fafc;
       border: 1px solid rgba(148,163,184,.22);
-      box-shadow: 0 26px 80px rgba(15,23,42,.28);
+      box-shadow: 0 28px 90px rgba(15,23,42,.30);
     }
+
     .kicker {
       display: inline-flex;
       padding: 7px 11px;
@@ -43,72 +143,96 @@
       letter-spacing: .09em;
       margin-bottom: 14px;
     }
+
     .heading {
       margin: 0;
-      font-size: clamp(38px, 6vw, 72px);
-      line-height: .95;
-      letter-spacing: -.07em;
+      max-width: 980px;
+      font-size: clamp(42px, 7vw, 84px);
+      line-height: .92;
+      letter-spacing: -.075em;
       font-weight: 950;
       color: #fff;
     }
+
     .copy {
-      margin-top: 14px;
-      max-width: 820px;
+      margin-top: 16px;
+      max-width: 900px;
       color: #cbd5e1;
       font-size: 15px;
-      line-height: 1.6;
-      font-weight: 750;
+      line-height: 1.65;
+      font-weight: 760;
     }
-    .hero-pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 22px;
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 12px;
+      margin-top: 24px;
     }
-    .hero-pill {
+
+    .hero-chip {
       border: 1px solid rgba(255,255,255,.14);
       background: rgba(255,255,255,.08);
       color: #e2e8f0;
-      border-radius: 999px;
-      padding: 11px 15px;
-      font-size: 13px;
-      font-weight: 950;
-      text-decoration: none;
+      border-radius: 20px;
+      padding: 13px;
+      min-width: 0;
       backdrop-filter: blur(12px);
     }
-    .hero-pill.primary {
-      background: #86efac;
-      color: #052e16;
-      border-color: rgba(134,239,172,.6);
-      box-shadow: 0 14px 32px rgba(34,197,94,.24);
+
+    .chip-label {
+      color: #94a3b8;
+      font-size: 10px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .08em;
     }
-    .stats {
+
+    .chip-value {
+      margin-top: 6px;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 950;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-grid {
       display: grid;
       grid-template-columns: repeat(5, minmax(0,1fr));
       gap: 14px;
       margin-bottom: 18px;
     }
-    .card, .panel, .tool-card, .risk-card {
-      background: rgba(255,255,255,.94);
-      border: 1px solid rgba(15,23,42,.1);
-      box-shadow: 0 18px 46px rgba(15,23,42,.12);
-      border-radius: 24px;
+
+    .status-card,
+    .panel,
+    .domain-card,
+    .action-card {
+      background: var(--life-soft);
+      border: 1px solid var(--life-line);
+      border-radius: var(--life-radius);
+      box-shadow: var(--life-shadow);
+      backdrop-filter: blur(18px);
     }
-    .card {
+
+    .status-card {
       padding: 18px;
       min-width: 0;
       overflow: hidden;
     }
+
     .label {
-      color: #64748b;
+      color: var(--life-muted);
       font-size: 11px;
       font-weight: 950;
       text-transform: uppercase;
       letter-spacing: .09em;
     }
+
     .value {
       margin-top: 8px;
-      color: #0f172a;
+      color: var(--life-ink);
       font-size: 22px;
       font-weight: 950;
       letter-spacing: -.04em;
@@ -117,18 +241,30 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .good { color: #15803d !important; }
-    .warn { color: #d97706 !important; }
-    .bad { color: #dc2626 !important; }
-    .neutral { color: #0f172a !important; }
-    .grid {
+
+    .good { color: var(--life-green) !important; }
+    .warn { color: var(--life-amber) !important; }
+    .bad { color: var(--life-red) !important; }
+    .neutral { color: var(--life-ink) !important; }
+    .blue { color: var(--life-blue) !important; }
+    .violet { color: var(--life-violet) !important; }
+
+    .main-grid {
       display: grid;
-      grid-template-columns: minmax(0,1fr) minmax(390px,.9fr);
+      grid-template-columns: minmax(0, 1fr) minmax(360px, .82fr);
       gap: 18px;
       margin-bottom: 18px;
     }
-    .panel { padding: 18px; min-width: 0; }
-    .panel.wide { grid-column: 1 / -1; }
+
+    .panel {
+      padding: 18px;
+      min-width: 0;
+    }
+
+    .panel.wide {
+      grid-column: 1 / -1;
+    }
+
     .panel-head {
       display: flex;
       justify-content: space-between;
@@ -136,353 +272,443 @@
       gap: 12px;
       margin-bottom: 16px;
     }
+
     .panel-title {
-      color: #0f172a;
+      color: var(--life-ink);
       font-size: 19px;
       font-weight: 950;
       letter-spacing: -.02em;
     }
+
     .panel-sub {
-      color: #64748b;
+      color: var(--life-muted);
       font-size: 12px;
       font-weight: 850;
       margin-top: 3px;
+      line-height: 1.35;
     }
-    .panel-link {
-      color: #15803d;
-      font-size: 12px;
-      font-weight: 950;
-      white-space: nowrap;
-      text-decoration: none;
-    }
-    .brain-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0,1fr));
-      gap: 12px;
-    }
-    .brain-card {
-      min-height: 138px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 16px;
-      border-radius: 22px;
-      background: #f8fafc;
-      border: 1px solid rgba(15,23,42,.08);
-      text-decoration: none;
-      color: inherit;
-    }
-    .brain-card.primary {
-      background: linear-gradient(135deg, rgba(34,197,94,.12), rgba(37,99,235,.08));
-      border-color: rgba(34,197,94,.22);
-    }
-    .brain-title {
-      color: #0f172a;
-      font-size: 15px;
-      font-weight: 950;
-    }
-    .brain-sub {
-      margin-top: 6px;
-      color: #64748b;
-      font-size: 12px;
-      font-weight: 800;
-      line-height: 1.38;
-    }
-    .brain-status {
-      margin-top: 14px;
-      color: #15803d;
-      font-size: 12px;
-      font-weight: 950;
-    }
-    .tool-grid {
+
+    .domain-grid {
       display: grid;
       grid-template-columns: repeat(5, minmax(0,1fr));
       gap: 14px;
-      margin-bottom: 18px;
     }
-    .tool-card {
-      min-height: 120px;
+
+    .domain-card {
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      min-height: 190px;
       padding: 18px;
       text-decoration: none;
       color: inherit;
-      transition: transform .22s ease, box-shadow .22s ease;
+      transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+      overflow: hidden;
+      position: relative;
     }
-    .tool-card:hover {
+
+    .domain-card:hover {
       transform: translateY(-3px);
-      box-shadow: 0 24px 60px rgba(15,23,42,.16);
+      box-shadow: 0 28px 80px rgba(15,23,42,.18);
     }
-    .tool-title {
-      color: #0f172a;
-      font-size: 14px;
+
+    .domain-card.finance { border-color: rgba(34,197,94,.24); }
+    .domain-card.salah { border-color: rgba(37,99,235,.24); }
+    .domain-card.habits { border-color: rgba(245,158,11,.26); }
+    .domain-card.mission { border-color: rgba(124,58,237,.24); }
+    .domain-card.ai { border-color: rgba(20,184,166,.24); }
+
+    .domain-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 17px;
+      display: grid;
+      place-items: center;
+      background: #f8fafc;
+      border: 1px solid var(--life-line);
+      color: var(--life-ink);
+      font-size: 13px;
+      font-weight: 950;
+      margin-bottom: 13px;
+    }
+
+    .domain-title {
+      color: var(--life-ink);
+      font-size: 16px;
       font-weight: 950;
     }
-    .tool-sub {
-      margin-top: 5px;
-      color: #64748b;
+
+    .domain-copy {
+      margin-top: 7px;
+      color: var(--life-muted);
       font-size: 12px;
-      font-weight: 800;
-      line-height: 1.35;
+      font-weight: 820;
+      line-height: 1.42;
     }
-    .risk-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0,1fr));
-      gap: 14px;
-      margin-bottom: 18px;
+
+    .domain-status {
+      margin-top: 16px;
+      display: inline-flex;
+      width: fit-content;
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: #f8fafc;
+      border: 1px solid var(--life-line);
+      color: var(--life-muted);
+      font-size: 10px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .06em;
     }
-    .risk-card {
-      position: relative;
-      overflow: hidden;
-      padding: 18px;
-      min-width: 0;
+
+    .domain-actions {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
     }
-    .risk-card::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 6px;
-      background: #94a3b8;
-    }
-    .risk-card.good::before { background: #22c55e; }
-    .risk-card.warn::before { background: #f59e0b; }
-    .risk-card.bad::before { background: #dc2626; }
-    .risk-card.info::before { background: #8b5cf6; }
-    .risk-title {
-      color: #0f172a;
-      font-size: 14px;
+
+    .mini-link {
+      border: 1px solid var(--life-line);
+      background: #fff;
+      color: var(--life-ink);
+      border-radius: 999px;
+      padding: 7px 9px;
+      text-decoration: none;
+      font-size: 10px;
       font-weight: 950;
       white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
-    .risk-copy {
-      margin-top: 5px;
-      color: #64748b;
-      font-size: 12px;
-      font-weight: 800;
-      line-height: 1.38;
-    }
-    .risk-action {
-      margin-top: 10px;
-      display: inline-flex;
-      font-size: 11px;
-      font-weight: 950;
-      color: #15803d;
-      text-decoration: none;
-    }
-    .mini-list {
-      display: flex;
-      flex-direction: column;
+
+    .action-list {
+      display: grid;
       gap: 10px;
     }
-    .mini-row {
+
+    .action-card {
+      padding: 13px;
+      box-shadow: none;
+      background: #f8fafc;
+      border-radius: 18px;
       display: grid;
-      grid-template-columns: minmax(0,1fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
       align-items: center;
-      background: #f8fafc;
-      border: 1px solid rgba(15,23,42,.08);
-      border-radius: 16px;
-      padding: 11px;
     }
-    .mini-title {
-      color: #0f172a;
+
+    .action-title {
+      color: var(--life-ink);
       font-size: 13px;
       font-weight: 950;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .mini-sub {
-      margin-top: 2px;
-      color: #64748b;
+
+    .action-copy {
+      color: var(--life-muted);
       font-size: 11px;
-      font-weight: 800;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-weight: 820;
+      line-height: 1.35;
+      margin-top: 3px;
     }
-    .mini-amount {
-      color: #0f172a;
+
+    .action-link {
+      color: var(--life-green);
+      font-size: 11px;
+      font-weight: 950;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .timeline-row {
+      display: grid;
+      grid-template-columns: 92px minmax(0,1fr);
+      gap: 12px;
+      padding: 12px;
+      border-radius: 18px;
+      background: #f8fafc;
+      border: 1px solid var(--life-line);
+    }
+
+    .timeline-time {
+      color: var(--life-muted);
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .timeline-title {
+      color: var(--life-ink);
       font-size: 13px;
       font-weight: 950;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      text-align: right;
     }
+
+    .timeline-copy {
+      margin-top: 3px;
+      color: var(--life-muted);
+      font-size: 11px;
+      font-weight: 820;
+      line-height: 1.35;
+    }
+
     .empty {
       background: #f8fafc;
       border: 1px dashed rgba(15,23,42,.2);
       border-radius: 18px;
       padding: 24px;
       text-align: center;
-      color: #64748b;
+      color: var(--life-muted);
       font-weight: 850;
+      line-height: 1.45;
     }
+
+    .footer-note {
+      color: var(--life-muted);
+      font-size: 11px;
+      font-weight: 850;
+      text-align: center;
+      margin: 18px 0 4px;
+    }
+
     @media (max-width: 1180px) {
-      .stats, .tool-grid, .risk-grid, .brain-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
-      .grid { grid-template-columns: 1fr; }
+      .status-grid,
+      .hero-grid,
+      .domain-grid {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+      }
+
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
     }
+
     @media (max-width: 720px) {
-      .stats, .tool-grid, .risk-grid, .brain-grid { grid-template-columns: 1fr; }
-      .mini-row { grid-template-columns: 1fr; }
-      .mini-amount { text-align: left; }
+      .life-wrap {
+        padding: 14px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .top-actions {
+        justify-content: flex-start;
+      }
+
+      .status-grid,
+      .hero-grid,
+      .domain-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .action-card {
+        grid-template-columns: 1fr;
+      }
+
+      .timeline-row {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <header>
-    <div>
-      <div class="brand">Sovereign Finance</div>
-      <div class="title">Hub</div>
-    </div>
-  </header>
+  <main class="life-wrap">
+    <nav class="topbar" aria-label="Life OS top navigation">
+      <div class="brand-lockup">
+        <div class="brand-mark">OS</div>
+        <div>
+          <div class="brand-name">Sovereign Life OS</div>
+          <div class="brand-sub">Main Command Centre</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <a class="top-btn primary" href="/forecast.html">Finance</a>
+        <button class="top-btn" type="button" data-domain-jump="salah">Salah</button>
+        <button class="top-btn" type="button" data-domain-jump="habits">Habits</button>
+        <button class="top-btn" type="button" data-domain-jump="mission">Mission</button>
+        <button class="top-btn" type="button" data-domain-jump="ai">AI</button>
+      </div>
+    </nav>
 
-  <main class="hub-wrap">
     <section class="hero">
-      <div class="kicker">Finance Core complete</div>
-      <h1 class="heading">Finance cockpit</h1>
+      <div class="kicker">Life OS Shell v0.1</div>
+      <h1 class="heading">One command centre. Separate life domains.</h1>
       <p class="copy">
-        Forecast, Safety, Insights, and Monthly Close are now live. This Hub is the final Finance landing screen before we move the wider Sovereign Life OS into separate sections for Salah, Habits, Health, Mission, and AI.
+        Finance is now one cockpit inside a wider system. Salah, Habits, Mission, and AI stay isolated from Finance, but the Main Command Centre can read high-level signals and show what needs attention without mixing ledgers, prayers, habits, or mission work.
       </p>
-      <div class="hero-pills">
-        <span class="hero-pill primary" id="freshnessText">Loading live brain state...</span>
-        <a class="hero-pill" href="/forecast.html">Forecast</a>
-        <a class="hero-pill" href="/insights.html">Insights</a>
-        <a class="hero-pill" href="/monthly-close.html">Monthly Close</a>
-        <a class="hero-pill" href="/reconciliation.html">Reconciliation</a>
+
+      <div class="hero-grid">
+        <div class="hero-chip">
+          <div class="chip-label">Finance</div>
+          <div id="heroFinance" class="chip-value">Loading live status</div>
+        </div>
+        <div class="hero-chip">
+          <div class="chip-label">Salah</div>
+          <div class="chip-value">Not exported yet</div>
+        </div>
+        <div class="hero-chip">
+          <div class="chip-label">Habits</div>
+          <div class="chip-value">Not exported yet</div>
+        </div>
+        <div class="hero-chip">
+          <div class="chip-label">AI Curator</div>
+          <div class="chip-value">Queued after domains</div>
+        </div>
       </div>
     </section>
 
-    <section class="stats">
-      <div class="card">
-        <div class="label">Safety</div>
-        <div id="sigSafe" class="value">-</div>
+    <section class="status-grid">
+      <div class="status-card">
+        <div class="label">Finance Safety</div>
+        <div id="financeSafety" class="value">-</div>
       </div>
-      <div class="card">
-        <div class="label">Liquid Now</div>
-        <div id="sigLiquid" class="value">-</div>
-      </div>
-      <div class="card">
-        <div class="label">30D Low</div>
-        <div id="sigLow" class="value">-</div>
-      </div>
-      <div class="card">
-        <div class="label">Top Insight</div>
-        <div id="sigInsight" class="value">-</div>
-      </div>
-      <div class="card">
+      <div class="status-card">
         <div class="label">Audit Readiness</div>
-        <div id="sigClose" class="value">-</div>
+        <div id="auditReadiness" class="value">-</div>
+      </div>
+      <div class="status-card">
+        <div class="label">Salah</div>
+        <div class="value blue">Separate</div>
+      </div>
+      <div class="status-card">
+        <div class="label">Habits</div>
+        <div class="value warn">Queued</div>
+      </div>
+      <div class="status-card">
+        <div class="label">AI Decisions</div>
+        <div class="value violet">Planned</div>
       </div>
     </section>
 
-    <section class="grid">
-      <div class="panel wide">
+    <section class="panel wide">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Domain Cockpits</div>
+          <div class="panel-sub">Each domain has its own identity. Main Command Centre only summarizes and routes.</div>
+        </div>
+      </div>
+
+      <div class="domain-grid">
+        <article class="domain-card finance" id="domain-finance">
+          <div>
+            <div class="domain-icon">F</div>
+            <div class="domain-title">Finance</div>
+            <div class="domain-copy">Money cockpit only: forecast, safety, insights, monthly close, accounts, bills, debts, Credit Card, reconciliation.</div>
+            <div id="financeDomainStatus" class="domain-status">Loading</div>
+          </div>
+          <div class="domain-actions">
+            <a class="mini-link" href="/forecast.html">Forecast</a>
+            <a class="mini-link" href="/insights.html">Insights</a>
+            <a class="mini-link" href="/monthly-close.html">Monthly Close</a>
+          </div>
+        </article>
+
+        <article class="domain-card salah" id="domain-salah">
+          <div>
+            <div class="domain-icon">S</div>
+            <div class="domain-title">Salah</div>
+            <div class="domain-copy">Prayer cockpit only: today status, prayer timeline, missed recovery, streaks, weekly reflection. No finance contamination.</div>
+            <div class="domain-status blue">Export queued</div>
+          </div>
+          <div class="domain-actions">
+            <button class="mini-link" type="button" data-show-plan="salah">View plan</button>
+          </div>
+        </article>
+
+        <article class="domain-card habits" id="domain-habits">
+          <div>
+            <div class="domain-icon">H</div>
+            <div class="domain-title">Habits</div>
+            <div class="domain-copy">Daily execution cockpit: checklist, momentum, weak habits, recovery suggestions, workday/off-day pattern.</div>
+            <div class="domain-status warn">Export queued</div>
+          </div>
+          <div class="domain-actions">
+            <button class="mini-link" type="button" data-show-plan="habits">View plan</button>
+          </div>
+        </article>
+
+        <article class="domain-card mission" id="domain-mission">
+          <div>
+            <div class="domain-icon">M</div>
+            <div class="domain-title">Mission</div>
+            <div class="domain-copy">Direction cockpit: current priority, active project, milestone, blockers, weekly direction, roadmap.</div>
+            <div class="domain-status violet">Planned</div>
+          </div>
+          <div class="domain-actions">
+            <button class="mini-link" type="button" data-show-plan="mission">View plan</button>
+          </div>
+        </article>
+
+        <article class="domain-card ai" id="domain-ai">
+          <div>
+            <div class="domain-icon">AI</div>
+            <div class="domain-title">AI Curator</div>
+            <div class="domain-copy">Cross-domain brain: reads domain summaries, curates decisions, prepares Telegram relay. No direct mutation first.</div>
+            <div class="domain-status good">Architecture planned</div>
+          </div>
+          <div class="domain-actions">
+            <button class="mini-link" type="button" data-show-plan="ai">View plan</button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="main-grid">
+      <div class="panel">
         <div class="panel-head">
           <div>
-            <div class="panel-title">Finance Brain</div>
-            <div class="panel-sub">The four live brain layers that close Finance Core</div>
+            <div class="panel-title">What Needs Action</div>
+            <div class="panel-sub">Finance live signals first. Other domains stay placeholder until exported.</div>
           </div>
         </div>
-        <div class="brain-grid">
-          <a href="/forecast.html" class="brain-card primary">
-            <div>
-              <div class="brain-title">Forecast</div>
-              <div class="brain-sub">30-day runway, salary forecast, obligations, debt-free estimate.</div>
-            </div>
-            <div id="forecastBrainStatus" class="brain-status">Loading</div>
-          </a>
-          <a href="/forecast.html" class="brain-card primary">
-            <div>
-              <div class="brain-title">Safety</div>
-              <div class="brain-sub">Am I safe, why, next risk date, no-action outcome, drivers.</div>
-            </div>
-            <div id="safetyBrainStatus" class="brain-status">Loading</div>
-          </a>
-          <a href="/insights.html" class="brain-card primary">
-            <div>
-              <div class="brain-title">Insights</div>
-              <div class="brain-sub">Rule-based action cards from forecast, safety, ledger, debts, CC.</div>
-            </div>
-            <div id="insightBrainStatus" class="brain-status">Loading</div>
-          </a>
-          <a href="/monthly-close.html" class="brain-card primary">
-            <div>
-              <div class="brain-title">Monthly Close</div>
-              <div class="brain-sub">Month report, blockers, warnings, source health, audit readiness.</div>
-            </div>
-            <div id="closeBrainStatus" class="brain-status">Loading</div>
-          </a>
+        <div id="actionList" class="action-list">
+          <div class="empty">Loading action signals...</div>
         </div>
       </div>
 
       <div class="panel">
         <div class="panel-head">
           <div>
-            <div class="panel-title">Current Position</div>
-            <div class="panel-sub">Live from Forecast / Safety layer</div>
-          </div>
-          <a class="panel-link" href="/forecast.html">Open Forecast</a>
-        </div>
-        <div class="mini-list">
-          <div class="mini-row">
-            <div>
-              <div class="mini-title">Liquid cash</div>
-              <div class="mini-sub">Current available liquid</div>
-            </div>
-            <div id="liquidRow" class="mini-amount">-</div>
-          </div>
-          <div class="mini-row">
-            <div>
-              <div class="mini-title">Credit Card outstanding</div>
-              <div class="mini-sub">Pressure remains visible</div>
-            </div>
-            <div id="ccRow" class="mini-amount">-</div>
-          </div>
-          <div class="mini-row">
-            <div>
-              <div class="mini-title">Cash after salary</div>
-              <div class="mini-sub">After known obligations</div>
-            </div>
-            <div id="salaryRow" class="mini-amount">-</div>
+            <div class="panel-title">Today Timeline</div>
+            <div class="panel-sub">Cross-domain timeline shell. Salah/Habits become live after export.</div>
           </div>
         </div>
-      </div>
-
-      <div class="panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Close Status</div>
-            <div class="panel-sub">Finance is built; final audit certification is separate</div>
-          </div>
-          <a class="panel-link" href="/monthly-close.html">Open Close</a>
-        </div>
-        <div class="mini-list">
-          <div class="mini-row">
+        <div class="timeline">
+          <div class="timeline-row">
+            <div class="timeline-time">Finance</div>
             <div>
-              <div class="mini-title">Audit readiness</div>
-              <div class="mini-sub">Ready or not ready from Monthly Close</div>
+              <div class="timeline-title">Finance Core live</div>
+              <div class="timeline-copy">Forecast, Safety, Insights, and Monthly Close are available from Finance cockpit links.</div>
             </div>
-            <div id="readyRow" class="mini-amount">-</div>
           </div>
-          <div class="mini-row">
+          <div class="timeline-row">
+            <div class="timeline-time">Salah</div>
             <div>
-              <div class="mini-title">Blockers</div>
-              <div class="mini-sub">Hard blockers before final audit</div>
+              <div class="timeline-title">Awaiting Salah export</div>
+              <div class="timeline-copy">Next layer will add live prayer data without showing finance inside Salah.</div>
             </div>
-            <div id="blockerRow" class="mini-amount">-</div>
           </div>
-          <div class="mini-row">
+          <div class="timeline-row">
+            <div class="timeline-time">Habits</div>
             <div>
-              <div class="mini-title">Warnings</div>
-              <div class="mini-sub">Cleanup before certification</div>
+              <div class="timeline-title">Awaiting Habits export</div>
+              <div class="timeline-copy">Habits will get its own cockpit after Salah foundation.</div>
             </div>
-            <div id="warningRow" class="mini-amount">-</div>
+          </div>
+          <div class="timeline-row">
+            <div class="timeline-time">AI</div>
+            <div>
+              <div class="timeline-title">Curator after domains</div>
+              <div class="timeline-copy">AI should read multiple live domains before Telegram relay is enabled.</div>
+            </div>
           </div>
         </div>
       </div>
@@ -491,50 +717,66 @@
     <section class="panel wide">
       <div class="panel-head">
         <div>
-          <div class="panel-title">Daily Tools</div>
-          <div class="panel-sub">Finance tools remain here; Salah and Habits will move into separate Life OS sections</div>
+          <div class="panel-title">Selected Domain Plan</div>
+          <div class="panel-sub">This is planning only. No fake live data is shown for domains not exported yet.</div>
         </div>
       </div>
-      <div class="tool-grid">
-        <a href="/add.html" class="tool-card"><div><div class="tool-title">Add Transaction</div><div class="tool-sub">Record the next ledger event</div></div></a>
-        <a href="/transactions.html" class="tool-card"><div><div class="tool-title">Transactions</div><div class="tool-sub">Inspect ledger rows</div></div></a>
-        <a href="/bills.html" class="tool-card"><div><div class="tool-title">Bills</div><div class="tool-sub">Track obligations</div></div></a>
-        <a href="/cc.html" class="tool-card"><div><div class="tool-title">Credit Card</div><div class="tool-sub">Manage Credit Card pressure</div></div></a>
-        <a href="/debts.html" class="tool-card"><div><div class="tool-title">Debts</div><div class="tool-sub">Snowball and corrections</div></div></a>
-        <a href="/accounts.html" class="tool-card"><div><div class="tool-title">Accounts</div><div class="tool-sub">See where money sits</div></div></a>
-        <a href="/reconciliation.html" class="tool-card"><div><div class="tool-title">Reconciliation</div><div class="tool-sub">Bank truth vs D1</div></div></a>
-        <a href="/atm.html" class="tool-card"><div><div class="tool-title">ATM</div><div class="tool-sub">Cash movement and fee reversals</div></div></a>
-        <a href="/nano-loans.html" class="tool-card"><div><div class="tool-title">Nano Loans</div><div class="tool-sub">Small lending controls</div></div></a>
-        <a href="/audit.html" class="tool-card"><div><div class="tool-title">Audit</div><div class="tool-sub">Verify recent writes</div></div></a>
+      <div id="planPanel" class="empty">
+        Select Salah, Habits, Mission, or AI to view the next build layer.
       </div>
     </section>
 
-    <div class="panel wide" style="margin-top:18px;">
-      <div class="panel-head">
-        <div>
-          <div class="panel-title">What needs action</div>
-          <div class="panel-sub">Safety and Monthly Close reasons first</div>
-        </div>
-      </div>
-      <section id="riskGrid" class="risk-grid">
-        <div class="risk-card info">
-          <div class="risk-title">Loading</div>
-          <div class="risk-copy">Checking live brain state.</div>
-        </div>
-      </section>
+    <div class="footer-note">
+      v0.1.0 - Life OS Shell - root Command Centre - Finance isolated - Salah/Habits/Mission/AI separated - no schema/ledger/formula changes
     </div>
-
-    <footer class="page-footer">
-      <span class="v">v1.0.0 - Finance Core Hub closeout - forecast v0.2.0 - safety v0.2.0 - insights v0.3.0 - monthly-close v0.1.0 - nav v1.0.18</span>
-    </footer>
   </main>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
   <script src="/js/theme.js?v=0.7.5"></script>
-  <script src="/js/nav.js?v=1.0.18"></script>
   <script>
     const $ = id => document.getElementById(id);
+
+    const PLANS = {
+      salah: {
+        title: 'Salah Cockpit',
+        status: 'Next recommended export',
+        points: [
+          'Create salah_logs / salah_daily_status / salah_recovery tables.',
+          'Build /api/salah/today and /api/salah/insights.',
+          'Create salah.html with today timeline, missed recovery, streaks, and reflection.',
+          'No finance cards, no ledger data, no money widgets inside Salah.'
+        ]
+      },
+      habits: {
+        title: 'Habits Cockpit',
+        status: 'After Salah foundation',
+        points: [
+          'Create habit_definitions / habit_logs / habit_daily_status tables.',
+          'Build /api/habits/today and /api/habits/insights.',
+          'Create habits.html with checklist, momentum, weak habits, recovery, workday/off-day pattern.',
+          'No bills, debts, balances, or finance noise inside Habits.'
+        ]
+      },
+      mission: {
+        title: 'Mission Cockpit',
+        status: 'Direction layer',
+        points: [
+          'Create mission_projects / mission_milestones / mission_reviews.',
+          'Build /api/mission/status.',
+          'Create mission.html with active priority, current project, milestone, blockers, roadmap.',
+          'Mission explains direction without exposing full private domain tables.'
+        ]
+      },
+      ai: {
+        title: 'AI Curator',
+        status: 'After at least Finance + Salah + Habits are live',
+        points: [
+          'Build /api/ai/briefing and /api/ai/decision-queue.',
+          'AI reads domain summaries, not raw unrestricted private tables.',
+          'Curates what matters, what changed, what needs action, and what can wait.',
+          'Telegram relay sends only approved curated messages.'
+        ]
+      }
+    };
 
     function esc(value) {
       return String(value == null ? '' : value)
@@ -551,11 +793,6 @@
       if (!Number.isFinite(n)) return 'N/A';
       const sign = n < 0 ? '-' : '';
       return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
-    }
-
-    function plain(value, fallback = 'N/A') {
-      if (value == null || value === '') return fallback;
-      return String(value);
     }
 
     function num(value) {
@@ -595,129 +832,137 @@
       }
     }
 
-    function renderStats(forecast, safety, insights, close) {
-      const position = forecast.current_position || {};
+    function renderFinance(forecast, safety, insights, close) {
       const projection = forecast.cash_projection_summary || {};
-      const topInsight = insights.top_insight || {};
-      const readiness = close.audit_readiness || {};
-      const closeSummary = close.summary || {};
-
       const safetyStatus = safety.safety_status || safety.status || 'unknown';
-      const readyStatus = readiness.status || closeSummary.audit_readiness_status || 'unknown';
-
-      setText('sigSafe', safetyStatus.toUpperCase(), 'value ' + statusClass(safetyStatus));
-      setText('sigLiquid', money(position.total_liquid), 'value ' + (num(position.total_liquid) >= 0 ? 'good' : 'bad'));
-      setText('sigLow', money(projection.lowest_projected_balance), 'value ' + (num(projection.lowest_projected_balance) < 5000 ? 'bad' : num(projection.lowest_projected_balance) < 10000 ? 'warn' : 'good'));
-      setText('sigInsight', plain(topInsight.severity, 'info').toUpperCase(), 'value ' + statusClass(topInsight.severity));
-      setText('sigClose', readyStatus.replace('_', ' ').toUpperCase(), 'value ' + statusClass(readyStatus));
-
-      setText('forecastBrainStatus', 'Live v' + plain(forecast.version));
-      setText('safetyBrainStatus', 'Live v' + plain(safety.version));
-      setText('insightBrainStatus', 'Live v' + plain(insights.version));
-      setText('closeBrainStatus', 'Live v' + plain(close.version));
-
-      setText('liquidRow', money(position.total_liquid), 'mini-amount ' + (num(position.total_liquid) >= 0 ? 'good' : 'bad'));
-      setText('ccRow', money(position.cc_outstanding), 'mini-amount bad');
-      setText('salaryRow', money(projection.cash_after_salary_and_obligations), 'mini-amount ' + (num(projection.cash_after_salary_and_obligations) >= 0 ? 'good' : 'bad'));
-
-      setText('readyRow', readyStatus.replace('_', ' ').toUpperCase(), 'mini-amount ' + statusClass(readyStatus));
-      setText('blockerRow', String((readiness.blockers || []).length), 'mini-amount ' + ((readiness.blockers || []).length ? 'bad' : 'good'));
-      setText('warningRow', String((readiness.warnings || []).length), 'mini-amount ' + ((readiness.warnings || []).length ? 'warn' : 'good'));
-
-      $('freshnessText').textContent = 'Finance Core: Forecast + Safety + Insights + Monthly Close live';
-    }
-
-    function renderRisks(safety, insights, close) {
-      const risks = [];
       const readiness = close.audit_readiness || {};
-      const blockers = readiness.blockers || [];
-      const warnings = readiness.warnings || [];
-      const safetyDrivers = Array.isArray(safety.drivers) ? safety.drivers : [];
-      const insightRows = Array.isArray(insights.insights) ? insights.insights : [];
+      const readyStatus = readiness.status || 'unknown';
+      const topInsight = insights.top_insight || {};
 
-      safetyDrivers.slice(0, 3).forEach(driver => {
-        risks.push({
-          level: statusClass(driver.severity),
-          title: driver.title || driver.code || 'Safety driver',
-          copy: driver.detail || 'Safety Engine driver',
+      setText('heroFinance', safetyStatus.toUpperCase(), statusClass(safetyStatus));
+      setText('financeSafety', safetyStatus.toUpperCase(), 'value ' + statusClass(safetyStatus));
+      setText('auditReadiness', readyStatus.replace('_', ' ').toUpperCase(), 'value ' + statusClass(readyStatus));
+      setText('financeDomainStatus', `Live: ${safetyStatus.toUpperCase()}`, 'domain-status ' + statusClass(safetyStatus));
+
+      const actions = [];
+
+      if (safety.top_action) {
+        actions.push({
+          title: 'Finance Safety',
+          copy: safety.top_action,
           href: '/forecast.html',
-          action: 'Open Forecast'
-        });
-      });
-
-      blockers.slice(0, 3).forEach(blocker => {
-        risks.push({
-          level: 'bad',
-          title: 'Audit blocker',
-          copy: blocker,
-          href: '/monthly-close.html',
-          action: 'Open Monthly Close'
-        });
-      });
-
-      warnings.slice(0, 3).forEach(warning => {
-        risks.push({
-          level: 'warn',
-          title: 'Audit warning',
-          copy: warning,
-          href: '/monthly-close.html',
-          action: 'Open Monthly Close'
-        });
-      });
-
-      insightRows.slice(0, 3).forEach(insight => {
-        risks.push({
-          level: statusClass(insight.severity),
-          title: insight.title || 'Insight',
-          copy: insight.meaning || insight.action || 'Insight action card',
-          href: '/insights.html',
-          action: 'Open Insights'
-        });
-      });
-
-      if (!risks.length) {
-        risks.push({
-          level: 'good',
-          title: 'Finance Core assembled',
-          copy: 'No live Safety, Insight, or Monthly Close blocker returned from available APIs.',
-          href: '/monthly-close.html',
-          action: 'Open Monthly Close'
+          label: 'Open Forecast'
         });
       }
 
-      $('riskGrid').innerHTML = risks.slice(0, 10).map(risk => `
-        <article class="risk-card ${esc(risk.level || 'info')}">
-          <div class="risk-title">${esc(risk.title)}</div>
-          <div class="risk-copy">${esc(risk.copy)}</div>
-          <a class="risk-action" href="${esc(risk.href)}">${esc(risk.action || 'Open')}</a>
+      if (topInsight.title) {
+        actions.push({
+          title: topInsight.title,
+          copy: topInsight.action || topInsight.meaning || 'Open Insights for the action card.',
+          href: '/insights.html',
+          label: 'Open Insights'
+        });
+      }
+
+      if ((readiness.blockers || []).length) {
+        actions.push({
+          title: 'Monthly Close blocker',
+          copy: readiness.blockers[0],
+          href: '/monthly-close.html',
+          label: 'Open Close'
+        });
+      }
+
+      if (projection.first_unsafe_date) {
+        actions.push({
+          title: 'First unsafe date',
+          copy: `Forecast reports first unsafe date: ${projection.first_unsafe_date}.`,
+          href: '/forecast.html',
+          label: 'Open Forecast'
+        });
+      }
+
+      if (!actions.length) {
+        actions.push({
+          title: 'Finance Core assembled',
+          copy: 'No immediate Finance action returned from Safety, Insights, or Monthly Close.',
+          href: '/monthly-close.html',
+          label: 'Open Close'
+        });
+      }
+
+      $('actionList').innerHTML = actions.slice(0, 5).map(action => `
+        <article class="action-card">
+          <div>
+            <div class="action-title">${esc(action.title)}</div>
+            <div class="action-copy">${esc(action.copy)}</div>
+          </div>
+          <a class="action-link" href="${esc(action.href)}">${esc(action.label)}</a>
         </article>
       `).join('');
     }
 
-    async function loadHub() {
-      try {
-        const [forecast, safety, insights, close] = await Promise.all([
-          fetchJSON('/api/forecast'),
-          fetchJSON('/api/safety'),
-          fetchJSON('/api/insights?days=30'),
-          fetchJSON('/api/monthly-close')
-        ]);
+    function renderPlan(key) {
+      const plan = PLANS[key];
+      if (!plan) return;
 
-        renderStats(forecast, safety, insights, close);
-        renderRisks(safety, insights, close);
-      } catch (err) {
-        $('freshnessText').textContent = 'Hub load error';
-        $('riskGrid').innerHTML = `
-          <article class="risk-card bad">
-            <div class="risk-title">Hub failed</div>
-            <div class="risk-copy">${esc(err.message)}</div>
-            <a class="risk-action" href="/api/monthly-close">Open Monthly Close API</a>
-          </article>
-        `;
-      }
+      $('planPanel').className = 'panel';
+      $('planPanel').innerHTML = `
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">${esc(plan.title)}</div>
+            <div class="panel-sub">${esc(plan.status)}</div>
+          </div>
+        </div>
+        <div class="action-list">
+          ${plan.points.map(point => `
+            <article class="action-card">
+              <div>
+                <div class="action-title">${esc(point)}</div>
+                <div class="action-copy">Queued layer. No fake live data displayed.</div>
+              </div>
+            </article>
+          `).join('')}
+        </div>
+      `;
     }
 
-    loadHub();
+    function jumpDomain(key) {
+      const el = document.getElementById('domain-' + key);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (PLANS[key]) renderPlan(key);
+    }
+
+    async function loadCommandCentre() {
+      const [forecast, safety, insights, close] = await Promise.all([
+        safeJSON('/api/forecast', {}),
+        safeJSON('/api/safety', {}),
+        safeJSON('/api/insights?days=30', {}),
+        safeJSON('/api/monthly-close', {})
+      ]);
+
+      renderFinance(forecast, safety, insights, close);
+    }
+
+    document.querySelectorAll('[data-show-plan]').forEach(btn => {
+      btn.addEventListener('click', () => renderPlan(btn.dataset.showPlan));
+    });
+
+    document.querySelectorAll('[data-domain-jump]').forEach(btn => {
+      btn.addEventListener('click', () => jumpDomain(btn.dataset.domainJump));
+    });
+
+    loadCommandCentre().catch(err => {
+      $('actionList').innerHTML = `
+        <article class="action-card">
+          <div>
+            <div class="action-title">Command Centre load issue</div>
+            <div class="action-copy">${esc(err.message)}</div>
+          </div>
+          <a class="action-link" href="/monthly-close.html">Open Finance</a>
+        </article>
+      `;
+    });
   </script>
 </body>
 </html>
