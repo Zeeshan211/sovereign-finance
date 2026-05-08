@@ -1,22 +1,26 @@
-// functions/api/salah/log.js v0.2.0
+// functions/api/salah/log.js v0.3.0
 // Salah live logging endpoint
+//
+// Product model:
+// - Fard score is ONLY the five daily prayers: Fajr, Dhuhr, Asr, Maghrib, Isha.
+// - Bonus prayers are tracked separately and never inflate the /10 Fard score.
+// - Qaza is recovery state.
+// - Udhr is an attribute, not a location category.
+// - Jumuah is treated as a Friday/bonus entry, not part of five-prayer daily score.
 //
 // Scope:
 // - Writes only salah_daily_status and salah_prayer_entries
-// - Supports daily prayers + bonus prayers
-// - Does not touch Finance, ledger, transactions, bills, debts, salary, or monthly close
+// - Reads/writes only salah_* tables
+// - Does not touch Finance, ledger, transactions, bills, debts, salary, monthly close
 
 import { json } from '../_lib.js';
 
-const VERSION = 'salah-log-api-v0.2.0';
+const VERSION = 'salah-log-api-v0.3.0';
 const TZ = 'Asia/Karachi';
 
-const PRAYERS = [
-  'fajr',
-  'dhuhr',
-  'asr',
-  'maghrib',
-  'isha',
+const FARD_PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+
+const BONUS_PRAYERS = [
   'jumuah',
   'tahajjud',
   'witr',
@@ -26,19 +30,40 @@ const PRAYERS = [
   'nafl'
 ];
 
-const DAILY_PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+const ALL_PRAYERS = [...FARD_PRAYERS, ...BONUS_PRAYERS];
 
-const CODE_MAP = {
-  M: { raw: 'Masjid', normalized: 'M', label: 'Masjid', score: 2.0, masjid: 1 },
-  J: { raw: 'Jamaat', normalized: 'J', label: 'Jamaat', score: 1.5, jamaat: 1 },
-  H: { raw: 'Home', normalized: 'H', label: 'Home', score: 0.5, home: 1 },
-  W: { raw: 'Work', normalized: 'W', label: 'Work', score: 0.5, work: 1 },
-  HU: { raw: 'Home·U', normalized: 'HU', label: 'Home Udhr', score: 0.8, home: 1, udhr: 1 },
-  WU: { raw: 'Work·U', normalized: 'WU', label: 'Work Udhr', score: 0.8, work: 1, udhr: 1 },
-  L: { raw: 'Late', normalized: 'L', label: 'Late', score: 0.3, late: 1 },
-  Q: { raw: 'Qaza', normalized: 'Q', label: 'Qaza', score: -1.5, qaza: 1 },
-  YES: { raw: 'Yes', normalized: 'YES', label: 'Completed', score: 0.5, bonus: 1 },
-  NO: { raw: 'No', normalized: 'NO', label: 'Not Completed', score: 0, bonus: 1 }
+const PRAYER_LABELS = {
+  fajr: 'Fajr',
+  dhuhr: 'Dhuhr',
+  asr: 'Asr',
+  maghrib: 'Maghrib',
+  isha: 'Isha',
+  jumuah: 'Jumuah',
+  tahajjud: 'Tahajjud',
+  witr: 'Witr',
+  ishraq: 'Ishraq',
+  duha: 'Duha',
+  awwabin: 'Awwabin',
+  nafl: 'Nafl'
+};
+
+const FARD_CODE_MAP = {
+  M: { raw: 'Masjid', normalized: 'M', label: 'Masjid', score: 2.0, location: 'masjid' },
+  J: { raw: 'Jamaat', normalized: 'J', label: 'Jamaat', score: 1.5, location: 'jamaat' },
+  H: { raw: 'Home', normalized: 'H', label: 'Home', score: 0.5, location: 'home' },
+  W: { raw: 'Work', normalized: 'W', label: 'Work', score: 0.5, location: 'work' },
+  HU: { raw: 'Home·U', normalized: 'HU', label: 'Home Udhr', score: 0.8, location: 'home', udhr: true },
+  WU: { raw: 'Work·U', normalized: 'WU', label: 'Work Udhr', score: 0.8, location: 'work', udhr: true },
+  L: { raw: 'Late', normalized: 'L', label: 'Late', score: 0.3, location: 'late' },
+  Q: { raw: 'Qaza', normalized: 'Q', label: 'Qaza', score: -1.5, location: 'qaza', qaza: true }
+};
+
+const BONUS_CODE_MAP = {
+  YES: { raw: 'Yes', normalized: 'YES', label: 'Completed', score: 0, bonus_done: true },
+  NO: { raw: 'No', normalized: 'NO', label: 'Not Today', score: 0, bonus_done: false },
+  M: { raw: 'Masjid', normalized: 'M', label: 'Masjid', score: 0, location: 'masjid', bonus_done: true },
+  H: { raw: 'Home', normalized: 'H', label: 'Home', score: 0, location: 'home', bonus_done: true },
+  J: { raw: 'Jamaat', normalized: 'J', label: 'Jamaat', score: 0, location: 'jamaat', bonus_done: true }
 };
 
 export async function onRequestPost({ request, env }) {
@@ -57,23 +82,55 @@ export async function onRequestPost({ request, env }) {
       return json({ ok: false, version: VERSION, error: 'Invalid prayer name' }, 400);
     }
 
-    if (!code || !CODE_MAP[code]) {
-      return json({ ok: false, version: VERSION, error: 'Invalid Salah code' }, 400);
+    const isFard = FARD_PRAYERS.includes(prayer);
+    const codeMap = isFard ? FARD_CODE_MAP : BONUS_CODE_MAP;
+    const meta = codeMap[code];
+
+    if (!meta) {
+      return json({
+        ok: false,
+        version: VERSION,
+        error: isFard ? 'Invalid Fard Salah code' : 'Invalid bonus prayer code'
+      }, 400);
     }
 
     const stamp = nowPkIso();
-    const meta = CODE_MAP[code];
     const id = `salah_${day}_${prayer}`;
+    const isLogged = isFard ? code !== 'NO' : Boolean(meta.bonus_done);
+    const scoreValue = isFard ? meta.score : 0;
 
     await ensureDailyRow(env.DB, day, stamp);
 
     await env.DB.prepare(
       `INSERT OR REPLACE INTO salah_prayer_entries (
-        id, day, prayer_name, raw_code, normalized_code, location_label, score_value,
-        is_logged, is_masjid, is_jamaat, is_work, is_home, is_late, is_qaza,
-        has_valid_udhr, is_jam_combined, jam_type, logged_at, note,
-        source_system, source_tab, source_version, source_row, source_column,
-        source_checksum, export_batch_id, exported_at, updated_at
+        id,
+        day,
+        prayer_name,
+        raw_code,
+        normalized_code,
+        location_label,
+        score_value,
+        is_logged,
+        is_masjid,
+        is_jamaat,
+        is_work,
+        is_home,
+        is_late,
+        is_qaza,
+        has_valid_udhr,
+        is_jam_combined,
+        jam_type,
+        logged_at,
+        note,
+        source_system,
+        source_tab,
+        source_version,
+        source_row,
+        source_column,
+        source_checksum,
+        export_batch_id,
+        exported_at,
+        updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, 'salah_page', '🕌 Salah', ?, NULL, NULL, ?, ?, ?, datetime('now'))`
     ).bind(
       id,
@@ -82,16 +139,16 @@ export async function onRequestPost({ request, env }) {
       meta.raw,
       meta.normalized,
       meta.label,
-      meta.score,
-      code === 'NO' ? 0 : 1,
-      meta.masjid ? 1 : 0,
-      meta.jamaat ? 1 : 0,
-      meta.work ? 1 : 0,
-      meta.home ? 1 : 0,
-      meta.late ? 1 : 0,
-      meta.qaza ? 1 : 0,
+      scoreValue,
+      isLogged ? 1 : 0,
+      meta.location === 'masjid' ? 1 : 0,
+      meta.location === 'jamaat' ? 1 : 0,
+      meta.location === 'work' ? 1 : 0,
+      meta.location === 'home' ? 1 : 0,
+      meta.location === 'late' ? 1 : 0,
+      meta.location === 'qaza' ? 1 : 0,
       meta.udhr ? 1 : 0,
-      code === 'NO' ? null : stamp,
+      isLogged ? stamp : null,
       note || null,
       VERSION,
       `page_log_${day}_${prayer}_${code}`,
@@ -106,9 +163,11 @@ export async function onRequestPost({ request, env }) {
       version: VERSION,
       day,
       prayer,
+      prayer_label: PRAYER_LABELS[prayer] || prayer,
+      prayer_type: isFard ? 'fard' : 'bonus',
       code,
-      logged_at: code === 'NO' ? null : stamp,
-      message: `${displayPrayer(prayer)} logged as ${meta.label}`
+      logged_at: isLogged ? stamp : null,
+      message: `${PRAYER_LABELS[prayer] || prayer} logged as ${meta.label}`
     });
   } catch (err) {
     return json({
@@ -134,39 +193,71 @@ async function ensureDailyRow(db, day, stamp) {
 
   await db.prepare(
     `INSERT INTO salah_daily_status (
-      day, day_of_month, score, tier_label, qaza_count, logged_count, masjid_count,
-      jamaat_count, work_count, home_count, late_count, source_system, source_tab,
-      source_version, source_layout, export_batch_id, exported_at, updated_at
+      day,
+      day_of_month,
+      score,
+      tier_label,
+      qaza_count,
+      logged_count,
+      masjid_count,
+      jamaat_count,
+      work_count,
+      home_count,
+      late_count,
+      source_system,
+      source_tab,
+      source_version,
+      source_layout,
+      export_batch_id,
+      exported_at,
+      updated_at
     ) VALUES (?, ?, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 'salah_page', '🕌 Salah', ?, 'today_live', ?, ?, datetime('now'))`
-  ).bind(day, dayOfMonth, VERSION, `salah_page_log_${day}`, stamp).run();
+  ).bind(
+    day,
+    dayOfMonth,
+    VERSION,
+    `salah_page_log_${day}`,
+    stamp
+  ).run();
 }
 
 async function recalcDaily(db, day, stamp) {
   const res = await db.prepare(
-    `SELECT prayer_name, raw_code, normalized_code, score_value, is_logged, is_masjid, is_jamaat, is_work, is_home, is_late, is_qaza
-     FROM salah_prayer_entries
-     WHERE day = ?`
+    `SELECT
+      prayer_name,
+      raw_code,
+      normalized_code,
+      score_value,
+      is_logged,
+      is_masjid,
+      is_jamaat,
+      is_work,
+      is_home,
+      is_late,
+      is_qaza,
+      has_valid_udhr
+    FROM salah_prayer_entries
+    WHERE day = ?`
   ).bind(day).all();
 
   const rows = res.results || [];
-  const byPrayer = new Map(rows.map(r => [r.prayer_name, r]));
+  const byPrayer = new Map(rows.map(row => [row.prayer_name, row]));
 
-  const get = (prayer, key) => {
-    const row = byPrayer.get(prayer);
-    return row ? row[key] : null;
-  };
+  const fardRows = rows.filter(row => FARD_PRAYERS.includes(row.prayer_name));
+  const fardScoreRows = fardRows.filter(row => row.normalized_code !== 'NO');
 
-  const coreRows = rows.filter(r => DAILY_PRAYERS.includes(r.prayer_name));
-  const scoreRows = rows.filter(r => r.normalized_code !== 'NO');
+  const fardScore = round1(
+    fardScoreRows.reduce((sum, row) => sum + Number(row.score_value || 0), 0)
+  );
 
-  const score = scoreRows.reduce((sum, row) => sum + Number(row.score_value || 0), 0);
-  const logged = coreRows.filter(r => Number(r.is_logged || 0) === 1).length;
-  const masjid = rows.filter(r => Number(r.is_masjid || 0) === 1).length;
-  const jamaat = rows.filter(r => Number(r.is_jamaat || 0) === 1).length;
-  const work = rows.filter(r => Number(r.is_work || 0) === 1).length;
-  const home = rows.filter(r => Number(r.is_home || 0) === 1).length;
-  const late = rows.filter(r => Number(r.is_late || 0) === 1).length;
-  const qaza = rows.filter(r => Number(r.is_qaza || 0) === 1).length;
+  const loggedCount = fardRows.filter(row => Number(row.is_logged || 0) === 1).length;
+  const qazaCount = fardRows.filter(row => Number(row.is_qaza || 0) === 1).length;
+
+  const masjidCount = fardRows.filter(row => Number(row.is_masjid || 0) === 1).length;
+  const jamaatCount = fardRows.filter(row => Number(row.is_jamaat || 0) === 1).length;
+  const workCount = fardRows.filter(row => Number(row.is_work || 0) === 1).length;
+  const homeCount = fardRows.filter(row => Number(row.is_home || 0) === 1).length;
+  const lateCount = fardRows.filter(row => Number(row.is_late || 0) === 1).length;
 
   await db.prepare(
     `UPDATE salah_daily_status SET
@@ -200,28 +291,28 @@ async function recalcDaily(db, day, stamp) {
       updated_at = datetime('now')
     WHERE day = ?`
   ).bind(
-    get('fajr', 'raw_code'),
-    get('dhuhr', 'raw_code'),
-    get('asr', 'raw_code'),
-    get('maghrib', 'raw_code'),
-    get('isha', 'raw_code'),
-    get('jumuah', 'raw_code'),
-    get('tahajjud', 'raw_code'),
-    get('fajr', 'normalized_code'),
-    get('dhuhr', 'normalized_code'),
-    get('asr', 'normalized_code'),
-    get('maghrib', 'normalized_code'),
-    get('isha', 'normalized_code'),
-    get('jumuah', 'normalized_code'),
-    round1(score),
-    tier(score),
-    qaza,
-    logged,
-    masjid,
-    jamaat,
-    work,
-    home,
-    late,
+    getPrayerValue(byPrayer, 'fajr', 'raw_code'),
+    getPrayerValue(byPrayer, 'dhuhr', 'raw_code'),
+    getPrayerValue(byPrayer, 'asr', 'raw_code'),
+    getPrayerValue(byPrayer, 'maghrib', 'raw_code'),
+    getPrayerValue(byPrayer, 'isha', 'raw_code'),
+    getPrayerValue(byPrayer, 'jumuah', 'raw_code'),
+    getPrayerValue(byPrayer, 'tahajjud', 'raw_code'),
+    getPrayerValue(byPrayer, 'fajr', 'normalized_code'),
+    getPrayerValue(byPrayer, 'dhuhr', 'normalized_code'),
+    getPrayerValue(byPrayer, 'asr', 'normalized_code'),
+    getPrayerValue(byPrayer, 'maghrib', 'normalized_code'),
+    getPrayerValue(byPrayer, 'isha', 'normalized_code'),
+    getPrayerValue(byPrayer, 'jumuah', 'normalized_code'),
+    fardScore,
+    tier(fardScore),
+    qazaCount,
+    loggedCount,
+    masjidCount,
+    jamaatCount,
+    workCount,
+    homeCount,
+    lateCount,
     VERSION,
     `salah_page_log_${day}`,
     stamp,
@@ -229,9 +320,14 @@ async function recalcDaily(db, day, stamp) {
   ).run();
 }
 
+function getPrayerValue(byPrayer, prayer, key) {
+  const row = byPrayer.get(prayer);
+  return row ? row[key] : null;
+}
+
 function cleanPrayer(value) {
   const v = String(value || '').trim().toLowerCase();
-  return PRAYERS.includes(v) ? v : '';
+  return ALL_PRAYERS.includes(v) ? v : '';
 }
 
 function cleanCode(value) {
@@ -245,12 +341,6 @@ function cleanDay(value) {
 
 function cleanText(value) {
   return String(value || '').trim().slice(0, 500);
-}
-
-function displayPrayer(value) {
-  return String(value || '')
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function todayPk() {
