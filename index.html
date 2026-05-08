@@ -1,905 +1,310 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-page="home">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#050816" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <title>Sovereign Life OS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sovereign Finance Hub</title>
   <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
   <style>
-    :root {
-      --life-bg: #eef4ff;
-      --life-ink: #0f172a;
-      --life-muted: #64748b;
-      --life-soft: rgba(255,255,255,.88);
-      --life-line: rgba(15,23,42,.10);
-      --life-shadow: 0 22px 70px rgba(15,23,42,.14);
-      --life-green: #16a34a;
-      --life-amber: #d97706;
-      --life-red: #dc2626;
-      --life-blue: #2563eb;
-      --life-violet: #7c3aed;
-      --life-teal: #0f766e;
-      --life-radius: 28px;
-    }
-
     body {
-      background:
-        radial-gradient(circle at 8% 0%, rgba(34,197,94,.18), transparent 34rem),
-        radial-gradient(circle at 92% 8%, rgba(59,130,246,.18), transparent 36rem),
-        radial-gradient(circle at 52% 92%, rgba(168,85,247,.12), transparent 34rem),
-        var(--life-bg);
-      color: var(--life-ink);
+      background: #eef4ff;
+      color: #0f172a;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
     }
 
-    header { display: none; }
-
-    .life-wrap {
-      max-width: 1360px;
+    main {
+      max-width: 1180px;
       margin: 0 auto;
       padding: 22px;
     }
 
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+    .hero,
+    .card,
+    .panel {
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(15,23,42,.1);
+      border-radius: 24px;
+      box-shadow: 0 18px 50px rgba(15,23,42,.12);
+    }
+
+    .hero {
+      padding: 28px;
+      margin-bottom: 18px;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+    }
+
+    .kicker {
+      display: inline-block;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(34,197,94,.16);
+      color: #86efac;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(38px, 7vw, 72px);
+      line-height: .95;
+      letter-spacing: -.06em;
+    }
+
+    .copy {
+      margin-top: 14px;
+      color: #cbd5e1;
+      max-width: 850px;
+      font-weight: 700;
+      line-height: 1.6;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 14px;
       margin-bottom: 18px;
     }
 
-    .brand-lockup {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    .card {
+      padding: 18px;
       min-width: 0;
     }
 
-    .brand-mark {
-      width: 46px;
-      height: 46px;
-      border-radius: 18px;
-      display: grid;
-      place-items: center;
-      background: linear-gradient(135deg, #bbf7d0, #93c5fd);
-      color: #052e16;
-      font-size: 13px;
-      font-weight: 950;
-      box-shadow: 0 14px 34px rgba(15,23,42,.12);
-      flex: 0 0 auto;
-    }
-
-    .brand-name {
-      color: var(--life-ink);
-      font-size: 16px;
-      font-weight: 950;
-      line-height: 1.1;
-    }
-
-    .brand-sub {
-      color: var(--life-muted);
-      font-size: 12px;
-      font-weight: 850;
-      margin-top: 2px;
-    }
-
-    .top-actions {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
-    .top-btn {
-      min-height: 40px;
-      border-radius: 999px;
-      border: 1px solid var(--life-line);
-      background: rgba(255,255,255,.82);
-      color: var(--life-ink);
-      padding: 9px 13px;
-      font-size: 12px;
-      font-weight: 950;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-    }
-
-    .top-btn.primary {
-      background: #86efac;
-      color: #052e16;
-      border-color: rgba(22,163,74,.24);
-    }
-
-    .hero {
-      position: relative;
-      overflow: hidden;
-      border-radius: 34px;
-      padding: clamp(24px, 4vw, 42px);
-      margin-bottom: 18px;
-      background:
-        linear-gradient(135deg, rgba(15,23,42,.97), rgba(30,41,59,.94)),
-        radial-gradient(circle at 18% 18%, rgba(34,197,94,.34), transparent 28rem),
-        radial-gradient(circle at 82% 16%, rgba(37,99,235,.24), transparent 28rem);
-      color: #f8fafc;
-      border: 1px solid rgba(148,163,184,.22);
-      box-shadow: 0 28px 90px rgba(15,23,42,.30);
-    }
-
-    .kicker {
-      display: inline-flex;
-      padding: 7px 11px;
-      border-radius: 999px;
-      background: rgba(34,197,94,.14);
-      color: #86efac;
-      border: 1px solid rgba(34,197,94,.24);
-      font-size: 12px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: .09em;
-      margin-bottom: 14px;
-    }
-
-    .heading {
-      margin: 0;
-      max-width: 980px;
-      font-size: clamp(42px, 7vw, 84px);
-      line-height: .92;
-      letter-spacing: -.075em;
-      font-weight: 950;
-      color: #fff;
-    }
-
-    .copy {
-      margin-top: 16px;
-      max-width: 900px;
-      color: #cbd5e1;
-      font-size: 15px;
-      line-height: 1.65;
-      font-weight: 760;
-    }
-
-    .hero-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0,1fr));
-      gap: 12px;
-      margin-top: 24px;
-    }
-
-    .hero-chip {
-      border: 1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.08);
-      color: #e2e8f0;
-      border-radius: 20px;
-      padding: 13px;
-      min-width: 0;
-      backdrop-filter: blur(12px);
-    }
-
-    .chip-label {
-      color: #94a3b8;
-      font-size: 10px;
-      font-weight: 950;
+    .label {
+      color: #64748b;
+      font-size: 11px;
+      font-weight: 900;
       text-transform: uppercase;
       letter-spacing: .08em;
     }
 
-    .chip-value {
-      margin-top: 6px;
-      color: #fff;
-      font-size: 14px;
-      font-weight: 950;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .status-grid {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0,1fr));
-      gap: 14px;
-      margin-bottom: 18px;
-    }
-
-    .status-card,
-    .panel,
-    .domain-card,
-    .action-card {
-      background: var(--life-soft);
-      border: 1px solid var(--life-line);
-      border-radius: var(--life-radius);
-      box-shadow: var(--life-shadow);
-      backdrop-filter: blur(18px);
-    }
-
-    .status-card {
-      padding: 18px;
-      min-width: 0;
-      overflow: hidden;
-    }
-
-    .label {
-      color: var(--life-muted);
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: .09em;
-    }
-
     .value {
       margin-top: 8px;
-      color: var(--life-ink);
       font-size: 22px;
       font-weight: 950;
-      letter-spacing: -.04em;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .good { color: var(--life-green) !important; }
-    .warn { color: var(--life-amber) !important; }
-    .bad { color: var(--life-red) !important; }
-    .neutral { color: var(--life-ink) !important; }
-    .blue { color: var(--life-blue) !important; }
-    .violet { color: var(--life-violet) !important; }
-    .teal { color: var(--life-teal) !important; }
-
-    .main-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(360px, .82fr);
-      gap: 18px;
-      margin-bottom: 18px;
-    }
+    .good { color: #16a34a; }
+    .bad { color: #dc2626; }
+    .blue { color: #2563eb; }
 
     .panel {
       padding: 18px;
-      min-width: 0;
-    }
-
-    .panel.wide {
-      grid-column: 1 / -1;
-    }
-
-    .panel-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 16px;
+      margin-bottom: 18px;
     }
 
     .panel-title {
-      color: var(--life-ink);
-      font-size: 19px;
+      font-size: 20px;
       font-weight: 950;
-      letter-spacing: -.02em;
+      margin-bottom: 6px;
     }
 
-    .panel-sub {
-      color: var(--life-muted);
+    .panel-copy {
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 750;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .action {
+      display: block;
+      text-decoration: none;
+      color: #0f172a;
+      background: #f8fafc;
+      border: 1px solid rgba(15,23,42,.1);
+      border-radius: 16px;
+      padding: 14px;
+      font-weight: 900;
+    }
+
+    .small {
+      display: block;
+      color: #64748b;
       font-size: 12px;
-      font-weight: 850;
-      margin-top: 3px;
+      font-weight: 750;
+      margin-top: 5px;
       line-height: 1.35;
     }
 
-    .domain-grid {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0,1fr));
-      gap: 14px;
-    }
-
-    .domain-card {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      min-height: 190px;
-      padding: 18px;
-      text-decoration: none;
-      color: inherit;
-      transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .domain-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 28px 80px rgba(15,23,42,.18);
-    }
-
-    .domain-card.finance { border-color: rgba(34,197,94,.24); }
-    .domain-card.salah { border-color: rgba(37,99,235,.24); }
-    .domain-card.habits { border-color: rgba(245,158,11,.26); }
-    .domain-card.mission { border-color: rgba(124,58,237,.24); }
-    .domain-card.ai { border-color: rgba(20,184,166,.24); }
-
-    .domain-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 17px;
-      display: grid;
-      place-items: center;
-      background: #f8fafc;
-      border: 1px solid var(--life-line);
-      color: var(--life-ink);
-      font-size: 13px;
-      font-weight: 950;
-      margin-bottom: 13px;
-    }
-
-    .domain-title {
-      color: var(--life-ink);
-      font-size: 16px;
-      font-weight: 950;
-    }
-
-    .domain-copy {
-      margin-top: 7px;
-      color: var(--life-muted);
+    footer {
+      text-align: center;
+      color: #64748b;
       font-size: 12px;
-      font-weight: 820;
-      line-height: 1.42;
+      font-weight: 800;
+      padding: 16px 0 6px;
     }
 
-    .domain-status {
-      margin-top: 16px;
-      display: inline-flex;
-      width: fit-content;
-      border-radius: 999px;
-      padding: 7px 10px;
-      background: #f8fafc;
-      border: 1px solid var(--life-line);
-      color: var(--life-muted);
-      font-size: 10px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-    }
-
-    .domain-actions {
-      margin-top: 12px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 7px;
-    }
-
-    .mini-link {
-      border: 1px solid var(--life-line);
-      background: #fff;
-      color: var(--life-ink);
-      border-radius: 999px;
-      padding: 7px 9px;
-      text-decoration: none;
-      font-size: 10px;
-      font-weight: 950;
-      white-space: nowrap;
-    }
-
-    .action-list {
-      display: grid;
-      gap: 10px;
-    }
-
-    .action-card {
-      padding: 13px;
-      box-shadow: none;
-      background: #f8fafc;
-      border-radius: 18px;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .action-title {
-      color: var(--life-ink);
-      font-size: 13px;
-      font-weight: 950;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .action-copy {
-      color: var(--life-muted);
-      font-size: 11px;
-      font-weight: 820;
-      line-height: 1.35;
-      margin-top: 3px;
-    }
-
-    .action-link {
-      color: var(--life-green);
-      font-size: 11px;
-      font-weight: 950;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-
-    .timeline {
-      display: grid;
-      gap: 10px;
-    }
-
-    .timeline-row {
-      display: grid;
-      grid-template-columns: 92px minmax(0,1fr);
-      gap: 12px;
-      padding: 12px;
-      border-radius: 18px;
-      background: #f8fafc;
-      border: 1px solid var(--life-line);
-    }
-
-    .timeline-time {
-      color: var(--life-muted);
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-    }
-
-    .timeline-title {
-      color: var(--life-ink);
-      font-size: 13px;
-      font-weight: 950;
-    }
-
-    .timeline-copy {
-      margin-top: 3px;
-      color: var(--life-muted);
-      font-size: 11px;
-      font-weight: 820;
-      line-height: 1.35;
-    }
-
-    .empty {
-      background: #f8fafc;
-      border: 1px dashed rgba(15,23,42,.2);
-      border-radius: 18px;
-      padding: 24px;
-      text-align: center;
-      color: var(--life-muted);
-      font-weight: 850;
-      line-height: 1.45;
-    }
-
-    .footer-note {
-      color: var(--life-muted);
-      font-size: 11px;
-      font-weight: 850;
-      text-align: center;
-      margin: 18px 0 4px;
-    }
-
-    @media (max-width: 1180px) {
-      .status-grid,
-      .hero-grid,
-      .domain-grid {
-        grid-template-columns: repeat(2, minmax(0,1fr));
-      }
-
-      .main-grid {
-        grid-template-columns: 1fr;
+    @media (max-width: 900px) {
+      .grid,
+      .actions {
+        grid-template-columns: 1fr 1fr;
       }
     }
 
-    @media (max-width: 720px) {
-      .life-wrap {
-        padding: 14px;
-      }
-
-      .topbar {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      .top-actions {
-        justify-content: flex-start;
-      }
-
-      .status-grid,
-      .hero-grid,
-      .domain-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .action-card {
-        grid-template-columns: 1fr;
-      }
-
-      .timeline-row {
+    @media (max-width: 560px) {
+      main { padding: 14px; }
+      .grid,
+      .actions {
         grid-template-columns: 1fr;
       }
     }
   </style>
 </head>
 <body>
-  <main class="life-wrap">
-    <nav class="topbar" aria-label="Life OS top navigation">
-      <div class="brand-lockup">
-        <div class="brand-mark">OS</div>
-        <div>
-          <div class="brand-name">Sovereign Life OS</div>
-          <div class="brand-sub">Main Command Centre</div>
-        </div>
-      </div>
-      <div class="top-actions">
-        <a class="top-btn primary" href="/forecast.html">Finance</a>
-        <a class="top-btn" href="/salah.html">Salah</a>
-        <a class="top-btn" href="/habits.html">Habits</a>
-        <a class="top-btn" href="/mission.html">Mission</a>
-        <a class="top-btn" href="/ai.html">AI</a>
-      </div>
-    </nav>
-
+  <main>
     <section class="hero">
-      <div class="kicker">Life OS Shell v0.1.2</div>
-      <h1 class="heading">One command centre. Separate life domains.</h1>
-      <p class="copy">
-        Finance is one cockpit inside a wider system. Salah, Habits, Mission, and AI stay isolated from Finance, but the Main Command Centre can route to each domain and show high-level signals without mixing ledgers, prayers, habits, mission work, or AI decisions.
-      </p>
-
-      <div class="hero-grid">
-        <div class="hero-chip">
-          <div class="chip-label">Finance</div>
-          <div id="heroFinance" class="chip-value">Loading live status</div>
-        </div>
-        <div class="hero-chip">
-          <div class="chip-label">Salah</div>
-          <div class="chip-value">Shell live</div>
-        </div>
-        <div class="hero-chip">
-          <div class="chip-label">Habits</div>
-          <div class="chip-value">Shell live</div>
-        </div>
-        <div class="hero-chip">
-          <div class="chip-label">AI Curator</div>
-          <div class="chip-value">Shell live</div>
-        </div>
+      <div class="kicker">Hub v0.1.3</div>
+      <h1>Sovereign Finance Hub</h1>
+      <div class="copy">
+        This Hub reads the corrected balances truth layer directly from <code>/api/balances?debug=1</code>.
+        Payable debt and receivables are split. The combined active debt number is diagnostic only.
       </div>
     </section>
 
-    <section class="status-grid">
-      <div class="status-card">
-        <div class="label">Finance Safety</div>
-        <div id="financeSafety" class="value">-</div>
+    <section class="grid">
+      <div class="card">
+        <div class="label">Liquid Cash</div>
+        <div id="liquid" class="value">Loading</div>
       </div>
-      <div class="status-card">
-        <div class="label">Audit Readiness</div>
-        <div id="auditReadiness" class="value">-</div>
+
+      <div class="card">
+        <div class="label">CC Outstanding</div>
+        <div id="cc" class="value bad">Loading</div>
       </div>
-      <div class="status-card">
-        <div class="label">Salah</div>
-        <div class="value blue">Shell Live</div>
+
+      <div class="card">
+        <div class="label">Payable Debt</div>
+        <div id="debt" class="value bad">Loading</div>
       </div>
-      <div class="status-card">
-        <div class="label">Habits</div>
-        <div class="value warn">Shell Live</div>
+
+      <div class="card">
+        <div class="label">Receivables</div>
+        <div id="recv" class="value good">Loading</div>
       </div>
-      <div class="status-card">
-        <div class="label">AI Decisions</div>
-        <div class="value teal">Shell Live</div>
+
+      <div class="card">
+        <div class="label">True Burden</div>
+        <div id="burden" class="value bad">Loading</div>
       </div>
     </section>
 
-    <section class="panel wide">
-      <div class="panel-head">
-        <div>
-          <div class="panel-title">Domain Cockpits</div>
-          <div class="panel-sub">Each domain has its own identity. Main Command Centre only summarizes and routes.</div>
-        </div>
+    <section class="grid">
+      <div class="card">
+        <div class="label">Balances API</div>
+        <div id="version" class="value blue">Loading</div>
       </div>
 
-      <div class="domain-grid">
-        <article class="domain-card finance" id="domain-finance">
-          <div>
-            <div class="domain-icon">F</div>
-            <div class="domain-title">Finance</div>
-            <div class="domain-copy">Money cockpit only: forecast, safety, insights, monthly close, accounts, bills, debts, Credit Card, reconciliation.</div>
-            <div id="financeDomainStatus" class="domain-status">Loading</div>
-          </div>
-          <div class="domain-actions">
-            <a class="mini-link" href="/forecast.html">Forecast</a>
-            <a class="mini-link" href="/insights.html">Insights</a>
-            <a class="mini-link" href="/monthly-close.html">Monthly Close</a>
-          </div>
-        </article>
+      <div class="card">
+        <div class="label">All Active Debt</div>
+        <div id="allDebt" class="value">Diagnostic</div>
+      </div>
 
-        <article class="domain-card salah" id="domain-salah">
-          <div>
-            <div class="domain-icon">S</div>
-            <div class="domain-title">Salah</div>
-            <div class="domain-copy">Prayer cockpit only: today status, prayer timeline, missed recovery, streaks, weekly reflection. No finance contamination.</div>
-            <div class="domain-status blue">Shell live</div>
-          </div>
-          <div class="domain-actions">
-            <a class="mini-link" href="/salah.html">Open Salah</a>
-          </div>
-        </article>
+      <div class="card">
+        <div class="label">Debt Split</div>
+        <div id="split" class="value good">Loading</div>
+      </div>
 
-        <article class="domain-card habits" id="domain-habits">
-          <div>
-            <div class="domain-icon">H</div>
-            <div class="domain-title">Habits</div>
-            <div class="domain-copy">Daily execution cockpit: checklist, momentum, weak habits, recovery suggestions, workday/off-day pattern.</div>
-            <div class="domain-status warn">Shell live</div>
-          </div>
-          <div class="domain-actions">
-            <a class="mini-link" href="/habits.html">Open Habits</a>
-          </div>
-        </article>
+      <div class="card">
+        <div class="label">Transactions API</div>
+        <div class="value blue">v0.1.4</div>
+      </div>
 
-        <article class="domain-card mission" id="domain-mission">
-          <div>
-            <div class="domain-icon">M</div>
-            <div class="domain-title">Mission</div>
-            <div class="domain-copy">Direction cockpit: current priority, active project, milestone, blockers, weekly direction, roadmap.</div>
-            <div class="domain-status violet">Shell live</div>
-          </div>
-          <div class="domain-actions">
-            <a class="mini-link" href="/mission.html">Open Mission</a>
-          </div>
-        </article>
-
-        <article class="domain-card ai" id="domain-ai">
-          <div>
-            <div class="domain-icon">AI</div>
-            <div class="domain-title">AI Curator</div>
-            <div class="domain-copy">Cross-domain brain: reads domain summaries, curates decisions, prepares Telegram relay. No direct mutation first.</div>
-            <div class="domain-status teal">Shell live</div>
-          </div>
-          <div class="domain-actions">
-            <a class="mini-link" href="/ai.html">Open AI</a>
-          </div>
-        </article>
+      <div class="card">
+        <div class="label">Snapshot Control</div>
+        <div class="value good">Live</div>
       </div>
     </section>
 
-    <section class="main-grid">
-      <div class="panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">What Needs Action</div>
-            <div class="panel-sub">Finance live signals first. Other domains remain shell-only until export APIs exist.</div>
-          </div>
-        </div>
-        <div id="actionList" class="action-list">
-          <div class="empty">Loading action signals...</div>
-        </div>
+    <section class="panel">
+      <div class="panel-title">Audit correction status</div>
+      <div class="panel-copy">
+        Hub now shows corrected finance truth: payable debt uses <code>debts.kind = owe</code>,
+        receivables use <code>debts.kind = owed</code>, and <code>141,820</code> must not be shown as debt burden.
       </div>
 
-      <div class="panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Today Timeline</div>
-            <div class="panel-sub">Cross-domain timeline shell. Domain data becomes live after export layers.</div>
-          </div>
-        </div>
-        <div class="timeline">
-          <div class="timeline-row">
-            <div class="timeline-time">Finance</div>
-            <div>
-              <div class="timeline-title">Finance Core live</div>
-              <div class="timeline-copy">Forecast, Safety, Insights, and Monthly Close are available from Finance cockpit links.</div>
-            </div>
-          </div>
-          <div class="timeline-row">
-            <div class="timeline-time">Salah</div>
-            <div>
-              <div class="timeline-title">Salah shell live</div>
-              <div class="timeline-copy">Salah has its own cockpit page. Next layer will export real prayer data without showing finance inside Salah.</div>
-            </div>
-          </div>
-          <div class="timeline-row">
-            <div class="timeline-time">Habits</div>
-            <div>
-              <div class="timeline-title">Habits shell live</div>
-              <div class="timeline-copy">Habits has its own cockpit page. Next layer will export real habit data without showing finance or Salah internals.</div>
-            </div>
-          </div>
-          <div class="timeline-row">
-            <div class="timeline-time">Mission</div>
-            <div>
-              <div class="timeline-title">Mission shell live</div>
-              <div class="timeline-copy">Mission has its own direction page. It will later read project and milestone status without exposing raw domain tables.</div>
-            </div>
-          </div>
-          <div class="timeline-row">
-            <div class="timeline-time">AI</div>
-            <div>
-              <div class="timeline-title">AI Curator shell live</div>
-              <div class="timeline-copy">AI should read multiple live domain summaries before Telegram relay is enabled.</div>
-            </div>
-          </div>
-        </div>
+      <div class="actions">
+        <a class="action" href="/forecast.html">Forecast<span class="small">Salary and runway projection</span></a>
+        <a class="action" href="/transactions.html">Transactions<span class="small">Ledger with corrected semantics</span></a>
+        <a class="action" href="/debts.html">Debts<span class="small">Payable debt and receivables</span></a>
+        <a class="action" href="/snapshots.html">Snapshots<span class="small">Manual safety points</span></a>
+        <a class="action" href="/cc.html">Credit Card<span class="small">CC liability cockpit</span></a>
+        <a class="action" href="/accounts.html">Accounts<span class="small">Account balances</span></a>
+        <a class="action" href="/bills.html">Bills<span class="small">Bill schedule and payments</span></a>
+        <a class="action" href="/audit.html">Audit<span class="small">System audit trail</span></a>
       </div>
     </section>
 
-    <section class="panel wide">
-      <div class="panel-head">
-        <div>
-          <div class="panel-title">Next Build Queue</div>
-          <div class="panel-sub">All section shells are reachable. Next phase is real data export, starting with Salah.</div>
-        </div>
-      </div>
-      <div class="action-list">
-        <article class="action-card">
-          <div>
-            <div class="action-title">Layer 2A: Salah D1 schema/export</div>
-            <div class="action-copy">salah_logs, salah_daily_status, salah_recovery, salah_insights. No finance contamination.</div>
-          </div>
-          <a class="action-link" href="/salah.html">Open Salah</a>
-        </article>
-        <article class="action-card">
-          <div>
-            <div class="action-title">Layer 3A: Habits D1 schema/export</div>
-            <div class="action-copy">habit_definitions, habit_logs, habit_daily_status, habit_insights. No fake completion data.</div>
-          </div>
-          <a class="action-link" href="/habits.html">Open Habits</a>
-        </article>
-        <article class="action-card">
-          <div>
-            <div class="action-title">Layer 4A: Mission status foundation</div>
-            <div class="action-copy">mission_projects, mission_milestones, mission_reviews, mission_priorities.</div>
-          </div>
-          <a class="action-link" href="/mission.html">Open Mission</a>
-        </article>
-        <article class="action-card">
-          <div>
-            <div class="action-title">Layer 5A: AI Curator</div>
-            <div class="action-copy">AI briefing and decision queue after Finance + Salah + Habits have live APIs.</div>
-          </div>
-          <a class="action-link" href="/ai.html">Open AI</a>
-        </article>
-      </div>
-    </section>
-
-    <div class="footer-note">
-      v0.1.2 - Life OS Shell - all section shells linked - Finance/Salah/Habits/Mission/AI separated - no schema/ledger/formula changes
-    </div>
+    <footer>
+      index.html v0.1.3 · Hub aligned to /api/balances v0.5.3 · no schema change
+    </footer>
   </main>
 
-  <script src="/js/theme.js?v=0.7.5"></script>
   <script>
-    const $ = id => document.getElementById(id);
-
-    function esc(value) {
-      return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    function money(value) {
+      const n = Number(value) || 0;
+      const sign = n < 0 ? '-' : '';
+      return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+      });
     }
 
-    function statusClass(value) {
-      const v = String(value || '').toLowerCase();
-      if (['safe', 'ready', 'high', 'ok', 'clear', 'manageable'].includes(v)) return 'good';
-      if (['watch', 'medium', 'medium_low'].includes(v)) return 'warn';
-      if (['unsafe', 'critical', 'not_ready', 'low', 'risk', 'high_pressure'].includes(v)) return 'bad';
-      return 'neutral';
-    }
-
-    function setText(id, value, className) {
-      const el = $(id);
+    function set(id, text, cls) {
+      const el = document.getElementById(id);
       if (!el) return;
-      el.textContent = value;
-      if (className) el.className = className;
+      el.textContent = text;
+      if (cls) el.className = 'value ' + cls;
     }
 
-    async function fetchJSON(url) {
-      const res = await fetch(url, { cache: 'no-store' });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data || data.ok === false) {
-        throw new Error((data && data.error) || ('HTTP ' + res.status));
+    async function loadHub() {
+      const res = await fetch('/api/balances?debug=1', { cache: 'no-store' });
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || 'Balances failed');
       }
-      return data;
+
+      const liquid = Number(data.total_liquid || data.cash || 0);
+      const cc = Number(data.cc_outstanding || data.cc || 0);
+      const payableDebt = Number(data.payable_debt_remaining || data.total_owed || 0);
+      const receivables = Number(data.total_receivables || data.receivables_from_debts || 0);
+      const burden = Number(data.true_burden || 0);
+      const allActiveDebt = Number(data.debug && data.debug.all_active_debt_remaining || 0);
+
+      set('liquid', money(liquid), liquid >= 0 ? 'good' : 'bad');
+      set('cc', money(cc), 'bad');
+      set('debt', money(payableDebt), 'bad');
+      set('recv', money(receivables), 'good');
+      set('burden', money(burden), burden >= 0 ? 'good' : 'bad');
+      set('version', data.version || 'unknown', 'blue');
+      set('allDebt', money(allActiveDebt), 'blue');
+      set('split', 'Applied', 'good');
     }
 
-    async function safeJSON(url, fallback) {
-      try {
-        return await fetchJSON(url);
-      } catch (err) {
-        return fallback;
-      }
-    }
-
-    function renderFinance(forecast, safety, insights, close) {
-      const projection = forecast.cash_projection_summary || {};
-      const safetyStatus = safety.safety_status || safety.status || 'unknown';
-      const readiness = close.audit_readiness || {};
-      const readyStatus = readiness.status || 'unknown';
-      const topInsight = insights.top_insight || {};
-
-      setText('heroFinance', safetyStatus.toUpperCase(), statusClass(safetyStatus));
-      setText('financeSafety', safetyStatus.toUpperCase(), 'value ' + statusClass(safetyStatus));
-      setText('auditReadiness', readyStatus.replace('_', ' ').toUpperCase(), 'value ' + statusClass(readyStatus));
-      setText('financeDomainStatus', `Live: ${safetyStatus.toUpperCase()}`, 'domain-status ' + statusClass(safetyStatus));
-
-      const actions = [];
-
-      if (safety.top_action) {
-        actions.push({
-          title: 'Finance Safety',
-          copy: safety.top_action,
-          href: '/forecast.html',
-          label: 'Open Forecast'
-        });
-      }
-
-      if (topInsight.title) {
-        actions.push({
-          title: topInsight.title,
-          copy: topInsight.action || topInsight.meaning || 'Open Insights for the action card.',
-          href: '/insights.html',
-          label: 'Open Insights'
-        });
-      }
-
-      if ((readiness.blockers || []).length) {
-        actions.push({
-          title: 'Monthly Close blocker',
-          copy: readiness.blockers[0],
-          href: '/monthly-close.html',
-          label: 'Open Close'
-        });
-      }
-
-      if (projection.first_unsafe_date) {
-        actions.push({
-          title: 'First unsafe date',
-          copy: `Forecast reports first unsafe date: ${projection.first_unsafe_date}.`,
-          href: '/forecast.html',
-          label: 'Open Forecast'
-        });
-      }
-
-      if (!actions.length) {
-        actions.push({
-          title: 'Finance Core assembled',
-          copy: 'No immediate Finance action returned from Safety, Insights, or Monthly Close.',
-          href: '/monthly-close.html',
-          label: 'Open Close'
-        });
-      }
-
-      $('actionList').innerHTML = actions.slice(0, 5).map(action => `
-        <article class="action-card">
-          <div>
-            <div class="action-title">${esc(action.title)}</div>
-            <div class="action-copy">${esc(action.copy)}</div>
-          </div>
-          <a class="action-link" href="${esc(action.href)}">${esc(action.label)}</a>
-        </article>
-      `).join('');
-    }
-
-    async function loadCommandCentre() {
-      const [forecast, safety, insights, close] = await Promise.all([
-        safeJSON('/api/forecast', {}),
-        safeJSON('/api/safety', {}),
-        safeJSON('/api/insights?days=30', {}),
-        safeJSON('/api/monthly-close', {})
-      ]);
-
-      renderFinance(forecast, safety, insights, close);
-    }
-
-    loadCommandCentre().catch(err => {
-      $('actionList').innerHTML = `
-        <article class="action-card">
-          <div>
-            <div class="action-title">Command Centre load issue</div>
-            <div class="action-copy">${esc(err.message)}</div>
-          </div>
-          <a class="action-link" href="/monthly-close.html">Open Finance</a>
-        </article>
-      `;
+    loadHub().catch(err => {
+      set('liquid', 'Error', 'bad');
+      set('cc', 'Error', 'bad');
+      set('debt', err.message, 'bad');
+      set('recv', 'Error', 'bad');
+      set('burden', 'Error', 'bad');
+      set('version', 'Error', 'bad');
+      set('split', 'Failed', 'bad');
     });
   </script>
 </body>
