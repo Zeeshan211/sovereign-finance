@@ -1,9 +1,10 @@
-/* Sovereign Finance /api/monthly-close v0.1.0
+/* Sovereign Finance /api/monthly-close v0.1.1
  * Layer 7A - Monthly Close API
  *
  * Purpose:
  * - Read-only month-end audit/report brain.
- * - Summarizes current-month income, outflow, bills, debts, CC, forecast, safety, reconciliation, and audit readiness.
+ * - Summarizes selected-month income, outflow, bills, debts, CC, forecast, safety,
+ *   reconciliation, and audit readiness.
  *
  * Contract:
  * - GET /api/monthly-close
@@ -11,15 +12,23 @@
  * - No schema mutation.
  * - No ledger mutation.
  * - No audit writes.
+ *
+ * v0.1.1 certification fix:
+ * - Separates month activity from full-ledger truth.
+ * - Month activity uses transactions inside selected month only.
+ * - Account balances use full active ledger.
+ * - Reconciliation stale/drift truth uses full active ledger.
+ * - Response exposes both scopes clearly.
  */
 
 import { json } from './_lib.js';
 
-const VERSION = 'v0.1.0';
+const VERSION = 'v0.1.1';
 
 const INCOME_TYPES = new Set(['income', 'salary', 'borrow', 'debt_in', 'opening']);
 const OUTFLOW_TYPES = new Set(['expense', 'repay', 'cc_spend', 'atm', 'debt_out']);
 const TRANSFER_TYPES = new Set(['transfer', 'cc_payment']);
+
 const UNSAFE_THRESHOLD = 5000;
 const WATCH_THRESHOLD = 10000;
 const RECON_DRIFT_THRESHOLD = 1;
@@ -38,7 +47,8 @@ export async function onRequest(context) {
       safetyRes,
       insightsRes,
       accountsRes,
-      txnsRes,
+      fullTxnsRes,
+      monthTxnsRes,
       billsRes,
       debtsRes,
       reconRes
@@ -47,37 +57,59 @@ export async function onRequest(context) {
       readInternalJson(context, '/api/safety'),
       readInternalJson(context, '/api/insights'),
       safeAll(db, `SELECT * FROM accounts`),
-      safeAll(db, `SELECT * FROM transactions WHERE date >= ? AND date < ? ORDER BY date ASC, created_at ASC, id ASC`, [monthStart, monthEndExclusive]),
+      safeAll(db, `
+        SELECT * FROM transactions
+        ORDER BY date ASC, created_at ASC, id ASC
+      `),
+      safeAll(db, `
+        SELECT * FROM transactions
+        WHERE date >= ?
+          AND date < ?
+        ORDER BY date ASC, created_at ASC, id ASC
+      `, [monthStart, monthEndExclusive]),
       safeAll(db, `SELECT * FROM bills`),
       safeAll(db, `SELECT * FROM debts`),
       safeAll(db, `SELECT * FROM reconciliation ORDER BY declared_at DESC`)
     ]);
 
     const accounts = activeAccounts(accountsRes.rows);
-    const transactions = activeTransactions(txnsRes.rows);
+    const fullTransactions = activeTransactions(fullTxnsRes.rows);
+    const monthTransactions = activeTransactions(monthTxnsRes.rows);
     const bills = visibleBills(billsRes.rows);
     const debts = activeDebts(debtsRes.rows);
     const reconciliation = reconRes.rows || [];
+
     const forecast = forecastRes.data || null;
     const safety = safetyRes.data || null;
     const insights = insightsRes.data || null;
 
-    const balances = computeAccountBalances(accounts, transactions);
-    const currentPosition = computeCurrentPosition(accounts, balances, forecast);
-    const income = computeIncome(transactions);
-    const outflow = computeOutflow(transactions);
+    const fullLedgerBalances = computeAccountBalances(accounts, fullTransactions);
+    const currentPosition = computeCurrentPosition(accounts, fullLedgerBalances, forecast);
+
+    const income = computeIncome(monthTransactions);
+    const outflow = computeOutflow(monthTransactions);
+    const monthActivity = computeMonthActivity(monthTransactions, fullTransactions, month);
+
     const billSummary = computeBills(bills, month);
-    const debtSummary = computeDebts(debts, transactions);
+    const debtSummary = computeDebts(debts, monthTransactions);
     const creditCard = computeCreditCard(currentPosition, forecast);
     const forecastSummary = computeForecast(forecast);
     const safetySummary = computeSafety(safety);
-    const reconciliationSummary = computeReconciliation(accounts, balances, reconciliation, transactions);
+
+    const reconciliationSummary = computeReconciliation(
+      accounts,
+      fullLedgerBalances,
+      reconciliation,
+      fullTransactions
+    );
+
     const auditReadiness = computeAuditReadiness({
       forecastRes,
       safetyRes,
       insightsRes,
       accountsRes,
-      txnsRes,
+      fullTxnsRes,
+      monthTxnsRes,
       billsRes,
       debtsRes,
       reconRes,
@@ -97,7 +129,21 @@ export async function onRequest(context) {
         start: monthStart,
         end_exclusive: monthEndExclusive
       },
-
+      scopes: {
+        month_activity_scope: {
+          description: 'Selected-month transactions only. Used for income, outflow, transfer movement, and debt paid this month.',
+          transaction_count: monthTransactions.length,
+          date_start: monthStart,
+          date_end_exclusive: monthEndExclusive
+        },
+        full_ledger_scope: {
+          description: 'Full active ledger. Used for account balances, current position, reconciliation drift, and stale declaration checks.',
+          transaction_count: fullTransactions.length,
+          date_start: firstTransactionDate(fullTransactions),
+          date_end: latestTransactionDate(fullTransactions)
+        },
+        certification_fix: 'v0.1.1 separates month activity from full-ledger truth.'
+      },
       summary: {
         opening_position: null,
         current_liquid: currentPosition.total_liquid,
@@ -106,11 +152,13 @@ export async function onRequest(context) {
         month_income: income.total,
         month_outflow: outflow.total,
         net_movement: round2(income.total - outflow.total),
+        month_transaction_count: monthTransactions.length,
+        full_ledger_transaction_count: fullTransactions.length,
         safety_status: safetySummary.status,
         forecast_runway_status: forecastSummary.runway_status,
         audit_readiness_status: auditReadiness.status
       },
-
+      month_activity: monthActivity,
       income,
       outflow,
       bills: billSummary,
@@ -126,15 +174,14 @@ export async function onRequest(context) {
         insight_count: insights && Array.isArray(insights.insights) ? insights.insights.length : 0,
         error: insightsRes.error || null
       },
-
       audit_readiness: auditReadiness,
-
       health: {
         forecast: healthRow(forecastRes),
         safety: healthRow(safetyRes),
         insights: healthRow(insightsRes),
         accounts: healthRow(accountsRes),
-        transactions: healthRow(txnsRes),
+        full_ledger_transactions: healthRow(fullTxnsRes),
+        month_activity_transactions: healthRow(monthTxnsRes),
         bills: healthRow(billsRes),
         debts: healthRow(debtsRes),
         reconciliation: healthRow(reconRes)
@@ -166,7 +213,10 @@ async function readInternalJson(context, pathname) {
     const res = await fetch(url.toString(), {
       method: 'GET',
       headers,
-      cf: { cacheTtl: 0, cacheEverything: false }
+      cf: {
+        cacheTtl: 0,
+        cacheEverything: false
+      }
     });
 
     const data = await res.json().catch(() => null);
@@ -180,9 +230,19 @@ async function readInternalJson(context, pathname) {
       };
     }
 
-    return { ok: true, rows: [data], data, error: null };
+    return {
+      ok: true,
+      rows: [data],
+      data,
+      error: null
+    };
   } catch (err) {
-    return { ok: false, rows: [], data: null, error: err.message || String(err) };
+    return {
+      ok: false,
+      rows: [],
+      data: null,
+      error: err.message || String(err)
+    };
   }
 }
 
@@ -190,21 +250,50 @@ async function safeAll(db, sql, binds = []) {
   try {
     const stmt = db.prepare(sql);
     const res = binds.length ? await stmt.bind(...binds).all() : await stmt.all();
-    return { ok: true, rows: res.results || [], error: null };
+
+    return {
+      ok: true,
+      rows: res.results || [],
+      error: null
+    };
   } catch (err) {
-    return { ok: false, rows: [], error: err.message || String(err) };
+    return {
+      ok: false,
+      rows: [],
+      error: err.message || String(err)
+    };
   }
+}
+
+function computeMonthActivity(monthTransactions, fullTransactions, month) {
+  const incomeRows = monthTransactions.filter(row => INCOME_TYPES.has(text(row.type).toLowerCase()));
+  const outflowRows = monthTransactions.filter(row => OUTFLOW_TYPES.has(text(row.type).toLowerCase()));
+  const transferRows = monthTransactions.filter(row => TRANSFER_TYPES.has(text(row.type).toLowerCase()));
+
+  return {
+    month,
+    month_transaction_count: monthTransactions.length,
+    full_ledger_transaction_count: fullTransactions.length,
+    income_count: incomeRows.length,
+    outflow_count: outflowRows.length,
+    transfer_count: transferRows.length,
+    income_total: round2(sumAmounts(incomeRows)),
+    outflow_total: round2(sumAmounts(outflowRows)),
+    transfer_movement_total: round2(sumAmounts(transferRows)),
+    net_income_minus_outflow: round2(sumAmounts(incomeRows) - sumAmounts(outflowRows)),
+    scope_note: 'These numbers are selected-month activity only and are not used as full account balance truth.'
+  };
 }
 
 function computeIncome(transactions) {
   const rows = transactions.filter(row => INCOME_TYPES.has(text(row.type).toLowerCase()));
-  const byType = groupByType(rows);
 
   return {
     total: round2(sumAmounts(rows)),
     count: rows.length,
-    by_type: byType,
-    rows: rows.map(minTxn)
+    by_type: groupByType(rows),
+    rows: rows.map(minTxn),
+    scope: 'month_activity'
   };
 }
 
@@ -218,7 +307,8 @@ function computeOutflow(transactions) {
     by_type: groupByType(rows),
     transfer_movement_total: round2(sumAmounts(transfers)),
     transfer_movement_count: transfers.length,
-    rows: rows.map(minTxn)
+    rows: rows.map(minTxn),
+    scope: 'month_activity'
   };
 }
 
@@ -240,19 +330,22 @@ function computeBills(bills, month) {
       continue;
     }
 
-    const paidThisMonth = billPaidThisMonth(bill, month);
+    const paidThisCycle = billPaidForDueCycle(bill, dueDate);
 
     const row = {
       id: bill.id || null,
       name: bill.name || 'Bill',
       amount: round2(amount),
       due_date: dueDate,
-      paid_this_month: paidThisMonth,
+      due_cycle_month: dueDate.slice(0, 7),
+      paid_this_month: paidThisCycle,
+      paid_this_due_cycle: paidThisCycle,
       default_account_id: bill.default_account_id || null
     };
 
     due.push(row);
-    if (paidThisMonth) paid.push(row);
+
+    if (paidThisCycle) paid.push(row);
 
     if (!bill.default_account_id) {
       missingRequiredData.push({
@@ -270,13 +363,14 @@ function computeBills(bills, month) {
     due_total: round2(sumField(due, 'amount')),
     paid_total: round2(sumField(paid, 'amount')),
     completion_rate: due.length ? round4(paid.length / due.length) : 1,
+    paid_cycle_logic: 'Bill is counted paid only when last_paid_date or paid_cycle_month matches the due-cycle month.',
     due,
     paid,
     missing_required_data: missingRequiredData
   };
 }
 
-function computeDebts(debts, transactions) {
+function computeDebts(debts, monthTransactions) {
   const payable = debts
     .filter(row => normalizeDebtKind(row.kind) !== 'owed')
     .map(row => ({
@@ -303,7 +397,7 @@ function computeDebts(debts, transactions) {
     }))
     .filter(row => row.remaining_amount > 0);
 
-  const debtPaymentRows = transactions.filter(row => {
+  const debtPaymentRows = monthTransactions.filter(row => {
     const type = text(row.type).toLowerCase();
     return type === 'repay' || type === 'debt_out';
   });
@@ -323,6 +417,7 @@ function computeDebts(debts, transactions) {
     total_receivable_remaining: round2(sumField(receivable, 'remaining_amount')),
     debt_paid_this_month: round2(sumAmounts(debtPaymentRows)),
     debt_payment_count_this_month: debtPaymentRows.length,
+    payment_scope: 'month_activity',
     payable,
     receivable,
     missing_required_data: missingRequiredData
@@ -413,9 +508,9 @@ function computeSafety(safety) {
   };
 }
 
-function computeReconciliation(accounts, balances, rows, transactions) {
+function computeReconciliation(accounts, fullLedgerBalances, rows, fullTransactions) {
   const latest = latestReconByAccount(rows);
-  const latestTxn = latestTxnDateByAccount(accounts, transactions);
+  const latestTxn = latestTxnDateByAccount(accounts, fullTransactions);
   const accountRows = [];
 
   let matched = 0;
@@ -425,7 +520,7 @@ function computeReconciliation(accounts, balances, rows, transactions) {
 
   for (const account of accounts) {
     const declaration = latest[account.id] || null;
-    const appBalance = balances[account.id] || 0;
+    const appBalance = fullLedgerBalances[account.id] || 0;
     const declared = declaration ? number(declaration.declared_balance) : null;
     const drift = declaration ? round2(declared - appBalance) : null;
     const latestTransactionDate = latestTxn[account.id] || null;
@@ -472,6 +567,9 @@ function computeReconciliation(accounts, balances, rows, transactions) {
     stale_count: stale,
     drifted_count: drifted,
     undeclared_count: undeclared,
+    balance_scope: 'full_ledger',
+    stale_check_scope: 'full_ledger',
+    drift_check_scope: 'full_ledger',
     accounts: accountRows
   };
 }
@@ -483,14 +581,17 @@ function computeAuditReadiness(input) {
   if (!input.forecastRes.ok) blockers.push('forecast_api_unavailable');
   if (!input.safetyRes.ok) blockers.push('safety_api_unavailable');
   if (!input.insightsRes.ok) warnings.push('insights_api_unavailable');
+
   if (!input.accountsRes.ok) blockers.push('accounts_read_failed');
-  if (!input.txnsRes.ok) blockers.push('transactions_read_failed');
+  if (!input.fullTxnsRes.ok) blockers.push('full_ledger_transactions_read_failed');
+  if (!input.monthTxnsRes.ok) blockers.push('month_activity_transactions_read_failed');
   if (!input.billsRes.ok) blockers.push('bills_read_failed');
   if (!input.debtsRes.ok) blockers.push('debts_read_failed');
   if (!input.reconRes.ok) blockers.push('reconciliation_read_failed');
 
   if (input.forecastSummary.first_unsafe_date) blockers.push('forecast_has_unsafe_date');
   if (input.forecastSummary.unsafe_days_count > 0) blockers.push('forecast_has_unsafe_days');
+
   if (input.safetySummary.status === 'critical') blockers.push('safety_status_critical');
   if (input.safetySummary.status === 'unsafe') blockers.push('safety_status_unsafe');
   if (input.safetySummary.manual_variables_used_for_safety) blockers.push('manual_variables_used_for_safety');
@@ -510,14 +611,15 @@ function computeAuditReadiness(input) {
       api_routes: blockers.filter(x => x.includes('_api_') || x.includes('_read_')).length === 0,
       formulas: true,
       reconciliation: input.reconciliationSummary.drifted_count === 0,
+      reconciliation_scope: 'full_ledger',
       safety: !['critical', 'unsafe'].includes(input.safetySummary.status),
       manual_variable_separation: !input.safetySummary.manual_variables_used_for_safety,
-      required_data: input.billSummary.missing_required_data.length === 0 && input.debtSummary.missing_required_data.length === 0
+      required_data: input.billSummary.missing_required_data.length === 0 && input.debtSummary.missing_required_data.length === 0,
+      month_activity_scope_separated: true,
+      full_ledger_truth_scope_separated: true
     }
   };
 }
-
-/* Shared helpers */
 
 function activeAccounts(rows) {
   return (rows || []).filter(row => {
@@ -575,6 +677,7 @@ function computeAccountBalances(accounts, transactions) {
 
   const out = {};
   for (const id of Object.keys(balances)) out[id] = round2(balances[id]);
+
   return out;
 }
 
@@ -638,7 +741,9 @@ function latestTxnDateByAccount(accounts, transactions) {
 }
 
 function billDueDateForMonth(bill, month) {
-  if (bill.due_date && normalizeDate(bill.due_date).slice(0, 7) === month) return normalizeDate(bill.due_date);
+  const fixed = normalizeDate(bill.due_date);
+
+  if (fixed && fixed.slice(0, 7) === month) return fixed;
 
   const day = normalizeDueDay(bill.due_day);
   if (day == null) return null;
@@ -650,9 +755,16 @@ function billDueDateForMonth(bill, month) {
   return `${month}-${String(safeDay).padStart(2, '0')}`;
 }
 
-function billPaidThisMonth(bill, month) {
+function billPaidForDueCycle(bill, dueDate) {
+  const dueMonth = normalizeDate(dueDate).slice(0, 7);
+  const explicitCycle = normalizePaidCycleMonth(
+    bill.paid_cycle_month || bill.last_paid_cycle_month || bill.covered_month
+  );
+
+  if (explicitCycle) return explicitCycle === dueMonth;
+
   const last = normalizeDate(bill.last_paid_date);
-  return !!last && last.slice(0, 7) === month;
+  return !!last && last.slice(0, 7) === dueMonth;
 }
 
 function remainingDebtAmount(debt) {
@@ -683,13 +795,22 @@ function groupByType(rows) {
 
   for (const row of rows) {
     const type = text(row.type || 'unknown').toLowerCase() || 'unknown';
-    if (!map[type]) map[type] = { type, total: 0, count: 0 };
+
+    if (!map[type]) map[type] = {
+      type,
+      total: 0,
+      count: 0
+    };
+
     map[type].total += number(row.amount);
     map[type].count++;
   }
 
   return Object.values(map)
-    .map(row => ({ ...row, total: round2(row.total) }))
+    .map(row => ({
+      ...row,
+      total: round2(row.total)
+    }))
     .sort((a, b) => b.total - a.total);
 }
 
@@ -713,6 +834,24 @@ function healthRow(res) {
   };
 }
 
+function firstTransactionDate(rows) {
+  const dates = (rows || [])
+    .map(row => normalizeDate(row.date))
+    .filter(Boolean)
+    .sort();
+
+  return dates.length ? dates[0] : null;
+}
+
+function latestTransactionDate(rows) {
+  const dates = (rows || [])
+    .map(row => normalizeDate(row.date))
+    .filter(Boolean)
+    .sort();
+
+  return dates.length ? dates[dates.length - 1] : null;
+}
+
 function sumAmounts(rows) {
   return (rows || []).reduce((sum, row) => sum + number(row.amount), 0);
 }
@@ -724,6 +863,13 @@ function sumField(rows, field) {
 function normalizeMonth(value) {
   const raw = text(value);
   if (/^\d{4}-\d{2}$/.test(raw)) return raw;
+  return null;
+}
+
+function normalizePaidCycleMonth(value) {
+  const raw = text(value);
+  if (/^\d{4}-\d{2}$/.test(raw)) return raw;
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 7);
   return null;
 }
 
@@ -744,6 +890,7 @@ function normalizeDueDay(value) {
 
   const day = Number(value);
   if (!Number.isFinite(day) || day < 1 || day > 31) return null;
+
   return Math.floor(day);
 }
 
