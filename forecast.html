@@ -1,710 +1,868 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
-<title>Forecast · Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=1.0.1" />
-<style>
-.forecast-wrap { max-width: 1180px; margin: 0 auto; }
-.forecast-hero, .forecast-card, .forecast-panel {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-sm);
-}
-.forecast-hero { padding: 24px; margin-bottom: 18px; }
-.forecast-kicker {
-  display: inline-flex;
-  padding: 7px 11px;
-  border-radius: var(--r-pill);
-  background: var(--info-soft);
-  color: var(--info);
-  font-size: 12px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: .07em;
-  margin-bottom: 12px;
-}
-.forecast-heading {
-  margin: 0;
-  color: var(--text);
-  font-size: clamp(32px, 5vw, 50px);
-  line-height: 1.02;
-  font-weight: 950;
-  letter-spacing: -.05em;
-}
-.forecast-copy {
-  margin-top: 12px;
-  max-width: 850px;
-  color: var(--text-muted);
-  font-size: 15px;
-  line-height: 1.55;
-  font-weight: 750;
-}
-.forecast-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
-.forecast-btn {
-  min-height: 44px;
-  border-radius: var(--r-md);
-  padding: 10px 14px;
-  font-size: 14px;
-  font-weight: 950;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.forecast-btn.primary { border: 0; background: var(--grad-mint); color: #052e16; }
-.forecast-btn.secondary { border: 1px solid var(--border-strong); background: #fff; color: var(--text); }
-.forecast-trust {
-  margin-top: 16px;
-  padding: 13px 14px;
-  border-radius: var(--r-lg);
-  border: 1px solid rgba(37, 99, 235, .22);
-  background: var(--info-soft);
-  color: var(--info);
-  font-size: 13px;
-  font-weight: 850;
-  line-height: 1.45;
-}
-.forecast-trust-title {
-  font-size: 11px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  margin-bottom: 5px;
-}
-.forecast-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0,1fr));
-  gap: 12px;
-  margin-bottom: 18px;
-}
-.forecast-card { padding: 16px; min-width: 0; }
-.forecast-label {
-  color: var(--text-dim);
-  font-size: 11px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-}
-.forecast-value {
-  margin-top: 7px;
-  color: var(--text);
-  font-size: 23px;
-  font-weight: 950;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.forecast-value.good { color: var(--accent-deep); }
-.forecast-value.bad { color: var(--danger); }
-.forecast-value.warn { color: var(--warn); }
-.forecast-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, .9fr);
-  gap: 18px;
-}
-.forecast-panel { padding: 16px; min-width: 0; }
-.panel-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-.panel-title { color: var(--text); font-size: 18px; font-weight: 950; }
-.panel-sub { margin-top: 3px; color: var(--text-dim); font-size: 12px; font-weight: 850; }
-.pill-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
-.pill {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 10px;
-  min-width: 0;
-}
-.pill-label {
-  color: var(--text-dim);
-  font-size: 10px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  margin-bottom: 5px;
-}
-.pill-value {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 950;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-variant-numeric: tabular-nums;
-}
-.pill-value.good { color: var(--accent-deep); }
-.pill-value.bad { color: var(--danger); }
-.pill-value.warn { color: var(--warn); }
-.forecast-note {
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: var(--r-lg);
-  border: 1px solid rgba(37, 99, 235, .22);
-  background: var(--info-soft);
-  color: var(--info);
-  font-size: 13px;
-  font-weight: 850;
-  line-height: 1.45;
-}
-.forecast-note.warn { border-color: rgba(245, 158, 11, .24); background: rgba(245, 158, 11, .10); color: var(--warn); }
-.forecast-note.bad { border-color: rgba(220, 38, 38, .24); background: rgba(220, 38, 38, .08); color: var(--danger); }
-.variable-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap: 12px;
-}
-.variable-form .field label {
-  display: block;
-  color: var(--text-dim);
-  font-size: 10px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  margin-bottom: 5px;
-}
-.variable-form .input {
-  width: 100%;
-}
-.variable-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 14px;
-}
-.variable-actions button { flex: 1; }
-.trust-chip-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.trust-chip {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 7px 10px;
-  border-radius: var(--r-pill);
-  border: 1px solid rgba(37, 99, 235, .22);
-  background: var(--info-soft);
-  color: var(--info);
-  font-size: 10px;
-  font-weight: 950;
-  letter-spacing: .03em;
-  text-transform: uppercase;
-}
-.trust-chip.warn {
-  border-color: rgba(245, 158, 11, .24);
-  background: rgba(245, 158, 11, .10);
-  color: var(--warn);
-}
-.list { display: flex; flex-direction: column; gap: 8px; }
-.row {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 11px;
-  display: grid;
-  grid-template-columns: minmax(0,1fr) auto;
-  gap: 10px;
-  align-items: center;
-}
-.row-title {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 950;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.row-sub { margin-top: 3px; color: var(--text-dim); font-size: 12px; font-weight: 800; }
-.row-amount { color: var(--text); font-size: 13px; font-weight: 950; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.row-amount.good { color: var(--accent-deep); }
-.row-amount.bad { color: var(--danger); }
-.empty {
-  background: var(--surface-2);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--r-lg);
-  padding: 22px;
-  color: var(--text-muted);
-  font-weight: 850;
-  text-align: center;
-  line-height: 1.45;
-}
-@media (max-width: 980px) {
-  .forecast-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .forecast-grid { grid-template-columns: 1fr; }
-}
-@media (max-width: 640px) {
-  .forecast-stats, .pill-grid, .variable-form { grid-template-columns: 1fr; }
-  .row { grid-template-columns: 1fr; }
-  .variable-actions { flex-direction: column; }
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Forecast - Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
+  <style>
+    .forecast-wrap { max-width: 1180px; margin: 0 auto; }
+    .forecast-hero, .forecast-card, .forecast-panel {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-sm);
+    }
+    .forecast-hero { padding: 24px; margin-bottom: 18px; }
+    .forecast-kicker {
+      display: inline-flex;
+      padding: 7px 11px;
+      border-radius: var(--r-pill);
+      background: var(--info-soft);
+      color: var(--info);
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin-bottom: 12px;
+    }
+    .forecast-heading {
+      margin: 0;
+      color: var(--text);
+      font-size: clamp(32px, 5vw, 50px);
+      line-height: 1.02;
+      font-weight: 950;
+      letter-spacing: -.05em;
+    }
+    .forecast-copy {
+      margin-top: 12px;
+      max-width: 850px;
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.55;
+      font-weight: 750;
+    }
+    .forecast-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+    .forecast-btn {
+      min-height: 44px;
+      border-radius: var(--r-md);
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 950;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .forecast-btn.primary { border: 0; background: var(--grad-mint); color: #052e16; }
+    .forecast-btn.secondary { border: 1px solid var(--border-strong); background: #fff; color: var(--text); }
+    .forecast-trust {
+      margin-top: 16px;
+      padding: 13px 14px;
+      border-radius: var(--r-lg);
+      border: 1px solid rgba(37, 99, 235, .22);
+      background: var(--info-soft);
+      color: var(--info);
+      font-size: 13px;
+      font-weight: 850;
+      line-height: 1.45;
+    }
+    .forecast-trust-title {
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 5px;
+    }
+    .forecast-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .forecast-card { padding: 16px; min-width: 0; }
+    .forecast-label {
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    .forecast-value {
+      margin-top: 7px;
+      color: var(--text);
+      font-size: 23px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .forecast-value.good { color: var(--accent-deep); }
+    .forecast-value.bad { color: var(--danger); }
+    .forecast-value.warn { color: var(--warn); }
+    .forecast-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, .9fr);
+      gap: 18px;
+    }
+    .forecast-panel { padding: 16px; min-width: 0; }
+    .forecast-panel.wide { grid-column: 1 / -1; }
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .panel-title { color: var(--text); font-size: 18px; font-weight: 950; }
+    .panel-sub { margin-top: 3px; color: var(--text-dim); font-size: 12px; font-weight: 850; }
+    .pill-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+    .pill-grid.four { grid-template-columns: repeat(4, minmax(0,1fr)); }
+    .pill {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 10px;
+      min-width: 0;
+    }
+    .pill-label {
+      color: var(--text-dim);
+      font-size: 10px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 5px;
+    }
+    .pill-value {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 950;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-variant-numeric: tabular-nums;
+    }
+    .pill-value.good { color: var(--accent-deep); }
+    .pill-value.bad { color: var(--danger); }
+    .pill-value.warn { color: var(--warn); }
+    .forecast-note {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: var(--r-lg);
+      border: 1px solid rgba(37, 99, 235, .22);
+      background: var(--info-soft);
+      color: var(--info);
+      font-size: 13px;
+      font-weight: 850;
+      line-height: 1.45;
+    }
+    .forecast-note.warn { border-color: rgba(245, 158, 11, .24); background: rgba(245, 158, 11, .10); color: var(--warn); }
+    .forecast-note.bad { border-color: rgba(220, 38, 38, .24); background: rgba(220, 38, 38, .08); color: var(--danger); }
+    .variable-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 12px;
+    }
+    .variable-form .field label {
+      display: block;
+      color: var(--text-dim);
+      font-size: 10px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 5px;
+    }
+    .variable-form .input { width: 100%; }
+    .variable-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .variable-actions button { flex: 1; }
+    .trust-chip-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .trust-chip {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: var(--r-pill);
+      border: 1px solid rgba(37, 99, 235, .22);
+      background: var(--info-soft);
+      color: var(--info);
+      font-size: 10px;
+      font-weight: 950;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+    .trust-chip.good {
+      border-color: rgba(22, 163, 74, .24);
+      background: rgba(22, 163, 74, .10);
+      color: var(--accent-deep);
+    }
+    .trust-chip.warn {
+      border-color: rgba(245, 158, 11, .24);
+      background: rgba(245, 158, 11, .10);
+      color: var(--warn);
+    }
+    .trust-chip.bad {
+      border-color: rgba(220, 38, 38, .24);
+      background: rgba(220, 38, 38, .08);
+      color: var(--danger);
+    }
+    .list { display: flex; flex-direction: column; gap: 8px; }
+    .row {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 11px;
+      display: grid;
+      grid-template-columns: minmax(0,1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .row-title {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 950;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .row-sub { margin-top: 3px; color: var(--text-dim); font-size: 12px; font-weight: 800; }
+    .row-amount { color: var(--text); font-size: 13px; font-weight: 950; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .row-amount.good { color: var(--accent-deep); }
+    .row-amount.bad { color: var(--danger); }
+    .projection-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      max-height: 620px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+    .projection-row {
+      display: grid;
+      grid-template-columns: 100px minmax(0, 1fr) 130px;
+      gap: 10px;
+      align-items: center;
+      padding: 11px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    .projection-row.safe { border-color: rgba(22, 163, 74, .18); }
+    .projection-row.watch { border-color: rgba(245, 158, 11, .28); background: rgba(245, 158, 11, .06); }
+    .projection-row.unsafe { border-color: rgba(220, 38, 38, .28); background: rgba(220, 38, 38, .06); }
+    .projection-date {
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+    }
+    .projection-detail {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+      min-width: 0;
+    }
+    .projection-close {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 950;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .projection-close.good { color: var(--accent-deep); }
+    .projection-close.warn { color: var(--warn); }
+    .projection-close.bad { color: var(--danger); }
+    .empty {
+      background: var(--surface-2);
+      border: 1px dashed var(--border-strong);
+      border-radius: var(--r-lg);
+      padding: 22px;
+      color: var(--text-muted);
+      font-weight: 850;
+      text-align: center;
+      line-height: 1.45;
+    }
+    @media (max-width: 980px) {
+      .forecast-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .forecast-grid { grid-template-columns: 1fr; }
+      .pill-grid.four { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+    @media (max-width: 640px) {
+      .forecast-stats, .pill-grid, .pill-grid.four, .variable-form { grid-template-columns: 1fr; }
+      .row { grid-template-columns: 1fr; }
+      .variable-actions { flex-direction: column; }
+      .projection-row { grid-template-columns: 1fr; }
+      .projection-close { text-align: left; }
+    }
+  </style>
 </head>
 <body>
-<header>
-<div>
-<div class="brand">Sovereign Finance</div>
-<div class="title">Forecast</div>
-</div>
-</header>
+  <header>
+    <div>
+      <div class="brand">Sovereign Finance</div>
+      <div class="title">Forecast</div>
+    </div>
+  </header>
 
-<main class="forecast-wrap">
-<section class="forecast-hero">
-<div class="forecast-kicker">Live forecast engine</div>
-<h1 class="forecast-heading">Forecast</h1>
-<p class="forecast-copy">
-Live salary and cash forecast from current balances, bills, debts, receivables, reconciliation truth, live USD→PKR FX, and payslip tax logic. Manual variables default to 0 and only change forecast when you enter them.
-</p>
-<div class="forecast-actions">
-<button id="refreshBtn" class="forecast-btn primary" type="button">Refresh Forecast</button>
-<a class="forecast-btn secondary" href="/reconciliation.html">Open Reconciliation</a>
-<a class="forecast-btn secondary" href="/salary.html">Open Salary</a>
-</div>
-<div class="forecast-trust">
-<div class="forecast-trust-title">Forecast rule</div>
-<div>Base salary is 111,333.34 PKR. WFH is taxable variable income from USD 30 × live FX. Manual variable income is editable and defaults to 0. Safety should never assume MBO/overtime/referral/bonus unless entered.</div>
-</div>
-</section>
-
-<section class="forecast-stats">
-<div class="forecast-card">
-<div class="forecast-label">Liquid Now</div>
-<div id="liquidNow" class="forecast-value">-</div>
-</div>
-<div class="forecast-card">
-<div class="forecast-label">Forecast Net Salary</div>
-<div id="forecastNetSalary" class="forecast-value">-</div>
-</div>
-<div class="forecast-card">
-<div class="forecast-label">Cash After Salary</div>
-<div id="cashAfterSalary" class="forecast-value">-</div>
-</div>
-<div class="forecast-card">
-<div class="forecast-label">Confidence</div>
-<div id="confidence" class="forecast-value">-</div>
-</div>
-</section>
-
-<section class="forecast-grid">
-<div class="forecast-panel">
-<div class="panel-head">
-<div>
-<div class="panel-title">Salary Brain</div>
-<div id="salarySub" class="panel-sub">Loading</div>
-</div>
-</div>
-
-<div class="pill-grid">
-<div class="pill"><div class="pill-label">Base Salary</div><div id="baseSalary" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">WFH Taxable PKR</div><div id="wfhPkr" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Manual Variables</div><div id="manualVariableTotal" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Gross Forecast</div><div id="grossForecast" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">EOBI</div><div id="eobiDeduction" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Base Income Tax</div><div id="baseTax" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Variable Tax</div><div id="variableTax" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Net Forecast</div><div id="netForecast" class="pill-value">-</div></div>
-</div>
-
-<div id="salaryNote" class="forecast-note">Loading salary forecast...</div>
-</div>
-
-<div class="forecast-panel">
-<div class="panel-head">
-<div>
-<div class="panel-title">Manual Variable Inputs</div>
-<div class="panel-sub">Metadata only · no transaction</div>
-</div>
-</div>
-
-<div class="trust-chip-line">
-<span class="trust-chip">Save variables: metadata only</span>
-<span class="trust-chip warn">Defaults remain 0 unless entered</span>
-</div>
-
-<form id="variableForm" class="variable-form">
-<div class="field">
-<label for="varOvertimeGeneral">Overtime General</label>
-<input id="varOvertimeGeneral" class="input" type="number" min="0" step="0.01" value="0" />
-</div>
-<div class="field">
-<label for="varOvertimeEid">Overtime Eid</label>
-<input id="varOvertimeEid" class="input" type="number" min="0" step="0.01" value="0" />
-</div>
-<div class="field">
-<label for="varMbo">MBO</label>
-<input id="varMbo" class="input" type="number" min="0" step="0.01" value="0" />
-</div>
-<div class="field">
-<label for="varReferral">Referral Bonus</label>
-<input id="varReferral" class="input" type="number" min="0" step="0.01" value="0" />
-</div>
-<div class="field">
-<label for="varSpot">Spot Bonus</label>
-<input id="varSpot" class="input" type="number" min="0" step="0.01" value="0" />
-</div>
-<div class="field">
-<label for="varKitty">Kitty Cash</label>
-<input id="varKitty" class="input" type="number" min="0" step="0.01" value="0" />
-</div>
-<div class="field">
-<label for="varOther">Other Variable</label>
-<input id="varOther" class="input" type="number" min="0" step="0.01" value="0" />
-</div>
-<div class="field">
-<label for="varEobi">EOBI Deduction</label>
-<input id="varEobi" class="input" type="number" min="0" step="0.01" value="400" />
-</div>
-</form>
-
-<div class="variable-actions">
-<button id="saveVariablesBtn" class="forecast-btn primary" type="button">Save Variables</button>
-<button id="resetVariablesBtn" class="forecast-btn secondary" type="button">Reset to 0</button>
-</div>
-
-<div class="forecast-note warn">
-WFH is automatically estimated from live FX and taxed as variable income. MBO/overtime/referral/bonus/kitty stay 0 unless manually entered.
-</div>
-</div>
-
-<div class="forecast-panel">
-<div class="panel-head">
-<div>
-<div class="panel-title">Baseline Forecast</div>
-<div id="baselineSub" class="panel-sub">Loading</div>
-</div>
-</div>
-
-<div class="pill-grid">
-<div class="pill"><div class="pill-label">Cash Before Salary</div><div id="cashBeforeSalary" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Committed Before Salary</div><div id="committedBeforeSalary" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Free Salary After Obligations</div><div id="freeSalary" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Runway Status</div><div id="runwayStatus" class="pill-value">-</div></div>
-</div>
-
-<div id="runwayNote" class="forecast-note">Loading forecast status...</div>
-</div>
-
-<div class="forecast-panel">
-<div class="panel-head">
-<div>
-<div class="panel-title">Forecast Confidence</div>
-<div class="panel-sub">Based on reconciliation truth</div>
-</div>
-</div>
-
-<div class="pill-grid">
-<div class="pill"><div class="pill-label">Confidence Level</div><div id="confidenceLevel" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">CC Outstanding</div><div id="ccOutstanding" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Net Cash After CC</div><div id="netCashAfterCc" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">FX Status</div><div id="fxStatus" class="pill-value">-</div></div>
-</div>
-
-<div id="confidenceNote" class="forecast-note">Loading confidence...</div>
-</div>
-
-<div class="forecast-panel">
-<div class="panel-head">
-<div>
-<div class="panel-title">Obligations Before Salary</div>
-<div id="obligationSub" class="panel-sub">Loading</div>
-</div>
-</div>
-<div id="obligationList" class="list">
-<div class="empty">Loading obligations...</div>
-</div>
-</div>
-
-<div class="forecast-panel">
-<div class="panel-head">
-<div>
-<div class="panel-title">Receivables Before Salary</div>
-<div id="receivableSub" class="panel-sub">Loading</div>
-</div>
-</div>
-<div id="receivableList" class="list">
-<div class="empty">Loading receivables...</div>
-</div>
-</div>
-
-<div class="forecast-panel">
-<div class="panel-head">
-<div>
-<div class="panel-title">Tax + Payslip Source</div>
-<div class="panel-sub">From payslip tax computation</div>
-</div>
-</div>
-<div class="pill-grid">
-<div class="pill"><div class="pill-label">Taxable Income</div><div id="taxableIncome" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Tax Liability</div><div id="taxLiability" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Tax Paid YTD</div><div id="taxPaidYtd" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Remaining Tax</div><div id="remainingTax" class="pill-value">-</div></div>
-</div>
-<div class="forecast-note">
-Tax uses the PK salaried slab formula mirrored from the payslip computation. Base tax and variable tax are shown separately.
-</div>
-</div>
-
-<div class="forecast-panel">
-<div class="panel-head">
-<div>
-<div class="panel-title">Scenario Separation</div>
-<div class="panel-sub">Manual variables are visible, not hidden</div>
-</div>
-</div>
-<div class="pill-grid">
-<div class="pill"><div class="pill-label">Without Manual Variables</div><div id="withoutManual" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">With Manual Variables</div><div id="withManual" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">MBO Status</div><div id="mboStatus" class="pill-value">-</div></div>
-<div class="pill"><div class="pill-label">Manual Variable Total</div><div id="scenarioManualTotal" class="pill-value">-</div></div>
-</div>
-<div class="forecast-note warn">
-Safety should be read from the 0-variable baseline unless you intentionally enter confirmed variables.
-</div>
-</div>
-</section>
-
-<footer class="page-footer">
-<span class="v">v0.1.1 · Manual variable forecast inputs · api forecast v0.1.1 · nav v1.0.17 · theme v0.7.2</span>
-</footer>
-</main>
-
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-<script src="/js/theme.js?v=0.7.2"></script>
-<script src="/js/nav.js?v=1.0.17"></script>
-<script>
-const $ = id => document.getElementById(id);
-
-function money(value) {
-  if (value == null || value === '') return 'N/A';
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 'N/A';
-  const sign = n < 0 ? '-' : '';
-  return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
-}
-
-function plain(value, fallback = 'N/A') {
-  if (value == null || value === '') return fallback;
-  return String(value);
-}
-
-function num(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function clsForMoney(value) {
-  const n = Number(value) || 0;
-  if (n < 0) return 'bad';
-  if (n > 0) return 'good';
-  return '';
-}
-
-function clsForConfidence(level) {
-  const l = String(level || '').toLowerCase();
-  if (l === 'high') return 'good';
-  if (l.includes('low')) return 'bad';
-  if (l === 'medium') return 'warn';
-  return 'warn';
-}
-
-function toast(message, kind = 'success') {
-  const el = $('toast');
-  el.textContent = message;
-  el.className = 'toast toast-' + kind + ' show';
-  setTimeout(() => { el.className = 'toast'; }, 2600);
-}
-
-async function fetchJSON(url, options) {
-  const res = await fetch(url, { cache: 'no-store', ...(options || {}) });
-  const data = await res.json().catch(() => null);
-  if (!res.ok || !data || data.ok === false) {
-    throw new Error((data && data.error) || ('HTTP ' + res.status));
-  }
-  return data;
-}
-
-function setText(id, value, className) {
-  const el = $(id);
-  el.textContent = value;
-  if (className != null) el.className = className;
-}
-
-function setInput(id, value) {
-  const el = $(id);
-  el.value = String(value == null ? 0 : value);
-}
-
-function readVariables() {
-  return {
-    manual_overtime_general_pkr: num($('varOvertimeGeneral').value),
-    manual_overtime_eid_pkr: num($('varOvertimeEid').value),
-    manual_mbo_pkr: num($('varMbo').value),
-    manual_referral_bonus_pkr: num($('varReferral').value),
-    manual_spot_bonus_pkr: num($('varSpot').value),
-    manual_kitty_cash_pkr: num($('varKitty').value),
-    manual_other_variable_pkr: num($('varOther').value),
-    manual_eobi_pkr: num($('varEobi').value)
-  };
-}
-
-function populateVariables(vars) {
-  vars = vars || {};
-  setInput('varOvertimeGeneral', vars.manual_overtime_general_pkr || 0);
-  setInput('varOvertimeEid', vars.manual_overtime_eid_pkr || 0);
-  setInput('varMbo', vars.manual_mbo_pkr || 0);
-  setInput('varReferral', vars.manual_referral_bonus_pkr || 0);
-  setInput('varSpot', vars.manual_spot_bonus_pkr || 0);
-  setInput('varKitty', vars.manual_kitty_cash_pkr || 0);
-  setInput('varOther', vars.manual_other_variable_pkr || 0);
-  setInput('varEobi', vars.manual_eobi_pkr == null ? 400 : vars.manual_eobi_pkr);
-}
-
-function renderList(id, rows, type) {
-  const el = $(id);
-  if (!rows || !rows.length) {
-    el.innerHTML = '<div class="empty">Nothing due before salary.</div>';
-    return;
-  }
-
-  el.innerHTML = rows.map(row => {
-    const amount = row.amount ?? row.installment_amount ?? row.remaining_amount ?? 0;
-    return `
-      <div class="row">
-        <div>
-          <div class="row-title">${row.name || row.id || 'Item'}</div>
-          <div class="row-sub">${row.due_date || 'No due date'} · due in ${row.days_until_due ?? 'N/A'} day(s)</div>
-        </div>
-        <div class="row-amount ${type === 'receivable' ? 'good' : 'bad'}">${money(amount)}</div>
+  <main class="forecast-wrap">
+    <section class="forecast-hero">
+      <div class="forecast-kicker">Layer 4 cash runway</div>
+      <h1 class="forecast-heading">Forecast</h1>
+      <p class="forecast-copy">
+        Live salary and 30-day cash forecast from current balances, bills, debts, receivables, reconciliation truth, live USDPKR FX, and payslip tax logic.
+        Manual variables default to 0 and stay separated from the conservative safety baseline.
+      </p>
+      <div class="forecast-actions">
+        <button id="refreshBtn" class="forecast-btn primary" type="button">Refresh Forecast</button>
+        <a class="forecast-btn secondary" href="/reconciliation.html">Open Reconciliation</a>
+        <a class="forecast-btn secondary" href="/salary.html">Open Salary</a>
       </div>
-    `;
-  }).join('');
-}
+      <div class="forecast-trust">
+        <div class="forecast-trust-title">Forecast rule</div>
+        <div>Base salary is 111,333.34 PKR. WFH is taxable variable income from USD 30 live FX. Manual variable income is editable and defaults to 0. Safety should never assume MBO/overtime/referral/bonus unless entered.</div>
+      </div>
+    </section>
 
-async function loadForecast(showToast = false) {
-  const data = await fetchJSON('/api/forecast');
+    <section class="forecast-stats">
+      <div class="forecast-card">
+        <div class="forecast-label">Liquid Now</div>
+        <div id="liquidNow" class="forecast-value">-</div>
+      </div>
+      <div class="forecast-card">
+        <div class="forecast-label">30D Low</div>
+        <div id="lowestProjectedBalance" class="forecast-value">-</div>
+      </div>
+      <div class="forecast-card">
+        <div class="forecast-label">First Unsafe</div>
+        <div id="firstUnsafeDate" class="forecast-value">-</div>
+      </div>
+      <div class="forecast-card">
+        <div class="forecast-label">Cash After Salary</div>
+        <div id="cashAfterSalary" class="forecast-value">-</div>
+      </div>
+    </section>
 
-  const salary = data.salary || {};
-  const position = data.current_position || {};
-  const obligations = data.obligations_before_salary || {};
-  const baseline = data.baseline_forecast || {};
-  const confidence = data.forecast_confidence || {};
-  const tax = data.tax || {};
-  const scenarios = data.scenarios || {};
+    <section class="forecast-grid">
+      <div class="forecast-panel wide">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">30-Day Cash Projection</div>
+            <div id="projectionSub" class="panel-sub">Loading</div>
+          </div>
+        </div>
+        <div class="pill-grid four">
+          <div class="pill"><div class="pill-label">Runway Status</div><div id="projectionRunway" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Lowest Balance Date</div><div id="lowestBalanceDate" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Ending Balance 30D</div><div id="endingBalance30d" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">With Manual Variables</div><div id="endingBalance30dManual" class="pill-value">-</div></div>
+        </div>
+        <div id="projectionNote" class="forecast-note">Loading projection...</div>
+        <div id="projectionList" class="projection-list" style="margin-top: 12px;">
+          <div class="empty">Loading 30-day projection...</div>
+        </div>
+      </div>
 
-  populateVariables(salary.manual_variables || {});
+      <div class="forecast-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Salary Brain</div>
+            <div id="salarySub" class="panel-sub">Loading</div>
+          </div>
+        </div>
+        <div class="pill-grid">
+          <div class="pill"><div class="pill-label">Base Salary</div><div id="baseSalary" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">WFH Taxable PKR</div><div id="wfhPkr" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Manual Variables</div><div id="manualVariableTotal" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Gross Forecast</div><div id="grossForecast" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">EOBI</div><div id="eobiDeduction" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Base Income Tax</div><div id="baseTax" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Variable Tax</div><div id="variableTax" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Net Forecast</div><div id="netForecast" class="pill-value">-</div></div>
+        </div>
+        <div id="salaryNote" class="forecast-note">Loading salary forecast...</div>
+      </div>
 
-  setText('liquidNow', money(position.total_liquid), 'forecast-value ' + clsForMoney(position.total_liquid));
-  setText('forecastNetSalary', money(salary.forecast_net_salary_pkr), 'forecast-value good');
-  setText('cashAfterSalary', money(baseline.projected_cash_after_salary), 'forecast-value ' + clsForMoney(baseline.projected_cash_after_salary));
-  setText('confidence', plain(confidence.level), 'forecast-value ' + clsForConfidence(confidence.level));
+      <div class="forecast-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Manual Variable Inputs</div>
+            <div class="panel-sub">Metadata only - no transaction</div>
+          </div>
+        </div>
+        <div class="trust-chip-line">
+          <span class="trust-chip">Save variables: metadata only</span>
+          <span class="trust-chip warn">Defaults remain 0 unless entered</span>
+        </div>
+        <form id="variableForm" class="variable-form">
+          <div class="field">
+            <label for="varOvertimeGeneral">Overtime General</label>
+            <input id="varOvertimeGeneral" class="input" type="number" min="0" step="0.01" value="0" />
+          </div>
+          <div class="field">
+            <label for="varOvertimeEid">Overtime Eid</label>
+            <input id="varOvertimeEid" class="input" type="number" min="0" step="0.01" value="0" />
+          </div>
+          <div class="field">
+            <label for="varMbo">MBO</label>
+            <input id="varMbo" class="input" type="number" min="0" step="0.01" value="0" />
+          </div>
+          <div class="field">
+            <label for="varReferral">Referral Bonus</label>
+            <input id="varReferral" class="input" type="number" min="0" step="0.01" value="0" />
+          </div>
+          <div class="field">
+            <label for="varSpot">Spot Bonus</label>
+            <input id="varSpot" class="input" type="number" min="0" step="0.01" value="0" />
+          </div>
+          <div class="field">
+            <label for="varKitty">Kitty Cash</label>
+            <input id="varKitty" class="input" type="number" min="0" step="0.01" value="0" />
+          </div>
+          <div class="field">
+            <label for="varOther">Other Variable</label>
+            <input id="varOther" class="input" type="number" min="0" step="0.01" value="0" />
+          </div>
+          <div class="field">
+            <label for="varEobi">EOBI Deduction</label>
+            <input id="varEobi" class="input" type="number" min="0" step="0.01" value="400" />
+          </div>
+        </form>
+        <div class="variable-actions">
+          <button id="saveVariablesBtn" class="forecast-btn primary" type="button">Save Variables</button>
+          <button id="resetVariablesBtn" class="forecast-btn secondary" type="button">Reset to 0</button>
+        </div>
+        <div class="forecast-note warn">
+          WFH is automatically estimated from live FX and taxed as variable income. MBO/overtime/referral/bonus/kitty stay 0 unless manually entered.
+        </div>
+      </div>
 
-  setText('salarySub', `${salary.days_until_salary ?? 'N/A'} day(s) until salary · computed ${plain(data.computed_at)}`);
-  setText('baseSalary', money(salary.base_salary_pkr), 'pill-value');
-  setText('wfhPkr', money(salary.wfh_taxable_pkr), 'pill-value good');
-  setText('manualVariableTotal', money(salary.manual_variable_total_pkr), 'pill-value ' + clsForMoney(salary.manual_variable_total_pkr));
-  setText('grossForecast', money(salary.gross_salary_forecast_pkr), 'pill-value good');
-  setText('eobiDeduction', money(salary.eobi_deduction_pkr), 'pill-value bad');
-  setText('baseTax', money(salary.base_income_tax_pkr), 'pill-value bad');
-  setText('variableTax', money(salary.variable_income_tax_pkr), 'pill-value bad');
-  setText('netForecast', money(salary.forecast_net_salary_pkr), 'pill-value good');
+      <div class="forecast-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Baseline Forecast</div>
+            <div id="baselineSub" class="panel-sub">Loading</div>
+          </div>
+        </div>
+        <div class="pill-grid">
+          <div class="pill"><div class="pill-label">Cash Before Salary</div><div id="cashBeforeSalary" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Committed Before Salary</div><div id="committedBeforeSalary" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Free Salary After Obligations</div><div id="freeSalary" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Conservative Free Salary</div><div id="freeSalaryConservative" class="pill-value">-</div></div>
+        </div>
+        <div id="runwayNote" class="forecast-note">Loading forecast status...</div>
+      </div>
 
-  const salaryNote = $('salaryNote');
-  salaryNote.textContent = salary.safety_baseline_note || 'Salary forecast loaded.';
-  salaryNote.className = 'forecast-note';
+      <div class="forecast-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Debt-Free Forecast</div>
+            <div id="debtFreeSub" class="panel-sub">Loading</div>
+          </div>
+        </div>
+        <div class="pill-grid">
+          <div class="pill"><div class="pill-label">Debt Remaining</div><div id="debtRemaining" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Conservative Months</div><div id="debtMonthsConservative" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Conservative Date</div><div id="debtDateConservative" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Scenario Months</div><div id="debtMonthsScenario" class="pill-value">-</div></div>
+        </div>
+        <div id="debtFreeNote" class="forecast-note">Loading debt-free forecast...</div>
+      </div>
 
-  setText('baselineSub', `Salary date ${plain(salary.next_salary_date)} · runway ${plain(baseline.runway_status)}`);
-  setText('cashBeforeSalary', money(baseline.projected_cash_before_salary), 'pill-value ' + clsForMoney(baseline.projected_cash_before_salary));
-  setText('committedBeforeSalary', money(obligations.total_committed_before_salary), 'pill-value bad');
-  setText('freeSalary', money(baseline.free_salary_after_obligations), 'pill-value ' + clsForMoney(baseline.free_salary_after_obligations));
-  setText('runwayStatus', plain(baseline.runway_status), 'pill-value ' + (String(baseline.runway_status || '').includes('unsafe') ? 'bad' : String(baseline.runway_status || '').includes('watch') ? 'warn' : 'good'));
+      <div class="forecast-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Forecast Confidence</div>
+            <div class="panel-sub">Based on reconciliation truth</div>
+          </div>
+        </div>
+        <div class="pill-grid">
+          <div class="pill"><div class="pill-label">Confidence Level</div><div id="confidenceLevel" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">CC Outstanding</div><div id="ccOutstanding" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Net Cash After CC</div><div id="netCashAfterCc" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">FX Status</div><div id="fxStatus" class="pill-value">-</div></div>
+        </div>
+        <div id="confidenceNote" class="forecast-note">Loading confidence...</div>
+      </div>
 
-  const runwayNote = $('runwayNote');
-  runwayNote.textContent = baseline.top_action || ('Runway status: ' + plain(baseline.runway_status));
-  runwayNote.className = String(baseline.runway_status || '').includes('unsafe') ? 'forecast-note bad' : String(baseline.runway_status || '').includes('watch') ? 'forecast-note warn' : 'forecast-note';
+      <div class="forecast-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Obligations Before Salary</div>
+            <div id="obligationSub" class="panel-sub">Loading</div>
+          </div>
+        </div>
+        <div id="obligationList" class="list">
+          <div class="empty">Loading obligations...</div>
+        </div>
+      </div>
 
-  setText('confidenceLevel', plain(confidence.level), 'pill-value ' + clsForConfidence(confidence.level));
-  setText('ccOutstanding', money(position.cc_outstanding), 'pill-value bad');
-  setText('netCashAfterCc', money(position.net_cash_after_cc), 'pill-value ' + clsForMoney(position.net_cash_after_cc));
-  setText('fxStatus', plain(salary.fx_status), 'pill-value ' + (salary.fx_status === 'live' ? 'good' : 'warn'));
+      <div class="forecast-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Receivables Before Salary</div>
+            <div id="receivableSub" class="panel-sub">Loading</div>
+          </div>
+        </div>
+        <div id="receivableList" class="list">
+          <div class="empty">Loading receivables...</div>
+        </div>
+      </div>
 
-  const confidenceNote = $('confidenceNote');
-  confidenceNote.textContent = confidence.reason || 'Forecast confidence loaded.';
-  confidenceNote.className = 'forecast-note ' + (confidence.level === 'high' ? '' : confidence.level && confidence.level.includes('low') ? 'bad' : 'warn');
+      <div class="forecast-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Tax + Payslip Source</div>
+            <div class="panel-sub">From payslip tax computation</div>
+          </div>
+        </div>
+        <div class="pill-grid">
+          <div class="pill"><div class="pill-label">Taxable Income</div><div id="taxableIncome" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Tax Liability</div><div id="taxLiability" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Tax Paid YTD</div><div id="taxPaidYtd" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Remaining Tax</div><div id="remainingTax" class="pill-value">-</div></div>
+        </div>
+        <div class="forecast-note">
+          Tax uses the PK salaried slab formula mirrored from the payslip computation. Base tax and variable tax are shown separately.
+        </div>
+      </div>
 
-  const bills = obligations.bills_due || [];
-  const debts = obligations.debts_due || [];
-  const receivables = obligations.receivables_due || [];
+      <div class="forecast-panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Scenario Separation</div>
+            <div class="panel-sub">Manual variables are visible, not hidden</div>
+          </div>
+        </div>
+        <div class="pill-grid">
+          <div class="pill"><div class="pill-label">Without Manual Variables</div><div id="withoutManual" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">With Manual Variables</div><div id="withManual" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">MBO Status</div><div id="mboStatus" class="pill-value">-</div></div>
+          <div class="pill"><div class="pill-label">Manual Variable Total</div><div id="scenarioManualTotal" class="pill-value">-</div></div>
+        </div>
+        <div class="forecast-note warn">
+          Safety should be read from the 0-variable baseline unless you intentionally enter confirmed variables.
+        </div>
+      </div>
+    </section>
 
-  setText('obligationSub', `${bills.length} bill(s), ${debts.length} debt(s) before salary`);
-  renderList('obligationList', [...bills, ...debts], 'obligation');
+    <footer class="page-footer">
+      <span class="v">v0.2.0 - 30-day cash runway - api forecast v0.2.0 - nav v1.0.17 - theme v0.7.2</span>
+    </footer>
+  </main>
 
-  setText('receivableSub', `${receivables.length} receivable(s) before salary`);
-  renderList('receivableList', receivables, 'receivable');
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  setText('taxableIncome', money(tax.annual_taxable_income_with_forecast_variables || tax.annual_taxable_income), 'pill-value');
-  setText('taxLiability', money(tax.annual_tax_liability_with_forecast_variables || tax.annual_tax_liability), 'pill-value');
-  setText('taxPaidYtd', money(tax.income_tax_paid_ytd), 'pill-value good');
-  setText('remainingTax', money(tax.remaining_tax_payable || tax.remaining_tax_payable_from_payslip), 'pill-value warn');
+  <script src="/js/theme.js?v=0.7.2"></script>
+  <script src="/js/nav.js?v=1.0.17"></script>
+  <script>
+    const $ = id => document.getElementById(id);
 
-  setText('withoutManual', money(scenarios.baseline_without_manual_variables && scenarios.baseline_without_manual_variables.forecast_net_salary), 'pill-value');
-  setText('withManual', money(salary.forecast_net_salary_pkr), 'pill-value good');
-  setText('mboStatus', plain(scenarios.mbo_possible && scenarios.mbo_possible.status), 'pill-value warn');
-  setText('scenarioManualTotal', money(salary.manual_variable_total_pkr), 'pill-value ' + clsForMoney(salary.manual_variable_total_pkr));
+    function money(value) {
+      if (value == null || value === '') return 'N/A';
+      const n = Number(value);
+      if (!Number.isFinite(n)) return 'N/A';
+      const sign = n < 0 ? '-' : '';
+      return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
+    }
 
-  if (showToast) toast('Forecast refreshed. Read-only.');
-}
+    function plain(value, fallback = 'N/A') {
+      if (value == null || value === '') return fallback;
+      return String(value);
+    }
 
-async function saveVariables() {
-  const btn = $('saveVariablesBtn');
-  btn.disabled = true;
-  btn.textContent = 'Saving...';
+    function num(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : 0;
+    }
 
-  try {
-    await fetchJSON('/api/forecast', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(readVariables())
-    });
+    function clsForMoney(value) {
+      const n = Number(value) || 0;
+      if (n < 0) return 'bad';
+      if (n > 0) return 'good';
+      return '';
+    }
 
-    toast('Variables saved. Metadata only.');
-    await loadForecast(false);
-  } catch (err) {
-    toast(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Save Variables';
-  }
-}
+    function clsForBalance(value) {
+      const n = Number(value) || 0;
+      if (n < 5000) return 'bad';
+      if (n < 10000) return 'warn';
+      return 'good';
+    }
 
-async function resetVariables() {
-  setInput('varOvertimeGeneral', 0);
-  setInput('varOvertimeEid', 0);
-  setInput('varMbo', 0);
-  setInput('varReferral', 0);
-  setInput('varSpot', 0);
-  setInput('varKitty', 0);
-  setInput('varOther', 0);
-  setInput('varEobi', 400);
-  await saveVariables();
-}
+    function clsForStatus(status) {
+      const s = String(status || '').toLowerCase();
+      if (s.includes('unsafe') || s === 'low') return 'bad';
+      if (s.includes('watch') || s.includes('medium')) return 'warn';
+      if (s.includes('safe') || s === 'high') return 'good';
+      return 'warn';
+    }
 
-$('refreshBtn').addEventListener('click', () => loadForecast(true).catch(err => toast(err.message, 'error')));
-$('saveVariablesBtn').addEventListener('click', saveVariables);
-$('resetVariablesBtn').addEventListener('click', resetVariables);
+    function clsForConfidence(level) {
+      const l = String(level || '').toLowerCase();
+      if (l === 'high') return 'good';
+      if (l.includes('low')) return 'bad';
+      if (l === 'medium') return 'warn';
+      return 'warn';
+    }
 
-loadForecast(false).catch(err => toast(err.message, 'error'));
-</script>
+    function toast(message, kind = 'success') {
+      const el = $('toast');
+      el.textContent = message;
+      el.className = 'toast toast-' + kind + ' show';
+      setTimeout(() => { el.className = 'toast'; }, 2600);
+    }
+
+    async function fetchJSON(url, options) {
+      const res = await fetch(url, { cache: 'no-store', ...(options || {}) });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || data.ok === false) {
+        throw new Error((data && data.error) || ('HTTP ' + res.status));
+      }
+      return data;
+    }
+
+    function setText(id, value, className) {
+      const el = $(id);
+      if (!el) return;
+      el.textContent = value;
+      if (className != null) el.className = className;
+    }
+
+    function setInput(id, value) {
+      const el = $(id);
+      if (!el) return;
+      el.value = String(value == null ? 0 : value);
+    }
+
+    function readVariables() {
+      return {
+        manual_overtime_general_pkr: num($('varOvertimeGeneral').value),
+        manual_overtime_eid_pkr: num($('varOvertimeEid').value),
+        manual_mbo_pkr: num($('varMbo').value),
+        manual_referral_bonus_pkr: num($('varReferral').value),
+        manual_spot_bonus_pkr: num($('varSpot').value),
+        manual_kitty_cash_pkr: num($('varKitty').value),
+        manual_other_variable_pkr: num($('varOther').value),
+        manual_eobi_pkr: num($('varEobi').value)
+      };
+    }
+
+    function populateVariables(vars) {
+      vars = vars || {};
+      setInput('varOvertimeGeneral', vars.manual_overtime_general_pkr || 0);
+      setInput('varOvertimeEid', vars.manual_overtime_eid_pkr || 0);
+      setInput('varMbo', vars.manual_mbo_pkr || 0);
+      setInput('varReferral', vars.manual_referral_bonus_pkr || 0);
+      setInput('varSpot', vars.manual_spot_bonus_pkr || 0);
+      setInput('varKitty', vars.manual_kitty_cash_pkr || 0);
+      setInput('varOther', vars.manual_other_variable_pkr || 0);
+      setInput('varEobi', vars.manual_eobi_pkr == null ? 400 : vars.manual_eobi_pkr);
+    }
+
+    function renderList(id, rows, type) {
+      const el = $(id);
+      if (!el) return;
+
+      if (!rows || !rows.length) {
+        el.innerHTML = '<div class="empty">Nothing due before salary.</div>';
+        return;
+      }
+
+      el.innerHTML = rows.map(row => {
+        const amount = row.amount ?? row.installment_amount ?? row.remaining_amount ?? 0;
+        return `
+          <div class="row">
+            <div>
+              <div class="row-title">${row.name || row.id || 'Item'}</div>
+              <div class="row-sub">${row.due_date || 'No due date'} - due in ${row.days_until_due ?? 'N/A'} day(s)</div>
+            </div>
+            <div class="row-amount ${type === 'receivable' ? 'good' : 'bad'}">${money(amount)}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderProjection(rows) {
+      const el = $('projectionList');
+      if (!el) return;
+
+      if (!rows || !rows.length) {
+        el.innerHTML = '<div class="empty">No 30-day projection rows returned.</div>';
+        return;
+      }
+
+      el.innerHTML = rows.map(row => {
+        const status = String(row.status || '').toLowerCase();
+        const events = [];
+
+        if (num(row.salary_inflow) > 0) events.push('Salary +' + money(row.salary_inflow));
+        if (num(row.manual_variable_scenario_inflow) > 0) events.push('Manual scenario +' + money(row.manual_variable_scenario_inflow));
+        if (num(row.receivable_inflow) > 0) events.push('Receivables +' + money(row.receivable_inflow));
+        if (num(row.bills_outflow) > 0) events.push('Bills -' + money(row.bills_outflow));
+        if (num(row.debt_outflow) > 0) events.push('Debts -' + money(row.debt_outflow));
+        if (!events.length) events.push('No scheduled movement');
+
+        return `
+          <div class="projection-row ${status}">
+            <div class="projection-date">${row.date || 'N/A'}</div>
+            <div class="projection-detail">${events.join(' | ')}</div>
+            <div class="projection-close ${clsForBalance(row.closing_balance)}">${money(row.closing_balance)}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadForecast(showToast = false) {
+      const data = await fetchJSON('/api/forecast');
+      const salary = data.salary || {};
+      const position = data.current_position || {};
+      const obligations = data.obligations_before_salary || {};
+      const baseline = data.baseline_forecast || {};
+      const confidence = data.forecast_confidence || {};
+      const tax = data.tax || {};
+      const scenarios = data.scenarios || {};
+      const projection = data.cash_projection_summary || {};
+      const projectionRows = data.daily_cash_projection_30d || [];
+      const debtFree = data.debt_free_forecast || {};
+
+      populateVariables(salary.manual_variables || {});
+
+      setText('liquidNow', money(position.total_liquid), 'forecast-value ' + clsForMoney(position.total_liquid));
+      setText('lowestProjectedBalance', money(projection.lowest_projected_balance), 'forecast-value ' + clsForBalance(projection.lowest_projected_balance));
+      setText('firstUnsafeDate', plain(projection.first_unsafe_date, 'None'), 'forecast-value ' + (projection.first_unsafe_date ? 'bad' : 'good'));
+      setText('cashAfterSalary', money(projection.cash_after_salary_and_obligations ?? baseline.projected_cash_after_salary), 'forecast-value ' + clsForMoney(projection.cash_after_salary_and_obligations ?? baseline.projected_cash_after_salary));
+
+      setText('projectionSub', `${plain(projection.projection_start_date)} to ${plain(projection.projection_end_date)} - conservative baseline`);
+      setText('projectionRunway', plain(projection.runway_status), 'pill-value ' + clsForStatus(projection.runway_status));
+      setText('lowestBalanceDate', plain(projection.lowest_projected_balance_date), 'pill-value');
+      setText('endingBalance30d', money(projection.ending_balance_30d), 'pill-value ' + clsForBalance(projection.ending_balance_30d));
+      setText('endingBalance30dManual', money(projection.ending_balance_30d_with_manual_variables), 'pill-value ' + clsForBalance(projection.ending_balance_30d_with_manual_variables));
+
+      const projectionNote = $('projectionNote');
+      projectionNote.textContent = projection.top_action || '30-day projection loaded.';
+      projectionNote.className = 'forecast-note ' + clsForStatus(projection.runway_status);
+      renderProjection(projectionRows);
+
+      setText('salarySub', `${salary.days_until_salary ?? 'N/A'} day(s) until salary - computed ${plain(data.computed_at)}`);
+      setText('baseSalary', money(salary.base_salary_pkr), 'pill-value');
+      setText('wfhPkr', money(salary.wfh_taxable_pkr), 'pill-value good');
+      setText('manualVariableTotal', money(salary.manual_variable_total_pkr), 'pill-value ' + clsForMoney(salary.manual_variable_total_pkr));
+      setText('grossForecast', money(salary.gross_salary_forecast_pkr), 'pill-value good');
+      setText('eobiDeduction', money(salary.eobi_deduction_pkr), 'pill-value bad');
+      setText('baseTax', money(salary.base_income_tax_pkr), 'pill-value bad');
+      setText('variableTax', money(salary.variable_income_tax_pkr), 'pill-value bad');
+      setText('netForecast', money(salary.forecast_net_salary_pkr), 'pill-value good');
+
+      const salaryNote = $('salaryNote');
+      salaryNote.textContent = salary.safety_baseline_note || 'Salary forecast loaded.';
+      salaryNote.className = 'forecast-note';
+
+      setText('baselineSub', `Salary date ${plain(salary.next_salary_date)} - runway ${plain(baseline.runway_status)}`);
+      setText('cashBeforeSalary', money(baseline.projected_cash_before_salary), 'pill-value ' + clsForMoney(baseline.projected_cash_before_salary));
+      setText('committedBeforeSalary', money(obligations.total_committed_before_salary), 'pill-value bad');
+      setText('freeSalary', money(baseline.free_salary_after_obligations), 'pill-value ' + clsForMoney(baseline.free_salary_after_obligations));
+      setText('freeSalaryConservative', money(baseline.free_salary_after_obligations_conservative), 'pill-value ' + clsForMoney(baseline.free_salary_after_obligations_conservative));
+
+      const runwayNote = $('runwayNote');
+      runwayNote.textContent = baseline.top_action || ('Runway status: ' + plain(baseline.runway_status));
+      runwayNote.className = String(baseline.runway_status || '').includes('unsafe')
+        ? 'forecast-note bad'
+        : String(baseline.runway_status || '').includes('watch')
+          ? 'forecast-note warn'
+          : 'forecast-note';
+
+      setText('debtFreeSub', `${debtFree.debt_count ?? 0} active payable debt item(s)`);
+      setText('debtRemaining', money(debtFree.total_debt_remaining), 'pill-value bad');
+      setText('debtMonthsConservative', plain(debtFree.months_to_debt_free_conservative), 'pill-value');
+      setText('debtDateConservative', plain(debtFree.estimated_debt_free_date_conservative), 'pill-value');
+      setText('debtMonthsScenario', plain(debtFree.months_to_debt_free_with_manual_variables), 'pill-value');
+      const debtFreeNote = $('debtFreeNote');
+      debtFreeNote.textContent = debtFree.note || 'Debt-free forecast loaded.';
+      debtFreeNote.className = 'forecast-note';
+
+      setText('confidenceLevel', plain(confidence.level), 'pill-value ' + clsForConfidence(confidence.level));
+      setText('ccOutstanding', money(position.cc_outstanding), 'pill-value bad');
+      setText('netCashAfterCc', money(position.net_cash_after_cc), 'pill-value ' + clsForMoney(position.net_cash_after_cc));
+      setText('fxStatus', plain(salary.fx_status), 'pill-value ' + (salary.fx_status === 'live' ? 'good' : 'warn'));
+
+      const confidenceNote = $('confidenceNote');
+      confidenceNote.textContent = confidence.reason || 'Forecast confidence loaded.';
+      confidenceNote.className = 'forecast-note ' + (confidence.level === 'high' ? '' : confidence.level && confidence.level.includes('low') ? 'bad' : 'warn');
+
+      const bills = obligations.bills_due || [];
+      const debts = obligations.debts_due || [];
+      const receivables = obligations.receivables_due || [];
+
+      setText('obligationSub', `${bills.length} bill(s), ${debts.length} debt(s) before salary`);
+      renderList('obligationList', [...bills, ...debts], 'obligation');
+
+      setText('receivableSub', `${receivables.length} receivable(s) before salary`);
+      renderList('receivableList', receivables, 'receivable');
+
+      setText('taxableIncome', money(tax.annual_taxable_income_with_forecast_variables || tax.annual_taxable_income_from_payslip), 'pill-value');
+      setText('taxLiability', money(tax.annual_tax_liability_with_forecast_variables || tax.annual_tax_liability_from_payslip), 'pill-value');
+      setText('taxPaidYtd', money(tax.income_tax_paid_ytd), 'pill-value good');
+      setText('remainingTax', money(tax.remaining_tax_payable || tax.remaining_tax_payable_from_payslip), 'pill-value warn');
+
+      setText('withoutManual', money(scenarios.baseline_without_manual_variables && scenarios.baseline_without_manual_variables.forecast_net_salary), 'pill-value');
+      setText('withManual', money(salary.forecast_net_salary_pkr), 'pill-value good');
+      setText('mboStatus', plain(scenarios.mbo_possible && scenarios.mbo_possible.status), 'pill-value warn');
+      setText('scenarioManualTotal', money(salary.manual_variable_total_pkr), 'pill-value ' + clsForMoney(salary.manual_variable_total_pkr));
+
+      if (showToast) toast('Forecast refreshed. Read-only.');
+    }
+
+    async function saveVariables() {
+      const btn = $('saveVariablesBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        await fetchJSON('/api/forecast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(readVariables())
+        });
+        toast('Variables saved. Metadata only.');
+        await loadForecast(false);
+      } catch (err) {
+        toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Variables';
+      }
+    }
+
+    async function resetVariables() {
+      setInput('varOvertimeGeneral', 0);
+      setInput('varOvertimeEid', 0);
+      setInput('varMbo', 0);
+      setInput('varReferral', 0);
+      setInput('varSpot', 0);
+      setInput('varKitty', 0);
+      setInput('varOther', 0);
+      setInput('varEobi', 400);
+      await saveVariables();
+    }
+
+    $('refreshBtn').addEventListener('click', () => loadForecast(true).catch(err => toast(err.message, 'error')));
+    $('saveVariablesBtn').addEventListener('click', saveVariables);
+    $('resetVariablesBtn').addEventListener('click', resetVariables);
+
+    loadForecast(false).catch(err => toast(err.message, 'error'));
+  </script>
 </body>
 </html>
