@@ -3,20 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#07111f" />
+  <meta name="theme-color" content="#06111f" />
   <title>Salah Cockpit - Sovereign Life OS</title>
   <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
   <style>
     :root {
-      --bg: #07111f;
-      --surface: rgba(255,255,255,.085);
-      --surface-strong: rgba(255,255,255,.14);
-      --line: rgba(255,255,255,.14);
-      --line-strong: rgba(255,255,255,.22);
-      --text: #f8fafc;
+      --bg: #06111f;
+      --ink: #f8fafc;
       --muted: #a8b4c6;
       --soft: #dbe7f5;
-
+      --panel: rgba(255,255,255,.086);
+      --panel2: rgba(255,255,255,.14);
+      --line: rgba(255,255,255,.145);
+      --line2: rgba(255,255,255,.25);
       --fajr: #7dd3fc;
       --dhuhr: #fbbf24;
       --asr: #fb923c;
@@ -26,65 +25,55 @@
       --red: #fb7185;
       --blue: #60a5fa;
       --gold: #facc15;
-
-      --shadow: 0 24px 80px rgba(0,0,0,.36);
-      --shadow-soft: 0 12px 38px rgba(0,0,0,.22);
-      --radius: 30px;
+      --shadow: 0 28px 90px rgba(0,0,0,.38);
+      --shadow2: 0 16px 46px rgba(0,0,0,.25);
     }
 
     * { box-sizing: border-box; }
-
-    html { scroll-behavior: smooth; }
+    header { display: none; }
 
     body {
       margin: 0;
       min-height: 100vh;
-      color: var(--text);
+      color: var(--ink);
       background:
-        radial-gradient(circle at 15% 8%, rgba(125,211,252,.22), transparent 30rem),
-        radial-gradient(circle at 88% 16%, rgba(52,211,153,.16), transparent 32rem),
-        radial-gradient(circle at 50% 92%, rgba(167,139,250,.18), transparent 34rem),
-        linear-gradient(180deg, #07111f 0%, #0f172a 48%, #111827 100%);
+        radial-gradient(circle at 12% 7%, rgba(125,211,252,.23), transparent 30rem),
+        radial-gradient(circle at 88% 12%, rgba(52,211,153,.18), transparent 34rem),
+        radial-gradient(circle at 48% 94%, rgba(167,139,250,.20), transparent 34rem),
+        linear-gradient(180deg, #06111f 0%, #0f172a 52%, #111827 100%);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    header { display: none; }
-
-    button, a {
-      -webkit-tap-highlight-color: transparent;
+    .shell {
+      width: min(1200px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 18px 0 34px;
     }
 
-    .shell {
-      width: min(1180px, calc(100% - 28px));
-      margin: 0 auto;
-      padding: 18px 0 30px;
+    .nav, .brand, .nav-actions, .hero-grid, .panel-head, .prayer-top {
+      display: flex;
+      align-items: center;
     }
 
     .nav {
-      display: flex;
-      align-items: center;
       justify-content: space-between;
       gap: 14px;
       margin-bottom: 18px;
       animation: rise .42s ease both;
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    .brand { gap: 12px; }
 
     .mark {
-      width: 52px;
-      height: 52px;
-      border-radius: 21px;
+      width: 54px;
+      height: 54px;
+      border-radius: 22px;
       display: grid;
       place-items: center;
-      font-size: 25px;
+      font-size: 26px;
       background:
-        radial-gradient(circle at 30% 20%, rgba(255,255,255,.45), transparent 32%),
-        linear-gradient(135deg, rgba(96,165,250,.96), rgba(52,211,153,.92));
+        radial-gradient(circle at 30% 20%, rgba(255,255,255,.45), transparent 34%),
+        linear-gradient(135deg, rgba(96,165,250,.98), rgba(52,211,153,.94));
       box-shadow: 0 18px 48px rgba(96,165,250,.25);
     }
 
@@ -103,16 +92,15 @@
     }
 
     .nav-actions {
-      display: flex;
       flex-wrap: wrap;
       justify-content: flex-end;
       gap: 8px;
     }
 
-    .pill-btn {
+    .btn {
       border: 1px solid var(--line);
       background: rgba(255,255,255,.08);
-      color: var(--text);
+      color: var(--ink);
       min-height: 40px;
       padding: 9px 14px;
       border-radius: 999px;
@@ -123,20 +111,16 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      transition: transform .16s ease, background .18s ease, border-color .18s ease, opacity .18s ease;
+      transition: .16s ease;
     }
 
-    .pill-btn:hover {
+    .btn:hover {
       transform: translateY(-1px);
       background: rgba(255,255,255,.13);
-      border-color: var(--line-strong);
+      border-color: var(--line2);
     }
 
-    .pill-btn:active {
-      transform: scale(.98);
-    }
-
-    .pill-btn.primary {
+    .btn.primary {
       background: linear-gradient(135deg, rgba(125,211,252,.95), rgba(52,211,153,.92));
       color: #06111f;
       border-color: transparent;
@@ -149,10 +133,10 @@
       background:
         linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.055)),
         radial-gradient(circle at 88% 12%, rgba(250,204,21,.14), transparent 22rem);
-      border-radius: 38px;
-      padding: clamp(24px, 5vw, 48px);
+      border-radius: 40px;
+      padding: clamp(24px, 5vw, 50px);
       box-shadow: var(--shadow);
-      backdrop-filter: blur(22px);
+      backdrop-filter: blur(24px);
       margin-bottom: 16px;
       animation: rise .46s ease .04s both;
     }
@@ -161,26 +145,23 @@
       content: "";
       position: absolute;
       inset: -1px;
-      background:
-        linear-gradient(110deg, transparent 0%, rgba(255,255,255,.10) 38%, transparent 60%);
+      background: linear-gradient(110deg, transparent 0%, rgba(255,255,255,.10) 38%, transparent 60%);
       transform: translateX(-100%);
-      animation: sheen 4.8s ease-in-out infinite;
+      animation: sheen 5.5s ease-in-out infinite;
       pointer-events: none;
     }
 
     .hero-grid {
       position: relative;
       z-index: 1;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(260px, .42fr);
-      gap: 24px;
       align-items: center;
+      justify-content: space-between;
+      gap: 24px;
     }
 
+    .hero-main { min-width: 0; }
+
     .kicker {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
       width: fit-content;
       border: 1px solid rgba(125,211,252,.30);
       background: rgba(125,211,252,.12);
@@ -196,15 +177,15 @@
 
     h1 {
       margin: 0;
-      max-width: 760px;
-      font-size: clamp(44px, 8vw, 84px);
-      line-height: .91;
-      letter-spacing: -.075em;
+      max-width: 790px;
+      font-size: clamp(46px, 8vw, 88px);
+      line-height: .90;
+      letter-spacing: -.078em;
       font-weight: 1000;
     }
 
     .hero-copy {
-      max-width: 740px;
+      max-width: 760px;
       margin: 18px 0 0;
       color: var(--soft);
       font-size: 15px;
@@ -214,10 +195,10 @@
 
     .ayah {
       margin-top: 18px;
-      max-width: 720px;
+      max-width: 760px;
       border-left: 3px solid rgba(52,211,153,.72);
       padding: 10px 0 10px 14px;
-      color: rgba(248,250,252,.88);
+      color: rgba(248,250,252,.90);
       font-size: 13px;
       line-height: 1.55;
       font-weight: 800;
@@ -232,11 +213,12 @@
     }
 
     .focus-card {
+      min-width: 270px;
       border: 1px solid var(--line);
       background: rgba(255,255,255,.08);
-      border-radius: 28px;
+      border-radius: 30px;
       padding: 18px;
-      box-shadow: var(--shadow-soft);
+      box-shadow: var(--shadow2);
     }
 
     .focus-label {
@@ -249,7 +231,7 @@
 
     .focus-prayer {
       margin-top: 8px;
-      font-size: 32px;
+      font-size: 34px;
       font-weight: 1000;
       letter-spacing: -.055em;
     }
@@ -270,29 +252,27 @@
       animation: rise .46s ease .08s both;
     }
 
-    .metric,
-    .panel,
-    .prayer {
+    .metric, .panel, .prayer {
       border: 1px solid var(--line);
-      background: var(--surface);
-      box-shadow: var(--shadow-soft);
-      backdrop-filter: blur(22px);
+      background: var(--panel);
+      box-shadow: var(--shadow2);
+      backdrop-filter: blur(24px);
     }
 
     .metric {
       min-width: 0;
-      border-radius: 28px;
+      border-radius: 30px;
       padding: 18px;
-      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+      transition: .18s ease;
     }
 
     .metric:hover {
       transform: translateY(-2px);
-      border-color: var(--line-strong);
-      background: var(--surface-strong);
+      border-color: var(--line2);
+      background: var(--panel2);
     }
 
-    .metric-label {
+    .label {
       color: var(--muted);
       font-size: 11px;
       font-weight: 1000;
@@ -300,7 +280,7 @@
       letter-spacing: .08em;
     }
 
-    .metric-value {
+    .value {
       margin-top: 8px;
       font-size: 28px;
       font-weight: 1000;
@@ -310,7 +290,7 @@
       text-overflow: ellipsis;
     }
 
-    .metric-copy {
+    .copy-small {
       margin-top: 5px;
       color: var(--muted);
       font-size: 11px;
@@ -325,26 +305,22 @@
 
     .main-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(330px, .42fr);
+      grid-template-columns: minmax(0, 1fr) minmax(340px, .42fr);
       gap: 16px;
       align-items: start;
       animation: rise .46s ease .12s both;
     }
 
     .panel {
-      border-radius: var(--radius);
+      border-radius: 32px;
       padding: 18px;
     }
 
-    .side-stack {
-      display: grid;
-      gap: 16px;
-    }
+    .panel + .panel { margin-top: 16px; }
 
     .panel-head {
-      display: flex;
-      align-items: flex-start;
       justify-content: space-between;
+      align-items: flex-start;
       gap: 12px;
       margin-bottom: 16px;
     }
@@ -372,49 +348,40 @@
     .prayer {
       position: relative;
       overflow: hidden;
-      border-radius: 28px;
+      border-radius: 30px;
       padding: 16px;
-      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+      transition: .18s ease;
     }
 
     .prayer:hover {
       transform: translateY(-2px);
-      border-color: var(--line-strong);
-      background: var(--surface-strong);
+      border-color: var(--line2);
+      background: var(--panel2);
     }
 
     .prayer::after {
       content: "";
       position: absolute;
       inset: auto 0 0;
-      height: 3px;
-      opacity: .92;
+      height: 4px;
+      opacity: .96;
       background: var(--accent, var(--blue));
     }
 
-    .prayer.fajr { --accent: var(--fajr); }
-    .prayer.dhuhr { --accent: var(--dhuhr); }
-    .prayer.asr { --accent: var(--asr); }
-    .prayer.maghrib { --accent: var(--maghrib); }
-    .prayer.isha { --accent: var(--isha); }
-    .prayer.jumuah { --accent: var(--green); }
+    .fajr { --accent: var(--fajr); }
+    .dhuhr { --accent: var(--dhuhr); }
+    .asr { --accent: var(--asr); }
+    .maghrib { --accent: var(--maghrib); }
+    .isha { --accent: var(--isha); }
+    .jumuah, .tahajjud, .witr, .ishraq, .duha, .awwabin, .nafl { --accent: var(--green); }
 
-    .prayer.logged {
-      border-color: rgba(52,211,153,.36);
-    }
-
-    .prayer.udhr {
-      border-color: rgba(96,165,250,.38);
-    }
-
-    .prayer.qaza {
-      border-color: rgba(251,113,133,.48);
-    }
+    .prayer.logged { border-color: rgba(52,211,153,.36); }
+    .prayer.udhr { border-color: rgba(96,165,250,.38); }
+    .prayer.qaza { border-color: rgba(251,113,133,.48); }
 
     .prayer-top {
-      display: flex;
-      align-items: flex-start;
       justify-content: space-between;
+      align-items: flex-start;
       gap: 10px;
     }
 
@@ -431,7 +398,7 @@
       font-weight: 950;
     }
 
-    .code-chip {
+    .chip {
       border: 1px solid var(--line);
       background: rgba(255,255,255,.08);
       color: var(--muted);
@@ -444,20 +411,20 @@
       white-space: nowrap;
     }
 
-    .code-chip.active {
+    .chip.active {
       color: #06111f;
       border-color: transparent;
       background: var(--accent, var(--blue));
     }
 
-    .prayer-status {
+    .status {
       margin-top: 14px;
       font-size: 15px;
       font-weight: 950;
-      color: var(--text);
+      color: var(--ink);
     }
 
-    .prayer-stamp {
+    .stamp {
       margin-top: 5px;
       color: var(--muted);
       font-size: 11px;
@@ -477,30 +444,134 @@
       min-height: 38px;
       border: 1px solid var(--line);
       background: rgba(255,255,255,.075);
-      color: var(--text);
+      color: var(--ink);
       border-radius: 15px;
       font-size: 11px;
       font-weight: 1000;
       cursor: pointer;
-      transition: transform .15s ease, background .18s ease, border-color .18s ease;
+      transition: .15s ease;
     }
 
     .logbtn:hover {
       transform: translateY(-1px);
       background: rgba(255,255,255,.14);
-      border-color: var(--line-strong);
+      border-color: var(--line2);
     }
 
-    .logbtn:active {
-      transform: scale(.97);
-    }
-
+    .logbtn:active { transform: scale(.97); }
     .logbtn.masjid { color: var(--green); }
     .logbtn.home { color: var(--fajr); }
     .logbtn.work { color: var(--dhuhr); }
     .logbtn.udhr { color: var(--blue); }
     .logbtn.late { color: var(--gold); }
     .logbtn.qaza { color: var(--red); }
+
+    .charts {
+      display: grid;
+      gap: 14px;
+    }
+
+    .chart-card {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.065);
+      border-radius: 26px;
+      padding: 16px;
+    }
+
+    .ring-wrap {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .ring {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at center, #07111f 0 53%, transparent 54%),
+        conic-gradient(var(--green) calc(var(--pct) * 1%), rgba(255,255,255,.12) 0);
+      box-shadow: inset 0 0 40px rgba(255,255,255,.06), 0 18px 42px rgba(0,0,0,.24);
+    }
+
+    .ring span {
+      font-size: 28px;
+      font-weight: 1000;
+      letter-spacing: -.05em;
+    }
+
+    .mini-bars {
+      display: grid;
+      gap: 9px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 76px 1fr 42px;
+      gap: 8px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .bar {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      overflow: hidden;
+    }
+
+    .bar i {
+      display: block;
+      height: 100%;
+      width: calc(var(--w) * 1%);
+      background: linear-gradient(90deg, var(--blue), var(--green));
+      border-radius: inherit;
+    }
+
+    .pie {
+      width: 170px;
+      height: 170px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at center, #07111f 0 51%, transparent 52%),
+        conic-gradient(
+          var(--green) 0 calc(var(--masjid) * 1%),
+          var(--fajr) 0 calc((var(--masjid) + var(--home)) * 1%),
+          var(--dhuhr) 0 calc((var(--masjid) + var(--home) + var(--work)) * 1%),
+          var(--blue) 0 calc((var(--masjid) + var(--home) + var(--work) + var(--udhr)) * 1%),
+          var(--red) 0 100%
+        );
+      margin: 0 auto;
+      box-shadow: inset 0 0 40px rgba(255,255,255,.06), 0 18px 42px rgba(0,0,0,.24);
+    }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--c);
+    }
 
     .list {
       display: grid;
@@ -539,7 +610,7 @@
     }
 
     .reflection {
-      border-radius: 24px;
+      border-radius: 26px;
       border: 1px solid rgba(52,211,153,.24);
       background:
         radial-gradient(circle at 12% 10%, rgba(52,211,153,.16), transparent 16rem),
@@ -580,7 +651,7 @@
       width: min(460px, calc(100% - 28px));
       border: 1px solid var(--line);
       background: rgba(7,17,31,.94);
-      color: var(--text);
+      color: var(--ink);
       box-shadow: var(--shadow);
       border-radius: 18px;
       padding: 13px 15px;
@@ -613,79 +684,19 @@
       100% { transform: translateX(120%); }
     }
 
-    @media screen and (max-width: 980px) {
-      .hero-grid,
-      .main-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .metrics {
-        grid-template-columns: repeat(2, minmax(0,1fr));
-      }
+    @media (max-width: 980px) {
+      .hero-grid, .main-grid { display: grid; grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .ring-wrap { grid-template-columns: 1fr; justify-items: center; text-align: center; }
     }
 
-    @media screen and (max-width: 700px) {
-      .shell {
-        width: min(100% - 20px, 1180px);
-      }
-
-      .nav {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      .nav-actions {
-        justify-content: flex-start;
-      }
-
-      .metrics,
-      .prayers {
-        grid-template-columns: 1fr;
-      }
-
-      .actions {
-        grid-template-columns: repeat(2, minmax(0,1fr));
-      }
-
-      .row {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media print {
-      body {
-        margin: 0;
-        padding: 0.4in 0.6in;
-        background: #fff;
-        color: #111827;
-        print-color-adjust: exact;
-        -webkit-print-color-adjust: exact;
-      }
-
-      .shell, main {
-        max-width: 100% !important;
-        width: 100% !important;
-      }
-
-      .nav, .actions, .toast {
-        display: none !important;
-      }
-
-      .hero, .metric, .panel, .prayer {
-        box-shadow: none !important;
-        border: 1px solid rgba(0,0,0,0.12);
-        background: #fff !important;
-        color: #111827 !important;
-        break-inside: avoid;
-      }
-
-      .hero, .panel {
-        margin-bottom: 20px !important;
-      }
-
-      .main-grid, .metrics, .prayers {
-        gap: 10px !important;
-      }
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 20px, 1200px); }
+      .nav { align-items: flex-start; flex-direction: column; }
+      .nav-actions { justify-content: flex-start; }
+      .metrics, .prayers { grid-template-columns: 1fr; }
+      .actions { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -696,23 +707,21 @@
         <div class="mark">🕌</div>
         <div>
           <p class="brand-title">Salah Cockpit</p>
-          <p class="brand-sub">Live worship rhythm · D1 backed</p>
+          <p class="brand-sub">Prayer · remembrance · return</p>
         </div>
       </div>
       <div class="nav-actions">
-        <a class="pill-btn" href="/index.html">Command Centre</a>
-        <button class="pill-btn primary" id="refreshBtn">Refresh</button>
+        <a class="btn" href="/index.html">Command Centre</a>
+        <button class="btn primary" id="refreshBtn">Refresh</button>
       </div>
     </nav>
 
     <section class="hero">
       <div class="hero-grid">
-        <div>
+        <div class="hero-main">
           <div class="kicker" id="badge">Reading Salah state</div>
           <h1>Come back to prayer.</h1>
-          <p class="hero-copy" id="heroCopy">
-            Log each prayer with a timestamp. Keep the record honest, calm, and useful.
-          </p>
+          <p class="hero-copy" id="heroCopy">Log each prayer with a timestamp. Keep the record honest, calm, and useful.</p>
           <div class="ayah">
             “Indeed, prayer prohibits immorality and wrongdoing, and the remembrance of Allah is greater.”
             <span>Qur’an 29:45</span>
@@ -729,54 +738,100 @@
 
     <section class="metrics">
       <article class="metric">
-        <div class="metric-label">Today Score</div>
-        <div class="metric-value blue" id="score">...</div>
-        <div class="metric-copy">A signal, not a judgment.</div>
+        <div class="label">Today Score</div>
+        <div class="value blue" id="score">...</div>
+        <div class="copy-small">A signal, not a judgment.</div>
       </article>
       <article class="metric">
-        <div class="metric-label">Logged</div>
-        <div class="metric-value green" id="logged">...</div>
-        <div class="metric-copy">Today’s completed record.</div>
+        <div class="label">Daily Logged</div>
+        <div class="value green" id="logged">...</div>
+        <div class="copy-small">Five daily prayers only.</div>
       </article>
       <article class="metric">
-        <div class="metric-label">Qaza</div>
-        <div class="metric-value red" id="qaza">...</div>
-        <div class="metric-copy">Recovery stays visible.</div>
+        <div class="label">Qaza</div>
+        <div class="value red" id="qaza">...</div>
+        <div class="copy-small">Recovery stays visible.</div>
       </article>
       <article class="metric">
-        <div class="metric-label">Valid Udhr</div>
-        <div class="metric-value gold" id="udhr">...</div>
-        <div class="metric-copy">Work/home concession counted clearly.</div>
+        <div class="label">Bonus Prayers</div>
+        <div class="value gold" id="bonus">...</div>
+        <div class="copy-small">Tahajjud, Witr, Ishraq, Duha and more.</div>
       </article>
     </section>
 
     <section class="main-grid">
-      <div class="panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Today’s prayers</div>
-            <div class="panel-sub" id="daySub">Each button writes live to /api/salah/log with timestamp.</div>
+      <div>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Five daily prayers</div>
+              <div class="panel-sub" id="daySub">Each button writes live to /api/salah/log with timestamp.</div>
+            </div>
           </div>
-        </div>
-        <div class="prayers" id="prayers">
-          <div class="empty">Loading prayers...</div>
-        </div>
+          <div class="prayers" id="dailyPrayers">
+            <div class="empty">Loading daily prayers...</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Bonus prayers</div>
+              <div class="panel-sub">Tahajjud, Witr, Ishraq, Duha, Awwabin, Nafl. Logged only when you tap.</div>
+            </div>
+          </div>
+          <div class="prayers" id="bonusPrayers">
+            <div class="empty">Loading bonus prayers...</div>
+          </div>
+        </section>
       </div>
 
-      <aside class="side-stack">
-        <div class="panel">
+      <aside>
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">5D visual read</div>
+              <div class="panel-sub">Charts are built from today’s D1 data only.</div>
+            </div>
+          </div>
+          <div class="charts">
+            <div class="chart-card">
+              <div class="ring-wrap">
+                <div class="ring" id="scoreRing" style="--pct:0"><span id="ringText">0%</span></div>
+                <div>
+                  <div class="row-title">Salah strength</div>
+                  <div class="row-copy">Score progress toward 10. This is a mirror, not a label on you.</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="chart-card">
+              <div class="pie" id="pie" style="--masjid:0;--home:0;--work:0;--udhr:0"></div>
+              <div class="legend">
+                <div class="legend-item"><i class="dot" style="--c:var(--green)"></i>Masjid</div>
+                <div class="legend-item"><i class="dot" style="--c:var(--fajr)"></i>Home</div>
+                <div class="legend-item"><i class="dot" style="--c:var(--dhuhr)"></i>Work</div>
+                <div class="legend-item"><i class="dot" style="--c:var(--blue)"></i>Udhr</div>
+              </div>
+            </div>
+
+            <div class="chart-card">
+              <div class="mini-bars" id="bars"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
           <div class="panel-head">
             <div>
               <div class="panel-title">Prayer times</div>
               <div class="panel-sub">Multan · Asia/Karachi</div>
             </div>
           </div>
-          <div class="list" id="times">
-            <div class="empty">Loading times...</div>
-          </div>
-        </div>
+          <div class="list" id="times"></div>
+        </section>
 
-        <div class="panel">
+        <section class="panel">
           <div class="panel-head">
             <div>
               <div class="panel-title">Reflection</div>
@@ -787,25 +842,21 @@
             <div class="reflection-title" id="reflectionTitle">Loading reflection</div>
             <div class="reflection-copy" id="reflectionCopy">Your Salah record will appear here once loaded.</div>
           </div>
-        </div>
+        </section>
 
-        <div class="panel">
+        <section class="panel">
           <div class="panel-head">
             <div>
               <div class="panel-title">Source freshness</div>
               <div class="panel-sub">No fake state. No finance data.</div>
             </div>
           </div>
-          <div class="list" id="source">
-            <div class="empty">Loading source...</div>
-          </div>
-        </div>
+          <div class="list" id="source"></div>
+        </section>
       </aside>
     </section>
 
-    <div class="footer">
-      Salah page v0.4.0 · Inspirational live logging · D1 backed · Finance untouched
-    </div>
+    <div class="footer">Salah page v0.5.0 · Inspirational cockpit · Daily + bonus prayers · D1 backed · Finance untouched</div>
   </main>
 
   <div class="toast" id="toast"></div>
@@ -814,16 +865,22 @@
     const API_TODAY = '/api/salah/today';
     const API_LOG = '/api/salah/log';
 
-    const PRAYER_ORDER = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'jumuah'];
-    const DAILY_PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    const DAILY = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    const BONUS = ['jumuah', 'tahajjud', 'witr', 'ishraq', 'duha', 'awwabin', 'nafl'];
 
-    const PRAYER_LABELS = {
+    const LABELS = {
       fajr: 'Fajr',
       dhuhr: 'Dhuhr',
       asr: 'Asr',
       maghrib: 'Maghrib',
       isha: 'Isha',
-      jumuah: 'Jumuah'
+      jumuah: 'Jumuah',
+      tahajjud: 'Tahajjud',
+      witr: 'Witr',
+      ishraq: 'Ishraq',
+      duha: 'Duha',
+      awwabin: 'Awwabin',
+      nafl: 'Nafl'
     };
 
     const TIME_KEYS = {
@@ -835,22 +892,27 @@
     };
 
     const els = {
-      badge: document.getElementById('badge'),
-      heroCopy: document.getElementById('heroCopy'),
-      focusPrayer: document.getElementById('focusPrayer'),
-      focusNote: document.getElementById('focusNote'),
-      score: document.getElementById('score'),
-      logged: document.getElementById('logged'),
-      qaza: document.getElementById('qaza'),
-      udhr: document.getElementById('udhr'),
-      daySub: document.getElementById('daySub'),
-      prayers: document.getElementById('prayers'),
-      times: document.getElementById('times'),
-      source: document.getElementById('source'),
-      reflectionTitle: document.getElementById('reflectionTitle'),
-      reflectionCopy: document.getElementById('reflectionCopy'),
-      toast: document.getElementById('toast'),
-      refreshBtn: document.getElementById('refreshBtn')
+      badge: byId('badge'),
+      heroCopy: byId('heroCopy'),
+      focusPrayer: byId('focusPrayer'),
+      focusNote: byId('focusNote'),
+      score: byId('score'),
+      logged: byId('logged'),
+      qaza: byId('qaza'),
+      bonus: byId('bonus'),
+      daySub: byId('daySub'),
+      dailyPrayers: byId('dailyPrayers'),
+      bonusPrayers: byId('bonusPrayers'),
+      times: byId('times'),
+      source: byId('source'),
+      reflectionTitle: byId('reflectionTitle'),
+      reflectionCopy: byId('reflectionCopy'),
+      toast: byId('toast'),
+      refreshBtn: byId('refreshBtn'),
+      scoreRing: byId('scoreRing'),
+      ringText: byId('ringText'),
+      pie: byId('pie'),
+      bars: byId('bars')
     };
 
     let state = null;
@@ -863,11 +925,7 @@
         els.badge.textContent = 'Reading D1';
         const res = await fetch(API_TODAY, { cache: 'no-store' });
         const data = await res.json();
-
-        if (!res.ok || !data.ok) {
-          throw new Error(data.error || 'Salah API failed');
-        }
-
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Salah API failed');
         state = data;
         render(data);
       } catch (err) {
@@ -877,8 +935,7 @@
 
     async function logPrayer(prayer, code) {
       try {
-        const label = PRAYER_LABELS[prayer] || prayer;
-        toast(`Logging ${label}...`);
+        toast(`Logging ${LABELS[prayer]}...`);
 
         const res = await fetch(API_LOG, {
           method: 'POST',
@@ -891,12 +948,9 @@
         });
 
         const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Log failed');
 
-        if (!res.ok || !data.ok) {
-          throw new Error(data.error || 'Log failed');
-        }
-
-        toast(data.message || `${label} logged`);
+        toast(data.message || `${LABELS[prayer]} logged`);
         await load();
       } catch (err) {
         toast(err.message || 'Log failed');
@@ -904,126 +958,101 @@
     }
 
     function render(data) {
-      if (!data.connected) {
-        renderEmpty(data);
-        return;
-      }
+      if (!data.connected) return renderEmpty(data);
 
       const tally = data.tally || {};
       const freshness = data.source_freshness || {};
+      const focus = data.focus || {};
 
       els.badge.textContent = 'Live from D1';
-      els.heroCopy.textContent = `${data.day} · ${freshness.source_system || 'source'} · ${freshness.source_version || 'version unknown'} · tap a prayer button to update the record.`;
+      els.heroCopy.textContent = `${data.day} · ${freshness.source_system || 'source'} · tap a button to write the record with timestamp.`;
+      els.focusPrayer.textContent = focus.title || 'Prayer';
+      els.focusNote.textContent = focus.message || 'Keep the next prayer close.';
 
       els.score.textContent = formatScore(tally.score);
       els.logged.textContent = `${num(tally.logged_count)}/5`;
       els.qaza.textContent = `${num(tally.qaza_count)}`;
-      els.udhr.textContent = `${num(tally.udhr_count)}`;
+      els.bonus.textContent = `${num(tally.bonus_logged_count)}`;
 
       els.daySub.textContent = `${data.day} · updated ${short(freshness.updated_at || freshness.exported_at)}`;
 
-      renderFocus(data.prayers || []);
-      renderPrayers(data.prayers || [], data.prayer_times || {});
+      const prayers = data.prayers || [];
+      renderPrayerSection(els.dailyPrayers, DAILY, prayers, data.prayer_times || {}, false);
+      renderPrayerSection(els.bonusPrayers, BONUS, prayers, data.prayer_times || {}, true);
       renderTimes(data.prayer_times || {});
+      renderCharts(data);
       renderReflection(tally);
       renderSource(freshness);
     }
 
     function renderEmpty(data) {
       els.badge.textContent = 'No live row';
-      els.heroCopy.textContent = data.message || 'Seed today first. This page will not invent Salah state.';
+      els.heroCopy.textContent = data.message || 'Seed or log today first. This page will not invent Salah state.';
       els.focusPrayer.textContent = 'Seed today';
       els.focusNote.textContent = 'No D1 row found for today yet.';
-
       els.score.textContent = 'N/A';
       els.logged.textContent = '0/5';
       els.qaza.textContent = '0';
-      els.udhr.textContent = '0';
-
-      els.prayers.innerHTML = '<div class="empty">No Salah row found for today. Seed or log today first.</div>';
+      els.bonus.textContent = '0';
+      els.dailyPrayers.innerHTML = '<div class="empty">No Salah row found for today.</div>';
+      els.bonusPrayers.innerHTML = '<div class="empty">Bonus prayers appear after today is connected.</div>';
       els.times.innerHTML = '<div class="empty">No prayer times found yet.</div>';
       els.source.innerHTML = '<div class="empty">No source freshness available.</div>';
-      els.reflectionTitle.textContent = 'No live record yet';
-      els.reflectionCopy.textContent = 'Once today is seeded or logged, this page will show your real Salah state.';
     }
 
-    function renderFocus(prayers) {
-      const byName = new Map(prayers.map(p => [p.prayer_name, p]));
-      const next = DAILY_PRAYERS.find(name => {
-        const p = byName.get(name);
-        return !p || !p.is_logged;
-      });
-
-      if (next) {
-        els.focusPrayer.textContent = PRAYER_LABELS[next];
-        els.focusNote.textContent = `This is the next prayer with no logged status yet. Keep the record honest and move cleanly.`;
-        return;
-      }
-
-      const qaza = prayers.find(p => p.is_qaza);
-      if (qaza) {
-        els.focusPrayer.textContent = 'Recovery';
-        els.focusNote.textContent = 'A Qaza entry exists today. Keep it visible until recovery is handled.';
-        return;
-      }
-
-      els.focusPrayer.textContent = 'Hold the line';
-      els.focusNote.textContent = 'All five daily prayers have a logged status. Keep the day clean from here.';
-    }
-
-    function renderPrayers(prayers, times) {
+    function renderPrayerSection(target, names, prayers, times, bonus) {
       const byName = new Map(prayers.map(p => [p.prayer_name, p]));
 
-      els.prayers.innerHTML = PRAYER_ORDER.map(name => {
-        const p = byName.get(name) || {
-          prayer_name: name,
-          label: PRAYER_LABELS[name],
-          is_logged: false
-        };
-
+      target.innerHTML = names.map(name => {
+        const p = byName.get(name) || { prayer_name: name, label: LABELS[name], is_logged: false };
         const time = times && TIME_KEYS[name] ? times[TIME_KEYS[name]] : '';
-        const klass = [
-          'prayer',
-          name,
-          p.is_qaza ? 'qaza' : '',
-          p.has_valid_udhr ? 'udhr' : '',
-          p.is_logged ? 'logged' : ''
-        ].filter(Boolean).join(' ');
-
+        const klass = ['prayer', name, p.is_qaza ? 'qaza' : '', p.has_valid_udhr ? 'udhr' : '', p.is_logged ? 'logged' : ''].filter(Boolean).join(' ');
         const status = p.is_logged
           ? `${safe(p.location_label || p.raw_code || p.normalized_code)}${p.score_value !== null && p.score_value !== undefined ? ` · ${p.score_value}` : ''}`
-          : name === 'jumuah' ? 'Friday-only bonus field' : 'Not logged yet';
-
-        const stamp = p.logged_at
-          ? `Logged at ${safe(p.logged_at)}`
-          : 'Tap a button to update this prayer with a timestamp.';
+          : bonus ? 'Optional opening. Log only if done.' : 'Not logged yet';
+        const stamp = p.logged_at ? `Logged at ${safe(p.logged_at)}` : 'Tap a button to update this prayer with a timestamp.';
 
         return `
           <article class="${klass}">
             <div class="prayer-top">
               <div>
-                <div class="prayer-name">${safe(PRAYER_LABELS[name])}</div>
+                <div class="prayer-name">${safe(LABELS[name])}</div>
                 ${time ? `<div class="prayer-time">${safe(time)}</div>` : ''}
               </div>
-              <div class="code-chip ${p.normalized_code ? 'active' : ''}">${safe(p.normalized_code || 'empty')}</div>
+              <div class="chip ${p.normalized_code ? 'active' : ''}">${safe(p.normalized_code || 'empty')}</div>
             </div>
 
-            <div class="prayer-status">${status}</div>
-            <div class="prayer-stamp">${stamp}</div>
+            <div class="status">${status}</div>
+            <div class="stamp">${stamp}</div>
 
             <div class="actions">
-              <button class="logbtn masjid" onclick="logPrayer('${name}','M')">Masjid</button>
-              <button class="logbtn home" onclick="logPrayer('${name}','H')">Home</button>
-              <button class="logbtn work" onclick="logPrayer('${name}','W')">Work</button>
-              <button class="logbtn udhr" onclick="logPrayer('${name}','HU')">Home U</button>
-              <button class="logbtn udhr" onclick="logPrayer('${name}','WU')">Work U</button>
-              <button class="logbtn late" onclick="logPrayer('${name}','L')">Late</button>
-              <button class="logbtn qaza" onclick="logPrayer('${name}','Q')">Qaza</button>
-              <button class="logbtn masjid" onclick="logPrayer('${name}','J')">Jamaat</button>
+              ${bonus ? bonusButtons(name) : dailyButtons(name)}
             </div>
           </article>
         `;
       }).join('');
+    }
+
+    function dailyButtons(name) {
+      return `
+        <button class="logbtn masjid" onclick="logPrayer('${name}','M')">Masjid</button>
+        <button class="logbtn home" onclick="logPrayer('${name}','H')">Home</button>
+        <button class="logbtn work" onclick="logPrayer('${name}','W')">Work</button>
+        <button class="logbtn udhr" onclick="logPrayer('${name}','HU')">Home U</button>
+        <button class="logbtn udhr" onclick="logPrayer('${name}','WU')">Work U</button>
+        <button class="logbtn late" onclick="logPrayer('${name}','L')">Late</button>
+        <button class="logbtn qaza" onclick="logPrayer('${name}','Q')">Qaza</button>
+        <button class="logbtn masjid" onclick="logPrayer('${name}','J')">Jamaat</button>
+      `;
+    }
+
+    function bonusButtons(name) {
+      return `
+        <button class="logbtn masjid" onclick="logPrayer('${name}','YES')">Done</button>
+        <button class="logbtn" onclick="logPrayer('${name}','NO')">Not today</button>
+        <button class="logbtn masjid" onclick="logPrayer('${name}','M')">Masjid</button>
+        <button class="logbtn home" onclick="logPrayer('${name}','H')">Home</button>
+      `;
     }
 
     function renderTimes(times) {
@@ -1037,8 +1066,31 @@
         row('Dhuhr', times.dhuhr_time || 'N/A', 'midday'),
         row('Asr', times.asr_time || 'N/A', 'afternoon'),
         row('Maghrib', times.maghrib_time || 'N/A', 'sunset'),
-        row('Isha', times.isha_time || 'N/A', 'night'),
-        row('Provider', `${times.provider || 'unknown'} · ${times.timezone || ''}`, times.is_fallback ? 'fallback' : 'source')
+        row('Isha', times.isha_time || 'N/A', 'night')
+      ].join('');
+    }
+
+    function renderCharts(data) {
+      const tally = data.tally || {};
+      const charts = data.charts || {};
+      const scorePct = charts.score_percent || 0;
+      const completionPct = charts.completion_percent || 0;
+      const dist = charts.distribution || {};
+
+      els.scoreRing.style.setProperty('--pct', scorePct);
+      els.ringText.textContent = `${scorePct}%`;
+
+      els.pie.style.setProperty('--masjid', dist.masjid || 0);
+      els.pie.style.setProperty('--home', dist.home || 0);
+      els.pie.style.setProperty('--work', dist.work || 0);
+      els.pie.style.setProperty('--udhr', dist.udhr || 0);
+
+      els.bars.innerHTML = [
+        bar('Daily logged', completionPct),
+        bar('Score strength', scorePct),
+        bar('Masjid share', dist.masjid || 0),
+        bar('Udhr share', dist.udhr || 0),
+        bar('Qaza pressure', dist.qaza || 0)
       ].join('');
     }
 
@@ -1049,13 +1101,13 @@
 
       if (qaza > 0) {
         els.reflectionTitle.textContent = 'Recovery is the next honest move';
-        els.reflectionCopy.textContent = 'There is Qaza on the board. Do not hide it, do not dress it up. Keep it visible and recover it cleanly.';
+        els.reflectionCopy.textContent = 'There is Qaza on the board. Do not hide it. Keep it visible and recover it cleanly.';
         return;
       }
 
       if (logged >= 5) {
         els.reflectionTitle.textContent = 'The record is complete today';
-        els.reflectionCopy.textContent = 'All five daily prayers have a logged status. The next move is simple: protect the rest of the day.';
+        els.reflectionCopy.textContent = 'All five daily prayers have a logged status. Protect the rest of the day.';
         return;
       }
 
@@ -1084,23 +1136,17 @@
       els.heroCopy.textContent = err.message || 'Unknown Salah API error.';
       els.focusPrayer.textContent = 'Fix API';
       els.focusNote.textContent = 'The page is loaded, but live data failed.';
-      els.prayers.innerHTML = `<div class="empty">${safe(err.message || 'Unknown error')}</div>`;
-      els.times.innerHTML = `<div class="empty">${safe(err.message || 'Unknown error')}</div>`;
-      els.source.innerHTML = `<div class="empty">${safe(err.message || 'Unknown error')}</div>`;
-      els.reflectionTitle.textContent = 'Live read failed';
-      els.reflectionCopy.textContent = 'Check /api/salah/today and paste the error.';
+      els.dailyPrayers.innerHTML = `<div class="empty">${safe(err.message || 'Unknown error')}</div>`;
+      els.bonusPrayers.innerHTML = `<div class="empty">${safe(err.message || 'Unknown error')}</div>`;
     }
 
     function row(title, copy, tag) {
-      return `
-        <article class="row">
-          <div>
-            <div class="row-title">${safe(title)}</div>
-            <div class="row-copy">${safe(copy)}</div>
-          </div>
-          <div class="row-tag">${safe(tag)}</div>
-        </article>
-      `;
+      return `<article class="row"><div><div class="row-title">${safe(title)}</div><div class="row-copy">${safe(copy)}</div></div><div class="row-tag">${safe(tag)}</div></article>`;
+    }
+
+    function bar(title, pct) {
+      const safePct = Math.max(0, Math.min(100, Number(pct || 0)));
+      return `<div class="bar-row"><span>${safe(title)}</span><div class="bar"><i style="--w:${safePct}"></i></div><span>${safePct}%</span></div>`;
     }
 
     function toast(message) {
@@ -1132,6 +1178,10 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+    }
+
+    function byId(id) {
+      return document.getElementById(id);
     }
   </script>
 </body>
