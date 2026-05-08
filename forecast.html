@@ -161,6 +161,82 @@
     }
     .forecast-note.warn { border-color: rgba(245, 158, 11, .24); background: rgba(245, 158, 11, .10); color: var(--warn); }
     .forecast-note.bad { border-color: rgba(220, 38, 38, .24); background: rgba(220, 38, 38, .08); color: var(--danger); }
+    .safety-command {
+      border-radius: var(--r-xl);
+      padding: 18px;
+      border: 1px solid rgba(37, 99, 235, .22);
+      background: linear-gradient(135deg, rgba(37,99,235,.09), rgba(20,184,166,.08));
+    }
+    .safety-command.safe {
+      border-color: rgba(22, 163, 74, .24);
+      background: rgba(22, 163, 74, .08);
+    }
+    .safety-command.watch {
+      border-color: rgba(245, 158, 11, .28);
+      background: rgba(245, 158, 11, .10);
+    }
+    .safety-command.unsafe, .safety-command.critical {
+      border-color: rgba(220, 38, 38, .30);
+      background: rgba(220, 38, 38, .08);
+    }
+    .safety-status {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 950;
+      letter-spacing: -.04em;
+      line-height: 1;
+      color: var(--text);
+      text-transform: uppercase;
+    }
+    .safety-status.safe { color: var(--accent-deep); }
+    .safety-status.watch { color: var(--warn); }
+    .safety-status.unsafe, .safety-status.critical { color: var(--danger); }
+    .safety-headline {
+      margin-top: 8px;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 1.45;
+    }
+    .safety-action {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: var(--r-lg);
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1.45;
+    }
+    .safety-drivers {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+    }
+    .driver-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 11px;
+      min-width: 0;
+    }
+    .driver-card.safe { border-color: rgba(22, 163, 74, .18); }
+    .driver-card.watch { border-color: rgba(245, 158, 11, .28); }
+    .driver-card.unsafe, .driver-card.critical { border-color: rgba(220, 38, 38, .28); }
+    .driver-title {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 950;
+      line-height: 1.25;
+    }
+    .driver-detail {
+      margin-top: 5px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
     .variable-form {
       display: grid;
       grid-template-columns: repeat(2, minmax(0,1fr));
@@ -299,6 +375,7 @@
       .forecast-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
       .forecast-grid { grid-template-columns: 1fr; }
       .pill-grid.four { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .safety-drivers { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
       .forecast-stats, .pill-grid, .pill-grid.four, .variable-form { grid-template-columns: 1fr; }
@@ -319,10 +396,10 @@
 
   <main class="forecast-wrap">
     <section class="forecast-hero">
-      <div class="forecast-kicker">Layer 4 cash runway</div>
+      <div class="forecast-kicker">Layer 5 safety command</div>
       <h1 class="forecast-heading">Forecast</h1>
       <p class="forecast-copy">
-        Live salary and 30-day cash forecast from current balances, bills, debts, receivables, reconciliation truth, live USDPKR FX, and payslip tax logic.
+        Live salary, 30-day cash runway, and Safety Engine answer from current balances, bills, debts, receivables, reconciliation truth, live USDPKR FX, and payslip tax logic.
         Manual variables default to 0 and stay separated from the conservative safety baseline.
       </p>
       <div class="forecast-actions">
@@ -332,14 +409,14 @@
       </div>
       <div class="forecast-trust">
         <div class="forecast-trust-title">Forecast rule</div>
-        <div>Base salary is 111,333.34 PKR. WFH is taxable variable income from USD 30 live FX. Manual variable income is editable and defaults to 0. Safety should never assume MBO/overtime/referral/bonus unless entered.</div>
+        <div>Safety uses conservative salary only: base salary plus WFH live FX. Manual MBO, overtime, referral, bonus, kitty, and other variables are scenario-only until entered and confirmed.</div>
       </div>
     </section>
 
     <section class="forecast-stats">
       <div class="forecast-card">
-        <div class="forecast-label">Liquid Now</div>
-        <div id="liquidNow" class="forecast-value">-</div>
+        <div class="forecast-label">Safety</div>
+        <div id="safetyTopStatus" class="forecast-value">-</div>
       </div>
       <div class="forecast-card">
         <div class="forecast-label">30D Low</div>
@@ -356,6 +433,30 @@
     </section>
 
     <section class="forecast-grid">
+      <div class="forecast-panel wide">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Am I Safe?</div>
+            <div id="safetySub" class="panel-sub">Loading Safety Engine v2</div>
+          </div>
+        </div>
+        <div id="safetyCommand" class="safety-command">
+          <div id="safetyStatus" class="safety-status">Loading</div>
+          <div id="safetyHeadline" class="safety-headline">Reading /api/safety...</div>
+          <div id="safetyAction" class="safety-action">Top action loading...</div>
+          <div class="pill-grid four" style="margin-top: 12px;">
+            <div class="pill"><div class="pill-label">Next Risk Date</div><div id="safetyNextRisk" class="pill-value">-</div></div>
+            <div class="pill"><div class="pill-label">Confidence</div><div id="safetyConfidence" class="pill-value">-</div></div>
+            <div class="pill"><div class="pill-label">Manual Variables</div><div id="safetyManualRule" class="pill-value">-</div></div>
+            <div class="pill"><div class="pill-label">Safety API</div><div id="safetyApiVersion" class="pill-value">-</div></div>
+          </div>
+          <div id="safetyNoAction" class="forecast-note">Loading no-action outcome...</div>
+          <div id="safetyDrivers" class="safety-drivers">
+            <div class="empty">Loading safety drivers...</div>
+          </div>
+        </div>
+      </div>
+
       <div class="forecast-panel wide">
         <div class="panel-head">
           <div>
@@ -559,7 +660,7 @@
     </section>
 
     <footer class="page-footer">
-      <span class="v">v0.2.0 - 30-day cash runway - api forecast v0.2.0 - nav v1.0.17 - theme v0.7.2</span>
+      <span class="v">v0.3.0 - Safety Engine display - api forecast v0.2.0 - api safety v0.2.0 - nav v1.0.17 - theme v0.7.2</span>
     </footer>
   </main>
 
@@ -604,7 +705,7 @@
 
     function clsForStatus(status) {
       const s = String(status || '').toLowerCase();
-      if (s.includes('unsafe') || s === 'low') return 'bad';
+      if (s.includes('critical') || s.includes('unsafe') || s === 'low') return 'bad';
       if (s.includes('watch') || s.includes('medium')) return 'warn';
       if (s.includes('safe') || s === 'high') return 'good';
       return 'warn';
@@ -616,6 +717,15 @@
       if (l.includes('low')) return 'bad';
       if (l === 'medium') return 'warn';
       return 'warn';
+    }
+
+    function safetyClass(status) {
+      const s = String(status || '').toLowerCase();
+      if (s === 'critical') return 'critical';
+      if (s === 'unsafe') return 'unsafe';
+      if (s === 'watch') return 'watch';
+      if (s === 'safe') return 'safe';
+      return 'watch';
     }
 
     function toast(message, kind = 'success') {
@@ -725,8 +835,52 @@
       }).join('');
     }
 
+    function renderSafety(safety) {
+      const status = safetyClass(safety && (safety.safety_status || safety.status));
+      const confidence = safety && safety.confidence ? safety.confidence : {};
+      const drivers = Array.isArray(safety && safety.drivers) ? safety.drivers.slice(0, 3) : [];
+      const command = $('safetyCommand');
+
+      command.className = 'safety-command ' + status;
+
+      setText('safetyTopStatus', status.toUpperCase(), 'forecast-value ' + clsForStatus(status));
+      setText('safetyStatus', status.toUpperCase(), 'safety-status ' + status);
+      setText('safetySub', `Safety Engine ${plain(safety.version)} - conservative baseline only`);
+      setText('safetyHeadline', safety.headline || 'Safety status loaded.');
+      setText('safetyAction', 'Top action: ' + plain(safety.top_action, 'No immediate action required.'));
+      setText('safetyNextRisk', plain(safety.next_risk_date, 'None'), 'pill-value ' + (safety.next_risk_date ? 'warn' : 'good'));
+      setText('safetyConfidence', plain(confidence.level), 'pill-value ' + clsForConfidence(confidence.level));
+      setText('safetyManualRule', safety.manual_variables_used_for_safety ? 'Included' : 'Excluded', 'pill-value ' + (safety.manual_variables_used_for_safety ? 'bad' : 'good'));
+      setText('safetyApiVersion', plain(safety.version), 'pill-value good');
+
+      const noAction = $('safetyNoAction');
+      noAction.textContent = safety.what_happens_if_no_action || 'No-action outcome unavailable.';
+      noAction.className = 'forecast-note ' + clsForStatus(status);
+
+      const driverEl = $('safetyDrivers');
+      if (!drivers.length) {
+        driverEl.innerHTML = '<div class="empty">No safety drivers active. Conservative baseline is clean from available data.</div>';
+        return;
+      }
+
+      driverEl.innerHTML = drivers.map(driver => {
+        const driverStatus = safetyClass(driver.severity);
+        return `
+          <div class="driver-card ${driverStatus}">
+            <div class="driver-title">${driver.title || driver.code || 'Safety driver'}</div>
+            <div class="driver-detail">${driver.detail || 'No detail available.'}</div>
+            <div class="driver-detail">Source: ${driver.source || 'computed'} | Confidence: ${driver.confidence || 'medium'}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
     async function loadForecast(showToast = false) {
-      const data = await fetchJSON('/api/forecast');
+      const [data, safety] = await Promise.all([
+        fetchJSON('/api/forecast'),
+        fetchJSON('/api/safety')
+      ]);
+
       const salary = data.salary || {};
       const position = data.current_position || {};
       const obligations = data.obligations_before_salary || {};
@@ -738,9 +892,9 @@
       const projectionRows = data.daily_cash_projection_30d || [];
       const debtFree = data.debt_free_forecast || {};
 
+      renderSafety(safety);
       populateVariables(salary.manual_variables || {});
 
-      setText('liquidNow', money(position.total_liquid), 'forecast-value ' + clsForMoney(position.total_liquid));
       setText('lowestProjectedBalance', money(projection.lowest_projected_balance), 'forecast-value ' + clsForBalance(projection.lowest_projected_balance));
       setText('firstUnsafeDate', plain(projection.first_unsafe_date, 'None'), 'forecast-value ' + (projection.first_unsafe_date ? 'bad' : 'good'));
       setText('cashAfterSalary', money(projection.cash_after_salary_and_obligations ?? baseline.projected_cash_after_salary), 'forecast-value ' + clsForMoney(projection.cash_after_salary_and_obligations ?? baseline.projected_cash_after_salary));
@@ -789,6 +943,7 @@
       setText('debtMonthsConservative', plain(debtFree.months_to_debt_free_conservative), 'pill-value');
       setText('debtDateConservative', plain(debtFree.estimated_debt_free_date_conservative), 'pill-value');
       setText('debtMonthsScenario', plain(debtFree.months_to_debt_free_with_manual_variables), 'pill-value');
+
       const debtFreeNote = $('debtFreeNote');
       debtFreeNote.textContent = debtFree.note || 'Debt-free forecast loaded.';
       debtFreeNote.className = 'forecast-note';
@@ -822,7 +977,7 @@
       setText('mboStatus', plain(scenarios.mbo_possible && scenarios.mbo_possible.status), 'pill-value warn');
       setText('scenarioManualTotal', money(salary.manual_variable_total_pkr), 'pill-value ' + clsForMoney(salary.manual_variable_total_pkr));
 
-      if (showToast) toast('Forecast refreshed. Read-only.');
+      if (showToast) toast('Forecast and safety refreshed. Read-only.');
     }
 
     async function saveVariables() {
