@@ -1,30 +1,82 @@
-/*  Sovereign Finance  /api/forecast  v0.1.0  Live Salary + Cash Forecast  */
-/*
- * Contract:
- * - GET /api/forecast
- * - Read-only.
- * - No ledger mutation.
- * - No schema mutation.
- * - No audit writes.
- * - Live-computes forecast from current D1 data.
- * - Uses payslip/config as salary source data, not stale forecast output.
- * - Baseline excludes MBO, kitty cash, overtime, Eid overtime, and unconfirmed variables.
- * - WFH allowance is USD 30 converted using live USD→PKR when available.
+/* Sovereign Finance /api/forecast v0.1.1
+ * Live salary + cash forecast with manual variable income and PK salaried tax formula.
+ *
+ * GET  /api/forecast
+ * POST /api/forecast
+ *
+ * POST is metadata-only:
+ * - updates manual variable forecast inputs
+ * - no ledger mutation
+ * - no transaction creation
  */
 
 import { json } from './_lib.js';
 
-const VERSION = 'v0.1.0';
-
+const VERSION = 'v0.1.1';
 const DEFAULT_SALARY_ID = 'salary_primary';
 const DEFAULT_FX_URL = 'https://open.er-api.com/v6/latest/USD';
-const DEFAULT_LOW_LIQUID_UNSAFE = 5000;
-const DEFAULT_LOW_LIQUID_WATCH = 10000;
+const LOW_LIQUID_UNSAFE = 5000;
+const LOW_LIQUID_WATCH = 10000;
 
 const TYPE_PLUS = new Set(['income', 'salary', 'borrow', 'debt_in', 'opening']);
 const TYPE_MINUS = new Set(['expense', 'repay', 'cc_spend', 'atm', 'debt_out']);
 
 export async function onRequest(context) {
+  if (context.request.method === 'POST') return updateManualVariables(context);
+  return getForecast(context);
+}
+
+async function updateManualVariables(context) {
+  const db = context.env.DB;
+  const body = await context.request.json().catch(() => ({}));
+
+  const fields = {
+    manual_overtime_general_pkr: moneyInput(body.manual_overtime_general_pkr),
+    manual_overtime_eid_pkr: moneyInput(body.manual_overtime_eid_pkr),
+    manual_mbo_pkr: moneyInput(body.manual_mbo_pkr),
+    manual_referral_bonus_pkr: moneyInput(body.manual_referral_bonus_pkr),
+    manual_spot_bonus_pkr: moneyInput(body.manual_spot_bonus_pkr),
+    manual_kitty_cash_pkr: moneyInput(body.manual_kitty_cash_pkr),
+    manual_other_variable_pkr: moneyInput(body.manual_other_variable_pkr),
+    manual_eobi_pkr: moneyInput(body.manual_eobi_pkr, 400)
+  };
+
+  await db.prepare(`
+    UPDATE salary_forecast_config
+    SET
+      manual_overtime_general_pkr = ?,
+      manual_overtime_eid_pkr = ?,
+      manual_mbo_pkr = ?,
+      manual_referral_bonus_pkr = ?,
+      manual_spot_bonus_pkr = ?,
+      manual_kitty_cash_pkr = ?,
+      manual_other_variable_pkr = ?,
+      manual_eobi_pkr = ?,
+      updated_at = datetime('now')
+    WHERE id = ?
+  `).bind(
+    fields.manual_overtime_general_pkr,
+    fields.manual_overtime_eid_pkr,
+    fields.manual_mbo_pkr,
+    fields.manual_referral_bonus_pkr,
+    fields.manual_spot_bonus_pkr,
+    fields.manual_kitty_cash_pkr,
+    fields.manual_other_variable_pkr,
+    fields.manual_eobi_pkr,
+    DEFAULT_SALARY_ID
+  ).run();
+
+  return json({
+    ok: true,
+    version: VERSION,
+    mode: 'manual_variable_update',
+    transaction_created: false,
+    ledger_mutation: false,
+    fields
+  });
+}
+
+async function getForecast(context) {
   const db = context.env.DB;
   const now = new Date();
 
@@ -59,25 +111,18 @@ export async function onRequest(context) {
     const reconciliation = reconciliationRes.rows || [];
 
     const fx = await fetchUsdPkr(config.fx_source_url || DEFAULT_FX_URL);
+    const salary = computeSalary(config, payslip, components, fx, now);
 
-    const salary = computeSalaryForecast(config, payslip, components, fx, now);
     const balances = computeAccountBalances(accounts, transactions);
     const position = computeCurrentPosition(accounts, balances);
-    const truth = computeReconciliationTruth(accounts, balances, reconciliation, transactions);
-
     const obligations = computeObligationsBeforeSalary({
       bills,
       debts,
       salaryDate: salary.next_salary_date,
       now
     });
-
-    const baseline = computeBaselineForecast({
-      salary,
-      position,
-      obligations
-    });
-
+    const truth = computeReconciliationTruth(accounts, balances, reconciliation, transactions);
+    const baseline = computeBaselineForecast({ salary, position, obligations });
     const confidence = computeForecastConfidence(truth);
 
     return json({
@@ -90,27 +135,21 @@ export async function onRequest(context) {
       baseline_forecast: baseline,
       scenarios: {
         confirmed_variable: {
-          amount: round2(salary.confirmed_variable_pkr),
-          projected_cash_after_salary: round2(baseline.projected_cash_after_salary + salary.confirmed_variable_pkr),
-          note: 'Only manually confirmed variable income belongs here.'
+          amount: round2(salary.manual_variable_total_pkr),
+          projected_cash_after_salary: round2(baseline.projected_cash_after_salary),
+          note: 'Manual variable fields are included in forecast net salary but are visible separately from base.'
         },
-        speculative_variable: {
-          amount: round2(salary.speculative_variable_pkr),
-          projected_cash_after_salary: round2(baseline.projected_cash_after_salary + salary.speculative_variable_pkr),
-          note: 'Scenario only. Excluded from baseline safety math.'
+        baseline_without_manual_variables: {
+          forecast_net_salary: round2(salary.baseline_net_without_manual_variables_pkr),
+          projected_cash_after_salary: round2(position.total_liquid + obligations.net_expected_before_salary + salary.baseline_net_without_manual_variables_pkr)
         },
         mbo_possible: {
-          status: salary.mbo_forecast_status || 'excluded_from_baseline',
-          note: 'MBO depends on KPI achievement and payout timing after quarter end. It is not baseline cash safety.'
+          amount: round2(salary.manual_variables.manual_mbo_pkr),
+          status: salary.manual_variables.manual_mbo_pkr > 0 ? 'manually_entered' : 'zero_default',
+          note: 'MBO is manual scenario input and should stay 0 unless confirmed or intentionally modeled.'
         }
       },
-      tax: {
-        annual_taxable_income: number(payslip.annual_taxable_income),
-        annual_tax_liability: number(payslip.annual_tax_liability),
-        income_tax_paid_ytd: number(payslip.income_tax_paid_ytd),
-        remaining_tax_payable: number(payslip.remaining_tax_payable),
-        tax_rate_percent: number(payslip.tax_rate_percent)
-      },
+      tax: salary.tax,
       forecast_confidence: confidence,
       health: {
         salary_config: configRes.ok,
@@ -134,88 +173,44 @@ export async function onRequest(context) {
   }
 }
 
-async function readAll(db, sql, binds) {
-  try {
-    const stmt = db.prepare(sql);
-    const res = binds && binds.length ? await stmt.bind(...binds).all() : await stmt.all();
-    return { ok: true, rows: res.results || [], error: null };
-  } catch (err) {
-    return { ok: false, rows: [], error: err.message || String(err) };
-  }
-}
-
-async function readFirst(db, sql, binds) {
-  try {
-    const stmt = db.prepare(sql);
-    const row = binds && binds.length ? await stmt.bind(...binds).first() : await stmt.first();
-    return { ok: true, row: row || null, error: null };
-  } catch (err) {
-    return { ok: false, row: null, error: err.message || String(err) };
-  }
-}
-
-async function fetchUsdPkr(url) {
-  try {
-    const res = await fetch(url, { cf: { cacheTtl: 300, cacheEverything: false } });
-    if (!res.ok) throw new Error('FX HTTP ' + res.status);
-
-    const data = await res.json();
-    const rate = data && data.rates ? Number(data.rates.PKR) : null;
-
-    if (!Number.isFinite(rate) || rate <= 0) {
-      throw new Error('PKR rate missing');
-    }
-
-    return {
-      ok: true,
-      source_name: 'ExchangeRate-API open endpoint',
-      source_url: url,
-      usd_pkr: rate,
-      fetched_at: new Date().toISOString(),
-      provider_time_last_update_utc: data.time_last_update_utc || null,
-      provider_time_next_update_utc: data.time_next_update_utc || null,
-      status: 'live'
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      source_name: 'ExchangeRate-API open endpoint',
-      source_url: url,
-      usd_pkr: null,
-      fetched_at: new Date().toISOString(),
-      status: 'unavailable',
-      error: err.message || String(err)
-    };
-  }
-}
-
-function computeSalaryForecast(config, payslip, components, fx, now) {
-  const guaranteedBase = number(config.guaranteed_base_salary || config.base_salary);
+function computeSalary(config, payslip, components, fx, now) {
+  const baseSalary = number(config.guaranteed_base_salary || 111333.34);
   const wfhUsd = number(config.wfh_usd_amount || 30);
-  const liveFxRate = fx.ok ? number(fx.usd_pkr) : null;
-  const storedFxRate = numberOrNull(config.salary_day_fx_rate);
-  const fxRateUsed = liveFxRate || storedFxRate;
+  const fxRate = fx.ok ? number(fx.usd_pkr) : numberOrNull(config.salary_day_fx_rate);
+  const wfhPkr = fxRate ? round2(wfhUsd * fxRate) : 0;
 
-  const expectedWfhPkr = fxRateUsed ? round2(wfhUsd * fxRateUsed) : null;
-  const baseline = round2(guaranteedBase + (expectedWfhPkr || 0));
+  const manualVariables = {
+    manual_overtime_general_pkr: number(config.manual_overtime_general_pkr),
+    manual_overtime_eid_pkr: number(config.manual_overtime_eid_pkr),
+    manual_mbo_pkr: number(config.manual_mbo_pkr),
+    manual_referral_bonus_pkr: number(config.manual_referral_bonus_pkr),
+    manual_spot_bonus_pkr: number(config.manual_spot_bonus_pkr),
+    manual_kitty_cash_pkr: number(config.manual_kitty_cash_pkr),
+    manual_other_variable_pkr: number(config.manual_other_variable_pkr)
+  };
+
+  const manualVariableTotal = Object.values(manualVariables).reduce((sum, val) => sum + number(val), 0);
+  const eobi = number(config.manual_eobi_pkr || 400);
+
+  const payslipAnnualTaxable = number(payslip.annual_taxable_income);
+  const payslipAnnualTax = number(payslip.annual_tax_liability);
+  const incomeTaxPaidYtd = number(payslip.income_tax_paid_ytd);
+  const remainingTaxPayable = number(payslip.remaining_tax_payable);
+
+  const baseIncomeTax = projectedBaseIncomeTax(payslip);
+  const taxableVariableThisMonth = round2(wfhPkr + manualVariableTotal);
+  const annualTaxableWithVariables = round2(payslipAnnualTaxable + taxableVariableThisMonth);
+  const annualTaxWithVariables = calculatePkSalariedTax(annualTaxableWithVariables);
+  const variableIncomeTax = round2(Math.max(0, annualTaxWithVariables - payslipAnnualTax));
+
+  const grossForecast = round2(baseSalary + wfhPkr + manualVariableTotal);
+  const forecastNet = round2(grossForecast - eobi - baseIncomeTax - variableIncomeTax);
+
+  const grossWithoutManual = round2(baseSalary + wfhPkr);
+  const variableTaxWithoutManual = round2(Math.max(0, calculatePkSalariedTax(payslipAnnualTaxable + wfhPkr) - payslipAnnualTax));
+  const netWithoutManual = round2(grossWithoutManual - eobi - baseIncomeTax - variableTaxWithoutManual);
+
   const nextSalaryDate = normalizeDate(config.next_salary_date) || nextDayOfMonth(number(config.salary_day || 1), now);
-
-  const baselineComponents = components
-    .filter(row => text(row.forecast_class) === 'baseline_component')
-    .map(row => ({
-      name: row.component_name,
-      amount: number(row.amount),
-      ytd_amount: number(row.ytd_amount)
-    }));
-
-  const variableComponents = components
-    .filter(row => String(row.forecast_class || '').includes('variable'))
-    .map(row => ({
-      name: row.component_name,
-      amount: number(row.amount),
-      ytd_amount: number(row.ytd_amount),
-      forecast_class: row.forecast_class
-    }));
 
   return {
     next_salary_date: nextSalaryDate,
@@ -223,23 +218,28 @@ function computeSalaryForecast(config, payslip, components, fx, now) {
     last_salary_received_date: normalizeDate(config.last_salary_received_date),
     salary_day: number(config.salary_day || 1),
 
-    guaranteed_base_salary: round2(guaranteedBase),
+    base_salary_pkr: round2(baseSalary),
     wfh_usd_amount: round2(wfhUsd),
-    salary_day_fx_rate: fxRateUsed,
+    salary_day_fx_rate: fxRate,
     fx_rate_source: fx.source_name,
     fx_source_url: fx.source_url,
     fx_fetched_at: fx.fetched_at,
     fx_status: fx.status,
     fx_error: fx.error || null,
 
-    expected_wfh_pkr: expectedWfhPkr,
-    baseline_forecast_pkr: baseline,
-    baseline_wfh_pending: !expectedWfhPkr,
+    wfh_taxable_pkr: round2(wfhPkr),
+    manual_variables: manualVariables,
+    manual_variable_total_pkr: round2(manualVariableTotal),
 
-    confirmed_variable_pkr: number(config.confirmed_variable_pkr),
-    speculative_variable_pkr: number(config.speculative_variable_pkr),
-    mbo_forecast_status: config.mbo_forecast_status || 'excluded_from_baseline',
-    forecast_policy: config.forecast_policy || null,
+    gross_salary_forecast_pkr: grossForecast,
+    eobi_deduction_pkr: round2(eobi),
+    base_income_tax_pkr: round2(baseIncomeTax),
+    variable_income_tax_pkr: round2(variableIncomeTax),
+    forecast_net_salary_pkr: forecastNet,
+
+    baseline_net_without_manual_variables_pkr: netWithoutManual,
+    baseline_includes_wfh: true,
+    safety_baseline_note: 'Safety forecast uses base salary plus WFH live FX, with manual variables defaulting to 0 unless operator enters them.',
 
     active_payslip_id: config.active_payslip_id || payslip.id || null,
     payslip_month: payslip.payslip_month || null,
@@ -248,36 +248,76 @@ function computeSalaryForecast(config, payslip, components, fx, now) {
     projected_next_net_salary_from_payslip: number(payslip.projected_next_net_salary),
     projected_following_net_salary_from_payslip: number(payslip.projected_following_net_salary),
 
-    baseline_components: baselineComponents,
-    variable_components_last_payslip: variableComponents
+    tax_formula_version: config.tax_formula_version || 'PK_SALARIED_2025_26',
+    tax: {
+      annual_taxable_income_from_payslip: round2(payslipAnnualTaxable),
+      annual_taxable_income_with_forecast_variables: round2(annualTaxableWithVariables),
+      annual_tax_liability_from_payslip: round2(payslipAnnualTax),
+      annual_tax_liability_with_forecast_variables: round2(annualTaxWithVariables),
+      income_tax_paid_ytd: round2(incomeTaxPaidYtd),
+      remaining_tax_payable_from_payslip: round2(remainingTaxPayable),
+      base_income_tax_pkr: round2(baseIncomeTax),
+      variable_income_tax_pkr: round2(variableIncomeTax),
+      tax_rate_percent_from_payslip: number(payslip.tax_rate_percent)
+    },
+
+    payslip_components: components.map(row => ({
+      name: row.component_name,
+      type: row.component_type,
+      amount: number(row.amount),
+      ytd_amount: number(row.ytd_amount),
+      forecast_class: row.forecast_class
+    }))
   };
 }
 
-function computeCurrentPosition(accounts, balances) {
-  let totalLiquid = 0;
-  let ccOutstanding = 0;
-  let assetCount = 0;
-  let liabilityCount = 0;
+function calculatePkSalariedTax(annualTaxableIncome) {
+  const income = number(annualTaxableIncome);
 
-  for (const account of accounts) {
-    const bal = balances[account.id] || 0;
-    const kind = text(account.kind || account.type).toLowerCase();
+  if (income <= 600000) return 0;
+  if (income <= 1200000) return round2((income - 600000) * 0.01);
+  if (income <= 2200000) return round2(6000 + ((income - 1200000) * 0.11));
+  if (income <= 3200000) return round2(116000 + ((income - 2200000) * 0.23));
+  if (income <= 4100000) return round2(346000 + ((income - 3200000) * 0.30));
+  return round2(616000 + ((income - 4100000) * 0.35));
+}
 
-    if (isCreditCardKind(kind)) {
-      ccOutstanding += Math.max(0, Math.abs(bal));
-      liabilityCount++;
-    } else if (kind !== 'liability') {
-      totalLiquid += bal;
-      assetCount++;
-    }
+function projectedBaseIncomeTax(payslip) {
+  const monthlyBase = number(payslip.projected_next_net_salary)
+    ? round2(number(payslip.regular_gross_salary) - number(payslip.projected_next_net_salary))
+    : 930;
+
+  if (monthlyBase > 0 && monthlyBase < 5000) return monthlyBase;
+  return 930;
+}
+
+function computeBaselineForecast({ salary, position, obligations }) {
+  const beforeSalary = round2(position.total_liquid + obligations.net_expected_before_salary);
+  const afterSalary = round2(beforeSalary + salary.forecast_net_salary_pkr);
+  const freeAfterObligations = round2(salary.forecast_net_salary_pkr - obligations.total_committed_before_salary);
+
+  let firstUnsafeDate = null;
+  let topAction = null;
+
+  if (beforeSalary < LOW_LIQUID_UNSAFE) {
+    firstUnsafeDate = new Date().toISOString().slice(0, 10);
+    topAction = 'Liquid cash falls below unsafe threshold before salary. Review obligations due before salary.';
+  } else if (beforeSalary < LOW_LIQUID_WATCH) {
+    topAction = 'Liquid cash is thin before salary. Avoid non-essential spending.';
   }
 
   return {
-    total_liquid: round2(totalLiquid),
-    cc_outstanding: round2(ccOutstanding),
-    net_cash_after_cc: round2(totalLiquid - ccOutstanding),
-    active_asset_accounts: assetCount,
-    active_liability_accounts: liabilityCount
+    projected_cash_before_salary: beforeSalary,
+    projected_cash_after_salary: afterSalary,
+    free_salary_after_obligations: freeAfterObligations,
+    salary_already_committed: round2(obligations.total_committed_before_salary),
+    first_unsafe_date: firstUnsafeDate,
+    top_action: topAction,
+    runway_status: beforeSalary < LOW_LIQUID_UNSAFE
+      ? 'unsafe_before_salary'
+      : beforeSalary < LOW_LIQUID_WATCH
+        ? 'watch_before_salary'
+        : 'safe_until_salary'
   };
 }
 
@@ -319,11 +359,8 @@ function computeObligationsBeforeSalary({ bills, debts, salaryDate, now }) {
       days_until_due: daysUntil(now, dateOnly(due))
     };
 
-    if (row.kind === 'owed') {
-      receivablesDue.push(row);
-    } else {
-      debtsDue.push(row);
-    }
+    if (row.kind === 'owed') receivablesDue.push(row);
+    else debtsDue.push(row);
   }
 
   const billTotal = billsDue.reduce((sum, row) => sum + number(row.amount), 0);
@@ -343,44 +380,81 @@ function computeObligationsBeforeSalary({ bills, debts, salaryDate, now }) {
   };
 }
 
-function computeBaselineForecast({ salary, position, obligations }) {
-  const beforeSalary = round2(position.total_liquid + obligations.net_expected_before_salary);
-  const afterSalary = round2(beforeSalary + salary.baseline_forecast_pkr);
-  const freeAfterObligations = round2(salary.baseline_forecast_pkr - obligations.total_committed_before_salary);
+/* Shared helpers */
 
-  let firstUnsafeDate = null;
-  let topAction = null;
+async function readAll(db, sql, binds) {
+  try {
+    const stmt = db.prepare(sql);
+    const res = binds && binds.length ? await stmt.bind(...binds).all() : await stmt.all();
+    return { ok: true, rows: res.results || [], error: null };
+  } catch (err) {
+    return { ok: false, rows: [], error: err.message || String(err) };
+  }
+}
 
-  if (beforeSalary < DEFAULT_LOW_LIQUID_UNSAFE) {
-    firstUnsafeDate = new Date().toISOString().slice(0, 10);
-    topAction = 'Liquid cash falls below unsafe threshold before salary. Review bills/debts due before salary.';
-  } else if (beforeSalary < DEFAULT_LOW_LIQUID_WATCH) {
-    topAction = 'Liquid cash is thin before salary. Avoid non-essential spending.';
+async function readFirst(db, sql, binds) {
+  try {
+    const stmt = db.prepare(sql);
+    const row = binds && binds.length ? await stmt.bind(...binds).first() : await stmt.first();
+    return { ok: true, row: row || null, error: null };
+  } catch (err) {
+    return { ok: false, row: null, error: err.message || String(err) };
+  }
+}
+
+async function fetchUsdPkr(url) {
+  try {
+    const res = await fetch(url || DEFAULT_FX_URL, { cf: { cacheTtl: 300, cacheEverything: false } });
+    if (!res.ok) throw new Error('FX HTTP ' + res.status);
+
+    const data = await res.json();
+    const rate = data && data.rates ? Number(data.rates.PKR) : null;
+    if (!Number.isFinite(rate) || rate <= 0) throw new Error('PKR rate missing');
+
+    return {
+      ok: true,
+      source_name: 'ExchangeRate-API open endpoint',
+      source_url: url || DEFAULT_FX_URL,
+      usd_pkr: rate,
+      fetched_at: new Date().toISOString(),
+      status: 'live'
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      source_name: 'ExchangeRate-API open endpoint',
+      source_url: url || DEFAULT_FX_URL,
+      usd_pkr: null,
+      fetched_at: new Date().toISOString(),
+      status: 'unavailable',
+      error: err.message || String(err)
+    };
+  }
+}
+
+function computeCurrentPosition(accounts, balances) {
+  let totalLiquid = 0;
+  let ccOutstanding = 0;
+
+  for (const account of accounts) {
+    const bal = balances[account.id] || 0;
+    const kind = text(account.kind || account.type).toLowerCase();
+
+    if (isCreditCardKind(kind)) ccOutstanding += Math.max(0, Math.abs(bal));
+    else if (kind !== 'liability') totalLiquid += bal;
   }
 
   return {
-    projected_cash_before_salary: beforeSalary,
-    projected_cash_after_salary: afterSalary,
-    free_salary_after_obligations: freeAfterObligations,
-    salary_already_committed: round2(obligations.total_committed_before_salary),
-    first_unsafe_date: firstUnsafeDate,
-    top_action: topAction,
-    runway_status: beforeSalary < DEFAULT_LOW_LIQUID_UNSAFE
-      ? 'unsafe_before_salary'
-      : beforeSalary < DEFAULT_LOW_LIQUID_WATCH
-        ? 'watch_before_salary'
-        : 'safe_until_salary'
+    total_liquid: round2(totalLiquid),
+    cc_outstanding: round2(ccOutstanding),
+    net_cash_after_cc: round2(totalLiquid - ccOutstanding)
   };
 }
 
 function computeReconciliationTruth(accounts, balances, rows, transactions) {
   const latest = latestReconByAccount(rows);
   const latestTxn = latestTxnDateByAccount(accounts, transactions);
-  const out = [];
-  let matched = 0;
-  let stale = 0;
-  let drifted = 0;
-  let undeclared = 0;
+  let matched = 0, stale = 0, drifted = 0, undeclared = 0;
 
   for (const account of accounts) {
     const declaration = latest[account.id] || null;
@@ -390,89 +464,42 @@ function computeReconciliationTruth(accounts, balances, rows, transactions) {
     const latestTransactionDate = latestTxn[account.id] || null;
     const declaredDate = declaration ? normalizeDate(declaration.declared_at) : null;
 
-    let status = 'undeclared';
-    if (!declaration) {
-      undeclared++;
-    } else if (latestTransactionDate && declaredDate && latestTransactionDate > declaredDate) {
-      status = 'stale';
-      stale++;
-    } else if (Math.abs(number(drift)) >= 1) {
-      status = 'drifted';
-      drifted++;
-    } else {
-      status = 'matched';
-      matched++;
-    }
-
-    out.push({
-      account_id: account.id,
-      account_name: account.name || account.id,
-      app_balance: round2(appBalance),
-      declared_balance: declaration ? round2(declared) : null,
-      drift_amount: drift,
-      latest_transaction_date: latestTransactionDate,
-      declared_at: declaration ? declaration.declared_at : null,
-      truth_status: status
-    });
+    if (!declaration) undeclared++;
+    else if (latestTransactionDate && declaredDate && latestTransactionDate > declaredDate) stale++;
+    else if (Math.abs(number(drift)) >= 1) drifted++;
+    else matched++;
   }
 
-  return {
-    matched_count: matched,
-    stale_count: stale,
-    drifted_count: drifted,
-    undeclared_count: undeclared,
-    accounts: out
-  };
+  return { matched_count: matched, stale_count: stale, drifted_count: drifted, undeclared_count: undeclared };
 }
 
 function computeForecastConfidence(truth) {
-  if (truth.drifted_count > 0) {
-    return {
-      level: 'low',
-      reason: 'One or more accounts are drifted. Forecast starting balance may be wrong.'
-    };
-  }
-
-  if (truth.undeclared_count > 0) {
-    return {
-      level: 'medium_low',
-      reason: 'Some accounts are undeclared. Forecast is usable but not fully reconciled.'
-    };
-  }
-
-  if (truth.stale_count > 0) {
-    return {
-      level: 'medium',
-      reason: 'Some declarations are stale because transactions happened after declaration.'
-    };
-  }
-
-  return {
-    level: 'high',
-    reason: 'All declared accounts are matched at the current cutoff.'
-  };
+  if (truth.drifted_count > 0) return { level: 'low', reason: 'One or more accounts are drifted.' };
+  if (truth.undeclared_count > 0) return { level: 'medium_low', reason: 'Some accounts are undeclared.' };
+  if (truth.stale_count > 0) return { level: 'medium', reason: 'Some declarations are stale.' };
+  return { level: 'high', reason: 'All declared accounts are matched at the current cutoff.' };
 }
 
 function activeAccounts(rows) {
-  return (rows || []).filter(row => {
+  return rows.filter(row => {
     const status = text(row.status || 'active').toLowerCase();
     return !text(row.deleted_at) && !text(row.archived_at) && (!status || status === 'active');
   });
 }
 
 function activeTransactions(rows) {
-  return (rows || []).filter(row => !isReversalRelated(row));
+  return rows.filter(row => !isReversalRelated(row));
 }
 
 function visibleBills(rows) {
-  return (rows || []).filter(row => {
+  return rows.filter(row => {
     const status = text(row.status || 'active').toLowerCase();
     return !text(row.deleted_at) && status !== 'deleted' && status !== 'archived';
   });
 }
 
 function activeDebts(rows) {
-  return (rows || []).filter(row => {
+  return rows.filter(row => {
     const status = text(row.status || 'active').toLowerCase();
     return !status || status === 'active';
   });
@@ -503,11 +530,8 @@ function computeAccountBalances(accounts, transactions) {
 
     if (!origin || !ids.has(origin)) continue;
 
-    if (TYPE_PLUS.has(type)) {
-      balances[origin] += amount;
-    } else if (TYPE_MINUS.has(type)) {
-      balances[origin] -= amount + fee + pra;
-    }
+    if (TYPE_PLUS.has(type)) balances[origin] += amount;
+    else if (TYPE_MINUS.has(type)) balances[origin] -= amount + fee + pra;
   }
 
   const out = {};
@@ -516,7 +540,7 @@ function computeAccountBalances(accounts, transactions) {
 }
 
 function latestReconByAccount(rows) {
-  const sorted = (rows || []).slice().sort((a, b) => text(b.declared_at).localeCompare(text(a.declared_at)));
+  const sorted = rows.slice().sort((a, b) => text(b.declared_at).localeCompare(text(a.declared_at)));
   const out = {};
   for (const row of sorted) {
     const id = text(row.account_id);
@@ -595,9 +619,7 @@ function isReversalRelated(txn) {
   if (text(txn.reversed_by)) return true;
   if (text(txn.reversed_at)) return true;
   const notes = text(txn.notes).toUpperCase();
-  if (notes.includes('[REVERSAL OF ')) return true;
-  if (notes.includes('[REVERSED BY ')) return true;
-  return false;
+  return notes.includes('[REVERSAL OF ') || notes.includes('[REVERSED BY ');
 }
 
 function isOnOrBefore(date, cutoff) {
@@ -631,6 +653,12 @@ function daysUntil(now, dateText) {
   const d = parseDate(dateText);
   if (!d) return null;
   return Math.round((startOfDay(d).getTime() - startOfDay(now).getTime()) / 86400000);
+}
+
+function moneyInput(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback == null ? 0 : fallback;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
 function number(value) {
