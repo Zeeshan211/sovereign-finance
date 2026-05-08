@@ -1,4 +1,4 @@
-/* Sovereign Finance /api/forecast v0.2.0
+/* Sovereign Finance /api/forecast v0.2.1
  * Live salary + 30-day cash forecast with manual variable income and PK salaried tax formula.
  *
  * GET  /api/forecast
@@ -9,20 +9,26 @@
  * - no ledger mutation
  * - no transaction creation
  *
- * Layer 4 adds:
- * - 30-day daily cash projection
- * - lowest projected balance
- * - first unsafe date
- * - salary-day injection
- * - bills/debts/receivables timeline
- * - conservative baseline using guaranteed salary + WFH only
+ * v0.2.1 audit hardening:
+ * - removes fixed SQL dependency on payslip_2026_04
+ * - reads active payslip from salary_forecast_config.active_payslip_id when available
+ * - falls back safely to payslip_2026_04 only when config has no active payslip id
+ * - exposes active_payslip_source for audit clarity
+ * - fixes bill paid-cycle logic so current-month payment does not skip next-month obligations
+ *
+ * Forecast rules:
+ * - conservative baseline uses guaranteed base salary + WFH only
+ * - manual variable income remains separate scenario input
+ * - MBO/kitty/overtime/manual variable values are not baseline safety income
  */
 
 import { json } from './_lib.js';
 
-const VERSION = 'v0.2.0';
+const VERSION = 'v0.2.1';
 const DEFAULT_SALARY_ID = 'salary_primary';
+const FALLBACK_PAYSLIP_ID = 'payslip_2026_04';
 const DEFAULT_FX_URL = 'https://open.er-api.com/v6/latest/USD';
+
 const LOW_LIQUID_UNSAFE = 5000;
 const LOW_LIQUID_WATCH = 10000;
 const PROJECTION_DAYS = 30;
@@ -90,8 +96,16 @@ async function getForecast(context) {
   const now = new Date();
 
   try {
+    const configRes = await readFirst(
+      db,
+      `SELECT * FROM salary_forecast_config WHERE id = ?`,
+      [DEFAULT_SALARY_ID]
+    );
+
+    const config = configRes.row || {};
+    const activePayslip = resolveActivePayslip(config);
+
     const [
-      configRes,
       payslipRes,
       componentsRes,
       accountsRes,
@@ -100,9 +114,8 @@ async function getForecast(context) {
       debtsRes,
       reconciliationRes
     ] = await Promise.all([
-      readFirst(db, `SELECT * FROM salary_forecast_config WHERE id = ?`, [DEFAULT_SALARY_ID]),
-      readFirst(db, `SELECT * FROM salary_payslips WHERE id = 'payslip_2026_04'`, []),
-      readAll(db, `SELECT * FROM salary_payslip_components WHERE payslip_id = 'payslip_2026_04'`, []),
+      readFirst(db, `SELECT * FROM salary_payslips WHERE id = ?`, [activePayslip.id]),
+      readAll(db, `SELECT * FROM salary_payslip_components WHERE payslip_id = ?`, [activePayslip.id]),
       readAll(db, `SELECT * FROM accounts`, []),
       readAll(db, `SELECT * FROM transactions`, []),
       readAll(db, `SELECT * FROM bills`, []),
@@ -110,7 +123,6 @@ async function getForecast(context) {
       readAll(db, `SELECT * FROM reconciliation ORDER BY declared_at DESC`, [])
     ]);
 
-    const config = configRes.row || {};
     const payslip = payslipRes.row || {};
     const components = componentsRes.rows || [];
     const accounts = activeAccounts(accountsRes.rows || []);
@@ -120,7 +132,7 @@ async function getForecast(context) {
     const reconciliation = reconciliationRes.rows || [];
 
     const fx = await fetchUsdPkr(config.fx_source_url || DEFAULT_FX_URL);
-    const salary = computeSalary(config, payslip, components, fx, now);
+    const salary = computeSalary(config, payslip, components, fx, now, activePayslip);
     const balances = computeAccountBalances(accounts, transactions);
     const position = computeCurrentPosition(accounts, balances);
 
@@ -132,7 +144,14 @@ async function getForecast(context) {
     });
 
     const truth = computeReconciliationTruth(accounts, balances, reconciliation, transactions);
-    const baseline = computeBaselineForecast({ salary, position, obligations, now });
+
+    const baseline = computeBaselineForecast({
+      salary,
+      position,
+      obligations,
+      now
+    });
+
     const dailyProjection = computeDailyCashProjection30d({
       now,
       salary,
@@ -140,7 +159,9 @@ async function getForecast(context) {
       bills,
       debts
     });
+
     const confidence = computeForecastConfidence(truth);
+
     const debtFree = computeDebtFreeForecast({
       debts,
       baseline,
@@ -152,6 +173,14 @@ async function getForecast(context) {
       ok: true,
       version: VERSION,
       computed_at: now.toISOString(),
+      forecast_meta: {
+        active_payslip_id: activePayslip.id,
+        active_payslip_source: activePayslip.source,
+        salary_config_id: DEFAULT_SALARY_ID,
+        hardcoded_payslip_removed: true,
+        bill_paid_cycle_logic: 'due_cycle_month',
+        ledger_mutation: false
+      },
       salary,
       current_position: position,
       obligations_before_salary: obligations,
@@ -164,7 +193,7 @@ async function getForecast(context) {
           amount: round2(salary.manual_variable_total_pkr),
           projected_cash_after_salary: round2(baseline.projected_cash_after_salary),
           projected_cash_after_salary_with_manual_variables: round2(dailyProjection.summary.cash_after_salary_and_obligations_with_manual_variables),
-          note: 'Manual variable fields are included in forecast net salary but are visible separately from base.'
+          note: 'Manual variable fields are included in scenario forecast net salary but are visible separately from conservative baseline.'
         },
         conservative_baseline: {
           forecast_net_salary: round2(salary.baseline_net_without_manual_variables_pkr),
@@ -194,6 +223,17 @@ async function getForecast(context) {
         debts: debtsRes.ok,
         reconciliation: reconciliationRes.ok,
         fx: fx.ok
+      },
+      health_detail: {
+        salary_config_error: configRes.error || null,
+        payslip_error: payslipRes.error || null,
+        components_error: componentsRes.error || null,
+        accounts_error: accountsRes.error || null,
+        transactions_error: transactionsRes.error || null,
+        bills_error: billsRes.error || null,
+        debts_error: debtsRes.error || null,
+        reconciliation_error: reconciliationRes.error || null,
+        fx_error: fx.error || null
       }
     });
   } catch (err) {
@@ -206,9 +246,26 @@ async function getForecast(context) {
   }
 }
 
-function computeSalary(config, payslip, components, fx, now) {
+function resolveActivePayslip(config) {
+  const configured = text(config.active_payslip_id);
+
+  if (configured) {
+    return {
+      id: configured,
+      source: 'salary_forecast_config.active_payslip_id'
+    };
+  }
+
+  return {
+    id: FALLBACK_PAYSLIP_ID,
+    source: 'fallback_default_until_configured'
+  };
+}
+
+function computeSalary(config, payslip, components, fx, now, activePayslip) {
   const baseSalary = number(config.guaranteed_base_salary || 111333.34);
   const wfhUsd = number(config.wfh_usd_amount || 30);
+
   const fxRate = fx.ok ? number(fx.usd_pkr) : numberOrNull(config.salary_day_fx_rate);
   const wfhPkr = fxRate ? round2(wfhUsd * fxRate) : 0;
 
@@ -229,6 +286,7 @@ function computeSalary(config, payslip, components, fx, now) {
   const payslipAnnualTax = number(payslip.annual_tax_liability);
   const incomeTaxPaidYtd = number(payslip.income_tax_paid_ytd);
   const remainingTaxPayable = number(payslip.remaining_tax_payable);
+
   const baseIncomeTax = projectedBaseIncomeTax(payslip);
 
   const taxableVariableThisMonth = round2(wfhPkr + manualVariableTotal);
@@ -242,6 +300,7 @@ function computeSalary(config, payslip, components, fx, now) {
   const grossWithoutManual = round2(baseSalary + wfhPkr);
   const variableTaxWithoutManual = round2(Math.max(0, calculatePkSalariedTax(payslipAnnualTaxable + wfhPkr) - payslipAnnualTax));
   const netWithoutManual = round2(grossWithoutManual - eobi - baseIncomeTax - variableTaxWithoutManual);
+
   const nextSalaryDate = normalizeDate(config.next_salary_date) || dateOnly(nextDayOfMonth(number(config.salary_day || 1), now));
 
   return {
@@ -249,6 +308,7 @@ function computeSalary(config, payslip, components, fx, now) {
     days_until_salary: daysUntil(now, nextSalaryDate),
     last_salary_received_date: normalizeDate(config.last_salary_received_date),
     salary_day: number(config.salary_day || 1),
+
     base_salary_pkr: round2(baseSalary),
     wfh_usd_amount: round2(wfhUsd),
     salary_day_fx_rate: fxRate,
@@ -258,8 +318,10 @@ function computeSalary(config, payslip, components, fx, now) {
     fx_status: fx.status,
     fx_error: fx.error || null,
     wfh_taxable_pkr: round2(wfhPkr),
+
     manual_variables: manualVariables,
     manual_variable_total_pkr: round2(manualVariableTotal),
+
     gross_salary_forecast_pkr: grossForecast,
     eobi_deduction_pkr: round2(eobi),
     base_income_tax_pkr: round2(baseIncomeTax),
@@ -268,12 +330,16 @@ function computeSalary(config, payslip, components, fx, now) {
     baseline_net_without_manual_variables_pkr: netWithoutManual,
     baseline_includes_wfh: true,
     safety_baseline_note: 'Safety forecast uses base salary plus WFH live FX, with manual variables defaulting to 0 unless operator enters them.',
-    active_payslip_id: config.active_payslip_id || payslip.id || null,
+
+    active_payslip_id: activePayslip.id,
+    active_payslip_source: activePayslip.source,
+    payslip_found: !!payslip.id,
     payslip_month: payslip.payslip_month || null,
     actual_last_net_salary: number(payslip.actual_net_salary),
     actual_last_gross_salary: number(payslip.actual_gross_salary),
     projected_next_net_salary_from_payslip: number(payslip.projected_next_net_salary),
     projected_following_net_salary_from_payslip: number(payslip.projected_following_net_salary),
+
     tax_formula_version: config.tax_formula_version || 'PK_SALARIED_2025_26',
     tax: {
       annual_taxable_income_from_payslip: round2(payslipAnnualTaxable),
@@ -286,6 +352,7 @@ function computeSalary(config, payslip, components, fx, now) {
       variable_income_tax_pkr: round2(variableIncomeTax),
       tax_rate_percent_from_payslip: number(payslip.tax_rate_percent)
     },
+
     payslip_components: components.map(row => ({
       name: row.component_name,
       type: row.component_type,
@@ -298,11 +365,13 @@ function computeSalary(config, payslip, components, fx, now) {
 
 function calculatePkSalariedTax(annualTaxableIncome) {
   const income = number(annualTaxableIncome);
+
   if (income <= 600000) return 0;
   if (income <= 1200000) return round2((income - 600000) * 0.01);
   if (income <= 2200000) return round2(6000 + ((income - 1200000) * 0.11));
   if (income <= 3200000) return round2(116000 + ((income - 2200000) * 0.23));
   if (income <= 4100000) return round2(346000 + ((income - 3200000) * 0.30));
+
   return round2(616000 + ((income - 4100000) * 0.35));
 }
 
@@ -357,14 +426,16 @@ function computeObligationsBeforeSalary({ bills, debts, salaryDate, now }) {
 
   for (const bill of bills) {
     const due = billDueDate(bill, now);
+
     if (!due || !salaryDay || !isOnOrBefore(due, salaryDay)) continue;
-    if (isPaidThisMonth(bill)) continue;
+    if (isBillPaidForDueCycle(bill, due)) continue;
 
     billsDue.push({
       id: bill.id,
       name: bill.name,
       amount: round2(number(bill.amount)),
       due_date: dateOnly(due),
+      due_cycle_month: monthKey(due),
       days_until_due: daysUntil(now, dateOnly(due)),
       default_account_id: bill.default_account_id || null
     });
@@ -404,12 +475,14 @@ function computeObligationsBeforeSalary({ bills, debts, salaryDate, now }) {
     total_debts_due_before_salary: round2(debtTotal),
     total_receivables_expected_before_salary: round2(receivableTotal),
     total_committed_before_salary: round2(billTotal + debtTotal),
-    net_expected_before_salary: round2(receivableTotal - billTotal - debtTotal)
+    net_expected_before_salary: round2(receivableTotal - billTotal - debtTotal),
+    bill_paid_cycle_logic: 'Bill is skipped only when last_paid_date belongs to the same due-cycle month as the computed due date.'
   };
 }
 
 function computeDailyCashProjection30d({ now, salary, position, bills, debts }) {
   const today = startOfDay(now);
+
   let running = round2(position.total_liquid);
   let runningWithManual = round2(position.total_liquid);
   let lowest = running;
@@ -490,6 +563,7 @@ function computeDailyCashProjection30d({ now, salary, position, bills, debts }) 
   }
 
   const finalDay = days[days.length - 1] || null;
+
   const summary = {
     projection_days: PROJECTION_DAYS,
     projection_start_date: dateOnly(today),
@@ -507,12 +581,8 @@ function computeDailyCashProjection30d({ now, salary, position, bills, debts }) 
     first_watch_date: firstWatchDate,
     salary_date: salary.next_salary_date,
     salary_date_in_projection: salaryDateSeen,
-    cash_after_salary_and_obligations: cashAfterSalaryAndObligations == null
-      ? null
-      : round2(cashAfterSalaryAndObligations),
-    cash_after_salary_and_obligations_with_manual_variables: cashAfterSalaryAndObligationsWithManual == null
-      ? null
-      : round2(cashAfterSalaryAndObligationsWithManual),
+    cash_after_salary_and_obligations: cashAfterSalaryAndObligations == null ? null : round2(cashAfterSalaryAndObligations),
+    cash_after_salary_and_obligations_with_manual_variables: cashAfterSalaryAndObligationsWithManual == null ? null : round2(cashAfterSalaryAndObligationsWithManual),
     runway_status: firstUnsafeDate
       ? 'unsafe_in_30d'
       : firstWatchDate
@@ -550,9 +620,11 @@ function computeDebtFreeForecast({ debts, baseline, salary, dailyProjection }) {
   const totalRemaining = owedByMe.reduce((sum, row) => sum + number(row.remaining_amount), 0);
   const conservativeMonthlyFreeCash = Math.max(0, number(baseline.free_salary_after_obligations_conservative));
   const scenarioMonthlyFreeCash = Math.max(0, number(baseline.free_salary_after_obligations));
+
   const monthsConservative = conservativeMonthlyFreeCash > 0
     ? Math.ceil(totalRemaining / conservativeMonthlyFreeCash)
     : null;
+
   const monthsScenario = scenarioMonthlyFreeCash > 0
     ? Math.ceil(totalRemaining / scenarioMonthlyFreeCash)
     : null;
@@ -564,12 +636,8 @@ function computeDebtFreeForecast({ debts, baseline, salary, dailyProjection }) {
     scenario_monthly_free_cash_after_obligations: round2(scenarioMonthlyFreeCash),
     months_to_debt_free_conservative: monthsConservative,
     months_to_debt_free_with_manual_variables: monthsScenario,
-    estimated_debt_free_date_conservative: monthsConservative == null
-      ? null
-      : dateOnly(addMonths(new Date(), monthsConservative)),
-    estimated_debt_free_date_with_manual_variables: monthsScenario == null
-      ? null
-      : dateOnly(addMonths(new Date(), monthsScenario)),
+    estimated_debt_free_date_conservative: monthsConservative == null ? null : dateOnly(addMonths(new Date(), monthsConservative)),
+    estimated_debt_free_date_with_manual_variables: monthsScenario == null ? null : dateOnly(addMonths(new Date(), monthsScenario)),
     manual_variables_in_conservative_math: false,
     note: totalRemaining <= 0
       ? 'No active payable debt remaining.'
@@ -578,8 +646,6 @@ function computeDebtFreeForecast({ debts, baseline, salary, dailyProjection }) {
     salary_baseline_used: round2(salary.baseline_net_without_manual_variables_pkr)
   };
 }
-
-/* Shared helpers */
 
 async function readAll(db, sql, binds) {
   try {
@@ -609,11 +675,18 @@ async function readFirst(db, sql, binds) {
 
 async function fetchUsdPkr(url) {
   try {
-    const res = await fetch(url || DEFAULT_FX_URL, { cf: { cacheTtl: 300, cacheEverything: false } });
+    const res = await fetch(url || DEFAULT_FX_URL, {
+      cf: {
+        cacheTtl: 300,
+        cacheEverything: false
+      }
+    });
+
     if (!res.ok) throw new Error('FX HTTP ' + res.status);
 
     const data = await res.json();
     const rate = data && data.rates ? Number(data.rates.PKR) : null;
+
     if (!Number.isFinite(rate) || rate <= 0) throw new Error('PKR rate missing');
 
     return {
@@ -659,6 +732,7 @@ function computeCurrentPosition(accounts, balances) {
 function computeReconciliationTruth(accounts, balances, rows, transactions) {
   const latest = latestReconByAccount(rows);
   const latestTxn = latestTxnDateByAccount(accounts, transactions);
+
   let matched = 0;
   let stale = 0;
   let drifted = 0;
@@ -749,6 +823,7 @@ function computeAccountBalances(accounts, transactions) {
 
   const out = {};
   for (const id of Object.keys(balances)) out[id] = round2(balances[id]);
+
   return out;
 }
 
@@ -788,16 +863,17 @@ function billsDueOnDate(bills, day, now) {
   const out = [];
 
   for (const bill of bills) {
-    if (isPaidThisMonth(bill)) continue;
-
     const due = billDueDate(bill, now);
+
     if (!due || !sameDay(due, day)) continue;
+    if (isBillPaidForDueCycle(bill, due)) continue;
 
     out.push({
       id: bill.id,
       name: bill.name,
       amount: round2(number(bill.amount)),
       due_date: dateOnly(due),
+      due_cycle_month: monthKey(due),
       default_account_id: bill.default_account_id || null
     });
   }
@@ -850,10 +926,18 @@ function debtDueDate(debt, now) {
   return nextDayOfMonth(day, now);
 }
 
-function isPaidThisMonth(bill) {
-  const last = normalizeDate(bill.last_paid_date);
-  if (!last) return false;
-  return last.slice(0, 7) === new Date().toISOString().slice(0, 7);
+function isBillPaidForDueCycle(bill, dueDate) {
+  const lastPaid = parseDate(bill.last_paid_date);
+
+  if (!lastPaid || !dueDate) return false;
+
+  const explicitCycle = normalizeMonth(bill.paid_cycle_month || bill.last_paid_cycle_month || bill.covered_month);
+
+  if (explicitCycle) {
+    return explicitCycle === monthKey(dueDate);
+  }
+
+  return monthKey(lastPaid) === monthKey(dueDate);
 }
 
 function nextDayOfMonth(day, now) {
@@ -861,6 +945,7 @@ function nextDayOfMonth(day, now) {
   let candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth(), day);
 
   if (candidate < today) candidate = safeUtcDate(today.getUTCFullYear(), today.getUTCMonth() + 1, day);
+
   return candidate;
 }
 
@@ -920,6 +1005,7 @@ function parseDate(value) {
 
   const d = new Date(raw + 'T00:00:00.000Z');
   if (Number.isNaN(d.getTime())) return null;
+
   return d;
 }
 
@@ -927,6 +1013,19 @@ function normalizeDate(value) {
   const raw = text(value);
   if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
   return raw.slice(0, 10);
+}
+
+function normalizeMonth(value) {
+  const raw = text(value);
+  if (/^\d{4}-\d{2}$/.test(raw)) return raw;
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 7);
+  return null;
+}
+
+function monthKey(date) {
+  if (!date) return null;
+  if (date instanceof Date) return date.toISOString().slice(0, 7);
+  return normalizeMonth(date);
 }
 
 function dateOnly(date) {
@@ -940,6 +1039,7 @@ function startOfDay(date) {
 function daysUntil(now, dateText) {
   const d = parseDate(dateText);
   if (!d) return null;
+
   return Math.round((startOfDay(d).getTime() - startOfDay(now).getTime()) / 86400000);
 }
 
