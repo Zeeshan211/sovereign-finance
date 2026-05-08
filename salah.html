@@ -3,45 +3,70 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
-  <title>Salah - Sovereign Life OS</title>
+  <meta name="theme-color" content="#07111f" />
+  <title>Salah Cockpit - Sovereign Life OS</title>
   <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
   <style>
     :root {
-      --salah-bg: #f3f7fb;
-      --salah-ink: #0f172a;
-      --salah-muted: #64748b;
-      --salah-soft: rgba(255,255,255,.92);
-      --salah-line: rgba(15,23,42,.1);
-      --salah-blue: #2563eb;
-      --salah-green: #16a34a;
-      --salah-amber: #d97706;
-      --salah-red: #dc2626;
-      --salah-shadow: 0 20px 60px rgba(15,23,42,.12);
+      --bg: #07111f;
+      --surface: rgba(255,255,255,.085);
+      --surface-strong: rgba(255,255,255,.14);
+      --line: rgba(255,255,255,.14);
+      --line-strong: rgba(255,255,255,.22);
+      --text: #f8fafc;
+      --muted: #a8b4c6;
+      --soft: #dbe7f5;
+
+      --fajr: #7dd3fc;
+      --dhuhr: #fbbf24;
+      --asr: #fb923c;
+      --maghrib: #f472b6;
+      --isha: #a78bfa;
+      --green: #34d399;
+      --red: #fb7185;
+      --blue: #60a5fa;
+      --gold: #facc15;
+
+      --shadow: 0 24px 80px rgba(0,0,0,.36);
+      --shadow-soft: 0 12px 38px rgba(0,0,0,.22);
+      --radius: 30px;
     }
 
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
     body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
       background:
-        radial-gradient(circle at 12% 0%, rgba(37,99,235,.14), transparent 32rem),
-        radial-gradient(circle at 88% 12%, rgba(20,184,166,.14), transparent 34rem),
-        var(--salah-bg);
-      color: var(--salah-ink);
+        radial-gradient(circle at 15% 8%, rgba(125,211,252,.22), transparent 30rem),
+        radial-gradient(circle at 88% 16%, rgba(52,211,153,.16), transparent 32rem),
+        radial-gradient(circle at 50% 92%, rgba(167,139,250,.18), transparent 34rem),
+        linear-gradient(180deg, #07111f 0%, #0f172a 48%, #111827 100%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     header { display: none; }
 
-    .wrap {
-      max-width: 1180px;
-      margin: 0 auto;
-      padding: 22px;
+    button, a {
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .topbar {
+    .shell {
+      width: min(1180px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 18px 0 30px;
+    }
+
+    .nav {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 14px;
       margin-bottom: 18px;
+      animation: rise .42s ease both;
     }
 
     .brand {
@@ -51,163 +76,270 @@
     }
 
     .mark {
-      width: 46px;
-      height: 46px;
-      border-radius: 18px;
+      width: 52px;
+      height: 52px;
+      border-radius: 21px;
       display: grid;
       place-items: center;
-      background: linear-gradient(135deg, #bfdbfe, #99f6e4);
-      color: #0f172a;
-      font-weight: 950;
-      box-shadow: var(--salah-shadow);
+      font-size: 25px;
+      background:
+        radial-gradient(circle at 30% 20%, rgba(255,255,255,.45), transparent 32%),
+        linear-gradient(135deg, rgba(96,165,250,.96), rgba(52,211,153,.92));
+      box-shadow: 0 18px 48px rgba(96,165,250,.25);
     }
 
     .brand-title {
+      margin: 0;
       font-size: 16px;
-      font-weight: 950;
-      color: var(--salah-ink);
-      line-height: 1.1;
+      font-weight: 1000;
+      letter-spacing: -.03em;
     }
 
     .brand-sub {
-      margin-top: 2px;
+      margin: 2px 0 0;
+      color: var(--muted);
       font-size: 12px;
-      font-weight: 850;
-      color: var(--salah-muted);
+      font-weight: 820;
     }
 
-    .top-actions {
+    .nav-actions {
       display: flex;
       flex-wrap: wrap;
       justify-content: flex-end;
       gap: 8px;
     }
 
-    .btn {
+    .pill-btn {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.08);
+      color: var(--text);
       min-height: 40px;
+      padding: 9px 14px;
       border-radius: 999px;
-      border: 1px solid var(--salah-line);
-      background: #fff;
-      color: var(--salah-ink);
-      padding: 9px 13px;
       font-size: 12px;
       font-weight: 950;
       text-decoration: none;
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      cursor: pointer;
+      transition: transform .16s ease, background .18s ease, border-color .18s ease, opacity .18s ease;
     }
 
-    .btn.primary {
-      background: #dbeafe;
-      border-color: rgba(37,99,235,.22);
-      color: #1d4ed8;
+    .pill-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,.13);
+      border-color: var(--line-strong);
     }
 
-    .btn:disabled {
-      opacity: .55;
-      cursor: wait;
+    .pill-btn:active {
+      transform: scale(.98);
     }
 
-    .hero,
-    .panel,
-    .card {
-      background: var(--salah-soft);
-      border: 1px solid var(--salah-line);
-      border-radius: 28px;
-      box-shadow: var(--salah-shadow);
-      backdrop-filter: blur(18px);
+    .pill-btn.primary {
+      background: linear-gradient(135deg, rgba(125,211,252,.95), rgba(52,211,153,.92));
+      color: #06111f;
+      border-color: transparent;
     }
 
     .hero {
-      padding: clamp(24px, 4vw, 40px);
-      margin-bottom: 18px;
-      overflow: hidden;
       position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.055)),
+        radial-gradient(circle at 88% 12%, rgba(250,204,21,.14), transparent 22rem);
+      border-radius: 38px;
+      padding: clamp(24px, 5vw, 48px);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(22px);
+      margin-bottom: 16px;
+      animation: rise .46s ease .04s both;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      background:
+        linear-gradient(110deg, transparent 0%, rgba(255,255,255,.10) 38%, transparent 60%);
+      transform: translateX(-100%);
+      animation: sheen 4.8s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    .hero-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, .42fr);
+      gap: 24px;
+      align-items: center;
     }
 
     .kicker {
       display: inline-flex;
-      padding: 7px 11px;
+      align-items: center;
+      gap: 7px;
+      width: fit-content;
+      border: 1px solid rgba(125,211,252,.30);
+      background: rgba(125,211,252,.12);
+      color: #c7edff;
       border-radius: 999px;
-      background: rgba(37,99,235,.1);
-      color: var(--salah-blue);
-      font-size: 12px;
-      font-weight: 950;
+      padding: 7px 11px;
+      font-size: 11px;
+      font-weight: 1000;
       text-transform: uppercase;
-      letter-spacing: .08em;
-      margin-bottom: 14px;
+      letter-spacing: .09em;
+      margin-bottom: 16px;
     }
 
     h1 {
       margin: 0;
-      max-width: 860px;
-      font-size: clamp(42px, 7vw, 76px);
-      line-height: .94;
-      letter-spacing: -.07em;
-      color: var(--salah-ink);
-      font-weight: 950;
+      max-width: 760px;
+      font-size: clamp(44px, 8vw, 84px);
+      line-height: .91;
+      letter-spacing: -.075em;
+      font-weight: 1000;
     }
 
-    .copy {
-      margin-top: 16px;
-      max-width: 860px;
-      color: var(--salah-muted);
+    .hero-copy {
+      max-width: 740px;
+      margin: 18px 0 0;
+      color: var(--soft);
       font-size: 15px;
       line-height: 1.65;
       font-weight: 760;
     }
 
-    .status-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-      margin-bottom: 18px;
+    .ayah {
+      margin-top: 18px;
+      max-width: 720px;
+      border-left: 3px solid rgba(52,211,153,.72);
+      padding: 10px 0 10px 14px;
+      color: rgba(248,250,252,.88);
+      font-size: 13px;
+      line-height: 1.55;
+      font-weight: 800;
     }
 
-    .card {
-      padding: 18px;
-      min-width: 0;
-    }
-
-    .label {
-      color: var(--salah-muted);
+    .ayah span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
       font-size: 11px;
-      font-weight: 950;
+      font-weight: 850;
+    }
+
+    .focus-card {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.08);
+      border-radius: 28px;
+      padding: 18px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .focus-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 1000;
       text-transform: uppercase;
       letter-spacing: .08em;
     }
 
-    .value {
+    .focus-prayer {
       margin-top: 8px;
-      color: var(--salah-ink);
-      font-size: 22px;
-      font-weight: 950;
-      letter-spacing: -.04em;
+      font-size: 32px;
+      font-weight: 1000;
+      letter-spacing: -.055em;
+    }
+
+    .focus-note {
+      margin-top: 8px;
+      color: var(--soft);
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 760;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+      animation: rise .46s ease .08s both;
+    }
+
+    .metric,
+    .panel,
+    .prayer {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(22px);
+    }
+
+    .metric {
+      min-width: 0;
+      border-radius: 28px;
+      padding: 18px;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+
+    .metric:hover {
+      transform: translateY(-2px);
+      border-color: var(--line-strong);
+      background: var(--surface-strong);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .metric-value {
+      margin-top: 8px;
+      font-size: 28px;
+      font-weight: 1000;
+      letter-spacing: -.045em;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .blue { color: var(--salah-blue) !important; }
-    .green { color: var(--salah-green) !important; }
-    .amber { color: var(--salah-amber) !important; }
-    .red { color: var(--salah-red) !important; }
+    .metric-copy {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+      font-weight: 780;
+    }
 
-    .grid {
+    .blue { color: var(--blue); }
+    .green { color: var(--green); }
+    .gold { color: var(--gold); }
+    .red { color: var(--red); }
+
+    .main-grid {
       display: grid;
-      grid-template-columns: minmax(0,1fr) minmax(360px,.86fr);
-      gap: 18px;
-      margin-bottom: 18px;
+      grid-template-columns: minmax(0, 1fr) minmax(330px, .42fr);
+      gap: 16px;
+      align-items: start;
+      animation: rise .46s ease .12s both;
     }
 
     .panel {
+      border-radius: var(--radius);
       padding: 18px;
-      min-width: 0;
     }
 
-    .panel.wide { grid-column: 1 / -1; }
+    .side-stack {
+      display: grid;
+      gap: 16px;
+    }
 
     .panel-head {
       display: flex;
@@ -218,352 +350,556 @@
     }
 
     .panel-title {
-      color: var(--salah-ink);
       font-size: 19px;
-      font-weight: 950;
-      letter-spacing: -.02em;
+      font-weight: 1000;
+      letter-spacing: -.025em;
     }
 
     .panel-sub {
       margin-top: 3px;
-      color: var(--salah-muted);
+      color: var(--muted);
       font-size: 12px;
-      font-weight: 850;
       line-height: 1.35;
+      font-weight: 780;
     }
 
-    .prayer-grid {
+    .prayers {
       display: grid;
-      grid-template-columns: repeat(6, minmax(0,1fr));
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 12px;
+    }
+
+    .prayer {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      padding: 16px;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+
+    .prayer:hover {
+      transform: translateY(-2px);
+      border-color: var(--line-strong);
+      background: var(--surface-strong);
+    }
+
+    .prayer::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 3px;
+      opacity: .92;
+      background: var(--accent, var(--blue));
+    }
+
+    .prayer.fajr { --accent: var(--fajr); }
+    .prayer.dhuhr { --accent: var(--dhuhr); }
+    .prayer.asr { --accent: var(--asr); }
+    .prayer.maghrib { --accent: var(--maghrib); }
+    .prayer.isha { --accent: var(--isha); }
+    .prayer.jumuah { --accent: var(--green); }
+
+    .prayer.logged {
+      border-color: rgba(52,211,153,.36);
+    }
+
+    .prayer.udhr {
+      border-color: rgba(96,165,250,.38);
+    }
+
+    .prayer.qaza {
+      border-color: rgba(251,113,133,.48);
+    }
+
+    .prayer-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
       gap: 10px;
     }
 
-    .prayer-card {
-      border-radius: 22px;
-      background: #f8fafc;
-      border: 1px solid var(--salah-line);
-      padding: 14px;
-      min-height: 128px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-
-    .prayer-card.logged {
-      background: linear-gradient(180deg, rgba(22,163,74,.08), #f8fafc);
-      border-color: rgba(22,163,74,.2);
-    }
-
-    .prayer-card.udhr {
-      background: linear-gradient(180deg, rgba(37,99,235,.08), #f8fafc);
-      border-color: rgba(37,99,235,.2);
-    }
-
     .prayer-name {
-      color: var(--salah-ink);
-      font-size: 15px;
-      font-weight: 950;
+      font-size: 19px;
+      font-weight: 1000;
+      letter-spacing: -.03em;
     }
 
     .prayer-time {
       margin-top: 3px;
-      color: var(--salah-blue);
+      color: var(--accent, var(--blue));
       font-size: 12px;
       font-weight: 950;
+    }
+
+    .code-chip {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.08);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 6px 9px;
+      font-size: 10px;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      white-space: nowrap;
+    }
+
+    .code-chip.active {
+      color: #06111f;
+      border-color: transparent;
+      background: var(--accent, var(--blue));
     }
 
     .prayer-status {
-      margin-top: 8px;
-      color: var(--salah-muted);
-      font-size: 12px;
-      font-weight: 850;
-      line-height: 1.35;
-    }
-
-    .prayer-chip {
-      display: inline-flex;
-      width: fit-content;
-      margin-top: 12px;
-      border-radius: 999px;
-      padding: 6px 9px;
-      background: #fff;
-      border: 1px solid var(--salah-line);
-      color: var(--salah-muted);
-      font-size: 10px;
+      margin-top: 14px;
+      font-size: 15px;
       font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: .06em;
+      color: var(--text);
     }
 
-    .prayer-chip.good {
-      color: var(--salah-green);
-      border-color: rgba(22,163,74,.22);
-      background: rgba(22,163,74,.08);
+    .prayer-stamp {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+      font-weight: 760;
+      min-height: 30px;
     }
 
-    .prayer-chip.udhr {
-      color: var(--salah-blue);
-      border-color: rgba(37,99,235,.22);
-      background: rgba(37,99,235,.08);
+    .actions {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0,1fr));
+      gap: 8px;
+      margin-top: 14px;
     }
+
+    .logbtn {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.075);
+      color: var(--text);
+      border-radius: 15px;
+      font-size: 11px;
+      font-weight: 1000;
+      cursor: pointer;
+      transition: transform .15s ease, background .18s ease, border-color .18s ease;
+    }
+
+    .logbtn:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,.14);
+      border-color: var(--line-strong);
+    }
+
+    .logbtn:active {
+      transform: scale(.97);
+    }
+
+    .logbtn.masjid { color: var(--green); }
+    .logbtn.home { color: var(--fajr); }
+    .logbtn.work { color: var(--dhuhr); }
+    .logbtn.udhr { color: var(--blue); }
+    .logbtn.late { color: var(--gold); }
+    .logbtn.qaza { color: var(--red); }
 
     .list {
       display: grid;
-      gap: 10px;
+      gap: 9px;
     }
 
     .row {
-      display: grid;
-      grid-template-columns: minmax(0,1fr) auto;
-      gap: 10px;
-      align-items: center;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.065);
       border-radius: 18px;
-      background: #f8fafc;
-      border: 1px solid var(--salah-line);
       padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: center;
     }
 
     .row-title {
-      color: var(--salah-ink);
       font-size: 13px;
-      font-weight: 950;
+      font-weight: 1000;
     }
 
     .row-copy {
       margin-top: 3px;
-      color: var(--salah-muted);
+      color: var(--muted);
       font-size: 12px;
-      font-weight: 820;
       line-height: 1.35;
+      font-weight: 760;
     }
 
     .row-tag {
-      color: var(--salah-blue);
+      color: var(--blue);
       font-size: 11px;
-      font-weight: 950;
+      font-weight: 1000;
       white-space: nowrap;
     }
 
-    .empty {
-      background: #f8fafc;
-      border: 1px dashed rgba(15,23,42,.2);
-      border-radius: 18px;
-      padding: 24px;
-      color: var(--salah-muted);
-      font-weight: 850;
-      text-align: center;
-      line-height: 1.5;
+    .reflection {
+      border-radius: 24px;
+      border: 1px solid rgba(52,211,153,.24);
+      background:
+        radial-gradient(circle at 12% 10%, rgba(52,211,153,.16), transparent 16rem),
+        rgba(255,255,255,.07);
+      padding: 16px;
     }
 
-    .footer-note {
+    .reflection-title {
+      font-size: 15px;
+      font-weight: 1000;
+      letter-spacing: -.02em;
+    }
+
+    .reflection-copy {
+      margin-top: 8px;
+      color: var(--soft);
+      font-size: 13px;
+      line-height: 1.55;
+      font-weight: 780;
+    }
+
+    .empty {
+      border: 1px dashed rgba(255,255,255,.22);
+      background: rgba(255,255,255,.055);
+      border-radius: 20px;
+      padding: 22px;
+      color: var(--muted);
       text-align: center;
-      color: var(--salah-muted);
+      font-weight: 820;
+      line-height: 1.45;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%) translateY(120px);
+      width: min(460px, calc(100% - 28px));
+      border: 1px solid var(--line);
+      background: rgba(7,17,31,.94);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      border-radius: 18px;
+      padding: 13px 15px;
+      font-weight: 900;
+      z-index: 20;
+      opacity: 0;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .footer {
+      text-align: center;
+      color: rgba(226,232,240,.62);
       font-size: 11px;
-      font-weight: 850;
+      font-weight: 800;
       margin: 18px 0 4px;
     }
 
-    @media (max-width: 1100px) {
-      .prayer-grid {
-        grid-template-columns: repeat(3, minmax(0,1fr));
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes sheen {
+      0%, 62% { transform: translateX(-110%); }
+      100% { transform: translateX(120%); }
+    }
+
+    @media screen and (max-width: 980px) {
+      .hero-grid,
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .metrics {
+        grid-template-columns: repeat(2, minmax(0,1fr));
       }
     }
 
-    @media (max-width: 980px) {
-      .status-grid {
+    @media screen and (max-width: 700px) {
+      .shell {
+        width: min(100% - 20px, 1180px);
+      }
+
+      .nav {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .nav-actions {
+        justify-content: flex-start;
+      }
+
+      .metrics,
+      .prayers {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
         grid-template-columns: repeat(2, minmax(0,1fr));
       }
 
-      .grid {
+      .row {
         grid-template-columns: 1fr;
       }
     }
 
-    @media (max-width: 640px) {
-      .wrap { padding: 14px; }
-      .topbar { align-items: flex-start; flex-direction: column; }
-      .top-actions { justify-content: flex-start; }
-      .status-grid,
-      .prayer-grid {
-        grid-template-columns: 1fr;
+    @media print {
+      body {
+        margin: 0;
+        padding: 0.4in 0.6in;
+        background: #fff;
+        color: #111827;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
       }
-      .row {
-        grid-template-columns: 1fr;
+
+      .shell, main {
+        max-width: 100% !important;
+        width: 100% !important;
+      }
+
+      .nav, .actions, .toast {
+        display: none !important;
+      }
+
+      .hero, .metric, .panel, .prayer {
+        box-shadow: none !important;
+        border: 1px solid rgba(0,0,0,0.12);
+        background: #fff !important;
+        color: #111827 !important;
+        break-inside: avoid;
+      }
+
+      .hero, .panel {
+        margin-bottom: 20px !important;
+      }
+
+      .main-grid, .metrics, .prayers {
+        gap: 10px !important;
       }
     }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    <nav class="topbar" aria-label="Salah navigation">
+  <main class="shell">
+    <nav class="nav">
       <div class="brand">
         <div class="mark">🕌</div>
         <div>
-          <div class="brand-title">Salah Cockpit</div>
-          <div class="brand-sub">Sovereign Life OS</div>
+          <p class="brand-title">Salah Cockpit</p>
+          <p class="brand-sub">Live worship rhythm · D1 backed</p>
         </div>
       </div>
-      <div class="top-actions">
-        <a class="btn" href="/index.html">Command Centre</a>
-        <a class="btn primary" href="/salah.html">Refresh Salah</a>
+      <div class="nav-actions">
+        <a class="pill-btn" href="/index.html">Command Centre</a>
+        <button class="pill-btn primary" id="refreshBtn">Refresh</button>
       </div>
     </nav>
 
     <section class="hero">
-      <div class="kicker" id="liveBadge">Loading live Salah data</div>
-      <h1>Today’s Salah is live.</h1>
-      <p class="copy" id="heroCopy">
-        Reading today’s Salah state from D1. Finance, ledger, bills, debts, salary, and reconciliation data are not used here.
-      </p>
-    </section>
-
-    <section class="status-grid">
-      <div class="card">
-        <div class="label">Today Score</div>
-        <div class="value blue" id="scoreValue">Loading</div>
-      </div>
-      <div class="card">
-        <div class="label">Logged</div>
-        <div class="value green" id="loggedValue">Loading</div>
-      </div>
-      <div class="card">
-        <div class="label">Qaza</div>
-        <div class="value amber" id="qazaValue">Loading</div>
-      </div>
-      <div class="card">
-        <div class="label">Valid Udhr</div>
-        <div class="value blue" id="udhrValue">Loading</div>
-      </div>
-    </section>
-
-    <section class="panel wide">
-      <div class="panel-head">
+      <div class="hero-grid">
         <div>
-          <div class="panel-title">Today’s Prayers</div>
-          <div class="panel-sub" id="prayerSub">Live status from /api/salah/today.</div>
+          <div class="kicker" id="badge">Reading Salah state</div>
+          <h1>Come back to prayer.</h1>
+          <p class="hero-copy" id="heroCopy">
+            Log each prayer with a timestamp. Keep the record honest, calm, and useful.
+          </p>
+          <div class="ayah">
+            “Indeed, prayer prohibits immorality and wrongdoing, and the remembrance of Allah is greater.”
+            <span>Qur’an 29:45</span>
+          </div>
         </div>
-      </div>
-      <div class="prayer-grid" id="prayerGrid">
-        <div class="empty">Loading today’s prayers...</div>
+
+        <aside class="focus-card">
+          <div class="focus-label">Current focus</div>
+          <div class="focus-prayer" id="focusPrayer">Loading</div>
+          <div class="focus-note" id="focusNote">Finding the next prayer that needs attention.</div>
+        </aside>
       </div>
     </section>
 
-    <section class="grid">
+    <section class="metrics">
+      <article class="metric">
+        <div class="metric-label">Today Score</div>
+        <div class="metric-value blue" id="score">...</div>
+        <div class="metric-copy">A signal, not a judgment.</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Logged</div>
+        <div class="metric-value green" id="logged">...</div>
+        <div class="metric-copy">Today’s completed record.</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Qaza</div>
+        <div class="metric-value red" id="qaza">...</div>
+        <div class="metric-copy">Recovery stays visible.</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Valid Udhr</div>
+        <div class="metric-value gold" id="udhr">...</div>
+        <div class="metric-copy">Work/home concession counted clearly.</div>
+      </article>
+    </section>
+
+    <section class="main-grid">
       <div class="panel">
         <div class="panel-head">
           <div>
-            <div class="panel-title">Today’s Tally</div>
-            <div class="panel-sub">Simple operational read. No shame language, no fake streaks.</div>
+            <div class="panel-title">Today’s prayers</div>
+            <div class="panel-sub" id="daySub">Each button writes live to /api/salah/log with timestamp.</div>
           </div>
         </div>
-        <div class="list" id="tallyList">
-          <div class="empty">Loading tally...</div>
+        <div class="prayers" id="prayers">
+          <div class="empty">Loading prayers...</div>
         </div>
       </div>
 
-      <div class="panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Prayer Times</div>
-            <div class="panel-sub">Multan prayer-time snapshot from Salah source data.</div>
+      <aside class="side-stack">
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Prayer times</div>
+              <div class="panel-sub">Multan · Asia/Karachi</div>
+            </div>
+          </div>
+          <div class="list" id="times">
+            <div class="empty">Loading times...</div>
           </div>
         </div>
-        <div class="list" id="timeList">
-          <div class="empty">Loading prayer times...</div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Reflection</div>
+              <div class="panel-sub">A calm read from today’s state.</div>
+            </div>
+          </div>
+          <div class="reflection">
+            <div class="reflection-title" id="reflectionTitle">Loading reflection</div>
+            <div class="reflection-copy" id="reflectionCopy">Your Salah record will appear here once loaded.</div>
+          </div>
         </div>
-      </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Source freshness</div>
+              <div class="panel-sub">No fake state. No finance data.</div>
+            </div>
+          </div>
+          <div class="list" id="source">
+            <div class="empty">Loading source...</div>
+          </div>
+        </div>
+      </aside>
     </section>
 
-    <section class="panel wide">
-      <div class="panel-head">
-        <div>
-          <div class="panel-title">Source Freshness</div>
-          <div class="panel-sub">Shows exactly where today’s Salah data came from.</div>
-        </div>
-      </div>
-      <div class="list" id="freshnessList">
-        <div class="empty">Loading source freshness...</div>
-      </div>
-    </section>
-
-    <section class="panel wide">
-      <div class="panel-head">
-        <div>
-          <div class="panel-title">Separation Contract</div>
-          <div class="panel-sub">This page is intentionally isolated from Finance.</div>
-        </div>
-      </div>
-      <div class="list">
-        <article class="row">
-          <div>
-            <div class="row-title">No Finance contamination</div>
-            <div class="row-copy">This page does not read balances, ledger rows, bills, debts, salary, Credit Card, or reconciliation data.</div>
-          </div>
-          <div class="row-tag">Locked</div>
-        </article>
-        <article class="row">
-          <div>
-            <div class="row-title">No fake prayer data</div>
-            <div class="row-copy">If D1 has no Salah row for today, the page shows a clean empty state instead of inventing status.</div>
-          </div>
-          <div class="row-tag">Locked</div>
-        </article>
-        <article class="row">
-          <div>
-            <div class="row-title">Today-first live mode</div>
-            <div class="row-copy">Current build proves today’s D1 read path before month-sync automation is added.</div>
-          </div>
-          <div class="row-tag">Active</div>
-        </article>
-      </div>
-    </section>
-
-    <div class="footer-note">
-      v0.2.0 - Salah today-live page - D1 backed - no finance widgets - no fake future rows
+    <div class="footer">
+      Salah page v0.4.0 · Inspirational live logging · D1 backed · Finance untouched
     </div>
   </main>
 
-  <script src="/js/theme.js?v=0.7.5"></script>
-  <script>
-    const API_URL = '/api/salah/today';
+  <div class="toast" id="toast"></div>
 
-    const prayerTimesMap = {
+  <script>
+    const API_TODAY = '/api/salah/today';
+    const API_LOG = '/api/salah/log';
+
+    const PRAYER_ORDER = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha', 'jumuah'];
+    const DAILY_PRAYERS = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+
+    const PRAYER_LABELS = {
+      fajr: 'Fajr',
+      dhuhr: 'Dhuhr',
+      asr: 'Asr',
+      maghrib: 'Maghrib',
+      isha: 'Isha',
+      jumuah: 'Jumuah'
+    };
+
+    const TIME_KEYS = {
       fajr: 'fajr_time',
       dhuhr: 'dhuhr_time',
       asr: 'asr_time',
       maghrib: 'maghrib_time',
-      isha: 'isha_time',
-      jumuah: ''
+      isha: 'isha_time'
     };
 
     const els = {
-      liveBadge: document.getElementById('liveBadge'),
+      badge: document.getElementById('badge'),
       heroCopy: document.getElementById('heroCopy'),
-      scoreValue: document.getElementById('scoreValue'),
-      loggedValue: document.getElementById('loggedValue'),
-      qazaValue: document.getElementById('qazaValue'),
-      udhrValue: document.getElementById('udhrValue'),
-      prayerSub: document.getElementById('prayerSub'),
-      prayerGrid: document.getElementById('prayerGrid'),
-      tallyList: document.getElementById('tallyList'),
-      timeList: document.getElementById('timeList'),
-      freshnessList: document.getElementById('freshnessList')
+      focusPrayer: document.getElementById('focusPrayer'),
+      focusNote: document.getElementById('focusNote'),
+      score: document.getElementById('score'),
+      logged: document.getElementById('logged'),
+      qaza: document.getElementById('qaza'),
+      udhr: document.getElementById('udhr'),
+      daySub: document.getElementById('daySub'),
+      prayers: document.getElementById('prayers'),
+      times: document.getElementById('times'),
+      source: document.getElementById('source'),
+      reflectionTitle: document.getElementById('reflectionTitle'),
+      reflectionCopy: document.getElementById('reflectionCopy'),
+      toast: document.getElementById('toast'),
+      refreshBtn: document.getElementById('refreshBtn')
     };
 
-    init();
+    let state = null;
 
-    async function init() {
+    els.refreshBtn.addEventListener('click', load);
+    load();
+
+    async function load() {
       try {
-        const res = await fetch(API_URL, { cache: 'no-store' });
+        els.badge.textContent = 'Reading D1';
+        const res = await fetch(API_TODAY, { cache: 'no-store' });
         const data = await res.json();
 
         if (!res.ok || !data.ok) {
-          throw new Error(data && data.error ? data.error : 'Salah API failed');
+          throw new Error(data.error || 'Salah API failed');
         }
 
+        state = data;
         render(data);
       } catch (err) {
         renderError(err);
+      }
+    }
+
+    async function logPrayer(prayer, code) {
+      try {
+        const label = PRAYER_LABELS[prayer] || prayer;
+        toast(`Logging ${label}...`);
+
+        const res = await fetch(API_LOG, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            prayer,
+            code,
+            day: state && state.day ? state.day : undefined
+          })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || 'Log failed');
+        }
+
+        toast(data.message || `${label} logged`);
+        await load();
+      } catch (err) {
+        toast(err.message || 'Log failed');
       }
     }
 
@@ -574,121 +910,185 @@
       }
 
       const tally = data.tally || {};
-      const daily = data.daily || {};
       const freshness = data.source_freshness || {};
 
-      els.liveBadge.textContent = 'Live from D1';
-      els.heroCopy.textContent = `Showing ${data.day} from ${freshness.source_tab || 'Salah source'} · ${freshness.source_version || 'source version unknown'} · batch ${freshness.export_batch_id || 'not stamped'}.`;
+      els.badge.textContent = 'Live from D1';
+      els.heroCopy.textContent = `${data.day} · ${freshness.source_system || 'source'} · ${freshness.source_version || 'version unknown'} · tap a prayer button to update the record.`;
 
-      els.scoreValue.textContent = formatScore(tally.score);
-      els.loggedValue.textContent = `${num(tally.logged_count)} logged`;
-      els.qazaValue.textContent = `${num(tally.qaza_count)} qaza`;
-      els.udhrValue.textContent = `${num(tally.udhr_count)} udhr`;
+      els.score.textContent = formatScore(tally.score);
+      els.logged.textContent = `${num(tally.logged_count)}/5`;
+      els.qaza.textContent = `${num(tally.qaza_count)}`;
+      els.udhr.textContent = `${num(tally.udhr_count)}`;
 
-      els.prayerSub.textContent = `Day ${daily.day_of_month || ''} · ${data.day} · source updated ${shortDate(freshness.updated_at || freshness.exported_at)}`;
+      els.daySub.textContent = `${data.day} · updated ${short(freshness.updated_at || freshness.exported_at)}`;
 
+      renderFocus(data.prayers || []);
       renderPrayers(data.prayers || [], data.prayer_times || {});
-      renderTally(tally);
       renderTimes(data.prayer_times || {});
-      renderFreshness(freshness);
+      renderReflection(tally);
+      renderSource(freshness);
     }
 
     function renderEmpty(data) {
-      els.liveBadge.textContent = 'No live row for today';
-      els.heroCopy.textContent = data.message || 'Seed or sync today before showing live Salah state. No fake prayer status is displayed.';
+      els.badge.textContent = 'No live row';
+      els.heroCopy.textContent = data.message || 'Seed today first. This page will not invent Salah state.';
+      els.focusPrayer.textContent = 'Seed today';
+      els.focusNote.textContent = 'No D1 row found for today yet.';
 
-      els.scoreValue.textContent = 'No data';
-      els.loggedValue.textContent = '0 logged';
-      els.qazaValue.textContent = '0 qaza';
-      els.udhrValue.textContent = '0 udhr';
+      els.score.textContent = 'N/A';
+      els.logged.textContent = '0/5';
+      els.qaza.textContent = '0';
+      els.udhr.textContent = '0';
 
-      els.prayerSub.textContent = 'No D1 Salah row found for today.';
-      els.prayerGrid.innerHTML = '<div class="empty">No Salah data found for today. Seed or sync today first.</div>';
-      els.tallyList.innerHTML = '<div class="empty">No tally available yet.</div>';
-      els.timeList.innerHTML = '<div class="empty">No prayer-time row available yet.</div>';
-      els.freshnessList.innerHTML = '<div class="empty">No source freshness because today is not connected yet.</div>';
+      els.prayers.innerHTML = '<div class="empty">No Salah row found for today. Seed or log today first.</div>';
+      els.times.innerHTML = '<div class="empty">No prayer times found yet.</div>';
+      els.source.innerHTML = '<div class="empty">No source freshness available.</div>';
+      els.reflectionTitle.textContent = 'No live record yet';
+      els.reflectionCopy.textContent = 'Once today is seeded or logged, this page will show your real Salah state.';
     }
 
-    function renderPrayers(prayers, times) {
-      if (!prayers.length) {
-        els.prayerGrid.innerHTML = '<div class="empty">No prayer entries returned by the API.</div>';
+    function renderFocus(prayers) {
+      const byName = new Map(prayers.map(p => [p.prayer_name, p]));
+      const next = DAILY_PRAYERS.find(name => {
+        const p = byName.get(name);
+        return !p || !p.is_logged;
+      });
+
+      if (next) {
+        els.focusPrayer.textContent = PRAYER_LABELS[next];
+        els.focusNote.textContent = `This is the next prayer with no logged status yet. Keep the record honest and move cleanly.`;
         return;
       }
 
-      els.prayerGrid.innerHTML = prayers.map(prayer => {
-        const timeKey = prayerTimesMap[prayer.prayer_name] || '';
-        const time = timeKey && times ? times[timeKey] : '';
-        const loggedClass = prayer.has_valid_udhr ? 'udhr' : prayer.is_logged ? 'logged' : '';
-        const chipClass = prayer.has_valid_udhr ? 'udhr' : prayer.is_logged ? 'good' : '';
-        const status = prayer.is_logged
-          ? `${safe(prayer.location_label || prayer.raw_code || prayer.normalized_code)}${prayer.score_value !== null ? ` · ${prayer.score_value}` : ''}`
-          : 'Not logged';
+      const qaza = prayers.find(p => p.is_qaza);
+      if (qaza) {
+        els.focusPrayer.textContent = 'Recovery';
+        els.focusNote.textContent = 'A Qaza entry exists today. Keep it visible until recovery is handled.';
+        return;
+      }
+
+      els.focusPrayer.textContent = 'Hold the line';
+      els.focusNote.textContent = 'All five daily prayers have a logged status. Keep the day clean from here.';
+    }
+
+    function renderPrayers(prayers, times) {
+      const byName = new Map(prayers.map(p => [p.prayer_name, p]));
+
+      els.prayers.innerHTML = PRAYER_ORDER.map(name => {
+        const p = byName.get(name) || {
+          prayer_name: name,
+          label: PRAYER_LABELS[name],
+          is_logged: false
+        };
+
+        const time = times && TIME_KEYS[name] ? times[TIME_KEYS[name]] : '';
+        const klass = [
+          'prayer',
+          name,
+          p.is_qaza ? 'qaza' : '',
+          p.has_valid_udhr ? 'udhr' : '',
+          p.is_logged ? 'logged' : ''
+        ].filter(Boolean).join(' ');
+
+        const status = p.is_logged
+          ? `${safe(p.location_label || p.raw_code || p.normalized_code)}${p.score_value !== null && p.score_value !== undefined ? ` · ${p.score_value}` : ''}`
+          : name === 'jumuah' ? 'Friday-only bonus field' : 'Not logged yet';
+
+        const stamp = p.logged_at
+          ? `Logged at ${safe(p.logged_at)}`
+          : 'Tap a button to update this prayer with a timestamp.';
 
         return `
-          <article class="prayer-card ${loggedClass}">
-            <div>
-              <div class="prayer-name">${safe(prayer.label || prayer.prayer_name)}</div>
-              ${time ? `<div class="prayer-time">${safe(time)}</div>` : ''}
-              <div class="prayer-status">${status}</div>
+          <article class="${klass}">
+            <div class="prayer-top">
+              <div>
+                <div class="prayer-name">${safe(PRAYER_LABELS[name])}</div>
+                ${time ? `<div class="prayer-time">${safe(time)}</div>` : ''}
+              </div>
+              <div class="code-chip ${p.normalized_code ? 'active' : ''}">${safe(p.normalized_code || 'empty')}</div>
             </div>
-            <div class="prayer-chip ${chipClass}">${safe(prayer.normalized_code || 'empty')}</div>
+
+            <div class="prayer-status">${status}</div>
+            <div class="prayer-stamp">${stamp}</div>
+
+            <div class="actions">
+              <button class="logbtn masjid" onclick="logPrayer('${name}','M')">Masjid</button>
+              <button class="logbtn home" onclick="logPrayer('${name}','H')">Home</button>
+              <button class="logbtn work" onclick="logPrayer('${name}','W')">Work</button>
+              <button class="logbtn udhr" onclick="logPrayer('${name}','HU')">Home U</button>
+              <button class="logbtn udhr" onclick="logPrayer('${name}','WU')">Work U</button>
+              <button class="logbtn late" onclick="logPrayer('${name}','L')">Late</button>
+              <button class="logbtn qaza" onclick="logPrayer('${name}','Q')">Qaza</button>
+              <button class="logbtn masjid" onclick="logPrayer('${name}','J')">Jamaat</button>
+            </div>
           </article>
         `;
       }).join('');
     }
 
-    function renderTally(tally) {
-      els.tallyList.innerHTML = [
-        row('Score', formatScore(tally.score), 'Today'),
-        row('Logged prayers', `${num(tally.logged_count)} entries`, 'Live'),
-        row('Masjid', `${num(tally.masjid_count)} entries`, 'Live'),
-        row('Home', `${num(tally.home_count)} entries`, 'Live'),
-        row('Valid udhr', `${num(tally.udhr_count)} entries`, 'Live'),
-        row('Qaza', `${num(tally.qaza_count)} entries`, 'Live')
-      ].join('');
-    }
-
     function renderTimes(times) {
       if (!times || !times.day) {
-        els.timeList.innerHTML = '<div class="empty">No prayer times found for today.</div>';
+        els.times.innerHTML = '<div class="empty">No prayer-time row available.</div>';
         return;
       }
 
-      els.timeList.innerHTML = [
-        row('Fajr', times.fajr_time || 'N/A', 'Multan'),
-        row('Dhuhr', times.dhuhr_time || 'N/A', 'Multan'),
-        row('Asr', times.asr_time || 'N/A', 'Multan'),
-        row('Maghrib', times.maghrib_time || 'N/A', 'Multan'),
-        row('Isha', times.isha_time || 'N/A', 'Multan'),
-        row('Provider', `${safe(times.provider || 'unknown')} · ${safe(times.timezone || '')}`, times.is_fallback ? 'Fallback' : 'Live')
+      els.times.innerHTML = [
+        row('Fajr', times.fajr_time || 'N/A', 'dawn'),
+        row('Dhuhr', times.dhuhr_time || 'N/A', 'midday'),
+        row('Asr', times.asr_time || 'N/A', 'afternoon'),
+        row('Maghrib', times.maghrib_time || 'N/A', 'sunset'),
+        row('Isha', times.isha_time || 'N/A', 'night'),
+        row('Provider', `${times.provider || 'unknown'} · ${times.timezone || ''}`, times.is_fallback ? 'fallback' : 'source')
       ].join('');
     }
 
-    function renderFreshness(freshness) {
-      els.freshnessList.innerHTML = [
-        row('Source system', freshness.source_system || 'N/A', 'D1'),
-        row('Source tab', freshness.source_tab || 'N/A', 'Sheet'),
-        row('Source version', freshness.source_version || 'N/A', 'Logic'),
-        row('Export batch', freshness.export_batch_id || 'N/A', 'Batch'),
-        row('Exported at', shortDate(freshness.exported_at), 'Source'),
-        row('API queried at', shortDate(freshness.api_queried_at), 'Now')
+    function renderReflection(tally) {
+      const logged = num(tally.logged_count);
+      const qaza = num(tally.qaza_count);
+      const score = Number(tally.score || 0);
+
+      if (qaza > 0) {
+        els.reflectionTitle.textContent = 'Recovery is the next honest move';
+        els.reflectionCopy.textContent = 'There is Qaza on the board. Do not hide it, do not dress it up. Keep it visible and recover it cleanly.';
+        return;
+      }
+
+      if (logged >= 5) {
+        els.reflectionTitle.textContent = 'The record is complete today';
+        els.reflectionCopy.textContent = 'All five daily prayers have a logged status. The next move is simple: protect the rest of the day.';
+        return;
+      }
+
+      if (score >= 6) {
+        els.reflectionTitle.textContent = 'A strong day is forming';
+        els.reflectionCopy.textContent = 'You are above the Good line. Keep the next prayer close and do not let momentum leak.';
+        return;
+      }
+
+      els.reflectionTitle.textContent = 'Build from the next prayer';
+      els.reflectionCopy.textContent = 'No shame, no noise. The next prayer is the next opening. Log it honestly and keep moving.';
+    }
+
+    function renderSource(f) {
+      els.source.innerHTML = [
+        row('Source', f.source_system || 'N/A', 'D1'),
+        row('Tab', f.source_tab || 'N/A', 'sheet'),
+        row('Version', f.source_version || 'N/A', 'logic'),
+        row('Batch', f.export_batch_id || 'N/A', 'batch'),
+        row('Updated', short(f.updated_at || f.exported_at), 'fresh')
       ].join('');
     }
 
     function renderError(err) {
-      els.liveBadge.textContent = 'Salah API error';
-      els.heroCopy.textContent = err && err.message ? err.message : 'Unknown Salah API error.';
-
-      els.scoreValue.textContent = 'Error';
-      els.loggedValue.textContent = 'Error';
-      els.qazaValue.textContent = 'Error';
-      els.udhrValue.textContent = 'Error';
-
-      const msg = safe(err && err.message ? err.message : 'Unknown error');
-      els.prayerGrid.innerHTML = `<div class="empty">${msg}</div>`;
-      els.tallyList.innerHTML = `<div class="empty">${msg}</div>`;
-      els.timeList.innerHTML = `<div class="empty">${msg}</div>`;
-      els.freshnessList.innerHTML = `<div class="empty">${msg}</div>`;
+      els.badge.textContent = 'API error';
+      els.heroCopy.textContent = err.message || 'Unknown Salah API error.';
+      els.focusPrayer.textContent = 'Fix API';
+      els.focusNote.textContent = 'The page is loaded, but live data failed.';
+      els.prayers.innerHTML = `<div class="empty">${safe(err.message || 'Unknown error')}</div>`;
+      els.times.innerHTML = `<div class="empty">${safe(err.message || 'Unknown error')}</div>`;
+      els.source.innerHTML = `<div class="empty">${safe(err.message || 'Unknown error')}</div>`;
+      els.reflectionTitle.textContent = 'Live read failed';
+      els.reflectionCopy.textContent = 'Check /api/salah/today and paste the error.';
     }
 
     function row(title, copy, tag) {
@@ -703,11 +1103,16 @@
       `;
     }
 
+    function toast(message) {
+      els.toast.textContent = message;
+      els.toast.classList.add('show');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2300);
+    }
+
     function formatScore(value) {
-      if (value === null || value === undefined || value === '') return 'No score';
       const n = Number(value);
-      if (!Number.isFinite(n)) return 'No score';
-      return `${n.toFixed(1)}/10`;
+      return Number.isFinite(n) ? `${n.toFixed(1)}/10` : 'N/A';
     }
 
     function num(value) {
@@ -715,7 +1120,7 @@
       return Number.isFinite(n) ? n : 0;
     }
 
-    function shortDate(value) {
+    function short(value) {
       if (!value) return 'N/A';
       return String(value).replace('T', ' ').replace('Z', ' UTC');
     }
