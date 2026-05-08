@@ -1,10 +1,20 @@
-/* ─── Sovereign Finance · Data Store v0.2.3 · No silent offline writes ─── */
+/*  Sovereign Finance  Data Store v0.2.4  No fake category fallback  */
 /*
  * Layer 2 write-safety contract:
  *   - Financial writes must either reach D1 or fail loudly.
  *   - No silent offline queue for transactions.
  *   - No automatic replay of old queued writes.
  *   - UI callers still get normalized accounts/categories.
+ *
+ * v0.2.4 audit cleanup:
+ *   - Removes stale hardcoded fallback categories.
+ *   - If /api/categories fails or returns empty, categories stay [].
+ *   - This prevents old fake IDs like grocery, debt, cc_pay, salary, or other
+ *     from being offered by any caller that uses store.categories.
+ *
+ * Category source of truth:
+ *   - D1 categories table only.
+ *   - /api/categories must be live for selectable categories.
  */
 
 (function () {
@@ -12,42 +22,26 @@
   const STORAGE_KEY_TX = 'sovfin_offline_txns_v1';
 
   const FALLBACK_ACCOUNTS = [
-    { id: 'cash', name: 'Cash', icon: '💵', kind: 'cash', type: 'asset', balance: 0 },
-    { id: 'meezan', name: 'Meezan', icon: '🕌', kind: 'bank', type: 'asset', balance: 0 },
-    { id: 'mashreq', name: 'Mashreq Bank', icon: '🏛', kind: 'bank', type: 'asset', balance: 0 },
-    { id: 'ubl', name: 'UBL', icon: '🏦', kind: 'bank', type: 'asset', balance: 0 },
-    { id: 'ubl_prepaid', name: 'UBL Prepaid', icon: '💳', kind: 'prepaid', type: 'asset', balance: 0 },
-    { id: 'easypaisa', name: 'Easypaisa', icon: '📲', kind: 'wallet', type: 'asset', balance: 0 },
-    { id: 'jazzcash', name: 'JazzCash', icon: '📱', kind: 'wallet', type: 'asset', balance: 0 },
-    { id: 'naya_pay', name: 'Naya Pay', icon: '💠', kind: 'wallet', type: 'asset', balance: 0 },
-    { id: 'js_bank', name: 'JS Bank', icon: '💼', kind: 'bank', type: 'asset', balance: 0 },
-    { id: 'alfalah', name: 'Bank Alfalah', icon: '🏢', kind: 'bank', type: 'asset', balance: 0 },
-    { id: 'cc', name: 'Alfalah CC', icon: '🪪', kind: 'cc', type: 'liability', balance: 0 }
+    { id: 'cash', name: 'Cash', icon: '', kind: 'cash', type: 'asset', balance: 0 },
+    { id: 'meezan', name: 'Meezan', icon: '', kind: 'bank', type: 'asset', balance: 0 },
+    { id: 'mashreq', name: 'Mashreq Bank', icon: '', kind: 'bank', type: 'asset', balance: 0 },
+    { id: 'ubl', name: 'UBL', icon: '', kind: 'bank', type: 'asset', balance: 0 },
+    { id: 'ubl_prepaid', name: 'UBL Prepaid', icon: '', kind: 'prepaid', type: 'asset', balance: 0 },
+    { id: 'easypaisa', name: 'Easypaisa', icon: '', kind: 'wallet', type: 'asset', balance: 0 },
+    { id: 'jazzcash', name: 'JazzCash', icon: '', kind: 'wallet', type: 'asset', balance: 0 },
+    { id: 'naya_pay', name: 'Naya Pay', icon: '', kind: 'wallet', type: 'asset', balance: 0 },
+    { id: 'js_bank', name: 'JS Bank', icon: '', kind: 'bank', type: 'asset', balance: 0 },
+    { id: 'alfalah', name: 'Bank Alfalah', icon: '', kind: 'bank', type: 'asset', balance: 0 },
+    { id: 'cc', name: 'Alfalah CC', icon: '', kind: 'cc', type: 'liability', balance: 0 }
   ];
 
-  const FALLBACK_CATEGORIES = [
-    { id: 'food', name: 'Food', icon: '🍔' },
-    { id: 'grocery', name: 'Groceries', icon: '🛒' },
-    { id: 'transport', name: 'Transport', icon: '🚗' },
-    { id: 'bills', name: 'Bills', icon: '📄' },
-    { id: 'health', name: 'Health', icon: '💊' },
-    { id: 'personal', name: 'Personal', icon: '👕' },
-    { id: 'family', name: 'Family', icon: '👨‍👩‍👧' },
-    { id: 'debt', name: 'Debt Payment', icon: '💸' },
-    { id: 'cc_pay', name: 'CC Payment', icon: '💳' },
-    { id: 'cc_spend', name: 'CC Spend', icon: '🛍' },
-    { id: 'salary', name: 'Salary', icon: '💰' },
-    { id: 'transfer', name: 'Transfer', icon: '↔' },
-    { id: 'other', name: 'Other', icon: '📌' }
-  ];
+  const FALLBACK_CATEGORIES = [];
 
   function normalizeAccounts(raw) {
     if (Array.isArray(raw)) return raw.map(a => ({ ...a }));
-
     if (raw && typeof raw === 'object') {
       return Object.keys(raw).map(id => ({ id, ...raw[id] }));
     }
-
     return FALLBACK_ACCOUNTS.slice();
   }
 
@@ -73,15 +67,16 @@
   }
 
   const store = {
-    version: 'v0.2.3',
+    version: 'v0.2.4',
 
     accounts: FALLBACK_ACCOUNTS.slice(),
     accountsById: toMap(FALLBACK_ACCOUNTS),
-    categories: FALLBACK_CATEGORIES.slice(),
 
+    categories: FALLBACK_CATEGORIES.slice(),
     cachedAccounts: FALLBACK_ACCOUNTS.slice(),
     cachedAccountsById: toMap(FALLBACK_ACCOUNTS),
     cachedCategories: FALLBACK_CATEGORIES.slice(),
+
     cachedTransactions: [],
     cachedDebts: [],
     cachedBills: [],
@@ -121,7 +116,7 @@
 
         return d;
       } catch (e) {
-        console.warn('[store v0.2.3] refreshBalances failed:', e.message);
+        console.warn('[store v0.2.4] refreshBalances failed:', e.message);
 
         this.cachedAccounts = FALLBACK_ACCOUNTS.slice();
         this.cachedAccountsById = toMap(this.cachedAccounts);
@@ -145,12 +140,14 @@
 
         this.cachedCategories = normalizeCategories(d.categories);
         this.categories = this.cachedCategories;
+
         return this.categories;
       } catch (e) {
-        console.warn('[store v0.2.3] refreshCategories failed, using fallback:', e.message);
+        console.warn('[store v0.2.4] refreshCategories failed. Categories disabled until /api/categories is available:', e.message);
 
         this.cachedCategories = FALLBACK_CATEGORIES.slice();
         this.categories = this.cachedCategories;
+
         return this.categories;
       }
     },
@@ -168,7 +165,7 @@
 
         return this.cachedTransactions;
       } catch (e) {
-        console.warn('[store v0.2.3] refreshTransactions failed:', e.message);
+        console.warn('[store v0.2.4] refreshTransactions failed:', e.message);
         this.cachedTransactions = [];
         return [];
       }
@@ -184,7 +181,7 @@
         this.cachedDebts = d.debts || [];
         return this.cachedDebts;
       } catch (e) {
-        console.warn('[store v0.2.3] refreshDebts failed:', e.message);
+        console.warn('[store v0.2.4] refreshDebts failed:', e.message);
         this.cachedDebts = [];
         return [];
       }
@@ -200,7 +197,7 @@
         this.cachedBills = d.bills || [];
         return this.cachedBills;
       } catch (e) {
-        console.warn('[store v0.2.3] refreshBills failed:', e.message);
+        console.warn('[store v0.2.4] refreshBills failed:', e.message);
         this.cachedBills = [];
         return [];
       }
@@ -216,7 +213,7 @@
         this.cachedAuditLog = d.rows || d.audit || d.events || [];
         return this.cachedAuditLog;
       } catch (e) {
-        console.warn('[store v0.2.3] refreshAuditLog failed:', e.message);
+        console.warn('[store v0.2.4] refreshAuditLog failed:', e.message);
         this.cachedAuditLog = [];
         return [];
       }
@@ -369,7 +366,7 @@
     },
 
     async deleteTransaction(id) {
-      console.warn('[store v0.2.3] deleteTransaction is disabled, routing to reverseTransaction');
+      console.warn('[store v0.2.4] deleteTransaction is disabled, routing to reverseTransaction');
       return this.reverseTransaction(id, 'web-deprecated-delete');
     },
 
@@ -378,13 +375,13 @@
         'Editing transactions is disabled to preserve the audit trail.\n\n' +
         'To correct a mistake, reverse the wrong transaction and add the corrected one.';
 
-      console.warn('[store v0.2.3] editTransaction blocked for id', id);
+      console.warn('[store v0.2.4] editTransaction blocked for id', id);
 
       if (typeof alert === 'function') alert(msg);
 
       return {
         ok: false,
-        error: 'editTransaction disabled — use Reverse + new entry'
+        error: 'editTransaction disabled - use Reverse + new entry'
       };
     },
 
@@ -408,7 +405,7 @@
       const queued = this.getOfflineQueue();
 
       if (queued.length) {
-        console.warn('[store v0.2.3] offline queue is disabled. Clearing queued financial writes instead of replaying.', queued);
+        console.warn('[store v0.2.4] offline queue is disabled. Clearing queued financial writes instead of replaying.', queued);
         this.clearOfflineQueue();
       }
 
@@ -428,6 +425,6 @@
   store.refreshCategories();
 
   if (typeof window !== 'undefined') {
-    console.log('[store v0.2.3] loaded · offline write queue disabled');
+    console.log('[store v0.2.4] loaded - offline write queue disabled, category fallback disabled');
   }
 })();
