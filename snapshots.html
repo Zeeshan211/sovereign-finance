@@ -1,16 +1,13 @@
-<!doctype html>
-<html lang="en" data-theme="midnight" data-page="snapshots">
+<!DOCTYPE html>
+<html lang="en" data-page="snapshots">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0f172a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-
-  <title>Snapshots · Sovereign Finance</title>
-
+  <title>Snapshots  Sovereign Finance</title>
   <link rel="stylesheet" href="/css/app.css?v=1.0.0" />
-
   <style>
     .snap-wrap {
       max-width: 1100px;
@@ -88,6 +85,13 @@
       font-variant-numeric: tabular-nums;
     }
 
+    .snap-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
     .snap-panel {
       background: var(--surface-1);
       border: 1px solid var(--border);
@@ -110,7 +114,16 @@
       font-weight: 950;
     }
 
-    .snap-refresh {
+    .snap-panel-subtitle {
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 800;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    .snap-refresh,
+    .snap-submit {
       min-height: 42px;
       border: 1px solid var(--border-strong);
       border-radius: var(--r-md);
@@ -119,6 +132,55 @@
       padding: 10px 14px;
       font-size: 13px;
       font-weight: 950;
+      cursor: pointer;
+    }
+
+    .snap-submit {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .snap-submit:disabled,
+    .snap-refresh:disabled,
+    .snap-action:disabled {
+      opacity: 0.58;
+      cursor: not-allowed;
+    }
+
+    .snap-form {
+      display: grid;
+      gap: 10px;
+    }
+
+    .snap-label {
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .snap-input {
+      width: 100%;
+      min-height: 44px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--r-md);
+      background: #ffffff;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 14px;
+      font-weight: 800;
+      box-sizing: border-box;
+    }
+
+    .snap-help {
+      color: var(--text-dim);
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 800;
     }
 
     .snap-list {
@@ -146,7 +208,9 @@
       place-items: center;
       background: #ffffff;
       border: 1px solid var(--border);
-      font-size: 24px;
+      font-size: 20px;
+      font-weight: 950;
+      color: var(--accent);
     }
 
     .snap-title {
@@ -182,6 +246,7 @@
       font-size: 12px;
       font-weight: 950;
       white-space: nowrap;
+      cursor: pointer;
     }
 
     .snap-action.danger {
@@ -208,6 +273,99 @@
       margin-bottom: 6px;
     }
 
+    .snap-detail {
+      margin-top: 14px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 14px;
+      display: none;
+    }
+
+    .snap-detail.is-open {
+      display: block;
+    }
+
+    .snap-detail-title {
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 950;
+      margin-bottom: 8px;
+      overflow-wrap: anywhere;
+    }
+
+    .snap-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .snap-detail-chip {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 10px;
+    }
+
+    .snap-detail-chip span {
+      display: block;
+      color: var(--text-dim);
+      font-size: 10px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .snap-detail-chip strong {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 950;
+      word-break: break-word;
+    }
+
+    .snap-table-list {
+      display: grid;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .snap-table-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 8px 10px;
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .snap-status {
+      margin-top: 10px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 850;
+      line-height: 1.45;
+    }
+
+    .snap-status.good {
+      color: var(--success);
+    }
+
+    .snap-status.bad {
+      color: var(--danger);
+    }
+
+    @media (max-width: 900px) {
+      .snap-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 820px) {
       .snap-stats {
         grid-template-columns: 1fr;
@@ -222,10 +380,13 @@
         justify-content: flex-start;
         flex-wrap: wrap;
       }
+
+      .snap-detail-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
-
 <body>
   <header>
     <div>
@@ -236,41 +397,79 @@
 
   <main class="snap-wrap">
     <section class="snap-hero">
-      <div class="snap-kicker">Restore shelf</div>
+      <div class="snap-kicker">Manual safety point</div>
       <h1 class="snap-heading">Snapshots</h1>
       <p class="snap-copy">
-        Snapshots are saved recovery points before risky mutations. Hub shows live truth; this page shows restore history.
+        Snapshots are saved recovery points before risky finance work. Create one manually before changing money logic, then inspect what tables were captured. Restore remains disabled until restore rules are deliberately built.
       </p>
     </section>
 
     <section class="snap-stats">
       <div class="snap-stat">
         <div class="snap-stat-label">Snapshots</div>
-        <div id="snapCount" class="snap-stat-value">—</div>
+        <div id="snapCount" class="snap-stat-value">0</div>
       </div>
       <div class="snap-stat">
         <div class="snap-stat-label">Latest</div>
-        <div id="snapLatest" class="snap-stat-value">—</div>
+        <div id="snapLatest" class="snap-stat-value">None</div>
       </div>
       <div class="snap-stat">
         <div class="snap-stat-label">Mode</div>
-        <div class="snap-stat-value">Read Only</div>
+        <div class="snap-stat-value">Manual</div>
       </div>
     </section>
 
-    <section class="snap-panel">
-      <div class="snap-panel-head">
-        <div class="snap-panel-title">Saved Restore Points</div>
-        <button id="refreshBtn" class="snap-refresh" type="button">Refresh</button>
-      </div>
+    <section class="snap-grid">
+      <section class="snap-panel">
+        <div class="snap-panel-head">
+          <div>
+            <div class="snap-panel-title">Create Snapshot</div>
+            <div class="snap-panel-subtitle">Creates a safety point using the current snapshot endpoint.</div>
+          </div>
+        </div>
 
-      <div id="snapList" class="snap-list">
-        <div class="snap-empty">Loading snapshots…</div>
-      </div>
+        <form id="snapshotForm" class="snap-form">
+          <div>
+            <label class="snap-label" for="snapshotLabel">Label</label>
+            <input
+              id="snapshotLabel"
+              class="snap-input"
+              type="text"
+              value="manual-before-next-finance-fix"
+              maxlength="120"
+              autocomplete="off"
+            />
+          </div>
+
+          <button id="createBtn" class="snap-submit" type="submit">Create Snapshot</button>
+
+          <div class="snap-help">
+            This does not change finance rows. It writes to snapshots, snapshot_data, and audit_log only.
+          </div>
+
+          <div id="createStatus" class="snap-status"></div>
+        </form>
+
+        <div id="snapDetail" class="snap-detail"></div>
+      </section>
+
+      <section class="snap-panel">
+        <div class="snap-panel-head">
+          <div>
+            <div class="snap-panel-title">Saved Restore Points</div>
+            <div class="snap-panel-subtitle">Latest manual and automatic snapshots.</div>
+          </div>
+          <button id="refreshBtn" class="snap-refresh" type="button">Refresh</button>
+        </div>
+
+        <div id="snapList" class="snap-list">
+          <div class="snap-empty">Loading snapshots</div>
+        </div>
+      </section>
     </section>
 
     <footer class="page-footer">
-      <span class="v">v0.2.0 · layer 3 snapshots rendering · api snapshots</span>
+      <span class="v">v0.3.0  manual snapshot create  restore disabled</span>
     </footer>
   </main>
 
@@ -278,7 +477,6 @@
 
   <script src="/js/theme.js?v=0.7.5"></script>
   <script src="/js/nav.js?v=1.0.0"></script>
-
   <script>
     const $ = id => document.getElementById(id);
 
@@ -292,7 +490,7 @@
     }
 
     function fmtTime(value) {
-      if (!value) return '—';
+      if (!value) return '';
 
       const raw = String(value);
       const d = new Date(raw.includes('T') ? raw : raw.replace(' ', 'T') + 'Z');
@@ -311,11 +509,16 @@
       if (Array.isArray(data.snapshots)) return data.snapshots;
       if (Array.isArray(data.rows)) return data.rows;
       if (Array.isArray(data.items)) return data.items;
+
       return [];
     }
 
-    async function fetchJSON(url) {
-      const res = await fetch(url, { cache: 'no-store' });
+    async function fetchJSON(url, options) {
+      const res = await fetch(url, {
+        cache: 'no-store',
+        ...(options || {})
+      });
+
       const data = await res.json().catch(() => null);
 
       if (!res.ok || !data || data.ok === false) {
@@ -333,6 +536,10 @@
         'Snapshot';
     }
 
+    function idFor(snapshot) {
+      return snapshot.id || snapshot.snapshot_id || '';
+    }
+
     function createdFor(snapshot) {
       return snapshot.created_at ||
         snapshot.timestamp ||
@@ -341,72 +548,196 @@
         null;
     }
 
+    function rowCountFor(snapshot) {
+      return snapshot.row_count_total ??
+        snapshot.total_rows ??
+        snapshot.row_count ??
+        null;
+    }
+
     function metaFor(snapshot) {
       const parts = [];
+      const id = idFor(snapshot);
+      const rows = rowCountFor(snapshot);
 
-      if (snapshot.snapshot_id) parts.push('ID ' + snapshot.snapshot_id);
-      else if (snapshot.id) parts.push('ID ' + snapshot.id);
-
+      if (id) parts.push('ID ' + id);
       if (snapshot.created_by) parts.push('by ' + snapshot.created_by);
       if (snapshot.table_count != null) parts.push(snapshot.table_count + ' tables');
-      if (snapshot.row_count != null) parts.push(snapshot.row_count + ' rows');
+      if (rows != null) parts.push(rows + ' rows');
 
       const created = createdFor(snapshot);
       if (created) parts.push(fmtTime(created));
 
-      return parts.length ? parts.join(' · ') : 'Saved restore point';
+      return parts.length ? parts.join('  ') : 'Saved restore point';
+    }
+
+    function setCreateStatus(message, type) {
+      const node = $('createStatus');
+
+      node.textContent = message || '';
+      node.className = 'snap-status' + (type ? ' ' + type : '');
     }
 
     function renderSnapshots(rows) {
-      document.getElementById('snapCount').textContent = String(rows.length);
+      $('snapCount').textContent = String(rows.length);
 
       const latest = rows[0] ? createdFor(rows[0]) : null;
-      document.getElementById('snapLatest').textContent = latest ? fmtTime(latest) : 'None';
+      $('snapLatest').textContent = latest ? fmtTime(latest) : 'None';
 
       if (!rows.length) {
-        document.getElementById('snapList').innerHTML = `
+        $('snapList').innerHTML = `
           <div class="snap-empty">
             <strong>No snapshots saved yet.</strong>
-            Snapshot API is working, but there are no restore points in storage.
-            Snapshots should appear here after mutations that call the snapshot contract.
+            Create one manually before the next risky finance change.
           </div>
         `;
         return;
       }
 
-      document.getElementById('snapList').innerHTML = rows.map(snapshot => `
-        <article class="snap-card">
-          <div class="snap-icon">📸</div>
+      $('snapList').innerHTML = rows.map(snapshot => {
+        const id = idFor(snapshot);
 
-          <div>
-            <div class="snap-title">${esc(titleFor(snapshot))}</div>
-            <div class="snap-meta">${esc(metaFor(snapshot))}</div>
-          </div>
+        return `
+          <article class="snap-card">
+            <div class="snap-icon">S</div>
+            <div>
+              <div class="snap-title">${esc(titleFor(snapshot))}</div>
+              <div class="snap-meta">${esc(metaFor(snapshot))}</div>
+            </div>
+            <div class="snap-actions">
+              <button class="snap-action" type="button" data-view="${esc(id)}" ${id ? '' : 'disabled'}>View</button>
+              <button class="snap-action danger" type="button" disabled>Restore disabled</button>
+            </div>
+          </article>
+        `;
+      }).join('');
 
-          <div class="snap-actions">
-            <button class="snap-action" type="button" disabled>View</button>
-            <button class="snap-action danger" type="button" disabled>Restore</button>
+      document.querySelectorAll('[data-view]').forEach(button => {
+        button.addEventListener('click', () => {
+          const id = button.getAttribute('data-view');
+          if (id) viewSnapshot(id);
+        });
+      });
+    }
+
+    function renderSnapshotDetail(data) {
+      const detail = $('snapDetail');
+      const snapshot = data.snapshot || {};
+      const tables = Array.isArray(data.tables) ? data.tables : [];
+      const rows = data.row_count_by_table || {};
+      const id = snapshot.id || snapshot.snapshot_id || '';
+
+      detail.classList.add('is-open');
+
+      detail.innerHTML = `
+        <div class="snap-detail-title">${esc(snapshot.label || id || 'Snapshot Detail')}</div>
+
+        <div class="snap-detail-grid">
+          <div class="snap-detail-chip">
+            <span>ID</span>
+            <strong>${esc(id || 'N/A')}</strong>
           </div>
-        </article>
-      `).join('');
+          <div class="snap-detail-chip">
+            <span>Created</span>
+            <strong>${esc(fmtTime(snapshot.created_at || snapshot.timestamp || ''))}</strong>
+          </div>
+          <div class="snap-detail-chip">
+            <span>Tables</span>
+            <strong>${esc(data.table_count ?? tables.length)}</strong>
+          </div>
+          <div class="snap-detail-chip">
+            <span>Rows</span>
+            <strong>${esc(snapshot.row_count_total ?? data.total_rows ?? 'N/A')}</strong>
+          </div>
+        </div>
+
+        <div class="snap-help">
+          Restore is intentionally disabled. This screen is for inspecting what was captured.
+        </div>
+
+        <div class="snap-table-list">
+          ${tables.length ? tables.map(row => `
+            <div class="snap-table-row">
+              <span>${esc(row.table_name || row.t || 'table')}</span>
+              <strong>${esc(row.row_count ?? row.n ?? rows[row.table_name] ?? 0)} rows</strong>
+            </div>
+          `).join('') : '<div class="snap-empty">No table rows found for this snapshot.</div>'}
+        </div>
+      `;
+    }
+
+    async function viewSnapshot(id) {
+      const detail = $('snapDetail');
+
+      detail.classList.add('is-open');
+      detail.innerHTML = '<div class="snap-empty">Loading snapshot detail</div>';
+
+      try {
+        const data = await fetchJSON('/api/snapshots?id=' + encodeURIComponent(id));
+        renderSnapshotDetail(data);
+      } catch (err) {
+        detail.innerHTML = `<div class="snap-empty"><strong>Snapshot detail failed.</strong>${esc(err.message)}</div>`;
+      }
     }
 
     async function loadSnapshots() {
-      document.getElementById('snapList').innerHTML = '<div class="snap-empty">Loading snapshots…</div>';
+      $('snapList').innerHTML = '<div class="snap-empty">Loading snapshots</div>';
 
       try {
         const data = await fetchJSON('/api/snapshots');
         const rows = normalizeSnapshots(data);
-
         renderSnapshots(rows);
       } catch (err) {
-        document.getElementById('snapCount').textContent = '0';
-        document.getElementById('snapLatest').textContent = 'Error';
-        document.getElementById('snapList').innerHTML = `<div class="snap-empty"><strong>Snapshots failed.</strong>${esc(err.message)}</div>`;
+        $('snapCount').textContent = '0';
+        $('snapLatest').textContent = 'Error';
+        $('snapList').innerHTML = `<div class="snap-empty"><strong>Snapshots failed.</strong>${esc(err.message)}</div>`;
       }
     }
 
-    document.getElementById('refreshBtn').addEventListener('click', loadSnapshots);
+    async function createSnapshot(event) {
+      event.preventDefault();
+
+      const label = $('snapshotLabel').value.trim();
+
+      if (!label) {
+        setCreateStatus('Label required.', 'bad');
+        return;
+      }
+
+      $('createBtn').disabled = true;
+      setCreateStatus('Creating snapshot...', '');
+
+      try {
+        const data = await fetchJSON('/api/snapshots', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json'
+          },
+          body: JSON.stringify({
+            label,
+            created_by: 'operator'
+          })
+        });
+
+        const snap = data.snapshot || {};
+        const id = snap.snapshot_id || snap.id || '';
+
+        setCreateStatus(id ? 'Snapshot created: ' + id : 'Snapshot created.', 'good');
+
+        await loadSnapshots();
+
+        if (id) {
+          await viewSnapshot(id);
+        }
+      } catch (err) {
+        setCreateStatus(err.message, 'bad');
+      } finally {
+        $('createBtn').disabled = false;
+      }
+    }
+
+    $('refreshBtn').addEventListener('click', loadSnapshots);
+    $('snapshotForm').addEventListener('submit', createSnapshot);
 
     loadSnapshots();
   </script>
