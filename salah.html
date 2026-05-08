@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Salah - Sovereign Life OS</title>
+  <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
+  <style>
+    :root {
+      --salah-bg: #f3f7fb;
+      --salah-ink: #0f172a;
+      --salah-muted: #64748b;
+      --salah-soft: rgba(255,255,255,.9);
+      --salah-line: rgba(15,23,42,.1);
+      --salah-blue: #2563eb;
+      --salah-green: #16a34a;
+      --salah-amber: #d97706;
+      --salah-shadow: 0 20px 60px rgba(15,23,42,.12);
+    }
+
+    body {
+      background:
+        radial-gradient(circle at 12% 0%, rgba(37,99,235,.14), transparent 32rem),
+        radial-gradient(circle at 88% 12%, rgba(20,184,166,.14), transparent 34rem),
+        var(--salah-bg);
+      color: var(--salah-ink);
+    }
+
+    header { display: none; }
+
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .mark {
+      width: 46px;
+      height: 46px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #bfdbfe, #99f6e4);
+      color: #0f172a;
+      font-weight: 950;
+      box-shadow: var(--salah-shadow);
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 950;
+      color: var(--salah-ink);
+      line-height: 1.1;
+    }
+
+    .brand-sub {
+      margin-top: 2px;
+      font-size: 12px;
+      font-weight: 850;
+      color: var(--salah-muted);
+    }
+
+    .top-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .btn {
+      min-height: 40px;
+      border-radius: 999px;
+      border: 1px solid var(--salah-line);
+      background: #fff;
+      color: var(--salah-ink);
+      padding: 9px 13px;
+      font-size: 12px;
+      font-weight: 950;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .btn.primary {
+      background: #dbeafe;
+      border-color: rgba(37,99,235,.22);
+      color: #1d4ed8;
+    }
+
+    .hero,
+    .panel,
+    .card {
+      background: var(--salah-soft);
+      border: 1px solid var(--salah-line);
+      border-radius: 28px;
+      box-shadow: var(--salah-shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .hero {
+      padding: clamp(24px, 4vw, 40px);
+      margin-bottom: 18px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .kicker {
+      display: inline-flex;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(37,99,235,.1);
+      color: var(--salah-blue);
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 860px;
+      font-size: clamp(42px, 7vw, 76px);
+      line-height: .94;
+      letter-spacing: -.07em;
+      color: var(--salah-ink);
+      font-weight: 950;
+    }
+
+    .copy {
+      margin-top: 16px;
+      max-width: 820px;
+      color: var(--salah-muted);
+      font-size: 15px;
+      line-height: 1.65;
+      font-weight: 760;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      padding: 18px;
+      min-width: 0;
+    }
+
+    .label {
+      color: var(--salah-muted);
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .value {
+      margin-top: 8px;
+      color: var(--salah-ink);
+      font-size: 22px;
+      font-weight: 950;
+      letter-spacing: -.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .blue { color: var(--salah-blue) !important; }
+    .green { color: var(--salah-green) !important; }
+    .amber { color: var(--salah-amber) !important; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) minmax(360px,.86fr);
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      padding: 18px;
+      min-width: 0;
+    }
+
+    .panel.wide { grid-column: 1 / -1; }
+
+    .panel-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .panel-title {
+      color: var(--salah-ink);
+      font-size: 19px;
+      font-weight: 950;
+      letter-spacing: -.02em;
+    }
+
+    .panel-sub {
+      margin-top: 3px;
+      color: var(--salah-muted);
+      font-size: 12px;
+      font-weight: 850;
+      line-height: 1.35;
+    }
+
+    .prayer-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap: 10px;
+    }
+
+    .prayer-card {
+      border-radius: 22px;
+      background: #f8fafc;
+      border: 1px solid var(--salah-line);
+      padding: 14px;
+      min-height: 116px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .prayer-name {
+      color: var(--salah-ink);
+      font-size: 15px;
+      font-weight: 950;
+    }
+
+    .prayer-status {
+      margin-top: 8px;
+      color: var(--salah-muted);
+      font-size: 12px;
+      font-weight: 850;
+      line-height: 1.35;
+    }
+
+    .prayer-chip {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 12px;
+      border-radius: 999px;
+      padding: 6px 9px;
+      background: #fff;
+      border: 1px solid var(--salah-line);
+      color: var(--salah-muted);
+      font-size: 10px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) auto;
+      gap: 10px;
+      align-items: center;
+      border-radius: 18px;
+      background: #f8fafc;
+      border: 1px solid var(--salah-line);
+      padding: 12px;
+    }
+
+    .row-title {
+      color: var(--salah-ink);
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .row-copy {
+      margin-top: 3px;
+      color: var(--salah-muted);
+      font-size: 12px;
+      font-weight: 820;
+      line-height: 1.35;
+    }
+
+    .row-tag {
+      color: var(--salah-blue);
+      font-size: 11px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .empty {
+      background: #f8fafc;
+      border: 1px dashed rgba(15,23,42,.2);
+      border-radius: 18px;
+      padding: 24px;
+      color: var(--salah-muted);
+      font-weight: 850;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .footer-note {
+      text-align: center;
+      color: var(--salah-muted);
+      font-size: 11px;
+      font-weight: 850;
+      margin: 18px 0 4px;
+    }
+
+    @media (max-width: 980px) {
+      .status-grid,
+      .prayer-grid {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .wrap { padding: 14px; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .top-actions { justify-content: flex-start; }
+      .status-grid,
+      .prayer-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <nav class="topbar" aria-label="Salah navigation">
+      <div class="brand">
+        <div class="mark">S</div>
+        <div>
+          <div class="brand-title">Salah Cockpit</div>
+          <div class="brand-sub">Sovereign Life OS</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <a class="btn" href="/index.html">Command Centre</a>
+        <a class="btn primary" href="/salah.html">Salah</a>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div class="kicker">Salah Shell v0.1</div>
+      <h1>Salah is its own cockpit.</h1>
+      <p class="copy">
+        This section is intentionally separate from Finance. No balances, bills, debts, forecasts, or money widgets appear here.
+        Live prayer data is not connected yet, so this shell shows structure only: today, recovery, streaks, reflection, and future insights.
+      </p>
+    </section>
+
+    <section class="status-grid">
+      <div class="card">
+        <div class="label">Today Status</div>
+        <div class="value blue">Pending Export</div>
+      </div>
+      <div class="card">
+        <div class="label">Recovery</div>
+        <div class="value amber">Queued</div>
+      </div>
+      <div class="card">
+        <div class="label">Streaks</div>
+        <div class="value blue">Not Connected</div>
+      </div>
+      <div class="card">
+        <div class="label">Insights</div>
+        <div class="value green">Planned</div>
+      </div>
+    </section>
+
+    <section class="panel wide">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Today’s Prayers</div>
+          <div class="panel-sub">Placeholder structure only. No fake prayer state.</div>
+        </div>
+      </div>
+
+      <div class="prayer-grid">
+        <article class="prayer-card">
+          <div>
+            <div class="prayer-name">Fajr</div>
+            <div class="prayer-status">Live status will appear after Salah export.</div>
+          </div>
+          <div class="prayer-chip">Awaiting data</div>
+        </article>
+
+        <article class="prayer-card">
+          <div>
+            <div class="prayer-name">Dhuhr</div>
+            <div class="prayer-status">No fake completion status shown.</div>
+          </div>
+          <div class="prayer-chip">Awaiting data</div>
+        </article>
+
+        <article class="prayer-card">
+          <div>
+            <div class="prayer-name">Asr</div>
+            <div class="prayer-status">Recovery logic will be added after API.</div>
+          </div>
+          <div class="prayer-chip">Awaiting data</div>
+        </article>
+
+        <article class="prayer-card">
+          <div>
+            <div class="prayer-name">Maghrib</div>
+            <div class="prayer-status">Timeline stays separate from Finance.</div>
+          </div>
+          <div class="prayer-chip">Awaiting data</div>
+        </article>
+
+        <article class="prayer-card">
+          <div>
+            <div class="prayer-name">Isha</div>
+            <div class="prayer-status">Reflection appears only when real data exists.</div>
+          </div>
+          <div class="prayer-chip">Awaiting data</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Recovery Lane</div>
+            <div class="panel-sub">For missed/Qaza recovery, without shame language.</div>
+          </div>
+        </div>
+
+        <div class="list">
+          <article class="row">
+            <div>
+              <div class="row-title">Recovery status</div>
+              <div class="row-copy">Will read missed prayer recovery data after the Salah API exists.</div>
+            </div>
+            <div class="row-tag">Planned</div>
+          </article>
+
+          <article class="row">
+            <div>
+              <div class="row-title">Next best action</div>
+              <div class="row-copy">Will suggest the next clean action only from real logged data.</div>
+            </div>
+            <div class="row-tag">Planned</div>
+          </article>
+
+          <article class="row">
+            <div>
+              <div class="row-title">Weekly weak point</div>
+              <div class="row-copy">Will identify recurring weak prayers after enough history is available.</div>
+            </div>
+            <div class="row-tag">Planned</div>
+          </article>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div>
+            <div class="panel-title">Salah Export Plan</div>
+            <div class="panel-sub">Next implementation layer.</div>
+          </div>
+        </div>
+
+        <div class="list">
+          <article class="row">
+            <div>
+              <div class="row-title">D1 schema</div>
+              <div class="row-copy">salah_logs, salah_daily_status, salah_recovery, salah_insights.</div>
+            </div>
+            <div class="row-tag">Layer 2A</div>
+          </article>
+
+          <article class="row">
+            <div>
+              <div class="row-title">API</div>
+              <div class="row-copy">/api/salah/today and /api/salah/insights.</div>
+            </div>
+            <div class="row-tag">Layer 2B</div>
+          </article>
+
+          <article class="row">
+            <div>
+              <div class="row-title">Live UI</div>
+              <div class="row-copy">Replace placeholders only after real API returns real prayer data.</div>
+            </div>
+            <div class="row-tag">Layer 2C</div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel wide">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Separation Contract</div>
+          <div class="panel-sub">This is the rule that protects Life OS from becoming messy.</div>
+        </div>
+      </div>
+
+      <div class="list">
+        <article class="row">
+          <div>
+            <div class="row-title">No Finance contamination</div>
+            <div class="row-copy">Salah will not display balances, ledger rows, bills, debts, salary, Credit Card, or reconciliation data.</div>
+          </div>
+          <div class="row-tag">Locked</div>
+        </article>
+
+        <article class="row">
+          <div>
+            <div class="row-title">No fake prayer data</div>
+            <div class="row-copy">Until the Google Sheet export/API is live, this page shows placeholders only.</div>
+          </div>
+          <div class="row-tag">Locked</div>
+        </article>
+
+        <article class="row">
+          <div>
+            <div class="row-title">AI reads summaries later</div>
+            <div class="row-copy">AI Curator can later read Salah summary state, but not invent prayer status.</div>
+          </div>
+          <div class="row-tag">Locked</div>
+        </article>
+      </div>
+    </section>
+
+    <div class="footer-note">
+      v0.1.0 - Salah Cockpit Shell - separate domain - no finance widgets - no fake Salah data - no schema changes
+    </div>
+  </main>
+
+  <script src="/js/theme.js?v=0.7.5"></script>
+</body>
+</html>
