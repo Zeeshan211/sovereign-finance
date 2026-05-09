@@ -1,1731 +1,669 @@
 <!DOCTYPE html>
-<html lang="en" data-page="forecast">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <title>Sovereign Finance  Forecast</title>
-
-  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
-
-  <style>
-    :root {
-      --fc-ink: #0f172a;
-      --fc-muted: #64748b;
-      --fc-line: rgba(148, 163, 184, 0.24);
-      --fc-card: rgba(255, 255, 255, 0.92);
-      --fc-green: #16a34a;
-      --fc-blue: #2563eb;
-      --fc-amber: #d97706;
-      --fc-red: #dc2626;
-      --fc-shadow: 0 20px 56px rgba(15, 23, 42, 0.12);
-      --fc-radius: 28px;
-    }
-
-    html, body {
-      margin: 0;
-      max-width: 100%;
-      overflow-x: hidden;
-    }
-
-    body {
-      background:
-        radial-gradient(circle at 10% -10%, rgba(34, 197, 94, 0.16), transparent 34rem),
-        radial-gradient(circle at 90% 0%, rgba(37, 99, 235, 0.15), transparent 34rem),
-        #eef4ff;
-      color: var(--fc-ink);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
-    * {
-      box-sizing: border-box;
-      min-width: 0;
-    }
-
-    .forecast-page {
-      width: 100%;
-      max-width: var(--sf-content-max, 1440px);
-      margin: 0 auto;
-      padding: 24px 16px 96px;
-    }
-
-    .forecast-hero {
-      position: relative;
-      overflow: hidden;
-      border-radius: 34px;
-      padding: 24px;
-      margin: 8px 0 18px;
-      color: #f8fafc;
-      background:
-        linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95)),
-        radial-gradient(circle at top right, rgba(34, 197, 94, 0.26), transparent 28rem);
-      box-shadow: var(--fc-shadow);
-      border: 1px solid rgba(255, 255, 255, 0.10);
-    }
-
-    .forecast-hero::after {
-      content: "";
-      position: absolute;
-      inset: auto -80px -130px auto;
-      width: 360px;
-      height: 360px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(34, 197, 94, 0.26), transparent 68%);
-      pointer-events: none;
-    }
-
-    .hero-top {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 18px;
-    }
-
-    .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 10px;
-      color: #bbf7d0;
-      font-size: 12px;
-      font-weight: 950;
-      letter-spacing: 0.10em;
-      text-transform: uppercase;
-    }
-
-    .eyebrow-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #22c55e;
-      box-shadow: 0 0 18px rgba(34, 197, 94, 0.8);
-    }
-
-    .forecast-title {
-      margin: 0;
-      font-size: clamp(32px, 5vw, 58px);
-      line-height: 0.98;
-      letter-spacing: -0.06em;
-      font-weight: 950;
-    }
-
-    .forecast-subtitle {
-      max-width: 760px;
-      margin: 12px 0 0;
-      color: #cbd5e1;
-      font-size: 15px;
-      line-height: 1.5;
-      font-weight: 700;
-    }
-
-    .hero-status {
-      min-width: 220px;
-      padding: 14px;
-      border-radius: 22px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      backdrop-filter: blur(16px);
-    }
-
-    .hero-status-label {
-      color: #cbd5e1;
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.10em;
-    }
-
-    .hero-status-value {
-      margin-top: 8px;
-      color: #ffffff;
-      font-size: 20px;
-      font-weight: 950;
-      letter-spacing: -0.03em;
-    }
-
-    .hero-status-note {
-      margin-top: 4px;
-      color: #94a3b8;
-      font-size: 12px;
-      font-weight: 750;
-    }
-
-    .scenario-strip {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 22px;
-    }
-
-    .scenario-card {
-      min-width: 0;
-      padding: 15px;
-      border-radius: 22px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-    }
-
-    .scenario-label {
-      color: #cbd5e1;
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .scenario-value {
-      margin-top: 8px;
-      font-size: 24px;
-      font-weight: 950;
-      letter-spacing: -0.04em;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .scenario-note {
-      margin-top: 5px;
-      color: #94a3b8;
-      font-size: 12px;
-      font-weight: 750;
-    }
-
-    .forecast-authority {
-      margin: 0 0 18px;
-      padding: 16px;
-      border-radius: 24px;
-      border: 1px solid rgba(245, 158, 11, 0.28);
-      background: linear-gradient(180deg, rgba(255, 251, 235, 0.96), rgba(255, 255, 255, 0.96));
-      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
-      display: grid;
-      gap: 8px;
-    }
-
-    .forecast-authority.pass {
-      border-color: rgba(34, 197, 94, 0.28);
-      background: linear-gradient(180deg, rgba(240, 253, 244, 0.96), rgba(255, 255, 255, 0.96));
-    }
-
-    .forecast-authority.blocked,
-    .forecast-authority.unknown {
-      border-color: rgba(220, 38, 38, 0.24);
-      background: linear-gradient(180deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.96));
-    }
-
-    .forecast-authority-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    .forecast-authority-title {
-      color: var(--fc-ink);
-      font-size: 15px;
-      font-weight: 950;
-    }
-
-    .forecast-authority-pill {
-      display: inline-flex;
-      align-items: center;
-      min-height: 30px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(15, 23, 42, 0.08);
-      color: var(--fc-ink);
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
-    .forecast-authority-copy {
-      margin: 0;
-      color: var(--fc-muted);
-      font-size: 12px;
-      line-height: 1.45;
-      font-weight: 800;
-    }
-
-    .forecast-block {
-      margin-bottom: 18px;
-      padding: 14px;
-      border-radius: 18px;
-      background: rgba(254, 242, 242, 0.88);
-      border: 1px solid rgba(220, 38, 38, 0.22);
-      color: #7f1d1d;
-      font-size: 12px;
-      font-weight: 850;
-      line-height: 1.45;
-      display: grid;
-      gap: 5px;
-    }
-
-    .forecast-block strong {
-      font-weight: 950;
-    }
-
-    .kpi-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-      margin: 18px 0;
-    }
-
-    .kpi-card,
-    .panel,
-    .loading-shell {
-      min-width: 0;
-      border-radius: var(--fc-radius);
-      background: var(--fc-card);
-      border: 1px solid var(--fc-line);
-      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
-    }
-
-    .kpi-card {
-      padding: 18px;
-    }
-
-    .kpi-label {
-      color: var(--fc-muted);
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .kpi-value {
-      margin-top: 10px;
-      color: var(--fc-ink);
-      font-size: 26px;
-      font-weight: 950;
-      letter-spacing: -0.045em;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .kpi-note {
-      margin-top: 7px;
-      color: var(--fc-muted);
-      font-size: 12px;
-      font-weight: 750;
-      line-height: 1.35;
-    }
-
-    .kpi-card.good {
-      background: linear-gradient(180deg, rgba(240, 253, 244, 0.96), rgba(255, 255, 255, 0.96));
-      border-color: rgba(34, 197, 94, 0.28);
-    }
-
-    .kpi-card.warn {
-      background: linear-gradient(180deg, rgba(255, 251, 235, 0.96), rgba(255, 255, 255, 0.96));
-      border-color: rgba(217, 119, 6, 0.26);
-    }
-
-    .kpi-card.bad {
-      background: linear-gradient(180deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.96));
-      border-color: rgba(220, 38, 38, 0.22);
-    }
-
-    .main-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.75fr);
-      gap: 18px;
-      align-items: start;
-    }
-
-    .panel {
-      overflow: hidden;
-    }
-
-    .panel-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 18px 18px 0;
-    }
-
-    .panel-title {
-      margin: 0;
-      color: var(--fc-ink);
-      font-size: 18px;
-      font-weight: 950;
-      letter-spacing: -0.03em;
-    }
-
-    .panel-sub {
-      margin: 5px 0 0;
-      color: var(--fc-muted);
-      font-size: 13px;
-      font-weight: 750;
-      line-height: 1.4;
-    }
-
-    .panel-body {
-      padding: 18px;
-    }
-
-    .forecast-bars {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 10px;
-      align-items: end;
-      min-height: 260px;
-      padding: 12px 4px 0;
-    }
-
-    .bar-wrap {
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end;
-      min-width: 0;
-      height: 240px;
-    }
-
-    .bar {
-      width: 100%;
-      min-height: 8px;
-      border-radius: 16px 16px 8px 8px;
-      background: linear-gradient(180deg, #22c55e, #16a34a);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 8px 18px rgba(34, 197, 94, 0.20);
-      transform-origin: bottom;
-      animation: rise 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
-    }
-
-    .bar.warn {
-      background: linear-gradient(180deg, #f59e0b, #d97706);
-      box-shadow: 0 8px 18px rgba(217, 119, 6, 0.20);
-    }
-
-    .bar.bad {
-      background: linear-gradient(180deg, #ef4444, #dc2626);
-      box-shadow: 0 8px 18px rgba(220, 38, 38, 0.18);
-    }
-
-    @keyframes rise {
-      from { transform: scaleY(0.2); opacity: 0.4; }
-      to { transform: scaleY(1); opacity: 1; }
-    }
-
-    .bar-label,
-    .bar-value {
-      text-align: center;
-      white-space: nowrap;
-      font-weight: 950;
-      font-size: 11px;
-    }
-
-    .bar-label {
-      margin-top: 9px;
-      color: var(--fc-muted);
-    }
-
-    .bar-value {
-      margin-top: 4px;
-      color: var(--fc-ink);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .insight-list,
-    .mini-table {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .insight {
-      display: grid;
-      grid-template-columns: 10px minmax(0, 1fr);
-      gap: 10px;
-      padding: 13px;
-      border-radius: 18px;
-      background: #f8fafc;
-      border: 1px solid rgba(148, 163, 184, 0.20);
-    }
-
-    .insight-dot {
-      width: 10px;
-      height: 10px;
-      margin-top: 5px;
-      border-radius: 50%;
-      background: var(--fc-blue);
-    }
-
-    .insight.good .insight-dot { background: var(--fc-green); }
-    .insight.warn .insight-dot { background: var(--fc-amber); }
-    .insight.bad .insight-dot { background: var(--fc-red); }
-
-    .insight-title {
-      color: var(--fc-ink);
-      font-size: 13px;
-      font-weight: 950;
-      line-height: 1.3;
-    }
-
-    .insight-text {
-      margin-top: 3px;
-      color: var(--fc-muted);
-      font-size: 12px;
-      font-weight: 750;
-      line-height: 1.4;
-    }
-
-    .stack {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .mini-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: center;
-      padding: 12px;
-      border-radius: 16px;
-      background: #f8fafc;
-      border: 1px solid rgba(148, 163, 184, 0.18);
-    }
-
-    .mini-name {
-      color: var(--fc-ink);
-      font-size: 13px;
-      font-weight: 950;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-
-    .mini-sub {
-      margin-top: 3px;
-      color: var(--fc-muted);
-      font-size: 11px;
-      font-weight: 750;
-    }
-
-    .mini-value {
-      color: var(--fc-ink);
-      font-size: 13px;
-      font-weight: 950;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-
-    .empty {
-      padding: 18px;
-      border-radius: 18px;
-      background: #f8fafc;
-      border: 1px dashed rgba(148, 163, 184, 0.34);
-      color: var(--fc-muted);
-      font-size: 13px;
-      font-weight: 800;
-      line-height: 1.45;
-    }
-
-    .loading-shell {
-      display: grid;
-      place-items: center;
-      min-height: 360px;
-      color: var(--fc-muted);
-      font-size: 14px;
-      font-weight: 900;
-      text-align: center;
-      padding: 24px;
-    }
-
-    .sr-only-debug {
-      display: none !important;
-    }
-
-    @media (max-width: 1100px) {
-      .kpi-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .main-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .scenario-strip {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 700px) {
-      .forecast-page {
-        padding-left: 10px;
-        padding-right: 10px;
-      }
-
-      .forecast-hero {
-        padding: 20px;
-        border-radius: 28px;
-      }
-
-      .hero-top {
-        flex-direction: column;
-      }
-
-      .hero-status {
-        width: 100%;
-      }
-
-      .kpi-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .forecast-bars {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        min-height: 220px;
-      }
-
-      .bar-wrap {
-        height: 190px;
-      }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Forecast - Sovereign Finance</title>
+<link rel="stylesheet" href="/css/app.css?v=2.0.0" />
+
+<style>
+.forecast-page {
+  max-width: 1480px;
+}
+
+.forecast-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.forecast-side {
+  display: grid;
+  gap: 14px;
+}
+
+.forecast-card {
+  padding: 18px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-md);
+}
+
+.forecast-card-title {
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
+
+.forecast-card-copy {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 760;
+}
+
+.forecast-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.forecast-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.forecast-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 26px 0 14px;
+}
+
+.forecast-section-title {
+  color: var(--text-strong);
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+}
+
+.forecast-section-copy {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.forecast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.forecast-enforcement {
+  padding: 16px;
+  border-radius: var(--r-xl);
+  border: 1px solid rgba(185, 28, 28, 0.22);
+  background: linear-gradient(135deg, var(--danger-soft), var(--surface-1));
+  color: var(--danger);
+  box-shadow: var(--shadow-sm);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 790;
+}
+
+.forecast-enforcement.pass {
+  border-color: rgba(4, 120, 87, 0.24);
+  background: linear-gradient(135deg, var(--success-soft), var(--surface-1));
+  color: var(--success);
+}
+
+.forecast-enforcement.preflight {
+  border-color: rgba(180, 83, 9, 0.24);
+  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
+  color: var(--warn);
+}
+
+.forecast-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.forecast-lane {
+  display: grid;
+  gap: 12px;
+}
+
+.forecast-row {
+  position: relative;
+  overflow: hidden;
+  padding: 16px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.forecast-row::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--info), transparent);
+}
+
+.forecast-row.safe::before {
+  background: linear-gradient(90deg, var(--accent), transparent);
+}
+
+.forecast-row.warning::before {
+  background: linear-gradient(90deg, var(--warn), transparent);
+}
+
+.forecast-row.blocked::before {
+  background: linear-gradient(90deg, var(--danger), transparent);
+}
+
+.forecast-row-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.forecast-row-title {
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
+
+.forecast-row-sub {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.forecast-row-value {
+  margin-top: 14px;
+  color: var(--text-strong);
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: -0.06em;
+}
+
+.forecast-row-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.forecast-meta-item {
+  padding: 11px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.forecast-meta-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.forecast-meta-value {
+  margin-top: 4px;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.forecast-proof {
+  margin-top: 12px;
+  padding: 11px;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1.42;
+}
+
+.forecast-panel-list {
+  display: grid;
+  gap: 10px;
+}
+
+.forecast-panel-row {
+  padding: 13px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.forecast-panel-title {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 920;
+}
+
+.forecast-panel-copy {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 740;
+}
+
+.forecast-empty {
+  padding: 28px;
+  border-radius: var(--r-xl);
+  border: 1px dashed var(--border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 820;
+  text-align: center;
+}
+
+.forecast-page-meta {
+  display: none !important;
+}
+
+@media (max-width: 1180px) {
+  .forecast-hero-grid,
+  .forecast-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .forecast-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .forecast-kpi-grid,
+  .forecast-row-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .forecast-section-head,
+  .forecast-row-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .forecast-actions,
+  .forecast-actions .btn {
+    width: 100%;
+  }
+}
+</style>
 </head>
 
 <body>
-  <main class="forecast-page app-page">
-    <section class="forecast-hero">
-      <div class="hero-top">
-        <div>
-          <div class="eyebrow"><span class="eyebrow-dot"></span> Forecast</div>
-          <h1 class="forecast-title">Know the next cash pressure before it arrives.</h1>
-          <p class="forecast-subtitle">
-            A clean 90-day view of available cash, upcoming obligations, salary timing, and the next pressure point.
-            Forecast generation obeys Command Centre readiness.
-          </p>
-        </div>
+<header>
+<div>
+<div class="brand">Sovereign Finance</div>
+<div class="title">Forecast</div>
+</div>
+</header>
 
-        <div class="hero-status">
-          <div class="hero-status-label">Forecast status</div>
-          <div class="hero-status-value" id="heroStatus">Loading</div>
-          <div class="hero-status-note" id="heroStatusNote">Reading Command Centre.</div>
-        </div>
-      </div>
+<main class="app-page forecast-page">
+<section class="forecast-hero-grid">
+<div class="page-hero">
+<div class="hero-kicker">Forward cash view</div>
+<h1 class="hero-title">Forecast only from sources we can trust.</h1>
+<p class="hero-copy">
+Forecast combines accounts, bills, salary, debts, and credit-card truth. Until every source is proven, this page stays read-first and labels uncertainty instead of pretending precision.
+</p>
 
-      <div class="scenario-strip">
-        <div class="scenario-card">
-          <div class="scenario-label">30-day projection</div>
-          <div class="scenario-value" id="proj30">Blocked</div>
-          <div class="scenario-note">Near-term position after expected income and obligations.</div>
-        </div>
+<div class="forecast-status-strip">
+<span id="forecastApiBadge" class="badge badge-unknown">Forecast API loading</span>
+<span id="forecastGovernorBadge" class="badge badge-unknown">Governor loading</span>
+<span id="forecastWriteBadge" class="badge badge-blocked">Forecast decisions blocked</span>
+</div>
+</div>
 
-        <div class="scenario-card">
-          <div class="scenario-label">60-day projection</div>
-          <div class="scenario-value" id="proj60">Blocked</div>
-          <div class="scenario-note">Pressure view across the next salary cycle.</div>
-        </div>
+<aside class="forecast-side">
+<div class="forecast-card">
+<div class="forecast-card-title">Forecast safety posture</div>
+<div class="forecast-card-copy">
+Forecast output can influence decisions, so Command Centre keeps forecast.generate blocked until source precision is proven.
+</div>
+<div style="margin-top:12px">
+<span class="badge badge-blocked">Generate blocked</span>
+<span class="badge badge-preflight">Source proof required</span>
+</div>
+</div>
 
-        <div class="scenario-card">
-          <div class="scenario-label">90-day projection</div>
-          <div class="scenario-value" id="proj90">Blocked</div>
-          <div class="scenario-note">Longer runway signal, not a guarantee.</div>
-        </div>
-      </div>
-    </section>
+<div class="forecast-card">
+<div class="forecast-card-title">Completion requirement</div>
+<div class="forecast-card-copy">
+To reach 100%, forecast needs guaranteed salary, bills, debts, accounts, and credit-card source confidence clearly separated.
+</div>
+</div>
+</aside>
+</section>
 
-    <section id="forecastAuthority" class="forecast-authority unknown">
-      <div class="forecast-authority-top">
-        <div class="forecast-authority-title">Command Centre authority</div>
-        <div id="forecastAuthorityPill" class="forecast-authority-pill">Checking</div>
-      </div>
-      <p id="forecastAuthorityCopy" class="forecast-authority-copy">
-        Loading backend enforcement policy for forecast.generate.
-      </p>
-    </section>
+<section class="forecast-kpi-grid">
+<div class="kpi-card">
+<div class="kpi-label">Accounts source</div>
+<div id="forecastAccountsStatus" class="kpi-value">-</div>
+<div class="kpi-sub">Read-only input</div>
+</div>
 
-    <section id="forecastBlock" class="forecast-block" hidden></section>
+<div class="kpi-card">
+<div class="kpi-label">Bills source</div>
+<div id="forecastBillsStatus" class="kpi-value">-</div>
+<div class="kpi-sub">Monthly obligation input</div>
+</div>
 
-    <section id="loadingShell" class="loading-shell">
-      Building your forecast from current balances and upcoming obligations.
-    </section>
+<div class="kpi-card">
+<div class="kpi-label">Debt source</div>
+<div id="forecastDebtsStatus" class="kpi-value">-</div>
+<div class="kpi-sub">Payable / receivable input</div>
+</div>
 
-    <section id="forecastContent" hidden>
-      <div class="kpi-grid">
-        <article class="kpi-card" id="liquidCard">
-          <div class="kpi-label">Liquid position</div>
-          <div class="kpi-value" id="liquidValue"></div>
-          <div class="kpi-note" id="liquidNote">Current usable cash signal.</div>
-        </article>
+<div class="kpi-card">
+<div class="kpi-label">Forecast authority</div>
+<div id="forecastAuthorityStatus" class="kpi-value">Blocked</div>
+<div class="kpi-sub">Until source precision</div>
+</div>
+</section>
 
-        <article class="kpi-card" id="burnCard">
-          <div class="kpi-label">Daily burn</div>
-          <div class="kpi-value" id="burnValue"></div>
-          <div class="kpi-note" id="burnNote">Recent spending pace.</div>
-        </article>
+<section>
+<div class="forecast-section-head">
+<div>
+<div class="forecast-section-title">Forecast workspace</div>
+<div id="forecastSummary" class="forecast-section-copy">Loading forecast sources...</div>
+</div>
 
-        <article class="kpi-card" id="dueCard">
-          <div class="kpi-label">Due soon</div>
-          <div class="kpi-value" id="dueValue"></div>
-          <div class="kpi-note" id="dueNote">Near-term bills and debt pressure.</div>
-        </article>
+<div class="forecast-actions">
+<a class="btn btn-secondary" href="/monthly-close.html">Open Command Centre</a>
+<a class="btn btn-secondary" href="/salary.html">Open Salary</a>
+</div>
+</div>
 
-        <article class="kpi-card" id="runwayCard">
-          <div class="kpi-label">Runway</div>
-          <div class="kpi-value" id="runwayValue"></div>
-          <div class="kpi-note" id="runwayNote">Days of cover at current burn rate.</div>
-        </article>
-      </div>
+<div id="forecastEnforcement" class="forecast-enforcement">
+Checking Command Centre forecast authority...
+</div>
 
-      <div class="main-grid">
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <h2 class="panel-title">90-day projection</h2>
-              <p class="panel-sub">Projected cash position using current balance, recent spending, salary signal, bills, and debts.</p>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div class="forecast-bars" id="forecastBars"></div>
-          </div>
-        </section>
+<div style="height:14px"></div>
 
-        <aside class="stack">
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">What needs action</h2>
-                <p class="panel-sub">The shortest useful reading of the forecast.</p>
-              </div>
-            </div>
-            <div class="panel-body">
-              <div class="insight-list" id="insightList"></div>
-            </div>
-          </section>
+<div class="forecast-grid">
+<section>
+<div class="forecast-section-title" style="font-size:18px;margin-bottom:10px">Source readiness</div>
+<div id="forecastSources" class="forecast-lane"></div>
+</section>
 
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Upcoming obligations</h2>
-                <p class="panel-sub">Nearest bills and debt pressure.</p>
-              </div>
-            </div>
-            <div class="panel-body">
-              <div class="mini-table" id="obligationList"></div>
-            </div>
-          </section>
-        </aside>
-      </div>
+<aside class="forecast-card">
+<div class="forecast-card-title">What remains before unlock</div>
+<div class="forecast-panel-list" style="margin-top:12px">
+<div class="forecast-panel-row">
+<div class="forecast-panel-title">1. Salary baseline</div>
+<div class="forecast-panel-copy">Guaranteed salary must stay separate from MBO, overtime, and speculative variable income.</div>
+</div>
+<div class="forecast-panel-row">
+<div class="forecast-panel-title">2. Bills and debt proof</div>
+<div class="forecast-panel-copy">Recurring bills and debt obligations must be read from governed sources.</div>
+</div>
+<div class="forecast-panel-row">
+<div class="forecast-panel-title">3. Credit-card truth</div>
+<div class="forecast-panel-copy">Outstanding balance must come from verified CC source, not lifetime spend.</div>
+</div>
+<div class="forecast-panel-row">
+<div class="forecast-panel-title">4. Command Centre lift</div>
+<div class="forecast-panel-copy">Only after proof should forecast.generate become allowed.</div>
+</div>
+</div>
+</aside>
+</div>
+</section>
 
-      <div class="main-grid" style="margin-top:18px;">
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <h2 class="panel-title">Account base</h2>
-              <p class="panel-sub">Balances used as the forecast starting point.</p>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div class="mini-table" id="accountList"></div>
-          </div>
-        </section>
+<footer class="forecast-page-meta" aria-hidden="true">
+Forecast premium UI v2.0.0
+</footer>
+</main>
 
-        <section class="panel">
-          <div class="panel-head">
-            <div>
-              <h2 class="panel-title">Readiness checks</h2>
-              <p class="panel-sub">Plain assumptions so the view stays useful.</p>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div class="insight-list" id="readinessList">
-              <div class="insight">
-                <span class="insight-dot"></span>
-                <div>
-                  <div class="insight-title">Command Centre decides whether forecast can generate</div>
-                  <div class="insight-text">If forecast.generate is blocked or unknown, this page does not compute a forecast.</div>
-                </div>
-              </div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-              <div class="insight">
-                <span class="insight-dot"></span>
-                <div>
-                  <div class="insight-title">Recent spending shapes the burn rate</div>
-                  <div class="insight-text">If recent spending is thin, runway is shown as unknown instead of fake precision.</div>
-                </div>
-              </div>
+<script src="/js/theme.js?v=1.0.0"></script>
+<script src="/js/nav.js?v=2.0.0"></script>
+<script src="/js/enforcement.js?v=0.2.0"></script>
 
-              <div class="insight">
-                <span class="insight-dot"></span>
-                <div>
-                  <div class="insight-title">Salary is included only when available</div>
-                  <div class="insight-text">Confirmed recurring income improves the forecast; missing salary data is not guessed.</div>
-                </div>
-              </div>
+<script>
+(function () {
+  "use strict";
 
-              <div class="insight">
-                <span class="insight-dot"></span>
-                <div>
-                  <div class="insight-title">Obligations reduce the projection</div>
-                  <div class="insight-text">Upcoming dated bills and debts are deducted inside the visible window.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </div>
-    </section>
+  const VERSION = "2.0.0";
+  let sources = [];
 
-    <footer class="page-footer">
-      <span class="v">Forecast v0.3.2 · Phase 4G soft authority · nav v1.2.0 · enforcement v0.1.0 · css v1.0.2</span>
-    </footer>
-  </main>
+  const $ = id => document.getElementById(id);
 
-  <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=1.2.0"></script>
-  <script src="/js/enforcement.js?v=0.1.0"></script>
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value;
+  }
 
-  <script>
-    (function () {
-      "use strict";
+  function setBadge(id, text, cls) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = "badge " + cls;
+  }
 
-      const VERSION = "v0.3.2";
-      const ACTION = "forecast.generate";
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
 
-      const PKR = new Intl.NumberFormat("en-PK", {
-        style: "currency",
-        currency: "PKR",
-        maximumFractionDigits: 0
-      });
+  function money(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "Unknown";
+    return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
+  }
 
-      const state = {
-        accounts: [],
-        transactions: [],
-        bills: [],
-        debts: [],
-        salary: null,
-        gate: blockedGate("Command Centre enforcement has not loaded yet.", {
-          source: "window.SovereignEnforcement",
-          required_fix: "Wait for /api/finance-command-center to return an action policy for forecast.generate.",
-          status: "unknown"
-        })
+  function normalizeArray(data, keys) {
+    if (Array.isArray(data)) return data;
+    for (const key of keys) {
+      if (data && Array.isArray(data[key])) return data[key];
+    }
+    if (data && typeof data === "object") {
+      return Object.keys(data).map(id => ({ id, ...data[id] }));
+    }
+    return [];
+  }
+
+  async function fetchJSON(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) throw new Error("Failed to read " + url);
+    return data;
+  }
+
+  async function tryRead(label, url, normalizer) {
+    try {
+      const data = await fetchJSON(url);
+      const normalized = normalizer ? normalizer(data) : data;
+
+      return {
+        key: label.toLowerCase().replace(/\s+/g, "_"),
+        label,
+        status: "readable",
+        badge: "badge-ready",
+        value: normalized.value,
+        sub: normalized.sub || "Source readable",
+        source: url,
+        data
       };
-
-      const $ = (id) => document.getElementById(id);
-
-      function money(value) {
-        const n = Number(value || 0);
-        if (!Number.isFinite(n)) return "";
-        return PKR.format(n).replace("PKR", "Rs");
-      }
-
-      function number(value) {
-        const n = Number(value || 0);
-        if (!Number.isFinite(n)) return "";
-        return new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 }).format(n);
-      }
-
-      function todayStart() {
-        const d = new Date();
-        d.setHours(0, 0, 0, 0);
-        return d;
-      }
-
-      function parseDate(value) {
-        if (!value) return null;
-
-        const d = new Date(value);
-        return Number.isNaN(d.getTime())
-          ? null
-          : d;
-      }
-
-      function daysBetween(a, b) {
-        const ms = 24 * 60 * 60 * 1000;
-        return Math.ceil((b.getTime() - a.getTime()) / ms);
-      }
-
-      function pickArray(payload, keys) {
-        if (Array.isArray(payload)) return payload;
-        if (!payload || typeof payload !== "object") return [];
-
-        for (const key of keys) {
-          if (Array.isArray(payload[key])) return payload[key];
-        }
-
-        if (Array.isArray(payload.data)) return payload.data;
-        if (payload.result && Array.isArray(payload.result)) return payload.result;
-
-        return [];
-      }
-
-      async function fetchJson(url, keys) {
-        try {
-          const res = await fetch(url, { cache: "no-store" });
-
-          if (!res.ok) throw new Error(String(res.status));
-
-          const payload = await res.json();
-
-          return keys
-            ? pickArray(payload, keys)
-            : payload;
-        } catch (err) {
-          console.warn("Forecast data unavailable:", err);
-
-          return keys
-            ? []
-            : null;
-        }
-      }
-
-      function amountOf(obj) {
-        const keys = [
-          "balance",
-          "current_balance",
-          "available_balance",
-          "amount",
-          "remaining",
-          "remaining_amount",
-          "outstanding",
-          "minimum_due",
-          "monthly_amount",
-          "installment_amount"
-        ];
-
-        for (const key of keys) {
-          if (obj && obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
-            const n = Number(obj[key]);
-
-            if (Number.isFinite(n)) return n;
-          }
-        }
-
-        return 0;
-      }
-
-      function nameOf(obj, fallback) {
-        return obj.name || obj.title || obj.label || obj.account_name || obj.description || fallback || "Unnamed";
-      }
-
-      function accountKind(account) {
-        return String(account.kind || account.type || account.category || "").toLowerCase();
-      }
-
-      function isAssetAccount(account) {
-        const kind = accountKind(account);
-        const name = String(nameOf(account, "")).toLowerCase();
-
-        if (kind.includes("liability") || kind.includes("credit") || kind.includes("debt")) return false;
-        if (name.includes("credit card") || name.includes("cc ")) return false;
-
-        return true;
-      }
-
-      function transactionAmount(tx) {
-        const raw = amountOf(tx);
-        const type = String(tx.type || tx.kind || tx.direction || "").toLowerCase();
-
-        if (type.includes("expense") || type.includes("debit") || type.includes("out")) return -Math.abs(raw);
-        if (type.includes("income") || type.includes("credit") || type.includes("in")) return Math.abs(raw);
-
-        return Number(raw || 0);
-      }
-
-      function liquidBalance() {
-        return state.accounts
-          .filter(isAssetAccount)
-          .reduce((sum, account) => sum + amountOf(account), 0);
-      }
-
-      function recentDailyBurn() {
-        const start = todayStart();
-        const cutoff = new Date(start);
-        cutoff.setDate(cutoff.getDate() - 30);
-
-        const expenses = state.transactions.filter(tx => {
-          const d = parseDate(tx.date || tx.dt || tx.created_at || tx.createdAt || tx.timestamp);
-
-          if (!d || d < cutoff) return false;
-
-          return transactionAmount(tx) < 0;
-        });
-
-        const total = expenses.reduce((sum, tx) => sum + Math.abs(transactionAmount(tx)), 0);
-
-        return total > 0
-          ? total / 30
-          : 0;
-      }
-
-      function salaryAmount() {
-        const s = state.salary;
-
-        if (!s || typeof s !== "object") return 0;
-
-        const source = s.salary && typeof s.salary === "object"
-          ? s.salary
-          : s;
-
-        const keys = [
-          "baseline_forecast_pkr",
-          "guaranteed_monthly",
-          "monthly_guaranteed",
-          "net_salary",
-          "salary",
-          "monthly_salary",
-          "next_salary",
-          "forecast_salary",
-          "projected_next_salary",
-          "amount"
-        ];
-
-        for (const key of keys) {
-          const n = Number(source[key]);
-
-          if (Number.isFinite(n) && n > 0) return n;
-        }
-
-        return 0;
-      }
-
-      function nextSalaryDates() {
-        const salary = salaryAmount();
-
-        if (!salary) return [];
-
-        const base = todayStart();
-        const dates = [];
-
-        for (let i = 0; i < 4; i++) {
-          const d = new Date(base.getFullYear(), base.getMonth() + i, 1);
-
-          if (d <= base) d.setMonth(d.getMonth() + 1);
-
-          dates.push({
-            date: d,
-            amount: salary,
-            name: "Salary forecast"
-          });
-        }
-
-        return dates;
-      }
-
-      function obligations() {
-        const today = todayStart();
-
-        const bills = state.bills.map(bill => {
-          const due = parseDate(bill.due_date || bill.dueDate || bill.date || bill.next_due_date);
-
-          return {
-            type: "Bill",
-            name: nameOf(bill, "Bill"),
-            amount: amountOf(bill),
-            date: due,
-            status: String(bill.status || "").toLowerCase()
-          };
-        });
-
-        const debts = state.debts.map(debt => {
-          const due = parseDate(debt.due_date || debt.next_due_date || debt.installment_due_date || debt.date);
-
-          return {
-            type: "Debt",
-            name: nameOf(debt, "Debt"),
-            amount: amountOf(debt),
-            date: due,
-            status: String(debt.status || "").toLowerCase()
-          };
-        });
-
-        return bills
-          .concat(debts)
-          .filter(item => item.amount > 0)
-          .filter(item => !item.status.includes("paid") && !item.status.includes("closed"))
-          .sort((a, b) => {
-            if (!a.date && !b.date) return b.amount - a.amount;
-            if (!a.date) return 1;
-            if (!b.date) return -1;
-
-            return a.date - b.date;
-          })
-          .map(item => ({
-            ...item,
-            days: item.date
-              ? daysBetween(today, item.date)
-              : null
-          }));
-      }
-
-      function dueSoonAmount() {
-        return obligations()
-          .filter(item => item.days !== null && item.days >= 0 && item.days <= 14)
-          .reduce((sum, item) => sum + item.amount, 0);
-      }
-
-      function buildProjection() {
-        const start = todayStart();
-        const burn = recentDailyBurn();
-        const salaryEvents = nextSalaryDates();
-        const obligationEvents = obligations().filter(item => item.date);
-
-        let balance = liquidBalance();
-
-        const checkpoints = [0, 15, 30, 45, 60, 90];
-        const rows = [];
-
-        for (let day = 0; day <= 90; day++) {
-          const current = new Date(start);
-          current.setDate(current.getDate() + day);
-
-          if (day > 0) balance -= burn;
-
-          salaryEvents.forEach(event => {
-            if (event.date.toDateString() === current.toDateString()) balance += event.amount;
-          });
-
-          obligationEvents.forEach(event => {
-            if (event.date.toDateString() === current.toDateString()) balance -= event.amount;
-          });
-
-          if (checkpoints.includes(day)) {
-            rows.push({
-              day,
-              label: day === 0
-                ? "Today"
-                : `D+${day}`,
-              value: balance
-            });
-          }
-        }
-
-        return rows;
-      }
-
-      function riskClass(value, burn) {
-        if (value < 0) return "bad";
-        if (burn > 0 && value < burn * 14) return "warn";
-
-        return "good";
-      }
-
-      function setCardClass(id, cls) {
-        const node = $(id);
-
-        if (!node) return;
-
-        node.classList.remove("good", "warn", "bad");
-
-        if (cls) node.classList.add(cls);
-      }
-
-      function blockedGate(reason, extra) {
-        return {
-          action: ACTION,
-          allowed: false,
-          status: extra && extra.status ? extra.status : "blocked",
-          reason: reason || "Forecast generation is blocked by Command Centre.",
-          source: extra && extra.source ? extra.source : "enforcement.actions",
-          required_fix: extra && extra.required_fix ? extra.required_fix : "Resolve Command Centre blocker before generating forecast.",
-          override_allowed: Boolean(extra && extra.override_allowed),
-          backend_enforced: Boolean(extra && extra.backend_enforced),
-          frontend_enforced: true,
-          raw: extra && extra.raw ? extra.raw : null
-        };
-      }
-
-      function passGate(action) {
-        return {
-          action: ACTION,
-          allowed: true,
-          status: String(action.status || "pass"),
-          reason: action.reason || "Command Centre allows forecast.generate.",
-          source: action.source || "enforcement.actions",
-          required_fix: action.required_fix || "",
-          override_allowed: Boolean(action.override_allowed),
-          backend_enforced: Boolean(action.backend_enforced),
-          frontend_enforced: true,
-          raw: action
-        };
-      }
-
-      function actionAllows(action) {
-        if (!action || typeof action !== "object") return false;
-
-        const status = String(action.status || action.verdict || "").toLowerCase();
-
-        const explicitAllowed =
-          action.allowed === true ||
-          action.action_allowed === true ||
-          action.actions_allowed === true ||
-          action.write_allowed === true ||
-          action.can_execute === true;
-
-        const explicitlyBlocked =
-          action.blocked === true ||
-          action.allowed === false ||
-          action.action_allowed === false ||
-          action.actions_allowed === false ||
-          action.write_allowed === false ||
-          ["blocked", "unknown", "unready", "not_ready", "fail", "failed", "deny", "denied"].includes(status);
-
-        if (explicitlyBlocked) return false;
-        if (explicitAllowed && ["", "pass", "ready", "allowed", "ok"].includes(status)) return true;
-
-        return false;
-      }
-
-      function updateGate(snapshot) {
-        if (!snapshot) {
-          state.gate = blockedGate("Command Centre enforcement snapshot is unavailable.", {
-            source: "window.SovereignEnforcement",
-            required_fix: "Load /js/enforcement.js and /api/finance-command-center.",
-            status: "unknown"
-          });
-          return;
-        }
-
-        if (snapshot.error) {
-          state.gate = blockedGate("Command Centre enforcement failed to load: " + snapshot.error, {
-            source: "/api/finance-command-center",
-            required_fix: "Open Command Centre and resolve backend enforcement endpoint availability.",
-            status: "unknown"
-          });
-          return;
-        }
-
-        if (!snapshot.loaded) {
-          state.gate = blockedGate("Command Centre enforcement is still loading.", {
-            source: "/api/finance-command-center",
-            required_fix: "Wait for enforcement policy to load. Unknown never becomes Ready.",
-            status: "unknown"
-          });
-          return;
-        }
-
-        const action = typeof snapshot.findAction === "function"
-          ? snapshot.findAction(ACTION)
-          : null;
-
-        if (!action) {
-          state.gate = blockedGate("No backend action policy returned for forecast.generate.", {
-            source: "enforcement.actions",
-            required_fix: "Register forecast.generate in /api/finance-command-center enforcement.actions.",
-            status: "unknown"
-          });
-          return;
-        }
-
-        state.gate = actionAllows(action)
-          ? passGate(action)
-          : blockedGate(action.reason || "Command Centre blocks forecast.generate.", {
-              source: action.source || "enforcement.actions",
-              required_fix: action.required_fix || "Resolve forecast.generate blocker in Command Centre.",
-              override_allowed: action.override_allowed,
-              backend_enforced: action.backend_enforced,
-              status: action.status || "blocked",
-              raw: action
-            });
-      }
-
-      function renderAuthority() {
-        const box = $("forecastAuthority");
-        const pill = $("forecastAuthorityPill");
-        const copy = $("forecastAuthorityCopy");
-        const block = $("forecastBlock");
-
-        if (!box || !pill || !copy || !block) return;
-
-        const gate = state.gate;
-
-        box.className = "forecast-authority " + (gate.allowed ? "pass" : gate.status === "unknown" ? "unknown" : "blocked");
-        pill.textContent = gate.allowed ? "Forecast generation allowed" : "Forecast generation blocked";
-
-        copy.textContent = gate.allowed
-          ? gate.reason + " Source: " + gate.source + "."
-          : gate.reason + " Source: " + gate.source + ". Required fix: " + gate.required_fix + " Override: " + (gate.override_allowed ? "allowed" : "not allowed") + ". Backend enforced: " + (gate.backend_enforced ? "yes" : "no") + " · Frontend enforced: yes.";
-
-        if (gate.allowed) {
-          block.hidden = true;
-          block.innerHTML = "";
-          return;
-        }
-
-        block.hidden = false;
-        block.innerHTML = `
-          <div><strong>Forecast generation blocked by Command Centre.</strong></div>
-          <div>Blocked: ${escapeHtml(gate.action)}</div>
-          <div>Reason: ${escapeHtml(gate.reason)}</div>
-          <div>Source: ${escapeHtml(gate.source)}</div>
-          <div>Required fix: ${escapeHtml(gate.required_fix)}</div>
-          <div>Override: ${gate.override_allowed ? "allowed" : "not allowed"} · Backend enforced: ${gate.backend_enforced ? "yes" : "no"} · Frontend enforced: yes</div>
-        `;
-      }
-
-      function renderBlockedForecast() {
-        $("heroStatus").textContent = "Blocked";
-        $("heroStatusNote").textContent = "Command Centre has not allowed forecast.generate.";
-
-        $("proj30").textContent = "Blocked";
-        $("proj60").textContent = "Blocked";
-        $("proj90").textContent = "Blocked";
-
-        $("liquidValue").textContent = "Blocked";
-        $("burnValue").textContent = "Blocked";
-        $("dueValue").textContent = "Blocked";
-        $("runwayValue").textContent = "Blocked";
-
-        $("liquidNote").textContent = "Forecast inputs are not loaded while blocked.";
-        $("burnNote").textContent = "Forecast inputs are not loaded while blocked.";
-        $("dueNote").textContent = "Forecast inputs are not loaded while blocked.";
-        $("runwayNote").textContent = "Forecast inputs are not loaded while blocked.";
-
-        setCardClass("liquidCard", "warn");
-        setCardClass("burnCard", "warn");
-        setCardClass("dueCard", "warn");
-        setCardClass("runwayCard", "warn");
-
-        $("forecastBars").innerHTML = `<div class="empty" style="grid-column: 1 / -1;">Forecast chart blocked by Command Centre.</div>`;
-
-        $("insightList").innerHTML = `
-          <div class="insight bad">
-            <span class="insight-dot"></span>
-            <div>
-              <div class="insight-title">Forecast generation is blocked</div>
-              <div class="insight-text">Command Centre has not allowed forecast.generate. Fix the listed source/check before relying on forecast output.</div>
-            </div>
-          </div>
-        `;
-
-        $("obligationList").innerHTML = `<div class="empty">Upcoming obligations are not loaded while forecast.generate is blocked.</div>`;
-        $("accountList").innerHTML = `<div class="empty">Account base is not loaded while forecast.generate is blocked.</div>`;
-
-        $("readinessList").innerHTML = `
-          <div class="insight bad">
-            <span class="insight-dot"></span>
-            <div>
-              <div class="insight-title">Blocked by Command Centre</div>
-              <div class="insight-text">${escapeHtml(state.gate.reason)} Required fix: ${escapeHtml(state.gate.required_fix)}</div>
-            </div>
-          </div>
-
-          <div class="insight">
-            <span class="insight-dot"></span>
-            <div>
-              <div class="insight-title">No backend API enforcement yet</div>
-              <div class="insight-text">This is still page-level soft enforcement. Backend mutating API enforcement comes later.</div>
-            </div>
-          </div>
-
-          <div class="insight">
-            <span class="insight-dot"></span>
-            <div>
-              <div class="insight-title">Unknown never becomes Ready</div>
-              <div class="insight-text">If Command Centre cannot prove forecast readiness, this page stays blocked.</div>
-            </div>
-          </div>
-        `;
-
-        $("loadingShell").hidden = true;
-        $("forecastContent").hidden = false;
-      }
-
-      function renderHero(liquid, burn, dueSoon, projection) {
-        const p30 = projection.find(x => x.day === 30);
-        const p60 = projection.find(x => x.day === 60);
-        const p90 = projection.find(x => x.day === 90);
-
-        $("proj30").textContent = p30
-          ? money(p30.value)
-          : "";
-
-        $("proj60").textContent = p60
-          ? money(p60.value)
-          : "";
-
-        $("proj90").textContent = p90
-          ? money(p90.value)
-          : "";
-
-        const status = p30 && p30.value < 0
-          ? "Pressure ahead"
-          : dueSoon > liquid
-            ? "Needs review"
-            : "Readable";
-
-        const note = p30 && p30.value < 0
-          ? "30-day view goes below zero based on current signals."
-          : dueSoon > liquid
-            ? "Near-term obligations exceed current liquid balance."
-            : "Forecast loaded with current available signals.";
-
-        $("heroStatus").textContent = status;
-        $("heroStatusNote").textContent = note;
-      }
-
-      function renderKpis(liquid, burn, dueSoon) {
-        const runway = burn > 0
-          ? Math.floor(liquid / burn)
-          : null;
-
-        $("liquidValue").textContent = money(liquid);
-
-        $("burnValue").textContent = burn > 0
-          ? money(burn) + "/day"
-          : "Unknown";
-
-        $("dueValue").textContent = money(dueSoon);
-
-        $("runwayValue").textContent = runway === null
-          ? "Unknown"
-          : `${number(runway)} days`;
-
-        $("liquidNote").textContent = state.accounts.length
-          ? `${state.accounts.length} balance record(s) included.`
-          : "No balance records available.";
-
-        $("burnNote").textContent = burn > 0
-          ? "Based on recent expense activity."
-          : "Not enough recent expense activity to compute burn.";
-
-        $("dueNote").textContent = dueSoon > 0
-          ? "Obligations due inside 14 days."
-          : "No dated obligations found inside 14 days.";
-
-        $("runwayNote").textContent = runway === null
-          ? "Runway needs recent spending data."
-          : "Calculated from liquid balance divided by daily burn.";
-
-        setCardClass("liquidCard", liquid > 0
-          ? "good"
-          : "bad");
-
-        setCardClass("burnCard", burn > 0
-          ? "warn"
-          : null);
-
-        setCardClass("dueCard", dueSoon > liquid
-          ? "bad"
-          : dueSoon > 0
-            ? "warn"
-            : "good");
-
-        setCardClass("runwayCard", runway === null
-          ? null
-          : runway < 14
-            ? "bad"
-            : runway < 30
-              ? "warn"
-              : "good");
-      }
-
-      function renderBars(projection, burn) {
-        const el = $("forecastBars");
-        const values = projection.map(x => x.value);
-        const min = Math.min(...values, 0);
-        const max = Math.max(...values, 1);
-        const range = Math.max(1, max - min);
-
-        el.innerHTML = projection.map(row => {
-          const normalized = ((row.value - min) / range);
-          const height = Math.max(8, Math.round(28 + normalized * 190));
-          const cls = riskClass(row.value, burn);
-
-          return `
-            <div class="bar-wrap">
-              <div class="bar ${cls}" style="height:${height}px"></div>
-              <div class="bar-label">${row.label}</div>
-              <div class="bar-value">${money(row.value)}</div>
-            </div>
-          `;
-        }).join("");
-      }
-
-      function renderInsights(liquid, burn, dueSoon, projection) {
-        const p30 = projection.find(x => x.day === 30);
-        const p90 = projection.find(x => x.day === 90);
-        const insights = [];
-
-        if (!state.accounts.length) {
-          insights.push({
-            cls: "bad",
-            title: "Balance data missing",
-            text: "The forecast cannot be trusted until account balances are available."
-          });
-        }
-
-        if (p30 && p30.value < 0) {
-          insights.push({
-            cls: "bad",
-            title: "30-day projection goes negative",
-            text: "Reduce upcoming outflow or verify missing income before relying on this view."
-          });
-        }
-
-        if (dueSoon > liquid) {
-          insights.push({
-            cls: "bad",
-            title: "Due-soon obligations exceed liquid balance",
-            text: "Near-term obligations are larger than current available cash signal."
-          });
-        }
-
-        if (burn <= 0) {
-          insights.push({
-            cls: "warn",
-            title: "Burn rate is unavailable",
-            text: "There is not enough recent expense activity to calculate realistic runway."
-          });
-        }
-
-        if (p90 && p90.value > 0 && burn > 0) {
-          insights.push({
-            cls: "good",
-            title: "90-day forecast remains above zero",
-            text: "Current projection stays positive through the visible forecast window."
-          });
-        }
-
-        if (!insights.length) {
-          insights.push({
-            cls: "good",
-            title: "No major pressure detected",
-            text: "Current data does not show immediate cash pressure."
-          });
-        }
-
-        $("insightList").innerHTML = insights.slice(0, 5).map(item => `
-          <div class="insight ${item.cls}">
-            <span class="insight-dot"></span>
-            <div>
-              <div class="insight-title">${escapeHtml(item.title)}</div>
-              <div class="insight-text">${escapeHtml(item.text)}</div>
-            </div>
-          </div>
-        `).join("");
-      }
-
-      function renderObligations() {
-        const items = obligations().slice(0, 8);
-        const el = $("obligationList");
-
-        if (!items.length) {
-          el.innerHTML = `<div class="empty">No upcoming dated obligations found.</div>`;
-          return;
-        }
-
-        el.innerHTML = items.map(item => {
-          const due = item.days === null
-            ? "No due date"
-            : item.days < 0
-              ? `${Math.abs(item.days)} days overdue`
-              : item.days === 0
-                ? "Due today"
-                : `Due in ${item.days} days`;
-
-          return `
-            <div class="mini-row">
-              <div>
-                <div class="mini-name">${escapeHtml(item.name)}</div>
-                <div class="mini-sub">${escapeHtml(item.type)}  ${escapeHtml(due)}</div>
-              </div>
-              <div class="mini-value">${money(item.amount)}</div>
-            </div>
-          `;
-        }).join("");
-      }
-
-      function renderAccounts() {
-        const el = $("accountList");
-
-        if (!state.accounts.length) {
-          el.innerHTML = `<div class="empty">No accounts returned.</div>`;
-          return;
-        }
-
-        el.innerHTML = state.accounts
-          .slice()
-          .sort((a, b) => amountOf(b) - amountOf(a))
-          .slice(0, 10)
-          .map(account => `
-            <div class="mini-row">
-              <div>
-                <div class="mini-name">${escapeHtml(nameOf(account, "Account"))}</div>
-                <div class="mini-sub">${escapeHtml(account.kind || account.type || "Account")}</div>
-              </div>
-              <div class="mini-value">${money(amountOf(account))}</div>
-            </div>
-          `).join("");
-      }
-
-      function renderReadiness() {
-        const rows = [
-          {
-            cls: "good",
-            title: "Command Centre allowed forecast.generate",
-            text: "Forecast is running because the central policy returned allowed."
-          },
-          {
-            cls: "good",
-            title: "No money-contracts dependency",
-            text: "Forecast reads original finance APIs directly."
-          },
-          {
-            cls: state.accounts.length ? "good" : "bad",
-            title: "Balance source",
-            text: state.accounts.length ? `${state.accounts.length} account row(s) loaded.` : "No account rows loaded."
-          },
-          {
-            cls: state.bills.length ? "good" : "warn",
-            title: "Bills source",
-            text: state.bills.length ? `${state.bills.length} bill row(s) loaded.` : "No bill rows loaded."
-          },
-          {
-            cls: state.debts.length ? "good" : "warn",
-            title: "Debts source",
-            text: state.debts.length ? `${state.debts.length} debt row(s) loaded.` : "No debt rows loaded."
-          },
-          {
-            cls: salaryAmount() > 0 ? "good" : "warn",
-            title: "Salary source",
-            text: salaryAmount() > 0 ? "Salary signal available." : "Salary signal unavailable; forecast stays conservative."
-          }
-        ];
-
-        $("readinessList").innerHTML = rows.map(item => `
-          <div class="insight ${item.cls}">
-            <span class="insight-dot"></span>
-            <div>
-              <div class="insight-title">${escapeHtml(item.title)}</div>
-              <div class="insight-text">${escapeHtml(item.text)}</div>
-            </div>
-          </div>
-        `).join("");
-      }
-
-      function escapeHtml(value) {
-        return String(value == null
-          ? ""
-          : value)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      }
-
-      async function load() {
-        renderAuthority();
-
-        if (!state.gate.allowed) {
-          renderBlockedForecast();
-
-          if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
-            window.SovereignNav.scheduleOverflowCheck();
-          }
-
-          return;
-        }
-
-        $("loadingShell").hidden = false;
-        $("forecastContent").hidden = true;
-        $("loadingShell").textContent = "Building your forecast from current balances and upcoming obligations.";
-
-        const [
-          accounts,
-          transactions,
-          bills,
-          debts,
-          salary,
-          balances
-        ] = await Promise.all([
-          fetchJson("/api/accounts", ["accounts", "items"]),
-          fetchJson("/api/transactions", ["transactions", "items"]),
-          fetchJson("/api/bills", ["bills", "items"]),
-          fetchJson("/api/debts", ["debts", "items"]),
-          fetchJson("/api/salary", null),
-          fetchJson("/api/balances", null)
-        ]);
-
-        state.accounts = accounts || [];
-        state.transactions = transactions || [];
-        state.bills = bills || [];
-        state.debts = debts || [];
-        state.salary = salary || null;
-
-        if (!state.accounts.length && balances && typeof balances === "object") {
-          const possible = pickArray(balances, ["accounts", "balances", "items"]);
-
-          if (possible.length) state.accounts = possible;
-        }
-
-        const liquid = liquidBalance();
-        const burn = recentDailyBurn();
-        const dueSoon = dueSoonAmount();
-        const projection = buildProjection();
-
-        renderHero(liquid, burn, dueSoon, projection);
-        renderKpis(liquid, burn, dueSoon);
-        renderBars(projection, burn);
-        renderInsights(liquid, burn, dueSoon, projection);
-        renderObligations();
-        renderAccounts();
-        renderReadiness();
-
-        $("loadingShell").hidden = true;
-        $("forecastContent").hidden = false;
-
-        if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
-          window.SovereignNav.scheduleOverflowCheck();
-        }
-      }
-
-      function wireEnforcement() {
-        if (window.SovereignEnforcement && typeof window.SovereignEnforcement.subscribe === "function") {
-          window.SovereignEnforcement.subscribe(snapshot => {
-            updateGate(snapshot);
-            renderAuthority();
-
-            load().catch(showError);
-          });
-
-          updateGate(window.SovereignEnforcement.snapshot());
-          renderAuthority();
-          return;
-        }
-
-        updateGate(null);
-        renderAuthority();
-      }
-
-      function showError(err) {
-        console.error("Forecast could not load:", err);
-
-        $("loadingShell").hidden = false;
-        $("forecastContent").hidden = true;
-
-        $("loadingShell").innerHTML = `
-          <div>
-            <div style="font-size:18px;font-weight:950;color:#dc2626;margin-bottom:6px;">Forecast could not load.</div>
-            <div style="color:#64748b;font-size:13px;font-weight:800;">Refresh once.
-            If it repeats, inspect the page console.</div>
-          </div>
-        `;
-      }
-
-      window.SovereignForecast = {
-        version: VERSION,
-        mode: "phase4g_soft_authority",
-        action: ACTION,
-        enforcement: function () {
-          return {
-            forecastGate: state.gate
-          };
-        },
-        state: state
+    } catch (err) {
+      return {
+        key: label.toLowerCase().replace(/\s+/g, "_"),
+        label,
+        status: "unknown",
+        badge: "badge-unknown",
+        value: "Unknown",
+        sub: err.message || "Source unavailable",
+        source: url
       };
+    }
+  }
 
-      wireEnforcement();
+  async function loadCommandCentre() {
+    try {
+      const cmd = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
+      const actions = cmd.enforcement && Array.isArray(cmd.enforcement.actions) ? cmd.enforcement.actions : [];
+      const forecastGenerate = actions.find(action => action.action === "forecast.generate");
+      const allowed = Boolean(forecastGenerate && forecastGenerate.allowed);
 
-      load().catch(showError);
-    })();
-  </script>
+      if (allowed) {
+        setBadge("forecastGovernorBadge", "Forecast allowed", "badge-ready");
+        setBadge("forecastWriteBadge", "forecast.generate", "badge-ready");
+        setText("forecastAuthorityStatus", "Allowed");
+
+        const panel = $("forecastEnforcement");
+        if (panel) {
+          panel.className = "forecast-enforcement pass";
+          panel.textContent = "Command Centre allows forecast.generate.";
+        }
+      } else {
+        setBadge("forecastGovernorBadge", "Forecast blocked", "badge-blocked");
+        setBadge("forecastWriteBadge", "Proof required", "badge-blocked");
+        setText("forecastAuthorityStatus", "Blocked");
+
+        const panel = $("forecastEnforcement");
+        if (panel) {
+          panel.className = "forecast-enforcement";
+          panel.textContent = forecastGenerate && forecastGenerate.reason
+            ? forecastGenerate.reason
+            : "forecast.generate remains blocked until forecast source precision is proven.";
+        }
+      }
+    } catch (err) {
+      setBadge("forecastGovernorBadge", "Governor unknown", "badge-unknown");
+      setBadge("forecastWriteBadge", "Scope unknown", "badge-unknown");
+
+      const panel = $("forecastEnforcement");
+      if (panel) {
+        panel.textContent = "Command Centre could not be loaded. Forecast actions stay blocked.";
+      }
+    }
+  }
+
+  async function loadForecastApi() {
+    try {
+      const data = await fetchJSON("/api/forecast?cb=" + Date.now());
+      setBadge("forecastApiBadge", "Forecast API " + (data.version ? "v" + data.version : "live"), "badge-ready");
+    } catch (err) {
+      setBadge("forecastApiBadge", "Forecast source limited", "badge-preflight");
+    }
+  }
+
+  async function loadSources() {
+    const results = await Promise.all([
+      tryRead("Accounts", "/api/accounts?debug=1&cb=" + Date.now(), data => {
+        const rows = normalizeArray(data.accounts || data, ["accounts", "items"]);
+        return { value: String(rows.length), sub: "Account row(s) readable" };
+      }),
+      tryRead("Bills", "/api/bills?cb=" + Date.now(), data => {
+        const rows = normalizeArray(data.bills || data, ["bills", "items"]);
+        const active = rows.filter(bill => String(bill.status || "active").toLowerCase() === "active");
+        const amount = active.reduce((sum, bill) => sum + Number(bill.amount || 0), 0);
+        return { value: money(amount), sub: active.length + " active bill(s)" };
+      }),
+      tryRead("Debts", "/api/debts?cb=" + Date.now(), data => {
+        const rows = normalizeArray(data.debts || data.items || data, ["debts", "items"]);
+        return { value: String(rows.length), sub: "Debt row(s) readable" };
+      }),
+      tryRead("Salary", "/api/salary?cb=" + Date.now(), data => {
+        const guaranteed = Number(data.basic_salary || data.base_salary || data.guaranteed_monthly || data.baseline_forecast_pkr);
+        return { value: Number.isFinite(guaranteed) ? money(guaranteed) : "Unknown", sub: "Guaranteed baseline check" };
+      })
+    ]);
+
+    sources = results;
+    renderSources();
+  }
+
+  function renderSources() {
+    const readable = sources.filter(source => source.status === "readable").length;
+
+    setText("forecastAccountsStatus", sourceValue("Accounts"));
+    setText("forecastBillsStatus", sourceValue("Bills"));
+    setText("forecastDebtsStatus", sourceValue("Debts"));
+    setText("forecastSummary", readable + " of " + sources.length + " forecast source(s) readable. Decision precision still requires Command Centre proof.");
+
+    const container = $("forecastSources");
+    if (!container) return;
+
+    if (!sources.length) {
+      container.innerHTML = '<div class="forecast-empty">No forecast sources loaded.</div>';
+      return;
+    }
+
+    container.innerHTML = sources.map(source => {
+      const stateClass = source.status === "readable" ? "safe" : "warning";
+
+      return `
+        <article class="forecast-row ${stateClass}">
+          <div class="forecast-row-top">
+            <div>
+              <div class="forecast-row-title">${escapeHtml(source.label)}</div>
+              <div class="forecast-row-sub">${escapeHtml(source.source)}</div>
+            </div>
+            <span class="badge ${source.badge}">${escapeHtml(source.status)}</span>
+          </div>
+
+          <div class="forecast-row-value">${escapeHtml(source.value)}</div>
+
+          <div class="forecast-row-meta">
+            <div class="forecast-meta-item">
+              <div class="forecast-meta-label">Source</div>
+              <div class="forecast-meta-value">${escapeHtml(source.label)}</div>
+            </div>
+            <div class="forecast-meta-item">
+              <div class="forecast-meta-label">Status</div>
+              <div class="forecast-meta-value">${escapeHtml(source.status)}</div>
+            </div>
+            <div class="forecast-meta-item">
+              <div class="forecast-meta-label">Meaning</div>
+              <div class="forecast-meta-value">${escapeHtml(source.sub)}</div>
+            </div>
+          </div>
+
+          <div class="forecast-proof">
+            Forecast can read this source, but forecast.generate remains blocked until all precision rules are proven.
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  function sourceValue(label) {
+    const source = sources.find(item => item.label === label);
+    return source ? source.value : "-";
+  }
+
+  async function init() {
+    console.log("[forecast-ui v2.0.0] init");
+    await Promise.allSettled([loadCommandCentre(), loadForecastApi(), loadSources()]);
+    console.log("[forecast-ui v2.0.0] ready", { sources: sources.length });
+  }
+
+  window.SovereignForecastUI = {
+    version: VERSION,
+    refresh: init,
+    sources: () => sources.slice()
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
 </body>
 </html>
