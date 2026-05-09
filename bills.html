@@ -1,244 +1,341 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
-  <title>Bills - Sovereign Finance</title>
-  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
-  <style>
-    html, body { max-width: 100%; overflow-x: hidden; }
-    * { box-sizing: border-box; min-width: 0; }
-    .bills-wrap { width: 100%; max-width: 1180px; margin: 0 auto; padding: 0 12px 72px; }
-    .bills-hero {
-      color: #f8fafc;
-      background: linear-gradient(135deg, rgba(15,23,42,.98), rgba(30,41,59,.95)),
-        radial-gradient(circle at top right, rgba(245,158,11,.22), transparent 28rem);
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius: 34px;
-      box-shadow: var(--shadow-lg);
-      padding: 26px;
-      margin: 14px 0 18px;
-    }
-    .bills-kicker {
-      display: inline-flex; align-items: center; gap: 8px; color: #fde68a;
-      background: rgba(245,158,11,.13); border-radius: var(--r-pill);
-      padding: 7px 11px; font-size: 12px; font-weight: 950;
-      text-transform: uppercase; letter-spacing: .07em; margin-bottom: 12px;
-    }
-    .bills-title {
-      margin: 0; color: #fff; font-size: clamp(34px,5vw,58px);
-      line-height: .98; letter-spacing: -.06em; font-weight: 950;
-    }
-    .bills-copy {
-      max-width: 840px; margin: 12px 0 0; color: #cbd5e1;
-      font-size: 15px; line-height: 1.55; font-weight: 750;
-    }
-    .bill-enforcement-panel {
-      margin-bottom: 18px; padding: 16px; border-radius: 24px;
-      border: 1px solid rgba(220,38,38,.24);
-      background: linear-gradient(135deg, rgba(254,226,226,.92), rgba(255,255,255,.96));
-      color: #7f1d1d;
-    }
-    .bill-enforcement-panel.allowed {
-      border-color: rgba(22,163,74,.24);
-      background: linear-gradient(135deg, rgba(220,252,231,.92), rgba(255,255,255,.96));
-      color: #14532d;
-    }
-    .bill-enforcement-title {
-      font-size: 12px; font-weight: 1000; text-transform: uppercase;
-      letter-spacing: .07em; margin-bottom: 8px;
-    }
-    .bill-enforcement-grid {
-      display: grid; grid-template-columns: repeat(3,minmax(0,1fr));
-      gap: 10px; margin-top: 10px;
-    }
-    .bill-enforcement-item {
-      padding: 10px; border-radius: 16px; background: rgba(255,255,255,.72);
-      border: 1px solid rgba(148,163,184,.24);
-      font-size: 12px; line-height: 1.35; font-weight: 760;
-    }
-    .bill-enforcement-item strong {
-      display: block; font-size: 10px; text-transform: uppercase;
-      letter-spacing: .05em; margin-bottom: 4px;
-    }
-    .bill-stats {
-      display: grid; grid-template-columns: repeat(4,minmax(0,1fr));
-      gap: 12px; margin-bottom: 18px;
-    }
-    .bill-stat {
-      padding: 16px; border-radius: 22px; background: var(--surface-1);
-      border: 1px solid var(--border); box-shadow: var(--shadow-sm);
-    }
-    .bill-stat-label {
-      color: var(--text-dim); font-size: 11px; font-weight: 950;
-      letter-spacing: .08em; text-transform: uppercase;
-    }
-    .bill-stat-value {
-      margin-top: 8px; color: var(--text); font-size: 23px;
-      font-weight: 950; font-variant-numeric: tabular-nums;
-    }
-    .bill-toolbar {
-      display: flex; justify-content: space-between; gap: 12px;
-      flex-wrap: wrap; align-items: center; margin-bottom: 16px;
-    }
-    .bill-filters { display: flex; gap: 8px; flex-wrap: wrap; }
-    .bill-filter, .bill-refresh {
-      min-height: 42px; border-radius: var(--r-pill);
-      border: 1px solid var(--border-strong); background: #fff;
-      color: var(--text-muted); padding: 10px 14px; font-weight: 950;
-    }
-    .bill-filter.active {
-      color: #92400e; background: rgba(245,158,11,.12);
-      border-color: rgba(245,158,11,.32);
-    }
-    .bill-refresh { color: #052e16; background: var(--grad-mint); border: 0; }
-    .bills-list {
-      display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px;
-    }
-    .bill-card {
-      padding: 16px; border-radius: 24px; background: var(--surface-1);
-      border: 1px solid var(--border); box-shadow: var(--shadow-sm);
-    }
-    .bill-card.overdue {
-      border-color: rgba(220,38,38,.25);
-      background: linear-gradient(180deg, rgba(254,242,242,.92), #fff);
-    }
-    .bill-card.today, .bill-card.soon {
-      border-color: rgba(245,158,11,.28);
-      background: linear-gradient(180deg, rgba(255,251,235,.94), #fff);
-    }
-    .bill-card.archived, .bill-card.paid-current { opacity: .72; }
-    .bill-main { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
-    .bill-left { display: flex; gap: 11px; min-width: 0; }
-    .bill-status-dot {
-      width: 10px; height: 10px; border-radius: 999px; margin-top: 6px;
-      background: var(--text-faint); flex: 0 0 auto;
-    }
-    .bill-card.overdue .bill-status-dot { background: var(--danger); }
-    .bill-card.today .bill-status-dot, .bill-card.soon .bill-status-dot { background: var(--warn); }
-    .bill-card.scheduled .bill-status-dot { background: var(--accent); }
-    .bill-info { min-width: 0; }
-    .bill-name {
-      color: var(--text); font-size: 16px; font-weight: 950;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .bill-meta {
-      margin-top: 4px; color: var(--text-dim); font-size: 12px;
-      font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    }
-    .bill-amount {
-      color: var(--text); font-size: 17px; font-weight: 950;
-      font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right;
-    }
-    .bill-blockers { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-    .bill-blockers span {
-      padding: 5px 8px; border-radius: var(--r-pill);
-      background: rgba(220,38,38,.09); color: var(--danger);
-      border: 1px solid rgba(220,38,38,.20);
-      font-size: 10px; font-weight: 950; text-transform: uppercase; letter-spacing: .04em;
-    }
-    .bill-config {
-      display: grid; grid-template-columns: minmax(0,1fr) 150px auto;
-      gap: 10px; align-items: end; margin-top: 14px;
-    }
-    .bill-config label {
-      margin: 0; color: var(--text-muted); font-size: 11px;
-      font-weight: 950; text-transform: uppercase; letter-spacing: .06em;
-    }
-    .bill-config select, .bill-config input {
-      width: 100%; min-height: 42px; margin-top: 6px; padding: 9px 10px;
-      border-radius: var(--r-md); border: 2px solid var(--border-strong);
-      background: #fff; color: var(--text); font-size: 13px; font-weight: 850;
-    }
-    .bill-save {
-      min-height: 42px; border: 0; border-radius: var(--r-md);
-      padding: 10px 14px; background: var(--grad-mint);
-      color: #052e16; font-size: 13px; font-weight: 950;
-    }
-    .bill-save:disabled { background: #cbd5e1; color: #475569; }
-    .bill-soft-note {
-      margin-top: 10px; padding: 10px; border-radius: 16px;
-      background: rgba(220,38,38,.08); border: 1px solid rgba(220,38,38,.18);
-      color: #991b1b; font-size: 12px; line-height: 1.4; font-weight: 760;
-    }
-    .bill-foot {
-      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;
-      color: var(--text-dim); font-size: 11px; font-weight: 800;
-    }
-    .bill-empty {
-      grid-column: 1 / -1; padding: 28px; border-radius: 24px;
-      background: var(--surface-1); border: 1px dashed var(--border-strong);
-      color: var(--text-muted); text-align: center; font-weight: 850;
-    }
-    @media (max-width: 980px) {
-      .bill-stats, .bills-list, .bill-enforcement-grid { grid-template-columns: 1fr; }
-      .bill-config { grid-template-columns: 1fr; }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Bills - Sovereign Finance</title>
+<link rel="stylesheet" href="/css/app.css?v=1.0.2" />
+<style>
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.bills-page {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 12px 72px;
+}
+
+.bills-hero {
+  margin: 14px 0 18px;
+  padding: 24px;
+  border-radius: 30px;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.94)),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.26), transparent 25rem);
+  color: #f8fafc;
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: var(--shadow-lg);
+}
+
+.bills-kicker {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(96, 165, 250, 0.14);
+  color: #bfdbfe;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 12px;
+}
+
+.bills-kicker::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #60a5fa;
+  box-shadow: 0 0 16px rgba(96,165,250,0.8);
+}
+
+.bills-title {
+  margin: 0;
+  color: white;
+  font-size: clamp(34px, 5vw, 56px);
+  line-height: 0.98;
+  letter-spacing: -0.06em;
+  font-weight: 950;
+}
+
+.bills-copy {
+  max-width: 780px;
+  margin: 12px 0 0;
+  color: #cbd5e1;
+  font-size: 15px;
+  line-height: 1.55;
+  font-weight: 750;
+}
+
+.bills-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 18px;
+}
+
+.bill-stat {
+  padding: 14px;
+  border-radius: 22px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.bill-stat-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.bill-stat-value {
+  margin-top: 6px;
+  color: var(--text-strong);
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+}
+
+.bills-enforcement {
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.95), rgba(255,255,255,0.96));
+  color: #78350f;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 780;
+}
+
+.bills-enforcement.pass {
+  border-color: rgba(34, 197, 94, 0.28);
+  background: linear-gradient(135deg, rgba(220, 252, 231, 0.95), rgba(255,255,255,0.96));
+  color: #14532d;
+}
+
+.bills-enforcement.blocked {
+  border-color: rgba(220, 38, 38, 0.24);
+  background: linear-gradient(135deg, rgba(254, 226, 226, 0.95), rgba(255,255,255,0.96));
+  color: #7f1d1d;
+}
+
+.bills-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.bill-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  box-shadow: var(--shadow-md);
+  padding: 18px;
+}
+
+.bill-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.bill-name {
+  font-size: 18px;
+  font-weight: 950;
+  color: var(--text-strong);
+  letter-spacing: -0.03em;
+}
+
+.bill-status {
+  display: inline-flex;
+  width: fit-content;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.10);
+  color: #1d4ed8;
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bill-meta {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.bill-meta-item {
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(148, 163, 184, 0.10);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.bill-meta-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bill-meta-value {
+  margin-top: 4px;
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.bill-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.bill-actions button {
+  appearance: none;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.bill-actions .primary {
+  background: #0f172a;
+  color: white;
+}
+
+.bill-actions .secondary {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.bill-actions .disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.bill-proof {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(34, 197, 94, 0.10);
+  border: 1px solid rgba(34, 197, 94, 0.20);
+  color: #14532d;
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1.4;
+}
+
+.bill-proof.fail {
+  background: rgba(220, 38, 38, 0.10);
+  border-color: rgba(220, 38, 38, 0.22);
+  color: #7f1d1d;
+}
+
+.bills-empty {
+  padding: 28px;
+  border-radius: 24px;
+  background: var(--surface-1);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-weight: 850;
+  text-align: center;
+}
+
+.bills-page-meta {
+  display: none !important;
+}
+
+@media (max-width: 820px) {
+  .bills-status-grid,
+  .bills-list,
+  .bill-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .bills-hero {
+    padding: 18px;
+    border-radius: 26px;
+  }
+}
+</style>
 </head>
 <body>
-  <header>
-    <div>
-      <div class="brand">Sovereign Finance</div>
-      <div class="title">Bills</div>
-    </div>
-  </header>
+<header>
+<div>
+<div class="brand">Sovereign Finance</div>
+<div class="title">Bills</div>
+</div>
+</header>
 
-  <main class="bills-wrap app-page">
-    <section class="bills-hero">
-      <div class="bills-kicker">Obligation control</div>
-      <h1 class="bills-title">Every bill needs a due date and a payment account.</h1>
-      <p class="bills-copy">
-        Bills are visible for planning and diagnosis. If Command Centre blocks bill.save,
-        save controls stay disabled and the reason is shown instead of silently failing.
-      </p>
-    </section>
+<main class="bills-page app-page">
+<section class="bills-hero">
+<div class="bills-kicker">Bills preflight</div>
+<h1 class="bills-title">Bills must prove before they clear.</h1>
+<p class="bills-copy">
+Bills now use a dry-run preflight before any clear/save path. Until Command Centre lifts real bill writes, this page can validate bill actions without writing bill, ledger, or audit rows.
+</p>
+</section>
 
-    <section id="billEnforcementPanel" class="bill-enforcement-panel">
-      <div class="bill-enforcement-title">Command Centre soft block</div>
-      <div id="billEnforcementSummary">Checking Command Centre enforcement policy...</div>
-      <div class="bill-enforcement-grid">
-        <div class="bill-enforcement-item"><strong>Action</strong><span id="billBlockedAction">bill.save</span></div>
-        <div class="bill-enforcement-item"><strong>Reason</strong><span id="billBlockReason">Loading...</span></div>
-        <div class="bill-enforcement-item"><strong>Source</strong><span id="billBlockSource">Loading...</span></div>
-        <div class="bill-enforcement-item"><strong>Required fix</strong><span id="billRequiredFix">Loading...</span></div>
-        <div class="bill-enforcement-item"><strong>Override</strong><span id="billOverrideStatus">Loading...</span></div>
-        <div class="bill-enforcement-item"><strong>Backend enforced</strong><span id="billBackendStatus">Loading...</span></div>
-      </div>
-    </section>
+<section class="bills-status-grid">
+<div class="bill-stat">
+<div class="bill-stat-label">Bills</div>
+<div id="billCount" class="bill-stat-value">-</div>
+</div>
+<div class="bill-stat">
+<div class="bill-stat-label">Active</div>
+<div id="activeBillCount" class="bill-stat-value">-</div>
+</div>
+<div class="bill-stat">
+<div class="bill-stat-label">Monthly amount</div>
+<div id="monthlyBillAmount" class="bill-stat-value">-</div>
+</div>
+<div class="bill-stat">
+<div class="bill-stat-label">Authority</div>
+<div id="billAuthorityStatus" class="bill-stat-value">Checking</div>
+</div>
+</section>
 
-    <section class="bill-stats">
-      <div class="bill-stat"><div class="bill-stat-label">Active bills</div><div id="billStatActive" class="bill-stat-value"></div></div>
-      <div class="bill-stat"><div class="bill-stat-label">Need action</div><div id="billStatAttention" class="bill-stat-value"></div></div>
-      <div class="bill-stat"><div class="bill-stat-label">Monthly amount</div><div id="billStatMonthly" class="bill-stat-value"></div></div>
-      <div class="bill-stat"><div class="bill-stat-label">Missing setup</div><div id="billStatMissing" class="bill-stat-value"></div></div>
-    </section>
+<section id="billsEnforcement" class="bills-enforcement">
+Checking Command Centre Bills authority...
+</section>
 
-    <section class="bill-toolbar">
-      <div class="bill-filters">
-        <button class="bill-filter active" type="button" data-filter="active">Active</button>
-        <button class="bill-filter" type="button" data-filter="attention">Needs action</button>
-        <button class="bill-filter" type="button" data-filter="archived">Archived</button>
-        <button class="bill-filter" type="button" data-filter="all">All</button>
-      </div>
-      <button id="reloadBills" class="bill-refresh" type="button">Refresh</button>
-    </section>
+<section id="billsList" class="bills-list"></section>
 
-    <section id="billsList" class="bills-list">
-      <div class="bill-empty">Loading bills...</div>
-    </section>
+<footer class="bills-page-meta" aria-hidden="true">
+Bills preflight UI v0.4.0
+</footer>
+</main>
 
-    <footer class="page-footer">
-      <span class="v">Bills v0.8.2 · bills.js v0.5.2 · nav v1.2.0 · enforcement v0.1.0 · css v1.0.2</span>
-    </footer>
-  </main>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-  <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=1.2.0"></script>
-  <script src="/js/enforcement.js?v=0.1.0"></script>
-  <script src="/js/bills.js?v=0.5.2"></script>
+<script src="/js/theme.js?v=1.0.0"></script>
+<script src="/js/nav.js?v=1.2.0"></script>
+<script src="/js/enforcement.js?v=0.2.0"></script>
+<script src="/js/store.js?v=0.2.4"></script>
+<script src="/js/bills.js?v=0.4.0"></script>
 </body>
 </html>
