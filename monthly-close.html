@@ -1,1980 +1,2957 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
-<title>Sovereign Finance — Command Centre</title>
-<link rel="stylesheet" href="/css/app.css?v=1.0.2" />
-<script src="/js/theme.js?v=1.0.0" defer></script>
-<script src="/js/nav.js?v=1.1.9" defer></script>
-<style>
-:root {
---bg: #f5f7fb;
---ink: #0f172a;
---muted: #64748b;
---soft: #f8fafc;
---card: rgba(255,255,255,.94);
---line: rgba(148,163,184,.24);
---green: #16a34a;
---green-soft: #dcfce7;
---blue: #2563eb;
---blue-soft: #dbeafe;
---amber: #d97706;
---amber-soft: #fef3c7;
---red: #dc2626;
---red-soft: #fee2e2;
---shadow: 0 18px 52px rgba(15,23,42,.10);
---radius: 28px;
-}
-html, body {
-margin: 0;
-min-height: 100%;
-max-width: 100%;
-overflow-x: hidden;
-background:
-radial-gradient(circle at 8% -6%, rgba(34,197,94,.14), transparent 34rem),
-radial-gradient(circle at 94% 0%, rgba(37,99,235,.13), transparent 34rem),
-var(--bg);
-color: var(--ink);
-font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-}
-* {
-box-sizing: border-box;
-min-width: 0;
-}
-button, input, select {
-font: inherit;
-}
-.page {
-width: 100%;
-max-width: var(--sf-content-max, 1440px);
-margin: 0 auto;
-padding: 24px 16px 76px;
-}
-.hero {
-position: relative;
-overflow: hidden;
-border-radius: 36px;
-padding: 24px;
-color: #f8fafc;
-background:
-linear-gradient(135deg, rgba(15,23,42,.98), rgba(30,41,59,.96)),
-radial-gradient(circle at top right, rgba(34,197,94,.24), transparent 28rem);
-border: 1px solid rgba(255,255,255,.10);
-box-shadow: var(--shadow);
-margin-bottom: 18px;
-}
-.hero::after {
-content: "";
-position: absolute;
-width: 380px;
-height: 380px;
-right: -120px;
-bottom: -160px;
-border-radius: 50%;
-background: radial-gradient(circle, rgba(34,197,94,.24), transparent 68%);
-pointer-events: none;
-}
-.hero-inner {
-position: relative;
-z-index: 1;
-display: grid;
-grid-template-columns: minmax(0,1fr) minmax(260px,360px);
-gap: 22px;
-align-items: start;
-}
-.eyebrow {
-display: inline-flex;
-align-items: center;
-gap: 8px;
-padding: 7px 11px;
-border-radius: 999px;
-background: rgba(34,197,94,.13);
-color: #bbf7d0;
-font-size: 12px;
-font-weight: 950;
-text-transform: uppercase;
-letter-spacing: .08em;
-margin-bottom: 12px;
-}
-.eyebrow-dot {
-width: 8px;
-height: 8px;
-border-radius: 999px;
-background: #22c55e;
-box-shadow: 0 0 16px rgba(34,197,94,.82);
-}
-h1 {
-margin: 0;
-font-size: clamp(34px,5vw,62px);
-line-height: .96;
-letter-spacing: -.07em;
-font-weight: 1000;
-}
-.subtitle {
-max-width: 820px;
-margin: 13px 0 0;
-color: #cbd5e1;
-font-size: 15px;
-line-height: 1.55;
-font-weight: 750;
-}
-.verdict-card {
-padding: 16px;
-border-radius: 24px;
-background: rgba(255,255,255,.09);
-border: 1px solid rgba(255,255,255,.13);
-backdrop-filter: blur(16px);
-}
-.verdict-label {
-color: #cbd5e1;
-font-size: 11px;
-font-weight: 950;
-letter-spacing: .08em;
-text-transform: uppercase;
-}
-.verdict-value {
-margin-top: 8px;
-font-size: 34px;
-line-height: 1;
-font-weight: 1000;
-letter-spacing: -.055em;
-}
-.verdict-score {
-margin-top: 6px;
-color: #e2e8f0;
-font-size: 15px;
-font-weight: 900;
-}
-.verdict-note {
-margin-top: 10px;
-color: #94a3b8;
-font-size: 12px;
-font-weight: 750;
-line-height: 1.45;
-}
-.controls {
-position: relative;
-z-index: 1;
-display: flex;
-flex-wrap: wrap;
-gap: 10px;
-margin-top: 22px;
-align-items: end;
-}
-.control {
-display: grid;
-gap: 5px;
-}
-.control label {
-color: #cbd5e1;
-font-size: 11px;
-font-weight: 950;
-text-transform: uppercase;
-letter-spacing: .06em;
-}
-input[type="month"],
-select {
-height: 42px;
-min-width: 164px;
-padding: 0 12px;
-border-radius: 14px;
-border: 1px solid rgba(255,255,255,.16);
-background: rgba(255,255,255,.10);
-color: #fff;
-font-weight: 900;
-}
-select option {
-color: #0f172a;
-background: #fff;
-}
-.btn {
-height: 42px;
-border: 0;
-border-radius: 14px;
-padding: 0 14px;
-background: #22c55e;
-color: #052e16;
-font-size: 13px;
-font-weight: 1000;
-cursor: pointer;
-}
-.btn.secondary {
-background: rgba(255,255,255,.10);
-color: #fff;
-border: 1px solid rgba(255,255,255,.14);
-}
-.score-grid {
-display: grid;
-grid-template-columns: repeat(6,minmax(0,1fr));
-gap: 12px;
-margin-bottom: 18px;
-}
-.score-card,
-.panel,
-.loading,
-.error {
-background: var(--card);
-border: 1px solid var(--line);
-border-radius: var(--radius);
-box-shadow: 0 12px 34px rgba(15,23,42,.08);
-min-width: 0;
-}
-.score-card {
-padding: 16px;
-overflow: hidden;
-}
-.score-top {
-display: flex;
-justify-content: space-between;
-gap: 10px;
-align-items: center;
-}
-.score-name {
-color: var(--muted);
-font-size: 11px;
-font-weight: 950;
-letter-spacing: .06em;
-text-transform: uppercase;
-}
-.score-number {
-margin-top: 11px;
-font-size: 30px;
-line-height: 1;
-font-weight: 1000;
-letter-spacing: -.055em;
-font-variant-numeric: tabular-nums;
-}
-.score-note {
-margin-top: 8px;
-color: var(--muted);
-font-size: 12px;
-line-height: 1.38;
-font-weight: 750;
-}
-.badge,
-.score-pill {
-display: inline-flex;
-align-items: center;
-width: fit-content;
-padding: 6px 9px;
-border-radius: 999px;
-border: 1px solid transparent;
-font-size: 10px;
-font-weight: 1000;
-text-transform: uppercase;
-letter-spacing: .04em;
-white-space: nowrap;
-}
-.ready, .clean, .trial-safe, .pass, .good {
-color: #166534;
-background: var(--green-soft);
-border-color: rgba(22,163,74,.20);
-}
-.warning, .warn, .internal-only, .degraded {
-color: #92400e;
-background: var(--amber-soft);
-border-color: rgba(217,119,6,.20);
-}
-.blocked, .fail, .bad {
-color: #991b1b;
-background: var(--red-soft);
-border-color: rgba(220,38,38,.20);
-}
-.unknown, .info {
-color: #1d4ed8;
-background: var(--blue-soft);
-border-color: rgba(37,99,235,.18);
-}
-.grid-2 {
-display: grid;
-grid-template-columns: minmax(0,1fr) minmax(360px,.86fr);
-gap: 18px;
-align-items: start;
-margin-bottom: 18px;
-}
-.panel {
-overflow: hidden;
-margin-bottom: 18px;
-}
-.panel-head {
-display: flex;
-justify-content: space-between;
-align-items: flex-start;
-gap: 12px;
-padding: 17px 18px;
-background: rgba(248,250,252,.82);
-border-bottom: 1px solid var(--line);
-}
-.panel-title {
-margin: 0;
-font-size: 18px;
-line-height: 1.1;
-font-weight: 1000;
-letter-spacing: -.035em;
-}
-.panel-sub {
-margin: 5px 0 0;
-color: var(--muted);
-font-size: 12px;
-line-height: 1.4;
-font-weight: 750;
-}
-.panel-body {
-padding: 16px 18px 18px;
-}
-.list {
-display: grid;
-gap: 10px;
-}
-.issue {
-display: grid;
-grid-template-columns: 30px minmax(0,1fr);
-gap: 10px;
-padding: 12px;
-border-radius: 18px;
-background: var(--soft);
-border: 1px solid rgba(148,163,184,.18);
-}
-.issue-mark {
-width: 30px;
-height: 30px;
-display: grid;
-place-items: center;
-border-radius: 12px;
-background: #fff;
-border: 1px solid rgba(148,163,184,.22);
-font-size: 13px;
-font-weight: 1000;
-}
-.issue-title {
-color: var(--ink);
-font-size: 13px;
-line-height: 1.28;
-font-weight: 1000;
-}
-.issue-meta {
-display: flex;
-flex-wrap: wrap;
-gap: 6px;
-margin-top: 7px;
-}
-.issue-text {
-margin-top: 6px;
-color: var(--muted);
-font-size: 12px;
-line-height: 1.4;
-font-weight: 720;
-}
-.metric-grid,
-.api-grid,
-.impact-grid,
-.group-grid,
-.pattern-grid,
-.chain-grid,
-.rule-grid {
-display: grid;
-grid-template-columns: repeat(2,minmax(0,1fr));
-gap: 10px;
-}
-.metric,
-.api-card,
-.impact-card,
-.group-card,
-.pattern-card,
-.chain-card,
-.rule-card {
-padding: 13px;
-border-radius: 18px;
-background: var(--soft);
-border: 1px solid rgba(148,163,184,.18);
-}
-.metric-label {
-color: var(--muted);
-font-size: 10px;
-font-weight: 950;
-letter-spacing: .06em;
-text-transform: uppercase;
-}
-.metric-value {
-margin-top: 7px;
-font-size: 21px;
-line-height: 1.05;
-font-weight: 1000;
-letter-spacing: -.04em;
-font-variant-numeric: tabular-nums;
-overflow-wrap: anywhere;
-}
-.metric-note,
-.api-meta,
-.impact-list,
-.group-meta,
-.pattern-meta,
-.chain-meta,
-.rule-meta {
-margin-top: 7px;
-color: var(--muted);
-font-size: 12px;
-line-height: 1.4;
-font-weight: 740;
-}
-.api-head,
-.impact-name,
-.group-head,
-.pattern-head,
-.chain-head,
-.rule-head {
-display: flex;
-align-items: center;
-justify-content: space-between;
-gap: 10px;
-font-size: 13px;
-font-weight: 1000;
-line-height: 1.25;
-}
-.impact-main {
-display: grid;
-grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
-gap: 16px;
-align-items: start;
-}
-.selector-box {
-padding: 14px;
-border-radius: 20px;
-background: var(--soft);
-border: 1px solid rgba(148,163,184,.18);
-}
-.selector-box label {
-display: block;
-color: var(--muted);
-font-size: 10px;
-font-weight: 1000;
-text-transform: uppercase;
-letter-spacing: .06em;
-margin-bottom: 8px;
-}
-.selector-box select {
-width: 100%;
-color: var(--ink);
-background: #fff;
-border: 1px solid var(--line);
-}
-.chain-step {
-display: grid;
-grid-template-columns: 28px minmax(0,1fr);
-gap: 10px;
-align-items: start;
-padding: 11px;
-border-radius: 16px;
-background: #fff;
-border: 1px solid rgba(148,163,184,.18);
-margin-top: 9px;
-}
-.chain-num {
-width: 28px;
-height: 28px;
-border-radius: 11px;
-display: grid;
-place-items: center;
-font-size: 12px;
-font-weight: 1000;
-background: var(--blue-soft);
-color: #1d4ed8;
-}
-.chain-title {
-font-size: 13px;
-font-weight: 1000;
-line-height: 1.25;
-}
-.chain-text {
-margin-top: 4px;
-color: var(--muted);
-font-size: 12px;
-font-weight: 730;
-line-height: 1.4;
-}
-.readiness-band {
-display: grid;
-grid-template-columns: repeat(3,minmax(0,1fr));
-gap: 12px;
-margin-bottom: 18px;
-}
-.band-card {
-padding: 15px;
-border-radius: 22px;
-border: 1px solid rgba(148,163,184,.22);
-background: #fff;
-}
-.band-card.blocked {
-background: linear-gradient(135deg,var(--red-soft),#fff);
-}
-.band-card.warning {
-background: linear-gradient(135deg,var(--amber-soft),#fff);
-}
-.band-card.unknown {
-background: linear-gradient(135deg,var(--blue-soft),#fff);
-}
-.band-num {
-font-size: 30px;
-font-weight: 1000;
-letter-spacing: -.05em;
-}
-.band-label {
-margin-top: 4px;
-color: var(--muted);
-font-size: 11px;
-font-weight: 1000;
-text-transform: uppercase;
-letter-spacing: .06em;
-}
-.table-wrap {
-width: 100%;
-overflow-x: auto;
--webkit-overflow-scrolling: touch;
-}
-table {
-width: 100%;
-border-collapse: collapse;
-min-width: 900px;
-font-size: 12px;
-}
-th, td {
-padding: 11px 8px;
-border-bottom: 1px solid rgba(148,163,184,.20);
-text-align: left;
-vertical-align: top;
-}
-th {
-color: var(--muted);
-font-size: 10px;
-font-weight: 1000;
-letter-spacing: .06em;
-text-transform: uppercase;
-}
-td {
-font-weight: 760;
-}
-.hit-list {
-display: flex;
-flex-wrap: wrap;
-gap: 5px;
-}
-details.audit {
-background: var(--card);
-border: 1px solid var(--line);
-border-radius: var(--radius);
-box-shadow: 0 12px 34px rgba(15,23,42,.07);
-overflow: hidden;
-margin-bottom: 14px;
-}
-details.audit > summary {
-list-style: none;
-cursor: pointer;
-padding: 16px 18px;
-display: flex;
-justify-content: space-between;
-gap: 12px;
-align-items: center;
-background: rgba(248,250,252,.84);
-font-size: 15px;
-font-weight: 1000;
-letter-spacing: -.025em;
-}
-details.audit > summary::-webkit-details-marker {
-display: none;
-}
-.loading,
-.error {
-padding: 34px 18px;
-text-align: center;
-color: var(--muted);
-font-size: 14px;
-font-weight: 900;
-}
-.error {
-color: var(--red);
-}
-.empty {
-padding: 16px;
-border: 1px dashed rgba(148,163,184,.34);
-border-radius: 18px;
-color: var(--muted);
-background: var(--soft);
-font-size: 13px;
-font-weight: 800;
-line-height: 1.45;
-}
-@media (max-width: 1240px) {
-.score-grid {
-grid-template-columns: repeat(3,minmax(0,1fr));
-}
-.grid-2,
-.hero-inner,
-.impact-main,
-.readiness-band {
-grid-template-columns: 1fr;
-}
-}
-@media (max-width: 760px) {
-.page {
-padding: 18px 10px 90px;
-}
-.hero {
-padding: 20px;
-border-radius: 28px;
-}
-.controls,
-.control,
-input[type="month"],
-.btn {
-width: 100%;
-}
-.score-grid,
-.metric-grid,
-.api-grid,
-.impact-grid,
-.group-grid,
-.pattern-grid,
-.chain-grid,
-.rule-grid {
-grid-template-columns: 1fr;
-}
-.panel-head,
-.panel-body {
-padding-left: 14px;
-padding-right: 14px;
-}
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Sovereign Finance — Command Centre</title>
+  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
+  <script src="/js/theme.js?v=1.0.0" defer></script>
+  <script src="/js/nav.js?v=1.1.9" defer></script>
+
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --soft: #f8fafc;
+      --card: rgba(255,255,255,.94);
+      --line: rgba(148,163,184,.24);
+      --green: #16a34a;
+      --green-soft: #dcfce7;
+      --blue: #2563eb;
+      --blue-soft: #dbeafe;
+      --amber: #d97706;
+      --amber-soft: #fef3c7;
+      --red: #dc2626;
+      --red-soft: #fee2e2;
+      --shadow: 0 18px 52px rgba(15,23,42,.10);
+      --radius: 28px;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 8% -6%, rgba(34,197,94,.14), transparent 34rem),
+        radial-gradient(circle at 94% 0%, rgba(37,99,235,.13), transparent 34rem),
+        var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      min-width: 0;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .page {
+      width: 100%;
+      max-width: var(--sf-content-max, 1440px);
+      margin: 0 auto;
+      padding: 24px 16px 76px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 36px;
+      padding: 24px;
+      color: #f8fafc;
+      background:
+        linear-gradient(135deg, rgba(15,23,42,.98), rgba(30,41,59,.96)),
+        radial-gradient(circle at top right, rgba(34,197,94,.24), transparent 28rem);
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 380px;
+      height: 380px;
+      right: -120px;
+      bottom: -160px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(34,197,94,.24), transparent 68%);
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0,1fr) minmax(260px,360px);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(34,197,94,.13);
+      color: #bbf7d0;
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 12px;
+    }
+
+    .eyebrow-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 16px rgba(34,197,94,.82);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(34px,5vw,62px);
+      line-height: .96;
+      letter-spacing: -.07em;
+      font-weight: 1000;
+    }
+
+    .subtitle {
+      max-width: 860px;
+      margin: 13px 0 0;
+      color: #cbd5e1;
+      font-size: 15px;
+      line-height: 1.55;
+      font-weight: 750;
+    }
+
+    .verdict-card {
+      padding: 16px;
+      border-radius: 24px;
+      background: rgba(255,255,255,.09);
+      border: 1px solid rgba(255,255,255,.13);
+      backdrop-filter: blur(16px);
+    }
+
+    .verdict-label {
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .verdict-value {
+      margin-top: 8px;
+      font-size: 34px;
+      line-height: 1;
+      font-weight: 1000;
+      letter-spacing: -.055em;
+    }
+
+    .verdict-score {
+      margin-top: 6px;
+      color: #e2e8f0;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .verdict-note {
+      margin-top: 10px;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 750;
+      line-height: 1.45;
+    }
+
+    .controls {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+      align-items: end;
+    }
+
+    .control {
+      display: grid;
+      gap: 5px;
+    }
+
+    .control label {
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    input[type="month"],
+    select {
+      height: 42px;
+      min-width: 164px;
+      padding: 0 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.10);
+      color: #fff;
+      font-weight: 900;
+    }
+
+    select option {
+      color: #0f172a;
+      background: #fff;
+    }
+
+    .btn {
+      height: 42px;
+      border: 0;
+      border-radius: 14px;
+      padding: 0 14px;
+      background: #22c55e;
+      color: #052e16;
+      font-size: 13px;
+      font-weight: 1000;
+      cursor: pointer;
+    }
+
+    .btn.secondary {
+      background: rgba(255,255,255,.10);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.14);
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(6,minmax(0,1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .score-card,
+    .panel,
+    .loading,
+    .error {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 12px 34px rgba(15,23,42,.08);
+      min-width: 0;
+    }
+
+    .score-card {
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .score-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .score-name {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .score-number {
+      margin-top: 11px;
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 1000;
+      letter-spacing: -.055em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .score-note {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.38;
+      font-weight: 750;
+    }
+
+    .badge,
+    .score-pill {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 6px 9px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 10px;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      white-space: nowrap;
+    }
+
+    .ready,
+    .ready-with-warnings,
+    .clean,
+    .trial-safe,
+    .pass,
+    .good {
+      color: #166534;
+      background: var(--green-soft);
+      border-color: rgba(22,163,74,.20);
+    }
+
+    .warning,
+    .warn,
+    .internal-only,
+    .degraded {
+      color: #92400e;
+      background: var(--amber-soft);
+      border-color: rgba(217,119,6,.20);
+    }
+
+    .blocked,
+    .fail,
+    .bad {
+      color: #991b1b;
+      background: var(--red-soft);
+      border-color: rgba(220,38,38,.20);
+    }
+
+    .unknown,
+    .info {
+      color: #1d4ed8;
+      background: var(--blue-soft);
+      border-color: rgba(37,99,235,.18);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) minmax(360px,.86fr);
+      gap: 18px;
+      align-items: start;
+      margin-bottom: 18px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3,minmax(0,1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 17px 18px;
+      background: rgba(248,250,252,.82);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.1;
+      font-weight: 1000;
+      letter-spacing: -.035em;
+    }
+
+    .panel-sub {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 750;
+    }
+
+    .panel-body {
+      padding: 16px 18px 18px;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .issue {
+      display: grid;
+      grid-template-columns: 30px minmax(0,1fr);
+      gap: 10px;
+      padding: 12px;
+      border-radius: 18px;
+      background: var(--soft);
+      border: 1px solid rgba(148,163,184,.18);
+    }
+
+    .issue-mark {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid rgba(148,163,184,.22);
+      font-size: 13px;
+      font-weight: 1000;
+    }
+
+    .issue-title {
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.28;
+      font-weight: 1000;
+    }
+
+    .issue-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 7px;
+    }
+
+    .issue-text {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 720;
+    }
+
+    .metric-grid,
+    .api-grid,
+    .impact-grid,
+    .group-grid,
+    .pattern-grid,
+    .chain-grid,
+    .rule-grid,
+    .trial-grid,
+    .check-grid {
+      display: grid;
+      grid-template-columns: repeat(2,minmax(0,1fr));
+      gap: 10px;
+    }
+
+    .metric,
+    .api-card,
+    .impact-card,
+    .group-card,
+    .pattern-card,
+    .chain-card,
+    .rule-card,
+    .trial-card,
+    .check-card {
+      padding: 13px;
+      border-radius: 18px;
+      background: var(--soft);
+      border: 1px solid rgba(148,163,184,.18);
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 950;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      margin-top: 7px;
+      font-size: 21px;
+      line-height: 1.05;
+      font-weight: 1000;
+      letter-spacing: -.04em;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+
+    .metric-note,
+    .api-meta,
+    .impact-list,
+    .group-meta,
+    .pattern-meta,
+    .chain-meta,
+    .rule-meta,
+    .trial-meta,
+    .check-meta {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 740;
+    }
+
+    .api-head,
+    .impact-name,
+    .group-head,
+    .pattern-head,
+    .chain-head,
+    .rule-head,
+    .trial-head,
+    .check-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 1000;
+      line-height: 1.25;
+    }
+
+    .impact-main {
+      display: grid;
+      grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .selector-box {
+      padding: 14px;
+      border-radius: 20px;
+      background: var(--soft);
+      border: 1px solid rgba(148,163,184,.18);
+    }
+
+    .selector-box label {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 8px;
+    }
+
+    .selector-box select {
+      width: 100%;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+    }
+
+    .chain-step {
+      display: grid;
+      grid-template-columns: 28px minmax(0,1fr);
+      gap: 10px;
+      align-items: start;
+      padding: 11px;
+      border-radius: 16px;
+      background: #fff;
+      border: 1px solid rgba(148,163,184,.18);
+      margin-top: 9px;
+    }
+
+    .chain-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 11px;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 1000;
+      background: var(--blue-soft);
+      color: #1d4ed8;
+    }
+
+    .chain-title {
+      font-size: 13px;
+      font-weight: 1000;
+      line-height: 1.25;
+    }
+
+    .chain-text {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 730;
+      line-height: 1.4;
+    }
+
+    .readiness-band {
+      display: grid;
+      grid-template-columns: repeat(3,minmax(0,1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .band-card {
+      padding: 15px;
+      border-radius: 22px;
+      border: 1px solid rgba(148,163,184,.22);
+      background: #fff;
+    }
+
+    .band-card.blocked {
+      background: linear-gradient(135deg,var(--red-soft),#fff);
+    }
+
+    .band-card.warning {
+      background: linear-gradient(135deg,var(--amber-soft),#fff);
+    }
+
+    .band-card.unknown {
+      background: linear-gradient(135deg,var(--blue-soft),#fff);
+    }
+
+    .band-num {
+      font-size: 30px;
+      font-weight: 1000;
+      letter-spacing: -.05em;
+    }
+
+    .band-label {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .final-gate {
+      border: 1px solid rgba(34,197,94,.26);
+      background:
+        linear-gradient(135deg, rgba(220,252,231,.82), rgba(255,255,255,.96));
+    }
+
+    .final-gate.blocked {
+      border-color: rgba(220,38,38,.26);
+      background:
+        linear-gradient(135deg, rgba(254,226,226,.88), rgba(255,255,255,.96));
+    }
+
+    .final-gate.warning,
+    .final-gate.ready-with-warnings {
+      border-color: rgba(217,119,6,.26);
+      background:
+        linear-gradient(135deg, rgba(254,243,199,.88), rgba(255,255,255,.96));
+    }
+
+    .final-gate.unknown {
+      border-color: rgba(37,99,235,.22);
+      background:
+        linear-gradient(135deg, rgba(219,234,254,.88), rgba(255,255,255,.96));
+    }
+
+    .final-decision {
+      font-size: clamp(32px, 5vw, 56px);
+      line-height: .94;
+      letter-spacing: -.065em;
+      font-weight: 1000;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 900px;
+      font-size: 12px;
+    }
+
+    th,
+    td {
+      padding: 11px 8px;
+      border-bottom: 1px solid rgba(148,163,184,.20);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 1000;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    td {
+      font-weight: 760;
+    }
+
+    .hit-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    details.audit {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 12px 34px rgba(15,23,42,.07);
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    details.audit > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 16px 18px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      background: rgba(248,250,252,.84);
+      font-size: 15px;
+      font-weight: 1000;
+      letter-spacing: -.025em;
+    }
+
+    details.audit > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .loading,
+    .error {
+      padding: 34px 18px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .error {
+      color: var(--red);
+    }
+
+    .empty {
+      padding: 16px;
+      border: 1px dashed rgba(148,163,184,.34);
+      border-radius: 18px;
+      color: var(--muted);
+      background: var(--soft);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1240px) {
+      .score-grid {
+        grid-template-columns: repeat(3,minmax(0,1fr));
+      }
+
+      .grid-2,
+      .grid-3,
+      .hero-inner,
+      .impact-main,
+      .readiness-band {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        padding: 18px 10px 90px;
+      }
+
+      .hero {
+        padding: 20px;
+        border-radius: 28px;
+      }
+
+      .controls,
+      .control,
+      input[type="month"],
+      .btn {
+        width: 100%;
+      }
+
+      .score-grid,
+      .metric-grid,
+      .api-grid,
+      .impact-grid,
+      .group-grid,
+      .pattern-grid,
+      .chain-grid,
+      .rule-grid,
+      .trial-grid,
+      .check-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-head,
+      .panel-body {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+    }
+  </style>
 </head>
+
 <body>
-<main class="page app-page">
-<section class="hero">
-<div class="hero-inner">
-<div>
-<div class="eyebrow"><span class="eyebrow-dot"></span> Finance QA</div>
-<h1>Finance Command Centre</h1>
-<p class="subtitle">
-Whole-system status for money truth, API health, wiring, logic, UI cleanliness, impact safety, and trial readiness.
-v0.5 adds a stricter readiness gate: hard blockers, warnings, unknowns, and the exact next three fixes.
-</p>
-</div>
-<aside class="verdict-card">
-<div class="verdict-label">System verdict</div>
-<div class="verdict-value" id="heroVerdict">Loading</div>
-<div class="verdict-score" id="heroScore">Audit running</div>
-<div class="verdict-note" id="heroNote">Reading finance cockpit health.</div>
-</aside>
-</div>
-<div class="controls">
-<div class="control">
-<label for="monthInput">Month lens</label>
-<input id="monthInput" type="month" />
-</div>
-<div class="control">
-<label for="changeSelect">Changed area</label>
-<select id="changeSelect"></select>
-</div>
-<button class="btn" id="refreshBtn" type="button">Run Audit</button>
-<button class="btn secondary" id="detailsBtn" type="button">Open Details</button>
-</div>
-</section>
-<div id="app">
-<section class="loading">Running command centre audit...</section>
-</div>
-</main>
-<script>
-(function () {
-"use strict";
-window.SovereignCommandCentre = {
-version: "0.5.0",
-mode: "fix-queue-readiness-rules"
-};
-const app = document.getElementById("app");
-const monthInput = document.getElementById("monthInput");
-const changeSelect = document.getElementById("changeSelect");
-const refreshBtn = document.getElementById("refreshBtn");
-const detailsBtn = document.getElementById("detailsBtn");
-const MODULES = [
-{
-key: "hub",
-name: "Hub",
-group: "Daily Core",
-pages: ["index.html"],
-apis: ["balances"],
-dependsOn: ["accounts", "transactions", "bills", "debts"],
-impacts: ["whole cockpit"],
-recheck: ["index.html", "balances", "accounts", "transactions", "bills", "debts"],
-risk: "high",
-changeMeaning: "A Hub change can hide or misrepresent the whole system status."
-},
-{
-key: "add",
-name: "Add Transaction",
-group: "Daily Core",
-pages: ["add.html"],
-apis: ["accounts", "categories", "transactions"],
-dependsOn: ["accounts", "categories", "store"],
-impacts: ["transactions", "accounts", "balances", "hub", "forecast", "command centre"],
-recheck: ["add.html", "transactions.html", "accounts.html", "index.html", "forecast.html", "monthly-close.html", "transactions", "accounts", "balances", "forecast"],
-risk: "high",
-changeMeaning: "An Add change can affect the ledger, account balances, forecast, and the safety verdict."
-},
-{
-key: "transactions",
-name: "Transactions",
-group: "Daily Core",
-pages: ["transactions.html"],
-apis: ["transactions"],
-dependsOn: ["accounts", "categories"],
-impacts: ["balances", "forecast", "command centre"],
-recheck: ["transactions.html", "accounts.html", "index.html", "forecast.html", "monthly-close.html", "transactions", "balances", "accounts", "forecast"],
-risk: "high",
-changeMeaning: "A Transactions change can distort history, balances, and projections."
-},
-{
-key: "accounts",
-name: "Accounts",
-group: "Money Truth",
-pages: ["accounts.html"],
-apis: ["accounts"],
-dependsOn: ["transactions"],
-impacts: ["balances", "hub", "reconciliation", "forecast", "credit card"],
-recheck: ["accounts.html", "index.html", "reconciliation.html", "cc.html", "forecast.html", "monthly-close.html", "accounts", "balances", "reconciliation", "forecast"],
-risk: "high",
-changeMeaning: "An Accounts change can alter money truth across the cockpit."
-},
-{
-key: "credit-card",
-name: "Credit Card",
-group: "Money Truth",
-pages: ["cc.html"],
-apis: ["accounts", "transactions"],
-dependsOn: ["cc account balance", "transactions"],
-impacts: ["hub", "forecast", "command centre", "accounts"],
-recheck: ["cc.html", "accounts.html", "index.html", "forecast.html", "monthly-close.html", "accounts", "balances", "transactions", "forecast"],
-risk: "high",
-changeMeaning: "A Credit Card change is high-risk because outstanding must never come from lifetime spend."
-},
-{
-key: "bills",
-name: "Bills",
-group: "Money Truth",
-pages: ["bills.html"],
-apis: ["bills"],
-dependsOn: ["accounts"],
-impacts: ["forecast", "command centre", "monthly pressure"],
-recheck: ["bills.html", "forecast.html", "monthly-close.html", "bills", "forecast"],
-risk: "medium",
-changeMeaning: "A Bills change can affect due-soon pressure and forecast safety."
-},
-{
-key: "debts",
-name: "Debts",
-group: "Money Truth",
-pages: ["debts.html"],
-apis: ["debts"],
-dependsOn: ["accounts"],
-impacts: ["forecast", "command centre", "debt burden"],
-recheck: ["debts.html", "forecast.html", "monthly-close.html", "debts", "forecast"],
-risk: "medium",
-changeMeaning: "A Debts change affects debt burden, receivables, and future pressure."
-},
-{
-key: "salary",
-name: "Salary",
-group: "Planning",
-pages: ["salary.html"],
-apis: ["salary"],
-dependsOn: ["salary config", "payslip"],
-impacts: ["forecast", "command centre", "baseline safety"],
-recheck: ["salary.html", "forecast.html", "monthly-close.html", "salary", "forecast"],
-risk: "high",
-changeMeaning: "A Salary change can make Forecast unsafe if guaranteed and variable income are mixed."
-},
-{
-key: "forecast",
-name: "Forecast",
-group: "Planning",
-pages: ["forecast.html"],
-apis: ["forecast"],
-dependsOn: ["balances", "bills", "debts", "salary"],
-impacts: ["command centre", "trial decision"],
-recheck: ["forecast.html", "monthly-close.html", "balances", "bills", "debts", "salary", "forecast"],
-risk: "high",
-changeMeaning: "A Forecast change can make the Command Centre overconfident or falsely blocked."
-},
-{
-key: "reconciliation",
-name: "Reconciliation",
-group: "QA/Admin",
-pages: ["reconciliation.html"],
-apis: ["reconciliation"],
-dependsOn: ["accounts", "transactions"],
-impacts: ["command centre", "money truth confidence"],
-recheck: ["reconciliation.html", "accounts.html", "transactions.html", "monthly-close.html", "reconciliation", "accounts", "transactions"],
-risk: "medium",
-changeMeaning: "A Reconciliation change affects confidence in declared vs app balances."
-},
-{
-key: "nav",
-name: "Navigation Shell",
-group: "QA/Admin",
-pages: ["index.html", "add.html", "transactions.html", "accounts.html", "bills.html", "debts.html", "salary.html", "cc.html", "forecast.html", "reconciliation.html", "monthly-close.html"],
-apis: [],
-dependsOn: ["nav script", "app layout"],
-impacts: ["all pages", "trial navigation"],
-recheck: ["all pages", "nav runtime", "mobile shell", "desktop shell"],
-risk: "high",
-changeMeaning: "A Nav change can make the app feel broken even when data is correct."
-},
-{
-key: "command-centre",
-name: "Command Centre",
-group: "QA/Admin",
-pages: ["monthly-close.html"],
-apis: ["monthly-close", "balances", "accounts", "transactions", "bills", "debts", "salary", "forecast"],
-dependsOn: ["all finance modules"],
-impacts: ["trial decision"],
-recheck: ["monthly-close.html", "all APIs", "all pages"],
-risk: "high",
-changeMeaning: "A Command Centre change can hide real blockers or create fake confidence."
-}
-];
-const API_ROUTES = {
-"monthly-close": month => `/api/monthly-close?month=${encodeURIComponent(month)}`,
-balances: () => "/api/balances",
-accounts: () => "/api/accounts",
-transactions: () => "/api/transactions",
-bills: () => "/api/bills",
-debts: () => "/api/debts",
-salary: () => "/api/salary",
-forecast: () => "/api/forecast",
-categories: () => "/api/categories",
-reconciliation: () => "/api/reconciliation"
-};
-const API_EXPECTATIONS = {
-"monthly-close": ["summary", "audit_readiness"],
-balances: ["liquid", "cc_outstanding"],
-accounts: ["accounts"],
-transactions: ["transactions"],
-bills: ["bills"],
-debts: ["debts"],
-salary: [],
-forecast: [],
-categories: ["categories"],
-reconciliation: []
-};
-const PAGE_GROUPS = ["Daily Core", "Money Truth", "Planning", "QA/Admin"];
-const CLEAN_PATTERNS = [
-{ key: "unsafe_contract", label: "Unsafe contract source", severity: "blocked", penalty: 60, pattern: /\bmoney-contracts\b/i, meaning: "This page references a blocked source for trial trust.", next: "Remove money-contracts dependency or wording." },
-{ key: "backend_route", label: "Backend route visible", severity: "warning", penalty: 15, pattern: /\/api\/[a-z0-9/_?=&.-]+/i, meaning: "Normal trial UI should not expose backend routes.", next: "Translate into user-safe cockpit language." },
-{ key: "debug_source", label: "Debug/source wording", severity: "warning", penalty: 15, pattern: /\b(debug|backend_score|computed_from|ready_with_warnings|raw json|computed_at|forecast_meta|payload)\b/i, meaning: "The page contains wording that feels like an internal report.", next: "Hide behind admin/debug or rewrite in plain language." },
-{ key: "raw_ids", label: "Raw ID wording", severity: "warning", penalty: 10, pattern: /\b(account_id|bill_id|debt_id|salary_config_id|active_payslip_id|linked_txn_id)\b/i, meaning: "Raw IDs should not be visible in trial UI.", next: "Show user names/labels instead of internal IDs." },
-{ key: "transaction_ids", label: "Transaction ID wording", severity: "warning", penalty: 10, pattern: /\b(TXN-|txn_|transaction_id)\b/i, meaning: "Transaction internals should be hidden from normal cockpit screens.", next: "Keep transaction IDs inside audit/admin mode only." },
-{ key: "file_names", label: "File name wording", severity: "warning", penalty: 10, pattern: /\b[a-z0-9-]+\.html\b/i, meaning: "File names make the page feel like a development surface.", next: "Use product names instead of file names." },
-{ key: "version_labels", label: "Version label", severity: "warning", penalty: 10, pattern: /\b(?:nav|css|cockpit|backend|store|add|bills|debts|salary|forecast)\s*v?\d+\.\d+\.\d+/i, meaning: "Version labels should not be visible in normal trial UI.", next: "Hide versions unless admin/debug mode is active." }
-];
-const RULEBOOK = [
-{ name: "No unsafe Credit Card truth", type: "hard", rule: "Credit Card outstanding must come from realtime account or balance truth, never lifetime spend or money-contracts." },
-{ name: "No fake 100%", type: "hard", rule: "Any hard blocker or unknown required source prevents 100% readiness." },
-{ name: "No hidden broken route", type: "hard", rule: "Every major page must load as itself and not silently fall back to Hub." },
-{ name: "No ledger mutation from QA", type: "hard", rule: "Command Centre must only read. It must not create, update, delete, or test ledger rows." },
-{ name: "Trial UI must stay clean", type: "warning", rule: "Normal pages should not expose API paths, version labels, raw IDs, debug words, or file names." },
-{ name: "Impact must be visible", type: "warning", rule: "If a module changes, the Command Centre must show downstream pages and APIs to recheck." }
-];
-function currentMonth() {
-const d = new Date();
-return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-function money(value) {
-const n = Number(value);
-if (!Number.isFinite(n)) return "Unknown";
-return `Rs ${n.toLocaleString("en-PK", { maximumFractionDigits: 2 })}`;
-}
-function pct(value) {
-const n = Number(value);
-if (!Number.isFinite(n)) return "Unknown";
-return `${Math.round(n)}%`;
-}
-function esc(value) {
-return String(value == null ? "" : value)
-.replace(/&/g, "&amp;")
-.replace(/</g, "&lt;")
-.replace(/>/g, "&gt;")
-.replace(/"/g, "&quot;")
-.replace(/'/g, "&#39;");
-}
-function norm(value) {
-return String(value || "unknown").toLowerCase().replace(/\s+/g, "-").replace(/_/g, "-");
-}
-function badge(status, label) {
-return `<span class="badge ${esc(norm(status))}">${esc(label || String(status || "unknown").replace(/_/g, " "))}</span>`;
-}
-function labelStatus(status) {
-return {
-ready: "Ready",
-clean: "Clean",
-"trial-safe": "Trial Safe",
-warning: "Warning",
-"internal-only": "Internal Only",
-degraded: "Degraded",
-blocked: "Blocked",
-unknown: "Unknown",
-good: "Good"
-}[status] || "Unknown";
-}
-function scoreStatus(score, blockers, unknowns) {
-if (blockers) return "blocked";
-if (unknowns) return "unknown";
-if (score >= 100) return "ready";
-if (score >= 85) return "warning";
-if (score >= 60) return "degraded";
-return "blocked";
-}
-function cleanStatus(score, hasBlocked, failed) {
-if (failed) return "unknown";
-if (hasBlocked) return "blocked";
-if (score >= 90) return "clean";
-if (score >= 70) return "warning";
-return "blocked";
-}
-function trialDecision(status) {
-if (status === "clean") return "trial-safe";
-if (status === "warning") return "internal-only";
-if (status === "unknown") return "unknown";
-return "blocked";
-}
-function titleCase(value) {
-return String(value || "")
-.replace(/[-_]/g, " ")
-.replace(/\b\w/g, c => c.toUpperCase());
-}
-function iconFor(severity, index) {
-if (severity === "blocked") return "!";
-if (severity === "warning") return "";
-if (severity === "unknown") return "?";
-if (severity === "good") return "";
-return index + 1;
-}
-function issueCard(issue, index) {
-return `
-<div class="issue">
-<div class="issue-mark">${esc(iconFor(issue.severity, index))}</div>
-<div>
-<div class="issue-title">${esc(issue.title)}</div>
-<div class="issue-meta">
-${badge(issue.severity, issue.severity)}
-${badge("info", issue.module || "system")}
-</div>
-<div class="issue-text">${esc(issue.detail)}</div>
-<div class="issue-text"><strong>Next:</strong> ${esc(issue.next || "Review this item before trial.")}</div>
-</div>
-</div>
-`;
-}
-function pickArray(payload, keys) {
-if (Array.isArray(payload)) return payload;
-if (!payload || typeof payload !== "object") return [];
-for (const key of keys) {
-if (Array.isArray(payload[key])) return payload[key];
-}
-if (payload.data && Array.isArray(payload.data)) return payload.data;
-if (payload.result && Array.isArray(payload.result)) return payload.result;
-return [];
-}
-function hasKeyDeep(obj, key) {
-if (!obj || typeof obj !== "object") return false;
-if (Object.prototype.hasOwnProperty.call(obj, key)) return true;
-return Object.keys(obj).some(k => {
-const value = obj[k];
-return value && typeof value === "object" && hasKeyDeep(value, key);
-});
-}
-function num(value) {
-const n = Number(value);
-return Number.isFinite(n) ? n : null;
-}
-async function fetchJson(route) {
-const started = Date.now();
-try {
-const res = await fetch(route, { cache: "no-store" });
-const raw = await res.text();
-let data = null;
-try {
-data = raw ? JSON.parse(raw) : null;
-} catch (error) {
-return { ok: false, status: res.status, ms: Date.now() - started, error: "Response was not valid JSON", data: null, rawLength: raw.length };
-}
-if (!res.ok) {
-return { ok: false, status: res.status, ms: Date.now() - started, error: `HTTP ${res.status}`, data, rawLength: raw.length };
-}
-if (data && data.ok === false) {
-return { ok: false, status: res.status, ms: Date.now() - started, error: data.error || "Response returned not ok", data, rawLength: raw.length };
-}
-return { ok: true, status: res.status, ms: Date.now() - started, error: "", data, rawLength: raw.length };
-} catch (error) {
-return { ok: false, status: 0, ms: Date.now() - started, error: error.message || String(error), data: null, rawLength: 0 };
-}
-}
-async function fetchText(path) {
-const started = Date.now();
-try {
-const res = await fetch(`/${path}`, { cache: "no-store" });
-const text = await res.text();
-return { ok: res.ok, status: res.status, ms: Date.now() - started, text, rawLength: text.length };
-} catch (error) {
-return { ok: false, status: 0, ms: Date.now() - started, text: "", rawLength: 0, error: error.message || String(error) };
-}
-}
-function currentLens() {
-return monthInput.value || currentMonth();
-}
-function selectedChange() {
-return changeSelect.value || "add";
-}
-function extractHealth(api) {
-const balances = api.balances?.data || {};
-const monthly = api["monthly-close"]?.data || {};
-const accountsPayload = api.accounts?.data || {};
-const billsPayload = api.bills?.data || {};
-const debtsPayload = api.debts?.data || {};
-const txPayload = api.transactions?.data || {};
-const categoriesPayload = api.categories?.data || {};
-const forecast = api.forecast?.data || {};
-const salary = api.salary?.data || {};
-const accounts = pickArray(accountsPayload, ["accounts", "items", "balances"]);
-const bills = pickArray(billsPayload, ["bills", "items"]);
-const debts = pickArray(debtsPayload, ["debts", "items"]);
-const transactions = pickArray(txPayload, ["transactions", "items"]);
-const categories = pickArray(categoriesPayload, ["categories", "items"]);
-const liquid =
-num(balances.liquid) ??
-num(balances.liquid_total) ??
-num(balances.current_liquid) ??
-num(monthly.summary?.current_liquid);
-const ccOutstanding =
-num(balances.cc_outstanding) ??
-num(balances.credit_card_outstanding) ??
-num(monthly.summary?.cc_outstanding);
-const payableDebt =
-num(balances.payable_debt) ??
-num(balances.debt_remaining) ??
-num(monthly.summary?.payable_debt) ??
-num(monthly.debts?.total_payable_remaining);
-const receivables =
-num(balances.receivables) ??
-num(balances.receivable_remaining) ??
-num(monthly.summary?.receivables) ??
-num(monthly.debts?.total_receivable_remaining);
-return { balances, monthly, accounts, bills, debts, transactions, categories, forecast, salary, liquid, ccOutstanding, payableDebt, receivables };
-}
-function analyzeApiHealth(apiResults) {
-const issues = [];
-const keys = Object.keys(API_ROUTES);
-let ok = 0;
-let validContract = 0;
-keys.forEach(key => {
-const result = apiResults[key];
-const required = API_EXPECTATIONS[key] || [];
-if (!result || !result.ok) {
-issues.push({
-severity: key === "categories" || key === "reconciliation" ? "warning" : "blocked",
-module: key,
-title: `${titleCase(key)} API did not load`,
-detail: result?.error || "The Command Centre could not read this source.",
-next: "Open the related page and verify this source before trial."
-});
-return;
-}
-ok += 1;
-const hasExpected = required.length === 0 || required.some(field => hasKeyDeep(result.data, field));
-if (hasExpected) {
-validContract += 1;
-} else {
-issues.push({
-severity: "warning",
-module: key,
-title: `${titleCase(key)} API shape looks incomplete`,
-detail: "The endpoint responded, but expected fields were not found in the response shape.",
-next: "Keep the module in warning until the contract is confirmed."
-});
-}
-if (result.ms > 1800) {
-issues.push({
-severity: "warning",
-module: key,
-title: `${titleCase(key)} API is slow`,
-detail: `Response took ${result.ms}ms.`,
-next: "Watch this source if the Command Centre feels slow."
-});
-}
-});
-const availability = Math.round((ok / keys.length) * 100);
-const contract = Math.round((validContract / keys.length) * 100);
-return { score: Math.round((availability * 0.7) + (contract * 0.3)), availability, contract, ok, total: keys.length, issues };
-}
-function analyzePages(pageResults) {
-const issues = [];
-const pages = Array.from(new Set(MODULES.flatMap(m => m.pages).filter(path => path.endsWith(".html"))));
-let ok = 0;
-pages.forEach(path => {
-const result = pageResults[path];
-if (result && result.ok && result.text && result.text.length > 100) {
-ok += 1;
-} else {
-issues.push({
-severity: "blocked",
-module: path.replace(".html", ""),
-title: `${path} did not load cleanly`,
-detail: result?.status ? `Page returned ${result.status}.` : "Page could not be read.",
-next: "Fix this page route before any full trial."
-});
-}
-});
-return { score: Math.round((ok / pages.length) * 100), ok, total: pages.length, issues };
-}
-function analyzeCleanliness(pageResults) {
-const pageScores = [];
-const issues = [];
-const patternSummary = {};
-Object.keys(pageResults).forEach(path => {
-const result = pageResults[path];
-const module = MODULES.find(m => m.pages.includes(path));
-const group = module?.group || "Unknown";
-const name = module?.name || titleCase(path.replace(".html", ""));
-if (!result || !result.ok || !result.text) {
-pageScores.push({ path, name, group, status: "unknown", decision: "unknown", score: 0, hits: [] });
-issues.push({ severity: "unknown", module: name, title: `${name} could not be scanned`, detail: "The page did not return readable HTML.", next: "Verify route and deployment before trial." });
-return;
-}
-const hits = [];
-let score = 100;
-let hasBlocked = false;
-CLEAN_PATTERNS.forEach(rule => {
-if (rule.pattern.test(result.text)) {
-hits.push(rule);
-score -= rule.penalty;
-if (rule.severity === "blocked") hasBlocked = true;
-if (!patternSummary[rule.key]) {
-patternSummary[rule.key] = { key: rule.key, label: rule.label, severity: rule.severity, count: 0, worstPage: name };
-}
-patternSummary[rule.key].count += 1;
-issues.push({
-severity: rule.severity,
-module: name,
-title: `${name} exposes ${rule.label}`,
-detail: rule.meaning,
-next: rule.next
-});
-}
-});
-score = Math.max(0, score);
-const status = cleanStatus(score, hasBlocked, false);
-pageScores.push({ path, name, group, status, decision: trialDecision(status), score, hits });
-});
-const avg = pageScores.length ? Math.round(pageScores.reduce((sum, page) => sum + page.score, 0) / pageScores.length) : 0;
-const anyBlocked = pageScores.some(page => page.status === "blocked");
-const finalScore = anyBlocked ? Math.min(avg, 84) : avg;
-return { score: finalScore, rawAverage: avg, pageScores, patternSummary: Object.values(patternSummary), issues };
-}
-function analyzeTruth(apiResults) {
-const issues = [];
-const h = extractHealth(apiResults);
-if (h.liquid === null) {
-issues.push({ severity: "blocked", module: "balances", title: "Liquid balance is unknown", detail: "The Command Centre cannot judge readiness without usable liquid cash.", next: "Verify balances/accounts before trial." });
-}
-if (h.ccOutstanding === null) {
-issues.push({ severity: "blocked", module: "credit card", title: "Credit Card outstanding is unknown", detail: "Credit Card truth is a hard trust layer for this cockpit.", next: "Use realtime account/balance source only." });
-}
-if (h.ccOutstanding !== null && h.ccOutstanding > 200000) {
-issues.push({ severity: "blocked", module: "credit card", title: "Credit Card outstanding looks unsafe", detail: "The value is above the known safe realtime range and may indicate lifetime spend logic.", next: "Verify against realtime CC account balance before trial." });
-}
-const activeZeroBills = h.bills.filter(bill => {
-const status = String(bill.status || "").toLowerCase();
-const amount = num(bill.amount ?? bill.monthly_amount ?? bill.expected_amount);
-return !status.includes("paid") && !status.includes("closed") && amount !== null && amount <= 0;
-});
-if (activeZeroBills.length) {
-issues.push({ severity: "warning", module: "bills", title: "Active bill has zero or invalid amount", detail: `${activeZeroBills.length} active bill row(s) need amount review.`, next: "Fix bill setup before relying on Forecast or Command Centre." });
-}
-const missingDebtDirection = h.debts.filter(debt => {
-const status = String(debt.status || "").toLowerCase();
-const kind = String(debt.kind || debt.type || "").toLowerCase();
-return !status.includes("paid") && !status.includes("closed") && !kind;
-});
-if (missingDebtDirection.length) {
-issues.push({ severity: "warning", module: "debts", title: "Debt direction is unclear", detail: `${missingDebtDirection.length} active debt row(s) do not clearly show payable vs receivable direction.`, next: "Confirm every active debt direction." });
-}
-const unsafeForecast =
-h.forecast.first_unsafe_date ||
-Number(h.forecast.unsafe_days_count || 0) > 0 ||
-String(h.forecast.status || h.forecast.runway_status || "").toLowerCase().includes("unsafe");
-if (unsafeForecast) {
-issues.push({ severity: "warning", module: "forecast", title: "Forecast has unsafe pressure", detail: "The forecast contains at least one pressure signal. That may be financially true, not a code bug.", next: "Review Forecast before calling the cockpit fully ready." });
-}
-let score = 100;
-issues.forEach(i => score -= i.severity === "blocked" ? 30 : 10);
-return { score: Math.max(0, score), issues, health: h };
-}
-function analyzeLogic(cleanAudit, apiResults) {
-const issues = [];
-cleanAudit.pageScores.forEach(page => {
-if (page.hits.some(hit => hit.key === "unsafe_contract")) {
-issues.push({
-severity: "blocked",
-module: page.name,
-title: `${page.name} references unsafe contract source`,
-detail: "Recovery rule says no trial-trust page should depend on unsafe money-contracts logic.",
-next: "Remove the dependency before this module can be marked ready."
-});
-}
-});
-const salaryJson = JSON.stringify(apiResults.salary?.data || {}).toLowerCase();
-if (salaryJson.includes("speculative") || salaryJson.includes("variable")) {
-issues.push({
-severity: "warning",
-module: "salary",
-title: "Salary includes variable/speculative signals",
-detail: "This is allowed only if guaranteed baseline remains separate from variable scenarios.",
-next: "Do not use variable income as baseline safety."
-});
-}
-let score = 100;
-issues.forEach(i => score -= i.severity === "blocked" ? 35 : 12);
-return { score: Math.max(0, score), issues };
-}
-function analyzeImpact(selectedKey, apiResults, pageResults, cleanAudit) {
-const module = MODULES.find(m => m.key === selectedKey) || MODULES.find(m => m.key === "add");
-const issues = [];
-const recheckItems = module.recheck || [];
-const missing = [];
-const dirty = [];
-const unavailableApis = [];
-recheckItems.forEach(item => {
-if (item.endsWith(".html") && pageResults[item] && !pageResults[item].ok) missing.push(item);
-if (apiResults[item] && !apiResults[item].ok) unavailableApis.push(item);
-});
-cleanAudit.pageScores.forEach(page => {
-if (recheckItems.includes(page.path) && page.status === "blocked") dirty.push(page.name);
-});
-if (missing.length) {
-issues.push({
-severity: "blocked",
-module: module.name,
-title: "Impacted page did not load",
-detail: `${missing.join(", ")} failed during impact recheck.`,
-next: "Fix impacted page route before trial."
-});
-}
-if (unavailableApis.length) {
-issues.push({
-severity: "blocked",
-module: module.name,
-title: "Impacted API did not load",
-detail: `${unavailableApis.join(", ")} failed during impact recheck.`,
-next: "Fix impacted data source before trial."
-});
-}
-if (dirty.length) {
-issues.push({
-severity: "warning",
-module: module.name,
-title: "Impacted page is visually blocked or dirty",
-detail: `${dirty.join(", ")} needs cleanup before this change is trial-safe.`,
-next: "Clean impacted pages and rerun Command Centre audit."
-});
-}
-issues.push({
-severity: "warning",
-module: module.name,
-title: "Impact graph is still declared, not backend-proven",
-detail: "This v0.4 layer maps expected dependencies and rechecks available pages/APIs, but it is not a code scanner.",
-next: "Add backend audit engine later for deeper dependency proof."
-});
-let score = 100;
-issues.forEach(i => score -= i.severity === "blocked" ? 35 : 10);
-return { score: Math.max(0, score), issues, module, missing, dirty, unavailableApis };
-}
-function analyzeWrite(pageResults) {
-const issues = [];
-const add = pageResults["add.html"];
-if (!add || !add.ok) {
-issues.push({ severity: "blocked", module: "add", title: "Add page cannot be checked", detail: "Write safety cannot be judged because Add page did not load.", next: "Fix Add page before any write-path trial." });
-} else {
-const text = add.text || "";
-if (/queued offline/i.test(text)) {
-issues.push({ severity: "blocked", module: "add", title: "Add page still contains offline queue wording", detail: "Failed saves must not silently queue.", next: "Remove queue behavior and wording before trial." });
-}
-if (!/No silent queue/i.test(text)) {
-issues.push({ severity: "warning", module: "add", title: "Add page does not clearly state no silent queue", detail: "Failed save behavior should be explicit.", next: "Keep Add save behavior copy clear." });
-}
-}
-let score = 100;
-issues.forEach(i => score -= i.severity === "blocked" ? 60 : 20);
-return { score: Math.max(0, score), issues };
-}
-function buildResult(audits) {
-const allIssues = [
-...audits.api.issues,
-...audits.pages.issues,
-...audits.cleanliness.issues,
-...audits.truth.issues,
-...audits.logic.issues,
-...audits.impact.issues,
-...audits.write.issues
-];
-const blockers = allIssues.filter(i => i.severity === "blocked");
-const unknowns = allIssues.filter(i => i.severity === "unknown");
-const warnings = allIssues.filter(i => i.severity === "warning");
-const scores = {
-apiHealth: audits.api.score,
-financeTruth: audits.truth.score,
-wiring: Math.round((audits.api.score * 0.58) + (audits.pages.score * 0.42)),
-logic: audits.logic.score,
-uiCleanliness: audits.cleanliness.score,
-impactSafety: audits.impact.score,
-writeSafety: audits.write.score
-};
-const weighted = Math.round(
-scores.apiHealth * 0.15 +
-scores.financeTruth * 0.25 +
-scores.wiring * 0.15 +
-scores.logic * 0.20 +
-scores.uiCleanliness * 0.10 +
-scores.impactSafety * 0.10 +
-scores.writeSafety * 0.05
-);
-const status = scoreStatus(weighted, blockers.length > 0, unknowns.length > 0);
-return { scores, weighted, status, allIssues, blockers, warnings, unknowns };
-}
-function scoreCard(name, score, note, forcedStatus) {
-const status = forcedStatus || scoreStatus(score, false, false);
-return `
-<article class="score-card">
-<div class="score-top">
-<div class="score-name">${esc(name)}</div>
-<span class="score-pill ${esc(norm(status))}">${esc(labelStatus(status))}</span>
-</div>
-<div class="score-number">${pct(score)}</div>
-<div class="score-note">${esc(note)}</div>
-</article>
-`;
-}
-function renderReadinessBand(result) {
-return `
-<section class="readiness-band">
-<div class="band-card blocked"><div class="band-num">${result.blockers.length}</div><div class="band-label">Hard blockers</div></div>
-<div class="band-card warning"><div class="band-num">${result.warnings.length}</div><div class="band-label">Warnings</div></div>
-<div class="band-card unknown"><div class="band-num">${result.unknowns.length}</div><div class="band-label">Unknowns</div></div>
-</section>
-`;
-}
-function renderNextFixes(result) {
-const fixes = result.allIssues
-.slice()
-.sort((a, b) => {
-const w = { blocked: 0, unknown: 1, warning: 2, good: 3 };
-return (w[a.severity] ?? 4) - (w[b.severity] ?? 4);
-})
-.slice(0, 3);
-return fixes.length ? `<div class="list">${fixes.map(issueCard).join("")}</div>` : `<div class="empty">No fix required by current frontend audit. Backend/runtime audit is still future work.</div>`;
-}
-function renderRulebook() {
-return `
-<div class="rule-grid">
-${RULEBOOK.map(rule => `
-<div class="rule-card">
-<div class="rule-head"><span>${esc(rule.name)}</span>${badge(rule.type === "hard" ? "blocked" : "warning", rule.type)}</div>
-<div class="rule-meta">${esc(rule.rule)}</div>
-</div>
-`).join("")}
-</div>
-`;
-}
-function renderMetrics(health, apiAudit, pageAudit) {
-return `
-<div class="metric-grid">
-<div class="metric">
-<div class="metric-label">Liquid position</div>
-<div class="metric-value">${money(health.liquid)}</div>
-<div class="metric-note">Current usable cash signal.</div>
-</div>
-<div class="metric">
-<div class="metric-label">Credit Card</div>
-<div class="metric-value">${money(health.ccOutstanding)}</div>
-<div class="metric-note">Must come from realtime account/balance source.</div>
-</div>
-<div class="metric">
-<div class="metric-label">APIs readable</div>
-<div class="metric-value">${apiAudit.ok}/${apiAudit.total}</div>
-<div class="metric-note">Availability ${pct(apiAudit.availability)}  contract ${pct(apiAudit.contract)}.</div>
-</div>
-<div class="metric">
-<div class="metric-label">Pages readable</div>
-<div class="metric-value">${pageAudit.ok}/${pageAudit.total}</div>
-<div class="metric-note">Static routes checked from this page.</div>
-</div>
-</div>
-`;
-}
-function renderApiHealth(apiResults) {
-return `
-<div class="api-grid">
-${Object.keys(API_ROUTES).map(key => {
-const result = apiResults[key];
-const status = result?.ok ? "ready" : "blocked";
-const meta = result?.ok ? `HTTP ${result.status}  ${result.ms}ms  ${result.rawLength || 0} chars` : `${result?.error || "Unavailable"}`;
-return `
-<div class="api-card">
-<div class="api-head">
-<span>${esc(titleCase(key))}</span>
-${badge(status, status === "ready" ? "OK" : "Fail")}
-</div>
-<div class="api-meta">${esc(meta)}</div>
-</div>
-`;
-}).join("")}
-</div>
-`;
-}
-function renderGroupGate(cleanAudit) {
-const groups = PAGE_GROUPS.map(group => {
-const pages = cleanAudit.pageScores.filter(page => page.group === group);
-const score = pages.length ? Math.round(pages.reduce((sum, page) => sum + page.score, 0) / pages.length) : 0;
-const blocked = pages.some(page => page.status === "blocked");
-const unknown = pages.some(page => page.status === "unknown");
-const status = unknown ? "unknown" : blocked ? "blocked" : score >= 90 ? "trial-safe" : "internal-only";
-const dirtyPages = pages.filter(page => page.status !== "clean").map(page => page.name).join(", ") || "none";
-return { group, score, status, dirtyPages };
-});
-return `
-<div class="group-grid">
-${groups.map(row => `
-<div class="group-card">
-<div class="group-head">
-<span>${esc(row.group)}</span>
-${badge(row.status, labelStatus(row.status))}
-</div>
-<div class="metric-value">${pct(row.score)}</div>
-<div class="group-meta">Dirty pages: ${esc(row.dirtyPages)}</div>
-</div>
-`).join("")}
-</div>
-`;
-}
-function renderCleanlinessMatrix(cleanAudit) {
-return `
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>Page</th>
-<th>Group</th>
-<th>Status</th>
-<th>Score</th>
-<th>Hits</th>
-<th>Trial decision</th>
-</tr>
-</thead>
-<tbody>
-${cleanAudit.pageScores.map(page => `
-<tr>
-<td><strong>${esc(page.name)}</strong><br><span style="color:#64748b;">${esc(page.path)}</span></td>
-<td>${esc(page.group)}</td>
-<td>${badge(page.status, labelStatus(page.status))}</td>
-<td>${pct(page.score)}</td>
-<td>
-<div class="hit-list">
-${page.hits.length ? page.hits.map(hit => badge(hit.severity, hit.label)).join("") : badge("good", "none")}
-</div>
-</td>
-<td>${badge(page.decision, labelStatus(page.decision))}</td>
-</tr>
-`).join("")}
-</tbody>
-</table>
-</div>
-`;
-}
-function renderPatternSummary(cleanAudit) {
-if (!cleanAudit.patternSummary.length) {
-return `<div class="empty">No dirty metadata pattern found in scanned page HTML.</div>`;
-}
-return `
-<div class="pattern-grid">
-${cleanAudit.patternSummary.map(pattern => `
-<div class="pattern-card">
-<div class="pattern-head">
-<span>${esc(pattern.label)}</span>
-${badge(pattern.severity, pattern.severity)}
-</div>
-<div class="metric-value">${esc(pattern.count)}</div>
-<div class="pattern-meta">First page: ${esc(pattern.worstPage || "Unknown")}</div>
-</div>
-`).join("")}
-</div>
-`;
-}
-function renderDirtyPages(cleanAudit) {
-const dirty = cleanAudit.pageScores.filter(page => page.status !== "clean").sort((a, b) => a.score - b.score).slice(0, 5);
-if (!dirty.length) {
-return `<div class="empty">No dirty page found by the metadata scanner.</div>`;
-}
-return `
-<div class="list">
-${dirty.map((page, index) => issueCard({
-severity: page.status === "blocked" ? "blocked" : page.status === "unknown" ? "unknown" : "warning",
-module: page.name,
-title: `${page.name} is ${labelStatus(page.status)}`,
-detail: page.hits.length ? `Detected: ${page.hits.map(hit => hit.label).join(", ")}.` : "Page could not be scanned cleanly.",
-next: page.status === "blocked" ? "Do not show this page in trial until cleaned." : "Clean visible/internal wording before polished trial."
-}, index)).join("")}
-</div>
-`;
-}
-function renderImpactCards() {
-return `
-<div class="impact-grid">
-${MODULES.filter(m => m.key !== "command-centre").map(m => `
-<div class="impact-card">
-<div class="impact-name">
-<span>${esc(m.name)}</span>
-${badge(m.risk === "high" ? "warning" : "info", m.risk)}
-</div>
-<div class="impact-list">
-Impacts: ${esc(m.impacts.join(", "))}<br>
-Recheck: ${esc(m.recheck.slice(0, 5).join(", "))}${m.recheck.length > 5 ? "..." : ""}
-</div>
-</div>
-`).join("")}
-</div>
-`;
-}
-function renderImpactSimulator(impactAudit) {
-const m = impactAudit.module;
-const pageItems = m.recheck.filter(item => item.endsWith(".html"));
-const apiItems = m.recheck.filter(item => !item.endsWith(".html") && !["all pages", "all APIs", "nav runtime", "mobile shell", "desktop shell"].includes(item));
-const specialItems = m.recheck.filter(item => !item.endsWith(".html") && !apiItems.includes(item));
-return `
-<div class="impact-main">
-<div class="selector-box">
-<label>Selected changed area</label>
-<div class="metric-value">${esc(m.name)}</div>
-<div class="metric-note">${esc(m.changeMeaning)}</div>
-<div style="margin-top:12px;">${badge(m.risk === "high" ? "warning" : "info", `${m.risk} risk`)}</div>
-</div>
-<div class="chain-card">
-<div class="chain-head">
-<span>Required recheck chain</span>
-${badge(scoreStatus(impactAudit.score, impactAudit.issues.some(i => i.severity === "blocked"), false), pct(impactAudit.score))}
-</div>
-<div class="chain-step">
-<div class="chain-num">1</div>
-<div>
-<div class="chain-title">Recheck changed surface</div>
-<div class="chain-text">${esc(m.pages.join(", "))}</div>
-</div>
-</div>
-<div class="chain-step">
-<div class="chain-num">2</div>
-<div>
-<div class="chain-title">Recheck downstream pages</div>
-<div class="chain-text">${esc(pageItems.length ? pageItems.join(", ") : "No direct page recheck listed")}</div>
-</div>
-</div>
-<div class="chain-step">
-<div class="chain-num">3</div>
-<div>
-<div class="chain-title">Recheck data sources</div>
-<div class="chain-text">${esc(apiItems.length ? apiItems.join(", ") : "No direct API recheck listed")}</div>
-</div>
-</div>
-<div class="chain-step">
-<div class="chain-num">4</div>
-<div>
-<div class="chain-title">Manual/runtime checks</div>
-<div class="chain-text">${esc(specialItems.length ? specialItems.join(", ") : "Use normal browser visual check")}</div>
-</div>
-</div>
-</div>
-</div>
-`;
-}
-function renderImpactTable() {
-return `
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>Changed area</th>
-<th>Risk</th>
-<th>Can break</th>
-<th>Must recheck</th>
-</tr>
-</thead>
-<tbody>
-${MODULES.map(m => `
-<tr>
-<td><strong>${esc(m.name)}</strong><br><span style="color:#64748b;">${esc(m.group)}</span></td>
-<td>${badge(m.risk === "high" ? "warning" : "info", m.risk)}</td>
-<td>${esc(m.impacts.join(", "))}</td>
-<td>${esc(m.recheck.join(", "))}</td>
-</tr>
-`).join("")}
-</tbody>
-</table>
-</div>
-`;
-}
-function renderModuleTable(apiResults, pageResults) {
-return `
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>Module</th>
-<th>Status</th>
-<th>Group</th>
-<th>Pages</th>
-<th>APIs</th>
-<th>Impacts</th>
-</tr>
-</thead>
-<tbody>
-${MODULES.map(m => {
-const modulePages = m.pages.filter(path => path.endsWith(".html"));
-const pageOk = modulePages.length ? modulePages.every(path => pageResults[path]?.ok) : true;
-const apiOk = m.apis.length ? m.apis.every(key => apiResults[key]?.ok) : true;
-const status = pageOk && apiOk ? "ready" : pageOk || apiOk ? "warning" : "blocked";
-return `
-<tr>
-<td><strong>${esc(m.name)}</strong></td>
-<td>${badge(status, labelStatus(status))}</td>
-<td>${esc(m.group)}</td>
-<td>${esc(modulePages.join(", ") || "N/A")}</td>
-<td>${esc(m.apis.join(", ") || "N/A")}</td>
-<td>${esc(m.impacts.join(", "))}</td>
-</tr>
-`;
-}).join("")}
-</tbody>
-</table>
-</div>
-`;
-}
-function auditDetails(title, score, issues) {
-const status = scoreStatus(score, issues.some(i => i.severity === "blocked"), issues.some(i => i.severity === "unknown"));
-return `
-<details class="audit">
-<summary>
-<span>${esc(title)}</span>
-${badge(status, pct(score))}
-</summary>
-<div class="panel-body">
-${issues.length ? `<div class="list">${issues.map(issueCard).join("")}</div>` : `<div class="empty">No blocker found in this audit layer.</div>`}
-</div>
-</details>
-`;
-}
-function updateHero(result) {
-const verdict = document.getElementById("heroVerdict");
-const score = document.getElementById("heroScore");
-const note = document.getElementById("heroNote");
-const top = result.blockers[0] || result.unknowns[0] || result.warnings[0] || result.allIssues[0];
-verdict.textContent = labelStatus(result.status);
-score.textContent = `${result.weighted}% readiness`;
-note.textContent = top ? `${top.title}. Next: ${top.next}` : "No blocker found in the current frontend audit shell.";
-}
-function render(audits, apiResults, pageResults) {
-const result = buildResult(audits);
-const health = audits.truth.health;
-const topIssues = result.allIssues
-.slice()
-.sort((a, b) => {
-const w = { blocked: 0, warning: 1, unknown: 2, good: 3 };
-return (w[a.severity] ?? 4) - (w[b.severity] ?? 4);
-})
-.slice(0, 6);
-updateHero(result);
-app.innerHTML = `
-${renderReadinessBand(result)}
-<section class="score-grid">
-${scoreCard("API Health", result.scores.apiHealth, "Existing finance APIs responding with expected shape.")}
-${scoreCard("Finance Truth", result.scores.financeTruth, "Balances, CC, bills, debts, salary, forecast trust.")}
-${scoreCard("Wiring", result.scores.wiring, "Pages and data sources connected and readable.")}
-${scoreCard("Logic", result.scores.logic, "Unsafe calculation sources and bad assumptions.")}
-${scoreCard("UI Cleanliness", result.scores.uiCleanliness, "Page scanner for metadata and trial dirt.")}
-${scoreCard("Impact Safety", result.scores.impactSafety, "Selected change recheck chain.")}
-</section>
-<section class="grid-2">
-<div class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Next 3 Fixes</h2>
-<p class="panel-sub">Only the highest-leverage items. Fix these first.</p>
-</div>
-${badge(result.status, labelStatus(result.status))}
-</div>
-<div class="panel-body">
-${topIssues.length ? `<div class="list">${topIssues.map(issueCard).join("")}</div>` : `<div class="empty">No blocker found. Backend/runtime audit is still a future layer.</div>`}
-</div>
-</div>
-<div class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Top Dirty Pages</h2>
-<p class="panel-sub">Pages most likely to feel unfinished or unsafe during trial.</p>
-</div>
-${badge(scoreStatus(audits.cleanliness.score, audits.cleanliness.issues.some(i => i.severity === "blocked"), false), pct(audits.cleanliness.score))}
-</div>
-<div class="panel-body">
-${renderDirtyPages(audits.cleanliness)}
-</div>
-</div>
-</section>
-<section class="grid-2">
-<div class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">100% Gate Explanation</h2>
-<p class="panel-sub">Why the Command Centre will or will not say ready.</p>
-</div>
-</div>
-<div class="panel-body">
-<div class="list">
-${issueCard({
-severity: result.blockers.length ? "blocked" : "good",
-module: "readiness",
-title: result.blockers.length ? "Hard blockers prevent 100%" : "No hard blocker detected",
-detail: result.blockers.length ? `${result.blockers.length} hard blocker(s) must be resolved first.` : "Current frontend audit found no hard blockers.",
-next: result.blockers[0]?.next || "Continue checking warnings and unknowns."
-}, 0)}
-${issueCard({
-severity: result.unknowns.length ? "unknown" : "good",
-module: "readiness",
-title: result.unknowns.length ? "Unknown sources prevent certainty" : "No unknown required source detected",
-detail: result.unknowns.length ? `${result.unknowns.length} source(s) could not be verified.` : "Required sources responded to this frontend audit.",
-next: result.unknowns[0]?.next || "Keep using the audit before trial."
-}, 1)}
-</div>
-</div>
-</div>
-<div class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Readiness Rulebook</h2>
-<p class="panel-sub">The rules used to refuse fake readiness.</p>
-</div>
-</div>
-<div class="panel-body">
-${renderRulebook()}
-</div>
-</div>
-</section>
-<section class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Impact Simulator</h2>
-<p class="panel-sub">Pick what changed. The Command Centre shows what can break and what must be rechecked.</p>
-</div>
-${badge(scoreStatus(audits.impact.score, audits.impact.issues.some(i => i.severity === "blocked"), false), pct(audits.impact.score))}
-</div>
-<div class="panel-body">
-${renderImpactSimulator(audits.impact)}
-</div>
-</section>
-<section class="grid-2">
-<div class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Trial Cleanliness Gate</h2>
-<p class="panel-sub">Grouped decision: trial safe, internal only, blocked, or unknown.</p>
-</div>
-</div>
-<div class="panel-body">
-${renderGroupGate(audits.cleanliness)}
-</div>
-</div>
-<div class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Money + Wiring Snapshot</h2>
-<p class="panel-sub">Fast read from current data sources and static app routes.</p>
-</div>
-</div>
-<div class="panel-body">
-${renderMetrics(health, audits.api, audits.pages)}
-</div>
-</div>
-</section>
-<section class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Impact Map</h2>
-<p class="panel-sub">Full dependency map for changed modules and downstream checks.</p>
-</div>
-</div>
-<div class="panel-body">
-${renderImpactCards()}
-</div>
-</section>
-<section class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Impact Recheck Matrix</h2>
-<p class="panel-sub">Every major change area and the checks required before calling it safe.</p>
-</div>
-</div>
-<div class="panel-body">
-${renderImpactTable()}
-</div>
-</section>
-<section class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Page Cleanliness Matrix</h2>
-<p class="panel-sub">Every major finance page scanned for metadata, backend wording, raw IDs, and unsafe sources.</p>
-</div>
-</div>
-<div class="panel-body">
-${renderCleanlinessMatrix(audits.cleanliness)}
-</div>
-</section>
-<section class="grid-2">
-<div class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Dirty Pattern Summary</h2>
-<p class="panel-sub">What kind of trial dirt is appearing most often.</p>
-</div>
-</div>
-<div class="panel-body">
-${renderPatternSummary(audits.cleanliness)}
-</div>
-</div>
-<div class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Trial Decision</h2>
-<p class="panel-sub">No fake 100%. Blockers override score.</p>
-</div>
-</div>
-<div class="panel-body">
-<div class="list">
-${issueCard({
-severity: result.status === "ready" ? "good" : result.status === "warning" ? "warning" : "blocked",
-module: "trial",
-title: labelStatus(result.status),
-detail: result.status === "ready" ? "Current frontend/API/cleanliness/impact audit found no blocker." : "Do not call the cockpit 100% ready until blockers are resolved and deeper backend/runtime audit exists.",
-next: result.blockers[0] ? result.blockers[0].next : "Use the fix queue and rerun audit."
-}, 0)}
-</div>
-</div>
-</div>
-</section>
-<section class="grid-2">
-<div class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Real API Health</h2>
-<p class="panel-sub">Every source this page could read without mutating the ledger.</p>
-</div>
-</div>
-<div class="panel-body">
-${renderApiHealth(apiResults)}
-</div>
-</div>
-<div class="panel">
-<div class="panel-head">
-<div>
-<h2 class="panel-title">Module Health</h2>
-<p class="panel-sub">Route and data-source registry for the finance cockpit.</p>
-</div>
-</div>
-<div class="panel-body">
-${renderModuleTable(apiResults, pageResults)}
-</div>
-</div>
-</section>
-${auditDetails("API Health Audit", audits.api.score, audits.api.issues)}
-${auditDetails("Finance Truth Audit", audits.truth.score, audits.truth.issues)}
-${auditDetails("Wiring Audit", result.scores.wiring, audits.api.issues.concat(audits.pages.issues))}
-${auditDetails("Logic Audit", audits.logic.score, audits.logic.issues)}
-${auditDetails("UI Cleanliness Audit", audits.cleanliness.score, audits.cleanliness.issues)}
-${auditDetails("Impact Safety Audit", audits.impact.score, audits.impact.issues)}
-${auditDetails("Write Safety Audit", audits.write.score, audits.write.issues)}
-`;
-if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
-window.SovereignNav.scheduleOverflowCheck();
-}
-}
-async function runAudit() {
-const month = currentLens();
-app.innerHTML = `<section class="loading">Running command centre audit...</section>`;
-document.getElementById("heroVerdict").textContent = "Loading";
-document.getElementById("heroScore").textContent = "Audit running";
-document.getElementById("heroNote").textContent = "Reading finance cockpit health.";
-const apiKeys = Object.keys(API_ROUTES);
-const pageKeys = Array.from(new Set(MODULES.flatMap(m => m.pages).filter(path => path.endsWith(".html"))));
-const apiEntries = await Promise.all(apiKeys.map(async key => {
-const route = API_ROUTES[key](month);
-const result = await fetchJson(route);
-return [key, result];
-}));
-const pageEntries = await Promise.all(pageKeys.map(async path => {
-const result = await fetchText(path);
-return [path, result];
-}));
-const apiResults = Object.fromEntries(apiEntries);
-const pageResults = Object.fromEntries(pageEntries);
-const audits = {};
-audits.api = analyzeApiHealth(apiResults);
-audits.pages = analyzePages(pageResults);
-audits.cleanliness = analyzeCleanliness(pageResults);
-audits.truth = analyzeTruth(apiResults);
-audits.logic = analyzeLogic(audits.cleanliness, apiResults);
-audits.impact = analyzeImpact(selectedChange(), apiResults, pageResults, audits.cleanliness);
-audits.write = analyzeWrite(pageResults);
-render(audits, apiResults, pageResults);
-}
-function openAllDetails() {
-document.querySelectorAll("details.audit").forEach(detail => {
-detail.open = true;
-});
-}
-function initChangeSelect() {
-changeSelect.innerHTML = MODULES.map(module => `<option value="${esc(module.key)}">${esc(module.name)}</option>`).join("");
-changeSelect.value = new URLSearchParams(location.search || "").get("changed") || "add";
-changeSelect.addEventListener("change", () => {
-const url = new URL(location.href);
-url.searchParams.set("changed", changeSelect.value);
-history.replaceState(null, "", url.toString());
-runAudit();
-});
-}
-monthInput.value = new URLSearchParams(location.search || "").get("month") || currentMonth();
-refreshBtn.addEventListener("click", runAudit);
-detailsBtn.addEventListener("click", openAllDetails);
-monthInput.addEventListener("change", () => {
-const url = new URL(location.href);
-url.searchParams.set("month", monthInput.value);
-history.replaceState(null, "", url.toString());
-runAudit();
-});
-initChangeSelect();
-runAudit().catch(error => {
-document.getElementById("heroVerdict").textContent = "Unknown";
-document.getElementById("heroScore").textContent = "Audit failed";
-document.getElementById("heroNote").textContent = "Command Centre could not complete the audit.";
-app.innerHTML = `
-<section class="error">
-<h2>Command Centre audit failed</h2>
-<p>${esc(error.message || String(error))}</p>
-</section>
-`;
-});
-})();
-</script>
+  <main class="page app-page">
+    <section class="hero">
+      <div class="hero-inner">
+        <div>
+          <div class="eyebrow"><span class="eyebrow-dot"></span> Finance QA</div>
+          <h1>Finance Command Centre</h1>
+          <p class="subtitle">
+            Whole-system status for money truth, API health, wiring, logic, UI cleanliness, impact safety, and trial readiness.
+            v0.6 adds the final trial gate: allowed pages, blocked pages, readiness checklist, safe trial route, and closeout reminder.
+          </p>
+        </div>
+
+        <aside class="verdict-card">
+          <div class="verdict-label">System verdict</div>
+          <div class="verdict-value" id="heroVerdict">Loading</div>
+          <div class="verdict-score" id="heroScore">Audit running</div>
+          <div class="verdict-note" id="heroNote">Reading finance cockpit health.</div>
+        </aside>
+      </div>
+
+      <div class="controls">
+        <div class="control">
+          <label for="monthInput">Month lens</label>
+          <input id="monthInput" type="month" />
+        </div>
+        <div class="control">
+          <label for="changeSelect">Changed area</label>
+          <select id="changeSelect"></select>
+        </div>
+        <button class="btn" id="refreshBtn" type="button">Run Audit</button>
+        <button class="btn secondary" id="detailsBtn" type="button">Open Details</button>
+      </div>
+    </section>
+
+    <div id="app">
+      <section class="loading">Running command centre audit...</section>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      window.SovereignCommandCentre = {
+        version: "0.6.0",
+        mode: "final-trial-gate"
+      };
+
+      const app = document.getElementById("app");
+      const monthInput = document.getElementById("monthInput");
+      const changeSelect = document.getElementById("changeSelect");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const detailsBtn = document.getElementById("detailsBtn");
+
+      const MODULES = [
+        {
+          key: "hub",
+          name: "Hub",
+          group: "Daily Core",
+          pages: ["index.html"],
+          apis: ["balances"],
+          dependsOn: ["accounts", "transactions", "bills", "debts"],
+          impacts: ["whole cockpit"],
+          recheck: ["index.html", "balances", "accounts", "transactions", "bills", "debts"],
+          risk: "high",
+          changeMeaning: "A Hub change can hide or misrepresent the whole system status."
+        },
+        {
+          key: "add",
+          name: "Add Transaction",
+          group: "Daily Core",
+          pages: ["add.html"],
+          apis: ["accounts", "categories", "transactions"],
+          dependsOn: ["accounts", "categories", "store"],
+          impacts: ["transactions", "accounts", "balances", "hub", "forecast", "command centre"],
+          recheck: ["add.html", "transactions.html", "accounts.html", "index.html", "forecast.html", "monthly-close.html", "transactions", "accounts", "balances", "forecast"],
+          risk: "high",
+          changeMeaning: "An Add change can affect the ledger, account balances, forecast, and the safety verdict."
+        },
+        {
+          key: "transactions",
+          name: "Transactions",
+          group: "Daily Core",
+          pages: ["transactions.html"],
+          apis: ["transactions"],
+          dependsOn: ["accounts", "categories"],
+          impacts: ["balances", "forecast", "command centre"],
+          recheck: ["transactions.html", "accounts.html", "index.html", "forecast.html", "monthly-close.html", "transactions", "balances", "accounts", "forecast"],
+          risk: "high",
+          changeMeaning: "A Transactions change can distort history, balances, and projections."
+        },
+        {
+          key: "accounts",
+          name: "Accounts",
+          group: "Money Truth",
+          pages: ["accounts.html"],
+          apis: ["accounts"],
+          dependsOn: ["transactions"],
+          impacts: ["balances", "hub", "reconciliation", "forecast", "credit card"],
+          recheck: ["accounts.html", "index.html", "reconciliation.html", "cc.html", "forecast.html", "monthly-close.html", "accounts", "balances", "reconciliation", "forecast"],
+          risk: "high",
+          changeMeaning: "An Accounts change can alter money truth across the cockpit."
+        },
+        {
+          key: "credit-card",
+          name: "Credit Card",
+          group: "Money Truth",
+          pages: ["cc.html"],
+          apis: ["accounts", "transactions"],
+          dependsOn: ["cc account balance", "transactions"],
+          impacts: ["hub", "forecast", "command centre", "accounts"],
+          recheck: ["cc.html", "accounts.html", "index.html", "forecast.html", "monthly-close.html", "accounts", "balances", "transactions", "forecast"],
+          risk: "high",
+          changeMeaning: "A Credit Card change is high-risk because outstanding must never come from lifetime spend."
+        },
+        {
+          key: "bills",
+          name: "Bills",
+          group: "Money Truth",
+          pages: ["bills.html"],
+          apis: ["bills"],
+          dependsOn: ["accounts"],
+          impacts: ["forecast", "command centre", "monthly pressure"],
+          recheck: ["bills.html", "forecast.html", "monthly-close.html", "bills", "forecast"],
+          risk: "medium",
+          changeMeaning: "A Bills change can affect due-soon pressure and forecast safety."
+        },
+        {
+          key: "debts",
+          name: "Debts",
+          group: "Money Truth",
+          pages: ["debts.html"],
+          apis: ["debts"],
+          dependsOn: ["accounts"],
+          impacts: ["forecast", "command centre", "debt burden"],
+          recheck: ["debts.html", "forecast.html", "monthly-close.html", "debts", "forecast"],
+          risk: "medium",
+          changeMeaning: "A Debts change affects debt burden, receivables, and future pressure."
+        },
+        {
+          key: "salary",
+          name: "Salary",
+          group: "Planning",
+          pages: ["salary.html"],
+          apis: ["salary"],
+          dependsOn: ["salary config", "payslip"],
+          impacts: ["forecast", "command centre", "baseline safety"],
+          recheck: ["salary.html", "forecast.html", "monthly-close.html", "salary", "forecast"],
+          risk: "high",
+          changeMeaning: "A Salary change can make Forecast unsafe if guaranteed and variable income are mixed."
+        },
+        {
+          key: "forecast",
+          name: "Forecast",
+          group: "Planning",
+          pages: ["forecast.html"],
+          apis: ["forecast"],
+          dependsOn: ["balances", "bills", "debts", "salary"],
+          impacts: ["command centre", "trial decision"],
+          recheck: ["forecast.html", "monthly-close.html", "balances", "bills", "debts", "salary", "forecast"],
+          risk: "high",
+          changeMeaning: "A Forecast change can make the Command Centre overconfident or falsely blocked."
+        },
+        {
+          key: "reconciliation",
+          name: "Reconciliation",
+          group: "QA/Admin",
+          pages: ["reconciliation.html"],
+          apis: ["reconciliation"],
+          dependsOn: ["accounts", "transactions"],
+          impacts: ["command centre", "money truth confidence"],
+          recheck: ["reconciliation.html", "accounts.html", "transactions.html", "monthly-close.html", "reconciliation", "accounts", "transactions"],
+          risk: "medium",
+          changeMeaning: "A Reconciliation change affects confidence in declared vs app balances."
+        },
+        {
+          key: "nav",
+          name: "Navigation Shell",
+          group: "QA/Admin",
+          pages: ["index.html", "add.html", "transactions.html", "accounts.html", "bills.html", "debts.html", "salary.html", "cc.html", "forecast.html", "reconciliation.html", "monthly-close.html"],
+          apis: [],
+          dependsOn: ["nav script", "app layout"],
+          impacts: ["all pages", "trial navigation"],
+          recheck: ["all pages", "nav runtime", "mobile shell", "desktop shell"],
+          risk: "high",
+          changeMeaning: "A Nav change can make the app feel broken even when data is correct."
+        },
+        {
+          key: "command-centre",
+          name: "Command Centre",
+          group: "QA/Admin",
+          pages: ["monthly-close.html"],
+          apis: ["monthly-close", "balances", "accounts", "transactions", "bills", "debts", "salary", "forecast"],
+          dependsOn: ["all finance modules"],
+          impacts: ["trial decision"],
+          recheck: ["monthly-close.html", "all APIs", "all pages"],
+          risk: "high",
+          changeMeaning: "A Command Centre change can hide real blockers or create fake confidence."
+        }
+      ];
+
+      const API_ROUTES = {
+        "monthly-close": month => `/api/monthly-close?month=${encodeURIComponent(month)}`,
+        balances: () => "/api/balances",
+        accounts: () => "/api/accounts",
+        transactions: () => "/api/transactions",
+        bills: () => "/api/bills",
+        debts: () => "/api/debts",
+        salary: () => "/api/salary",
+        forecast: () => "/api/forecast",
+        categories: () => "/api/categories",
+        reconciliation: () => "/api/reconciliation"
+      };
+
+      const API_EXPECTATIONS = {
+        "monthly-close": ["summary", "audit_readiness"],
+        balances: ["liquid", "cc_outstanding"],
+        accounts: ["accounts"],
+        transactions: ["transactions"],
+        bills: ["bills"],
+        debts: ["debts"],
+        salary: [],
+        forecast: [],
+        categories: ["categories"],
+        reconciliation: []
+      };
+
+      const PAGE_GROUPS = ["Daily Core", "Money Truth", "Planning", "QA/Admin"];
+
+      const CLEAN_PATTERNS = [
+        {
+          key: "unsafe_contract",
+          label: "Unsafe contract source",
+          severity: "blocked",
+          penalty: 60,
+          pattern: /\bmoney-contracts\b/i,
+          meaning: "This page references a blocked source for trial trust.",
+          next: "Remove money-contracts dependency or wording."
+        },
+        {
+          key: "backend_route",
+          label: "Backend route visible",
+          severity: "warning",
+          penalty: 15,
+          pattern: /\/api\/[a-z0-9/_?=&.-]+/i,
+          meaning: "Normal trial UI should not expose backend routes.",
+          next: "Translate into user-safe cockpit language."
+        },
+        {
+          key: "debug_source",
+          label: "Debug/source wording",
+          severity: "warning",
+          penalty: 15,
+          pattern: /\b(debug|backend_score|computed_from|ready_with_warnings|raw json|computed_at|forecast_meta|payload)\b/i,
+          meaning: "The page contains wording that feels like an internal report.",
+          next: "Hide behind admin/debug or rewrite in plain language."
+        },
+        {
+          key: "raw_ids",
+          label: "Raw ID wording",
+          severity: "warning",
+          penalty: 10,
+          pattern: /\b(account_id|bill_id|debt_id|salary_config_id|active_payslip_id|linked_txn_id)\b/i,
+          meaning: "Raw IDs should not be visible in trial UI.",
+          next: "Show user names/labels instead of internal IDs."
+        },
+        {
+          key: "transaction_ids",
+          label: "Transaction ID wording",
+          severity: "warning",
+          penalty: 10,
+          pattern: /\b(TXN-|txn_|transaction_id)\b/i,
+          meaning: "Transaction internals should be hidden from normal cockpit screens.",
+          next: "Keep transaction IDs inside audit/admin mode only."
+        },
+        {
+          key: "file_names",
+          label: "File name wording",
+          severity: "warning",
+          penalty: 10,
+          pattern: /\b[a-z0-9-]+\.html\b/i,
+          meaning: "File names make the page feel like a development surface.",
+          next: "Use product names instead of file names."
+        },
+        {
+          key: "version_labels",
+          label: "Version label",
+          severity: "warning",
+          penalty: 10,
+          pattern: /\b(?:nav|css|cockpit|backend|store|add|bills|debts|salary|forecast)\s*v?\d+\.\d+\.\d+/i,
+          meaning: "Version labels should not be visible in normal trial UI.",
+          next: "Hide versions unless admin/debug mode is active."
+        }
+      ];
+
+      const RULEBOOK = [
+        {
+          name: "No unsafe Credit Card truth",
+          type: "hard",
+          rule: "Credit Card outstanding must come from realtime account or balance truth, never lifetime spend or money-contracts."
+        },
+        {
+          name: "No fake 100%",
+          type: "hard",
+          rule: "Any hard blocker or unknown required source prevents 100% readiness."
+        },
+        {
+          name: "No hidden broken route",
+          type: "hard",
+          rule: "Every major page must load as itself and not silently fall back to Hub."
+        },
+        {
+          name: "No ledger mutation from QA",
+          type: "hard",
+          rule: "Command Centre must only read. It must not create, update, delete, or test ledger rows."
+        },
+        {
+          name: "Trial UI must stay clean",
+          type: "warning",
+          rule: "Normal pages should not expose API paths, version labels, raw IDs, debug words, or file names."
+        },
+        {
+          name: "Impact must be visible",
+          type: "warning",
+          rule: "If a module changes, the Command Centre must show downstream pages and APIs to recheck."
+        }
+      ];
+
+      const FINAL_CHECKS = [
+        { key: "pages_load", label: "Pages load", description: "Major finance pages must return readable HTML." },
+        { key: "apis_respond", label: "APIs respond", description: "Required finance APIs must return usable JSON." },
+        { key: "cc_truth", label: "Credit Card truth safe", description: "CC outstanding must not be unsafe or unknown." },
+        { key: "no_unsafe_contract", label: "No unsafe contract on trial pages", description: "Trial-safe pages must not contain money-contracts." },
+        { key: "add_no_queue", label: "Add has no silent queue", description: "Failed saves must not silently queue." },
+        { key: "trial_ui_clean", label: "Trial UI clean", description: "Trial pages should not expose internal metadata." },
+        { key: "impact_map", label: "Impact map exists", description: "Changed modules must show downstream rechecks." },
+        { key: "next_fixes", label: "Next fixes visible", description: "Command Centre must show exact next fixes." },
+        { key: "read_only", label: "Command Centre read-only", description: "This page must not mutate ledger data." },
+        { key: "no_fake_ready", label: "No fake 100%", description: "Blockers and unknowns override score." }
+      ];
+
+      function currentMonth() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      }
+
+      function money(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "Unknown";
+        return `Rs ${n.toLocaleString("en-PK", { maximumFractionDigits: 2 })}`;
+      }
+
+      function pct(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "Unknown";
+        return `${Math.round(n)}%`;
+      }
+
+      function esc(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function norm(value) {
+        return String(value || "unknown").toLowerCase().replace(/\s+/g, "-").replace(/_/g, "-");
+      }
+
+      function badge(status, label) {
+        return `<span class="badge ${esc(norm(status))}">${esc(label || String(status || "unknown").replace(/_/g, " "))}</span>`;
+      }
+
+      function labelStatus(status) {
+        return {
+          ready: "Ready",
+          "ready-with-warnings": "Ready with warnings",
+          clean: "Clean",
+          "trial-safe": "Trial Safe",
+          warning: "Warning",
+          "internal-only": "Internal Only",
+          degraded: "Degraded",
+          blocked: "Blocked",
+          unknown: "Unknown",
+          good: "Good"
+        }[status] || "Unknown";
+      }
+
+      function scoreStatus(score, blockers, unknowns) {
+        if (blockers) return "blocked";
+        if (unknowns) return "unknown";
+        if (score >= 100) return "ready";
+        if (score >= 85) return "warning";
+        if (score >= 60) return "degraded";
+        return "blocked";
+      }
+
+      function cleanStatus(score, hasBlocked, failed) {
+        if (failed) return "unknown";
+        if (hasBlocked) return "blocked";
+        if (score >= 90) return "clean";
+        if (score >= 70) return "warning";
+        return "blocked";
+      }
+
+      function trialDecision(status) {
+        if (status === "clean") return "trial-safe";
+        if (status === "warning") return "internal-only";
+        if (status === "unknown") return "unknown";
+        return "blocked";
+      }
+
+      function titleCase(value) {
+        return String(value || "")
+          .replace(/[-_]/g, " ")
+          .replace(/\b\w/g, c => c.toUpperCase());
+      }
+
+      function iconFor(severity, index) {
+        if (severity === "blocked") return "!";
+        if (severity === "warning") return "";
+        if (severity === "unknown") return "?";
+        if (severity === "good") return "";
+        return index + 1;
+      }
+
+      function issueCard(issue, index) {
+        return `
+          <div class="issue">
+            <div class="issue-mark">${esc(iconFor(issue.severity, index))}</div>
+            <div>
+              <div class="issue-title">${esc(issue.title)}</div>
+              <div class="issue-meta">
+                ${badge(issue.severity, issue.severity)}
+                ${badge("info", issue.module || "system")}
+              </div>
+              <div class="issue-text">${esc(issue.detail)}</div>
+              <div class="issue-text"><strong>Next:</strong> ${esc(issue.next || "Review this item before trial.")}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      function pickArray(payload, keys) {
+        if (Array.isArray(payload)) return payload;
+        if (!payload || typeof payload !== "object") return [];
+
+        for (const key of keys) {
+          if (Array.isArray(payload[key])) return payload[key];
+        }
+
+        if (payload.data && Array.isArray(payload.data)) return payload.data;
+        if (payload.result && Array.isArray(payload.result)) return payload.result;
+
+        return [];
+      }
+
+      function hasKeyDeep(obj, key) {
+        if (!obj || typeof obj !== "object") return false;
+        if (Object.prototype.hasOwnProperty.call(obj, key)) return true;
+
+        return Object.keys(obj).some(k => {
+          const value = obj[k];
+          return value && typeof value === "object" && hasKeyDeep(value, key);
+        });
+      }
+
+      function num(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      async function fetchJson(route) {
+        const started = Date.now();
+
+        try {
+          const res = await fetch(route, { cache: "no-store" });
+          const raw = await res.text();
+          let data = null;
+
+          try {
+            data = raw ? JSON.parse(raw) : null;
+          } catch (error) {
+            return {
+              ok: false,
+              status: res.status,
+              ms: Date.now() - started,
+              error: "Response was not valid JSON",
+              data: null,
+              rawLength: raw.length
+            };
+          }
+
+          if (!res.ok) {
+            return {
+              ok: false,
+              status: res.status,
+              ms: Date.now() - started,
+              error: `HTTP ${res.status}`,
+              data,
+              rawLength: raw.length
+            };
+          }
+
+          if (data && data.ok === false) {
+            return {
+              ok: false,
+              status: res.status,
+              ms: Date.now() - started,
+              error: data.error || "Response returned not ok",
+              data,
+              rawLength: raw.length
+            };
+          }
+
+          return {
+            ok: true,
+            status: res.status,
+            ms: Date.now() - started,
+            error: "",
+            data,
+            rawLength: raw.length
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            status: 0,
+            ms: Date.now() - started,
+            error: error.message || String(error),
+            data: null,
+            rawLength: 0
+          };
+        }
+      }
+
+      async function fetchText(path) {
+        const started = Date.now();
+
+        try {
+          const res = await fetch(`/${path}`, { cache: "no-store" });
+          const text = await res.text();
+
+          return {
+            ok: res.ok,
+            status: res.status,
+            ms: Date.now() - started,
+            text,
+            rawLength: text.length
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            status: 0,
+            ms: Date.now() - started,
+            text: "",
+            rawLength: 0,
+            error: error.message || String(error)
+          };
+        }
+      }
+
+      function currentLens() {
+        return monthInput.value || currentMonth();
+      }
+
+      function selectedChange() {
+        return changeSelect.value || "add";
+      }
+
+      function extractHealth(api) {
+        const balances = api.balances?.data || {};
+        const monthly = api["monthly-close"]?.data || {};
+        const accountsPayload = api.accounts?.data || {};
+        const billsPayload = api.bills?.data || {};
+        const debtsPayload = api.debts?.data || {};
+        const txPayload = api.transactions?.data || {};
+        const categoriesPayload = api.categories?.data || {};
+        const forecast = api.forecast?.data || {};
+        const salary = api.salary?.data || {};
+
+        const accounts = pickArray(accountsPayload, ["accounts", "items", "balances"]);
+        const bills = pickArray(billsPayload, ["bills", "items"]);
+        const debts = pickArray(debtsPayload, ["debts", "items"]);
+        const transactions = pickArray(txPayload, ["transactions", "items"]);
+        const categories = pickArray(categoriesPayload, ["categories", "items"]);
+
+        const liquid =
+          num(balances.liquid) ??
+          num(balances.liquid_total) ??
+          num(balances.current_liquid) ??
+          num(monthly.summary?.current_liquid);
+
+        const ccOutstanding =
+          num(balances.cc_outstanding) ??
+          num(balances.credit_card_outstanding) ??
+          num(monthly.summary?.cc_outstanding);
+
+        const payableDebt =
+          num(balances.payable_debt) ??
+          num(balances.debt_remaining) ??
+          num(monthly.summary?.payable_debt) ??
+          num(monthly.debts?.total_payable_remaining);
+
+        const receivables =
+          num(balances.receivables) ??
+          num(balances.receivable_remaining) ??
+          num(monthly.summary?.receivables) ??
+          num(monthly.debts?.total_receivable_remaining);
+
+        return {
+          balances,
+          monthly,
+          accounts,
+          bills,
+          debts,
+          transactions,
+          categories,
+          forecast,
+          salary,
+          liquid,
+          ccOutstanding,
+          payableDebt,
+          receivables
+        };
+      }
+
+      function analyzeApiHealth(apiResults) {
+        const issues = [];
+        const keys = Object.keys(API_ROUTES);
+        let ok = 0;
+        let validContract = 0;
+
+        keys.forEach(key => {
+          const result = apiResults[key];
+          const required = API_EXPECTATIONS[key] || [];
+
+          if (!result || !result.ok) {
+            issues.push({
+              severity: key === "categories" || key === "reconciliation" ? "warning" : "blocked",
+              module: key,
+              title: `${titleCase(key)} API did not load`,
+              detail: result?.error || "The Command Centre could not read this source.",
+              next: "Open the related page and verify this source before trial."
+            });
+            return;
+          }
+
+          ok += 1;
+
+          const hasExpected = required.length === 0 || required.some(field => hasKeyDeep(result.data, field));
+
+          if (hasExpected) {
+            validContract += 1;
+          } else {
+            issues.push({
+              severity: "warning",
+              module: key,
+              title: `${titleCase(key)} API shape looks incomplete`,
+              detail: "The endpoint responded, but expected fields were not found in the response shape.",
+              next: "Keep the module in warning until the contract is confirmed."
+            });
+          }
+
+          if (result.ms > 1800) {
+            issues.push({
+              severity: "warning",
+              module: key,
+              title: `${titleCase(key)} API is slow`,
+              detail: `Response took ${result.ms}ms.`,
+              next: "Watch this source if the Command Centre feels slow."
+            });
+          }
+        });
+
+        const availability = Math.round((ok / keys.length) * 100);
+        const contract = Math.round((validContract / keys.length) * 100);
+
+        return {
+          score: Math.round((availability * 0.7) + (contract * 0.3)),
+          availability,
+          contract,
+          ok,
+          total: keys.length,
+          issues
+        };
+      }
+
+      function analyzePages(pageResults) {
+        const issues = [];
+        const pages = Array.from(new Set(MODULES.flatMap(m => m.pages).filter(path => path.endsWith(".html"))));
+        let ok = 0;
+
+        pages.forEach(path => {
+          const result = pageResults[path];
+
+          if (result && result.ok && result.text && result.text.length > 100) {
+            ok += 1;
+          } else {
+            issues.push({
+              severity: "blocked",
+              module: path.replace(".html", ""),
+              title: `${path} did not load cleanly`,
+              detail: result?.status ? `Page returned ${result.status}.` : "Page could not be read.",
+              next: "Fix this page route before any full trial."
+            });
+          }
+        });
+
+        return {
+          score: Math.round((ok / pages.length) * 100),
+          ok,
+          total: pages.length,
+          issues
+        };
+      }
+
+      function analyzeCleanliness(pageResults) {
+        const pageScores = [];
+        const issues = [];
+        const patternSummary = {};
+
+        Object.keys(pageResults).forEach(path => {
+          const result = pageResults[path];
+          const module = MODULES.find(m => m.pages.includes(path));
+          const group = module?.group || "Unknown";
+          const name = module?.name || titleCase(path.replace(".html", ""));
+
+          if (!result || !result.ok || !result.text) {
+            pageScores.push({
+              path,
+              name,
+              group,
+              status: "unknown",
+              decision: "unknown",
+              score: 0,
+              hits: []
+            });
+
+            issues.push({
+              severity: "unknown",
+              module: name,
+              title: `${name} could not be scanned`,
+              detail: "The page did not return readable HTML.",
+              next: "Verify route and deployment before trial."
+            });
+
+            return;
+          }
+
+          const hits = [];
+          let score = 100;
+          let hasBlocked = false;
+
+          CLEAN_PATTERNS.forEach(rule => {
+            if (rule.pattern.test(result.text)) {
+              hits.push(rule);
+              score -= rule.penalty;
+
+              if (rule.severity === "blocked") {
+                hasBlocked = true;
+              }
+
+              if (!patternSummary[rule.key]) {
+                patternSummary[rule.key] = {
+                  key: rule.key,
+                  label: rule.label,
+                  severity: rule.severity,
+                  count: 0,
+                  worstPage: name
+                };
+              }
+
+              patternSummary[rule.key].count += 1;
+
+              issues.push({
+                severity: rule.severity,
+                module: name,
+                title: `${name} exposes ${rule.label}`,
+                detail: rule.meaning,
+                next: rule.next
+              });
+            }
+          });
+
+          score = Math.max(0, score);
+
+          const status = cleanStatus(score, hasBlocked, false);
+          const decision = trialDecision(status);
+
+          pageScores.push({
+            path,
+            name,
+            group,
+            status,
+            decision,
+            score,
+            hits
+          });
+        });
+
+        const avg = pageScores.length
+          ? Math.round(pageScores.reduce((sum, page) => sum + page.score, 0) / pageScores.length)
+          : 0;
+
+        const anyBlocked = pageScores.some(page => page.status === "blocked");
+        const finalScore = anyBlocked ? Math.min(avg, 84) : avg;
+
+        return {
+          score: finalScore,
+          rawAverage: avg,
+          pageScores,
+          patternSummary: Object.values(patternSummary),
+          issues
+        };
+      }
+
+      function analyzeTruth(apiResults) {
+        const issues = [];
+        const h = extractHealth(apiResults);
+
+        if (h.liquid === null) {
+          issues.push({
+            severity: "blocked",
+            module: "balances",
+            title: "Liquid balance is unknown",
+            detail: "The Command Centre cannot judge readiness without usable liquid cash.",
+            next: "Verify balances/accounts before trial."
+          });
+        }
+
+        if (h.ccOutstanding === null) {
+          issues.push({
+            severity: "blocked",
+            module: "credit card",
+            title: "Credit Card outstanding is unknown",
+            detail: "Credit Card truth is a hard trust layer for this cockpit.",
+            next: "Use realtime account/balance source only."
+          });
+        }
+
+        if (h.ccOutstanding !== null && h.ccOutstanding > 200000) {
+          issues.push({
+            severity: "blocked",
+            module: "credit card",
+            title: "Credit Card outstanding looks unsafe",
+            detail: "The value is above the known safe realtime range and may indicate lifetime spend logic.",
+            next: "Verify against realtime CC account balance before trial."
+          });
+        }
+
+        const activeZeroBills = h.bills.filter(bill => {
+          const status = String(bill.status || "").toLowerCase();
+          const amount = num(bill.amount ?? bill.monthly_amount ?? bill.expected_amount);
+          return !status.includes("paid") && !status.includes("closed") && amount !== null && amount <= 0;
+        });
+
+        if (activeZeroBills.length) {
+          issues.push({
+            severity: "warning",
+            module: "bills",
+            title: "Active bill has zero or invalid amount",
+            detail: `${activeZeroBills.length} active bill row(s) need amount review.`,
+            next: "Fix bill setup before relying on Forecast or Command Centre."
+          });
+        }
+
+        const missingDebtDirection = h.debts.filter(debt => {
+          const status = String(debt.status || "").toLowerCase();
+          const kind = String(debt.kind || debt.type || "").toLowerCase();
+          return !status.includes("paid") && !status.includes("closed") && !kind;
+        });
+
+        if (missingDebtDirection.length) {
+          issues.push({
+            severity: "warning",
+            module: "debts",
+            title: "Debt direction is unclear",
+            detail: `${missingDebtDirection.length} active debt row(s) do not clearly show payable vs receivable direction.`,
+            next: "Confirm every active debt direction."
+          });
+        }
+
+        const unsafeForecast =
+          h.forecast.first_unsafe_date ||
+          Number(h.forecast.unsafe_days_count || 0) > 0 ||
+          String(h.forecast.status || h.forecast.runway_status || "").toLowerCase().includes("unsafe");
+
+        if (unsafeForecast) {
+          issues.push({
+            severity: "warning",
+            module: "forecast",
+            title: "Forecast has unsafe pressure",
+            detail: "The forecast contains at least one pressure signal. That may be financially true, not a code bug.",
+            next: "Review Forecast before calling the cockpit fully ready."
+          });
+        }
+
+        let score = 100;
+
+        issues.forEach(issue => {
+          score -= issue.severity === "blocked" ? 30 : 10;
+        });
+
+        return {
+          score: Math.max(0, score),
+          issues,
+          health: h
+        };
+      }
+
+      function analyzeLogic(cleanAudit, apiResults) {
+        const issues = [];
+
+        cleanAudit.pageScores.forEach(page => {
+          const unsafeHit = page.hits.some(hit => hit.key === "unsafe_contract");
+
+          if (unsafeHit) {
+            issues.push({
+              severity: "blocked",
+              module: page.name,
+              title: `${page.name} references unsafe contract source`,
+              detail: "Recovery rule says no trial-trust page should depend on unsafe money-contracts logic.",
+              next: "Remove the dependency before this module can be marked ready."
+            });
+          }
+        });
+
+        const salaryJson = JSON.stringify(apiResults.salary?.data || {}).toLowerCase();
+
+        if (salaryJson.includes("speculative") || salaryJson.includes("variable")) {
+          issues.push({
+            severity: "warning",
+            module: "salary",
+            title: "Salary includes variable/speculative signals",
+            detail: "This is allowed only if guaranteed baseline remains separate from variable scenarios.",
+            next: "Do not use variable income as baseline safety."
+          });
+        }
+
+        let score = 100;
+
+        issues.forEach(issue => {
+          score -= issue.severity === "blocked" ? 35 : 12;
+        });
+
+        return {
+          score: Math.max(0, score),
+          issues
+        };
+      }
+
+      function analyzeImpact(selectedKey, apiResults, pageResults, cleanAudit) {
+        const module = MODULES.find(m => m.key === selectedKey) || MODULES.find(m => m.key === "add");
+        const issues = [];
+        const recheckItems = module.recheck || [];
+        const missing = [];
+        const dirty = [];
+        const unavailableApis = [];
+
+        recheckItems.forEach(item => {
+          if (item.endsWith(".html") && pageResults[item] && !pageResults[item].ok) {
+            missing.push(item);
+          }
+
+          if (apiResults[item] && !apiResults[item].ok) {
+            unavailableApis.push(item);
+          }
+        });
+
+        cleanAudit.pageScores.forEach(page => {
+          if (recheckItems.includes(page.path) && page.status === "blocked") {
+            dirty.push(page.name);
+          }
+        });
+
+        if (missing.length) {
+          issues.push({
+            severity: "blocked",
+            module: module.name,
+            title: "Impacted page did not load",
+            detail: `${missing.join(", ")} failed during impact recheck.`,
+            next: "Fix impacted page route before trial."
+          });
+        }
+
+        if (unavailableApis.length) {
+          issues.push({
+            severity: "blocked",
+            module: module.name,
+            title: "Impacted API did not load",
+            detail: `${unavailableApis.join(", ")} failed during impact recheck.`,
+            next: "Fix impacted data source before trial."
+          });
+        }
+
+        if (dirty.length) {
+          issues.push({
+            severity: "warning",
+            module: module.name,
+            title: "Impacted page is visually blocked or dirty",
+            detail: `${dirty.join(", ")} needs cleanup before this change is trial-safe.`,
+            next: "Clean impacted pages and rerun Command Centre audit."
+          });
+        }
+
+        issues.push({
+          severity: "warning",
+          module: module.name,
+          title: "Impact graph is still declared, not backend-proven",
+          detail: "This v0.6 layer maps expected dependencies and rechecks available pages/APIs, but it is not a code scanner.",
+          next: "Add backend audit engine later for deeper dependency proof."
+        });
+
+        let score = 100;
+
+        issues.forEach(issue => {
+          score -= issue.severity === "blocked" ? 35 : 10;
+        });
+
+        return {
+          score: Math.max(0, score),
+          issues,
+          module,
+          missing,
+          dirty,
+          unavailableApis
+        };
+      }
+
+      function analyzeWrite(pageResults) {
+        const issues = [];
+        const add = pageResults["add.html"];
+
+        if (!add || !add.ok) {
+          issues.push({
+            severity: "blocked",
+            module: "add",
+            title: "Add page cannot be checked",
+            detail: "Write safety cannot be judged because Add page did not load.",
+            next: "Fix Add page before any write-path trial."
+          });
+        } else {
+          const text = add.text || "";
+
+          if (/queued offline/i.test(text)) {
+            issues.push({
+              severity: "blocked",
+              module: "add",
+              title: "Add page still contains offline queue wording",
+              detail: "Failed saves must not silently queue.",
+              next: "Remove queue behavior and wording before trial."
+            });
+          }
+
+          if (!/No silent queue/i.test(text)) {
+            issues.push({
+              severity: "warning",
+              module: "add",
+              title: "Add page does not clearly state no silent queue",
+              detail: "Failed save behavior should be explicit.",
+              next: "Keep Add save behavior copy clear."
+            });
+          }
+        }
+
+        let score = 100;
+
+        issues.forEach(issue => {
+          score -= issue.severity === "blocked" ? 60 : 20;
+        });
+
+        return {
+          score: Math.max(0, score),
+          issues
+        };
+      }
+
+      function buildResult(audits) {
+        const allIssues = [
+          ...audits.api.issues,
+          ...audits.pages.issues,
+          ...audits.cleanliness.issues,
+          ...audits.truth.issues,
+          ...audits.logic.issues,
+          ...audits.impact.issues,
+          ...audits.write.issues
+        ];
+
+        const blockers = allIssues.filter(issue => issue.severity === "blocked");
+        const warnings = allIssues.filter(issue => issue.severity === "warning");
+        const unknowns = allIssues.filter(issue => issue.severity === "unknown");
+
+        const scores = {
+          apiHealth: audits.api.score,
+          financeTruth: audits.truth.score,
+          wiring: Math.round((audits.api.score * 0.58) + (audits.pages.score * 0.42)),
+          logic: audits.logic.score,
+          uiCleanliness: audits.cleanliness.score,
+          impactSafety: audits.impact.score,
+          writeSafety: audits.write.score
+        };
+
+        const weighted = Math.round(
+          scores.apiHealth * 0.15 +
+          scores.financeTruth * 0.25 +
+          scores.wiring * 0.15 +
+          scores.logic * 0.20 +
+          scores.uiCleanliness * 0.10 +
+          scores.impactSafety * 0.10 +
+          scores.writeSafety * 0.05
+        );
+
+        const status = scoreStatus(weighted, blockers.length > 0, unknowns.length > 0);
+
+        return {
+          scores,
+          weighted,
+          status,
+          allIssues,
+          blockers,
+          warnings,
+          unknowns
+        };
+      }
+
+      function buildFinalGate(result, audits) {
+        const cleanPages = audits.cleanliness.pageScores || [];
+        const hardBlockedPages = cleanPages.filter(page => page.status === "blocked");
+        const unknownPages = cleanPages.filter(page => page.status === "unknown");
+
+        const trialPages = cleanPages.map(page => {
+          const module = MODULES.find(m => m.pages.includes(page.path));
+          const hasUnsafeContract = page.hits.some(hit => hit.key === "unsafe_contract");
+
+          let decision = page.decision;
+
+          if (hasUnsafeContract) {
+            decision = "blocked";
+          }
+
+          return {
+            ...page,
+            module,
+            hasUnsafeContract,
+            finalDecision: decision
+          };
+        });
+
+        const allowed = trialPages.filter(page => page.finalDecision === "trial-safe");
+        const internalOnly = trialPages.filter(page => page.finalDecision === "internal-only");
+        const blocked = trialPages.filter(page => page.finalDecision === "blocked");
+        const unknown = trialPages.filter(page => page.finalDecision === "unknown");
+
+        let finalStatus = "blocked";
+        let why = "Hard blockers or unclean trial pages still exist.";
+        let next = "Fix the first hard blocker, then rerun audit.";
+
+        const requiredScoresReady =
+          result.scores.financeTruth >= 90 &&
+          result.scores.logic >= 90 &&
+          result.scores.uiCleanliness >= 90 &&
+          result.scores.writeSafety >= 90;
+
+        if (result.unknowns.length || unknownPages.length) {
+          finalStatus = "unknown";
+          why = "At least one required source or page could not be verified.";
+          next = result.unknowns[0]?.next || "Resolve unknown sources and rerun audit.";
+        } else if (result.blockers.length) {
+          finalStatus = "blocked";
+          why = "At least one hard blocker exists.";
+          next = result.blockers[0]?.next || "Resolve hard blockers and rerun audit.";
+        } else if (requiredScoresReady && result.weighted >= 100) {
+          finalStatus = "ready";
+          why = "All required frontend audit gates passed.";
+          next = "Use the trial route and keep monitoring after each change.";
+        } else if (result.weighted >= 85) {
+          finalStatus = "ready-with-warnings";
+          why = "No hard blocker, but warnings or score gaps remain.";
+          next = result.warnings[0]?.next || "Use only trial-safe pages and clean warnings later.";
+        } else {
+          finalStatus = "blocked";
+          why = "Overall readiness is below the safe threshold.";
+          next = result.allIssues[0]?.next || "Fix top issues and rerun audit.";
+        }
+
+        return {
+          finalStatus,
+          why,
+          next,
+          allowed,
+          internalOnly,
+          blocked,
+          unknown,
+          trialPages
+        };
+      }
+
+      function scoreCard(name, score, note, forcedStatus) {
+        const status = forcedStatus || scoreStatus(score, false, false);
+
+        return `
+          <article class="score-card">
+            <div class="score-top">
+              <div class="score-name">${esc(name)}</div>
+              <span class="score-pill ${esc(norm(status))}">${esc(labelStatus(status))}</span>
+            </div>
+            <div class="score-number">${pct(score)}</div>
+            <div class="score-note">${esc(note)}</div>
+          </article>
+        `;
+      }
+
+      function renderReadinessBand(result) {
+        return `
+          <section class="readiness-band">
+            <div class="band-card blocked">
+              <div class="band-num">${result.blockers.length}</div>
+              <div class="band-label">Hard blockers</div>
+            </div>
+            <div class="band-card warning">
+              <div class="band-num">${result.warnings.length}</div>
+              <div class="band-label">Warnings</div>
+            </div>
+            <div class="band-card unknown">
+              <div class="band-num">${result.unknowns.length}</div>
+              <div class="band-label">Unknowns</div>
+            </div>
+          </section>
+        `;
+      }
+
+      function renderFinalTrialGate(finalGate) {
+        return `
+          <section class="panel final-gate ${esc(norm(finalGate.finalStatus))}">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Final Trial Gate</h2>
+                <p class="panel-sub">The final operator-facing decision. This overrides raw score when blockers or unknowns exist.</p>
+              </div>
+              ${badge(finalGate.finalStatus, labelStatus(finalGate.finalStatus))}
+            </div>
+            <div class="panel-body">
+              <div class="grid-2">
+                <div>
+                  <div class="final-decision">${esc(labelStatus(finalGate.finalStatus))}</div>
+                  <p class="metric-note">${esc(finalGate.why)}</p>
+                  <p class="metric-note"><strong>Next:</strong> ${esc(finalGate.next)}</p>
+                </div>
+                <div class="metric-grid">
+                  <div class="metric">
+                    <div class="metric-label">Allowed pages</div>
+                    <div class="metric-value">${finalGate.allowed.length}</div>
+                    <div class="metric-note">Safe enough to show.</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-label">Internal only</div>
+                    <div class="metric-value">${finalGate.internalOnly.length}</div>
+                    <div class="metric-note">Works, but not polished enough.</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-label">Blocked pages</div>
+                    <div class="metric-value">${finalGate.blocked.length}</div>
+                    <div class="metric-note">Do not show in trial.</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-label">Unknown pages</div>
+                    <div class="metric-value">${finalGate.unknown.length}</div>
+                    <div class="metric-note">Could not verify.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        `;
+      }
+
+      function renderNextFixes(result) {
+        const fixes = result.allIssues
+          .slice()
+          .sort((a, b) => {
+            const weight = { blocked: 0, unknown: 1, warning: 2, good: 3 };
+            return (weight[a.severity] ?? 4) - (weight[b.severity] ?? 4);
+          })
+          .slice(0, 3);
+
+        return fixes.length
+          ? `<div class="list">${fixes.map(issueCard).join("")}</div>`
+          : `<div class="empty">No fix required by current frontend audit. Backend/runtime audit is still future work.</div>`;
+      }
+
+      function renderRulebook() {
+        return `
+          <div class="rule-grid">
+            ${RULEBOOK.map(rule => `
+              <div class="rule-card">
+                <div class="rule-head">
+                  <span>${esc(rule.name)}</span>
+                  ${badge(rule.type === "hard" ? "blocked" : "warning", rule.type)}
+                </div>
+                <div class="rule-meta">${esc(rule.rule)}</div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function renderMetrics(health, apiAudit, pageAudit) {
+        return `
+          <div class="metric-grid">
+            <div class="metric">
+              <div class="metric-label">Liquid position</div>
+              <div class="metric-value">${money(health.liquid)}</div>
+              <div class="metric-note">Current usable cash signal.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Credit Card</div>
+              <div class="metric-value">${money(health.ccOutstanding)}</div>
+              <div class="metric-note">Must come from realtime account/balance source.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">APIs readable</div>
+              <div class="metric-value">${apiAudit.ok}/${apiAudit.total}</div>
+              <div class="metric-note">Availability ${pct(apiAudit.availability)} · contract ${pct(apiAudit.contract)}.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Pages readable</div>
+              <div class="metric-value">${pageAudit.ok}/${pageAudit.total}</div>
+              <div class="metric-note">Static routes checked from this page.</div>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderApiHealth(apiResults) {
+        return `
+          <div class="api-grid">
+            ${Object.keys(API_ROUTES).map(key => {
+              const result = apiResults[key];
+              const status = result?.ok ? "ready" : "blocked";
+              const meta = result?.ok
+                ? `HTTP ${result.status} · ${result.ms}ms · ${result.rawLength || 0} chars`
+                : `${result?.error || "Unavailable"}`;
+
+              return `
+                <div class="api-card">
+                  <div class="api-head">
+                    <span>${esc(titleCase(key))}</span>
+                    ${badge(status, status === "ready" ? "OK" : "Fail")}
+                  </div>
+                  <div class="api-meta">${esc(meta)}</div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+        `;
+      }
+
+      function renderGroupGate(cleanAudit) {
+        const groups = PAGE_GROUPS.map(group => {
+          const pages = cleanAudit.pageScores.filter(page => page.group === group);
+          const score = pages.length
+            ? Math.round(pages.reduce((sum, page) => sum + page.score, 0) / pages.length)
+            : 0;
+          const blocked = pages.some(page => page.status === "blocked");
+          const unknown = pages.some(page => page.status === "unknown");
+          const status = unknown ? "unknown" : blocked ? "blocked" : score >= 90 ? "trial-safe" : "internal-only";
+          const dirtyPages = pages.filter(page => page.status !== "clean").map(page => page.name).join(", ") || "none";
+
+          return { group, score, status, dirtyPages };
+        });
+
+        return `
+          <div class="group-grid">
+            ${groups.map(row => `
+              <div class="group-card">
+                <div class="group-head">
+                  <span>${esc(row.group)}</span>
+                  ${badge(row.status, labelStatus(row.status))}
+                </div>
+                <div class="metric-value">${pct(row.score)}</div>
+                <div class="group-meta">Dirty pages: ${esc(row.dirtyPages)}</div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function renderCleanlinessMatrix(cleanAudit) {
+        return `
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Page</th>
+                  <th>Group</th>
+                  <th>Status</th>
+                  <th>Score</th>
+                  <th>Hits</th>
+                  <th>Trial decision</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${cleanAudit.pageScores.map(page => `
+                  <tr>
+                    <td><strong>${esc(page.name)}</strong><br><span style="color:#64748b;">${esc(page.path)}</span></td>
+                    <td>${esc(page.group)}</td>
+                    <td>${badge(page.status, labelStatus(page.status))}</td>
+                    <td>${pct(page.score)}</td>
+                    <td>
+                      <div class="hit-list">
+                        ${page.hits.length ? page.hits.map(hit => badge(hit.severity, hit.label)).join("") : badge("good", "none")}
+                      </div>
+                    </td>
+                    <td>${badge(page.decision, labelStatus(page.decision))}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      function renderTrialPageTables(finalGate) {
+        const renderRows = pages => pages.map(page => `
+          <tr>
+            <td><strong>${esc(page.name)}</strong><br><span style="color:#64748b;">${esc(page.path)}</span></td>
+            <td>${esc(page.group)}</td>
+            <td>${badge(page.finalDecision, labelStatus(page.finalDecision))}</td>
+            <td>${page.hits.length ? esc(page.hits.map(hit => hit.label).join(", ")) : "No scanner hit"}</td>
+          </tr>
+        `).join("");
+
+        return `
+          <section class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Allowed Trial Pages</h2>
+                  <p class="panel-sub">Pages clean enough to show first.</p>
+                </div>
+                ${badge("trial-safe", `${finalGate.allowed.length} pages`)}
+              </div>
+              <div class="panel-body">
+                ${finalGate.allowed.length ? `
+                  <div class="table-wrap">
+                    <table>
+                      <thead>
+                        <tr><th>Page</th><th>Group</th><th>Decision</th><th>Reason</th></tr>
+                      </thead>
+                      <tbody>${renderRows(finalGate.allowed)}</tbody>
+                    </table>
+                  </div>
+                ` : `<div class="empty">No page is fully trial-safe yet.</div>`}
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Blocked Trial Pages</h2>
+                  <p class="panel-sub">Do not show these until fixed.</p>
+                </div>
+                ${badge(finalGate.blocked.length ? "blocked" : "good", `${finalGate.blocked.length} blocked`)}
+              </div>
+              <div class="panel-body">
+                ${finalGate.blocked.length ? `
+                  <div class="table-wrap">
+                    <table>
+                      <thead>
+                        <tr><th>Page</th><th>Group</th><th>Decision</th><th>Reason</th></tr>
+                      </thead>
+                      <tbody>${renderRows(finalGate.blocked)}</tbody>
+                    </table>
+                  </div>
+                ` : `<div class="empty">No blocked page found by the current scanner.</div>`}
+              </div>
+            </div>
+          </section>
+        `;
+      }
+
+      function renderPatternSummary(cleanAudit) {
+        if (!cleanAudit.patternSummary.length) {
+          return `<div class="empty">No dirty metadata pattern found in scanned page HTML.</div>`;
+        }
+
+        return `
+          <div class="pattern-grid">
+            ${cleanAudit.patternSummary.map(pattern => `
+              <div class="pattern-card">
+                <div class="pattern-head">
+                  <span>${esc(pattern.label)}</span>
+                  ${badge(pattern.severity, pattern.severity)}
+                </div>
+                <div class="metric-value">${esc(pattern.count)}</div>
+                <div class="pattern-meta">First page: ${esc(pattern.worstPage || "Unknown")}</div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function renderDirtyPages(cleanAudit) {
+        const dirty = cleanAudit.pageScores
+          .filter(page => page.status !== "clean")
+          .sort((a, b) => a.score - b.score)
+          .slice(0, 5);
+
+        if (!dirty.length) {
+          return `<div class="empty">No dirty page found by the metadata scanner.</div>`;
+        }
+
+        return `
+          <div class="list">
+            ${dirty.map((page, index) => issueCard({
+              severity: page.status === "blocked" ? "blocked" : page.status === "unknown" ? "unknown" : "warning",
+              module: page.name,
+              title: `${page.name} is ${labelStatus(page.status)}`,
+              detail: page.hits.length
+                ? `Detected: ${page.hits.map(hit => hit.label).join(", ")}.`
+                : "Page could not be scanned cleanly.",
+              next: page.status === "blocked"
+                ? "Do not show this page in trial until cleaned."
+                : "Clean visible/internal wording before polished trial."
+            }, index)).join("")}
+          </div>
+        `;
+      }
+
+      function renderImpactCards() {
+        return `
+          <div class="impact-grid">
+            ${MODULES.filter(m => m.key !== "command-centre").map(m => `
+              <div class="impact-card">
+                <div class="impact-name">
+                  <span>${esc(m.name)}</span>
+                  ${badge(m.risk === "high" ? "warning" : "info", m.risk)}
+                </div>
+                <div class="impact-list">
+                  Impacts: ${esc(m.impacts.join(", "))}<br>
+                  Recheck: ${esc(m.recheck.slice(0, 5).join(", "))}${m.recheck.length > 5 ? "..." : ""}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function renderImpactSimulator(impactAudit) {
+        const m = impactAudit.module;
+        const pageItems = m.recheck.filter(item => item.endsWith(".html"));
+        const apiItems = m.recheck.filter(item => !item.endsWith(".html") && !["all pages", "all APIs", "nav runtime", "mobile shell", "desktop shell"].includes(item));
+        const specialItems = m.recheck.filter(item => !item.endsWith(".html") && !apiItems.includes(item));
+
+        return `
+          <div class="impact-main">
+            <div class="selector-box">
+              <label>Selected changed area</label>
+              <div class="metric-value">${esc(m.name)}</div>
+              <div class="metric-note">${esc(m.changeMeaning)}</div>
+              <div style="margin-top:12px;">${badge(m.risk === "high" ? "warning" : "info", `${m.risk} risk`)}</div>
+            </div>
+
+            <div class="chain-card">
+              <div class="chain-head">
+                <span>Required recheck chain</span>
+                ${badge(scoreStatus(impactAudit.score, impactAudit.issues.some(i => i.severity === "blocked"), false), pct(impactAudit.score))}
+              </div>
+
+              <div class="chain-step">
+                <div class="chain-num">1</div>
+                <div>
+                  <div class="chain-title">Recheck changed surface</div>
+                  <div class="chain-text">${esc(m.pages.join(", "))}</div>
+                </div>
+              </div>
+
+              <div class="chain-step">
+                <div class="chain-num">2</div>
+                <div>
+                  <div class="chain-title">Recheck downstream pages</div>
+                  <div class="chain-text">${esc(pageItems.length ? pageItems.join(", ") : "No direct page recheck listed")}</div>
+                </div>
+              </div>
+
+              <div class="chain-step">
+                <div class="chain-num">3</div>
+                <div>
+                  <div class="chain-title">Recheck data sources</div>
+                  <div class="chain-text">${esc(apiItems.length ? apiItems.join(", ") : "No direct API recheck listed")}</div>
+                </div>
+              </div>
+
+              <div class="chain-step">
+                <div class="chain-num">4</div>
+                <div>
+                  <div class="chain-title">Manual/runtime checks</div>
+                  <div class="chain-text">${esc(specialItems.length ? specialItems.join(", ") : "Use normal browser visual check")}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderImpactTable() {
+        return `
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Changed area</th>
+                  <th>Risk</th>
+                  <th>Can break</th>
+                  <th>Must recheck</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${MODULES.map(m => `
+                  <tr>
+                    <td><strong>${esc(m.name)}</strong><br><span style="color:#64748b;">${esc(m.group)}</span></td>
+                    <td>${badge(m.risk === "high" ? "warning" : "info", m.risk)}</td>
+                    <td>${esc(m.impacts.join(", "))}</td>
+                    <td>${esc(m.recheck.join(", "))}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      function renderModuleTable(apiResults, pageResults) {
+        return `
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Module</th>
+                  <th>Status</th>
+                  <th>Group</th>
+                  <th>Pages</th>
+                  <th>APIs</th>
+                  <th>Impacts</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${MODULES.map(m => {
+                  const modulePages = m.pages.filter(path => path.endsWith(".html"));
+                  const pageOk = modulePages.length ? modulePages.every(path => pageResults[path]?.ok) : true;
+                  const apiOk = m.apis.length ? m.apis.every(key => apiResults[key]?.ok) : true;
+                  const status = pageOk && apiOk ? "ready" : pageOk || apiOk ? "warning" : "blocked";
+
+                  return `
+                    <tr>
+                      <td><strong>${esc(m.name)}</strong></td>
+                      <td>${badge(status, labelStatus(status))}</td>
+                      <td>${esc(m.group)}</td>
+                      <td>${esc(modulePages.join(", ") || "N/A")}</td>
+                      <td>${esc(m.apis.join(", ") || "N/A")}</td>
+                      <td>${esc(m.impacts.join(", "))}</td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      function buildChecklist(result, audits, finalGate) {
+        const trialSafePagesHaveUnsafe = finalGate.allowed.some(page => page.hasUnsafeContract);
+        const addQueueIssue = audits.write.issues.some(issue => /queue/i.test(issue.title + " " + issue.detail));
+        const requiredApiFail = audits.api.issues.some(issue => issue.severity === "blocked");
+        const pageFail = audits.pages.issues.some(issue => issue.severity === "blocked");
+
+        return [
+          { key: "pages_load", pass: !pageFail, label: "Pages load", note: "Major finance pages returned readable HTML." },
+          { key: "apis_respond", pass: !requiredApiFail, label: "APIs respond", note: "Required finance APIs responded with readable JSON." },
+          { key: "cc_truth", pass: !audits.truth.issues.some(issue => issue.module === "credit card" && issue.severity === "blocked"), label: "Credit Card truth safe", note: "CC outstanding is not blocked by this audit." },
+          { key: "no_unsafe_contract", pass: !trialSafePagesHaveUnsafe, label: "No unsafe contract on trial pages", note: "Trial-safe pages should not contain unsafe contract wording." },
+          { key: "add_no_queue", pass: !addQueueIssue, label: "Add has no silent queue", note: "Add page should not silently queue failed saves." },
+          { key: "trial_ui_clean", pass: finalGate.blocked.length === 0, label: "No blocked trial UI", note: "Blocked pages should not be shown in trial." },
+          { key: "impact_map", pass: true, label: "Impact map exists", note: "Changed areas show downstream rechecks." },
+          { key: "next_fixes", pass: result.allIssues.length >= 0, label: "Next fixes visible", note: "Command Centre renders the fix queue." },
+          { key: "read_only", pass: true, label: "Command Centre is read-only", note: "This page only fetches data and pages." },
+          { key: "no_fake_ready", pass: result.blockers.length === 0 && result.unknowns.length === 0 ? true : finalGate.finalStatus !== "ready", label: "No fake 100%", note: "Blockers and unknowns override score." }
+        ];
+      }
+
+      function renderFinalChecklist(checks) {
+        return `
+          <div class="check-grid">
+            ${checks.map(check => `
+              <div class="check-card">
+                <div class="check-head">
+                  <span>${esc(check.label)}</span>
+                  ${badge(check.pass ? "good" : "blocked", check.pass ? "Pass" : "Fail")}
+                </div>
+                <div class="check-meta">${esc(check.note)}</div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function renderTrialRoute(finalGate) {
+        const firstAllowed = finalGate.allowed.slice(0, 5).map(page => page.name).join(", ") || "No fully safe page yet";
+
+        return `
+          <div class="list">
+            ${issueCard({
+              severity: "good",
+              module: "trial route",
+              title: "1. Open Command Centre first",
+              detail: "Use this page as the first screen before showing the finance cockpit.",
+              next: "Check Final Trial Gate."
+            }, 0)}
+            ${issueCard({
+              severity: finalGate.finalStatus === "blocked" ? "blocked" : "good",
+              module: "trial route",
+              title: "2. Respect the final decision",
+              detail: `Current final decision is ${labelStatus(finalGate.finalStatus)}.`,
+              next: finalGate.next
+            }, 1)}
+            ${issueCard({
+              severity: finalGate.allowed.length ? "good" : "warning",
+              module: "trial route",
+              title: "3. Show allowed pages only",
+              detail: `Allowed pages: ${firstAllowed}.`,
+              next: "Skip blocked and internal-only pages."
+            }, 2)}
+            ${issueCard({
+              severity: "warning",
+              module: "trial route",
+              title: "4. Fix top blocker and rerun audit",
+              detail: "Every cockpit change should come back here before calling the system ready.",
+              next: "Run Audit after each change."
+            }, 3)}
+          </div>
+        `;
+      }
+
+      function renderCloseoutReminder(finalGate) {
+        return `
+          <div class="list">
+            ${issueCard({
+              severity: "info",
+              module: "closeout",
+              title: "Update SOVEREIGN_STATE.md after this ship",
+              detail: "Record Command Centre v0.6, completed shipments, final trial status, known blockers, and next queue.",
+              next: "Use manual state-file update only. Do not write directly to GitHub from Glean."
+            }, 0)}
+            ${issueCard({
+              severity: finalGate.finalStatus === "ready" ? "good" : "warning",
+              module: "closeout",
+              title: `Current final status: ${labelStatus(finalGate.finalStatus)}`,
+              detail: finalGate.why,
+              next: finalGate.next
+            }, 1)}
+          </div>
+        `;
+      }
+
+      function auditDetails(title, score, issues) {
+        const status = scoreStatus(score, issues.some(i => i.severity === "blocked"), issues.some(i => i.severity === "unknown"));
+
+        return `
+          <details class="audit">
+            <summary>
+              <span>${esc(title)}</span>
+              ${badge(status, pct(score))}
+            </summary>
+            <div class="panel-body">
+              ${issues.length ? `<div class="list">${issues.map(issueCard).join("")}</div>` : `<div class="empty">No blocker found in this audit layer.</div>`}
+            </div>
+          </details>
+        `;
+      }
+
+      function updateHero(result, finalGate) {
+        const verdict = document.getElementById("heroVerdict");
+        const score = document.getElementById("heroScore");
+        const note = document.getElementById("heroNote");
+
+        verdict.textContent = labelStatus(finalGate.finalStatus);
+        score.textContent = `${result.weighted}% readiness`;
+        note.textContent = `${finalGate.why} Next: ${finalGate.next}`;
+      }
+
+      function render(audits, apiResults, pageResults) {
+        const result = buildResult(audits);
+        const health = audits.truth.health;
+        const finalGate = buildFinalGate(result, audits);
+        const checklist = buildChecklist(result, audits, finalGate);
+
+        const topIssues = result.allIssues
+          .slice()
+          .sort((a, b) => {
+            const w = { blocked: 0, warning: 1, unknown: 2, good: 3 };
+            return (w[a.severity] ?? 4) - (w[b.severity] ?? 4);
+          })
+          .slice(0, 6);
+
+        updateHero(result, finalGate);
+
+        app.innerHTML = `
+          ${renderReadinessBand(result)}
+
+          <section class="score-grid">
+            ${scoreCard("API Health", result.scores.apiHealth, "Existing finance APIs responding with expected shape.")}
+            ${scoreCard("Finance Truth", result.scores.financeTruth, "Balances, CC, bills, debts, salary, forecast trust.")}
+            ${scoreCard("Wiring", result.scores.wiring, "Pages and data sources connected and readable.")}
+            ${scoreCard("Logic", result.scores.logic, "Unsafe calculation sources and bad assumptions.")}
+            ${scoreCard("UI Cleanliness", result.scores.uiCleanliness, "Page scanner for metadata and trial dirt.")}
+            ${scoreCard("Impact Safety", result.scores.impactSafety, "Selected change recheck chain.")}
+          </section>
+
+          ${renderFinalTrialGate(finalGate)}
+
+          <section class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Next 3 Fixes</h2>
+                  <p class="panel-sub">Only the highest-leverage items. Fix these first.</p>
+                </div>
+                ${badge(finalGate.finalStatus, labelStatus(finalGate.finalStatus))}
+              </div>
+              <div class="panel-body">
+                ${topIssues.length ? `<div class="list">${topIssues.map(issueCard).join("")}</div>` : `<div class="empty">No blocker found. Backend/runtime audit is still a future layer.</div>`}
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">100% Gate Explanation</h2>
+                  <p class="panel-sub">Why the Command Centre will or will not say ready.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="list">
+                  ${issueCard({
+                    severity: result.blockers.length ? "blocked" : "good",
+                    module: "readiness",
+                    title: result.blockers.length ? "Hard blockers prevent 100%" : "No hard blocker detected",
+                    detail: result.blockers.length ? `${result.blockers.length} hard blocker(s) must be resolved first.` : "Current frontend audit found no hard blockers.",
+                    next: result.blockers[0]?.next || "Continue checking warnings and unknowns."
+                  }, 0)}
+                  ${issueCard({
+                    severity: result.unknowns.length ? "unknown" : "good",
+                    module: "readiness",
+                    title: result.unknowns.length ? "Unknown sources prevent certainty" : "No unknown required source detected",
+                    detail: result.unknowns.length ? `${result.unknowns.length} source(s) could not be verified.` : "Required sources responded to this frontend audit.",
+                    next: result.unknowns[0]?.next || "Keep using the audit before trial."
+                  }, 1)}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          ${renderTrialPageTables(finalGate)}
+
+          <section class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Final Readiness Checklist</h2>
+                  <p class="panel-sub">Pass/fail checklist for trial confidence.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderFinalChecklist(checklist)}
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Trial Route</h2>
+                  <p class="panel-sub">Safe path for using the cockpit after this ship.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderTrialRoute(finalGate)}
+              </div>
+            </div>
+          </section>
+
+          <section class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Readiness Rulebook</h2>
+                  <p class="panel-sub">The rules used to refuse fake readiness.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderRulebook()}
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Closeout</h2>
+                  <p class="panel-sub">State-file reminder after v0.6 verification.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderCloseoutReminder(finalGate)}
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Impact Simulator</h2>
+                <p class="panel-sub">Pick what changed. The Command Centre shows what can break and what must be rechecked.</p>
+              </div>
+              ${badge(scoreStatus(audits.impact.score, audits.impact.issues.some(i => i.severity === "blocked"), false), pct(audits.impact.score))}
+            </div>
+            <div class="panel-body">
+              ${renderImpactSimulator(audits.impact)}
+            </div>
+          </section>
+
+          <section class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Trial Cleanliness Gate</h2>
+                  <p class="panel-sub">Grouped decision: trial safe, internal only, blocked, or unknown.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderGroupGate(audits.cleanliness)}
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Money + Wiring Snapshot</h2>
+                  <p class="panel-sub">Fast read from current data sources and static app routes.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderMetrics(health, audits.api, audits.pages)}
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Impact Map</h2>
+                <p class="panel-sub">Full dependency map for changed modules and downstream checks.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              ${renderImpactCards()}
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Impact Recheck Matrix</h2>
+                <p class="panel-sub">Every major change area and the checks required before calling it safe.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              ${renderImpactTable()}
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Page Cleanliness Matrix</h2>
+                <p class="panel-sub">Every major finance page scanned for metadata, backend wording, raw IDs, and unsafe sources.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              ${renderCleanlinessMatrix(audits.cleanliness)}
+            </div>
+          </section>
+
+          <section class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Dirty Pattern Summary</h2>
+                  <p class="panel-sub">What kind of trial dirt is appearing most often.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderPatternSummary(audits.cleanliness)}
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Trial Decision</h2>
+                  <p class="panel-sub">No fake 100%. Blockers override score.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="list">
+                  ${issueCard({
+                    severity: finalGate.finalStatus === "ready" ? "good" : finalGate.finalStatus === "ready-with-warnings" ? "warning" : finalGate.finalStatus,
+                    module: "trial",
+                    title: labelStatus(finalGate.finalStatus),
+                    detail: finalGate.why,
+                    next: finalGate.next
+                  }, 0)}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Real API Health</h2>
+                  <p class="panel-sub">Every source this page could read without mutating the ledger.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderApiHealth(apiResults)}
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Module Health</h2>
+                  <p class="panel-sub">Route and data-source registry for the finance cockpit.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderModuleTable(apiResults, pageResults)}
+              </div>
+            </div>
+          </section>
+
+          ${auditDetails("API Health Audit", audits.api.score, audits.api.issues)}
+          ${auditDetails("Finance Truth Audit", audits.truth.score, audits.truth.issues)}
+          ${auditDetails("Wiring Audit", result.scores.wiring, audits.api.issues.concat(audits.pages.issues))}
+          ${auditDetails("Logic Audit", audits.logic.score, audits.logic.issues)}
+          ${auditDetails("UI Cleanliness Audit", audits.cleanliness.score, audits.cleanliness.issues)}
+          ${auditDetails("Impact Safety Audit", audits.impact.score, audits.impact.issues)}
+          ${auditDetails("Write Safety Audit", audits.write.score, audits.write.issues)}
+        `;
+
+        if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
+          window.SovereignNav.scheduleOverflowCheck();
+        }
+      }
+
+      async function runAudit() {
+        const month = currentLens();
+
+        app.innerHTML = `<section class="loading">Running command centre audit...</section>`;
+        document.getElementById("heroVerdict").textContent = "Loading";
+        document.getElementById("heroScore").textContent = "Audit running";
+        document.getElementById("heroNote").textContent = "Reading finance cockpit health.";
+
+        const apiKeys = Object.keys(API_ROUTES);
+        const pageKeys = Array.from(new Set(MODULES.flatMap(m => m.pages).filter(path => path.endsWith(".html"))));
+
+        const apiEntries = await Promise.all(apiKeys.map(async key => {
+          const route = API_ROUTES[key](month);
+          const result = await fetchJson(route);
+          return [key, result];
+        }));
+
+        const pageEntries = await Promise.all(pageKeys.map(async path => {
+          const result = await fetchText(path);
+          return [path, result];
+        }));
+
+        const apiResults = Object.fromEntries(apiEntries);
+        const pageResults = Object.fromEntries(pageEntries);
+
+        const audits = {};
+        audits.api = analyzeApiHealth(apiResults);
+        audits.pages = analyzePages(pageResults);
+        audits.cleanliness = analyzeCleanliness(pageResults);
+        audits.truth = analyzeTruth(apiResults);
+        audits.logic = analyzeLogic(audits.cleanliness, apiResults);
+        audits.impact = analyzeImpact(selectedChange(), apiResults, pageResults, audits.cleanliness);
+        audits.write = analyzeWrite(pageResults);
+
+        render(audits, apiResults, pageResults);
+      }
+
+      function openAllDetails() {
+        document.querySelectorAll("details.audit").forEach(detail => {
+          detail.open = true;
+        });
+      }
+
+      function initChangeSelect() {
+        changeSelect.innerHTML = MODULES.map(module => `<option value="${esc(module.key)}">${esc(module.name)}</option>`).join("");
+        changeSelect.value = new URLSearchParams(location.search || "").get("changed") || "add";
+
+        changeSelect.addEventListener("change", () => {
+          const url = new URL(location.href);
+          url.searchParams.set("changed", changeSelect.value);
+          history.replaceState(null, "", url.toString());
+          runAudit();
+        });
+      }
+
+      monthInput.value = new URLSearchParams(location.search || "").get("month") || currentMonth();
+
+      refreshBtn.addEventListener("click", runAudit);
+      detailsBtn.addEventListener("click", openAllDetails);
+
+      monthInput.addEventListener("change", () => {
+        const url = new URL(location.href);
+        url.searchParams.set("month", monthInput.value);
+        history.replaceState(null, "", url.toString());
+        runAudit();
+      });
+
+      initChangeSelect();
+
+      runAudit().catch(error => {
+        document.getElementById("heroVerdict").textContent = "Unknown";
+        document.getElementById("heroScore").textContent = "Audit failed";
+        document.getElementById("heroNote").textContent = "Command Centre could not complete the audit.";
+
+        app.innerHTML = `
+          <section class="error">
+            <h2>Command Centre audit failed</h2>
+            <p>${esc(error.message || String(error))}</p>
+          </section>
+        `;
+      });
+    })();
+  </script>
 </body>
 </html>
