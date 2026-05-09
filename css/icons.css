@@ -1,0 +1,198 @@
+/* Sovereign Finance Icons v1.0.0
+   Stable bank/category icon styling.
+
+   Contract:
+   - Visual only.
+   - Does not style nav icons.
+   - Does not style finance cards/tables/forms.
+   - Safe fallback if official logo assets are missing.
+*/
+
+.sf-bank-logo-wrap,
+.sf-category-icon {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  vertical-align: middle;
+}
+
+.sf-icon-xs {
+  width: 22px;
+  height: 22px;
+  border-radius: 9px;
+}
+
+.sf-icon-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: 11px;
+}
+
+.sf-icon-md {
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+}
+
+.sf-icon-lg {
+  width: 46px;
+  height: 46px;
+  border-radius: 17px;
+}
+
+.sf-bank-logo {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+  display: block;
+}
+
+.sf-bank-fallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  color: #0f172a;
+}
+
+.sf-icon-xs .sf-bank-fallback {
+  font-size: 9px;
+}
+
+.sf-icon-sm .sf-bank-fallback {
+  font-size: 10px;
+}
+
+.sf-icon-lg .sf-bank-fallback {
+  font-size: 14px;
+}
+
+.sf-category-icon svg {
+  width: 58%;
+  height: 58%;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Bank tones */
+
+.sf-bank-cash {
+  background: linear-gradient(135deg, #ecfdf5, #ffffff);
+  color: #047857;
+}
+
+.sf-bank-meezan {
+  background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+  color: #065f46;
+}
+
+.sf-bank-mashreq {
+  background: linear-gradient(135deg, #fff7ed, #ffedd5);
+  color: #c2410c;
+}
+
+.sf-bank-ubl {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  color: #1d4ed8;
+}
+
+.sf-bank-easypaisa {
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  color: #15803d;
+}
+
+.sf-bank-jazzcash {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  color: #b91c1c;
+}
+
+.sf-bank-nayapay {
+  background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+  color: #0369a1;
+}
+
+.sf-bank-js {
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  color: #334155;
+}
+
+.sf-bank-alfalah {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  color: #991b1b;
+}
+
+.sf-bank-card {
+  background: linear-gradient(135deg, #eff6ff, #f8fafc);
+  color: #1e40af;
+}
+
+.sf-bank-default {
+  background: linear-gradient(135deg, #f8fafc, #ffffff);
+  color: #334155;
+}
+
+/* Category tones */
+
+.sf-cat-green {
+  background: linear-gradient(135deg, #ecfdf5, #ffffff);
+  color: #047857;
+}
+
+.sf-cat-red {
+  background: linear-gradient(135deg, #fef2f2, #ffffff);
+  color: #dc2626;
+}
+
+.sf-cat-blue {
+  background: linear-gradient(135deg, #eff6ff, #ffffff);
+  color: #2563eb;
+}
+
+.sf-cat-orange {
+  background: linear-gradient(135deg, #fff7ed, #ffffff);
+  color: #ea580c;
+}
+
+.sf-cat-amber {
+  background: linear-gradient(135deg, #fffbeb, #ffffff);
+  color: #d97706;
+}
+
+.sf-cat-violet {
+  background: linear-gradient(135deg, #f5f3ff, #ffffff);
+  color: #7c3aed;
+}
+
+.sf-cat-slate {
+  background: linear-gradient(135deg, #f8fafc, #ffffff);
+  color: #475569;
+}
+
+/* Utility row helpers for later page integrations */
+
+.sf-icon-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.sf-icon-row-label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
