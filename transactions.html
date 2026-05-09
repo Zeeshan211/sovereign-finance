@@ -1,780 +1,455 @@
-<!doctype html>
-<html lang="en" data-page="transactions">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Transactions - Sovereign Finance</title>
+<link rel="stylesheet" href="/css/app.css?v=2.0.0" />
+<style>
+.transactions-page {
+  max-width: 1480px;
+}
 
-  <title>Transactions · Sovereign Finance</title>
+.txn-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 22px 0 14px;
+}
 
-  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
+.txn-toolbar-title {
+  color: var(--text-strong);
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+}
 
-  <style>
-    .tx-wrap {
-      max-width: 1280px;
-      margin: 0 auto;
-    }
+.txn-toolbar-copy {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 760;
+}
 
-    .tx-hero {
-      position: relative;
-      overflow: hidden;
-      color: #f8fafc;
-      background:
-        linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95)),
-        radial-gradient(circle at top right, rgba(37, 99, 235, 0.24), transparent 26rem);
-      border: 1px solid rgba(255, 255, 255, 0.10);
-      border-radius: 34px;
-      box-shadow: var(--shadow-lg);
-      padding: 26px;
-      margin-bottom: 18px;
-    }
+.txn-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 
-    .tx-kicker {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 11px;
-      border-radius: var(--r-pill);
-      background: rgba(37, 99, 235, 0.16);
-      color: #dbeafe;
-      font-size: 12px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      margin-bottom: 12px;
-    }
+.txn-filter-row input,
+.txn-filter-row select {
+  width: auto;
+  min-width: 170px;
+}
 
-    .tx-kicker::before {
-      content: "";
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: #60a5fa;
-      box-shadow: 0 0 16px rgba(96, 165, 250, 0.8);
-    }
+.txn-list {
+  display: grid;
+  gap: 10px;
+}
 
-    .tx-heading {
-      color: #ffffff;
-      font-size: clamp(34px, 5vw, 58px);
-      line-height: 0.98;
-      font-weight: 950;
-      letter-spacing: -0.06em;
-      margin: 0;
-    }
+.txn-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(130px, 0.45fr) minmax(130px, 0.45fr) minmax(130px, 0.45fr);
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-xs);
+}
 
-    .tx-copy {
-      color: #cbd5e1;
-      font-size: 15px;
-      line-height: 1.55;
-      font-weight: 750;
-      margin-top: 12px;
-      max-width: 820px;
-    }
+.txn-row:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
 
-    .tx-trust-panel {
-      margin-top: 16px;
-      padding: 13px 14px;
-      border: 1px solid rgba(96, 165, 250, 0.30);
-      background: rgba(37, 99, 235, 0.16);
-      color: #dbeafe;
-      border-radius: var(--r-lg);
-      font-size: 13px;
-      font-weight: 850;
-      line-height: 1.45;
-    }
+.txn-main {
+  min-width: 0;
+}
 
-    .tx-trust-title {
-      color: #bfdbfe;
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 5px;
-    }
+.txn-title {
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 950;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-    .tx-stats {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 12px;
-      margin-bottom: 18px;
-    }
+.txn-sub {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 740;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-    .tx-stat {
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: 22px;
-      box-shadow: var(--shadow-sm);
-      padding: 16px;
-      min-width: 0;
-    }
+.txn-cell-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
 
-    .tx-stat-label {
-      color: var(--text-dim);
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
+.txn-cell-value {
+  margin-top: 4px;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 900;
+}
 
-    .tx-stat-value {
-      margin-top: 7px;
-      color: var(--text);
-      font-size: 22px;
-      font-weight: 950;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
+.txn-amount {
+  font-size: 15px;
+  font-weight: 950;
+  text-align: right;
+}
 
-    .tx-stat-value.positive {
-      color: var(--accent-deep);
-    }
+.txn-amount.income {
+  color: var(--success);
+}
 
-    .tx-stat-value.negative {
-      color: var(--danger);
-    }
+.txn-amount.expense {
+  color: var(--danger);
+}
 
-    .tx-toolbar {
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: 26px;
-      box-shadow: var(--shadow-sm);
-      padding: 16px;
-      margin-bottom: 18px;
-      display: grid;
-      grid-template-columns: 180px 220px minmax(220px, 1fr) 120px;
-      gap: 12px;
-      align-items: end;
-    }
+.txn-amount.transfer {
+  color: var(--info);
+}
 
-    .tx-toolbar label {
-      display: block;
-      color: var(--text-muted);
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin: 0 0 7px;
-    }
+.txn-empty {
+  padding: 26px;
+  border-radius: var(--r-xl);
+  border: 1px dashed var(--border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-weight: 820;
+  text-align: center;
+}
 
-    .tx-toolbar select,
-    .tx-toolbar input {
-      width: 100%;
-      min-height: 48px;
-      padding: 12px 14px;
-      border: 2px solid var(--border-strong);
-      border-radius: var(--r-md);
-      background: #ffffff;
-      color: var(--text);
-      font-size: 15px;
-      font-weight: 800;
-    }
+.txn-authority-strip {
+  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
-    .tx-refresh {
-      min-height: 48px;
-      border: 0;
-      border-radius: var(--r-md);
-      background: var(--grad-mint);
-      color: #052e16;
-      font-size: 14px;
-      font-weight: 950;
-      box-shadow: 0 12px 24px rgba(34, 197, 94, 0.18);
-    }
+@media (max-width: 900px) {
+  .txn-row {
+    grid-template-columns: 1fr 1fr;
+  }
 
-    .tx-note {
-      margin-bottom: 18px;
-      padding: 13px 14px;
-      border: 1px solid rgba(37, 99, 235, 0.22);
-      background: var(--info-soft);
-      color: var(--info);
-      border-radius: var(--r-lg);
-      font-size: 13px;
-      font-weight: 850;
-      line-height: 1.45;
-    }
+  .txn-amount {
+    text-align: left;
+  }
+}
 
-    .tx-section-title {
-      color: var(--text);
-      font-size: 18px;
-      font-weight: 950;
-      margin: 0 0 12px;
-    }
+@media (max-width: 620px) {
+  .txn-row {
+    grid-template-columns: 1fr;
+  }
 
-    .tx-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .tx-date-label {
-      color: var(--text-dim);
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin: 14px 2px 8px;
-    }
-
-    .tx-card {
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      box-shadow: var(--shadow-xs);
-      padding: 14px 15px;
-      margin-bottom: 8px;
-      min-width: 0;
-    }
-
-    .tx-card-main {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 13px;
-      align-items: center;
-    }
-
-    .tx-main {
-      min-width: 0;
-    }
-
-    .tx-title {
-      color: var(--text);
-      font-size: 15px;
-      font-weight: 950;
-      line-height: 1.28;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .tx-meta {
-      margin-top: 4px;
-      color: var(--text-dim);
-      font-size: 12px;
-      font-weight: 800;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .tx-side {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .tx-amount {
-      color: var(--text);
-      font-size: 16px;
-      font-weight: 950;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      text-align: right;
-    }
-
-    .tx-amount.positive {
-      color: var(--accent-deep);
-    }
-
-    .tx-amount.negative {
-      color: var(--danger);
-    }
-
-    .tx-amount.neutral {
-      color: var(--text-muted);
-    }
-
-    .tx-reverse {
-      border: 1px solid rgba(220, 38, 38, 0.24);
-      background: var(--danger-soft);
-      color: var(--danger);
-      border-radius: var(--r-md);
-      padding: 8px 10px;
-      font-size: 12px;
-      font-weight: 950;
-      white-space: nowrap;
-      cursor: pointer;
-    }
-
-    .tx-trust-line {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    .tx-trust-chip {
-      display: inline-flex;
-      align-items: center;
-      width: fit-content;
-      padding: 6px 9px;
-      border-radius: var(--r-pill);
-      border: 1px solid var(--border);
-      background: var(--surface-2);
-      color: var(--text-muted);
-      font-size: 10px;
-      font-weight: 950;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-    }
-
-    .tx-trust-chip.readonly {
-      border-color: rgba(37, 99, 235, 0.22);
-      background: var(--info-soft);
-      color: var(--info);
-    }
-
-    .tx-trust-chip.reverse {
-      border-color: rgba(220, 38, 38, 0.24);
-      background: rgba(220, 38, 38, 0.08);
-      color: var(--danger);
-    }
-
-    .tx-empty {
-      background: var(--surface-1);
-      border: 1px dashed var(--border-strong);
-      border-radius: var(--r-xl);
-      padding: 28px;
-      text-align: center;
-      color: var(--text-muted);
-      font-weight: 850;
-    }
-
-    @media (max-width: 980px) {
-      .tx-stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .tx-toolbar {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .tx-card-main {
-        grid-template-columns: 1fr;
-      }
-
-      .tx-side {
-        justify-content: space-between;
-      }
-    }
-  </style>
+  .txn-filter-row,
+  .txn-filter-row input,
+  .txn-filter-row select {
+    width: 100%;
+  }
+}
+</style>
 </head>
-
 <body>
-  <header>
-    <div>
-      <div class="brand">Sovereign Finance</div>
-      <div class="title">Transactions</div>
-    </div>
-  </header>
+<header>
+<div>
+<div class="brand">Sovereign Finance</div>
+<div class="title">Transactions</div>
+</div>
+</header>
 
-  <main class="tx-wrap">
-    <section class="tx-hero">
-      <div class="tx-kicker">Ledger activity</div>
-      <h1 class="tx-heading">Read the ledger without breaking the ledger.</h1>
-      <p class="tx-copy">
-        Active transaction rows only. Reversed rows stay preserved through audit history.
-        This page is for inspection and correction, not silent editing.
-      </p>
+<main class="app-page transactions-page">
+<section class="page-hero">
+<div class="hero-kicker">Ledger view</div>
+<h1 class="hero-title">Every money movement, cleanly visible.</h1>
+<p class="hero-copy">
+Transactions are a governed ledger view. Add Transaction is the approved write path; this page stays focused on reading, searching, and reviewing the ledger without unsafe mutations.
+</p>
 
-      <div class="tx-trust-panel">
-        <div class="tx-trust-title">Action clarity</div>
-        <div>
-          Filters, search, and refresh are read-only. Reverse creates a correction/reversal record and preserves audit history.
-        </div>
-      </div>
-    </section>
+<div class="txn-authority-strip">
+<span id="txnApiBadge" class="badge badge-unknown">Transactions API loading</span>
+<span id="txnAuthorityBadge" class="badge badge-info">Read-only ledger view</span>
+<span id="txnWriteScopeBadge" class="badge badge-unknown">Write scope loading</span>
+</div>
+</section>
 
-    <section class="tx-stats">
-      <div class="tx-stat">
-        <div class="tx-stat-label">Showing</div>
-        <div id="statCount" class="tx-stat-value">—</div>
-      </div>
+<section>
+<div class="txn-toolbar">
+<div>
+<div class="txn-toolbar-title">Ledger activity</div>
+<div id="txnSummary" class="txn-toolbar-copy">Loading transactions...</div>
+</div>
 
-      <div class="tx-stat">
-        <div class="tx-stat-label">Money In</div>
-        <div id="statIn" class="tx-stat-value positive">—</div>
-      </div>
+<div class="txn-filter-row">
+<input id="txnSearch" class="input" type="search" placeholder="Search notes, type, account..." />
+<select id="txnTypeFilter" class="select">
+<option value="">All types</option>
+<option value="income">Income</option>
+<option value="expense">Expense</option>
+<option value="transfer">Transfer</option>
+<option value="cc_payment">CC payment</option>
+<option value="cc_spend">CC spend</option>
+</select>
+<a class="btn btn-success" href="/add.html">Add Transaction</a>
+</div>
+</div>
 
-      <div class="tx-stat">
-        <div class="tx-stat-label">Money Out</div>
-        <div id="statOut" class="tx-stat-value negative">—</div>
-      </div>
+<div id="txnStats" class="grid-4">
+<div class="kpi-card">
+<div class="kpi-label">Rows shown</div>
+<div id="txnShownCount" class="kpi-value">-</div>
+<div class="kpi-sub">Filtered ledger rows</div>
+</div>
+<div class="kpi-card">
+<div class="kpi-label">Income rows</div>
+<div id="txnIncomeCount" class="kpi-value">-</div>
+<div class="kpi-sub">Visible income events</div>
+</div>
+<div class="kpi-card">
+<div class="kpi-label">Expense rows</div>
+<div id="txnExpenseCount" class="kpi-value">-</div>
+<div class="kpi-sub">Visible spending events</div>
+</div>
+<div class="kpi-card">
+<div class="kpi-label">Transfers</div>
+<div id="txnTransferCount" class="kpi-value">-</div>
+<div class="kpi-sub">Visible transfer rows</div>
+</div>
+</div>
 
-      <div class="tx-stat">
-        <div class="tx-stat-label">Net</div>
-        <div id="statNet" class="tx-stat-value">—</div>
-      </div>
+<div style="height:14px"></div>
+<div id="txnList" class="txn-list"></div>
+</section>
 
-      <div class="tx-stat">
-        <div class="tx-stat-label">Hidden Reversals</div>
-        <div id="statReversed" class="tx-stat-value">—</div>
-      </div>
-    </section>
+<footer class="bills-page-meta" aria-hidden="true">
+Transactions ledger UI v2.0.0
+</footer>
+</main>
 
-    <section class="tx-toolbar">
-      <div>
-        <label for="filterType">Type</label>
-        <select id="filterType">
-          <option value="">All types</option>
-          <option value="expense">Expense</option>
-          <option value="income">Income</option>
-          <option value="salary">Salary</option>
-          <option value="opening">Opening</option>
-          <option value="transfer">Transfer</option>
-          <option value="borrow">Borrow</option>
-          <option value="repay">Repay</option>
-          <option value="debt_in">Debt In</option>
-          <option value="debt_out">Debt Out</option>
-          <option value="cc_spend">Credit Card Spend</option>
-          <option value="cc_payment">Credit Card Payment</option>
-          <option value="atm">ATM</option>
-        </select>
-      </div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-      <div>
-        <label for="filterAccount">Account</label>
-        <select id="filterAccount">
-          <option value="">All accounts</option>
-        </select>
-      </div>
+<script src="/js/theme.js?v=1.0.0"></script>
+<script src="/js/nav.js?v=2.0.0"></script>
+<script src="/js/enforcement.js?v=0.2.0"></script>
+<script>
+(function () {
+  "use strict";
 
-      <div>
-        <label for="filterSearch">Search</label>
-        <input id="filterSearch" type="search" placeholder="Search notes, account, id..." />
-      </div>
+  const VERSION = "2.0.0";
+  let transactions = [];
+  let filtered = [];
 
-      <button id="refreshBtn" class="tx-refresh" type="button">Refresh</button>
-    </section>
+  const $ = id => document.getElementById(id);
 
-    <div class="tx-note">
-      To correct a transaction, use <strong>Reverse</strong>. Reverse creates correction rows and audit history.
-      It does not silently delete the original event.
-    </div>
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value;
+  }
 
-    <h2 class="tx-section-title">All Transactions</h2>
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
 
-    <section id="txList" class="tx-list">
-      <div class="tx-empty">Loading transactions</div>
-    </section>
+  function money(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "Unknown";
+    return "Rs " + Math.abs(n).toLocaleString("en-PK", { maximumFractionDigits: 0 });
+  }
 
-    <footer class="page-footer">
-      <span class="v">Transactions v0.8.4 · API v0.1.4 · nav v1.1.3 · css v1.0.2</span>
-    </footer>
-  </main>
+  function amountClass(type) {
+    const t = String(type || "").toLowerCase();
+    if (t === "income" || t === "salary" || t === "debt_in") return "income";
+    if (t === "transfer") return "transfer";
+    return "expense";
+  }
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  function amountPrefix(type) {
+    const cls = amountClass(type);
+    if (cls === "income") return "+";
+    if (cls === "expense") return "-";
+    return "";
+  }
 
-  <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=1.1.3"></script>
+  async function fetchJSON(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) throw new Error("Failed to read " + url);
+    return data;
+  }
 
-  <script>
-    const state = {
-      rows: [],
-      accounts: [],
-      filtered: [],
-      hiddenReversals: 0
-    };
+  async function loadCommandCentre() {
+    try {
+      const data = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
+      const writeSafety = data.coverage && data.coverage.write_safety ? data.coverage.write_safety : {};
+      const scope = Array.isArray(writeSafety.real_write_scope) ? writeSafety.real_write_scope : [];
 
-    const TYPE_IN = new Set(['income', 'salary', 'borrow', 'debt_in', 'opening']);
-    const TYPE_OUT = new Set(['expense', 'repay', 'debt_out', 'cc_spend', 'cc_payment', 'atm']);
-
-    const $ = id => document.getElementById(id);
-
-    function esc(value) {
-      return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
-
-    function money(value) {
-      const n = Number(value) || 0;
-      return 'Rs ' + n.toLocaleString('en-PK', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2
-      });
-    }
-
-    function signedMoney(row) {
-      const amount = Number(row.amount) || 0;
-      const type = String(row.type || '').toLowerCase();
-
-      if (TYPE_IN.has(type)) return '+' + money(amount);
-      if (TYPE_OUT.has(type)) return '-' + money(amount);
-
-      return money(amount);
-    }
-
-    function amountClass(row) {
-      const type = String(row.type || '').toLowerCase();
-
-      if (TYPE_IN.has(type)) return 'positive';
-      if (TYPE_OUT.has(type)) return 'negative';
-
-      return 'neutral';
-    }
-
-    function accountLabel(id) {
-      const found = state.accounts.find(a => a.id === id);
-
-      return found
-        ? [found.icon || '', found.name || found.id].join(' ').trim()
-        : (id || 'No account');
-    }
-
-    function titleFor(row) {
-      const notes = String(row.notes || '').trim();
-      if (notes) return notes;
-
-      const type = String(row.type || 'transaction').replace(/_/g, ' ');
-      return type.charAt(0).toUpperCase() + type.slice(1);
-    }
-
-    function typeActionLabel(row) {
-      const type = String(row.type || '').toLowerCase();
-
-      if (type === 'transfer') return 'Transfer: movement between accounts';
-      if (type === 'cc_payment') return 'Money out: reduces Credit Card liability';
-      if (type === 'cc_spend') return 'Money out: increases Credit Card liability';
-      if (type === 'debt_in' || type === 'borrow') return 'Money in: borrowed or owed inflow';
-      if (type === 'debt_out' || type === 'repay') return 'Money out: debt repayment or owed outflow';
-      if (TYPE_IN.has(type)) return 'Money in: increases account';
-      if (TYPE_OUT.has(type)) return 'Money out: reduces account';
-
-      return 'Ledger transaction';
-    }
-
-    async function fetchJSON(url, options) {
-      const res = await fetch(url, { cache: 'no-store', ...(options || {}) });
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok || !data || data.ok === false) {
-        throw new Error((data && data.error) || ('HTTP ' + res.status));
+      const scopeBadge = $("txnWriteScopeBadge");
+      if (scopeBadge) {
+        scopeBadge.className = scope.includes("transaction.save") ? "badge badge-ready" : "badge badge-unknown";
+        scopeBadge.textContent = scope.length ? "Write scope: " + scope.join(", ") : "No write scope";
       }
 
-      return data;
-    }
-
-    async function loadData() {
-      $('txList').innerHTML = '<div class="tx-empty">Loading transactions</div>';
-
-      try {
-        const [txData, accData] = await Promise.all([
-          fetchJSON('/api/transactions'),
-          fetchJSON('/api/accounts')
-        ]);
-
-        state.rows = txData.transactions || [];
-        state.accounts = accData.accounts || [];
-        state.hiddenReversals = Number(txData.hidden_reversal_count) || 0;
-
-        fillAccounts();
-        applyFilters();
-
-        if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === 'function') {
-          window.SovereignNav.scheduleOverflowCheck();
-        }
-      } catch (err) {
-        $('txList').innerHTML = `<div class="tx-empty">Transactions failed: ${esc(err.message)}</div>`;
+      const authorityBadge = $("txnAuthorityBadge");
+      if (authorityBadge) {
+        authorityBadge.className = "badge badge-info";
+        authorityBadge.textContent = "View only here";
+      }
+    } catch (err) {
+      const scopeBadge = $("txnWriteScopeBadge");
+      if (scopeBadge) {
+        scopeBadge.className = "badge badge-unknown";
+        scopeBadge.textContent = "Scope unknown";
       }
     }
+  }
 
-    function fillAccounts() {
-      const sel = $('filterAccount');
-      const current = sel.value;
+  async function loadTransactions() {
+    const data = await fetchJSON("/api/transactions?cb=" + Date.now());
+    transactions = Array.isArray(data.transactions) ? data.transactions : [];
 
-      sel.innerHTML = '<option value="">All accounts</option>';
-
-      state.accounts.forEach(account => {
-        const opt = document.createElement('option');
-        opt.value = account.id;
-        opt.textContent = accountLabel(account.id);
-        sel.appendChild(opt);
-      });
-
-      if (current && [...sel.options].some(option => option.value === current)) {
-        sel.value = current;
-      }
+    const apiBadge = $("txnApiBadge");
+    if (apiBadge) {
+      apiBadge.className = "badge badge-ready";
+      apiBadge.textContent = "Transactions API v" + (data.version || "live");
     }
 
-    function applyFilters() {
-      const type = $('filterType').value;
-      const account = $('filterAccount').value;
-      const q = $('filterSearch').value.toLowerCase().trim();
+    applyFilters();
+  }
 
-      state.filtered = state.rows.filter(row => {
-        if (type && row.type !== type) return false;
-        if (account && row.account_id !== account && row.transfer_to_account_id !== account) return false;
+  function applyFilters() {
+    const q = String($("txnSearch")?.value || "").toLowerCase().trim();
+    const type = String($("txnTypeFilter")?.value || "").toLowerCase().trim();
 
-        if (q) {
-          const hay = [
-            row.id,
-            row.type,
-            row.account_id,
-            row.transfer_to_account_id,
-            row.notes,
-            row.date
-          ].join(' ').toLowerCase();
+    filtered = transactions.filter(txn => {
+      const txType = String(txn.type || "").toLowerCase();
+      const haystack = [
+        txn.id,
+        txn.type,
+        txn.account_id,
+        txn.transfer_to_account_id,
+        txn.category_id,
+        txn.notes,
+        txn.date
+      ].join(" ").toLowerCase();
 
-          if (!hay.includes(q)) return false;
-        }
+      if (type && txType !== type) return false;
+      if (q && !haystack.includes(q)) return false;
+      return true;
+    });
 
-        return true;
-      });
+    renderStats();
+    renderList();
+  }
 
-      renderStats();
-      renderRows();
+  function renderStats() {
+    const income = filtered.filter(txn => amountClass(txn.type) === "income").length;
+    const expense = filtered.filter(txn => amountClass(txn.type) === "expense").length;
+    const transfer = filtered.filter(txn => amountClass(txn.type) === "transfer").length;
+
+    setText("txnShownCount", String(filtered.length));
+    setText("txnIncomeCount", String(income));
+    setText("txnExpenseCount", String(expense));
+    setText("txnTransferCount", String(transfer));
+    setText("txnSummary", filtered.length + " of " + transactions.length + " transaction rows shown.");
+  }
+
+  function renderList() {
+    const list = $("txnList");
+    if (!list) return;
+
+    if (!filtered.length) {
+      list.innerHTML = '<div class="txn-empty">No transactions match the current filter.</div>';
+      return;
     }
 
-    function renderStats() {
-      const rows = state.filtered;
-
-      const totalIn = rows
-        .filter(row => TYPE_IN.has(String(row.type || '').toLowerCase()))
-        .reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-
-      const totalOut = rows
-        .filter(row => TYPE_OUT.has(String(row.type || '').toLowerCase()))
-        .reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-
-      const net = totalIn - totalOut;
-
-      $('statCount').textContent = String(rows.length);
-      $('statIn').textContent = money(totalIn);
-      $('statOut').textContent = money(totalOut);
-      $('statNet').textContent = money(net);
-      $('statNet').className = 'tx-stat-value ' + (net >= 0 ? 'positive' : 'negative');
-      $('statReversed').textContent = String(state.hiddenReversals);
-    }
-
-    function groupByDate(rows) {
-      const groups = {};
-
-      rows.forEach(row => {
-        const date = String(row.date || 'Unknown').slice(0, 10);
-        if (!groups[date]) groups[date] = [];
-        groups[date].push(row);
-      });
-
-      return Object.keys(groups)
-        .sort((a, b) => b.localeCompare(a))
-        .map(date => ({ date, rows: groups[date] }));
-    }
-
-    function renderRows() {
-      const list = $('txList');
-
-      if (!state.filtered.length) {
-        list.innerHTML = '<div class="tx-empty">No transactions match this filter.</div>';
-        return;
-      }
-
-      const groups = groupByDate(state.filtered);
-
-      list.innerHTML = groups.map(group => `
-        <div class="tx-date-group">
-          <div class="tx-date-label">${esc(group.date)}</div>
-          ${group.rows.map(renderCard).join('')}
-        </div>
-      `).join('');
-
-      document.querySelectorAll('[data-reverse]').forEach(btn => {
-        btn.addEventListener('click', () => reverseTransaction(btn.dataset.reverse));
-      });
-    }
-
-    function renderCard(row) {
-      const type = String(row.type || '').toLowerCase();
-      const cls = amountClass(row);
-
-      const flow = row.transfer_to_account_id
-        ? `${accountLabel(row.account_id)} → ${accountLabel(row.transfer_to_account_id)}`
-        : accountLabel(row.account_id);
+    list.innerHTML = filtered.map(txn => {
+      const cls = amountClass(txn.type);
+      const title = txn.notes || txn.category_id || txn.type || txn.id || "Transaction";
+      const sub = [txn.id, txn.account_id, txn.transfer_to_account_id ? "to " + txn.transfer_to_account_id : ""].filter(Boolean).join(" · ");
 
       return `
-        <article class="tx-card">
-          <div class="tx-card-main">
-            <div class="tx-main">
-              <div class="tx-title" title="${esc(titleFor(row))}">${esc(titleFor(row))}</div>
-              <div class="tx-meta">${esc(flow)} · ${esc(type || 'transaction')} · ${esc(row.id)}</div>
-            </div>
-
-            <div class="tx-side">
-              <div class="tx-amount ${cls}">${esc(signedMoney(row))}</div>
-              <button class="tx-reverse" type="button" data-reverse="${esc(row.id)}">Reverse</button>
-            </div>
+        <article class="txn-row">
+          <div class="txn-main">
+            <div class="txn-title">${escapeHtml(title)}</div>
+            <div class="txn-sub">${escapeHtml(sub)}</div>
           </div>
 
-          <div class="tx-trust-line">
-            <span class="tx-trust-chip readonly">Read-only row</span>
-            <span class="tx-trust-chip">${esc(typeActionLabel(row))}</span>
-            <span class="tx-trust-chip reverse">Reverse creates correction</span>
+          <div>
+            <div class="txn-cell-label">Date</div>
+            <div class="txn-cell-value">${escapeHtml(txn.date || "N/A")}</div>
+          </div>
+
+          <div>
+            <div class="txn-cell-label">Type</div>
+            <div class="txn-cell-value">${escapeHtml(txn.type || "N/A")}</div>
+          </div>
+
+          <div>
+            <div class="txn-cell-label">Amount</div>
+            <div class="txn-cell-value txn-amount ${cls}">${amountPrefix(txn.type)}${escapeHtml(money(txn.amount))}</div>
           </div>
         </article>
       `;
-    }
+    }).join("");
+  }
 
-    function toast(message, kind = 'success') {
-      const el = $('toast');
-      el.textContent = message;
-      el.className = 'toast toast-' + kind + ' show';
+  function wireEvents() {
+    $("txnSearch")?.addEventListener("input", applyFilters);
+    $("txnTypeFilter")?.addEventListener("change", applyFilters);
+  }
 
-      setTimeout(() => {
-        el.className = 'toast';
-      }, 2600);
-    }
+  async function init() {
+    console.log("[transactions-ui v2.0.0] init");
+    wireEvents();
 
-    async function reverseTransaction(id) {
-      const row = state.rows.find(item => item.id === id);
-      const amount = row ? money(row.amount) : 'unknown amount';
-      const type = row ? row.type : 'transaction';
-
-      const ok = window.confirm(
-        'Reverse this transaction?\n\n' +
-        'This does NOT edit or delete the original row.\n' +
-        'It creates a reversal/correction record and preserves audit history.\n\n' +
-        'Type: ' + type + '\n' +
-        'Amount: ' + amount + '\n' +
-        'ID: ' + id + '\n\n' +
-        'Continue?'
-      );
-
-      if (!ok) return;
-
-      try {
-        await fetchJSON('/api/transactions/reverse', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, created_by: 'web-transactions' })
-        });
-
-        toast('Transaction reversed. Correction record created.');
-        await loadData();
-      } catch (err) {
-        toast(err.message, 'error');
+    try {
+      await Promise.all([loadCommandCentre(), loadTransactions()]);
+      console.log("[transactions-ui v2.0.0] ready", { rows: transactions.length });
+    } catch (err) {
+      console.error("[transactions-ui v2.0.0] failed", err);
+      const apiBadge = $("txnApiBadge");
+      if (apiBadge) {
+        apiBadge.className = "badge badge-blocked";
+        apiBadge.textContent = "Transactions unavailable";
       }
+      const list = $("txnList");
+      if (list) {
+        list.innerHTML = '<div class="txn-empty">Transactions failed to load: ' + escapeHtml(err.message || String(err)) + '</div>';
+      }
+      setText("txnSummary", "Transactions source unavailable.");
     }
+  }
 
-    $('filterType').addEventListener('change', applyFilters);
-    $('filterAccount').addEventListener('change', applyFilters);
-    $('filterSearch').addEventListener('input', applyFilters);
-    $('refreshBtn').addEventListener('click', () => {
-      loadData();
-      toast('Refreshed. Read-only action.');
-    });
+  window.SovereignTransactionsUI = {
+    version: VERSION,
+    refresh: init
+  };
 
-    window.SovereignTransactions = {
-      version: 'v0.8.4',
-      reload: loadData,
-      state
-    };
-
-    loadData();
-  </script>
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
 </body>
 </html>
