@@ -5,97 +5,263 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0f172a" />
   <title>Credit Card · Sovereign Finance</title>
+
   <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
 
   <style>
-    .cc-wrap { max-width: 1280px; margin: 0 auto; }
+    .cc-wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
     .cc-hero {
-      color:#f8fafc;
-      background:linear-gradient(135deg,rgba(15,23,42,.98),rgba(30,41,59,.95)),radial-gradient(circle at top right,rgba(59,130,246,.24),transparent 28rem);
-      border:1px solid rgba(255,255,255,.1);
-      border-radius:34px;
-      box-shadow:var(--shadow-lg);
-      padding:26px;
-      margin-bottom:18px;
+      color: #f8fafc;
+      background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95)),
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.24), transparent 28rem);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      border-radius: 34px;
+      box-shadow: var(--shadow-lg);
+      padding: 26px;
+      margin-bottom: 18px;
     }
+
     .cc-kicker {
-      display:inline-flex; padding:7px 11px; border-radius:999px;
-      background:rgba(59,130,246,.15); color:#dbeafe;
-      font-size:12px; font-weight:950; text-transform:uppercase; letter-spacing:.07em;
-      margin-bottom:12px;
+      display: inline-flex;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: rgba(59, 130, 246, 0.15);
+      color: #dbeafe;
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 12px;
     }
+
     .cc-title {
-      margin:0; color:#fff; font-size:clamp(34px,5vw,58px);
-      line-height:.98; letter-spacing:-.06em; font-weight:950;
+      margin: 0;
+      color: #fff;
+      font-size: clamp(34px, 5vw, 58px);
+      line-height: 0.98;
+      letter-spacing: -0.06em;
+      font-weight: 950;
     }
+
     .cc-copy {
-      max-width:840px; margin:12px 0 0; color:#cbd5e1;
-      font-size:15px; line-height:1.55; font-weight:750;
+      max-width: 860px;
+      margin: 12px 0 0;
+      color: #cbd5e1;
+      font-size: 15px;
+      line-height: 1.55;
+      font-weight: 750;
     }
+
+    .cc-warning {
+      margin-top: 16px;
+      padding: 13px 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(96, 165, 250, 0.28);
+      background: rgba(37, 99, 235, 0.14);
+      color: #dbeafe;
+      font-size: 13px;
+      font-weight: 850;
+      line-height: 1.45;
+    }
+
     .cc-grid {
-      display:grid;
-      grid-template-columns:repeat(4,minmax(0,1fr));
-      gap:12px;
-      margin-bottom:18px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
     }
+
     .cc-card {
-      min-width:0; padding:17px; border-radius:24px;
-      background:var(--surface-1); border:1px solid var(--border); box-shadow:var(--shadow-sm);
+      min-width: 0;
+      padding: 17px;
+      border-radius: 24px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
     }
+
     .cc-label {
-      color:var(--text-dim); font-size:11px; font-weight:950;
-      text-transform:uppercase; letter-spacing:.08em;
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
+
     .cc-value {
-      margin-top:8px; color:var(--text); font-size:24px; font-weight:950;
-      letter-spacing:-.035em; font-variant-numeric:tabular-nums;
+      margin-top: 8px;
+      color: var(--text);
+      font-size: 24px;
+      font-weight: 950;
+      letter-spacing: -0.035em;
+      font-variant-numeric: tabular-nums;
     }
-    .cc-note { margin-top:6px; color:var(--text-dim); font-size:12px; font-weight:800; line-height:1.35; }
-    .cc-value.warn { color:var(--warn); }
-    .cc-value.good { color:var(--accent-deep); }
-    .cc-value.bad { color:var(--danger); }
+
+    .cc-note {
+      margin-top: 6px;
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .cc-value.warn {
+      color: var(--warn);
+    }
+
+    .cc-value.good {
+      color: var(--accent-deep);
+    }
+
+    .cc-value.bad {
+      color: var(--danger);
+    }
+
     .cc-main {
-      display:grid; grid-template-columns:minmax(0,1.25fr) minmax(330px,.75fr);
-      gap:16px; align-items:start;
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.75fr);
+      gap: 16px;
+      align-items: start;
     }
+
     .cc-panel {
-      background:var(--surface-1); border:1px solid var(--border);
-      border-radius:28px; box-shadow:var(--shadow-sm); padding:18px;
-      min-width:0;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      box-shadow: var(--shadow-sm);
+      padding: 18px;
+      min-width: 0;
     }
-    .panel-title { margin:0; color:var(--text); font-size:18px; font-weight:950; letter-spacing:-.03em; }
-    .panel-sub { margin:6px 0 0; color:var(--text-dim); font-size:13px; font-weight:750; line-height:1.45; }
+
+    .panel-title {
+      margin: 0;
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 950;
+      letter-spacing: -0.03em;
+    }
+
+    .panel-sub {
+      margin: 6px 0 0;
+      color: var(--text-dim);
+      font-size: 13px;
+      font-weight: 750;
+      line-height: 1.45;
+    }
+
     .cc-meter {
-      margin:18px 0 10px; height:18px; background:var(--surface-3);
-      border-radius:999px; overflow:hidden;
+      margin: 18px 0 10px;
+      height: 18px;
+      background: var(--surface-3);
+      border-radius: 999px;
+      overflow: hidden;
     }
+
     .cc-meter-fill {
-      height:100%; width:0%; border-radius:999px;
-      background:linear-gradient(90deg,#22c55e,#f59e0b,#ef4444);
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #22c55e, #f59e0b, #ef4444);
+      transition: width 340ms ease;
     }
+
     .cc-row {
-      display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px;
-      padding:13px; border-radius:18px; background:var(--surface-2);
-      border:1px solid rgba(148,163,184,.18); margin-top:8px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 13px;
+      border-radius: 18px;
+      background: var(--surface-2);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      margin-top: 8px;
     }
-    .row-name { color:var(--text); font-size:13px; font-weight:950; }
-    .row-sub { margin-top:3px; color:var(--text-dim); font-size:12px; font-weight:750; }
-    .row-value { color:var(--text); font-size:13px; font-weight:950; white-space:nowrap; font-variant-numeric:tabular-nums; }
-    .cc-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }
+
+    .row-name {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .row-sub {
+      margin-top: 3px;
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .row-value {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 950;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cc-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
     .cc-action {
-      display:flex; align-items:center; justify-content:center; min-height:46px;
-      border-radius:16px; border:1px solid var(--border-strong); background:#fff;
-      color:var(--text); font-weight:950;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 46px;
+      border-radius: 16px;
+      border: 1px solid var(--border-strong);
+      background: #fff;
+      color: var(--text);
+      font-weight: 950;
+      text-align: center;
     }
-    .cc-action.primary { background:var(--grad-mint); color:#052e16; border:0; }
-    .cc-empty {
-      padding:18px; border-radius:18px; background:var(--surface-2);
-      border:1px dashed var(--border-strong); color:var(--text-muted);
-      font-size:13px; font-weight:850; line-height:1.45;
+
+    .cc-action.primary {
+      background: var(--grad-mint);
+      color: #052e16;
+      border: 0;
     }
-    @media(max-width:980px){
-      .cc-grid,.cc-main{grid-template-columns:1fr;}
-      .cc-actions{grid-template-columns:1fr;}
+
+    .cc-empty,
+    .cc-source-warning {
+      padding: 14px;
+      border-radius: 18px;
+      background: var(--surface-2);
+      border: 1px dashed var(--border-strong);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 850;
+      line-height: 1.45;
+      margin-top: 10px;
+    }
+
+    .cc-source-warning.bad {
+      background: rgba(220, 38, 38, 0.08);
+      border-color: rgba(220, 38, 38, 0.22);
+      color: #7f1d1d;
+    }
+
+    .cc-source-warning.good {
+      background: rgba(34, 197, 94, 0.08);
+      border-color: rgba(34, 197, 94, 0.22);
+      color: #14532d;
+    }
+
+    @media (max-width: 980px) {
+      .cc-grid,
+      .cc-main {
+        grid-template-columns: 1fr;
+      }
+
+      .cc-actions {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -111,40 +277,51 @@
   <main class="cc-wrap">
     <section class="cc-hero">
       <div class="cc-kicker">Credit Card control</div>
-      <h1 class="cc-title">Statement, due date, minimum payment, and utilization in one place.</h1>
+      <h1 class="cc-title">Realtime balance first. No historical-spend guessing.</h1>
       <p class="cc-copy">
-        Credit Card is treated as a liability planning tool. It uses the account contract for limit,
-        statement day, due day, and minimum payment.
+        This page reads the original account/balance sources directly. It does not use money contracts,
+        lifetime Credit Card spend, or historical transaction totals as current outstanding.
       </p>
+
+      <div class="cc-warning">
+        Statement date stays the 12th of every month. Interest-free period stays 55 days.
+        Minimum due is 5% of realtime outstanding when a trusted outstanding value is available.
+      </div>
     </section>
 
     <section class="cc-grid">
       <div class="cc-card">
-        <div class="cc-label">Outstanding</div>
-        <div id="ccOutstanding" class="cc-value">—</div>
-        <div id="ccOutstandingNote" class="cc-note">Current Credit Card liability.</div>
+        <div class="cc-label">Realtime outstanding</div>
+        <div id="ccOutstanding" class="cc-value">Loading</div>
+        <div id="ccOutstandingNote" class="cc-note">Reading original balance source.</div>
       </div>
+
       <div class="cc-card">
-        <div class="cc-label">Minimum payment</div>
+        <div class="cc-label">Minimum due</div>
         <div id="ccMinimum" class="cc-value">—</div>
-        <div id="ccMinimumNote" class="cc-note">Formula source loading.</div>
+        <div id="ccMinimumNote" class="cc-note">5% of realtime outstanding.</div>
       </div>
+
       <div class="cc-card">
         <div class="cc-label">Due date</div>
         <div id="ccDue" class="cc-value">—</div>
-        <div id="ccDueNote" class="cc-note">Next payment due date.</div>
+        <div id="ccDueNote" class="cc-note">12th statement + 55 days.</div>
       </div>
+
       <div class="cc-card">
         <div class="cc-label">Utilization</div>
         <div id="ccUtil" class="cc-value">—</div>
-        <div id="ccUtilNote" class="cc-note">Outstanding against limit.</div>
+        <div id="ccUtilNote" class="cc-note">Outstanding against credit limit.</div>
       </div>
     </section>
 
     <section class="cc-main">
       <div class="cc-panel">
         <h2 class="panel-title">Credit Card health</h2>
-        <p class="panel-sub">This is a planning readout only. Payment movement still happens through Add Transaction transfer mode.</p>
+        <p class="panel-sub">
+          Display-only page. It does not write data, change balances, calculate from historical spend,
+          or modify your original finance logic.
+        </p>
 
         <div class="cc-meter">
           <div id="ccMeterFill" class="cc-meter-fill"></div>
@@ -152,24 +329,32 @@
 
         <div class="cc-row">
           <div>
-            <div class="row-name">Statement day</div>
-            <div class="row-sub">Monthly statement / billing cycle marker</div>
+            <div class="row-name">Outstanding source</div>
+            <div class="row-sub">Must be realtime balance or original trusted account source</div>
           </div>
-          <div id="ccStatementDay" class="row-value">—</div>
+          <div id="ccSource" class="row-value">—</div>
         </div>
 
         <div class="cc-row">
           <div>
-            <div class="row-name">Payment due day</div>
-            <div class="row-sub">If configured, due date is based on this day</div>
+            <div class="row-name">Statement date</div>
+            <div class="row-sub">Fixed rule</div>
           </div>
-          <div id="ccPaymentDueDay" class="row-value">—</div>
+          <div id="ccStatementDay" class="row-value">12th monthly</div>
+        </div>
+
+        <div class="cc-row">
+          <div>
+            <div class="row-name">Interest-free days</div>
+            <div class="row-sub">Fixed rule</div>
+          </div>
+          <div id="ccInterestFree" class="row-value">55 days</div>
         </div>
 
         <div class="cc-row">
           <div>
             <div class="row-name">Credit limit</div>
-            <div class="row-sub">Limit from account contract</div>
+            <div class="row-sub">Read from account if available, otherwise safe display fallback</div>
           </div>
           <div id="ccLimit" class="row-value">—</div>
         </div>
@@ -181,14 +366,14 @@
       </div>
 
       <aside class="cc-panel">
-        <h2 class="panel-title">Production checks</h2>
-        <p class="panel-sub">What the page needs before it can be trusted.</p>
+        <h2 class="panel-title">Safety checks</h2>
+        <p class="panel-sub">This verifies the page is not using the broken contract logic.</p>
         <div id="ccChecks"></div>
       </aside>
     </section>
 
     <footer class="page-footer">
-      <span class="v">Credit Card v0.4.0 · money-contracts v0.1.1 · nav v1.1.3 · css v1.0.2</span>
+      <span class="v">Credit Card v0.4.1 · restored realtime balance source · nav v1.1.3 · css v1.0.2</span>
     </footer>
   </main>
 
@@ -199,18 +384,26 @@
     (function () {
       "use strict";
 
-      const $ = id => document.getElementById(id);
+      const VERSION = "v0.4.1";
+      const STATEMENT_DAY = 12;
+      const INTEREST_FREE_DAYS = 55;
+      const FALLBACK_CREDIT_LIMIT = 100000;
 
-      function money(value) {
-        const n = Number(value || 0);
-        return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
-      }
+      const $ = id => document.getElementById(id);
 
       function esc(value) {
         return String(value == null ? "" : value)
-          .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
           .replace(/'/g, "&#39;");
+      }
+
+      function money(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "Unverified";
+        return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
       }
 
       function setValue(id, value, cls) {
@@ -221,67 +414,357 @@
         if (cls) el.classList.add(cls);
       }
 
-      function dueCopy(days) {
-        if (days === null || days === undefined) return "Unknown";
-        if (days < 0) return `${Math.abs(days)} days overdue`;
-        if (days === 0) return "Due today";
-        if (days === 1) return "Due tomorrow";
-        return `Due in ${days} days`;
+      function asNumber(value) {
+        if (value === null || value === undefined || value === "") return null;
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
       }
 
-      function renderChecks(cc) {
-        const checks = [
-          ["Credit Card account found", !!cc.account_id],
-          ["Statement day configured", !!cc.statement_day],
-          ["Due date available", !!cc.next_due_date],
-          ["Minimum payment available", cc.minimum_payment !== null && cc.minimum_payment !== undefined],
-          ["Official name: Credit Card", cc.naming_contract === "Credit Card"]
+      function absOutstanding(value) {
+        const n = asNumber(value);
+        if (n === null) return null;
+        return Math.abs(n);
+      }
+
+      function normalizeAccounts(payload) {
+        if (Array.isArray(payload)) return payload;
+
+        if (payload && Array.isArray(payload.accounts)) return payload.accounts;
+        if (payload && Array.isArray(payload.rows)) return payload.rows;
+        if (payload && Array.isArray(payload.items)) return payload.items;
+
+        if (payload && typeof payload === "object") {
+          return Object.keys(payload)
+            .filter(key => payload[key] && typeof payload[key] === "object")
+            .map(key => ({ id: key, ...payload[key] }));
+        }
+
+        return [];
+      }
+
+      function normalizeBalanceRows(payload) {
+        if (!payload) return [];
+
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload.accounts)) return payload.accounts;
+        if (Array.isArray(payload.balances)) return payload.balances;
+        if (Array.isArray(payload.rows)) return payload.rows;
+        if (Array.isArray(payload.items)) return payload.items;
+
+        if (payload.balances && typeof payload.balances === "object") {
+          return Object.keys(payload.balances).map(id => ({
+            id,
+            balance: payload.balances[id]
+          }));
+        }
+
+        if (payload.accounts && typeof payload.accounts === "object") {
+          return Object.keys(payload.accounts).map(id => ({
+            id,
+            ...payload.accounts[id]
+          }));
+        }
+
+        if (typeof payload === "object") {
+          return Object.keys(payload)
+            .filter(key => payload[key] && typeof payload[key] === "object")
+            .map(key => ({ id: key, ...payload[key] }));
+        }
+
+        return [];
+      }
+
+      function accountName(row) {
+        return String(row.name || row.label || row.account_name || row.id || "").trim();
+      }
+
+      function accountKind(row) {
+        return String(row.kind || row.type || row.category || "").toLowerCase().trim();
+      }
+
+      function isCreditCard(row) {
+        const hay = [
+          row.id,
+          row.account_id,
+          row.name,
+          row.label,
+          row.account_name,
+          row.kind,
+          row.type,
+          row.category
+        ].join(" ").toLowerCase();
+
+        return (
+          hay.includes(" cc") ||
+          hay.includes("cc ") ||
+          hay.includes("alfalah cc") ||
+          hay.includes("credit card") ||
+          String(row.id || "").toLowerCase() === "cc" ||
+          String(row.account_id || "").toLowerCase() === "cc" ||
+          accountKind(row) === "cc"
+        );
+      }
+
+      async function fetchJson(url) {
+        const res = await fetch(url, { cache: "no-store" });
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok || !data) {
+          throw new Error(url + " failed with HTTP " + res.status);
+        }
+
+        return data;
+      }
+
+      async function readSources() {
+        const results = {
+          accounts: [],
+          balances: [],
+          errors: []
+        };
+
+        try {
+          results.accounts = normalizeAccounts(await fetchJson("/api/accounts"));
+        } catch (err) {
+          results.errors.push("/api/accounts: " + err.message);
+        }
+
+        try {
+          results.balances = normalizeBalanceRows(await fetchJson("/api/balances"));
+        } catch (err) {
+          results.errors.push("/api/balances: " + err.message);
+        }
+
+        return results;
+      }
+
+      function findCcAccount(accounts, balances) {
+        const account = accounts.find(isCreditCard) || null;
+        const balance = balances.find(isCreditCard) || null;
+
+        if (account && balance) {
+          return {
+            ...account,
+            ...balance,
+            id: account.id || balance.id || balance.account_id,
+            name: accountName(account) || accountName(balance)
+          };
+        }
+
+        return account || balance || null;
+      }
+
+      function pickOutstanding(cc) {
+        if (!cc) return { value: null, source: "missing_credit_card_account" };
+
+        const trustedFields = [
+          ["current_balance", "current_balance"],
+          ["available_balance", "available_balance"],
+          ["balance", "balance"],
+          ["real_balance", "real_balance"],
+          ["declared_balance", "declared_balance"],
+          ["opening_balance", "opening_balance"]
         ];
 
-        $("ccChecks").innerHTML = checks.map(([label, ok]) => `
+        for (const pair of trustedFields) {
+          const field = pair[0];
+          const source = pair[1];
+          const value = absOutstanding(cc[field]);
+
+          if (value !== null && value > 0) {
+            return { value, source };
+          }
+        }
+
+        return { value: null, source: "realtime_balance_unavailable" };
+      }
+
+      function pickCreditLimit(cc) {
+        if (!cc) return FALLBACK_CREDIT_LIMIT;
+
+        return (
+          asNumber(cc.credit_limit) ||
+          asNumber(cc.limit_amount) ||
+          asNumber(cc.card_limit) ||
+          FALLBACK_CREDIT_LIMIT
+        );
+      }
+
+      function nextStatementDate() {
+        const now = new Date();
+        let d = new Date(now.getFullYear(), now.getMonth(), STATEMENT_DAY);
+
+        if (d < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+          d = new Date(now.getFullYear(), now.getMonth() + 1, STATEMENT_DAY);
+        }
+
+        return d;
+      }
+
+      function dueDateFromStatement() {
+        const d = nextStatementDate();
+        d.setDate(d.getDate() + INTEREST_FREE_DAYS);
+        return d;
+      }
+
+      function dateOnly(d) {
+        return d.toISOString().slice(0, 10);
+      }
+
+      function daysUntil(d) {
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const target = new Date(d);
+        target.setHours(0, 0, 0, 0);
+        return Math.ceil((target.getTime() - now.getTime()) / 86400000);
+      }
+
+      function dueCopy(days) {
+        if (days < 0) return Math.abs(days) + " days overdue";
+        if (days === 0) return "Due today";
+        if (days === 1) return "Due tomorrow";
+        return "Due in " + days + " days";
+      }
+
+      function checkRow(label, ok, sub) {
+        return `
           <div class="cc-row">
             <div>
               <div class="row-name">${esc(label)}</div>
-              <div class="row-sub">${ok ? "Ready" : "Needs setup"}</div>
+              <div class="row-sub">${esc(sub || (ok ? "Ready" : "Needs attention"))}</div>
             </div>
-            <div class="row-value">${ok ? "OK" : "Missing"}</div>
+            <div class="row-value">${ok ? "OK" : "Check"}</div>
           </div>
-        `).join("");
+        `;
+      }
+
+      function renderChecks(result) {
+        const html = [
+          checkRow("No money-contracts dependency", true, "This page does not call /api/money-contracts."),
+          checkRow("No lifetime CC spend math", true, "Historical cc_spend is not used as outstanding."),
+          checkRow("Credit Card account found", !!result.cc, result.cc ? result.cc.name || result.cc.id : "No CC account found."),
+          checkRow("Realtime outstanding available", result.outstanding !== null, result.source),
+          checkRow("Minimum due rule", result.outstanding !== null, "5% of realtime outstanding."),
+          checkRow("Statement rule", true, "12th of every month."),
+          checkRow("Interest-free rule", true, "55 days.")
+        ].join("");
+
+        $("ccChecks").innerHTML = html;
+
+        if (result.outstanding === null) {
+          $("ccChecks").insertAdjacentHTML(
+            "beforeend",
+            `<div class="cc-source-warning bad">
+              Realtime Credit Card outstanding was not available from /api/accounts or /api/balances.
+              The page is intentionally showing Unverified instead of guessing from transaction history.
+            </div>`
+          );
+        } else {
+          $("ccChecks").insertAdjacentHTML(
+            "beforeend",
+            `<div class="cc-source-warning good">
+              Outstanding is coming from ${esc(result.source)}. Minimum due is calculated as 5% of that value.
+            </div>`
+          );
+        }
       }
 
       async function load() {
-        const res = await fetch("/api/money-contracts", { cache: "no-store" });
-        const data = await res.json();
+        const sources = await readSources();
+        const cc = findCcAccount(sources.accounts, sources.balances);
+        const outstandingPick = pickOutstanding(cc);
+        const outstanding = outstandingPick.value;
+        const limit = pickCreditLimit(cc);
+        const due = dueDateFromStatement();
+        const dueDays = daysUntil(due);
 
-        if (!res.ok || !data.ok) throw new Error(data.error || "Credit Card contract failed");
+        let minimumDue = null;
+        let utilization = null;
 
-        const cc = data.contracts.credit_card || {};
-        const util = cc.utilization_percent;
+        if (outstanding !== null) {
+          minimumDue = Math.ceil(outstanding * 0.05);
+          utilization = limit > 0 ? (outstanding / limit) * 100 : null;
+        }
 
-        setValue("ccOutstanding", money(cc.outstanding), cc.outstanding > 0 ? "warn" : "good");
-        setValue("ccMinimum", money(cc.minimum_payment), cc.minimum_payment > 0 ? "warn" : "good");
-        setValue("ccDue", cc.next_due_date || "—", cc.days_until_due !== null && cc.days_until_due <= 7 ? "warn" : "good");
-        setValue("ccUtil", util === null || util === undefined ? "—" : util + "%", util >= 80 ? "bad" : util >= 50 ? "warn" : "good");
+        setValue(
+          "ccOutstanding",
+          outstanding === null ? "Unverified" : money(outstanding),
+          outstanding === null ? "warn" : outstanding > limit ? "bad" : outstanding > 0 ? "warn" : "good"
+        );
 
-        $("ccOutstandingNote").textContent = cc.account_name ? `Account: ${cc.account_name}` : "Credit Card account missing.";
-        $("ccMinimumNote").textContent = `Source: ${cc.minimum_payment_source || "unknown"}`;
-        $("ccDueNote").textContent = dueCopy(cc.days_until_due);
-        $("ccUtilNote").textContent = cc.credit_limit ? "Against configured credit limit." : "Credit limit not configured.";
-        $("ccStatementDay").textContent = cc.statement_day ? `Day ${cc.statement_day}` : "Not set";
-        $("ccPaymentDueDay").textContent = cc.payment_due_day ? `Day ${cc.payment_due_day}` : "55-day fallback";
-        $("ccLimit").textContent = cc.credit_limit ? money(cc.credit_limit) : "Not set";
+        setValue(
+          "ccMinimum",
+          minimumDue === null ? "Unverified" : money(minimumDue),
+          minimumDue === null ? "warn" : minimumDue > 0 ? "warn" : "good"
+        );
 
-        $("ccMeterFill").style.width = Math.max(0, Math.min(100, Number(util || 0))) + "%";
+        setValue("ccDue", dateOnly(due), dueDays <= 7 ? "warn" : "good");
 
-        renderChecks(cc);
+        setValue(
+          "ccUtil",
+          utilization === null ? "Unverified" : utilization.toFixed(2) + "%",
+          utilization === null ? "warn" : utilization >= 80 ? "bad" : utilization >= 50 ? "warn" : "good"
+        );
 
-        window.SovereignCreditCard = { version: "v0.4.0", contract: cc };
+        $("ccOutstandingNote").textContent =
+          outstanding === null
+            ? "Realtime balance unavailable. No historical-spend guess used."
+            : "Source: " + outstandingPick.source;
 
-        if (window.SovereignNav) window.SovereignNav.scheduleOverflowCheck();
+        $("ccMinimumNote").textContent =
+          minimumDue === null
+            ? "Needs realtime outstanding first."
+            : "5% of realtime outstanding.";
+
+        $("ccDueNote").textContent = dueCopy(dueDays);
+        $("ccUtilNote").textContent = utilization === null ? "Needs realtime outstanding first." : "Credit limit: " + money(limit);
+        $("ccSource").textContent = outstandingPick.source;
+        $("ccLimit").textContent = money(limit);
+        $("ccMeterFill").style.width = utilization === null ? "0%" : Math.max(0, Math.min(100, utilization)) + "%";
+
+        const result = {
+          cc,
+          outstanding,
+          source: outstandingPick.source,
+          minimumDue,
+          limit,
+          utilization,
+          dueDate: dateOnly(due),
+          dueDays,
+          sourceErrors: sources.errors
+        };
+
+        renderChecks(result);
+
+        window.SovereignCreditCard = {
+          version: VERSION,
+          mode: "restored_realtime_balance_source",
+          noMoneyContracts: true,
+          noHistoricalSpendOutstanding: true,
+          result
+        };
+
+        if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
+          window.SovereignNav.scheduleOverflowCheck();
+        }
       }
 
       load().catch(err => {
-        $("ccChecks").innerHTML = `<div class="cc-empty">Credit Card failed: ${esc(err.message)}</div>`;
+        $("ccChecks").innerHTML = `
+          <div class="cc-empty">
+            Credit Card page failed safely: ${esc(err.message)}
+          </div>
+        `;
+
+        setValue("ccOutstanding", "Unverified", "warn");
+        setValue("ccMinimum", "Unverified", "warn");
+        setValue("ccUtil", "Unverified", "warn");
+
+        window.SovereignCreditCard = {
+          version: VERSION,
+          mode: "failed_safe",
+          error: err.message
+        };
       });
     })();
   </script>
