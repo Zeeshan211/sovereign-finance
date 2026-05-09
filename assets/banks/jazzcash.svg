@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="JazzCash">
+  <rect width="96" height="96" rx="24" fill="#FEF2F2"/>
+  <circle cx="48" cy="48" r="31" fill="#FFFFFF" stroke="#DC2626" stroke-width="4"/>
+  <path d="M53 30v23c0 11-7 17-18 17-4 0-8-1-11-3l3-8c2 1 5 2 8 2 5 0 9-3 9-8V30h9Z" fill="#DC2626"/>
+  <path d="M58 34h15" stroke="#F59E0B" stroke-width="6" stroke-linecap="round"/>
+</svg>
