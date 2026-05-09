@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Alfalah Credit Card">
+  <rect width="96" height="96" rx="24" fill="#EFF6FF"/>
+  <rect x="16" y="29" width="64" height="42" rx="13" fill="#FFFFFF" stroke="#1E40AF" stroke-width="4"/>
+  <path d="M16 41h64" stroke="#1E40AF" stroke-width="5"/>
+  <path d="M29 58h18" stroke="#1E40AF" stroke-width="5" stroke-linecap="round"/>
+  <path d="M62 53 69 66h-6l-1.5-3h-5l-1.5 3h-6l7-13h6Zm-3 4-1.5 3h3L59 57Z" fill="#B91C1C"/>
+</svg>
