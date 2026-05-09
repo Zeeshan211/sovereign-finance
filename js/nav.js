@@ -1,22 +1,22 @@
-/* Sovereign Finance Nav v1.1.9
-   Scroll-with-page premium command dock with scoped SVG icons.
-
+/* Sovereign Finance Nav v1.2.0
+   Scroll-with-page premium command dock with scoped SVG icons + Command Centre enforcement markers.
    Contract:
    - Visual navigation only.
-   - No API calls.
-   - No finance logic.
-   - No balances.
-   - No backend.
-   - No D1.
-   - No contract endpoint.
-   - SVG icons are scoped inside nav only.
+   - Loads enforcement policy read-only.
+   - Marks routes as Pass / Warning / View only / Blocked.
+   - Does not block navigation.
+   - Does not disable buttons.
+   - Does not write D1.
+   - Does not mutate ledger.
+   - Command Centre must always remain accessible.
 */
 
 (function () {
   "use strict";
 
-  const VERSION = "1.1.9";
+  const VERSION = "1.2.0";
   const CSS_HREF = "/css/nav.css?v=1.1.9";
+  const ENFORCEMENT_SRC = "/js/enforcement.js?v=0.1.0";
 
   const ICONS = {
     hub: '<svg viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h4A1.5 1.5 0 0 1 11 5.5v4A1.5 1.5 0 0 1 9.5 11h-4A1.5 1.5 0 0 1 4 9.5v-4Z"/><path d="M13 5.5A1.5 1.5 0 0 1 14.5 4h4A1.5 1.5 0 0 1 20 5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4A1.5 1.5 0 0 1 13 9.5v-4Z"/><path d="M4 14.5A1.5 1.5 0 0 1 5.5 13h4a1.5 1.5 0 0 1 1.5 1.5v4A1.5 1.5 0 0 1 9.5 20h-4A1.5 1.5 0 0 1 4 18.5v-4Z"/><path d="M13 14.5a1.5 1.5 0 0 1 1.5-1.5h4a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a1.5 1.5 0 0 1-1.5-1.5v-4Z"/></svg>',
@@ -42,20 +42,16 @@
     { key: "hub", label: "Hub", href: "/index.html", section: "command", icon: "hub", mobile: true },
     { key: "forecast", label: "Forecast", href: "/forecast.html", section: "command", icon: "forecast" },
     { key: "monthly-close", label: "Monthly Close", href: "/monthly-close.html", section: "command", icon: "close" },
-
     { key: "add", label: "Add Transaction", href: "/add.html", section: "money", icon: "add", mobile: true },
     { key: "transactions", label: "Transactions", href: "/transactions.html", section: "money", icon: "transactions", mobile: true },
     { key: "accounts", label: "Accounts", href: "/accounts.html", section: "money", icon: "accounts" },
     { key: "reconciliation", label: "Reconciliation", href: "/reconciliation.html", section: "money", icon: "reconciliation" },
-
     { key: "bills", label: "Bills", href: "/bills.html", section: "obligations", icon: "bills", mobile: true },
     { key: "debts", label: "Debts", href: "/debts.html", section: "obligations", icon: "debts" },
     { key: "cc", label: "Credit Card", href: "/cc.html", section: "obligations", icon: "card" },
     { key: "atm", label: "ATM", href: "/atm.html", section: "obligations", icon: "atm" },
     { key: "nano-loans", label: "Nano Loans", href: "/nano-loans.html", section: "obligations", icon: "nano" },
-
     { key: "salary", label: "Salary", href: "/salary.html", section: "planning", icon: "salary" },
-
     { key: "charts", label: "Charts", href: "/charts.html", section: "records", icon: "charts" },
     { key: "audit", label: "Audit", href: "/audit.html", section: "records", icon: "audit" },
     { key: "snapshots", label: "Snapshots", href: "/snapshots.html", section: "records", icon: "snapshots" }
@@ -71,6 +67,8 @@
 
   const PRIMARY_KEYS = ["add", "transactions"];
   const MOBILE_KEYS = ["hub", "add", "transactions", "bills"];
+
+  let latestEnforcementSnapshot = null;
 
   function escapeHtml(value) {
     return String(value == null ? "" : value)
@@ -92,11 +90,14 @@
     return p;
   }
 
+  function statusClass(value) {
+    return String(value || "unknown").toLowerCase().replace(/_/g, "-").replace(/\s+/g, "-");
+  }
+
   function currentKey() {
     const p = normalizePath(window.location.pathname);
     const direct = LINKS.find(link => normalizePath(link.href) === p);
     if (direct) return direct.key;
-
     if (p.includes("monthly-close")) return "monthly-close";
     if (p.includes("nano-loans")) return "nano-loans";
     if (p.includes("transactions")) return "transactions";
@@ -112,7 +113,6 @@
     if (p.includes("audit")) return "audit";
     if (p.includes("snapshots")) return "snapshots";
     if (p.includes("add")) return "add";
-
     return "hub";
   }
 
@@ -134,7 +134,6 @@
       existing.href = CSS_HREF;
       return;
     }
-
     const link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = CSS_HREF;
@@ -142,24 +141,126 @@
     document.head.appendChild(link);
   }
 
-  function removeExistingNav() {
-    document
-      .querySelectorAll(".sf-shell-nav, .sf-mobile-nav, .sf-more-panel, .sf-more-backdrop")
-      .forEach(node => node.remove());
+  function ensureEnforcementCss() {
+    let style = document.querySelector('style[data-sf-enforcement-nav-css="true"]');
+    if (style) return;
+
+    style = document.createElement("style");
+    style.dataset.sfEnforcementNavCss = "true";
+    style.textContent = `
+      .sfn-link,.sfm-item,.sfmore-link,.sfn-primary-btn{position:relative}
+      .sfn-enforcement-badge,.sfm-enforcement-badge,.sfmore-enforcement-badge,.sfn-current-enforcement{
+        display:inline-flex;align-items:center;width:fit-content;max-width:100%;
+        padding:3px 7px;border-radius:999px;border:1px solid transparent;
+        font-size:9px;font-weight:1000;line-height:1;text-transform:uppercase;letter-spacing:.04em;
+        white-space:nowrap
+      }
+      .sfn-enforcement-badge{margin-left:auto}
+      .sfm-enforcement-badge{position:absolute;top:4px;right:7px;padding:2px 5px;font-size:8px}
+      .sfmore-enforcement-badge{margin-left:auto}
+      .sfn-current-enforcement{margin-top:6px}
+      [data-enforcement-status="pass"] .sfn-enforcement-badge,
+      [data-enforcement-status="pass"] .sfm-enforcement-badge,
+      [data-enforcement-status="pass"] .sfmore-enforcement-badge,
+      .sfn-current-enforcement.pass{color:#166534;background:#dcfce7;border-color:rgba(22,163,74,.22)}
+      [data-enforcement-status="warn"] .sfn-enforcement-badge,
+      [data-enforcement-status="warning"] .sfn-enforcement-badge,
+      [data-enforcement-status="warn"] .sfm-enforcement-badge,
+      [data-enforcement-status="warning"] .sfm-enforcement-badge,
+      [data-enforcement-status="warn"] .sfmore-enforcement-badge,
+      [data-enforcement-status="warning"] .sfmore-enforcement-badge,
+      .sfn-current-enforcement.warn,.sfn-current-enforcement.warning{color:#92400e;background:#fef3c7;border-color:rgba(217,119,6,.22)}
+      [data-enforcement-status="soft-block"] .sfn-enforcement-badge,
+      [data-enforcement-status="soft_block"] .sfn-enforcement-badge,
+      [data-enforcement-status="soft-block"] .sfm-enforcement-badge,
+      [data-enforcement-status="soft_block"] .sfm-enforcement-badge,
+      [data-enforcement-status="soft-block"] .sfmore-enforcement-badge,
+      [data-enforcement-status="soft_block"] .sfmore-enforcement-badge,
+      .sfn-current-enforcement.soft-block,.sfn-current-enforcement.soft_block{color:#1d4ed8;background:#dbeafe;border-color:rgba(37,99,235,.22)}
+      [data-enforcement-status="blocked"] .sfn-enforcement-badge,
+      [data-enforcement-status="blocked"] .sfm-enforcement-badge,
+      [data-enforcement-status="blocked"] .sfmore-enforcement-badge,
+      .sfn-current-enforcement.blocked{color:#991b1b;background:#fee2e2;border-color:rgba(220,38,38,.22)}
+      [data-enforcement-status="unknown"] .sfn-enforcement-badge,
+      [data-enforcement-status="unknown"] .sfm-enforcement-badge,
+      [data-enforcement-status="unknown"] .sfmore-enforcement-badge,
+      .sfn-current-enforcement.unknown{color:#334155;background:#e2e8f0;border-color:rgba(71,85,105,.22)}
+      .sfn-link[data-enforcement-status="soft-block"],
+      .sfn-link[data-enforcement-status="blocked"],
+      .sfmore-link[data-enforcement-status="soft-block"],
+      .sfmore-link[data-enforcement-status="blocked"]{outline:1px solid rgba(37,99,235,.16)}
+      .sfn-link[data-enforcement-status="blocked"],
+      .sfmore-link[data-enforcement-status="blocked"]{outline-color:rgba(220,38,38,.20)}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function ensureEnforcementScript() {
+    if (window.SovereignEnforcement) {
+      subscribeToEnforcement();
+      return;
+    }
+
+    if (document.querySelector('script[data-sf-enforcement-script="true"]')) return;
+
+    const script = document.createElement("script");
+    script.src = ENFORCEMENT_SRC;
+    script.defer = true;
+    script.dataset.sfEnforcementScript = "true";
+    script.addEventListener("load", subscribeToEnforcement);
+    script.addEventListener("error", () => {
+      console.warn("[SovereignNav v" + VERSION + "] enforcement loader failed");
+      applyEnforcementMarkers(null);
+    });
+    document.head.appendChild(script);
+  }
+
+  function routeStatusFor(link) {
+    if (!latestEnforcementSnapshot || !latestEnforcementSnapshot.loaded) {
+      return {
+        status: "unknown",
+        label: "Unknown",
+        reason: "Enforcement policy has not loaded yet.",
+        source: "js/enforcement.js",
+        required_fix: "Wait for /api/finance-command-center or open Command Centre."
+      };
+    }
+
+    if (latestEnforcementSnapshot.statusForRoute) {
+      return latestEnforcementSnapshot.statusForRoute(link.href);
+    }
+
+    return {
+      status: "unknown",
+      label: "Unknown",
+      reason: "Enforcement policy helper unavailable.",
+      source: "window.SovereignEnforcement",
+      required_fix: "Reload page or open Command Centre."
+    };
+  }
+
+  function displayStatus(status) {
+    const raw = String(status.status || "unknown");
+    if (status.label) return status.label;
+    if (raw === "soft_block" || raw === "soft-block") return "View only";
+    if (raw === "warn") return "Warning";
+    return raw.replace(/_/g, " ");
   }
 
   function navLink(link, mode) {
     const active = link.key === currentKey();
-
     return `
       <a
         class="${mode === "mobile" ? "sfm-item" : "sfn-link"} ${active ? "active" : ""}"
         href="${escapeHtml(link.href)}"
         data-nav-key="${escapeHtml(link.key)}"
+        data-nav-href="${escapeHtml(link.href)}"
+        data-enforcement-status="unknown"
         aria-current="${active ? "page" : "false"}"
       >
         <span class="${mode === "mobile" ? "sfm-icon" : "sfn-icon"}" aria-hidden="true">${icon(link.icon)}</span>
         <span class="${mode === "mobile" ? "sfm-label" : "sfn-label"}">${escapeHtml(link.label)}</span>
+        <span class="${mode === "mobile" ? "sfm-enforcement-badge" : "sfn-enforcement-badge"}">...</span>
       </a>
     `;
   }
@@ -173,9 +274,7 @@
   function desktopSection(section) {
     const links = sectionLinks(section);
     if (!links.length) return "";
-
     const open = section.key === currentSectionKey();
-
     return `
       <section class="sfn-section ${open ? "open" : ""}" data-section="${escapeHtml(section.key)}">
         <button class="sfn-section-head" type="button" data-section-toggle="${escapeHtml(section.key)}" aria-expanded="${open ? "true" : "false"}">
@@ -183,7 +282,7 @@
             <strong>${escapeHtml(section.label)}</strong>
             <small>${escapeHtml(section.hint)}</small>
           </span>
-          <span class="sfn-chevron" aria-hidden="true">⌄</span>
+          <span class="sfn-chevron" aria-hidden="true"></span>
         </button>
         <div class="sfn-section-body">
           ${links.map(link => navLink(link, "desktop")).join("")}
@@ -200,11 +299,11 @@
     return keys.map(key => {
       const link = linkByKey(key);
       if (!link) return "";
-
       return `
-        <a class="sfn-primary-btn" href="${escapeHtml(link.href)}">
+        <a class="sfn-primary-btn" href="${escapeHtml(link.href)}" data-nav-key="${escapeHtml(link.key)}" data-nav-href="${escapeHtml(link.href)}" data-enforcement-status="unknown">
           <span class="sfn-primary-icon" aria-hidden="true">${icon(link.icon)}</span>
           <strong>${escapeHtml(link.label)}</strong>
+          <span class="sfn-enforcement-badge">...</span>
         </a>
       `;
     }).join("");
@@ -224,11 +323,12 @@
             </span>
           </a>
 
-          <div class="sfn-current">
+          <div class="sfn-current" data-current-enforcement="true">
             <span class="sfn-current-icon" aria-hidden="true">${icon(active.icon)}</span>
             <span>
               <small>Current</small>
               <strong>${escapeHtml(active.label)}</strong>
+              <em class="sfn-current-enforcement unknown">Loading policy</em>
             </span>
           </div>
 
@@ -242,7 +342,7 @@
 
           <div class="sfn-footer">
             <span>nav v${VERSION}</span>
-            <span>visual only</span>
+            <span>enforcement visible</span>
           </div>
         </div>
       </aside>
@@ -256,7 +356,6 @@
     return `
       <nav class="sf-mobile-nav" data-nav-version="${VERSION}" aria-label="Mobile navigation">
         ${mobileLinks.map(link => navLink(link, "mobile")).join("")}
-
         <button class="sfm-item sfm-more ${moreActive ? "active" : ""}" type="button" aria-expanded="false" aria-controls="sf-more-panel">
           <span class="sfm-icon" aria-hidden="true">${icon("more")}</span>
           <span class="sfm-label">More</span>
@@ -271,7 +370,7 @@
             <strong>More tools</strong>
             <small>Secondary finance pages</small>
           </div>
-          <button class="sfmore-close" type="button" aria-label="Close menu">×</button>
+          <button class="sfmore-close" type="button" aria-label="Close menu"></button>
         </div>
 
         <div class="sfmore-body">
@@ -287,9 +386,10 @@
                 <div class="sfmore-title">${escapeHtml(section.label)}</div>
                 <div class="sfmore-grid">
                   ${links.map(link => `
-                    <a class="sfmore-link ${link.key === currentKey() ? "active" : ""}" href="${escapeHtml(link.href)}">
+                    <a class="sfmore-link ${link.key === currentKey() ? "active" : ""}" href="${escapeHtml(link.href)}" data-nav-key="${escapeHtml(link.key)}" data-nav-href="${escapeHtml(link.href)}" data-enforcement-status="unknown">
                       <span class="sfmore-icon" aria-hidden="true">${icon(link.icon)}</span>
                       <strong>${escapeHtml(link.label)}</strong>
+                      <span class="sfmore-enforcement-badge">...</span>
                     </a>
                   `).join("")}
                 </div>
@@ -301,13 +401,73 @@
     `;
   }
 
+  function applyEnforcementMarkers(snapshot) {
+    latestEnforcementSnapshot = snapshot || latestEnforcementSnapshot;
+
+    document.querySelectorAll("[data-nav-key][data-nav-href]").forEach(node => {
+      const key = node.dataset.navKey;
+      const link = linkByKey(key);
+      if (!link) return;
+
+      const status = routeStatusFor(link);
+      const cls = statusClass(status.status);
+      const label = displayStatus(status);
+
+      node.dataset.enforcementStatus = cls;
+      node.dataset.enforcementLevel = String(status.level || 0);
+      node.dataset.enforcementReason = status.reason || "";
+      node.dataset.enforcementSource = status.source || "";
+      node.dataset.enforcementFix = status.required_fix || "";
+      node.title = [
+        label,
+        status.reason ? "Reason: " + status.reason : "",
+        status.source ? "Source: " + status.source : "",
+        status.required_fix ? "Fix: " + status.required_fix : "",
+        "Open Command Centre for full block explanation."
+      ].filter(Boolean).join("\n");
+
+      const badge = node.querySelector(".sfn-enforcement-badge, .sfm-enforcement-badge, .sfmore-enforcement-badge");
+      if (badge) badge.textContent = label;
+    });
+
+    const active = currentLink();
+    const currentStatus = routeStatusFor(active);
+    const currentBadge = document.querySelector(".sfn-current-enforcement");
+
+    if (currentBadge) {
+      currentBadge.className = "sfn-current-enforcement " + statusClass(currentStatus.status);
+      currentBadge.textContent = displayStatus(currentStatus);
+      currentBadge.title = [
+        currentStatus.reason ? "Reason: " + currentStatus.reason : "",
+        currentStatus.source ? "Source: " + currentStatus.source : "",
+        currentStatus.required_fix ? "Fix: " + currentStatus.required_fix : ""
+      ].filter(Boolean).join("\n");
+    }
+
+    document.documentElement.dataset.enforcementLoaded = latestEnforcementSnapshot && latestEnforcementSnapshot.loaded ? "true" : "false";
+    document.documentElement.dataset.enforcementVersion = latestEnforcementSnapshot && latestEnforcementSnapshot.version ? latestEnforcementSnapshot.version : "unknown";
+
+    scheduleOverflowCheck();
+  }
+
+  function subscribeToEnforcement() {
+    if (!window.SovereignEnforcement || window.__sfNavEnforcementSubscribed) return;
+
+    window.__sfNavEnforcementSubscribed = true;
+
+    window.SovereignEnforcement.subscribe(snapshot => {
+      latestEnforcementSnapshot = snapshot;
+      applyEnforcementMarkers(snapshot);
+    });
+
+    window.SovereignEnforcement.refresh();
+  }
+
   function openMore() {
     const trigger = document.querySelector(".sfm-more");
     const panel = document.querySelector(".sf-more-panel");
     const backdrop = document.querySelector(".sf-more-backdrop");
-
     if (!trigger || !panel || !backdrop) return;
-
     trigger.setAttribute("aria-expanded", "true");
     panel.hidden = false;
     backdrop.hidden = false;
@@ -318,11 +478,9 @@
     const trigger = document.querySelector(".sfm-more");
     const panel = document.querySelector(".sf-more-panel");
     const backdrop = document.querySelector(".sf-more-backdrop");
-
     if (trigger) trigger.setAttribute("aria-expanded", "false");
     if (panel) panel.hidden = true;
     if (backdrop) backdrop.hidden = true;
-
     document.body.classList.remove("sf-more-open");
   }
 
@@ -358,7 +516,6 @@
 
     const close = document.querySelector(".sfmore-close");
     const backdrop = document.querySelector(".sf-more-backdrop");
-
     if (close) close.addEventListener("click", closeMore);
     if (backdrop) backdrop.addEventListener("click", closeMore);
 
@@ -404,10 +561,17 @@
     }
   }
 
+  function removeExistingNav() {
+    document
+      .querySelectorAll(".sf-shell-nav, .sf-mobile-nav, .sf-more-panel, .sf-more-backdrop")
+      .forEach(node => node.remove());
+  }
+
   function mount() {
     if (!document.body) return;
 
     ensureCss();
+    ensureEnforcementCss();
     removeExistingNav();
 
     document.body.insertAdjacentHTML("afterbegin", desktopNav());
@@ -416,6 +580,8 @@
     markReady();
     bindEvents();
     closeMore();
+    applyEnforcementMarkers(null);
+    ensureEnforcementScript();
     scheduleOverflowCheck();
 
     window.setTimeout(scheduleOverflowCheck, 600);
@@ -436,6 +602,7 @@
     openMore,
     closeMore,
     checkOverflow,
-    scheduleOverflowCheck
+    scheduleOverflowCheck,
+    applyEnforcementMarkers
   };
 })();
