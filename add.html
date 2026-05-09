@@ -10,7 +10,6 @@
   <title>Add Transaction · Sovereign Finance</title>
 
   <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
-  <link rel="stylesheet" href="/css/icons.css?v=1.0.0" />
 
   <style>
     .add-wrap {
@@ -82,12 +81,12 @@
     }
 
     .add-type-grid .type-btn {
-      min-height: 96px;
+      min-height: 108px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 8px;
+      gap: 7px;
       border-width: 2px;
       background: rgba(255, 255, 255, 0.08);
       color: #f8fafc;
@@ -98,26 +97,6 @@
       background: rgba(34, 197, 94, 0.16);
       color: #ffffff;
       border-color: rgba(34, 197, 94, 0.42);
-    }
-
-    .type-icon {
-      width: 34px;
-      height: 34px;
-      display: grid;
-      place-items: center;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.10);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-    }
-
-    .type-icon svg {
-      width: 19px;
-      height: 19px;
-      fill: none;
-      stroke: currentColor;
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
     }
 
     .type-small {
@@ -192,47 +171,6 @@
 
     .add-field-full {
       grid-column: 1 / -1;
-    }
-
-    .add-icon-preview {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-height: 46px;
-      margin-bottom: 8px;
-      padding: 8px 10px;
-      border-radius: 16px;
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      background: rgba(248, 250, 252, 0.84);
-    }
-
-    .add-icon-preview.empty {
-      opacity: 0.72;
-    }
-
-    .add-icon-preview-text {
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .add-icon-preview-text strong {
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 950;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .add-icon-preview-text small {
-      color: var(--text-dim);
-      font-size: 11px;
-      font-weight: 800;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .add-submit {
@@ -311,24 +249,21 @@
       <h1 class="add-heading">Add one clean money event.</h1>
       <p class="add-copy">
         Expenses reduce an account, income increases an account, and transfers move money between accounts.
-        Icons are visual only; the original save path stays unchanged.
+        This page writes only real ledger events and never silently queues failed saves.
       </p>
 
       <div class="add-type-grid" aria-label="Transaction type">
         <button class="type-btn active" type="button" data-type="expense">
-          <span class="type-icon" data-category-icon="bills" data-category-label="Expense" data-icon-size="sm"></span>
           <span>Expense</span>
           <span class="type-small">money out</span>
         </button>
 
         <button class="type-btn" type="button" data-type="income">
-          <span class="type-icon" data-category-icon="income" data-category-label="Income" data-icon-size="sm"></span>
           <span>Income</span>
           <span class="type-small">money in</span>
         </button>
 
         <button class="type-btn" type="button" data-type="transfer">
-          <span class="type-icon" data-category-icon="transfer" data-category-label="Transfer" data-icon-size="sm"></span>
           <span>Transfer</span>
           <span class="type-small">between accounts</span>
         </button>
@@ -360,7 +295,6 @@
 
           <div class="field">
             <label id="accountFromLabel" for="accountSelect">Account</label>
-            <div id="accountPreview" class="add-icon-preview empty"></div>
             <select id="accountSelect" class="select" name="account" required>
               <option value="">Pick account...</option>
             </select>
@@ -368,7 +302,6 @@
 
           <div class="field" id="transferToWrap" hidden>
             <label for="transferToSelect">To Account</label>
-            <div id="transferToPreview" class="add-icon-preview empty"></div>
             <select id="transferToSelect" class="select" name="transfer_to_account">
               <option value="">Pick account...</option>
             </select>
@@ -376,7 +309,6 @@
 
           <div class="field" id="categoryWrap">
             <label for="categorySelect">Category <small>optional</small></label>
-            <div id="categoryPreview" class="add-icon-preview empty"></div>
             <select id="categorySelect" class="select" name="category">
               <option value="">Pick category...</option>
             </select>
@@ -406,7 +338,7 @@
     </section>
 
     <footer class="page-footer">
-      <span class="v">Add Transaction v0.7.1 · icons v1.0.0 · add v0.4.1 · nav v1.1.9 · css v1.0.2</span>
+      <span class="v">Add Transaction v0.7.0 · app.css v1.0.2 · store v0.2.3 · add v0.4.0 · nav v1.1.9</span>
     </footer>
   </main>
 
@@ -415,7 +347,6 @@
   <script src="/js/theme.js?v=1.0.0"></script>
   <script src="/js/nav.js?v=1.1.9"></script>
   <script src="/js/store.js?v=0.2.3"></script>
-  <script src="/js/icons.js?v=1.0.0"></script>
-  <script src="/js/add.js?v=0.4.1"></script>
+  <script src="/js/add.js?v=0.4.0"></script>
 </body>
 </html>
