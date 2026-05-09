@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Bills">
+  <rect width="96" height="96" rx="24" fill="#FFFBEB"/>
+  <path d="M29 17h38c5 0 9 4 9 9v53l-10-6-9 6-9-6-9 6-9-6-10 6V26c0-5 4-9 9-9Z" fill="#FFFFFF" stroke="#D97706" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M34 35h28M34 48h28M34 61h18" stroke="#D97706" stroke-width="6" stroke-linecap="round"/>
+</svg>
