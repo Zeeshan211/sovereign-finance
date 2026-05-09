@@ -1,20 +1,18 @@
-/* Sovereign Finance Add Transaction Form v0.4.0
-   Ship 2: Add + Transactions closeout
+/* Sovereign Finance Add Transaction Form v0.4.1
+   Visual icon integration.
 
    Contract:
-   - Supports /add.html?type=transfer&to=cc
-   - Supports type=expense, type=income, type=transfer
-   - Loads accounts from /api/accounts
-   - Loads categories from /api/categories
-   - No silent offline queue
-   - No phantom category fallback
-   - Writes through store.addTransaction when available, otherwise direct /api/transactions
+   - Same save payload and write path as v0.4.0.
+   - Adds bank/category previews only.
+   - No backend changes.
+   - No D1 changes.
+   - No transaction logic changes.
 */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.4.0';
+  const VERSION = 'v0.4.1';
 
   let selectedType = 'expense';
   let requestedTo = '';
@@ -44,7 +42,6 @@
     if (['expense', 'income', 'transfer'].includes(type)) selectedType = type;
     if (to) requestedTo = to;
     if (from) requestedFrom = from;
-
     if (requestedTo && selectedType !== 'transfer') selectedType = 'transfer';
   }
 
@@ -82,14 +79,10 @@
 
   function normalizeAccounts(raw) {
     if (Array.isArray(raw)) return raw;
-
     if (raw && Array.isArray(raw.accounts)) return raw.accounts;
 
     if (raw && typeof raw === 'object') {
-      return Object.keys(raw).map(id => ({
-        id,
-        ...raw[id]
-      }));
+      return Object.keys(raw).map(id => ({ id, ...raw[id] }));
     }
 
     return [];
@@ -117,19 +110,21 @@
   }
 
   function accountLabel(a) {
-    const icon = String(a.icon || '').trim();
     const name = accountName(a);
     const kind = accountKind(a);
-
-    return [
-      icon,
-      name,
-      kind ? '(' + kind + ')' : ''
-    ].filter(Boolean).join(' ').trim();
+    return [name, kind ? '(' + kind + ')' : ''].filter(Boolean).join(' ').trim();
   }
 
   function categoryLabel(c) {
-    return ((c.icon || '') + ' ' + (c.name || c.id)).trim();
+    return (c.name || c.id || '').trim();
+  }
+
+  function findAccountById(id) {
+    return accounts.find(a => String(a.id) === String(id)) || null;
+  }
+
+  function findCategoryById(id) {
+    return categories.find(c => String(c.id) === String(id)) || null;
   }
 
   function findAccountByRouteKey(value) {
@@ -151,12 +146,92 @@
     }) || null;
   }
 
+  function previewEmpty(id, title, sub) {
+    const el = $(id);
+    if (!el) return;
+
+    el.classList.add('empty');
+    el.innerHTML = `
+      <span class="sf-bank-logo-wrap sf-icon-md sf-bank-default">
+        <span class="sf-bank-fallback">?</span>
+      </span>
+      <span class="add-icon-preview-text">
+        <strong>${title}</strong>
+        <small>${sub}</small>
+      </span>
+    `;
+  }
+
+  function renderAccountPreview(previewId, accountId, emptyTitle) {
+    const account = findAccountById(accountId);
+
+    if (!account) {
+      previewEmpty(previewId, emptyTitle, 'No account selected');
+      return;
+    }
+
+    const el = $(previewId);
+    if (!el) return;
+
+    const iconHtml = window.SovereignIcons
+      ? window.SovereignIcons.bank(account.id, { label: accountName(account), size: 'md' })
+      : `<span class="sf-bank-logo-wrap sf-icon-md sf-bank-default"><span class="sf-bank-fallback">${String(account.id || '?').slice(0, 2).toUpperCase()}</span></span>`;
+
+    el.classList.remove('empty');
+    el.innerHTML = `
+      ${iconHtml}
+      <span class="add-icon-preview-text">
+        <strong>${accountName(account)}</strong>
+        <small>${accountKind(account) || 'account'} · ${account.id}</small>
+      </span>
+    `;
+  }
+
+  function renderCategoryPreview(categoryId) {
+    const category = findCategoryById(categoryId);
+
+    if (!category) {
+      previewEmpty('categoryPreview', categories.length ? 'No category' : 'Categories unavailable', categories.length ? 'Optional' : 'Save still allowed');
+      return;
+    }
+
+    const el = $('categoryPreview');
+    if (!el) return;
+
+    const iconHtml = window.SovereignIcons
+      ? window.SovereignIcons.category(category.id, { label: categoryLabel(category), size: 'md' })
+      : `<span class="sf-category-icon sf-icon-md sf-cat-slate"></span>`;
+
+    el.classList.remove('empty');
+    el.innerHTML = `
+      ${iconHtml}
+      <span class="add-icon-preview-text">
+        <strong>${categoryLabel(category)}</strong>
+        <small>${category.id}</small>
+      </span>
+    `;
+  }
+
+  function updatePreviews() {
+    renderAccountPreview('accountPreview', ($('accountSelect') || {}).value || '', 'Pick account');
+
+    if (selectedType === 'transfer') {
+      renderAccountPreview('transferToPreview', ($('transferToSelect') || {}).value || '', 'Pick destination');
+    }
+
+    renderCategoryPreview(($('categorySelect') || {}).value || '');
+
+    if (window.SovereignIcons && typeof window.SovereignIcons.decorate === 'function') {
+      window.SovereignIcons.decorate(document);
+    }
+  }
+
   async function loadAccounts() {
     try {
       const data = await fetchJSON('/api/accounts?debug=1');
       accounts = normalizeAccounts(data.accounts || data);
     } catch (e1) {
-      console.warn('[add v0.4.0] /api/accounts failed:', e1.message);
+      console.warn('[add v0.4.1] /api/accounts failed:', e1.message);
 
       try {
         if (window.store && typeof window.store.refreshBalances === 'function') {
@@ -164,7 +239,7 @@
           accounts = normalizeAccounts(window.store.accounts || window.store.cachedAccounts || []);
         }
       } catch (e2) {
-        console.warn('[add v0.4.0] store account fallback failed:', e2.message);
+        console.warn('[add v0.4.1] store account fallback failed:', e2.message);
       }
     }
 
@@ -184,7 +259,7 @@
       categories = normalizeCategories(data.categories);
       categoriesLoaded = true;
     } catch (e) {
-      console.warn('[add v0.4.0] /api/categories failed:', e.message);
+      console.warn('[add v0.4.1] /api/categories failed:', e.message);
       categories = [];
       categoriesLoaded = false;
     }
@@ -339,6 +414,7 @@
     fillTransferDest();
     updateRouteCopy(selectedType);
     updateButton();
+    updatePreviews();
   }
 
   function updateButton() {
@@ -480,6 +556,7 @@
       el.addEventListener('change', () => {
         if (id === 'accountSelect') fillTransferDest();
         updateButton();
+        updatePreviews();
       });
     });
 
@@ -488,7 +565,7 @@
   }
 
   async function init() {
-    console.log('[add v0.4.0] init');
+    console.log('[add v0.4.1] init');
 
     parseRoute();
 
@@ -506,13 +583,15 @@
     fillCategories();
     setType(selectedType);
     updateButton();
+    updatePreviews();
 
-    console.log('[add v0.4.0] ready', {
+    console.log('[add v0.4.1] ready', {
       accounts: accounts.length,
       categories: categories.length,
       categoriesLoaded,
       selectedType,
-      store: window.store && window.store.version
+      store: window.store && window.store.version,
+      icons: window.SovereignIcons && window.SovereignIcons.version
     });
   }
 
