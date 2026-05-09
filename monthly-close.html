@@ -50,7 +50,8 @@
 
     button,
     input,
-    select {
+    select,
+    textarea {
       font: inherit;
     }
 
@@ -73,18 +74,6 @@
       border: 1px solid rgba(255,255,255,.10);
       box-shadow: var(--shadow);
       margin-bottom: 18px;
-    }
-
-    .hero::after {
-      content: "";
-      position: absolute;
-      width: 380px;
-      height: 380px;
-      right: -120px;
-      bottom: -160px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(34,197,94,.24), transparent 68%);
-      pointer-events: none;
     }
 
     .hero-inner {
@@ -128,7 +117,7 @@
     }
 
     .subtitle {
-      max-width: 880px;
+      max-width: 900px;
       margin: 13px 0 0;
       color: #cbd5e1;
       font-size: 15px;
@@ -186,7 +175,7 @@
     }
 
     .btn {
-      height: 42px;
+      min-height: 42px;
       border: 0;
       border-radius: 14px;
       padding: 0 14px;
@@ -203,105 +192,22 @@
       border: 1px solid rgba(255,255,255,.14);
     }
 
-    .score-grid {
-      display: grid;
-      grid-template-columns: repeat(6,minmax(0,1fr));
-      gap: 12px;
-      margin-bottom: 18px;
+    .btn.small {
+      min-height: 34px;
+      padding: 0 10px;
+      border-radius: 11px;
+      font-size: 12px;
     }
 
-    .summary-strip {
-      display: grid;
-      grid-template-columns: repeat(7,minmax(0,1fr));
-      gap: 10px;
-      margin-bottom: 18px;
-    }
-
-    .grid-2 {
-      display: grid;
-      grid-template-columns: minmax(0,1fr) minmax(360px,.86fr);
-      gap: 18px;
-      align-items: start;
-      margin-bottom: 18px;
-    }
-
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3,minmax(0,1fr));
-      gap: 14px;
-      margin-bottom: 18px;
-    }
-
-    .score-card,
     .panel,
     .loading,
     .error,
-    .summary-card {
+    .card {
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: var(--radius);
       box-shadow: 0 12px 34px rgba(15,23,42,.08);
       min-width: 0;
-    }
-
-    .summary-card {
-      padding: 13px;
-      border-radius: 20px;
-      overflow: hidden;
-    }
-
-    .summary-number {
-      font-size: 24px;
-      line-height: 1;
-      font-weight: 1000;
-      letter-spacing: -.05em;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .summary-label {
-      margin-top: 7px;
-      color: var(--muted);
-      font-size: 10px;
-      font-weight: 950;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-    }
-
-    .score-card {
-      padding: 16px;
-      overflow: hidden;
-    }
-
-    .score-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .score-name {
-      color: var(--muted);
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-    }
-
-    .score-number {
-      margin-top: 11px;
-      font-size: 30px;
-      line-height: 1;
-      font-weight: 1000;
-      letter-spacing: -.055em;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .score-note {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.38;
-      font-weight: 750;
     }
 
     .panel {
@@ -339,8 +245,59 @@
       padding: 16px 18px 18px;
     }
 
-    .badge,
-    .score-pill {
+    .grid-2 {
+      display: grid;
+      grid-template-columns: minmax(0,1fr) minmax(360px,.86fr);
+      gap: 18px;
+      align-items: start;
+      margin-bottom: 18px;
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(6,minmax(0,1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .summary-strip {
+      display: grid;
+      grid-template-columns: repeat(7,minmax(0,1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .runtime-strip {
+      display: grid;
+      grid-template-columns: repeat(4,minmax(0,1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .card {
+      padding: 13px;
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .card-number {
+      font-size: 26px;
+      line-height: 1;
+      font-weight: 1000;
+      letter-spacing: -.05em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .card-label {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 950;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .badge {
       display: inline-flex;
       align-items: center;
       width: fit-content;
@@ -395,45 +352,67 @@
       border-color: rgba(71,85,105,.22);
     }
 
-    .readiness-band {
+    .metric-grid,
+    .api-grid,
+    .rule-grid,
+    .d1-grid,
+    .proof-grid,
+    .guard-grid,
+    .coverage-grid {
       display: grid;
-      grid-template-columns: repeat(3,minmax(0,1fr));
-      gap: 12px;
-      margin-bottom: 18px;
+      grid-template-columns: repeat(2,minmax(0,1fr));
+      gap: 10px;
     }
 
-    .band-card {
-      padding: 15px;
-      border-radius: 22px;
-      border: 1px solid rgba(148,163,184,.22);
-      background: #fff;
+    .metric,
+    .api-card,
+    .rule-card,
+    .d1-card,
+    .proof-card,
+    .guard-card,
+    .coverage-card,
+    .runtime-card {
+      padding: 13px;
+      border-radius: 18px;
+      background: var(--soft);
+      border: 1px solid rgba(148,163,184,.18);
     }
 
-    .band-card.blocked {
-      background: linear-gradient(135deg,var(--red-soft),#fff);
-    }
-
-    .band-card.warning {
-      background: linear-gradient(135deg,var(--amber-soft),#fff);
-    }
-
-    .band-card.unknown {
-      background: linear-gradient(135deg,var(--blue-soft),#fff);
-    }
-
-    .band-num {
-      font-size: 30px;
-      font-weight: 1000;
-      letter-spacing: -.05em;
-    }
-
-    .band-label {
-      margin-top: 4px;
+    .metric-label {
       color: var(--muted);
-      font-size: 11px;
-      font-weight: 1000;
-      text-transform: uppercase;
+      font-size: 10px;
+      font-weight: 950;
       letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .metric-value {
+      margin-top: 7px;
+      font-size: 21px;
+      line-height: 1.05;
+      font-weight: 1000;
+      letter-spacing: -.04em;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+
+    .metric-note,
+    .card-meta {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 740;
+    }
+
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      font-weight: 1000;
+      line-height: 1.25;
     }
 
     .issue-list {
@@ -485,84 +464,37 @@
       font-weight: 720;
     }
 
-    .metric-grid,
-    .api-grid,
-    .rule-grid,
-    .module-grid,
-    .d1-grid,
-    .next-grid,
-    .proof-grid,
-    .guard-grid,
-    .coverage-grid {
-      display: grid;
-      grid-template-columns: repeat(2,minmax(0,1fr));
-      gap: 10px;
+    .final-gate {
+      border: 1px solid rgba(34,197,94,.26);
+      background:
+        linear-gradient(135deg, rgba(220,252,231,.82), rgba(255,255,255,.96));
     }
 
-    .metric,
-    .api-card,
-    .rule-card,
-    .module-card,
-    .d1-card,
-    .next-card,
-    .proof-card,
-    .guard-card,
-    .coverage-card {
-      padding: 13px;
-      border-radius: 18px;
-      background: var(--soft);
-      border: 1px solid rgba(148,163,184,.18);
+    .final-gate.blocked {
+      border-color: rgba(220,38,38,.26);
+      background:
+        linear-gradient(135deg, rgba(254,226,226,.88), rgba(255,255,255,.96));
     }
 
-    .metric-label {
-      color: var(--muted);
-      font-size: 10px;
-      font-weight: 950;
-      letter-spacing: .06em;
-      text-transform: uppercase;
+    .final-gate.warning,
+    .final-gate.ready-with-warnings {
+      border-color: rgba(217,119,6,.26);
+      background:
+        linear-gradient(135deg, rgba(254,243,199,.88), rgba(255,255,255,.96));
     }
 
-    .metric-value {
-      margin-top: 7px;
-      font-size: 21px;
-      line-height: 1.05;
+    .final-gate.ready-with-unknown,
+    .final-gate.unknown {
+      border-color: rgba(37,99,235,.22);
+      background:
+        linear-gradient(135deg, rgba(219,234,254,.88), rgba(255,255,255,.96));
+    }
+
+    .final-decision {
+      font-size: clamp(32px, 5vw, 56px);
+      line-height: .94;
+      letter-spacing: -.065em;
       font-weight: 1000;
-      letter-spacing: -.04em;
-      font-variant-numeric: tabular-nums;
-      overflow-wrap: anywhere;
-    }
-
-    .metric-note,
-    .api-meta,
-    .rule-meta,
-    .module-meta,
-    .d1-meta,
-    .next-meta,
-    .proof-meta,
-    .guard-meta,
-    .coverage-meta {
-      margin-top: 7px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.4;
-      font-weight: 740;
-    }
-
-    .api-head,
-    .rule-head,
-    .module-head,
-    .d1-head,
-    .next-head,
-    .proof-head,
-    .guard-head,
-    .coverage-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 13px;
-      font-weight: 1000;
-      line-height: 1.25;
     }
 
     .table-wrap {
@@ -596,6 +528,27 @@
 
     td {
       font-weight: 760;
+    }
+
+    .runtime-table {
+      min-width: 1040px;
+    }
+
+    .runtime-table select,
+    .runtime-table input {
+      width: 100%;
+      border: 1px solid rgba(148,163,184,.34);
+      border-radius: 12px;
+      background: #fff;
+      color: var(--ink);
+      padding: 9px 10px;
+      font-size: 12px;
+      font-weight: 760;
+      outline: none;
+    }
+
+    .runtime-table input {
+      min-width: 260px;
     }
 
     details.audit {
@@ -649,39 +602,6 @@
       line-height: 1.45;
     }
 
-    .final-gate {
-      border: 1px solid rgba(34,197,94,.26);
-      background:
-        linear-gradient(135deg, rgba(220,252,231,.82), rgba(255,255,255,.96));
-    }
-
-    .final-gate.blocked {
-      border-color: rgba(220,38,38,.26);
-      background:
-        linear-gradient(135deg, rgba(254,226,226,.88), rgba(255,255,255,.96));
-    }
-
-    .final-gate.warning,
-    .final-gate.ready-with-warnings {
-      border-color: rgba(217,119,6,.26);
-      background:
-        linear-gradient(135deg, rgba(254,243,199,.88), rgba(255,255,255,.96));
-    }
-
-    .final-gate.ready-with-unknown,
-    .final-gate.unknown {
-      border-color: rgba(37,99,235,.22);
-      background:
-        linear-gradient(135deg, rgba(219,234,254,.88), rgba(255,255,255,.96));
-    }
-
-    .final-decision {
-      font-size: clamp(32px, 5vw, 56px);
-      line-height: .94;
-      letter-spacing: -.065em;
-      font-weight: 1000;
-    }
-
     @media (max-width: 1240px) {
       .score-grid {
         grid-template-columns: repeat(3,minmax(0,1fr));
@@ -692,9 +612,7 @@
       }
 
       .grid-2,
-      .grid-3,
-      .hero-inner,
-      .readiness-band {
+      .hero-inner {
         grid-template-columns: 1fr;
       }
     }
@@ -716,12 +634,11 @@
 
       .score-grid,
       .summary-strip,
+      .runtime-strip,
       .metric-grid,
       .api-grid,
       .rule-grid,
-      .module-grid,
       .d1-grid,
-      .next-grid,
       .proof-grid,
       .guard-grid,
       .coverage-grid {
@@ -744,7 +661,7 @@
           <div class="eyebrow"><span class="eyebrow-dot"></span> Backend Truth Gate</div>
           <h1>Finance Command Centre</h1>
           <p class="subtitle">
-            Whole-system audit cockpit for finance truth. v0.7.1 displays the backend audit engine's trial gate, source proofs, read-only guardrails, coverage, blockers, warnings, unknowns, D1 checks, business rules, and next actions without mutating ledger data.
+            v0.7.2 keeps backend truth separate from manual runtime evidence. The backend remains the audit source. The checklist below is local browser evidence only, saved in localStorage, with no D1 writes, no ledger tests, and no backend verdict overwrite.
           </p>
         </div>
 
@@ -759,6 +676,7 @@
       <div class="controls">
         <button class="btn" id="refreshBtn" type="button">Run Backend Audit</button>
         <button class="btn secondary" id="detailsBtn" type="button">Open Details</button>
+        <button class="btn secondary" id="resetRuntimeBtn" type="button">Reset Runtime Checklist</button>
       </div>
     </section>
 
@@ -772,14 +690,30 @@
       "use strict";
 
       window.SovereignCommandCentre = {
-        version: "0.7.1",
-        mode: "backend-truth-display",
+        version: "0.7.2",
+        mode: "backend-truth-display-with-manual-runtime-checklist",
         source: "/api/finance-command-center"
       };
+
+      const RUNTIME_KEY = "sovereign.commandCentre.runtimeChecklist.v1";
+
+      const RUNTIME_ITEMS = [
+        { key: "hub", label: "Hub", url: "/index.html" },
+        { key: "add", label: "Add", url: "/add.html" },
+        { key: "transactions", label: "Transactions", url: "/transactions.html" },
+        { key: "accounts", label: "Accounts", url: "/accounts.html" },
+        { key: "credit_card", label: "Credit Card", url: "/cc.html" },
+        { key: "bills", label: "Bills", url: "/bills.html" },
+        { key: "debts", label: "Debts", url: "/debts.html" },
+        { key: "salary", label: "Salary", url: "/salary.html" },
+        { key: "reconciliation", label: "Reconciliation", url: "/reconciliation.html" },
+        { key: "command_centre", label: "Command Centre", url: "/monthly-close.html" }
+      ];
 
       const app = document.getElementById("app");
       const refreshBtn = document.getElementById("refreshBtn");
       const detailsBtn = document.getElementById("detailsBtn");
+      const resetRuntimeBtn = document.getElementById("resetRuntimeBtn");
 
       function esc(value) {
         return String(value == null ? "" : value)
@@ -844,36 +778,6 @@
         }[key] || titleCase(key);
       }
 
-      function severityIcon(severity, index) {
-        const key = norm(severity);
-        if (key === "hard-blocker" || key === "blocked") return "!";
-        if (key === "warning") return "";
-        if (key === "unknown") return "?";
-        if (key === "banned" || key === "protected") return "P";
-        return index + 1;
-      }
-
-      function issueCard(item, index, fallbackSeverity) {
-        const severity = item.severity || item.status || fallbackSeverity || "info";
-        const key = item.key || item.rule || item.title || `item_${index + 1}`;
-        const message = item.message || item.detail || item.rule || item.next_action || "No detail provided.";
-        const next = item.next_action || item.next || "";
-
-        return `
-          <div class="issue">
-            <div class="issue-mark">${esc(severityIcon(severity, index))}</div>
-            <div>
-              <div class="issue-title">${esc(titleCase(key))}</div>
-              <div class="issue-meta">
-                ${badge(severity, severity)}
-              </div>
-              <div class="issue-text">${esc(message)}</div>
-              ${next ? `<div class="issue-text"><strong>Next:</strong> ${esc(next)}</div>` : ""}
-            </div>
-          </div>
-        `;
-      }
-
       function scoreStatus(value) {
         const n = Number(value);
         if (!Number.isFinite(n)) return "unknown";
@@ -881,25 +785,6 @@
         if (n >= 70) return "warning";
         if (n > 0) return "blocked";
         return "unknown";
-      }
-
-      function scoreCard(name, value, note, status) {
-        return `
-          <article class="score-card">
-            <div class="score-top">
-              <div class="score-name">${esc(name)}</div>
-              ${badge(status || scoreStatus(value), status || scoreStatus(value))}
-            </div>
-            <div class="score-number">${pct(value)}</div>
-            <div class="score-note">${esc(note)}</div>
-          </article>
-        `;
-      }
-
-      function listOrEmpty(items, fallback, renderer) {
-        const arr = Array.isArray(items) ? items : [];
-        if (!arr.length) return `<div class="empty">${esc(fallback)}</div>`;
-        return renderer(arr);
       }
 
       function getSummary(data) {
@@ -915,9 +800,165 @@
         };
       }
 
+      function loadRuntimeState() {
+        try {
+          const raw = localStorage.getItem(RUNTIME_KEY);
+          const parsed = raw ? JSON.parse(raw) : {};
+          return parsed && typeof parsed === "object" ? parsed : {};
+        } catch (error) {
+          return {};
+        }
+      }
+
+      function saveRuntimeState(state) {
+        localStorage.setItem(RUNTIME_KEY, JSON.stringify(state || {}));
+      }
+
+      function updateRuntimeItem(key, patch) {
+        const state = loadRuntimeState();
+        const current = state[key] || {};
+        state[key] = {
+          ...current,
+          ...patch,
+          checked_at: new Date().toISOString()
+        };
+        saveRuntimeState(state);
+        renderRuntimeChecklist();
+      }
+
+      function resetRuntimeChecklist() {
+        localStorage.removeItem(RUNTIME_KEY);
+        renderRuntimeChecklist();
+      }
+
+      function runtimeCounts() {
+        const state = loadRuntimeState();
+        const counts = {
+          pass: 0,
+          warning: 0,
+          blocked: 0,
+          unknown: 0
+        };
+
+        RUNTIME_ITEMS.forEach(item => {
+          const status = norm((state[item.key] && state[item.key].status) || "unknown");
+          if (counts[status] == null) counts.unknown += 1;
+          else counts[status] += 1;
+        });
+
+        return counts;
+      }
+
+      function runtimeVerdictText(counts) {
+        if (counts.blocked > 0) return "Runtime blocked";
+        if (counts.warning > 0) return "Runtime has warnings";
+        if (counts.unknown > 0) return "Runtime still Unknown";
+        return "Manual runtime checklist passed";
+      }
+
+      function renderRuntimeChecklist() {
+        const mount = document.getElementById("runtimeChecklistMount");
+        if (!mount) return;
+
+        const state = loadRuntimeState();
+        const counts = runtimeCounts();
+        const runtimeText = runtimeVerdictText(counts);
+
+        mount.innerHTML = `
+          <div class="runtime-strip">
+            <div class="card">
+              <div class="card-number">${esc(number(counts.pass))}</div>
+              <div class="card-label">Runtime Pass</div>
+            </div>
+            <div class="card">
+              <div class="card-number">${esc(number(counts.warning))}</div>
+              <div class="card-label">Runtime Warning</div>
+            </div>
+            <div class="card">
+              <div class="card-number">${esc(number(counts.blocked))}</div>
+              <div class="card-label">Runtime Blocked</div>
+            </div>
+            <div class="card">
+              <div class="card-number">${esc(number(counts.unknown))}</div>
+              <div class="card-label">Runtime Unknown</div>
+            </div>
+          </div>
+
+          <div class="empty" style="margin-bottom:14px;">
+            ${esc(runtimeText)}. This checklist is local browser evidence only. It does not change the backend verdict and does not certify write safety.
+          </div>
+
+          <div class="table-wrap">
+            <table class="runtime-table">
+              <thead>
+                <tr>
+                  <th>Module</th>
+                  <th>URL</th>
+                  <th>Open</th>
+                  <th>Status</th>
+                  <th>Note</th>
+                  <th>Last Checked</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${RUNTIME_ITEMS.map(item => {
+                  const row = state[item.key] || {};
+                  const status = row.status || "unknown";
+                  const note = row.note || "";
+                  const checkedAt = row.checked_at || "Not checked";
+
+                  return `
+                    <tr>
+                      <td><strong>${esc(item.label)}</strong></td>
+                      <td>${esc(item.url)}</td>
+                      <td>
+                        <button class="btn small secondary runtime-open" type="button" data-url="${esc(item.url)}">Open</button>
+                      </td>
+                      <td>
+                        <select data-runtime-key="${esc(item.key)}" data-runtime-field="status">
+                          ${["unknown", "pass", "warning", "blocked"].map(option => `
+                            <option value="${esc(option)}" ${option === status ? "selected" : ""}>${esc(titleCase(option))}</option>
+                          `).join("")}
+                        </select>
+                      </td>
+                      <td>
+                        <input data-runtime-key="${esc(item.key)}" data-runtime-field="note" value="${esc(note)}" placeholder="Short runtime note" />
+                      </td>
+                      <td>${esc(checkedAt)}</td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+        mount.querySelectorAll(".runtime-open").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const url = btn.getAttribute("data-url");
+            if (url) window.open(url, "_blank", "noopener,noreferrer");
+          });
+        });
+
+        mount.querySelectorAll("[data-runtime-key][data-runtime-field]").forEach(input => {
+          const handler = () => {
+            const key = input.getAttribute("data-runtime-key");
+            const field = input.getAttribute("data-runtime-field");
+            if (!key || !field) return;
+            updateRuntimeItem(key, { [field]: input.value });
+          };
+
+          if (input.tagName === "SELECT") {
+            input.addEventListener("change", handler);
+          } else {
+            input.addEventListener("change", handler);
+            input.addEventListener("blur", handler);
+          }
+        });
+      }
+
       function renderSummaryStrip(data) {
         const summary = getSummary(data);
-
         const cards = [
           ["Modules", summary.module_count],
           ["Pages", summary.registered_page_count],
@@ -931,9 +972,9 @@
         return `
           <section class="summary-strip">
             ${cards.map(([label, value]) => `
-              <div class="summary-card">
-                <div class="summary-number">${esc(number(value))}</div>
-                <div class="summary-label">${esc(label)}</div>
+              <div class="card">
+                <div class="card-number">${esc(number(value))}</div>
+                <div class="card-label">${esc(label)}</div>
               </div>
             `).join("")}
           </section>
@@ -942,75 +983,19 @@
 
       function renderReadinessBand(data) {
         const summary = getSummary(data);
-
         return `
-          <section class="readiness-band">
-            <div class="band-card blocked">
-              <div class="band-num">${esc(number(summary.hard_blocker_count))}</div>
-              <div class="band-label">Hard blockers</div>
+          <section class="summary-strip" style="grid-template-columns:repeat(3,minmax(0,1fr));">
+            <div class="card blocked">
+              <div class="card-number">${esc(number(summary.hard_blocker_count))}</div>
+              <div class="card-label">Hard blockers</div>
             </div>
-            <div class="band-card warning">
-              <div class="band-num">${esc(number(summary.warning_count))}</div>
-              <div class="band-label">Warnings</div>
+            <div class="card warning">
+              <div class="card-number">${esc(number(summary.warning_count))}</div>
+              <div class="card-label">Warnings</div>
             </div>
-            <div class="band-card unknown">
-              <div class="band-num">${esc(number(summary.unknown_count))}</div>
-              <div class="band-label">Unknowns</div>
-            </div>
-          </section>
-        `;
-      }
-
-      function renderTrialGate(data) {
-        const gate = data.trial_gate || {};
-        const status = norm(gate.status || data.verdict || "unknown");
-        const label = verdictLabel(status);
-        const readyKnown = gate.ready_for_known_page_trial;
-        const readyFull = gate.ready_for_full_system_certification;
-        const rulesPassed = gate.business_rules_passed;
-        const rulesTotal = gate.business_rules_total;
-
-        return `
-          <section class="panel final-gate ${esc(status)}">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Trial Gate</h2>
-                <p class="panel-sub">This is the clearest answer: known-page trial, full certification, or blocked/unknown.</p>
-              </div>
-              ${badge(status, label)}
-            </div>
-            <div class="panel-body">
-              <div class="grid-2">
-                <div>
-                  <div class="final-decision">${esc(label)}</div>
-                  <p class="metric-note">${esc(gate.reason || "Backend audit returned no trial-gate reason.")}</p>
-                  <p class="metric-note">
-                    Full certification must stay No until runtime and write safety are proven.
-                  </p>
-                </div>
-                <div class="metric-grid">
-                  <div class="metric">
-                    <div class="metric-label">Known-page trial</div>
-                    <div class="metric-value">${esc(boolText(readyKnown))}</div>
-                    <div class="metric-note">${badge(boolStatus(readyKnown), boolText(readyKnown))}</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-label">Full system certification</div>
-                    <div class="metric-value">${esc(boolText(readyFull))}</div>
-                    <div class="metric-note">${badge(boolStatus(readyFull), boolText(readyFull))}</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-label">Business rules</div>
-                    <div class="metric-value">${esc(number(rulesPassed))}/${esc(number(rulesTotal))}</div>
-                    <div class="metric-note">Passed versus total rules returned by backend.</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-label">Backend version</div>
-                    <div class="metric-value">${esc(data.version || "Unknown")}</div>
-                    <div class="metric-note">Expected v0.1.1 or newer for this page.</div>
-                  </div>
-                </div>
-              </div>
+            <div class="card unknown">
+              <div class="card-number">${esc(number(summary.unknown_count))}</div>
+              <div class="card-label">Unknowns</div>
             </div>
           </section>
         `;
@@ -1018,7 +1003,6 @@
 
       function renderScores(data) {
         const scores = data.scores || {};
-
         return `
           <section class="score-grid">
             ${scoreCard("Frontend Registry", scores.frontend_registry, "Known module/page/API registry coverage.")}
@@ -1031,37 +1015,81 @@
         `;
       }
 
-      function renderIssuePanel(title, subtitle, items, fallback, severity) {
+      function scoreCard(name, value, note) {
         return `
-          <section class="panel">
+          <article class="card">
+            <div class="card-head">
+              <div class="metric-label">${esc(name)}</div>
+              ${badge(scoreStatus(value), scoreStatus(value))}
+            </div>
+            <div class="metric-value">${pct(value)}</div>
+            <div class="metric-note">${esc(note)}</div>
+          </article>
+        `;
+      }
+
+      function renderTrialGate(data) {
+        const gate = data.trial_gate || {};
+        const status = norm(gate.status || data.verdict || "unknown");
+        const label = verdictLabel(status);
+
+        return `
+          <section class="panel final-gate ${esc(status)}">
             <div class="panel-head">
               <div>
-                <h2 class="panel-title">${esc(title)}</h2>
-                <p class="panel-sub">${esc(subtitle)}</p>
+                <h2 class="panel-title">Trial Gate</h2>
+                <p class="panel-sub">Backend truth remains separate from manual runtime evidence.</p>
               </div>
-              ${badge(items && items.length ? severity : "good", items && items.length ? `${items.length}` : "0")}
+              ${badge(status, label)}
             </div>
             <div class="panel-body">
-              ${listOrEmpty(items, fallback, arr => `<div class="issue-list">${arr.map((item, index) => issueCard(item, index, severity)).join("")}</div>`)}
+              <div class="grid-2">
+                <div>
+                  <div class="final-decision">${esc(label)}</div>
+                  <p class="metric-note">${esc(gate.reason || "Backend audit returned no trial-gate reason.")}</p>
+                  <p class="metric-note">Full certification must stay No until runtime and write safety are proven.</p>
+                </div>
+                <div class="metric-grid">
+                  <div class="metric">
+                    <div class="metric-label">Known-page trial</div>
+                    <div class="metric-value">${esc(boolText(gate.ready_for_known_page_trial))}</div>
+                    <div class="metric-note">${badge(boolStatus(gate.ready_for_known_page_trial), boolText(gate.ready_for_known_page_trial))}</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-label">Full system certification</div>
+                    <div class="metric-value">${esc(boolText(gate.ready_for_full_system_certification))}</div>
+                    <div class="metric-note">${badge(boolStatus(gate.ready_for_full_system_certification), boolText(gate.ready_for_full_system_certification))}</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-label">Business rules</div>
+                    <div class="metric-value">${esc(number(gate.business_rules_passed))}/${esc(number(gate.business_rules_total))}</div>
+                    <div class="metric-note">Passed versus total backend rules.</div>
+                  </div>
+                  <div class="metric">
+                    <div class="metric-label">Backend version</div>
+                    <div class="metric-value">${esc(data.version || "Unknown")}</div>
+                    <div class="metric-note">Expected v0.1.1 or newer.</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </section>
         `;
       }
 
-      function renderNextActions(actions) {
-        const normalized = Array.isArray(actions) ? actions.map((message, index) => ({
-          key: `next_${index + 1}`,
-          severity: index === 0 ? "warning" : "info",
-          message
-        })) : [];
-
-        return renderIssuePanel(
-          "Next Actions",
-          "Backend-generated fix queue. Work from the top down.",
-          normalized,
-          "No next action returned by backend.",
-          "warning"
-        );
+      function renderRuntimeSection() {
+        return `
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Manual Runtime Checklist</h2>
+                <p class="panel-sub">Local browser evidence only. Saved to localStorage. No D1 write, no backend verdict change, no ledger smoke test.</p>
+              </div>
+              ${badge("unknown", "manual")}
+            </div>
+            <div class="panel-body" id="runtimeChecklistMount"></div>
+          </section>
+        `;
       }
 
       function renderSourceProofs(proofs) {
@@ -1082,12 +1110,12 @@
                     const visualStatus = status === "banned" ? "protected" : status;
                     return `
                       <div class="proof-card">
-                        <div class="proof-head">
+                        <div class="card-head">
                           <span>${esc(titleCase(row.key || "proof"))}</span>
                           ${badge(visualStatus, status === "banned" ? "Protected" : row.status || "unknown")}
                         </div>
-                        <div class="proof-meta"><strong>Source:</strong> ${esc(row.source || "Unknown")}</div>
-                        <div class="proof-meta">${esc(row.message || "No message returned.")}</div>
+                        <div class="card-meta"><strong>Source:</strong> ${esc(row.source || "Unknown")}</div>
+                        <div class="card-meta">${esc(row.message || "No message returned.")}</div>
                       </div>
                     `;
                   }).join("")}
@@ -1104,7 +1132,7 @@
             <div class="panel-head">
               <div>
                 <h2 class="panel-title">Read-Only Guardrails</h2>
-                <p class="panel-sub">Confirms this audit page is not writing to D1, not creating transactions, and not running ledger smoke tests.</p>
+                <p class="panel-sub">Audit endpoint guardrails returned by backend.</p>
               </div>
               ${badge("protected", `${Array.isArray(guards) ? guards.length : 0} guards`)}
             </div>
@@ -1113,11 +1141,11 @@
                 <div class="guard-grid">
                   ${arr.map((guard, index) => `
                     <div class="guard-card">
-                      <div class="guard-head">
+                      <div class="card-head">
                         <span>${esc(guard)}</span>
                         ${badge("protected", "guard")}
                       </div>
-                      <div class="guard-meta">Guardrail ${index + 1} returned by backend audit engine.</div>
+                      <div class="card-meta">Guardrail ${index + 1} returned by backend audit engine.</div>
                     </div>
                   `).join("")}
                 </div>
@@ -1188,12 +1216,12 @@
               <div class="coverage-grid">
                 ${rows.map(row => `
                   <div class="coverage-card">
-                    <div class="coverage-head">
+                    <div class="card-head">
                       <span>${esc(row.label)}</span>
                       ${badge(row.status, row.status)}
                     </div>
                     <div class="metric-value" style="font-size:18px;">${esc(row.main)}</div>
-                    <div class="coverage-meta">${esc(row.note)}</div>
+                    <div class="card-meta">${esc(row.note)}</div>
                   </div>
                 `).join("")}
               </div>
@@ -1202,12 +1230,65 @@
         `;
       }
 
-      function apiPathFor(row) {
-        return row.path || row.url || row.key || "unknown";
+      function renderIssuePanel(title, subtitle, items, fallback, severity) {
+        return `
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">${esc(title)}</h2>
+                <p class="panel-sub">${esc(subtitle)}</p>
+              </div>
+              ${badge(items && items.length ? severity : "good", items && items.length ? `${items.length}` : "0")}
+            </div>
+            <div class="panel-body">
+              ${listOrEmpty(items, fallback, arr => `<div class="issue-list">${arr.map((item, index) => issueCard(item, index, severity)).join("")}</div>`)}
+            </div>
+          </section>
+        `;
       }
 
-      function moduleName(row) {
-        return row.label || row.name || row.key || "Unknown";
+      function issueCard(item, index, fallbackSeverity) {
+        const severity = item.severity || item.status || fallbackSeverity || "info";
+        const key = item.key || item.rule || item.title || `item_${index + 1}`;
+        const message = item.message || item.detail || item.rule || item.next_action || "No detail provided.";
+        const next = item.next_action || item.next || "";
+
+        return `
+          <div class="issue">
+            <div class="issue-mark">${esc(severityIcon(severity, index))}</div>
+            <div>
+              <div class="issue-title">${esc(titleCase(key))}</div>
+              <div class="issue-meta">${badge(severity, severity)}</div>
+              <div class="issue-text">${esc(message)}</div>
+              ${next ? `<div class="issue-text"><strong>Next:</strong> ${esc(next)}</div>` : ""}
+            </div>
+          </div>
+        `;
+      }
+
+      function severityIcon(severity, index) {
+        const key = norm(severity);
+        if (key === "hard-blocker" || key === "blocked") return "!";
+        if (key === "warning") return "";
+        if (key === "unknown") return "?";
+        if (key === "banned" || key === "protected") return "P";
+        return index + 1;
+      }
+
+      function renderNextActions(actions) {
+        const normalized = Array.isArray(actions) ? actions.map((message, index) => ({
+          key: `next_${index + 1}`,
+          severity: index === 0 ? "warning" : "info",
+          message
+        })) : [];
+
+        return renderIssuePanel(
+          "Next Actions",
+          "Backend-generated fix queue. Work from the top down.",
+          normalized,
+          "No next action returned by backend.",
+          "warning"
+        );
       }
 
       function renderApis(apis) {
@@ -1216,33 +1297,28 @@
             <div class="panel-head">
               <div>
                 <h2 class="panel-title">Backend API Health</h2>
-                <p class="panel-sub">Read-only availability and JSON checks returned by the backend audit engine.</p>
+                <p class="panel-sub">Read-only availability and JSON checks returned by backend.</p>
               </div>
               ${badge("info", `${Array.isArray(apis) ? apis.length : 0} routes`)}
             </div>
             <div class="panel-body">
               ${listOrEmpty(apis, "No API rows returned.", arr => `
                 <div class="api-grid">
-                  ${arr.map(row => {
-                    const status = row.status || (row.ok ? "pass" : "unknown");
-                    const meta = [
-                      row.required ? "required" : "optional",
-                      row.http_status ? `HTTP ${row.http_status}` : "",
-                      row.elapsed_ms != null ? `${row.elapsed_ms}ms` : "",
-                      row.version ? `v${row.version}` : "",
-                      row.error || row.note || ""
-                    ].filter(Boolean).join(" · ");
-
-                    return `
-                      <div class="api-card">
-                        <div class="api-head">
-                          <span>${esc(apiPathFor(row))}</span>
-                          ${badge(status, status)}
-                        </div>
-                        <div class="api-meta">${esc(meta || "No metadata.")}</div>
+                  ${arr.map(row => `
+                    <div class="api-card">
+                      <div class="card-head">
+                        <span>${esc(row.path || row.url || row.key || "unknown")}</span>
+                        ${badge(row.status || (row.ok ? "pass" : "unknown"), row.status || "unknown")}
                       </div>
-                    `;
-                  }).join("")}
+                      <div class="card-meta">${esc([
+                        row.required ? "required" : "optional",
+                        row.http_status ? `HTTP ${row.http_status}` : "",
+                        row.elapsed_ms != null ? `${row.elapsed_ms}ms` : "",
+                        row.version ? `v${row.version}` : "",
+                        row.error || row.note || ""
+                      ].filter(Boolean).join(" · ") || "No metadata.")}</div>
+                    </div>
+                  `).join("")}
                 </div>
               `)}
             </div>
@@ -1270,11 +1346,11 @@
               <div class="d1-grid">
                 ${tables.map(row => `
                   <div class="d1-card">
-                    <div class="d1-head">
+                    <div class="card-head">
                       <span>${esc(row.table || row.name || "Unknown table")}</span>
                       ${badge(row.status || (row.exists ? "pass" : "unknown"), row.required ? "required" : "optional")}
                     </div>
-                    <div class="d1-meta">
+                    <div class="card-meta">
                       Exists: ${esc(row.exists === true ? "yes" : row.exists === false ? "no" : "unknown")}
                       ${rowCounts[row.table] != null ? ` · Rows: ${esc(rowCounts[row.table])}` : ""}
                     </div>
@@ -1292,11 +1368,11 @@
                     <div class="d1-grid">
                       ${arr.map(row => `
                         <div class="d1-card">
-                          <div class="d1-head">
+                          <div class="card-head">
                             <span>${esc(row.table || "Unknown")}</span>
                             ${badge(row.status || (row.readable ? "pass" : "unknown"), row.status || "unknown")}
                           </div>
-                          <div class="d1-meta">${esc(row.error || "Readable.")}</div>
+                          <div class="card-meta">${esc(row.error || "Readable.")}</div>
                         </div>
                       `).join("")}
                     </div>
@@ -1346,7 +1422,7 @@
             <div class="panel-head">
               <div>
                 <h2 class="panel-title">Business Rule Checks</h2>
-                <p class="panel-sub">Locked honesty rules: no lifetime CC spend as outstanding, no fake zero, no speculative salary baseline, no fake forecast precision.</p>
+                <p class="panel-sub">Locked honesty rules checked by backend.</p>
               </div>
               ${badge("info", `${Array.isArray(rules) ? rules.length : 0} rules`)}
             </div>
@@ -1355,12 +1431,12 @@
                 <div class="rule-grid">
                   ${arr.map(row => `
                     <div class="rule-card">
-                      <div class="rule-head">
+                      <div class="card-head">
                         <span>${esc(titleCase(row.key || "rule"))}</span>
                         ${badge(row.status || "unknown", row.status || "unknown")}
                       </div>
-                      <div class="rule-meta"><strong>Rule:</strong> ${esc(row.rule || "No rule text.")}</div>
-                      <div class="rule-meta"><strong>Result:</strong> ${esc(row.message || "No result message.")}</div>
+                      <div class="card-meta"><strong>Rule:</strong> ${esc(row.rule || "No rule text.")}</div>
+                      <div class="card-meta"><strong>Result:</strong> ${esc(row.message || "No result message.")}</div>
                     </div>
                   `).join("")}
                 </div>
@@ -1370,87 +1446,76 @@
         `;
       }
 
-      function renderModules(modules) {
+      function renderRegistry(modules, pages) {
         return `
           <section class="panel">
             <div class="panel-head">
               <div>
-                <h2 class="panel-title">Registry Coverage</h2>
-                <p class="panel-sub">Known finance modules registered by the backend audit engine.</p>
+                <h2 class="panel-title">Registry And Page Coverage</h2>
+                <p class="panel-sub">Backend-registered modules and pages. Runtime remains manual.</p>
               </div>
               ${badge("info", `${Array.isArray(modules) ? modules.length : 0} modules`)}
             </div>
             <div class="panel-body">
-              ${listOrEmpty(modules, "No module registry returned.", arr => `
-                <div class="table-wrap">
-                  <table>
-                    <thead>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Module</th>
+                      <th>Status</th>
+                      <th>Pages</th>
+                      <th>APIs</th>
+                      <th>D1 Tables</th>
+                      <th>Impacts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${(Array.isArray(modules) ? modules : []).map(row => `
                       <tr>
-                        <th>Module</th>
-                        <th>Status</th>
-                        <th>Pages</th>
-                        <th>APIs</th>
-                        <th>D1 Tables</th>
-                        <th>Impacts</th>
+                        <td><strong>${esc(row.label || row.name || row.key || "Unknown")}</strong></td>
+                        <td>${badge(row.status || "registered", row.status || "registered")}</td>
+                        <td>${esc(Array.isArray(row.pages) ? row.pages.join(", ") : "N/A")}</td>
+                        <td>${esc(Array.isArray(row.apis) ? row.apis.join(", ") : "N/A")}</td>
+                        <td>${esc(Array.isArray(row.d1_tables) ? row.d1_tables.join(", ") : "N/A")}</td>
+                        <td>${esc(Array.isArray(row.impacts) ? row.impacts.join(", ") : "N/A")}</td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      ${arr.map(row => `
-                        <tr>
-                          <td><strong>${esc(moduleName(row))}</strong></td>
-                          <td>${badge(row.status || "registered", row.status || "registered")}</td>
-                          <td>${esc(Array.isArray(row.pages) ? row.pages.join(", ") : "N/A")}</td>
-                          <td>${esc(Array.isArray(row.apis) ? row.apis.join(", ") : "N/A")}</td>
-                          <td>${esc(Array.isArray(row.d1_tables) ? row.d1_tables.join(", ") : "N/A")}</td>
-                          <td>${esc(Array.isArray(row.impacts) ? row.impacts.join(", ") : "N/A")}</td>
-                        </tr>
-                      `).join("")}
-                    </tbody>
-                  </table>
-                </div>
-              `)}
-            </div>
-          </section>
-        `;
-      }
-
-      function renderPages(pages) {
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Runtime / Page Coverage</h2>
-                <p class="panel-sub">Backend can register pages, but browser runtime remains Unknown until manually checked.</p>
+                    `).join("")}
+                  </tbody>
+                </table>
               </div>
-              ${badge("unknown", "manual")}
-            </div>
-            <div class="panel-body">
-              ${listOrEmpty(pages, "No page registry returned.", arr => `
-                <div class="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Page</th>
-                        <th>Module</th>
-                        <th>Status</th>
-                        <th>Runtime</th>
-                        <th>Note</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${arr.map(row => `
+
+              <details class="audit">
+                <summary>
+                  <span>Registered Pages</span>
+                  ${badge("unknown", "runtime manual")}
+                </summary>
+                <div class="panel-body">
+                  <div class="table-wrap">
+                    <table>
+                      <thead>
                         <tr>
-                          <td><strong>${esc(row.page || "Unknown")}</strong></td>
-                          <td>${esc(row.module || "Unknown")}</td>
-                          <td>${badge(row.status || "registered", row.status || "registered")}</td>
-                          <td>${badge(row.runtime_status || "unknown", row.runtime_status || "unknown")}</td>
-                          <td>${esc(row.note || "No note.")}</td>
+                          <th>Page</th>
+                          <th>Module</th>
+                          <th>Status</th>
+                          <th>Runtime</th>
+                          <th>Note</th>
                         </tr>
-                      `).join("")}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        ${(Array.isArray(pages) ? pages : []).map(row => `
+                          <tr>
+                            <td><strong>${esc(row.page || "Unknown")}</strong></td>
+                            <td>${esc(row.module || "Unknown")}</td>
+                            <td>${badge(row.status || "registered", row.status || "registered")}</td>
+                            <td>${badge(row.runtime_status || "unknown", row.runtime_status || "unknown")}</td>
+                            <td>${esc(row.note || "No note.")}</td>
+                          </tr>
+                        `).join("")}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              `)}
+              </details>
             </div>
           </section>
         `;
@@ -1491,7 +1556,7 @@
           ${renderReadinessBand(data)}
           ${renderScores(data)}
           ${renderTrialGate(data)}
-
+          ${renderRuntimeSection()}
           ${renderSourceProofs(data.source_proofs)}
           ${renderReadOnlyGuards(data.read_only_guards)}
           ${renderCoverage(data)}
@@ -1527,10 +1592,11 @@
           ${renderD1(data)}
           ${renderBusinessRules(data.business_rules)}
           ${renderApis(data.apis)}
-          ${renderModules(data.modules)}
-          ${renderPages(data.pages)}
+          ${renderRegistry(data.modules, data.pages)}
           ${renderRaw(data)}
         `;
+
+        renderRuntimeChecklist();
 
         if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
           window.SovereignNav.scheduleOverflowCheck();
@@ -1541,7 +1607,7 @@
         const response = await fetch("/api/finance-command-center", {
           cache: "no-store",
           headers: {
-            "accept": "application/json"
+            accept: "application/json"
           }
         });
 
@@ -1599,6 +1665,7 @@
       });
 
       detailsBtn.addEventListener("click", openAllDetails);
+      resetRuntimeBtn.addEventListener("click", resetRuntimeChecklist);
 
       runAudit().catch(showError);
     })();
