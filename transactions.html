@@ -1,455 +1,904 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="light">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
-<title>Transactions - Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=2.0.0" />
-<style>
-.transactions-page {
-  max-width: 1480px;
-}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>Transactions · Sovereign Finance</title>
 
-.txn-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 22px 0 14px;
-}
+  <link rel="stylesheet" href="/css/app.css?v=2.0.3" />
 
-.txn-toolbar-title {
-  color: var(--text-strong);
-  font-size: 22px;
-  font-weight: 950;
-  letter-spacing: -0.045em;
-}
+  <style>
+    .tx-hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+      gap: 18px;
+      align-items: stretch;
+    }
 
-.txn-toolbar-copy {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 760;
-}
+    .tx-hero-side {
+      display: grid;
+      gap: 12px;
+    }
 
-.txn-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
+    .tx-status-card {
+      padding: 18px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.10);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
 
-.txn-filter-row input,
-.txn-filter-row select {
-  width: auto;
-  min-width: 170px;
-}
+    .tx-status-label {
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #cbd5e1;
+    }
 
-.txn-list {
-  display: grid;
-  gap: 10px;
-}
+    .tx-status-value {
+      margin-top: 8px;
+      font-size: 26px;
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: -0.05em;
+    }
 
-.txn-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(130px, 0.45fr) minmax(130px, 0.45fr) minmax(130px, 0.45fr);
-  gap: 12px;
-  align-items: center;
-  padding: 14px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-xs);
-}
+    .tx-status-sub {
+      margin-top: 7px;
+      font-size: 12px;
+      font-weight: 750;
+      color: #cbd5e1;
+    }
 
-.txn-row:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-sm);
-}
+    .tx-toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, 1.2fr) repeat(4, minmax(120px, 0.7fr)) auto;
+      gap: 10px;
+      align-items: end;
+      padding: 18px;
+      border-radius: 28px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
 
-.txn-main {
-  min-width: 0;
-}
+    .tx-table-card {
+      overflow: hidden;
+      border-radius: 28px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
 
-.txn-title {
-  color: var(--text-strong);
-  font-size: 14px;
-  font-weight: 950;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+    .tx-table-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+    }
 
-.txn-sub {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 740;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+    .tx-table-title {
+      color: var(--text-strong);
+      font-size: 17px;
+      font-weight: 950;
+      letter-spacing: -0.03em;
+    }
 
-.txn-cell-label {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
+    .tx-table-sub {
+      margin-top: 3px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 760;
+    }
 
-.txn-cell-value {
-  margin-top: 4px;
-  color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 900;
-}
+    .tx-table-wrap {
+      overflow: auto;
+      max-height: calc(100vh - 330px);
+      min-height: 360px;
+    }
 
-.txn-amount {
-  font-size: 15px;
-  font-weight: 950;
-  text-align: right;
-}
+    .tx-table {
+      min-width: 980px;
+    }
 
-.txn-amount.income {
-  color: var(--success);
-}
+    .tx-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
 
-.txn-amount.expense {
-  color: var(--danger);
-}
+    .tx-main {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
 
-.txn-amount.transfer {
-  color: var(--info);
-}
+    .tx-primary {
+      color: var(--text-strong);
+      font-size: 13px;
+      font-weight: 920;
+    }
 
-.txn-empty {
-  padding: 26px;
-  border-radius: var(--r-xl);
-  border: 1px dashed var(--border);
-  background: var(--surface-1);
-  color: var(--text-muted);
-  font-weight: 820;
-  text-align: center;
-}
+    .tx-secondary {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 740;
+    }
 
-.txn-authority-strip {
-  margin-top: 18px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+    .tx-amount {
+      font-family: var(--font-mono);
+      font-weight: 950;
+      white-space: nowrap;
+      text-align: right;
+    }
 
-@media (max-width: 900px) {
-  .txn-row {
-    grid-template-columns: 1fr 1fr;
-  }
+    .tx-amount.expense {
+      color: var(--danger);
+    }
 
-  .txn-amount {
-    text-align: left;
-  }
-}
+    .tx-amount.income {
+      color: var(--success);
+    }
 
-@media (max-width: 620px) {
-  .txn-row {
-    grid-template-columns: 1fr;
-  }
+    .tx-amount.transfer {
+      color: var(--info);
+    }
 
-  .txn-filter-row,
-  .txn-filter-row input,
-  .txn-filter-row select {
-    width: 100%;
-  }
-}
-</style>
+    .tx-empty {
+      padding: 44px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-weight: 760;
+    }
+
+    .tx-health-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .tx-health-card {
+      padding: 16px;
+      border-radius: 22px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .tx-health-title {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .tx-health-value {
+      margin-top: 7px;
+      color: var(--text-strong);
+      font-size: 18px;
+      font-weight: 950;
+      letter-spacing: -0.04em;
+    }
+
+    .tx-health-sub {
+      margin-top: 5px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 740;
+      overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 1180px) {
+      .tx-hero-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .tx-toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .tx-toolbar .btn {
+        grid-column: 1 / -1;
+      }
+
+      .tx-health-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .tx-toolbar,
+      .tx-health-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
+
 <body>
-<header>
-<div>
-<div class="brand">Sovereign Finance</div>
-<div class="title">Transactions</div>
-</div>
-</header>
-
-<main class="app-page transactions-page">
-<section class="page-hero">
-<div class="hero-kicker">Ledger view</div>
-<h1 class="hero-title">Every money movement, cleanly visible.</h1>
-<p class="hero-copy">
-Transactions are a governed ledger view. Add Transaction is the approved write path; this page stays focused on reading, searching, and reviewing the ledger without unsafe mutations.
-</p>
-
-<div class="txn-authority-strip">
-<span id="txnApiBadge" class="badge badge-unknown">Transactions API loading</span>
-<span id="txnAuthorityBadge" class="badge badge-info">Read-only ledger view</span>
-<span id="txnWriteScopeBadge" class="badge badge-unknown">Write scope loading</span>
-</div>
-</section>
-
-<section>
-<div class="txn-toolbar">
-<div>
-<div class="txn-toolbar-title">Ledger activity</div>
-<div id="txnSummary" class="txn-toolbar-copy">Loading transactions...</div>
-</div>
-
-<div class="txn-filter-row">
-<input id="txnSearch" class="input" type="search" placeholder="Search notes, type, account..." />
-<select id="txnTypeFilter" class="select">
-<option value="">All types</option>
-<option value="income">Income</option>
-<option value="expense">Expense</option>
-<option value="transfer">Transfer</option>
-<option value="cc_payment">CC payment</option>
-<option value="cc_spend">CC spend</option>
-</select>
-<a class="btn btn-success" href="/add.html">Add Transaction</a>
-</div>
-</div>
-
-<div id="txnStats" class="grid-4">
-<div class="kpi-card">
-<div class="kpi-label">Rows shown</div>
-<div id="txnShownCount" class="kpi-value">-</div>
-<div class="kpi-sub">Filtered ledger rows</div>
-</div>
-<div class="kpi-card">
-<div class="kpi-label">Income rows</div>
-<div id="txnIncomeCount" class="kpi-value">-</div>
-<div class="kpi-sub">Visible income events</div>
-</div>
-<div class="kpi-card">
-<div class="kpi-label">Expense rows</div>
-<div id="txnExpenseCount" class="kpi-value">-</div>
-<div class="kpi-sub">Visible spending events</div>
-</div>
-<div class="kpi-card">
-<div class="kpi-label">Transfers</div>
-<div id="txnTransferCount" class="kpi-value">-</div>
-<div class="kpi-sub">Visible transfer rows</div>
-</div>
-</div>
-
-<div style="height:14px"></div>
-<div id="txnList" class="txn-list"></div>
-</section>
-
-<footer class="bills-page-meta" aria-hidden="true">
-Transactions ledger UI v2.0.0
-</footer>
-</main>
-
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-<script src="/js/theme.js?v=1.0.0"></script>
-<script src="/js/nav.js?v=2.0.0"></script>
-<script src="/js/enforcement.js?v=0.2.0"></script>
-<script>
-(function () {
-  "use strict";
-
-  const VERSION = "2.0.0";
-  let transactions = [];
-  let filtered = [];
-
-  const $ = id => document.getElementById(id);
-
-  function setText(id, value) {
-    const el = $(id);
-    if (el) el.textContent = value;
-  }
-
-  function escapeHtml(value) {
-    return String(value == null ? "" : value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
-  function money(value) {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return "Unknown";
-    return "Rs " + Math.abs(n).toLocaleString("en-PK", { maximumFractionDigits: 0 });
-  }
-
-  function amountClass(type) {
-    const t = String(type || "").toLowerCase();
-    if (t === "income" || t === "salary" || t === "debt_in") return "income";
-    if (t === "transfer") return "transfer";
-    return "expense";
-  }
-
-  function amountPrefix(type) {
-    const cls = amountClass(type);
-    if (cls === "income") return "+";
-    if (cls === "expense") return "-";
-    return "";
-  }
-
-  async function fetchJSON(url) {
-    const res = await fetch(url, { cache: "no-store" });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data) throw new Error("Failed to read " + url);
-    return data;
-  }
-
-  async function loadCommandCentre() {
-    try {
-      const data = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
-      const writeSafety = data.coverage && data.coverage.write_safety ? data.coverage.write_safety : {};
-      const scope = Array.isArray(writeSafety.real_write_scope) ? writeSafety.real_write_scope : [];
-
-      const scopeBadge = $("txnWriteScopeBadge");
-      if (scopeBadge) {
-        scopeBadge.className = scope.includes("transaction.save") ? "badge badge-ready" : "badge badge-unknown";
-        scopeBadge.textContent = scope.length ? "Write scope: " + scope.join(", ") : "No write scope";
-      }
-
-      const authorityBadge = $("txnAuthorityBadge");
-      if (authorityBadge) {
-        authorityBadge.className = "badge badge-info";
-        authorityBadge.textContent = "View only here";
-      }
-    } catch (err) {
-      const scopeBadge = $("txnWriteScopeBadge");
-      if (scopeBadge) {
-        scopeBadge.className = "badge badge-unknown";
-        scopeBadge.textContent = "Scope unknown";
-      }
-    }
-  }
-
-  async function loadTransactions() {
-    const data = await fetchJSON("/api/transactions?cb=" + Date.now());
-    transactions = Array.isArray(data.transactions) ? data.transactions : [];
-
-    const apiBadge = $("txnApiBadge");
-    if (apiBadge) {
-      apiBadge.className = "badge badge-ready";
-      apiBadge.textContent = "Transactions API v" + (data.version || "live");
-    }
-
-    applyFilters();
-  }
-
-  function applyFilters() {
-    const q = String($("txnSearch")?.value || "").toLowerCase().trim();
-    const type = String($("txnTypeFilter")?.value || "").toLowerCase().trim();
-
-    filtered = transactions.filter(txn => {
-      const txType = String(txn.type || "").toLowerCase();
-      const haystack = [
-        txn.id,
-        txn.type,
-        txn.account_id,
-        txn.transfer_to_account_id,
-        txn.category_id,
-        txn.notes,
-        txn.date
-      ].join(" ").toLowerCase();
-
-      if (type && txType !== type) return false;
-      if (q && !haystack.includes(q)) return false;
-      return true;
-    });
-
-    renderStats();
-    renderList();
-  }
-
-  function renderStats() {
-    const income = filtered.filter(txn => amountClass(txn.type) === "income").length;
-    const expense = filtered.filter(txn => amountClass(txn.type) === "expense").length;
-    const transfer = filtered.filter(txn => amountClass(txn.type) === "transfer").length;
-
-    setText("txnShownCount", String(filtered.length));
-    setText("txnIncomeCount", String(income));
-    setText("txnExpenseCount", String(expense));
-    setText("txnTransferCount", String(transfer));
-    setText("txnSummary", filtered.length + " of " + transactions.length + " transaction rows shown.");
-  }
-
-  function renderList() {
-    const list = $("txnList");
-    if (!list) return;
-
-    if (!filtered.length) {
-      list.innerHTML = '<div class="txn-empty">No transactions match the current filter.</div>';
-      return;
-    }
-
-    list.innerHTML = filtered.map(txn => {
-      const cls = amountClass(txn.type);
-      const title = txn.notes || txn.category_id || txn.type || txn.id || "Transaction";
-      const sub = [txn.id, txn.account_id, txn.transfer_to_account_id ? "to " + txn.transfer_to_account_id : ""].filter(Boolean).join(" · ");
-
-      return `
-        <article class="txn-row">
-          <div class="txn-main">
-            <div class="txn-title">${escapeHtml(title)}</div>
-            <div class="txn-sub">${escapeHtml(sub)}</div>
+  <main class="app-page">
+    <section class="finance-hero">
+      <div class="tx-hero-grid">
+        <div>
+          <div class="hero-kicker">Ledger Reader</div>
+          <h1 class="hero-title">Transactions</h1>
+          <p class="hero-copy">
+            Live ledger view from the finance database. This page is read-only. Money writes stay protected by backend Command Centre gates on the Add page and transaction API.
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+            <a class="btn btn-success" href="/add.html">Add Transaction</a>
+            <button class="btn btn-secondary" type="button" id="refreshBtn">Refresh Ledger</button>
           </div>
+        </div>
 
-          <div>
-            <div class="txn-cell-label">Date</div>
-            <div class="txn-cell-value">${escapeHtml(txn.date || "N/A")}</div>
+        <div class="tx-hero-side">
+          <div class="tx-status-card">
+            <div class="tx-status-label">Visible Rows</div>
+            <div class="tx-status-value" id="visibleCount">—</div>
+            <div class="tx-status-sub" id="visibleSub">Waiting for ledger</div>
           </div>
-
-          <div>
-            <div class="txn-cell-label">Type</div>
-            <div class="txn-cell-value">${escapeHtml(txn.type || "N/A")}</div>
+          <div class="tx-status-card">
+            <div class="tx-status-label">Net Shown</div>
+            <div class="tx-status-value" id="netShown">—</div>
+            <div class="tx-status-sub">Income minus expense for current filter</div>
           </div>
+        </div>
+      </div>
+    </section>
 
-          <div>
-            <div class="txn-cell-label">Amount</div>
-            <div class="txn-cell-value txn-amount ${cls}">${amountPrefix(txn.type)}${escapeHtml(money(txn.amount))}</div>
-          </div>
-        </article>
-      `;
-    }).join("");
-  }
+    <section class="tx-health-row">
+      <div class="tx-health-card">
+        <div class="tx-health-title">Transactions API</div>
+        <div class="tx-health-value" id="transactionsApiStatus">Loading</div>
+        <div class="tx-health-sub" id="transactionsApiSub">/api/transactions</div>
+      </div>
 
-  function wireEvents() {
-    $("txnSearch")?.addEventListener("input", applyFilters);
-    $("txnTypeFilter")?.addEventListener("change", applyFilters);
-  }
+      <div class="tx-health-card">
+        <div class="tx-health-title">Balances API</div>
+        <div class="tx-health-value" id="balancesApiStatus">Loading</div>
+        <div class="tx-health-sub" id="balancesApiSub">/api/balances?debug=1</div>
+      </div>
 
-  async function init() {
-    console.log("[transactions-ui v2.0.0] init");
-    wireEvents();
+      <div class="tx-health-card">
+        <div class="tx-health-title">Accounts Loaded</div>
+        <div class="tx-health-value" id="accountCount">—</div>
+        <div class="tx-health-sub">Used for readable account names</div>
+      </div>
 
-    try {
-      await Promise.all([loadCommandCentre(), loadTransactions()]);
-      console.log("[transactions-ui v2.0.0] ready", { rows: transactions.length });
-    } catch (err) {
-      console.error("[transactions-ui v2.0.0] failed", err);
-      const apiBadge = $("txnApiBadge");
-      if (apiBadge) {
-        apiBadge.className = "badge badge-blocked";
-        apiBadge.textContent = "Transactions unavailable";
+      <div class="tx-health-card">
+        <div class="tx-health-title">Page Mode</div>
+        <div class="tx-health-value">Read-only</div>
+        <div class="tx-health-sub">No write action is performed here</div>
+      </div>
+    </section>
+
+    <section class="tx-toolbar" aria-label="Transaction filters">
+      <div class="field">
+        <label for="searchInput">Search</label>
+        <input id="searchInput" type="search" placeholder="Search notes, account, category, ID..." />
+      </div>
+
+      <div class="field">
+        <label for="typeFilter">Type</label>
+        <select id="typeFilter">
+          <option value="">All types</option>
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+          <option value="transfer">Transfer</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="accountFilter">Account</label>
+        <select id="accountFilter">
+          <option value="">All accounts</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="fromDate">From</label>
+        <input id="fromDate" type="date" />
+      </div>
+
+      <div class="field">
+        <label for="toDate">To</label>
+        <input id="toDate" type="date" />
+      </div>
+
+      <button class="btn btn-secondary" type="button" id="clearFiltersBtn">Clear</button>
+    </section>
+
+    <section class="tx-table-card">
+      <div class="tx-table-head">
+        <div>
+          <div class="tx-table-title">Ledger</div>
+          <div class="tx-table-sub" id="ledgerSubtitle">Loading transactions…</div>
+        </div>
+        <span class="badge badge-info" id="ledgerBadge">Loading</span>
+      </div>
+
+      <div class="tx-table-wrap">
+        <table class="tx-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Account / Movement</th>
+              <th>Category</th>
+              <th>Notes</th>
+              <th class="text-right">Amount</th>
+              <th>ID</th>
+            </tr>
+          </thead>
+          <tbody id="transactionsBody">
+            <tr>
+              <td colspan="7">
+                <div class="tx-empty">Loading ledger…</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/theme.js?v=1.0.0"></script>
+  <script src="/js/nav.js?v=2.0.3"></script>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const VERSION = "transactions-recovery-v1.0.0";
+      const TRANSACTIONS_ENDPOINT = "/api/transactions";
+      const BALANCES_ENDPOINT = "/api/balances?debug=1";
+      const CATEGORIES_ENDPOINT = "/api/categories";
+
+      let transactions = [];
+      let accounts = [];
+      let categories = [];
+      let accountMap = new Map();
+      let categoryMap = new Map();
+      let filtered = [];
+
+      const $ = id => document.getElementById(id);
+
+      function clean(value, fallback) {
+        const raw = value == null ? fallback : value;
+        return String(raw == null ? "" : raw).trim();
       }
-      const list = $("txnList");
-      if (list) {
-        list.innerHTML = '<div class="txn-empty">Transactions failed to load: ' + escapeHtml(err.message || String(err)) + '</div>';
+
+      function num(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
       }
-      setText("txnSummary", "Transactions source unavailable.");
-    }
-  }
 
-  window.SovereignTransactionsUI = {
-    version: VERSION,
-    refresh: init
-  };
+      function money(value) {
+        const n = num(value);
+        return "Rs " + n.toLocaleString("en-PK", {
+          maximumFractionDigits: 0
+        });
+      }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-})();
-</script>
+      function dateOnly(value) {
+        const raw = clean(value, "");
+        if (!raw) return "";
+        return raw.slice(0, 10);
+      }
+
+      function prettyDate(value) {
+        const raw = dateOnly(value);
+        if (!raw) return "—";
+
+        const d = new Date(raw + "T00:00:00");
+        if (Number.isNaN(d.getTime())) return raw;
+
+        return d.toLocaleDateString("en-PK", {
+          year: "numeric",
+          month: "short",
+          day: "2-digit"
+        });
+      }
+
+      function escapeHtml(value) {
+        return clean(value, "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      async function fetchJson(url) {
+        const response = await fetch(url + (url.includes("?") ? "&" : "?") + "cb=" + Date.now(), {
+          cache: "no-store",
+          headers: {
+            accept: "application/json",
+            "x-sovereign-page": VERSION
+          }
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data) {
+          throw new Error((data && data.error) || "HTTP " + response.status);
+        }
+
+        if (data.ok === false) {
+          throw new Error(data.error || "Request failed");
+        }
+
+        return data;
+      }
+
+      function normalizeArrayResponse(data, keys) {
+        if (Array.isArray(data)) return data;
+
+        for (const key of keys) {
+          if (data && Array.isArray(data[key])) return data[key];
+        }
+
+        if (data && data.data && Array.isArray(data.data)) return data.data;
+        if (data && data.result && Array.isArray(data.result)) return data.result;
+        if (data && data.rows && Array.isArray(data.rows)) return data.rows;
+
+        return [];
+      }
+
+      function normalizeAccounts(data) {
+        const raw = normalizeArrayResponse(data, ["accounts", "balances"]);
+
+        if (raw.length) return raw;
+
+        if (data && data.accounts && typeof data.accounts === "object") {
+          return Object.keys(data.accounts).map(id => ({
+            id,
+            ...data.accounts[id]
+          }));
+        }
+
+        if (data && data.balances && typeof data.balances === "object") {
+          return Object.keys(data.balances).map(id => ({
+            id,
+            ...data.balances[id]
+          }));
+        }
+
+        return [];
+      }
+
+      function normalizeCategories(data) {
+        return normalizeArrayResponse(data, ["categories"]).map(item => ({
+          id: clean(item.id || item.category_id || item.name, ""),
+          name: clean(item.name || item.label || item.category_name || item.id, "")
+        })).filter(item => item.id);
+      }
+
+      function normalizeTransaction(row, index) {
+        const id = clean(
+          row.id ||
+          row.txn_id ||
+          row.transaction_id ||
+          row.TransactionID ||
+          row.uuid ||
+          "row_" + index,
+          ""
+        );
+
+        const type = clean(row.type || row.txn_type || row.transaction_type || row.kind, "expense").toLowerCase();
+
+        const amount = Math.abs(num(
+          row.amount ??
+          row.value ??
+          row.transaction_amount ??
+          row.Amount
+        ));
+
+        const accountId = clean(
+          row.account_id ||
+          row.accountId ||
+          row.from_account_id ||
+          row.fromAccountId ||
+          row.account ||
+          row.source_account_id,
+          ""
+        );
+
+        const toAccountId = clean(
+          row.transfer_to_account_id ||
+          row.to_account_id ||
+          row.toAccountId ||
+          row.destination_account_id ||
+          row.target_account_id,
+          ""
+        );
+
+        const categoryId = clean(
+          row.category_id ||
+          row.categoryId ||
+          row.category ||
+          "",
+          ""
+        );
+
+        return {
+          raw: row,
+          id,
+          date: dateOnly(row.date || row.txn_date || row.transaction_date || row.created_at || row.createdAt),
+          type: ["income", "expense", "transfer"].includes(type) ? type : type || "expense",
+          amount,
+          account_id: accountId,
+          transfer_to_account_id: toAccountId,
+          category_id: categoryId,
+          notes: clean(row.notes || row.description || row.memo || row.narration || "", ""),
+          status: clean(row.status || row.state || "active", "active")
+        };
+      }
+
+      function accountName(id) {
+        const key = clean(id, "");
+        if (!key) return "—";
+
+        const account = accountMap.get(key);
+        if (!account) return key;
+
+        return clean(
+          account.name ||
+          account.label ||
+          account.account_name ||
+          account.display_name ||
+          account.id,
+          key
+        );
+      }
+
+      function categoryName(id) {
+        const key = clean(id, "");
+        if (!key) return "—";
+
+        const category = categoryMap.get(key);
+        if (!category) return key;
+
+        return clean(
+          category.name ||
+          category.label ||
+          category.category_name ||
+          category.id,
+          key
+        );
+      }
+
+      function typeBadge(type) {
+        const t = clean(type, "expense").toLowerCase();
+
+        if (t === "income") return '<span class="badge badge-ready">Income</span>';
+        if (t === "transfer") return '<span class="badge badge-info">Transfer</span>';
+        if (t === "expense") return '<span class="badge badge-danger">Expense</span>';
+
+        return '<span class="badge badge-unknown">' + escapeHtml(t || "Unknown") + '</span>';
+      }
+
+      function accountMovement(tx) {
+        if (tx.type === "transfer") {
+          return (
+            '<div class="tx-main">' +
+            '<div class="tx-primary">' + escapeHtml(accountName(tx.account_id)) + " → " + escapeHtml(accountName(tx.transfer_to_account_id)) + '</div>' +
+            '<div class="tx-secondary">Transfer movement</div>' +
+            '</div>'
+          );
+        }
+
+        return (
+          '<div class="tx-main">' +
+          '<div class="tx-primary">' + escapeHtml(accountName(tx.account_id)) + '</div>' +
+          '<div class="tx-secondary">' + escapeHtml(tx.account_id || "No account ID") + '</div>' +
+          '</div>'
+        );
+      }
+
+      function signedAmount(tx) {
+        if (tx.type === "expense") return -Math.abs(tx.amount);
+        if (tx.type === "income") return Math.abs(tx.amount);
+        return 0;
+      }
+
+      function renderFilters() {
+        const accountFilter = $("accountFilter");
+        if (!accountFilter) return;
+
+        const current = accountFilter.value;
+        accountFilter.innerHTML = '<option value="">All accounts</option>';
+
+        accounts.forEach(account => {
+          const id = clean(account.id || account.account_id, "");
+          if (!id) return;
+
+          const option = document.createElement("option");
+          option.value = id;
+          option.textContent = accountName(id);
+          accountFilter.appendChild(option);
+        });
+
+        if (current && Array.from(accountFilter.options).some(option => option.value === current)) {
+          accountFilter.value = current;
+        }
+      }
+
+      function applyFilters() {
+        const search = clean($("searchInput") && $("searchInput").value, "").toLowerCase();
+        const type = clean($("typeFilter") && $("typeFilter").value, "").toLowerCase();
+        const account = clean($("accountFilter") && $("accountFilter").value, "");
+        const from = clean($("fromDate") && $("fromDate").value, "");
+        const to = clean($("toDate") && $("toDate").value, "");
+
+        filtered = transactions.filter(tx => {
+          if (type && tx.type !== type) return false;
+
+          if (account) {
+            const touchesAccount = tx.account_id === account || tx.transfer_to_account_id === account;
+            if (!touchesAccount) return false;
+          }
+
+          if (from && tx.date && tx.date < from) return false;
+          if (to && tx.date && tx.date > to) return false;
+
+          if (search) {
+            const haystack = [
+              tx.id,
+              tx.date,
+              tx.type,
+              tx.account_id,
+              tx.transfer_to_account_id,
+              accountName(tx.account_id),
+              accountName(tx.transfer_to_account_id),
+              tx.category_id,
+              categoryName(tx.category_id),
+              tx.notes,
+              tx.status,
+              String(tx.amount)
+            ].join(" ").toLowerCase();
+
+            if (!haystack.includes(search)) return false;
+          }
+
+          return true;
+        });
+
+        renderTable();
+        renderSummary();
+      }
+
+      function renderSummary() {
+        const visible = filtered.length;
+        const total = transactions.length;
+        const net = filtered.reduce((sum, tx) => sum + signedAmount(tx), 0);
+
+        if ($("visibleCount")) $("visibleCount").textContent = String(visible);
+        if ($("visibleSub")) $("visibleSub").textContent = total ? "Filtered from " + total + " loaded rows" : "No rows loaded";
+        if ($("netShown")) $("netShown").textContent = money(net);
+        if ($("ledgerSubtitle")) $("ledgerSubtitle").textContent = visible + " visible of " + total + " loaded transactions";
+        if ($("ledgerBadge")) {
+          $("ledgerBadge").textContent = total ? "Live" : "Empty";
+          $("ledgerBadge").className = total ? "badge badge-ready" : "badge badge-warning";
+        }
+      }
+
+      function renderTable() {
+        const body = $("transactionsBody");
+        if (!body) return;
+
+        if (!filtered.length) {
+          body.innerHTML = (
+            '<tr><td colspan="7">' +
+            '<div class="tx-empty">No transactions match the current filter.</div>' +
+            '</td></tr>'
+          );
+          return;
+        }
+
+        body.innerHTML = filtered.map(tx => {
+          const amountClass = tx.type === "income" ? "income" : tx.type === "transfer" ? "transfer" : "expense";
+          const amountText = tx.type === "transfer"
+            ? money(tx.amount)
+            : tx.type === "income"
+              ? "+ " + money(tx.amount)
+              : "- " + money(tx.amount);
+
+          return (
+            "<tr>" +
+            "<td>" + escapeHtml(prettyDate(tx.date)) + "</td>" +
+            "<td>" + typeBadge(tx.type) + "</td>" +
+            "<td>" + accountMovement(tx) + "</td>" +
+            "<td>" + escapeHtml(tx.type === "transfer" ? "—" : categoryName(tx.category_id)) + "</td>" +
+            "<td>" +
+              '<div class="tx-main">' +
+              '<div class="tx-primary">' + escapeHtml(tx.notes || "—") + '</div>' +
+              '<div class="tx-secondary">' + escapeHtml(tx.status || "active") + '</div>' +
+              "</div>" +
+            "</td>" +
+            '<td class="tx-amount ' + amountClass + '">' + escapeHtml(amountText) + "</td>" +
+            "<td><code>" + escapeHtml(tx.id) + "</code></td>" +
+            "</tr>"
+          );
+        }).join("");
+      }
+
+      function setApiStatus(kind, ok, message) {
+        const value = kind === "transactions" ? $("transactionsApiStatus") : $("balancesApiStatus");
+        const sub = kind === "transactions" ? $("transactionsApiSub") : $("balancesApiSub");
+
+        if (value) {
+          value.textContent = ok ? "Live" : "Error";
+          value.style.color = ok ? "var(--success)" : "var(--danger)";
+        }
+
+        if (sub) sub.textContent = message;
+      }
+
+      function buildMaps() {
+        accountMap = new Map();
+        categoryMap = new Map();
+
+        accounts.forEach(account => {
+          const id = clean(account.id || account.account_id, "");
+          if (id) accountMap.set(id, { ...account, id });
+        });
+
+        categories.forEach(category => {
+          const id = clean(category.id || category.category_id, "");
+          if (id) categoryMap.set(id, { ...category, id });
+        });
+
+        if ($("accountCount")) $("accountCount").textContent = String(accountMap.size);
+      }
+
+      async function loadBalances() {
+        try {
+          const data = await fetchJson(BALANCES_ENDPOINT);
+          accounts = normalizeAccounts(data);
+          setApiStatus("balances", true, "Loaded " + accounts.length + " accounts");
+        } catch (err) {
+          console.warn("[transactions] balances failed:", err);
+          accounts = [];
+          setApiStatus("balances", false, err.message || String(err));
+        }
+      }
+
+      async function loadCategories() {
+        try {
+          const data = await fetchJson(CATEGORIES_ENDPOINT);
+          categories = normalizeCategories(data);
+        } catch (err) {
+          console.warn("[transactions] categories unavailable:", err);
+          categories = [];
+        }
+      }
+
+      async function loadTransactions() {
+        try {
+          const data = await fetchJson(TRANSACTIONS_ENDPOINT);
+          const rawRows = normalizeArrayResponse(data, ["transactions", "items"]);
+          transactions = rawRows
+            .map(normalizeTransaction)
+            .filter(tx => tx && tx.id)
+            .sort((a, b) => {
+              const dateCompare = clean(b.date, "").localeCompare(clean(a.date, ""));
+              if (dateCompare) return dateCompare;
+              return clean(b.id, "").localeCompare(clean(a.id, ""));
+            });
+
+          setApiStatus("transactions", true, "Loaded " + transactions.length + " active rows");
+        } catch (err) {
+          console.error("[transactions] ledger failed:", err);
+          transactions = [];
+          setApiStatus("transactions", false, err.message || String(err));
+        }
+      }
+
+      async function refreshAll() {
+        const button = $("refreshBtn");
+        if (button) {
+          button.disabled = true;
+          button.textContent = "Refreshing...";
+        }
+
+        if ($("ledgerBadge")) {
+          $("ledgerBadge").textContent = "Loading";
+          $("ledgerBadge").className = "badge badge-info";
+        }
+
+        await Promise.all([
+          loadBalances(),
+          loadCategories(),
+          loadTransactions()
+        ]);
+
+        buildMaps();
+        renderFilters();
+        applyFilters();
+
+        if (button) {
+          button.disabled = false;
+          button.textContent = "Refresh Ledger";
+        }
+      }
+
+      function clearFilters() {
+        ["searchInput", "typeFilter", "accountFilter", "fromDate", "toDate"].forEach(id => {
+          const el = $(id);
+          if (el) el.value = "";
+        });
+
+        applyFilters();
+      }
+
+      function wireEvents() {
+        ["searchInput", "typeFilter", "accountFilter", "fromDate", "toDate"].forEach(id => {
+          const el = $(id);
+          if (!el) return;
+          el.addEventListener("input", applyFilters);
+          el.addEventListener("change", applyFilters);
+        });
+
+        if ($("refreshBtn")) $("refreshBtn").addEventListener("click", refreshAll);
+        if ($("clearFiltersBtn")) $("clearFiltersBtn").addEventListener("click", clearFilters);
+      }
+
+      function initSavedNotice() {
+        const params = new URLSearchParams(window.location.search || "");
+        const saved = clean(params.get("saved"), "");
+        if (!saved) return;
+
+        const badge = $("ledgerBadge");
+        if (badge) {
+          badge.textContent = "Saved";
+          badge.className = "badge badge-ready";
+        }
+      }
+
+      async function init() {
+        console.log("[transactions " + VERSION + "] init");
+
+        wireEvents();
+        initSavedNotice();
+        await refreshAll();
+
+        window.SovereignTransactionsPage = {
+          version: VERSION,
+          refresh: refreshAll,
+          rows: function () {
+            return transactions.slice();
+          },
+          filtered: function () {
+            return filtered.slice();
+          },
+          accounts: function () {
+            return accounts.slice();
+          },
+          categories: function () {
+            return categories.slice();
+          }
+        };
+
+        console.log("[transactions " + VERSION + "] ready", {
+          transactions: transactions.length,
+          accounts: accounts.length,
+          categories: categories.length
+        });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+      } else {
+        init();
+      }
+    })();
+  </script>
 </body>
 </html>
