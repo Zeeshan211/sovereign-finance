@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Mashreq Bank">
+  <rect width="96" height="96" rx="24" fill="#FFF7ED"/>
+  <circle cx="48" cy="48" r="31" fill="#FFFFFF" stroke="#EA580C" stroke-width="4"/>
+  <path d="M27 64V33h9l12 14 12-14h9v31h-9V47L48 62 36 47v17h-9Z" fill="#EA580C"/>
+</svg>
