@@ -1,647 +1,648 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-page="reconciliation">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
-<title>Reconciliation · Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=1.0.1" />
-<style>
-.recon-wrap { max-width: 1180px; margin: 0 auto; }
-.recon-hero, .recon-panel, .truth-card {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-sm);
-}
-.recon-hero { padding: 24px; margin-bottom: 18px; }
-.recon-kicker {
-  display: inline-flex;
-  padding: 7px 11px;
-  border-radius: var(--r-pill);
-  background: var(--info-soft);
-  color: var(--info);
-  font-size: 12px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: .07em;
-  margin-bottom: 12px;
-}
-.recon-heading {
-  margin: 0;
-  color: var(--text);
-  font-size: clamp(32px, 5vw, 50px);
-  line-height: 1.02;
-  font-weight: 950;
-  letter-spacing: -.05em;
-}
-.recon-copy {
-  margin-top: 12px;
-  max-width: 800px;
-  color: var(--text-muted);
-  font-size: 15px;
-  line-height: 1.55;
-  font-weight: 750;
-}
-.recon-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
-.recon-btn {
-  min-height: 44px;
-  border-radius: var(--r-md);
-  padding: 10px 14px;
-  font-size: 14px;
-  font-weight: 950;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.recon-btn.primary {
-  border: 0;
-  background: var(--grad-mint);
-  color: #052e16;
-}
-.recon-btn.secondary {
-  border: 1px solid var(--border-strong);
-  background: #fff;
-  color: var(--text);
-}
-.recon-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0,1fr));
-  gap: 12px;
-  margin-bottom: 18px;
-}
-.recon-stat {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 16px;
-  box-shadow: var(--shadow-sm);
-}
-.recon-stat-label {
-  color: var(--text-dim);
-  font-size: 11px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-}
-.recon-stat-value {
-  margin-top: 7px;
-  color: var(--text);
-  font-size: 25px;
-  font-weight: 950;
-  font-variant-numeric: tabular-nums;
-}
-.recon-stat-value.good { color: var(--accent-deep); }
-.recon-stat-value.bad { color: var(--danger); }
-.recon-stat-value.warn { color: var(--warn); }
-.truth-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap: 12px;
-}
-.truth-card { padding: 16px; min-width: 0; }
-.truth-card.drifted { border-color: rgba(220,38,38,.35); }
-.truth-card.stale { border-color: rgba(245,158,11,.35); }
-.truth-card.undeclared { border-color: rgba(100,116,139,.35); }
-.truth-card.matched { border-color: rgba(34,197,94,.30); }
-.truth-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-.truth-name {
-  color: var(--text);
-  font-size: 17px;
-  font-weight: 950;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.truth-sub {
-  margin-top: 3px;
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 850;
-}
-.truth-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--r-pill);
-  padding: 7px 10px;
-  font-size: 11px;
-  font-weight: 950;
-  white-space: nowrap;
-}
-.truth-badge.matched { background: rgba(34,197,94,.12); color: var(--accent-deep); }
-.truth-badge.drifted { background: rgba(220,38,38,.11); color: var(--danger); }
-.truth-badge.stale { background: rgba(245,158,11,.12); color: var(--warn); }
-.truth-badge.undeclared { background: rgba(100,116,139,.12); color: var(--text-muted); }
-.truth-values {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap: 8px;
-}
-.truth-pill {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 10px;
-  min-width: 0;
-}
-.truth-label {
-  color: var(--text-dim);
-  font-size: 10px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  margin-bottom: 5px;
-}
-.truth-value {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 950;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-variant-numeric: tabular-nums;
-}
-.truth-value.good { color: var(--accent-deep); }
-.truth-value.bad { color: var(--danger); }
-.truth-value.warn { color: var(--warn); }
-.truth-explain {
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 850;
-  line-height: 1.45;
-}
-.truth-explain.matched {
-  border-color: rgba(34,197,94,.24);
-  background: rgba(34,197,94,.09);
-  color: var(--accent-deep);
-}
-.truth-explain.drifted {
-  border-color: rgba(220,38,38,.24);
-  background: rgba(220,38,38,.08);
-  color: var(--danger);
-}
-.truth-explain.stale {
-  border-color: rgba(245,158,11,.24);
-  background: rgba(245,158,11,.10);
-  color: var(--warn);
-}
-.truth-explain.undeclared {
-  border-color: rgba(100,116,139,.22);
-  background: rgba(100,116,139,.08);
-  color: var(--text-muted);
-}
-.truth-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
-}
-.truth-action-btn {
-  min-height: 40px;
-  border-radius: var(--r-md);
-  border: 0;
-  background: var(--grad-mint);
-  color: #052e16;
-  padding: 9px 12px;
-  font-size: 13px;
-  font-weight: 950;
-  cursor: pointer;
-}
-.truth-action-chip {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 8px 10px;
-  border-radius: var(--r-pill);
-  border: 1px solid rgba(37, 99, 235, .22);
-  background: var(--info-soft);
-  color: var(--info);
-  font-size: 10px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: .03em;
-}
-.recon-empty {
-  grid-column: 1 / -1;
-  background: var(--surface-2);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--r-lg);
-  padding: 26px;
-  color: var(--text-muted);
-  font-weight: 850;
-  text-align: center;
-}
-.declare-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 2500;
-  display: none;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(15, 23, 42, .58);
-}
-.declare-backdrop.open { display: flex; }
-.declare-modal {
-  width: min(560px, 100%);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-xl);
-  padding: 22px;
-}
-.declare-title {
-  color: var(--text);
-  font-size: 24px;
-  font-weight: 950;
-  margin: 0 0 6px;
-}
-.declare-sub {
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 750;
-  line-height: 1.45;
-  margin-bottom: 14px;
-}
-.declare-trust {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 8px 10px;
-  margin-bottom: 14px;
-  border-radius: var(--r-pill);
-  border: 1px solid rgba(37, 99, 235, .22);
-  background: var(--info-soft);
-  color: var(--info);
-  font-size: 11px;
-  font-weight: 950;
-  text-transform: uppercase;
-}
-.declare-grid { display: grid; gap: 12px; }
-.declare-summary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap: 8px;
-}
-.declare-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-}
-.declare-actions button { flex: 1; }
-@media (max-width: 900px) {
-  .recon-stats, .truth-grid, .truth-values, .declare-summary { grid-template-columns: 1fr; }
-  .declare-actions { flex-direction: column; }
-}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Reconciliation · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
+  <style>
+    .recon-wrap { max-width: 1180px; margin: 0 auto; padding-bottom: 92px; }
+    .recon-hero, .recon-panel, .truth-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: var(--shadow-sm); }
+    .recon-hero { padding: 24px; margin-bottom: 18px; }
+    .recon-kicker { display: inline-flex; padding: 7px 11px; border-radius: var(--r-pill); background: var(--info-soft); color: var(--info); font-size: 12px; font-weight: 950; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 12px; }
+    .recon-heading { margin: 0; color: var(--text); font-size: clamp(32px, 5vw, 50px); line-height: 1.02; font-weight: 950; letter-spacing: -.05em; }
+    .recon-copy { margin-top: 12px; max-width: 800px; color: var(--text-muted); font-size: 15px; line-height: 1.55; font-weight: 750; }
+    .recon-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+    .recon-btn { min-height: 44px; border-radius: var(--r-md); padding: 10px 14px; font-size: 14px; font-weight: 950; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+    .recon-btn.primary { border: 0; background: var(--grad-mint); color: #052e16; }
+    .recon-btn.secondary { border: 1px solid var(--border-strong); background: #fff; color: var(--text); }
+
+    .recon-authority { margin: 0 0 18px; padding: 16px; border-radius: 24px; border: 1px solid rgba(245, 158, 11, .28); background: linear-gradient(180deg, rgba(255, 251, 235, .96), rgba(255,255,255,.96)); box-shadow: var(--shadow-sm); display: grid; gap: 8px; }
+    .recon-authority.pass { border-color: rgba(34, 197, 94, .28); background: linear-gradient(180deg, rgba(240,253,244,.96), rgba(255,255,255,.96)); }
+    .recon-authority.blocked, .recon-authority.unknown { border-color: rgba(220, 38, 38, .24); background: linear-gradient(180deg, rgba(254,242,242,.96), rgba(255,255,255,.96)); }
+    .recon-authority-top { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .recon-authority-title { color: var(--text); font-size: 15px; font-weight: 950; }
+    .recon-authority-pill { display: inline-flex; align-items: center; min-height: 30px; padding: 6px 10px; border-radius: var(--r-pill); background: rgba(15,23,42,.08); color: var(--text); font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .06em; }
+    .recon-authority-copy { margin: 0; color: var(--text-muted); font-size: 12px; line-height: 1.45; font-weight: 800; }
+
+    .recon-stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; margin-bottom: 18px; }
+    .recon-stat { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px; box-shadow: var(--shadow-sm); }
+    .recon-stat-label { color: var(--text-dim); font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: .08em; }
+    .recon-stat-value { margin-top: 7px; color: var(--text); font-size: 25px; font-weight: 950; font-variant-numeric: tabular-nums; }
+    .recon-stat-value.good { color: var(--accent-deep); }
+    .recon-stat-value.bad { color: var(--danger); }
+    .recon-stat-value.warn { color: var(--warn); }
+
+    .truth-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+    .truth-card { padding: 16px; min-width: 0; }
+    .truth-card.drifted { border-color: rgba(220,38,38,.35); }
+    .truth-card.stale { border-color: rgba(245,158,11,.35); }
+    .truth-card.undeclared { border-color: rgba(100,116,139,.35); }
+    .truth-card.matched { border-color: rgba(34,197,94,.30); }
+    .truth-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+    .truth-name { color: var(--text); font-size: 17px; font-weight: 950; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .truth-sub { margin-top: 3px; color: var(--text-dim); font-size: 12px; font-weight: 850; }
+    .truth-badge { display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-pill); padding: 7px 10px; font-size: 11px; font-weight: 950; white-space: nowrap; }
+    .truth-badge.matched { background: rgba(34,197,94,.12); color: var(--accent-deep); }
+    .truth-badge.drifted { background: rgba(220,38,38,.11); color: var(--danger); }
+    .truth-badge.stale { background: rgba(245,158,11,.12); color: var(--warn); }
+    .truth-badge.undeclared { background: rgba(100,116,139,.12); color: var(--text-muted); }
+
+    .truth-values { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; }
+    .truth-pill { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 10px; min-width: 0; }
+    .truth-label { color: var(--text-dim); font-size: 10px; font-weight: 950; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
+    .truth-value { color: var(--text); font-size: 13px; font-weight: 950; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+    .truth-value.good { color: var(--accent-deep); }
+    .truth-value.bad { color: var(--danger); }
+    .truth-value.warn { color: var(--warn); }
+
+    .truth-explain { margin-top: 12px; padding: 12px; border-radius: var(--r-lg); border: 1px solid var(--border); background: var(--surface-2); color: var(--text-muted); font-size: 13px; font-weight: 850; line-height: 1.45; }
+    .truth-explain.matched { border-color: rgba(34,197,94,.24); background: rgba(34,197,94,.09); color: var(--accent-deep); }
+    .truth-explain.drifted { border-color: rgba(220,38,38,.24); background: rgba(220,38,38,.08); color: var(--danger); }
+    .truth-explain.stale { border-color: rgba(245,158,11,.24); background: rgba(245,158,11,.10); color: var(--warn); }
+    .truth-explain.undeclared { border-color: rgba(100,116,139,.22); background: rgba(100,116,139,.08); color: var(--text-muted); }
+
+    .truth-card-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .truth-action-btn { min-height: 40px; border-radius: var(--r-md); border: 0; background: var(--grad-mint); color: #052e16; padding: 9px 12px; font-size: 13px; font-weight: 950; cursor: pointer; }
+    .truth-action-btn:disabled, .primary-submit:disabled { background: #cbd5e1; color: #475569; cursor: not-allowed; }
+    .truth-action-chip { display: inline-flex; align-items: center; width: fit-content; padding: 8px 10px; border-radius: var(--r-pill); border: 1px solid rgba(37,99,235,.22); background: var(--info-soft); color: var(--info); font-size: 10px; font-weight: 950; text-transform: uppercase; letter-spacing: .03em; }
+    .truth-save-block { margin-top: 12px; padding: 12px; border-radius: 18px; border: 1px solid rgba(220,38,38,.22); background: rgba(254,242,242,.88); color: #7f1d1d; display: grid; gap: 5px; font-size: 12px; line-height: 1.35; font-weight: 800; }
+    .truth-save-block strong { font-weight: 950; }
+
+    .recon-empty { grid-column: 1 / -1; background: var(--surface-2); border: 1px dashed var(--border-strong); border-radius: var(--r-lg); padding: 26px; color: var(--text-muted); font-weight: 850; text-align: center; }
+
+    .declare-backdrop { position: fixed; inset: 0; z-index: 2500; display: none; align-items: flex-end; justify-content: center; padding: 16px; background: rgba(15,23,42,.58); }
+    .declare-backdrop.open { display: flex; }
+    .declare-modal { width: min(560px, 100%); background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: var(--shadow-xl); padding: 22px; }
+    .declare-title { color: var(--text); font-size: 24px; font-weight: 950; margin: 0 0 6px; }
+    .declare-sub { color: var(--text-muted); font-size: 14px; font-weight: 750; line-height: 1.45; margin-bottom: 14px; }
+    .declare-trust { display: inline-flex; align-items: center; width: fit-content; padding: 8px 10px; margin-bottom: 14px; border-radius: var(--r-pill); border: 1px solid rgba(37,99,235,.22); background: var(--info-soft); color: var(--info); font-size: 11px; font-weight: 950; text-transform: uppercase; }
+    .declare-grid { display: grid; gap: 12px; }
+    .declare-summary { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+    .declare-actions { display: flex; gap: 10px; margin-top: 16px; }
+    .declare-actions button { flex: 1; }
+
+    @media (max-width: 900px) {
+      .recon-stats, .truth-grid, .truth-values, .declare-summary { grid-template-columns: 1fr; }
+      .declare-actions { flex-direction: column; }
+    }
+  </style>
 </head>
+
 <body>
-<header>
-<div>
-<div class="brand">Sovereign Finance</div>
-<div class="title">Reconciliation</div>
-</div>
-</header>
-
-<main class="recon-wrap">
-<section class="recon-hero">
-<div class="recon-kicker">Truth Mode</div>
-<h1 class="recon-heading">Reconciliation</h1>
-<p class="recon-copy">
-Compare app balances against real declared balances at the correct cutoff. If transactions happened after the last declaration, the account becomes stale, not drifted. Declare again to verify current truth.
-</p>
-<div class="recon-actions">
-<button id="refreshBtn" class="recon-btn primary" type="button">Refresh Truth</button>
-<a class="recon-btn secondary" href="/accounts.html">Open Accounts</a>
-</div>
-</section>
-
-<section class="recon-stats">
-<div class="recon-stat">
-<div class="recon-stat-label">Matched</div>
-<div id="matchedCount" class="recon-stat-value good">-</div>
-</div>
-<div class="recon-stat">
-<div class="recon-stat-label">Drifted</div>
-<div id="driftedCount" class="recon-stat-value bad">-</div>
-</div>
-<div class="recon-stat">
-<div class="recon-stat-label">Undeclared</div>
-<div id="undeclaredCount" class="recon-stat-value warn">-</div>
-</div>
-<div class="recon-stat">
-<div class="recon-stat-label">Stale</div>
-<div id="staleCount" class="recon-stat-value warn">-</div>
-</div>
-</section>
-
-<section class="recon-panel" style="padding:16px;">
-<div class="truth-grid" id="truthGrid">
-<div class="recon-empty">Loading reconciliation truth...</div>
-</div>
-</section>
-
-<footer class="page-footer">
-<span class="v">v0.4.2 · Stale vs Drift explanation · api v0.2.2 · nav v1.0.16 · theme v0.7.2</span>
-</footer>
-</main>
-
-<div id="declareModal" class="declare-backdrop" aria-hidden="true">
-<div class="declare-modal">
-<h2 class="declare-title">Declare Real Balance</h2>
-<p id="declareSub" class="declare-sub">Declare the real balance from your bank/cash app.</p>
-<div class="declare-trust">Metadata only · no transaction · no ledger row</div>
-
-<form id="declareForm" class="declare-grid">
-<input id="declareAccountId" type="hidden" />
-
-<div class="declare-summary">
-<div class="truth-pill">
-<div class="truth-label">Account</div>
-<div id="declareAccountName" class="truth-value"></div>
-</div>
-<div class="truth-pill">
-<div class="truth-label">App Balance</div>
-<div id="declareAppBalance" class="truth-value"></div>
-</div>
-</div>
-
-<div class="field">
-<label for="declareBalance">Real Balance</label>
-<input id="declareBalance" class="input" type="number" step="0.01" required />
-</div>
-
-<div class="field">
-<label for="declareNotes">Notes <small>optional</small></label>
-<textarea id="declareNotes" class="textarea" maxlength="220" placeholder="Example: Declared from bank app"></textarea>
-</div>
-
-<div class="declare-actions">
-<button id="cancelDeclareBtn" class="ghost-btn" type="button">Cancel</button>
-<button id="saveDeclareBtn" class="primary-submit" type="submit">Save Declaration</button>
-</div>
-</form>
-</div>
-</div>
-
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-<script src="/js/theme.js?v=0.7.2"></script>
-<script src="/js/nav.js?v=1.0.16"></script>
-<script>
-const $ = id => document.getElementById(id);
-const state = { rows: [] };
-
-function esc(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function money(value) {
-  if (value == null || value === '') return 'Not declared';
-  const n = Number(value) || 0;
-  const sign = n < 0 ? '-' : '';
-  return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
-}
-
-function toast(message, kind = 'success') {
-  const el = $('toast');
-  el.textContent = message;
-  el.className = 'toast toast-' + kind + ' show';
-  setTimeout(() => { el.className = 'toast'; }, 2600);
-}
-
-function statusLabel(status) {
-  const s = String(status || 'undeclared').toLowerCase();
-  if (s === 'matched') return 'Matched';
-  if (s === 'drifted') return 'Drifted';
-  if (s === 'stale') return 'Stale';
-  return 'Undeclared';
-}
-
-function driftClass(value, status) {
-  const s = String(status || '').toLowerCase();
-  if (s === 'drifted') return 'bad';
-  if (s === 'matched') return 'good';
-  if (s === 'stale') return 'warn';
-  return '';
-}
-
-function declaredText(row) {
-  if (!row.is_declared) return 'Never';
-  return row.last_declared_at || row.declared_at || 'Declared';
-}
-
-function simpleDate(value) {
-  if (!value) return 'None';
-  return String(value).slice(0, 10);
-}
-
-function truthExplanation(row) {
-  if (row.truth_explanation) return row.truth_explanation;
-
-  const status = String(row.truth_status || 'undeclared').toLowerCase();
-  const count = Number(row.transactions_after_declaration_count || 0);
-
-  if (status === 'undeclared') return 'No real-world balance has been declared yet.';
-  if (status === 'stale') {
-    if (count > 0) return count + ' ledger transaction(s) happened after the last declaration. Declare again to verify current truth.';
-    return 'The declaration is old. Declare again to verify current truth.';
-  }
-  if (status === 'drifted') return 'Declared real balance and app balance differ at the same cutoff.';
-  if (status === 'matched') return 'Declared real balance matches app balance at the current cutoff.';
-  return 'Truth status loaded.';
-}
-
-function card(row) {
-  const status = String(row.truth_status || 'undeclared').toLowerCase();
-  const drift = row.drift_amount;
-  const txAfter = Number(row.transactions_after_declaration_count || 0);
-  const explanation = truthExplanation(row);
-
-  return `
-<article class="truth-card ${esc(status)}">
-  <div class="truth-top">
-    <div style="min-width:0;">
-      <div class="truth-name" title="${esc(row.account_name)}">${esc((row.icon || '') + ' ' + row.account_name)}</div>
-      <div class="truth-sub">${esc(row.account_kind || 'account')} · ${esc(row.account_id)}</div>
+  <header>
+    <div>
+      <div class="brand">Sovereign Finance</div>
+      <div class="title">Reconciliation</div>
     </div>
-    <div class="truth-badge ${esc(status)}">${esc(statusLabel(status))}</div>
-  </div>
+  </header>
 
-  <div class="truth-values">
-    <div class="truth-pill">
-      <div class="truth-label">App Balance</div>
-      <div class="truth-value">${esc(money(row.app_balance))}</div>
-    </div>
-    <div class="truth-pill">
-      <div class="truth-label">Real Declared</div>
-      <div class="truth-value">${esc(money(row.declared_balance))}</div>
-    </div>
-    <div class="truth-pill">
-      <div class="truth-label">Drift</div>
-      <div class="truth-value ${driftClass(drift, status)}">${row.is_declared ? esc(money(drift)) : 'Not declared'}</div>
-    </div>
-    <div class="truth-pill">
-      <div class="truth-label">Last Declared</div>
-      <div class="truth-value">${esc(declaredText(row))}</div>
-    </div>
-    <div class="truth-pill">
-      <div class="truth-label">Latest Transaction</div>
-      <div class="truth-value">${esc(simpleDate(row.latest_transaction_date))}</div>
-    </div>
-    <div class="truth-pill">
-      <div class="truth-label">Txns After Declaration</div>
-      <div class="truth-value ${txAfter > 0 ? 'warn' : 'good'}">${esc(String(txAfter))}</div>
+  <main class="recon-wrap">
+    <section class="recon-hero">
+      <div class="recon-kicker">Truth Mode</div>
+      <h1 class="recon-heading">Reconciliation</h1>
+      <p class="recon-copy">
+        Compare app balances against real declared balances at the correct cutoff.
+        If transactions happened after the last declaration, the account becomes stale, not drifted.
+        Declare again only when Command Centre says reconciliation writes are safe.
+      </p>
+      <div class="recon-actions">
+        <button id="refreshBtn" class="recon-btn primary" type="button">Refresh Truth</button>
+        <a class="recon-btn secondary" href="/accounts.html">Open Accounts</a>
+      </div>
+    </section>
+
+    <section id="reconAuthority" class="recon-authority unknown">
+      <div class="recon-authority-top">
+        <div class="recon-authority-title">Command Centre authority</div>
+        <div id="reconAuthorityPill" class="recon-authority-pill">Checking</div>
+      </div>
+      <p id="reconAuthorityCopy" class="recon-authority-copy">Loading backend enforcement policy for reconciliation.declare.</p>
+    </section>
+
+    <section class="recon-stats">
+      <div class="recon-stat">
+        <div class="recon-stat-label">Matched</div>
+        <div id="matchedCount" class="recon-stat-value good">-</div>
+      </div>
+      <div class="recon-stat">
+        <div class="recon-stat-label">Drifted</div>
+        <div id="driftedCount" class="recon-stat-value bad">-</div>
+      </div>
+      <div class="recon-stat">
+        <div class="recon-stat-label">Undeclared</div>
+        <div id="undeclaredCount" class="recon-stat-value warn">-</div>
+      </div>
+      <div class="recon-stat">
+        <div class="recon-stat-label">Stale</div>
+        <div id="staleCount" class="recon-stat-value warn">-</div>
+      </div>
+    </section>
+
+    <section class="recon-panel" style="padding:16px;">
+      <div class="truth-grid" id="truthGrid">
+        <div class="recon-empty">Loading reconciliation truth...</div>
+      </div>
+    </section>
+
+    <footer class="page-footer">
+      <span class="v">Reconciliation v0.4.3 · Phase 4D soft block · nav v1.2.0 · enforcement v0.1.0 · theme v1.0.0</span>
+    </footer>
+  </main>
+
+  <div id="declareModal" class="declare-backdrop" aria-hidden="true">
+    <div class="declare-modal">
+      <h2 class="declare-title">Declare Real Balance</h2>
+      <p id="declareSub" class="declare-sub">Declare the real balance from your bank/cash app.</p>
+      <div class="declare-trust">Metadata only · no transaction · no ledger row</div>
+
+      <form id="declareForm" class="declare-grid">
+        <input id="declareAccountId" type="hidden" />
+
+        <div class="declare-summary">
+          <div class="truth-pill">
+            <div class="truth-label">Account</div>
+            <div id="declareAccountName" class="truth-value"></div>
+          </div>
+          <div class="truth-pill">
+            <div class="truth-label">App Balance</div>
+            <div id="declareAppBalance" class="truth-value"></div>
+          </div>
+        </div>
+
+        <div id="declareBlock" class="truth-save-block" style="display:none;"></div>
+
+        <div class="field">
+          <label for="declareBalance">Real Balance</label>
+          <input id="declareBalance" class="input" type="number" step="0.01" required />
+        </div>
+
+        <div class="field">
+          <label for="declareNotes">Notes <small>optional</small></label>
+          <textarea id="declareNotes" class="textarea" maxlength="220" placeholder="Example: Declared from bank app"></textarea>
+        </div>
+
+        <div class="declare-actions">
+          <button id="cancelDeclareBtn" class="ghost-btn" type="button">Cancel</button>
+          <button id="saveDeclareBtn" class="primary-submit" type="submit">Save Declaration</button>
+        </div>
+      </form>
     </div>
   </div>
 
-  <div class="truth-explain ${esc(status)}">${esc(explanation)}</div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-  <div class="truth-card-actions">
-    <button class="truth-action-btn" type="button" data-declare="${esc(row.account_id)}">Declare Balance</button>
-    <span class="truth-action-chip">Metadata only · no transaction</span>
-  </div>
-</article>`;
-}
+  <script src="/js/theme.js?v=1.0.0"></script>
+  <script src="/js/nav.js?v=1.2.0"></script>
+  <script src="/js/enforcement.js?v=0.1.0"></script>
 
-async function fetchJSON(url, options) {
-  const res = await fetch(url, { cache: 'no-store', ...(options || {}) });
-  const data = await res.json().catch(() => null);
-  if (!res.ok || !data || data.ok === false) {
-    throw new Error((data && data.error) || ('HTTP ' + res.status));
-  }
-  return data;
-}
+  <script>
+    const RECON_VERSION = "v0.4.3";
+    const DECLARE_ACTION = "reconciliation.declare";
+    const $ = id => document.getElementById(id);
 
-async function loadTruth() {
-  $('truthGrid').innerHTML = '<div class="recon-empty">Loading reconciliation truth...</div>';
+    const state = {
+      rows: [],
+      declareGate: blockedGate("Command Centre enforcement has not loaded yet.", {
+        source: "window.SovereignEnforcement",
+        required_fix: "Wait for /api/finance-command-center to return an action policy for reconciliation.declare.",
+        status: "unknown"
+      })
+    };
 
-  try {
-    const data = await fetchJSON('/api/reconciliation');
-
-    $('matchedCount').textContent = data.matched_count ?? 0;
-    $('driftedCount').textContent = data.drifted_count ?? 0;
-    $('undeclaredCount').textContent = data.undeclared_count ?? 0;
-    $('staleCount').textContent = data.stale_count ?? 0;
-
-    const rows = data.truth_accounts || data.accounts_latest || [];
-    state.rows = rows;
-
-    if (!rows.length) {
-      $('truthGrid').innerHTML = '<div class="recon-empty">No account truth rows found.</div>';
-      return;
+    function esc(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
 
-    $('truthGrid').innerHTML = rows.map(card).join('');
+    function money(value) {
+      if (value == null || value === "") return "Not declared";
+      const n = Number(value) || 0;
+      const sign = n < 0 ? "-" : "";
+      return sign + "Rs " + Math.abs(n).toLocaleString("en-PK", { maximumFractionDigits: 2 });
+    }
 
-    document.querySelectorAll('[data-declare]').forEach(btn => {
-      btn.addEventListener('click', () => openDeclare(btn.dataset.declare));
-    });
-  } catch (err) {
-    $('truthGrid').innerHTML = '<div class="recon-empty">Reconciliation failed: ' + esc(err.message) + '</div>';
-  }
-}
+    function toast(message, kind = "success") {
+      const el = $("toast");
+      if (!el) return;
+      el.textContent = message;
+      el.className = "toast toast-" + kind + " show";
+      setTimeout(() => { el.className = "toast"; }, 2600);
+    }
 
-function openDeclare(accountId) {
-  const row = state.rows.find(item => item.account_id === accountId);
-  if (!row) {
-    toast('Account row not found.', 'error');
-    return;
-  }
+    function blockedGate(reason, extra) {
+      const raw = extra && extra.raw ? extra.raw : null;
+      return {
+        action: DECLARE_ACTION,
+        allowed: false,
+        status: (extra && extra.status) || "blocked",
+        label: (extra && extra.label) || "Blocked",
+        reason: reason || "Reconciliation declaration is blocked by Command Centre.",
+        source: (extra && extra.source) || "enforcement.actions",
+        required_fix: (extra && extra.required_fix) || "Resolve Command Centre blocker before declaring real balances.",
+        override_allowed: Boolean(extra && extra.override_allowed),
+        backend_enforced: Boolean(extra && extra.backend_enforced),
+        frontend_enforced: true,
+        raw
+      };
+    }
 
-  $('declareAccountId').value = row.account_id;
-  $('declareAccountName').textContent = ((row.icon || '') + ' ' + row.account_name).trim();
-  $('declareAppBalance').textContent = money(row.app_balance);
-  $('declareBalance').value = row.declared_balance == null ? '' : row.declared_balance;
-  $('declareNotes').value = '';
-  $('declareSub').textContent = 'Declare real balance for ' + row.account_name + '. App balance is ' + money(row.app_balance) + '.';
+    function passGate(action) {
+      return {
+        action: DECLARE_ACTION,
+        allowed: true,
+        status: String(action.status || "pass"),
+        label: "Allowed",
+        reason: action.reason || "Command Centre allows reconciliation.declare.",
+        source: action.source || "enforcement.actions",
+        required_fix: action.required_fix || "",
+        override_allowed: Boolean(action.override_allowed),
+        backend_enforced: Boolean(action.backend_enforced),
+        frontend_enforced: true,
+        raw: action
+      };
+    }
 
-  $('declareModal').classList.add('open');
-  $('declareModal').setAttribute('aria-hidden', 'false');
+    function actionAllowsDeclare(action) {
+      if (!action || typeof action !== "object") return false;
+      const status = String(action.status || action.verdict || "").toLowerCase();
 
-  setTimeout(() => $('declareBalance').focus(), 50);
-}
+      const explicitAllowed =
+        action.allowed === true ||
+        action.action_allowed === true ||
+        action.actions_allowed === true ||
+        action.write_allowed === true ||
+        action.can_execute === true;
 
-function closeDeclare() {
-  $('declareModal').classList.remove('open');
-  $('declareModal').setAttribute('aria-hidden', 'true');
-}
+      const explicitlyBlocked =
+        action.blocked === true ||
+        action.allowed === false ||
+        action.action_allowed === false ||
+        action.actions_allowed === false ||
+        action.write_allowed === false ||
+        ["blocked", "unknown", "unready", "not_ready", "fail", "failed", "deny", "denied"].includes(status);
 
-async function submitDeclare(event) {
-  event.preventDefault();
+      if (explicitlyBlocked) return false;
+      if (explicitAllowed && ["", "pass", "ready", "allowed", "ok"].includes(status)) return true;
+      return false;
+    }
 
-  const accountId = $('declareAccountId').value;
-  const declaredBalance = Number($('declareBalance').value);
-  const notes = $('declareNotes').value.trim();
+    function updateDeclareGate(snapshot) {
+      if (!snapshot) {
+        state.declareGate = blockedGate("Command Centre enforcement snapshot is unavailable.", {
+          source: "window.SovereignEnforcement",
+          required_fix: "Load /js/enforcement.js and /api/finance-command-center.",
+          status: "unknown"
+        });
+        return;
+      }
 
-  if (!accountId) {
-    toast('Account is missing.', 'error');
-    return;
-  }
+      if (snapshot.error) {
+        state.declareGate = blockedGate("Command Centre enforcement failed to load: " + snapshot.error, {
+          source: "/api/finance-command-center",
+          required_fix: "Open Command Centre and resolve backend enforcement endpoint availability.",
+          status: "unknown"
+        });
+        return;
+      }
 
-  if (!Number.isFinite(declaredBalance)) {
-    toast('Enter a valid real balance.', 'error');
-    return;
-  }
+      if (!snapshot.loaded) {
+        state.declareGate = blockedGate("Command Centre enforcement is still loading.", {
+          source: "/api/finance-command-center",
+          required_fix: "Wait for enforcement policy to load. Unknown never becomes Ready.",
+          status: "unknown"
+        });
+        return;
+      }
 
-  $('saveDeclareBtn').disabled = true;
-  $('saveDeclareBtn').textContent = 'Saving...';
+      const action = typeof snapshot.findAction === "function" ? snapshot.findAction(DECLARE_ACTION) : null;
 
-  try {
-    await fetchJSON('/api/reconciliation', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        account_id: accountId,
-        declared_balance: declaredBalance,
-        notes: notes || 'Declared from Reconciliation page.',
-        declared_by: 'operator'
-      })
-    });
+      if (!action) {
+        state.declareGate = blockedGate("No backend action policy returned for reconciliation.declare.", {
+          source: "enforcement.actions",
+          required_fix: "Register reconciliation.declare in /api/finance-command-center enforcement.actions.",
+          status: "unknown"
+        });
+        return;
+      }
 
-    closeDeclare();
-    toast('Balance declared. Truth status refreshed.');
-    await loadTruth();
-  } catch (err) {
-    toast(err.message, 'error');
-  } finally {
-    $('saveDeclareBtn').disabled = false;
-    $('saveDeclareBtn').textContent = 'Save Declaration';
-  }
-}
+      if (actionAllowsDeclare(action)) {
+        state.declareGate = passGate(action);
+        return;
+      }
 
-$('refreshBtn').addEventListener('click', loadTruth);
-$('cancelDeclareBtn').addEventListener('click', closeDeclare);
-$('declareForm').addEventListener('submit', submitDeclare);
+      state.declareGate = blockedGate(action.reason || "Command Centre blocks reconciliation.declare.", {
+        source: action.source || "enforcement.actions",
+        required_fix: action.required_fix || "Resolve reconciliation.declare blocker in Command Centre.",
+        override_allowed: action.override_allowed,
+        backend_enforced: action.backend_enforced,
+        status: action.status || "blocked",
+        label: action.label || "Blocked",
+        raw: action
+      });
+    }
 
-$('declareModal').addEventListener('click', event => {
-  if (event.target === $('declareModal')) closeDeclare();
-});
+    function renderAuthority() {
+      const box = $("reconAuthority");
+      const pill = $("reconAuthorityPill");
+      const copy = $("reconAuthorityCopy");
+      if (!box || !pill || !copy) return;
 
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && $('declareModal').classList.contains('open')) closeDeclare();
-});
+      const gate = state.declareGate;
+      box.className = "recon-authority " + (gate.allowed ? "pass" : gate.status === "unknown" ? "unknown" : "blocked");
+      pill.textContent = gate.allowed ? "Declaration allowed" : "Declaration blocked";
+      copy.textContent = gate.allowed
+        ? `${gate.reason || "Command Centre allows reconciliation.declare."} Source: ${gate.source || "enforcement.actions"}.`
+        : `${gate.reason || "Declaration is blocked."} Source: ${gate.source || "enforcement.actions"}. Required fix: ${gate.required_fix || "Resolve blocker in Command Centre."} Override: ${gate.override_allowed ? "allowed" : "not allowed"}. Backend enforced: ${gate.backend_enforced ? "yes" : "no"} · Frontend enforced: yes.`;
+    }
 
-loadTruth();
-</script>
+    function renderDeclareBlock() {
+      const block = $("declareBlock");
+      const save = $("saveDeclareBtn");
+      if (!block || !save) return;
+
+      const gate = state.declareGate;
+
+      if (gate.allowed) {
+        block.style.display = "none";
+        block.innerHTML = "";
+        save.disabled = false;
+        save.textContent = "Save Declaration";
+        return;
+      }
+
+      block.style.display = "";
+      block.innerHTML = `
+        <div><strong>Declaration blocked by Command Centre.</strong></div>
+        <div>Blocked: ${esc(gate.action)}</div>
+        <div>Reason: ${esc(gate.reason)}</div>
+        <div>Source: ${esc(gate.source)}</div>
+        <div>Required fix: ${esc(gate.required_fix)}</div>
+        <div>Override: ${gate.override_allowed ? "allowed" : "not allowed"} · Backend enforced: ${gate.backend_enforced ? "yes" : "no"} · Frontend enforced: yes</div>
+      `;
+      save.disabled = true;
+      save.textContent = "Blocked";
+    }
+
+    function statusLabel(status) {
+      const s = String(status || "undeclared").toLowerCase();
+      if (s === "matched") return "Matched";
+      if (s === "drifted") return "Drifted";
+      if (s === "stale") return "Stale";
+      return "Undeclared";
+    }
+
+    function driftClass(value, status) {
+      const s = String(status || "").toLowerCase();
+      if (s === "drifted") return "bad";
+      if (s === "matched") return "good";
+      if (s === "stale") return "warn";
+      return "";
+    }
+
+    function declaredText(row) {
+      if (!row.is_declared) return "Never";
+      return row.last_declared_at || row.declared_at || "Declared";
+    }
+
+    function simpleDate(value) {
+      if (!value) return "None";
+      return String(value).slice(0, 10);
+    }
+
+    function truthExplanation(row) {
+      if (row.truth_explanation) return row.truth_explanation;
+      const status = String(row.truth_status || "undeclared").toLowerCase();
+      const count = Number(row.transactions_after_declaration_count || 0);
+      if (status === "undeclared") return "No real-world balance has been declared yet.";
+      if (status === "stale") {
+        if (count > 0) return count + " ledger transaction(s) happened after the last declaration. Declare again to verify current truth.";
+        return "The declaration is old. Declare again to verify current truth.";
+      }
+      if (status === "drifted") return "Declared real balance and app balance differ at the same cutoff.";
+      if (status === "matched") return "Declared real balance matches app balance at the current cutoff.";
+      return "Truth status loaded.";
+    }
+
+    function blockHtml() {
+      const gate = state.declareGate;
+      if (gate.allowed) return "";
+      return `
+        <div class="truth-save-block">
+          <div><strong>Declare Balance blocked by Command Centre.</strong></div>
+          <div>Blocked: ${esc(gate.action)}</div>
+          <div>Reason: ${esc(gate.reason)}</div>
+          <div>Source: ${esc(gate.source)}</div>
+          <div>Required fix: ${esc(gate.required_fix)}</div>
+          <div>Override: ${gate.override_allowed ? "allowed" : "not allowed"} · Backend enforced: ${gate.backend_enforced ? "yes" : "no"} · Frontend enforced: yes</div>
+        </div>
+      `;
+    }
+
+    function card(row) {
+      const status = String(row.truth_status || "undeclared").toLowerCase();
+      const drift = row.drift_amount;
+      const txAfter = Number(row.transactions_after_declaration_count || 0);
+      const explanation = truthExplanation(row);
+      const declareDisabled = state.declareGate.allowed ? "" : "disabled";
+      const declareLabel = state.declareGate.allowed ? "Declare Balance" : "Blocked";
+
+      return `
+        <article class="truth-card ${esc(status)}">
+          <div class="truth-top">
+            <div style="min-width:0;">
+              <div class="truth-name" title="${esc(row.account_name)}">${esc(((row.icon || "") + " " + row.account_name).trim())}</div>
+              <div class="truth-sub">${esc(row.account_kind || "account")} · ${esc(row.account_id)}</div>
+            </div>
+            <div class="truth-badge ${esc(status)}">${esc(statusLabel(status))}</div>
+          </div>
+
+          <div class="truth-values">
+            <div class="truth-pill"><div class="truth-label">App Balance</div><div class="truth-value">${esc(money(row.app_balance))}</div></div>
+            <div class="truth-pill"><div class="truth-label">Real Declared</div><div class="truth-value">${esc(money(row.declared_balance))}</div></div>
+            <div class="truth-pill"><div class="truth-label">Drift</div><div class="truth-value ${driftClass(drift, status)}">${row.is_declared ? esc(money(drift)) : "Not declared"}</div></div>
+            <div class="truth-pill"><div class="truth-label">Last Declared</div><div class="truth-value">${esc(declaredText(row))}</div></div>
+            <div class="truth-pill"><div class="truth-label">Latest Transaction</div><div class="truth-value">${esc(simpleDate(row.latest_transaction_date))}</div></div>
+            <div class="truth-pill"><div class="truth-label">Txns After Declaration</div><div class="truth-value ${txAfter > 0 ? "warn" : "good"}">${esc(String(txAfter))}</div></div>
+          </div>
+
+          <div class="truth-explain ${esc(status)}">${esc(explanation)}</div>
+          ${blockHtml()}
+
+          <div class="truth-card-actions">
+            <button class="truth-action-btn" type="button" data-declare="${esc(row.account_id)}" ${declareDisabled}>${declareLabel}</button>
+            <span class="truth-action-chip">Metadata only · no transaction</span>
+          </div>
+        </article>
+      `;
+    }
+
+    async function fetchJSON(url, options) {
+      const res = await fetch(url, { cache: "no-store", ...(options || {}) });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data || data.ok === false) {
+        throw new Error((data && data.error) || ("HTTP " + res.status));
+      }
+      return data;
+    }
+
+    async function loadTruth() {
+      $("truthGrid").innerHTML = '<div class="recon-empty">Loading reconciliation truth...</div>';
+      try {
+        const data = await fetchJSON("/api/reconciliation");
+        $("matchedCount").textContent = data.matched_count ?? 0;
+        $("driftedCount").textContent = data.drifted_count ?? 0;
+        $("undeclaredCount").textContent = data.undeclared_count ?? 0;
+        $("staleCount").textContent = data.stale_count ?? 0;
+        const rows = data.truth_accounts || data.accounts_latest || [];
+        state.rows = rows;
+        if (!rows.length) {
+          $("truthGrid").innerHTML = '<div class="recon-empty">No account truth rows found.</div>';
+          return;
+        }
+        renderTruthRows();
+      } catch (err) {
+        $("truthGrid").innerHTML = '<div class="recon-empty">Reconciliation failed: ' + esc(err.message) + '</div>';
+      }
+    }
+
+    function renderTruthRows() {
+      const rows = state.rows || [];
+      const grid = $("truthGrid");
+      if (!grid) return;
+      if (!rows.length) {
+        grid.innerHTML = '<div class="recon-empty">No account truth rows found.</div>';
+        return;
+      }
+      grid.innerHTML = rows.map(card).join("");
+      document.querySelectorAll("[data-declare]").forEach(btn => {
+        btn.addEventListener("click", () => openDeclare(btn.dataset.declare));
+      });
+      if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
+        window.SovereignNav.scheduleOverflowCheck();
+      }
+    }
+
+    function openDeclare(accountId) {
+      const row = state.rows.find(item => String(item.account_id) === String(accountId));
+      if (!row) {
+        toast("Account row not found.", "error");
+        return;
+      }
+      $("declareAccountId").value = row.account_id;
+      $("declareAccountName").textContent = ((row.icon || "") + " " + row.account_name).trim();
+      $("declareAppBalance").textContent = money(row.app_balance);
+      $("declareBalance").value = row.declared_balance == null ? "" : row.declared_balance;
+      $("declareNotes").value = "";
+      $("declareSub").textContent = "Declare real balance for " + row.account_name + ". App balance is " + money(row.app_balance) + ".";
+      renderDeclareBlock();
+      $("declareModal").classList.add("open");
+      $("declareModal").setAttribute("aria-hidden", "false");
+      setTimeout(() => $("declareBalance").focus(), 50);
+    }
+
+    function closeDeclare() {
+      $("declareModal").classList.remove("open");
+      $("declareModal").setAttribute("aria-hidden", "true");
+    }
+
+    async function submitDeclare(event) {
+      event.preventDefault();
+      if (!state.declareGate.allowed) {
+        toast("Declaration blocked by Command Centre: " + state.declareGate.reason, "error");
+        renderDeclareBlock();
+        return;
+      }
+
+      const accountId = $("declareAccountId").value;
+      const declaredBalance = Number($("declareBalance").value);
+      const notes = $("declareNotes").value.trim();
+
+      if (!accountId) {
+        toast("Account is missing.", "error");
+        return;
+      }
+
+      if (!Number.isFinite(declaredBalance)) {
+        toast("Enter a valid real balance.", "error");
+        return;
+      }
+
+      $("saveDeclareBtn").disabled = true;
+      $("saveDeclareBtn").textContent = "Saving...";
+
+      try {
+        await fetchJSON("/api/reconciliation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            account_id: accountId,
+            declared_balance: declaredBalance,
+            notes: notes || "Declared from Reconciliation page.",
+            declared_by: "operator"
+          })
+        });
+        closeDeclare();
+        toast("Balance declared. Truth status refreshed.");
+        await loadTruth();
+      } catch (err) {
+        toast(err.message, "error");
+      } finally {
+        $("saveDeclareBtn").disabled = false;
+        $("saveDeclareBtn").textContent = "Save Declaration";
+        renderDeclareBlock();
+      }
+    }
+
+    function wireEnforcement() {
+      if (window.SovereignEnforcement && typeof window.SovereignEnforcement.subscribe === "function") {
+        window.SovereignEnforcement.subscribe(snapshot => {
+          updateDeclareGate(snapshot);
+          renderAuthority();
+          renderDeclareBlock();
+          renderTruthRows();
+        });
+        updateDeclareGate(window.SovereignEnforcement.snapshot());
+        renderAuthority();
+        return;
+      }
+      updateDeclareGate(null);
+      renderAuthority();
+    }
+
+    function boot() {
+      wireEnforcement();
+      $("refreshBtn").addEventListener("click", loadTruth);
+      $("cancelDeclareBtn").addEventListener("click", closeDeclare);
+      $("declareForm").addEventListener("submit", submitDeclare);
+      $("declareModal").addEventListener("click", event => {
+        if (event.target === $("declareModal")) closeDeclare();
+      });
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && $("declareModal").classList.contains("open")) closeDeclare();
+      });
+      loadTruth();
+    }
+
+    window.SovereignReconciliation = {
+      version: RECON_VERSION,
+      reload: loadTruth,
+      state,
+      enforcement() {
+        return { declareGate: state.declareGate };
+      }
+    };
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot);
+    } else {
+      boot();
+    }
+  </script>
 </body>
 </html>
