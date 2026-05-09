@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Credit Card">
+  <rect width="96" height="96" rx="24" fill="#EFF6FF"/>
+  <rect x="16" y="29" width="64" height="42" rx="13" fill="#FFFFFF" stroke="#2563EB" stroke-width="6"/>
+  <path d="M16 42h64" stroke="#2563EB" stroke-width="6"/>
+  <path d="M28 58h20" stroke="#2563EB" stroke-width="6" stroke-linecap="round"/>
+</svg>
