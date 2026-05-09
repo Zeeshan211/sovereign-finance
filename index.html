@@ -1,29 +1,34 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-page="hub">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#050816" />
 
   <title>Sovereign Finance Hub</title>
 
-  <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
-  <script src="/js/theme.js?v=0.7.5" defer></script>
-  <script src="/js/nav.js?v=1.1.2" defer></script>
+  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
+
+  <script src="/js/theme.js?v=1.0.0" defer></script>
+  <script src="/js/nav.js?v=1.1.9" defer></script>
 
   <style>
     :root {
-      --bg: #eef4ff;
-      --ink: #0f172a;
-      --muted: #64748b;
-      --line: rgba(15, 23, 42, 0.10);
-      --shadow: 0 18px 46px rgba(15, 23, 42, 0.10);
-      --green: #16a34a;
-      --red: #dc2626;
-      --blue: #2563eb;
-      --amber: #d97706;
-      --violet: #7c3aed;
-      --surface: rgba(255, 255, 255, 0.92);
+      --hub-bg: #eef4ff;
+      --hub-ink: #0f172a;
+      --hub-muted: #64748b;
+      --hub-soft: #94a3b8;
+      --hub-line: rgba(15, 23, 42, 0.10);
+      --hub-line-strong: rgba(15, 23, 42, 0.16);
+      --hub-surface: rgba(255, 255, 255, 0.93);
+      --hub-surface-soft: rgba(248, 250, 252, 0.88);
+      --hub-green: #16a34a;
+      --hub-red: #dc2626;
+      --hub-blue: #2563eb;
+      --hub-amber: #d97706;
+      --hub-violet: #7c3aed;
+      --hub-shadow: 0 18px 46px rgba(15, 23, 42, 0.10);
+      --hub-shadow-strong: 0 26px 72px rgba(15, 23, 42, 0.18);
     }
 
     * {
@@ -40,41 +45,46 @@
         radial-gradient(circle at 8% 0%, rgba(34, 197, 94, 0.18), transparent 34rem),
         radial-gradient(circle at 92% 8%, rgba(59, 130, 246, 0.18), transparent 34rem),
         radial-gradient(circle at 50% 100%, rgba(168, 85, 247, 0.12), transparent 34rem),
-        var(--bg);
-      color: var(--ink);
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        var(--hub-bg);
+      color: var(--hub-ink);
+      font-family: Inter, "SF Pro Display", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     a {
       color: inherit;
+      text-decoration: none;
     }
 
-    main.page {
+    .hub-page {
       width: 100%;
       max-width: var(--sf-content-max, 1440px);
       margin-inline: auto;
       padding: 24px 16px 72px;
     }
 
-    .hero {
+    .hub-hero {
       position: relative;
       overflow: hidden;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+      gap: 18px;
       border-radius: 34px;
       padding: clamp(24px, 4vw, 42px);
       margin-bottom: 16px;
+      color: white;
       background:
         radial-gradient(circle at 18% 10%, rgba(34, 197, 94, 0.34), transparent 26rem),
         radial-gradient(circle at 86% 18%, rgba(37, 99, 235, 0.28), transparent 28rem),
         linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.96));
-      color: white;
-      box-shadow: 0 26px 72px rgba(15, 23, 42, 0.24);
+      box-shadow: var(--hub-shadow-strong);
       border: 1px solid rgba(148, 163, 184, 0.24);
     }
 
-    .kicker {
+    .hub-kicker {
       display: inline-flex;
       align-items: center;
       gap: 8px;
+      width: fit-content;
       padding: 8px 12px;
       border-radius: 999px;
       background: rgba(34, 197, 94, 0.16);
@@ -87,72 +97,117 @@
       margin-bottom: 15px;
     }
 
-    h1 {
+    .hub-kicker::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 18px rgba(34, 197, 94, 0.85);
+    }
+
+    .hub-title {
       margin: 0;
-      max-width: 900px;
-      font-size: clamp(34px, 6vw, 72px);
+      max-width: 860px;
+      font-size: clamp(38px, 6vw, 74px);
       line-height: 0.94;
       letter-spacing: -0.075em;
       font-weight: 950;
     }
 
-    .hero-copy {
+    .hub-copy {
       margin-top: 16px;
-      max-width: 900px;
+      max-width: 860px;
       color: #cbd5e1;
       font-size: 15px;
       line-height: 1.65;
       font-weight: 760;
     }
 
-    .hero-strip {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
-      gap: 12px;
-      margin-top: 24px;
-    }
-
-    .hero-chip,
-    .card,
-    .panel,
-    .tool,
-    .action {
-      min-width: 0;
-      max-width: 100%;
-    }
-
-    .hero-chip,
-    .card,
-    .panel,
-    .tool {
-      background: var(--surface);
-      border: 1px solid var(--line);
+    .hub-next-card {
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 18px;
       border-radius: 26px;
-      box-shadow: var(--shadow);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
       backdrop-filter: blur(18px);
     }
 
-    .hero-chip {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.14);
-      box-shadow: none;
-      padding: 14px;
-      color: white;
-    }
-
-    .label {
-      color: var(--muted);
+    .hub-next-label {
+      color: #94a3b8;
       font-size: 11px;
       font-weight: 950;
       text-transform: uppercase;
       letter-spacing: 0.08em;
     }
 
-    .hero-chip .label {
+    .hub-next-title {
+      display: block;
+      margin-top: 8px;
+      font-size: 22px;
+      line-height: 1.12;
+      font-weight: 950;
+      letter-spacing: -0.035em;
+    }
+
+    .hub-next-copy {
+      margin-top: 8px;
+      color: #cbd5e1;
+      font-size: 12px;
+      font-weight: 760;
+      line-height: 1.45;
+    }
+
+    .hub-next-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: fit-content;
+      margin-top: 16px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      color: #052e16;
+      background: #22c55e;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .hub-strip {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    .hub-chip {
+      min-width: 0;
+      max-width: 100%;
+      padding: 14px;
+      border-radius: 22px;
+      color: white;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .hub-label,
+    .hub-card-label {
+      color: var(--hub-muted);
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .hub-chip .hub-label {
       color: #94a3b8;
     }
 
-    .chip-value {
+    .hub-chip-value {
       margin-top: 6px;
       font-size: 15px;
       font-weight: 950;
@@ -161,18 +216,36 @@
       text-overflow: ellipsis;
     }
 
-    .grid {
+    .hub-signal-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 14px;
       margin-bottom: 16px;
     }
 
-    .card {
+    .hub-card,
+    .hub-panel,
+    .hub-tool,
+    .hub-action {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .hub-card,
+    .hub-panel,
+    .hub-tool {
+      background: var(--hub-surface);
+      border: 1px solid var(--hub-line);
+      border-radius: 26px;
+      box-shadow: var(--hub-shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .hub-card {
       padding: 18px;
     }
 
-    .value {
+    .hub-value {
       margin-top: 8px;
       font-size: 22px;
       font-weight: 950;
@@ -181,40 +254,46 @@
       overflow-wrap: anywhere;
     }
 
-    .note {
+    .hub-note {
       margin-top: 6px;
-      color: var(--muted);
+      color: var(--hub-muted);
       font-size: 11px;
       font-weight: 800;
       line-height: 1.35;
     }
 
     .good {
-      color: var(--green) !important;
+      color: var(--hub-green) !important;
     }
 
     .bad {
-      color: var(--red) !important;
+      color: var(--hub-red) !important;
     }
 
     .blue {
-      color: var(--blue) !important;
+      color: var(--hub-blue) !important;
     }
 
     .warn {
-      color: var(--amber) !important;
+      color: var(--hub-amber) !important;
     }
 
     .violet {
-      color: var(--violet) !important;
+      color: var(--hub-violet) !important;
     }
 
-    .panel {
-      padding: 18px;
+    .hub-main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(310px, 0.65fr);
+      gap: 16px;
       margin-bottom: 16px;
     }
 
-    .panel-head {
+    .hub-panel {
+      padding: 18px;
+    }
+
+    .hub-panel-head {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
@@ -222,119 +301,157 @@
       margin-bottom: 14px;
     }
 
-    .panel-title {
+    .hub-panel-title {
       font-size: 20px;
       font-weight: 950;
       letter-spacing: -0.02em;
     }
 
-    .panel-sub {
+    .hub-panel-sub {
       margin-top: 4px;
-      color: var(--muted);
+      color: var(--hub-muted);
       font-size: 12px;
       font-weight: 820;
       line-height: 1.4;
     }
 
-    .tools {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
-      gap: 12px;
-    }
-
-    .tool {
-      display: block;
-      min-height: 112px;
-      padding: 16px;
-      text-decoration: none;
-      color: var(--ink);
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
-    }
-
-    .tool:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 24px 64px rgba(15, 23, 42, 0.16);
-    }
-
-    .tool-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 16px;
-      display: grid;
-      place-items: center;
-      background: #f8fafc;
-      border: 1px solid var(--line);
-      font-size: 23px;
-      margin-bottom: 12px;
-    }
-
-    .tool-title {
-      font-size: 15px;
-      font-weight: 950;
-    }
-
-    .tool-copy {
-      margin-top: 5px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-      line-height: 1.35;
-    }
-
-    .action-list {
+    .hub-action-list {
       display: grid;
       gap: 10px;
     }
 
-    .action {
+    .hub-action {
       display: grid;
       grid-template-columns: 42px minmax(0, 1fr) auto;
       align-items: center;
       gap: 12px;
       padding: 13px;
       background: #f8fafc;
-      border: 1px solid var(--line);
+      border: 1px solid var(--hub-line);
       border-radius: 18px;
     }
 
-    .action-icon {
+    .hub-action:first-child {
+      background: rgba(34, 197, 94, 0.09);
+      border-color: rgba(34, 197, 94, 0.22);
+    }
+
+    .hub-action-icon {
       width: 38px;
       height: 38px;
       border-radius: 14px;
       background: white;
-      border: 1px solid var(--line);
+      border: 1px solid var(--hub-line);
       display: grid;
       place-items: center;
-      font-size: 20px;
+      color: var(--hub-green);
+      font-size: 14px;
+      font-weight: 950;
     }
 
-    .action-title {
+    .hub-action-title {
       font-size: 13px;
       font-weight: 950;
     }
 
-    .action-copy {
+    .hub-action-copy {
       margin-top: 3px;
-      color: var(--muted);
+      color: var(--hub-muted);
       font-size: 11px;
       font-weight: 800;
       line-height: 1.35;
     }
 
-    .action-link {
-      color: var(--green);
+    .hub-action-link {
+      color: var(--hub-green);
       font-size: 11px;
       font-weight: 950;
       text-decoration: none;
       white-space: nowrap;
     }
 
+    .hub-next-grid {
+      display: grid;
+      gap: 9px;
+    }
+
+    .hub-route {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 44px;
+      padding: 12px 13px;
+      border-radius: 16px;
+      background: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.20);
+      color: var(--hub-ink);
+      font-size: 13px;
+      font-weight: 920;
+    }
+
+    .hub-route span {
+      color: var(--hub-soft);
+      font-size: 12px;
+      font-weight: 950;
+    }
+
+    .hub-tools-panel {
+      margin-bottom: 16px;
+    }
+
+    .hub-tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+      gap: 12px;
+    }
+
+    .hub-tool {
+      display: block;
+      min-height: 108px;
+      padding: 16px;
+      color: var(--hub-ink);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .hub-tool:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 24px 64px rgba(15, 23, 42, 0.16);
+    }
+
+    .hub-tool-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 15px;
+      display: grid;
+      place-items: center;
+      background: #f8fafc;
+      border: 1px solid var(--hub-line);
+      color: var(--hub-blue);
+      font-size: 14px;
+      font-weight: 950;
+      margin-bottom: 11px;
+    }
+
+    .hub-tool-title {
+      font-size: 15px;
+      font-weight: 950;
+    }
+
+    .hub-tool-copy {
+      margin-top: 5px;
+      color: var(--hub-muted);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
     details.hub-details {
       margin-bottom: 16px;
-      border: 1px solid var(--line);
+      border: 1px solid var(--hub-line);
       border-radius: 26px;
-      background: var(--surface);
-      box-shadow: var(--shadow);
+      background: var(--hub-surface);
+      box-shadow: var(--hub-shadow);
       overflow: hidden;
     }
 
@@ -354,28 +471,45 @@
       display: none;
     }
 
-    .details-body {
+    .hub-details-body {
       padding: 0 18px 18px;
     }
 
     footer {
       text-align: center;
-      color: var(--muted);
+      color: var(--hub-muted);
       font-size: 12px;
       font-weight: 800;
       padding: 16px 0 6px;
     }
 
+    @media (max-width: 1100px) {
+      .hub-hero,
+      .hub-main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hub-strip,
+      .hub-signal-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
     @media (max-width: 760px) {
-      main.page {
+      .hub-page {
         padding: 16px 10px 92px;
       }
 
-      .action {
+      .hub-strip,
+      .hub-signal-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hub-action {
         grid-template-columns: 38px minmax(0, 1fr);
       }
 
-      .action-link {
+      .hub-action-link {
         grid-column: 2;
       }
     }
@@ -383,117 +517,148 @@
 </head>
 
 <body>
-  <main class="page app-page">
-    <section class="hero">
-      <div class="kicker">Finance Hub v0.2.0 · Smart Layout</div>
-      <h1>Finance command center.</h1>
-      <div class="hero-copy">
-        Fast view of cash, card pressure, debt truth, and the next thing that needs action. Detailed tools are grouped below so the Hub stays clean instead of becoming a wall of buttons.
-      </div>
-
-      <div class="hero-strip">
-        <div class="hero-chip">
-          <div class="label">Liquid</div>
-          <div id="heroLiquid" class="chip-value">Loading</div>
-        </div>
-        <div class="hero-chip">
-          <div class="label">Card Pressure</div>
-          <div id="heroCC" class="chip-value">Loading</div>
-        </div>
-        <div class="hero-chip">
-          <div class="label">Debt Truth</div>
-          <div id="heroDebt" class="chip-value">Loading</div>
-        </div>
-        <div class="hero-chip">
-          <div class="label">System</div>
-          <div id="heroSystem" class="chip-value">Audit guard active</div>
+  <main class="hub-page app-page">
+    <section class="hub-hero">
+      <div>
+        <div class="hub-kicker">Finance Hub v0.3.0 · Command Cockpit</div>
+        <h1 class="hub-title">Know the next money move.</h1>
+        <div class="hub-copy">
+          Fast view of cash, card pressure, debt truth, and the next thing that needs action.
+          The Hub stays lean: one verdict surface, core signals, priority actions, and clean routes into the deeper tools.
         </div>
       </div>
-    </section>
 
-    <section class="grid">
-      <div class="card">
-        <div class="label">Liquid Cash</div>
-        <div id="liquid" class="value">Loading</div>
-        <div class="note">Cash, banks, wallets, prepaid.</div>
-      </div>
-
-      <div class="card">
-        <div class="label">CC Outstanding</div>
-        <div id="cc" class="value bad">Loading</div>
-        <div class="note">Liability model.</div>
-      </div>
-
-      <div class="card">
-        <div class="label">Payable Debt</div>
-        <div id="debt" class="value bad">Loading</div>
-        <div class="note">Only debts.kind = owe.</div>
-      </div>
-
-      <div class="card">
-        <div class="label">Receivables</div>
-        <div id="recv" class="value good">Loading</div>
-        <div class="note">Only debts.kind = owed.</div>
-      </div>
-
-      <div class="card">
-        <div class="label">True Burden</div>
-        <div id="burden" class="value bad">Loading</div>
-        <div class="note">Liquid - CC - payable debt + receivables.</div>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-head">
+      <aside class="hub-next-card">
         <div>
-          <div class="panel-title">What needs action</div>
-          <div class="panel-sub">Top operational actions only. Deep audit details stay in Monthly Close and Audit Log.</div>
+          <div class="hub-next-label">Next best action</div>
+          <strong id="nextBestTitle" class="hub-next-title">Loading Finance truth</strong>
+          <div id="nextBestCopy" class="hub-next-copy">Reading /api/balances?debug=1.</div>
+        </div>
+        <a id="nextBestLink" class="hub-next-link" href="/audit.html">Open Audit</a>
+      </aside>
+
+      <div class="hub-strip">
+        <div class="hub-chip">
+          <div class="hub-label">Liquid</div>
+          <div id="heroLiquid" class="hub-chip-value">Loading</div>
+        </div>
+        <div class="hub-chip">
+          <div class="hub-label">Card Pressure</div>
+          <div id="heroCC" class="hub-chip-value">Loading</div>
+        </div>
+        <div class="hub-chip">
+          <div class="hub-label">Debt Truth</div>
+          <div id="heroDebt" class="hub-chip-value">Loading</div>
+        </div>
+        <div class="hub-chip">
+          <div class="hub-label">System</div>
+          <div id="heroSystem" class="hub-chip-value">Audit guard active</div>
         </div>
       </div>
+    </section>
 
-      <div id="actions" class="action-list">
-        <div class="action">
-          <div class="action-icon">…</div>
+    <section class="hub-signal-grid">
+      <div class="hub-card">
+        <div class="hub-card-label">Liquid Cash</div>
+        <div id="liquid" class="hub-value">Loading</div>
+        <div class="hub-note">Cash, banks, wallets, prepaid.</div>
+      </div>
+
+      <div class="hub-card">
+        <div class="hub-card-label">CC Outstanding</div>
+        <div id="cc" class="hub-value bad">Loading</div>
+        <div class="hub-note">From existing liability balance model.</div>
+      </div>
+
+      <div class="hub-card">
+        <div class="hub-card-label">Payable Debt</div>
+        <div id="debt" class="hub-value bad">Loading</div>
+        <div class="hub-note">Only debts.kind = owe.</div>
+      </div>
+
+      <div class="hub-card">
+        <div class="hub-card-label">Receivables</div>
+        <div id="recv" class="hub-value good">Loading</div>
+        <div class="hub-note">Only debts.kind = owed.</div>
+      </div>
+
+      <div class="hub-card">
+        <div class="hub-card-label">True Burden</div>
+        <div id="burden" class="hub-value bad">Loading</div>
+        <div class="hub-note">Liquid - CC - payable debt + receivables.</div>
+      </div>
+    </section>
+
+    <section class="hub-main-grid">
+      <div class="hub-panel">
+        <div class="hub-panel-head">
           <div>
-            <div class="action-title">Loading Finance truth</div>
-            <div class="action-copy">Reading /api/balances?debug=1.</div>
+            <div class="hub-panel-title">What needs action</div>
+            <div class="hub-panel-sub">Top operational actions only. Deep audit details stay in Monthly Close and Audit Log.</div>
           </div>
-          <a class="action-link" href="/audit.html">Audit</a>
+        </div>
+
+        <div id="actions" class="hub-action-list">
+          <div class="hub-action">
+            <div class="hub-action-icon">…</div>
+            <div>
+              <div class="hub-action-title">Loading Finance truth</div>
+              <div class="hub-action-copy">Reading /api/balances?debug=1.</div>
+            </div>
+            <a class="hub-action-link" href="/audit.html">Audit</a>
+          </div>
         </div>
       </div>
+
+      <aside class="hub-panel">
+        <div class="hub-panel-head">
+          <div>
+            <div class="hub-panel-title">Go next</div>
+            <div class="hub-panel-sub">Daily routes only. Every button opens a real working page.</div>
+          </div>
+        </div>
+
+        <div class="hub-next-grid">
+          <a class="hub-route" href="/add.html">Add Transaction <span>+</span></a>
+          <a class="hub-route" href="/transactions.html">Transactions <span>→</span></a>
+          <a class="hub-route" href="/bills.html">Bills <span>→</span></a>
+          <a class="hub-route" href="/cc.html">Credit Card <span>→</span></a>
+          <a class="hub-route" href="/forecast.html">Forecast <span>→</span></a>
+        </div>
+      </aside>
     </section>
 
-    <section class="panel">
-      <div class="panel-head">
+    <section class="hub-panel hub-tools-panel">
+      <div class="hub-panel-head">
         <div>
-          <div class="panel-title">Daily tools</div>
-          <div class="panel-sub">Only the tools you actually touch often.</div>
+          <div class="hub-panel-title">Daily tools</div>
+          <div class="hub-panel-sub">Only the tools you actually touch often.</div>
         </div>
       </div>
 
-      <div class="tools">
-        <a class="tool" href="/add.html">
-          <div class="tool-icon">➕</div>
-          <div class="tool-title">Add Transaction</div>
-          <div class="tool-copy">Save income, expense, transfer, or card payment.</div>
+      <div class="hub-tools-grid">
+        <a class="hub-tool" href="/add.html">
+          <div class="hub-tool-icon">+</div>
+          <div class="hub-tool-title">Add Transaction</div>
+          <div class="hub-tool-copy">Save income, expense, transfer, or card payment.</div>
         </a>
 
-        <a class="tool" href="/transactions.html">
-          <div class="tool-icon">🧾</div>
-          <div class="tool-title">Transactions</div>
-          <div class="tool-copy">Ledger view with guarded write path.</div>
+        <a class="hub-tool" href="/transactions.html">
+          <div class="hub-tool-icon">T</div>
+          <div class="hub-tool-title">Transactions</div>
+          <div class="hub-tool-copy">Ledger view with guarded write path.</div>
         </a>
 
-        <a class="tool" href="/forecast.html">
-          <div class="tool-icon">🔮</div>
-          <div class="tool-title">Forecast</div>
-          <div class="tool-copy">Salary, runway, risk, and upcoming pressure.</div>
+        <a class="hub-tool" href="/forecast.html">
+          <div class="hub-tool-icon">F</div>
+          <div class="hub-tool-title">Forecast</div>
+          <div class="hub-tool-copy">Salary, runway, risk, and upcoming pressure.</div>
         </a>
 
-        <a class="tool" href="/bills.html">
-          <div class="tool-icon">📅</div>
-          <div class="tool-title">Bills</div>
-          <div class="tool-copy">Due dates and payment-account logic.</div>
+        <a class="hub-tool" href="/bills.html">
+          <div class="hub-tool-icon">B</div>
+          <div class="hub-tool-title">Bills</div>
+          <div class="hub-tool-copy">Due dates and payment-account logic.</div>
         </a>
       </div>
     </section>
@@ -504,30 +669,30 @@
         <span>Open</span>
       </summary>
 
-      <div class="details-body">
-        <div class="tools">
-          <a class="tool" href="/cc.html">
-            <div class="tool-icon">💳</div>
-            <div class="tool-title">Credit Card</div>
-            <div class="tool-copy">Outstanding, utilization, due pressure.</div>
+      <div class="hub-details-body">
+        <div class="hub-tools-grid">
+          <a class="hub-tool" href="/cc.html">
+            <div class="hub-tool-icon">C</div>
+            <div class="hub-tool-title">Credit Card</div>
+            <div class="hub-tool-copy">Outstanding, utilization, due pressure.</div>
           </a>
 
-          <a class="tool" href="/debts.html">
-            <div class="tool-icon">🧱</div>
-            <div class="tool-title">Debts</div>
-            <div class="tool-copy">Payable debt and receivables.</div>
+          <a class="hub-tool" href="/debts.html">
+            <div class="hub-tool-icon">D</div>
+            <div class="hub-tool-title">Debts</div>
+            <div class="hub-tool-copy">Payable debt and receivables.</div>
           </a>
 
-          <a class="tool" href="/salary.html">
-            <div class="tool-icon">💼</div>
-            <div class="tool-title">Salary</div>
-            <div class="tool-copy">Baseline salary, WFH, manual variables.</div>
+          <a class="hub-tool" href="/salary.html">
+            <div class="hub-tool-icon">S</div>
+            <div class="hub-tool-title">Salary</div>
+            <div class="hub-tool-copy">Baseline salary, WFH, manual variables.</div>
           </a>
 
-          <a class="tool" href="/monthly-close.html">
-            <div class="tool-icon">✅</div>
-            <div class="tool-title">Monthly Close</div>
-            <div class="tool-copy">System certification and money readiness.</div>
+          <a class="hub-tool" href="/monthly-close.html">
+            <div class="hub-tool-icon">M</div>
+            <div class="hub-tool-title">Monthly Close</div>
+            <div class="hub-tool-copy">System certification and money readiness.</div>
           </a>
         </div>
       </div>
@@ -539,37 +704,37 @@
         <span>Open</span>
       </summary>
 
-      <div class="details-body">
-        <div class="tools">
-          <a class="tool" href="/reconciliation.html">
-            <div class="tool-icon">⚖️</div>
-            <div class="tool-title">Reconciliation</div>
-            <div class="tool-copy">Declare real account balances.</div>
+      <div class="hub-details-body">
+        <div class="hub-tools-grid">
+          <a class="hub-tool" href="/reconciliation.html">
+            <div class="hub-tool-icon">R</div>
+            <div class="hub-tool-title">Reconciliation</div>
+            <div class="hub-tool-copy">Declare real account balances.</div>
           </a>
 
-          <a class="tool" href="/snapshots.html">
-            <div class="tool-icon">📸</div>
-            <div class="tool-title">Snapshots</div>
-            <div class="tool-copy">Manual safety points before risky work.</div>
+          <a class="hub-tool" href="/snapshots.html">
+            <div class="hub-tool-icon">P</div>
+            <div class="hub-tool-title">Snapshots</div>
+            <div class="hub-tool-copy">Manual safety points before risky work.</div>
           </a>
 
-          <a class="tool" href="/audit.html">
-            <div class="tool-icon">🛡️</div>
-            <div class="tool-title">Audit Log</div>
-            <div class="tool-copy">System records and traceability.</div>
+          <a class="hub-tool" href="/audit.html">
+            <div class="hub-tool-icon">L</div>
+            <div class="hub-tool-title">Audit Log</div>
+            <div class="hub-tool-copy">System records and traceability.</div>
           </a>
 
-          <a class="tool" href="/insights.html">
-            <div class="tool-icon">💡</div>
-            <div class="tool-title">Insights</div>
-            <div class="tool-copy">Safety Engine signals and guidance.</div>
+          <a class="hub-tool" href="/charts.html">
+            <div class="hub-tool-icon">G</div>
+            <div class="hub-tool-title">Charts</div>
+            <div class="hub-tool-copy">Visual trend review without changing data.</div>
           </a>
         </div>
       </div>
     </details>
 
     <footer>
-      index.html v0.2.0 · smart layout · nav v1.1.2 · balances v0.5.3 · no D1 mutation
+      index.html v0.3.0 · command cockpit · nav v1.1.9 · balances v0.5.3 · no D1 mutation
     </footer>
   </main>
 
@@ -586,27 +751,47 @@
     function set(id, text, cls) {
       const el = document.getElementById(id);
       if (!el) return;
+
       el.textContent = text;
-      if (cls) el.className = 'value ' + cls;
+
+      if (id === 'liquid' || id === 'cc' || id === 'debt' || id === 'recv' || id === 'burden') {
+        el.className = 'hub-value ' + (cls || '');
+      }
     }
 
     function action(icon, title, copy, href, label) {
       return `
-        <div class="action">
-          <div class="action-icon">${icon}</div>
+        <div class="hub-action">
+          <div class="hub-action-icon">${icon}</div>
           <div>
-            <div class="action-title">${title}</div>
-            <div class="action-copy">${copy}</div>
+            <div class="hub-action-title">${title}</div>
+            <div class="hub-action-copy">${copy}</div>
           </div>
-          <a class="action-link" href="${href}">${label}</a>
+          <a class="hub-action-link" href="${href}">${label}</a>
         </div>
       `;
+    }
+
+    function setNextBest(title, copy, href, label) {
+      const titleEl = document.getElementById('nextBestTitle');
+      const copyEl = document.getElementById('nextBestCopy');
+      const linkEl = document.getElementById('nextBestLink');
+
+      if (titleEl) titleEl.textContent = title;
+      if (copyEl) copyEl.textContent = copy;
+
+      if (linkEl) {
+        linkEl.href = href;
+        linkEl.textContent = label;
+      }
     }
 
     async function readJson(path) {
       const res = await fetch(path, { cache: 'no-store' });
       const data = await res.json();
+
       if (!res.ok || data.ok === false) throw new Error(data.error || path + ' failed');
+
       return data;
     }
 
@@ -634,7 +819,7 @@
 
       if (liquid < 10000) {
         actions.push(action(
-          '⚠️',
+          '1',
           'Liquid cash is thin',
           'Open Forecast and confirm the first unsafe date before spending decisions.',
           '/forecast.html',
@@ -644,16 +829,16 @@
 
       if (cc > 0) {
         actions.push(action(
-          '💳',
+          '2',
           'Credit Card pressure visible',
-          'CC outstanding is being read from the liability balance model.',
+          'CC outstanding is being read from the existing liability balance model.',
           '/cc.html',
           'Card'
         ));
       }
 
       actions.push(action(
-        '⚖️',
+        '3',
         'Reconciliation keeps close honest',
         'Declare stale or undeclared balances before treating the month as clean.',
         '/reconciliation.html',
@@ -661,7 +846,7 @@
       ));
 
       actions.push(action(
-        '📸',
+        '4',
         'Snapshot before risky work',
         'Manual snapshot control is live. Use it before high-risk repair work.',
         '/snapshots.html',
@@ -669,7 +854,7 @@
       ));
 
       actions.push(action(
-        '🧱',
+        '5',
         'Debt split is active',
         'Payable debt is separated from receivables. Combined active debt is diagnostic only: ' + money(allActiveDebt) + '.',
         '/debts.html',
@@ -677,6 +862,29 @@
       ));
 
       document.getElementById('actions').innerHTML = actions.join('');
+
+      if (liquid < 10000) {
+        setNextBest(
+          'Confirm runway before spending',
+          'Liquid cash is thin. Forecast should show the first unsafe date before any discretionary movement.',
+          '/forecast.html',
+          'Open Forecast'
+        );
+      } else if (cc > 0) {
+        setNextBest(
+          'Review Credit Card pressure',
+          'Credit Card pressure is visible from the existing balance model.',
+          '/cc.html',
+          'Open Credit Card'
+        );
+      } else {
+        setNextBest(
+          'Reconcile before close',
+          'Declare stale or undeclared balances before treating this month as clean.',
+          '/reconciliation.html',
+          'Open Reconciliation'
+        );
+      }
 
       if (window.SovereignNav && typeof window.SovereignNav.checkOverflow === 'function') {
         window.setTimeout(window.SovereignNav.checkOverflow, 150);
@@ -697,6 +905,13 @@
         err.message,
         '/audit.html',
         'Audit'
+      );
+
+      setNextBest(
+        'Hub load failed',
+        err.message,
+        '/audit.html',
+        'Open Audit'
       );
     });
   </script>
