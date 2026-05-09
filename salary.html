@@ -1,571 +1,657 @@
 <!DOCTYPE html>
-<html lang="en" data-page="salary">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sovereign Finance · Salary</title>
-  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
-  <style>
-    .salary-wrap { max-width:1280px; margin:0 auto; padding-bottom:96px; }
-    .salary-hero {
-      color:#f8fafc;
-      background:linear-gradient(135deg,rgba(15,23,42,.98),rgba(30,41,59,.95)),radial-gradient(circle at top right,rgba(34,197,94,.22),transparent 28rem);
-      border:1px solid rgba(255,255,255,.1);
-      border-radius:34px;
-      box-shadow:var(--shadow-lg);
-      padding:26px;
-      margin-bottom:18px;
-    }
-    .salary-kicker {
-      display:inline-flex;
-      padding:7px 11px;
-      border-radius:999px;
-      background:rgba(34,197,94,.14);
-      color:#bbf7d0;
-      font-size:12px;
-      font-weight:950;
-      text-transform:uppercase;
-      letter-spacing:.07em;
-      margin-bottom:12px;
-    }
-    .salary-title {
-      margin:0;
-      color:#fff;
-      font-size:clamp(34px,5vw,58px);
-      line-height:.98;
-      letter-spacing:-.06em;
-      font-weight:950;
-    }
-    .salary-copy {
-      max-width:880px;
-      margin:12px 0 0;
-      color:#cbd5e1;
-      font-size:15px;
-      line-height:1.55;
-      font-weight:750;
-    }
-    .salary-authority {
-      margin:0 0 18px;
-      padding:16px;
-      border-radius:24px;
-      border:1px solid rgba(245,158,11,.28);
-      background:linear-gradient(180deg,rgba(255,251,235,.96),rgba(255,255,255,.96));
-      box-shadow:var(--shadow-sm);
-      display:grid;
-      gap:8px;
-    }
-    .salary-authority.pass {
-      border-color:rgba(34,197,94,.28);
-      background:linear-gradient(180deg,rgba(240,253,244,.96),rgba(255,255,255,.96));
-    }
-    .salary-authority.blocked,
-    .salary-authority.unknown {
-      border-color:rgba(220,38,38,.24);
-      background:linear-gradient(180deg,rgba(254,242,242,.96),rgba(255,255,255,.96));
-    }
-    .salary-authority-top {
-      display:flex;
-      justify-content:space-between;
-      gap:12px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-    .salary-authority-title {
-      color:var(--text);
-      font-size:15px;
-      font-weight:950;
-    }
-    .salary-authority-pill {
-      display:inline-flex;
-      align-items:center;
-      min-height:30px;
-      padding:6px 10px;
-      border-radius:var(--r-pill);
-      background:rgba(15,23,42,.08);
-      color:var(--text);
-      font-size:11px;
-      font-weight:950;
-      text-transform:uppercase;
-      letter-spacing:.06em;
-    }
-    .salary-authority-copy {
-      margin:0;
-      color:var(--text-muted);
-      font-size:12px;
-      line-height:1.45;
-      font-weight:800;
-    }
-    .salary-grid {
-      display:grid;
-      grid-template-columns:repeat(4,minmax(0,1fr));
-      gap:12px;
-      margin-bottom:18px;
-    }
-    .salary-card {
-      min-width:0;
-      padding:17px;
-      border-radius:24px;
-      background:var(--surface-1);
-      border:1px solid var(--border);
-      box-shadow:var(--shadow-sm);
-    }
-    .salary-label {
-      color:var(--text-dim);
-      font-size:11px;
-      font-weight:950;
-      text-transform:uppercase;
-      letter-spacing:.08em;
-    }
-    .salary-value {
-      margin-top:8px;
-      color:var(--text);
-      font-size:24px;
-      font-weight:950;
-      letter-spacing:-.035em;
-      font-variant-numeric:tabular-nums;
-    }
-    .salary-note {
-      margin-top:6px;
-      color:var(--text-dim);
-      font-size:12px;
-      font-weight:800;
-      line-height:1.35;
-    }
-    .salary-main {
-      display:grid;
-      grid-template-columns:minmax(0,1.15fr) minmax(340px,.85fr);
-      gap:16px;
-      align-items:start;
-    }
-    .salary-panel {
-      background:var(--surface-1);
-      border:1px solid var(--border);
-      border-radius:28px;
-      box-shadow:var(--shadow-sm);
-      padding:18px;
-      min-width:0;
-    }
-    .panel-title {
-      margin:0;
-      color:var(--text);
-      font-size:18px;
-      font-weight:950;
-      letter-spacing:-.03em;
-    }
-    .panel-sub {
-      margin:6px 0 0;
-      color:var(--text-dim);
-      font-size:13px;
-      font-weight:750;
-      line-height:1.45;
-    }
-    .salary-row {
-      display:grid;
-      grid-template-columns:minmax(0,1fr) auto;
-      gap:12px;
-      padding:13px;
-      border-radius:18px;
-      background:var(--surface-2);
-      border:1px solid rgba(148,163,184,.18);
-      margin-top:8px;
-    }
-    .row-name { color:var(--text); font-size:13px; font-weight:950; }
-    .row-sub { margin-top:3px; color:var(--text-dim); font-size:12px; font-weight:750; }
-    .row-value { color:var(--text); font-size:13px; font-weight:950; white-space:nowrap; font-variant-numeric:tabular-nums; }
-    .salary-warning {
-      margin-top:14px;
-      padding:13px;
-      border-radius:18px;
-      background:rgba(245,158,11,.10);
-      border:1px solid rgba(245,158,11,.24);
-      color:#92400e;
-      font-size:13px;
-      font-weight:850;
-      line-height:1.45;
-    }
-    .salary-block {
-      margin-top:14px;
-      padding:13px;
-      border-radius:18px;
-      background:rgba(254,242,242,.88);
-      border:1px solid rgba(220,38,38,.22);
-      color:#7f1d1d;
-      font-size:12px;
-      font-weight:850;
-      line-height:1.45;
-      display:grid;
-      gap:5px;
-    }
-    @media(max-width:980px){
-      .salary-grid,.salary-main{grid-template-columns:1fr;}
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Salary - Sovereign Finance</title>
+<link rel="stylesheet" href="/css/app.css?v=2.0.0" />
+
+<style>
+.salary-page {
+  max-width: 1480px;
+}
+
+.salary-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.salary-side {
+  display: grid;
+  gap: 14px;
+}
+
+.salary-card {
+  padding: 18px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-md);
+}
+
+.salary-card-title {
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
+
+.salary-card-copy {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 760;
+}
+
+.salary-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.salary-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.salary-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 26px 0 14px;
+}
+
+.salary-section-title {
+  color: var(--text-strong);
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+}
+
+.salary-section-copy {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.salary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.salary-enforcement {
+  padding: 16px;
+  border-radius: var(--r-xl);
+  border: 1px solid rgba(185, 28, 28, 0.22);
+  background: linear-gradient(135deg, var(--danger-soft), var(--surface-1));
+  color: var(--danger);
+  box-shadow: var(--shadow-sm);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 790;
+}
+
+.salary-enforcement.pass {
+  border-color: rgba(4, 120, 87, 0.24);
+  background: linear-gradient(135deg, var(--success-soft), var(--surface-1));
+  color: var(--success);
+}
+
+.salary-enforcement.preflight {
+  border-color: rgba(180, 83, 9, 0.24);
+  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
+  color: var(--warn);
+}
+
+.salary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.salary-lane {
+  display: grid;
+  gap: 12px;
+}
+
+.salary-row {
+  position: relative;
+  overflow: hidden;
+  padding: 16px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.salary-row::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--info), transparent);
+}
+
+.salary-row.guaranteed::before {
+  background: linear-gradient(90deg, var(--accent), transparent);
+}
+
+.salary-row.variable::before {
+  background: linear-gradient(90deg, var(--warn), transparent);
+}
+
+.salary-row.blocked::before {
+  background: linear-gradient(90deg, var(--danger), transparent);
+}
+
+.salary-row-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.salary-row-title {
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
+
+.salary-row-sub {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.salary-row-value {
+  margin-top: 14px;
+  color: var(--text-strong);
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: -0.06em;
+}
+
+.salary-row-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.salary-meta-item {
+  padding: 11px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.salary-meta-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.salary-meta-value {
+  margin-top: 4px;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.salary-proof {
+  margin-top: 12px;
+  padding: 11px;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1.42;
+}
+
+.salary-panel-list {
+  display: grid;
+  gap: 10px;
+}
+
+.salary-panel-row {
+  padding: 13px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.salary-panel-title {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 920;
+}
+
+.salary-panel-copy {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 740;
+}
+
+.salary-empty {
+  padding: 28px;
+  border-radius: var(--r-xl);
+  border: 1px dashed var(--border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 820;
+  text-align: center;
+}
+
+.salary-page-meta {
+  display: none !important;
+}
+
+@media (max-width: 1180px) {
+  .salary-hero-grid,
+  .salary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .salary-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .salary-kpi-grid,
+  .salary-row-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .salary-section-head,
+  .salary-row-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .salary-actions,
+  .salary-actions .btn {
+    width: 100%;
+  }
+}
+</style>
 </head>
 
 <body>
-  <header>
-    <div>
-      <div class="brand">Sovereign Finance</div>
-      <div class="title">Salary</div>
-    </div>
-  </header>
+<header>
+<div>
+<div class="brand">Sovereign Finance</div>
+<div class="title">Salary</div>
+</div>
+</header>
 
-  <main class="salary-wrap">
-    <section class="salary-hero">
-      <div class="salary-kicker">Income baseline</div>
-      <h1 class="salary-title">Guaranteed salary, variable pay, tax, and next forecast.</h1>
-      <p class="salary-copy">
-        Salary planning separates guaranteed baseline from confirmed variable and speculative income.
-        This page is read-only until Command Centre confirms salary writes are safe.
-      </p>
-    </section>
+<main class="app-page salary-page">
+<section class="salary-hero-grid">
+<div class="page-hero">
+<div class="hero-kicker">Income baseline</div>
+<h1 class="hero-title">Salary forecast starts with guaranteed truth.</h1>
+<p class="hero-copy">
+Salary must separate guaranteed monthly income from variable or speculative money. Forecast should never treat MBO, overtime, or unconfirmed bonuses as baseline safety.
+</p>
 
-    <section id="salaryAuthority" class="salary-authority unknown">
-      <div class="salary-authority-top">
-        <div class="salary-authority-title">Command Centre authority</div>
-        <div id="salaryAuthorityPill" class="salary-authority-pill">Checking</div>
-      </div>
-      <p id="salaryAuthorityCopy" class="salary-authority-copy">Loading backend enforcement policy for salary.save.</p>
-    </section>
+<div class="salary-status-strip">
+<span id="salaryApiBadge" class="badge badge-unknown">Salary API loading</span>
+<span id="salaryGovernorBadge" class="badge badge-unknown">Governor loading</span>
+<span id="salaryWriteBadge" class="badge badge-blocked">Salary writes blocked</span>
+</div>
+</div>
 
-    <section class="salary-grid">
-      <div class="salary-card">
-        <div class="salary-label">Baseline forecast</div>
-        <div id="baseline" class="salary-value">Loading</div>
-        <div class="salary-note">Guaranteed base plus expected WFH where available.</div>
-      </div>
-      <div class="salary-card">
-        <div class="salary-label">Next salary</div>
-        <div id="nextSalary" class="salary-value">Loading</div>
-        <div id="nextSalaryNote" class="salary-note">Projected next salary date.</div>
-      </div>
-      <div class="salary-card">
-        <div class="salary-label">Confirmed variable</div>
-        <div id="confirmedVariable" class="salary-value">Loading</div>
-        <div class="salary-note">Included only if confirmed.</div>
-      </div>
-      <div class="salary-card">
-        <div class="salary-label">Tax paid YTD</div>
-        <div id="taxPaid" class="salary-value">Loading</div>
-        <div class="salary-note">Income tax paid to date signal.</div>
-      </div>
-    </section>
+<aside class="salary-side">
+<div class="salary-card">
+<div class="salary-card-title">Salary safety posture</div>
+<div class="salary-card-copy">
+Salary save remains blocked until salary-specific dry-run proof exists. Forecast can read salary posture, but baseline certainty must stay honest.
+</div>
+<div style="margin-top:12px">
+<span class="badge badge-ready">Baseline separated</span>
+<span class="badge badge-blocked">Save blocked</span>
+</div>
+</div>
 
-    <section class="salary-main">
-      <div class="salary-panel">
-        <h2 class="panel-title">Salary components</h2>
-        <p class="panel-sub">The baseline is intentionally conservative. Speculative money is visible but excluded from safety math.</p>
-        <div id="salaryRows"></div>
-        <div class="salary-warning">
-          Baseline rule: guaranteed base + confirmed WFH estimate + confirmed variable only.
-          Speculative MBO/overtime stays out of baseline cash safety.
-        </div>
-      </div>
+<div class="salary-card">
+<div class="salary-card-title">Known salary rule</div>
+<div class="salary-card-copy">
+Guaranteed baseline is Basic PKR plus confirmed WFH allowance only. MBO, overtime, kitty cash, and unconfirmed variable income remain scenario-only.
+</div>
+</div>
+</aside>
+</section>
 
-      <aside class="salary-panel">
-        <h2 class="panel-title">Production checks</h2>
-        <p class="panel-sub">What this page needs before it can be trusted.</p>
-        <div id="salaryChecks"></div>
-        <div id="salaryBlock"></div>
-      </aside>
-    </section>
+<section class="salary-kpi-grid">
+<div class="kpi-card">
+<div class="kpi-label">Guaranteed baseline</div>
+<div id="salaryBaselineValue" class="kpi-value">-</div>
+<div class="kpi-sub">Safe forecast input</div>
+</div>
 
-    <footer class="page-footer">
-      <span class="v">Salary v0.9.1 · Phase 4E soft authority · nav v1.2.0 · enforcement v0.1.0 · css v1.0.2</span>
-    </footer>
-  </main>
+<div class="kpi-card">
+<div class="kpi-label">Variable income</div>
+<div id="salaryVariableValue" class="kpi-value">Scenario</div>
+<div class="kpi-sub">Not baseline safety</div>
+</div>
 
-  <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=1.2.0"></script>
-  <script src="/js/enforcement.js?v=0.1.0"></script>
+<div class="kpi-card">
+<div class="kpi-label">Source status</div>
+<div id="salarySourceStatus" class="kpi-value">-</div>
+<div class="kpi-sub">API / configured memory</div>
+</div>
 
-  <script>
-    (function () {
-      "use strict";
+<div class="kpi-card">
+<div class="kpi-label">Authority</div>
+<div id="salaryAuthorityStatus" class="kpi-value">Blocked</div>
+<div class="kpi-sub">Until dry-run proof</div>
+</div>
+</section>
 
-      const VERSION = "v0.9.1";
-      const SAVE_ACTION = "salary.save";
-      const $ = id => document.getElementById(id);
+<section>
+<div class="salary-section-head">
+<div>
+<div class="salary-section-title">Salary model</div>
+<div id="salarySummary" class="salary-section-copy">Loading salary view...</div>
+</div>
 
-      const state = {
-        salary: {},
-        saveGate: blockedGate("Command Centre enforcement has not loaded yet.", {
-          source: "window.SovereignEnforcement",
-          required_fix: "Wait for /api/finance-command-center to return an action policy for salary.save.",
-          status: "unknown"
-        })
-      };
+<div class="salary-actions">
+<a class="btn btn-secondary" href="/monthly-close.html">Open Command Centre</a>
+<a class="btn btn-secondary" href="/forecast.html">Open Forecast</a>
+</div>
+</div>
 
-      function esc(value) {
-        return String(value == null ? "" : value)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      }
+<div id="salaryEnforcement" class="salary-enforcement">
+Checking Command Centre salary authority...
+</div>
 
-      function money(value) {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return "Unknown";
-        return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
-      }
+<div style="height:14px"></div>
 
-      function valueFrom(obj, keys, fallback) {
-        for (const key of keys) {
-          if (obj && obj[key] !== undefined && obj[key] !== null && obj[key] !== "") return obj[key];
+<div class="salary-grid">
+<section>
+<div class="salary-section-title" style="font-size:18px;margin-bottom:10px">Income components</div>
+<div id="salarySources" class="salary-lane"></div>
+</section>
+
+<aside class="salary-card">
+<div class="salary-card-title">What remains before unlock</div>
+<div class="salary-panel-list" style="margin-top:12px">
+<div class="salary-panel-row">
+<div class="salary-panel-title">1. Salary source proof</div>
+<div class="salary-panel-copy">Prove guaranteed salary fields separately from variable fields.</div>
+</div>
+<div class="salary-panel-row">
+<div class="salary-panel-title">2. Dry-run proof</div>
+<div class="salary-panel-copy">salary.save must validate payload without writing D1 or audit rows.</div>
+</div>
+<div class="salary-panel-row">
+<div class="salary-panel-title">3. Page preflight</div>
+<div class="salary-panel-copy">Salary page must dry-run before any save attempt.</div>
+</div>
+<div class="salary-panel-row">
+<div class="salary-panel-title">4. Command Centre lift</div>
+<div class="salary-panel-copy">Only then can salary.save become allowed.</div>
+</div>
+</div>
+</aside>
+</div>
+</section>
+
+<footer class="salary-page-meta" aria-hidden="true">
+Salary premium UI v2.0.0
+</footer>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="/js/theme.js?v=1.0.0"></script>
+<script src="/js/nav.js?v=2.0.0"></script>
+<script src="/js/enforcement.js?v=0.2.0"></script>
+
+<script>
+(function () {
+  "use strict";
+
+  const VERSION = "2.0.0";
+
+  const GUARANTEED_BASIC_PKR = 111333.34;
+  const GUARANTEED_WFH_USD = 30;
+
+  let salarySource = null;
+  let rows = [];
+
+  const $ = id => document.getElementById(id);
+
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value;
+  }
+
+  function setBadge(id, text, cls) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = "badge " + cls;
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function money(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "Unknown";
+    return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
+  }
+
+  async function fetchJSON(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) throw new Error("Failed to read " + url);
+    return data;
+  }
+
+  function numberFrom(data, keys) {
+    for (const key of keys) {
+      const n = Number(data && data[key]);
+      if (Number.isFinite(n)) return n;
+    }
+    return null;
+  }
+
+  async function loadCommandCentre() {
+    try {
+      const cmd = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
+      const actions = cmd.enforcement && Array.isArray(cmd.enforcement.actions) ? cmd.enforcement.actions : [];
+      const salarySave = actions.find(action => action.action === "salary.save");
+      const allowed = Boolean(salarySave && salarySave.allowed);
+
+      if (allowed) {
+        setBadge("salaryGovernorBadge", "Salary save allowed", "badge-ready");
+        setBadge("salaryWriteBadge", "salary.save", "badge-ready");
+        setText("salaryAuthorityStatus", "Allowed");
+
+        const panel = $("salaryEnforcement");
+        if (panel) {
+          panel.className = "salary-enforcement pass";
+          panel.textContent = "Command Centre allows salary.save. Page should still require dry-run before real writes.";
         }
-        return fallback;
-      }
-
-      function row(name, sub, value) {
-        return '<div class="salary-row">' +
-          '<div><div class="row-name">' + esc(name) + '</div><div class="row-sub">' + esc(sub) + '</div></div>' +
-          '<div class="row-value">' + esc(value) + '</div>' +
-          '</div>';
-      }
-
-      function blockedGate(reason, extra) {
-        return {
-          action: SAVE_ACTION,
-          allowed: false,
-          status: extra && extra.status ? extra.status : "blocked",
-          label: extra && extra.label ? extra.label : "Blocked",
-          reason: reason || "Salary save is blocked by Command Centre.",
-          source: extra && extra.source ? extra.source : "enforcement.actions",
-          required_fix: extra && extra.required_fix ? extra.required_fix : "Resolve Command Centre blocker before saving salary changes.",
-          override_allowed: Boolean(extra && extra.override_allowed),
-          backend_enforced: Boolean(extra && extra.backend_enforced),
-          frontend_enforced: true,
-          raw: extra && extra.raw ? extra.raw : null
-        };
-      }
-
-      function passGate(action) {
-        return {
-          action: SAVE_ACTION,
-          allowed: true,
-          status: String(action.status || "pass"),
-          label: "Allowed",
-          reason: action.reason || "Command Centre allows salary.save.",
-          source: action.source || "enforcement.actions",
-          required_fix: action.required_fix || "",
-          override_allowed: Boolean(action.override_allowed),
-          backend_enforced: Boolean(action.backend_enforced),
-          frontend_enforced: true,
-          raw: action
-        };
-      }
-
-      function actionAllowsSave(action) {
-        if (!action || typeof action !== "object") return false;
-        const status = String(action.status || action.verdict || "").toLowerCase();
-        const explicitAllowed = action.allowed === true || action.action_allowed === true || action.actions_allowed === true || action.write_allowed === true || action.can_execute === true;
-        const explicitlyBlocked = action.blocked === true || action.allowed === false || action.action_allowed === false || action.actions_allowed === false || action.write_allowed === false || ["blocked","unknown","unready","not_ready","fail","failed","deny","denied"].includes(status);
-        if (explicitlyBlocked) return false;
-        if (explicitAllowed && ["","pass","ready","allowed","ok"].includes(status)) return true;
-        return false;
-      }
-
-      function updateSaveGate(snapshot) {
-        if (!snapshot) {
-          state.saveGate = blockedGate("Command Centre enforcement snapshot is unavailable.", {
-            source: "window.SovereignEnforcement",
-            required_fix: "Load /js/enforcement.js and /api/finance-command-center.",
-            status: "unknown"
-          });
-          return;
-        }
-
-        if (snapshot.error) {
-          state.saveGate = blockedGate("Command Centre enforcement failed to load: " + snapshot.error, {
-            source: "/api/finance-command-center",
-            required_fix: "Open Command Centre and resolve backend enforcement endpoint availability.",
-            status: "unknown"
-          });
-          return;
-        }
-
-        if (!snapshot.loaded) {
-          state.saveGate = blockedGate("Command Centre enforcement is still loading.", {
-            source: "/api/finance-command-center",
-            required_fix: "Wait for enforcement policy to load. Unknown never becomes Ready.",
-            status: "unknown"
-          });
-          return;
-        }
-
-        const action = typeof snapshot.findAction === "function" ? snapshot.findAction(SAVE_ACTION) : null;
-
-        if (!action) {
-          state.saveGate = blockedGate("No backend action policy returned for salary.save.", {
-            source: "enforcement.actions",
-            required_fix: "Register salary.save in /api/finance-command-center enforcement.actions.",
-            status: "unknown"
-          });
-          return;
-        }
-
-        state.saveGate = actionAllowsSave(action)
-          ? passGate(action)
-          : blockedGate(action.reason || "Command Centre blocks salary.save.", {
-              source: action.source || "enforcement.actions",
-              required_fix: action.required_fix || "Resolve salary.save blocker in Command Centre.",
-              override_allowed: action.override_allowed,
-              backend_enforced: action.backend_enforced,
-              status: action.status || "blocked",
-              label: action.label || "Blocked",
-              raw: action
-            });
-      }
-
-      function renderAuthority() {
-        const box = $("salaryAuthority");
-        const pill = $("salaryAuthorityPill");
-        const copy = $("salaryAuthorityCopy");
-        if (!box || !pill || !copy) return;
-
-        const gate = state.saveGate;
-        box.className = "salary-authority " + (gate.allowed ? "pass" : gate.status === "unknown" ? "unknown" : "blocked");
-        pill.textContent = gate.allowed ? "Salary save allowed" : "Salary save blocked";
-        copy.textContent = gate.allowed
-          ? (gate.reason || "Command Centre allows salary.save.") + " Source: " + (gate.source || "enforcement.actions") + "."
-          : (gate.reason || "Salary save is blocked.") + " Source: " + (gate.source || "enforcement.actions") + ". Required fix: " + (gate.required_fix || "Resolve blocker in Command Centre.") + " Override: " + (gate.override_allowed ? "allowed" : "not allowed") + ". Backend enforced: " + (gate.backend_enforced ? "yes" : "no") + " · Frontend enforced: yes.";
-      }
-
-      function renderBlock() {
-        const el = $("salaryBlock");
-        if (!el) return;
-
-        const gate = state.saveGate;
-        if (gate.allowed) {
-          el.innerHTML = "";
-          return;
-        }
-
-        el.innerHTML = '<div class="salary-block">' +
-          '<div><strong>Salary save blocked by Command Centre.</strong></div>' +
-          '<div>Blocked: ' + esc(gate.action) + '</div>' +
-          '<div>Reason: ' + esc(gate.reason) + '</div>' +
-          '<div>Source: ' + esc(gate.source) + '</div>' +
-          '<div>Required fix: ' + esc(gate.required_fix) + '</div>' +
-          '<div>Override: ' + (gate.override_allowed ? "allowed" : "not allowed") + ' · Backend enforced: ' + (gate.backend_enforced ? "yes" : "no") + ' · Frontend enforced: yes</div>' +
-          '</div>';
-      }
-
-      function normalizeSalary(payload) {
-        if (!payload || typeof payload !== "object") return {};
-        if (payload.salary && typeof payload.salary === "object") return payload.salary;
-        if (payload.data && typeof payload.data === "object") return payload.data;
-        return payload;
-      }
-
-      async function fetchSalary() {
-        const res = await fetch("/api/salary", { cache: "no-store" });
-        const data = await res.json().catch(() => null);
-        if (!res.ok || !data) throw new Error("Salary API failed with HTTP " + res.status);
-        return normalizeSalary(data);
-      }
-
-      function renderSalary(salary) {
-        const guaranteed = Number(valueFrom(salary, ["guaranteed_base_salary","basic_salary","base_salary","monthly_guaranteed","guaranteed_monthly","salary","total"], 0)) || 0;
-        const wfhUsd = Number(valueFrom(salary, ["wfh_usd_amount","wfh_usd","wfh_allowance_usd"], 30)) || 0;
-        const fx = Number(valueFrom(salary, ["salary_day_fx_rate","fx_rate","usd_pkr"], 0)) || 0;
-        const wfhPkr = Number(valueFrom(salary, ["expected_wfh_pkr","wfh_pkr"], fx > 0 ? wfhUsd * fx : 0)) || 0;
-        const confirmedVariable = Number(valueFrom(salary, ["confirmed_variable_pkr","confirmed_variable","confirmed_bonus"], 0)) || 0;
-        const speculativeVariable = Number(valueFrom(salary, ["speculative_variable_pkr","speculative_variable","mbo_estimate","overtime_estimate"], 0)) || 0;
-        const taxPaid = Number(valueFrom(salary, ["tax_paid_to_date","tax_ytd","income_tax_paid"], 0)) || 0;
-        const nextSalary = Number(valueFrom(salary, ["projected_next_salary","next_salary","next_net_salary"], guaranteed + wfhPkr + confirmedVariable)) || 0;
-        const nextDate = valueFrom(salary, ["next_salary_date","next_payday","salary_date"], "");
-        const baseline = Number(valueFrom(salary, ["baseline_forecast_pkr","baseline","baseline_salary"], guaranteed + wfhPkr + confirmedVariable)) || 0;
-
-        $("baseline").textContent = money(baseline);
-        $("nextSalary").textContent = money(nextSalary);
-        $("nextSalaryNote").textContent = nextDate ? "Expected on " + nextDate : "Next date unavailable.";
-        $("confirmedVariable").textContent = money(confirmedVariable);
-        $("taxPaid").textContent = money(taxPaid);
-
-        $("salaryRows").innerHTML = [
-          row("Guaranteed base salary", "Core recurring salary baseline", money(guaranteed)),
-          row("WFH USD allowance", "Confirmed USD allowance before conversion", wfhUsd ? "$" + wfhUsd : "Unknown"),
-          row("Salary-day FX rate", "Used to estimate WFH PKR", fx ? String(fx) : "Missing"),
-          row("Expected WFH PKR", "WFH amount after conversion", money(wfhPkr)),
-          row("Confirmed variable", "Included only when confirmed", money(confirmedVariable)),
-          row("Speculative variable", "Visible but excluded from baseline", money(speculativeVariable)),
-          row("Next salary date", "Date signal from salary API", nextDate || "Unknown")
-        ].join("");
-
-        renderChecks({ guaranteed, wfhUsd, fx, wfhPkr, confirmedVariable, speculativeVariable, taxPaid, baseline, nextDate });
-      }
-
-      function renderChecks(model) {
-        const checks = [
-          ["No money-contracts dependency", true, "This page does not call /api/money-contracts."],
-          ["Baseline forecast exists", model.baseline > 0, model.baseline > 0 ? "Ready" : "Needs salary API data."],
-          ["Next salary date exists", Boolean(model.nextDate), model.nextDate || "Missing next salary date."],
-          ["Variable pay separated", true, "Confirmed and speculative values are rendered separately."],
-          ["Tax paid signal exists", Number.isFinite(model.taxPaid), "Tax value loaded or safely shown as 0."],
-          ["WFH FX rate available", model.fx > 0, model.fx > 0 ? "WFH PKR can be estimated." : "WFH PKR remains conservative until FX exists."]
-        ];
-
-        $("salaryChecks").innerHTML = checks.map(item => row(item[0], item[2], item[1] ? "OK" : "Check")).join("");
-      }
-
-      function renderFailed(err) {
-        $("baseline").textContent = "Unknown";
-        $("nextSalary").textContent = "Unknown";
-        $("confirmedVariable").textContent = "Unknown";
-        $("taxPaid").textContent = "Unknown";
-        $("salaryRows").innerHTML = row("Salary failed", err.message, "Error");
-        $("salaryChecks").innerHTML = row("Salary API", err.message, "Check");
-      }
-
-      function wireEnforcement() {
-        if (window.SovereignEnforcement && typeof window.SovereignEnforcement.subscribe === "function") {
-          window.SovereignEnforcement.subscribe(snapshot => {
-            updateSaveGate(snapshot);
-            renderAuthority();
-            renderBlock();
-          });
-          updateSaveGate(window.SovereignEnforcement.snapshot());
-          renderAuthority();
-          renderBlock();
-          return;
-        }
-
-        updateSaveGate(null);
-        renderAuthority();
-        renderBlock();
-      }
-
-      async function boot() {
-        wireEnforcement();
-        try {
-          state.salary = await fetchSalary();
-          renderSalary(state.salary);
-        } catch (err) {
-          renderFailed(err);
-        }
-
-        window.SovereignSalary = {
-          version: VERSION,
-          salary: state.salary,
-          enforcement: function () {
-            return { saveGate: state.saveGate };
-          }
-        };
-
-        if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
-          window.SovereignNav.scheduleOverflowCheck();
-        }
-      }
-
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", boot);
       } else {
-        boot();
+        setBadge("salaryGovernorBadge", "Salary save blocked", "badge-blocked");
+        setBadge("salaryWriteBadge", "Proof required", "badge-blocked");
+        setText("salaryAuthorityStatus", "Blocked");
+
+        const panel = $("salaryEnforcement");
+        if (panel) {
+          panel.className = "salary-enforcement";
+          panel.textContent = salarySave && salarySave.reason
+            ? salarySave.reason
+            : "salary.save remains blocked until salary-specific dry-run proof exists.";
+        }
       }
-    })();
-  </script>
+    } catch (err) {
+      setBadge("salaryGovernorBadge", "Governor unknown", "badge-unknown");
+      setBadge("salaryWriteBadge", "Scope unknown", "badge-unknown");
+
+      const panel = $("salaryEnforcement");
+      if (panel) panel.textContent = "Command Centre could not be loaded. Salary writes stay blocked.";
+    }
+  }
+
+  async function loadSalary() {
+    try {
+      const data = await fetchJSON("/api/salary?cb=" + Date.now());
+      salarySource = data;
+      setBadge("salaryApiBadge", "Salary API " + (data.version ? "v" + data.version : "live"), "badge-ready");
+      setText("salarySourceStatus", "Readable");
+    } catch (err) {
+      salarySource = null;
+      setBadge("salaryApiBadge", "Salary source limited", "badge-preflight");
+      setText("salarySourceStatus", "Configured");
+    }
+
+    buildRows();
+  }
+
+  function buildRows() {
+    const apiGuaranteed = salarySource
+      ? numberFrom(salarySource, ["basic_salary", "base_salary", "guaranteed_monthly", "baseline_forecast_pkr", "guaranteed_base_salary"])
+      : null;
+
+    const apiVariable = salarySource
+      ? numberFrom(salarySource, ["variable", "mbo", "overtime", "bonus", "confirmed_variable_pkr", "speculative_variable_pkr"])
+      : null;
+
+    const guaranteed = apiGuaranteed || GUARANTEED_BASIC_PKR;
+
+    rows = [
+      {
+        title: "Basic salary",
+        type: "guaranteed",
+        value: guaranteed,
+        badge: "Guaranteed",
+        badgeClass: "badge-ready",
+        source: apiGuaranteed ? "/api/salary" : "configured baseline",
+        meaning: "Safe baseline input."
+      },
+      {
+        title: "WFH allowance",
+        type: "guaranteed",
+        value: "USD " + GUARANTEED_WFH_USD,
+        badge: "Guaranteed",
+        badgeClass: "badge-ready",
+        source: "salary rule",
+        meaning: "Converted at salary-day exchange rate when calculating cash safety."
+      },
+      {
+        title: "MBO / overtime / variable",
+        type: "variable",
+        value: apiVariable === null ? "Scenario only" : money(apiVariable),
+        badge: "Variable",
+        badgeClass: "badge-preflight",
+        source: apiVariable === null ? "not confirmed" : "/api/salary",
+        meaning: "Not guaranteed monthly baseline."
+      },
+      {
+        title: "Forecast inclusion",
+        type: "blocked",
+        value: "Guarded",
+        badge: "Guarded",
+        badgeClass: "badge-blocked",
+        source: "Command Centre",
+        meaning: "Forecast must separate guaranteed, confirmed variable, and speculative variable."
+      }
+    ];
+
+    render();
+  }
+
+  function render() {
+    setText("salaryBaselineValue", money(GUARANTEED_BASIC_PKR));
+    setText("salaryVariableValue", "Scenario");
+    setText("salarySummary", "Guaranteed baseline is available. Salary writes remain blocked until salary-specific proof exists.");
+
+    const container = $("salarySources");
+    if (!container) return;
+
+    container.innerHTML = rows.map(row => `
+      <article class="salary-row ${escapeHtml(row.type)}">
+        <div class="salary-row-top">
+          <div>
+            <div class="salary-row-title">${escapeHtml(row.title)}</div>
+            <div class="salary-row-sub">${escapeHtml(row.source)}</div>
+          </div>
+          <span class="badge ${escapeHtml(row.badgeClass)}">${escapeHtml(row.badge)}</span>
+        </div>
+
+        <div class="salary-row-value">${escapeHtml(typeof row.value === "number" ? money(row.value) : row.value)}</div>
+
+        <div class="salary-row-meta">
+          <div class="salary-meta-item">
+            <div class="salary-meta-label">Class</div>
+            <div class="salary-meta-value">${escapeHtml(row.type)}</div>
+          </div>
+          <div class="salary-meta-item">
+            <div class="salary-meta-label">Source</div>
+            <div class="salary-meta-value">${escapeHtml(row.source)}</div>
+          </div>
+          <div class="salary-meta-item">
+            <div class="salary-meta-label">Use</div>
+            <div class="salary-meta-value">${escapeHtml(row.meaning)}</div>
+          </div>
+        </div>
+
+        <div class="salary-proof">
+          Salary value is visible for planning, but salary.save remains blocked until dry-run proof and Command Centre lift exist.
+        </div>
+      </article>
+    `).join("");
+  }
+
+  async function init() {
+    console.log("[salary-ui v2.0.0] init");
+    await Promise.allSettled([loadCommandCentre(), loadSalary()]);
+    console.log("[salary-ui v2.0.0] ready", { rows: rows.length });
+  }
+
+  window.SovereignSalaryUI = {
+    version: VERSION,
+    refresh: init,
+    rows: () => rows.slice()
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
 </body>
 </html>
