@@ -1,1594 +1,701 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
-  <title>Sovereign Finance Command Centre</title>
-  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
-  <script src="/js/theme.js?v=1.0.0" defer></script>
-  <script src="/js/nav.js?v=1.1.9" defer></script>
-  <style>
-    :root {
-      --bg:#f5f7fb;
-      --ink:#0f172a;
-      --muted:#64748b;
-      --card:#ffffff;
-      --soft:#f8fafc;
-      --line:rgba(148,163,184,.28);
-      --green:#16a34a;
-      --green-soft:#dcfce7;
-      --blue:#2563eb;
-      --blue-soft:#dbeafe;
-      --amber:#d97706;
-      --amber-soft:#fef3c7;
-      --red:#dc2626;
-      --red-soft:#fee2e2;
-      --slate-soft:#e2e8f0;
-      --shadow:0 18px 52px rgba(15,23,42,.10);
-      --radius:28px;
-    }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Command Centre - Sovereign Finance</title>
+<link rel="stylesheet" href="/css/app.css?v=2.0.0" />
+<style>
+.command-page {
+  max-width: 1480px;
+}
 
-    html,
-    body {
-      margin:0;
-      min-height:100%;
-      max-width:100%;
-      overflow-x:hidden;
-      background:
-        radial-gradient(circle at 8% -6%, rgba(34,197,94,.14), transparent 34rem),
-        radial-gradient(circle at 94% 0%, rgba(37,99,235,.13), transparent 34rem),
-        var(--bg);
-      color:var(--ink);
-      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-    }
+.command-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.65fr);
+  gap: 18px;
+  align-items: start;
+}
 
-    * { box-sizing:border-box; min-width:0; }
-    button,input,select,textarea { font:inherit; }
+.command-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
 
-    .page {
-      width:100%;
-      max-width:var(--sf-content-max,1440px);
-      margin:0 auto;
-      padding:24px 16px 80px;
-    }
+.command-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 26px 0 12px;
+}
 
-    .hero {
-      position:relative;
-      overflow:hidden;
-      border-radius:36px;
-      padding:24px;
-      color:#f8fafc;
-      background:
-        linear-gradient(135deg,rgba(15,23,42,.98),rgba(30,41,59,.96)),
-        radial-gradient(circle at top right,rgba(34,197,94,.24),transparent 28rem);
-      border:1px solid rgba(255,255,255,.10);
-      box-shadow:var(--shadow);
-      margin-bottom:18px;
-    }
+.command-section-title {
+  color: var(--text-strong);
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+}
 
-    .hero-inner {
-      display:grid;
-      grid-template-columns:minmax(0,1fr) minmax(260px,400px);
-      gap:22px;
-      align-items:start;
-    }
+.command-section-copy {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 760;
+}
 
-    .eyebrow {
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      padding:7px 11px;
-      border-radius:999px;
-      background:rgba(34,197,94,.13);
-      color:#bbf7d0;
-      font-size:12px;
-      font-weight:950;
-      text-transform:uppercase;
-      letter-spacing:.08em;
-      margin-bottom:12px;
-    }
+.command-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
 
-    .eyebrow-dot {
-      width:8px;
-      height:8px;
-      border-radius:999px;
-      background:#22c55e;
-      box-shadow:0 0 16px rgba(34,197,94,.82);
-    }
+.command-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
 
-    h1 {
-      margin:0;
-      font-size:clamp(34px,5vw,62px);
-      line-height:.96;
-      letter-spacing:-.07em;
-      font-weight:1000;
-    }
+.command-action-grid {
+  display: grid;
+  gap: 10px;
+}
 
-    .subtitle {
-      max-width:900px;
-      margin:13px 0 0;
-      color:#cbd5e1;
-      font-size:15px;
-      line-height:1.55;
-      font-weight:750;
-    }
+.command-action-card {
+  padding: 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-xs);
+}
 
-    .verdict-card {
-      padding:16px;
-      border-radius:24px;
-      background:rgba(255,255,255,.09);
-      border:1px solid rgba(255,255,255,.13);
-      backdrop-filter:blur(16px);
-    }
+.command-action-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
 
-    .verdict-label {
-      color:#cbd5e1;
-      font-size:11px;
-      font-weight:950;
-      letter-spacing:.08em;
-      text-transform:uppercase;
-    }
+.command-action-title {
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 950;
+  letter-spacing: -0.025em;
+}
 
-    .verdict-value {
-      margin-top:8px;
-      font-size:34px;
-      line-height:1;
-      font-weight:1000;
-      letter-spacing:-.055em;
-    }
+.command-action-meta {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 740;
+}
 
-    .verdict-score {
-      margin-top:6px;
-      color:#e2e8f0;
-      font-size:15px;
-      font-weight:900;
-    }
+.command-route-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
 
-    .verdict-note {
-      margin-top:10px;
-      color:#94a3b8;
-      font-size:12px;
-      font-weight:750;
-      line-height:1.45;
-    }
+.command-route-card {
+  padding: 15px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-xs);
+}
 
-    .controls {
-      display:flex;
-      flex-wrap:wrap;
-      gap:10px;
-      margin-top:22px;
-    }
+.command-route-card.pass {
+  border-color: rgba(4, 120, 87, 0.22);
+}
 
-    .btn {
-      min-height:42px;
-      border:0;
-      border-radius:14px;
-      padding:0 14px;
-      background:#22c55e;
-      color:#052e16;
-      font-size:13px;
-      font-weight:1000;
-      cursor:pointer;
-    }
+.command-route-card.blocked,
+.command-route-card.soft_block,
+.command-route-card.preflight_required {
+  border-color: rgba(185, 28, 28, 0.16);
+}
 
-    .btn.secondary {
-      background:rgba(255,255,255,.10);
-      color:#fff;
-      border:1px solid rgba(255,255,255,.14);
-    }
+.command-route-card.preflight_only,
+.command-route-card.warn,
+.command-route-card.warning {
+  border-color: rgba(180, 83, 9, 0.20);
+}
 
-    .btn.small {
-      min-height:34px;
-      padding:0 10px;
-      border-radius:11px;
-      font-size:12px;
-    }
+.command-route-title {
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 950;
+}
 
-    .panel,
-    .card,
-    .loading,
-    .error {
-      background:rgba(255,255,255,.94);
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      box-shadow:0 12px 34px rgba(15,23,42,.08);
-      min-width:0;
-    }
+.command-route-path {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
 
-    .panel {
-      overflow:hidden;
-      margin-bottom:18px;
-    }
+.command-route-reason {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 740;
+}
 
-    .panel-head {
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:12px;
-      padding:17px 18px;
-      background:rgba(248,250,252,.82);
-      border-bottom:1px solid var(--line);
-    }
+.command-proof-list {
+  display: grid;
+  gap: 10px;
+}
 
-    .panel-title {
-      margin:0;
-      font-size:18px;
-      line-height:1.1;
-      font-weight:1000;
-      letter-spacing:-.035em;
-    }
+.command-proof-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 13px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
 
-    .panel-sub {
-      margin:5px 0 0;
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.4;
-      font-weight:750;
-    }
+.command-proof-title {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 920;
+}
 
-    .panel-body { padding:16px 18px 18px; }
+.command-proof-source {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  font-family: var(--font-mono);
+}
 
-    .grid-2 {
-      display:grid;
-      grid-template-columns:minmax(0,1fr) minmax(360px,.86fr);
-      gap:18px;
-      align-items:start;
-      margin-bottom:18px;
-    }
+.command-emergency-card {
+  padding: 18px;
+  border-radius: var(--r-xl);
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
+  box-shadow: var(--shadow-sm);
+}
 
-    .grid-3 {
-      display:grid;
-      grid-template-columns:repeat(3,minmax(0,1fr));
-      gap:12px;
-      margin-bottom:18px;
-    }
+.command-emergency-title {
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
 
-    .grid-4 {
-      display:grid;
-      grid-template-columns:repeat(4,minmax(0,1fr));
-      gap:12px;
-      margin-bottom:18px;
-    }
+.command-emergency-copy {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.5;
+}
 
-    .grid-6 {
-      display:grid;
-      grid-template-columns:repeat(6,minmax(0,1fr));
-      gap:12px;
-      margin-bottom:18px;
-    }
+.command-playbook {
+  margin-top: 12px;
+  display: grid;
+  gap: 9px;
+}
 
-    .card {
-      padding:14px;
-      border-radius:20px;
-    }
+.command-playbook-item {
+  padding: 11px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.50);
+}
 
-    .card-number {
-      font-size:28px;
-      line-height:1;
-      font-weight:1000;
-      letter-spacing:-.05em;
-      font-variant-numeric:tabular-nums;
-    }
+html[data-theme="dark"] .command-playbook-item,
+body[data-theme="dark"] .command-playbook-item {
+  background: rgba(15,23,42,0.42);
+}
 
-    .card-label {
-      margin-top:7px;
-      color:var(--muted);
-      font-size:10px;
-      font-weight:950;
-      letter-spacing:.06em;
-      text-transform:uppercase;
-    }
+.command-playbook-title {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 900;
+}
 
-    .card-note {
-      margin-top:8px;
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.38;
-      font-weight:740;
-    }
+.command-playbook-copy {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
 
-    .badge {
-      display:inline-flex;
-      align-items:center;
-      width:fit-content;
-      padding:6px 9px;
-      border-radius:999px;
-      border:1px solid transparent;
-      font-size:10px;
-      font-weight:1000;
-      text-transform:uppercase;
-      letter-spacing:.04em;
-      white-space:nowrap;
-    }
+.command-empty {
+  padding: 18px;
+  border-radius: var(--r-lg);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  background: var(--surface-2);
+  font-size: 13px;
+  font-weight: 780;
+  text-align: center;
+}
 
-    .ready,.pass,.good,.true {
-      color:#166534;
-      background:var(--green-soft);
-      border-color:rgba(22,163,74,.20);
-    }
+@media (max-width: 1180px) {
+  .command-grid,
+  .command-two-col {
+    grid-template-columns: 1fr;
+  }
 
-    .warning,.warn,.ready-with-warnings {
-      color:#92400e;
-      background:var(--amber-soft);
-      border-color:rgba(217,119,6,.20);
-    }
+  .command-kpi-grid,
+  .command-route-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 
-    .blocked,.fail,.bad,.false {
-      color:#991b1b;
-      background:var(--red-soft);
-      border-color:rgba(220,38,38,.20);
-    }
+@media (max-width: 720px) {
+  .command-kpi-grid,
+  .command-route-grid {
+    grid-template-columns: 1fr;
+  }
 
-    .unknown,.info,.ready-with-unknown,.soft-block {
-      color:#1d4ed8;
-      background:var(--blue-soft);
-      border-color:rgba(37,99,235,.18);
-    }
+  .command-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 
-    .banned,.protected,.schema-only {
-      color:#334155;
-      background:var(--slate-soft);
-      border-color:rgba(71,85,105,.22);
-    }
-
-    .final-gate {
-      border-color:rgba(34,197,94,.26);
-      background:linear-gradient(135deg,rgba(220,252,231,.82),rgba(255,255,255,.96));
-    }
-
-    .final-gate.blocked {
-      border-color:rgba(220,38,38,.26);
-      background:linear-gradient(135deg,rgba(254,226,226,.88),rgba(255,255,255,.96));
-    }
-
-    .final-gate.warning,
-    .final-gate.ready-with-warnings {
-      border-color:rgba(217,119,6,.26);
-      background:linear-gradient(135deg,rgba(254,243,199,.88),rgba(255,255,255,.96));
-    }
-
-    .final-gate.ready-with-unknown,
-    .final-gate.unknown {
-      border-color:rgba(37,99,235,.22);
-      background:linear-gradient(135deg,rgba(219,234,254,.88),rgba(255,255,255,.96));
-    }
-
-    .final-decision {
-      font-size:clamp(32px,5vw,56px);
-      line-height:.94;
-      letter-spacing:-.065em;
-      font-weight:1000;
-    }
-
-    .table-wrap {
-      width:100%;
-      overflow-x:auto;
-      -webkit-overflow-scrolling:touch;
-    }
-
-    table {
-      width:100%;
-      border-collapse:collapse;
-      min-width:960px;
-      font-size:12px;
-    }
-
-    th,td {
-      padding:11px 8px;
-      border-bottom:1px solid rgba(148,163,184,.20);
-      text-align:left;
-      vertical-align:top;
-    }
-
-    th {
-      color:var(--muted);
-      font-size:10px;
-      font-weight:1000;
-      letter-spacing:.06em;
-      text-transform:uppercase;
-    }
-
-    td { font-weight:760; }
-
-    .issue-list,
-    .card-grid {
-      display:grid;
-      grid-template-columns:repeat(2,minmax(0,1fr));
-      gap:10px;
-    }
-
-    .issue {
-      display:grid;
-      grid-template-columns:30px minmax(0,1fr);
-      gap:10px;
-      padding:12px;
-      border-radius:18px;
-      background:var(--soft);
-      border:1px solid rgba(148,163,184,.18);
-    }
-
-    .issue-mark {
-      width:30px;
-      height:30px;
-      display:grid;
-      place-items:center;
-      border-radius:12px;
-      background:#fff;
-      border:1px solid rgba(148,163,184,.22);
-      font-size:13px;
-      font-weight:1000;
-    }
-
-    .issue-title {
-      color:var(--ink);
-      font-size:13px;
-      line-height:1.28;
-      font-weight:1000;
-    }
-
-    .issue-meta {
-      display:flex;
-      flex-wrap:wrap;
-      gap:6px;
-      margin-top:7px;
-    }
-
-    .issue-text {
-      margin-top:6px;
-      color:var(--muted);
-      font-size:12px;
-      line-height:1.4;
-      font-weight:720;
-    }
-
-    details.audit {
-      background:var(--card);
-      border:1px solid var(--line);
-      border-radius:var(--radius);
-      box-shadow:0 12px 34px rgba(15,23,42,.07);
-      overflow:hidden;
-      margin-bottom:14px;
-    }
-
-    details.audit > summary {
-      list-style:none;
-      cursor:pointer;
-      padding:16px 18px;
-      display:flex;
-      justify-content:space-between;
-      gap:12px;
-      align-items:center;
-      background:rgba(248,250,252,.84);
-      font-size:15px;
-      font-weight:1000;
-      letter-spacing:-.025em;
-    }
-
-    details.audit > summary::-webkit-details-marker { display:none; }
-
-    .loading,.error {
-      padding:34px 18px;
-      text-align:center;
-      color:var(--muted);
-      font-size:14px;
-      font-weight:900;
-    }
-
-    .error { color:var(--red); }
-
-    .empty {
-      padding:16px;
-      border:1px dashed rgba(148,163,184,.34);
-      border-radius:18px;
-      color:var(--muted);
-      background:var(--soft);
-      font-size:13px;
-      font-weight:800;
-      line-height:1.45;
-    }
-
-    .runtime-table select,
-    .runtime-table input {
-      width:100%;
-      border:1px solid rgba(148,163,184,.34);
-      border-radius:12px;
-      background:#fff;
-      color:var(--ink);
-      padding:9px 10px;
-      font-size:12px;
-      font-weight:760;
-      outline:none;
-    }
-
-    @media (max-width:1240px) {
-      .hero-inner,
-      .grid-2 { grid-template-columns:1fr; }
-      .grid-6 { grid-template-columns:repeat(3,minmax(0,1fr)); }
-      .grid-4 { grid-template-columns:repeat(2,minmax(0,1fr)); }
-    }
-
-    @media (max-width:760px) {
-      .page { padding:18px 10px 90px; }
-      .hero { padding:20px; border-radius:28px; }
-      .controls,.btn { width:100%; }
-      .grid-6,.grid-4,.grid-3,.card-grid,.issue-list { grid-template-columns:1fr; }
-      .panel-head,.panel-body { padding-left:14px; padding-right:14px; }
-    }
-  </style>
+  .command-proof-row {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
 </head>
 <body>
-  <main class="page app-page">
-    <section class="hero">
-      <div class="hero-inner">
-        <div>
-          <div class="eyebrow"><span class="eyebrow-dot"></span> Backend Enforcement Display</div>
-          <h1>Finance Command Centre</h1>
-          <p class="subtitle">
-            v0.7.3 displays backend enforcement authority from /api/finance-command-center v0.1.2. This page shows what would be blocked, why it is blocked, the source rule, the required fix, and override status. It does not enforce routes or disable actions yet.
-          </p>
+<header>
+<div>
+<div class="brand">Sovereign Finance</div>
+<div class="title">Command Centre</div>
+</div>
+</header>
+
+<main class="app-page command-page">
+<section class="command-grid">
+<div class="command-hero">
+<div class="hero-kicker">Authority dashboard</div>
+<h1 class="hero-title">Nothing moves unless the governor says it is safe.</h1>
+<p class="hero-copy">
+Command Centre shows what is allowed, what is blocked, what proof exists, and what still needs dry-run evidence. It does not hide risk and it does not turn Unknown into Ready.
+</p>
+
+<div class="command-status-strip">
+<span id="cmdVersionBadge" class="badge badge-unknown">Version loading</span>
+<span id="cmdGovernorBadge" class="badge badge-unknown">Governor loading</span>
+<span id="cmdWriteScopeBadge" class="badge badge-info">Scope loading</span>
+<span id="cmdOverrideBadge" class="badge badge-unknown">Overrides loading</span>
+</div>
+</div>
+
+<aside class="command-emergency-card">
+<div class="command-emergency-title">Emergency / override posture</div>
+<div id="cmdEmergencyCopy" class="command-emergency-copy">
+Loading override policy...
+</div>
+<div id="cmdEmergencyPlaybook" class="command-playbook"></div>
+</aside>
+</section>
+
+<section>
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Governor state</div>
+<div class="command-section-copy">High-level health, write scope, and blocked action count.</div>
+</div>
+<span id="cmdComputedAt" class="badge badge-info">Loading</span>
+</div>
+
+<div class="command-kpi-grid">
+<div class="kpi-card">
+<div class="kpi-label">Status</div>
+<div id="cmdStatus" class="kpi-value">-</div>
+<div id="cmdStatusSub" class="kpi-sub">Loading Command Centre</div>
+</div>
+
+<div class="kpi-card">
+<div class="kpi-label">Write safety</div>
+<div id="cmdWriteSafety" class="kpi-value">-</div>
+<div id="cmdWriteSafetySub" class="kpi-sub">Loading proof state</div>
+</div>
+
+<div class="kpi-card">
+<div class="kpi-label">Allowed actions</div>
+<div id="cmdAllowedCount" class="kpi-value">-</div>
+<div id="cmdAllowedSub" class="kpi-sub">Loading actions</div>
+</div>
+
+<div class="kpi-card">
+<div class="kpi-label">Blocked actions</div>
+<div id="cmdBlockedCount" class="kpi-value">-</div>
+<div id="cmdBlockedSub" class="kpi-sub">Loading blockers</div>
+</div>
+</div>
+</section>
+
+<section class="command-two-col">
+<div>
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Allowed / blocked actions</div>
+<div class="command-section-copy">The exact action-level authority state.</div>
+</div>
+</div>
+<div id="cmdActions" class="command-action-grid"></div>
+</div>
+
+<div>
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Source proofs</div>
+<div class="command-section-copy">Evidence Command Centre used to make decisions.</div>
+</div>
+</div>
+<div id="cmdProofs" class="command-proof-list"></div>
+</div>
+</section>
+
+<section>
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Routes and pages</div>
+<div class="command-section-copy">Pages stay viewable when useful, but unsafe actions stay gated.</div>
+</div>
+</div>
+<div id="cmdRoutes" class="command-route-grid"></div>
+</section>
+
+<section>
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Next actions</div>
+<div class="command-section-copy">What remains after the governor is complete.</div>
+</div>
+</div>
+<div id="cmdNextActions" class="command-proof-list"></div>
+</section>
+
+<footer class="bills-page-meta" aria-hidden="true">
+Command Centre dashboard UI v2.0.0
+</footer>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="/js/theme.js?v=1.0.0"></script>
+<script src="/js/nav.js?v=2.0.0"></script>
+<script src="/js/enforcement.js?v=0.2.0"></script>
+<script>
+(function () {
+  "use strict";
+
+  const VERSION = "2.0.0";
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value;
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function badgeClass(status) {
+    const s = String(status || "").toLowerCase();
+
+    if (s === "pass" || s === "allowed" || s === "ready" || s === "governor_complete" || s === "policy_complete") return "badge badge-ready";
+    if (s === "preflight_only" || s === "preflight_ready" || s === "warning" || s === "warn" || s === "ready_with_warnings") return "badge badge-preflight";
+    if (s === "blocked" || s === "soft_block" || s === "preflight_required") return "badge badge-blocked";
+    if (s === "banned") return "badge badge-blocked";
+    if (s === "unknown") return "badge badge-unknown";
+
+    return "badge badge-info";
+  }
+
+  function short(value, fallback) {
+    const text = String(value || fallback || "");
+    return text.length > 120 ? text.slice(0, 117) + "..." : text;
+  }
+
+  async function fetchCommandCentre() {
+    const res = await fetch("/api/finance-command-center?cb=" + Date.now(), { cache: "no-store" });
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data) {
+      throw new Error(data && data.error ? data.error : "Command Centre failed to load");
+    }
+
+    return data;
+  }
+
+  function renderHeader(data) {
+    const writeSafety = data.coverage && data.coverage.write_safety ? data.coverage.write_safety : {};
+    const scope = Array.isArray(writeSafety.real_write_scope) ? writeSafety.real_write_scope : [];
+    const overrideStatus = data.enforcement && data.enforcement.overrides ? data.enforcement.overrides.status : "unknown";
+    const globalStatus = data.enforcement ? data.enforcement.global_status : data.verdict;
+
+    const versionBadge = $("cmdVersionBadge");
+    const governorBadge = $("cmdGovernorBadge");
+    const scopeBadge = $("cmdWriteScopeBadge");
+    const overrideBadge = $("cmdOverrideBadge");
+
+    if (versionBadge) {
+      versionBadge.className = "badge badge-info";
+      versionBadge.textContent = "Command v" + data.version;
+    }
+
+    if (governorBadge) {
+      governorBadge.className = badgeClass(globalStatus);
+      governorBadge.textContent = String(globalStatus || "unknown").replace(/_/g, " ");
+    }
+
+    if (scopeBadge) {
+      scopeBadge.className = scope.length ? "badge badge-ready" : "badge badge-unknown";
+      scopeBadge.textContent = scope.length ? "Scope: " + scope.join(", ") : "No write scope";
+    }
+
+    if (overrideBadge) {
+      overrideBadge.className = badgeClass(overrideStatus);
+      overrideBadge.textContent = "Overrides: " + String(overrideStatus || "unknown").replace(/_/g, " ");
+    }
+
+    setText("cmdComputedAt", data.computed_at ? "Computed " + new Date(data.computed_at).toLocaleString() : "Computed now");
+  }
+
+  function renderKpis(data) {
+    const actions = data.enforcement && Array.isArray(data.enforcement.actions) ? data.enforcement.actions : [];
+    const allowed = actions.filter(action => action.allowed);
+    const blocked = actions.filter(action => !action.allowed);
+    const writeSafety = data.coverage && data.coverage.write_safety ? data.coverage.write_safety : {};
+
+    setText("cmdStatus", String(data.enforcement?.global_status || data.verdict || "Unknown").replace(/_/g, " "));
+    setText("cmdStatusSub", data.trial_gate?.reason || data.enforcement?.enforcement_status_note || "Governor state loaded");
+
+    setText("cmdWriteSafety", String(writeSafety.status || "Unknown").replace(/_/g, " "));
+    setText("cmdWriteSafetySub", Array.isArray(writeSafety.real_write_scope) && writeSafety.real_write_scope.length ? "Scope: " + writeSafety.real_write_scope.join(", ") : "No real write scope");
+
+    setText("cmdAllowedCount", String(allowed.length));
+    setText("cmdAllowedSub", allowed.slice(0, 3).map(a => a.action).join(", ") || "No allowed actions");
+
+    setText("cmdBlockedCount", String(blocked.length));
+    setText("cmdBlockedSub", blocked.slice(0, 3).map(a => a.action).join(", ") || "No blocked actions");
+  }
+
+  function renderActions(data) {
+    const container = $("cmdActions");
+    if (!container) return;
+
+    const actions = data.enforcement && Array.isArray(data.enforcement.actions) ? data.enforcement.actions : [];
+
+    if (!actions.length) {
+      container.innerHTML = '<div class="command-empty">No action policy returned.</div>';
+      return;
+    }
+
+    const priority = [
+      "transaction.save",
+      "bill.save",
+      "bill.clear",
+      "override.request",
+      "override.apply",
+      "debt.save",
+      "reconciliation.declare",
+      "salary.save",
+      "forecast.generate",
+      "money_contracts.use_as_truth_source"
+    ];
+
+    const sorted = actions.slice().sort((a, b) => {
+      const ai = priority.indexOf(a.action);
+      const bi = priority.indexOf(b.action);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+
+    container.innerHTML = sorted.map(action => `
+      <article class="command-action-card">
+        <div class="command-action-top">
+          <div class="command-action-title">${escapeHtml(action.action)}</div>
+          <span class="${action.allowed ? "badge badge-ready" : "badge badge-blocked"}">${action.allowed ? "Allowed" : "Blocked"}</span>
         </div>
+        <div class="command-action-meta">
+          <strong>Module:</strong> ${escapeHtml(action.module || "system")}<br>
+          <strong>Source:</strong> ${escapeHtml(action.source || "N/A")}<br>
+          <strong>Reason:</strong> ${escapeHtml(action.reason || "No reason returned.")}<br>
+          <strong>Fix:</strong> ${escapeHtml(action.required_fix || "None.")}
+        </div>
+      </article>
+    `).join("");
+  }
 
-        <aside class="verdict-card">
-          <div class="verdict-label">Backend verdict</div>
-          <div class="verdict-value" id="heroVerdict">Loading</div>
-          <div class="verdict-score" id="heroScore">Audit running</div>
-          <div class="verdict-note" id="heroNote">Reading backend audit engine.</div>
-        </aside>
+  function renderProofs(data) {
+    const container = $("cmdProofs");
+    if (!container) return;
+
+    const proofs = Array.isArray(data.source_proofs) ? data.source_proofs : [];
+
+    if (!proofs.length) {
+      container.innerHTML = '<div class="command-empty">No source proofs returned.</div>';
+      return;
+    }
+
+    container.innerHTML = proofs.map(proof => `
+      <div class="command-proof-row">
+        <div>
+          <div class="command-proof-title">${escapeHtml(proof.key || "proof")}</div>
+          <div class="command-proof-source">${escapeHtml(proof.source || "No source returned")}</div>
+        </div>
+        <span class="${badgeClass(proof.status)}">${escapeHtml(proof.status || "unknown")}</span>
       </div>
+    `).join("");
+  }
 
-      <div class="controls">
-        <button class="btn" id="refreshBtn" type="button">Run Backend Audit</button>
-        <button class="btn secondary" id="detailsBtn" type="button">Open Details</button>
-        <button class="btn secondary" id="resetRuntimeBtn" type="button">Reset Runtime Checklist</button>
+  function renderRoutes(data) {
+    const container = $("cmdRoutes");
+    if (!container) return;
+
+    const routes = data.enforcement && Array.isArray(data.enforcement.routes) ? data.enforcement.routes : [];
+
+    if (!routes.length) {
+      container.innerHTML = '<div class="command-empty">No route policy returned.</div>';
+      return;
+    }
+
+    container.innerHTML = routes.map(route => `
+      <article class="command-route-card ${escapeHtml(route.status || "unknown")}">
+        <div class="command-action-top">
+          <div>
+            <div class="command-route-title">${escapeHtml(route.module || route.route || "route")}</div>
+            <div class="command-route-path">${escapeHtml(route.route || "")}</div>
+          </div>
+          <span class="${badgeClass(route.status)}">${escapeHtml(route.status || "unknown")}</span>
+        </div>
+        <div class="command-route-reason">
+          <strong>Actions:</strong> ${route.actions_allowed ? "Allowed" : "Blocked / gated"}<br>
+          <strong>Reason:</strong> ${escapeHtml(short(route.reason, "No reason returned."))}<br>
+          <strong>Fix:</strong> ${escapeHtml(short(route.required_fix, "None."))}
+        </div>
+      </article>
+    `).join("");
+  }
+
+  function renderEmergency(data) {
+    const copy = $("cmdEmergencyCopy");
+    const playbook = $("cmdEmergencyPlaybook");
+    const overrides = data.enforcement && data.enforcement.overrides ? data.enforcement.overrides : data.override_policy;
+
+    if (copy) {
+      copy.textContent = overrides
+        ? "Override posture: " + (overrides.status || "policy available") + ". Silent bypass is not allowed. Any future override must be explicit, reasoned, time-bound, and API-owned."
+        : "Override policy not returned.";
+    }
+
+    const playbooks = data.emergency_playbooks || [];
+
+    if (!playbook) return;
+
+    if (!playbooks.length) {
+      playbook.innerHTML = `
+        <div class="command-playbook-item">
+          <div class="command-playbook-title">Emergency rule</div>
+          <div class="command-playbook-copy">Do not silently bypass Command Centre. Fix proof or implement API-owned override with audit.</div>
+        </div>
+      `;
+      return;
+    }
+
+    playbook.innerHTML = playbooks.slice(0, 4).map(item => `
+      <div class="command-playbook-item">
+        <div class="command-playbook-title">${escapeHtml(item.label || item.key || "Playbook")}</div>
+        <div class="command-playbook-copy">${escapeHtml(Array.isArray(item.steps) ? item.steps.slice(0, 2).join(" · ") : "Follow emergency policy.")}</div>
       </div>
-    </section>
-
-    <div id="app">
-      <section class="loading">Running backend audit...</section>
-    </div>
-  </main>
-
-  <script>
-    (function () {
-      "use strict";
-
-      window.SovereignCommandCentre = {
-        version: "0.7.3",
-        mode: "backend-enforcement-display",
-        source: "/api/finance-command-center"
-      };
-
-      const RUNTIME_KEY = "sovereign.commandCentre.runtimeChecklist.v1";
-
-      const RUNTIME_ITEMS = [
-        { key: "hub", label: "Hub", url: "/index.html" },
-        { key: "add", label: "Add", url: "/add.html" },
-        { key: "transactions", label: "Transactions", url: "/transactions.html" },
-        { key: "accounts", label: "Accounts", url: "/accounts.html" },
-        { key: "credit_card", label: "Credit Card", url: "/cc.html" },
-        { key: "bills", label: "Bills", url: "/bills.html" },
-        { key: "debts", label: "Debts", url: "/debts.html" },
-        { key: "salary", label: "Salary", url: "/salary.html" },
-        { key: "forecast", label: "Forecast", url: "/forecast.html" },
-        { key: "reconciliation", label: "Reconciliation", url: "/reconciliation.html" },
-        { key: "command_centre", label: "Command Centre", url: "/monthly-close.html" }
-      ];
-
-      const app = document.getElementById("app");
-      const refreshBtn = document.getElementById("refreshBtn");
-      const detailsBtn = document.getElementById("detailsBtn");
-      const resetRuntimeBtn = document.getElementById("resetRuntimeBtn");
-
-      function esc(value) {
-        return String(value == null ? "" : value)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      }
-
-      function norm(value) {
-        return String(value || "unknown").toLowerCase().replace(/\s+/g, "-").replace(/_/g, "-");
-      }
-
-      function titleCase(value) {
-        return String(value || "").replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-      }
-
-      function badge(status, label) {
-        const clean = norm(status);
-        return `<span class="badge ${esc(clean)}">${esc(label || titleCase(clean))}</span>`;
-      }
-
-      function pct(value) {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return "Unknown";
-        return `${Math.round(n)}%`;
-      }
-
-      function num(value) {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return "0";
-        return String(n);
-      }
-
-      function boolText(value) {
-        if (value === true) return "Yes";
-        if (value === false) return "No";
-        return "Unknown";
-      }
-
-      function boolStatus(value) {
-        if (value === true) return "true";
-        if (value === false) return "false";
-        return "unknown";
-      }
-
-      function verdictLabel(value) {
-        const key = norm(value);
-        return {
-          ready: "Ready",
-          warning: "Warning",
-          blocked: "Blocked",
-          "ready-with-unknown": "Ready with Unknowns",
-          "ready-with-warnings": "Ready with Warnings",
-          unknown: "Unknown"
-        }[key] || titleCase(key);
-      }
-
-      function scoreStatus(value) {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return "unknown";
-        if (n >= 90) return "ready";
-        if (n >= 70) return "warning";
-        if (n > 0) return "blocked";
-        return "unknown";
-      }
-
-      function safeArray(value) {
-        return Array.isArray(value) ? value : [];
-      }
-
-      function getSummary(data) {
-        const summary = data.summary || {};
-        return {
-          hard_blocker_count: summary.hard_blocker_count ?? safeArray(data.hard_blockers).length,
-          warning_count: summary.warning_count ?? safeArray(data.warnings).length,
-          unknown_count: summary.unknown_count ?? safeArray(data.unknowns).length,
-          module_count: summary.module_count ?? safeArray(data.modules).length,
-          registered_page_count: summary.registered_page_count ?? safeArray(data.pages).length,
-          api_check_count: summary.api_check_count ?? safeArray(data.apis).length,
-          business_rule_count: summary.business_rule_count ?? safeArray(data.business_rules).length,
-          enforcement_blocked_action_count: summary.enforcement_blocked_action_count ?? safeArray(data.enforcement && data.enforcement.blocked_actions).length,
-          enforcement_view_only_route_count: summary.enforcement_view_only_route_count ?? safeArray(data.enforcement && data.enforcement.view_only_routes).length
-        };
-      }
-
-      function renderSummaryStrip(data) {
-        const s = getSummary(data);
-        const cards = [
-          ["Modules", s.module_count],
-          ["Pages", s.registered_page_count],
-          ["API checks", s.api_check_count],
-          ["Rules", s.business_rule_count],
-          ["Blockers", s.hard_blocker_count],
-          ["Warnings", s.warning_count],
-          ["Unknowns", s.unknown_count]
-        ];
-
-        return `<section class="grid-6">${cards.map(([label, value]) => `
-          <div class="card">
-            <div class="card-number">${esc(num(value))}</div>
-            <div class="card-label">${esc(label)}</div>
-          </div>
-        `).join("")}</section>`;
-      }
-
-      function renderScores(data) {
-        const scores = data.scores || {};
-        const cards = [
-          ["Frontend Registry", scores.frontend_registry, "Known module/page/API registry coverage."],
-          ["API Health", scores.api_health, "Required APIs responding as JSON."],
-          ["D1 Truth", scores.d1_truth, "Required D1 tables readable."],
-          ["Business Rules", scores.business_rules, "Locked finance rules checked by backend."],
-          ["Write Safety", scores.write_safety, "Dry-run/write safety proof. Zero means Unknown, not failed."],
-          ["Runtime", scores.runtime, "Browser/manual runtime proof. Zero means Unknown, not failed."]
-        ];
-
-        return `<section class="grid-6">${cards.map(([label, value, note]) => `
-          <div class="card">
-            <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
-              <div class="card-label">${esc(label)}</div>
-              ${badge(scoreStatus(value), scoreStatus(value))}
-            </div>
-            <div class="card-number">${pct(value)}</div>
-            <div class="card-note">${esc(note)}</div>
-          </div>
-        `).join("")}</section>`;
-      }
-
-      function renderTrialGate(data) {
-        const gate = data.trial_gate || {};
-        const enforcement = data.enforcement || {};
-        const status = norm(gate.status || data.verdict || "unknown");
-
-        return `
-          <section class="panel final-gate ${esc(status)}">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Trial Gate</h2>
-                <p class="panel-sub">Backend readiness remains separate from enforcement display and manual runtime evidence.</p>
-              </div>
-              ${badge(status, verdictLabel(status))}
-            </div>
-            <div class="panel-body">
-              <div class="grid-2">
-                <div>
-                  <div class="final-decision">${esc(verdictLabel(status))}</div>
-                  <p class="card-note">${esc(gate.reason || "Backend audit returned no trial-gate reason.")}</p>
-                  <p class="card-note">Full certification must stay No until runtime and write safety are proven.</p>
-                </div>
-                <div class="card-grid">
-                  ${metric("Known-page trial", boolText(gate.ready_for_known_page_trial), badge(boolStatus(gate.ready_for_known_page_trial), boolText(gate.ready_for_known_page_trial)))}
-                  ${metric("Full certification", boolText(gate.ready_for_full_system_certification), badge(boolStatus(gate.ready_for_full_system_certification), boolText(gate.ready_for_full_system_certification)))}
-                  ${metric("Backend version", data.version || "Unknown", "Expected v0.1.2 or newer")}
-                  ${metric("Enforcement schema", enforcement.version || "Missing", enforcement.schema_only ? "Schema only" : "Live enforcement")}
-                </div>
-              </div>
-            </div>
-          </section>
-        `;
-      }
-
-      function metric(label, value, note) {
-        return `
-          <div class="card">
-            <div class="card-label">${esc(label)}</div>
-            <div class="card-number" style="font-size:22px;">${esc(value)}</div>
-            <div class="card-note">${typeof note === "string" ? esc(note) : note}</div>
-          </div>
-        `;
-      }
-
-      function renderEnforcementOverview(data) {
-        const e = data.enforcement || {};
-        const s = getSummary(data);
-
-        if (!e || !e.version) {
-          return `
-            <section class="panel final-gate blocked">
-              <div class="panel-head">
-                <div>
-                  <h2 class="panel-title">Enforcement Authority</h2>
-                  <p class="panel-sub">Backend enforcement object missing. Phase 2 cannot be trusted until backend returns enforcement.</p>
-                </div>
-                ${badge("blocked", "Missing")}
-              </div>
-              <div class="panel-body">
-                <div class="empty">No enforcement object returned by backend.</div>
-              </div>
-            </section>
-          `;
-        }
-
-        return `
-          <section class="panel final-gate ${esc(norm(e.global_status || "unknown"))}">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Enforcement Authority</h2>
-                <p class="panel-sub">Schema-only authority policy. This page displays blocks; it does not enforce them yet.</p>
-              </div>
-              ${badge(e.schema_only ? "schema-only" : e.global_status, e.schema_only ? "Schema Only" : e.global_status)}
-            </div>
-            <div class="panel-body">
-              <div class="grid-4">
-                ${metric("Global status", verdictLabel(e.global_status), `Level ${num(e.global_level)}`)}
-                ${metric("Blocked actions", num(s.enforcement_blocked_action_count), "Actions backend says should be blocked")}
-                ${metric("View-only routes", num(s.enforcement_view_only_route_count), "Routes allowed for view but not action")}
-                ${metric("Override allowed", boolText(e.overrides && e.overrides.allowed), (e.overrides && e.overrides.note) || "Override policy returned by backend")}
-              </div>
-              <div class="empty">
-                ${esc(e.enforcement_status_note || "This is backend authority schema only. Frontend and mutating APIs do not yet enforce it.")}
-              </div>
-            </div>
-          </section>
-        `;
-      }
-
-      function renderBlockExplanations(data) {
-        const e = data.enforcement || {};
-        const blocks = safeArray(e.block_explanations);
-
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Why Things Are Blocked</h2>
-                <p class="panel-sub">Mandatory block explanations. Every block must show what, why, source, required fix, and override status.</p>
-              </div>
-              ${badge(blocks.length ? "blocked" : "good", `${blocks.length} blocks`)}
-            </div>
-            <div class="panel-body">
-              ${blocks.length ? `
-                <div class="issue-list">
-                  ${blocks.map((b, i) => `
-                    <div class="issue">
-                      <div class="issue-mark">!</div>
-                      <div>
-                        <div class="issue-title">${esc(b.blocked_item || `block_${i + 1}`)}</div>
-                        <div class="issue-meta">
-                          ${badge(b.block_type || "blocked", b.block_type || "blocked")}
-                          ${badge(b.override_allowed ? "warning" : "blocked", b.override_allowed ? "override allowed" : "no override")}
-                          ${badge(b.backend_enforced ? "pass" : "unknown", b.backend_enforced ? "backend enforced" : "not backend enforced yet")}
-                          ${badge(b.frontend_enforced ? "pass" : "unknown", b.frontend_enforced ? "frontend enforced" : "not frontend enforced yet")}
-                        </div>
-                        <div class="issue-text"><strong>Reason:</strong> ${esc(b.reason || "No reason returned.")}</div>
-                        <div class="issue-text"><strong>Source:</strong> ${esc(b.source || "No source returned.")}</div>
-                        <div class="issue-text"><strong>Required fix:</strong> ${esc(b.required_fix || "No required fix returned.")}</div>
-                      </div>
-                    </div>
-                  `).join("")}
-                </div>
-              ` : `<div class="empty">No block explanations returned. If anything is blocked later, this section must explain it.</div>`}
-            </div>
-          </section>
-        `;
-      }
-
-      function renderRouteGates(data) {
-        const routes = safeArray(data.enforcement && data.enforcement.routes);
-
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Route Gates</h2>
-                <p class="panel-sub">Backend route authority. This is display-only in v0.7.3.</p>
-              </div>
-              ${badge("info", `${routes.length} routes`)}
-            </div>
-            <div class="panel-body">
-              ${routes.length ? `
-                <div class="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Route</th>
-                        <th>Module</th>
-                        <th>Status</th>
-                        <th>Level</th>
-                        <th>View</th>
-                        <th>Actions</th>
-                        <th>Reason</th>
-                        <th>Source</th>
-                        <th>Required Fix</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${routes.map(r => `
-                        <tr>
-                          <td><strong>${esc(r.route)}</strong></td>
-                          <td>${esc(r.module || "unknown")}</td>
-                          <td>${badge(r.status || "unknown", r.status || "unknown")}</td>
-                          <td>${esc(num(r.level))}</td>
-                          <td>${badge(boolStatus(r.view_allowed), boolText(r.view_allowed))}</td>
-                          <td>${badge(boolStatus(r.actions_allowed), boolText(r.actions_allowed))}</td>
-                          <td>${esc(r.reason || "")}</td>
-                          <td>${esc(r.source || "")}</td>
-                          <td>${esc(r.required_fix || "")}</td>
-                        </tr>
-                      `).join("")}
-                    </tbody>
-                  </table>
-                </div>
-              ` : `<div class="empty">No route gates returned.</div>`}
-            </div>
-          </section>
-        `;
-      }
-
-      function renderActionGates(data) {
-        const actions = safeArray(data.enforcement && data.enforcement.actions);
-
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Action Gates</h2>
-                <p class="panel-sub">Backend action authority. These are not enforced by frontend yet.</p>
-              </div>
-              ${badge("info", `${actions.length} actions`)}
-            </div>
-            <div class="panel-body">
-              ${actions.length ? `
-                <div class="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Action</th>
-                        <th>Module</th>
-                        <th>Status</th>
-                        <th>Allowed</th>
-                        <th>Level</th>
-                        <th>Reason</th>
-                        <th>Source</th>
-                        <th>Required Fix</th>
-                        <th>Backend</th>
-                        <th>Frontend</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${actions.map(a => `
-                        <tr>
-                          <td><strong>${esc(a.action)}</strong></td>
-                          <td>${esc(a.module || "unknown")}</td>
-                          <td>${badge(a.status || "unknown", a.status || "unknown")}</td>
-                          <td>${badge(boolStatus(a.allowed), boolText(a.allowed))}</td>
-                          <td>${esc(num(a.level))}</td>
-                          <td>${esc(a.reason || "")}</td>
-                          <td>${esc(a.source || "")}</td>
-                          <td>${esc(a.required_fix || "")}</td>
-                          <td>${badge(boolStatus(a.backend_enforced), boolText(a.backend_enforced))}</td>
-                          <td>${badge(boolStatus(a.frontend_enforced), boolText(a.frontend_enforced))}</td>
-                        </tr>
-                      `).join("")}
-                    </tbody>
-                  </table>
-                </div>
-              ` : `<div class="empty">No action gates returned.</div>`}
-            </div>
-          </section>
-        `;
-      }
-
-      function renderEnforcementLists(data) {
-        const e = data.enforcement || {};
-        const blockedActions = safeArray(e.blocked_actions);
-        const viewOnlyRoutes = safeArray(e.view_only_routes);
-        const blockedRoutes = safeArray(e.blocked_routes);
-        const reasons = safeArray(e.reasons);
-
-        return `
-          <section class="grid-2">
-            ${renderSimpleList("Blocked Actions", "Actions backend says should not run.", blockedActions, "blocked")}
-            ${renderSimpleList("View-Only Routes", "Routes that can be inspected but should not allow risky actions.", viewOnlyRoutes, "unknown")}
-          </section>
-          <section class="grid-2">
-            ${renderSimpleList("Blocked Routes", "Routes that would be blocked if route enforcement is later enabled.", blockedRoutes, "blocked")}
-            ${renderSimpleList("Enforcement Reasons", "Deduped backend reasons behind blocks and restrictions.", reasons, "warning")}
-          </section>
-        `;
-      }
-
-      function renderSimpleList(title, subtitle, items, severity) {
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">${esc(title)}</h2>
-                <p class="panel-sub">${esc(subtitle)}</p>
-              </div>
-              ${badge(items.length ? severity : "good", `${items.length}`)}
-            </div>
-            <div class="panel-body">
-              ${items.length ? `
-                <div class="issue-list">
-                  ${items.map((item, i) => `
-                    <div class="issue">
-                      <div class="issue-mark">${i + 1}</div>
-                      <div>
-                        <div class="issue-title">${esc(item)}</div>
-                        <div class="issue-meta">${badge(severity, severity)}</div>
-                      </div>
-                    </div>
-                  `).join("")}
-                </div>
-              ` : `<div class="empty">None returned.</div>`}
-            </div>
-          </section>
-        `;
-      }
-
-      function renderOverridePolicy(data) {
-        const e = data.enforcement || {};
-        const o = e.overrides || {};
-
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Override Policy</h2>
-                <p class="panel-sub">Overrides are displayed only. They are not implemented as bypass logic.</p>
-              </div>
-              ${badge(o.allowed ? "warning" : "blocked", o.allowed ? "Allowed" : "Disabled")}
-            </div>
-            <div class="panel-body">
-              <div class="grid-4">
-                ${metric("Allowed", boolText(o.allowed), badge(boolStatus(o.allowed), boolText(o.allowed)))}
-                ${metric("Reason required", boolText(o.requires_reason), badge(boolStatus(o.requires_reason), boolText(o.requires_reason)))}
-                ${metric("Operator confirmation", boolText(o.requires_operator_confirmation), badge(boolStatus(o.requires_operator_confirmation), boolText(o.requires_operator_confirmation)))}
-                ${metric("Expires", `${num(o.expires_minutes)} min`, o.audit_required ? "Audit required" : "No audit flag")}
-              </div>
-              <div class="empty">${esc(o.note || "No override note returned.")}</div>
-            </div>
-          </section>
-        `;
-      }
-
-      function renderRuntimeSection() {
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Manual Runtime Checklist</h2>
-                <p class="panel-sub">Local browser evidence only. Saved to localStorage. Does not change backend verdict.</p>
-              </div>
-              ${badge("unknown", "manual")}
-            </div>
-            <div class="panel-body" id="runtimeChecklistMount"></div>
-          </section>
-        `;
-      }
-
-      function loadRuntimeState() {
-        try {
-          const raw = localStorage.getItem(RUNTIME_KEY);
-          const parsed = raw ? JSON.parse(raw) : {};
-          return parsed && typeof parsed === "object" ? parsed : {};
-        } catch (error) {
-          return {};
-        }
-      }
-
-      function saveRuntimeState(state) {
-        localStorage.setItem(RUNTIME_KEY, JSON.stringify(state || {}));
-      }
-
-      function updateRuntimeItem(key, patch) {
-        const state = loadRuntimeState();
-        const current = state[key] || {};
-        state[key] = { ...current, ...patch, checked_at: new Date().toISOString() };
-        saveRuntimeState(state);
-        renderRuntimeChecklist();
-      }
-
-      function resetRuntimeChecklist() {
-        localStorage.removeItem(RUNTIME_KEY);
-        renderRuntimeChecklist();
-      }
-
-      function runtimeCounts() {
-        const state = loadRuntimeState();
-        const counts = { pass:0, warning:0, blocked:0, unknown:0 };
-        RUNTIME_ITEMS.forEach(item => {
-          const status = norm((state[item.key] && state[item.key].status) || "unknown");
-          if (counts[status] == null) counts.unknown += 1;
-          else counts[status] += 1;
-        });
-        return counts;
-      }
-
-      function renderRuntimeChecklist() {
-        const mount = document.getElementById("runtimeChecklistMount");
-        if (!mount) return;
-
-        const state = loadRuntimeState();
-        const counts = runtimeCounts();
-        const runtimeText = counts.blocked > 0
-          ? "Runtime blocked"
-          : counts.warning > 0
-            ? "Runtime has warnings"
-            : counts.unknown > 0
-              ? "Runtime still Unknown"
-              : "Manual runtime checklist passed";
-
-        mount.innerHTML = `
-          <section class="grid-4">
-            ${metric("Runtime Pass", num(counts.pass), "Local checklist only")}
-            ${metric("Runtime Warning", num(counts.warning), "Local checklist only")}
-            ${metric("Runtime Blocked", num(counts.blocked), "Local checklist only")}
-            ${metric("Runtime Unknown", num(counts.unknown), "Local checklist only")}
-          </section>
-          <div class="empty" style="margin-bottom:14px;">${esc(runtimeText)}. This does not certify write safety and does not alter backend enforcement.</div>
-          <div class="table-wrap">
-            <table class="runtime-table">
-              <thead>
-                <tr>
-                  <th>Module</th>
-                  <th>URL</th>
-                  <th>Open</th>
-                  <th>Status</th>
-                  <th>Note</th>
-                  <th>Last Checked</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${RUNTIME_ITEMS.map(item => {
-                  const row = state[item.key] || {};
-                  const status = row.status || "unknown";
-                  const note = row.note || "";
-                  const checkedAt = row.checked_at || "Not checked";
-
-                  return `
-                    <tr>
-                      <td><strong>${esc(item.label)}</strong></td>
-                      <td>${esc(item.url)}</td>
-                      <td><button class="btn small secondary runtime-open" type="button" data-url="${esc(item.url)}">Open</button></td>
-                      <td>
-                        <select data-runtime-key="${esc(item.key)}" data-runtime-field="status">
-                          ${["unknown","pass","warning","blocked"].map(option => `
-                            <option value="${esc(option)}" ${option === status ? "selected" : ""}>${esc(titleCase(option))}</option>
-                          `).join("")}
-                        </select>
-                      </td>
-                      <td><input data-runtime-key="${esc(item.key)}" data-runtime-field="note" value="${esc(note)}" placeholder="Short runtime note" /></td>
-                      <td>${esc(checkedAt)}</td>
-                    </tr>
-                  `;
-                }).join("")}
-              </tbody>
-            </table>
-          </div>
-        `;
-
-        mount.querySelectorAll(".runtime-open").forEach(btn => {
-          btn.addEventListener("click", () => {
-            const url = btn.getAttribute("data-url");
-            if (url) window.open(url, "_blank", "noopener,noreferrer");
-          });
-        });
-
-        mount.querySelectorAll("[data-runtime-key][data-runtime-field]").forEach(input => {
-          const handler = () => {
-            const key = input.getAttribute("data-runtime-key");
-            const field = input.getAttribute("data-runtime-field");
-            if (!key || !field) return;
-            updateRuntimeItem(key, { [field]: input.value });
-          };
-          input.addEventListener("change", handler);
-          input.addEventListener("blur", handler);
-        });
-      }
-
-      function renderIssuePanel(title, subtitle, items, fallback, severity) {
-        items = safeArray(items);
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">${esc(title)}</h2>
-                <p class="panel-sub">${esc(subtitle)}</p>
-              </div>
-              ${badge(items.length ? severity : "good", `${items.length}`)}
-            </div>
-            <div class="panel-body">
-              ${items.length ? `
-                <div class="issue-list">
-                  ${items.map((item, i) => issueCard(item, i, severity)).join("")}
-                </div>
-              ` : `<div class="empty">${esc(fallback)}</div>`}
-            </div>
-          </section>
-        `;
-      }
-
-      function issueCard(item, index, severity) {
-        const key = item.key || item.rule || item.title || `item_${index + 1}`;
-        const message = item.message || item.detail || item.rule || item.next_action || String(item);
-        const next = item.next_action || item.next || "";
-        return `
-          <div class="issue">
-            <div class="issue-mark">${index + 1}</div>
-            <div>
-              <div class="issue-title">${esc(titleCase(key))}</div>
-              <div class="issue-meta">${badge(item.severity || item.status || severity, item.severity || item.status || severity)}</div>
-              <div class="issue-text">${esc(message)}</div>
-              ${next ? `<div class="issue-text"><strong>Next:</strong> ${esc(next)}</div>` : ""}
-            </div>
-          </div>
-        `;
-      }
-
-      function renderSourceProofs(data) {
-        const proofs = safeArray(data.source_proofs);
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Source Proofs</h2>
-                <p class="panel-sub">Shows what source proved the verdict. Banned money-contracts is protected, not failed.</p>
-              </div>
-              ${badge("info", `${proofs.length} proofs`)}
-            </div>
-            <div class="panel-body">
-              ${proofs.length ? `
-                <div class="card-grid">
-                  ${proofs.map(row => {
-                    const status = norm(row.status || "unknown");
-                    const visual = status === "banned" ? "protected" : status;
-                    return `
-                      <div class="card">
-                        <div style="display:flex;justify-content:space-between;gap:8px;">
-                          <strong>${esc(titleCase(row.key || "proof"))}</strong>
-                          ${badge(visual, status === "banned" ? "Protected" : row.status || "unknown")}
-                        </div>
-                        <div class="card-note"><strong>Source:</strong> ${esc(row.source || "Unknown")}</div>
-                        <div class="card-note">${esc(row.message || "No message returned.")}</div>
-                      </div>
-                    `;
-                  }).join("")}
-                </div>
-              ` : `<div class="empty">No source proofs returned.</div>`}
-            </div>
-          </section>
-        `;
-      }
-
-      function renderReadOnlyGuards(data) {
-        const guards = safeArray(data.read_only_guards);
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Read-Only Guardrails</h2>
-                <p class="panel-sub">Audit endpoint guardrails returned by backend.</p>
-              </div>
-              ${badge("protected", `${guards.length} guards`)}
-            </div>
-            <div class="panel-body">
-              ${guards.length ? `
-                <div class="card-grid">
-                  ${guards.map((guard, i) => `
-                    <div class="card">
-                      <strong>${esc(guard)}</strong>
-                      <div class="card-note">Guardrail ${i + 1}</div>
-                    </div>
-                  `).join("")}
-                </div>
-              ` : `<div class="empty">No guardrails returned.</div>`}
-            </div>
-          </section>
-        `;
-      }
-
-      function renderCoverage(data) {
-        const c = data.coverage || {};
-        const registry = c.registry || {};
-        const api = c.api || {};
-        const d1 = c.d1 || {};
-        const rules = c.business_rules || {};
-        const runtime = c.runtime || {};
-        const write = c.write_safety || {};
-
-        const rows = [
-          ["Registry", c.status || "unknown", `${num(registry.modules_registered)} modules · ${num(registry.pages_registered)} pages`, registry.note || "Known registry only."],
-          ["API coverage", api.required_api_count === api.required_api_pass_count ? "pass" : "warning", `${num(api.required_api_pass_count)}/${num(api.required_api_count)} required APIs passed`, `${num(api.checked_api_count)} total API checks returned.`],
-          ["D1 coverage", d1.required_table_count === d1.required_table_pass_count ? "pass" : "blocked", `${num(d1.required_table_pass_count)}/${num(d1.required_table_count)} required D1 tables passed`, "Read-only table checks only."],
-          ["Business rules", rules.blocked_count > 0 ? "blocked" : rules.warning_count > 0 ? "warning" : rules.unknown_count > 0 ? "unknown" : "pass", `${num(rules.pass_count)} pass · ${num(rules.warning_count)} warning · ${num(rules.unknown_count)} unknown · ${num(rules.blocked_count)} blocked`, `${num(rules.rule_count)} total rules returned.`],
-          ["Runtime", runtime.status || "unknown", titleCase(runtime.status || "unknown"), runtime.note || "Backend cannot prove browser runtime."],
-          ["Write safety", write.status || "unknown", titleCase(write.status || "unknown"), write.note || "No write dry-run endpoint exists yet."]
-        ];
-
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Coverage</h2>
-                <p class="panel-sub">Shows what is covered, what is only registered, and what must stay Unknown.</p>
-              </div>
-              ${badge(c.status || "unknown", c.status || "unknown")}
-            </div>
-            <div class="panel-body">
-              <div class="card-grid">
-                ${rows.map(([label, status, main, note]) => `
-                  <div class="card">
-                    <div style="display:flex;justify-content:space-between;gap:8px;">
-                      <strong>${esc(label)}</strong>
-                      ${badge(status, status)}
-                    </div>
-                    <div class="card-number" style="font-size:18px;margin-top:8px;">${esc(main)}</div>
-                    <div class="card-note">${esc(note)}</div>
-                  </div>
-                `).join("")}
-              </div>
-            </div>
-          </section>
-        `;
-      }
-
-      function renderBusinessRules(data) {
-        const rules = safeArray(data.business_rules);
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Business Rule Checks</h2>
-                <p class="panel-sub">Locked honesty rules checked by backend.</p>
-              </div>
-              ${badge("info", `${rules.length} rules`)}
-            </div>
-            <div class="panel-body">
-              ${rules.length ? `
-                <div class="card-grid">
-                  ${rules.map(row => `
-                    <div class="card">
-                      <div style="display:flex;justify-content:space-between;gap:8px;">
-                        <strong>${esc(titleCase(row.key || "rule"))}</strong>
-                        ${badge(row.status || "unknown", row.status || "unknown")}
-                      </div>
-                      <div class="card-note"><strong>Rule:</strong> ${esc(row.rule || "No rule text.")}</div>
-                      <div class="card-note"><strong>Result:</strong> ${esc(row.message || "No result message.")}</div>
-                    </div>
-                  `).join("")}
-                </div>
-              ` : `<div class="empty">No business rules returned.</div>`}
-            </div>
-          </section>
-        `;
-      }
-
-      function renderApis(data) {
-        const apis = safeArray(data.apis);
-        return `
-          <details class="audit">
-            <summary><span>Backend API Health</span>${badge("info", `${apis.length} routes`)}</summary>
-            <div class="panel-body">
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Path</th>
-                      <th>Status</th>
-                      <th>HTTP</th>
-                      <th>Version</th>
-                      <th>JSON</th>
-                      <th>Note</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${apis.map(a => `
-                      <tr>
-                        <td><strong>${esc(a.path || a.key || "unknown")}</strong></td>
-                        <td>${badge(a.status || "unknown", a.status || "unknown")}</td>
-                        <td>${esc(a.http_status || "")}</td>
-                        <td>${esc(a.version || "")}</td>
-                        <td>${badge(a.json_readable ? "pass" : "unknown", a.json_readable ? "Yes" : "N/A")}</td>
-                        <td>${esc(a.error || a.note || "")}</td>
-                      </tr>
-                    `).join("")}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </details>
-        `;
-      }
-
-      function renderD1(data) {
-        const d1 = data.d1 || {};
-        const tables = safeArray(d1.tables);
-        const rowCounts = d1.row_counts || {};
-        const truth = d1.truth || {};
-
-        return `
-          <details class="audit">
-            <summary><span>D1 Read-Only Truth Checks</span>${badge(d1.status || "unknown", d1.status || "unknown")}</summary>
-            <div class="panel-body">
-              <div class="card-grid">
-                ${tables.map(t => `
-                  <div class="card">
-                    <div style="display:flex;justify-content:space-between;gap:8px;">
-                      <strong>${esc(t.table || "unknown")}</strong>
-                      ${badge(t.status || "unknown", t.required ? "required" : "optional")}
-                    </div>
-                    <div class="card-note">Exists: ${esc(t.exists === true ? "yes" : t.exists === false ? "no" : "unknown")}${rowCounts[t.table] != null ? ` · Rows: ${esc(rowCounts[t.table])}` : ""}</div>
-                  </div>
-                `).join("")}
-              </div>
-              <div class="table-wrap" style="margin-top:14px;">
-                <table>
-                  <thead>
-                    <tr><th>Truth Group</th><th>Status</th><th>Message</th></tr>
-                  </thead>
-                  <tbody>
-                    ${Object.keys(truth).map(key => {
-                      const row = truth[key] || {};
-                      return `<tr><td><strong>${esc(titleCase(key))}</strong></td><td>${badge(row.status || "unknown", row.status || "unknown")}</td><td>${esc(row.message || JSON.stringify(row))}</td></tr>`;
-                    }).join("")}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </details>
-        `;
-      }
-
-      function renderRegistry(data) {
-        const modules = safeArray(data.modules);
-        const pages = safeArray(data.pages);
-
-        return `
-          <details class="audit">
-            <summary><span>Registry And Page Coverage</span>${badge("info", `${modules.length} modules`)}</summary>
-            <div class="panel-body">
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Module</th>
-                      <th>Status</th>
-                      <th>Route</th>
-                      <th>Pages</th>
-                      <th>APIs</th>
-                      <th>D1 Tables</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${modules.map(m => `
-                      <tr>
-                        <td><strong>${esc(m.label || m.key || "unknown")}</strong></td>
-                        <td>${badge(m.status || "registered", m.status || "registered")}</td>
-                        <td>${esc(m.route || "")}</td>
-                        <td>${esc(safeArray(m.pages).join(", "))}</td>
-                        <td>${esc(safeArray(m.apis).join(", "))}</td>
-                        <td>${esc(safeArray(m.d1_tables).join(", "))}</td>
-                      </tr>
-                    `).join("")}
-                  </tbody>
-                </table>
-              </div>
-              <div class="table-wrap" style="margin-top:14px;">
-                <table>
-                  <thead>
-                    <tr><th>Page</th><th>Module</th><th>Status</th><th>Runtime</th><th>Note</th></tr>
-                  </thead>
-                  <tbody>
-                    ${pages.map(p => `
-                      <tr>
-                        <td><strong>${esc(p.page || "unknown")}</strong></td>
-                        <td>${esc(p.module || "unknown")}</td>
-                        <td>${badge(p.status || "registered", p.status || "registered")}</td>
-                        <td>${badge(p.runtime_status || "unknown", p.runtime_status || "unknown")}</td>
-                        <td>${esc(p.note || "")}</td>
-                      </tr>
-                    `).join("")}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </details>
-        `;
-      }
-
-      function renderRaw(data) {
-        return `
-          <details class="audit">
-            <summary><span>Raw Backend JSON</span>${badge("info", "debug")}</summary>
-            <div class="panel-body">
-              <pre style="white-space:pre-wrap;margin:0;font-size:12px;line-height:1.45;color:#334155;">${esc(JSON.stringify(data, null, 2))}</pre>
-            </div>
-          </details>
-        `;
-      }
-
-      function updateHero(data) {
-        const gate = data.trial_gate || {};
-        const enforcement = data.enforcement || {};
-        const summary = getSummary(data);
-        const status = gate.status || data.verdict || "unknown";
-
-        document.getElementById("heroVerdict").textContent = verdictLabel(enforcement.global_status || status);
-        document.getElementById("heroScore").textContent = `${pct(data.score)} backend score · endpoint ${data.version || "unknown"}`;
-        document.getElementById("heroNote").textContent =
-          `${summary.hard_blocker_count} blocker(s), ${summary.warning_count} warning(s), ${summary.unknown_count} unknown(s). ` +
-          `Enforcement: ${enforcement.version || "missing"} · blocked actions ${summary.enforcement_blocked_action_count}.`;
-      }
-
-      function render(data) {
-        updateHero(data);
-
-        app.innerHTML = `
-          ${renderSummaryStrip(data)}
-          ${renderScores(data)}
-          ${renderTrialGate(data)}
-          ${renderEnforcementOverview(data)}
-          ${renderBlockExplanations(data)}
-          ${renderEnforcementLists(data)}
-          ${renderRouteGates(data)}
-          ${renderActionGates(data)}
-          ${renderOverridePolicy(data)}
-          ${renderRuntimeSection()}
-          ${renderSourceProofs(data)}
-          ${renderReadOnlyGuards(data)}
-          ${renderCoverage(data)}
-
-          <section class="grid-2">
-            ${renderIssuePanel("Hard Blockers", "These prevent Ready.", data.hard_blockers, "No hard blocker returned by backend.", "blocked")}
-            ${renderIssuePanel("Next Actions", "Backend-generated fix queue.", safeArray(data.next_actions).map((m, i) => ({ key:`next_${i + 1}`, message:m, severity:i === 0 ? "warning" : "info" })), "No next action returned.", "warning")}
-          </section>
-
-          <section class="grid-2">
-            ${renderIssuePanel("Warnings", "Known risk remains.", data.warnings, "No warning returned by backend.", "warning")}
-            ${renderIssuePanel("Unknowns", "Unknown means not proven. Unknown must never become Ready silently.", data.unknowns, "No unknown returned by backend.", "unknown")}
-          </section>
-
-          ${renderBusinessRules(data)}
-          ${renderD1(data)}
-          ${renderApis(data)}
-          ${renderRegistry(data)}
-          ${renderRaw(data)}
-        `;
-
-        renderRuntimeChecklist();
-
-        if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
-          window.SovereignNav.scheduleOverflowCheck();
-        }
-      }
-
-      async function fetchBackendAudit() {
-        const response = await fetch("/api/finance-command-center", {
-          cache: "no-store",
-          headers: { accept: "application/json" }
-        });
-
-        const text = await response.text();
-        let data = null;
-
-        try {
-          data = text ? JSON.parse(text) : null;
-        } catch (error) {
-          throw new Error("Backend audit endpoint returned non-JSON response.");
-        }
-
-        if (!response.ok) {
-          throw new Error(data && data.error ? data.error : `Backend audit HTTP ${response.status}`);
-        }
-
-        if (!data || typeof data !== "object") {
-          throw new Error("Backend audit response was empty.");
-        }
-
-        return data;
-      }
-
-      async function runAudit() {
-        app.innerHTML = `<section class="loading">Running backend audit...</section>`;
-        document.getElementById("heroVerdict").textContent = "Loading";
-        document.getElementById("heroScore").textContent = "Audit running";
-        document.getElementById("heroNote").textContent = "Reading /api/finance-command-center.";
-
-        const data = await fetchBackendAudit();
-        render(data);
-      }
-
-      function openAllDetails() {
-        document.querySelectorAll("details.audit").forEach(detail => {
-          detail.open = true;
-        });
-      }
-
-      function showError(error) {
-        document.getElementById("heroVerdict").textContent = "Unknown";
-        document.getElementById("heroScore").textContent = "Audit failed";
-        document.getElementById("heroNote").textContent = "Command Centre could not read backend audit engine.";
-
-        app.innerHTML = `
-          <section class="error">
-            <h2>Backend audit failed</h2>
-            <p>${esc(error.message || String(error))}</p>
-          </section>
-        `;
-      }
-
-      refreshBtn.addEventListener("click", () => runAudit().catch(showError));
-      detailsBtn.addEventListener("click", openAllDetails);
-      resetRuntimeBtn.addEventListener("click", resetRuntimeChecklist);
-
-      runAudit().catch(showError);
-    })();
-  </script>
+    `).join("");
+  }
+
+  function renderNextActions(data) {
+    const container = $("cmdNextActions");
+    if (!container) return;
+
+    const actions = Array.isArray(data.next_actions) ? data.next_actions : [];
+
+    if (!actions.length) {
+      container.innerHTML = '<div class="command-empty">No next actions returned.</div>';
+      return;
+    }
+
+    container.innerHTML = actions.map((action, index) => `
+      <div class="command-proof-row">
+        <div>
+          <div class="command-proof-title">Next ${index + 1}</div>
+          <div class="command-proof-source">${escapeHtml(action)}</div>
+        </div>
+        <span class="badge badge-info">Open</span>
+      </div>
+    `).join("");
+  }
+
+  function renderError(err) {
+    setText("cmdStatus", "Blocked");
+    setText("cmdStatusSub", err.message || "Command Centre unavailable");
+    setText("cmdWriteSafety", "Unknown");
+    setText("cmdWriteSafetySub", "Could not load proof state");
+    setText("cmdAllowedCount", "-");
+    setText("cmdBlockedCount", "-");
+
+    const containers = ["cmdActions", "cmdProofs", "cmdRoutes", "cmdNextActions"];
+    containers.forEach(id => {
+      const el = $(id);
+      if (el) el.innerHTML = '<div class="command-empty">Command Centre failed to load: ' + escapeHtml(err.message || String(err)) + '</div>';
+    });
+  }
+
+  async function init() {
+    console.log("[command-ui v2.0.0] init");
+
+    try {
+      const data = await fetchCommandCentre();
+      renderHeader(data);
+      renderKpis(data);
+      renderActions(data);
+      renderProofs(data);
+      renderRoutes(data);
+      renderEmergency(data);
+      renderNextActions(data);
+      console.log("[command-ui v2.0.0] ready", {
+        version: data.version,
+        status: data.coverage?.write_safety?.status
+      });
+    } catch (err) {
+      console.error("[command-ui v2.0.0] failed", err);
+      renderError(err);
+    }
+  }
+
+  window.SovereignCommandUI = {
+    version: VERSION,
+    refresh: init
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
 </body>
 </html>
