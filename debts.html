@@ -1,1136 +1,423 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-page="debts">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<title>Debts · Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=1.0.1" />
-<style>
-.debts-wrap { max-width: 1180px; margin: 0 auto; }
-.debts-hero {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-md);
-  padding: 24px;
-  margin-bottom: 18px;
-}
-.debts-kicker {
-  display: inline-flex;
-  padding: 7px 11px;
-  border-radius: var(--r-pill);
-  background: var(--danger-soft);
-  color: var(--danger);
-  font-size: 12px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  margin-bottom: 12px;
-}
-.debts-heading {
-  color: var(--text);
-  font-size: clamp(32px, 5vw, 50px);
-  line-height: 1.02;
-  font-weight: 950;
-  letter-spacing: -0.05em;
-  margin: 0;
-}
-.debts-copy {
-  color: var(--text-muted);
-  font-size: 15px;
-  line-height: 1.55;
-  font-weight: 750;
-  margin-top: 12px;
-  max-width: 820px;
-}
-.debts-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 18px;
-}
-.debts-primary,
-.debts-secondary {
-  min-height: 46px;
-  border-radius: var(--r-md);
-  padding: 12px 16px;
-  font-size: 14px;
-  font-weight: 950;
-  cursor: pointer;
-}
-.debts-primary {
-  border: 0;
-  background: var(--grad-mint);
-  color: #052e16;
-  box-shadow: 0 12px 24px rgba(34, 197, 94, 0.18);
-}
-.debts-secondary {
-  border: 1px solid var(--border-strong);
-  background: #ffffff;
-  color: var(--text);
-}
-.debts-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 18px;
-}
-.debt-stat {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
-  padding: 16px;
-}
-.debt-stat-label {
-  color: var(--text-dim);
-  font-size: 11px;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.debt-stat-value {
-  margin-top: 7px;
-  color: var(--text);
-  font-size: 23px;
-  font-weight: 950;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.debt-stat-value.positive { color: var(--accent-deep); }
-.debt-stat-value.negative { color: var(--danger); }
-.debt-stat-value.warn { color: var(--warn); }
-.debts-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.85fr);
-  gap: 18px;
-}
-.debts-panel {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-sm);
-  padding: 16px;
-  min-width: 0;
-}
-.debts-panel-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: center;
-  margin-bottom: 14px;
-}
-.debts-panel-title {
-  color: var(--text);
-  font-size: 18px;
-  font-weight: 950;
-}
-.debts-panel-sub {
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 850;
-}
-.debt-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.debt-card {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 14px;
-}
-.debt-card.overdue { border-color: rgba(220, 38, 38, 0.35); }
-.debt-card.due_today { border-color: rgba(245, 158, 11, 0.45); }
-.debt-card.due_soon { border-color: rgba(245, 158, 11, 0.28); }
-.debt-card.no_schedule { border-color: rgba(100, 116, 139, 0.35); }
-.debt-top {
-  display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-}
-.debt-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  background: #ffffff;
-  border: 1px solid var(--border);
-  font-size: 22px;
-}
-.debt-title {
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 950;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.debt-sub {
-  margin-top: 3px;
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.debt-amount {
-  color: var(--danger);
-  font-size: 16px;
-  font-weight: 950;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  text-align: right;
-}
-.debt-amount.positive { color: var(--accent-deep); }
-.debt-schedule {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 12px;
-}
-.debt-pill {
-  background: #ffffff;
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 9px 10px;
-  min-width: 0;
-}
-.debt-pill-label {
-  color: var(--text-dim);
-  font-size: 10px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 4px;
-}
-.debt-pill-value {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 900;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.debt-pill-value.positive { color: var(--accent-deep); }
-.debt-pill-value.negative { color: var(--danger); }
-.debt-pill-value.warn { color: var(--warn); }
-.debt-trust-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-.debt-trust-chip {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 6px 9px;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 950;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-.debt-trust-chip.transaction {
-  border-color: rgba(245, 158, 11, 0.24);
-  background: rgba(245, 158, 11, 0.10);
-  color: var(--warn);
-}
-.debt-trust-chip.metadata {
-  border-color: rgba(37, 99, 235, 0.22);
-  background: var(--info-soft);
-  color: var(--info);
-}
-.debt-trust-chip.status {
-  border-color: rgba(100, 116, 139, 0.24);
-  background: rgba(100, 116, 139, 0.10);
-  color: var(--text-muted);
-}
-.debt-trust-chip.safe {
-  border-color: rgba(34, 197, 94, 0.24);
-  background: rgba(34, 197, 94, 0.10);
-  color: var(--accent-deep);
-}
-.debt-progress-wrap { margin-top: 12px; }
-.debt-progress-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--text-dim);
-  font-size: 12px;
-  font-weight: 850;
-  margin-bottom: 7px;
-}
-.debt-progress-track {
-  height: 11px;
-  background: var(--surface-3);
-  border: 1px solid var(--border);
-  border-radius: var(--r-pill);
-  overflow: hidden;
-}
-.debt-progress-fill {
-  height: 100%;
-  width: 0%;
-  border-radius: var(--r-pill);
-  background: linear-gradient(90deg, #22c55e, #16a34a);
-  transition: width 0.45s ease;
-}
-.debt-actions-row {
-  display: grid;
-  grid-template-columns: 1fr 0.8fr 0.8fr;
-  gap: 8px;
-  margin-top: 12px;
-}
-.debt-pay-btn,
-.debt-edit-btn,
-.debt-refresh-btn {
-  min-height: 40px;
-  border-radius: var(--r-md);
-  font-size: 13px;
-  font-weight: 950;
-  cursor: pointer;
-}
-.debt-pay-btn {
-  border: 0;
-  background: var(--grad-mint);
-  color: #052e16;
-}
-.debt-edit-btn,
-.debt-refresh-btn {
-  border: 1px solid var(--border-strong);
-  background: #ffffff;
-  color: var(--text);
-}
-.debt-pay-btn:disabled,
-.debt-edit-btn:disabled,
-.debt-refresh-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-.debt-empty {
-  background: var(--surface-2);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--r-lg);
-  padding: 24px;
-  text-align: center;
-  color: var(--text-muted);
-  font-weight: 850;
-  line-height: 1.5;
-}
-.pay-modal-backdrop,
-.debt-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 2500;
-  display: none;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(15, 23, 42, 0.58);
-}
-.pay-modal-backdrop.open,
-.debt-modal-backdrop.open { display: flex; }
-.pay-modal,
-.debt-modal {
-  width: min(620px, 100%);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-xl);
-  padding: 22px;
-  max-height: calc(100vh - 32px);
-  overflow: auto;
-}
-.pay-title,
-.debt-modal-title {
-  color: var(--text);
-  font-size: 24px;
-  font-weight: 950;
-  margin: 0 0 6px;
-}
-.pay-sub,
-.debt-modal-sub {
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 750;
-  line-height: 1.45;
-  margin-bottom: 14px;
-}
-.debt-modal-trust,
-.pay-modal-trust {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 8px 10px;
-  margin-bottom: 14px;
-  border-radius: var(--r-pill);
-  border: 1px solid rgba(37, 99, 235, 0.22);
-  background: var(--info-soft);
-  color: var(--info);
-  font-size: 11px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-.pay-modal-trust.transaction {
-  border-color: rgba(245, 158, 11, 0.24);
-  background: rgba(245, 158, 11, 0.10);
-  color: var(--warn);
-}
-.debt-modal-trust.status {
-  border-color: rgba(100, 116, 139, 0.24);
-  background: rgba(100, 116, 139, 0.10);
-  color: var(--text-muted);
-}
-.debt-correction-note {
-  display: none;
-  margin: 0 0 14px;
-  padding: 12px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 800;
-  line-height: 1.45;
-}
-.debt-correction-note.show { display: block; }
-.pay-grid,
-.debt-modal-grid {
-  display: grid;
-  gap: 12px;
-}
-.debt-form-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-.pay-actions,
-.debt-modal-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-}
-.pay-actions button,
-.debt-modal-actions button { flex: 1; }
-.danger-btn {
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  background: var(--danger-soft);
-  color: var(--danger);
-  border-radius: var(--r-md);
-  font-size: 14px;
-  font-weight: 950;
-  min-height: 44px;
-  cursor: pointer;
-  display: none;
-}
-.danger-btn.show {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-@media (max-width: 980px) {
-  .debts-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .debts-grid { grid-template-columns: 1fr; }
-}
-@media (max-width: 640px) {
-  .debts-stats,
-  .debt-schedule,
-  .debt-form-row { grid-template-columns: 1fr; }
-  .debt-top { grid-template-columns: 40px minmax(0, 1fr); }
-  .debt-amount { grid-column: 2; text-align: left; }
-  .debt-actions-row { grid-template-columns: 1fr; }
-  .pay-actions,
-  .debt-modal-actions { flex-direction: column; }
-}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Debts · Sovereign Finance</title>
+
+  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
+
+  <style>
+    .debts-wrap {
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    .debts-hero {
+      color: #f8fafc;
+      background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95)),
+        radial-gradient(circle at top right, rgba(220, 38, 38, 0.20), transparent 28rem);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      border-radius: 34px;
+      box-shadow: var(--shadow-lg);
+      padding: 26px;
+      margin-bottom: 18px;
+    }
+
+    .debts-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #fecaca;
+      background: rgba(220, 38, 38, 0.13);
+      border-radius: var(--r-pill);
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 12px;
+    }
+
+    .debts-title {
+      margin: 0;
+      color: #fff;
+      font-size: clamp(34px, 5vw, 58px);
+      line-height: 0.98;
+      letter-spacing: -0.06em;
+      font-weight: 950;
+    }
+
+    .debts-copy {
+      max-width: 840px;
+      margin: 12px 0 0;
+      color: #cbd5e1;
+      font-size: 15px;
+      line-height: 1.55;
+      font-weight: 750;
+    }
+
+    .debt-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .debt-stat {
+      min-width: 0;
+      padding: 16px;
+      border-radius: 22px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .debt-stat-label {
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .debt-stat-value {
+      margin-top: 8px;
+      color: var(--text);
+      font-size: 23px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .debt-toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .debt-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .debt-filter,
+    .debt-refresh {
+      min-height: 42px;
+      border-radius: var(--r-pill);
+      border: 1px solid var(--border-strong);
+      background: #fff;
+      color: var(--text-muted);
+      padding: 10px 14px;
+      font-weight: 950;
+    }
+
+    .debt-filter.active {
+      color: #7f1d1d;
+      background: rgba(220, 38, 38, 0.10);
+      border-color: rgba(220, 38, 38, 0.24);
+    }
+
+    .debt-refresh {
+      color: #052e16;
+      background: var(--grad-mint);
+      border: 0;
+    }
+
+    .debts-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .debt-card {
+      min-width: 0;
+      padding: 16px;
+      border-radius: 24px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .debt-card.overdue {
+      border-color: rgba(220, 38, 38, 0.25);
+      background: linear-gradient(180deg, rgba(254, 242, 242, 0.94), #fff);
+    }
+
+    .debt-card.today,
+    .debt-card.soon {
+      border-color: rgba(245, 158, 11, 0.28);
+      background: linear-gradient(180deg, rgba(255, 251, 235, 0.94), #fff);
+    }
+
+    .debt-card.closed {
+      opacity: 0.72;
+    }
+
+    .debt-main {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .debt-left {
+      min-width: 0;
+    }
+
+    .debt-kind-pill {
+      display: inline-flex;
+      padding: 5px 8px;
+      border-radius: var(--r-pill);
+      font-size: 10px;
+      font-weight: 950;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .debt-kind-pill.owe {
+      background: rgba(220, 38, 38, 0.10);
+      color: var(--danger);
+      border: 1px solid rgba(220, 38, 38, 0.22);
+    }
+
+    .debt-kind-pill.owed {
+      background: rgba(34, 197, 94, 0.10);
+      color: var(--accent-deep);
+      border: 1px solid rgba(34, 197, 94, 0.24);
+    }
+
+    .debt-name {
+      color: var(--text);
+      font-size: 16px;
+      font-weight: 950;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .debt-meta {
+      margin-top: 4px;
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .debt-money {
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .debt-remaining {
+      color: var(--text);
+      font-size: 18px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .debt-sub {
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .debt-progress {
+      height: 8px;
+      background: var(--surface-3);
+      border-radius: var(--r-pill);
+      overflow: hidden;
+      margin: 13px 0 8px;
+    }
+
+    .debt-progress-bar {
+      height: 100%;
+      background: var(--grad-mint);
+      border-radius: var(--r-pill);
+    }
+
+    .debt-split {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .debt-blockers {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .debt-blockers span {
+      padding: 5px 8px;
+      border-radius: var(--r-pill);
+      background: rgba(220, 38, 38, 0.09);
+      color: var(--danger);
+      border: 1px solid rgba(220, 38, 38, 0.20);
+      font-size: 10px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .debt-config {
+      display: grid;
+      grid-template-columns: 150px minmax(120px, 1fr) auto;
+      gap: 10px;
+      align-items: end;
+      margin-top: 14px;
+    }
+
+    .debt-config label {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .debt-config input {
+      width: 100%;
+      min-height: 42px;
+      margin-top: 6px;
+      padding: 9px 10px;
+      border-radius: var(--r-md);
+      border: 2px solid var(--border-strong);
+      background: #fff;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 850;
+    }
+
+    .debt-save {
+      min-height: 42px;
+      border: 0;
+      border-radius: var(--r-md);
+      padding: 10px 14px;
+      background: var(--grad-mint);
+      color: #052e16;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .debt-save:disabled {
+      background: #cbd5e1;
+      color: #475569;
+    }
+
+    .debt-foot {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      color: var(--text-dim);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .debt-empty {
+      grid-column: 1 / -1;
+      padding: 28px;
+      border-radius: 24px;
+      background: var(--surface-1);
+      border: 1px dashed var(--border-strong);
+      color: var(--text-muted);
+      text-align: center;
+      font-weight: 850;
+    }
+
+    @media (max-width: 980px) {
+      .debt-stats,
+      .debts-list {
+        grid-template-columns: 1fr;
+      }
+
+      .debt-config {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
+
 <body>
-<header>
-<div>
-<div class="brand">Sovereign Finance</div>
-<div class="title">Debts</div>
-</div>
-</header>
-
-<main class="debts-wrap">
-<section class="debts-hero">
-<div class="debts-kicker">Debt schedule engine</div>
-<h1 class="debts-heading">Debts</h1>
-<p class="debts-copy">
-Track who is owed, what remains, when the next installment or receivable is due, and whether each action creates a real transaction or only updates debt metadata.
-</p>
-<div class="debts-actions">
-<button id="addDebtBtn" class="debts-primary" type="button">+ Add Debt</button>
-<button id="refreshBtn" class="debts-secondary" type="button">Refresh</button>
-</div>
-</section>
-
-<section class="debts-stats">
-<div class="debt-stat">
-<div class="debt-stat-label">Total I Owe</div>
-<div id="totalOwe" class="debt-stat-value negative"></div>
-</div>
-<div class="debt-stat">
-<div class="debt-stat-label">Total Owed To Me</div>
-<div id="totalOwed" class="debt-stat-value positive"></div>
-</div>
-<div class="debt-stat">
-<div class="debt-stat-label">Due Pressure</div>
-<div id="duePressure" class="debt-stat-value warn"></div>
-</div>
-<div class="debt-stat">
-<div class="debt-stat-label">Schedule Missing</div>
-<div id="scheduleMissing" class="debt-stat-value"></div>
-</div>
-</section>
-
-<section class="debts-grid">
-<div class="debts-panel">
-<div class="debts-panel-head">
-<div>
-<div class="debts-panel-title">I Owe</div>
-<div id="oweSub" class="debts-panel-sub">Loading</div>
-</div>
-</div>
-<div id="oweList" class="debt-list">
-<div class="debt-empty">Loading debts</div>
-</div>
-</div>
-
-<div class="debts-panel">
-<div class="debts-panel-head">
-<div>
-<div class="debts-panel-title">Owed To Me</div>
-<div id="owedSub" class="debts-panel-sub">Loading</div>
-</div>
-</div>
-<div id="owedList" class="debt-list">
-<div class="debt-empty">Loading receivables</div>
-</div>
-</div>
-</section>
-
-<footer class="page-footer">
-<span class="v">v0.9.1 · debt mutation clarity labels · api debts v0.3.0 · nav v1.0.16 · theme v0.7.2</span>
-</footer>
-</main>
-
-<div id="payModal" class="pay-modal-backdrop" aria-hidden="true">
-<div class="pay-modal">
-<h2 class="pay-title">Record Payment</h2>
-<p id="paySub" class="pay-sub">Create a real transaction and update paid amount.</p>
-<div id="payModalTrust" class="pay-modal-trust transaction">Creates transaction · changes ledger balance</div>
-<form id="payForm" class="pay-grid">
-<input id="payDebtId" type="hidden" />
-<div class="field">
-<label for="payAmount">Amount</label>
-<input id="payAmount" class="input" type="number" min="0.01" step="0.01" required />
-</div>
-<div class="field">
-<label for="payAccount">Account</label>
-<select id="payAccount" class="select" required>
-<option value="">Pick account...</option>
-</select>
-</div>
-<div class="field">
-<label for="payDate">Date</label>
-<input id="payDate" class="input" type="date" required />
-</div>
-<div class="field">
-<label for="payNotes">Notes <small>optional</small></label>
-<textarea id="payNotes" class="textarea" maxlength="200"></textarea>
-</div>
-<div class="pay-actions">
-<button id="cancelPayBtn" class="ghost-btn" type="button">Cancel</button>
-<button class="primary-submit" type="submit">Save Payment</button>
-</div>
-</form>
-</div>
-</div>
-
-<div id="debtModal" class="debt-modal-backdrop" aria-hidden="true">
-<div class="debt-modal">
-<h2 id="debtModalTitle" class="debt-modal-title">Add Debt</h2>
-<p id="debtModalSub" class="debt-modal-sub">Add a debt/receivable record. Ledger writes happen only when payments are recorded.</p>
-<div id="debtModalTrust" class="debt-modal-trust">Metadata only · no transaction</div>
-<p id="debtCorrectionNote" class="debt-correction-note">
-Correction mode updates the debt row only. It does not reverse old payment transactions.
-</p>
-<form id="debtForm" class="debt-modal-grid">
-<input id="debtId" type="hidden" />
-
-<div class="debt-form-row">
-<div class="field">
-<label for="debtName">Name</label>
-<input id="debtName" class="input" type="text" maxlength="80" required />
-</div>
-<div class="field">
-<label for="debtKind">Kind</label>
-<select id="debtKind" class="select">
-<option value="owe">I owe</option>
-<option value="owed">Owed to me</option>
-</select>
-</div>
-</div>
-
-<div class="debt-form-row">
-<div class="field">
-<label for="debtOriginal">Original Amount</label>
-<input id="debtOriginal" class="input" type="number" min="0.01" step="0.01" required />
-</div>
-<div class="field">
-<label for="debtPaid">Already Paid</label>
-<input id="debtPaid" class="input" type="number" min="0" step="0.01" placeholder="0" />
-</div>
-</div>
-
-<div class="debt-form-row">
-<div class="field">
-<label for="debtDueDate">Exact Due Date <small>optional</small></label>
-<input id="debtDueDate" class="input" type="date" />
-</div>
-<div class="field">
-<label for="debtDueDay">Monthly Due Day <small>1-31 optional</small></label>
-<input id="debtDueDay" class="input" type="number" min="1" max="31" />
-</div>
-</div>
-
-<div class="debt-form-row">
-<div class="field">
-<label for="debtInstallment">Installment Amount <small>optional</small></label>
-<input id="debtInstallment" class="input" type="number" min="0" step="0.01" />
-</div>
-<div class="field">
-<label for="debtFrequency">Frequency</label>
-<select id="debtFrequency" class="select">
-<option value="monthly">Monthly</option>
-<option value="weekly">Weekly</option>
-<option value="yearly">Yearly</option>
-<option value="custom">Custom</option>
-</select>
-</div>
-</div>
-
-<div class="field">
-<label for="debtLastPaid">Last Paid Date <small>optional</small></label>
-<input id="debtLastPaid" class="input" type="date" />
-</div>
-
-<div class="field">
-<label for="debtNotes">Notes <small>optional</small></label>
-<textarea id="debtNotes" class="textarea" maxlength="500"></textarea>
-</div>
-
-<div class="debt-modal-actions">
-<button id="cancelDebtBtn" class="ghost-btn" type="button">Cancel</button>
-<button id="cancelDebtRecordBtn" class="danger-btn" type="button">Cancel Record</button>
-<button id="saveDebtBtn" class="primary-submit" type="submit">Add Debt</button>
-</div>
-</form>
-</div>
-</div>
-
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-<script src="/js/theme.js?v=0.7.2"></script>
-<script src="/js/nav.js?v=1.0.16"></script>
-<script>
-const PAGE_VERSION = 'v0.9.1';
-const state = { debts: [], accounts: [], editingDebtId: null };
-
-const $ = id => document.getElementById(id);
-
-function todayLocal() {
-  const d = new Date();
-  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
-}
-
-function esc(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function money(value) {
-  const n = Number(value) || 0;
-  const sign = n < 0 ? '-' : '';
-  return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
-}
-
-function toast(message, kind = 'success') {
-  const el = $('toast');
-  el.textContent = message;
-  el.className = 'toast toast-' + kind + ' show';
-  setTimeout(() => { el.className = 'toast'; }, 2600);
-}
-
-async function fetchJSON(url, options) {
-  const res = await fetch(url, { cache: 'no-store', ...(options || {}) });
-  const data = await res.json().catch(() => null);
-  if (!res.ok || !data || data.ok === false) throw new Error((data && data.error) || ('HTTP ' + res.status));
-  return data;
-}
-
-function remaining(debt) {
-  if (debt.remaining_amount != null) return Number(debt.remaining_amount) || 0;
-  return Math.max(0, (Number(debt.original_amount) || 0) - (Number(debt.paid_amount) || 0));
-}
-
-function paidPct(debt) {
-  const original = Number(debt.original_amount) || 0;
-  if (original <= 0) return 0;
-  return Math.max(0, Math.min(100, ((Number(debt.paid_amount) || 0) / original) * 100));
-}
-
-function accountName(id) {
-  const found = state.accounts.find(account => account.id === id);
-  return found ? ((found.icon || '') + ' ' + found.name).trim() : (id || 'No account');
-}
-
-function setBusy(button, busy, textWhenBusy, textWhenReady) {
-  if (!button) return;
-  button.disabled = !!busy;
-  button.textContent = busy ? textWhenBusy : textWhenReady;
-}
-
-function fillAccounts() {
-  const sel = $('payAccount');
-  const current = sel.value;
-  sel.innerHTML = '<option value="">Pick account...</option>';
-  state.accounts.forEach(account => {
-    const opt = document.createElement('option');
-    opt.value = account.id;
-    opt.textContent = accountName(account.id);
-    sel.appendChild(opt);
-  });
-  if (current && [...sel.options].some(option => option.value === current)) sel.value = current;
-}
-
-function statusText(debt) {
-  const status = String(debt.due_status || 'no_schedule');
-
-  if (status === 'overdue') return 'Overdue by ' + (debt.days_overdue || 0) + 'd';
-  if (status === 'due_today') return 'Due today';
-  if (status === 'due_soon') return 'Due in ' + (debt.days_until_due || 0) + 'd';
-  if (status === 'scheduled') return 'Due in ' + (debt.days_until_due || 0) + 'd';
-  if (status === 'paid_off') return 'Paid off';
-  return 'No schedule';
-}
-
-function statusClass(debt) {
-  const status = String(debt.due_status || 'no_schedule');
-  if (status === 'overdue') return 'negative';
-  if (status === 'due_today' || status === 'due_soon') return 'warn';
-  if (status === 'scheduled' || status === 'paid_off') return 'positive';
-  return '';
-}
-
-function nextDueText(debt) {
-  if (debt.next_due_date) return debt.next_due_date;
-  if (debt.due_date) return debt.due_date;
-  if (debt.due_day) return 'Day ' + debt.due_day + ' monthly';
-  return 'Not set';
-}
-
-function installmentText(debt) {
-  if (debt.installment_amount == null || debt.installment_amount === '') return 'Flexible';
-  return money(debt.installment_amount);
-}
-
-function renderStats() {
-  const activeDebts = state.debts.filter(debt => (debt.status || 'active') === 'active');
-  const owe = activeDebts.filter(debt => debt.kind !== 'owed');
-  const owed = activeDebts.filter(debt => debt.kind === 'owed');
-  const totalOwe = owe.reduce((sum, debt) => sum + remaining(debt), 0);
-  const totalOwed = owed.reduce((sum, debt) => sum + remaining(debt), 0);
-  const pressure = activeDebts.filter(debt => ['overdue', 'due_today', 'due_soon'].includes(String(debt.due_status || ''))).length;
-  const missing = activeDebts.filter(debt => debt.schedule_missing).length;
-
-  $('totalOwe').textContent = money(totalOwe);
-  $('totalOwed').textContent = money(totalOwed);
-  $('duePressure').textContent = String(pressure);
-  $('scheduleMissing').textContent = String(missing);
-  $('oweSub').textContent = owe.length + ' debt' + (owe.length === 1 ? '' : 's') + ' · ' + money(totalOwe);
-  $('owedSub').textContent = owed.length + ' receivable' + (owed.length === 1 ? '' : 's') + ' · ' + money(totalOwed);
-}
-
-function renderDebtCard(debt) {
-  const rem = remaining(debt);
-  const pct = paidPct(debt);
-  const fullyPaid = rem <= 0.01;
-  const isOwed = debt.kind === 'owed';
-  const amountClass = isOwed ? 'debt-amount positive' : 'debt-amount';
-  const cardStatus = String(debt.due_status || 'no_schedule');
-  const primaryAction = isOwed ? 'Receive' : 'Pay';
-
-  return `
-<article class="debt-card ${esc(cardStatus)}">
-  <div class="debt-top">
-    <div class="debt-icon">${isOwed ? '↙' : '↗'}</div>
+  <header>
     <div>
-      <div class="debt-title">${esc(debt.name)}</div>
-      <div class="debt-sub">Original ${money(debt.original_amount)} · Paid ${money(debt.paid_amount)}</div>
+      <div class="brand">Sovereign Finance</div>
+      <div class="title">Debts</div>
     </div>
-    <div class="${amountClass}">${money(rem)}</div>
-  </div>
+  </header>
 
-  <div class="debt-schedule">
-    <div class="debt-pill">
-      <div class="debt-pill-label">Next Due</div>
-      <div class="debt-pill-value ${statusClass(debt)}">${esc(nextDueText(debt))}</div>
-    </div>
-    <div class="debt-pill">
-      <div class="debt-pill-label">Due Status</div>
-      <div class="debt-pill-value ${statusClass(debt)}">${esc(statusText(debt))}</div>
-    </div>
-    <div class="debt-pill">
-      <div class="debt-pill-label">Installment</div>
-      <div class="debt-pill-value">${esc(installmentText(debt))}</div>
-    </div>
-    <div class="debt-pill">
-      <div class="debt-pill-label">Frequency</div>
-      <div class="debt-pill-value">${esc(debt.frequency || 'monthly')}</div>
-    </div>
-    <div class="debt-pill">
-      <div class="debt-pill-label">Last Paid</div>
-      <div class="debt-pill-value">${esc(debt.last_paid_date || 'Not paid')}</div>
-    </div>
-    <div class="debt-pill">
-      <div class="debt-pill-label">Schedule</div>
-      <div class="debt-pill-value ${debt.schedule_missing ? 'warn' : 'positive'}">${debt.schedule_missing ? 'Missing' : 'Set'}</div>
-    </div>
-  </div>
+  <main class="debts-wrap">
+    <section class="debts-hero">
+      <div class="debts-kicker">Debt control</div>
+      <h1 class="debts-title">Know what is due, what is owed, and what is already closed.</h1>
+      <p class="debts-copy">
+        Debts now separate active from closed, I owe from they owe me, and due-date pressure from missing setup.
+        Closed debts no longer pollute active warning logic.
+      </p>
+    </section>
 
-  <div class="debt-trust-line">
-    <span class="debt-trust-chip ${fullyPaid ? 'safe' : 'transaction'}">${fullyPaid ? 'No payment action needed' : primaryAction + ': creates transaction'}</span>
-    <span class="debt-trust-chip metadata">Edit: metadata correction</span>
-    <span class="debt-trust-chip status">Cancel: status only · no ledger reversal</span>
-  </div>
+    <section class="debt-stats">
+      <div class="debt-stat">
+        <div class="debt-stat-label">Active debts</div>
+        <div id="debtStatActive" class="debt-stat-value">—</div>
+      </div>
 
-  <div class="debt-progress-wrap">
-    <div class="debt-progress-meta">
-      <span>${pct.toFixed(1)}% paid</span>
-      <span>${fullyPaid ? 'Complete' : 'Remaining ' + money(rem)}</span>
-    </div>
-    <div class="debt-progress-track">
-      <div class="debt-progress-fill" style="width:${pct}%"></div>
-    </div>
-  </div>
+      <div class="debt-stat">
+        <div class="debt-stat-label">I owe</div>
+        <div id="debtStatOwe" class="debt-stat-value">—</div>
+      </div>
 
-  <div class="debt-actions-row">
-    <button class="debt-pay-btn" type="button" data-pay="${esc(debt.id)}" ${fullyPaid ? 'disabled' : ''}>${primaryAction}</button>
-    <button class="debt-edit-btn" type="button" data-edit="${esc(debt.id)}">Edit</button>
-    <button class="debt-refresh-btn" type="button" data-refresh="1">Refresh</button>
-  </div>
-</article>`;
-}
+      <div class="debt-stat">
+        <div class="debt-stat-label">They owe me</div>
+        <div id="debtStatOwed" class="debt-stat-value">—</div>
+      </div>
 
-function renderLists() {
-  const activeDebts = state.debts.filter(debt => (debt.status || 'active') === 'active');
-  const owe = activeDebts.filter(debt => debt.kind !== 'owed');
-  const owed = activeDebts.filter(debt => debt.kind === 'owed');
+      <div class="debt-stat">
+        <div class="debt-stat-label">Need action</div>
+        <div id="debtStatAttention" class="debt-stat-value">—</div>
+      </div>
+    </section>
 
-  $('oweList').innerHTML = owe.length ? owe.map(renderDebtCard).join('') : '<div class="debt-empty">No active debts owed.</div>';
-  $('owedList').innerHTML = owed.length ? owed.map(renderDebtCard).join('') : '<div class="debt-empty">No receivables owed to you.</div>';
+    <section class="debt-toolbar">
+      <div class="debt-filters">
+        <button class="debt-filter active" type="button" data-filter="active">Active</button>
+        <button class="debt-filter" type="button" data-filter="attention">Needs action</button>
+        <button class="debt-filter" type="button" data-filter="owe">I owe</button>
+        <button class="debt-filter" type="button" data-filter="owed">They owe me</button>
+        <button class="debt-filter" type="button" data-filter="closed">Closed</button>
+        <button class="debt-filter" type="button" data-filter="all">All</button>
+      </div>
 
-  document.querySelectorAll('[data-pay]').forEach(btn => btn.addEventListener('click', () => openPay(btn.dataset.pay)));
-  document.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openDebtEdit(btn.dataset.edit)));
-  document.querySelectorAll('[data-refresh]').forEach(btn => btn.addEventListener('click', loadDebts));
-}
+      <button id="reloadDebts" class="debt-refresh" type="button">Refresh</button>
+    </section>
 
-function openPay(id) {
-  const debt = state.debts.find(item => item.id === id);
-  if (!debt) return;
+    <section id="debtsList" class="debts-list">
+      <div class="debt-empty">Loading debts...</div>
+    </section>
 
-  const actionText = debt.kind === 'owed' ? 'Receive' : 'Pay';
+    <footer class="page-footer">
+      <span class="v">Debts v0.8.0 · debts.js v0.6.0 · nav v1.1.3 · css v1.0.2</span>
+    </footer>
+  </main>
 
-  $('payDebtId').value = debt.id;
-  $('payAmount').value = debt.installment_amount || remaining(debt);
-  $('payDate').value = todayLocal();
-  $('payNotes').value = '';
-  $('paySub').textContent = debt.name + ' · remaining ' + money(remaining(debt));
-  $('payModalTrust').textContent = actionText + ' creates transaction · changes ledger balance';
-  $('payModalTrust').className = 'pay-modal-trust transaction';
-  fillAccounts();
-  $('payModal').classList.add('open');
-  $('payModal').setAttribute('aria-hidden', 'false');
-}
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-function closePay() {
-  $('payModal').classList.remove('open');
-  $('payModal').setAttribute('aria-hidden', 'true');
-}
-
-function resetDebtForm() {
-  $('debtId').value = '';
-  $('debtName').value = '';
-  $('debtKind').value = 'owe';
-  $('debtOriginal').value = '';
-  $('debtPaid').value = '';
-  $('debtDueDate').value = '';
-  $('debtDueDay').value = '';
-  $('debtInstallment').value = '';
-  $('debtFrequency').value = 'monthly';
-  $('debtLastPaid').value = '';
-  $('debtNotes').value = '';
-  state.editingDebtId = null;
-}
-
-function openDebtAdd() {
-  resetDebtForm();
-  $('debtModalTitle').textContent = 'Add Debt';
-  $('debtModalSub').textContent = 'Add a debt/receivable record. Ledger writes happen only when payments are recorded.';
-  $('debtModalTrust').textContent = 'Creates debt metadata · no transaction';
-  $('debtModalTrust').className = 'debt-modal-trust';
-  $('debtCorrectionNote').classList.remove('show');
-  $('cancelDebtRecordBtn').classList.remove('show');
-  $('saveDebtBtn').textContent = 'Add Debt';
-  $('debtModal').classList.add('open');
-  $('debtModal').setAttribute('aria-hidden', 'false');
-  setTimeout(() => $('debtName').focus(), 50);
-}
-
-function openDebtEdit(id) {
-  const debt = state.debts.find(item => item.id === id);
-  if (!debt) {
-    toast('Debt not found in current page data.', 'error');
-    return;
-  }
-
-  state.editingDebtId = debt.id;
-  $('debtId').value = debt.id;
-  $('debtName').value = debt.name || '';
-  $('debtKind').value = debt.kind === 'owed' ? 'owed' : 'owe';
-  $('debtOriginal').value = Number(debt.original_amount) || 0;
-  $('debtPaid').value = Number(debt.paid_amount) || 0;
-  $('debtDueDate').value = debt.due_date || '';
-  $('debtDueDay').value = debt.due_day || '';
-  $('debtInstallment').value = debt.installment_amount == null ? '' : debt.installment_amount;
-  $('debtFrequency').value = debt.frequency || 'monthly';
-  $('debtLastPaid').value = debt.last_paid_date || '';
-  $('debtNotes').value = debt.notes || '';
-  $('debtModalTitle').textContent = debt.kind === 'owed' ? 'Edit Receivable' : 'Edit Debt';
-  $('debtModalSub').textContent = 'Correct amount, paid value, due schedule, notes, or classification.';
-  $('debtModalTrust').textContent = 'Metadata correction · no transaction';
-  $('debtModalTrust').className = 'debt-modal-trust';
-  $('debtCorrectionNote').classList.add('show');
-  $('cancelDebtRecordBtn').classList.add('show');
-  $('saveDebtBtn').textContent = 'Save Correction';
-  $('debtModal').classList.add('open');
-  $('debtModal').setAttribute('aria-hidden', 'false');
-  setTimeout(() => $('debtName').focus(), 50);
-}
-
-function closeDebt() {
-  $('debtModal').classList.remove('open');
-  $('debtModal').setAttribute('aria-hidden', 'true');
-  resetDebtForm();
-}
-
-function readDebtForm() {
-  const id = $('debtId').value.trim();
-  const name = $('debtName').value.trim();
-  const kind = $('debtKind').value;
-  const original = Number($('debtOriginal').value);
-  const paid = Number($('debtPaid').value || 0);
-  const dueDate = $('debtDueDate').value || null;
-  const dueDay = $('debtDueDay').value ? Number($('debtDueDay').value) : null;
-  const installment = $('debtInstallment').value ? Number($('debtInstallment').value) : null;
-  const frequency = $('debtFrequency').value || 'monthly';
-  const lastPaid = $('debtLastPaid').value || null;
-  const notes = $('debtNotes').value.trim();
-
-  if (!name) return { ok: false, error: 'Name is required.' };
-  if (!(original > 0)) return { ok: false, error: 'Original amount must be greater than 0.' };
-  if (paid < 0) return { ok: false, error: 'Already paid cannot be negative.' };
-  if (paid > original) return { ok: false, error: 'Already paid cannot exceed original amount.' };
-  if (!['owe', 'owed'].includes(kind)) return { ok: false, error: 'Kind must be I owe or Owed to me.' };
-  if (dueDay !== null && (dueDay < 1 || dueDay > 31)) return { ok: false, error: 'Due day must be 1-31.' };
-  if (installment !== null && installment < 0) return { ok: false, error: 'Installment cannot be negative.' };
-
-  return {
-    ok: true,
-    id,
-    payload: {
-      name,
-      kind,
-      original_amount: original,
-      paid_amount: paid,
-      due_date: dueDate,
-      due_day: dueDay,
-      installment_amount: installment,
-      frequency,
-      last_paid_date: lastPaid,
-      notes
-    }
-  };
-}
-
-async function submitPay(event) {
-  event.preventDefault();
-
-  const id = $('payDebtId').value;
-  const amount = Number($('payAmount').value);
-  const accountId = $('payAccount').value;
-  const date = $('payDate').value || todayLocal();
-  const notes = $('payNotes').value.trim();
-
-  if (!id || !(amount > 0) || !accountId) {
-    toast('Debt, amount, and account are required.', 'error');
-    return;
-  }
-
-  const submitBtn = event.submitter || $('payForm').querySelector('button[type="submit"]');
-  setBusy(submitBtn, true, 'Saving...', 'Save Payment');
-
-  try {
-    await fetchJSON('/api/debts/' + encodeURIComponent(id) + '/pay', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, account_id: accountId, date, notes, created_by: 'web-debts-pay' })
-    });
-
-    closePay();
-    toast('Payment recorded. Transaction created.');
-    await loadDebts();
-  } catch (err) {
-    toast(err.message, 'error');
-  } finally {
-    setBusy(submitBtn, false, 'Saving...', 'Save Payment');
-  }
-}
-
-async function submitDebt(event) {
-  event.preventDefault();
-
-  const form = readDebtForm();
-  if (!form.ok) {
-    toast(form.error, 'error');
-    return;
-  }
-
-  const submitBtn = $('saveDebtBtn');
-  const isEdit = !!state.editingDebtId;
-  const readyText = isEdit ? 'Save Correction' : 'Add Debt';
-
-  setBusy(submitBtn, true, isEdit ? 'Saving...' : 'Adding...', readyText);
-
-  try {
-    if (isEdit) {
-      await fetchJSON('/api/debts/' + encodeURIComponent(state.editingDebtId), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form.payload, created_by: 'web-debts-edit' })
-      });
-
-      closeDebt();
-      toast('Debt corrected. Metadata only.');
-      await loadDebts();
-      return;
-    }
-
-    await fetchJSON('/api/debts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form.payload, created_by: 'web-debts' })
-    });
-
-    closeDebt();
-    toast('Debt added. Metadata only.');
-    await loadDebts();
-  } catch (err) {
-    toast(err.message, 'error');
-  } finally {
-    setBusy(submitBtn, false, isEdit ? 'Saving...' : 'Adding...', readyText);
-  }
-}
-
-async function cancelDebtRecord() {
-  if (!state.editingDebtId) {
-    toast('No debt selected.', 'error');
-    return;
-  }
-
-  const debt = state.debts.find(item => item.id === state.editingDebtId);
-  const label = debt ? debt.name : state.editingDebtId;
-  const ok = confirm('Cancel this debt record?\\n\\n' + label + '\\n\\nThis is a status-only change. It does not reverse old ledger transactions.');
-  if (!ok) return;
-
-  const btn = $('cancelDebtRecordBtn');
-  setBusy(btn, true, 'Cancelling...', 'Cancel Record');
-
-  try {
-    await fetchJSON('/api/debts/' + encodeURIComponent(state.editingDebtId) + '?created_by=web-debts-edit', { method: 'DELETE' });
-    closeDebt();
-    toast('Debt record cancelled. Status only, no ledger reversal.');
-    await loadDebts();
-  } catch (err) {
-    toast(err.message, 'error');
-  } finally {
-    setBusy(btn, false, 'Cancelling...', 'Cancel Record');
-  }
-}
-
-async function loadDebts() {
-  $('oweList').innerHTML = '<div class="debt-empty">Loading debts...</div>';
-  $('owedList').innerHTML = '<div class="debt-empty">Loading receivables...</div>';
-
-  try {
-    const [debtsData, accountsData] = await Promise.all([
-      fetchJSON('/api/debts'),
-      fetchJSON('/api/accounts')
-    ]);
-
-    state.debts = debtsData.debts || [];
-    state.accounts = accountsData.accounts || [];
-
-    renderStats();
-    renderLists();
-    fillAccounts();
-    console.log('[debts ' + PAGE_VERSION + '] loaded', state.debts.length, 'records');
-  } catch (err) {
-    $('oweList').innerHTML = `<div class="debt-empty">Debts failed: ${esc(err.message)}</div>`;
-    $('owedList').innerHTML = '<div class="debt-empty">No receivable data.</div>';
-  }
-}
-
-$('addDebtBtn').addEventListener('click', openDebtAdd);
-$('refreshBtn').addEventListener('click', loadDebts);
-$('cancelPayBtn').addEventListener('click', closePay);
-$('cancelDebtBtn').addEventListener('click', closeDebt);
-$('cancelDebtRecordBtn').addEventListener('click', cancelDebtRecord);
-$('payForm').addEventListener('submit', submitPay);
-$('debtForm').addEventListener('submit', submitDebt);
-
-$('payModal').addEventListener('click', event => {
-  if (event.target === $('payModal')) closePay();
-});
-$('debtModal').addEventListener('click', event => {
-  if (event.target === $('debtModal')) closeDebt();
-});
-
-document.addEventListener('keydown', event => {
-  if (event.key !== 'Escape') return;
-  if ($('payModal').classList.contains('open')) closePay();
-  if ($('debtModal').classList.contains('open')) closeDebt();
-});
-
-loadDebts();
-</script>
+  <script src="/js/theme.js?v=1.0.0"></script>
+  <script src="/js/nav.js?v=1.1.3"></script>
+  <script src="/js/debts.js?v=0.6.0"></script>
 </body>
 </html>
