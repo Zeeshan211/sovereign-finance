@@ -124,7 +124,7 @@
     }
 
     .subtitle {
-      max-width: 780px;
+      max-width: 800px;
       margin: 13px 0 0;
       color: #cbd5e1;
       font-size: 15px;
@@ -293,13 +293,13 @@
       white-space: nowrap;
     }
 
-    .ready, .pass, .good {
+    .ready, .clean, .trial-safe, .pass, .good {
       color: #166534;
       background: var(--green-soft);
       border-color: rgba(22,163,74,.20);
     }
 
-    .warning, .warn, .degraded {
+    .warning, .warn, .internal-only, .degraded {
       color: #92400e;
       background: var(--amber-soft);
       border-color: rgba(217,119,6,.20);
@@ -415,13 +415,21 @@
       font-weight: 720;
     }
 
-    .metric-grid {
+    .metric-grid,
+    .api-grid,
+    .impact-grid,
+    .group-grid,
+    .pattern-grid {
       display: grid;
       grid-template-columns: repeat(2,minmax(0,1fr));
       gap: 10px;
     }
 
-    .metric {
+    .metric,
+    .api-card,
+    .impact-card,
+    .group-card,
+    .pattern-card {
       padding: 13px;
       border-radius: 18px;
       background: var(--soft);
@@ -446,31 +454,22 @@
       overflow-wrap: anywhere;
     }
 
-    .metric-note {
-      margin-top: 5px;
+    .metric-note,
+    .api-meta,
+    .impact-list,
+    .group-meta,
+    .pattern-meta {
+      margin-top: 7px;
       color: var(--muted);
-      font-size: 11px;
-      line-height: 1.35;
+      font-size: 12px;
+      line-height: 1.4;
       font-weight: 740;
     }
 
-    .api-grid,
-    .impact-grid {
-      display: grid;
-      grid-template-columns: repeat(2,minmax(0,1fr));
-      gap: 10px;
-    }
-
-    .api-card,
-    .impact-card {
-      padding: 13px;
-      border-radius: 18px;
-      background: var(--soft);
-      border: 1px solid rgba(148,163,184,.18);
-    }
-
     .api-head,
-    .impact-name {
+    .impact-name,
+    .group-head,
+    .pattern-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -478,15 +477,6 @@
       font-size: 13px;
       font-weight: 1000;
       line-height: 1.25;
-    }
-
-    .api-meta,
-    .impact-list {
-      margin-top: 7px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.4;
-      font-weight: 740;
     }
 
     .table-wrap {
@@ -498,7 +488,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 820px;
+      min-width: 860px;
       font-size: 12px;
     }
 
@@ -519,6 +509,12 @@
 
     td {
       font-weight: 760;
+    }
+
+    .hit-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
     }
 
     details.audit {
@@ -604,7 +600,9 @@
       .score-grid,
       .metric-grid,
       .api-grid,
-      .impact-grid {
+      .impact-grid,
+      .group-grid,
+      .pattern-grid {
         grid-template-columns: 1fr;
       }
 
@@ -625,7 +623,7 @@
           <h1>Finance Command Centre</h1>
           <p class="subtitle">
             Whole-system status for money truth, API health, wiring, logic, UI cleanliness, impact safety, and trial readiness.
-            This page reads signals only. It does not create, update, delete, or test ledger rows.
+            The cleanliness scanner checks every finance page for exposed metadata, backend wording, raw IDs, and unsafe source language.
           </p>
         </div>
 
@@ -657,8 +655,8 @@
       "use strict";
 
       window.SovereignCommandCentre = {
-        version: "0.2.0",
-        mode: "real-api-health-layer"
+        version: "0.3.0",
+        mode: "ui-cleanliness-metadata-scanner"
       };
 
       const app = document.getElementById("app");
@@ -667,17 +665,17 @@
       const detailsBtn = document.getElementById("detailsBtn");
 
       const MODULES = [
-        { key: "hub", name: "Hub", pages: ["index.html"], apis: ["balances"], dependsOn: ["accounts", "transactions", "bills", "debts"], impacts: ["whole cockpit"], risk: "high" },
-        { key: "add", name: "Add Transaction", pages: ["add.html"], apis: ["accounts", "categories", "transactions"], dependsOn: ["accounts", "categories", "store"], impacts: ["transactions", "accounts", "balances", "hub", "forecast"], risk: "high" },
-        { key: "transactions", name: "Transactions", pages: ["transactions.html"], apis: ["transactions"], dependsOn: ["accounts", "categories"], impacts: ["balances", "forecast", "command centre"], risk: "high" },
-        { key: "accounts", name: "Accounts", pages: ["accounts.html"], apis: ["accounts"], dependsOn: ["transactions"], impacts: ["balances", "hub", "reconciliation"], risk: "high" },
-        { key: "credit-card", name: "Credit Card", pages: ["cc.html"], apis: ["accounts", "transactions"], dependsOn: ["cc account balance"], impacts: ["hub", "forecast", "command centre"], risk: "high" },
-        { key: "bills", name: "Bills", pages: ["bills.html"], apis: ["bills"], dependsOn: ["accounts"], impacts: ["forecast", "command centre"], risk: "medium" },
-        { key: "debts", name: "Debts", pages: ["debts.html"], apis: ["debts"], dependsOn: ["accounts"], impacts: ["forecast", "command centre"], risk: "medium" },
-        { key: "salary", name: "Salary", pages: ["salary.html"], apis: ["salary"], dependsOn: ["salary config", "payslip"], impacts: ["forecast", "command centre"], risk: "high" },
-        { key: "forecast", name: "Forecast", pages: ["forecast.html"], apis: ["forecast"], dependsOn: ["balances", "bills", "debts", "salary"], impacts: ["command centre"], risk: "high" },
-        { key: "reconciliation", name: "Reconciliation", pages: ["reconciliation.html"], apis: ["reconciliation"], dependsOn: ["accounts", "transactions"], impacts: ["command centre"], risk: "medium" },
-        { key: "command-centre", name: "Command Centre", pages: ["monthly-close.html"], apis: ["monthly-close", "balances", "accounts", "transactions", "bills", "debts", "salary", "forecast"], dependsOn: ["all finance modules"], impacts: ["trial decision"], risk: "high" }
+        { key: "hub", name: "Hub", group: "Daily Core", pages: ["index.html"], apis: ["balances"], dependsOn: ["accounts", "transactions", "bills", "debts"], impacts: ["whole cockpit"], risk: "high" },
+        { key: "add", name: "Add Transaction", group: "Daily Core", pages: ["add.html"], apis: ["accounts", "categories", "transactions"], dependsOn: ["accounts", "categories", "store"], impacts: ["transactions", "accounts", "balances", "hub", "forecast"], risk: "high" },
+        { key: "transactions", name: "Transactions", group: "Daily Core", pages: ["transactions.html"], apis: ["transactions"], dependsOn: ["accounts", "categories"], impacts: ["balances", "forecast", "command centre"], risk: "high" },
+        { key: "accounts", name: "Accounts", group: "Money Truth", pages: ["accounts.html"], apis: ["accounts"], dependsOn: ["transactions"], impacts: ["balances", "hub", "reconciliation"], risk: "high" },
+        { key: "credit-card", name: "Credit Card", group: "Money Truth", pages: ["cc.html"], apis: ["accounts", "transactions"], dependsOn: ["cc account balance"], impacts: ["hub", "forecast", "command centre"], risk: "high" },
+        { key: "bills", name: "Bills", group: "Money Truth", pages: ["bills.html"], apis: ["bills"], dependsOn: ["accounts"], impacts: ["forecast", "command centre"], risk: "medium" },
+        { key: "debts", name: "Debts", group: "Money Truth", pages: ["debts.html"], apis: ["debts"], dependsOn: ["accounts"], impacts: ["forecast", "command centre"], risk: "medium" },
+        { key: "salary", name: "Salary", group: "Planning", pages: ["salary.html"], apis: ["salary"], dependsOn: ["salary config", "payslip"], impacts: ["forecast", "command centre"], risk: "high" },
+        { key: "forecast", name: "Forecast", group: "Planning", pages: ["forecast.html"], apis: ["forecast"], dependsOn: ["balances", "bills", "debts", "salary"], impacts: ["command centre"], risk: "high" },
+        { key: "reconciliation", name: "Reconciliation", group: "QA/Admin", pages: ["reconciliation.html"], apis: ["reconciliation"], dependsOn: ["accounts", "transactions"], impacts: ["command centre"], risk: "medium" },
+        { key: "command-centre", name: "Command Centre", group: "QA/Admin", pages: ["monthly-close.html"], apis: ["monthly-close", "balances", "accounts", "transactions", "bills", "debts", "salary", "forecast"], dependsOn: ["all finance modules"], impacts: ["trial decision"], risk: "high" }
       ];
 
       const API_ROUTES = {
@@ -706,12 +704,72 @@
         reconciliation: []
       };
 
-      const UI_PATTERNS = [
-        { label: "version label", pattern: /\b(?:nav|css|cockpit|html|backend|store|add|bills|debts|salary)\s*v?\d+\.\d+\.\d+/i, severity: "warning" },
-        { label: "backend route", pattern: /\/api\/[a-z0-9/_?=&.-]+/i, severity: "warning" },
-        { label: "debug wording", pattern: /\b(debug|backend_score|computed_from|ready_with_warnings|raw json)\b/i, severity: "warning" },
-        { label: "unsafe contract wording", pattern: /\bmoney-contracts\b/i, severity: "blocked" },
-        { label: "raw id wording", pattern: /\b(account_id|bill_id|debt_id|salary_config_id|active_payslip_id)\b/i, severity: "warning" }
+      const PAGE_GROUPS = ["Daily Core", "Money Truth", "Planning", "QA/Admin"];
+
+      const CLEAN_PATTERNS = [
+        {
+          key: "unsafe_contract",
+          label: "Unsafe contract source",
+          severity: "blocked",
+          penalty: 60,
+          pattern: /\bmoney-contracts\b/i,
+          meaning: "This page references a blocked source for trial trust.",
+          next: "Remove money-contracts dependency or wording."
+        },
+        {
+          key: "backend_route",
+          label: "Backend route visible",
+          severity: "warning",
+          penalty: 15,
+          pattern: /\/api\/[a-z0-9/_?=&.-]+/i,
+          meaning: "Normal trial UI should not expose backend routes.",
+          next: "Translate into user-safe cockpit language."
+        },
+        {
+          key: "debug_source",
+          label: "Debug/source wording",
+          severity: "warning",
+          penalty: 15,
+          pattern: /\b(debug|backend_score|computed_from|ready_with_warnings|raw json|computed_at|forecast_meta|payload)\b/i,
+          meaning: "The page contains wording that feels like an internal report.",
+          next: "Hide behind admin/debug or rewrite in plain language."
+        },
+        {
+          key: "raw_ids",
+          label: "Raw ID wording",
+          severity: "warning",
+          penalty: 10,
+          pattern: /\b(account_id|bill_id|debt_id|salary_config_id|active_payslip_id|linked_txn_id)\b/i,
+          meaning: "Raw IDs should not be visible in trial UI.",
+          next: "Show user names/labels instead of internal IDs."
+        },
+        {
+          key: "transaction_ids",
+          label: "Transaction ID wording",
+          severity: "warning",
+          penalty: 10,
+          pattern: /\b(TXN-|txn_|transaction_id)\b/i,
+          meaning: "Transaction internals should be hidden from normal cockpit screens.",
+          next: "Keep transaction IDs inside audit/admin mode only."
+        },
+        {
+          key: "file_names",
+          label: "File name wording",
+          severity: "warning",
+          penalty: 10,
+          pattern: /\b[a-z0-9-]+\.html\b/i,
+          meaning: "File names make the page feel like a development surface.",
+          next: "Use product names instead of file names."
+        },
+        {
+          key: "version_labels",
+          label: "Version label",
+          severity: "warning",
+          penalty: 10,
+          pattern: /\b(?:nav|css|cockpit|backend|store|add|bills|debts|salary|forecast)\s*v?\d+\.\d+\.\d+/i,
+          meaning: "Version labels should not be visible in normal trial UI.",
+          next: "Hide versions unless admin/debug mode is active."
+        }
       ];
 
       function currentMonth() {
@@ -751,7 +809,10 @@
       function labelStatus(status) {
         return {
           ready: "Ready",
+          clean: "Clean",
+          "trial-safe": "Trial Safe",
           warning: "Warning",
+          "internal-only": "Internal Only",
           degraded: "Degraded",
           blocked: "Blocked",
           unknown: "Unknown",
@@ -765,6 +826,21 @@
         if (score >= 100) return "ready";
         if (score >= 85) return "warning";
         if (score >= 60) return "degraded";
+        return "blocked";
+      }
+
+      function cleanStatus(score, hasBlocked, failed) {
+        if (failed) return "unknown";
+        if (hasBlocked) return "blocked";
+        if (score >= 90) return "clean";
+        if (score >= 70) return "warning";
+        return "blocked";
+      }
+
+      function trialDecision(status) {
+        if (status === "clean") return "trial-safe";
+        if (status === "warning") return "internal-only";
+        if (status === "unknown") return "unknown";
         return "blocked";
       }
 
@@ -833,11 +909,11 @@
 
         try {
           const res = await fetch(route, { cache: "no-store" });
-          const text = await res.text();
+          const raw = await res.text();
           let data = null;
 
           try {
-            data = text ? JSON.parse(text) : null;
+            data = raw ? JSON.parse(raw) : null;
           } catch (error) {
             return {
               ok: false,
@@ -845,7 +921,7 @@
               ms: Date.now() - started,
               error: "Response was not valid JSON",
               data: null,
-              rawLength: text.length
+              rawLength: raw.length
             };
           }
 
@@ -856,7 +932,7 @@
               ms: Date.now() - started,
               error: `HTTP ${res.status}`,
               data,
-              rawLength: text.length
+              rawLength: raw.length
             };
           }
 
@@ -867,7 +943,7 @@
               ms: Date.now() - started,
               error: data.error || "Response returned not ok",
               data,
-              rawLength: text.length
+              rawLength: raw.length
             };
           }
 
@@ -877,7 +953,7 @@
             ms: Date.now() - started,
             error: "",
             data,
-            rawLength: text.length
+            rawLength: raw.length
           };
         } catch (error) {
           return {
@@ -1068,41 +1144,100 @@
         };
       }
 
-      function analyzeUi(pageResults) {
+      function analyzeCleanliness(pageResults) {
+        const pageScores = [];
         const issues = [];
-        const pages = Object.keys(pageResults);
-        let clean = 0;
+        const patternSummary = {};
 
-        pages.forEach(path => {
+        Object.keys(pageResults).forEach(path => {
           const result = pageResults[path];
-          if (!result || !result.ok || !result.text) return;
+          const module = MODULES.find(m => m.pages.includes(path));
+          const group = module?.group || "Unknown";
+          const name = module?.name || titleCase(path.replace(".html", ""));
 
-          const hits = [];
+          if (!result || !result.ok || !result.text) {
+            pageScores.push({
+              path,
+              name,
+              group,
+              status: "unknown",
+              decision: "unknown",
+              score: 0,
+              hits: []
+            });
 
-          UI_PATTERNS.forEach(rule => {
-            if (rule.pattern.test(result.text)) hits.push(rule);
-          });
+            issues.push({
+              severity: "unknown",
+              module: name,
+              title: `${name} could not be scanned`,
+              detail: "The page did not return readable HTML.",
+              next: "Verify route and deployment before trial."
+            });
 
-          if (!hits.length) {
-            clean += 1;
             return;
           }
 
-          hits.forEach(hit => {
-            issues.push({
-              severity: hit.severity,
-              module: path.replace(".html", ""),
-              title: `${titleCase(path.replace(".html", ""))} exposes ${hit.label}`,
-              detail: "Trial UI should hide internal labels, raw routes, file names, version text, unsafe source wording, and raw IDs.",
-              next: "Translate this into user-safe cockpit language or move it behind admin-only debug."
-            });
+          const hits = [];
+          let score = 100;
+          let hasBlocked = false;
+
+          CLEAN_PATTERNS.forEach(rule => {
+            if (rule.pattern.test(result.text)) {
+              hits.push(rule);
+              score -= rule.penalty;
+              if (rule.severity === "blocked") hasBlocked = true;
+
+              if (!patternSummary[rule.key]) {
+                patternSummary[rule.key] = {
+                  key: rule.key,
+                  label: rule.label,
+                  severity: rule.severity,
+                  count: 0,
+                  worstPage: name
+                };
+              }
+
+              patternSummary[rule.key].count += 1;
+              patternSummary[rule.key].worstPage = patternSummary[rule.key].worstPage || name;
+
+              issues.push({
+                severity: rule.severity,
+                module: name,
+                title: `${name} exposes ${rule.label}`,
+                detail: rule.meaning,
+                next: rule.next
+              });
+            }
+          });
+
+          score = Math.max(0, score);
+
+          const status = cleanStatus(score, hasBlocked, false);
+          const decision = trialDecision(status);
+
+          pageScores.push({
+            path,
+            name,
+            group,
+            status,
+            decision,
+            score,
+            hits
           });
         });
 
+        const avg = pageScores.length
+          ? Math.round(pageScores.reduce((sum, page) => sum + page.score, 0) / pageScores.length)
+          : 0;
+
+        const anyBlocked = pageScores.some(page => page.status === "blocked");
+        const finalScore = anyBlocked ? Math.min(avg, 84) : avg;
+
         return {
-          score: pages.length ? Math.round((clean / pages.length) * 100) : 0,
-          clean,
-          total: pages.length,
+          score: finalScore,
+          rawAverage: avg,
+          pageScores,
+          patternSummary: Object.values(patternSummary),
           issues
         };
       }
@@ -1173,16 +1308,6 @@
           });
         }
 
-        if (!h.transactions.length) {
-          issues.push({
-            severity: "warning",
-            module: "transactions",
-            title: "No transactions visible to audit",
-            detail: "Transactions endpoint responded but no transaction rows were detected by the frontend audit.",
-            next: "Verify the transactions page if this looks wrong."
-          });
-        }
-
         const unsafeForecast =
           h.forecast.first_unsafe_date ||
           Number(h.forecast.unsafe_days_count || 0) > 0 ||
@@ -1208,30 +1333,19 @@
         };
       }
 
-      function analyzeLogic(pageResults, apiResults) {
+      function analyzeLogic(cleanAudit, apiResults) {
         const issues = [];
-        const watched = ["salary.html", "forecast.html", "cc.html", "monthly-close.html"];
 
-        watched.forEach(path => {
-          const text = pageResults[path]?.text || "";
+        cleanAudit.pageScores.forEach(page => {
+          const unsafeHit = page.hits.some(hit => hit.key === "unsafe_contract");
 
-          if (/money-contracts/i.test(text)) {
+          if (unsafeHit) {
             issues.push({
               severity: "blocked",
-              module: path.replace(".html", ""),
-              title: `${titleCase(path.replace(".html", ""))} references unsafe contract source`,
+              module: page.name,
+              title: `${page.name} references unsafe contract source`,
               detail: "Recovery rule says no trial-trust page should depend on unsafe money-contracts logic.",
               next: "Remove the dependency before this module can be marked ready."
-            });
-          }
-
-          if (/computed_from_cc_transactions|lifetime/i.test(text)) {
-            issues.push({
-              severity: "blocked",
-              module: path.replace(".html", ""),
-              title: `${titleCase(path.replace(".html", ""))} may expose unsafe CC logic`,
-              detail: "Credit Card outstanding must not be calculated from lifetime spend.",
-              next: "Use realtime account/balance truth only."
             });
           }
         });
@@ -1321,7 +1435,7 @@
         const allIssues = [
           ...audits.api.issues,
           ...audits.pages.issues,
-          ...audits.ui.issues,
+          ...audits.cleanliness.issues,
           ...audits.truth.issues,
           ...audits.logic.issues,
           ...audits.impact.issues,
@@ -1336,7 +1450,7 @@
           financeTruth: audits.truth.score,
           wiring: Math.round((audits.api.score * 0.58) + (audits.pages.score * 0.42)),
           logic: audits.logic.score,
-          uiCleanliness: audits.ui.score,
+          uiCleanliness: audits.cleanliness.score,
           impactSafety: audits.impact.score,
           writeSafety: audits.write.score
         };
@@ -1429,6 +1543,124 @@
         `;
       }
 
+      function renderGroupGate(cleanAudit) {
+        const groups = PAGE_GROUPS.map(group => {
+          const pages = cleanAudit.pageScores.filter(page => page.group === group);
+          const score = pages.length
+            ? Math.round(pages.reduce((sum, page) => sum + page.score, 0) / pages.length)
+            : 0;
+
+          const blocked = pages.some(page => page.status === "blocked");
+          const unknown = pages.some(page => page.status === "unknown");
+          const status = unknown ? "unknown" : blocked ? "blocked" : score >= 90 ? "trial-safe" : "internal-only";
+
+          const dirtyPages = pages
+            .filter(page => page.status !== "clean")
+            .map(page => page.name)
+            .join(", ") || "none";
+
+          return { group, score, status, dirtyPages };
+        });
+
+        return `
+          <div class="group-grid">
+            ${groups.map(row => `
+              <div class="group-card">
+                <div class="group-head">
+                  <span>${esc(row.group)}</span>
+                  ${badge(row.status, labelStatus(row.status))}
+                </div>
+                <div class="metric-value">${pct(row.score)}</div>
+                <div class="group-meta">Dirty pages: ${esc(row.dirtyPages)}</div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function renderCleanlinessMatrix(cleanAudit) {
+        return `
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Page</th>
+                  <th>Group</th>
+                  <th>Status</th>
+                  <th>Score</th>
+                  <th>Hits</th>
+                  <th>Trial decision</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${cleanAudit.pageScores.map(page => `
+                  <tr>
+                    <td><strong>${esc(page.name)}</strong><br><span style="color:#64748b;">${esc(page.path)}</span></td>
+                    <td>${esc(page.group)}</td>
+                    <td>${badge(page.status, labelStatus(page.status))}</td>
+                    <td>${pct(page.score)}</td>
+                    <td>
+                      <div class="hit-list">
+                        ${page.hits.length ? page.hits.map(hit => badge(hit.severity, hit.label)).join("") : badge("good", "none")}
+                      </div>
+                    </td>
+                    <td>${badge(page.decision, labelStatus(page.decision))}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      function renderPatternSummary(cleanAudit) {
+        if (!cleanAudit.patternSummary.length) {
+          return `<div class="empty">No dirty metadata pattern found in scanned page HTML.</div>`;
+        }
+
+        return `
+          <div class="pattern-grid">
+            ${cleanAudit.patternSummary.map(pattern => `
+              <div class="pattern-card">
+                <div class="pattern-head">
+                  <span>${esc(pattern.label)}</span>
+                  ${badge(pattern.severity, pattern.severity)}
+                </div>
+                <div class="metric-value">${esc(pattern.count)}</div>
+                <div class="pattern-meta">Worst/first page: ${esc(pattern.worstPage || "Unknown")}</div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function renderDirtyPages(cleanAudit) {
+        const dirty = cleanAudit.pageScores
+          .filter(page => page.status !== "clean")
+          .sort((a, b) => a.score - b.score)
+          .slice(0, 5);
+
+        if (!dirty.length) {
+          return `<div class="empty">No dirty page found by the metadata scanner.</div>`;
+        }
+
+        return `
+          <div class="list">
+            ${dirty.map((page, index) => issueCard({
+              severity: page.status === "blocked" ? "blocked" : page.status === "unknown" ? "unknown" : "warning",
+              module: page.name,
+              title: `${page.name} is ${labelStatus(page.status)}`,
+              detail: page.hits.length
+                ? `Detected: ${page.hits.map(hit => hit.label).join(", ")}.`
+                : "Page could not be scanned cleanly.",
+              next: page.status === "blocked"
+                ? "Do not show this page in trial until cleaned."
+                : "Clean visible/internal wording before polished trial."
+            }, index)).join("")}
+          </div>
+        `;
+      }
+
       function renderImpactMap() {
         return `
           <div class="impact-grid">
@@ -1456,6 +1688,7 @@
                 <tr>
                   <th>Module</th>
                   <th>Status</th>
+                  <th>Group</th>
                   <th>Pages</th>
                   <th>APIs</th>
                   <th>Impacts</th>
@@ -1471,6 +1704,7 @@
                     <tr>
                       <td><strong>${esc(m.name)}</strong></td>
                       <td>${badge(status, labelStatus(status))}</td>
+                      <td>${esc(m.group)}</td>
                       <td>${esc(m.pages.join(", "))}</td>
                       <td>${esc(m.apis.join(", "))}</td>
                       <td>${esc(m.impacts.join(", "))}</td>
@@ -1532,7 +1766,7 @@
             ${scoreCard("Finance Truth", result.scores.financeTruth, "Balances, CC, bills, debts, salary, forecast trust.")}
             ${scoreCard("Wiring", result.scores.wiring, "Pages and data sources connected and readable.")}
             ${scoreCard("Logic", result.scores.logic, "Unsafe calculation sources and bad assumptions.")}
-            ${scoreCard("UI Cleanliness", result.scores.uiCleanliness, "Debug, source, version, and internal labels.")}
+            ${scoreCard("UI Cleanliness", result.scores.uiCleanliness, "Page scanner for metadata and trial dirt.")}
             ${scoreCard("Impact Safety", result.scores.impactSafety, "Known dependency graph and change risk.")}
           </section>
 
@@ -1553,12 +1787,87 @@
             <div class="panel">
               <div class="panel-head">
                 <div>
+                  <h2 class="panel-title">Top Dirty Pages</h2>
+                  <p class="panel-sub">Pages most likely to feel unfinished or unsafe during trial.</p>
+                </div>
+                ${badge(scoreStatus(audits.cleanliness.score, audits.cleanliness.issues.some(i => i.severity === "blocked"), false), pct(audits.cleanliness.score))}
+              </div>
+              <div class="panel-body">
+                ${renderDirtyPages(audits.cleanliness)}
+              </div>
+            </div>
+          </section>
+
+          <section class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Trial Cleanliness Gate</h2>
+                  <p class="panel-sub">Grouped decision: trial safe, internal only, blocked, or unknown.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderGroupGate(audits.cleanliness)}
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
                   <h2 class="panel-title">Money + Wiring Snapshot</h2>
                   <p class="panel-sub">Fast read from current data sources and static app routes.</p>
                 </div>
               </div>
               <div class="panel-body">
                 ${renderMetrics(health, audits.api, audits.pages)}
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" style="margin-bottom:18px;">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Page Cleanliness Matrix</h2>
+                <p class="panel-sub">Every major finance page scanned for metadata, backend wording, raw IDs, and unsafe sources.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              ${renderCleanlinessMatrix(audits.cleanliness)}
+            </div>
+          </section>
+
+          <section class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Dirty Pattern Summary</h2>
+                  <p class="panel-sub">What kind of trial dirt is appearing most often.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderPatternSummary(audits.cleanliness)}
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Trial Decision</h2>
+                  <p class="panel-sub">No fake 100%. Blockers override score.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="list">
+                  ${issueCard({
+                    severity: result.status === "ready" ? "good" : result.status === "warning" ? "warning" : "blocked",
+                    module: "trial",
+                    title: labelStatus(result.status),
+                    detail: result.status === "ready"
+                      ? "Current frontend/API/cleanliness audit found no blocker."
+                      : "Do not call the cockpit 100% ready until blockers are resolved and deeper backend/runtime audit exists.",
+                    next: result.blockers[0] ? result.blockers[0].next : "Use the fix queue and rerun audit."
+                  }, 0)}
+                </div>
               </div>
             </div>
           </section>
@@ -1579,63 +1888,12 @@
             <div class="panel">
               <div class="panel-head">
                 <div>
-                  <h2 class="panel-title">Trial Decision</h2>
-                  <p class="panel-sub">No fake 100%. Blockers override score.</p>
-                </div>
-              </div>
-              <div class="panel-body">
-                <div class="list">
-                  ${issueCard({
-                    severity: result.status === "ready" ? "good" : result.status === "warning" ? "warning" : "blocked",
-                    module: "trial",
-                    title: labelStatus(result.status),
-                    detail: result.status === "ready"
-                      ? "Current frontend/API audit found no blocker."
-                      : "Do not call the cockpit 100% ready until blockers are resolved and deeper backend/runtime audit exists.",
-                    next: result.blockers[0] ? result.blockers[0].next : "Use the fix queue and rerun audit."
-                  }, 0)}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section class="grid-2">
-            <div class="panel">
-              <div class="panel-head">
-                <div>
                   <h2 class="panel-title">Impact Map</h2>
                   <p class="panel-sub">If one module changes, these are the areas that need recheck.</p>
                 </div>
               </div>
               <div class="panel-body">
                 ${renderImpactMap()}
-              </div>
-            </div>
-
-            <div class="panel">
-              <div class="panel-head">
-                <div>
-                  <h2 class="panel-title">Known Limitation</h2>
-                  <p class="panel-sub">What v0.2 can honestly prove.</p>
-                </div>
-              </div>
-              <div class="panel-body">
-                <div class="list">
-                  ${issueCard({
-                    severity: "warning",
-                    module: "v0.2",
-                    title: "Runtime browser proof is not complete yet",
-                    detail: "This page checks API responses and static HTML. It does not execute every page's JS in a real browser.",
-                    next: "Later add backend audit engine or browser test layer."
-                  }, 0)}
-                  ${issueCard({
-                    severity: "good",
-                    module: "v0.2",
-                    title: "No ledger mutation happens here",
-                    detail: "The Command Centre only reads existing pages and APIs.",
-                    next: "Keep write safety testing dry-run only until explicitly approved."
-                  }, 1)}
-                </div>
               </div>
             </div>
           </section>
@@ -1656,7 +1914,7 @@
           ${auditDetails("Finance Truth Audit", audits.truth.score, audits.truth.issues)}
           ${auditDetails("Wiring Audit", result.scores.wiring, audits.api.issues.concat(audits.pages.issues))}
           ${auditDetails("Logic Audit", audits.logic.score, audits.logic.issues)}
-          ${auditDetails("UI Cleanliness Audit", audits.ui.score, audits.ui.issues)}
+          ${auditDetails("UI Cleanliness Audit", audits.cleanliness.score, audits.cleanliness.issues)}
           ${auditDetails("Impact Safety Audit", audits.impact.score, audits.impact.issues)}
           ${auditDetails("Write Safety Audit", audits.write.score, audits.write.issues)}
         `;
@@ -1694,9 +1952,9 @@
         const audits = {};
         audits.api = analyzeApiHealth(apiResults);
         audits.pages = analyzePages(pageResults);
-        audits.ui = analyzeUi(pageResults);
+        audits.cleanliness = analyzeCleanliness(pageResults);
         audits.truth = analyzeTruth(apiResults);
-        audits.logic = analyzeLogic(pageResults, apiResults);
+        audits.logic = analyzeLogic(audits.cleanliness, apiResults);
         audits.impact = analyzeImpact();
         audits.write = analyzeWrite(pageResults);
 
