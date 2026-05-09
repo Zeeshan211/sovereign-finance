@@ -1,3 +1,7 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0f172a" />
 <meta name="mobile-web-app-capable" content="yes" />
@@ -10,16 +14,19 @@ body {
 max-width: 100%;
 overflow-x: hidden;
 }
+
 * {
 box-sizing: border-box;
 min-width: 0;
 }
+
 .add-wrap {
 width: 100%;
 max-width: 980px;
 margin: 0 auto;
 padding: 0 12px 64px;
 }
+
 .add-hero {
 position: relative;
 overflow: hidden;
@@ -33,6 +40,7 @@ box-shadow: var(--shadow-lg);
 padding: 26px;
 margin: 14px 0 18px;
 }
+
 .add-kicker {
 display: inline-flex;
 align-items: center;
@@ -47,6 +55,7 @@ text-transform: uppercase;
 letter-spacing: 0.07em;
 margin-bottom: 12px;
 }
+
 .add-kicker::before {
 content: "";
 width: 8px;
@@ -55,6 +64,7 @@ border-radius: 999px;
 background: #22c55e;
 box-shadow: 0 0 16px rgba(34, 197, 94, 0.8);
 }
+
 .add-heading {
 color: #ffffff;
 font-size: clamp(34px, 5vw, 58px);
@@ -63,6 +73,7 @@ font-weight: 950;
 letter-spacing: -0.06em;
 margin: 0;
 }
+
 .add-copy {
 color: #cbd5e1;
 font-size: 15px;
@@ -71,12 +82,14 @@ font-weight: 750;
 margin: 12px 0 0;
 max-width: 760px;
 }
+
 .add-type-grid {
 display: grid;
 grid-template-columns: repeat(3, minmax(0, 1fr));
 gap: 12px;
 margin-top: 20px;
 }
+
 .add-type-grid .type-btn {
 min-height: 106px;
 display: flex;
@@ -91,26 +104,31 @@ border-radius: 22px;
 cursor: pointer;
 transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
+
 .add-type-grid .type-btn:hover {
 transform: translateY(-1px);
 border-color: rgba(255, 255, 255, 0.24);
 }
+
 .add-type-grid .type-btn.active {
 background: rgba(34, 197, 94, 0.16);
 color: #ffffff;
 border-color: rgba(34, 197, 94, 0.42);
 }
+
 .type-main {
 font-size: 16px;
 font-weight: 950;
 letter-spacing: -0.02em;
 }
+
 .type-small {
 color: #cbd5e1;
 font-size: 12px;
 font-weight: 850;
 margin-top: 5px;
 }
+
 .add-trust-panel {
 margin-top: 16px;
 padding: 14px;
@@ -122,6 +140,7 @@ font-size: 13px;
 font-weight: 850;
 line-height: 1.45;
 }
+
 .add-trust-title {
 color: #fde68a;
 font-size: 11px;
@@ -130,16 +149,19 @@ text-transform: uppercase;
 letter-spacing: 0.06em;
 margin-bottom: 5px;
 }
+
 .add-trust-panel.income {
 border-color: rgba(34, 197, 94, 0.36);
 background: rgba(34, 197, 94, 0.12);
 color: #dcfce7;
 }
+
 .add-trust-panel.transfer {
 border-color: rgba(96, 165, 250, 0.36);
 background: rgba(37, 99, 235, 0.16);
 color: #dbeafe;
 }
+
 .add-form-card {
 background: var(--surface-1);
 border: 1px solid var(--border);
@@ -147,6 +169,7 @@ border-radius: 30px;
 box-shadow: var(--shadow-md);
 padding: 24px;
 }
+
 .add-enforcement-panel {
 margin-bottom: 16px;
 padding: 15px;
@@ -155,11 +178,13 @@ border: 1px solid rgba(220, 38, 38, 0.24);
 background: linear-gradient(135deg, rgba(254, 226, 226, 0.92), rgba(255,255,255,0.96));
 color: #7f1d1d;
 }
+
 .add-enforcement-panel.warning {
 border-color: rgba(217, 119, 6, 0.28);
 background: linear-gradient(135deg, rgba(254, 243, 199, 0.92), rgba(255,255,255,0.96));
 color: #78350f;
 }
+
 .add-enforcement-title {
 font-size: 12px;
 font-weight: 1000;
@@ -167,12 +192,14 @@ text-transform: uppercase;
 letter-spacing: 0.07em;
 margin-bottom: 8px;
 }
+
 .add-enforcement-grid {
 display: grid;
 grid-template-columns: repeat(2, minmax(0, 1fr));
 gap: 10px;
 margin-top: 10px;
 }
+
 .add-enforcement-item {
 padding: 10px;
 border-radius: 16px;
@@ -182,6 +209,7 @@ font-size: 12px;
 line-height: 1.35;
 font-weight: 760;
 }
+
 .add-enforcement-item strong {
 display: block;
 color: inherit;
@@ -190,6 +218,7 @@ text-transform: uppercase;
 letter-spacing: 0.05em;
 margin-bottom: 4px;
 }
+
 .transfer-note {
 display: none;
 margin-bottom: 16px;
@@ -202,26 +231,32 @@ font-size: 14px;
 font-weight: 850;
 line-height: 1.45;
 }
+
 body.transfer-mode .transfer-note {
 display: block;
 }
+
 .add-grid {
 display: grid;
 grid-template-columns: repeat(2, minmax(0, 1fr));
 gap: 16px;
 }
+
 .add-field-full {
 grid-column: 1 / -1;
 }
+
 .add-submit {
 margin-top: 18px;
 }
+
 .add-action-clarity {
 display: flex;
 flex-wrap: wrap;
 gap: 8px;
 margin-bottom: 12px;
 }
+
 .add-chip {
 display: inline-flex;
 align-items: center;
@@ -236,21 +271,25 @@ font-weight: 950;
 letter-spacing: 0.03em;
 text-transform: uppercase;
 }
+
 .add-chip.transfer {
 border-color: rgba(37, 99, 235, 0.22);
 background: var(--info-soft);
 color: var(--info);
 }
+
 .add-chip.safe {
 border-color: rgba(34, 197, 94, 0.24);
 background: rgba(34, 197, 94, 0.10);
 color: var(--accent-deep);
 }
+
 .add-chip.blocked {
 border-color: rgba(220, 38, 38, 0.24);
 background: rgba(220, 38, 38, 0.10);
 color: #991b1b;
 }
+
 .add-safety {
 margin-top: 10px;
 color: var(--text-muted);
@@ -259,19 +298,23 @@ font-weight: 750;
 line-height: 1.45;
 text-align: center;
 }
+
 .add-page-meta {
 display: none !important;
 }
+
 @media (max-width: 720px) {
 .add-wrap {
 padding-left: 10px;
 padding-right: 10px;
 }
+
 .add-type-grid,
 .add-grid,
 .add-enforcement-grid {
 grid-template-columns: 1fr;
 }
+
 .add-hero,
 .add-form-card {
 padding: 18px;
@@ -287,14 +330,16 @@ border-radius: 26px;
 <div class="title">Add Transaction</div>
 </div>
 </header>
+
 <main class="add-wrap app-page">
 <section class="add-hero">
-<div class="add-kicker">Ledger write path</div>
-<h1 class="add-heading">Add one clean money event.</h1>
+<div class="add-kicker">Ledger write preflight</div>
+<h1 class="add-heading">Prove the money event before it writes.</h1>
 <p class="add-copy">
-Expenses reduce an account, income increases an account, and transfers move money between accounts.
-If backend enforcement blocks saving, the page will show why instead of silently queuing anything.
+Expenses, income, and transfers now run a safe dry-run proof before any real save path.
+If Command Centre still blocks real writes, this page will validate the payload without creating ledger or audit rows.
 </p>
+
 <div class="add-type-grid" aria-label="Transaction type">
 <button class="type-btn active" type="button" data-type="expense">
 <span class="type-main">Expense</span>
@@ -309,16 +354,19 @@ If backend enforcement blocks saving, the page will show why instead of silently
 <span class="type-small">between accounts</span>
 </button>
 </div>
+
 <div id="addTrustPanel" class="add-trust-panel">
 <div class="add-trust-title">Action type</div>
-<div id="addTrustText">Expense creates one ledger transaction and reduces the selected account balance.</div>
+<div id="addTrustText">Expense dry-run validates one transaction row and the selected source account before any real save.</div>
 </div>
 </section>
+
 <section class="add-form-card">
 <form id="addForm" autocomplete="off">
 <div id="addEnforcementPanel" class="add-enforcement-panel" hidden>
 <div class="add-enforcement-title">Command Centre block</div>
 <div id="addEnforcementSummary">Checking Command Centre enforcement policy...</div>
+
 <div class="add-enforcement-grid">
 <div class="add-enforcement-item">
 <strong>Blocked action</strong>
@@ -346,67 +394,79 @@ If backend enforcement blocks saving, the page will show why instead of silently
 </div>
 </div>
 </div>
+
 <div class="transfer-note">
-Transfer mode creates a linked movement: money leaves the source account and enters the destination account.
-It is not income or spending.
+Transfer mode dry-runs the linked movement: money leaves the source account and enters the destination account.
+No real ledger rows are created during preflight.
 </div>
+
 <div class="add-grid">
 <div class="field">
 <label for="amountInput">Amount</label>
 <input id="amountInput" class="input" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
 </div>
+
 <div class="field">
 <label for="dateInput">Date</label>
 <input id="dateInput" class="input" name="date" type="date" required />
 </div>
+
 <div class="field">
 <label id="accountFromLabel" for="accountSelect">Account</label>
 <select id="accountSelect" class="select" name="account" required>
 <option value="">Loading accounts...</option>
 </select>
 </div>
+
 <div class="field" id="transferToWrap" hidden>
 <label for="transferToSelect">To Account</label>
 <select id="transferToSelect" class="select" name="transfer_to_account">
 <option value="">Pick account...</option>
 </select>
 </div>
+
 <div class="field" id="categoryWrap">
 <label for="categorySelect">Category <small>optional</small></label>
 <select id="categorySelect" class="select" name="category">
 <option value="">Loading categories...</option>
 </select>
 </div>
+
 <div class="field add-field-full">
 <label for="notesInput">Notes <small>max 200 chars</small></label>
 <textarea id="notesInput" class="textarea" name="notes" maxlength="200" placeholder="What happened?"></textarea>
 </div>
 </div>
+
 <div class="add-submit">
 <div class="add-action-clarity">
-<span id="submitClarityChip" class="add-chip">Creates ledger transaction</span>
+<span id="submitClarityChip" class="add-chip">Dry-run validates one ledger row</span>
 <span class="add-chip safe">No silent queue</span>
 <span id="enforcementChip" class="add-chip blocked" hidden>Command Centre blocked</span>
 </div>
+
 <button id="submitBtn" class="primary-submit" type="submit" disabled>
-Save Transaction
+Run Safe Preflight
 </button>
+
 <p id="addSafetyText" class="add-safety">
-Expense mode creates one transaction and reduces the selected account.
-If saving fails, nothing is silently queued.
+Expense mode can run a safe dry-run proof. Real save stays blocked until Command Centre allows transaction.save.
 </p>
 </div>
 </form>
 </section>
+
 <footer class="add-page-meta" aria-hidden="true">
-Add Transaction enforcement soft block UI v0.7.4
+Add Transaction preflight dry-run UI v0.7.5
 </footer>
 </main>
+
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
 <script src="/js/theme.js?v=1.0.0"></script>
 <script src="/js/nav.js?v=1.2.0"></script>
 <script src="/js/enforcement.js?v=0.2.0"></script>
 <script src="/js/store.js?v=0.2.4"></script>
-<script src="/js/add.js?v=0.4.4"></script>
+<script src="/js/add.js?v=0.4.5"></script>
 </body>
 </html>
