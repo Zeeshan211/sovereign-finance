@@ -1,55 +1,74 @@
 <!DOCTYPE html>
-<html lang="en" data-page="home">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#050816" />
+
   <title>Sovereign Finance Hub</title>
+
   <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
+  <script src="/js/theme.js?v=0.7.5" defer></script>
+  <script src="/js/nav.js?v=1.1.2" defer></script>
+
   <style>
     :root {
       --bg: #eef4ff;
       --ink: #0f172a;
       --muted: #64748b;
-      --line: rgba(15,23,42,.10);
-      --shadow: 0 22px 70px rgba(15,23,42,.14);
+      --line: rgba(15, 23, 42, 0.10);
+      --shadow: 0 18px 46px rgba(15, 23, 42, 0.10);
       --green: #16a34a;
       --red: #dc2626;
       --blue: #2563eb;
       --amber: #d97706;
       --violet: #7c3aed;
+      --surface: rgba(255, 255, 255, 0.92);
     }
 
+    * {
+      box-sizing: border-box;
+      min-width: 0;
+    }
+
+    html,
     body {
       margin: 0;
+      max-width: 100%;
+      overflow-x: hidden;
       background:
-        radial-gradient(circle at 8% 0%, rgba(34,197,94,.20), transparent 34rem),
-        radial-gradient(circle at 92% 8%, rgba(59,130,246,.20), transparent 34rem),
-        radial-gradient(circle at 50% 100%, rgba(168,85,247,.14), transparent 34rem),
+        radial-gradient(circle at 8% 0%, rgba(34, 197, 94, 0.18), transparent 34rem),
+        radial-gradient(circle at 92% 8%, rgba(59, 130, 246, 0.18), transparent 34rem),
+        radial-gradient(circle at 50% 100%, rgba(168, 85, 247, 0.12), transparent 34rem),
         var(--bg);
       color: var(--ink);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    main {
-      max-width: 1320px;
-      margin: 0 auto;
-      padding: 22px;
+    a {
+      color: inherit;
+    }
+
+    main.page {
+      width: 100%;
+      max-width: var(--sf-content-max, 1440px);
+      margin-inline: auto;
+      padding: 24px 16px 72px;
     }
 
     .hero {
       position: relative;
       overflow: hidden;
       border-radius: 34px;
-      padding: clamp(26px, 5vw, 46px);
-      margin-bottom: 18px;
+      padding: clamp(24px, 4vw, 42px);
+      margin-bottom: 16px;
       background:
-        radial-gradient(circle at 18% 10%, rgba(34,197,94,.38), transparent 26rem),
-        radial-gradient(circle at 86% 18%, rgba(37,99,235,.30), transparent 28rem),
-        linear-gradient(135deg, rgba(15,23,42,.98), rgba(30,41,59,.96));
+        radial-gradient(circle at 18% 10%, rgba(34, 197, 94, 0.34), transparent 26rem),
+        radial-gradient(circle at 86% 18%, rgba(37, 99, 235, 0.28), transparent 28rem),
+        linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.96));
       color: white;
-      box-shadow: 0 30px 90px rgba(15,23,42,.28);
-      border: 1px solid rgba(148,163,184,.24);
+      box-shadow: 0 26px 72px rgba(15, 23, 42, 0.24);
+      border: 1px solid rgba(148, 163, 184, 0.24);
     }
 
     .kicker {
@@ -58,28 +77,28 @@
       gap: 8px;
       padding: 8px 12px;
       border-radius: 999px;
-      background: rgba(34,197,94,.16);
+      background: rgba(34, 197, 94, 0.16);
       color: #86efac;
-      border: 1px solid rgba(34,197,94,.26);
+      border: 1px solid rgba(34, 197, 94, 0.26);
       font-size: 12px;
       font-weight: 950;
       text-transform: uppercase;
-      letter-spacing: .08em;
+      letter-spacing: 0.08em;
       margin-bottom: 15px;
     }
 
     h1 {
       margin: 0;
       max-width: 900px;
-      font-size: clamp(42px, 7vw, 84px);
-      line-height: .92;
-      letter-spacing: -.075em;
+      font-size: clamp(34px, 6vw, 72px);
+      line-height: 0.94;
+      letter-spacing: -0.075em;
       font-weight: 950;
     }
 
     .hero-copy {
       margin-top: 16px;
-      max-width: 920px;
+      max-width: 900px;
       color: #cbd5e1;
       font-size: 15px;
       line-height: 1.65;
@@ -88,7 +107,7 @@
 
     .hero-strip {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0,1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
       gap: 12px;
       margin-top: 24px;
     }
@@ -96,8 +115,17 @@
     .hero-chip,
     .card,
     .panel,
+    .tool,
+    .action {
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .hero-chip,
+    .card,
+    .panel,
     .tool {
-      background: rgba(255,255,255,.92);
+      background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 26px;
       box-shadow: var(--shadow);
@@ -105,8 +133,8 @@
     }
 
     .hero-chip {
-      background: rgba(255,255,255,.08);
-      border-color: rgba(255,255,255,.14);
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.14);
       box-shadow: none;
       padding: 14px;
       color: white;
@@ -117,10 +145,12 @@
       font-size: 11px;
       font-weight: 950;
       text-transform: uppercase;
-      letter-spacing: .08em;
+      letter-spacing: 0.08em;
     }
 
-    .hero-chip .label { color: #94a3b8; }
+    .hero-chip .label {
+      color: #94a3b8;
+    }
 
     .chip-value {
       margin-top: 6px;
@@ -133,25 +163,22 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0,1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
       gap: 14px;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
 
     .card {
       padding: 18px;
-      min-width: 0;
     }
 
     .value {
       margin-top: 8px;
       font-size: 22px;
       font-weight: 950;
-      letter-spacing: -.03em;
+      letter-spacing: -0.03em;
       font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      overflow-wrap: anywhere;
     }
 
     .note {
@@ -162,15 +189,29 @@
       line-height: 1.35;
     }
 
-    .good { color: var(--green) !important; }
-    .bad { color: var(--red) !important; }
-    .blue { color: var(--blue) !important; }
-    .warn { color: var(--amber) !important; }
-    .violet { color: var(--violet) !important; }
+    .good {
+      color: var(--green) !important;
+    }
+
+    .bad {
+      color: var(--red) !important;
+    }
+
+    .blue {
+      color: var(--blue) !important;
+    }
+
+    .warn {
+      color: var(--amber) !important;
+    }
+
+    .violet {
+      color: var(--violet) !important;
+    }
 
     .panel {
       padding: 18px;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
 
     .panel-head {
@@ -184,7 +225,7 @@
     .panel-title {
       font-size: 20px;
       font-weight: 950;
-      letter-spacing: -.02em;
+      letter-spacing: -0.02em;
     }
 
     .panel-sub {
@@ -197,22 +238,22 @@
 
     .tools {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0,1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
       gap: 12px;
     }
 
     .tool {
       display: block;
-      min-height: 118px;
+      min-height: 112px;
       padding: 16px;
       text-decoration: none;
       color: var(--ink);
-      transition: transform .18s ease, box-shadow .18s ease;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
     }
 
     .tool:hover {
       transform: translateY(-3px);
-      box-shadow: 0 28px 80px rgba(15,23,42,.18);
+      box-shadow: 0 24px 64px rgba(15, 23, 42, 0.16);
     }
 
     .tool-icon {
@@ -247,7 +288,7 @@
 
     .action {
       display: grid;
-      grid-template-columns: 42px minmax(0,1fr) auto;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
       align-items: center;
       gap: 12px;
       padding: 13px;
@@ -288,6 +329,35 @@
       white-space: nowrap;
     }
 
+    details.hub-details {
+      margin-bottom: 16px;
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    details.hub-details > summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 16px 18px;
+      font-weight: 950;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      background: rgba(248, 250, 252, 0.86);
+    }
+
+    details.hub-details > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .details-body {
+      padding: 0 18px 18px;
+    }
+
     footer {
       text-align: center;
       color: var(--muted);
@@ -296,25 +366,13 @@
       padding: 16px 0 6px;
     }
 
-    @media (max-width: 1150px) {
-      .grid,
-      .hero-strip,
-      .tools {
-        grid-template-columns: repeat(2, minmax(0,1fr));
-      }
-    }
-
-    @media (max-width: 650px) {
-      main { padding: 14px; }
-
-      .grid,
-      .hero-strip,
-      .tools {
-        grid-template-columns: 1fr;
+    @media (max-width: 760px) {
+      main.page {
+        padding: 16px 10px 92px;
       }
 
       .action {
-        grid-template-columns: 38px minmax(0,1fr);
+        grid-template-columns: 38px minmax(0, 1fr);
       }
 
       .action-link {
@@ -325,172 +383,77 @@
 </head>
 
 <body>
-  <main>
+  <main class="page app-page">
     <section class="hero">
-      <div class="kicker">✨ Finance Hub v0.1.4</div>
-      <h1>Finance is alive again.</h1>
+      <div class="kicker">Finance Hub v0.2.0 · Smart Layout</div>
+      <h1>Finance command center.</h1>
       <div class="hero-copy">
-        This Hub restores the visual cockpit while keeping the audit corrections intact.
-        It reads <code>/api/balances?debug=1</code>, so payable debt and receivables stay separated.
+        Fast view of cash, card pressure, debt truth, and the next thing that needs action. Detailed tools are grouped below so the Hub stays clean instead of becoming a wall of buttons.
       </div>
 
       <div class="hero-strip">
         <div class="hero-chip">
-          <div class="label">💰 Liquid</div>
+          <div class="label">Liquid</div>
           <div id="heroLiquid" class="chip-value">Loading</div>
         </div>
-
         <div class="hero-chip">
-          <div class="label">💳 Card Pressure</div>
+          <div class="label">Card Pressure</div>
           <div id="heroCC" class="chip-value">Loading</div>
         </div>
-
         <div class="hero-chip">
-          <div class="label">🪨 Debt Truth</div>
+          <div class="label">Debt Truth</div>
           <div id="heroDebt" class="chip-value">Loading</div>
         </div>
-
         <div class="hero-chip">
-          <div class="label">🛡️ Audit Guard</div>
-          <div class="chip-value">Active</div>
+          <div class="label">System</div>
+          <div id="heroSystem" class="chip-value">Audit guard active</div>
         </div>
       </div>
     </section>
 
     <section class="grid">
       <div class="card">
-        <div class="label">💰 Liquid Cash</div>
+        <div class="label">Liquid Cash</div>
         <div id="liquid" class="value">Loading</div>
         <div class="note">Cash, banks, wallets, prepaid.</div>
       </div>
 
       <div class="card">
-        <div class="label">💳 CC Outstanding</div>
+        <div class="label">CC Outstanding</div>
         <div id="cc" class="value bad">Loading</div>
         <div class="note">Liability model.</div>
       </div>
 
       <div class="card">
-        <div class="label">🪨 Payable Debt</div>
+        <div class="label">Payable Debt</div>
         <div id="debt" class="value bad">Loading</div>
         <div class="note">Only debts.kind = owe.</div>
       </div>
 
       <div class="card">
-        <div class="label">🤝 Receivables</div>
+        <div class="label">Receivables</div>
         <div id="recv" class="value good">Loading</div>
         <div class="note">Only debts.kind = owed.</div>
       </div>
 
       <div class="card">
-        <div class="label">🔥 True Burden</div>
+        <div class="label">True Burden</div>
         <div id="burden" class="value bad">Loading</div>
-        <div class="note">Net worth - debt + receivables.</div>
-      </div>
-    </section>
-
-    <section class="grid">
-      <div class="card">
-        <div class="label">🧠 Balances API</div>
-        <div id="version" class="value blue">Loading</div>
-        <div class="note">Must be v0.5.3.</div>
-      </div>
-
-      <div class="card">
-        <div class="label">📊 All Active Debt</div>
-        <div id="allDebt" class="value blue">Loading</div>
-        <div class="note">Diagnostic only. Not debt burden.</div>
-      </div>
-
-      <div class="card">
-        <div class="label">⚖️ Debt Split</div>
-        <div id="split" class="value good">Loading</div>
-        <div class="note">Payable vs receivable.</div>
-      </div>
-
-      <div class="card">
-        <div class="label">📒 Transactions API</div>
-        <div class="value blue">v0.1.4</div>
-        <div class="note">FK guard active.</div>
-      </div>
-
-      <div class="card">
-        <div class="label">📸 Snapshots</div>
-        <div class="value good">Live</div>
-        <div class="note">Manual safety points.</div>
+        <div class="note">Liquid - CC - payable debt + receivables.</div>
       </div>
     </section>
 
     <section class="panel">
       <div class="panel-head">
         <div>
-          <div class="panel-title">⚡ Daily Tools</div>
-          <div class="panel-sub">Fast routes. Emojis restored. Finance cockpit alive again.</div>
-        </div>
-      </div>
-
-      <div class="tools">
-        <a class="tool" href="/add.html">
-          <div class="tool-icon">➕</div>
-          <div class="tool-title">Add Transaction</div>
-          <div class="tool-copy">Save income, expense, transfer, CC payment.</div>
-        </a>
-
-        <a class="tool" href="/transactions.html">
-          <div class="tool-icon">📒</div>
-          <div class="tool-title">Transactions</div>
-          <div class="tool-copy">Ledger view with corrected semantics.</div>
-        </a>
-
-        <a class="tool" href="/forecast.html">
-          <div class="tool-icon">🔮</div>
-          <div class="tool-title">Forecast</div>
-          <div class="tool-copy">Salary, runway, risk, upcoming pressure.</div>
-        </a>
-
-        <a class="tool" href="/cc.html">
-          <div class="tool-icon">💳</div>
-          <div class="tool-title">Credit Card</div>
-          <div class="tool-copy">Outstanding, due pressure, utilization.</div>
-        </a>
-
-        <a class="tool" href="/debts.html">
-          <div class="tool-icon">🪨</div>
-          <div class="tool-title">Debts</div>
-          <div class="tool-copy">Payable debt and receivables.</div>
-        </a>
-
-        <a class="tool" href="/bills.html">
-          <div class="tool-icon">🧾</div>
-          <div class="tool-title">Bills</div>
-          <div class="tool-copy">Due dates and payment accounts.</div>
-        </a>
-
-        <a class="tool" href="/accounts.html">
-          <div class="tool-icon">🏦</div>
-          <div class="tool-title">Accounts</div>
-          <div class="tool-copy">Cash, banks, wallets, card liability.</div>
-        </a>
-
-        <a class="tool" href="/snapshots.html">
-          <div class="tool-icon">📸</div>
-          <div class="tool-title">Snapshots</div>
-          <div class="tool-copy">Manual safety point before risky work.</div>
-        </a>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-head">
-        <div>
-          <div class="panel-title">🛠️ What Needs Action</div>
-          <div class="panel-sub">Audit path only. No drift.</div>
+          <div class="panel-title">What needs action</div>
+          <div class="panel-sub">Top operational actions only. Deep audit details stay in Monthly Close and Audit Log.</div>
         </div>
       </div>
 
       <div id="actions" class="action-list">
         <div class="action">
-          <div class="action-icon">⏳</div>
+          <div class="action-icon">…</div>
           <div>
             <div class="action-title">Loading Finance truth</div>
             <div class="action-copy">Reading /api/balances?debug=1.</div>
@@ -500,13 +463,115 @@
       </div>
     </section>
 
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <div class="panel-title">Daily tools</div>
+          <div class="panel-sub">Only the tools you actually touch often.</div>
+        </div>
+      </div>
+
+      <div class="tools">
+        <a class="tool" href="/add.html">
+          <div class="tool-icon">➕</div>
+          <div class="tool-title">Add Transaction</div>
+          <div class="tool-copy">Save income, expense, transfer, or card payment.</div>
+        </a>
+
+        <a class="tool" href="/transactions.html">
+          <div class="tool-icon">🧾</div>
+          <div class="tool-title">Transactions</div>
+          <div class="tool-copy">Ledger view with guarded write path.</div>
+        </a>
+
+        <a class="tool" href="/forecast.html">
+          <div class="tool-icon">🔮</div>
+          <div class="tool-title">Forecast</div>
+          <div class="tool-copy">Salary, runway, risk, and upcoming pressure.</div>
+        </a>
+
+        <a class="tool" href="/bills.html">
+          <div class="tool-icon">📅</div>
+          <div class="tool-title">Bills</div>
+          <div class="tool-copy">Due dates and payment-account logic.</div>
+        </a>
+      </div>
+    </section>
+
+    <details class="hub-details">
+      <summary>
+        <span>Planning and obligations</span>
+        <span>Open</span>
+      </summary>
+
+      <div class="details-body">
+        <div class="tools">
+          <a class="tool" href="/cc.html">
+            <div class="tool-icon">💳</div>
+            <div class="tool-title">Credit Card</div>
+            <div class="tool-copy">Outstanding, utilization, due pressure.</div>
+          </a>
+
+          <a class="tool" href="/debts.html">
+            <div class="tool-icon">🧱</div>
+            <div class="tool-title">Debts</div>
+            <div class="tool-copy">Payable debt and receivables.</div>
+          </a>
+
+          <a class="tool" href="/salary.html">
+            <div class="tool-icon">💼</div>
+            <div class="tool-title">Salary</div>
+            <div class="tool-copy">Baseline salary, WFH, manual variables.</div>
+          </a>
+
+          <a class="tool" href="/monthly-close.html">
+            <div class="tool-icon">✅</div>
+            <div class="tool-title">Monthly Close</div>
+            <div class="tool-copy">System certification and money readiness.</div>
+          </a>
+        </div>
+      </div>
+    </details>
+
+    <details class="hub-details">
+      <summary>
+        <span>Records and safety</span>
+        <span>Open</span>
+      </summary>
+
+      <div class="details-body">
+        <div class="tools">
+          <a class="tool" href="/reconciliation.html">
+            <div class="tool-icon">⚖️</div>
+            <div class="tool-title">Reconciliation</div>
+            <div class="tool-copy">Declare real account balances.</div>
+          </a>
+
+          <a class="tool" href="/snapshots.html">
+            <div class="tool-icon">📸</div>
+            <div class="tool-title">Snapshots</div>
+            <div class="tool-copy">Manual safety points before risky work.</div>
+          </a>
+
+          <a class="tool" href="/audit.html">
+            <div class="tool-icon">🛡️</div>
+            <div class="tool-title">Audit Log</div>
+            <div class="tool-copy">System records and traceability.</div>
+          </a>
+
+          <a class="tool" href="/insights.html">
+            <div class="tool-icon">💡</div>
+            <div class="tool-title">Insights</div>
+            <div class="tool-copy">Safety Engine signals and guidance.</div>
+          </a>
+        </div>
+      </div>
+    </details>
+
     <footer>
-      index.html v0.1.4 · alive finance hub · emoji nav v1.0.19 · balances v0.5.3 · no D1 mutation
+      index.html v0.2.0 · smart layout · nav v1.1.2 · balances v0.5.3 · no D1 mutation
     </footer>
   </main>
-
-  <script src="/js/theme.js?v=0.7.5"></script>
-  <script src="/js/nav.js?v=1.0.19"></script>
 
   <script>
     function money(value) {
@@ -538,27 +603,28 @@
       `;
     }
 
-    async function loadHub() {
-      const res = await fetch('/api/balances?debug=1', { cache: 'no-store' });
+    async function readJson(path) {
+      const res = await fetch(path, { cache: 'no-store' });
       const data = await res.json();
+      if (!res.ok || data.ok === false) throw new Error(data.error || path + ' failed');
+      return data;
+    }
 
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Balances failed');
+    async function loadHub() {
+      const data = await readJson('/api/balances?debug=1');
 
       const liquid = Number(data.total_liquid || data.cash || 0);
       const cc = Number(data.cc_outstanding || data.cc || 0);
       const payableDebt = Number(data.payable_debt_remaining || data.total_owed || 0);
       const receivables = Number(data.total_receivables || data.receivables_from_debts || 0);
       const burden = Number(data.true_burden || 0);
-      const allActiveDebt = Number(data.debug && data.debug.all_active_debt_remaining || 0);
+      const allActiveDebt = Number((data.debug && data.debug.all_active_debt_remaining) || 0);
 
       set('liquid', money(liquid), liquid >= 0 ? 'good' : 'bad');
       set('cc', money(cc), 'bad');
       set('debt', money(payableDebt), 'bad');
       set('recv', money(receivables), 'good');
       set('burden', money(burden), burden >= 0 ? 'good' : 'bad');
-      set('version', data.version || 'unknown', 'blue');
-      set('allDebt', money(allActiveDebt), 'blue');
-      set('split', 'Applied', 'good');
 
       document.getElementById('heroLiquid').textContent = money(liquid);
       document.getElementById('heroCC').textContent = money(cc);
@@ -566,13 +632,15 @@
 
       const actions = [];
 
-      actions.push(action(
-        '⚖️',
-        'Debt split is active',
-        'Payable debt is separated from receivables. Combined active debt is diagnostic only.',
-        '/debts.html',
-        'Debts'
-      ));
+      if (liquid < 10000) {
+        actions.push(action(
+          '⚠️',
+          'Liquid cash is thin',
+          'Open Forecast and confirm the first unsafe date before spending decisions.',
+          '/forecast.html',
+          'Forecast'
+        ));
+      }
 
       if (cc > 0) {
         actions.push(action(
@@ -585,28 +653,46 @@
       }
 
       actions.push(action(
+        '⚖️',
+        'Reconciliation keeps close honest',
+        'Declare stale or undeclared balances before treating the month as clean.',
+        '/reconciliation.html',
+        'Recon'
+      ));
+
+      actions.push(action(
         '📸',
         'Snapshot before risky work',
-        'Manual snapshot control is live. Use it before any high-risk repair.',
+        'Manual snapshot control is live. Use it before high-risk repair work.',
         '/snapshots.html',
         'Snapshot'
       ));
 
       actions.push(action(
-        '📒',
-        'Transaction guard active',
-        'Add Transaction now blocks bad account/category references instead of corrupting ledger state.',
-        '/transactions.html',
-        'Ledger'
+        '🧱',
+        'Debt split is active',
+        'Payable debt is separated from receivables. Combined active debt is diagnostic only: ' + money(allActiveDebt) + '.',
+        '/debts.html',
+        'Debts'
       ));
 
       document.getElementById('actions').innerHTML = actions.join('');
+
+      if (window.SovereignNav && typeof window.SovereignNav.checkOverflow === 'function') {
+        window.setTimeout(window.SovereignNav.checkOverflow, 150);
+      }
     }
 
     loadHub().catch(err => {
-      ['liquid','cc','debt','recv','burden','version','allDebt','split'].forEach(id => set(id, 'Error', 'bad'));
+      ['liquid', 'cc', 'debt', 'recv', 'burden'].forEach(id => set(id, 'Error', 'bad'));
+
+      document.getElementById('heroLiquid').textContent = 'Error';
+      document.getElementById('heroCC').textContent = 'Error';
+      document.getElementById('heroDebt').textContent = 'Error';
+      document.getElementById('heroSystem').textContent = 'Check API';
+
       document.getElementById('actions').innerHTML = action(
-        '❌',
+        '!',
         'Hub load failed',
         err.message,
         '/audit.html',
