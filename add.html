@@ -170,6 +170,55 @@
       padding: 24px;
     }
 
+    .add-enforcement-panel {
+      margin-bottom: 16px;
+      padding: 15px;
+      border-radius: 22px;
+      border: 1px solid rgba(220, 38, 38, 0.24);
+      background: linear-gradient(135deg, rgba(254, 226, 226, 0.92), rgba(255,255,255,0.96));
+      color: #7f1d1d;
+    }
+
+    .add-enforcement-panel.warning {
+      border-color: rgba(217, 119, 6, 0.28);
+      background: linear-gradient(135deg, rgba(254, 243, 199, 0.92), rgba(255,255,255,0.96));
+      color: #78350f;
+    }
+
+    .add-enforcement-title {
+      font-size: 12px;
+      font-weight: 1000;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 8px;
+    }
+
+    .add-enforcement-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .add-enforcement-item {
+      padding: 10px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(148,163,184,0.24);
+      font-size: 12px;
+      line-height: 1.35;
+      font-weight: 760;
+    }
+
+    .add-enforcement-item strong {
+      display: block;
+      color: inherit;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
     .transfer-note {
       display: none;
       margin-bottom: 16px;
@@ -235,6 +284,12 @@
       color: var(--accent-deep);
     }
 
+    .add-chip.blocked {
+      border-color: rgba(220, 38, 38, 0.24);
+      background: rgba(220, 38, 38, 0.10);
+      color: #991b1b;
+    }
+
     .add-safety {
       margin-top: 10px;
       color: var(--text-muted);
@@ -255,7 +310,8 @@
       }
 
       .add-type-grid,
-      .add-grid {
+      .add-grid,
+      .add-enforcement-grid {
         grid-template-columns: 1fr;
       }
 
@@ -281,7 +337,7 @@
       <h1 class="add-heading">Add one clean money event.</h1>
       <p class="add-copy">
         Expenses reduce an account, income increases an account, and transfers move money between accounts.
-        If saving fails, nothing is silently queued.
+        If backend enforcement blocks saving, the page will show why instead of silently queuing anything.
       </p>
 
       <div class="add-type-grid" aria-label="Transaction type">
@@ -307,6 +363,37 @@
 
     <section class="add-form-card">
       <form id="addForm" autocomplete="off">
+        <div id="addEnforcementPanel" class="add-enforcement-panel" hidden>
+          <div class="add-enforcement-title">Command Centre block</div>
+          <div id="addEnforcementSummary">Checking Command Centre enforcement policy...</div>
+          <div class="add-enforcement-grid">
+            <div class="add-enforcement-item">
+              <strong>Blocked action</strong>
+              <span id="addBlockedAction">transaction.save</span>
+            </div>
+            <div class="add-enforcement-item">
+              <strong>Reason</strong>
+              <span id="addBlockReason">Loading...</span>
+            </div>
+            <div class="add-enforcement-item">
+              <strong>Source</strong>
+              <span id="addBlockSource">Loading...</span>
+            </div>
+            <div class="add-enforcement-item">
+              <strong>Required fix</strong>
+              <span id="addRequiredFix">Loading...</span>
+            </div>
+            <div class="add-enforcement-item">
+              <strong>Override</strong>
+              <span id="addOverrideStatus">Loading...</span>
+            </div>
+            <div class="add-enforcement-item">
+              <strong>Backend enforced</strong>
+              <span id="addBackendStatus">Loading...</span>
+            </div>
+          </div>
+        </div>
+
         <div class="transfer-note">
           Transfer mode creates a linked movement: money leaves the source account and enters the destination account.
           It is not income or spending.
@@ -354,6 +441,7 @@
           <div class="add-action-clarity">
             <span id="submitClarityChip" class="add-chip">Creates ledger transaction</span>
             <span class="add-chip safe">No silent queue</span>
+            <span id="enforcementChip" class="add-chip blocked" hidden>Command Centre blocked</span>
           </div>
 
           <button id="submitBtn" class="primary-submit" type="submit" disabled>
@@ -369,15 +457,16 @@
     </section>
 
     <footer class="add-page-meta" aria-hidden="true">
-      Add Transaction clean UI
+      Add Transaction enforcement soft block UI v0.7.3
     </footer>
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=1.1.9"></script>
+  <script src="/js/nav.js?v=1.2.0"></script>
+  <script src="/js/enforcement.js?v=0.1.0"></script>
   <script src="/js/store.js?v=0.2.4"></script>
-  <script src="/js/add.js?v=0.4.2"></script>
+  <script src="/js/add.js?v=0.4.3"></script>
 </body>
 </html>
