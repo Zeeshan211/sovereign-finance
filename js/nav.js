@@ -1,5 +1,5 @@
-/* Sovereign Finance shared navigation v1.1.2
- * Smart Layout Guard
+/* Sovereign Finance shared navigation v1.1.3
+ * Global Smart Shell Compatibility
  *
  * Contract:
  * - Pure frontend navigation helper.
@@ -8,50 +8,73 @@
  * - No ledger interaction.
  * - Keeps existing page routes.
  * - Fixes stuck More drawer.
- * - Adds global layout guard so fixed sidebar does not cut pages.
- * - Adds reusable smart layout utilities for all pages.
+ * - Offsets legacy body > header and legacy page wrappers.
+ * - Adds compatibility for older pages:
+ *   forecast, transactions, add, bills, reconciliation, cc, accounts, salary.
+ * - Adds no-horizontal-overflow runtime detection.
  */
 
 (function () {
   'use strict';
 
-  const NAV_VERSION = '1.1.2';
+  const NAV_VERSION = '1.1.3';
 
   const LINKS = [
-    { key: 'hub', label: 'Hub', href: '/index.html', icon: '🏠', group: 'dashboard', daily: true },
-    { key: 'forecast', label: 'Forecast', href: '/forecast.html', icon: '🔮', group: 'dashboard', daily: true },
-    { key: 'insights', label: 'Insights', href: '/insights.html', icon: '💡', group: 'dashboard' },
-    { key: 'charts', label: 'Charts', href: '/charts.html', icon: '📊', group: 'dashboard' },
+    { key: 'hub', label: 'Hub', href: '/index.html', icon: '', group: 'dashboard', daily: true },
+    { key: 'forecast', label: 'Forecast', href: '/forecast.html', icon: '', group: 'dashboard', daily: true },
+    { key: 'insights', label: 'Insights', href: '/insights.html', icon: '', group: 'dashboard' },
+    { key: 'charts', label: 'Charts', href: '/charts.html', icon: '', group: 'dashboard' },
 
-    { key: 'add', label: 'Add Transaction', shortLabel: 'Add', href: '/add.html', icon: '➕', group: 'money', daily: true },
-    { key: 'transactions', label: 'Transactions', shortLabel: 'Txns', href: '/transactions.html', icon: '🧾', group: 'money', daily: true },
-    { key: 'accounts', label: 'Accounts', href: '/accounts.html', icon: '🏦', group: 'money' },
-    { key: 'reconciliation', label: 'Reconciliation', shortLabel: 'Recon', href: '/reconciliation.html', icon: '⚖️', group: 'money' },
+    { key: 'add', label: 'Add Transaction', shortLabel: 'Add', href: '/add.html', icon: '', group: 'money', daily: true },
+    { key: 'transactions', label: 'Transactions', shortLabel: 'Txns', href: '/transactions.html', icon: '', group: 'money', daily: true },
+    { key: 'accounts', label: 'Accounts', href: '/accounts.html', icon: '', group: 'money' },
+    { key: 'reconciliation', label: 'Reconciliation', shortLabel: 'Recon', href: '/reconciliation.html', icon: '', group: 'money' },
 
-    { key: 'bills', label: 'Bills', href: '/bills.html', icon: '📅', group: 'obligations', daily: true },
-    { key: 'debts', label: 'Debts', href: '/debts.html', icon: '🧱', group: 'obligations' },
-    { key: 'cc', label: 'Credit Card', href: '/cc.html', icon: '💳', group: 'obligations' },
-    { key: 'atm', label: 'ATM Fees', shortLabel: 'ATM', href: '/atm.html', icon: '🏧', group: 'obligations' },
-    { key: 'nano-loans', label: 'Nano Loans', href: '/nano-loans.html', icon: '⚡', group: 'obligations' },
+    { key: 'bills', label: 'Bills', href: '/bills.html', icon: '', group: 'obligations', daily: true },
+    { key: 'debts', label: 'Debts', href: '/debts.html', icon: '', group: 'obligations' },
+    { key: 'cc', label: 'Credit Card', href: '/cc.html', icon: '', group: 'obligations' },
+    { key: 'atm', label: 'ATM Fees', shortLabel: 'ATM', href: '/atm.html', icon: '', group: 'obligations' },
+    { key: 'nano-loans', label: 'Nano Loans', href: '/nano-loans.html', icon: '', group: 'obligations' },
 
-    { key: 'salary', label: 'Salary', href: '/salary.html', icon: '💼', group: 'planning' },
-    { key: 'monthly-close', label: 'Monthly Close', shortLabel: 'Close', href: '/monthly-close.html', icon: '✅', group: 'planning' },
-    { key: 'budgets', label: 'Budgets', href: '/budgets.html', icon: '🎯', group: 'planning' },
-    { key: 'goals', label: 'Goals', href: '/goals.html', icon: '🏁', group: 'planning' },
+    { key: 'salary', label: 'Salary', href: '/salary.html', icon: '', group: 'planning' },
+    { key: 'monthly-close', label: 'Monthly Close', shortLabel: 'Close', href: '/monthly-close.html', icon: '', group: 'planning' },
+    { key: 'budgets', label: 'Budgets', href: '/budgets.html', icon: '', group: 'planning' },
+    { key: 'goals', label: 'Goals', href: '/goals.html', icon: '', group: 'planning' },
 
-    { key: 'snapshots', label: 'Snapshots', href: '/snapshots.html', icon: '📸', group: 'records' },
-    { key: 'audit', label: 'Audit Log', shortLabel: 'Audit', href: '/audit.html', icon: '🛡️', group: 'records' }
+    { key: 'snapshots', label: 'Snapshots', href: '/snapshots.html', icon: '', group: 'records' },
+    { key: 'audit', label: 'Audit Log', shortLabel: 'Audit', href: '/audit.html', icon: '', group: 'records' }
   ];
 
   const SECTIONS = [
-    { key: 'dashboard', label: 'Dashboard', hint: 'Status, safety, insight', icon: '◈', keys: ['hub', 'forecast', 'insights', 'charts'] },
-    { key: 'money', label: 'Money', hint: 'Entry, ledger, accounts', icon: '◍', keys: ['add', 'transactions', 'accounts', 'reconciliation'] },
-    { key: 'obligations', label: 'Obligations', hint: 'Bills, debts, card', icon: '◇', keys: ['bills', 'debts', 'cc', 'atm', 'nano-loans'] },
-    { key: 'planning', label: 'Planning', hint: 'Salary, close, goals', icon: '□', keys: ['salary', 'monthly-close', 'budgets', 'goals'] },
-    { key: 'records', label: 'Records', hint: 'Rollback and audit', icon: '△', keys: ['snapshots', 'audit'] }
+    { key: 'dashboard', label: 'Dashboard', hint: 'Status, safety, insight', icon: '', keys: ['hub', 'forecast', 'insights', 'charts'] },
+    { key: 'money', label: 'Money', hint: 'Entry, ledger, accounts', icon: '', keys: ['add', 'transactions', 'accounts', 'reconciliation'] },
+    { key: 'obligations', label: 'Obligations', hint: 'Bills, debts, card', icon: '', keys: ['bills', 'debts', 'cc', 'atm', 'nano-loans'] },
+    { key: 'planning', label: 'Planning', hint: 'Salary, close, goals', icon: '', keys: ['salary', 'monthly-close', 'budgets', 'goals'] },
+    { key: 'records', label: 'Records', hint: 'Rollback and audit', icon: '', keys: ['snapshots', 'audit'] }
   ];
 
   const MOBILE_LINKS = ['hub', 'add', 'transactions', 'bills', 'forecast'];
+
+  const LEGACY_PAGE_SELECTORS = [
+    '.forecast-wrap',
+    '.tx-wrap',
+    '.add-wrap',
+    '.bills-wrap',
+    '.recon-wrap',
+    '.cc-wrap',
+    '.accounts-wrap',
+    '.salary-wrap',
+    '.debt-wrap',
+    '.atm-wrap',
+    '.nano-wrap',
+    '.charts-wrap',
+    '.audit-wrap',
+    '.snapshots-wrap',
+    '.budgets-wrap',
+    '.goals-wrap',
+    '.merchants-wrap',
+    '.insights-wrap'
+  ];
 
   function byKey(key) {
     return LINKS.find(link => link.key === key) || null;
@@ -59,16 +82,13 @@
 
   function normalizePath(pathname) {
     let p = String(pathname || '/').split('?')[0].split('#')[0];
-
     if (p === '/' || p === '') return '/index.html';
     if (!p.endsWith('.html') && !p.includes('/api/')) p = p.replace(/\/$/, '') + '.html';
-
     return p;
   }
 
   function currentKey() {
     const p = normalizePath(window.location.pathname);
-
     const direct = LINKS.find(link => normalizePath(link.href) === p);
     if (direct) return direct.key;
 
@@ -88,13 +108,15 @@
     if (p.includes('snapshots')) return 'snapshots';
     if (p.includes('accounts')) return 'accounts';
     if (p.includes('add')) return 'add';
+    if (p.includes('budgets')) return 'budgets';
+    if (p.includes('goals')) return 'goals';
+    if (p.includes('merchants')) return 'merchants';
 
     return 'hub';
   }
 
   function currentSectionKey() {
-    const key = currentKey();
-    const link = byKey(key);
+    const link = byKey(currentKey());
     return link ? link.group : 'dashboard';
   }
 
@@ -122,7 +144,7 @@
   function navItem(link, mode) {
     const active = isCurrent(link);
     const label = mode === 'mobile' ? (link.shortLabel || link.label) : link.label;
-
+    const icon = escapeHtml(link.icon || '');
     const cls = [
       mode === 'mobile' ? 'sf-mobile-nav-item' : 'sf-nav-item',
       active ? 'active' : ''
@@ -130,7 +152,7 @@
 
     return `
       <a class="${cls}" href="${escapeHtml(link.href)}" data-nav-key="${escapeHtml(link.key)}" aria-current="${active ? 'page' : 'false'}">
-        <span class="${mode === 'mobile' ? 'sf-mobile-nav-icon' : 'sf-nav-icon'}">${escapeHtml(link.icon)}</span>
+        <span class="${mode === 'mobile' ? 'sf-mobile-nav-icon' : 'sf-nav-icon'}" aria-hidden="true">${icon}</span>
         <span class="${mode === 'mobile' ? 'sf-mobile-nav-label' : 'sf-nav-label'}">${escapeHtml(label)}</span>
       </a>
     `;
@@ -143,7 +165,7 @@
       <div class="sf-quick-actions" aria-label="Quick actions">
         ${actions.map(link => `
           <a class="sf-quick-action ${isCurrent(link) ? 'active' : ''}" href="${escapeHtml(link.href)}">
-            <span>${escapeHtml(link.icon)}</span>
+            <span aria-hidden="true">${escapeHtml(link.icon || '')}</span>
             <strong>${escapeHtml(link.shortLabel || link.label)}</strong>
           </a>
         `).join('')}
@@ -158,12 +180,12 @@
     return `
       <details class="sf-nav-section ${activeSection ? 'active-section' : ''}" data-section="${escapeHtml(section.key)}" ${openAttr}>
         <summary class="sf-nav-section-summary">
-          <span class="sf-nav-section-mark">${escapeHtml(section.icon)}</span>
+          <span class="sf-nav-section-mark" aria-hidden="true">${escapeHtml(section.icon || '')}</span>
           <span class="sf-nav-section-text">
             <strong>${escapeHtml(section.label)}</strong>
             <small>${escapeHtml(section.hint)}</small>
           </span>
-          <span class="sf-nav-section-chevron">⌄</span>
+          <span class="sf-nav-section-chevron" aria-hidden="true"></span>
         </summary>
         <div class="sf-nav-section-links">
           ${sectionLinks(section).map(link => navItem(link, 'desktop')).join('')}
@@ -192,7 +214,7 @@
 
           <div class="sf-nav-footer">
             <span>nav v${NAV_VERSION}</span>
-            <span>Smart layout</span>
+            <span>Smart shell</span>
           </div>
         </div>
       </aside>
@@ -206,8 +228,9 @@
     return `
       <nav class="sf-mobile-nav" aria-label="Mobile navigation" data-nav-version="${NAV_VERSION}">
         ${daily.map(link => navItem(link, 'mobile')).join('')}
+
         <button class="sf-mobile-nav-item sf-more-trigger ${moreActive ? 'active' : ''}" type="button" aria-expanded="false" aria-controls="sf-more-drawer">
-          <span class="sf-mobile-nav-icon">☰</span>
+          <span class="sf-mobile-nav-icon" aria-hidden="true"></span>
           <span class="sf-mobile-nav-label">More</span>
         </button>
       </nav>
@@ -220,20 +243,21 @@
             <strong>Finance tools</strong>
             <small>Grouped by job</small>
           </div>
-          <button class="sf-more-close" type="button" data-close-more aria-label="Close menu">×</button>
+          <button class="sf-more-close" type="button" data-close-more aria-label="Close menu"></button>
         </div>
 
         <div class="sf-more-drawer-body">
           ${SECTIONS.map(section => `
             <section class="sf-more-section">
               <div class="sf-more-section-title">
-                <span>${escapeHtml(section.icon)}</span>
+                <span aria-hidden="true">${escapeHtml(section.icon || '')}</span>
                 <strong>${escapeHtml(section.label)}</strong>
               </div>
+
               <div class="sf-more-grid">
                 ${sectionLinks(section).map(link => `
                   <a class="sf-more-link ${isCurrent(link) ? 'active' : ''}" href="${escapeHtml(link.href)}">
-                    <span>${escapeHtml(link.icon)}</span>
+                    <span aria-hidden="true">${escapeHtml(link.icon || '')}</span>
                     <strong>${escapeHtml(link.shortLabel || link.label)}</strong>
                   </a>
                 `).join('')}
@@ -245,11 +269,16 @@
     `;
   }
 
+  function legacySelectorList() {
+    return LEGACY_PAGE_SELECTORS.join(',\n');
+  }
+
   function addStyles() {
     if (document.getElementById('sf-nav-style')) return;
 
     const style = document.createElement('style');
     style.id = 'sf-nav-style';
+
     style.textContent = `
       :root {
         --sf-nav-width: 286px;
@@ -283,6 +312,17 @@
       canvas,
       video {
         max-width: 100%;
+      }
+
+      body.sf-nav-ready {
+        padding-left: 0 !important;
+      }
+
+      body.sf-nav-ready .desktop-nav,
+      body.sf-nav-ready .bottom-nav {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
       }
 
       .sf-shell-nav {
@@ -357,6 +397,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
+        min-width: 0;
         padding: 10px 9px;
         border-radius: 16px;
         color: var(--sf-nav-muted);
@@ -374,6 +415,15 @@
         background: #fff;
         font-size: 13px;
         flex: 0 0 auto;
+      }
+
+      .sf-quick-action span:empty,
+      .sf-nav-icon:empty,
+      .sf-mobile-nav-icon:empty,
+      .sf-nav-section-mark:empty,
+      .sf-more-section-title span:empty,
+      .sf-more-link span:empty {
+        display: none !important;
       }
 
       .sf-quick-action strong {
@@ -446,6 +496,7 @@
 
       .sf-nav-section-text {
         flex: 1;
+        min-width: 0;
       }
 
       .sf-nav-section-text strong {
@@ -481,7 +532,7 @@
       .sf-nav-section-links {
         display: grid;
         gap: 5px;
-        padding: 0 8px 10px 44px;
+        padding: 0 8px 10px 20px;
       }
 
       .sf-nav-item {
@@ -489,6 +540,7 @@
         align-items: center;
         gap: 9px;
         min-height: 38px;
+        min-width: 0;
         padding: 8px 9px;
         border-radius: 14px;
         color: var(--sf-nav-muted);
@@ -560,6 +612,7 @@
         display: grid;
         place-items: center;
         gap: 4px;
+        min-width: 0;
         padding: 7px 3px;
         border-radius: 16px;
         color: var(--sf-nav-muted);
@@ -663,6 +716,10 @@
         cursor: pointer;
       }
 
+      .sf-more-close::before {
+        content: "×";
+      }
+
       .sf-more-drawer-body {
         overflow: auto;
         padding: 12px;
@@ -694,6 +751,7 @@
         display: flex;
         align-items: center;
         gap: 9px;
+        min-width: 0;
         padding: 11px 10px;
         border-radius: 16px;
         color: var(--sf-nav-muted);
@@ -716,23 +774,15 @@
         text-overflow: ellipsis;
       }
 
-      /*
-       * Smart Layout Contract
-       * This is the global guard that stops pages from cutting off when the
-       * desktop sidebar exists.
-       */
-
-      body.sf-nav-ready {
-        padding-left: 0 !important;
-      }
-
       body.sf-nav-ready > main,
       body.sf-nav-ready .page,
       body.sf-nav-ready .app-page,
       body.sf-nav-ready .dashboard,
       body.sf-nav-ready .wrap,
-      body.sf-nav-ready .container {
+      body.sf-nav-ready .container,
+      body.sf-nav-ready ${legacySelectorList()} {
         min-width: 0 !important;
+        box-sizing: border-box !important;
       }
 
       body.sf-nav-ready table {
@@ -743,11 +793,37 @@
       body.sf-nav-ready .table-wrap,
       body.sf-nav-ready .scroll-x,
       body.sf-nav-ready .overflow-x,
+      body.sf-nav-ready .dense-wrap,
       body.sf-nav-ready [data-scroll-x] {
         width: 100%;
         max-width: 100%;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+      }
+
+      body.sf-nav-ready .tool-icon:empty,
+      body.sf-nav-ready .action-icon:empty,
+      body.sf-nav-ready .tx-icon:empty,
+      body.sf-nav-ready .cc-row-icon:empty,
+      body.sf-nav-ready .salary-icon:empty {
+        display: none !important;
+      }
+
+      body.sf-nav-ready .action:has(.action-icon:empty) {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+
+      body.sf-nav-ready .tx-card-main:has(.tx-icon:empty),
+      body.sf-nav-ready .cc-row:has(.cc-row-icon:empty),
+      body.sf-nav-ready .salary-row:has(.salary-icon:empty) {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+
+      body.sf-nav-ready details.hub-details > summary .sf-detail-state {
+        color: var(--text-dim, #64748b);
+        font-size: 12px;
+        font-weight: 950;
+        white-space: nowrap;
       }
 
       .sf-smart-page,
@@ -797,17 +873,33 @@
           pointer-events: none !important;
         }
 
+        body.sf-nav-ready > header,
         body.sf-nav-ready > main,
         body.sf-nav-ready .page,
-        body.sf-nav-ready .app-page {
+        body.sf-nav-ready .app-page,
+        body.sf-nav-ready ${legacySelectorList()} {
           width: auto !important;
           max-width: min(var(--sf-content-max), calc(100vw - var(--sf-nav-offset) - 28px)) !important;
           margin-left: var(--sf-nav-offset) !important;
           margin-right: 18px !important;
+          box-sizing: border-box !important;
         }
 
+        body.sf-nav-ready > header,
         body.sf-nav-ready > main {
           display: block;
+        }
+
+        body.sf-nav-ready > header {
+          position: relative !important;
+          left: auto !important;
+          right: auto !important;
+          top: auto !important;
+          transform: none !important;
+        }
+
+        body.sf-nav-ready > header:first-of-type {
+          margin-top: 24px !important;
         }
       }
 
@@ -825,13 +917,20 @@
           padding-bottom: calc(var(--sf-mobile-nav-height) + 24px);
         }
 
+        body.sf-nav-ready > header,
         body.sf-nav-ready > main,
         body.sf-nav-ready .page,
-        body.sf-nav-ready .app-page {
+        body.sf-nav-ready .app-page,
+        body.sf-nav-ready ${legacySelectorList()} {
           width: min(100%, calc(100vw - 20px)) !important;
           max-width: calc(100vw - 20px) !important;
           margin-left: auto !important;
           margin-right: auto !important;
+          box-sizing: border-box !important;
+        }
+
+        body.sf-nav-ready > header {
+          margin-top: 10px !important;
         }
 
         main {
@@ -862,9 +961,11 @@
           display: none !important;
         }
 
+        body.sf-nav-ready > header,
         body.sf-nav-ready > main,
         body.sf-nav-ready .page,
-        body.sf-nav-ready .app-page {
+        body.sf-nav-ready .app-page,
+        body.sf-nav-ready ${legacySelectorList()} {
           width: 100% !important;
           max-width: none !important;
           margin-left: 0 !important;
@@ -884,7 +985,9 @@
   }
 
   function removeExistingNav() {
-    document.querySelectorAll('.sf-shell-nav, .sf-mobile-nav, .sf-more-backdrop, .sf-more-drawer').forEach(node => node.remove());
+    document
+      .querySelectorAll('.sf-shell-nav, .sf-mobile-nav, .sf-more-backdrop, .sf-more-drawer')
+      .forEach(node => node.remove());
   }
 
   function openMoreDrawer() {
@@ -927,6 +1030,10 @@
       node.addEventListener('click', closeMoreDrawer);
     });
 
+    document.querySelectorAll('.sf-more-link, .sf-mobile-nav a').forEach(node => {
+      node.addEventListener('click', closeMoreDrawer);
+    });
+
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') closeMoreDrawer();
     });
@@ -934,6 +1041,51 @@
     window.addEventListener('resize', function () {
       if (window.innerWidth > 980) closeMoreDrawer();
       scheduleOverflowCheck();
+    });
+
+    window.addEventListener('orientationchange', function () {
+      closeMoreDrawer();
+      scheduleOverflowCheck();
+    });
+
+    window.addEventListener('load', scheduleOverflowCheck);
+  }
+
+  function markLegacyWrappers() {
+    LEGACY_PAGE_SELECTORS.forEach(selector => {
+      document.querySelectorAll(selector).forEach(node => {
+        node.classList.add('sf-legacy-page');
+        node.setAttribute('data-sf-layout', 'legacy-smart');
+      });
+    });
+  }
+
+  function syncHubDetailsLabels() {
+    document.querySelectorAll('details.hub-details').forEach(details => {
+      const summary = details.querySelector(':scope > summary');
+      if (!summary) return;
+
+      let stateNode = summary.querySelector('.sf-detail-state');
+      if (!stateNode) {
+        const spans = summary.querySelectorAll(':scope > span');
+        const last = spans.length ? spans[spans.length - 1] : null;
+
+        if (last && /^(open|closed)$/i.test(last.textContent.trim())) {
+          stateNode = last;
+          stateNode.classList.add('sf-detail-state');
+        } else {
+          stateNode = document.createElement('span');
+          stateNode.className = 'sf-detail-state';
+          summary.appendChild(stateNode);
+        }
+      }
+
+      const update = () => {
+        stateNode.textContent = details.open ? 'Open' : 'Closed';
+      };
+
+      update();
+      details.addEventListener('toggle', update);
     });
   }
 
@@ -949,8 +1101,7 @@
     if (!body || !doc) return;
 
     const overflow = Math.max(body.scrollWidth, doc.scrollWidth) - window.innerWidth;
-
-    document.documentElement.dataset.sfOverflow = overflow > 4 ? 'true' : 'false';
+    doc.dataset.sfOverflow = overflow > 4 ? 'true' : 'false';
 
     if (overflow > 4) {
       console.warn('[SovereignNav v' + NAV_VERSION + '] horizontal overflow detected:', Math.round(overflow), 'px');
@@ -965,12 +1116,19 @@
 
     document.body.insertAdjacentHTML('afterbegin', desktopNavHtml());
     document.body.insertAdjacentHTML('beforeend', mobileNavHtml());
+
     document.body.classList.add('sf-nav-ready');
     document.documentElement.dataset.navVersion = NAV_VERSION;
+    document.documentElement.dataset.sfOverflow = 'checking';
 
+    markLegacyWrappers();
+    syncHubDetailsLabels();
     closeMoreDrawer();
     bindEvents();
     scheduleOverflowCheck();
+
+    window.setTimeout(scheduleOverflowCheck, 650);
+    window.setTimeout(scheduleOverflowCheck, 1400);
   }
 
   if (document.readyState === 'loading') {
@@ -988,6 +1146,7 @@
     currentSectionKey,
     openMoreDrawer,
     closeMoreDrawer,
-    checkOverflow
+    checkOverflow,
+    scheduleOverflowCheck
   };
 })();
