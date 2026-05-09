@@ -1413,3 +1413,11 @@ tr:hover td {
     box-shadow: none !important;
   }
 }
+/* Emergency visibility restoration
+   Restores native hidden behavior after app-shell field/card display rules.
+   Fixes Add Transaction leaking Transfer fields into Expense/Income modes.
+*/
+[hidden],
+.hidden {
+  display: none !important;
+}
