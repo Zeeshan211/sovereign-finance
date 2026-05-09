@@ -1,25 +1,24 @@
-/*  Sovereign Finance  Add Transaction Form v0.3.3  D1 Category Source Alignment  */
-/*
-* Audit correction:
-* - Removes phantom hardcoded category fallback.
-* - Category dropdown now uses ONLY categories returned by /api/categories.
-* - If D1 categories are empty/unavailable, category stays optional and submits as null.
-* - This prevents UI from offering "Groceries" or any other category that D1 will reject.
-*
-* Contract:
-* - Add page must populate accounts directly from /api/accounts.
-* - It may use store.addTransaction if available.
-* - If store is unavailable, it writes directly to /api/transactions.
-* - No silent offline queue.
-* - No phantom category IDs.
+/* Sovereign Finance Add Transaction Form v0.4.0
+   Ship 2: Add + Transactions closeout
+
+   Contract:
+   - Supports /add.html?type=transfer&to=cc
+   - Supports type=expense, type=income, type=transfer
+   - Loads accounts from /api/accounts
+   - Loads categories from /api/categories
+   - No silent offline queue
+   - No phantom category fallback
+   - Writes through store.addTransaction when available, otherwise direct /api/transactions
 */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.3.3';
+  const VERSION = 'v0.4.0';
 
   let selectedType = 'expense';
+  let requestedTo = '';
+  let requestedFrom = '';
   let accounts = [];
   let categories = [];
   let categoriesLoaded = false;
@@ -29,7 +28,6 @@
 
   function todayLocal() {
     const d = new Date();
-
     return [
       d.getFullYear(),
       String(d.getMonth() + 1).padStart(2, '0'),
@@ -37,16 +35,26 @@
     ].join('-');
   }
 
+  function parseRoute() {
+    const params = new URLSearchParams(window.location.search || '');
+    const type = String(params.get('type') || '').toLowerCase().trim();
+    const to = String(params.get('to') || '').trim();
+    const from = String(params.get('from') || '').trim();
+
+    if (['expense', 'income', 'transfer'].includes(type)) selectedType = type;
+    if (to) requestedTo = to;
+    if (from) requestedFrom = from;
+
+    if (requestedTo && selectedType !== 'transfer') selectedType = 'transfer';
+  }
+
   function toast(msg, kind) {
     const old = document.querySelector('.toast');
-
     if (old) old.remove();
 
     const el = document.createElement('div');
-
     el.className = 'toast toast-' + (kind || 'info');
     el.textContent = msg;
-
     document.body.appendChild(el);
 
     setTimeout(() => el.classList.add('show'), 20);
@@ -58,7 +66,6 @@
 
   function setSubmitText(text) {
     const btn = $('submitBtn');
-
     if (btn) btn.textContent = text;
   }
 
@@ -75,6 +82,8 @@
 
   function normalizeAccounts(raw) {
     if (Array.isArray(raw)) return raw;
+
+    if (raw && Array.isArray(raw.accounts)) return raw.accounts;
 
     if (raw && typeof raw === 'object') {
       return Object.keys(raw).map(id => ({
@@ -99,13 +108,55 @@
       .filter(c => c.id);
   }
 
+  function accountName(a) {
+    return String(a.name || a.label || a.account_name || a.id || '').trim();
+  }
+
+  function accountKind(a) {
+    return String(a.kind || a.type || '').toLowerCase().trim();
+  }
+
+  function accountLabel(a) {
+    const icon = String(a.icon || '').trim();
+    const name = accountName(a);
+    const kind = accountKind(a);
+
+    return [
+      icon,
+      name,
+      kind ? '(' + kind + ')' : ''
+    ].filter(Boolean).join(' ').trim();
+  }
+
+  function categoryLabel(c) {
+    return ((c.icon || '') + ' ' + (c.name || c.id)).trim();
+  }
+
+  function findAccountByRouteKey(value) {
+    if (!value) return null;
+
+    const key = String(value).toLowerCase().trim();
+
+    return accounts.find(account => {
+      const id = String(account.id || '').toLowerCase();
+      const name = accountName(account).toLowerCase();
+      const kind = accountKind(account);
+
+      if (id === key) return true;
+      if (name === key) return true;
+      if (key === 'cc' && (id === 'cc' || kind === 'cc' || name.includes('credit') || name.includes('alfalah cc'))) return true;
+      if (key === 'credit_card' && (kind === 'cc' || name.includes('credit'))) return true;
+
+      return false;
+    }) || null;
+  }
+
   async function loadAccounts() {
     try {
       const data = await fetchJSON('/api/accounts?debug=1');
-
-      accounts = normalizeAccounts(data.accounts);
+      accounts = normalizeAccounts(data.accounts || data);
     } catch (e1) {
-      console.warn('[add v0.3.3] /api/accounts failed:', e1.message);
+      console.warn('[add v0.4.0] /api/accounts failed:', e1.message);
 
       try {
         if (window.store && typeof window.store.refreshBalances === 'function') {
@@ -113,9 +164,11 @@
           accounts = normalizeAccounts(window.store.accounts || window.store.cachedAccounts || []);
         }
       } catch (e2) {
-        console.warn('[add v0.3.3] store account fallback failed:', e2.message);
+        console.warn('[add v0.4.0] store account fallback failed:', e2.message);
       }
     }
+
+    accounts = accounts.filter(a => a && a.id);
 
     if (!accounts.length) {
       toast('Accounts failed to load. Add is blocked.', 'error');
@@ -128,22 +181,13 @@
 
     try {
       const data = await fetchJSON('/api/categories');
-
       categories = normalizeCategories(data.categories);
       categoriesLoaded = true;
     } catch (e) {
-      console.warn('[add v0.3.3] /api/categories failed:', e.message);
+      console.warn('[add v0.4.0] /api/categories failed:', e.message);
       categories = [];
       categoriesLoaded = false;
     }
-  }
-
-  function accountLabel(a) {
-    return ((a.icon || '') + '  ' + (a.name || a.id)).trim();
-  }
-
-  function categoryLabel(c) {
-    return ((c.icon || '') + '  ' + (c.name || c.id)).trim();
   }
 
   function fillAccounts() {
@@ -152,21 +196,19 @@
 
     if (source) {
       const old = source.value;
-
       source.innerHTML = '<option value="">Pick account...</option>';
 
       accounts.forEach(a => {
-        if (!a || !a.id) return;
-
         const opt = document.createElement('option');
-
         opt.value = a.id;
         opt.textContent = accountLabel(a);
-
         source.appendChild(opt);
       });
 
-      if (old && [...source.options].some(o => o.value === old)) {
+      const routeFrom = findAccountByRouteKey(requestedFrom);
+      if (routeFrom && [...source.options].some(o => o.value === routeFrom.id)) {
+        source.value = routeFrom.id;
+      } else if (old && [...source.options].some(o => o.value === old)) {
         source.value = old;
       }
     }
@@ -182,36 +224,34 @@
 
     const from = source ? source.value : '';
     const old = dest.value;
-
     dest.innerHTML = '<option value="">Pick account...</option>';
 
     accounts.forEach(a => {
       if (!a || !a.id || a.id === from) return;
 
       const opt = document.createElement('option');
-
       opt.value = a.id;
       opt.textContent = accountLabel(a);
-
       dest.appendChild(opt);
     });
 
-    if (old && old !== from && [...dest.options].some(o => o.value === old)) {
+    const routeTo = findAccountByRouteKey(requestedTo);
+    if (routeTo && routeTo.id !== from && [...dest.options].some(o => o.value === routeTo.id)) {
+      dest.value = routeTo.id;
+      requestedTo = '';
+    } else if (old && old !== from && [...dest.options].some(o => o.value === old)) {
       dest.value = old;
     }
   }
 
   function fillCategories() {
     const sel = $('categorySelect');
-
     if (!sel) return;
 
     const old = sel.value;
-
     sel.innerHTML = '';
 
     const empty = document.createElement('option');
-
     empty.value = '';
 
     if (categories.length) {
@@ -226,10 +266,8 @@
 
     categories.forEach(c => {
       const opt = document.createElement('option');
-
       opt.value = c.id;
       opt.textContent = categoryLabel(c);
-
       sel.appendChild(opt);
     });
 
@@ -242,8 +280,49 @@
     sel.disabled = !categories.length;
   }
 
+  function updateRouteCopy(type) {
+    const trustPanel = $('addTrustPanel');
+    const trustText = $('addTrustText');
+    const safetyText = $('addSafetyText');
+    const chip = $('submitClarityChip');
+
+    const copy = {
+      expense: {
+        panelClass: 'add-trust-panel',
+        chipClass: 'add-chip',
+        chip: 'Creates ledger transaction',
+        trust: 'Expense creates one ledger transaction and reduces the selected account balance.',
+        safety: 'Expense mode creates one transaction and reduces the selected account. If saving fails, nothing is silently queued.'
+      },
+      income: {
+        panelClass: 'add-trust-panel income',
+        chipClass: 'add-chip safe',
+        chip: 'Creates ledger transaction',
+        trust: 'Income creates one ledger transaction and increases the selected account balance.',
+        safety: 'Income mode creates one transaction and increases the selected account. If saving fails, nothing is silently queued.'
+      },
+      transfer: {
+        panelClass: 'add-trust-panel transfer',
+        chipClass: 'add-chip transfer',
+        chip: 'Creates linked transaction pair',
+        trust: 'Transfer creates a linked pair: money leaves the source account and enters the destination account.',
+        safety: 'Transfer mode creates linked OUT and IN rows. It moves money between accounts and should not be treated as income or spending.'
+      }
+    };
+
+    const item = copy[type] || copy.expense;
+
+    if (trustPanel) trustPanel.className = item.panelClass;
+    if (trustText) trustText.textContent = item.trust;
+    if (safetyText) safetyText.textContent = item.safety;
+    if (chip) {
+      chip.className = item.chipClass;
+      chip.textContent = item.chip;
+    }
+  }
+
   function setType(type) {
-    selectedType = type || 'expense';
+    selectedType = ['expense', 'income', 'transfer'].includes(type) ? type : 'expense';
 
     document.querySelectorAll('.type-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.type === selectedType);
@@ -251,17 +330,19 @@
 
     const isTransfer = selectedType === 'transfer';
 
+    document.body.classList.toggle('transfer-mode', isTransfer);
+
     if ($('transferToWrap')) $('transferToWrap').hidden = !isTransfer;
     if ($('categoryWrap')) $('categoryWrap').hidden = isTransfer;
     if ($('accountFromLabel')) $('accountFromLabel').textContent = isTransfer ? 'From Account' : 'Account';
 
     fillTransferDest();
+    updateRouteCopy(selectedType);
     updateButton();
   }
 
   function updateButton() {
     const btn = $('submitBtn');
-
     if (!btn) return;
 
     const amount = parseFloat(($('amountInput') || {}).value || '0');
@@ -308,6 +389,39 @@
     return payload;
   }
 
+  async function directAdd(payload) {
+    const body = {
+      date: payload.date,
+      type: payload.type,
+      amount: payload.amount,
+      account_id: payload.accountId,
+      category_id: payload.categoryId || null,
+      notes: payload.notes,
+      created_by: 'web-add-direct'
+    };
+
+    if (payload.transferToAccountId) {
+      body.transfer_to_account_id = payload.transferToAccountId;
+    }
+
+    const res = await fetch('/api/transactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data || !data.ok) {
+      return {
+        ok: false,
+        error: (data && data.error) || ('HTTP ' + res.status)
+      };
+    }
+
+    return data;
+  }
+
   async function submit(e) {
     e.preventDefault();
 
@@ -347,44 +461,10 @@
       }, 650);
     } catch (err) {
       toast(err.message || 'Save failed', 'error');
-
       submitting = false;
       setSubmitText('Save Transaction');
       updateButton();
     }
-  }
-
-  async function directAdd(payload) {
-    const body = {
-      date: payload.date,
-      type: payload.type,
-      amount: payload.amount,
-      account_id: payload.accountId,
-      category_id: payload.categoryId || null,
-      notes: payload.notes,
-      created_by: 'web-add-direct'
-    };
-
-    if (payload.transferToAccountId) {
-      body.transfer_to_account_id = payload.transferToAccountId;
-    }
-
-    const res = await fetch('/api/transactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok || !data || !data.ok) {
-      return {
-        ok: false,
-        error: (data && data.error) || ('HTTP ' + res.status)
-      };
-    }
-
-    return data;
   }
 
   function wireEvents() {
@@ -392,9 +472,8 @@
       btn.addEventListener('click', () => setType(btn.dataset.type || 'expense'));
     });
 
-    ['amountInput', 'accountSelect', 'transferToSelect', 'categorySelect'].forEach(id => {
+    ['amountInput', 'accountSelect', 'transferToSelect', 'categorySelect', 'dateInput', 'notesInput'].forEach(id => {
       const el = $(id);
-
       if (!el) return;
 
       el.addEventListener('input', updateButton);
@@ -405,15 +484,15 @@
     });
 
     const form = $('addForm');
-
     if (form) form.addEventListener('submit', submit);
   }
 
   async function init() {
-    console.log('[add v0.3.3] init');
+    console.log('[add v0.4.0] init');
+
+    parseRoute();
 
     const date = $('dateInput');
-
     if (date && !date.value) date.value = todayLocal();
 
     wireEvents();
@@ -428,13 +507,23 @@
     setType(selectedType);
     updateButton();
 
-    console.log('[add v0.3.3] ready', {
+    console.log('[add v0.4.0] ready', {
       accounts: accounts.length,
       categories: categories.length,
       categoriesLoaded,
+      selectedType,
       store: window.store && window.store.version
     });
   }
+
+  window.SovereignAdd = {
+    version: VERSION,
+    get selectedType() {
+      return selectedType;
+    },
+    accounts: () => accounts.slice(),
+    categories: () => categories.slice()
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
