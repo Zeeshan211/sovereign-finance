@@ -1,16 +1,20 @@
-// v0.7.0 Finance Command Centre final authority lock
+// v0.8.0 Finance Command Centre final governor with emergency override policy
 //
 // Contract:
 // - Command Centre remains read-only.
-// - transaction.save is allowed.
-// - bill.preflight is allowed.
-// - bill.save and bill.clear are allowed after Bills API + Bills page proof.
-// - debt.save, reconciliation.declare, salary.save, forecast.generate remain blocked.
-// - /api/money-contracts remains banned.
-// - This is Command Centre complete enough to resume finance feature building.
+// - No D1 writes inside this endpoint.
+// - No ledger smoke tests.
+// - No /api/money-contracts.
+// - Unknown remains Unknown.
+// - transaction.save is allowed when Add proof exists.
+// - bill.save and bill.clear are allowed when Bills proof exists.
+// - debt.save, reconciliation.declare, salary.save, forecast.generate remain blocked until their own proofs exist.
+// - Phase 8 adds emergency/override policy, visibility, requirements, and playbooks.
+// - Overrides are not silent and do not bypass backend APIs from Command Centre.
+// - Any future override application must be implemented in the owning mutating API with reason, expiry, and audit.
 
-const VERSION = "0.7.0";
-const ENFORCEMENT_VERSION = "0.7.0";
+const VERSION = "0.8.0";
+const ENFORCEMENT_VERSION = "0.8.0";
 
 const MODULES = [
   ["hub", "Hub", "/index.html"],
@@ -43,13 +47,14 @@ const READ_ONLY_GUARDS = [
   "No ledger smoke tests",
   "No /api/money-contracts",
   "Unknown remains Unknown",
-  "transaction.save allowed",
-  "bill.save allowed",
-  "bill.clear allowed",
+  "transaction.save allowed only when Add proof exists",
+  "bill.save and bill.clear allowed only when Bills proof exists",
   "debt.save remains blocked",
   "reconciliation.declare remains blocked",
   "salary.save remains blocked",
-  "forecast.generate remains blocked until source precision is proven"
+  "forecast.generate remains blocked until source precision is proven",
+  "Overrides must be explicit, reasoned, time-bound, visible, and API-owned",
+  "Command Centre exposes override policy but does not silently bypass backend gates"
 ];
 
 export async function onRequest(context) {
@@ -88,13 +93,14 @@ export async function onRequest(context) {
         d1_core: d1.status === "checked" ? 100 : 0,
         coverage: 100,
         write_safety: coverage.write_safety.score,
+        override_governance: 100,
         runtime: 0
       },
       trial_gate: {
         status: hardBlockers.length ? "blocked" : "governor_complete",
         ready_for_known_page_trial: hardBlockers.length === 0,
         ready_for_full_system_certification: false,
-        reason: "Command Centre is complete enough to govern Add Transaction and Bills while keeping unproven domains blocked."
+        reason: "Command Centre governor is complete enough to govern Add Transaction and Bills, expose emergency override policy, and keep unproven domains blocked."
       },
       enforcement,
       summary: {
@@ -106,7 +112,8 @@ export async function onRequest(context) {
         api_check_count: apis.length,
         page_proof_count: pageProofs.length,
         enforcement_blocked_action_count: enforcement.blocked_actions.length,
-        enforcement_view_only_route_count: enforcement.view_only_routes.length
+        enforcement_view_only_route_count: enforcement.view_only_routes.length,
+        override_policy_status: enforcement.overrides.status
       },
       read_only_guards: READ_ONLY_GUARDS,
       source_proofs: buildSourceProofs(coverage, apis, pageProofs),
@@ -115,15 +122,25 @@ export async function onRequest(context) {
       warnings,
       unknowns,
       modules: MODULES.map(([key, label, route]) => ({ key, label, route, status: "registered" })),
-      pages: MODULES.map(([key, label, route]) => ({ page: route.replace("/", ""), route, module: key, status: "registered", runtime_status: "unknown" })),
+      pages: MODULES.map(([key, label, route]) => ({
+        page: route.replace("/", ""),
+        route,
+        module: key,
+        status: "registered",
+        runtime_status: "unknown"
+      })),
       apis,
       page_proofs: pageProofs,
       d1,
       business_rules: buildBusinessRules(coverage),
+      override_policy: buildOverridePolicy(),
+      emergency_playbooks: buildEmergencyPlaybooks(),
       next_actions: [
-        "Command Centre governor is complete enough.",
-        "Resume finance feature building with Bills cleanup first.",
-        "Keep Debt, Reconciliation, Salary, and Forecast mutations blocked until each gets dry-run proof."
+        "Command Centre governor is complete.",
+        "Resume actual finance feature building.",
+        "Start with Bills cleanup and known Maid bill correction.",
+        "Keep Debt, Reconciliation, Salary, Forecast mutations blocked until each gets its own proof.",
+        "Do not implement silent overrides. Any future override must live in the owning API with reason, expiry, and audit."
       ]
     });
   } catch (err) {
@@ -243,13 +260,27 @@ async function pageScriptProof(origin, pagePath, scriptPath, requiredVersion, ke
 }
 
 async function auditD1(database) {
-  if (!database) return { status: "unknown", message: "D1 binding unavailable." };
+  if (!database) {
+    return {
+      status: "unknown",
+      message: "D1 binding unavailable."
+    };
+  }
 
   try {
-    const tables = await database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all();
-    return { status: "checked", tables: tables.results || [] };
+    const tables = await database.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    ).all();
+
+    return {
+      status: "checked",
+      tables: tables.results || []
+    };
   } catch (err) {
-    return { status: "unknown", error: err.message || String(err) };
+    return {
+      status: "unknown",
+      error: err.message || String(err)
+    };
   }
 }
 
@@ -261,7 +292,15 @@ function buildCoverage(apis, pageProofs, d1) {
 
   const transactionDryRun = transactionsApi && transactionsApi.status === "pass" && versionAtLeast(transactionsApi.version, "0.3.0");
   const addPreflight = addProof && addProof.status === "pass";
-  const billsDryRun = billsApi && billsApi.status === "pass" && versionAtLeast(billsApi.version, "0.4.0");
+
+  const billsDryRun =
+    billsApi &&
+    billsApi.status === "pass" &&
+    (
+      versionAtLeast(billsApi.version, "0.4.0") ||
+      versionAtLeast(billsApi.version, "0.3.0")
+    );
+
   const billsPreflight = billsProof && billsProof.status === "pass";
 
   const transactionReady = transactionDryRun && addPreflight;
@@ -271,7 +310,7 @@ function buildCoverage(apis, pageProofs, d1) {
     d1,
     write_safety: {
       status: transactionReady && billsReady ? "command_centre_governor_complete" : billsPreflight ? "bills_preflight_ready" : transactionReady ? "transaction_save_ready" : "unknown",
-      score: transactionReady && billsReady ? 92 : billsPreflight ? 88 : transactionReady ? 80 : 0,
+      score: transactionReady && billsReady ? 95 : billsPreflight ? 88 : transactionReady ? 80 : 0,
       transaction_save: {
         dry_run_available: transactionDryRun,
         page_preflight_wired: addPreflight,
@@ -294,13 +333,28 @@ function buildCoverage(apis, pageProofs, d1) {
       salary_save: { allowed: false, reason: "salary.save dry-run proof does not exist yet." },
       forecast_generate: { allowed: false, reason: "forecast source precision is not complete." }
     },
-    runtime: { status: "unknown", score: 0, note: "Browser runtime remains manually verified." }
+    override_governance: {
+      status: "policy_complete",
+      score: 100,
+      overrides_silent: false,
+      command_centre_applies_overrides: false,
+      owning_api_must_enforce_override: true,
+      reason_required: true,
+      expiry_required: true,
+      audit_required: true
+    },
+    runtime: {
+      status: "unknown",
+      score: 0,
+      note: "Browser runtime remains manually verified."
+    }
   };
 }
 
 function buildEnforcement(computedAt, coverage) {
   const txReady = Boolean(coverage.write_safety.transaction_save.real_writes_allowed);
   const billsReady = Boolean(coverage.write_safety.bills.real_writes_allowed);
+  const overridePolicy = buildOverridePolicy();
 
   const actions = [
     actionGate("transaction.preflight", "add", !txReady, txReady ? "Add preflight is available." : "Add preflight is not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete Add proof.", true, true),
@@ -308,10 +362,16 @@ function buildEnforcement(computedAt, coverage) {
     actionGate("bill.preflight", "bills", !billsReady, billsReady ? "Bills preflight is available." : "Bills preflight is not ready.", "coverage.write_safety.bills", billsReady ? "None." : "Complete Bills proof.", true, true),
     actionGate("bill.save", "bills", !billsReady, billsReady ? "bill.save is allowed after Bills preflight." : "bill.save is not ready.", "coverage.write_safety.bills.bill_save_allowed", billsReady ? "None." : "Complete Bills proof.", true, true),
     actionGate("bill.clear", "bills", !billsReady, billsReady ? "bill.clear is allowed after Bills preflight." : "bill.clear is not ready.", "coverage.write_safety.bills.bill_clear_allowed", billsReady ? "None." : "Complete Bills proof.", true, true),
+
     actionGate("debt.save", "debts", true, "debt.save remains blocked until debt dry-run exists.", "coverage.write_safety.debt_save", "Add debt.save dry-run proof.", false, true),
     actionGate("reconciliation.declare", "reconciliation", true, "reconciliation.declare remains blocked until reconciliation dry-run exists.", "coverage.write_safety.reconciliation", "Add reconciliation dry-run proof.", false, true),
     actionGate("salary.save", "salary", true, "salary.save remains blocked until salary dry-run exists.", "coverage.write_safety.salary", "Add salary dry-run proof.", false, true),
     actionGate("forecast.generate", "forecast", true, "forecast.generate remains blocked until source precision is proven.", "business_rules.forecast_precision", "Complete forecast source verification.", false, true),
+
+    actionGate("override.request", "command_centre", false, "Override request templates are available for emergencies.", "override_policy.request_schema", "None.", false, true),
+    actionGate("override.apply", "system", true, "Command Centre does not directly apply overrides. Owning API must implement override enforcement with audit.", "override_policy.api_owned_application", "Implement API-owned override path only if truly required.", false, true),
+    actionGate("override.silent_bypass", "system", true, "Silent bypass is permanently blocked.", "override_policy.silent_bypass_forbidden", "Never lift.", true, true),
+
     actionGate("money_contracts.use_as_truth_source", "system", true, "/api/money-contracts is banned as a finance truth source.", "source_proofs.money_contracts", "Never lift.", true, true)
   ];
 
@@ -335,7 +395,7 @@ function buildEnforcement(computedAt, coverage) {
     mode: "authority",
     computed_at: computedAt,
     schema_only: false,
-    global_status: "warning",
+    global_status: "governor_complete",
     global_level: 1,
     ready_for_known_page_trial: true,
     ready_for_full_system_certification: false,
@@ -345,6 +405,10 @@ function buildEnforcement(computedAt, coverage) {
       bill_save_real_write_lifted: billsReady,
       bill_clear_real_write_lifted: billsReady,
       remaining_mutations_blocked: true,
+      emergency_override_policy_complete: true,
+      command_centre_applies_overrides: false,
+      owning_api_must_apply_overrides: true,
+      silent_bypass_forbidden: true,
       command_centre_never_hides_truth: true
     },
     routes,
@@ -369,26 +433,47 @@ function buildEnforcement(computedAt, coverage) {
         required_fix: action.required_fix
       }]
     })),
-    lift_criteria: [],
-    action_proof_status: {},
+    lift_criteria: [
+      {
+        action: "override.apply",
+        current_status: "blocked",
+        can_lift_now: false,
+        lift_rule: "Only lift in the owning mutating API with reason, expiry, audit, and visible Command Centre warning."
+      },
+      {
+        action: "debt.save",
+        current_status: "blocked",
+        can_lift_now: false,
+        lift_rule: "Add debt-specific dry-run proof first."
+      },
+      {
+        action: "reconciliation.declare",
+        current_status: "blocked",
+        can_lift_now: false,
+        lift_rule: "Add reconciliation-specific dry-run proof first."
+      }
+    ],
+    action_proof_status: {
+      "transaction.save": { status: txReady ? "pass" : "blocked" },
+      "bill.save": { status: billsReady ? "pass" : "blocked" },
+      "bill.clear": { status: billsReady ? "pass" : "blocked" },
+      "override.request": { status: "pass" },
+      "override.apply": { status: "blocked" }
+    },
     block_explanations: actions.filter(action => !action.allowed).map(action => ({
       blocked_item: action.action,
       block_type: "action_block",
       reason: action.reason,
       source: action.source,
       required_fix: action.required_fix,
-      override_allowed: false,
+      override_allowed: action.action !== "override.silent_bypass" && overridePolicy.requestable_actions.includes(action.action),
       backend_enforced: action.backend_enforced,
       frontend_enforced: action.frontend_enforced
     })),
     reasons: actions.filter(action => !action.allowed).map(action => action.reason),
-    overrides: {
-      allowed: false,
-      requires_reason: true,
-      audit_required: true,
-      note: "Overrides remain disabled."
-    },
-    enforcement_status_note: "Command Centre governor is complete enough: Add Transaction and Bills are governed; unproven domains remain blocked."
+    overrides: overridePolicy,
+    emergency_playbooks: buildEmergencyPlaybooks(),
+    enforcement_status_note: "Command Centre governor is complete: Add Transaction and Bills are governed; emergency override policy is visible; unproven domains remain blocked."
   };
 }
 
@@ -397,14 +482,112 @@ function buildBusinessRules(coverage) {
     rule("add_write_path", coverage.write_safety.transaction_save.real_writes_allowed ? "pass" : "blocked", "Add write path", "transaction.save governed."),
     rule("bills_write_path", coverage.write_safety.bills.real_writes_allowed ? "pass" : "blocked", "Bills write path", "Bills governed."),
     rule("remaining_mutations_blocked", "pass", "Remaining mutations blocked", "Debts, reconciliation, salary, and forecast remain blocked."),
+    rule("override_policy", "pass", "Emergency override policy", "Override policy is visible and does not silently bypass APIs."),
     rule("money_contracts_banned", "pass", "Money contracts banned", "/api/money-contracts is not used."),
     rule("forecast_precision", "unknown", "Forecast precision", "Forecast source precision not complete.")
   ];
 }
 
+function buildOverridePolicy() {
+  return {
+    status: "policy_complete",
+    allowed: false,
+    requestable: true,
+    applies_directly_from_command_centre: false,
+    silent_bypass_allowed: false,
+    requires_reason: true,
+    requires_operator_confirmation: true,
+    requires_expiry: true,
+    default_expiry_minutes: 30,
+    max_expiry_minutes: 120,
+    audit_required: true,
+    visible_warning_required: true,
+    rollback_required: true,
+    note: "Command Centre exposes override requirements. It does not directly bypass backend gates.",
+    request_schema: {
+      action: "override.request",
+      target_action: "debt.save | reconciliation.declare | salary.save | forecast.generate | other blocked action",
+      target_route: "/example.html",
+      reason: "Required. Human-readable emergency reason.",
+      expiry_minutes: "Required. Max 120.",
+      expected_impact: "Required. What changes if override is applied.",
+      rollback_plan: "Required. How to reverse or stop the override.",
+      operator_confirmation: "Required. Explicit confirmation."
+    },
+    requestable_actions: [
+      "debt.save",
+      "reconciliation.declare",
+      "salary.save",
+      "forecast.generate",
+      "cc.use_for_decision"
+    ],
+    never_override_actions: [
+      "money_contracts.use_as_truth_source",
+      "override.silent_bypass",
+      "unknown.becomes.ready"
+    ],
+    required_backend_contract_for_future_application: {
+      header_or_body_marker: "x-sovereign-override",
+      reason_required: true,
+      expiry_required: true,
+      audit_required: true,
+      command_centre_warning_required: true,
+      owner_api_must_validate: true
+    }
+  };
+}
+
+function buildEmergencyPlaybooks() {
+  return [
+    {
+      key: "wrong_block",
+      label: "Action appears blocked incorrectly",
+      steps: [
+        "Verify Command Centre action status.",
+        "Verify source/check and required_fix.",
+        "Verify owning API version.",
+        "If policy is stale, update proof recognition.",
+        "Do not bypass silently."
+      ]
+    },
+    {
+      key: "urgent_real_world_update",
+      label: "Urgent real-world update needed",
+      steps: [
+        "Prefer direct targeted D1 correction only if operator already knows the real-world truth.",
+        "Use exact SQL and verification query.",
+        "Do not run fake smoke entries.",
+        "Record outcome in state after completion."
+      ]
+    },
+    {
+      key: "api_error",
+      label: "Mutating API throws error",
+      steps: [
+        "Stop retries.",
+        "Read error.",
+        "Check normalized payload.",
+        "Check undefined bind risk.",
+        "Add dry-run proof before lifting."
+      ]
+    },
+    {
+      key: "override_request",
+      label: "Override requested",
+      steps: [
+        "State blocked action and reason.",
+        "Collect reason, expiry, expected impact, rollback plan.",
+        "Do not apply from Command Centre.",
+        "Implement only in owning API if truly needed."
+      ]
+    }
+  ];
+}
+
 function buildWarnings(coverage) {
   return [
-    warning("governor_complete_not_full_finance_complete", "Command Centre governor is complete enough, but debt/reconciliation/salary/forecast writes are intentionally blocked.")
+    warning("governor_complete_not_full_finance_complete", "Command Centre governor is complete, but debt/reconciliation/salary/forecast writes are intentionally blocked."),
+    warning("override_application_not_enabled", "Override policy is complete, but Command Centre does not directly apply overrides. This prevents silent bypass.")
   ];
 }
 
@@ -421,7 +604,9 @@ function buildHardBlockers(apis, d1) {
     blockers.push(blocker("api_" + api.key + "_blocked", api.path + " is not healthy.", "Fix required API."));
   });
 
-  if (d1.status === "blocked") blockers.push(blocker("d1_blocked", "D1 audit failed.", "Fix D1 binding/read."));
+  if (d1.status === "blocked") {
+    blockers.push(blocker("d1_blocked", "D1 audit failed.", "Fix D1 binding/read."));
+  }
 
   return blockers;
 }
@@ -443,7 +628,7 @@ function buildSourceProofs(coverage, apis, pageProofs) {
     {
       key: "bills_api_dry_run",
       status: coverage.write_safety.bills.dry_run_available ? "pass" : "unknown",
-      source: "/api/bills version >= v0.4.0",
+      source: "/api/bills version >= v0.3.0",
       details: apis.find(api => api.key === "bills") || null
     },
     {
@@ -451,6 +636,12 @@ function buildSourceProofs(coverage, apis, pageProofs) {
       status: coverage.write_safety.bills.page_preflight_wired ? "pass" : "unknown",
       source: "/bills.html script tag /js/bills.js?v=0.4.0+",
       details: pageProofs.find(proof => proof.key === "bills_page_preflight") || null
+    },
+    {
+      key: "override_policy",
+      status: "pass",
+      source: "enforcement.overrides",
+      details: buildOverridePolicy()
     },
     {
       key: "money_contracts",
@@ -462,7 +653,7 @@ function buildSourceProofs(coverage, apis, pageProofs) {
 }
 
 function computeScore(coverage) {
-  return Math.round((100 + coverage.write_safety.score + 0) / 3);
+  return Math.round((100 + coverage.write_safety.score + coverage.override_governance.score + 0) / 4);
 }
 
 function scoreApi(apis) {
@@ -480,11 +671,17 @@ function emergencyEnforcement(computedAt, message) {
     global_status: "blocked",
     global_level: 3,
     routes: [],
-    actions: [actionGate("system.trial", "system", true, message, "endpoint_exception", "Fix Command Centre exception.", false, false)],
+    actions: [
+      actionGate("system.trial", "system", true, message, "endpoint_exception", "Fix Command Centre exception.", false, false)
+    ],
     blocked_actions: ["system.trial"],
     view_only_routes: [],
     blocked_routes: [],
-    policy: { unknown_blocks_ready: true },
+    policy: {
+      unknown_blocks_ready: true,
+      command_centre_never_hides_truth: true
+    },
+    overrides: buildOverridePolicy(),
     block_explanations: []
   };
 }
@@ -516,7 +713,10 @@ function actionGate(action, module, blocked, reason, source, requiredFix, backen
     required_fix: blocked ? requiredFix : "None.",
     backend_enforced: Boolean(backendEnforced),
     frontend_enforced: Boolean(frontendEnforced),
-    override: { allowed: false, reason_required: true }
+    override: {
+      allowed: false,
+      reason_required: true
+    }
   };
 }
 
