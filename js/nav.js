@@ -393,3 +393,83 @@
     mountShell();
   }
 })();
+
+
+/* UI-16 Sidebar fold toggle v2.0.3
+ * Frontend-only.
+ * Adds desktop fold/unfold control for the app sidebar.
+ */
+(function () {
+  "use strict";
+
+  const STORAGE_KEY = "sf_sidebar_collapsed_v1";
+
+  function getStoredCollapsed() {
+    try {
+      return localStorage.getItem(STORAGE_KEY) === "1";
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function storeCollapsed(value) {
+    try {
+      localStorage.setItem(STORAGE_KEY, value ? "1" : "0");
+    } catch (err) {}
+  }
+
+  function applyCollapsed(value) {
+    document.body.classList.toggle("sf-sidebar-collapsed", value);
+    document.documentElement.dataset.sfSidebarCollapsed = value ? "true" : "false";
+
+    const button = document.querySelector("[data-sf-sidebar-fold]");
+    if (button) {
+      button.setAttribute("aria-pressed", value ? "true" : "false");
+      button.setAttribute("title", value ? "Expand sidebar" : "Fold sidebar");
+      button.innerHTML = value
+        ? '<span aria-hidden="true">›</span><span class="sf-sidebar-fold-label">Expand</span>'
+        : '<span aria-hidden="true">‹</span><span class="sf-sidebar-fold-label">Fold</span>';
+    }
+  }
+
+  function installFoldButton() {
+    const sidebar = document.querySelector(".sf-sidebar");
+    if (!sidebar || sidebar.querySelector("[data-sf-sidebar-fold]")) return;
+
+    const brand = sidebar.querySelector(".sf-sidebar-brand") || sidebar.firstElementChild || sidebar;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sf-sidebar-fold";
+    button.dataset.sfSidebarFold = "true";
+    button.setAttribute("aria-label", "Fold or expand sidebar");
+
+    button.addEventListener("click", function () {
+      const next = !document.body.classList.contains("sf-sidebar-collapsed");
+      storeCollapsed(next);
+      applyCollapsed(next);
+    });
+
+    brand.appendChild(button);
+    applyCollapsed(getStoredCollapsed());
+  }
+
+  function init() {
+    installFoldButton();
+
+    const observer = new MutationObserver(function () {
+      installFoldButton();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
