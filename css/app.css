@@ -1457,3 +1457,205 @@ textarea:disabled {
     min-height: 48px;
   }
 }
+/* UI-15 Professional app-shell layout correction v2.0.2
+   Fixes sidebar overlay, page readability, and horizontal overflow.
+   Frontend-only. No finance logic changes.
+*/
+
+:root {
+  --ui-shell-fix: "2.0.2";
+  --content-max: 1480px;
+}
+
+/* Desktop app shell: sidebar gets its own reserved lane */
+@media (min-width: 861px) {
+  body {
+    padding-left: var(--sidebar-w);
+    overflow-x: hidden !important;
+  }
+
+  .sf-sidebar {
+    width: var(--sidebar-w);
+    left: 0;
+    right: auto;
+    transform: none !important;
+  }
+
+  .sf-topbar,
+  body > header:not(.sf-topbar),
+  .app-page,
+  main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .sf-topbar {
+    left: var(--sidebar-w);
+    right: 0;
+  }
+
+  .app-page,
+  main {
+    overflow-x: clip;
+  }
+
+  .app-page > section,
+  main > section {
+    width: min(100%, var(--content-max));
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Mobile/tablet: sidebar becomes drawer only */
+@media (max-width: 860px) {
+  body {
+    padding-left: 0 !important;
+    overflow-x: hidden !important;
+  }
+
+  .sf-topbar,
+  body > header:not(.sf-topbar),
+  .app-page,
+  main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .app-page,
+  main {
+    overflow-x: clip;
+  }
+}
+
+/* Kill horizontal page overflow from wide dashboard grids */
+.hub-hero-grid,
+.command-grid,
+.add-hero-grid,
+.bills-hero-grid,
+.debts-hero-grid,
+.recon-hero-grid,
+.forecast-hero-grid,
+.salary-hero-grid,
+.cc-hero-grid,
+.hub-panel-grid,
+.recon-grid,
+.forecast-grid,
+.salary-grid,
+.cc-grid {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* Make two-column hero layouts professional, not wider than viewport */
+@media (min-width: 1181px) {
+  .hub-hero-grid,
+  .command-grid,
+  .add-hero-grid,
+  .bills-hero-grid,
+  .debts-hero-grid,
+  .recon-hero-grid,
+  .forecast-hero-grid,
+  .salary-hero-grid,
+  .cc-hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 420px) !important;
+  }
+
+  .hub-panel-grid,
+  .recon-grid,
+  .forecast-grid,
+  .salary-grid,
+  .cc-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 440px) !important;
+  }
+}
+
+/* KPI grids should wrap instead of forcing side-scroll */
+.hub-status-grid,
+.command-kpi-grid,
+.bills-kpi-grid,
+.debts-kpi-grid,
+.recon-kpi-grid,
+.forecast-kpi-grid,
+.salary-kpi-grid,
+.cc-kpi-grid,
+.grid-4 {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+  max-width: 100%;
+}
+
+/* Cards and hero text must never force horizontal scroll */
+.finance-hero,
+.command-hero,
+.page-hero,
+.kpi-card,
+.stat-card,
+.metric-card,
+.hub-module-card,
+.command-action-card,
+.command-route-card,
+.bill-card,
+.debt-card,
+.recon-row,
+.forecast-row,
+.salary-row,
+.cc-row,
+.account-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.hero-title,
+.page-title,
+.kpi-value,
+.stat-value,
+.metric-value,
+.bill-amount,
+.debt-amount,
+.recon-row-amount,
+.forecast-row-value,
+.salary-row-value,
+.cc-row-value,
+.account-balance {
+  overflow-wrap: anywhere;
+}
+
+/* Prevent wide badges/buttons from pushing layout */
+.badge,
+.status-badge,
+.pill,
+.btn,
+.primary-submit,
+.action-btn {
+  max-width: 100%;
+}
+
+/* Long route/source/reason text wraps cleanly */
+.command-route-path,
+.command-proof-source,
+.hub-meta-row strong,
+.command-route-reason,
+.authority-copy,
+.enforcement-copy,
+.command-copy {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+/* Sidebar itself remains scrollable, not the whole website sideways */
+.sf-sidebar {
+  overflow-x: hidden;
+}
+
+.sf-nav-scroll {
+  overflow-x: hidden;
+}
+
+/* Hard guarantee: no horizontal document scrollbar */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden !important;
+}
