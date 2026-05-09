@@ -1,603 +1,289 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-page="cc">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<title>Credit Card Planner · Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=1.0.1" />
-<style>
-.cc-wrap {
-max-width: 1180px;
-margin: 0 auto;
-}
-.cc-hero {
-background: var(--surface-1);
-border: 1px solid var(--border);
-border-radius: var(--r-xl);
-box-shadow: var(--shadow-md);
-padding: 24px;
-margin-bottom: 18px;
-}
-.cc-kicker {
-display: inline-flex;
-padding: 7px 11px;
-border-radius: var(--r-pill);
-background: var(--warn-soft);
-color: var(--warn);
-font-size: 12px;
-font-weight: 950;
-text-transform: uppercase;
-letter-spacing: 0.07em;
-margin-bottom: 12px;
-}
-.cc-heading {
-color: var(--text);
-font-size: clamp(32px, 5vw, 50px);
-line-height: 1.02;
-font-weight: 950;
-letter-spacing: -0.05em;
-margin: 0;
-}
-.cc-copy {
-color: var(--text-muted);
-font-size: 15px;
-line-height: 1.55;
-font-weight: 750;
-margin-top: 12px;
-max-width: 780px;
-}
-.cc-actions {
-display: flex;
-flex-wrap: wrap;
-gap: 10px;
-margin-top: 18px;
-}
-.cc-primary {
-min-height: 46px;
-border: 0;
-border-radius: var(--r-md);
-background: var(--grad-mint);
-color: #052e16;
-padding: 12px 16px;
-font-size: 14px;
-font-weight: 950;
-box-shadow: 0 12px 24px rgba(34, 197, 94, 0.18);
-text-decoration: none;
-display: inline-flex;
-align-items: center;
-}
-.cc-secondary {
-min-height: 46px;
-border: 1px solid var(--border-strong);
-border-radius: var(--r-md);
-background: #ffffff;
-color: var(--text);
-padding: 12px 16px;
-font-size: 14px;
-font-weight: 950;
-}
-.cc-stats {
-display: grid;
-grid-template-columns: repeat(4, minmax(0, 1fr));
-gap: 12px;
-margin-bottom: 18px;
-}
-.cc-stat {
-background: var(--surface-1);
-border: 1px solid var(--border);
-border-radius: var(--r-lg);
-box-shadow: var(--shadow-sm);
-padding: 16px;
-}
-.cc-stat-label {
-color: var(--text-dim);
-font-size: 11px;
-font-weight: 950;
-letter-spacing: 0.08em;
-text-transform: uppercase;
-}
-.cc-stat-value {
-margin-top: 7px;
-color: var(--text);
-font-size: 23px;
-font-weight: 950;
-font-variant-numeric: tabular-nums;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-}
-.cc-stat-value.positive { color: var(--accent-deep); }
-.cc-stat-value.negative { color: var(--danger); }
-.cc-stat-value.warn { color: var(--warn); }
-.cc-grid {
-display: grid;
-grid-template-columns: minmax(0, 1fr) minmax(360px, 0.85fr);
-gap: 18px;
-}
-.cc-panel {
-background: var(--surface-1);
-border: 1px solid var(--border);
-border-radius: var(--r-xl);
-box-shadow: var(--shadow-sm);
-padding: 16px;
-min-width: 0;
-}
-.cc-panel-head {
-display: flex;
-justify-content: space-between;
-gap: 12px;
-align-items: center;
-margin-bottom: 14px;
-}
-.cc-panel-title {
-color: var(--text);
-font-size: 18px;
-font-weight: 950;
-}
-.cc-panel-sub {
-color: var(--text-dim);
-font-size: 12px;
-font-weight: 850;
-}
-.cc-meter {
-height: 24px;
-background: var(--surface-3);
-border: 1px solid var(--border);
-border-radius: var(--r-pill);
-overflow: hidden;
-margin: 12px 0 10px;
-}
-.cc-meter-fill {
-height: 100%;
-width: 0%;
-background: linear-gradient(90deg, #22c55e, #f59e0b, #dc2626);
-border-radius: var(--r-pill);
-transition: width 0.45s ease;
-}
-.cc-breakdown {
-display: grid;
-grid-template-columns: repeat(2, minmax(0, 1fr));
-gap: 10px;
-margin-top: 12px;
-}
-.cc-pill {
-background: var(--surface-2);
-border: 1px solid var(--border);
-border-radius: var(--r-md);
-padding: 11px;
-min-width: 0;
-}
-.cc-pill-label {
-color: var(--text-dim);
-font-size: 10px;
-font-weight: 950;
-text-transform: uppercase;
-letter-spacing: 0.06em;
-margin-bottom: 5px;
-}
-.cc-pill-value {
-color: var(--text);
-font-size: 14px;
-font-weight: 950;
-overflow: hidden;
-text-overflow: ellipsis;
-white-space: nowrap;
-font-variant-numeric: tabular-nums;
-}
-.cc-pill-value.positive { color: var(--accent-deep); }
-.cc-pill-value.negative { color: var(--danger); }
-.cc-pill-value.warn { color: var(--warn); }
-.cc-note {
-margin-top: 14px;
-padding: 13px 14px;
-border-radius: var(--r-lg);
-border: 1px solid rgba(37, 99, 235, 0.22);
-background: var(--info-soft);
-color: var(--info);
-font-size: 13px;
-font-weight: 850;
-line-height: 1.45;
-}
-.cc-alert {
-margin-top: 14px;
-padding: 14px;
-border-radius: var(--r-lg);
-border: 1px solid rgba(245, 158, 11, 0.24);
-background: rgba(245, 158, 11, 0.10);
-color: var(--text);
-font-size: 14px;
-font-weight: 850;
-line-height: 1.5;
-}
-.cc-alert.safe {
-border-color: rgba(34, 197, 94, 0.24);
-background: rgba(34, 197, 94, 0.10);
-}
-.cc-alert.danger {
-border-color: rgba(220, 38, 38, 0.24);
-background: rgba(220, 38, 38, 0.10);
-}
-.cc-list {
-display: flex;
-flex-direction: column;
-gap: 10px;
-}
-.cc-row {
-display: grid;
-grid-template-columns: 44px minmax(0, 1fr) auto;
-gap: 12px;
-align-items: center;
-background: var(--surface-2);
-border: 1px solid var(--border);
-border-radius: var(--r-lg);
-padding: 13px;
-}
-.cc-row-icon {
-width: 40px;
-height: 40px;
-border-radius: 14px;
-display: grid;
-place-items: center;
-background: #ffffff;
-border: 1px solid var(--border);
-font-size: 22px;
-}
-.cc-row-title {
-color: var(--text);
-font-size: 14px;
-font-weight: 950;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-}
-.cc-row-sub {
-margin-top: 3px;
-color: var(--text-dim);
-font-size: 12px;
-font-weight: 800;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-}
-.cc-row-amount {
-color: var(--danger);
-font-size: 15px;
-font-weight: 950;
-font-variant-numeric: tabular-nums;
-white-space: nowrap;
-text-align: right;
-}
-.cc-empty {
-background: var(--surface-2);
-border: 1px dashed var(--border-strong);
-border-radius: var(--r-lg);
-padding: 24px;
-text-align: center;
-color: var(--text-muted);
-font-weight: 850;
-line-height: 1.5;
-}
-@media (max-width: 980px) {
-.cc-stats {
-grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.cc-grid {
-grid-template-columns: 1fr;
-}
-}
-@media (max-width: 640px) {
-.cc-stats,
-.cc-breakdown {
-grid-template-columns: 1fr;
-}
-.cc-row {
-grid-template-columns: 40px minmax(0, 1fr);
-}
-.cc-row-amount {
-grid-column: 2;
-text-align: left;
-}
-}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Credit Card · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
+
+  <style>
+    .cc-wrap { max-width: 1280px; margin: 0 auto; }
+    .cc-hero {
+      color:#f8fafc;
+      background:linear-gradient(135deg,rgba(15,23,42,.98),rgba(30,41,59,.95)),radial-gradient(circle at top right,rgba(59,130,246,.24),transparent 28rem);
+      border:1px solid rgba(255,255,255,.1);
+      border-radius:34px;
+      box-shadow:var(--shadow-lg);
+      padding:26px;
+      margin-bottom:18px;
+    }
+    .cc-kicker {
+      display:inline-flex; padding:7px 11px; border-radius:999px;
+      background:rgba(59,130,246,.15); color:#dbeafe;
+      font-size:12px; font-weight:950; text-transform:uppercase; letter-spacing:.07em;
+      margin-bottom:12px;
+    }
+    .cc-title {
+      margin:0; color:#fff; font-size:clamp(34px,5vw,58px);
+      line-height:.98; letter-spacing:-.06em; font-weight:950;
+    }
+    .cc-copy {
+      max-width:840px; margin:12px 0 0; color:#cbd5e1;
+      font-size:15px; line-height:1.55; font-weight:750;
+    }
+    .cc-grid {
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+      margin-bottom:18px;
+    }
+    .cc-card {
+      min-width:0; padding:17px; border-radius:24px;
+      background:var(--surface-1); border:1px solid var(--border); box-shadow:var(--shadow-sm);
+    }
+    .cc-label {
+      color:var(--text-dim); font-size:11px; font-weight:950;
+      text-transform:uppercase; letter-spacing:.08em;
+    }
+    .cc-value {
+      margin-top:8px; color:var(--text); font-size:24px; font-weight:950;
+      letter-spacing:-.035em; font-variant-numeric:tabular-nums;
+    }
+    .cc-note { margin-top:6px; color:var(--text-dim); font-size:12px; font-weight:800; line-height:1.35; }
+    .cc-value.warn { color:var(--warn); }
+    .cc-value.good { color:var(--accent-deep); }
+    .cc-value.bad { color:var(--danger); }
+    .cc-main {
+      display:grid; grid-template-columns:minmax(0,1.25fr) minmax(330px,.75fr);
+      gap:16px; align-items:start;
+    }
+    .cc-panel {
+      background:var(--surface-1); border:1px solid var(--border);
+      border-radius:28px; box-shadow:var(--shadow-sm); padding:18px;
+      min-width:0;
+    }
+    .panel-title { margin:0; color:var(--text); font-size:18px; font-weight:950; letter-spacing:-.03em; }
+    .panel-sub { margin:6px 0 0; color:var(--text-dim); font-size:13px; font-weight:750; line-height:1.45; }
+    .cc-meter {
+      margin:18px 0 10px; height:18px; background:var(--surface-3);
+      border-radius:999px; overflow:hidden;
+    }
+    .cc-meter-fill {
+      height:100%; width:0%; border-radius:999px;
+      background:linear-gradient(90deg,#22c55e,#f59e0b,#ef4444);
+    }
+    .cc-row {
+      display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px;
+      padding:13px; border-radius:18px; background:var(--surface-2);
+      border:1px solid rgba(148,163,184,.18); margin-top:8px;
+    }
+    .row-name { color:var(--text); font-size:13px; font-weight:950; }
+    .row-sub { margin-top:3px; color:var(--text-dim); font-size:12px; font-weight:750; }
+    .row-value { color:var(--text); font-size:13px; font-weight:950; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .cc-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }
+    .cc-action {
+      display:flex; align-items:center; justify-content:center; min-height:46px;
+      border-radius:16px; border:1px solid var(--border-strong); background:#fff;
+      color:var(--text); font-weight:950;
+    }
+    .cc-action.primary { background:var(--grad-mint); color:#052e16; border:0; }
+    .cc-empty {
+      padding:18px; border-radius:18px; background:var(--surface-2);
+      border:1px dashed var(--border-strong); color:var(--text-muted);
+      font-size:13px; font-weight:850; line-height:1.45;
+    }
+    @media(max-width:980px){
+      .cc-grid,.cc-main{grid-template-columns:1fr;}
+      .cc-actions{grid-template-columns:1fr;}
+    }
+  </style>
 </head>
+
 <body>
-<header>
-<div>
-<div class="brand">Sovereign Finance</div>
-<div class="title">Credit Card Planner</div>
-</div>
-</header>
+  <header>
+    <div>
+      <div class="brand">Sovereign Finance</div>
+      <div class="title">Credit Card</div>
+    </div>
+  </header>
 
-<main class="cc-wrap">
-<section class="cc-hero">
-<div class="cc-kicker">Credit Card control</div>
-<h1 class="cc-heading">Credit Card Planner</h1>
-<p class="cc-copy">
-Live Credit Card control from the Credit Card Due Engine: outstanding balance, utilization, statement cycle, due date, and minimum payment.
-</p>
-<div class="cc-actions">
-<a class="cc-primary" href="/add.html?type=transfer&to=cc">Plan Paydown</a>
-<button id="refreshBtn" class="cc-secondary" type="button">Refresh</button>
-</div>
-</section>
+  <main class="cc-wrap">
+    <section class="cc-hero">
+      <div class="cc-kicker">Credit Card control</div>
+      <h1 class="cc-title">Statement, due date, minimum payment, and utilization in one place.</h1>
+      <p class="cc-copy">
+        Credit Card is treated as a liability planning tool. It uses the account contract for limit,
+        statement day, due day, and minimum payment.
+      </p>
+    </section>
 
-<section class="cc-stats">
-<div class="cc-stat">
-<div class="cc-stat-label">Outstanding</div>
-<div id="outstanding" class="cc-stat-value negative"></div>
-</div>
-<div class="cc-stat">
-<div class="cc-stat-label">Credit Limit</div>
-<div id="creditLimit" class="cc-stat-value"></div>
-</div>
-<div class="cc-stat">
-<div class="cc-stat-label">Available</div>
-<div id="availableCredit" class="cc-stat-value positive"></div>
-</div>
-<div class="cc-stat">
-<div class="cc-stat-label">Utilization</div>
-<div id="utilization" class="cc-stat-value warn"></div>
-</div>
-</section>
+    <section class="cc-grid">
+      <div class="cc-card">
+        <div class="cc-label">Outstanding</div>
+        <div id="ccOutstanding" class="cc-value">—</div>
+        <div id="ccOutstandingNote" class="cc-note">Current Credit Card liability.</div>
+      </div>
+      <div class="cc-card">
+        <div class="cc-label">Minimum payment</div>
+        <div id="ccMinimum" class="cc-value">—</div>
+        <div id="ccMinimumNote" class="cc-note">Formula source loading.</div>
+      </div>
+      <div class="cc-card">
+        <div class="cc-label">Due date</div>
+        <div id="ccDue" class="cc-value">—</div>
+        <div id="ccDueNote" class="cc-note">Next payment due date.</div>
+      </div>
+      <div class="cc-card">
+        <div class="cc-label">Utilization</div>
+        <div id="ccUtil" class="cc-value">—</div>
+        <div id="ccUtilNote" class="cc-note">Outstanding against limit.</div>
+      </div>
+    </section>
 
-<section class="cc-grid">
-<div class="cc-panel">
-<div class="cc-panel-head">
-<div>
-<div class="cc-panel-title">Credit Card Due Engine</div>
-<div id="meterSub" class="cc-panel-sub">Loading</div>
-</div>
-</div>
+    <section class="cc-main">
+      <div class="cc-panel">
+        <h2 class="panel-title">Credit Card health</h2>
+        <p class="panel-sub">This is a planning readout only. Payment movement still happens through Add Transaction transfer mode.</p>
 
-<div class="cc-meter">
-<div id="ccFill" class="cc-meter-fill"></div>
-</div>
+        <div class="cc-meter">
+          <div id="ccMeterFill" class="cc-meter-fill"></div>
+        </div>
 
-<div class="cc-breakdown">
-<div class="cc-pill">
-<div class="cc-pill-label">Account</div>
-<div id="ccAccountName" class="cc-pill-value"></div>
-</div>
-<div class="cc-pill">
-<div class="cc-pill-label">Utilization Status</div>
-<div id="ccStatus" class="cc-pill-value warn"></div>
-</div>
-<div class="cc-pill">
-<div class="cc-pill-label">Minimum Payment</div>
-<div id="minPayment" class="cc-pill-value"></div>
-</div>
-<div class="cc-pill">
-<div class="cc-pill-label">Minimum Source</div>
-<div id="minSource" class="cc-pill-value"></div>
-</div>
-<div class="cc-pill">
-<div class="cc-pill-label">Payment Due Date</div>
-<div id="paymentDueDate" class="cc-pill-value"></div>
-</div>
-<div class="cc-pill">
-<div class="cc-pill-label">Days Until Due</div>
-<div id="daysUntilDue" class="cc-pill-value"></div>
-</div>
-<div class="cc-pill">
-<div class="cc-pill-label">Latest Statement</div>
-<div id="latestStatement" class="cc-pill-value"></div>
-</div>
-<div class="cc-pill">
-<div class="cc-pill-label">Next Statement</div>
-<div id="nextStatement" class="cc-pill-value"></div>
-</div>
-<div class="cc-pill">
-<div class="cc-pill-label">Statement Day</div>
-<div id="statementDay" class="cc-pill-value"></div>
-</div>
-<div class="cc-pill">
-<div class="cc-pill-label">Interest-Free Days</div>
-<div id="interestFreeDays" class="cc-pill-value"></div>
-</div>
-</div>
+        <div class="cc-row">
+          <div>
+            <div class="row-name">Statement day</div>
+            <div class="row-sub">Monthly statement / billing cycle marker</div>
+          </div>
+          <div id="ccStatementDay" class="row-value">—</div>
+        </div>
 
-<div id="dueHeadline" class="cc-alert">Loading due headline...</div>
+        <div class="cc-row">
+          <div>
+            <div class="row-name">Payment due day</div>
+            <div class="row-sub">If configured, due date is based on this day</div>
+          </div>
+          <div id="ccPaymentDueDay" class="row-value">—</div>
+        </div>
 
-<div class="cc-note">
-Minimum payment is marked as estimated if the bank’s official minimum is not stored yet. Paydowns should still be recorded through Add Transaction as a transfer/payment flow.
-</div>
-</div>
+        <div class="cc-row">
+          <div>
+            <div class="row-name">Credit limit</div>
+            <div class="row-sub">Limit from account contract</div>
+          </div>
+          <div id="ccLimit" class="row-value">—</div>
+        </div>
 
-<div class="cc-panel">
-<div class="cc-panel-head">
-<div>
-<div class="cc-panel-title">Recent Credit Card Activity</div>
-<div id="activitySub" class="cc-panel-sub">Loading</div>
-</div>
-</div>
-<div id="ccActivity" class="cc-list">
-<div class="cc-empty">Loading Credit Card activity</div>
-</div>
-</div>
-</section>
+        <div class="cc-actions">
+          <a class="cc-action primary" href="/add.html?type=transfer&to=cc">Plan payment transfer</a>
+          <a class="cc-action" href="/transactions.html">Review transactions</a>
+        </div>
+      </div>
 
-<footer class="page-footer">
-<span class="v">v0.3.1 · Credit Card due display wired · api cc v0.3.0 · nav v1.0.16 · theme v0.7.2</span>
-</footer>
-</main>
+      <aside class="cc-panel">
+        <h2 class="panel-title">Production checks</h2>
+        <p class="panel-sub">What the page needs before it can be trusted.</p>
+        <div id="ccChecks"></div>
+      </aside>
+    </section>
 
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <footer class="page-footer">
+      <span class="v">Credit Card v0.4.0 · money-contracts v0.1.1 · nav v1.1.3 · css v1.0.2</span>
+    </footer>
+  </main>
 
-<script src="/js/theme.js?v=0.7.2"></script>
-<script src="/js/nav.js?v=1.0.16"></script>
-<script>
-const state = {
-cc: null,
-transactions: []
-};
+  <script src="/js/theme.js?v=1.0.0"></script>
+  <script src="/js/nav.js?v=1.1.3"></script>
 
-const $ = id => document.getElementById(id);
+  <script>
+    (function () {
+      "use strict";
 
-function esc(value) {
-return String(value == null ? '' : value)
-.replace(/&/g, '&amp;')
-.replace(/</g, '&lt;')
-.replace(/>/g, '&gt;')
-.replace(/"/g, '&quot;')
-.replace(/'/g, '&#39;');
-}
+      const $ = id => document.getElementById(id);
 
-function money(value) {
-const n = Number(value) || 0;
-const sign = n < 0 ? '-' : '';
-return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
-maximumFractionDigits: 2
-});
-}
+      function money(value) {
+        const n = Number(value || 0);
+        return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
+      }
 
-async function fetchJSON(url) {
-const res = await fetch(url, { cache: 'no-store' });
-const data = await res.json().catch(() => null);
-if (!res.ok || !data || data.ok === false) {
-throw new Error((data && data.error) || ('HTTP ' + res.status));
-}
-return data;
-}
+      function esc(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
 
-function statusClass(value) {
-const status = String(value || '').toLowerCase();
-if (status === 'high' || status === 'overdue' || status === 'due_urgent') return 'negative';
-if (status === 'watch' || status === 'due_soon' || status === 'scheduled') return 'warn';
-return 'positive';
-}
+      function setValue(id, value, cls) {
+        const el = $(id);
+        if (!el) return;
+        el.textContent = value;
+        el.classList.remove("good", "warn", "bad");
+        if (cls) el.classList.add(cls);
+      }
 
-function headlineClass(value) {
-const status = String(value || '').toLowerCase();
-if (status === 'overdue' || status === 'due_urgent') return 'cc-alert danger';
-if (status === 'clear' || status === 'controlled') return 'cc-alert safe';
-return 'cc-alert';
-}
+      function dueCopy(days) {
+        if (days === null || days === undefined) return "Unknown";
+        if (days < 0) return `${Math.abs(days)} days overdue`;
+        if (days === 0) return "Due today";
+        if (days === 1) return "Due tomorrow";
+        return `Due in ${days} days`;
+      }
 
-function formatSource(value, isEstimate) {
-const raw = String(value || '').replace(/_/g, ' ');
-if (!raw) return isEstimate ? 'Estimated' : 'Not set';
-return isEstimate ? 'Estimated · ' + raw : raw;
-}
+      function renderChecks(cc) {
+        const checks = [
+          ["Credit Card account found", !!cc.account_id],
+          ["Statement day configured", !!cc.statement_day],
+          ["Due date available", !!cc.next_due_date],
+          ["Minimum payment available", cc.minimum_payment !== null && cc.minimum_payment !== undefined],
+          ["Official name: Credit Card", cc.naming_contract === "Credit Card"]
+        ];
 
-function primaryCC(accounts) {
-const rows = accounts || [];
-return rows[0] || null;
-}
+        $("ccChecks").innerHTML = checks.map(([label, ok]) => `
+          <div class="cc-row">
+            <div>
+              <div class="row-name">${esc(label)}</div>
+              <div class="row-sub">${ok ? "Ready" : "Needs setup"}</div>
+            </div>
+            <div class="row-value">${ok ? "OK" : "Missing"}</div>
+          </div>
+        `).join("");
+      }
 
-function renderCC() {
-const cc = state.cc;
+      async function load() {
+        const res = await fetch("/api/money-contracts", { cache: "no-store" });
+        const data = await res.json();
 
-if (!cc) {
-$('outstanding').textContent = '';
-$('creditLimit').textContent = '';
-$('availableCredit').textContent = '';
-$('utilization').textContent = '';
-$('meterSub').textContent = 'No Credit Card account found';
-$('ccActivity').innerHTML = '<div class="cc-empty">No Credit Card account found.</div>';
-$('dueHeadline').textContent = 'No Credit Card account found.';
-$('dueHeadline').className = 'cc-alert';
-return;
-}
+        if (!res.ok || !data.ok) throw new Error(data.error || "Credit Card contract failed");
 
-const outstanding = Number(cc.outstanding ?? cc.cc_outstanding ?? 0) || 0;
-const limit = Number(cc.credit_limit || 0) || 0;
-const available = cc.available_credit == null ? null : Number(cc.available_credit);
-const pct = cc.utilization_pct == null ? null : Number(cc.utilization_pct);
-const due = cc.due || {};
+        const cc = data.contracts.credit_card || {};
+        const util = cc.utilization_percent;
 
-$('outstanding').textContent = money(outstanding);
-$('creditLimit').textContent = limit > 0 ? money(limit) : 'Not set';
-$('availableCredit').textContent = available == null ? 'Not set' : money(available);
-$('utilization').textContent = pct == null ? 'Not set' : pct.toFixed(1) + '%';
-$('utilization').className = 'cc-stat-value ' + statusClass(cc.utilization_status);
-$('ccFill').style.width = pct == null ? '0%' : Math.min(100, Math.max(0, pct)) + '%';
+        setValue("ccOutstanding", money(cc.outstanding), cc.outstanding > 0 ? "warn" : "good");
+        setValue("ccMinimum", money(cc.minimum_payment), cc.minimum_payment > 0 ? "warn" : "good");
+        setValue("ccDue", cc.next_due_date || "—", cc.days_until_due !== null && cc.days_until_due <= 7 ? "warn" : "good");
+        setValue("ccUtil", util === null || util === undefined ? "—" : util + "%", util >= 80 ? "bad" : util >= 50 ? "warn" : "good");
 
-$('meterSub').textContent = (cc.utilization_status || 'unknown') + (pct == null ? '' : ' · ' + pct.toFixed(1) + '% used');
-$('ccAccountName').textContent = ((cc.icon || '') + ' ' + (cc.name || cc.id || 'Credit Card')).trim();
-$('ccStatus').textContent = cc.utilization_status || 'unknown';
-$('ccStatus').className = 'cc-pill-value ' + statusClass(cc.utilization_status);
+        $("ccOutstandingNote").textContent = cc.account_name ? `Account: ${cc.account_name}` : "Credit Card account missing.";
+        $("ccMinimumNote").textContent = `Source: ${cc.minimum_payment_source || "unknown"}`;
+        $("ccDueNote").textContent = dueCopy(cc.days_until_due);
+        $("ccUtilNote").textContent = cc.credit_limit ? "Against configured credit limit." : "Credit limit not configured.";
+        $("ccStatementDay").textContent = cc.statement_day ? `Day ${cc.statement_day}` : "Not set";
+        $("ccPaymentDueDay").textContent = cc.payment_due_day ? `Day ${cc.payment_due_day}` : "55-day fallback";
+        $("ccLimit").textContent = cc.credit_limit ? money(cc.credit_limit) : "Not set";
 
-$('minPayment').textContent = cc.minimum_payment_amount == null ? 'Not set' : money(cc.minimum_payment_amount);
-$('minPayment').className = 'cc-pill-value ' + (cc.minimum_payment_is_estimate ? 'warn' : 'positive');
-$('minSource').textContent = formatSource(cc.minimum_payment_source, cc.minimum_payment_is_estimate);
-$('minSource').className = 'cc-pill-value ' + (cc.minimum_payment_is_estimate ? 'warn' : 'positive');
+        $("ccMeterFill").style.width = Math.max(0, Math.min(100, Number(util || 0))) + "%";
 
-$('paymentDueDate').textContent = cc.payment_due_date || due.payment_due_date || 'Not set';
-$('daysUntilDue').textContent = cc.days_until_payment_due == null ? 'Not set' : cc.days_until_payment_due + ' day(s)';
-$('latestStatement').textContent = cc.latest_statement_date || due.latest_statement_date || 'Not set';
-$('nextStatement').textContent = cc.next_statement_date || due.next_statement_date || 'Not set';
-$('statementDay').textContent = cc.statement_day || due.statement_day || 'Not set';
-$('interestFreeDays').textContent = cc.interest_free_days || due.interest_free_days || 'Not set';
+        renderChecks(cc);
 
-$('dueHeadline').textContent = cc.due_headline || due.due_headline || 'Due logic loaded.';
-$('dueHeadline').className = headlineClass(cc.due_status || due.due_status);
-}
+        window.SovereignCreditCard = { version: "v0.4.0", contract: cc };
 
-function titleFor(row) {
-const notes = String(row.notes || '').trim();
-if (notes) return notes;
-return String(row.type || 'transaction').replace(/_/g, ' ');
-}
+        if (window.SovereignNav) window.SovereignNav.scheduleOverflowCheck();
+      }
 
-function moneyClass(row) {
-const type = String(row.type || '').toLowerCase();
-if (type === 'cc_payment' || type === 'transfer') return 'positive';
-return 'negative';
-}
-
-function renderActivity() {
-const cc = state.cc;
-const id = cc && cc.id ? cc.id : 'cc';
-
-const rows = state.transactions
-.filter(row => row.account_id === id || row.transfer_to_account_id === id)
-.slice(0, 8);
-
-$('activitySub').textContent = rows.length + ' recent row' + (rows.length === 1 ? '' : 's');
-
-if (!rows.length) {
-$('ccActivity').innerHTML = '<div class="cc-empty">No recent Credit Card activity.</div>';
-return;
-}
-
-$('ccActivity').innerHTML = rows.map(row => `
-<article class="cc-row">
-<div class="cc-row-icon"></div>
-<div>
-<div class="cc-row-title" title="${esc(titleFor(row))}">${esc(titleFor(row))}</div>
-<div class="cc-row-sub">${esc(row.date || '')} · ${esc(row.type || 'transaction')}</div>
-</div>
-<div class="cc-row-amount ${moneyClass(row)}">${money(row.amount)}</div>
-</article>
-`).join('');
-}
-
-async function loadCC() {
-$('ccActivity').innerHTML = '<div class="cc-empty">Loading Credit Card activity</div>';
-
-try {
-const [ccData, txData] = await Promise.all([
-fetchJSON('/api/cc'),
-fetchJSON('/api/transactions')
-]);
-
-state.cc = primaryCC(ccData.accounts || []);
-state.transactions = txData.transactions || [];
-
-renderCC();
-renderActivity();
-} catch (err) {
-$('ccActivity').innerHTML = '<div class="cc-empty">Credit Card Planner failed: ' + esc(err.message) + '</div>';
-$('dueHeadline').textContent = 'Credit Card Planner failed: ' + err.message;
-$('dueHeadline').className = 'cc-alert danger';
-}
-}
-
-$('refreshBtn').addEventListener('click', loadCC);
-loadCC();
-</script>
+      load().catch(err => {
+        $("ccChecks").innerHTML = `<div class="cc-empty">Credit Card failed: ${esc(err.message)}</div>`;
+      });
+    })();
+  </script>
 </body>
 </html>
