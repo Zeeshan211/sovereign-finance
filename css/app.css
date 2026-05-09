@@ -1204,3 +1204,256 @@ body[data-theme="dark"] .sf-topbar {
     box-shadow: none !important;
   }
 }
+/* UI-14 Final premium consistency pass v2.0.1
+   Frontend-only finishing layer.
+   Keeps premium banking UI consistent across all pages.
+*/
+
+:root {
+  --ui-final-pass: "2.0.1";
+}
+
+/* Better page rhythm */
+.app-page > section + section,
+main > section + section {
+  margin-top: 22px;
+}
+
+/* Prevent cramped hero/card layouts */
+.page-hero,
+.finance-hero,
+.command-hero {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Consistent secondary panels */
+.authority-panel,
+.enforcement-panel,
+.command-panel,
+.bills-authority-card,
+.debts-authority-card,
+.recon-card,
+.forecast-card,
+.salary-card,
+.cc-card {
+  backdrop-filter: blur(14px);
+}
+
+/* Cleaner badge wrapping */
+.badge,
+.status-badge,
+.pill {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Better mobile tap targets */
+.sf-nav-link,
+.btn,
+.primary-submit,
+.action-btn,
+button {
+  touch-action: manipulation;
+}
+
+/* Forms feel more banking-grade */
+.input,
+.select,
+.textarea,
+input,
+select,
+textarea {
+  font-weight: 760;
+}
+
+.input:disabled,
+.select:disabled,
+.textarea:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+  background: var(--surface-3);
+  color: var(--text-muted);
+}
+
+/* Cards stay visually stable */
+.kpi-card,
+.stat-card,
+.metric-card,
+.bill-card,
+.debt-card,
+.recon-row,
+.forecast-row,
+.salary-row,
+.cc-row,
+.account-card,
+.hub-module-card,
+.command-action-card,
+.command-route-card {
+  transition:
+    transform 160ms var(--ease),
+    box-shadow 160ms var(--ease),
+    border-color 160ms var(--ease);
+}
+
+.kpi-card:hover,
+.stat-card:hover,
+.metric-card:hover,
+.bill-card:hover,
+.debt-card:hover,
+.recon-row:hover,
+.forecast-row:hover,
+.salary-row:hover,
+.cc-row:hover,
+.account-card:hover,
+.hub-module-card:hover,
+.command-action-card:hover,
+.command-route-card:hover {
+  transform: translateY(-1px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+/* Avoid noisy hover on mobile */
+@media (hover: none) {
+  .kpi-card:hover,
+  .stat-card:hover,
+  .metric-card:hover,
+  .bill-card:hover,
+  .debt-card:hover,
+  .recon-row:hover,
+  .forecast-row:hover,
+  .salary-row:hover,
+  .cc-row:hover,
+  .account-card:hover,
+  .hub-module-card:hover,
+  .command-action-card:hover,
+  .command-route-card:hover {
+    transform: none;
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+/* Sidebar active state finish */
+.sf-nav-link[data-sf-route-status="blocked"] {
+  opacity: 0.82;
+}
+
+.sf-nav-link[data-sf-route-status="blocked"] .sf-nav-icon {
+  color: #fca5a5;
+}
+
+.sf-nav-link[data-sf-route-status="preflight_only"] .sf-nav-icon,
+.sf-nav-link[data-sf-route-status="preflight_required"] .sf-nav-icon,
+.sf-nav-link[data-sf-route-status="warn"] .sf-nav-icon,
+.sf-nav-link[data-sf-route-status="warning"] .sf-nav-icon {
+  color: #fbbf24;
+}
+
+.sf-nav-link[data-sf-route-status="pass"] .sf-nav-icon {
+  color: #34d399;
+}
+
+/* Tables and rows stay readable */
+.table-wrap,
+.sf-table-wrap {
+  overscroll-behavior-x: contain;
+}
+
+/* Desktop spacing polish */
+@media (min-width: 861px) {
+  .app-page,
+  main {
+    padding-top: 24px;
+    padding-left: 26px;
+    padding-right: 26px;
+  }
+
+  .sf-topbar {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+}
+
+/* Tablet polish */
+@media (max-width: 1180px) {
+  .page-hero,
+  .finance-hero,
+  .command-hero {
+    min-height: 220px;
+  }
+
+  .hero-title,
+  .page-title {
+    max-width: 980px;
+  }
+}
+
+/* Mobile polish */
+@media (max-width: 720px) {
+  body {
+    background:
+      radial-gradient(circle at top left, rgba(4, 120, 87, 0.08), transparent 18rem),
+      var(--bg);
+  }
+
+  .app-page,
+  main {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .page-hero,
+  .finance-hero,
+  .command-hero {
+    min-height: auto;
+    padding: 20px;
+    border-radius: 24px;
+  }
+
+  .hero-title,
+  .page-title {
+    letter-spacing: -0.055em;
+  }
+
+  .hero-copy,
+  .page-copy {
+    font-size: 14px;
+  }
+
+  .kpi-value,
+  .stat-value,
+  .metric-value {
+    font-size: 28px;
+  }
+
+  .badge,
+  .status-badge,
+  .pill {
+    font-size: 10px;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 420px) {
+  .sf-sidebar {
+    width: min(92vw, 292px);
+  }
+
+  .hero-title,
+  .page-title {
+    font-size: 34px;
+  }
+
+  .btn,
+  .primary-submit,
+  .action-btn {
+    min-height: 48px;
+  }
+}
