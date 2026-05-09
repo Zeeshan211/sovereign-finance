@@ -1,5 +1,5 @@
-/* Sovereign Finance shared navigation v1.1.1
- * Hotfix: More drawer cannot get stuck open.
+/* Sovereign Finance shared navigation v1.1.2
+ * Smart Layout Guard
  *
  * Contract:
  * - Pure frontend navigation helper.
@@ -7,15 +7,15 @@
  * - No API writes.
  * - No ledger interaction.
  * - Keeps existing page routes.
- * - Desktop gets grouped Finance shell.
- * - Mobile gets daily bottom nav + More drawer.
- * - Hidden mobile drawer/backdrop are force-hidden with CSS.
+ * - Fixes stuck More drawer.
+ * - Adds global layout guard so fixed sidebar does not cut pages.
+ * - Adds reusable smart layout utilities for all pages.
  */
 
 (function () {
   'use strict';
 
-  const NAV_VERSION = '1.1.1';
+  const NAV_VERSION = '1.1.2';
 
   const LINKS = [
     { key: 'hub', label: 'Hub', href: '/index.html', icon: '🏠', group: 'dashboard', daily: true },
@@ -192,7 +192,7 @@
 
           <div class="sf-nav-footer">
             <span>nav v${NAV_VERSION}</span>
-            <span>Grouped shell</span>
+            <span>Smart layout</span>
           </div>
         </div>
       </aside>
@@ -253,7 +253,11 @@
     style.textContent = `
       :root {
         --sf-nav-width: 286px;
+        --sf-nav-gap: 18px;
+        --sf-nav-offset: calc(var(--sf-nav-width) + var(--sf-nav-gap));
         --sf-mobile-nav-height: 78px;
+        --sf-content-max: 1440px;
+        --sf-page-pad: 16px;
         --sf-nav-bg: rgba(255, 255, 255, 0.92);
         --sf-nav-bg-strong: rgba(255, 255, 255, 0.98);
         --sf-nav-border: var(--border, rgba(148, 163, 184, 0.28));
@@ -264,7 +268,21 @@
 
       html,
       body {
+        max-width: 100%;
         overflow-x: hidden;
+      }
+
+      *,
+      *::before,
+      *::after {
+        min-width: 0;
+      }
+
+      img,
+      svg,
+      canvas,
+      video {
+        max-width: 100%;
       }
 
       .sf-shell-nav {
@@ -309,6 +327,7 @@
         font-size: 12px;
         font-weight: 950;
         letter-spacing: -0.04em;
+        flex: 0 0 auto;
       }
 
       .sf-shell-brand strong {
@@ -335,7 +354,6 @@
       }
 
       .sf-quick-action {
-        min-width: 0;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -359,7 +377,6 @@
       }
 
       .sf-quick-action strong {
-        min-width: 0;
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
@@ -428,7 +445,6 @@
       }
 
       .sf-nav-section-text {
-        min-width: 0;
         flex: 1;
       }
 
@@ -506,7 +522,6 @@
       }
 
       .sf-nav-label {
-        min-width: 0;
         overflow: hidden;
         white-space: nowrap;
         text-overflow: ellipsis;
@@ -542,7 +557,6 @@
       }
 
       .sf-mobile-nav-item {
-        min-width: 0;
         display: grid;
         place-items: center;
         gap: 4px;
@@ -677,7 +691,6 @@
       }
 
       .sf-more-link {
-        min-width: 0;
         display: flex;
         align-items: center;
         gap: 9px;
@@ -696,7 +709,6 @@
       }
 
       .sf-more-link strong {
-        min-width: 0;
         overflow: hidden;
         font-size: 12px;
         font-weight: 950;
@@ -704,8 +716,76 @@
         text-overflow: ellipsis;
       }
 
+      /*
+       * Smart Layout Contract
+       * This is the global guard that stops pages from cutting off when the
+       * desktop sidebar exists.
+       */
+
       body.sf-nav-ready {
-        padding-left: calc(var(--sf-nav-width) + 18px);
+        padding-left: 0 !important;
+      }
+
+      body.sf-nav-ready > main,
+      body.sf-nav-ready .page,
+      body.sf-nav-ready .app-page,
+      body.sf-nav-ready .dashboard,
+      body.sf-nav-ready .wrap,
+      body.sf-nav-ready .container {
+        min-width: 0 !important;
+      }
+
+      body.sf-nav-ready table {
+        max-width: 100%;
+      }
+
+      body.sf-nav-ready .table-scroll,
+      body.sf-nav-ready .table-wrap,
+      body.sf-nav-ready .scroll-x,
+      body.sf-nav-ready .overflow-x,
+      body.sf-nav-ready [data-scroll-x] {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .sf-smart-page,
+      .app-page {
+        width: 100%;
+        max-width: var(--sf-content-max);
+        margin-inline: auto;
+        padding-inline: var(--sf-page-pad);
+        min-width: 0;
+      }
+
+      .sf-smart-grid,
+      .smart-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+        gap: var(--smart-gap, 16px);
+        min-width: 0;
+      }
+
+      .sf-smart-card,
+      .smart-card,
+      .card,
+      .panel {
+        min-width: 0;
+        max-width: 100%;
+      }
+
+      .sf-smart-table,
+      .table-scroll {
+        width: 100%;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .sf-smart-table > table,
+      .table-scroll > table {
+        width: 100%;
       }
 
       @media (min-width: 981px) {
@@ -715,6 +795,19 @@
           display: none !important;
           visibility: hidden !important;
           pointer-events: none !important;
+        }
+
+        body.sf-nav-ready > main,
+        body.sf-nav-ready .page,
+        body.sf-nav-ready .app-page {
+          width: auto !important;
+          max-width: min(var(--sf-content-max), calc(100vw - var(--sf-nav-offset) - 28px)) !important;
+          margin-left: var(--sf-nav-offset) !important;
+          margin-right: 18px !important;
+        }
+
+        body.sf-nav-ready > main {
+          display: block;
         }
       }
 
@@ -728,8 +821,17 @@
         }
 
         body.sf-nav-ready {
-          padding-left: 0;
+          padding-left: 0 !important;
           padding-bottom: calc(var(--sf-mobile-nav-height) + 24px);
+        }
+
+        body.sf-nav-ready > main,
+        body.sf-nav-ready .page,
+        body.sf-nav-ready .app-page {
+          width: min(100%, calc(100vw - 20px)) !important;
+          max-width: calc(100vw - 20px) !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
         }
 
         main {
@@ -758,6 +860,17 @@
         .sf-more-backdrop,
         .sf-more-drawer {
           display: none !important;
+        }
+
+        body.sf-nav-ready > main,
+        body.sf-nav-ready .page,
+        body.sf-nav-ready .app-page {
+          width: 100% !important;
+          max-width: none !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+          padding-left: 0 !important;
+          padding-right: 0 !important;
         }
 
         body.sf-nav-ready {
@@ -820,7 +933,28 @@
 
     window.addEventListener('resize', function () {
       if (window.innerWidth > 980) closeMoreDrawer();
+      scheduleOverflowCheck();
     });
+  }
+
+  function scheduleOverflowCheck() {
+    window.clearTimeout(window.__sfOverflowTimer);
+    window.__sfOverflowTimer = window.setTimeout(checkOverflow, 250);
+  }
+
+  function checkOverflow() {
+    const body = document.body;
+    const doc = document.documentElement;
+
+    if (!body || !doc) return;
+
+    const overflow = Math.max(body.scrollWidth, doc.scrollWidth) - window.innerWidth;
+
+    document.documentElement.dataset.sfOverflow = overflow > 4 ? 'true' : 'false';
+
+    if (overflow > 4) {
+      console.warn('[SovereignNav v' + NAV_VERSION + '] horizontal overflow detected:', Math.round(overflow), 'px');
+    }
   }
 
   function mount() {
@@ -836,6 +970,7 @@
 
     closeMoreDrawer();
     bindEvents();
+    scheduleOverflowCheck();
   }
 
   if (document.readyState === 'loading') {
@@ -852,6 +987,7 @@
     currentKey,
     currentSectionKey,
     openMoreDrawer,
-    closeMoreDrawer
+    closeMoreDrawer,
+    checkOverflow
   };
 })();
