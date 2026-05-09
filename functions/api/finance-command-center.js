@@ -1,4 +1,4 @@
-// v0.3.0  Finance Command Centre backend dry-run proof visibility
+// v0.4.0  Finance Command Centre Add page preflight recognition
 //
 // Contract:
 // - Read-only only.
@@ -9,10 +9,11 @@
 // - No /api/money-contracts.
 // - Unknown stays Unknown.
 // - Suspicious source becomes blocked.
-// - transaction.save real writes remain blocked until Add page preflight is wired.
+// - transaction.save real writes remain blocked.
+// - Add page may run dry-run preflight when add.js v0.4.5+ is detected.
 // - Every blocked route/action must explain: what, why, source, required fix, override status.
-const VERSION = '0.3.0';
-const ENFORCEMENT_VERSION = '0.3.0';
+const VERSION = '0.4.0';
+const ENFORCEMENT_VERSION = '0.4.0';
 
 const REQUIRED_CORE_TABLES = [
   'accounts',
@@ -164,9 +165,9 @@ const READ_ONLY_GUARDS = [
   'No /api/money-contracts',
   'Unknown remains Unknown',
   'Runtime/browser checks remain manual',
-  'Write safety remains blocked until dry-run exists and page preflight is wired',
   'transaction.save dry-run availability can be recognized from /api/transactions version only',
-  'Real transaction.save stays blocked until Add page preflight is wired'
+  'Add page preflight wiring can be recognized from /add.html loading /js/add.js?v=0.4.5+',
+  'Real transaction.save stays blocked until an explicit later lift'
 ];
 
 export async function onRequest(context) {
@@ -195,14 +196,15 @@ export async function onRequest(context) {
     const modules = buildModules();
     const pages = buildPages();
     const apis = await auditApis(context, warnings, unknowns, hardBlockers);
+    const pageProofs = await auditPageProofs(context, warnings, unknowns);
     const d1 = await auditD1(db, warnings, unknowns, hardBlockers);
-    const businessRules = await auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers);
-    const coverage = buildCoverage(modules, pages, apis, d1, businessRules, warnings, unknowns);
+    const businessRules = await auditBusinessRules(db, apis, pageProofs, d1, warnings, unknowns, hardBlockers);
+    const coverage = buildCoverage(modules, pages, apis, pageProofs, d1, businessRules, warnings, unknowns);
     const scores = computeScores({ apis, d1, businessRules, coverage });
     const score = averageScore(scores);
     const verdict = computeVerdict(hardBlockers, warnings, unknowns);
     const trialGate = computeTrialGate(verdict, hardBlockers, warnings, unknowns, scores, businessRules);
-    const sourceProofs = buildSourceProofs(apis, d1, coverage);
+    const sourceProofs = buildSourceProofs(apis, pageProofs, d1, coverage);
     const enforcement = buildEnforcement({
       computedAt: startedAt,
       verdict,
@@ -214,7 +216,8 @@ export async function onRequest(context) {
       sourceProofs,
       coverage,
       businessRules,
-      d1
+      d1,
+      pageProofs
     });
     const nextActions = buildNextActions(hardBlockers, warnings, unknowns, businessRules, d1, trialGate, enforcement);
 
@@ -234,6 +237,7 @@ export async function onRequest(context) {
         module_count: modules.length,
         registered_page_count: pages.length,
         api_check_count: apis.length,
+        page_proof_count: pageProofs.length,
         business_rule_count: businessRules.length,
         enforcement_blocked_action_count: enforcement.blocked_actions.length,
         enforcement_view_only_route_count: enforcement.view_only_routes.length
@@ -247,6 +251,7 @@ export async function onRequest(context) {
       modules,
       pages,
       apis,
+      page_proofs: pageProofs,
       d1,
       business_rules: businessRules,
       next_actions: nextActions
@@ -278,6 +283,7 @@ export async function onRequest(context) {
         module_count: FINANCE_REGISTRY.length,
         registered_page_count: FINANCE_REGISTRY.length,
         api_check_count: 0,
+        page_proof_count: 0,
         business_rule_count: 0,
         enforcement_blocked_action_count: enforcement.blocked_actions.length,
         enforcement_view_only_route_count: enforcement.view_only_routes.length
@@ -291,6 +297,7 @@ export async function onRequest(context) {
       modules: buildModules(),
       pages: buildPages(),
       apis: [],
+      page_proofs: [],
       d1: {},
       business_rules: [],
       next_actions: ['Fix /api/finance-command-center exception and redeploy.']
@@ -323,6 +330,7 @@ function buildFailure(computedAt, key, message) {
       module_count: FINANCE_REGISTRY.length,
       registered_page_count: FINANCE_REGISTRY.length,
       api_check_count: 0,
+      page_proof_count: 0,
       business_rule_count: 0,
       enforcement_blocked_action_count: enforcement.blocked_actions.length,
       enforcement_view_only_route_count: enforcement.view_only_routes.length
@@ -336,6 +344,7 @@ function buildFailure(computedAt, key, message) {
     modules: buildModules(),
     pages: buildPages(),
     apis: [],
+    page_proofs: [],
     d1: {},
     business_rules: [],
     next_actions: ['Restore env.DB binding.']
@@ -475,6 +484,68 @@ async function auditApis(context, warnings, unknowns, hardBlockers) {
   return results;
 }
 
+async function auditPageProofs(context, warnings, unknowns) {
+  const origin = new URL(context.request.url).origin;
+  const results = [];
+  const started = Date.now();
+
+  try {
+    const res = await fetch(origin + '/add.html?cc=' + Date.now(), {
+      method: 'GET',
+      headers: {
+        accept: 'text/html',
+        'x-finance-command-center-page-proof': VERSION
+      }
+    });
+    const html = await res.text();
+    const addJsVersion = extractScriptVersion(html, '/js/add.js');
+    const preflightWired = res.ok && versionAtLeast(addJsVersion, '0.4.5');
+
+    results.push({
+      key: 'add_page_preflight',
+      path: '/add.html',
+      required: true,
+      status: preflightWired ? 'pass' : 'unknown',
+      http_status: res.status,
+      ok: res.ok,
+      elapsed_ms: Date.now() - started,
+      detected_script: addJsVersion ? '/js/add.js?v=' + addJsVersion : null,
+      add_js_version: addJsVersion,
+      page_preflight_wired: preflightWired,
+      real_writes_allowed: false,
+      note: preflightWired
+        ? 'Add page loads /js/add.js v0.4.5+ and can run dry-run preflight.'
+        : 'Add page preflight wiring was not proven from HTML script tag.'
+    });
+
+    if (!preflightWired) {
+      unknowns.push(unknown(
+        'add_page_preflight_wiring_unknown',
+        'Add page does not yet prove /js/add.js v0.4.5+ from Command Centre page proof.'
+      ));
+    }
+  } catch (err) {
+    results.push({
+      key: 'add_page_preflight',
+      path: '/add.html',
+      required: true,
+      status: 'unknown',
+      ok: false,
+      elapsed_ms: Date.now() - started,
+      error: err.message || String(err),
+      page_preflight_wired: false,
+      real_writes_allowed: false
+    });
+
+    unknowns.push(unknown(
+      'add_page_preflight_fetch_unknown',
+      'Command Centre could not fetch /add.html to verify Add page preflight wiring.'
+    ));
+  }
+
+  return results;
+}
+
 async function auditD1(db, warnings, unknowns, hardBlockers) {
   const tables = await getTables(db);
   const tableNames = tables.map(t => t.name);
@@ -567,7 +638,7 @@ async function auditD1(db, warnings, unknowns, hardBlockers) {
   };
 }
 
-async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers) {
+async function auditBusinessRules(db, apis, pageProofs, d1, warnings, unknowns, hardBlockers) {
   const rules = [];
   const accountsTruth = d1.truth && d1.truth.accounts ? d1.truth.accounts : {};
   const billsTruth = d1.truth && d1.truth.bills ? d1.truth.bills : {};
@@ -575,6 +646,7 @@ async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers
   const salaryTruth = d1.truth && d1.truth.salary ? d1.truth.salary : {};
   const transactionsTruth = d1.truth && d1.truth.transactions ? d1.truth.transactions : {};
   const dryRunAvailable = isTransactionDryRunAvailable(apis);
+  const pagePreflightWired = isAddPagePreflightWired(pageProofs);
   const ccSourceStatus = accountsTruth.cc_account_count > 0 && accountsTruth.cc_balance_source
     ? 'pass'
     : 'unknown';
@@ -649,11 +721,13 @@ async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers
 
   rules.push(rule(
     'add_write_path',
-    dryRunAvailable ? 'warning' : 'unknown',
+    dryRunAvailable && pagePreflightWired ? 'warning' : dryRunAvailable ? 'warning' : 'unknown',
     'Add must not silently queue failed saves.',
-    dryRunAvailable
-      ? 'transaction.save dry-run endpoint is available, but Add page preflight is not wired yet. Real writes remain blocked.'
-      : 'Write safety cannot be proven until transaction.save dry-run support is visible.'
+    dryRunAvailable && pagePreflightWired
+      ? 'transaction.save dry-run endpoint is available and Add page preflight wiring is visible. Real writes remain blocked until explicit lift.'
+      : dryRunAvailable
+        ? 'transaction.save dry-run endpoint is available, but Add page preflight is not proven yet. Real writes remain blocked.'
+        : 'Write safety cannot be proven until transaction.save dry-run support is visible.'
   ));
 
   if (!dryRunAvailable) {
@@ -661,10 +735,15 @@ async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers
       'add_write_safety_unknown',
       'Add write path is not dry-run verified. Do not mark write safety Ready.'
     ));
-  } else {
+  } else if (!pagePreflightWired) {
     warnings.push(warning(
       'add_page_preflight_not_wired',
       'transaction.save dry-run proof is available, but Add page preflight is not wired yet. Real writes remain blocked.'
+    ));
+  } else {
+    warnings.push(warning(
+      'transaction_save_real_writes_still_blocked',
+      'Add page preflight is wired, but transaction.save real writes remain intentionally blocked until final lift.'
     ));
   }
 
@@ -684,7 +763,7 @@ async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers
 
   warnings.push(warning(
     'month_activity_scope_not_deep_checked',
-    'Month activity separation is not deeply verified by backend endpoint v0.3.0.'
+    'Month activity separation is not deeply verified by backend endpoint v0.4.0.'
   ));
 
   if (debtsTruth.invalid_kind_count > 0) {
@@ -722,16 +801,19 @@ function buildEnforcement(ctx) {
   const scores = ctx.scores || {};
   const trialGate = ctx.trialGate || {};
   const writeSafetyStatus = getPath(coverage, 'write_safety.status') || 'unknown';
-  const dryRunAvailable = writeSafetyStatus === 'dry_run_available' || writeSafetyStatus === 'pass';
+  const dryRunAvailable = writeSafetyStatus === 'dry_run_available' || writeSafetyStatus === 'preflight_ready' || writeSafetyStatus === 'pass';
   const writeSafetyUnknown = writeSafetyStatus === 'unknown';
   const pagePreflightWired = getPath(coverage, 'write_safety.page_preflight_wired') === true;
-  const transactionSaveCanLift = dryRunAvailable && pagePreflightWired;
+  const realWritesAllowed = getPath(coverage, 'write_safety.real_writes_allowed') === true;
+  const transactionSaveCanLift = dryRunAvailable && pagePreflightWired && realWritesAllowed;
+  const addPreflightCanRun = dryRunAvailable && pagePreflightWired;
   const policy = {
     unknown_blocks_ready: true,
     hard_blockers_block_actions: true,
     write_safety_required_for_mutations: true,
     dry_run_required_before_mutations: true,
     page_preflight_required_before_transaction_save: true,
+    real_write_lift_required_after_preflight: true,
     runtime_required_for_trial: false,
     backend_required_for_authority: true,
     frontend_only_never_final: true,
@@ -777,21 +859,25 @@ function buildEnforcement(ctx) {
   routes.push(routeGate({
     route: '/add.html',
     module: 'add',
-    status: transactionSaveCanLift && !hasHardBlockers ? 'pass' : 'soft_block',
+    status: transactionSaveCanLift && !hasHardBlockers ? 'pass' : addPreflightCanRun && !hasHardBlockers ? 'preflight_only' : 'soft_block',
     level: transactionSaveCanLift && !hasHardBlockers ? 0 : 2,
     viewAllowed: true,
-    actionsAllowed: transactionSaveCanLift && !hasHardBlockers,
+    actionsAllowed: (transactionSaveCanLift || addPreflightCanRun) && !hasHardBlockers,
     reason: transactionSaveCanLift
-      ? 'transaction.save dry-run proof and Add page preflight are available.'
-      : dryRunAvailable
-        ? 'transaction.save dry-run proof is available, but Add page preflight is not wired yet. Real saves stay blocked.'
-        : 'Write safety is unknown. Add page can be inspected, but save actions must stay blocked.',
-    source: 'coverage.write_safety.status',
+      ? 'transaction.save is fully allowed by Command Centre.'
+      : addPreflightCanRun
+        ? 'Add page preflight is wired and may run dry-run. Real transaction.save remains blocked.'
+        : dryRunAvailable
+          ? 'transaction.save dry-run proof is available, but Add page preflight is not wired yet. Real saves stay blocked.'
+          : 'Write safety is unknown. Add page can be inspected, but save actions must stay blocked.',
+    source: addPreflightCanRun ? 'page_proofs.add_page_preflight' : 'coverage.write_safety.status',
     requiredFix: transactionSaveCanLift
       ? 'None.'
-      : dryRunAvailable
-        ? 'Wire Add page preflight dry-run before allowing real transaction.save.'
-        : 'Add dry-run write safety before allowing trial writes.'
+      : addPreflightCanRun
+        ? 'Next phase may explicitly lift real transaction.save after operator confirms preflight behavior.'
+        : dryRunAvailable
+          ? 'Wire Add page preflight dry-run before allowing real transaction.save.'
+          : 'Add dry-run write safety before allowing trial writes.'
   }));
 
   routes.push(routeGate({
@@ -896,15 +982,38 @@ function buildEnforcement(ctx) {
     blocked: !transactionSaveCanLift || hasHardBlockers,
     reason: hasHardBlockers
       ? 'Hard blocker exists.'
-      : dryRunAvailable
-        ? 'transaction.save dry-run proof is available, but Add page preflight is not wired yet.'
-        : 'Write safety is unknown.',
-    source: hasHardBlockers ? 'hard_blockers' : 'coverage.write_safety.status',
+      : addPreflightCanRun
+        ? 'Add page preflight is wired and dry-run may run, but real transaction.save remains blocked.'
+        : dryRunAvailable
+          ? 'transaction.save dry-run proof is available, but Add page preflight is not wired yet.'
+          : 'Write safety is unknown.',
+    source: hasHardBlockers
+      ? 'hard_blockers'
+      : addPreflightCanRun
+        ? 'page_proofs.add_page_preflight'
+        : 'coverage.write_safety.status',
     requiredFix: hasHardBlockers
       ? 'Resolve hard blockers shown in Command Centre.'
-      : dryRunAvailable
-        ? 'Wire Add page preflight dry-run before allowing real transaction.save.'
-        : 'Add dry-run write safety check before allowing trial writes.',
+      : addPreflightCanRun
+        ? 'Explicitly lift real transaction.save in a later phase after operator confirms preflight behavior.'
+        : dryRunAvailable
+          ? 'Wire Add page preflight dry-run before allowing real transaction.save.'
+          : 'Add dry-run write safety check before allowing trial writes.',
+    backendEnforced: true,
+    frontendEnforced: true
+  }));
+
+  actions.push(actionGate({
+    action: 'transaction.preflight',
+    module: 'add',
+    blocked: !addPreflightCanRun || hasHardBlockers,
+    reason: hasHardBlockers
+      ? 'Hard blocker exists.'
+      : addPreflightCanRun
+        ? 'Preflight is available.'
+        : 'Add page preflight is not wired.',
+    source: addPreflightCanRun ? 'page_proofs.add_page_preflight' : 'coverage.write_safety.status',
+    requiredFix: addPreflightCanRun ? 'None.' : 'Deploy /js/add.js v0.4.5+ and confirm /add.html loads it.',
     backendEnforced: true,
     frontendEnforced: true
   }));
@@ -1079,9 +1188,9 @@ function buildEnforcement(ctx) {
       requires_operator_confirmation: true,
       expires_minutes: 30,
       audit_required: true,
-      note: 'Overrides are disabled in enforcement schema v0.3.0.'
+      note: 'Overrides are disabled in enforcement schema v0.4.0.'
     },
-    enforcement_status_note: 'Command Centre recognizes transaction.save dry-run availability, but real writes remain blocked until Add page preflight is wired.'
+    enforcement_status_note: 'Add page may run dry-run preflight, but real transaction.save remains blocked until explicit lift.'
   };
 }
 
@@ -1121,6 +1230,7 @@ function buildEmergencyEnforcement(computedAt, hardBlocker) {
       write_safety_required_for_mutations: true,
       dry_run_required_before_mutations: true,
       page_preflight_required_before_transaction_save: true,
+      real_write_lift_required_after_preflight: true,
       runtime_required_for_trial: false,
       backend_required_for_authority: true,
       frontend_only_never_final: true,
@@ -1143,7 +1253,7 @@ function buildEmergencyEnforcement(computedAt, hardBlocker) {
       requires_operator_confirmation: true,
       expires_minutes: 30,
       audit_required: true,
-      note: 'Overrides are disabled in enforcement schema v0.3.0.'
+      note: 'Overrides are disabled in enforcement schema v0.4.0.'
     },
     enforcement_status_note: 'Emergency enforcement schema generated because backend audit failed.'
   };
@@ -1156,8 +1266,9 @@ function buildActionChecklists(ctx) {
   const sourceProofs = ctx.sourceProofs || [];
   const hardBlockers = ctx.hardBlockers || [];
   const writeSafetyStatus = getPath(coverage, 'write_safety.status') || 'unknown';
-  const dryRunAvailable = writeSafetyStatus === 'dry_run_available' || writeSafetyStatus === 'pass';
+  const dryRunAvailable = writeSafetyStatus === 'dry_run_available' || writeSafetyStatus === 'preflight_ready' || writeSafetyStatus === 'pass';
   const pagePreflightWired = getPath(coverage, 'write_safety.page_preflight_wired') === true;
+  const realWritesAllowed = getPath(coverage, 'write_safety.real_writes_allowed') === true;
   const hasHardBlockers = hardBlockers.length > 0;
   const actionMap = Object.fromEntries(actions.map(action => [action.action, action]));
 
@@ -1208,11 +1319,17 @@ function buildActionChecklists(ctx) {
   const writeSafetyPass = writeSafetyStatus === 'pass';
 
   return [
-    checklist('transaction.save', 'Add Transaction save can lift only when dry-run proof exists and Add page preflight is wired.', [
+    checklist('transaction.save', 'Real Add Transaction save can lift only after dry-run, page preflight, and explicit real-write lift.', [
       item('no_hard_blockers', 'No hard blockers exist', noHardBlockers, 'hard_blockers', 'Resolve all hard blockers shown in Command Centre.'),
       item('transaction_dry_run_available', 'transaction.save dry-run proof is available', dryRunAvailable, 'coverage.write_safety.status', 'Deploy /api/transactions dry-run proof before allowing transaction.save.'),
       item('add_page_preflight_wired', 'Add page runs dry-run preflight before real save', pagePreflightWired, 'coverage.write_safety.page_preflight_wired', 'Wire Add page preflight dry-run before allowing real transaction.save.'),
+      item('real_writes_explicitly_lifted', 'Real writes have been explicitly lifted', realWritesAllowed, 'coverage.write_safety.real_writes_allowed', 'Explicitly lift real transaction.save in a later phase after operator confirms dry-run behavior.'),
       item('categories_available', 'Categories source is present', rulePass('money_contracts_banned'), 'business_rules.money_contracts_banned', 'Keep original categories/account sources; never use money contracts.')
+    ]),
+    checklist('transaction.preflight', 'Add Transaction preflight can run when dry-run and page wiring are both proven.', [
+      item('no_hard_blockers', 'No hard blockers exist', noHardBlockers, 'hard_blockers', 'Resolve all hard blockers shown in Command Centre.'),
+      item('transaction_dry_run_available', 'transaction.save dry-run proof is available', dryRunAvailable, 'coverage.write_safety.status', 'Deploy /api/transactions dry-run proof.'),
+      item('add_page_preflight_wired', 'Add page preflight is wired', pagePreflightWired, 'coverage.write_safety.page_preflight_wired', 'Deploy /js/add.js v0.4.5+ and confirm /add.html loads it.')
     ]),
     checklist('bill.save', 'Bill save can lift only when bill data and write safety are safe.', [
       item('no_hard_blockers', 'No hard blockers exist', noHardBlockers, 'hard_blockers', 'Resolve all hard blockers shown in Command Centre.'),
@@ -1729,13 +1846,15 @@ function pickFirstColumn(columns, candidates) {
   return null;
 }
 
-function buildCoverage(modules, pages, apis, d1, businessRules, warnings, unknowns) {
+function buildCoverage(modules, pages, apis, pageProofs, d1, businessRules, warnings, unknowns) {
   const requiredApis = apis.filter(api => api.required && api.key !== 'money_contracts');
   const requiredApiPassCount = requiredApis.filter(api => api.status === 'pass').length;
   const requiredTables = d1.tables ? d1.tables.filter(table => table.required) : [];
   const requiredTablePassCount = requiredTables.filter(table => table.status === 'pass').length;
   const rulePassCount = businessRules.filter(row => row.status === 'pass').length;
   const dryRunAvailable = isTransactionDryRunAvailable(apis);
+  const pagePreflightWired = isAddPagePreflightWired(pageProofs);
+  const status = dryRunAvailable && pagePreflightWired ? 'preflight_ready' : dryRunAvailable ? 'dry_run_available' : 'unknown';
 
   return {
     modules: {
@@ -1753,6 +1872,11 @@ function buildCoverage(modules, pages, apis, d1, businessRules, warnings, unknow
       required_count: requiredApis.length,
       required_pass_count: requiredApiPassCount
     },
+    page_proofs: {
+      status: pagePreflightWired ? 'pass' : 'unknown',
+      add_page_preflight_wired: pagePreflightWired,
+      proofs: pageProofs
+    },
     d1: {
       status: requiredTables.length && requiredTablePassCount === requiredTables.length ? 'pass' : 'blocked',
       required_count: requiredTables.length,
@@ -1764,14 +1888,17 @@ function buildCoverage(modules, pages, apis, d1, businessRules, warnings, unknow
       pass_count: rulePassCount
     },
     write_safety: {
-      status: dryRunAvailable ? 'dry_run_available' : 'unknown',
-      score: dryRunAvailable ? 40 : 0,
+      status,
+      score: status === 'preflight_ready' ? 70 : dryRunAvailable ? 40 : 0,
       dry_run_available: dryRunAvailable,
-      page_preflight_wired: false,
+      page_preflight_wired: pagePreflightWired,
+      preflight_allowed: dryRunAvailable && pagePreflightWired,
       real_writes_allowed: false,
-      note: dryRunAvailable
-        ? 'transaction.save dry-run is available from /api/transactions v0.3.0+, but Add page preflight is not wired yet. Real writes remain blocked.'
-        : 'No dry-run write safety exists yet. Mutating actions must stay blocked.'
+      note: status === 'preflight_ready'
+        ? 'transaction.save dry-run exists and Add page preflight is wired. Real writes remain blocked until explicit lift.'
+        : dryRunAvailable
+          ? 'transaction.save dry-run is available from /api/transactions v0.3.0+, but Add page preflight is not wired yet. Real writes remain blocked.'
+          : 'No dry-run write safety exists yet. Mutating actions must stay blocked.'
     },
     runtime: {
       status: 'unknown',
@@ -1856,7 +1983,7 @@ function computeTrialGate(verdict, hardBlockers, warnings, unknowns, scores, bus
   };
 }
 
-function buildSourceProofs(apis, d1, coverage) {
+function buildSourceProofs(apis, pageProofs, d1, coverage) {
   const proofs = [];
   const apiMap = Object.fromEntries((apis || []).map(api => [api.key, api]));
   const truth = d1.truth || {};
@@ -1884,6 +2011,18 @@ function buildSourceProofs(apis, d1, coverage) {
       page_preflight_wired: Boolean(getPath(coverage, 'write_safety.page_preflight_wired')),
       real_writes_allowed: false,
       note: 'Command Centre infers dry-run availability from transactions API version. It does not run ledger tests.'
+    }
+  });
+
+  proofs.push({
+    key: 'add_page_preflight',
+    status: getPath(coverage, 'write_safety.page_preflight_wired') ? 'pass' : 'unknown',
+    source: '/add.html script tag /js/add.js?v=0.4.5+',
+    details: {
+      page_preflight_wired: Boolean(getPath(coverage, 'write_safety.page_preflight_wired')),
+      preflight_allowed: Boolean(getPath(coverage, 'write_safety.preflight_allowed')),
+      real_writes_allowed: false,
+      page_proofs: pageProofs
     }
   });
 
@@ -1928,7 +2067,7 @@ function buildNextActions(hardBlockers, warnings, unknowns, businessRules, d1, t
   }
 
   if (blockedActions.includes('transaction.save')) {
-    actions.push('Wire Add page preflight dry-run before allowing real transaction.save.');
+    actions.push('Real transaction.save remains blocked. If preflight is confirmed, next phase may explicitly lift real writes.');
   }
 
   const forecastRule = businessRules.find(row => row.key === 'forecast_precision');
@@ -1958,6 +2097,19 @@ function isTransactionDryRunAvailable(apis) {
   const transactionsApi = (apis || []).find(api => api.key === 'transactions');
   if (!transactionsApi || transactionsApi.status !== 'pass') return false;
   return versionAtLeast(transactionsApi.version, 'v0.3.0');
+}
+
+function isAddPagePreflightWired(pageProofs) {
+  const proof = (pageProofs || []).find(item => item.key === 'add_page_preflight');
+  return Boolean(proof && proof.status === 'pass' && proof.page_preflight_wired === true);
+}
+
+function extractScriptVersion(html, scriptPath) {
+  const text = String(html || '');
+  const escaped = scriptPath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(escaped + '\\?v=([0-9]+(?:\\.[0-9]+){1,3})', 'i');
+  const match = text.match(re);
+  return match ? match[1] : null;
 }
 
 function versionAtLeast(actual, required) {
