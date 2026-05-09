@@ -1,53 +1,55 @@
-/* Sovereign Finance Nav v1.1.5
-   Visual-only minimal side panel shell
+/* Sovereign Finance Nav v1.1.6
+   Floating Command Dock
 
    Contract:
+   - Visual navigation only.
    - No API calls.
    - No finance logic.
    - No balances.
    - No backend.
    - No D1.
-   - Renders navigation only.
-   - Loads /css/nav.css dynamically.
-   - Uses full professional labels, no short forms like Txns.
+   - No contract endpoint.
+   - Does not touch page icons, bank icons, cards, forms, tables, or money logic.
 */
 
 (function () {
   "use strict";
 
-  const VERSION = "1.1.5";
-  const CSS_HREF = "/css/nav.css?v=1.1.5";
+  const VERSION = "1.1.6";
+  const CSS_HREF = "/css/nav.css?v=1.1.6";
 
   const LINKS = [
-    { key: "hub", label: "Hub", mobileLabel: "Hub", href: "/index.html", section: "command", mark: "H", mobile: true },
-    { key: "forecast", label: "Forecast", mobileLabel: "Forecast", href: "/forecast.html", section: "command", mark: "F" },
-    { key: "monthly-close", label: "Monthly Close", mobileLabel: "Monthly Close", href: "/monthly-close.html", section: "command", mark: "M" },
+    { key: "hub", label: "Hub", href: "/index.html", section: "command", mark: "H", mobile: true },
+    { key: "forecast", label: "Forecast", href: "/forecast.html", section: "command", mark: "F" },
+    { key: "monthly-close", label: "Monthly Close", href: "/monthly-close.html", section: "command", mark: "M" },
 
-    { key: "add", label: "Add", mobileLabel: "Add", href: "/add.html", section: "money", mark: "+", mobile: true },
-    { key: "transactions", label: "Transactions", mobileLabel: "Transactions", href: "/transactions.html", section: "money", mark: "T", mobile: true },
-    { key: "accounts", label: "Accounts", mobileLabel: "Accounts", href: "/accounts.html", section: "money", mark: "A" },
-    { key: "reconciliation", label: "Reconciliation", mobileLabel: "Reconciliation", href: "/reconciliation.html", section: "money", mark: "R" },
+    { key: "add", label: "Add", href: "/add.html", section: "money", mark: "+", mobile: true },
+    { key: "transactions", label: "Transactions", href: "/transactions.html", section: "money", mark: "T", mobile: true },
+    { key: "accounts", label: "Accounts", href: "/accounts.html", section: "money", mark: "A" },
+    { key: "reconciliation", label: "Reconciliation", href: "/reconciliation.html", section: "money", mark: "R" },
 
-    { key: "bills", label: "Bills", mobileLabel: "Bills", href: "/bills.html", section: "obligations", mark: "B", mobile: true },
-    { key: "debts", label: "Debts", mobileLabel: "Debts", href: "/debts.html", section: "obligations", mark: "D" },
-    { key: "cc", label: "Credit Card", mobileLabel: "Credit Card", href: "/cc.html", section: "obligations", mark: "C" },
-    { key: "atm", label: "ATM", mobileLabel: "ATM", href: "/atm.html", section: "obligations", mark: "₹" },
-    { key: "nano-loans", label: "Nano Loans", mobileLabel: "Nano Loans", href: "/nano-loans.html", section: "obligations", mark: "N" },
+    { key: "bills", label: "Bills", href: "/bills.html", section: "obligations", mark: "B", mobile: true },
+    { key: "debts", label: "Debts", href: "/debts.html", section: "obligations", mark: "D" },
+    { key: "cc", label: "Credit Card", href: "/cc.html", section: "obligations", mark: "C" },
+    { key: "atm", label: "ATM", href: "/atm.html", section: "obligations", mark: "₹" },
+    { key: "nano-loans", label: "Nano Loans", href: "/nano-loans.html", section: "obligations", mark: "N" },
 
-    { key: "salary", label: "Salary", mobileLabel: "Salary", href: "/salary.html", section: "planning", mark: "S" },
-    { key: "charts", label: "Charts", mobileLabel: "Charts", href: "/charts.html", section: "records", mark: "G" },
-    { key: "audit", label: "Audit", mobileLabel: "Audit", href: "/audit.html", section: "records", mark: "L" },
-    { key: "snapshots", label: "Snapshots", mobileLabel: "Snapshots", href: "/snapshots.html", section: "records", mark: "P" }
+    { key: "salary", label: "Salary", href: "/salary.html", section: "planning", mark: "S" },
+
+    { key: "charts", label: "Charts", href: "/charts.html", section: "records", mark: "G" },
+    { key: "audit", label: "Audit", href: "/audit.html", section: "records", mark: "L" },
+    { key: "snapshots", label: "Snapshots", href: "/snapshots.html", section: "records", mark: "P" }
   ];
 
   const SECTIONS = [
-    { key: "command", label: "Command", hint: "Today and next move" },
-    { key: "money", label: "Money", hint: "Entry and ledger" },
+    { key: "command", label: "Command", hint: "Safety and next move" },
+    { key: "money", label: "Money", hint: "Entry, accounts, ledger" },
     { key: "obligations", label: "Obligations", hint: "Bills, debts, card" },
     { key: "planning", label: "Planning", hint: "Income and future" },
-    { key: "records", label: "Records", hint: "Proof and history" }
+    { key: "records", label: "Records", hint: "Charts, audit, recovery" }
   ];
 
+  const QUICK_KEYS = ["hub", "add", "transactions"];
   const MOBILE_KEYS = ["hub", "add", "transactions", "bills"];
 
   function escapeHtml(value) {
@@ -102,8 +104,7 @@
   }
 
   function currentSectionKey() {
-    const link = currentLink();
-    return link.section || "command";
+    return currentLink().section || "command";
   }
 
   function ensureCss() {
@@ -121,7 +122,7 @@
     document.head.appendChild(link);
   }
 
-  function removeOldNav() {
+  function removeExistingNav() {
     document
       .querySelectorAll(".sf-shell-nav, .sf-mobile-nav, .sf-more-panel, .sf-more-backdrop")
       .forEach(node => node.remove());
@@ -129,7 +130,6 @@
 
   function navLink(link, mode) {
     const active = link.key === currentKey();
-    const label = mode === "mobile" ? link.mobileLabel : link.label;
 
     return `
       <a
@@ -139,7 +139,7 @@
         aria-current="${active ? "page" : "false"}"
       >
         <span class="${mode === "mobile" ? "sfm-mark" : "sfn-mark"}">${escapeHtml(link.mark)}</span>
-        <span class="${mode === "mobile" ? "sfm-label" : "sfn-label"}">${escapeHtml(label)}</span>
+        <span class="${mode === "mobile" ? "sfm-label" : "sfn-label"}">${escapeHtml(link.label)}</span>
       </a>
     `;
   }
@@ -151,13 +151,13 @@
     const open = section.key === currentSectionKey();
 
     return `
-      <section class="sfn-section ${open ? "open" : ""}">
+      <section class="sfn-section ${open ? "open" : ""}" data-section="${escapeHtml(section.key)}">
         <button class="sfn-section-head" type="button" data-section-toggle="${escapeHtml(section.key)}" aria-expanded="${open ? "true" : "false"}">
           <span>
             <strong>${escapeHtml(section.label)}</strong>
             <small>${escapeHtml(section.hint)}</small>
           </span>
-          <span class="sfn-chevron">⌄</span>
+          <span class="sfn-chevron" aria-hidden="true">⌄</span>
         </button>
 
         <div class="sfn-section-body">
@@ -167,22 +167,36 @@
     `;
   }
 
+  function quickActions() {
+    return QUICK_KEYS.map(key => {
+      const link = linkByKey(key);
+      if (!link) return "";
+
+      return `
+        <a class="sfn-quick-btn ${link.key === currentKey() ? "active" : ""}" href="${escapeHtml(link.href)}">
+          <span>${escapeHtml(link.mark)}</span>
+          <strong>${escapeHtml(link.label)}</strong>
+        </a>
+      `;
+    }).join("");
+  }
+
   function desktopNav() {
     const active = currentLink();
 
     return `
       <aside class="sf-shell-nav" data-nav-version="${VERSION}" aria-label="Sovereign Finance navigation">
-        <div class="sfn-card">
+        <div class="sfn-dock">
           <a class="sfn-brand" href="/index.html">
             <span class="sfn-brand-mark">SF</span>
             <span class="sfn-brand-text">
               <strong>Sovereign Finance</strong>
-              <small>Clean money cockpit</small>
+              <small>Floating command dock</small>
             </span>
           </a>
 
-          <div class="sfn-active-card">
-            <span class="sfn-active-mark">${escapeHtml(active.mark)}</span>
+          <div class="sfn-current">
+            <span class="sfn-current-mark">${escapeHtml(active.mark)}</span>
             <span>
               <small>Current page</small>
               <strong>${escapeHtml(active.label)}</strong>
@@ -190,18 +204,10 @@
           </div>
 
           <div class="sfn-quick">
-            ${["hub", "add", "transactions"].map(key => {
-              const link = linkByKey(key);
-              return link ? `
-                <a class="sfn-quick-btn ${link.key === currentKey() ? "active" : ""}" href="${escapeHtml(link.href)}">
-                  <span>${escapeHtml(link.mark)}</span>
-                  <strong>${escapeHtml(link.label)}</strong>
-                </a>
-              ` : "";
-            }).join("")}
+            ${quickActions()}
           </div>
 
-          <nav class="sfn-sections">
+          <nav class="sfn-sections" aria-label="Finance sections">
             ${SECTIONS.map(desktopSection).join("")}
           </nav>
 
@@ -236,7 +242,7 @@
             <strong>More tools</strong>
             <small>Secondary finance pages</small>
           </div>
-          <button class="sfmore-close" type="button" aria-label="Close">×</button>
+          <button class="sfmore-close" type="button" aria-label="Close menu">×</button>
         </div>
 
         <div class="sfmore-body">
@@ -297,8 +303,18 @@
         const section = button.closest(".sfn-section");
         if (!section) return;
 
-        const open = section.classList.toggle("open");
-        button.setAttribute("aria-expanded", open ? "true" : "false");
+        const nextOpen = !section.classList.contains("open");
+
+        document.querySelectorAll(".sfn-section").forEach(item => {
+          if (item !== section) {
+            item.classList.remove("open");
+            const btn = item.querySelector("[data-section-toggle]");
+            if (btn) btn.setAttribute("aria-expanded", "false");
+          }
+        });
+
+        section.classList.toggle("open", nextOpen);
+        button.setAttribute("aria-expanded", nextOpen ? "true" : "false");
       });
     });
 
@@ -363,7 +379,7 @@
     if (!document.body) return;
 
     ensureCss();
-    removeOldNav();
+    removeExistingNav();
 
     document.body.insertAdjacentHTML("afterbegin", desktopNav());
     document.body.insertAdjacentHTML("beforeend", mobileNav());
