@@ -1,10 +1,10 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en" data-page="cc">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
-  <title>Credit Card · Sovereign Finance</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Sovereign Finance · Credit Card</title>
 
   <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
 
@@ -12,6 +12,7 @@
     .cc-wrap {
       max-width: 1280px;
       margin: 0 auto;
+      padding-bottom: 96px;
     }
 
     .cc-hero {
@@ -69,6 +70,64 @@
       line-height: 1.45;
     }
 
+    .cc-authority {
+      margin: 0 0 18px;
+      padding: 16px;
+      border-radius: 24px;
+      border: 1px solid rgba(245, 158, 11, 0.28);
+      background: linear-gradient(180deg, rgba(255, 251, 235, 0.96), rgba(255, 255, 255, 0.96));
+      box-shadow: var(--shadow-sm);
+      display: grid;
+      gap: 8px;
+    }
+
+    .cc-authority.pass {
+      border-color: rgba(34, 197, 94, 0.28);
+      background: linear-gradient(180deg, rgba(240, 253, 244, 0.96), rgba(255, 255, 255, 0.96));
+    }
+
+    .cc-authority.blocked,
+    .cc-authority.unknown {
+      border-color: rgba(220, 38, 38, 0.24);
+      background: linear-gradient(180deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.96));
+    }
+
+    .cc-authority-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .cc-authority-title {
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 950;
+    }
+
+    .cc-authority-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 6px 10px;
+      border-radius: var(--r-pill);
+      background: rgba(15, 23, 42, 0.08);
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .cc-authority-copy {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 800;
+    }
+
     .cc-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -102,24 +161,24 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .cc-note {
-      margin-top: 6px;
-      color: var(--text-dim);
-      font-size: 12px;
-      font-weight: 800;
-      line-height: 1.35;
+    .cc-value.good {
+      color: var(--accent-deep);
     }
 
     .cc-value.warn {
       color: var(--warn);
     }
 
-    .cc-value.good {
-      color: var(--accent-deep);
-    }
-
     .cc-value.bad {
       color: var(--danger);
+    }
+
+    .cc-note {
+      margin-top: 6px;
+      color: var(--text-dim);
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
     }
 
     .cc-main {
@@ -220,6 +279,7 @@
       color: var(--text);
       font-weight: 950;
       text-align: center;
+      text-decoration: none;
     }
 
     .cc-action.primary {
@@ -228,7 +288,26 @@
       border: 0;
     }
 
-    .cc-empty,
+    .cc-action.disabled {
+      background: #cbd5e1;
+      color: #475569;
+      border: 0;
+      pointer-events: none;
+      cursor: not-allowed;
+    }
+
+    .cc-empty {
+      padding: 14px;
+      border-radius: 18px;
+      background: var(--surface-2);
+      border: 1px dashed var(--border-strong);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 850;
+      line-height: 1.45;
+      margin-top: 10px;
+    }
+
     .cc-source-warning {
       padding: 14px;
       border-radius: 18px;
@@ -251,6 +330,24 @@
       background: rgba(34, 197, 94, 0.08);
       border-color: rgba(34, 197, 94, 0.22);
       color: #14532d;
+    }
+
+    .cc-block {
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(254, 242, 242, 0.88);
+      border: 1px solid rgba(220, 38, 38, 0.22);
+      color: #7f1d1d;
+      font-size: 12px;
+      font-weight: 850;
+      line-height: 1.45;
+      display: grid;
+      gap: 5px;
+      margin-top: 14px;
+    }
+
+    .cc-block strong {
+      font-weight: 950;
     }
 
     @media (max-width: 980px) {
@@ -277,16 +374,28 @@
   <main class="cc-wrap">
     <section class="cc-hero">
       <div class="cc-kicker">Credit Card control</div>
+
       <h1 class="cc-title">Realtime balance first. No historical-spend guessing.</h1>
+
       <p class="cc-copy">
-        This page reads the original account/balance sources directly. It does not use money contracts,
-        lifetime Credit Card spend, or historical transaction totals as current outstanding.
+        This page reads the original account and balance sources directly.
+        It does not use money contracts, lifetime Credit Card spend, or historical transaction totals as current outstanding.
       </p>
 
       <div class="cc-warning">
         Statement date stays the 12th of every month. Interest-free period stays 55 days.
         Minimum due is 5% of realtime outstanding when a trusted outstanding value is available.
       </div>
+    </section>
+
+    <section id="ccAuthority" class="cc-authority unknown">
+      <div class="cc-authority-top">
+        <div class="cc-authority-title">Command Centre authority</div>
+        <div id="ccAuthorityPill" class="cc-authority-pill">Checking</div>
+      </div>
+      <p id="ccAuthorityCopy" class="cc-authority-copy">
+        Loading backend enforcement policy for credit_card.plan_payment.
+      </p>
     </section>
 
     <section class="cc-grid">
@@ -298,19 +407,19 @@
 
       <div class="cc-card">
         <div class="cc-label">Minimum due</div>
-        <div id="ccMinimum" class="cc-value">—</div>
+        <div id="ccMinimum" class="cc-value">Loading</div>
         <div id="ccMinimumNote" class="cc-note">5% of realtime outstanding.</div>
       </div>
 
       <div class="cc-card">
         <div class="cc-label">Due date</div>
-        <div id="ccDue" class="cc-value">—</div>
+        <div id="ccDue" class="cc-value">Loading</div>
         <div id="ccDueNote" class="cc-note">12th statement + 55 days.</div>
       </div>
 
       <div class="cc-card">
         <div class="cc-label">Utilization</div>
-        <div id="ccUtil" class="cc-value">—</div>
+        <div id="ccUtil" class="cc-value">Loading</div>
         <div id="ccUtilNote" class="cc-note">Outstanding against credit limit.</div>
       </div>
     </section>
@@ -320,7 +429,7 @@
         <h2 class="panel-title">Credit Card health</h2>
         <p class="panel-sub">
           Display-only page. It does not write data, change balances, calculate from historical spend,
-          or modify your original finance logic.
+          or modify the original finance logic.
         </p>
 
         <div class="cc-meter">
@@ -332,7 +441,7 @@
             <div class="row-name">Outstanding source</div>
             <div class="row-sub">Must be realtime balance or original trusted account source</div>
           </div>
-          <div id="ccSource" class="row-value">—</div>
+          <div id="ccSource" class="row-value">Checking</div>
         </div>
 
         <div class="cc-row">
@@ -340,7 +449,7 @@
             <div class="row-name">Statement date</div>
             <div class="row-sub">Fixed rule</div>
           </div>
-          <div id="ccStatementDay" class="row-value">12th monthly</div>
+          <div class="row-value">12th monthly</div>
         </div>
 
         <div class="cc-row">
@@ -348,7 +457,7 @@
             <div class="row-name">Interest-free days</div>
             <div class="row-sub">Fixed rule</div>
           </div>
-          <div id="ccInterestFree" class="row-value">55 days</div>
+          <div class="row-value">55 days</div>
         </div>
 
         <div class="cc-row">
@@ -356,38 +465,57 @@
             <div class="row-name">Credit limit</div>
             <div class="row-sub">Read from account if available, otherwise safe display fallback</div>
           </div>
-          <div id="ccLimit" class="row-value">—</div>
+          <div id="ccLimit" class="row-value">Checking</div>
         </div>
 
+        <div id="ccPlanBlock"></div>
+
         <div class="cc-actions">
-          <a class="cc-action primary" href="/add.html?type=transfer&to=cc">Plan payment transfer</a>
-          <a class="cc-action" href="/transactions.html">Review transactions</a>
+          <a id="ccPlanLink" class="cc-action primary" href="/add.html?type=transfer&to=cc">
+            Plan payment transfer
+          </a>
+          <a class="cc-action" href="/transactions.html">
+            Review transactions
+          </a>
         </div>
       </div>
 
       <aside class="cc-panel">
         <h2 class="panel-title">Safety checks</h2>
-        <p class="panel-sub">This verifies the page is not using the broken contract logic.</p>
+        <p class="panel-sub">
+          This verifies the page is not using the broken contract logic.
+        </p>
         <div id="ccChecks"></div>
       </aside>
     </section>
 
     <footer class="page-footer">
-      <span class="v">Credit Card v0.4.1 · restored realtime balance source · nav v1.1.3 · css v1.0.2</span>
+      <span class="v">Credit Card v0.4.2 · Phase 4F soft authority · nav v1.2.0 · enforcement v0.1.0 · css v1.0.2</span>
     </footer>
   </main>
 
   <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=1.1.3"></script>
+  <script src="/js/nav.js?v=1.2.0"></script>
+  <script src="/js/enforcement.js?v=0.1.0"></script>
 
   <script>
     (function () {
       "use strict";
 
-      const VERSION = "v0.4.1";
+      const VERSION = "v0.4.2";
+      const ACTION = "credit_card.plan_payment";
       const STATEMENT_DAY = 12;
       const INTEREST_FREE_DAYS = 55;
       const FALLBACK_CREDIT_LIMIT = 100000;
+
+      const state = {
+        gate: blockedGate("Command Centre enforcement has not loaded yet.", {
+          source: "window.SovereignEnforcement",
+          required_fix: "Wait for /api/finance-command-center to return an action policy for credit_card.plan_payment.",
+          status: "unknown"
+        }),
+        result: null
+      };
 
       const $ = id => document.getElementById(id);
 
@@ -409,26 +537,29 @@
       function setValue(id, value, cls) {
         const el = $(id);
         if (!el) return;
+
         el.textContent = value;
         el.classList.remove("good", "warn", "bad");
-        if (cls) el.classList.add(cls);
+
+        if (cls) {
+          el.classList.add(cls);
+        }
       }
 
       function asNumber(value) {
         if (value === null || value === undefined || value === "") return null;
+
         const n = Number(value);
         return Number.isFinite(n) ? n : null;
       }
 
       function absOutstanding(value) {
         const n = asNumber(value);
-        if (n === null) return null;
-        return Math.abs(n);
+        return n === null ? null : Math.abs(n);
       }
 
       function normalizeAccounts(payload) {
         if (Array.isArray(payload)) return payload;
-
         if (payload && Array.isArray(payload.accounts)) return payload.accounts;
         if (payload && Array.isArray(payload.rows)) return payload.rows;
         if (payload && Array.isArray(payload.items)) return payload.items;
@@ -444,7 +575,6 @@
 
       function normalizeBalanceRows(payload) {
         if (!payload) return [];
-
         if (Array.isArray(payload)) return payload;
         if (Array.isArray(payload.accounts)) return payload.accounts;
         if (Array.isArray(payload.balances)) return payload.balances;
@@ -483,7 +613,7 @@
       }
 
       function isCreditCard(row) {
-        const hay = [
+        const haystack = [
           row.id,
           row.account_id,
           row.name,
@@ -495,10 +625,10 @@
         ].join(" ").toLowerCase();
 
         return (
-          hay.includes(" cc") ||
-          hay.includes("cc ") ||
-          hay.includes("alfalah cc") ||
-          hay.includes("credit card") ||
+          haystack.includes(" cc") ||
+          haystack.includes("cc ") ||
+          haystack.includes("alfalah cc") ||
+          haystack.includes("credit card") ||
           String(row.id || "").toLowerCase() === "cc" ||
           String(row.account_id || "").toLowerCase() === "cc" ||
           accountKind(row) === "cc"
@@ -555,9 +685,14 @@
       }
 
       function pickOutstanding(cc) {
-        if (!cc) return { value: null, source: "missing_credit_card_account" };
+        if (!cc) {
+          return {
+            value: null,
+            source: "missing_credit_card_account"
+          };
+        }
 
-        const trustedFields = [
+        const candidates = [
           ["current_balance", "current_balance"],
           ["available_balance", "available_balance"],
           ["balance", "balance"],
@@ -566,7 +701,7 @@
           ["opening_balance", "opening_balance"]
         ];
 
-        for (const pair of trustedFields) {
+        for (const pair of candidates) {
           const field = pair[0];
           const source = pair[1];
           const value = absOutstanding(cc[field]);
@@ -576,7 +711,10 @@
           }
         }
 
-        return { value: null, source: "realtime_balance_unavailable" };
+        return {
+          value: null,
+          source: "realtime_balance_unavailable"
+        };
       }
 
       function pickCreditLimit(cc) {
@@ -592,9 +730,11 @@
 
       function nextStatementDate() {
         const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
         let d = new Date(now.getFullYear(), now.getMonth(), STATEMENT_DAY);
 
-        if (d < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+        if (d < today) {
           d = new Date(now.getFullYear(), now.getMonth() + 1, STATEMENT_DAY);
         }
 
@@ -614,8 +754,10 @@
       function daysUntil(d) {
         const now = new Date();
         now.setHours(0, 0, 0, 0);
+
         const target = new Date(d);
         target.setHours(0, 0, 0, 0);
+
         return Math.ceil((target.getTime() - now.getTime()) / 86400000);
       }
 
@@ -638,11 +780,165 @@
         `;
       }
 
+      function blockedGate(reason, extra) {
+        return {
+          action: ACTION,
+          allowed: false,
+          status: extra && extra.status ? extra.status : "blocked",
+          reason: reason || "Credit Card planning is blocked by Command Centre.",
+          source: extra && extra.source ? extra.source : "enforcement.actions",
+          required_fix: extra && extra.required_fix ? extra.required_fix : "Resolve Command Centre blocker before planning a Credit Card payment.",
+          override_allowed: Boolean(extra && extra.override_allowed),
+          backend_enforced: Boolean(extra && extra.backend_enforced),
+          frontend_enforced: true,
+          raw: extra && extra.raw ? extra.raw : null
+        };
+      }
+
+      function passGate(action) {
+        return {
+          action: ACTION,
+          allowed: true,
+          status: String(action.status || "pass"),
+          reason: action.reason || "Command Centre allows credit_card.plan_payment.",
+          source: action.source || "enforcement.actions",
+          required_fix: action.required_fix || "",
+          override_allowed: Boolean(action.override_allowed),
+          backend_enforced: Boolean(action.backend_enforced),
+          frontend_enforced: true,
+          raw: action
+        };
+      }
+
+      function actionAllows(action) {
+        if (!action || typeof action !== "object") return false;
+
+        const status = String(action.status || action.verdict || "").toLowerCase();
+
+        const explicitAllowed =
+          action.allowed === true ||
+          action.action_allowed === true ||
+          action.actions_allowed === true ||
+          action.write_allowed === true ||
+          action.can_execute === true;
+
+        const explicitlyBlocked =
+          action.blocked === true ||
+          action.allowed === false ||
+          action.action_allowed === false ||
+          action.actions_allowed === false ||
+          action.write_allowed === false ||
+          ["blocked", "unknown", "unready", "not_ready", "fail", "failed", "deny", "denied"].includes(status);
+
+        if (explicitlyBlocked) return false;
+        if (explicitAllowed && ["", "pass", "ready", "allowed", "ok"].includes(status)) return true;
+
+        return false;
+      }
+
+      function updateGate(snapshot) {
+        if (!snapshot) {
+          state.gate = blockedGate("Command Centre enforcement snapshot is unavailable.", {
+            source: "window.SovereignEnforcement",
+            required_fix: "Load /js/enforcement.js and /api/finance-command-center.",
+            status: "unknown"
+          });
+          return;
+        }
+
+        if (snapshot.error) {
+          state.gate = blockedGate("Command Centre enforcement failed to load: " + snapshot.error, {
+            source: "/api/finance-command-center",
+            required_fix: "Open Command Centre and resolve backend enforcement endpoint availability.",
+            status: "unknown"
+          });
+          return;
+        }
+
+        if (!snapshot.loaded) {
+          state.gate = blockedGate("Command Centre enforcement is still loading.", {
+            source: "/api/finance-command-center",
+            required_fix: "Wait for enforcement policy to load. Unknown never becomes Ready.",
+            status: "unknown"
+          });
+          return;
+        }
+
+        const action = typeof snapshot.findAction === "function"
+          ? snapshot.findAction(ACTION)
+          : null;
+
+        if (!action) {
+          state.gate = blockedGate("No backend action policy returned for credit_card.plan_payment.", {
+            source: "enforcement.actions",
+            required_fix: "Register credit_card.plan_payment in /api/finance-command-center enforcement.actions.",
+            status: "unknown"
+          });
+          return;
+        }
+
+        state.gate = actionAllows(action)
+          ? passGate(action)
+          : blockedGate(action.reason || "Command Centre blocks credit_card.plan_payment.", {
+              source: action.source || "enforcement.actions",
+              required_fix: action.required_fix || "Resolve credit_card.plan_payment blocker in Command Centre.",
+              override_allowed: action.override_allowed,
+              backend_enforced: action.backend_enforced,
+              status: action.status || "blocked",
+              raw: action
+            });
+      }
+
+      function renderAuthority() {
+        const box = $("ccAuthority");
+        const pill = $("ccAuthorityPill");
+        const copy = $("ccAuthorityCopy");
+
+        if (!box || !pill || !copy) return;
+
+        const gate = state.gate;
+
+        box.className = "cc-authority " + (gate.allowed ? "pass" : gate.status === "unknown" ? "unknown" : "blocked");
+        pill.textContent = gate.allowed ? "Payment planning allowed" : "Payment planning blocked";
+
+        copy.textContent = gate.allowed
+          ? gate.reason + " Source: " + gate.source + "."
+          : gate.reason + " Source: " + gate.source + ". Required fix: " + gate.required_fix + " Override: " + (gate.override_allowed ? "allowed" : "not allowed") + ". Backend enforced: " + (gate.backend_enforced ? "yes" : "no") + " · Frontend enforced: yes.";
+      }
+
+      function renderPlanBlock() {
+        const el = $("ccPlanBlock");
+        const link = $("ccPlanLink");
+
+        if (!el || !link) return;
+
+        const gate = state.gate;
+
+        if (gate.allowed) {
+          el.innerHTML = "";
+          link.classList.remove("disabled");
+          return;
+        }
+
+        link.classList.add("disabled");
+
+        el.innerHTML = `
+          <div class="cc-block">
+            <div><strong>Payment planning blocked by Command Centre.</strong></div>
+            <div>Blocked: ${esc(gate.action)}</div>
+            <div>Reason: ${esc(gate.reason)}</div>
+            <div>Source: ${esc(gate.source)}</div>
+            <div>Required fix: ${esc(gate.required_fix)}</div>
+            <div>Override: ${gate.override_allowed ? "allowed" : "not allowed"} · Backend enforced: ${gate.backend_enforced ? "yes" : "no"} · Frontend enforced: yes</div>
+          </div>
+        `;
+      }
+
       function renderChecks(result) {
         const html = [
           checkRow("No money-contracts dependency", true, "This page does not call /api/money-contracts."),
-          checkRow("No lifetime CC spend math", true, "Historical cc_spend is not used as outstanding."),
-          checkRow("Credit Card account found", !!result.cc, result.cc ? result.cc.name || result.cc.id : "No CC account found."),
+          checkRow("No lifetime Credit Card spend math", true, "Historical cc_spend is not used as outstanding."),
+          checkRow("Credit Card account found", Boolean(result.cc), result.cc ? (result.cc.name || result.cc.id || "Credit Card source found.") : "No Credit Card account found."),
           checkRow("Realtime outstanding available", result.outstanding !== null, result.source),
           checkRow("Minimum due rule", result.outstanding !== null, "5% of realtime outstanding."),
           checkRow("Statement rule", true, "12th of every month."),
@@ -663,7 +959,17 @@
           $("ccChecks").insertAdjacentHTML(
             "beforeend",
             `<div class="cc-source-warning good">
-              Outstanding is coming from ${esc(result.source)}. Minimum due is calculated as 5% of that value.
+              Outstanding is coming from ${esc(result.source)}.
+              Minimum due is calculated as 5% of that value.
+            </div>`
+          );
+        }
+
+        if (result.sourceErrors && result.sourceErrors.length) {
+          $("ccChecks").insertAdjacentHTML(
+            "beforeend",
+            `<div class="cc-source-warning bad">
+              Source warning: ${esc(result.sourceErrors.join(" · "))}
             </div>`
           );
         }
@@ -672,8 +978,8 @@
       async function load() {
         const sources = await readSources();
         const cc = findCcAccount(sources.accounts, sources.balances);
-        const outstandingPick = pickOutstanding(cc);
-        const outstanding = outstandingPick.value;
+        const pick = pickOutstanding(cc);
+        const outstanding = pick.value;
         const limit = pickCreditLimit(cc);
         const due = dueDateFromStatement();
         const dueDays = daysUntil(due);
@@ -698,7 +1004,11 @@
           minimumDue === null ? "warn" : minimumDue > 0 ? "warn" : "good"
         );
 
-        setValue("ccDue", dateOnly(due), dueDays <= 7 ? "warn" : "good");
+        setValue(
+          "ccDue",
+          dateOnly(due),
+          dueDays <= 7 ? "warn" : "good"
+        );
 
         setValue(
           "ccUtil",
@@ -706,26 +1016,31 @@
           utilization === null ? "warn" : utilization >= 80 ? "bad" : utilization >= 50 ? "warn" : "good"
         );
 
-        $("ccOutstandingNote").textContent =
-          outstanding === null
-            ? "Realtime balance unavailable. No historical-spend guess used."
-            : "Source: " + outstandingPick.source;
+        $("ccOutstandingNote").textContent = outstanding === null
+          ? "Realtime balance unavailable. No historical-spend guess used."
+          : "Source: " + pick.source;
 
-        $("ccMinimumNote").textContent =
-          minimumDue === null
-            ? "Needs realtime outstanding first."
-            : "5% of realtime outstanding.";
+        $("ccMinimumNote").textContent = minimumDue === null
+          ? "Needs realtime outstanding first."
+          : "5% of realtime outstanding.";
 
         $("ccDueNote").textContent = dueCopy(dueDays);
-        $("ccUtilNote").textContent = utilization === null ? "Needs realtime outstanding first." : "Credit limit: " + money(limit);
-        $("ccSource").textContent = outstandingPick.source;
+
+        $("ccUtilNote").textContent = utilization === null
+          ? "Needs realtime outstanding first."
+          : "Credit limit: " + money(limit);
+
+        $("ccSource").textContent = pick.source;
         $("ccLimit").textContent = money(limit);
-        $("ccMeterFill").style.width = utilization === null ? "0%" : Math.max(0, Math.min(100, utilization)) + "%";
+
+        $("ccMeterFill").style.width = utilization === null
+          ? "0%"
+          : Math.max(0, Math.min(100, utilization)) + "%";
 
         const result = {
           cc,
           outstanding,
-          source: outstandingPick.source,
+          source: pick.source,
           minimumDue,
           limit,
           utilization,
@@ -734,14 +1049,24 @@
           sourceErrors: sources.errors
         };
 
+        state.result = result;
+
         renderChecks(result);
+        renderAuthority();
+        renderPlanBlock();
 
         window.SovereignCreditCard = {
           version: VERSION,
-          mode: "restored_realtime_balance_source",
+          mode: "phase4f_soft_authority",
+          action: ACTION,
           noMoneyContracts: true,
           noHistoricalSpendOutstanding: true,
-          result
+          result,
+          enforcement: function () {
+            return {
+              planGate: state.gate
+            };
+          }
         };
 
         if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
@@ -749,7 +1074,34 @@
         }
       }
 
-      load().catch(err => {
+      function wireEnforcement() {
+        if (window.SovereignEnforcement && typeof window.SovereignEnforcement.subscribe === "function") {
+          window.SovereignEnforcement.subscribe(snapshot => {
+            updateGate(snapshot);
+            renderAuthority();
+            renderPlanBlock();
+
+            if (window.SovereignCreditCard) {
+              window.SovereignCreditCard.enforcement = function () {
+                return {
+                  planGate: state.gate
+                };
+              };
+            }
+          });
+
+          updateGate(window.SovereignEnforcement.snapshot());
+          renderAuthority();
+          renderPlanBlock();
+          return;
+        }
+
+        updateGate(null);
+        renderAuthority();
+        renderPlanBlock();
+      }
+
+      function failSafely(err) {
         $("ccChecks").innerHTML = `
           <div class="cc-empty">
             Credit Card page failed safely: ${esc(err.message)}
@@ -763,9 +1115,23 @@
         window.SovereignCreditCard = {
           version: VERSION,
           mode: "failed_safe",
-          error: err.message
+          error: err.message,
+          noMoneyContracts: true,
+          noHistoricalSpendOutstanding: true,
+          enforcement: function () {
+            return {
+              planGate: state.gate
+            };
+          }
         };
-      });
+
+        renderAuthority();
+        renderPlanBlock();
+      }
+
+      wireEnforcement();
+
+      load().catch(failSafely);
     })();
   </script>
 </body>
