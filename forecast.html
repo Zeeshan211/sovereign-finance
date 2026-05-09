@@ -1,1023 +1,1261 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-page="forecast">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0f172a" />
-  <title>Forecast - Sovereign Finance</title>
-  <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
+  <title>Forecast · Sovereign Finance</title>
+
+  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
+
   <style>
-    .forecast-wrap { max-width: 1180px; margin: 0 auto; }
-    .forecast-hero, .forecast-card, .forecast-panel {
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: var(--r-xl);
-      box-shadow: var(--shadow-sm);
+    :root {
+      --fc-ink: #0f172a;
+      --fc-muted: #64748b;
+      --fc-line: rgba(148, 163, 184, 0.24);
+      --fc-card: rgba(255, 255, 255, 0.92);
+      --fc-card-strong: #ffffff;
+      --fc-green: #16a34a;
+      --fc-green-soft: rgba(34, 197, 94, 0.12);
+      --fc-blue: #2563eb;
+      --fc-blue-soft: rgba(37, 99, 235, 0.12);
+      --fc-amber: #d97706;
+      --fc-amber-soft: rgba(217, 119, 6, 0.12);
+      --fc-red: #dc2626;
+      --fc-red-soft: rgba(220, 38, 38, 0.10);
+      --fc-shadow: 0 20px 56px rgba(15, 23, 42, 0.12);
+      --fc-radius: 28px;
     }
-    .forecast-hero { padding: 24px; margin-bottom: 18px; }
-    .forecast-kicker {
-      display: inline-flex;
-      padding: 7px 11px;
-      border-radius: var(--r-pill);
-      background: var(--info-soft);
-      color: var(--info);
-      font-size: 12px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: .07em;
-      margin-bottom: 12px;
+
+    body {
+      background:
+        radial-gradient(circle at 10% -10%, rgba(34, 197, 94, 0.16), transparent 34rem),
+        radial-gradient(circle at 90% 0%, rgba(37, 99, 235, 0.15), transparent 34rem),
+        #eef4ff;
     }
-    .forecast-heading {
-      margin: 0;
-      color: var(--text);
-      font-size: clamp(32px, 5vw, 50px);
-      line-height: 1.02;
-      font-weight: 950;
-      letter-spacing: -.05em;
+
+    .forecast-page {
+      width: 100%;
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 0 16px 48px;
     }
-    .forecast-copy {
-      margin-top: 12px;
-      max-width: 850px;
-      color: var(--text-muted);
-      font-size: 15px;
-      line-height: 1.55;
-      font-weight: 750;
-    }
-    .forecast-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
-    .forecast-btn {
-      min-height: 44px;
-      border-radius: var(--r-md);
-      padding: 10px 14px;
-      font-size: 14px;
-      font-weight: 950;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .forecast-btn.primary { border: 0; background: var(--grad-mint); color: #052e16; }
-    .forecast-btn.secondary { border: 1px solid var(--border-strong); background: #fff; color: var(--text); }
-    .forecast-trust {
-      margin-top: 16px;
-      padding: 13px 14px;
-      border-radius: var(--r-lg);
-      border: 1px solid rgba(37, 99, 235, .22);
-      background: var(--info-soft);
-      color: var(--info);
-      font-size: 13px;
-      font-weight: 850;
-      line-height: 1.45;
-    }
-    .forecast-trust-title {
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      margin-bottom: 5px;
-    }
-    .forecast-stats {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0,1fr));
-      gap: 12px;
-      margin-bottom: 18px;
-    }
-    .forecast-card { padding: 16px; min-width: 0; }
-    .forecast-label {
-      color: var(--text-dim);
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-    }
-    .forecast-value {
-      margin-top: 7px;
-      color: var(--text);
-      font-size: 23px;
-      font-weight: 950;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
+
+    .forecast-hero {
+      position: relative;
       overflow: hidden;
-      text-overflow: ellipsis;
+      border-radius: 34px;
+      padding: 24px;
+      margin: 8px 0 18px;
+      color: #f8fafc;
+      background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95)),
+        radial-gradient(circle at top right, rgba(34, 197, 94, 0.26), transparent 28rem);
+      box-shadow: var(--fc-shadow);
+      border: 1px solid rgba(255, 255, 255, 0.10);
     }
-    .forecast-value.good { color: var(--accent-deep); }
-    .forecast-value.bad { color: var(--danger); }
-    .forecast-value.warn { color: var(--warn); }
-    .forecast-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(360px, .9fr);
+
+    .forecast-hero::after {
+      content: "";
+      position: absolute;
+      inset: auto -80px -130px auto;
+      width: 360px;
+      height: 360px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.26), transparent 68%);
+      pointer-events: none;
+    }
+
+    .hero-top {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
       gap: 18px;
     }
-    .forecast-panel { padding: 16px; min-width: 0; }
-    .forecast-panel.wide { grid-column: 1 / -1; }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      color: #bbf7d0;
+      font-size: 12px;
+      font-weight: 950;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 18px rgba(34, 197, 94, 0.8);
+    }
+
+    .forecast-title {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 58px);
+      line-height: 0.98;
+      letter-spacing: -0.06em;
+      font-weight: 950;
+    }
+
+    .forecast-subtitle {
+      max-width: 760px;
+      margin: 12px 0 0;
+      color: #cbd5e1;
+      font-size: 15px;
+      line-height: 1.5;
+      font-weight: 700;
+    }
+
+    .hero-status {
+      min-width: 220px;
+      padding: 14px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(16px);
+    }
+
+    .hero-status-label {
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.10em;
+    }
+
+    .hero-status-value {
+      margin-top: 8px;
+      color: #ffffff;
+      font-size: 20px;
+      font-weight: 950;
+      letter-spacing: -0.03em;
+    }
+
+    .hero-status-note {
+      margin-top: 4px;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .scenario-strip {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .scenario-card {
+      min-width: 0;
+      padding: 15px;
+      border-radius: 22px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .scenario-label {
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .scenario-value {
+      margin-top: 8px;
+      font-size: 24px;
+      font-weight: 950;
+      letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .scenario-note {
+      margin-top: 5px;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin: 18px 0;
+    }
+
+    .kpi-card {
+      min-width: 0;
+      padding: 18px;
+      border-radius: var(--fc-radius);
+      background: var(--fc-card);
+      border: 1px solid var(--fc-line);
+      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
+    }
+
+    .kpi-label {
+      color: var(--fc-muted);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .kpi-value {
+      margin-top: 10px;
+      color: var(--fc-ink);
+      font-size: 26px;
+      font-weight: 950;
+      letter-spacing: -0.045em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .kpi-note {
+      margin-top: 7px;
+      color: var(--fc-muted);
+      font-size: 12px;
+      font-weight: 750;
+      line-height: 1.35;
+    }
+
+    .kpi-card.good {
+      background: linear-gradient(180deg, rgba(240, 253, 244, 0.96), rgba(255, 255, 255, 0.96));
+      border-color: rgba(34, 197, 94, 0.28);
+    }
+
+    .kpi-card.warn {
+      background: linear-gradient(180deg, rgba(255, 251, 235, 0.96), rgba(255, 255, 255, 0.96));
+      border-color: rgba(217, 119, 6, 0.26);
+    }
+
+    .kpi-card.bad {
+      background: linear-gradient(180deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.96));
+      border-color: rgba(220, 38, 38, 0.22);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.75fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      min-width: 0;
+      border-radius: var(--fc-radius);
+      background: var(--fc-card);
+      border: 1px solid var(--fc-line);
+      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+
     .panel-head {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 14px;
+      gap: 16px;
+      padding: 18px 18px 0;
     }
-    .panel-title { color: var(--text); font-size: 18px; font-weight: 950; }
-    .panel-sub { margin-top: 3px; color: var(--text-dim); font-size: 12px; font-weight: 850; }
-    .pill-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
-    .pill-grid.four { grid-template-columns: repeat(4, minmax(0,1fr)); }
-    .pill {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--r-md);
-      padding: 10px;
-      min-width: 0;
-    }
-    .pill-label {
-      color: var(--text-dim);
-      font-size: 10px;
+
+    .panel-title {
+      margin: 0;
+      color: var(--fc-ink);
+      font-size: 18px;
       font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      margin-bottom: 5px;
+      letter-spacing: -0.03em;
     }
-    .pill-value {
-      color: var(--text);
+
+    .panel-sub {
+      margin: 5px 0 0;
+      color: var(--fc-muted);
       font-size: 13px;
-      font-weight: 950;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      font-variant-numeric: tabular-nums;
+      font-weight: 750;
+      line-height: 1.4;
     }
-    .pill-value.good { color: var(--accent-deep); }
-    .pill-value.bad { color: var(--danger); }
-    .pill-value.warn { color: var(--warn); }
-    .forecast-note {
-      margin-top: 12px;
-      padding: 12px;
-      border-radius: var(--r-lg);
-      border: 1px solid rgba(37, 99, 235, .22);
-      background: var(--info-soft);
-      color: var(--info);
-      font-size: 13px;
-      font-weight: 850;
-      line-height: 1.45;
-    }
-    .forecast-note.warn { border-color: rgba(245, 158, 11, .24); background: rgba(245, 158, 11, .10); color: var(--warn); }
-    .forecast-note.bad { border-color: rgba(220, 38, 38, .24); background: rgba(220, 38, 38, .08); color: var(--danger); }
-    .safety-command {
-      border-radius: var(--r-xl);
+
+    .panel-body {
       padding: 18px;
-      border: 1px solid rgba(37, 99, 235, .22);
-      background: linear-gradient(135deg, rgba(37,99,235,.09), rgba(20,184,166,.08));
     }
-    .safety-command.safe {
-      border-color: rgba(22, 163, 74, .24);
-      background: rgba(22, 163, 74, .08);
-    }
-    .safety-command.watch {
-      border-color: rgba(245, 158, 11, .28);
-      background: rgba(245, 158, 11, .10);
-    }
-    .safety-command.unsafe, .safety-command.critical {
-      border-color: rgba(220, 38, 38, .30);
-      background: rgba(220, 38, 38, .08);
-    }
-    .safety-status {
-      font-size: clamp(28px, 4vw, 44px);
-      font-weight: 950;
-      letter-spacing: -.04em;
-      line-height: 1;
-      color: var(--text);
-      text-transform: uppercase;
-    }
-    .safety-status.safe { color: var(--accent-deep); }
-    .safety-status.watch { color: var(--warn); }
-    .safety-status.unsafe, .safety-status.critical { color: var(--danger); }
-    .safety-headline {
-      margin-top: 8px;
-      color: var(--text);
-      font-size: 15px;
-      font-weight: 900;
-      line-height: 1.45;
-    }
-    .safety-action {
-      margin-top: 12px;
-      padding: 12px;
-      border-radius: var(--r-lg);
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      color: var(--text);
-      font-size: 14px;
-      font-weight: 900;
-      line-height: 1.45;
-    }
-    .safety-drivers {
-      margin-top: 12px;
+
+    .forecast-bars {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0,1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      align-items: end;
+      min-height: 260px;
+      padding: 12px 4px 0;
+    }
+
+    .bar-wrap {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      min-width: 0;
+      height: 240px;
+    }
+
+    .bar {
+      width: 100%;
+      min-height: 8px;
+      border-radius: 16px 16px 8px 8px;
+      background: linear-gradient(180deg, #22c55e, #16a34a);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 8px 18px rgba(34, 197, 94, 0.20);
+      transform-origin: bottom;
+      animation: rise 640ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .bar.warn {
+      background: linear-gradient(180deg, #f59e0b, #d97706);
+      box-shadow: 0 8px 18px rgba(217, 119, 6, 0.20);
+    }
+
+    .bar.bad {
+      background: linear-gradient(180deg, #ef4444, #dc2626);
+      box-shadow: 0 8px 18px rgba(220, 38, 38, 0.18);
+    }
+
+    @keyframes rise {
+      from { transform: scaleY(0.2); opacity: 0.4; }
+      to { transform: scaleY(1); opacity: 1; }
+    }
+
+    .bar-label {
+      margin-top: 9px;
+      color: var(--fc-muted);
+      font-size: 11px;
+      font-weight: 900;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .bar-value {
+      margin-top: 4px;
+      color: var(--fc-ink);
+      font-size: 11px;
+      font-weight: 950;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .insight-list {
+      display: flex;
+      flex-direction: column;
       gap: 10px;
     }
-    .driver-card {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--r-md);
-      padding: 11px;
-      min-width: 0;
+
+    .insight {
+      display: grid;
+      grid-template-columns: 10px minmax(0, 1fr);
+      gap: 10px;
+      padding: 13px;
+      border-radius: 18px;
+      background: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.20);
     }
-    .driver-card.safe { border-color: rgba(22, 163, 74, .18); }
-    .driver-card.watch { border-color: rgba(245, 158, 11, .28); }
-    .driver-card.unsafe, .driver-card.critical { border-color: rgba(220, 38, 38, .28); }
-    .driver-title {
-      color: var(--text);
+
+    .insight-dot {
+      width: 10px;
+      height: 10px;
+      margin-top: 5px;
+      border-radius: 50%;
+      background: var(--fc-blue);
+    }
+
+    .insight.good .insight-dot {
+      background: var(--fc-green);
+    }
+
+    .insight.warn .insight-dot {
+      background: var(--fc-amber);
+    }
+
+    .insight.bad .insight-dot {
+      background: var(--fc-red);
+    }
+
+    .insight-title {
+      color: var(--fc-ink);
       font-size: 13px;
       font-weight: 950;
-      line-height: 1.25;
+      line-height: 1.3;
     }
-    .driver-detail {
-      margin-top: 5px;
-      color: var(--text-muted);
+
+    .insight-text {
+      margin-top: 3px;
+      color: var(--fc-muted);
       font-size: 12px;
-      font-weight: 800;
-      line-height: 1.35;
+      font-weight: 750;
+      line-height: 1.4;
     }
-    .variable-form {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0,1fr));
-      gap: 12px;
-    }
-    .variable-form .field label {
-      display: block;
-      color: var(--text-dim);
-      font-size: 10px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-      margin-bottom: 5px;
-    }
-    .variable-form .input { width: 100%; }
-    .variable-actions {
+
+    .stack {
       display: flex;
-      gap: 10px;
-      margin-top: 14px;
+      flex-direction: column;
+      gap: 14px;
     }
-    .variable-actions button { flex: 1; }
-    .trust-chip-line {
+
+    .mini-table {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .mini-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border-radius: 16px;
+      background: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .mini-name {
+      color: var(--fc-ink);
+      font-size: 13px;
+      font-weight: 950;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .mini-sub {
+      margin-top: 3px;
+      color: var(--fc-muted);
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .mini-value {
+      color: var(--fc-ink);
+      font-size: 13px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .empty {
+      padding: 18px;
+      border-radius: 18px;
+      background: #f8fafc;
+      border: 1px dashed rgba(148, 163, 184, 0.34);
+      color: var(--fc-muted);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .source-strip {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-bottom: 12px;
+      margin-top: 14px;
     }
-    .trust-chip {
+
+    .source-pill {
       display: inline-flex;
       align-items: center;
-      width: fit-content;
+      gap: 6px;
       padding: 7px 10px;
-      border-radius: var(--r-pill);
-      border: 1px solid rgba(37, 99, 235, .22);
-      background: var(--info-soft);
-      color: var(--info);
-      font-size: 10px;
-      font-weight: 950;
-      letter-spacing: .03em;
-      text-transform: uppercase;
+      border-radius: 999px;
+      background: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      color: var(--fc-muted);
+      font-size: 11px;
+      font-weight: 900;
     }
-    .trust-chip.good {
-      border-color: rgba(22, 163, 74, .24);
-      background: rgba(22, 163, 74, .10);
-      color: var(--accent-deep);
-    }
-    .trust-chip.warn {
-      border-color: rgba(245, 158, 11, .24);
-      background: rgba(245, 158, 11, .10);
-      color: var(--warn);
-    }
-    .trust-chip.bad {
-      border-color: rgba(220, 38, 38, .24);
-      background: rgba(220, 38, 38, .08);
-      color: var(--danger);
-    }
-    .list { display: flex; flex-direction: column; gap: 8px; }
-    .row {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--r-md);
-      padding: 11px;
+
+    .loading-shell {
       display: grid;
-      grid-template-columns: minmax(0,1fr) auto;
-      gap: 10px;
-      align-items: center;
+      place-items: center;
+      min-height: 360px;
+      border-radius: var(--fc-radius);
+      background: var(--fc-card);
+      border: 1px solid var(--fc-line);
+      color: var(--fc-muted);
+      font-size: 14px;
+      font-weight: 900;
+      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
     }
-    .row-title {
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 950;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+
+    @media (max-width: 1100px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .scenario-strip {
+        grid-template-columns: 1fr;
+      }
     }
-    .row-sub { margin-top: 3px; color: var(--text-dim); font-size: 12px; font-weight: 800; }
-    .row-amount { color: var(--text); font-size: 13px; font-weight: 950; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .row-amount.good { color: var(--accent-deep); }
-    .row-amount.bad { color: var(--danger); }
-    .projection-list {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 8px;
-      max-height: 620px;
-      overflow: auto;
-      padding-right: 2px;
-    }
-    .projection-row {
-      display: grid;
-      grid-template-columns: 100px minmax(0, 1fr) 130px;
-      gap: 10px;
-      align-items: center;
-      padding: 11px;
-      border-radius: var(--r-md);
-      border: 1px solid var(--border);
-      background: var(--surface-2);
-    }
-    .projection-row.safe { border-color: rgba(22, 163, 74, .18); }
-    .projection-row.watch { border-color: rgba(245, 158, 11, .28); background: rgba(245, 158, 11, .06); }
-    .projection-row.unsafe { border-color: rgba(220, 38, 38, .28); background: rgba(220, 38, 38, .06); }
-    .projection-date {
-      color: var(--text);
-      font-size: 12px;
-      font-weight: 950;
-      font-variant-numeric: tabular-nums;
-    }
-    .projection-detail {
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 800;
-      line-height: 1.35;
-      min-width: 0;
-    }
-    .projection-close {
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 950;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-    .projection-close.good { color: var(--accent-deep); }
-    .projection-close.warn { color: var(--warn); }
-    .projection-close.bad { color: var(--danger); }
-    .empty {
-      background: var(--surface-2);
-      border: 1px dashed var(--border-strong);
-      border-radius: var(--r-lg);
-      padding: 22px;
-      color: var(--text-muted);
-      font-weight: 850;
-      text-align: center;
-      line-height: 1.45;
-    }
-    @media (max-width: 980px) {
-      .forecast-stats { grid-template-columns: repeat(2, minmax(0,1fr)); }
-      .forecast-grid { grid-template-columns: 1fr; }
-      .pill-grid.four { grid-template-columns: repeat(2, minmax(0,1fr)); }
-      .safety-drivers { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 640px) {
-      .forecast-stats, .pill-grid, .pill-grid.four, .variable-form { grid-template-columns: 1fr; }
-      .row { grid-template-columns: 1fr; }
-      .variable-actions { flex-direction: column; }
-      .projection-row { grid-template-columns: 1fr; }
-      .projection-close { text-align: left; }
+
+    @media (max-width: 700px) {
+      .forecast-page {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+
+      .forecast-hero {
+        padding: 20px;
+        border-radius: 28px;
+      }
+
+      .hero-top {
+        flex-direction: column;
+      }
+
+      .hero-status {
+        width: 100%;
+      }
+
+      .kpi-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .forecast-bars {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        min-height: 220px;
+      }
+
+      .bar-wrap {
+        height: 190px;
+      }
     }
   </style>
 </head>
+
 <body>
-  <header>
-    <div>
-      <div class="brand">Sovereign Finance</div>
-      <div class="title">Forecast</div>
-    </div>
-  </header>
-
-  <main class="forecast-wrap">
+  <main class="forecast-page">
     <section class="forecast-hero">
-      <div class="forecast-kicker">Layer 5 safety command</div>
-      <h1 class="forecast-heading">Forecast</h1>
-      <p class="forecast-copy">
-        Live salary, 30-day cash runway, and Safety Engine answer from current balances, bills, debts, receivables, reconciliation truth, live USDPKR FX, and payslip tax logic.
-        Manual variables default to 0 and stay separated from the conservative safety baseline.
-      </p>
-      <div class="forecast-actions">
-        <button id="refreshBtn" class="forecast-btn primary" type="button">Refresh Forecast</button>
-        <a class="forecast-btn secondary" href="/reconciliation.html">Open Reconciliation</a>
-        <a class="forecast-btn secondary" href="/salary.html">Open Salary</a>
-      </div>
-      <div class="forecast-trust">
-        <div class="forecast-trust-title">Forecast rule</div>
-        <div>Safety uses conservative salary only: base salary plus WFH live FX. Manual MBO, overtime, referral, bonus, kitty, and other variables are scenario-only until entered and confirmed.</div>
-      </div>
-    </section>
-
-    <section class="forecast-stats">
-      <div class="forecast-card">
-        <div class="forecast-label">Safety</div>
-        <div id="safetyTopStatus" class="forecast-value">-</div>
-      </div>
-      <div class="forecast-card">
-        <div class="forecast-label">30D Low</div>
-        <div id="lowestProjectedBalance" class="forecast-value">-</div>
-      </div>
-      <div class="forecast-card">
-        <div class="forecast-label">First Unsafe</div>
-        <div id="firstUnsafeDate" class="forecast-value">-</div>
-      </div>
-      <div class="forecast-card">
-        <div class="forecast-label">Cash After Salary</div>
-        <div id="cashAfterSalary" class="forecast-value">-</div>
-      </div>
-    </section>
-
-    <section class="forecast-grid">
-      <div class="forecast-panel wide">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Am I Safe?</div>
-            <div id="safetySub" class="panel-sub">Loading Safety Engine v2</div>
-          </div>
+      <div class="hero-top">
+        <div>
+          <div class="eyebrow"><span class="eyebrow-dot"></span> Forecast cockpit</div>
+          <h1 class="forecast-title">Know the next cash pressure before it arrives.</h1>
+          <p class="forecast-subtitle">
+            This page reads live finance data and turns it into a 90-day money forecast: runway, obligations,
+            salary timing, burn rate, and the safest next action.
+          </p>
         </div>
-        <div id="safetyCommand" class="safety-command">
-          <div id="safetyStatus" class="safety-status">Loading</div>
-          <div id="safetyHeadline" class="safety-headline">Reading /api/safety...</div>
-          <div id="safetyAction" class="safety-action">Top action loading...</div>
-          <div class="pill-grid four" style="margin-top: 12px;">
-            <div class="pill"><div class="pill-label">Next Risk Date</div><div id="safetyNextRisk" class="pill-value">-</div></div>
-            <div class="pill"><div class="pill-label">Confidence</div><div id="safetyConfidence" class="pill-value">-</div></div>
-            <div class="pill"><div class="pill-label">Manual Variables</div><div id="safetyManualRule" class="pill-value">-</div></div>
-            <div class="pill"><div class="pill-label">Safety API</div><div id="safetyApiVersion" class="pill-value">-</div></div>
-          </div>
-          <div id="safetyNoAction" class="forecast-note">Loading no-action outcome...</div>
-          <div id="safetyDrivers" class="safety-drivers">
-            <div class="empty">Loading safety drivers...</div>
-          </div>
+
+        <div class="hero-status">
+          <div class="hero-status-label">Forecast status</div>
+          <div class="hero-status-value" id="heroStatus">Loading</div>
+          <div class="hero-status-note" id="heroStatusNote">Reading live finance data.</div>
         </div>
       </div>
 
-      <div class="forecast-panel wide">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">30-Day Cash Projection</div>
-            <div id="projectionSub" class="panel-sub">Loading</div>
-          </div>
+      <div class="scenario-strip">
+        <div class="scenario-card">
+          <div class="scenario-label">30-day projection</div>
+          <div class="scenario-value" id="proj30">—</div>
+          <div class="scenario-note">Expected position after near-term income and obligations.</div>
         </div>
-        <div class="pill-grid four">
-          <div class="pill"><div class="pill-label">Runway Status</div><div id="projectionRunway" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Lowest Balance Date</div><div id="lowestBalanceDate" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Ending Balance 30D</div><div id="endingBalance30d" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">With Manual Variables</div><div id="endingBalance30dManual" class="pill-value">-</div></div>
-        </div>
-        <div id="projectionNote" class="forecast-note">Loading projection...</div>
-        <div id="projectionList" class="projection-list" style="margin-top: 12px;">
-          <div class="empty">Loading 30-day projection...</div>
-        </div>
-      </div>
 
-      <div class="forecast-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Salary Brain</div>
-            <div id="salarySub" class="panel-sub">Loading</div>
-          </div>
+        <div class="scenario-card">
+          <div class="scenario-label">60-day projection</div>
+          <div class="scenario-value" id="proj60">—</div>
+          <div class="scenario-note">Pressure view across the next salary cycle.</div>
         </div>
-        <div class="pill-grid">
-          <div class="pill"><div class="pill-label">Base Salary</div><div id="baseSalary" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">WFH Taxable PKR</div><div id="wfhPkr" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Manual Variables</div><div id="manualVariableTotal" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Gross Forecast</div><div id="grossForecast" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">EOBI</div><div id="eobiDeduction" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Base Income Tax</div><div id="baseTax" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Variable Tax</div><div id="variableTax" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Net Forecast</div><div id="netForecast" class="pill-value">-</div></div>
-        </div>
-        <div id="salaryNote" class="forecast-note">Loading salary forecast...</div>
-      </div>
 
-      <div class="forecast-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Manual Variable Inputs</div>
-            <div class="panel-sub">Metadata only - no transaction</div>
-          </div>
-        </div>
-        <div class="trust-chip-line">
-          <span class="trust-chip">Save variables: metadata only</span>
-          <span class="trust-chip warn">Defaults remain 0 unless entered</span>
-        </div>
-        <form id="variableForm" class="variable-form">
-          <div class="field">
-            <label for="varOvertimeGeneral">Overtime General</label>
-            <input id="varOvertimeGeneral" class="input" type="number" min="0" step="0.01" value="0" />
-          </div>
-          <div class="field">
-            <label for="varOvertimeEid">Overtime Eid</label>
-            <input id="varOvertimeEid" class="input" type="number" min="0" step="0.01" value="0" />
-          </div>
-          <div class="field">
-            <label for="varMbo">MBO</label>
-            <input id="varMbo" class="input" type="number" min="0" step="0.01" value="0" />
-          </div>
-          <div class="field">
-            <label for="varReferral">Referral Bonus</label>
-            <input id="varReferral" class="input" type="number" min="0" step="0.01" value="0" />
-          </div>
-          <div class="field">
-            <label for="varSpot">Spot Bonus</label>
-            <input id="varSpot" class="input" type="number" min="0" step="0.01" value="0" />
-          </div>
-          <div class="field">
-            <label for="varKitty">Kitty Cash</label>
-            <input id="varKitty" class="input" type="number" min="0" step="0.01" value="0" />
-          </div>
-          <div class="field">
-            <label for="varOther">Other Variable</label>
-            <input id="varOther" class="input" type="number" min="0" step="0.01" value="0" />
-          </div>
-          <div class="field">
-            <label for="varEobi">EOBI Deduction</label>
-            <input id="varEobi" class="input" type="number" min="0" step="0.01" value="400" />
-          </div>
-        </form>
-        <div class="variable-actions">
-          <button id="saveVariablesBtn" class="forecast-btn primary" type="button">Save Variables</button>
-          <button id="resetVariablesBtn" class="forecast-btn secondary" type="button">Reset to 0</button>
-        </div>
-        <div class="forecast-note warn">
-          WFH is automatically estimated from live FX and taxed as variable income. MBO/overtime/referral/bonus/kitty stay 0 unless manually entered.
-        </div>
-      </div>
-
-      <div class="forecast-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Baseline Forecast</div>
-            <div id="baselineSub" class="panel-sub">Loading</div>
-          </div>
-        </div>
-        <div class="pill-grid">
-          <div class="pill"><div class="pill-label">Cash Before Salary</div><div id="cashBeforeSalary" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Committed Before Salary</div><div id="committedBeforeSalary" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Free Salary After Obligations</div><div id="freeSalary" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Conservative Free Salary</div><div id="freeSalaryConservative" class="pill-value">-</div></div>
-        </div>
-        <div id="runwayNote" class="forecast-note">Loading forecast status...</div>
-      </div>
-
-      <div class="forecast-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Debt-Free Forecast</div>
-            <div id="debtFreeSub" class="panel-sub">Loading</div>
-          </div>
-        </div>
-        <div class="pill-grid">
-          <div class="pill"><div class="pill-label">Debt Remaining</div><div id="debtRemaining" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Conservative Months</div><div id="debtMonthsConservative" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Conservative Date</div><div id="debtDateConservative" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Scenario Months</div><div id="debtMonthsScenario" class="pill-value">-</div></div>
-        </div>
-        <div id="debtFreeNote" class="forecast-note">Loading debt-free forecast...</div>
-      </div>
-
-      <div class="forecast-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Forecast Confidence</div>
-            <div class="panel-sub">Based on reconciliation truth</div>
-          </div>
-        </div>
-        <div class="pill-grid">
-          <div class="pill"><div class="pill-label">Confidence Level</div><div id="confidenceLevel" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">CC Outstanding</div><div id="ccOutstanding" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Net Cash After CC</div><div id="netCashAfterCc" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">FX Status</div><div id="fxStatus" class="pill-value">-</div></div>
-        </div>
-        <div id="confidenceNote" class="forecast-note">Loading confidence...</div>
-      </div>
-
-      <div class="forecast-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Obligations Before Salary</div>
-            <div id="obligationSub" class="panel-sub">Loading</div>
-          </div>
-        </div>
-        <div id="obligationList" class="list">
-          <div class="empty">Loading obligations...</div>
-        </div>
-      </div>
-
-      <div class="forecast-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Receivables Before Salary</div>
-            <div id="receivableSub" class="panel-sub">Loading</div>
-          </div>
-        </div>
-        <div id="receivableList" class="list">
-          <div class="empty">Loading receivables...</div>
-        </div>
-      </div>
-
-      <div class="forecast-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Tax + Payslip Source</div>
-            <div class="panel-sub">From payslip tax computation</div>
-          </div>
-        </div>
-        <div class="pill-grid">
-          <div class="pill"><div class="pill-label">Taxable Income</div><div id="taxableIncome" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Tax Liability</div><div id="taxLiability" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Tax Paid YTD</div><div id="taxPaidYtd" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Remaining Tax</div><div id="remainingTax" class="pill-value">-</div></div>
-        </div>
-        <div class="forecast-note">
-          Tax uses the PK salaried slab formula mirrored from the payslip computation. Base tax and variable tax are shown separately.
-        </div>
-      </div>
-
-      <div class="forecast-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Scenario Separation</div>
-            <div class="panel-sub">Manual variables are visible, not hidden</div>
-          </div>
-        </div>
-        <div class="pill-grid">
-          <div class="pill"><div class="pill-label">Without Manual Variables</div><div id="withoutManual" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">With Manual Variables</div><div id="withManual" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">MBO Status</div><div id="mboStatus" class="pill-value">-</div></div>
-          <div class="pill"><div class="pill-label">Manual Variable Total</div><div id="scenarioManualTotal" class="pill-value">-</div></div>
-        </div>
-        <div class="forecast-note warn">
-          Safety should be read from the 0-variable baseline unless you intentionally enter confirmed variables.
+        <div class="scenario-card">
+          <div class="scenario-label">90-day projection</div>
+          <div class="scenario-value" id="proj90">—</div>
+          <div class="scenario-note">Longer cash runway signal, not a guarantee.</div>
         </div>
       </div>
     </section>
 
-    <footer class="page-footer">
-      <span class="v">v0.3.0 - Safety Engine display - api forecast v0.2.0 - api safety v0.2.0 - nav v1.0.17 - theme v0.7.2</span>
+    <section id="loadingShell" class="loading-shell">
+      Building forecast from accounts, transactions, bills, debts, and salary data.
+    </section>
+
+    <section id="forecastContent" hidden>
+      <div class="kpi-grid">
+        <article class="kpi-card" id="liquidCard">
+          <div class="kpi-label">Liquid position</div>
+          <div class="kpi-value" id="liquidValue">—</div>
+          <div class="kpi-note" id="liquidNote">Cash and positive asset balances detected from accounts.</div>
+        </article>
+
+        <article class="kpi-card" id="burnCard">
+          <div class="kpi-label">Daily burn</div>
+          <div class="kpi-value" id="burnValue">—</div>
+          <div class="kpi-note" id="burnNote">Average spend from recent expense transactions.</div>
+        </article>
+
+        <article class="kpi-card" id="dueCard">
+          <div class="kpi-label">Due soon</div>
+          <div class="kpi-value" id="dueValue">—</div>
+          <div class="kpi-note" id="dueNote">Bills and debt obligations due in the next 14 days.</div>
+        </article>
+
+        <article class="kpi-card" id="runwayCard">
+          <div class="kpi-label">Runway</div>
+          <div class="kpi-value" id="runwayValue">—</div>
+          <div class="kpi-note" id="runwayNote">Days of cover at current recent burn rate.</div>
+        </article>
+      </div>
+
+      <div class="main-grid">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">90-day projection</h2>
+              <p class="panel-sub">Projected cash position using current balance, recent spending, salary signal, bills, and debts.</p>
+            </div>
+          </div>
+
+          <div class="panel-body">
+            <div class="forecast-bars" id="forecastBars"></div>
+
+            <div class="source-strip" id="sourceStrip"></div>
+          </div>
+        </section>
+
+        <aside class="stack">
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">What needs action</h2>
+                <p class="panel-sub">Priority signals from the forecast engine.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="insight-list" id="insightList"></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Upcoming obligations</h2>
+                <p class="panel-sub">Nearest bills and debt pressure.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="mini-table" id="obligationList"></div>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <div class="main-grid" style="margin-top:18px;">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">Account base</h2>
+              <p class="panel-sub">Balances used for the forecast starting point.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="mini-table" id="accountList"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <h2 class="panel-title">Forecast method</h2>
+              <p class="panel-sub">Clear assumptions so the number is useful, not magic.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="insight-list">
+              <div class="insight">
+                <span class="insight-dot"></span>
+                <div>
+                  <div class="insight-title">Recent spend drives burn rate</div>
+                  <div class="insight-text">The page uses expense transactions from the last 30 days where available.</div>
+                </div>
+              </div>
+
+              <div class="insight">
+                <span class="insight-dot"></span>
+                <div>
+                  <div class="insight-title">Salary is treated as a signal</div>
+                  <div class="insight-text">If salary data is available, it is included. If not, the page avoids fake precision.</div>
+                </div>
+              </div>
+
+              <div class="insight">
+                <span class="insight-dot"></span>
+                <div>
+                  <div class="insight-title">Bills and debts reduce projection</div>
+                  <div class="insight-text">Upcoming dated obligations are deducted inside the 90-day window.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <footer>
+      Sovereign Finance · Forecast cockpit v0.3.0 · nav v1.1.3 · css v1.0.2
     </footer>
   </main>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/js/theme.js?v=1.0.0"></script>
+  <script src="/js/nav.js?v=1.1.3"></script>
 
-  <script src="/js/theme.js?v=0.7.2"></script>
-  <script src="/js/nav.js?v=1.0.17"></script>
   <script>
-    const $ = id => document.getElementById(id);
+    (function () {
+      "use strict";
 
-    function money(value) {
-      if (value == null || value === '') return 'N/A';
-      const n = Number(value);
-      if (!Number.isFinite(n)) return 'N/A';
-      const sign = n < 0 ? '-' : '';
-      return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
-    }
+      const PKR = new Intl.NumberFormat("en-PK", {
+        style: "currency",
+        currency: "PKR",
+        maximumFractionDigits: 0
+      });
 
-    function plain(value, fallback = 'N/A') {
-      if (value == null || value === '') return fallback;
-      return String(value);
-    }
-
-    function num(value) {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : 0;
-    }
-
-    function clsForMoney(value) {
-      const n = Number(value) || 0;
-      if (n < 0) return 'bad';
-      if (n > 0) return 'good';
-      return '';
-    }
-
-    function clsForBalance(value) {
-      const n = Number(value) || 0;
-      if (n < 5000) return 'bad';
-      if (n < 10000) return 'warn';
-      return 'good';
-    }
-
-    function clsForStatus(status) {
-      const s = String(status || '').toLowerCase();
-      if (s.includes('critical') || s.includes('unsafe') || s === 'low') return 'bad';
-      if (s.includes('watch') || s.includes('medium')) return 'warn';
-      if (s.includes('safe') || s === 'high') return 'good';
-      return 'warn';
-    }
-
-    function clsForConfidence(level) {
-      const l = String(level || '').toLowerCase();
-      if (l === 'high') return 'good';
-      if (l.includes('low')) return 'bad';
-      if (l === 'medium') return 'warn';
-      return 'warn';
-    }
-
-    function safetyClass(status) {
-      const s = String(status || '').toLowerCase();
-      if (s === 'critical') return 'critical';
-      if (s === 'unsafe') return 'unsafe';
-      if (s === 'watch') return 'watch';
-      if (s === 'safe') return 'safe';
-      return 'watch';
-    }
-
-    function toast(message, kind = 'success') {
-      const el = $('toast');
-      el.textContent = message;
-      el.className = 'toast toast-' + kind + ' show';
-      setTimeout(() => { el.className = 'toast'; }, 2600);
-    }
-
-    async function fetchJSON(url, options) {
-      const res = await fetch(url, { cache: 'no-store', ...(options || {}) });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data || data.ok === false) {
-        throw new Error((data && data.error) || ('HTTP ' + res.status));
-      }
-      return data;
-    }
-
-    function setText(id, value, className) {
-      const el = $(id);
-      if (!el) return;
-      el.textContent = value;
-      if (className != null) el.className = className;
-    }
-
-    function setInput(id, value) {
-      const el = $(id);
-      if (!el) return;
-      el.value = String(value == null ? 0 : value);
-    }
-
-    function readVariables() {
-      return {
-        manual_overtime_general_pkr: num($('varOvertimeGeneral').value),
-        manual_overtime_eid_pkr: num($('varOvertimeEid').value),
-        manual_mbo_pkr: num($('varMbo').value),
-        manual_referral_bonus_pkr: num($('varReferral').value),
-        manual_spot_bonus_pkr: num($('varSpot').value),
-        manual_kitty_cash_pkr: num($('varKitty').value),
-        manual_other_variable_pkr: num($('varOther').value),
-        manual_eobi_pkr: num($('varEobi').value)
+      const state = {
+        accounts: [],
+        transactions: [],
+        bills: [],
+        debts: [],
+        salary: null,
+        sources: []
       };
-    }
 
-    function populateVariables(vars) {
-      vars = vars || {};
-      setInput('varOvertimeGeneral', vars.manual_overtime_general_pkr || 0);
-      setInput('varOvertimeEid', vars.manual_overtime_eid_pkr || 0);
-      setInput('varMbo', vars.manual_mbo_pkr || 0);
-      setInput('varReferral', vars.manual_referral_bonus_pkr || 0);
-      setInput('varSpot', vars.manual_spot_bonus_pkr || 0);
-      setInput('varKitty', vars.manual_kitty_cash_pkr || 0);
-      setInput('varOther', vars.manual_other_variable_pkr || 0);
-      setInput('varEobi', vars.manual_eobi_pkr == null ? 400 : vars.manual_eobi_pkr);
-    }
+      const $ = (id) => document.getElementById(id);
 
-    function renderList(id, rows, type) {
-      const el = $(id);
-      if (!el) return;
-
-      if (!rows || !rows.length) {
-        el.innerHTML = '<div class="empty">Nothing due before salary.</div>';
-        return;
+      function money(value) {
+        const n = Number(value || 0);
+        if (!Number.isFinite(n)) return "—";
+        return PKR.format(n).replace("PKR", "Rs");
       }
 
-      el.innerHTML = rows.map(row => {
-        const amount = row.amount ?? row.installment_amount ?? row.remaining_amount ?? 0;
-        return `
-          <div class="row">
-            <div>
-              <div class="row-title">${row.name || row.id || 'Item'}</div>
-              <div class="row-sub">${row.due_date || 'No due date'} - due in ${row.days_until_due ?? 'N/A'} day(s)</div>
-            </div>
-            <div class="row-amount ${type === 'receivable' ? 'good' : 'bad'}">${money(amount)}</div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function renderProjection(rows) {
-      const el = $('projectionList');
-      if (!el) return;
-
-      if (!rows || !rows.length) {
-        el.innerHTML = '<div class="empty">No 30-day projection rows returned.</div>';
-        return;
+      function number(value) {
+        const n = Number(value || 0);
+        if (!Number.isFinite(n)) return "—";
+        return new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 }).format(n);
       }
 
-      el.innerHTML = rows.map(row => {
-        const status = String(row.status || '').toLowerCase();
-        const events = [];
-
-        if (num(row.salary_inflow) > 0) events.push('Salary +' + money(row.salary_inflow));
-        if (num(row.manual_variable_scenario_inflow) > 0) events.push('Manual scenario +' + money(row.manual_variable_scenario_inflow));
-        if (num(row.receivable_inflow) > 0) events.push('Receivables +' + money(row.receivable_inflow));
-        if (num(row.bills_outflow) > 0) events.push('Bills -' + money(row.bills_outflow));
-        if (num(row.debt_outflow) > 0) events.push('Debts -' + money(row.debt_outflow));
-        if (!events.length) events.push('No scheduled movement');
-
-        return `
-          <div class="projection-row ${status}">
-            <div class="projection-date">${row.date || 'N/A'}</div>
-            <div class="projection-detail">${events.join(' | ')}</div>
-            <div class="projection-close ${clsForBalance(row.closing_balance)}">${money(row.closing_balance)}</div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function renderSafety(safety) {
-      const status = safetyClass(safety && (safety.safety_status || safety.status));
-      const confidence = safety && safety.confidence ? safety.confidence : {};
-      const drivers = Array.isArray(safety && safety.drivers) ? safety.drivers.slice(0, 3) : [];
-      const command = $('safetyCommand');
-
-      command.className = 'safety-command ' + status;
-
-      setText('safetyTopStatus', status.toUpperCase(), 'forecast-value ' + clsForStatus(status));
-      setText('safetyStatus', status.toUpperCase(), 'safety-status ' + status);
-      setText('safetySub', `Safety Engine ${plain(safety.version)} - conservative baseline only`);
-      setText('safetyHeadline', safety.headline || 'Safety status loaded.');
-      setText('safetyAction', 'Top action: ' + plain(safety.top_action, 'No immediate action required.'));
-      setText('safetyNextRisk', plain(safety.next_risk_date, 'None'), 'pill-value ' + (safety.next_risk_date ? 'warn' : 'good'));
-      setText('safetyConfidence', plain(confidence.level), 'pill-value ' + clsForConfidence(confidence.level));
-      setText('safetyManualRule', safety.manual_variables_used_for_safety ? 'Included' : 'Excluded', 'pill-value ' + (safety.manual_variables_used_for_safety ? 'bad' : 'good'));
-      setText('safetyApiVersion', plain(safety.version), 'pill-value good');
-
-      const noAction = $('safetyNoAction');
-      noAction.textContent = safety.what_happens_if_no_action || 'No-action outcome unavailable.';
-      noAction.className = 'forecast-note ' + clsForStatus(status);
-
-      const driverEl = $('safetyDrivers');
-      if (!drivers.length) {
-        driverEl.innerHTML = '<div class="empty">No safety drivers active. Conservative baseline is clean from available data.</div>';
-        return;
+      function todayStart() {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        return d;
       }
 
-      driverEl.innerHTML = drivers.map(driver => {
-        const driverStatus = safetyClass(driver.severity);
-        return `
-          <div class="driver-card ${driverStatus}">
-            <div class="driver-title">${driver.title || driver.code || 'Safety driver'}</div>
-            <div class="driver-detail">${driver.detail || 'No detail available.'}</div>
-            <div class="driver-detail">Source: ${driver.source || 'computed'} | Confidence: ${driver.confidence || 'medium'}</div>
-          </div>
-        `;
-      }).join('');
-    }
+      function parseDate(value) {
+        if (!value) return null;
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return null;
+        return d;
+      }
 
-    async function loadForecast(showToast = false) {
-      const [data, safety] = await Promise.all([
-        fetchJSON('/api/forecast'),
-        fetchJSON('/api/safety')
-      ]);
+      function daysBetween(a, b) {
+        const ms = 24 * 60 * 60 * 1000;
+        return Math.ceil((b.getTime() - a.getTime()) / ms);
+      }
 
-      const salary = data.salary || {};
-      const position = data.current_position || {};
-      const obligations = data.obligations_before_salary || {};
-      const baseline = data.baseline_forecast || {};
-      const confidence = data.forecast_confidence || {};
-      const tax = data.tax || {};
-      const scenarios = data.scenarios || {};
-      const projection = data.cash_projection_summary || {};
-      const projectionRows = data.daily_cash_projection_30d || [];
-      const debtFree = data.debt_free_forecast || {};
+      function pickArray(payload, keys) {
+        if (Array.isArray(payload)) return payload;
+        if (!payload || typeof payload !== "object") return [];
+        for (const key of keys) {
+          if (Array.isArray(payload[key])) return payload[key];
+        }
+        if (Array.isArray(payload.data)) return payload.data;
+        if (payload.result && Array.isArray(payload.result)) return payload.result;
+        return [];
+      }
 
-      renderSafety(safety);
-      populateVariables(salary.manual_variables || {});
+      async function fetchJson(url, label, keys) {
+        try {
+          const res = await fetch(url, { cache: "no-store" });
+          if (!res.ok) throw new Error(String(res.status));
+          const payload = await res.json();
+          state.sources.push(label);
+          return keys ? pickArray(payload, keys) : payload;
+        } catch (err) {
+          console.warn("Forecast source unavailable:", label, err);
+          return keys ? [] : null;
+        }
+      }
 
-      setText('lowestProjectedBalance', money(projection.lowest_projected_balance), 'forecast-value ' + clsForBalance(projection.lowest_projected_balance));
-      setText('firstUnsafeDate', plain(projection.first_unsafe_date, 'None'), 'forecast-value ' + (projection.first_unsafe_date ? 'bad' : 'good'));
-      setText('cashAfterSalary', money(projection.cash_after_salary_and_obligations ?? baseline.projected_cash_after_salary), 'forecast-value ' + clsForMoney(projection.cash_after_salary_and_obligations ?? baseline.projected_cash_after_salary));
+      function amountOf(obj) {
+        const keys = [
+          "balance",
+          "current_balance",
+          "available_balance",
+          "amount",
+          "remaining",
+          "remaining_amount",
+          "outstanding",
+          "minimum_due",
+          "monthly_amount"
+        ];
 
-      setText('projectionSub', `${plain(projection.projection_start_date)} to ${plain(projection.projection_end_date)} - conservative baseline`);
-      setText('projectionRunway', plain(projection.runway_status), 'pill-value ' + clsForStatus(projection.runway_status));
-      setText('lowestBalanceDate', plain(projection.lowest_projected_balance_date), 'pill-value');
-      setText('endingBalance30d', money(projection.ending_balance_30d), 'pill-value ' + clsForBalance(projection.ending_balance_30d));
-      setText('endingBalance30dManual', money(projection.ending_balance_30d_with_manual_variables), 'pill-value ' + clsForBalance(projection.ending_balance_30d_with_manual_variables));
+        for (const key of keys) {
+          if (obj && obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
+            const n = Number(obj[key]);
+            if (Number.isFinite(n)) return n;
+          }
+        }
 
-      const projectionNote = $('projectionNote');
-      projectionNote.textContent = projection.top_action || '30-day projection loaded.';
-      projectionNote.className = 'forecast-note ' + clsForStatus(projection.runway_status);
-      renderProjection(projectionRows);
+        return 0;
+      }
 
-      setText('salarySub', `${salary.days_until_salary ?? 'N/A'} day(s) until salary - computed ${plain(data.computed_at)}`);
-      setText('baseSalary', money(salary.base_salary_pkr), 'pill-value');
-      setText('wfhPkr', money(salary.wfh_taxable_pkr), 'pill-value good');
-      setText('manualVariableTotal', money(salary.manual_variable_total_pkr), 'pill-value ' + clsForMoney(salary.manual_variable_total_pkr));
-      setText('grossForecast', money(salary.gross_salary_forecast_pkr), 'pill-value good');
-      setText('eobiDeduction', money(salary.eobi_deduction_pkr), 'pill-value bad');
-      setText('baseTax', money(salary.base_income_tax_pkr), 'pill-value bad');
-      setText('variableTax', money(salary.variable_income_tax_pkr), 'pill-value bad');
-      setText('netForecast', money(salary.forecast_net_salary_pkr), 'pill-value good');
+      function nameOf(obj, fallback) {
+        return obj.name || obj.title || obj.label || obj.account_name || obj.description || fallback || "Unnamed";
+      }
 
-      const salaryNote = $('salaryNote');
-      salaryNote.textContent = salary.safety_baseline_note || 'Salary forecast loaded.';
-      salaryNote.className = 'forecast-note';
+      function accountKind(account) {
+        return String(account.kind || account.type || account.category || "").toLowerCase();
+      }
 
-      setText('baselineSub', `Salary date ${plain(salary.next_salary_date)} - runway ${plain(baseline.runway_status)}`);
-      setText('cashBeforeSalary', money(baseline.projected_cash_before_salary), 'pill-value ' + clsForMoney(baseline.projected_cash_before_salary));
-      setText('committedBeforeSalary', money(obligations.total_committed_before_salary), 'pill-value bad');
-      setText('freeSalary', money(baseline.free_salary_after_obligations), 'pill-value ' + clsForMoney(baseline.free_salary_after_obligations));
-      setText('freeSalaryConservative', money(baseline.free_salary_after_obligations_conservative), 'pill-value ' + clsForMoney(baseline.free_salary_after_obligations_conservative));
+      function isAssetAccount(account) {
+        const kind = accountKind(account);
+        const name = String(nameOf(account, "")).toLowerCase();
 
-      const runwayNote = $('runwayNote');
-      runwayNote.textContent = baseline.top_action || ('Runway status: ' + plain(baseline.runway_status));
-      runwayNote.className = String(baseline.runway_status || '').includes('unsafe')
-        ? 'forecast-note bad'
-        : String(baseline.runway_status || '').includes('watch')
-          ? 'forecast-note warn'
-          : 'forecast-note';
+        if (kind.includes("liability") || kind.includes("credit") || kind.includes("debt")) return false;
+        if (name.includes("credit card") || name.includes("cc ")) return false;
 
-      setText('debtFreeSub', `${debtFree.debt_count ?? 0} active payable debt item(s)`);
-      setText('debtRemaining', money(debtFree.total_debt_remaining), 'pill-value bad');
-      setText('debtMonthsConservative', plain(debtFree.months_to_debt_free_conservative), 'pill-value');
-      setText('debtDateConservative', plain(debtFree.estimated_debt_free_date_conservative), 'pill-value');
-      setText('debtMonthsScenario', plain(debtFree.months_to_debt_free_with_manual_variables), 'pill-value');
+        return true;
+      }
 
-      const debtFreeNote = $('debtFreeNote');
-      debtFreeNote.textContent = debtFree.note || 'Debt-free forecast loaded.';
-      debtFreeNote.className = 'forecast-note';
+      function transactionAmount(tx) {
+        const raw = amountOf(tx);
+        const type = String(tx.type || tx.kind || tx.direction || "").toLowerCase();
 
-      setText('confidenceLevel', plain(confidence.level), 'pill-value ' + clsForConfidence(confidence.level));
-      setText('ccOutstanding', money(position.cc_outstanding), 'pill-value bad');
-      setText('netCashAfterCc', money(position.net_cash_after_cc), 'pill-value ' + clsForMoney(position.net_cash_after_cc));
-      setText('fxStatus', plain(salary.fx_status), 'pill-value ' + (salary.fx_status === 'live' ? 'good' : 'warn'));
+        if (type.includes("expense") || type.includes("debit") || type.includes("out")) return -Math.abs(raw);
+        if (type.includes("income") || type.includes("credit") || type.includes("in")) return Math.abs(raw);
 
-      const confidenceNote = $('confidenceNote');
-      confidenceNote.textContent = confidence.reason || 'Forecast confidence loaded.';
-      confidenceNote.className = 'forecast-note ' + (confidence.level === 'high' ? '' : confidence.level && confidence.level.includes('low') ? 'bad' : 'warn');
+        return Number(raw || 0);
+      }
 
-      const bills = obligations.bills_due || [];
-      const debts = obligations.debts_due || [];
-      const receivables = obligations.receivables_due || [];
+      function liquidBalance() {
+        return state.accounts
+          .filter(isAssetAccount)
+          .reduce((sum, account) => sum + amountOf(account), 0);
+      }
 
-      setText('obligationSub', `${bills.length} bill(s), ${debts.length} debt(s) before salary`);
-      renderList('obligationList', [...bills, ...debts], 'obligation');
+      function recentDailyBurn() {
+        const start = todayStart();
+        const cutoff = new Date(start);
+        cutoff.setDate(cutoff.getDate() - 30);
 
-      setText('receivableSub', `${receivables.length} receivable(s) before salary`);
-      renderList('receivableList', receivables, 'receivable');
-
-      setText('taxableIncome', money(tax.annual_taxable_income_with_forecast_variables || tax.annual_taxable_income_from_payslip), 'pill-value');
-      setText('taxLiability', money(tax.annual_tax_liability_with_forecast_variables || tax.annual_tax_liability_from_payslip), 'pill-value');
-      setText('taxPaidYtd', money(tax.income_tax_paid_ytd), 'pill-value good');
-      setText('remainingTax', money(tax.remaining_tax_payable || tax.remaining_tax_payable_from_payslip), 'pill-value warn');
-
-      setText('withoutManual', money(scenarios.baseline_without_manual_variables && scenarios.baseline_without_manual_variables.forecast_net_salary), 'pill-value');
-      setText('withManual', money(salary.forecast_net_salary_pkr), 'pill-value good');
-      setText('mboStatus', plain(scenarios.mbo_possible && scenarios.mbo_possible.status), 'pill-value warn');
-      setText('scenarioManualTotal', money(salary.manual_variable_total_pkr), 'pill-value ' + clsForMoney(salary.manual_variable_total_pkr));
-
-      if (showToast) toast('Forecast and safety refreshed. Read-only.');
-    }
-
-    async function saveVariables() {
-      const btn = $('saveVariablesBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving...';
-
-      try {
-        await fetchJSON('/api/forecast', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(readVariables())
+        const expenses = state.transactions.filter(tx => {
+          const d = parseDate(tx.date || tx.dt || tx.created_at || tx.createdAt || tx.timestamp);
+          if (!d || d < cutoff) return false;
+          return transactionAmount(tx) < 0;
         });
-        toast('Variables saved. Metadata only.');
-        await loadForecast(false);
-      } catch (err) {
-        toast(err.message, 'error');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Save Variables';
+
+        const total = expenses.reduce((sum, tx) => sum + Math.abs(transactionAmount(tx)), 0);
+        return total > 0 ? total / 30 : 0;
       }
-    }
 
-    async function resetVariables() {
-      setInput('varOvertimeGeneral', 0);
-      setInput('varOvertimeEid', 0);
-      setInput('varMbo', 0);
-      setInput('varReferral', 0);
-      setInput('varSpot', 0);
-      setInput('varKitty', 0);
-      setInput('varOther', 0);
-      setInput('varEobi', 400);
-      await saveVariables();
-    }
+      function salaryAmount() {
+        const s = state.salary;
+        if (!s || typeof s !== "object") return 0;
 
-    $('refreshBtn').addEventListener('click', () => loadForecast(true).catch(err => toast(err.message, 'error')));
-    $('saveVariablesBtn').addEventListener('click', saveVariables);
-    $('resetVariablesBtn').addEventListener('click', resetVariables);
+        const keys = [
+          "guaranteed_monthly",
+          "monthly_guaranteed",
+          "net_salary",
+          "salary",
+          "monthly_salary",
+          "next_salary",
+          "forecast_salary",
+          "amount"
+        ];
 
-    loadForecast(false).catch(err => toast(err.message, 'error'));
+        for (const key of keys) {
+          const n = Number(s[key]);
+          if (Number.isFinite(n) && n > 0) return n;
+        }
+
+        return 0;
+      }
+
+      function nextSalaryDates() {
+        const salary = salaryAmount();
+        if (!salary) return [];
+
+        const base = todayStart();
+        const dates = [];
+
+        for (let i = 0; i < 4; i++) {
+          const d = new Date(base.getFullYear(), base.getMonth() + i, 1);
+          if (d <= base) d.setMonth(d.getMonth() + 1);
+          dates.push({ date: d, amount: salary, name: "Salary forecast" });
+        }
+
+        return dates;
+      }
+
+      function obligations() {
+        const today = todayStart();
+
+        const bills = state.bills.map(bill => {
+          const due = parseDate(bill.due_date || bill.dueDate || bill.date || bill.next_due_date);
+          return {
+            type: "Bill",
+            name: nameOf(bill, "Bill"),
+            amount: amountOf(bill),
+            date: due,
+            status: String(bill.status || "").toLowerCase()
+          };
+        });
+
+        const debts = state.debts.map(debt => {
+          const due = parseDate(debt.due_date || debt.next_due_date || debt.installment_due_date || debt.date);
+          return {
+            type: "Debt",
+            name: nameOf(debt, "Debt"),
+            amount: amountOf(debt),
+            date: due,
+            status: String(debt.status || "").toLowerCase()
+          };
+        });
+
+        return bills
+          .concat(debts)
+          .filter(item => item.amount > 0)
+          .filter(item => !item.status.includes("paid") && !item.status.includes("closed"))
+          .sort((a, b) => {
+            if (!a.date && !b.date) return b.amount - a.amount;
+            if (!a.date) return 1;
+            if (!b.date) return -1;
+            return a.date - b.date;
+          })
+          .map(item => ({
+            ...item,
+            days: item.date ? daysBetween(today, item.date) : null
+          }));
+      }
+
+      function dueSoonAmount() {
+        return obligations()
+          .filter(item => item.days !== null && item.days >= 0 && item.days <= 14)
+          .reduce((sum, item) => sum + item.amount, 0);
+      }
+
+      function buildProjection() {
+        const start = todayStart();
+        const burn = recentDailyBurn();
+        const salaryEvents = nextSalaryDates();
+        const obligationEvents = obligations().filter(item => item.date);
+
+        let balance = liquidBalance();
+        const checkpoints = [0, 15, 30, 45, 60, 90];
+        const rows = [];
+
+        for (let day = 0; day <= 90; day++) {
+          const current = new Date(start);
+          current.setDate(current.getDate() + day);
+
+          if (day > 0) balance -= burn;
+
+          salaryEvents.forEach(event => {
+            if (event.date.toDateString() === current.toDateString()) balance += event.amount;
+          });
+
+          obligationEvents.forEach(event => {
+            if (event.date.toDateString() === current.toDateString()) balance -= event.amount;
+          });
+
+          if (checkpoints.includes(day)) {
+            rows.push({
+              day,
+              label: day === 0 ? "Today" : `D+${day}`,
+              value: balance
+            });
+          }
+        }
+
+        return rows;
+      }
+
+      function riskClass(value, burn) {
+        if (value < 0) return "bad";
+        if (burn > 0 && value < burn * 14) return "warn";
+        return "good";
+      }
+
+      function setCardClass(id, cls) {
+        const node = $(id);
+        if (!node) return;
+        node.classList.remove("good", "warn", "bad");
+        if (cls) node.classList.add(cls);
+      }
+
+      function renderHero(liquid, burn, dueSoon, projection) {
+        const p30 = projection.find(x => x.day === 30);
+        const p60 = projection.find(x => x.day === 60);
+        const p90 = projection.find(x => x.day === 90);
+
+        $("proj30").textContent = p30 ? money(p30.value) : "—";
+        $("proj60").textContent = p60 ? money(p60.value) : "—";
+        $("proj90").textContent = p90 ? money(p90.value) : "—";
+
+        const status = p30 && p30.value < 0 ? "Pressure ahead" : dueSoon > liquid ? "Needs review" : "Readable";
+        const note = p30 && p30.value < 0
+          ? "30-day projection goes below zero based on current signals."
+          : dueSoon > liquid
+            ? "Near-term obligations exceed current liquid balance."
+            : "Forecast loaded with current available signals.";
+
+        $("heroStatus").textContent = status;
+        $("heroStatusNote").textContent = note;
+      }
+
+      function renderKpis(liquid, burn, dueSoon) {
+        const runway = burn > 0 ? Math.floor(liquid / burn) : null;
+
+        $("liquidValue").textContent = money(liquid);
+        $("burnValue").textContent = burn > 0 ? money(burn) + "/day" : "Unknown";
+        $("dueValue").textContent = money(dueSoon);
+        $("runwayValue").textContent = runway === null ? "Unknown" : `${number(runway)} days`;
+
+        $("liquidNote").textContent = state.accounts.length
+          ? `${state.accounts.length} account record(s) scanned.`
+          : "No account records found from API.";
+
+        $("burnNote").textContent = burn > 0
+          ? "Based on recent expense transactions."
+          : "Not enough recent expense data to compute burn.";
+
+        $("dueNote").textContent = dueSoon > 0
+          ? "Bills/debts due inside 14 days."
+          : "No dated obligations found inside 14 days.";
+
+        $("runwayNote").textContent = runway === null
+          ? "Runway needs recent expense data."
+          : "Calculated from liquid balance divided by daily burn.";
+
+        setCardClass("liquidCard", liquid > 0 ? "good" : "bad");
+        setCardClass("burnCard", burn > 0 ? "warn" : null);
+        setCardClass("dueCard", dueSoon > liquid ? "bad" : dueSoon > 0 ? "warn" : "good");
+        setCardClass("runwayCard", runway === null ? null : runway < 14 ? "bad" : runway < 30 ? "warn" : "good");
+      }
+
+      function renderBars(projection, burn) {
+        const el = $("forecastBars");
+        const values = projection.map(x => x.value);
+        const min = Math.min(...values, 0);
+        const max = Math.max(...values, 1);
+        const range = Math.max(1, max - min);
+
+        el.innerHTML = projection.map(row => {
+          const normalized = ((row.value - min) / range);
+          const height = Math.max(8, Math.round(28 + normalized * 190));
+          const cls = riskClass(row.value, burn);
+
+          return `
+            <div class="bar-wrap">
+              <div class="bar ${cls}" style="height:${height}px"></div>
+              <div class="bar-label">${row.label}</div>
+              <div class="bar-value">${money(row.value)}</div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function renderSources() {
+        const sources = state.sources.length ? state.sources : ["No live source returned data"];
+        $("sourceStrip").innerHTML = sources.map(source => `
+          <span class="source-pill">${escapeHtml(source)}</span>
+        `).join("");
+      }
+
+      function renderInsights(liquid, burn, dueSoon, projection) {
+        const p30 = projection.find(x => x.day === 30);
+        const p90 = projection.find(x => x.day === 90);
+        const insights = [];
+
+        if (!state.accounts.length) {
+          insights.push({
+            cls: "bad",
+            title: "Account data missing",
+            text: "The forecast cannot be trusted until account balances are available."
+          });
+        }
+
+        if (p30 && p30.value < 0) {
+          insights.push({
+            cls: "bad",
+            title: "30-day projection goes negative",
+            text: "Reduce upcoming outflow or verify missing income before relying on this forecast."
+          });
+        }
+
+        if (dueSoon > liquid) {
+          insights.push({
+            cls: "bad",
+            title: "Due-soon obligations exceed liquid balance",
+            text: "Near-term obligations are larger than current available cash signal."
+          });
+        }
+
+        if (burn <= 0) {
+          insights.push({
+            cls: "warn",
+            title: "Burn rate is unavailable",
+            text: "There are not enough recent expense transactions to calculate realistic runway."
+          });
+        }
+
+        if (p90 && p90.value > 0 && burn > 0) {
+          insights.push({
+            cls: "good",
+            title: "90-day forecast remains above zero",
+            text: "Current projection stays positive through the visible forecast window."
+          });
+        }
+
+        if (!insights.length) {
+          insights.push({
+            cls: "good",
+            title: "No major pressure detected",
+            text: "Current data does not show immediate cash pressure."
+          });
+        }
+
+        $("insightList").innerHTML = insights.slice(0, 5).map(item => `
+          <div class="insight ${item.cls}">
+            <span class="insight-dot"></span>
+            <div>
+              <div class="insight-title">${escapeHtml(item.title)}</div>
+              <div class="insight-text">${escapeHtml(item.text)}</div>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      function renderObligations() {
+        const items = obligations().slice(0, 8);
+        const el = $("obligationList");
+
+        if (!items.length) {
+          el.innerHTML = `<div class="empty">No upcoming dated obligations found.</div>`;
+          return;
+        }
+
+        el.innerHTML = items.map(item => {
+          const due = item.days === null
+            ? "No due date"
+            : item.days < 0
+              ? `${Math.abs(item.days)} days overdue`
+              : item.days === 0
+                ? "Due today"
+                : `Due in ${item.days} days`;
+
+          return `
+            <div class="mini-row">
+              <div>
+                <div class="mini-name">${escapeHtml(item.name)}</div>
+                <div class="mini-sub">${escapeHtml(item.type)} · ${escapeHtml(due)}</div>
+              </div>
+              <div class="mini-value">${money(item.amount)}</div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function renderAccounts() {
+        const el = $("accountList");
+
+        if (!state.accounts.length) {
+          el.innerHTML = `<div class="empty">No accounts returned from the API.</div>`;
+          return;
+        }
+
+        el.innerHTML = state.accounts
+          .slice()
+          .sort((a, b) => amountOf(b) - amountOf(a))
+          .slice(0, 10)
+          .map(account => `
+            <div class="mini-row">
+              <div>
+                <div class="mini-name">${escapeHtml(nameOf(account, "Account"))}</div>
+                <div class="mini-sub">${escapeHtml(account.kind || account.type || "Account")}</div>
+              </div>
+              <div class="mini-value">${money(amountOf(account))}</div>
+            </div>
+          `).join("");
+      }
+
+      function escapeHtml(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      async function load() {
+        const [
+          accounts,
+          transactions,
+          bills,
+          debts,
+          salary,
+          balances
+        ] = await Promise.all([
+          fetchJson("/api/accounts", "Accounts", ["accounts", "items"]),
+          fetchJson("/api/transactions", "Transactions", ["transactions", "items"]),
+          fetchJson("/api/bills", "Bills", ["bills", "items"]),
+          fetchJson("/api/debts", "Debts", ["debts", "items"]),
+          fetchJson("/api/salary", "Salary", null),
+          fetchJson("/api/balances", "Balances", null)
+        ]);
+
+        state.accounts = accounts || [];
+        state.transactions = transactions || [];
+        state.bills = bills || [];
+        state.debts = debts || [];
+        state.salary = salary || null;
+
+        if (!state.accounts.length && balances && typeof balances === "object") {
+          const possible = pickArray(balances, ["accounts", "balances", "items"]);
+          if (possible.length) state.accounts = possible;
+        }
+
+        const liquid = liquidBalance();
+        const burn = recentDailyBurn();
+        const dueSoon = dueSoonAmount();
+        const projection = buildProjection();
+
+        renderHero(liquid, burn, dueSoon, projection);
+        renderKpis(liquid, burn, dueSoon);
+        renderBars(projection, burn);
+        renderSources();
+        renderInsights(liquid, burn, dueSoon, projection);
+        renderObligations();
+        renderAccounts();
+
+        $("loadingShell").hidden = true;
+        $("forecastContent").hidden = false;
+
+        if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
+          window.SovereignNav.scheduleOverflowCheck();
+        }
+      }
+
+      load().catch(err => {
+        console.error("Forecast cockpit failed:", err);
+        $("loadingShell").innerHTML = `
+          <div>
+            <div style="font-size:18px;font-weight:950;color:#dc2626;margin-bottom:6px;">Forecast could not load.</div>
+            <div style="color:#64748b;font-size:13px;font-weight:800;">Open console and paste the error if this repeats.</div>
+          </div>
+        `;
+      });
+    })();
   </script>
 </body>
 </html>
