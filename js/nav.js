@@ -1,4 +1,4 @@
-/* Sovereign Finance Nav v1.1.4
+/* Sovereign Finance Nav v1.1.5
    Visual-only minimal side panel shell
 
    Contract:
@@ -9,34 +9,35 @@
    - No D1.
    - Renders navigation only.
    - Loads /css/nav.css dynamically.
+   - Uses full professional labels, no short forms like Txns.
 */
 
 (function () {
   "use strict";
 
-  const VERSION = "1.1.4";
-  const CSS_HREF = "/css/nav.css?v=1.1.4";
+  const VERSION = "1.1.5";
+  const CSS_HREF = "/css/nav.css?v=1.1.5";
 
   const LINKS = [
-    { key: "hub", label: "Hub", short: "Hub", href: "/index.html", section: "command", mark: "H", mobile: true },
-    { key: "forecast", label: "Forecast", short: "Fcst", href: "/forecast.html", section: "command", mark: "F" },
-    { key: "monthly-close", label: "Monthly Close", short: "Close", href: "/monthly-close.html", section: "command", mark: "M" },
+    { key: "hub", label: "Hub", mobileLabel: "Hub", href: "/index.html", section: "command", mark: "H", mobile: true },
+    { key: "forecast", label: "Forecast", mobileLabel: "Forecast", href: "/forecast.html", section: "command", mark: "F" },
+    { key: "monthly-close", label: "Monthly Close", mobileLabel: "Monthly Close", href: "/monthly-close.html", section: "command", mark: "M" },
 
-    { key: "add", label: "Add", short: "Add", href: "/add.html", section: "money", mark: "+", mobile: true },
-    { key: "transactions", label: "Transactions", short: "Txns", href: "/transactions.html", section: "money", mark: "T", mobile: true },
-    { key: "accounts", label: "Accounts", short: "Accts", href: "/accounts.html", section: "money", mark: "A" },
-    { key: "reconciliation", label: "Reconciliation", short: "Recon", href: "/reconciliation.html", section: "money", mark: "R" },
+    { key: "add", label: "Add", mobileLabel: "Add", href: "/add.html", section: "money", mark: "+", mobile: true },
+    { key: "transactions", label: "Transactions", mobileLabel: "Transactions", href: "/transactions.html", section: "money", mark: "T", mobile: true },
+    { key: "accounts", label: "Accounts", mobileLabel: "Accounts", href: "/accounts.html", section: "money", mark: "A" },
+    { key: "reconciliation", label: "Reconciliation", mobileLabel: "Reconciliation", href: "/reconciliation.html", section: "money", mark: "R" },
 
-    { key: "bills", label: "Bills", short: "Bills", href: "/bills.html", section: "obligations", mark: "B", mobile: true },
-    { key: "debts", label: "Debts", short: "Debts", href: "/debts.html", section: "obligations", mark: "D" },
-    { key: "cc", label: "Credit Card", short: "Card", href: "/cc.html", section: "obligations", mark: "C" },
-    { key: "atm", label: "ATM", short: "ATM", href: "/atm.html", section: "obligations", mark: "₹" },
-    { key: "nano-loans", label: "Nano Loans", short: "Nano", href: "/nano-loans.html", section: "obligations", mark: "N" },
+    { key: "bills", label: "Bills", mobileLabel: "Bills", href: "/bills.html", section: "obligations", mark: "B", mobile: true },
+    { key: "debts", label: "Debts", mobileLabel: "Debts", href: "/debts.html", section: "obligations", mark: "D" },
+    { key: "cc", label: "Credit Card", mobileLabel: "Credit Card", href: "/cc.html", section: "obligations", mark: "C" },
+    { key: "atm", label: "ATM", mobileLabel: "ATM", href: "/atm.html", section: "obligations", mark: "₹" },
+    { key: "nano-loans", label: "Nano Loans", mobileLabel: "Nano Loans", href: "/nano-loans.html", section: "obligations", mark: "N" },
 
-    { key: "salary", label: "Salary", short: "Salary", href: "/salary.html", section: "planning", mark: "S" },
-    { key: "charts", label: "Charts", short: "Charts", href: "/charts.html", section: "records", mark: "G" },
-    { key: "audit", label: "Audit", short: "Audit", href: "/audit.html", section: "records", mark: "L" },
-    { key: "snapshots", label: "Snapshots", short: "Snaps", href: "/snapshots.html", section: "records", mark: "P" }
+    { key: "salary", label: "Salary", mobileLabel: "Salary", href: "/salary.html", section: "planning", mark: "S" },
+    { key: "charts", label: "Charts", mobileLabel: "Charts", href: "/charts.html", section: "records", mark: "G" },
+    { key: "audit", label: "Audit", mobileLabel: "Audit", href: "/audit.html", section: "records", mark: "L" },
+    { key: "snapshots", label: "Snapshots", mobileLabel: "Snapshots", href: "/snapshots.html", section: "records", mark: "P" }
   ];
 
   const SECTIONS = [
@@ -128,7 +129,7 @@
 
   function navLink(link, mode) {
     const active = link.key === currentKey();
-    const label = mode === "mobile" ? link.short : link.label;
+    const label = mode === "mobile" ? link.mobileLabel : link.label;
 
     return `
       <a
@@ -194,7 +195,7 @@
               return link ? `
                 <a class="sfn-quick-btn ${link.key === currentKey() ? "active" : ""}" href="${escapeHtml(link.href)}">
                   <span>${escapeHtml(link.mark)}</span>
-                  <strong>${escapeHtml(link.short)}</strong>
+                  <strong>${escapeHtml(link.label)}</strong>
                 </a>
               ` : "";
             }).join("")}
