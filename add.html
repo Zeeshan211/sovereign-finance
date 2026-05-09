@@ -4,325 +4,286 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0f172a" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
 <title>Add Transaction - Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=1.0.2" />
+<link rel="stylesheet" href="/css/app.css?v=2.0.0" />
 <style>
-html,
-body {
-max-width: 100%;
-overflow-x: hidden;
+.add-page {
+  max-width: 1180px;
 }
 
-* {
-box-sizing: border-box;
-min-width: 0;
+.add-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 18px;
+  align-items: stretch;
 }
 
-.add-wrap {
-width: 100%;
-max-width: 980px;
-margin: 0 auto;
-padding: 0 12px 64px;
-}
-
-.add-hero {
-position: relative;
-overflow: hidden;
-color: #f8fafc;
-background:
-linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95)),
-radial-gradient(circle at top right, rgba(34, 197, 94, 0.24), transparent 26rem);
-border: 1px solid rgba(255, 255, 255, 0.10);
-border-radius: 34px;
-box-shadow: var(--shadow-lg);
-padding: 26px;
-margin: 14px 0 18px;
-}
-
-.add-kicker {
-display: inline-flex;
-align-items: center;
-gap: 8px;
-padding: 7px 11px;
-border-radius: var(--r-pill);
-background: rgba(34, 197, 94, 0.13);
-color: #bbf7d0;
-font-size: 12px;
-font-weight: 950;
-text-transform: uppercase;
-letter-spacing: 0.07em;
-margin-bottom: 12px;
-}
-
-.add-kicker::before {
-content: "";
-width: 8px;
-height: 8px;
-border-radius: 999px;
-background: #22c55e;
-box-shadow: 0 0 16px rgba(34, 197, 94, 0.8);
-}
-
-.add-heading {
-color: #ffffff;
-font-size: clamp(34px, 5vw, 58px);
-line-height: 0.98;
-font-weight: 950;
-letter-spacing: -0.06em;
-margin: 0;
-}
-
-.add-copy {
-color: #cbd5e1;
-font-size: 15px;
-line-height: 1.55;
-font-weight: 750;
-margin: 12px 0 0;
-max-width: 760px;
-}
-
-.add-type-grid {
-display: grid;
-grid-template-columns: repeat(3, minmax(0, 1fr));
-gap: 12px;
-margin-top: 20px;
-}
-
-.add-type-grid .type-btn {
-min-height: 106px;
-display: flex;
-flex-direction: column;
-align-items: center;
-justify-content: center;
-border-width: 2px;
-background: rgba(255, 255, 255, 0.08);
-color: #f8fafc;
-border-color: rgba(255, 255, 255, 0.12);
-border-radius: 22px;
-cursor: pointer;
-transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
-}
-
-.add-type-grid .type-btn:hover {
-transform: translateY(-1px);
-border-color: rgba(255, 255, 255, 0.24);
-}
-
-.add-type-grid .type-btn.active {
-background: rgba(34, 197, 94, 0.16);
-color: #ffffff;
-border-color: rgba(34, 197, 94, 0.42);
-}
-
-.type-main {
-font-size: 16px;
-font-weight: 950;
-letter-spacing: -0.02em;
-}
-
-.type-small {
-color: #cbd5e1;
-font-size: 12px;
-font-weight: 850;
-margin-top: 5px;
+.add-side-panel {
+  display: grid;
+  gap: 14px;
 }
 
 .add-trust-panel {
-margin-top: 16px;
-padding: 14px;
-border-radius: var(--r-lg);
-border: 1px solid rgba(245, 158, 11, 0.32);
-background: rgba(245, 158, 11, 0.12);
-color: #fef3c7;
-font-size: 13px;
-font-weight: 850;
-line-height: 1.45;
-}
-
-.add-trust-title {
-color: #fde68a;
-font-size: 11px;
-font-weight: 950;
-text-transform: uppercase;
-letter-spacing: 0.06em;
-margin-bottom: 5px;
+  padding: 18px;
+  border-radius: var(--r-xl);
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
+  box-shadow: var(--shadow-sm);
+  color: var(--warn);
 }
 
 .add-trust-panel.income {
-border-color: rgba(34, 197, 94, 0.36);
-background: rgba(34, 197, 94, 0.12);
-color: #dcfce7;
+  border-color: rgba(4, 120, 87, 0.24);
+  background: linear-gradient(135deg, var(--success-soft), var(--surface-1));
+  color: var(--success);
 }
 
 .add-trust-panel.transfer {
-border-color: rgba(96, 165, 250, 0.36);
-background: rgba(37, 99, 235, 0.16);
-color: #dbeafe;
+  border-color: rgba(29, 78, 216, 0.24);
+  background: linear-gradient(135deg, var(--info-soft), var(--surface-1));
+  color: var(--info);
+}
+
+.add-trust-title {
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#addTrustText {
+  margin-top: 8px;
+  color: var(--text-strong);
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 820;
+}
+
+.add-type-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.type-btn {
+  min-height: 116px;
+  padding: 16px;
+  border-radius: var(--r-xl);
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.07);
+  color: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: none;
+}
+
+.type-btn:hover {
+  background: rgba(255,255,255,0.10);
+  transform: translateY(-1px);
+}
+
+.type-btn.active {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.36);
+  color: #ffffff;
+}
+
+.type-main {
+  display: block;
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.03em;
+}
+
+.type-small {
+  display: block;
+  margin-top: 6px;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 780;
 }
 
 .add-form-card {
-background: var(--surface-1);
-border: 1px solid var(--border);
-border-radius: 30px;
-box-shadow: var(--shadow-md);
-padding: 24px;
-}
-
-.add-enforcement-panel {
-margin-bottom: 16px;
-padding: 15px;
-border-radius: 22px;
-border: 1px solid rgba(220, 38, 38, 0.24);
-background: linear-gradient(135deg, rgba(254, 226, 226, 0.92), rgba(255,255,255,0.96));
-color: #7f1d1d;
-}
-
-.add-enforcement-panel.warning {
-border-color: rgba(217, 119, 6, 0.28);
-background: linear-gradient(135deg, rgba(254, 243, 199, 0.92), rgba(255,255,255,0.96));
-color: #78350f;
-}
-
-.add-enforcement-title {
-font-size: 12px;
-font-weight: 1000;
-text-transform: uppercase;
-letter-spacing: 0.07em;
-margin-bottom: 8px;
-}
-
-.add-enforcement-grid {
-display: grid;
-grid-template-columns: repeat(2, minmax(0, 1fr));
-gap: 10px;
-margin-top: 10px;
-}
-
-.add-enforcement-item {
-padding: 10px;
-border-radius: 16px;
-background: rgba(255,255,255,0.72);
-border: 1px solid rgba(148,163,184,0.24);
-font-size: 12px;
-line-height: 1.35;
-font-weight: 760;
-}
-
-.add-enforcement-item strong {
-display: block;
-color: inherit;
-font-size: 10px;
-text-transform: uppercase;
-letter-spacing: 0.05em;
-margin-bottom: 4px;
-}
-
-.transfer-note {
-display: none;
-margin-bottom: 16px;
-padding: 13px 14px;
-border-radius: var(--r-lg);
-border: 1px solid rgba(37, 99, 235, 0.24);
-background: var(--info-soft);
-color: var(--info);
-font-size: 14px;
-font-weight: 850;
-line-height: 1.45;
-}
-
-body.transfer-mode .transfer-note {
-display: block;
+  margin-top: 18px;
+  padding: 22px;
+  border-radius: var(--r-2xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-md);
 }
 
 .add-grid {
-display: grid;
-grid-template-columns: repeat(2, minmax(0, 1fr));
-gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .add-field-full {
-grid-column: 1 / -1;
+  grid-column: 1 / -1;
+}
+
+.add-enforcement-panel {
+  margin-bottom: 16px;
+  padding: 16px;
+  border-radius: var(--r-xl);
+  border: 1px solid rgba(185, 28, 28, 0.20);
+  background: linear-gradient(135deg, var(--danger-soft), var(--surface-1));
+  color: var(--danger);
+}
+
+.add-enforcement-panel.warning {
+  border-color: rgba(180, 83, 9, 0.24);
+  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
+  color: var(--warn);
+}
+
+.add-enforcement-title {
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+#addEnforcementSummary {
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 760;
+}
+
+.add-enforcement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.add-enforcement-item {
+  padding: 11px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.54);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 760;
+}
+
+html[data-theme="dark"] .add-enforcement-item,
+body[data-theme="dark"] .add-enforcement-item {
+  background: rgba(15,23,42,0.42);
+}
+
+.add-enforcement-item strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.transfer-note {
+  display: none;
+  margin-bottom: 16px;
+  padding: 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid rgba(29, 78, 216, 0.22);
+  background: var(--info-soft);
+  color: var(--info);
+  font-size: 13px;
+  font-weight: 820;
+  line-height: 1.45;
+}
+
+body.transfer-mode .transfer-note {
+  display: block;
 }
 
 .add-submit {
-margin-top: 18px;
+  margin-top: 18px;
 }
 
 .add-action-clarity {
-display: flex;
-flex-wrap: wrap;
-gap: 8px;
-margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .add-chip {
-display: inline-flex;
-align-items: center;
-width: fit-content;
-padding: 7px 10px;
-border-radius: var(--r-pill);
-border: 1px solid rgba(245, 158, 11, 0.24);
-background: rgba(245, 158, 11, 0.10);
-color: var(--warn);
-font-size: 10px;
-font-weight: 950;
-letter-spacing: 0.03em;
-text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 7px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.add-chip.transfer {
-border-color: rgba(37, 99, 235, 0.22);
-background: var(--info-soft);
-color: var(--info);
+.add-chip::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .add-chip.safe {
-border-color: rgba(34, 197, 94, 0.24);
-background: rgba(34, 197, 94, 0.10);
-color: var(--accent-deep);
+  border-color: rgba(4, 120, 87, 0.24);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.add-chip.transfer {
+  border-color: rgba(29, 78, 216, 0.22);
+  background: var(--info-soft);
+  color: var(--info);
 }
 
 .add-chip.blocked {
-border-color: rgba(220, 38, 38, 0.24);
-background: rgba(220, 38, 38, 0.10);
-color: #991b1b;
+  border-color: rgba(185, 28, 28, 0.22);
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .add-safety {
-margin-top: 10px;
-color: var(--text-muted);
-font-size: 13px;
-font-weight: 750;
-line-height: 1.45;
-text-align: center;
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 760;
+  text-align: center;
 }
 
 .add-page-meta {
-display: none !important;
+  display: none !important;
 }
 
-@media (max-width: 720px) {
-.add-wrap {
-padding-left: 10px;
-padding-right: 10px;
-}
+@media (max-width: 960px) {
+  .add-hero-grid,
+  .add-grid,
+  .add-enforcement-grid {
+    grid-template-columns: 1fr;
+  }
 
-.add-type-grid,
-.add-grid,
-.add-enforcement-grid {
-grid-template-columns: 1fr;
-}
-
-.add-hero,
-.add-form-card {
-padding: 18px;
-border-radius: 26px;
-}
+  .add-type-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
 </head>
+
 <body>
 <header>
 <div>
@@ -331,45 +292,59 @@ border-radius: 26px;
 </div>
 </header>
 
-<main class="add-wrap app-page">
-<section class="add-hero">
-<div class="add-kicker">Ledger write preflight</div>
-<h1 class="add-heading">Prove the money event before it writes.</h1>
-<p class="add-copy">
-Expenses, income, and transfers now run a safe dry-run proof before any real save path.
-If Command Centre still blocks real writes, this page will validate the payload without creating ledger or audit rows.
+<main class="app-page add-page">
+<section class="add-hero-grid">
+<div class="page-hero">
+<div class="hero-kicker">Governed money entry</div>
+<h1 class="hero-title">Add money movement only after proof.</h1>
+<p class="hero-copy">
+Expense, income, and transfer entries run a dry-run preflight before any real save. Command Centre decides whether the final write is allowed.
 </p>
 
 <div class="add-type-grid" aria-label="Transaction type">
 <button class="type-btn active" type="button" data-type="expense">
 <span class="type-main">Expense</span>
-<span class="type-small">money out</span>
+<span class="type-small">Money leaves an account</span>
 </button>
 <button class="type-btn" type="button" data-type="income">
 <span class="type-main">Income</span>
-<span class="type-small">money in</span>
+<span class="type-small">Money enters an account</span>
 </button>
 <button class="type-btn" type="button" data-type="transfer">
 <span class="type-main">Transfer</span>
-<span class="type-small">between accounts</span>
+<span class="type-small">Money moves between accounts</span>
 </button>
 </div>
+</div>
 
+<aside class="add-side-panel">
 <div id="addTrustPanel" class="add-trust-panel">
-<div class="add-trust-title">Action type</div>
+<div class="add-trust-title">Action model</div>
 <div id="addTrustText">Expense dry-run validates one transaction row and the selected source account before any real save.</div>
 </div>
+
+<div class="authority-panel">
+<div class="authority-title">Write safety posture</div>
+<div class="authority-copy">
+This page is allowed only because Add Transaction already has dry-run proof, page preflight, and backend Command Centre enforcement.
+</div>
+<div style="margin-top:12px">
+<span class="badge badge-ready">Preflight first</span>
+<span class="badge badge-info">Backend gated</span>
+</div>
+</div>
+</aside>
 </section>
 
 <section class="add-form-card">
 <form id="addForm" autocomplete="off">
 <div id="addEnforcementPanel" class="add-enforcement-panel" hidden>
-<div class="add-enforcement-title">Command Centre block</div>
+<div class="add-enforcement-title">Command Centre authority</div>
 <div id="addEnforcementSummary">Checking Command Centre enforcement policy...</div>
 
 <div class="add-enforcement-grid">
 <div class="add-enforcement-item">
-<strong>Blocked action</strong>
+<strong>Action</strong>
 <span id="addBlockedAction">transaction.save</span>
 </div>
 <div class="add-enforcement-item">
@@ -396,8 +371,7 @@ If Command Centre still blocks real writes, this page will validate the payload 
 </div>
 
 <div class="transfer-note">
-Transfer mode dry-runs the linked movement: money leaves the source account and enters the destination account.
-No real ledger rows are created during preflight.
+Transfer mode validates a linked movement: one account sends value out, another receives value in. Preflight runs before save.
 </div>
 
 <div class="add-grid">
@@ -442,6 +416,7 @@ No real ledger rows are created during preflight.
 <div class="add-action-clarity">
 <span id="submitClarityChip" class="add-chip">Dry-run validates one ledger row</span>
 <span class="add-chip safe">No silent queue</span>
+<span class="add-chip safe">No undefined D1 bind</span>
 <span id="enforcementChip" class="add-chip blocked" hidden>Command Centre blocked</span>
 </div>
 
@@ -450,21 +425,21 @@ Run Safe Preflight
 </button>
 
 <p id="addSafetyText" class="add-safety">
-Expense mode can run a safe dry-run proof. Real save stays blocked until Command Centre allows transaction.save.
+Expense mode can run a safe dry-run proof. Real save depends on Command Centre transaction.save authority.
 </p>
 </div>
 </form>
 </section>
 
 <footer class="add-page-meta" aria-hidden="true">
-Add Transaction preflight dry-run UI v0.7.5
+Add Transaction premium UI v2.0.0
 </footer>
 </main>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="/js/theme.js?v=1.0.0"></script>
-<script src="/js/nav.js?v=1.2.0"></script>
+<script src="/js/nav.js?v=2.0.0"></script>
 <script src="/js/enforcement.js?v=0.2.0"></script>
 <script src="/js/store.js?v=0.2.4"></script>
 <script src="/js/add.js?v=0.4.5"></script>
