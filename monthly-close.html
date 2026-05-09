@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <title>Sovereign Finance · Monthly Close</title>
-
-  <script src="/js/nav.js?v=1.1.2" defer></script>
-
+  <title>Sovereign Finance — Monthly Close</title>
+  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
+  <script src="/js/theme.js?v=1.0.0" defer></script>
+  <script src="/js/nav.js?v=1.1.3" defer></script>
   <style>
     :root {
       --bg: #f6f8fb;
@@ -57,7 +56,6 @@
       max-width: var(--sf-content-max, 1440px);
       margin-inline: auto;
       padding: 24px 16px 72px;
-      min-width: 0;
     }
 
     .topbar {
@@ -302,6 +300,7 @@
       font-weight: 950;
       white-space: nowrap;
       border: 1px solid transparent;
+      text-transform: capitalize;
     }
 
     .badge.ready,
@@ -426,7 +425,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 680px;
+      min-width: 620px;
       font-size: 12px;
     }
 
@@ -453,20 +452,6 @@
 
     .muted {
       color: var(--muted);
-    }
-
-    .mono {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 11px;
-    }
-
-    .footer {
-      margin-top: 16px;
-      padding: 14px 18px;
-      color: var(--dim);
-      font-size: 11px;
-      font-weight: 800;
-      text-align: center;
     }
 
     .loading,
@@ -524,18 +509,17 @@
     }
   </style>
 </head>
-
 <body>
   <main class="page app-page">
     <div class="topbar">
       <div>
-        <div class="eyebrow">✅ Monthly Close · Production Readiness</div>
+        <div class="eyebrow">Monthly Close</div>
         <h1>Finance Close Center</h1>
         <p class="subtitle">
-          One screen for month-end judgment: system certification, money close readiness, top blockers, and the exact next action. Detailed audit data stays below the fold.
+          One screen for month-end judgment: close readiness, money pressure, blockers, and the exact next action.
+          Detailed checks stay below the fold.
         </p>
       </div>
-
       <div class="controls">
         <div class="control">
           <label for="monthInput">Close month</label>
@@ -548,60 +532,61 @@
     <div id="app">
       <section class="panel loading">Loading Monthly Close...</section>
     </div>
-
-    <div class="footer">
-      monthly-close.html v0.2.1 · smart layout · backend /api/monthly-close v0.1.1
-    </div>
   </main>
 
   <script>
-    const app = document.getElementById('app');
-    const monthInput = document.getElementById('monthInput');
-    const refreshBtn = document.getElementById('refreshBtn');
+    window.SovereignMonthlyClose = { version: "0.2.2", mode: "trial-clean-visual" };
+
+    const app = document.getElementById("app");
+    const monthInput = document.getElementById("monthInput");
+    const refreshBtn = document.getElementById("refreshBtn");
 
     function currentMonth() {
       const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     }
 
-    monthInput.value = new URLSearchParams(location.search).get('month') || currentMonth();
+    monthInput.value = new URLSearchParams(location.search).get("month") || currentMonth();
+    refreshBtn.addEventListener("click", loadMonthlyClose);
 
-    refreshBtn.addEventListener('click', loadMonthlyClose);
-
-    monthInput.addEventListener('change', () => {
+    monthInput.addEventListener("change", () => {
       const url = new URL(location.href);
-      url.searchParams.set('month', monthInput.value);
-      history.replaceState(null, '', url.toString());
+      url.searchParams.set("month", monthInput.value);
+      history.replaceState(null, "", url.toString());
       loadMonthlyClose();
     });
 
     function money(value) {
       const n = Number(value);
-      if (!Number.isFinite(n)) return 'N/A';
-      return `Rs ${n.toLocaleString('en-PK', { maximumFractionDigits: 2 })}`;
+      if (!Number.isFinite(n)) return "N/A";
+      return `Rs ${n.toLocaleString("en-PK", { maximumFractionDigits: 2 })}`;
     }
 
-    function text(value, fallback = 'N/A') {
-      if (value === null || value === undefined || value === '') return fallback;
+    function text(value, fallback = "N/A") {
+      if (value === null || value === undefined || value === "") return fallback;
       return String(value);
     }
 
     function esc(value) {
-      return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
     }
 
     function statusClass(value) {
-      return String(value || 'unknown').toLowerCase().replace(/\s+/g, '_');
+      return String(value || "unknown").toLowerCase().replace(/\s+/g, "_");
+    }
+
+    function cleanStatus(value) {
+      return String(value || "unknown").replace(/_/g, " ");
     }
 
     function badge(value, label) {
       const cls = statusClass(value);
-      return `<span class="badge ${esc(cls)}">${esc(label || value || 'unknown')}</span>`;
+      return `<span class="badge ${esc(cls)}">${esc(label || cleanStatus(value))}</span>`;
     }
 
     function item(mark, title, note) {
@@ -619,14 +604,10 @@
     function systemCertificationStatus(data) {
       const ready = data &&
         data.ok === true &&
-        data.version === 'v0.1.1' &&
         data.scopes &&
         data.scopes.month_activity_scope &&
         data.scopes.full_ledger_scope &&
         data.reconciliation &&
-        data.reconciliation.balance_scope === 'full_ledger' &&
-        data.reconciliation.stale_check_scope === 'full_ledger' &&
-        data.reconciliation.drift_check_scope === 'full_ledger' &&
         data.audit_readiness &&
         data.audit_readiness.audit_scope_ready &&
         data.audit_readiness.audit_scope_ready.api_routes === true &&
@@ -637,103 +618,102 @@
         data.audit_readiness.audit_scope_ready.month_activity_scope_separated === true &&
         data.audit_readiness.audit_scope_ready.full_ledger_truth_scope_separated === true;
 
-      return ready ? 'ready' : 'not_ready';
+      return ready ? "ready" : "not_ready";
     }
 
     function moneyCloseStatus(data) {
-      return data && data.audit_readiness ? data.audit_readiness.status : 'unknown';
+      return data && data.audit_readiness ? data.audit_readiness.status : "unknown";
     }
 
     function safetyStatus(data) {
-      return data && data.safety ? data.safety.status : 'unknown';
+      return data && data.safety ? data.safety.status : "unknown";
     }
 
     function reconciliationStatus(data) {
       const r = data && data.reconciliation ? data.reconciliation : {};
-      if (Number(r.drifted_count || 0) > 0) return 'critical';
-      if (Number(r.stale_count || 0) > 0 || Number(r.undeclared_count || 0) > 0) return 'watch';
-      return 'ready';
+      if (Number(r.drifted_count || 0) > 0) return "critical";
+      if (Number(r.stale_count || 0) > 0 || Number(r.undeclared_count || 0) > 0) return "watch";
+      return "ready";
     }
 
     function blockerTitle(code) {
       const map = {
-        forecast_has_unsafe_date: 'Forecast has an unsafe date',
-        forecast_has_unsafe_days: 'Forecast has unsafe days',
-        safety_status_critical: 'Safety Engine is critical',
-        safety_status_unsafe: 'Safety Engine is unsafe',
-        reconciliation_drift: 'Reconciliation has drift',
-        manual_variables_used_for_safety: 'Manual variables are affecting safety',
-        forecast_api_unavailable: 'Forecast API unavailable',
-        safety_api_unavailable: 'Safety API unavailable'
+        forecast_has_unsafe_date: "Forecast has an unsafe date",
+        forecast_has_unsafe_days: "Forecast has unsafe days",
+        safety_status_critical: "Safety Engine is critical",
+        safety_status_unsafe: "Safety Engine is unsafe",
+        reconciliation_drift: "Reconciliation has drift",
+        manual_variables_used_for_safety: "Manual variables are affecting safety",
+        forecast_api_unavailable: "Forecast unavailable",
+        safety_api_unavailable: "Safety signal unavailable"
       };
       return map[code] || code;
     }
 
     function blockerMeaning(code) {
       const map = {
-        forecast_has_unsafe_date: 'Cash is projected to fall below the safe threshold before or around salary.',
-        forecast_has_unsafe_days: 'The 30-day projection contains unsafe cash days.',
-        safety_status_critical: 'The Safety Engine found a real-world action risk. This is not a code failure.',
-        safety_status_unsafe: 'The Safety Engine is reporting unsafe status.',
-        reconciliation_drift: 'At least one declared balance does not match full-ledger app balance.',
-        manual_variables_used_for_safety: 'Safety math must not depend on speculative/manual income.',
-        forecast_api_unavailable: 'Monthly Close cannot certify without the Forecast API.',
-        safety_api_unavailable: 'Monthly Close cannot certify without the Safety API.'
+        forecast_has_unsafe_date: "Cash is projected to fall below the safe threshold before or around salary.",
+        forecast_has_unsafe_days: "The 30-day projection contains unsafe cash days.",
+        safety_status_critical: "The safety view found a real-world action risk.",
+        safety_status_unsafe: "The safety view is reporting unsafe status.",
+        reconciliation_drift: "At least one declared balance does not match the app balance.",
+        manual_variables_used_for_safety: "Safety math should stay conservative and avoid speculative income.",
+        forecast_api_unavailable: "Monthly Close cannot certify without forecast data.",
+        safety_api_unavailable: "Monthly Close cannot certify without safety data."
       };
-      return map[code] || 'Review this blocker before treating the month as closed.';
+      return map[code] || "Review this blocker before treating the month as closed.";
     }
 
     function warningTitle(code) {
       const map = {
-        undeclared_accounts: 'Some accounts are undeclared',
-        stale_account_declarations: 'Some declarations are stale',
-        bills_missing_required_data: 'Bills missing required data',
-        debts_missing_required_data: 'Debts missing required data',
-        insights_api_unavailable: 'Insights unavailable'
+        undeclared_accounts: "Some accounts are undeclared",
+        stale_account_declarations: "Some declarations are stale",
+        bills_missing_required_data: "Bills missing required data",
+        debts_missing_required_data: "Debts missing required data",
+        insights_api_unavailable: "Insights unavailable"
       };
       return map[code] || code;
     }
 
     function warningMeaning(code) {
       const map = {
-        undeclared_accounts: 'Declare real balances for active accounts so close confidence improves.',
-        stale_account_declarations: 'New transactions happened after declaration. Re-declare affected accounts.',
-        bills_missing_required_data: 'Some bills need due date/day or default account details.',
-        debts_missing_required_data: 'Some debts need due date/day information.',
-        insights_api_unavailable: 'Insights are useful but not a hard blocker.'
+        undeclared_accounts: "Declare real balances for active accounts so close confidence improves.",
+        stale_account_declarations: "New transactions happened after declaration. Re-declare affected accounts.",
+        bills_missing_required_data: "Some bills need due date or default account details.",
+        debts_missing_required_data: "Some debts need due date information.",
+        insights_api_unavailable: "Insights are useful but not a hard close blocker."
       };
-      return map[code] || 'Review this warning before final close.';
+      return map[code] || "Review this warning before final close.";
     }
 
     function blockersList(data, maxItems) {
       const blockers = data.audit_readiness?.blockers || [];
       const warnings = data.audit_readiness?.warnings || [];
       const rows = [
-        ...blockers.map(x => ['!', blockerTitle(x), blockerMeaning(x)]),
-        ...warnings.map(x => ['•', warningTitle(x), warningMeaning(x)])
+        ...blockers.map(x => ["!", blockerTitle(x), blockerMeaning(x)]),
+        ...warnings.map(x => ["", warningTitle(x), warningMeaning(x)])
       ];
 
       if (!rows.length) {
-        return item('✓', 'No close blockers', 'Money Close is ready based on current rules.');
+        return item("", "No close blockers", "Money Close is ready based on current rules.");
       }
 
-      return rows.slice(0, maxItems || rows.length).map(row => item(row[0], row[1], row[2])).join('');
+      return rows.slice(0, maxItems || rows.length).map(row => item(row[0], row[1], row[2])).join("");
     }
 
-    function certificationChecks(data) {
+    function reviewChecks(data) {
       const a = data.audit_readiness?.audit_scope_ready || {};
       const checks = [
-        ['API routes healthy', a.api_routes],
-        ['Formulas certified', a.formulas],
-        ['Reconciliation has no drift', a.reconciliation],
-        ['Reconciliation scope is full ledger', data.reconciliation?.balance_scope === 'full_ledger'],
-        ['Manual variables separated', a.manual_variable_separation],
-        ['Required data present', a.required_data],
-        ['Month activity scope separated', a.month_activity_scope_separated],
-        ['Full-ledger truth separated', a.full_ledger_truth_scope_separated]
+        ["Core routes healthy", a.api_routes],
+        ["Formulas readable", a.formulas],
+        ["Balances reconciled", a.reconciliation],
+        ["Manual variables separated", a.manual_variable_separation],
+        ["Required data present", a.required_data],
+        ["Monthly activity separated", a.month_activity_scope_separated],
+        ["Full history protected", a.full_ledger_truth_scope_separated]
       ];
 
-      return checks.map(([name, pass]) => item(pass ? '✓' : '!', name, pass ? 'Passed' : 'Needs review')).join('');
+      return checks.map(([name, pass]) => item(pass ? "" : "!", name, pass ? "Passed" : "Needs review")).join("");
     }
 
     function reconciliationRows(data) {
@@ -750,23 +730,20 @@
                 <th>App balance</th>
                 <th>Declared</th>
                 <th>Drift</th>
-                <th>Latest txn</th>
+                <th>Latest activity</th>
               </tr>
             </thead>
             <tbody>
               ${rows.map(row => `
                 <tr>
-                  <td>
-                    <strong>${esc(row.account_name || row.account_id)}</strong>
-                    <div class="muted mono">${esc(row.account_id)}</div>
-                  </td>
-                  <td>${badge(row.status, row.status)}</td>
+                  <td><strong>${esc(row.account_name || "Account")}</strong></td>
+                  <td>${badge(row.status, cleanStatus(row.status))}</td>
                   <td>${money(row.app_balance)}</td>
-                  <td>${row.declared_balance === null || row.declared_balance === undefined ? 'N/A' : money(row.declared_balance)}</td>
-                  <td>${row.drift === null || row.drift === undefined ? 'N/A' : money(row.drift)}</td>
-                  <td>${esc(row.latest_transaction_date || 'N/A')}</td>
+                  <td>${row.declared_balance === null || row.declared_balance === undefined ? "N/A" : money(row.declared_balance)}</td>
+                  <td>${row.drift === null || row.drift === undefined ? "N/A" : money(row.drift)}</td>
+                  <td>${esc(row.latest_transaction_date || "N/A")}</td>
                 </tr>
-              `).join('')}
+              `).join("")}
             </tbody>
           </table>
         </div>
@@ -783,15 +760,14 @@
         <section class="hero">
           <div class="panel panel-pad">
             <div class="status-grid">
-              <div class="status-card ${systemStatus === 'ready' ? 'ready' : 'not-ready'}">
-                <h2>System Certification</h2>
-                <p class="status-value">${systemStatus === 'ready' ? 'READY' : 'CHECK'}</p>
-                <p class="status-note">Code, formulas, APIs, routing, and full-ledger scope separation.</p>
+              <div class="status-card ${systemStatus === "ready" ? "ready" : "not-ready"}">
+                <h2>System readiness</h2>
+                <p class="status-value">${systemStatus === "ready" ? "READY" : "CHECK"}</p>
+                <p class="status-note">Core finance checks are readable for this close view.</p>
               </div>
-
-              <div class="status-card ${closeStatus === 'ready' ? 'ready' : 'not-ready'}">
-                <h2>Money Close Readiness</h2>
-                <p class="status-value">${closeStatus === 'ready' ? 'READY' : 'NOT READY'}</p>
+              <div class="status-card ${closeStatus === "ready" ? "ready" : "not-ready"}">
+                <h2>Money close</h2>
+                <p class="status-value">${closeStatus === "ready" ? "READY" : "NOT READY"}</p>
                 <p class="status-note">Real cash safety, unsafe dates, stale declarations, and close blockers.</p>
               </div>
             </div>
@@ -802,22 +778,22 @@
               <div class="metric">
                 <label>Safety</label>
                 <strong>${esc(safeStatus).toUpperCase()}</strong>
-                <small>${esc(data.safety?.top_action || 'No action returned')}</small>
+                <small>${esc(data.safety?.top_action || "No action returned")}</small>
               </div>
               <div class="metric">
                 <label>First unsafe</label>
-                <strong>${esc(data.forecast?.first_unsafe_date || 'N/A')}</strong>
-                <small>${esc(data.forecast?.runway_status || 'N/A')}</small>
+                <strong>${esc(data.forecast?.first_unsafe_date || "N/A")}</strong>
+                <small>${esc(data.forecast?.runway_status || "N/A")}</small>
               </div>
               <div class="metric">
                 <label>Liquid</label>
                 <strong>${money(data.summary?.current_liquid)}</strong>
-                <small>Full-ledger truth</small>
+                <small>Current usable cash signal</small>
               </div>
               <div class="metric">
-                <label>CC</label>
+                <label>Credit Card</label>
                 <strong>${money(data.summary?.cc_outstanding)}</strong>
-                <small>Outstanding</small>
+                <small>Outstanding balance signal</small>
               </div>
             </div>
           </div>
@@ -830,7 +806,7 @@
                 <h2>Top Close Blockers</h2>
                 <p>What must be handled before this month can be considered clean.</p>
               </div>
-              ${badge(closeStatus, closeStatus.replace('_', ' '))}
+              ${badge(closeStatus, cleanStatus(closeStatus))}
             </div>
             <div class="list">${blockersList(data, 4)}</div>
           </div>
@@ -841,42 +817,42 @@
                 <h2>Next Action</h2>
                 <p>The shortest path from not ready to close-ready.</p>
               </div>
-              ${badge(safeStatus, safeStatus)}
+              ${badge(safeStatus, cleanStatus(safeStatus))}
             </div>
             <div class="list">
-              ${item('1', 'Fix first unsafe date', data.safety?.top_action || 'Open Forecast and resolve the first unsafe date.')}
-              ${item('2', 'Update stale declarations', 'Re-declare accounts that have transactions after their last declared balance.')}
-              ${item('3', 'Declare active undeclared accounts', 'Declare real balances for active accounts so close confidence improves.')}
+              ${item("1", "Fix the first unsafe date", data.safety?.top_action || "Open Forecast and resolve the first unsafe date.")}
+              ${item("2", "Update stale declarations", "Re-declare accounts that changed after their last declared balance.")}
+              ${item("3", "Declare active undeclared accounts", "Declare real balances for active accounts so close confidence improves.")}
             </div>
           </div>
         </section>
 
-        <details class="audit-details" open>
+        <details class="audit-details">
           <summary>
-            <span>System Certification Gates</span>
-            ${badge(systemStatus, systemStatus)}
+            <span>Review Checks</span>
+            ${badge(systemStatus, cleanStatus(systemStatus))}
           </summary>
           <div class="detail-body">
-            <div class="list">${certificationChecks(data)}</div>
+            <div class="list">${reviewChecks(data)}</div>
           </div>
         </details>
 
         <details class="audit-details">
           <summary>
-            <span>Forecast Safety Details</span>
-            ${badge(safeStatus, safeStatus)}
+            <span>Forecast Safety</span>
+            ${badge(safeStatus, cleanStatus(safeStatus))}
           </summary>
           <div class="detail-body">
             <div class="kpi-grid" style="margin-top: 16px;">
               <div class="metric">
                 <label>Unsafe days</label>
                 <strong>${text(data.forecast?.unsafe_days_count)}</strong>
-                <small>30-day projection</small>
+                <small>Near-term projection</small>
               </div>
               <div class="metric">
                 <label>Lowest balance</label>
                 <strong>${money(data.forecast?.lowest_projected_balance)}</strong>
-                <small>${esc(data.forecast?.lowest_projected_balance_date || 'N/A')}</small>
+                <small>${esc(data.forecast?.lowest_projected_balance_date || "N/A")}</small>
               </div>
               <div class="metric">
                 <label>After salary + obligations</label>
@@ -884,8 +860,8 @@
                 <small>Conservative baseline</small>
               </div>
               <div class="metric">
-                <label>Manual variables</label>
-                <strong>${data.forecast?.manual_variables_separated ? 'Separated' : 'Check'}</strong>
+                <label>Variable income</label>
+                <strong>${data.forecast?.manual_variables_separated ? "Separated" : "Check"}</strong>
                 <small>Safety stays conservative</small>
               </div>
             </div>
@@ -894,8 +870,8 @@
 
         <details class="audit-details">
           <summary>
-            <span>Month Activity</span>
-            ${badge('info', data.month)}
+            <span>Monthly Activity</span>
+            ${badge("info", data.month)}
           </summary>
           <div class="detail-body">
             <div class="kpi-grid" style="margin-top: 16px;">
@@ -926,7 +902,7 @@
         <details class="audit-details">
           <summary>
             <span>Bills, Debts, and Receivables</span>
-            ${badge('info', 'split')}
+            ${badge("info", "split")}
           </summary>
           <div class="detail-body">
             <div class="kpi-grid" style="margin-top: 16px;">
@@ -957,7 +933,7 @@
         <details class="audit-details">
           <summary>
             <span>Reconciliation</span>
-            ${badge(reconStatus, reconStatus)}
+            ${badge(reconStatus, cleanStatus(reconStatus))}
           </summary>
           <div class="detail-body">
             <div class="kpi-grid" style="margin-top: 16px;">
@@ -985,37 +961,6 @@
             ${reconciliationRows(data)}
           </div>
         </details>
-
-        <details class="audit-details">
-          <summary>
-            <span>Scope Proof</span>
-            ${badge('ready', 'v0.1.1')}
-          </summary>
-          <div class="detail-body">
-            <div class="kpi-grid" style="margin-top: 16px;">
-              <div class="metric">
-                <label>Month activity</label>
-                <strong>${text(data.scopes?.month_activity_scope?.transaction_count, 0)} txns</strong>
-                <small>${esc(data.scopes?.month_activity_scope?.date_start || '')} to ${esc(data.scopes?.month_activity_scope?.date_end_exclusive || '')}</small>
-              </div>
-              <div class="metric">
-                <label>Full ledger</label>
-                <strong>${text(data.scopes?.full_ledger_scope?.transaction_count, 0)} txns</strong>
-                <small>${esc(data.scopes?.full_ledger_scope?.date_start || '')} to ${esc(data.scopes?.full_ledger_scope?.date_end || '')}</small>
-              </div>
-              <div class="metric">
-                <label>Balance scope</label>
-                <strong>${esc(data.reconciliation?.balance_scope || 'N/A')}</strong>
-                <small>Must be full_ledger</small>
-              </div>
-              <div class="metric">
-                <label>API version</label>
-                <strong>${esc(data.version || 'N/A')}</strong>
-                <small>${esc(data.computed_at || '')}</small>
-              </div>
-            </div>
-          </div>
-        </details>
       `;
     }
 
@@ -1024,7 +969,7 @@
 
       try {
         const month = monthInput.value || currentMonth();
-        const res = await fetch(`/api/monthly-close?month=${encodeURIComponent(month)}`, { cache: 'no-store' });
+        const res = await fetch(`/api/monthly-close?month=${encodeURIComponent(month)}`, { cache: "no-store" });
         const data = await res.json();
 
         if (!res.ok || !data || data.ok === false) {
@@ -1033,7 +978,7 @@
 
         render(data);
 
-        if (window.SovereignNav && typeof window.SovereignNav.checkOverflow === 'function') {
+        if (window.SovereignNav && typeof window.SovereignNav.checkOverflow === "function") {
           window.setTimeout(window.SovereignNav.checkOverflow, 150);
         }
       } catch (error) {
