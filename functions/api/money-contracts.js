@@ -1,19 +1,16 @@
-/* Sovereign Finance money-contracts API v0.1.1
-   Ship 4: Credit Card + Salary contract hardening
-
-   Endpoint:
-   GET /api/money-contracts
+/* Sovereign Finance money-contracts API v0.1.2
+   Ship 5: Truth correction stabilizer
 
    Contract:
    - Read-only.
    - No ledger mutation.
-   - No audit_log writes.
-   - Uses current D1 schema fields where available.
-   - Credit Card contract can derive from accounts table.
-   - Salary contract separates guaranteed, confirmed variable, and speculative variable.
+   - Adds business-truth warnings.
+   - Credit Card outstanding source is explicit.
+   - Salary WFH FX missing is explicit.
+   - Bills expose current-month paid state.
 */
 
-const VERSION = "0.1.1";
+const VERSION = "0.1.2";
 
 const TABLES = {
   accounts: "accounts",
@@ -86,6 +83,16 @@ function todayStart() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+function monthKey(value) {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function currentMonthKey() {
+  return monthKey(todayStart());
 }
 
 function daysBetween(start, end) {
@@ -180,8 +187,11 @@ function normalizeAccount(row) {
 
 function normalizeBill(row, accounts) {
   const id = firstString(row, ["id"]);
+  const status = firstString(row, ["status"], "active").toLowerCase();
   const dueDay = firstNumber(row, ["due_day"], 0);
   const dueDate = dateOnly(first(row, ["due_date", "next_due_date"], null)) || (dueDay ? dateOnly(nextMonthlyDate(dueDay)) : null);
+  const lastPaidDate = dateOnly(first(row, ["last_paid_date"], null));
+  const currentMonthPaid = lastPaidDate && monthKey(lastPaidDate) === currentMonthKey();
 
   const paymentAccountId = firstString(row, [
     "payment_account_id",
@@ -193,7 +203,13 @@ function normalizeBill(row, accounts) {
   ], "");
 
   const paymentAccount = paymentAccountId ? accounts.find(a => a.id === paymentAccountId) : null;
-  const status = firstString(row, ["status"], "unknown").toLowerCase();
+
+  const displayStatus =
+    status === "deleted" || status === "closed"
+      ? status
+      : currentMonthPaid
+        ? "paid_current_month"
+        : status;
 
   return {
     id,
@@ -203,6 +219,9 @@ function normalizeBill(row, accounts) {
     due_date: dueDate,
     days_until_due: dueDate ? daysBetween(new Date(), dueDate) : null,
     status,
+    display_status: displayStatus,
+    current_month_paid: Boolean(currentMonthPaid),
+    last_paid_date: lastPaidDate,
     cadence: firstString(row, ["frequency", "cadence"], "monthly"),
     category: firstString(row, ["category", "category_id"], ""),
     payment_account_id: paymentAccountId || null,
@@ -211,7 +230,8 @@ function normalizeBill(row, accounts) {
     contract_ready: status === "deleted" || status === "closed" || Boolean(id && dueDate && paymentAccountId),
     blockers: [
       status !== "deleted" && status !== "closed" && !dueDate ? "missing_due_date" : null,
-      status !== "deleted" && status !== "closed" && !paymentAccountId ? "missing_payment_account_id" : null
+      status !== "deleted" && status !== "closed" && !paymentAccountId ? "missing_payment_account_id" : null,
+      status !== "deleted" && status !== "closed" && firstNumber(row, ["amount"], 0) <= 0 ? "missing_or_zero_amount" : null
     ].filter(Boolean)
   };
 }
@@ -223,10 +243,7 @@ function normalizeDebt(row) {
   const remaining = firstNumber(row, ["remaining", "remaining_amount", "outstanding"], Math.max(0, original - paid));
   const status = firstString(row, ["status"], "active").toLowerCase();
   const dueDay = firstNumber(row, ["due_day"], 0);
-  const dueDate =
-    dateOnly(first(row, ["next_due_date", "installment_due_date", "due_date"], null)) ||
-    (dueDay ? dateOnly(nextMonthlyDate(dueDay)) : null);
-
+  const dueDate = dateOnly(first(row, ["next_due_date", "installment_due_date", "due_date"], null)) || (dueDay ? dateOnly(nextMonthlyDate(dueDay)) : null);
   const installment = firstNumber(row, ["installment_amount", "minimum_payment", "monthly_payment"], 0);
   const closed = status === "closed" || status === "deleted" || remaining <= 0;
 
@@ -251,17 +268,33 @@ function normalizeDebt(row) {
   };
 }
 
-function normalizeCreditCard(accounts, settings) {
+function ccOutstandingFromTransactions(rows) {
+  let spend = 0;
+  let payment = 0;
+
+  for (const tx of rows) {
+    const type = firstString(tx, ["type"], "").toLowerCase();
+    const amount = Math.abs(firstNumber(tx, ["amount"], 0));
+    const accountId = firstString(tx, ["account_id"], "").toLowerCase();
+    const toAccountId = firstString(tx, ["transfer_to_account_id", "to_account_id"], "").toLowerCase();
+
+    if (type === "cc_spend" || (accountId === "cc" && type === "expense")) spend += amount;
+    if (type === "cc_payment" || (toAccountId === "cc" && type === "transfer")) payment += amount;
+  }
+
+  return {
+    spend,
+    payment,
+    outstanding: Math.max(0, spend - payment)
+  };
+}
+
+function normalizeCreditCard(accounts, transactions, settings) {
   const cc = accounts.find(a => a.is_credit_card) || null;
+  const tx = ccOutstandingFromTransactions(transactions || []);
 
-  const statementDay =
-    firstNumber(cc, ["statement_day"], 0) ||
-    n(settings.cc_statement_day, 12);
-
-  const paymentDueDay =
-    firstNumber(cc, ["payment_due_day"], 0) ||
-    n(settings.cc_payment_due_day, 0);
-
+  const statementDay = firstNumber(cc, ["statement_day"], 0) || n(settings.cc_statement_day, 12);
+  const paymentDueDay = firstNumber(cc, ["payment_due_day"], 0) || n(settings.cc_payment_due_day, 0);
   const interestFreeDays = n(settings.cc_interest_free_days, 55);
 
   const statementDate = nextMonthlyDate(statementDay || 12);
@@ -275,7 +308,16 @@ function normalizeCreditCard(accounts, settings) {
     dueDate.setDate(dueDate.getDate() + interestFreeDays);
   }
 
-  const outstanding = cc ? Math.abs(n(cc.balance, 0)) : 0;
+  const accountBalanceOutstanding = cc ? Math.abs(Math.min(0, n(cc.balance, 0))) || Math.abs(n(cc.balance, 0)) : 0;
+  const outstanding = tx.outstanding > 0 ? tx.outstanding : accountBalanceOutstanding;
+
+  const outstandingSource =
+    tx.outstanding > 0
+      ? "computed_from_cc_transactions"
+      : accountBalanceOutstanding > 0
+        ? "account_balance"
+        : "no_outstanding_source_detected";
+
   const configuredMinimum =
     firstNumber(cc, ["min_payment_amount"], 0) ||
     n(settings.cc_min_payment_amount, 0) ||
@@ -283,12 +325,16 @@ function normalizeCreditCard(accounts, settings) {
 
   const percent = n(settings.cc_minimum_percent, 0);
   const percentMinimum = percent > 0 ? Math.ceil(outstanding * percent) : 0;
-  const minimumPayment = configuredMinimum || percentMinimum || (outstanding > 0 ? Math.ceil(outstanding * 0.05) : 0);
+  const fallbackMinimum = outstanding > 0 ? Math.ceil(outstanding * 0.05) : 0;
+  const minimumPayment = configuredMinimum || percentMinimum || fallbackMinimum || 0;
 
   return {
     account_id: cc ? cc.id : null,
     account_name: cc ? cc.name : null,
     outstanding,
+    outstanding_source: outstandingSource,
+    cc_spend_total_detected: tx.spend,
+    cc_payment_total_detected: tx.payment,
     credit_limit: cc ? cc.credit_limit : null,
     statement_day: statementDay,
     payment_due_day: paymentDueDay || null,
@@ -297,14 +343,17 @@ function normalizeCreditCard(accounts, settings) {
     next_due_date: dateOnly(dueDate),
     days_until_due: dueDate ? daysBetween(new Date(), dueDate) : null,
     minimum_payment: minimumPayment,
-    minimum_payment_source: configuredMinimum ? "accounts.min_payment_amount" : percentMinimum ? "settings.cc_minimum_percent" : outstanding > 0 ? "fallback_5_percent" : "zero_outstanding",
+    minimum_payment_source: configuredMinimum ? "accounts.min_payment_amount" : percentMinimum ? "settings.cc_minimum_percent" : fallbackMinimum ? "fallback_5_percent" : "zero_or_unknown_outstanding",
     utilization_percent: cc && cc.credit_limit ? Math.round((outstanding / cc.credit_limit) * 10000) / 100 : null,
     naming_contract: "Credit Card",
-    contract_ready: Boolean(cc && statementDay && dueDate && minimumPayment !== null),
+    contract_ready: Boolean(cc && statementDay && dueDate),
+    truth_ready: outstandingSource !== "no_outstanding_source_detected" || outstanding === 0,
+    warnings: [
+      outstandingSource === "no_outstanding_source_detected" ? "Credit Card outstanding is zero because no account balance or cc transaction source was detected. Verify against bank app before trusting zero." : null
+    ].filter(Boolean),
     blockers: [
       !cc ? "missing_credit_card_account" : null,
-      !statementDay ? "missing_statement_day" : null,
-      minimumPayment === null || minimumPayment === undefined ? "missing_minimum_payment_formula" : null
+      !statementDay ? "missing_statement_day" : null
     ].filter(Boolean)
   };
 }
@@ -313,12 +362,13 @@ function normalizeSalary(rows, settings) {
   const latest = rows && rows.length ? rows[0] : null;
 
   const guaranteedBase =
-    firstNumber(latest, ["guaranteed_base_salary", "baseline_forecast_pkr", "expected_net_salary", "last_net_salary", "net_salary", "base_salary", "basic_salary"], 0) ||
+    firstNumber(latest, ["guaranteed_base_salary", "expected_net_salary", "last_net_salary", "net_salary", "base_salary", "basic_salary"], 0) ||
     n(settings.salary_guaranteed_monthly, 0);
 
   const wfhUsd = firstNumber(latest, ["wfh_usd_amount"], 0) || n(settings.salary_wfh_usd_amount, 30);
   const fxRate = firstNumber(latest, ["salary_day_fx_rate"], 0) || n(settings.salary_day_fx_rate, 0);
   const expectedWfhPkr = firstNumber(latest, ["expected_wfh_pkr"], 0) || (wfhUsd > 0 && fxRate > 0 ? Math.round(wfhUsd * fxRate) : 0);
+  const wfhConversionReady = wfhUsd <= 0 || fxRate > 0;
 
   const confirmedVariable =
     firstNumber(latest, ["confirmed_variable_pkr", "confirmed_variable"], 0) ||
@@ -328,10 +378,7 @@ function normalizeSalary(rows, settings) {
     firstNumber(latest, ["speculative_variable_pkr", "speculative_variable"], 0) ||
     n(settings.salary_speculative_variable_pkr, 0);
 
-  const baselineForecast =
-    firstNumber(latest, ["baseline_forecast_pkr"], 0) ||
-    guaranteedBase + expectedWfhPkr;
-
+  const baselineForecast = guaranteedBase + expectedWfhPkr;
   const nextSalaryDate =
     dateOnly(first(latest, ["next_salary_date"], null)) ||
     dateOnly(settings.salary_next_date) ||
@@ -343,6 +390,7 @@ function normalizeSalary(rows, settings) {
     guaranteed_base_salary: guaranteedBase,
     wfh_usd_amount: wfhUsd,
     salary_day_fx_rate: fxRate || null,
+    wfh_conversion_ready: wfhConversionReady,
     expected_wfh_pkr: expectedWfhPkr,
     baseline_forecast_pkr: baselineForecast,
     confirmed_variable_pkr: confirmedVariable,
@@ -352,11 +400,15 @@ function normalizeSalary(rows, settings) {
     tax_paid_to_date: firstNumber(latest, ["income_tax_paid_ytd", "tax_paid_to_date", "tax_paid"], 0),
     regular_gross_salary: firstNumber(latest, ["regular_gross_salary", "last_gross_salary", "gross_salary"], 0) || null,
     last_net_salary: firstNumber(latest, ["last_net_salary", "expected_net_salary"], 0) || null,
-    baseline_rule: "guaranteed_base_plus_wfh_plus_confirmed_variable_only",
+    baseline_rule: "guaranteed_base_plus_wfh_when_fx_available_plus_confirmed_variable_only",
     excludes_from_baseline: ["speculative_variable_pkr", "unconfirmed_mbo", "unconfirmed_overtime"],
-    contract_ready: baselineForecast > 0 && Boolean(nextSalaryDate),
+    contract_ready: guaranteedBase > 0 && Boolean(nextSalaryDate),
+    truth_ready: guaranteedBase > 0 && Boolean(nextSalaryDate) && wfhConversionReady,
+    warnings: [
+      !wfhConversionReady ? "WFH USD allowance exists but salary_day_fx_rate is missing, so WFH PKR is excluded from baseline until FX is set." : null
+    ].filter(Boolean),
     blockers: [
-      baselineForecast <= 0 ? "missing_baseline_forecast" : null,
+      guaranteedBase <= 0 ? "missing_guaranteed_base_salary" : null,
       !nextSalaryDate ? "missing_next_salary_date" : null
     ].filter(Boolean)
   };
@@ -407,16 +459,22 @@ function buildReadiness({ accounts, bills, debts, salary, creditCard, transactio
   const activeBills = bills.filter(b => b.status !== "deleted" && b.status !== "closed");
   const billsMissingPaymentAccount = activeBills.filter(b => b.payment_account_status === "missing").length;
   const billsMissingDue = activeBills.filter(b => b.blockers.includes("missing_due_date")).length;
+  const billsZeroAmount = activeBills.filter(b => b.blockers.includes("missing_or_zero_amount")).length;
 
   if (billsMissingPaymentAccount) warnings.push(`${billsMissingPaymentAccount}_active_bill_rows_missing_payment_account`);
   if (billsMissingDue) warnings.push(`${billsMissingDue}_active_bill_rows_missing_due_date`);
+  if (billsZeroAmount) warnings.push(`${billsZeroAmount}_active_bill_rows_zero_amount`);
 
   const activeDebts = debts.filter(d => d.status !== "closed");
   const debtsMissingDue = activeDebts.filter(d => d.blockers.includes("missing_next_due_date")).length;
   if (debtsMissingDue) warnings.push(`${debtsMissingDue}_active_debt_rows_missing_due_date`);
 
   if (!salary.contract_ready) warnings.push(...salary.blockers);
+  warnings.push(...salary.warnings);
+
   if (!creditCard.contract_ready) warnings.push(...creditCard.blockers);
+  warnings.push(...creditCard.warnings);
+
   if (!transactionSummary.transfer_contract.ready_for_add_page) failures.push("add_transfer_contract_not_ready");
 
   return {
@@ -429,28 +487,27 @@ function buildReadiness({ accounts, bills, debts, salary, creditCard, transactio
 
 export async function onRequest(context) {
   const startedAt = new Date().toISOString();
-  const db = getDb(context.env || {});
-
-  if (!db) return fail("D1 binding not found. Expected env.DB, env.SOVEREIGN_DB, or env.FINANCE_DB.", 500);
+  const database = getDb(context.env || {});
+  if (!database) return fail("D1 binding not found. Expected env.DB, env.SOVEREIGN_DB, or env.FINANCE_DB.", 500);
 
   try {
-    const settings = await readSettings(db);
+    const settings = await readSettings(database);
 
     const [accountData, transactionData, billData, debtData, salaryData, reconciliationData, auditData] = await Promise.all([
-      readRows(db, TABLES.accounts, 500),
-      readRows(db, TABLES.transactions, 700),
-      readRows(db, TABLES.bills, 500),
-      readRows(db, TABLES.debts, 500),
-      readRows(db, TABLES.salary, 80),
-      readRows(db, TABLES.reconciliation, 200),
-      readRows(db, TABLES.audit_log, 20)
+      readRows(database, TABLES.accounts, 500),
+      readRows(database, TABLES.transactions, 1000),
+      readRows(database, TABLES.bills, 500),
+      readRows(database, TABLES.debts, 500),
+      readRows(database, TABLES.salary, 80),
+      readRows(database, TABLES.reconciliation, 200),
+      readRows(database, TABLES.audit_log, 20)
     ]);
 
     const accounts = accountData.rows.map(normalizeAccount);
     const bills = billData.rows.map(row => normalizeBill(row, accounts));
     const debts = debtData.rows.map(normalizeDebt);
     const salary = normalizeSalary(salaryData.rows, settings);
-    const creditCard = normalizeCreditCard(accounts, settings);
+    const creditCard = normalizeCreditCard(accounts, transactionData.rows, settings);
     const transactionSummary = normalizeTransactionSummary(transactionData.rows);
 
     const liquidBalance = accounts
@@ -462,7 +519,7 @@ export async function onRequest(context) {
       .reduce((sum, a) => sum + Math.abs(n(a.balance, 0)), 0);
 
     const dueSoon14 = bills
-      .filter(b => b.status !== "deleted" && b.days_until_due !== null && b.days_until_due >= 0 && b.days_until_due <= 14)
+      .filter(b => b.status !== "deleted" && !b.current_month_paid && b.days_until_due !== null && b.days_until_due >= 0 && b.days_until_due <= 14)
       .reduce((sum, b) => sum + n(b.amount, 0), 0);
 
     const debtDueSoon14 = debts
@@ -505,6 +562,7 @@ export async function onRequest(context) {
           required_fields: ["id", "name", "amount", "due_date", "payment_account_id"],
           missing_payment_account_count: bills.filter(b => b.status !== "deleted" && b.payment_account_status === "missing").length,
           missing_due_date_count: bills.filter(b => b.status !== "deleted" && b.blockers.includes("missing_due_date")).length,
+          zero_amount_count: bills.filter(b => b.status !== "deleted" && b.blockers.includes("missing_or_zero_amount")).length,
           rows: bills
         },
         debts: {
@@ -524,32 +582,18 @@ export async function onRequest(context) {
           due_soon_14d: dueSoon14 + debtDueSoon14,
           next_salary_date: salary.next_salary_date,
           next_salary_amount: salary.projected_next_salary,
+          salary_truth_ready: salary.truth_ready,
           credit_card_due_date: creditCard.next_due_date,
-          credit_card_minimum_payment: creditCard.minimum_payment
-        },
-        add_transaction: {
-          route_contracts: [
-            {
-              route: "/add.html?type=transfer&to=cc",
-              expected_type: "transfer",
-              expected_target: "credit_card",
-              required_payload_fields: ["type", "amount", "from_account_id", "to_account_id", "date"]
-            }
-          ]
+          credit_card_minimum_payment: creditCard.minimum_payment,
+          credit_card_outstanding: creditCard.outstanding,
+          credit_card_outstanding_source: creditCard.outstanding_source
         }
       },
       table_health: tableHealth,
       production_notes: {
-        backend_100_definition: [
-          "No missing core tables",
-          "Bills expose payment account contract",
-          "Debts expose due date and installment contract",
-          "Credit Card exposes statement day, due date, and minimum payment contract",
-          "Salary separates guaranteed, confirmed variable, and speculative variable",
-          "Forecast inputs are returned from one backend source"
-        ],
         no_mutation_performed: true,
-        next_layer: "Forecast cockpit final"
+        structural_pass_is_not_bank_truth: true,
+        next_layer: "Forecast cockpit final after truth verification"
       }
     });
   } catch (error) {
