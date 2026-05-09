@@ -1,919 +1,805 @@
-<!doctype html>
-<html lang="en" data-page="hub">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#050816" />
-
-  <title>Sovereign Finance Hub</title>
-
-  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
-
-  <script src="/js/theme.js?v=1.0.0" defer></script>
-  <script src="/js/nav.js?v=1.1.9" defer></script>
-
-  <style>
-    :root {
-      --hub-bg: #eef4ff;
-      --hub-ink: #0f172a;
-      --hub-muted: #64748b;
-      --hub-soft: #94a3b8;
-      --hub-line: rgba(15, 23, 42, 0.10);
-      --hub-line-strong: rgba(15, 23, 42, 0.16);
-      --hub-surface: rgba(255, 255, 255, 0.93);
-      --hub-surface-soft: rgba(248, 250, 252, 0.88);
-      --hub-green: #16a34a;
-      --hub-red: #dc2626;
-      --hub-blue: #2563eb;
-      --hub-amber: #d97706;
-      --hub-violet: #7c3aed;
-      --hub-shadow: 0 18px 46px rgba(15, 23, 42, 0.10);
-      --hub-shadow-strong: 0 26px 72px rgba(15, 23, 42, 0.18);
-    }
-
-    * {
-      box-sizing: border-box;
-      min-width: 0;
-    }
-
-    html,
-    body {
-      margin: 0;
-      max-width: 100%;
-      overflow-x: hidden;
-      background:
-        radial-gradient(circle at 8% 0%, rgba(34, 197, 94, 0.18), transparent 34rem),
-        radial-gradient(circle at 92% 8%, rgba(59, 130, 246, 0.18), transparent 34rem),
-        radial-gradient(circle at 50% 100%, rgba(168, 85, 247, 0.12), transparent 34rem),
-        var(--hub-bg);
-      color: var(--hub-ink);
-      font-family: Inter, "SF Pro Display", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
-    a {
-      color: inherit;
-      text-decoration: none;
-    }
-
-    .hub-page {
-      width: 100%;
-      max-width: var(--sf-content-max, 1440px);
-      margin-inline: auto;
-      padding: 24px 16px 72px;
-    }
-
-    .hub-hero {
-      position: relative;
-      overflow: hidden;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-      gap: 18px;
-      border-radius: 34px;
-      padding: clamp(24px, 4vw, 42px);
-      margin-bottom: 16px;
-      color: white;
-      background:
-        radial-gradient(circle at 18% 10%, rgba(34, 197, 94, 0.34), transparent 26rem),
-        radial-gradient(circle at 86% 18%, rgba(37, 99, 235, 0.28), transparent 28rem),
-        linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.96));
-      box-shadow: var(--hub-shadow-strong);
-      border: 1px solid rgba(148, 163, 184, 0.24);
-    }
-
-    .hub-kicker {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      width: fit-content;
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: rgba(34, 197, 94, 0.16);
-      color: #86efac;
-      border: 1px solid rgba(34, 197, 94, 0.26);
-      font-size: 12px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 15px;
-    }
-
-    .hub-kicker::before {
-      content: "";
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: #22c55e;
-      box-shadow: 0 0 18px rgba(34, 197, 94, 0.85);
-    }
-
-    .hub-title {
-      margin: 0;
-      max-width: 860px;
-      font-size: clamp(38px, 6vw, 74px);
-      line-height: 0.94;
-      letter-spacing: -0.075em;
-      font-weight: 950;
-    }
-
-    .hub-copy {
-      margin-top: 16px;
-      max-width: 860px;
-      color: #cbd5e1;
-      font-size: 15px;
-      line-height: 1.65;
-      font-weight: 760;
-    }
-
-    .hub-next-card {
-      align-self: stretch;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 18px;
-      border-radius: 26px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(18px);
-    }
-
-    .hub-next-label {
-      color: #94a3b8;
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .hub-next-title {
-      display: block;
-      margin-top: 8px;
-      font-size: 22px;
-      line-height: 1.12;
-      font-weight: 950;
-      letter-spacing: -0.035em;
-    }
-
-    .hub-next-copy {
-      margin-top: 8px;
-      color: #cbd5e1;
-      font-size: 12px;
-      font-weight: 760;
-      line-height: 1.45;
-    }
-
-    .hub-next-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: fit-content;
-      margin-top: 16px;
-      padding: 10px 14px;
-      border-radius: 999px;
-      color: #052e16;
-      background: #22c55e;
-      font-size: 13px;
-      font-weight: 950;
-    }
-
-    .hub-strip {
-      grid-column: 1 / -1;
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 6px;
-    }
-
-    .hub-chip {
-      min-width: 0;
-      max-width: 100%;
-      padding: 14px;
-      border-radius: 22px;
-      color: white;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.14);
-    }
-
-    .hub-label,
-    .hub-card-label {
-      color: var(--hub-muted);
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .hub-chip .hub-label {
-      color: #94a3b8;
-    }
-
-    .hub-chip-value {
-      margin-top: 6px;
-      font-size: 15px;
-      font-weight: 950;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .hub-signal-grid {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 14px;
-      margin-bottom: 16px;
-    }
-
-    .hub-card,
-    .hub-panel,
-    .hub-tool,
-    .hub-action {
-      min-width: 0;
-      max-width: 100%;
-    }
-
-    .hub-card,
-    .hub-panel,
-    .hub-tool {
-      background: var(--hub-surface);
-      border: 1px solid var(--hub-line);
-      border-radius: 26px;
-      box-shadow: var(--hub-shadow);
-      backdrop-filter: blur(18px);
-    }
-
-    .hub-card {
-      padding: 18px;
-    }
-
-    .hub-value {
-      margin-top: 8px;
-      font-size: 22px;
-      font-weight: 950;
-      letter-spacing: -0.03em;
-      font-variant-numeric: tabular-nums;
-      overflow-wrap: anywhere;
-    }
-
-    .hub-note {
-      margin-top: 6px;
-      color: var(--hub-muted);
-      font-size: 11px;
-      font-weight: 800;
-      line-height: 1.35;
-    }
-
-    .good {
-      color: var(--hub-green) !important;
-    }
-
-    .bad {
-      color: var(--hub-red) !important;
-    }
-
-    .blue {
-      color: var(--hub-blue) !important;
-    }
-
-    .warn {
-      color: var(--hub-amber) !important;
-    }
-
-    .violet {
-      color: var(--hub-violet) !important;
-    }
-
-    .hub-main-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.35fr) minmax(310px, 0.65fr);
-      gap: 16px;
-      margin-bottom: 16px;
-    }
-
-    .hub-panel {
-      padding: 18px;
-    }
-
-    .hub-panel-head {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .hub-panel-title {
-      font-size: 20px;
-      font-weight: 950;
-      letter-spacing: -0.02em;
-    }
-
-    .hub-panel-sub {
-      margin-top: 4px;
-      color: var(--hub-muted);
-      font-size: 12px;
-      font-weight: 820;
-      line-height: 1.4;
-    }
-
-    .hub-action-list {
-      display: grid;
-      gap: 10px;
-    }
-
-    .hub-action {
-      display: grid;
-      grid-template-columns: 42px minmax(0, 1fr) auto;
-      align-items: center;
-      gap: 12px;
-      padding: 13px;
-      background: #f8fafc;
-      border: 1px solid var(--hub-line);
-      border-radius: 18px;
-    }
-
-    .hub-action:first-child {
-      background: rgba(34, 197, 94, 0.09);
-      border-color: rgba(34, 197, 94, 0.22);
-    }
-
-    .hub-action-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 14px;
-      background: white;
-      border: 1px solid var(--hub-line);
-      display: grid;
-      place-items: center;
-      color: var(--hub-green);
-      font-size: 14px;
-      font-weight: 950;
-    }
-
-    .hub-action-title {
-      font-size: 13px;
-      font-weight: 950;
-    }
-
-    .hub-action-copy {
-      margin-top: 3px;
-      color: var(--hub-muted);
-      font-size: 11px;
-      font-weight: 800;
-      line-height: 1.35;
-    }
-
-    .hub-action-link {
-      color: var(--hub-green);
-      font-size: 11px;
-      font-weight: 950;
-      text-decoration: none;
-      white-space: nowrap;
-    }
-
-    .hub-next-grid {
-      display: grid;
-      gap: 9px;
-    }
-
-    .hub-route {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      min-height: 44px;
-      padding: 12px 13px;
-      border-radius: 16px;
-      background: #f8fafc;
-      border: 1px solid rgba(148, 163, 184, 0.20);
-      color: var(--hub-ink);
-      font-size: 13px;
-      font-weight: 920;
-    }
-
-    .hub-route span {
-      color: var(--hub-soft);
-      font-size: 12px;
-      font-weight: 950;
-    }
-
-    .hub-tools-panel {
-      margin-bottom: 16px;
-    }
-
-    .hub-tools-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
-      gap: 12px;
-    }
-
-    .hub-tool {
-      display: block;
-      min-height: 108px;
-      padding: 16px;
-      color: var(--hub-ink);
-      transition: transform 0.18s ease, box-shadow 0.18s ease;
-    }
-
-    .hub-tool:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 24px 64px rgba(15, 23, 42, 0.16);
-    }
-
-    .hub-tool-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 15px;
-      display: grid;
-      place-items: center;
-      background: #f8fafc;
-      border: 1px solid var(--hub-line);
-      color: var(--hub-blue);
-      font-size: 14px;
-      font-weight: 950;
-      margin-bottom: 11px;
-    }
-
-    .hub-tool-title {
-      font-size: 15px;
-      font-weight: 950;
-    }
-
-    .hub-tool-copy {
-      margin-top: 5px;
-      color: var(--hub-muted);
-      font-size: 12px;
-      font-weight: 800;
-      line-height: 1.35;
-    }
-
-    details.hub-details {
-      margin-bottom: 16px;
-      border: 1px solid var(--hub-line);
-      border-radius: 26px;
-      background: var(--hub-surface);
-      box-shadow: var(--hub-shadow);
-      overflow: hidden;
-    }
-
-    details.hub-details > summary {
-      cursor: pointer;
-      list-style: none;
-      padding: 16px 18px;
-      font-weight: 950;
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-      background: rgba(248, 250, 252, 0.86);
-    }
-
-    details.hub-details > summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .hub-details-body {
-      padding: 0 18px 18px;
-    }
-
-    footer {
-      text-align: center;
-      color: var(--hub-muted);
-      font-size: 12px;
-      font-weight: 800;
-      padding: 16px 0 6px;
-    }
-
-    @media (max-width: 1100px) {
-      .hub-hero,
-      .hub-main-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .hub-strip,
-      .hub-signal-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 760px) {
-      .hub-page {
-        padding: 16px 10px 92px;
-      }
-
-      .hub-strip,
-      .hub-signal-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .hub-action {
-        grid-template-columns: 38px minmax(0, 1fr);
-      }
-
-      .hub-action-link {
-        grid-column: 2;
-      }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Finance Hub - Sovereign Finance</title>
+<link rel="stylesheet" href="/css/app.css?v=2.0.0" />
+<style>
+.hub-page {
+  max-width: 1480px;
+}
+
+.hub-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(310px, 0.65fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.hub-hero-side {
+  display: grid;
+  gap: 14px;
+}
+
+.hub-authority-card {
+  padding: 20px;
+  border-radius: var(--r-2xl);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+.hub-authority-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hub-authority-title {
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
+
+.hub-authority-copy {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 760;
+  line-height: 1.5;
+}
+
+.hub-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.hub-action-row a {
+  text-decoration: none;
+}
+
+.hub-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 26px 0 12px;
+}
+
+.hub-section-title {
+  color: var(--text-strong);
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+}
+
+.hub-section-copy {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.hub-status-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.hub-module-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.hub-module-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 176px;
+  padding: 18px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.hub-module-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+}
+
+.hub-module-card.blocked::before {
+  background: linear-gradient(90deg, var(--danger), transparent);
+}
+
+.hub-module-card.warning::before,
+.hub-module-card.preflight::before {
+  background: linear-gradient(90deg, var(--warn), transparent);
+}
+
+.hub-module-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hub-module-title {
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
+
+.hub-module-desc {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 740;
+}
+
+.hub-module-meta {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.hub-meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 820;
+}
+
+.hub-meta-row strong {
+  color: var(--text-strong);
+  font-weight: 950;
+  text-align: right;
+}
+
+.hub-panel-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 14px;
+}
+
+.hub-list {
+  display: grid;
+  gap: 10px;
+}
+
+.hub-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.hub-list-main {
+  min-width: 0;
+}
+
+.hub-list-title {
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 920;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hub-list-sub {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 740;
+}
+
+.hub-list-value {
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.hub-empty {
+  padding: 18px;
+  border-radius: var(--r-lg);
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  background: var(--surface-2);
+  font-size: 13px;
+  font-weight: 780;
+  text-align: center;
+}
+
+.hub-system-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+@media (max-width: 1180px) {
+  .hub-hero-grid,
+  .hub-panel-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hub-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hub-module-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .hub-status-grid,
+  .hub-module-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hub-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .hub-list-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .hub-list-value {
+    white-space: normal;
+  }
+}
+</style>
 </head>
-
 <body>
-  <main class="hub-page app-page">
-    <section class="hub-hero">
-      <div>
-        <div class="hub-kicker">Finance Hub v0.3.0 · Command Cockpit</div>
-        <h1 class="hub-title">Know the next money move.</h1>
-        <div class="hub-copy">
-          Fast view of cash, card pressure, debt truth, and the next thing that needs action.
-          The Hub stays lean: one verdict surface, core signals, priority actions, and clean routes into the deeper tools.
-        </div>
-      </div>
+<header>
+<div>
+<div class="brand">Sovereign Finance</div>
+<div class="title">Finance Hub</div>
+</div>
+</header>
 
-      <aside class="hub-next-card">
-        <div>
-          <div class="hub-next-label">Next best action</div>
-          <strong id="nextBestTitle" class="hub-next-title">Loading Finance truth</strong>
-          <div id="nextBestCopy" class="hub-next-copy">Reading /api/balances?debug=1.</div>
-        </div>
-        <a id="nextBestLink" class="hub-next-link" href="/audit.html">Open Audit</a>
-      </aside>
+<main class="app-page hub-page">
+<section class="hub-hero-grid">
+<div class="finance-hero">
+<div class="hero-kicker">Sovereign Finance cockpit</div>
+<h1 class="hero-title">Your money system, governed before it moves.</h1>
+<p class="hero-copy">
+A premium control surface for accounts, transactions, bills, debt, reconciliation, forecast, and Command Centre authority. Safe actions stay available. Unproven actions stay visibly blocked.
+</p>
 
-      <div class="hub-strip">
-        <div class="hub-chip">
-          <div class="hub-label">Liquid</div>
-          <div id="heroLiquid" class="hub-chip-value">Loading</div>
-        </div>
-        <div class="hub-chip">
-          <div class="hub-label">Card Pressure</div>
-          <div id="heroCC" class="hub-chip-value">Loading</div>
-        </div>
-        <div class="hub-chip">
-          <div class="hub-label">Debt Truth</div>
-          <div id="heroDebt" class="hub-chip-value">Loading</div>
-        </div>
-        <div class="hub-chip">
-          <div class="hub-label">System</div>
-          <div id="heroSystem" class="hub-chip-value">Audit guard active</div>
-        </div>
-      </div>
-    </section>
+<div class="hub-system-strip">
+<span id="hubGovernorBadge" class="badge badge-unknown">Checking governor</span>
+<span id="hubWriteScopeBadge" class="badge badge-info">Write scope unknown</span>
+<span id="hubOverrideBadge" class="badge badge-unknown">Overrides unknown</span>
+</div>
+</div>
 
-    <section class="hub-signal-grid">
-      <div class="hub-card">
-        <div class="hub-card-label">Liquid Cash</div>
-        <div id="liquid" class="hub-value">Loading</div>
-        <div class="hub-note">Cash, banks, wallets, prepaid.</div>
-      </div>
+<aside class="hub-hero-side">
+<div class="hub-authority-card">
+<div class="hub-authority-top">
+<div>
+<div class="hub-authority-title">Command Centre Authority</div>
+<div id="hubAuthorityCopy" class="hub-authority-copy">
+Reading Command Centre policy and finance proof status...
+</div>
+</div>
+<span id="hubAuthorityBadge" class="badge badge-unknown">Unknown</span>
+</div>
+<div class="hub-action-row">
+<a class="btn btn-success" href="/monthly-close.html">Open Command Centre</a>
+<a class="btn btn-secondary" href="/add.html">Add Transaction</a>
+</div>
+</div>
 
-      <div class="hub-card">
-        <div class="hub-card-label">CC Outstanding</div>
-        <div id="cc" class="hub-value bad">Loading</div>
-        <div class="hub-note">From existing liability balance model.</div>
-      </div>
+<div class="hub-authority-card">
+<div class="hub-authority-top">
+<div>
+<div class="hub-authority-title">Today’s safe path</div>
+<div id="hubSafePathCopy" class="hub-authority-copy">
+Allowed actions will appear here once the governor loads.
+</div>
+</div>
+<span id="hubSafePathBadge" class="badge badge-unknown">Loading</span>
+</div>
+</div>
+</aside>
+</section>
 
-      <div class="hub-card">
-        <div class="hub-card-label">Payable Debt</div>
-        <div id="debt" class="hub-value bad">Loading</div>
-        <div class="hub-note">Only debts.kind = owe.</div>
-      </div>
+<section>
+<div class="hub-section-head">
+<div>
+<div class="hub-section-title">Finance position</div>
+<div class="hub-section-copy">Read-only snapshot from available APIs. Unknown stays Unknown.</div>
+</div>
+<span id="hubSnapshotBadge" class="badge badge-info">Live read</span>
+</div>
 
-      <div class="hub-card">
-        <div class="hub-card-label">Receivables</div>
-        <div id="recv" class="hub-value good">Loading</div>
-        <div class="hub-note">Only debts.kind = owed.</div>
-      </div>
+<div class="hub-status-grid">
+<div class="kpi-card">
+<div class="kpi-label">Accounts</div>
+<div id="hubAccountsCount" class="kpi-value">-</div>
+<div id="hubAccountsSub" class="kpi-sub">Loading account source</div>
+</div>
 
-      <div class="hub-card">
-        <div class="hub-card-label">True Burden</div>
-        <div id="burden" class="hub-value bad">Loading</div>
-        <div class="hub-note">Liquid - CC - payable debt + receivables.</div>
-      </div>
-    </section>
+<div class="kpi-card">
+<div class="kpi-label">Transactions</div>
+<div id="hubTransactionsCount" class="kpi-value">-</div>
+<div id="hubTransactionsSub" class="kpi-sub">Loading ledger source</div>
+</div>
 
-    <section class="hub-main-grid">
-      <div class="hub-panel">
-        <div class="hub-panel-head">
-          <div>
-            <div class="hub-panel-title">What needs action</div>
-            <div class="hub-panel-sub">Top operational actions only. Deep audit details stay in Monthly Close and Audit Log.</div>
-          </div>
-        </div>
+<div class="kpi-card">
+<div class="kpi-label">Active bills</div>
+<div id="hubBillsCount" class="kpi-value">-</div>
+<div id="hubBillsSub" class="kpi-sub">Loading bills source</div>
+</div>
 
-        <div id="actions" class="hub-action-list">
-          <div class="hub-action">
-            <div class="hub-action-icon">…</div>
-            <div>
-              <div class="hub-action-title">Loading Finance truth</div>
-              <div class="hub-action-copy">Reading /api/balances?debug=1.</div>
-            </div>
-            <a class="hub-action-link" href="/audit.html">Audit</a>
-          </div>
-        </div>
-      </div>
+<div class="kpi-card">
+<div class="kpi-label">Monthly bills</div>
+<div id="hubBillsAmount" class="kpi-value">-</div>
+<div id="hubBillsAmountSub" class="kpi-sub">Unknown until bills read</div>
+</div>
+</div>
+</section>
 
-      <aside class="hub-panel">
-        <div class="hub-panel-head">
-          <div>
-            <div class="hub-panel-title">Go next</div>
-            <div class="hub-panel-sub">Daily routes only. Every button opens a real working page.</div>
-          </div>
-        </div>
+<section>
+<div class="hub-section-head">
+<div>
+<div class="hub-section-title">Sections</div>
+<div class="hub-section-copy">Each section shows what is allowed, what is preflight-only, and what remains blocked.</div>
+</div>
+</div>
 
-        <div class="hub-next-grid">
-          <a class="hub-route" href="/add.html">Add Transaction <span>+</span></a>
-          <a class="hub-route" href="/transactions.html">Transactions <span>→</span></a>
-          <a class="hub-route" href="/bills.html">Bills <span>→</span></a>
-          <a class="hub-route" href="/cc.html">Credit Card <span>→</span></a>
-          <a class="hub-route" href="/forecast.html">Forecast <span>→</span></a>
-        </div>
-      </aside>
-    </section>
+<div id="hubModules" class="hub-module-grid"></div>
+</section>
 
-    <section class="hub-panel hub-tools-panel">
-      <div class="hub-panel-head">
-        <div>
-          <div class="hub-panel-title">Daily tools</div>
-          <div class="hub-panel-sub">Only the tools you actually touch often.</div>
-        </div>
-      </div>
+<section class="hub-panel-grid">
+<div>
+<div class="hub-section-head">
+<div>
+<div class="hub-section-title">Bills watch</div>
+<div class="hub-section-copy">Closest visible finance section after Command Centre completion.</div>
+</div>
+<a class="btn btn-secondary" href="/bills.html">Open Bills</a>
+</div>
+<div id="hubBillsList" class="hub-list"></div>
+</div>
 
-      <div class="hub-tools-grid">
-        <a class="hub-tool" href="/add.html">
-          <div class="hub-tool-icon">+</div>
-          <div class="hub-tool-title">Add Transaction</div>
-          <div class="hub-tool-copy">Save income, expense, transfer, or card payment.</div>
-        </a>
+<div>
+<div class="hub-section-head">
+<div>
+<div class="hub-section-title">Next build lane</div>
+<div class="hub-section-copy">The order to move toward 100% finance completion.</div>
+</div>
+</div>
+<div class="authority-panel">
+<div class="hub-list">
+<div class="hub-list-row">
+<div class="hub-list-main">
+<div class="hub-list-title">Bills cleanup</div>
+<div class="hub-list-sub">Maid amount, current-month clear state, clean Bills UX.</div>
+</div>
+<span class="badge badge-ready">Next</span>
+</div>
 
-        <a class="hub-tool" href="/transactions.html">
-          <div class="hub-tool-icon">T</div>
-          <div class="hub-tool-title">Transactions</div>
-          <div class="hub-tool-copy">Ledger view with guarded write path.</div>
-        </a>
+<div class="hub-list-row">
+<div class="hub-list-main">
+<div class="hub-list-title">Debts proof</div>
+<div class="hub-list-sub">debt.save and debt.pay dry-run before real writes.</div>
+</div>
+<span class="badge badge-blocked">Blocked</span>
+</div>
 
-        <a class="hub-tool" href="/forecast.html">
-          <div class="hub-tool-icon">F</div>
-          <div class="hub-tool-title">Forecast</div>
-          <div class="hub-tool-copy">Salary, runway, risk, and upcoming pressure.</div>
-        </a>
+<div class="hub-list-row">
+<div class="hub-list-main">
+<div class="hub-list-title">Reconciliation proof</div>
+<div class="hub-list-sub">declare balance dry-run and backend enforcement.</div>
+</div>
+<span class="badge badge-blocked">Blocked</span>
+</div>
 
-        <a class="hub-tool" href="/bills.html">
-          <div class="hub-tool-icon">B</div>
-          <div class="hub-tool-title">Bills</div>
-          <div class="hub-tool-copy">Due dates and payment-account logic.</div>
-        </a>
-      </div>
-    </section>
+<div class="hub-list-row">
+<div class="hub-list-main">
+<div class="hub-list-title">Forecast precision</div>
+<div class="hub-list-sub">salary, bills, debts, accounts, CC source confidence.</div>
+</div>
+<span class="badge badge-unknown">Unknown</span>
+</div>
+</div>
+</div>
+</div>
+</section>
 
-    <details class="hub-details">
-      <summary>
-        <span>Planning and obligations</span>
-        <span>Open</span>
-      </summary>
+<footer class="bills-page-meta" aria-hidden="true">
+Finance Hub cockpit UI v2.0.0
+</footer>
+</main>
 
-      <div class="hub-details-body">
-        <div class="hub-tools-grid">
-          <a class="hub-tool" href="/cc.html">
-            <div class="hub-tool-icon">C</div>
-            <div class="hub-tool-title">Credit Card</div>
-            <div class="hub-tool-copy">Outstanding, utilization, due pressure.</div>
-          </a>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-          <a class="hub-tool" href="/debts.html">
-            <div class="hub-tool-icon">D</div>
-            <div class="hub-tool-title">Debts</div>
-            <div class="hub-tool-copy">Payable debt and receivables.</div>
-          </a>
+<script src="/js/theme.js?v=1.0.0"></script>
+<script src="/js/nav.js?v=2.0.0"></script>
+<script src="/js/enforcement.js?v=0.2.0"></script>
+<script>
+(function () {
+  "use strict";
 
-          <a class="hub-tool" href="/salary.html">
-            <div class="hub-tool-icon">S</div>
-            <div class="hub-tool-title">Salary</div>
-            <div class="hub-tool-copy">Baseline salary, WFH, manual variables.</div>
-          </a>
+  const VERSION = "2.0.0";
 
-          <a class="hub-tool" href="/monthly-close.html">
-            <div class="hub-tool-icon">M</div>
-            <div class="hub-tool-title">Monthly Close</div>
-            <div class="hub-tool-copy">System certification and money readiness.</div>
-          </a>
-        </div>
-      </div>
-    </details>
-
-    <details class="hub-details">
-      <summary>
-        <span>Records and safety</span>
-        <span>Open</span>
-      </summary>
-
-      <div class="hub-details-body">
-        <div class="hub-tools-grid">
-          <a class="hub-tool" href="/reconciliation.html">
-            <div class="hub-tool-icon">R</div>
-            <div class="hub-tool-title">Reconciliation</div>
-            <div class="hub-tool-copy">Declare real account balances.</div>
-          </a>
-
-          <a class="hub-tool" href="/snapshots.html">
-            <div class="hub-tool-icon">P</div>
-            <div class="hub-tool-title">Snapshots</div>
-            <div class="hub-tool-copy">Manual safety points before risky work.</div>
-          </a>
-
-          <a class="hub-tool" href="/audit.html">
-            <div class="hub-tool-icon">L</div>
-            <div class="hub-tool-title">Audit Log</div>
-            <div class="hub-tool-copy">System records and traceability.</div>
-          </a>
-
-          <a class="hub-tool" href="/charts.html">
-            <div class="hub-tool-icon">G</div>
-            <div class="hub-tool-title">Charts</div>
-            <div class="hub-tool-copy">Visual trend review without changing data.</div>
-          </a>
-        </div>
-      </div>
-    </details>
-
-    <footer>
-      index.html v0.3.0 · command cockpit · nav v1.1.9 · balances v0.5.3 · no D1 mutation
-    </footer>
-  </main>
-
-  <script>
-    function money(value) {
-      const n = Number(value) || 0;
-      const sign = n < 0 ? '-' : '';
-      return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2
-      });
+  const MODULES = [
+    {
+      key: "add",
+      title: "Add Transaction",
+      route: "/add.html",
+      desc: "Expense, income, and transfer entry with preflight and backend enforcement.",
+      actions: ["transaction.preflight", "transaction.save"]
+    },
+    {
+      key: "bills",
+      title: "Bills",
+      route: "/bills.html",
+      desc: "Recurring obligations, bill clear/save proof, and monthly obligation view.",
+      actions: ["bill.preflight", "bill.save", "bill.clear"]
+    },
+    {
+      key: "debts",
+      title: "Debts",
+      route: "/debts.html",
+      desc: "Payable and receivable tracking. Writes remain blocked until debt proof exists.",
+      actions: ["debt.save"]
+    },
+    {
+      key: "reconciliation",
+      title: "Reconciliation",
+      route: "/reconciliation.html",
+      desc: "Real balance declaration and account truth alignment. Declaration remains blocked.",
+      actions: ["reconciliation.declare"]
+    },
+    {
+      key: "salary",
+      title: "Salary",
+      route: "/salary.html",
+      desc: "Guaranteed baseline and variable-income separation for forecast accuracy.",
+      actions: ["salary.save"]
+    },
+    {
+      key: "forecast",
+      title: "Forecast",
+      route: "/forecast.html",
+      desc: "Forward cash visibility. Decisions stay blocked until source precision is proven.",
+      actions: ["forecast.generate"]
+    },
+    {
+      key: "credit_card",
+      title: "Credit Card",
+      route: "/cc.html",
+      desc: "Credit card planning and verified outstanding source protection.",
+      actions: ["cc.use_for_decision", "cc.use_for_forecast"]
+    },
+    {
+      key: "command",
+      title: "Command Centre",
+      route: "/monthly-close.html",
+      desc: "Governor layer, proof visibility, blocked actions, and emergency policy.",
+      actions: ["override.request"]
+    },
+    {
+      key: "accounts",
+      title: "Accounts",
+      route: "/accounts.html",
+      desc: "Account source and balance visibility. Account mutations remain guarded.",
+      actions: []
     }
+  ];
 
-    function set(id, text, cls) {
-      const el = document.getElementById(id);
-      if (!el) return;
+  function $(id) {
+    return document.getElementById(id);
+  }
 
-      el.textContent = text;
+  function money(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "Unknown";
+    return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
+  }
 
-      if (id === 'liquid' || id === 'cc' || id === 'debt' || id === 'recv' || id === 'burden') {
-        el.className = 'hub-value ' + (cls || '');
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value;
+  }
+
+  function badgeClass(state) {
+    if (state === "allowed" || state === "ready" || state === "pass") return "badge badge-ready";
+    if (state === "preflight" || state === "warning") return "badge badge-preflight";
+    if (state === "blocked") return "badge badge-blocked";
+    if (state === "info") return "badge badge-info";
+    return "badge badge-unknown";
+  }
+
+  function actionMap(command) {
+    const actions = command && command.enforcement && Array.isArray(command.enforcement.actions)
+      ? command.enforcement.actions
+      : [];
+    return Object.fromEntries(actions.map(action => [action.action, action]));
+  }
+
+  function routeMap(command) {
+    const routes = command && command.enforcement && Array.isArray(command.enforcement.routes)
+      ? command.enforcement.routes
+      : [];
+    return Object.fromEntries(routes.map(route => [route.route, route]));
+  }
+
+  function classifyModule(module, actions, routes) {
+    const route = routes[module.route];
+    const moduleActions = module.actions.map(name => actions[name]).filter(Boolean);
+    const allowed = moduleActions.filter(action => action.allowed);
+    const blocked = moduleActions.filter(action => action && !action.allowed);
+
+    if (module.key === "command") return { state: "ready", label: "Governor" };
+    if (moduleActions.length && allowed.length === moduleActions.length) return { state: "allowed", label: "Allowed" };
+    if (allowed.length && blocked.length) return { state: "preflight", label: "Partial" };
+    if (route && route.actions_allowed) return { state: "preflight", label: "Preflight" };
+    if (blocked.length || (route && route.view_allowed && !route.actions_allowed)) return { state: "blocked", label: "Blocked" };
+    return { state: "unknown", label: "Unknown" };
+  }
+
+  async function fetchJSON(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) throw new Error("Failed to read " + url);
+    return data;
+  }
+
+  async function loadCommandCentre() {
+    try {
+      const command = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
+      renderAuthority(command);
+      renderModules(command);
+      return command;
+    } catch (err) {
+      renderAuthority(null, err);
+      renderModules(null);
+      return null;
+    }
+  }
+
+  function renderAuthority(command, err) {
+    const badge = $("hubAuthorityBadge");
+    const governorBadge = $("hubGovernorBadge");
+    const writeScope = $("hubWriteScopeBadge");
+    const override = $("hubOverrideBadge");
+
+    if (!command) {
+      if (badge) {
+        badge.className = "badge badge-blocked";
+        badge.textContent = "Unavailable";
       }
+      if (governorBadge) {
+        governorBadge.className = "badge badge-blocked";
+        governorBadge.textContent = "Governor unavailable";
+      }
+      setText("hubAuthorityCopy", err ? err.message : "Command Centre could not be loaded.");
+      return;
     }
 
-    function action(icon, title, copy, href, label) {
+    const status = command.coverage && command.coverage.write_safety ? command.coverage.write_safety.status : "unknown";
+    const scope = command.coverage && command.coverage.write_safety && Array.isArray(command.coverage.write_safety.real_write_scope)
+      ? command.coverage.write_safety.real_write_scope
+      : [];
+    const overrideStatus = command.enforcement && command.enforcement.overrides ? command.enforcement.overrides.status : "unknown";
+
+    const governorComplete = status === "command_centre_governor_complete" || command.enforcement?.global_status === "governor_complete";
+
+    if (badge) {
+      badge.className = governorComplete ? "badge badge-ready" : "badge badge-preflight";
+      badge.textContent = governorComplete ? "Complete" : "Active";
+    }
+
+    if (governorBadge) {
+      governorBadge.className = governorComplete ? "badge badge-ready" : "badge badge-preflight";
+      governorBadge.textContent = governorComplete ? "Governor complete" : "Governor active";
+    }
+
+    if (writeScope) {
+      writeScope.className = scope.length ? "badge badge-ready" : "badge badge-unknown";
+      writeScope.textContent = scope.length ? "Scope: " + scope.join(", ") : "No write scope";
+    }
+
+    if (override) {
+      override.className = overrideStatus === "policy_complete" ? "badge badge-ready" : "badge badge-unknown";
+      override.textContent = overrideStatus === "policy_complete" ? "Override policy complete" : "Overrides unknown";
+    }
+
+    setText(
+      "hubAuthorityCopy",
+      command.enforcement?.enforcement_status_note ||
+      "Command Centre is governing allowed, blocked, and preflight actions."
+    );
+
+    const allowedActions = command.enforcement?.actions?.filter(action => action.allowed).map(action => action.action) || [];
+    setText(
+      "hubSafePathCopy",
+      allowedActions.length
+        ? "Allowed now: " + allowedActions.slice(0, 5).join(", ")
+        : "No write action is currently allowed."
+    );
+
+    const safeBadge = $("hubSafePathBadge");
+    if (safeBadge) {
+      safeBadge.className = allowedActions.length ? "badge badge-ready" : "badge badge-blocked";
+      safeBadge.textContent = allowedActions.length ? "Ready" : "Blocked";
+    }
+  }
+
+  function renderModules(command) {
+    const container = $("hubModules");
+    if (!container) return;
+
+    const actions = actionMap(command);
+    const routes = routeMap(command);
+
+    container.innerHTML = MODULES.map(module => {
+      const state = classifyModule(module, actions, routes);
+      const moduleActions = module.actions.map(name => actions[name]).filter(Boolean);
+      const allowedCount = moduleActions.filter(action => action.allowed).length;
+      const totalCount = moduleActions.length;
+      const source = routes[module.route]?.source || (moduleActions[0] && moduleActions[0].source) || "registered route";
+      const reason = routes[module.route]?.reason || (moduleActions[0] && moduleActions[0].reason) || "No blocker returned.";
+
       return `
-        <div class="hub-action">
-          <div class="hub-action-icon">${icon}</div>
-          <div>
-            <div class="hub-action-title">${title}</div>
-            <div class="hub-action-copy">${copy}</div>
+        <article class="hub-module-card ${state.state === "blocked" ? "blocked" : state.state === "preflight" ? "preflight" : ""}">
+          <div class="hub-module-top">
+            <div class="hub-module-title">${escapeHtml(module.title)}</div>
+            <span class="${badgeClass(state.state)}">${escapeHtml(state.label)}</span>
           </div>
-          <a class="hub-action-link" href="${href}">${label}</a>
-        </div>
+          <div class="hub-module-desc">${escapeHtml(module.desc)}</div>
+          <div class="hub-module-meta">
+            <div class="hub-meta-row">
+              <span>Actions</span>
+              <strong>${totalCount ? allowedCount + "/" + totalCount + " allowed" : "Read only"}</strong>
+            </div>
+            <div class="hub-meta-row">
+              <span>Source</span>
+              <strong>${escapeHtml(source)}</strong>
+            </div>
+            <div class="hub-meta-row">
+              <span>Reason</span>
+              <strong>${escapeHtml(reason)}</strong>
+            </div>
+            <div class="hub-action-row">
+              <a class="btn btn-secondary" href="${module.route}">Open</a>
+            </div>
+          </div>
+        </article>
       `;
+    }).join("");
+  }
+
+  async function loadFinanceReads() {
+    await Promise.allSettled([
+      loadAccounts(),
+      loadTransactions(),
+      loadBills()
+    ]);
+  }
+
+  async function loadAccounts() {
+    try {
+      const data = await fetchJSON("/api/accounts?cb=" + Date.now());
+      const accounts = Array.isArray(data.accounts) ? data.accounts : Array.isArray(data) ? data : [];
+      setText("hubAccountsCount", String(accounts.length));
+      setText("hubAccountsSub", data.version ? "Accounts API v" + data.version : "Accounts loaded");
+    } catch (err) {
+      setText("hubAccountsCount", "Unknown");
+      setText("hubAccountsSub", "Accounts source unavailable");
+    }
+  }
+
+  async function loadTransactions() {
+    try {
+      const data = await fetchJSON("/api/transactions?cb=" + Date.now());
+      const txns = Array.isArray(data.transactions) ? data.transactions : [];
+      setText("hubTransactionsCount", String(txns.length));
+      setText("hubTransactionsSub", data.version ? "Transactions API v" + data.version : "Transactions loaded");
+    } catch (err) {
+      setText("hubTransactionsCount", "Unknown");
+      setText("hubTransactionsSub", "Transactions source unavailable");
+    }
+  }
+
+  async function loadBills() {
+    try {
+      const data = await fetchJSON("/api/bills?cb=" + Date.now());
+      const bills = Array.isArray(data.bills) ? data.bills : [];
+      const active = bills.filter(bill => String(bill.status || "active").toLowerCase() === "active");
+      const amount = active.reduce((sum, bill) => sum + Number(bill.amount || 0), 0);
+
+      setText("hubBillsCount", String(active.length));
+      setText("hubBillsSub", data.version ? "Bills API v" + data.version : "Bills loaded");
+      setText("hubBillsAmount", money(amount));
+      setText("hubBillsAmountSub", active.length + " active bill(s)");
+
+      renderBillsList(active);
+    } catch (err) {
+      setText("hubBillsCount", "Unknown");
+      setText("hubBillsSub", "Bills source unavailable");
+      setText("hubBillsAmount", "Unknown");
+      setText("hubBillsAmountSub", "Bills source unavailable");
+      renderBillsList([]);
+    }
+  }
+
+  function renderBillsList(bills) {
+    const list = $("hubBillsList");
+    if (!list) return;
+
+    if (!bills.length) {
+      list.innerHTML = '<div class="hub-empty">No active bills available from /api/bills.</div>';
+      return;
     }
 
-    function setNextBest(title, copy, href, label) {
-      const titleEl = document.getElementById('nextBestTitle');
-      const copyEl = document.getElementById('nextBestCopy');
-      const linkEl = document.getElementById('nextBestLink');
+    list.innerHTML = bills.slice(0, 6).map(bill => `
+      <div class="hub-list-row">
+        <div class="hub-list-main">
+          <div class="hub-list-title">${escapeHtml(bill.name || bill.id || "Bill")}</div>
+          <div class="hub-list-sub">Due day ${escapeHtml(bill.due_day == null ? "N/A" : String(bill.due_day))} · ${escapeHtml(bill.frequency || "monthly")}</div>
+        </div>
+        <div class="hub-list-value">${escapeHtml(money(bill.amount))}</div>
+      </div>
+    `).join("");
+  }
 
-      if (titleEl) titleEl.textContent = title;
-      if (copyEl) copyEl.textContent = copy;
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
 
-      if (linkEl) {
-        linkEl.href = href;
-        linkEl.textContent = label;
-      }
-    }
+  async function init() {
+    console.log("[hub v2.0.0] init");
+    await loadCommandCentre();
+    await loadFinanceReads();
+    console.log("[hub v2.0.0] ready");
+  }
 
-    async function readJson(path) {
-      const res = await fetch(path, { cache: 'no-store' });
-      const data = await res.json();
+  window.SovereignHub = {
+    version: VERSION,
+    refresh: init
+  };
 
-      if (!res.ok || data.ok === false) throw new Error(data.error || path + ' failed');
-
-      return data;
-    }
-
-    async function loadHub() {
-      const data = await readJson('/api/balances?debug=1');
-
-      const liquid = Number(data.total_liquid || data.cash || 0);
-      const cc = Number(data.cc_outstanding || data.cc || 0);
-      const payableDebt = Number(data.payable_debt_remaining || data.total_owed || 0);
-      const receivables = Number(data.total_receivables || data.receivables_from_debts || 0);
-      const burden = Number(data.true_burden || 0);
-      const allActiveDebt = Number((data.debug && data.debug.all_active_debt_remaining) || 0);
-
-      set('liquid', money(liquid), liquid >= 0 ? 'good' : 'bad');
-      set('cc', money(cc), 'bad');
-      set('debt', money(payableDebt), 'bad');
-      set('recv', money(receivables), 'good');
-      set('burden', money(burden), burden >= 0 ? 'good' : 'bad');
-
-      document.getElementById('heroLiquid').textContent = money(liquid);
-      document.getElementById('heroCC').textContent = money(cc);
-      document.getElementById('heroDebt').textContent = money(payableDebt) + ' / +' + money(receivables);
-
-      const actions = [];
-
-      if (liquid < 10000) {
-        actions.push(action(
-          '1',
-          'Liquid cash is thin',
-          'Open Forecast and confirm the first unsafe date before spending decisions.',
-          '/forecast.html',
-          'Forecast'
-        ));
-      }
-
-      if (cc > 0) {
-        actions.push(action(
-          '2',
-          'Credit Card pressure visible',
-          'CC outstanding is being read from the existing liability balance model.',
-          '/cc.html',
-          'Card'
-        ));
-      }
-
-      actions.push(action(
-        '3',
-        'Reconciliation keeps close honest',
-        'Declare stale or undeclared balances before treating the month as clean.',
-        '/reconciliation.html',
-        'Recon'
-      ));
-
-      actions.push(action(
-        '4',
-        'Snapshot before risky work',
-        'Manual snapshot control is live. Use it before high-risk repair work.',
-        '/snapshots.html',
-        'Snapshot'
-      ));
-
-      actions.push(action(
-        '5',
-        'Debt split is active',
-        'Payable debt is separated from receivables. Combined active debt is diagnostic only: ' + money(allActiveDebt) + '.',
-        '/debts.html',
-        'Debts'
-      ));
-
-      document.getElementById('actions').innerHTML = actions.join('');
-
-      if (liquid < 10000) {
-        setNextBest(
-          'Confirm runway before spending',
-          'Liquid cash is thin. Forecast should show the first unsafe date before any discretionary movement.',
-          '/forecast.html',
-          'Open Forecast'
-        );
-      } else if (cc > 0) {
-        setNextBest(
-          'Review Credit Card pressure',
-          'Credit Card pressure is visible from the existing balance model.',
-          '/cc.html',
-          'Open Credit Card'
-        );
-      } else {
-        setNextBest(
-          'Reconcile before close',
-          'Declare stale or undeclared balances before treating this month as clean.',
-          '/reconciliation.html',
-          'Open Reconciliation'
-        );
-      }
-
-      if (window.SovereignNav && typeof window.SovereignNav.checkOverflow === 'function') {
-        window.setTimeout(window.SovereignNav.checkOverflow, 150);
-      }
-    }
-
-    loadHub().catch(err => {
-      ['liquid', 'cc', 'debt', 'recv', 'burden'].forEach(id => set(id, 'Error', 'bad'));
-
-      document.getElementById('heroLiquid').textContent = 'Error';
-      document.getElementById('heroCC').textContent = 'Error';
-      document.getElementById('heroDebt').textContent = 'Error';
-      document.getElementById('heroSystem').textContent = 'Check API';
-
-      document.getElementById('actions').innerHTML = action(
-        '!',
-        'Hub load failed',
-        err.message,
-        '/audit.html',
-        'Audit'
-      );
-
-      setNextBest(
-        'Hub load failed',
-        err.message,
-        '/audit.html',
-        'Open Audit'
-      );
-    });
-  </script>
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
 </body>
 </html>
