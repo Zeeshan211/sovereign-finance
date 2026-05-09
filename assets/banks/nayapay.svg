@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Naya Pay">
+  <rect width="96" height="96" rx="24" fill="#EFF6FF"/>
+  <circle cx="48" cy="48" r="31" fill="#FFFFFF" stroke="#0369A1" stroke-width="4"/>
+  <path d="M30 66V30h8l20 21V30h8v36h-8L38 45v21h-8Z" fill="#0369A1"/>
+</svg>
