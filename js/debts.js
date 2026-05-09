@@ -1,543 +1,432 @@
-/* ─── Sovereign Finance · Debts Page · v0.4.5 · Sub-1D-3c F5 ───
- * Adds:
- *   - ✏️ Edit button on every debt + receivable row
- *   - Edit modal (debts.html v0.3.3) wired: populate from row, PUT on save
- *   - Delete button inside Edit modal → confirm() → soft-delete via DELETE
- *
- * Backend contracts (debts/[[path]].js v0.2.0):
- *   PUT    /api/debts/{id}                → {name?, kind?, original_amount?, paid_amount?, notes?}
- *   DELETE /api/debts/{id}?created_by=web → soft-delete (status='deleted', snapshot + audit)
- */
+/* Sovereign Finance Debts v0.6.0
+   Ship 3: Debts closeout
+
+   Contract:
+   - Reads /api/money-contracts for normalized debt truth.
+   - Reads /api/debts for raw due_day/installment fallback.
+   - Separates active owed/owe/closed.
+   - Closed debts do not count as missing due-date blockers.
+   - Shows next due date, days until due, overdue, installment amount.
+   - Attempts PUT save only when operator edits due/installment.
+   - No payment simulation.
+*/
+
 (function () {
-  'use strict';
+  "use strict";
 
-  if (window._debtsInited) return;
-  window._debtsInited = true;
+  const VERSION = "v0.6.0";
 
-  const VERSION = 'v0.4.5';
+  const state = {
+    debts: [],
+    rawDebts: [],
+    filter: "active"
+  };
+
   const $ = id => document.getElementById(id);
 
-  const fmtPKR = n => 'Rs ' + Math.round(Number(n) || 0).toLocaleString('en-PK');
-  const fmtCount = (n, label) => (Number(n) || 0) + ' ' + label;
-  const todayLocal = () => {
-    const d = new Date();
-    const tz = d.getTimezoneOffset() * 60000;
-    return new Date(d - tz).toISOString().slice(0, 10);
-  };
-  const escHtml = s => String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
-  async function getJSON(url, opts) {
-    const r = await fetch(url, Object.assign({ cache: 'no-store' }, opts || {}));
-    if (!r.ok && !opts) throw new Error('HTTP ' + r.status + ' on ' + url);
-    return { status: r.status, body: await r.json().catch(() => ({})) };
+  function esc(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
-  function setStat(elId, value) {
-    const el = $(elId);
-    if (!el) return;
-    const numeric = Number(value) || 0;
-    if (window.animateNumber) {
-      window.animateNumber(el, numeric, { format: n => fmtPKR(n) });
-    } else {
-      el.textContent = fmtPKR(numeric);
-    }
-  }
-
-  /* ─────── + Add buttons ─────── */
-  function injectAddButtons() {
-    const headers = document.querySelectorAll('.section-header');
-    console.log('[debts] inject + Add into', headers.length, 'section headers');
-    headers.forEach(h => {
-      if (h.querySelector('.add-debt-btn')) return;
-      const label = (h.querySelector('.section-label')?.textContent || '').trim().toLowerCase();
-      const kind = label === 'receivables' ? 'owed' : 'owe';
-      const btn = document.createElement('button');
-      btn.className = 'ghost-btn add-debt-btn';
-      btn.style.marginLeft = 'auto';
-      btn.style.fontSize = '12px';
-      btn.style.padding = '4px 10px';
-      btn.textContent = '+ Add';
-      btn.dataset.kind = kind;
-      btn.addEventListener('click', () => openAddDebtModal(kind));
-      h.appendChild(btn);
+  function money(value) {
+    const n = Number(value || 0);
+    return "Rs " + n.toLocaleString("en-PK", {
+      maximumFractionDigits: 0
     });
   }
 
-  /* ─────── Add Debt modal ─────── */
-  function wireAddDebtModal() {
-    const cancel = $('addDebtCancel');
-    const confirm = $('addDebtConfirm');
-    const kindSel = $('addDebtKind');
-    const backdrop = $('addDebtModal');
-    if (cancel && !cancel._wired) {
-      cancel.addEventListener('click', closeAddDebtModal);
-      cancel._wired = true;
-    }
-    if (confirm && !confirm._wired) {
-      confirm.addEventListener('click', confirmAddDebt);
-      confirm._wired = true;
-    }
-    if (kindSel && !kindSel._wired) {
-      kindSel.addEventListener('change', () => {
-        const t = $('addDebtTitle');
-        if (t) t.textContent = kindSel.value === 'owed' ? 'Add Receivable' : 'Add Debt';
-      });
-      kindSel._wired = true;
-    }
-    if (backdrop && !backdrop._wired) {
-      backdrop.addEventListener('click', e => {
-        if (e.target === backdrop) closeAddDebtModal();
-      });
-      backdrop._wired = true;
-    }
+  function todayStart() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
   }
 
-  function openAddDebtModal(kind) {
-    const k = kind === 'owed' ? 'owed' : 'owe';
-    const title = $('addDebtTitle');
-    const name = $('addDebtName');
-    const kindSel = $('addDebtKind');
-    const amt = $('addDebtAmount');
-    const notes = $('addDebtNotes');
-    if (title) title.textContent = k === 'owed' ? 'Add Receivable' : 'Add Debt';
-    if (name) name.value = '';
-    if (kindSel) kindSel.value = k;
-    if (amt) amt.value = '';
-    if (notes) notes.value = '';
-    const m = $('addDebtModal');
-    if (m) m.style.display = 'flex';
-    if (name) setTimeout(() => name.focus(), 50);
+  function dateOnly(value) {
+    if (!value) return null;
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString().slice(0, 10);
   }
 
-  function closeAddDebtModal() {
-    const m = $('addDebtModal');
-    if (m) m.style.display = 'none';
+  function nextDateFromDay(day) {
+    const n = Number(day);
+    if (!Number.isFinite(n) || n < 1) return null;
+
+    const safe = Math.min(28, Math.max(1, Math.floor(n)));
+    const now = todayStart();
+    let d = new Date(now.getFullYear(), now.getMonth(), safe);
+
+    if (d < now) d = new Date(now.getFullYear(), now.getMonth() + 1, safe);
+
+    return dateOnly(d);
   }
 
-  async function confirmAddDebt() {
-    const name = (($('addDebtName') || {}).value || '').trim();
-    const kind = (($('addDebtKind') || {}).value || 'owe');
-    const amount = Number(($('addDebtAmount') || {}).value || 0);
-    const notes = (($('addDebtNotes') || {}).value || '').trim();
+  function daysUntil(dateValue) {
+    const d = new Date(dateValue);
+    if (Number.isNaN(d.getTime())) return null;
 
-    if (!name) { alert('Name is required'); return; }
-    if (name.length > 80) { alert('Name max 80 chars'); return; }
-    if (!amount || amount <= 0) { alert('Amount must be greater than 0'); return; }
+    const a = todayStart();
+    d.setHours(0, 0, 0, 0);
 
-    const btn = $('addDebtConfirm');
-    if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
-    try {
-      const r = await getJSON('/api/debts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-        body: JSON.stringify({ name, original_amount: amount, kind, notes: notes || undefined })
-      });
-      if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
-        console.log('[debts] addDebt POST →', r.status, 'ok');
-        closeAddDebtModal();
-        await loadAll();
-      } else {
-        alert('Add failed: ' + ((r.body && r.body.error) || 'HTTP ' + r.status));
-      }
-    } catch (e) {
-      alert('Add failed: ' + e.message);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Add Debt'; }
-    }
+    return Math.ceil((d.getTime() - a.getTime()) / 86400000);
   }
 
-  /* ─────── Edit Debt modal ─────── */
-  let _editContext = null;
+  async function fetchJson(url, options) {
+    const res = await fetch(url, {
+      cache: "no-store",
+      ...(options || {})
+    });
 
-  function wireEditDebtModal() {
-    const cancel = $('editDebtCancel');
-    const confirm = $('editDebtConfirm');
-    const del = $('editDebtDelete');
-    const kindSel = $('editDebtKind');
-    const backdrop = $('editDebtModal');
-    if (cancel && !cancel._wired) {
-      cancel.addEventListener('click', closeEditDebtModal);
-      cancel._wired = true;
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data || data.ok === false) {
+      throw new Error((data && data.error) || ("HTTP " + res.status));
     }
-    if (confirm && !confirm._wired) {
-      confirm.addEventListener('click', confirmEditDebt);
-      confirm._wired = true;
-    }
-    if (del && !del._wired) {
-      del.addEventListener('click', deleteDebtFromEditModal);
-      del._wired = true;
-    }
-    if (kindSel && !kindSel._wired) {
-      kindSel.addEventListener('change', () => {
-        const t = $('editDebtTitle');
-        if (t) t.textContent = kindSel.value === 'owed' ? 'Edit Receivable' : 'Edit Debt';
-      });
-      kindSel._wired = true;
-    }
-    if (backdrop && !backdrop._wired) {
-      backdrop.addEventListener('click', e => {
-        if (e.target === backdrop) closeEditDebtModal();
-      });
-      backdrop._wired = true;
-    }
+
+    return data;
   }
 
-  function openEditDebtModal(debt) {
-    _editContext = { id: debt.id, original: { ...debt } };
-    const title = $('editDebtTitle');
-    const sub = $('editDebtSub');
-    const name = $('editDebtName');
-    const kindSel = $('editDebtKind');
-    const amt = $('editDebtAmount');
-    const paid = $('editDebtPaid');
-    const notes = $('editDebtNotes');
-    if (title) title.textContent = debt.kind === 'owed' ? 'Edit Receivable' : 'Edit Debt';
-    if (sub) sub.textContent = 'id: ' + debt.id;
-    if (name) name.value = debt.name || '';
-    if (kindSel) kindSel.value = debt.kind === 'owed' ? 'owed' : 'owe';
-    if (amt) amt.value = debt.original_amount || 0;
-    if (paid) paid.value = debt.paid_amount || 0;
-    if (notes) notes.value = debt.notes || '';
-    const m = $('editDebtModal');
-    if (m) m.style.display = 'flex';
+  function rawById(id) {
+    return state.rawDebts.find(d => String(d.id) === String(id)) || {};
   }
 
-  function closeEditDebtModal() {
-    _editContext = null;
-    const m = $('editDebtModal');
-    if (m) m.style.display = 'none';
+  function debtStatus(row, remaining, dueDate) {
+    const status = String(row.status || "").toLowerCase();
+
+    if (status === "closed" || status === "deleted" || remaining <= 0) return "closed";
+
+    const days = dueDate ? daysUntil(dueDate) : null;
+
+    if (days === null) return "missing";
+    if (days < 0) return "overdue";
+    if (days === 0) return "today";
+    if (days <= 7) return "soon";
+
+    return "active";
   }
 
-  async function confirmEditDebt() {
-    if (!_editContext) return;
-    const name = (($('editDebtName') || {}).value || '').trim();
-    const kind = (($('editDebtKind') || {}).value || 'owe');
-    const amount = Number(($('editDebtAmount') || {}).value || 0);
-    const paid = Number(($('editDebtPaid') || {}).value || 0);
-    const notes = (($('editDebtNotes') || {}).value || '').trim();
+  function normalizeDebt(row) {
+    const raw = rawById(row.id);
 
-    if (!name) { alert('Name is required'); return; }
-    if (name.length > 80) { alert('Name max 80 chars'); return; }
-    if (!amount || amount <= 0) { alert('Amount must be greater than 0'); return; }
-    if (paid < 0) { alert('Paid cannot be negative'); return; }
-    if (paid > amount) { alert('Paid cannot exceed Original Amount'); return; }
-
-    const btn = $('editDebtConfirm');
-    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
-    try {
-      const r = await getJSON('/api/debts/' + encodeURIComponent(_editContext.id), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-        body: JSON.stringify({
-          name,
-          kind,
-          original_amount: amount,
-          paid_amount: paid,
-          notes
-        })
-      });
-      if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
-        console.log('[debts] editDebt PUT →', r.status, 'ok · fields', r.body.updated_fields);
-        closeEditDebtModal();
-        await loadAll();
-      } else {
-        alert('Save failed: ' + ((r.body && r.body.error) || 'HTTP ' + r.status));
-      }
-    } catch (e) {
-      alert('Save failed: ' + e.message);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
-    }
-  }
-
-  async function deleteDebtFromEditModal() {
-    if (!_editContext) return;
-    const name = _editContext.original.name || _editContext.id;
-    const ok = confirm(
-      'Delete "' + name + '"?\n\n' +
-      'This soft-deletes the debt (status set to "deleted"). ' +
-      'A snapshot is taken before the change — recoverable via D1 console if needed. ' +
-      'Row will disappear from this page.'
+    const remaining = Number(
+      row.remaining_amount ??
+      raw.remaining_amount ??
+      raw.remaining ??
+      Math.max(0, Number(raw.original_amount || row.original_amount || 0) - Number(raw.paid_amount || row.paid_amount || 0))
     );
-    if (!ok) return;
 
-    const btn = $('editDebtDelete');
-    if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
-    try {
-      const r = await getJSON(
-        '/api/debts/' + encodeURIComponent(_editContext.id) + '?created_by=web',
-        { method: 'DELETE', cache: 'no-store' }
-      );
-      if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
-        console.log('[debts] deleteDebt DELETE →', r.status, 'ok · snapshot', r.body.snapshot_id);
-        closeEditDebtModal();
-        await loadAll();
-      } else {
-        alert('Delete failed: ' + ((r.body && r.body.error) || 'HTTP ' + r.status));
-      }
-    } catch (e) {
-      alert('Delete failed: ' + e.message);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Delete'; }
+    const dueDate =
+      row.next_due_date ||
+      dateOnly(raw.next_due_date) ||
+      dateOnly(raw.installment_due_date) ||
+      dateOnly(raw.due_date) ||
+      nextDateFromDay(raw.due_day);
+
+    const installment = Number(
+      row.installment_amount ??
+      raw.installment_amount ??
+      raw.monthly_payment ??
+      raw.minimum_payment ??
+      0
+    );
+
+    const status = debtStatus({ ...raw, ...row }, remaining, dueDate);
+    const days = dueDate ? daysUntil(dueDate) : null;
+    const kind = String(row.kind || raw.kind || "owe").toLowerCase();
+
+    const blockers = [];
+
+    if (status !== "closed") {
+      if (!dueDate) blockers.push("missing_due_date");
+      if (remaining > 0 && installment <= 0) blockers.push("missing_installment");
     }
+
+    return {
+      id: row.id,
+      name: row.name || raw.name || row.id,
+      kind,
+      original_amount: Number(row.original_amount ?? raw.original_amount ?? row.amount ?? raw.amount ?? 0),
+      paid_amount: Number(row.paid_amount ?? raw.paid_amount ?? 0),
+      remaining_amount: remaining,
+      installment_amount: installment,
+      next_due_date: dueDate,
+      days_until_due: days,
+      status,
+      raw_status: row.status || raw.status || "active",
+      snowball_order: row.snowball_order ?? raw.snowball_order ?? null,
+      blockers
+    };
   }
 
-  /* ─────── Pay modal ─────── */
-  let _payContext = null;
+  async function load() {
+    setLoading();
 
-  function wirePayModal() {
-    const cancel = $('payCancel');
-    const confirm = $('payConfirm');
-    const backdrop = $('payModal');
-    if (cancel && !cancel._wired) {
-      cancel.addEventListener('click', closePayModal);
-      cancel._wired = true;
-    }
-    if (confirm && !confirm._wired) {
-      confirm.addEventListener('click', confirmPay);
-      confirm._wired = true;
-    }
-    if (backdrop && !backdrop._wired) {
-      backdrop.addEventListener('click', e => {
-        if (e.target === backdrop) closePayModal();
-      });
-      backdrop._wired = true;
-    }
+    const [contracts, raw] = await Promise.all([
+      fetchJson("/api/money-contracts"),
+      fetchJson("/api/debts").catch(() => ({ debts: [] }))
+    ]);
+
+    state.rawDebts = raw.debts || raw.rows || raw.items || [];
+
+    state.debts =
+      ((((contracts.contracts || {}).debts || {}).rows || [])
+        .map(normalizeDebt)
+        .sort(sortDebts));
+
+    render();
   }
 
-  function populatePayAccounts() {
-    const sel = $('payAccount');
-    if (!sel) return;
-    const accounts = (window.store && window.store.cachedAccounts) || [];
-    if (!accounts.length) {
-      sel.innerHTML = '<option value="">⚠ no accounts loaded — refresh the page</option>';
-      return;
-    }
-    sel.innerHTML = accounts
-      .map(a => `<option value="${escHtml(a.id)}">${escHtml(a.name)} (${escHtml(a.id)})</option>`)
-      .join('');
+  function sortDebts(a, b) {
+    const rank = {
+      overdue: 0,
+      today: 1,
+      soon: 2,
+      missing: 3,
+      active: 4,
+      closed: 5
+    };
+
+    const ar = rank[a.status] ?? 9;
+    const br = rank[b.status] ?? 9;
+
+    if (ar !== br) return ar - br;
+
+    if (a.kind !== b.kind) return a.kind.localeCompare(b.kind);
+
+    if (a.days_until_due === null && b.days_until_due === null) return b.remaining_amount - a.remaining_amount;
+    if (a.days_until_due === null) return 1;
+    if (b.days_until_due === null) return -1;
+
+    return a.days_until_due - b.days_until_due;
   }
 
-  function openPayModal(debt) {
-    const remaining = (debt.original_amount || 0) - (debt.paid_amount || 0);
-    _payContext = { id: debt.id, name: debt.name, remaining };
-    const t = $('payModalTitle');
-    const sub = $('payModalSub');
-    const amt = $('payAmount');
-    const date = $('payDate');
-    if (t) t.textContent = 'Pay ' + debt.name;
-    if (sub) sub.textContent = 'Remaining ' + fmtPKR(remaining);
-    if (amt) amt.value = remaining > 0 ? remaining : '';
-    if (date) date.value = todayLocal();
-    populatePayAccounts();
-    const m = $('payModal');
-    if (m) m.style.display = 'flex';
+  function visibleDebts() {
+    if (state.filter === "all") return state.debts;
+    if (state.filter === "owe") return state.debts.filter(d => d.kind === "owe" && d.status !== "closed");
+    if (state.filter === "owed") return state.debts.filter(d => d.kind === "owed" && d.status !== "closed");
+    if (state.filter === "attention") return state.debts.filter(d => d.status !== "closed" && (d.blockers.length || ["overdue", "today", "soon"].includes(d.status)));
+    if (state.filter === "closed") return state.debts.filter(d => d.status === "closed");
+    return state.debts.filter(d => d.status !== "closed");
   }
 
-  function closePayModal() {
-    _payContext = null;
-    const m = $('payModal');
-    if (m) m.style.display = 'none';
+  function renderStats() {
+    const active = state.debts.filter(d => d.status !== "closed");
+    const owe = active.filter(d => d.kind === "owe").reduce((sum, d) => sum + d.remaining_amount, 0);
+    const owed = active.filter(d => d.kind === "owed").reduce((sum, d) => sum + d.remaining_amount, 0);
+    const attention = active.filter(d => d.blockers.length || ["overdue", "today", "soon"].includes(d.status));
+
+    $("debtStatActive").textContent = String(active.length);
+    $("debtStatOwe").textContent = money(owe);
+    $("debtStatOwed").textContent = money(owed);
+    $("debtStatAttention").textContent = String(attention.length);
   }
 
-  async function confirmPay() {
-    if (!_payContext) return;
-    const amt = Number(($('payAmount') || {}).value || 0);
-    const accountId = ($('payAccount') || {}).value || '';
-    const date = ($('payDate') || {}).value || todayLocal();
-    if (!amt || amt <= 0) { alert('Enter a valid amount'); return; }
-    if (!accountId) { alert('Select an account'); return; }
-    const btn = $('payConfirm');
-    if (btn) { btn.disabled = true; btn.textContent = 'Paying…'; }
-    try {
-      const r = await getJSON('/api/debts/' + encodeURIComponent(_payContext.id) + '/pay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        cache: 'no-store',
-        body: JSON.stringify({ amount: amt, account_id: accountId, date: date })
-      });
-      if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
-        console.log('[debts] pay POST →', r.status, 'ok · txn', r.body.txn_id);
-        closePayModal();
-        await loadAll();
-      } else {
-        alert('Pay failed: ' + ((r.body && r.body.error) || 'HTTP ' + r.status));
-      }
-    } catch (e) {
-      alert('Pay failed: ' + e.message);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Confirm'; }
-    }
+  function dueCopy(debt) {
+    if (debt.status === "closed") return "Closed";
+    if (!debt.next_due_date) return "No due date";
+    if (debt.days_until_due < 0) return `${Math.abs(debt.days_until_due)} days overdue`;
+    if (debt.days_until_due === 0) return "Due today";
+    if (debt.days_until_due === 1) return "Due tomorrow";
+    return `Due in ${debt.days_until_due} days`;
   }
 
-  /* ─────── Renderers ─────── */
-  function renderStats(debts, balances) {
-    const owe = debts.filter(d => d.kind === 'owe' && d.status === 'active');
-    const owed = debts.filter(d => d.kind === 'owed' && d.status === 'active');
-    const totalOwe = owe.reduce((s, d) => s + ((d.original_amount || 0) - (d.paid_amount || 0)), 0);
-    const totalOwed = owed.reduce((s, d) => s + ((d.original_amount || 0) - (d.paid_amount || 0)), 0);
-    const cc = balances && balances.cc_outstanding ? Math.abs(Number(balances.cc_outstanding)) : 0;
-    const burden = totalOwe + cc;
-
-    setStat('debts-total-owe', totalOwe);
-    setStat('debts-total-owed', totalOwed);
-    setStat('debts-net-burden', burden);
-
-    const oweCnt = $('debts-owe-count');
-    if (oweCnt) oweCnt.textContent = fmtCount(owe.length, owe.length === 1 ? 'debt' : 'debts');
-    const owedCnt = $('debts-owed-count');
-    if (owedCnt) owedCnt.textContent = fmtCount(owed.length, owed.length === 1 ? 'receivable' : 'receivables');
-
-    const summary = $('debts-summary');
-    if (summary) {
-      summary.textContent = 'Owing ' + fmtPKR(totalOwe) +
-        (owed.length ? ' · Receiving ' + fmtPKR(totalOwed) : '');
-    }
+  function kindCopy(kind) {
+    return kind === "owed" ? "They owe me" : "I owe";
   }
 
-  function renderOweRow(d) {
-    const remaining = (d.original_amount || 0) - (d.paid_amount || 0);
-    const paidPct = d.original_amount > 0
-      ? Math.min(100, Math.round((d.paid_amount || 0) / d.original_amount * 100))
+  function statusLabel(status) {
+    return {
+      overdue: "Overdue",
+      today: "Due today",
+      soon: "Due soon",
+      missing: "Missing setup",
+      active: "Scheduled",
+      closed: "Closed"
+    }[status] || "Unknown";
+  }
+
+  function renderDebt(debt) {
+    const pct = debt.original_amount > 0
+      ? Math.max(0, Math.min(100, Math.round((debt.paid_amount / debt.original_amount) * 100)))
       : 0;
+
+    const blockerHtml = debt.blockers.length
+      ? `<div class="debt-blockers">${debt.blockers.map(b => `<span>${esc(b.replace(/_/g, " "))}</span>`).join("")}</div>`
+      : "";
+
     return `
-      <div class="mini-row" data-debt-id="${escHtml(d.id)}">
-        <div class="mini-row-left">
-          <div class="mini-row-name">${escHtml(d.name)}</div>
-          <div class="mini-row-sub">${paidPct}% paid · of ${fmtPKR(d.original_amount)}</div>
-        </div>
-        <div class="mini-row-right">
-          <div class="mini-row-amount negative">${fmtPKR(remaining)}</div>
-          <div style="display:flex;gap:6px;margin-top:4px;justify-content:flex-end">
-            <button class="primary-btn pay-btn" data-debt-id="${escHtml(d.id)}"
-                    style="font-size:12px;padding:4px 10px">Pay</button>
-            <button class="ghost-btn edit-btn" data-debt-id="${escHtml(d.id)}"
-                    style="font-size:12px;padding:4px 10px" title="Edit / Delete">✏️</button>
+      <article class="debt-card ${esc(debt.status)} ${esc(debt.kind)}" data-debt-id="${esc(debt.id)}">
+        <div class="debt-main">
+          <div class="debt-left">
+            <div class="debt-kind-pill ${esc(debt.kind)}">${esc(kindCopy(debt.kind))}</div>
+            <div class="debt-name">${esc(debt.name)}</div>
+            <div class="debt-meta">
+              ${esc(statusLabel(debt.status))} · ${esc(dueCopy(debt))} · ${esc(debt.raw_status)}
+            </div>
+          </div>
+
+          <div class="debt-money">
+            <div class="debt-remaining">${money(debt.remaining_amount)}</div>
+            <div class="debt-sub">remaining</div>
           </div>
         </div>
-      </div>`;
+
+        <div class="debt-progress">
+          <div class="debt-progress-bar" style="width:${pct}%"></div>
+        </div>
+
+        <div class="debt-split">
+          <span>Original: ${money(debt.original_amount)}</span>
+          <span>Paid: ${money(debt.paid_amount)}</span>
+          <span>${pct}% cleared</span>
+        </div>
+
+        ${blockerHtml}
+
+        <div class="debt-config">
+          <label>
+            Next due date
+            <input type="date" data-due-date="${esc(debt.id)}" value="${esc(debt.next_due_date || "")}" ${debt.status === "closed" ? "disabled" : ""} />
+          </label>
+
+          <label>
+            Installment
+            <input type="number" min="0" step="1" data-installment="${esc(debt.id)}" value="${esc(debt.installment_amount || "")}" placeholder="0" ${debt.status === "closed" ? "disabled" : ""} />
+          </label>
+
+          <button class="debt-save" type="button" data-save="${esc(debt.id)}" ${debt.status === "closed" ? "disabled" : ""}>
+            Save
+          </button>
+        </div>
+
+        <div class="debt-foot">
+          <span>ID: ${esc(debt.id)}</span>
+          <span>Snowball: ${esc(debt.snowball_order ?? "N/A")}</span>
+        </div>
+      </article>
+    `;
   }
 
-  function renderOwedRow(d) {
-    const remaining = (d.original_amount || 0) - (d.paid_amount || 0);
-    return `
-      <div class="mini-row" data-debt-id="${escHtml(d.id)}">
-        <div class="mini-row-left">
-          <div class="mini-row-name">${escHtml(d.name)}</div>
-          <div class="mini-row-sub">of ${fmtPKR(d.original_amount)}</div>
-        </div>
-        <div class="mini-row-right">
-          <div class="mini-row-amount accent">${fmtPKR(remaining)}</div>
-          <button class="ghost-btn edit-btn" data-debt-id="${escHtml(d.id)}"
-                  style="font-size:12px;padding:4px 10px;margin-top:4px" title="Edit / Delete">✏️</button>
-        </div>
-      </div>`;
-  }
+  function render() {
+    renderStats();
 
-  function renderLists(debts) {
-    const owe = debts
-      .filter(d => d.kind === 'owe' && d.status === 'active')
-      .sort((a, b) =>
-        (a.snowball_order != null && b.snowball_order != null)
-          ? a.snowball_order - b.snowball_order
-          : ((b.original_amount - b.paid_amount) - (a.original_amount - a.paid_amount))
-      );
-    const owed = debts
-      .filter(d => d.kind === 'owed' && d.status === 'active')
-      .sort((a, b) => (b.original_amount - b.paid_amount) - (a.original_amount - a.paid_amount));
+    document.querySelectorAll(".debt-filter").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.filter === state.filter);
+    });
 
-    const oweContainer = $('debts-owe-list');
-    if (oweContainer) {
-      oweContainer.innerHTML = owe.length
-        ? owe.map(renderOweRow).join('')
-        : '<div class="empty-state-inline">No active debts 🎉</div>';
-      oweContainer.querySelectorAll('.pay-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = btn.dataset.debtId;
-          const d = debts.find(x => x.id === id);
-          if (d) openPayModal(d);
-        });
-      });
-      oweContainer.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = btn.dataset.debtId;
-          const d = debts.find(x => x.id === id);
-          if (d) openEditDebtModal(d);
-        });
-      });
+    const rows = visibleDebts();
+    const list = $("debtsList");
+
+    if (!rows.length) {
+      list.innerHTML = `<div class="debt-empty">No debts in this view.</div>`;
+      return;
     }
 
-    const owedContainer = $('debts-owed-list');
-    const owedHeader = $('receivables-header');
-    if (owed.length === 0) {
-      if (owedContainer) owedContainer.innerHTML = '';
-      if (owedHeader) owedHeader.style.display = 'none';
-    } else {
-      if (owedHeader) owedHeader.style.display = '';
-      if (owedContainer) {
-        owedContainer.innerHTML = owed.map(renderOwedRow).join('');
-        owedContainer.querySelectorAll('.edit-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const id = btn.dataset.debtId;
-            const d = debts.find(x => x.id === id);
-            if (d) openEditDebtModal(d);
-          });
-        });
-      }
+    list.innerHTML = rows.map(renderDebt).join("");
+
+    list.querySelectorAll("[data-save]").forEach(btn => {
+      btn.addEventListener("click", () => saveDebt(btn.dataset.save));
+    });
+
+    if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
+      window.SovereignNav.scheduleOverflowCheck();
     }
   }
 
-  /* ─────── Loader ─────── */
-  async function loadAll() {
-    console.log('[debts]', VERSION, 'loadAll start');
+  function setLoading() {
+    $("debtsList").innerHTML = `<div class="debt-empty">Loading debts...</div>`;
+  }
+
+  function toast(message, type) {
+    const el = $("toast");
+    if (!el) return;
+
+    el.textContent = message;
+    el.className = "toast toast-" + (type || "success") + " show";
+
+    setTimeout(() => {
+      el.className = "toast";
+    }, 2600);
+  }
+
+  async function saveDebt(id) {
+    const card = document.querySelector(`[data-debt-id="${CSS.escape(id)}"]`);
+    if (!card) return;
+
+    const dueDate = card.querySelector("[data-due-date]")?.value || "";
+    const installment = Number(card.querySelector("[data-installment]")?.value || 0);
+
+    if (!dueDate) {
+      toast("Select a due date first.", "error");
+      return;
+    }
+
+    const btn = card.querySelector("[data-save]");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Saving...";
+    }
+
+    const payload = {
+      due_date: dueDate,
+      next_due_date: dueDate,
+      installment_amount: installment,
+      updated_by: "web-debts-v0.6.0"
+    };
+
     try {
-      const [debtsR, balR] = await Promise.all([
-        fetch('/api/debts', { cache: 'no-store' }),
-        fetch('/api/balances', { cache: 'no-store' })
-      ]);
-      console.log('[debts] /api/debts', debtsR.status, '/api/balances', balR.status);
-      const debtsBody = await debtsR.json();
-      const balBody = await balR.json();
+      await fetchJson(`/api/debts/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-      if (!debtsBody.ok) throw new Error(debtsBody.error || 'debts payload not ok');
-
-      const debts = debtsBody.debts || [];
-      const balances = balBody.ok ? balBody : {};
-
-      if (window.store) {
-        window.store.cachedDebts = debts;
-        if (balBody.accounts) window.store.cachedAccounts = balBody.accounts;
+      toast("Debt config saved.", "success");
+      await load();
+    } catch (err) {
+      toast("Save failed: " + err.message, "error");
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Save";
       }
-
-      renderStats(debts, balances);
-      renderLists(debts);
-      console.log('[debts] render complete:', debts.length, 'debts');
-    } catch (e) {
-      console.error('[debts] loadAll FAILED:', e);
-      const owe = $('debts-owe-list');
-      if (owe) owe.innerHTML = '<div class="empty-state-inline">Failed: ' + escHtml(e.message) + '</div>';
-      const sum = $('debts-summary');
-      if (sum) sum.textContent = 'load failed';
     }
   }
 
-  /* ─────── Init ─────── */
-  function init() {
-    console.log('[debts]', VERSION, 'init');
-    injectAddButtons();
-    wirePayModal();
-    wireAddDebtModal();
-    wireEditDebtModal();
-    loadAll();
+  function wire() {
+    document.querySelectorAll(".debt-filter").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state.filter = btn.dataset.filter || "active";
+        render();
+      });
+    });
+
+    $("reloadDebts").addEventListener("click", () => {
+      load().then(() => toast("Debts refreshed.", "success")).catch(err => toast(err.message, "error"));
+    });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+  window.SovereignDebts = {
+    version: VERSION,
+    reload: load,
+    state
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      wire();
+      load().catch(err => {
+        $("debtsList").innerHTML = `<div class="debt-empty">Debts failed: ${esc(err.message)}</div>`;
+      });
+    });
   } else {
-    init();
+    wire();
+    load().catch(err => {
+      $("debtsList").innerHTML = `<div class="debt-empty">Debts failed: ${esc(err.message)}</div>`;
+    });
   }
 })();
