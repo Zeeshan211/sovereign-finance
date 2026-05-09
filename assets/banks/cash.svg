@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Cash">
+  <rect width="96" height="96" rx="24" fill="#ECFDF5"/>
+  <rect x="18" y="28" width="60" height="40" rx="10" fill="#FFFFFF" stroke="#047857" stroke-width="4"/>
+  <circle cx="48" cy="48" r="11" fill="#BBF7D0" stroke="#047857" stroke-width="4"/>
+  <path d="M28 40h6M62 56h6" stroke="#047857" stroke-width="4" stroke-linecap="round"/>
+</svg>
