@@ -1,447 +1,442 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="light">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
-<title>Add Transaction - Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=2.0.0" />
-<style>
-.add-page {
-  max-width: 1180px;
-}
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>Add Transaction · Sovereign Finance</title>
 
-.add-hero-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-  gap: 18px;
-  align-items: stretch;
-}
+  <link rel="stylesheet" href="/css/app.css?v=2.0.3" />
 
-.add-side-panel {
-  display: grid;
-  gap: 14px;
-}
+  <style>
+    .add-hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 430px);
+      gap: 18px;
+      align-items: stretch;
+    }
 
-.add-trust-panel {
-  padding: 18px;
-  border-radius: var(--r-xl);
-  border: 1px solid rgba(180, 83, 9, 0.24);
-  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
-  box-shadow: var(--shadow-sm);
-  color: var(--warn);
-}
+    .add-side-stack {
+      display: grid;
+      gap: 12px;
+    }
 
-.add-trust-panel.income {
-  border-color: rgba(4, 120, 87, 0.24);
-  background: linear-gradient(135deg, var(--success-soft), var(--surface-1));
-  color: var(--success);
-}
+    .add-trust-panel {
+      padding: 18px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.10);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+    }
 
-.add-trust-panel.transfer {
-  border-color: rgba(29, 78, 216, 0.24);
-  background: linear-gradient(135deg, var(--info-soft), var(--surface-1));
-  color: var(--info);
-}
+    .add-trust-panel.income {
+      background: rgba(16, 185, 129, 0.14);
+      border-color: rgba(16, 185, 129, 0.22);
+    }
 
-.add-trust-title {
-  font-size: 11px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
+    .add-trust-panel.transfer {
+      background: rgba(59, 130, 246, 0.14);
+      border-color: rgba(59, 130, 246, 0.22);
+    }
 
-#addTrustText {
-  margin-top: 8px;
-  color: var(--text-strong);
-  font-size: 14px;
-  line-height: 1.5;
-  font-weight: 820;
-}
+    .add-trust-title {
+      font-size: 12px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #cbd5e1;
+    }
 
-.add-type-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 22px;
-}
+    .add-trust-copy {
+      margin-top: 8px;
+      color: #f8fafc;
+      font-size: 14px;
+      line-height: 1.55;
+      font-weight: 780;
+    }
 
-.type-btn {
-  min-height: 116px;
-  padding: 16px;
-  border-radius: var(--r-xl);
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.07);
-  color: #f8fafc;
-  cursor: pointer;
-  text-align: left;
-  box-shadow: none;
-}
+    .add-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
 
-.type-btn:hover {
-  background: rgba(255,255,255,0.10);
-  transform: translateY(-1px);
-}
+    .add-chip::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: currentColor;
+    }
 
-.type-btn.active {
-  background: rgba(16, 185, 129, 0.16);
-  border-color: rgba(16, 185, 129, 0.36);
-  color: #ffffff;
-}
+    .add-chip.safe {
+      background: rgba(16, 185, 129, 0.18);
+      border-color: rgba(16, 185, 129, 0.28);
+      color: #bbf7d0;
+    }
 
-.type-main {
-  display: block;
-  font-size: 17px;
-  font-weight: 950;
-  letter-spacing: -0.03em;
-}
+    .add-chip.transfer {
+      background: rgba(59, 130, 246, 0.18);
+      border-color: rgba(59, 130, 246, 0.28);
+      color: #bfdbfe;
+    }
 
-.type-small {
-  display: block;
-  margin-top: 6px;
-  color: #cbd5e1;
-  font-size: 12px;
-  font-weight: 780;
-}
+    .add-chip.blocked {
+      background: var(--warn-soft);
+      border-color: rgba(180, 83, 9, 0.24);
+      color: var(--warn);
+    }
 
-.add-form-card {
-  margin-top: 18px;
-  padding: 22px;
-  border-radius: var(--r-2xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-md);
-}
+    .add-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+      gap: 18px;
+      align-items: start;
+    }
 
-.add-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
+    .add-form-card {
+      padding: 22px;
+      border-radius: 30px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
 
-.add-field-full {
-  grid-column: 1 / -1;
-}
+    .add-form-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
 
-.add-enforcement-panel {
-  margin-bottom: 16px;
-  padding: 16px;
-  border-radius: var(--r-xl);
-  border: 1px solid rgba(185, 28, 28, 0.20);
-  background: linear-gradient(135deg, var(--danger-soft), var(--surface-1));
-  color: var(--danger);
-}
+    .add-form-title {
+      color: var(--text-strong);
+      font-size: 20px;
+      line-height: 1.1;
+      font-weight: 950;
+      letter-spacing: -0.04em;
+    }
 
-.add-enforcement-panel.warning {
-  border-color: rgba(180, 83, 9, 0.24);
-  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
-  color: var(--warn);
-}
+    .add-form-sub {
+      margin-top: 5px;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 760;
+    }
 
-.add-enforcement-title {
-  color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
+    .type-switch {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 18px;
+      padding: 6px;
+      border-radius: 20px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
 
-#addEnforcementSummary {
-  color: var(--text);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 760;
-}
+    .type-btn {
+      min-height: 44px;
+      border: 0;
+      border-radius: 15px;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 950;
+      cursor: pointer;
+      box-shadow: none;
+    }
 
-.add-enforcement-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 12px;
-}
+    .type-btn.active {
+      background: var(--surface-1);
+      color: var(--text-strong);
+      box-shadow: var(--shadow-xs);
+    }
 
-.add-enforcement-item {
-  padding: 11px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,0.54);
-  color: var(--text);
-  font-size: 12px;
-  line-height: 1.4;
-  font-weight: 760;
-}
+    .type-btn[data-type="expense"].active {
+      color: var(--danger);
+    }
 
-html[data-theme="dark"] .add-enforcement-item,
-body[data-theme="dark"] .add-enforcement-item {
-  background: rgba(15,23,42,0.42);
-}
+    .type-btn[data-type="income"].active {
+      color: var(--success);
+    }
 
-.add-enforcement-item strong {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
+    .type-btn[data-type="transfer"].active {
+      color: var(--info);
+    }
 
-.transfer-note {
-  display: none;
-  margin-bottom: 16px;
-  padding: 14px;
-  border-radius: var(--r-lg);
-  border: 1px solid rgba(29, 78, 216, 0.22);
-  background: var(--info-soft);
-  color: var(--info);
-  font-size: 13px;
-  font-weight: 820;
-  line-height: 1.45;
-}
+    .add-form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
 
-body.transfer-mode .transfer-note {
-  display: block;
-}
+    .field-full {
+      grid-column: 1 / -1;
+    }
 
-.add-submit {
-  margin-top: 18px;
-}
+    .add-submit-area {
+      margin-top: 18px;
+      display: grid;
+      gap: 10px;
+    }
 
-.add-action-clarity {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 12px;
-}
+    .add-mini-note {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 740;
+      line-height: 1.45;
+    }
 
-.add-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  padding: 7px 10px;
-  border-radius: var(--r-pill);
-  border: 1px solid rgba(180, 83, 9, 0.24);
-  background: var(--warn-soft);
-  color: var(--warn);
-  font-size: 10px;
-  font-weight: 950;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
+    .add-enforcement-panel {
+      padding: 18px;
+      border-radius: 26px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
 
-.add-chip::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: currentColor;
-}
+    .add-enforcement-panel.warning {
+      background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
+      border-color: rgba(180, 83, 9, 0.24);
+    }
 
-.add-chip.safe {
-  border-color: rgba(4, 120, 87, 0.24);
-  background: var(--success-soft);
-  color: var(--success);
-}
+    .add-panel-title {
+      color: var(--text-strong);
+      font-size: 16px;
+      font-weight: 950;
+      letter-spacing: -0.03em;
+    }
 
-.add-chip.transfer {
-  border-color: rgba(29, 78, 216, 0.22);
-  background: var(--info-soft);
-  color: var(--info);
-}
+    .add-panel-copy {
+      margin-top: 7px;
+      color: var(--text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+      font-weight: 740;
+    }
 
-.add-chip.blocked {
-  border-color: rgba(185, 28, 28, 0.22);
-  background: var(--danger-soft);
-  color: var(--danger);
-}
+    .add-rule-list {
+      margin-top: 14px;
+      display: grid;
+      gap: 9px;
+    }
 
-.add-safety {
-  margin: 12px 0 0;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.45;
-  font-weight: 760;
-  text-align: center;
-}
+    .add-rule-row {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr);
+      gap: 10px;
+      padding: 10px;
+      border-radius: 16px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
 
-.add-page-meta {
-  display: none !important;
-}
+    .add-rule-key {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
 
-@media (max-width: 960px) {
-  .add-hero-grid,
-  .add-grid,
-  .add-enforcement-grid {
-    grid-template-columns: 1fr;
-  }
+    .add-rule-value {
+      color: var(--text-strong);
+      font-size: 12px;
+      font-weight: 820;
+      overflow-wrap: anywhere;
+    }
 
-  .add-type-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>
+    .add-link-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    @media (max-width: 1180px) {
+      .add-hero-grid,
+      .add-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 680px) {
+      .add-form-grid,
+      .type-switch {
+        grid-template-columns: 1fr;
+      }
+
+      .add-rule-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 
 <body>
-<header>
-<div>
-<div class="brand">Sovereign Finance</div>
-<div class="title">Add Transaction</div>
-</div>
-</header>
+  <main class="app-page">
+    <section class="finance-hero">
+      <div class="add-hero-grid">
+        <div>
+          <div class="hero-kicker">Money Entry</div>
+          <h1 class="hero-title">Add Transaction</h1>
+          <p class="hero-copy">
+            Restore normal finance entry: expense, income, and transfer each show only their correct fields. Real saves still obey Command Centre law through dry-run and backend transaction.save authority.
+          </p>
 
-<main class="app-page add-page">
-<section class="add-hero-grid">
-<div class="page-hero">
-<div class="hero-kicker">Governed money entry</div>
-<h1 class="hero-title">Add money movement only after proof.</h1>
-<p class="hero-copy">
-Expense, income, and transfer entries run a dry-run preflight before any real save. Command Centre decides whether the final write is allowed.
-</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+            <a class="btn btn-secondary" href="/transactions.html">View Ledger</a>
+            <a class="btn btn-secondary" href="/index.html">Finance Hub</a>
+          </div>
+        </div>
 
-<div class="add-type-grid" aria-label="Transaction type">
-<button class="type-btn active" type="button" data-type="expense">
-<span class="type-main">Expense</span>
-<span class="type-small">Money leaves an account</span>
-</button>
-<button class="type-btn" type="button" data-type="income">
-<span class="type-main">Income</span>
-<span class="type-small">Money enters an account</span>
-</button>
-<button class="type-btn" type="button" data-type="transfer">
-<span class="type-main">Transfer</span>
-<span class="type-small">Money moves between accounts</span>
-</button>
-</div>
-</div>
+        <div class="add-side-stack">
+          <div class="add-trust-panel" id="addTrustPanel">
+            <div class="add-trust-title">Current Mode</div>
+            <div class="add-trust-copy" id="addTrustText">
+              Expense validates account, amount, category, and D1-safe payload before saving.
+            </div>
+            <div style="margin-top:12px;">
+              <span class="add-chip" id="submitClarityChip">Dry-run validates one ledger row</span>
+            </div>
+          </div>
 
-<aside class="add-side-panel">
-<div id="addTrustPanel" class="add-trust-panel">
-<div class="add-trust-title">Action model</div>
-<div id="addTrustText">Expense dry-run validates one transaction row and the selected source account before any real save.</div>
-</div>
+          <div class="add-trust-panel">
+            <div class="add-trust-title">Safety Rule</div>
+            <div class="add-trust-copy" id="addSafetyText">
+              This page runs preflight first. Real save happens only when Command Centre allows transaction.save.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-<div class="authority-panel">
-<div class="authority-title">Write safety posture</div>
-<div class="authority-copy">
-This page is allowed only because Add Transaction already has dry-run proof, page preflight, and backend Command Centre enforcement.
-</div>
-<div style="margin-top:12px">
-<span class="badge badge-ready">Preflight first</span>
-<span class="badge badge-info">Backend gated</span>
-</div>
-</div>
-</aside>
-</section>
+    <section class="add-layout">
+      <form class="add-form-card" id="addForm" autocomplete="off">
+        <div class="add-form-head">
+          <div>
+            <div class="add-form-title">Transaction Details</div>
+            <div class="add-form-sub">Choose the correct mode. The form changes by transaction type.</div>
+          </div>
+          <span class="add-chip" id="enforcementChip" hidden>Checking</span>
+        </div>
 
-<section class="add-form-card">
-<form id="addForm" autocomplete="off">
-<div id="addEnforcementPanel" class="add-enforcement-panel" hidden>
-<div class="add-enforcement-title">Command Centre authority</div>
-<div id="addEnforcementSummary">Checking Command Centre enforcement policy...</div>
+        <div class="type-switch" role="tablist" aria-label="Transaction type">
+          <button class="type-btn active" type="button" data-type="expense">Expense</button>
+          <button class="type-btn" type="button" data-type="income">Income</button>
+          <button class="type-btn" type="button" data-type="transfer">Transfer</button>
+        </div>
 
-<div class="add-enforcement-grid">
-<div class="add-enforcement-item">
-<strong>Action</strong>
-<span id="addBlockedAction">transaction.save</span>
-</div>
-<div class="add-enforcement-item">
-<strong>Reason</strong>
-<span id="addBlockReason">Loading...</span>
-</div>
-<div class="add-enforcement-item">
-<strong>Source</strong>
-<span id="addBlockSource">Loading...</span>
-</div>
-<div class="add-enforcement-item">
-<strong>Required fix</strong>
-<span id="addRequiredFix">Loading...</span>
-</div>
-<div class="add-enforcement-item">
-<strong>Override</strong>
-<span id="addOverrideStatus">Loading...</span>
-</div>
-<div class="add-enforcement-item">
-<strong>Backend enforced</strong>
-<span id="addBackendStatus">Loading...</span>
-</div>
-</div>
-</div>
+        <div class="add-form-grid">
+          <div class="field">
+            <label for="amountInput">Amount</label>
+            <input id="amountInput" type="number" min="0" step="1" inputmode="numeric" placeholder="0" required />
+          </div>
 
-<div class="transfer-note">
-Transfer mode validates a linked movement: one account sends value out, another receives value in. Preflight runs before save.
-</div>
+          <div class="field">
+            <label for="dateInput">Date</label>
+            <input id="dateInput" type="date" required />
+          </div>
 
-<div class="add-grid">
-<div class="field">
-<label for="amountInput">Amount</label>
-<input id="amountInput" class="input" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
-</div>
+          <div class="field">
+            <label for="accountSelect" id="accountFromLabel">Account</label>
+            <select id="accountSelect" required>
+              <option value="">Loading accounts...</option>
+            </select>
+          </div>
 
-<div class="field">
-<label for="dateInput">Date</label>
-<input id="dateInput" class="input" name="date" type="date" required />
-</div>
+          <div class="field" id="transferToWrap" hidden>
+            <label for="transferToSelect">To Account</label>
+            <select id="transferToSelect">
+              <option value="">Pick account...</option>
+            </select>
+          </div>
 
-<div class="field">
-<label id="accountFromLabel" for="accountSelect">Account</label>
-<select id="accountSelect" class="select" name="account" required>
-<option value="">Loading accounts...</option>
-</select>
-</div>
+          <div class="field" id="categoryWrap">
+            <label for="categorySelect">Category <small>optional if unavailable</small></label>
+            <select id="categorySelect">
+              <option value="">Loading categories...</option>
+            </select>
+          </div>
 
-<div class="field" id="transferToWrap" hidden>
-<label for="transferToSelect">To Account</label>
-<select id="transferToSelect" class="select" name="transfer_to_account">
-<option value="">Pick account...</option>
-</select>
-</div>
+          <div class="field field-full">
+            <label for="notesInput">Notes</label>
+            <textarea id="notesInput" maxlength="200" placeholder="Short description or context"></textarea>
+          </div>
+        </div>
 
-<div class="field" id="categoryWrap">
-<label for="categorySelect">Category <small>optional</small></label>
-<select id="categorySelect" class="select" name="category">
-<option value="">Loading categories...</option>
-</select>
-</div>
+        <div class="add-submit-area">
+          <button class="primary-submit btn-success" id="submitBtn" type="submit">
+            Complete Required Fields
+          </button>
 
-<div class="field add-field-full">
-<label for="notesInput">Notes <small>max 200 chars</small></label>
-<textarea id="notesInput" class="textarea" name="notes" maxlength="200" placeholder="What happened?"></textarea>
-</div>
-</div>
+          <div class="add-mini-note">
+            This page never queues offline writes. If the API or Command Centre gate fails, the save fails loudly instead of silently corrupting finance state.
+          </div>
+        </div>
+      </form>
 
-<div class="add-submit">
-<div class="add-action-clarity">
-<span id="submitClarityChip" class="add-chip">Dry-run validates one ledger row</span>
-<span class="add-chip safe">No silent queue</span>
-<span class="add-chip safe">No undefined D1 bind</span>
-<span id="enforcementChip" class="add-chip blocked" hidden>Command Centre blocked</span>
-</div>
+      <aside class="add-enforcement-panel" id="addEnforcementPanel">
+        <div class="add-panel-title">Command Centre Law</div>
+        <div class="add-panel-copy" id="addEnforcementSummary">
+          Loading transaction.save authority. Read pages are not blocked; this write action still requires proof.
+        </div>
 
-<button id="submitBtn" class="primary-submit" type="submit" disabled>
-Run Safe Preflight
-</button>
+        <div class="add-rule-list">
+          <div class="add-rule-row">
+            <div class="add-rule-key">Action</div>
+            <div class="add-rule-value" id="addBlockedAction">transaction.save</div>
+          </div>
 
-<p id="addSafetyText" class="add-safety">
-Expense mode can run a safe dry-run proof. Real save depends on Command Centre transaction.save authority.
-</p>
-</div>
-</form>
-</section>
+          <div class="add-rule-row">
+            <div class="add-rule-key">Reason</div>
+            <div class="add-rule-value" id="addBlockReason">Checking Command Centre</div>
+          </div>
 
-<footer class="add-page-meta" aria-hidden="true">
-Add Transaction premium UI v2.0.0
-</footer>
-</main>
+          <div class="add-rule-row">
+            <div class="add-rule-key">Source</div>
+            <div class="add-rule-value" id="addBlockSource">finance-command-center</div>
+          </div>
 
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
+          <div class="add-rule-row">
+            <div class="add-rule-key">Required Fix</div>
+            <div class="add-rule-value" id="addRequiredFix">Waiting for gate status</div>
+          </div>
 
-<script src="/js/theme.js?v=1.0.0"></script>
-<script src="/js/nav.js?v=2.0.0"></script>
-<script src="/js/enforcement.js?v=0.2.0"></script>
-<script src="/js/store.js?v=0.2.4"></script>
-<script src="/js/add.js?v=0.4.6"></script>
+          <div class="add-rule-row">
+            <div class="add-rule-key">Override</div>
+            <div class="add-rule-value" id="addOverrideStatus">Not allowed</div>
+          </div>
+
+          <div class="add-rule-row">
+            <div class="add-rule-key">Backend</div>
+            <div class="add-rule-value" id="addBackendStatus">Yes</div>
+          </div>
+        </div>
+
+        <div class="add-link-row">
+          <a class="btn btn-secondary" href="/monthly-close.html">Open Command Centre</a>
+          <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script src="/js/theme.js?v=1.0.0"></script>
+  <script src="/js/nav.js?v=2.0.3"></script>
+  <script src="/js/enforcement.js?v=0.3.0"></script>
+  <script src="/js/add.js?v=0.4.6"></script>
 </body>
 </html>
