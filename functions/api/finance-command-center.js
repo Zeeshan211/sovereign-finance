@@ -1,16 +1,16 @@
-// v0.6.0 Finance Command Centre Bills preflight recognition
+// v0.7.0 Finance Command Centre final authority lock
 //
 // Contract:
-// - Read-only Command Centre endpoint.
-// - No D1 writes inside this endpoint.
-// - No ledger smoke tests.
+// - Command Centre remains read-only.
+// - transaction.save is allowed.
+// - bill.preflight is allowed.
+// - bill.save and bill.clear are allowed after Bills API + Bills page proof.
+// - debt.save, reconciliation.declare, salary.save, forecast.generate remain blocked.
 // - /api/money-contracts remains banned.
-// - transaction.save remains allowed from prior proof.
-// - Bills preflight is recognized.
-// - Real Bills writes remain blocked until Phase 7J.
+// - This is Command Centre complete enough to resume finance feature building.
 
-const VERSION = "0.6.0";
-const ENFORCEMENT_VERSION = "0.6.0";
+const VERSION = "0.7.0";
+const ENFORCEMENT_VERSION = "0.7.0";
 
 const MODULES = [
   ["hub", "Hub", "/index.html"],
@@ -39,13 +39,17 @@ const API_CHECKS = [
 ];
 
 const READ_ONLY_GUARDS = [
-  "No D1 INSERT / UPDATE / DELETE / ALTER inside Command Centre",
+  "No D1 writes inside Command Centre",
   "No ledger smoke tests",
   "No /api/money-contracts",
   "Unknown remains Unknown",
-  "transaction.save remains allowed only after Add preflight",
-  "Bills preflight recognized",
-  "Bills real writes remain blocked until Phase 7J"
+  "transaction.save allowed",
+  "bill.save allowed",
+  "bill.clear allowed",
+  "debt.save remains blocked",
+  "reconciliation.declare remains blocked",
+  "salary.save remains blocked",
+  "forecast.generate remains blocked until source precision is proven"
 ];
 
 export async function onRequest(context) {
@@ -71,7 +75,7 @@ export async function onRequest(context) {
     const warnings = buildWarnings(coverage);
     const unknowns = buildUnknowns(coverage);
     const hardBlockers = buildHardBlockers(apis, d1);
-    const verdict = hardBlockers.length ? "blocked" : warnings.length ? "ready_with_warnings" : unknowns.length ? "ready_with_unknowns" : "ready";
+    const verdict = hardBlockers.length ? "blocked" : "ready_with_warnings";
 
     return send({
       ok: hardBlockers.length === 0,
@@ -87,10 +91,10 @@ export async function onRequest(context) {
         runtime: 0
       },
       trial_gate: {
-        status: hardBlockers.length ? "blocked" : "soft_ready",
+        status: hardBlockers.length ? "blocked" : "governor_complete",
         ready_for_known_page_trial: hardBlockers.length === 0,
         ready_for_full_system_certification: false,
-        reason: "Command Centre is complete enough to govern proven actions, but not all finance write domains are certified."
+        reason: "Command Centre is complete enough to govern Add Transaction and Bills while keeping unproven domains blocked."
       },
       enforcement,
       summary: {
@@ -117,8 +121,9 @@ export async function onRequest(context) {
       d1,
       business_rules: buildBusinessRules(coverage),
       next_actions: [
-        "Phase 7J: lift bill.clear and bill.save only after Bills page preflight has been verified.",
-        "Keep debt.save, reconciliation.declare, salary.save, and forecast decision actions blocked."
+        "Command Centre governor is complete enough.",
+        "Resume finance feature building with Bills cleanup first.",
+        "Keep Debt, Reconciliation, Salary, and Forecast mutations blocked until each gets dry-run proof."
       ]
     });
   } catch (err) {
@@ -188,12 +193,10 @@ async function auditApis(origin) {
 }
 
 async function auditPageProofs(origin) {
-  const proofs = [];
-
-  proofs.push(await pageScriptProof(origin, "/add.html", "/js/add.js", "0.4.5", "add_page_preflight"));
-  proofs.push(await pageScriptProof(origin, "/bills.html", "/js/bills.js", "0.4.0", "bills_page_preflight"));
-
-  return proofs;
+  return [
+    await pageScriptProof(origin, "/add.html", "/js/add.js", "0.4.5", "add_page_preflight"),
+    await pageScriptProof(origin, "/bills.html", "/js/bills.js", "0.4.0", "bills_page_preflight")
+  ];
 }
 
 async function pageScriptProof(origin, pagePath, scriptPath, requiredVersion, key) {
@@ -222,8 +225,7 @@ async function pageScriptProof(origin, pagePath, scriptPath, requiredVersion, ke
       ok: res.ok,
       http_status: res.status,
       elapsed_ms: Date.now() - started,
-      page_preflight_wired: pass,
-      real_writes_allowed: false
+      page_preflight_wired: pass
     };
   } catch (err) {
     return {
@@ -235,31 +237,19 @@ async function pageScriptProof(origin, pagePath, scriptPath, requiredVersion, ke
       ok: false,
       error: err.message || String(err),
       elapsed_ms: Date.now() - started,
-      page_preflight_wired: false,
-      real_writes_allowed: false
+      page_preflight_wired: false
     };
   }
 }
 
 async function auditD1(database) {
-  if (!database) {
-    return {
-      status: "unknown",
-      message: "D1 binding unavailable to Command Centre."
-    };
-  }
+  if (!database) return { status: "unknown", message: "D1 binding unavailable." };
 
   try {
     const tables = await database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all();
-    return {
-      status: "checked",
-      tables: tables.results || []
-    };
+    return { status: "checked", tables: tables.results || [] };
   } catch (err) {
-    return {
-      status: "unknown",
-      error: err.message || String(err)
-    };
+    return { status: "unknown", error: err.message || String(err) };
   }
 }
 
@@ -271,52 +261,57 @@ function buildCoverage(apis, pageProofs, d1) {
 
   const transactionDryRun = transactionsApi && transactionsApi.status === "pass" && versionAtLeast(transactionsApi.version, "0.3.0");
   const addPreflight = addProof && addProof.status === "pass";
-  const billsDryRun = billsApi && billsApi.status === "pass" && versionAtLeast(billsApi.version, "0.3.0");
+  const billsDryRun = billsApi && billsApi.status === "pass" && versionAtLeast(billsApi.version, "0.4.0");
   const billsPreflight = billsProof && billsProof.status === "pass";
+
+  const transactionReady = transactionDryRun && addPreflight;
+  const billsReady = billsDryRun && billsPreflight;
 
   return {
     d1,
     write_safety: {
-      status: billsDryRun && billsPreflight ? "bills_preflight_ready" : transactionDryRun && addPreflight ? "transaction_save_ready" : "unknown",
-      score: billsDryRun && billsPreflight ? 88 : transactionDryRun && addPreflight ? 80 : 0,
+      status: transactionReady && billsReady ? "command_centre_governor_complete" : billsPreflight ? "bills_preflight_ready" : transactionReady ? "transaction_save_ready" : "unknown",
+      score: transactionReady && billsReady ? 92 : billsPreflight ? 88 : transactionReady ? 80 : 0,
       transaction_save: {
         dry_run_available: transactionDryRun,
         page_preflight_wired: addPreflight,
-        real_writes_allowed: transactionDryRun && addPreflight
+        real_writes_allowed: transactionReady
       },
       bills: {
         dry_run_available: billsDryRun,
         page_preflight_wired: billsPreflight,
-        preflight_allowed: billsDryRun && billsPreflight,
-        real_writes_allowed: false,
-        bill_save_allowed: false,
-        bill_clear_allowed: false
+        preflight_allowed: billsReady,
+        real_writes_allowed: billsReady,
+        bill_save_allowed: billsReady,
+        bill_clear_allowed: billsReady
       },
-      real_write_scope: ["transaction.save"],
-      other_mutations_allowed: false
+      real_write_scope: [
+        ...(transactionReady ? ["transaction.save"] : []),
+        ...(billsReady ? ["bill.save", "bill.clear"] : [])
+      ],
+      debt_save: { allowed: false, reason: "debt.save dry-run proof does not exist yet." },
+      reconciliation_declare: { allowed: false, reason: "reconciliation.declare dry-run proof does not exist yet." },
+      salary_save: { allowed: false, reason: "salary.save dry-run proof does not exist yet." },
+      forecast_generate: { allowed: false, reason: "forecast source precision is not complete." }
     },
-    runtime: {
-      status: "unknown",
-      score: 0,
-      note: "Browser runtime remains manually verified."
-    }
+    runtime: { status: "unknown", score: 0, note: "Browser runtime remains manually verified." }
   };
 }
 
 function buildEnforcement(computedAt, coverage) {
   const txReady = Boolean(coverage.write_safety.transaction_save.real_writes_allowed);
-  const billsPreflight = Boolean(coverage.write_safety.bills.preflight_allowed);
+  const billsReady = Boolean(coverage.write_safety.bills.real_writes_allowed);
 
   const actions = [
-    actionGate("transaction.preflight", "add", !txReady, txReady ? "Add preflight is available." : "Add preflight is not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete Add dry-run proof.", true, true),
-    actionGate("transaction.save", "add", !txReady, txReady ? "transaction.save is allowed after Add preflight." : "transaction.save is not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete Add dry-run proof.", true, true),
-    actionGate("bill.preflight", "bills", !billsPreflight, billsPreflight ? "Bills preflight is available." : "Bills preflight is not ready.", "coverage.write_safety.bills", billsPreflight ? "None." : "Deploy Bills API v0.3.0 and Bills page v0.4.0.", true, true),
-    actionGate("bill.save", "bills", true, "bill.save real writes remain blocked until Phase 7J.", "coverage.write_safety.bills.bill_save_allowed", "Phase 7J explicit lift.", true, true),
-    actionGate("bill.clear", "bills", true, "bill.clear real writes remain blocked until Phase 7J.", "coverage.write_safety.bills.bill_clear_allowed", "Phase 7J explicit lift.", true, true),
+    actionGate("transaction.preflight", "add", !txReady, txReady ? "Add preflight is available." : "Add preflight is not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete Add proof.", true, true),
+    actionGate("transaction.save", "add", !txReady, txReady ? "transaction.save is allowed after Add preflight." : "transaction.save is not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete Add proof.", true, true),
+    actionGate("bill.preflight", "bills", !billsReady, billsReady ? "Bills preflight is available." : "Bills preflight is not ready.", "coverage.write_safety.bills", billsReady ? "None." : "Complete Bills proof.", true, true),
+    actionGate("bill.save", "bills", !billsReady, billsReady ? "bill.save is allowed after Bills preflight." : "bill.save is not ready.", "coverage.write_safety.bills.bill_save_allowed", billsReady ? "None." : "Complete Bills proof.", true, true),
+    actionGate("bill.clear", "bills", !billsReady, billsReady ? "bill.clear is allowed after Bills preflight." : "bill.clear is not ready.", "coverage.write_safety.bills.bill_clear_allowed", billsReady ? "None." : "Complete Bills proof.", true, true),
     actionGate("debt.save", "debts", true, "debt.save remains blocked until debt dry-run exists.", "coverage.write_safety.debt_save", "Add debt.save dry-run proof.", false, true),
     actionGate("reconciliation.declare", "reconciliation", true, "reconciliation.declare remains blocked until reconciliation dry-run exists.", "coverage.write_safety.reconciliation", "Add reconciliation dry-run proof.", false, true),
     actionGate("salary.save", "salary", true, "salary.save remains blocked until salary dry-run exists.", "coverage.write_safety.salary", "Add salary dry-run proof.", false, true),
-    actionGate("forecast.generate", "forecast", true, "forecast.generate remains blocked until forecast source precision is proven.", "business_rules.forecast_precision", "Complete forecast source verification.", false, true),
+    actionGate("forecast.generate", "forecast", true, "forecast.generate remains blocked until source precision is proven.", "business_rules.forecast_precision", "Complete forecast source verification.", false, true),
     actionGate("money_contracts.use_as_truth_source", "system", true, "/api/money-contracts is banned as a finance truth source.", "source_proofs.money_contracts", "Never lift.", true, true)
   ];
 
@@ -324,14 +319,14 @@ function buildEnforcement(computedAt, coverage) {
     routeGate("/monthly-close.html", "command_centre", "pass", true, true, "Command Centre is authority surface.", "enforcement.policy", "None."),
     routeGate("/index.html", "hub", "pass", true, true, "Hub is viewable.", "enforcement.registry.hub", "None."),
     routeGate("/add.html", "add", txReady ? "pass" : "soft_block", true, txReady, txReady ? "Add Transaction is governed and allowed." : "Add Transaction not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete transaction proof."),
-    routeGate("/bills.html", "bills", billsPreflight ? "preflight_only" : "soft_block", true, billsPreflight, billsPreflight ? "Bills page may run preflight. Real writes remain blocked." : "Bills proof not ready.", "coverage.write_safety.bills", billsPreflight ? "Phase 7J to lift real writes." : "Deploy Bills preflight."),
-    routeGate("/debts.html", "debts", "preflight_required", true, false, "Debts are viewable but writes remain blocked.", "coverage.write_safety.debt_save", "Add debt dry-run proof."),
-    routeGate("/reconciliation.html", "reconciliation", "preflight_required", true, false, "Reconciliation is viewable but declarations remain blocked.", "coverage.write_safety.reconciliation", "Add reconciliation dry-run proof."),
-    routeGate("/salary.html", "salary", "preflight_required", true, false, "Salary is viewable but writes remain blocked.", "coverage.write_safety.salary", "Add salary dry-run proof."),
-    routeGate("/forecast.html", "forecast", "soft_block", true, false, "Forecast decisions remain blocked until source precision is proven.", "business_rules.forecast_precision", "Complete forecast source verification."),
-    routeGate("/cc.html", "credit_card", "soft_block", true, false, "Credit Card decision source remains guarded.", "business_rules.cc_outstanding_source", "Prove CC source."),
-    routeGate("/transactions.html", "transactions", "warn", true, false, "Transactions viewable; non-Add mutations remain blocked.", "coverage.write_safety.transaction_save", "Add separate proof for other mutations."),
-    routeGate("/accounts.html", "accounts", "warn", true, false, "Accounts viewable; account mutations remain blocked.", "coverage.write_safety.account_mutations", "Add account mutation proof.")
+    routeGate("/bills.html", "bills", billsReady ? "pass" : "soft_block", true, billsReady, billsReady ? "Bills are governed and allowed." : "Bills proof not ready.", "coverage.write_safety.bills", billsReady ? "None." : "Complete Bills proof."),
+    routeGate("/debts.html", "debts", "preflight_required", true, false, "Debts viewable but writes blocked.", "coverage.write_safety.debt_save", "Add debt proof."),
+    routeGate("/reconciliation.html", "reconciliation", "preflight_required", true, false, "Reconciliation viewable but declarations blocked.", "coverage.write_safety.reconciliation", "Add reconciliation proof."),
+    routeGate("/salary.html", "salary", "preflight_required", true, false, "Salary viewable but writes blocked.", "coverage.write_safety.salary", "Add salary proof."),
+    routeGate("/forecast.html", "forecast", "soft_block", true, false, "Forecast decisions blocked.", "business_rules.forecast_precision", "Prove forecast precision."),
+    routeGate("/cc.html", "credit_card", "soft_block", true, false, "Credit Card decision source guarded.", "business_rules.cc_outstanding_source", "Prove CC source."),
+    routeGate("/transactions.html", "transactions", "warn", true, false, "Transactions viewable; only Add transaction.save is allowed.", "coverage.write_safety.transaction_save", "Add separate proof for other mutations."),
+    routeGate("/accounts.html", "accounts", "warn", true, false, "Accounts viewable; mutations blocked.", "coverage.write_safety.account_mutations", "Add account proof.")
   ];
 
   return {
@@ -341,15 +336,15 @@ function buildEnforcement(computedAt, coverage) {
     computed_at: computedAt,
     schema_only: false,
     global_status: "warning",
-    global_level: 2,
+    global_level: 1,
     ready_for_known_page_trial: true,
     ready_for_full_system_certification: false,
     policy: {
       unknown_blocks_ready: true,
       transaction_save_real_write_lifted: txReady,
-      bills_preflight_recognized: billsPreflight,
-      bills_real_writes_lifted: false,
-      other_mutations_remain_blocked: true,
+      bill_save_real_write_lifted: billsReady,
+      bill_clear_real_write_lifted: billsReady,
+      remaining_mutations_blocked: true,
       command_centre_never_hides_truth: true
     },
     routes,
@@ -393,43 +388,41 @@ function buildEnforcement(computedAt, coverage) {
       audit_required: true,
       note: "Overrides remain disabled."
     },
-    enforcement_status_note: "Bills preflight is recognized. Real bill writes remain blocked until Phase 7J."
+    enforcement_status_note: "Command Centre governor is complete enough: Add Transaction and Bills are governed; unproven domains remain blocked."
   };
 }
 
 function buildBusinessRules(coverage) {
   return [
     rule("add_write_path", coverage.write_safety.transaction_save.real_writes_allowed ? "pass" : "blocked", "Add write path", "transaction.save governed."),
-    rule("bills_preflight", coverage.write_safety.bills.preflight_allowed ? "pass" : "unknown", "Bills preflight", coverage.write_safety.bills.preflight_allowed ? "Bills preflight recognized." : "Bills preflight not recognized."),
-    rule("bill_real_writes", "blocked", "Bills real writes", "Bills real writes remain blocked until Phase 7J."),
+    rule("bills_write_path", coverage.write_safety.bills.real_writes_allowed ? "pass" : "blocked", "Bills write path", "Bills governed."),
+    rule("remaining_mutations_blocked", "pass", "Remaining mutations blocked", "Debts, reconciliation, salary, and forecast remain blocked."),
     rule("money_contracts_banned", "pass", "Money contracts banned", "/api/money-contracts is not used."),
     rule("forecast_precision", "unknown", "Forecast precision", "Forecast source precision not complete.")
   ];
 }
 
 function buildWarnings(coverage) {
-  const warnings = [];
-
-  if (coverage.write_safety.bills.preflight_allowed) {
-    warnings.push(warning("bills_preflight_ready_real_writes_blocked", "Bills preflight is ready; real bill writes remain blocked until Phase 7J."));
-  }
-
-  warnings.push(warning("non_core_mutations_blocked", "Debt, reconciliation, salary, and forecast mutations remain blocked."));
-  return warnings;
+  return [
+    warning("governor_complete_not_full_finance_complete", "Command Centre governor is complete enough, but debt/reconciliation/salary/forecast writes are intentionally blocked.")
+  ];
 }
 
 function buildUnknowns(coverage) {
-  const unknowns = [];
-  if (!coverage.write_safety.bills.preflight_allowed) unknowns.push(unknown("bills_preflight_unknown", "Bills preflight is not recognized yet."));
-  return unknowns;
+  return [
+    unknown("forecast_precision_unknown", "Forecast precision remains unknown.")
+  ];
 }
 
 function buildHardBlockers(apis, d1) {
   const blockers = [];
+
   apis.filter(api => api.required && api.status === "blocked").forEach(api => {
     blockers.push(blocker("api_" + api.key + "_blocked", api.path + " is not healthy.", "Fix required API."));
   });
+
   if (d1.status === "blocked") blockers.push(blocker("d1_blocked", "D1 audit failed.", "Fix D1 binding/read."));
+
   return blockers;
 }
 
@@ -450,7 +443,7 @@ function buildSourceProofs(coverage, apis, pageProofs) {
     {
       key: "bills_api_dry_run",
       status: coverage.write_safety.bills.dry_run_available ? "pass" : "unknown",
-      source: "/api/bills version >= v0.3.0",
+      source: "/api/bills version >= v0.4.0",
       details: apis.find(api => api.key === "bills") || null
     },
     {
