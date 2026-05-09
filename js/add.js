@@ -1,18 +1,21 @@
-/* Sovereign Finance Add Transaction Form v0.4.1
-   Visual icon integration.
-
+/* Sovereign Finance Add Transaction Form v0.4.3
+   Phase 4A Command Centre enforcement soft block.
    Contract:
-   - Same save payload and write path as v0.4.0.
-   - Adds bank/category previews only.
+   - Same save payload and write path as v0.4.1 when allowed.
+   - Adds transaction.save frontend soft block.
+   - Add page remains viewable/diagnostic.
+   - Save button is disabled when backend enforcement blocks transaction.save.
+   - Every block shows action, reason, source, required fix, override status.
    - No backend changes.
    - No D1 changes.
-   - No transaction logic changes.
+   - No ledger tests.
 */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.4.1';
+  const VERSION = 'v0.4.3';
+  const ENFORCED_ACTION = 'transaction.save';
 
   let selectedType = 'expense';
   let requestedTo = '';
@@ -21,6 +24,20 @@
   let categories = [];
   let categoriesLoaded = false;
   let submitting = false;
+
+  let enforcementLoaded = false;
+  let enforcementError = '';
+  let saveGate = {
+    allowed: false,
+    status: 'blocked',
+    action: ENFORCED_ACTION,
+    reason: 'Command Centre enforcement policy has not loaded yet.',
+    source: 'window.SovereignEnforcement',
+    required_fix: 'Wait for /api/finance-command-center to load before allowing writes.',
+    override: { allowed: false },
+    backend_enforced: false,
+    frontend_enforced: true
+  };
 
   const $ = id => document.getElementById(id);
 
@@ -146,6 +163,131 @@
     }) || null;
   }
 
+  function normalizeGate(raw) {
+    if (!raw) {
+      return {
+        allowed: false,
+        status: 'blocked',
+        action: ENFORCED_ACTION,
+        reason: 'Command Centre returned no action policy for transaction.save.',
+        source: 'enforcement.actions',
+        required_fix: 'Register transaction.save in backend enforcement actions.',
+        override: { allowed: false },
+        backend_enforced: false,
+        frontend_enforced: true
+      };
+    }
+
+    return {
+      ...raw,
+      allowed: raw.allowed === true,
+      status: raw.allowed === true ? 'pass' : (raw.status || 'blocked'),
+      action: raw.action || ENFORCED_ACTION,
+      reason: raw.reason || 'Command Centre blocked this action.',
+      source: raw.source || 'enforcement.actions',
+      required_fix: raw.required_fix || 'Resolve the Command Centre blocker.',
+      override: raw.override || { allowed: false },
+      backend_enforced: raw.backend_enforced === true,
+      frontend_enforced: true
+    };
+  }
+
+  function syncEnforcement(snapshot) {
+    enforcementLoaded = Boolean(snapshot && snapshot.loaded);
+    enforcementError = snapshot && snapshot.error ? String(snapshot.error) : '';
+
+    if (!snapshot || !snapshot.loaded) {
+      saveGate = {
+        allowed: false,
+        status: 'blocked',
+        action: ENFORCED_ACTION,
+        reason: enforcementError || 'Command Centre enforcement policy has not loaded yet.',
+        source: 'window.SovereignEnforcement',
+        required_fix: 'Reload Add Transaction or open Command Centre to verify enforcement policy.',
+        override: { allowed: false },
+        backend_enforced: false,
+        frontend_enforced: true
+      };
+      renderEnforcement();
+      updateButton();
+      return;
+    }
+
+    let gate = null;
+
+    if (typeof snapshot.findAction === 'function') {
+      gate = snapshot.findAction(ENFORCED_ACTION);
+    }
+
+    if (!gate && snapshot.enforcement && Array.isArray(snapshot.enforcement.actions)) {
+      gate = snapshot.enforcement.actions.find(item => item.action === ENFORCED_ACTION);
+    }
+
+    saveGate = normalizeGate(gate);
+    renderEnforcement();
+    updateButton();
+  }
+
+  function ensureEnforcementSubscription() {
+    if (window.SovereignEnforcement && typeof window.SovereignEnforcement.subscribe === 'function') {
+      window.SovereignEnforcement.subscribe(syncEnforcement);
+      if (typeof window.SovereignEnforcement.refresh === 'function') {
+        window.SovereignEnforcement.refresh();
+      }
+      return;
+    }
+
+    saveGate = {
+      allowed: false,
+      status: 'blocked',
+      action: ENFORCED_ACTION,
+      reason: 'Command Centre enforcement loader is unavailable.',
+      source: '/js/enforcement.js',
+      required_fix: 'Confirm /js/enforcement.js loads before Add can write.',
+      override: { allowed: false },
+      backend_enforced: false,
+      frontend_enforced: true
+    };
+
+    renderEnforcement();
+    updateButton();
+  }
+
+  function renderEnforcement() {
+    const panel = $('addEnforcementPanel');
+    const chip = $('enforcementChip');
+
+    if (!panel) return;
+
+    const blocked = !saveGate.allowed;
+
+    panel.hidden = false;
+    panel.classList.toggle('warning', enforcementLoaded && blocked && saveGate.status !== 'blocked');
+
+    const summary = $('addEnforcementSummary');
+    const action = $('addBlockedAction');
+    const reason = $('addBlockReason');
+    const source = $('addBlockSource');
+    const fix = $('addRequiredFix');
+    const override = $('addOverrideStatus');
+    const backend = $('addBackendStatus');
+
+    if (summary) {
+      summary.textContent = blocked
+        ? 'Command Centre has blocked saving on this page. Viewing and editing fields is still allowed for diagnosis.'
+        : 'Command Centre currently allows transaction.save. Backend API enforcement is still not active unless marked separately.';
+    }
+
+    if (action) action.textContent = saveGate.action || ENFORCED_ACTION;
+    if (reason) reason.textContent = saveGate.reason || 'No reason returned.';
+    if (source) source.textContent = saveGate.source || 'No source returned.';
+    if (fix) fix.textContent = saveGate.required_fix || 'No required fix returned.';
+    if (override) override.textContent = saveGate.override && saveGate.override.allowed ? 'Allowed' : 'Not allowed';
+    if (backend) backend.textContent = saveGate.backend_enforced ? 'Yes' : 'No - frontend soft block only';
+
+    if (chip) chip.hidden = !blocked;
+  }
+
   function previewEmpty(id, title, sub) {
     const el = $(id);
     if (!el) return;
@@ -182,7 +324,7 @@
       ${iconHtml}
       <span class="add-icon-preview-text">
         <strong>${accountName(account)}</strong>
-        <small>${accountKind(account) || 'account'} · ${account.id}</small>
+        <small>${accountKind(account) || 'account'}  ${account.id}</small>
       </span>
     `;
   }
@@ -191,7 +333,11 @@
     const category = findCategoryById(categoryId);
 
     if (!category) {
-      previewEmpty('categoryPreview', categories.length ? 'No category' : 'Categories unavailable', categories.length ? 'Optional' : 'Save still allowed');
+      previewEmpty(
+        'categoryPreview',
+        categories.length ? 'No category' : 'Categories unavailable',
+        categories.length ? 'Optional' : 'Save still allowed'
+      );
       return;
     }
 
@@ -231,7 +377,7 @@
       const data = await fetchJSON('/api/accounts?debug=1');
       accounts = normalizeAccounts(data.accounts || data);
     } catch (e1) {
-      console.warn('[add v0.4.1] /api/accounts failed:', e1.message);
+      console.warn('[add v0.4.3] /api/accounts failed:', e1.message);
 
       try {
         if (window.store && typeof window.store.refreshBalances === 'function') {
@@ -239,7 +385,7 @@
           accounts = normalizeAccounts(window.store.accounts || window.store.cachedAccounts || []);
         }
       } catch (e2) {
-        console.warn('[add v0.4.1] store account fallback failed:', e2.message);
+        console.warn('[add v0.4.3] store account fallback failed:', e2.message);
       }
     }
 
@@ -259,7 +405,7 @@
       categories = normalizeCategories(data.categories);
       categoriesLoaded = true;
     } catch (e) {
-      console.warn('[add v0.4.1] /api/categories failed:', e.message);
+      console.warn('[add v0.4.3] /api/categories failed:', e.message);
       categories = [];
       categoriesLoaded = false;
     }
@@ -281,6 +427,7 @@
       });
 
       const routeFrom = findAccountByRouteKey(requestedFrom);
+
       if (routeFrom && [...source.options].some(o => o.value === routeFrom.id)) {
         source.value = routeFrom.id;
       } else if (old && [...source.options].some(o => o.value === old)) {
@@ -294,11 +441,11 @@
   function fillTransferDest() {
     const dest = $('transferToSelect');
     const source = $('accountSelect');
-
     if (!dest) return;
 
     const from = source ? source.value : '';
     const old = dest.value;
+
     dest.innerHTML = '<option value="">Pick account...</option>';
 
     accounts.forEach(a => {
@@ -311,6 +458,7 @@
     });
 
     const routeTo = findAccountByRouteKey(requestedTo);
+
     if (routeTo && routeTo.id !== from && [...dest.options].some(o => o.value === routeTo.id)) {
       dest.value = routeTo.id;
       requestedTo = '';
@@ -367,21 +515,21 @@
         chipClass: 'add-chip',
         chip: 'Creates ledger transaction',
         trust: 'Expense creates one ledger transaction and reduces the selected account balance.',
-        safety: 'Expense mode creates one transaction and reduces the selected account. If saving fails, nothing is silently queued.'
+        safety: 'Expense mode creates one transaction and reduces the selected account. If saving is blocked, Command Centre shows why.'
       },
       income: {
         panelClass: 'add-trust-panel income',
         chipClass: 'add-chip safe',
         chip: 'Creates ledger transaction',
         trust: 'Income creates one ledger transaction and increases the selected account balance.',
-        safety: 'Income mode creates one transaction and increases the selected account. If saving fails, nothing is silently queued.'
+        safety: 'Income mode creates one transaction and increases the selected account. If saving is blocked, Command Centre shows why.'
       },
       transfer: {
         panelClass: 'add-trust-panel transfer',
         chipClass: 'add-chip transfer',
         chip: 'Creates linked transaction pair',
         trust: 'Transfer creates a linked pair: money leaves the source account and enters the destination account.',
-        safety: 'Transfer mode creates linked OUT and IN rows. It moves money between accounts and should not be treated as income or spending.'
+        safety: 'Transfer mode creates linked OUT and IN rows. If saving is blocked, Command Centre shows why.'
       }
     };
 
@@ -390,6 +538,7 @@
     if (trustPanel) trustPanel.className = item.panelClass;
     if (trustText) trustText.textContent = item.trust;
     if (safetyText) safetyText.textContent = item.safety;
+
     if (chip) {
       chip.className = item.chipClass;
       chip.textContent = item.chip;
@@ -425,16 +574,26 @@
     const from = ($('accountSelect') || {}).value || '';
     const to = ($('transferToSelect') || {}).value || '';
 
-    let ok = amount > 0 && !!from && !submitting;
+    let ok = amount > 0 && !!from && !submitting && saveGate.allowed;
 
     if (selectedType === 'transfer') {
       ok = ok && !!to && to !== from;
     }
 
     btn.disabled = !ok;
+
+    if (!saveGate.allowed) {
+      setSubmitText('Blocked by Command Centre');
+    } else if (!submitting) {
+      setSubmitText('Save Transaction');
+    }
   }
 
   function collectPayload() {
+    if (!saveGate.allowed) {
+      throw new Error('Command Centre blocked transaction.save: ' + (saveGate.reason || 'No reason returned.'));
+    }
+
     const amount = parseFloat(($('amountInput') || {}).value || '0');
     const from = ($('accountSelect') || {}).value || '';
     const to = ($('transferToSelect') || {}).value || '';
@@ -565,7 +724,7 @@
   }
 
   async function init() {
-    console.log('[add v0.4.1] init');
+    console.log('[add v0.4.3] init');
 
     parseRoute();
 
@@ -573,6 +732,7 @@
     if (date && !date.value) date.value = todayLocal();
 
     wireEvents();
+    ensureEnforcementSubscription();
 
     await Promise.all([
       loadAccounts(),
@@ -582,14 +742,17 @@
     fillAccounts();
     fillCategories();
     setType(selectedType);
+    renderEnforcement();
     updateButton();
     updatePreviews();
 
-    console.log('[add v0.4.1] ready', {
+    console.log('[add v0.4.3] ready', {
       accounts: accounts.length,
       categories: categories.length,
       categoriesLoaded,
       selectedType,
+      enforcementLoaded,
+      saveGate,
       store: window.store && window.store.version,
       icons: window.SovereignIcons && window.SovereignIcons.version
     });
@@ -601,7 +764,12 @@
       return selectedType;
     },
     accounts: () => accounts.slice(),
-    categories: () => categories.slice()
+    categories: () => categories.slice(),
+    enforcement: () => ({
+      loaded: enforcementLoaded,
+      error: enforcementError,
+      saveGate: { ...saveGate }
+    })
   };
 
   if (document.readyState === 'loading') {
