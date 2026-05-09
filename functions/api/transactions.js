@@ -1,19 +1,17 @@
 /*  /api/transactions  GET list, POST create  */
-/* Cloudflare Pages Function v0.2.0  Backend Command Centre enforcement for transaction.save */
+/* Cloudflare Pages Function v0.3.0  transaction.save dry-run proof */
 /*
-* Changes vs v0.1.4:
-*   - Adds backend Command Centre gate before any transaction.save mutation.
-*   - Blocks POST with HTTP 423 when transaction.save is not allowed by /api/finance-command-center.
-*   - Keeps GET read path unchanged.
-*   - Keeps account/category FK guard unchanged.
-*   - Keeps transfer POST as Sheet-compatible 2-row pair:
-*       OUT row: type=transfer, source account
-*       IN row:  type=income, destination account
-*   - Keeps audit safe-wrapped so audit failure cannot break transaction insert when writes are later allowed.
+* Contract:
+*   - GET remains read-only.
+*   - POST with dry_run=true validates payload only and performs no transaction/audit writes.
+*   - Real POST remains blocked by Command Centre until transaction.save is allowed.
+*   - Backend gate checks /api/finance-command-center before real mutation.
+*   - No D1 write happens before gate approval.
+*   - Account/category validation is shared by dry-run and real save.
 */
 import { audit } from './_lib.js';
 
-const VERSION = 'v0.2.0';
+const VERSION = 'v0.3.0';
 
 const ALLOWED_TYPES = [
 'expense',
@@ -67,6 +65,34 @@ return jsonResponse({ ok: false, version: VERSION, error: err.message }, 500);
 
 export async function onRequestPost(context) {
 try {
+const url = new URL(context.request.url);
+const body = await readJSON(context.request);
+const dryRun = isDryRunRequest(url, body);
+
+const validation = await validateTransactionPayload(context, body);
+
+if (!validation.ok) {
+return jsonResponse({
+ok: false,
+version: VERSION,
+dry_run: dryRun,
+error: validation.error,
+details: validation.details || null
+}, validation.status || 400);
+}
+
+if (dryRun) {
+return jsonResponse({
+ok: true,
+version: VERSION,
+dry_run: true,
+writes_performed: false,
+audit_performed: false,
+proof: validation.proof,
+normalized_payload: validation.normalized_payload
+});
+}
+
 const gate = await enforceActionGate(context, 'transaction.save');
 
 if (!gate.allowed) {
@@ -74,120 +100,201 @@ return jsonResponse({
 ok: false,
 version: VERSION,
 error: 'Command Centre blocked transaction.save',
-enforcement: gate
+enforcement: gate,
+proof: validation.proof
 }, 423);
 }
 
-const body = await readJSON(context.request);
-const amount = Number(body.amount);
-const type = cleanText(body.type, '', 40).toLowerCase();
-
-if (!Number.isFinite(amount) || amount <= 0) {
-return jsonResponse({ ok: false, version: VERSION, error: 'Amount must be greater than 0' }, 400);
+if (validation.normalized_payload.type === 'transfer') {
+return createTransferPair(context, validation);
 }
 
-if (!body.account_id) {
-return jsonResponse({ ok: false, version: VERSION, error: 'account_id required' }, 400);
-}
-
-if (!type) {
-return jsonResponse({ ok: false, version: VERSION, error: 'type required' }, 400);
-}
-
-if (!ALLOWED_TYPES.includes(type)) {
-return jsonResponse({
-ok: false,
-version: VERSION,
-error: 'Invalid type',
-allowed_types: ALLOWED_TYPES
-}, 400);
-}
-
-body.type = type;
-
-if (type === 'transfer') {
-return createTransferPair(context, body, amount);
-}
-
-return createSingleTransaction(context, body, amount);
+return createSingleTransaction(context, validation);
 } catch (err) {
 return jsonResponse({ ok: false, version: VERSION, error: err.message }, 500);
 }
 }
 
-async function createSingleTransaction(context, body, amount) {
+async function validateTransactionPayload(context, body) {
 const db = context.env.DB;
-const id = makeTxnId('tx');
-const date = normalizeDate(body.date) || todayISO();
-const notes = cleanNotes(body.notes);
-const feeAmount = cleanAmount(body.fee_amount);
-const praAmount = cleanAmount(body.pra_amount);
+const amount = Number(body.amount);
+const type = cleanText(body.type, '', 40).toLowerCase();
+
+if (!Number.isFinite(amount) || amount <= 0) {
+return { ok: false, status: 400, error: 'Amount must be greater than 0' };
+}
+
+if (!body.account_id) {
+return { ok: false, status: 400, error: 'account_id required' };
+}
+
+if (!type) {
+return { ok: false, status: 400, error: 'type required' };
+}
+
+if (!ALLOWED_TYPES.includes(type)) {
+return {
+ok: false,
+status: 400,
+error: 'Invalid type',
+details: { allowed_types: ALLOWED_TYPES }
+};
+}
 
 const sourceAccountResult = await resolveAccount(db, body.account_id);
+
 if (!sourceAccountResult.ok) {
-return jsonResponse({
+return {
 ok: false,
-version: VERSION,
+status: sourceAccountResult.status || 409,
 error: sourceAccountResult.error,
-account_input: cleanText(body.account_id, '', 160)
-}, sourceAccountResult.status || 409);
+details: { account_input: cleanText(body.account_id, '', 160) }
+};
 }
 
 const sourceAccount = sourceAccountResult.account;
 let transferToAccount = null;
 
-if (body.type === 'cc_payment') {
-if (!body.transfer_to_account_id) {
-return jsonResponse({
+if (type === 'transfer' || type === 'cc_payment' || body.transfer_to_account_id) {
+if ((type === 'transfer' || type === 'cc_payment') && !body.transfer_to_account_id) {
+return {
 ok: false,
-version: VERSION,
-error: 'transfer_to_account_id required for cc_payment'
-}, 400);
+status: 400,
+error: 'transfer_to_account_id required for ' + type
+};
 }
 
+if (body.transfer_to_account_id) {
 const targetResult = await resolveAccount(db, body.transfer_to_account_id);
+
 if (!targetResult.ok) {
-return jsonResponse({
+return {
 ok: false,
-version: VERSION,
+status: targetResult.status || 409,
 error: targetResult.error,
-transfer_to_account_input: cleanText(body.transfer_to_account_id, '', 160)
-}, targetResult.status || 409);
+details: { transfer_to_account_input: cleanText(body.transfer_to_account_id, '', 160) }
+};
 }
 
 transferToAccount = targetResult.account;
 
 if (sourceAccount.id === transferToAccount.id) {
-return jsonResponse({
+return {
 ok: false,
-version: VERSION,
+status: 400,
 error: 'source and destination accounts cannot match'
-}, 400);
+};
 }
-} else if (body.transfer_to_account_id) {
-const targetResult = await resolveAccount(db, body.transfer_to_account_id);
-if (!targetResult.ok) {
-return jsonResponse({
-ok: false,
-version: VERSION,
-error: targetResult.error,
-transfer_to_account_input: cleanText(body.transfer_to_account_id, '', 160)
-}, targetResult.status || 409);
 }
-transferToAccount = targetResult.account;
 }
 
+let categoryId = null;
+
+if (type !== 'transfer') {
 const categoryResult = await resolveCategory(db, body.category_id);
+
 if (!categoryResult.ok) {
-return jsonResponse({
+return {
 ok: false,
-version: VERSION,
+status: categoryResult.status || 409,
 error: categoryResult.error,
-category_input: cleanText(body.category_id, '', 160)
-}, categoryResult.status || 409);
+details: { category_input: cleanText(body.category_id, '', 160) }
+};
 }
 
-const categoryId = categoryResult.category_id;
+categoryId = categoryResult.category_id;
+}
+
+const normalized = {
+date: normalizeDate(body.date) || todayISO(),
+type,
+amount,
+account_id: sourceAccount.id,
+account_name: sourceAccount.name || sourceAccount.id,
+transfer_to_account_id: transferToAccount ? transferToAccount.id : null,
+transfer_to_account_name: transferToAccount ? (transferToAccount.name || transferToAccount.id) : null,
+category_id: categoryId,
+notes: cleanNotes(body.notes),
+fee_amount: cleanAmount(body.fee_amount),
+pra_amount: cleanAmount(body.pra_amount),
+created_by: cleanText(body.created_by, 'web-add', 80) || 'web-add'
+};
+
+const proof = buildWriteProof(normalized);
+
+return {
+ok: true,
+normalized_payload: normalized,
+proof
+};
+}
+
+function buildWriteProof(payload) {
+const isTransfer = payload.type === 'transfer';
+
+return {
+action: 'transaction.save',
+version: VERSION,
+writes_performed: false,
+validation_status: 'pass',
+write_model: isTransfer ? 'legacy_2_row_transfer_pair' : 'single_transaction_row',
+expected_transaction_rows: isTransfer ? 2 : 1,
+expected_audit_rows: 1,
+checks: [
+{
+check: 'amount_valid',
+status: 'pass',
+source: 'request.amount',
+detail: 'Amount is finite and greater than zero.'
+},
+{
+check: 'type_allowed',
+status: 'pass',
+source: 'request.type',
+detail: 'Type is included in allowed transaction types.'
+},
+{
+check: 'source_account_active',
+status: 'pass',
+source: 'accounts',
+detail: 'Source account resolved to active account_id ' + payload.account_id + '.'
+},
+{
+check: 'destination_account_valid',
+status: payload.type === 'transfer' || payload.type === 'cc_payment' ? 'pass' : 'not_required',
+source: 'accounts',
+detail: payload.transfer_to_account_id
+? 'Destination account resolved to active account_id ' + payload.transfer_to_account_id + '.'
+: 'Destination account not required for this transaction type.'
+},
+{
+check: 'category_valid',
+status: payload.category_id ? 'pass' : 'not_required',
+source: 'categories',
+detail: payload.category_id
+? 'Category resolved to category_id ' + payload.category_id + '.'
+: 'Category is empty or not required.'
+},
+{
+check: 'undefined_guard',
+status: 'pass',
+source: 'normalized_payload',
+detail: 'Payload is normalized before D1 bind values are created.'
+}
+],
+lift_candidate: {
+coverage_key: 'coverage.write_safety.status',
+current_expected_state: 'unknown_or_blocked',
+required_next_state: 'verified',
+reason: 'Dry-run validates transaction.save without writing ledger rows.'
+}
+};
+}
+
+async function createSingleTransaction(context, validation) {
+const db = context.env.DB;
+const payload = validation.normalized_payload;
+const id = makeTxnId('tx');
 
 try {
 await db.prepare(
@@ -196,15 +303,15 @@ await db.prepare(
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ).bind(
 id,
-date,
-body.type,
-amount,
-sourceAccount.id,
-transferToAccount ? transferToAccount.id : null,
-categoryId,
-notes,
-feeAmount,
-praAmount
+payload.date,
+payload.type,
+payload.amount,
+payload.account_id,
+payload.transfer_to_account_id,
+payload.category_id,
+payload.notes,
+payload.fee_amount,
+payload.pra_amount
 ).run();
 } catch (err) {
 if (isForeignKeyError(err)) {
@@ -212,12 +319,7 @@ return jsonResponse({
 ok: false,
 version: VERSION,
 error: 'Transaction failed account/category foreign-key guard. Refresh accounts/categories and retry.',
-account_input: cleanText(body.account_id, '', 160),
-resolved_account_id: sourceAccount.id,
-transfer_to_account_input: cleanText(body.transfer_to_account_id, '', 160),
-resolved_transfer_to_account_id: transferToAccount ? transferToAccount.id : null,
-category_input: cleanText(body.category_id, '', 160),
-resolved_category_id: categoryId,
+normalized_payload: payload,
 d1_error: err.message
 }, 409);
 }
@@ -225,83 +327,47 @@ throw err;
 }
 
 const auditResult = await safeAudit(context, {
-action: body.type === 'cc_payment' ? 'CC_PAYMENT' : 'TXN_ADD',
+action: payload.type === 'cc_payment' ? 'CC_PAYMENT' : 'TXN_ADD',
 entity: 'transaction',
 entity_id: id,
 kind: 'mutation',
 detail: {
-type: body.type,
-amount,
-account_input: cleanText(body.account_id, '', 160),
-account_id: sourceAccount.id,
-account_name: sourceAccount.name || sourceAccount.id,
-transfer_to_account_input: cleanText(body.transfer_to_account_id, '', 160) || null,
-transfer_to_account_id: transferToAccount ? transferToAccount.id : null,
-transfer_to_account_name: transferToAccount ? (transferToAccount.name || transferToAccount.id) : null,
-category_input: cleanText(body.category_id, '', 160) || null,
-category_id: categoryId,
-date,
-notes: notes.slice(0, 80)
+type: payload.type,
+amount: payload.amount,
+account_id: payload.account_id,
+account_name: payload.account_name,
+transfer_to_account_id: payload.transfer_to_account_id,
+transfer_to_account_name: payload.transfer_to_account_name,
+category_id: payload.category_id,
+date: payload.date,
+notes: payload.notes.slice(0, 80)
 },
-created_by: body.created_by || 'web-add'
+created_by: payload.created_by
 });
 
 return jsonResponse({
 ok: true,
 version: VERSION,
 id,
-account_id: sourceAccount.id,
-account_name: sourceAccount.name || sourceAccount.id,
-transfer_to_account_id: transferToAccount ? transferToAccount.id : null,
-transfer_to_account_name: transferToAccount ? (transferToAccount.name || transferToAccount.id) : null,
-category_id: categoryId,
+account_id: payload.account_id,
+account_name: payload.account_name,
+transfer_to_account_id: payload.transfer_to_account_id,
+transfer_to_account_name: payload.transfer_to_account_name,
+category_id: payload.category_id,
 audited: auditResult.ok,
-audit_error: auditResult.error || null
+audit_error: auditResult.error || null,
+proof: validation.proof
 });
 }
 
-async function createTransferPair(context, body, amount) {
+async function createTransferPair(context, validation) {
 const db = context.env.DB;
-const date = normalizeDate(body.date) || todayISO();
-const feeAmount = cleanAmount(body.fee_amount);
-const praAmount = cleanAmount(body.pra_amount);
-
-if (!body.transfer_to_account_id) {
-return jsonResponse({ ok: false, version: VERSION, error: 'transfer_to_account_id required for transfer' }, 400);
-}
-
-const fromResult = await resolveAccount(db, body.account_id);
-if (!fromResult.ok) {
-return jsonResponse({
-ok: false,
-version: VERSION,
-error: fromResult.error,
-account_input: cleanText(body.account_id, '', 160)
-}, fromResult.status || 409);
-}
-
-const toResult = await resolveAccount(db, body.transfer_to_account_id);
-if (!toResult.ok) {
-return jsonResponse({
-ok: false,
-version: VERSION,
-error: toResult.error,
-transfer_to_account_input: cleanText(body.transfer_to_account_id, '', 160)
-}, toResult.status || 409);
-}
-
-const fromAccount = fromResult.account;
-const toAccount = toResult.account;
-
-if (fromAccount.id === toAccount.id) {
-return jsonResponse({ ok: false, version: VERSION, error: 'source and destination accounts cannot match' }, 400);
-}
-
+const payload = validation.normalized_payload;
 const outId = makeTxnId('txout');
 const inId = makeTxnId('txin');
-const baseNotes = cleanNotes(body.notes || 'Transfer');
-const outNotes = `To: ${toAccount.name || toAccount.id}  ${baseNotes} (OUT) [linked: ${inId}]`.slice(0, 200);
-const inNotes = `From: ${fromAccount.name || fromAccount.id}  ${baseNotes} (IN) [linked: ${outId}]`.slice(0, 200);
+const baseNotes = cleanNotes(payload.notes || 'Transfer');
+const outNotes = `To: ${payload.transfer_to_account_name || payload.transfer_to_account_id}  ${baseNotes} (OUT) [linked: ${inId}]`.slice(0, 200);
+const inNotes = `From: ${payload.account_name || payload.account_id}  ${baseNotes} (IN) [linked: ${outId}]`.slice(0, 200);
 
 const outStmt = db.prepare(
 `INSERT INTO transactions
@@ -309,15 +375,15 @@ const outStmt = db.prepare(
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ).bind(
 outId,
-date,
+payload.date,
 'transfer',
-amount,
-fromAccount.id,
+payload.amount,
+payload.account_id,
 null,
 null,
 outNotes,
-feeAmount,
-praAmount
+payload.fee_amount,
+payload.pra_amount
 );
 
 const inStmt = db.prepare(
@@ -326,10 +392,10 @@ const inStmt = db.prepare(
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 ).bind(
 inId,
-date,
+payload.date,
 'income',
-amount,
-toAccount.id,
+payload.amount,
+payload.transfer_to_account_id,
 null,
 null,
 inNotes,
@@ -345,10 +411,7 @@ return jsonResponse({
 ok: false,
 version: VERSION,
 error: 'Transfer failed account foreign-key guard. Refresh accounts and retry.',
-from_account_input: cleanText(body.account_id, '', 160),
-resolved_from_account_id: fromAccount.id,
-to_account_input: cleanText(body.transfer_to_account_id, '', 160),
-resolved_to_account_id: toAccount.id,
+normalized_payload: payload,
 d1_error: err.message
 }, 409);
 }
@@ -362,20 +425,18 @@ entity_id: outId,
 kind: 'mutation',
 detail: {
 type: 'transfer',
-amount,
-from_account_input: cleanText(body.account_id, '', 160),
-from_account_id: fromAccount.id,
-from_account_name: fromAccount.name || fromAccount.id,
-to_account_input: cleanText(body.transfer_to_account_id, '', 160),
-to_account_id: toAccount.id,
-to_account_name: toAccount.name || toAccount.id,
+amount: payload.amount,
+from_account_id: payload.account_id,
+from_account_name: payload.account_name,
+to_account_id: payload.transfer_to_account_id,
+to_account_name: payload.transfer_to_account_name,
 out_id: outId,
 in_id: inId,
 category_id: null,
-date,
+date: payload.date,
 notes: baseNotes.slice(0, 80)
 },
-created_by: body.created_by || 'web-add'
+created_by: payload.created_by
 });
 
 return jsonResponse({
@@ -384,13 +445,14 @@ version: VERSION,
 id: outId,
 linked_id: inId,
 ids: [outId, inId],
-from_account_id: fromAccount.id,
-from_account_name: fromAccount.name || fromAccount.id,
-to_account_id: toAccount.id,
-to_account_name: toAccount.name || toAccount.id,
+from_account_id: payload.account_id,
+from_account_name: payload.account_name,
+to_account_id: payload.transfer_to_account_id,
+to_account_name: payload.transfer_to_account_name,
 transfer_model: 'legacy_2_row',
 audited: auditResult.ok,
-audit_error: auditResult.error || null
+audit_error: auditResult.error || null,
+proof: validation.proof
 });
 }
 
@@ -493,6 +555,15 @@ status: 409,
 error: 'Category validation failed. Clear category and retry.'
 };
 }
+}
+
+function isDryRunRequest(url, body) {
+if (url.searchParams.get('dry_run') === '1') return true;
+if (url.searchParams.get('dry_run') === 'true') return true;
+if (body && body.dry_run === true) return true;
+if (body && body.dry_run === '1') return true;
+if (body && body.dry_run === 'true') return true;
+return false;
 }
 
 function isReversalRow(t) {
