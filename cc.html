@@ -1,1138 +1,716 @@
 <!DOCTYPE html>
-<html lang="en" data-page="cc">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Credit Card - Sovereign Finance</title>
+<link rel="stylesheet" href="/css/app.css?v=2.0.0" />
 
-  <title>Sovereign Finance · Credit Card</title>
+<style>
+.cc-page {
+  max-width: 1480px;
+}
 
-  <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
+.cc-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 18px;
+  align-items: stretch;
+}
 
-  <style>
-    .cc-wrap {
-      max-width: 1280px;
-      margin: 0 auto;
-      padding-bottom: 96px;
-    }
+.cc-side {
+  display: grid;
+  gap: 14px;
+}
 
-    .cc-hero {
-      color: #f8fafc;
-      background:
-        linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95)),
-        radial-gradient(circle at top right, rgba(59, 130, 246, 0.24), transparent 28rem);
-      border: 1px solid rgba(255, 255, 255, 0.10);
-      border-radius: 34px;
-      box-shadow: var(--shadow-lg);
-      padding: 26px;
-      margin-bottom: 18px;
-    }
+.cc-card {
+  padding: 18px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-md);
+}
 
-    .cc-kicker {
-      display: inline-flex;
-      padding: 7px 11px;
-      border-radius: 999px;
-      background: rgba(59, 130, 246, 0.15);
-      color: #dbeafe;
-      font-size: 12px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      margin-bottom: 12px;
-    }
+.cc-card-title {
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
 
-    .cc-title {
-      margin: 0;
-      color: #fff;
-      font-size: clamp(34px, 5vw, 58px);
-      line-height: 0.98;
-      letter-spacing: -0.06em;
-      font-weight: 950;
-    }
+.cc-card-copy {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 760;
+}
 
-    .cc-copy {
-      max-width: 860px;
-      margin: 12px 0 0;
-      color: #cbd5e1;
-      font-size: 15px;
-      line-height: 1.55;
-      font-weight: 750;
-    }
+.cc-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 18px;
+}
 
-    .cc-warning {
-      margin-top: 16px;
-      padding: 13px 14px;
-      border-radius: 18px;
-      border: 1px solid rgba(96, 165, 250, 0.28);
-      background: rgba(37, 99, 235, 0.14);
-      color: #dbeafe;
-      font-size: 13px;
-      font-weight: 850;
-      line-height: 1.45;
-    }
+.cc-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
 
-    .cc-authority {
-      margin: 0 0 18px;
-      padding: 16px;
-      border-radius: 24px;
-      border: 1px solid rgba(245, 158, 11, 0.28);
-      background: linear-gradient(180deg, rgba(255, 251, 235, 0.96), rgba(255, 255, 255, 0.96));
-      box-shadow: var(--shadow-sm);
-      display: grid;
-      gap: 8px;
-    }
+.cc-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 26px 0 14px;
+}
 
-    .cc-authority.pass {
-      border-color: rgba(34, 197, 94, 0.28);
-      background: linear-gradient(180deg, rgba(240, 253, 244, 0.96), rgba(255, 255, 255, 0.96));
-    }
+.cc-section-title {
+  color: var(--text-strong);
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+}
 
-    .cc-authority.blocked,
-    .cc-authority.unknown {
-      border-color: rgba(220, 38, 38, 0.24);
-      background: linear-gradient(180deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.96));
-    }
+.cc-section-copy {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 760;
+}
 
-    .cc-authority-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
+.cc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 
-    .cc-authority-title {
-      color: var(--text);
-      font-size: 15px;
-      font-weight: 950;
-    }
+.cc-enforcement {
+  padding: 16px;
+  border-radius: var(--r-xl);
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
+  color: var(--warn);
+  box-shadow: var(--shadow-sm);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 790;
+}
 
-    .cc-authority-pill {
-      display: inline-flex;
-      align-items: center;
-      min-height: 30px;
-      padding: 6px 10px;
-      border-radius: var(--r-pill);
-      background: rgba(15, 23, 42, 0.08);
-      color: var(--text);
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
+.cc-enforcement.pass {
+  border-color: rgba(4, 120, 87, 0.24);
+  background: linear-gradient(135deg, var(--success-soft), var(--surface-1));
+  color: var(--success);
+}
 
-    .cc-authority-copy {
-      margin: 0;
-      color: var(--text-muted);
-      font-size: 12px;
-      line-height: 1.45;
-      font-weight: 800;
-    }
+.cc-enforcement.blocked {
+  border-color: rgba(185, 28, 28, 0.22);
+  background: linear-gradient(135deg, var(--danger-soft), var(--surface-1));
+  color: var(--danger);
+}
 
-    .cc-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      margin-bottom: 18px;
-    }
+.cc-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr);
+  gap: 14px;
+  align-items: start;
+}
 
-    .cc-card {
-      min-width: 0;
-      padding: 17px;
-      border-radius: 24px;
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow-sm);
-    }
+.cc-lane {
+  display: grid;
+  gap: 12px;
+}
 
-    .cc-label {
-      color: var(--text-dim);
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
+.cc-row {
+  position: relative;
+  overflow: hidden;
+  padding: 16px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
 
-    .cc-value {
-      margin-top: 8px;
-      color: var(--text);
-      font-size: 24px;
-      font-weight: 950;
-      letter-spacing: -0.035em;
-      font-variant-numeric: tabular-nums;
-    }
+.cc-row::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--info), transparent);
+}
 
-    .cc-value.good {
-      color: var(--accent-deep);
-    }
+.cc-row.verified::before {
+  background: linear-gradient(90deg, var(--accent), transparent);
+}
 
-    .cc-value.warn {
-      color: var(--warn);
-    }
+.cc-row.warning::before {
+  background: linear-gradient(90deg, var(--warn), transparent);
+}
 
-    .cc-value.bad {
-      color: var(--danger);
-    }
+.cc-row.blocked::before {
+  background: linear-gradient(90deg, var(--danger), transparent);
+}
 
-    .cc-note {
-      margin-top: 6px;
-      color: var(--text-dim);
-      font-size: 12px;
-      font-weight: 800;
-      line-height: 1.35;
-    }
+.cc-row-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
 
-    .cc-main {
-      display: grid;
-      grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.75fr);
-      gap: 16px;
-      align-items: start;
-    }
+.cc-row-title {
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
 
-    .cc-panel {
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: 28px;
-      box-shadow: var(--shadow-sm);
-      padding: 18px;
-      min-width: 0;
-    }
+.cc-row-sub {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 760;
+}
 
-    .panel-title {
-      margin: 0;
-      color: var(--text);
-      font-size: 18px;
-      font-weight: 950;
-      letter-spacing: -0.03em;
-    }
+.cc-row-value {
+  margin-top: 14px;
+  color: var(--text-strong);
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: -0.06em;
+}
 
-    .panel-sub {
-      margin: 6px 0 0;
-      color: var(--text-dim);
-      font-size: 13px;
-      font-weight: 750;
-      line-height: 1.45;
-    }
+.cc-row-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 16px;
+}
 
-    .cc-meter {
-      margin: 18px 0 10px;
-      height: 18px;
-      background: var(--surface-3);
-      border-radius: 999px;
-      overflow: hidden;
-    }
+.cc-meta-item {
+  padding: 11px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
 
-    .cc-meter-fill {
-      height: 100%;
-      width: 0%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #22c55e, #f59e0b, #ef4444);
-      transition: width 340ms ease;
-    }
+.cc-meta-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
 
-    .cc-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
-      padding: 13px;
-      border-radius: 18px;
-      background: var(--surface-2);
-      border: 1px solid rgba(148, 163, 184, 0.18);
-      margin-top: 8px;
-    }
+.cc-meta-value {
+  margin-top: 4px;
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 900;
+}
 
-    .row-name {
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 950;
-    }
+.cc-proof {
+  margin-top: 12px;
+  padding: 11px;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12px;
+  font-weight: 820;
+  line-height: 1.42;
+}
 
-    .row-sub {
-      margin-top: 3px;
-      color: var(--text-dim);
-      font-size: 12px;
-      font-weight: 750;
-    }
+.cc-panel-list {
+  display: grid;
+  gap: 10px;
+}
 
-    .row-value {
-      color: var(--text);
-      font-size: 13px;
-      font-weight: 950;
-      white-space: nowrap;
-      font-variant-numeric: tabular-nums;
-    }
+.cc-panel-row {
+  padding: 13px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
 
-    .cc-actions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 14px;
-    }
+.cc-panel-title {
+  color: var(--text-strong);
+  font-size: 13px;
+  font-weight: 920;
+}
 
-    .cc-action {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 46px;
-      border-radius: 16px;
-      border: 1px solid var(--border-strong);
-      background: #fff;
-      color: var(--text);
-      font-weight: 950;
-      text-align: center;
-      text-decoration: none;
-    }
+.cc-panel-copy {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 740;
+}
 
-    .cc-action.primary {
-      background: var(--grad-mint);
-      color: #052e16;
-      border: 0;
-    }
+.cc-empty {
+  padding: 28px;
+  border-radius: var(--r-xl);
+  border: 1px dashed var(--border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 820;
+  text-align: center;
+}
 
-    .cc-action.disabled {
-      background: #cbd5e1;
-      color: #475569;
-      border: 0;
-      pointer-events: none;
-      cursor: not-allowed;
-    }
+.cc-page-meta {
+  display: none !important;
+}
 
-    .cc-empty {
-      padding: 14px;
-      border-radius: 18px;
-      background: var(--surface-2);
-      border: 1px dashed var(--border-strong);
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 850;
-      line-height: 1.45;
-      margin-top: 10px;
-    }
+@media (max-width: 1180px) {
+  .cc-hero-grid,
+  .cc-grid {
+    grid-template-columns: 1fr;
+  }
 
-    .cc-source-warning {
-      padding: 14px;
-      border-radius: 18px;
-      background: var(--surface-2);
-      border: 1px dashed var(--border-strong);
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 850;
-      line-height: 1.45;
-      margin-top: 10px;
-    }
+  .cc-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
 
-    .cc-source-warning.bad {
-      background: rgba(220, 38, 38, 0.08);
-      border-color: rgba(220, 38, 38, 0.22);
-      color: #7f1d1d;
-    }
+@media (max-width: 720px) {
+  .cc-kpi-grid,
+  .cc-row-meta {
+    grid-template-columns: 1fr;
+  }
 
-    .cc-source-warning.good {
-      background: rgba(34, 197, 94, 0.08);
-      border-color: rgba(34, 197, 94, 0.22);
-      color: #14532d;
-    }
+  .cc-section-head,
+  .cc-row-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 
-    .cc-block {
-      padding: 14px;
-      border-radius: 18px;
-      background: rgba(254, 242, 242, 0.88);
-      border: 1px solid rgba(220, 38, 38, 0.22);
-      color: #7f1d1d;
-      font-size: 12px;
-      font-weight: 850;
-      line-height: 1.45;
-      display: grid;
-      gap: 5px;
-      margin-top: 14px;
-    }
-
-    .cc-block strong {
-      font-weight: 950;
-    }
-
-    @media (max-width: 980px) {
-      .cc-grid,
-      .cc-main {
-        grid-template-columns: 1fr;
-      }
-
-      .cc-actions {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+  .cc-actions,
+  .cc-actions .btn {
+    width: 100%;
+  }
+}
+</style>
 </head>
 
 <body>
-  <header>
-    <div>
-      <div class="brand">Sovereign Finance</div>
-      <div class="title">Credit Card</div>
-    </div>
-  </header>
+<header>
+<div>
+<div class="brand">Sovereign Finance</div>
+<div class="title">Credit Card</div>
+</div>
+</header>
 
-  <main class="cc-wrap">
-    <section class="cc-hero">
-      <div class="cc-kicker">Credit Card control</div>
+<main class="app-page cc-page">
+<section class="cc-hero-grid">
+<div class="page-hero">
+<div class="hero-kicker">Credit card planner</div>
+<h1 class="hero-title">Credit card decisions need verified balance truth.</h1>
+<p class="hero-copy">
+Credit card planning tracks statement date, interest-free window, due-date logic, and minimum-payment readiness. Outstanding balance must come from a verified account/source, never lifetime spend.
+</p>
 
-      <h1 class="cc-title">Realtime balance first. No historical-spend guessing.</h1>
+<div class="cc-status-strip">
+<span id="ccApiBadge" class="badge badge-unknown">Account source loading</span>
+<span id="ccGovernorBadge" class="badge badge-unknown">Governor loading</span>
+<span id="ccWriteBadge" class="badge badge-blocked">CC decision guarded</span>
+</div>
+</div>
 
-      <p class="cc-copy">
-        This page reads the original account and balance sources directly.
-        It does not use money contracts, lifetime Credit Card spend, or historical transaction totals as current outstanding.
-      </p>
+<aside class="cc-side">
+<div class="cc-card">
+<div class="cc-card-title">CC safety posture</div>
+<div class="cc-card-copy">
+Credit-card decisions stay guarded until the outstanding balance source is verified. Liability values must not be invented or inferred from lifetime spend.
+</div>
+<div style="margin-top:12px">
+<span class="badge badge-preflight">Source proof required</span>
+<span class="badge badge-blocked">No fake balance</span>
+</div>
+</div>
 
-      <div class="cc-warning">
-        Statement date stays the 12th of every month. Interest-free period stays 55 days.
-        Minimum due is 5% of realtime outstanding when a trusted outstanding value is available.
-      </div>
-    </section>
+<div class="cc-card">
+<div class="cc-card-title">Known CC rule</div>
+<div class="cc-card-copy">
+Statement date is the 12th. Interest-free period is 55 days. Planner must include due date and minimum-required-payment logic before being used for decisions.
+</div>
+</div>
+</aside>
+</section>
 
-    <section id="ccAuthority" class="cc-authority unknown">
-      <div class="cc-authority-top">
-        <div class="cc-authority-title">Command Centre authority</div>
-        <div id="ccAuthorityPill" class="cc-authority-pill">Checking</div>
-      </div>
-      <p id="ccAuthorityCopy" class="cc-authority-copy">
-        Loading backend enforcement policy for credit_card.plan_payment.
-      </p>
-    </section>
+<section class="cc-kpi-grid">
+<div class="kpi-card">
+<div class="kpi-label">Outstanding source</div>
+<div id="ccSourceStatus" class="kpi-value">-</div>
+<div class="kpi-sub">Verified account only</div>
+</div>
 
-    <section class="cc-grid">
-      <div class="cc-card">
-        <div class="cc-label">Realtime outstanding</div>
-        <div id="ccOutstanding" class="cc-value">Loading</div>
-        <div id="ccOutstandingNote" class="cc-note">Reading original balance source.</div>
-      </div>
+<div class="kpi-card">
+<div class="kpi-label">Visible balance</div>
+<div id="ccBalanceValue" class="kpi-value">-</div>
+<div class="kpi-sub">Unknown if not verified</div>
+</div>
 
-      <div class="cc-card">
-        <div class="cc-label">Minimum due</div>
-        <div id="ccMinimum" class="cc-value">Loading</div>
-        <div id="ccMinimumNote" class="cc-note">5% of realtime outstanding.</div>
-      </div>
+<div class="kpi-card">
+<div class="kpi-label">Statement date</div>
+<div id="ccStatementDate" class="kpi-value">12th</div>
+<div class="kpi-sub">Every month</div>
+</div>
 
-      <div class="cc-card">
-        <div class="cc-label">Due date</div>
-        <div id="ccDue" class="cc-value">Loading</div>
-        <div id="ccDueNote" class="cc-note">12th statement + 55 days.</div>
-      </div>
+<div class="kpi-card">
+<div class="kpi-label">Authority</div>
+<div id="ccAuthorityStatus" class="kpi-value">Guarded</div>
+<div class="kpi-sub">Until CC proof</div>
+</div>
+</section>
 
-      <div class="cc-card">
-        <div class="cc-label">Utilization</div>
-        <div id="ccUtil" class="cc-value">Loading</div>
-        <div id="ccUtilNote" class="cc-note">Outstanding against credit limit.</div>
-      </div>
-    </section>
+<section>
+<div class="cc-section-head">
+<div>
+<div class="cc-section-title">Credit card workspace</div>
+<div id="ccSummary" class="cc-section-copy">Loading credit card source...</div>
+</div>
 
-    <section class="cc-main">
-      <div class="cc-panel">
-        <h2 class="panel-title">Credit Card health</h2>
-        <p class="panel-sub">
-          Display-only page. It does not write data, change balances, calculate from historical spend,
-          or modify the original finance logic.
-        </p>
+<div class="cc-actions">
+<a class="btn btn-secondary" href="/monthly-close.html">Open Command Centre</a>
+<a class="btn btn-secondary" href="/forecast.html">Open Forecast</a>
+</div>
+</div>
 
-        <div class="cc-meter">
-          <div id="ccMeterFill" class="cc-meter-fill"></div>
-        </div>
+<div id="ccEnforcement" class="cc-enforcement">
+Checking Command Centre credit-card authority...
+</div>
 
-        <div class="cc-row">
+<div style="height:14px"></div>
+
+<div class="cc-grid">
+<section>
+<div class="cc-section-title" style="font-size:18px;margin-bottom:10px">Planner inputs</div>
+<div id="ccSources" class="cc-lane"></div>
+</section>
+
+<aside class="cc-card">
+<div class="cc-card-title">What remains before unlock</div>
+<div class="cc-panel-list" style="margin-top:12px">
+<div class="cc-panel-row">
+<div class="cc-panel-title">1. Outstanding source proof</div>
+<div class="cc-panel-copy">Prove which account/source represents current CC liability.</div>
+</div>
+<div class="cc-panel-row">
+<div class="cc-panel-title">2. Due-date logic</div>
+<div class="cc-panel-copy">Statement date 12th + 55-day interest-free window must be rendered clearly.</div>
+</div>
+<div class="cc-panel-row">
+<div class="cc-panel-title">3. Minimum payment</div>
+<div class="cc-panel-copy">Minimum-required-payment formula must be explicit and verified before decisions.</div>
+</div>
+<div class="cc-panel-row">
+<div class="cc-panel-title">4. Command Centre lift</div>
+<div class="cc-panel-copy">Only then can CC values influence forecast or decisions.</div>
+</div>
+</div>
+</aside>
+</div>
+</section>
+
+<footer class="cc-page-meta" aria-hidden="true">
+Credit Card premium UI v2.0.0
+</footer>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="/js/theme.js?v=1.0.0"></script>
+<script src="/js/nav.js?v=2.0.0"></script>
+<script src="/js/enforcement.js?v=0.2.0"></script>
+
+<script>
+(function () {
+  "use strict";
+
+  const VERSION = "2.0.0";
+  const STATEMENT_DAY = 12;
+  const INTEREST_FREE_DAYS = 55;
+
+  let accounts = [];
+  let ccAccount = null;
+  let rows = [];
+
+  const $ = id => document.getElementById(id);
+
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value;
+  }
+
+  function setBadge(id, text, cls) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = "badge " + cls;
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function money(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "Unknown";
+    return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
+  }
+
+  function normalizeAccounts(raw) {
+    if (Array.isArray(raw)) return raw;
+    if (raw && Array.isArray(raw.accounts)) return raw.accounts;
+    if (raw && typeof raw === "object") return Object.keys(raw).map(id => ({ id, ...raw[id] }));
+    return [];
+  }
+
+  function accountName(account) {
+    return account.name || account.label || account.account_name || account.id || "Account";
+  }
+
+  function accountKind(account) {
+    return String(account.kind || account.type || account.account_type || "").toLowerCase().trim();
+  }
+
+  function accountBalance(account) {
+    const candidates = [account.balance, account.current_balance, account.available_balance, account.amount, account.current_amount];
+    for (const value of candidates) {
+      const n = Number(value);
+      if (Number.isFinite(n)) return n;
+    }
+    return null;
+  }
+
+  function findCreditCardAccount(rows) {
+    return rows.find(account => {
+      const id = String(account.id || "").toLowerCase();
+      const name = accountName(account).toLowerCase();
+      const kind = accountKind(account);
+
+      return (
+        id === "cc" ||
+        id.includes("credit") ||
+        kind === "cc" ||
+        kind === "credit" ||
+        kind === "credit_card" ||
+        kind === "liability" ||
+        name.includes("credit") ||
+        name.includes("alfalah")
+      );
+    }) || null;
+  }
+
+  function nextStatementDate() {
+    const now = new Date();
+    const date = new Date(now.getFullYear(), now.getMonth(), STATEMENT_DAY);
+    if (date < now) date.setMonth(date.getMonth() + 1);
+    return date;
+  }
+
+  function dueDateFromStatement(statement) {
+    const due = new Date(statement);
+    due.setDate(due.getDate() + INTEREST_FREE_DAYS);
+    return due;
+  }
+
+  function fmtDate(date) {
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+  }
+
+  async function fetchJSON(url) {
+    const res = await fetch(url, { cache: "no-store" });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) throw new Error("Failed to read " + url);
+    return data;
+  }
+
+  async function loadCommandCentre() {
+    try {
+      const cmd = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
+      const actions = cmd.enforcement && Array.isArray(cmd.enforcement.actions) ? cmd.enforcement.actions : [];
+      const ccDecision = actions.find(action => action.action === "cc.use_for_decision");
+      const ccForecast = actions.find(action => action.action === "cc.use_for_forecast");
+      const allowed = Boolean((ccDecision && ccDecision.allowed) || (ccForecast && ccForecast.allowed));
+
+      if (allowed) {
+        setBadge("ccGovernorBadge", "CC decision allowed", "badge-ready");
+        setBadge("ccWriteBadge", "CC decision scope", "badge-ready");
+        setText("ccAuthorityStatus", "Allowed");
+
+        const panel = $("ccEnforcement");
+        if (panel) {
+          panel.className = "cc-enforcement pass";
+          panel.textContent = "Command Centre allows credit-card decision usage.";
+        }
+      } else {
+        setBadge("ccGovernorBadge", "CC decision guarded", "badge-preflight");
+        setBadge("ccWriteBadge", "Proof required", "badge-blocked");
+        setText("ccAuthorityStatus", "Guarded");
+
+        const panel = $("ccEnforcement");
+        if (panel) {
+          panel.className = "cc-enforcement";
+          panel.textContent = ccDecision && ccDecision.reason
+            ? ccDecision.reason
+            : "Credit-card decision usage remains guarded until realtime outstanding source is proven.";
+        }
+      }
+    } catch (err) {
+      setBadge("ccGovernorBadge", "Governor unknown", "badge-unknown");
+      setBadge("ccWriteBadge", "Scope unknown", "badge-unknown");
+
+      const panel = $("ccEnforcement");
+      if (panel) panel.textContent = "Command Centre could not be loaded. CC decisions stay guarded.";
+    }
+  }
+
+  async function loadAccounts() {
+    try {
+      const data = await fetchJSON("/api/accounts?debug=1&cb=" + Date.now());
+      accounts = normalizeAccounts(data.accounts || data).filter(account => account && account.id);
+      ccAccount = findCreditCardAccount(accounts);
+
+      setBadge("ccApiBadge", "Accounts API " + (data.version ? "v" + data.version : "live"), "badge-ready");
+      buildRows();
+    } catch (err) {
+      accounts = [];
+      ccAccount = null;
+      setBadge("ccApiBadge", "Account source unavailable", "badge-unknown");
+      buildRows();
+    }
+  }
+
+  function buildRows() {
+    const statement = nextStatementDate();
+    const due = dueDateFromStatement(statement);
+    const balance = ccAccount ? accountBalance(ccAccount) : null;
+    const sourceStatus = ccAccount && balance !== null ? "Found" : "Unknown";
+
+    setText("ccSourceStatus", sourceStatus);
+    setText("ccBalanceValue", balance === null ? "Unknown" : money(balance));
+    setText("ccSummary", ccAccount ? "Credit-card-like account found: " + accountName(ccAccount) + "." : "No verified credit card account source found. Outstanding remains Unknown.");
+
+    rows = [
+      {
+        title: "Outstanding balance",
+        type: ccAccount && balance !== null ? "verified" : "warning",
+        value: balance === null ? "Unknown" : money(balance),
+        badge: ccAccount && balance !== null ? "Source found" : "Unknown",
+        badgeClass: ccAccount && balance !== null ? "badge-ready" : "badge-unknown",
+        source: ccAccount ? accountName(ccAccount) : "No verified account",
+        meaning: "Must come from realtime account/source, not lifetime spend."
+      },
+      {
+        title: "Next statement date",
+        type: "verified",
+        value: fmtDate(statement),
+        badge: "Rule",
+        badgeClass: "badge-info",
+        source: "Statement day = 12th",
+        meaning: "Used for planning only."
+      },
+      {
+        title: "Estimated due date",
+        type: "verified",
+        value: fmtDate(due),
+        badge: "55 days",
+        badgeClass: "badge-info",
+        source: "Interest-free period",
+        meaning: "Statement date plus 55 days."
+      },
+      {
+        title: "Minimum payment",
+        type: "blocked",
+        value: "Formula pending",
+        badge: "Blocked",
+        badgeClass: "badge-blocked",
+        source: "CC planner proof",
+        meaning: "Do not use until formula is explicitly implemented and verified."
+      }
+    ];
+
+    renderRows();
+  }
+
+  function renderRows() {
+    const container = $("ccSources");
+    if (!container) return;
+
+    if (!rows.length) {
+      container.innerHTML = '<div class="cc-empty">No credit card planner rows available.</div>';
+      return;
+    }
+
+    container.innerHTML = rows.map(row => `
+      <article class="cc-row ${escapeHtml(row.type)}">
+        <div class="cc-row-top">
           <div>
-            <div class="row-name">Outstanding source</div>
-            <div class="row-sub">Must be realtime balance or original trusted account source</div>
+            <div class="cc-row-title">${escapeHtml(row.title)}</div>
+            <div class="cc-row-sub">${escapeHtml(row.source)}</div>
           </div>
-          <div id="ccSource" class="row-value">Checking</div>
+          <span class="badge ${escapeHtml(row.badgeClass)}">${escapeHtml(row.badge)}</span>
         </div>
 
-        <div class="cc-row">
-          <div>
-            <div class="row-name">Statement date</div>
-            <div class="row-sub">Fixed rule</div>
+        <div class="cc-row-value">${escapeHtml(row.value)}</div>
+
+        <div class="cc-row-meta">
+          <div class="cc-meta-item">
+            <div class="cc-meta-label">Source</div>
+            <div class="cc-meta-value">${escapeHtml(row.source)}</div>
           </div>
-          <div class="row-value">12th monthly</div>
+          <div class="cc-meta-item">
+            <div class="cc-meta-label">Status</div>
+            <div class="cc-meta-value">${escapeHtml(row.badge)}</div>
+          </div>
+          <div class="cc-meta-item">
+            <div class="cc-meta-label">Meaning</div>
+            <div class="cc-meta-value">${escapeHtml(row.meaning)}</div>
+          </div>
         </div>
 
-        <div class="cc-row">
-          <div>
-            <div class="row-name">Interest-free days</div>
-            <div class="row-sub">Fixed rule</div>
-          </div>
-          <div class="row-value">55 days</div>
+        <div class="cc-proof">
+          Credit-card values are visible for planning only until source proof, minimum-payment logic, and Command Centre lift are complete.
         </div>
-
-        <div class="cc-row">
-          <div>
-            <div class="row-name">Credit limit</div>
-            <div class="row-sub">Read from account if available, otherwise safe display fallback</div>
-          </div>
-          <div id="ccLimit" class="row-value">Checking</div>
-        </div>
-
-        <div id="ccPlanBlock"></div>
-
-        <div class="cc-actions">
-          <a id="ccPlanLink" class="cc-action primary" href="/add.html?type=transfer&to=cc">
-            Plan payment transfer
-          </a>
-          <a class="cc-action" href="/transactions.html">
-            Review transactions
-          </a>
-        </div>
-      </div>
-
-      <aside class="cc-panel">
-        <h2 class="panel-title">Safety checks</h2>
-        <p class="panel-sub">
-          This verifies the page is not using the broken contract logic.
-        </p>
-        <div id="ccChecks"></div>
-      </aside>
-    </section>
-
-    <footer class="page-footer">
-      <span class="v">Credit Card v0.4.2 · Phase 4F soft authority · nav v1.2.0 · enforcement v0.1.0 · css v1.0.2</span>
-    </footer>
-  </main>
-
-  <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=1.2.0"></script>
-  <script src="/js/enforcement.js?v=0.1.0"></script>
-
-  <script>
-    (function () {
-      "use strict";
-
-      const VERSION = "v0.4.2";
-      const ACTION = "credit_card.plan_payment";
-      const STATEMENT_DAY = 12;
-      const INTEREST_FREE_DAYS = 55;
-      const FALLBACK_CREDIT_LIMIT = 100000;
-
-      const state = {
-        gate: blockedGate("Command Centre enforcement has not loaded yet.", {
-          source: "window.SovereignEnforcement",
-          required_fix: "Wait for /api/finance-command-center to return an action policy for credit_card.plan_payment.",
-          status: "unknown"
-        }),
-        result: null
-      };
-
-      const $ = id => document.getElementById(id);
-
-      function esc(value) {
-        return String(value == null ? "" : value)
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      }
-
-      function money(value) {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return "Unverified";
-        return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
-      }
-
-      function setValue(id, value, cls) {
-        const el = $(id);
-        if (!el) return;
-
-        el.textContent = value;
-        el.classList.remove("good", "warn", "bad");
-
-        if (cls) {
-          el.classList.add(cls);
-        }
-      }
-
-      function asNumber(value) {
-        if (value === null || value === undefined || value === "") return null;
-
-        const n = Number(value);
-        return Number.isFinite(n) ? n : null;
-      }
-
-      function absOutstanding(value) {
-        const n = asNumber(value);
-        return n === null ? null : Math.abs(n);
-      }
-
-      function normalizeAccounts(payload) {
-        if (Array.isArray(payload)) return payload;
-        if (payload && Array.isArray(payload.accounts)) return payload.accounts;
-        if (payload && Array.isArray(payload.rows)) return payload.rows;
-        if (payload && Array.isArray(payload.items)) return payload.items;
-
-        if (payload && typeof payload === "object") {
-          return Object.keys(payload)
-            .filter(key => payload[key] && typeof payload[key] === "object")
-            .map(key => ({ id: key, ...payload[key] }));
-        }
-
-        return [];
-      }
-
-      function normalizeBalanceRows(payload) {
-        if (!payload) return [];
-        if (Array.isArray(payload)) return payload;
-        if (Array.isArray(payload.accounts)) return payload.accounts;
-        if (Array.isArray(payload.balances)) return payload.balances;
-        if (Array.isArray(payload.rows)) return payload.rows;
-        if (Array.isArray(payload.items)) return payload.items;
-
-        if (payload.balances && typeof payload.balances === "object") {
-          return Object.keys(payload.balances).map(id => ({
-            id,
-            balance: payload.balances[id]
-          }));
-        }
-
-        if (payload.accounts && typeof payload.accounts === "object") {
-          return Object.keys(payload.accounts).map(id => ({
-            id,
-            ...payload.accounts[id]
-          }));
-        }
-
-        if (typeof payload === "object") {
-          return Object.keys(payload)
-            .filter(key => payload[key] && typeof payload[key] === "object")
-            .map(key => ({ id: key, ...payload[key] }));
-        }
-
-        return [];
-      }
-
-      function accountName(row) {
-        return String(row.name || row.label || row.account_name || row.id || "").trim();
-      }
-
-      function accountKind(row) {
-        return String(row.kind || row.type || row.category || "").toLowerCase().trim();
-      }
-
-      function isCreditCard(row) {
-        const haystack = [
-          row.id,
-          row.account_id,
-          row.name,
-          row.label,
-          row.account_name,
-          row.kind,
-          row.type,
-          row.category
-        ].join(" ").toLowerCase();
-
-        return (
-          haystack.includes(" cc") ||
-          haystack.includes("cc ") ||
-          haystack.includes("alfalah cc") ||
-          haystack.includes("credit card") ||
-          String(row.id || "").toLowerCase() === "cc" ||
-          String(row.account_id || "").toLowerCase() === "cc" ||
-          accountKind(row) === "cc"
-        );
-      }
-
-      async function fetchJson(url) {
-        const res = await fetch(url, { cache: "no-store" });
-        const data = await res.json().catch(() => null);
-
-        if (!res.ok || !data) {
-          throw new Error(url + " failed with HTTP " + res.status);
-        }
-
-        return data;
-      }
-
-      async function readSources() {
-        const results = {
-          accounts: [],
-          balances: [],
-          errors: []
-        };
-
-        try {
-          results.accounts = normalizeAccounts(await fetchJson("/api/accounts"));
-        } catch (err) {
-          results.errors.push("/api/accounts: " + err.message);
-        }
-
-        try {
-          results.balances = normalizeBalanceRows(await fetchJson("/api/balances"));
-        } catch (err) {
-          results.errors.push("/api/balances: " + err.message);
-        }
-
-        return results;
-      }
-
-      function findCcAccount(accounts, balances) {
-        const account = accounts.find(isCreditCard) || null;
-        const balance = balances.find(isCreditCard) || null;
-
-        if (account && balance) {
-          return {
-            ...account,
-            ...balance,
-            id: account.id || balance.id || balance.account_id,
-            name: accountName(account) || accountName(balance)
-          };
-        }
-
-        return account || balance || null;
-      }
-
-      function pickOutstanding(cc) {
-        if (!cc) {
-          return {
-            value: null,
-            source: "missing_credit_card_account"
-          };
-        }
-
-        const candidates = [
-          ["current_balance", "current_balance"],
-          ["available_balance", "available_balance"],
-          ["balance", "balance"],
-          ["real_balance", "real_balance"],
-          ["declared_balance", "declared_balance"],
-          ["opening_balance", "opening_balance"]
-        ];
-
-        for (const pair of candidates) {
-          const field = pair[0];
-          const source = pair[1];
-          const value = absOutstanding(cc[field]);
-
-          if (value !== null && value > 0) {
-            return { value, source };
-          }
-        }
-
-        return {
-          value: null,
-          source: "realtime_balance_unavailable"
-        };
-      }
-
-      function pickCreditLimit(cc) {
-        if (!cc) return FALLBACK_CREDIT_LIMIT;
-
-        return (
-          asNumber(cc.credit_limit) ||
-          asNumber(cc.limit_amount) ||
-          asNumber(cc.card_limit) ||
-          FALLBACK_CREDIT_LIMIT
-        );
-      }
-
-      function nextStatementDate() {
-        const now = new Date();
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-        let d = new Date(now.getFullYear(), now.getMonth(), STATEMENT_DAY);
-
-        if (d < today) {
-          d = new Date(now.getFullYear(), now.getMonth() + 1, STATEMENT_DAY);
-        }
-
-        return d;
-      }
-
-      function dueDateFromStatement() {
-        const d = nextStatementDate();
-        d.setDate(d.getDate() + INTEREST_FREE_DAYS);
-        return d;
-      }
-
-      function dateOnly(d) {
-        return d.toISOString().slice(0, 10);
-      }
-
-      function daysUntil(d) {
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-
-        const target = new Date(d);
-        target.setHours(0, 0, 0, 0);
-
-        return Math.ceil((target.getTime() - now.getTime()) / 86400000);
-      }
-
-      function dueCopy(days) {
-        if (days < 0) return Math.abs(days) + " days overdue";
-        if (days === 0) return "Due today";
-        if (days === 1) return "Due tomorrow";
-        return "Due in " + days + " days";
-      }
-
-      function checkRow(label, ok, sub) {
-        return `
-          <div class="cc-row">
-            <div>
-              <div class="row-name">${esc(label)}</div>
-              <div class="row-sub">${esc(sub || (ok ? "Ready" : "Needs attention"))}</div>
-            </div>
-            <div class="row-value">${ok ? "OK" : "Check"}</div>
-          </div>
-        `;
-      }
-
-      function blockedGate(reason, extra) {
-        return {
-          action: ACTION,
-          allowed: false,
-          status: extra && extra.status ? extra.status : "blocked",
-          reason: reason || "Credit Card planning is blocked by Command Centre.",
-          source: extra && extra.source ? extra.source : "enforcement.actions",
-          required_fix: extra && extra.required_fix ? extra.required_fix : "Resolve Command Centre blocker before planning a Credit Card payment.",
-          override_allowed: Boolean(extra && extra.override_allowed),
-          backend_enforced: Boolean(extra && extra.backend_enforced),
-          frontend_enforced: true,
-          raw: extra && extra.raw ? extra.raw : null
-        };
-      }
-
-      function passGate(action) {
-        return {
-          action: ACTION,
-          allowed: true,
-          status: String(action.status || "pass"),
-          reason: action.reason || "Command Centre allows credit_card.plan_payment.",
-          source: action.source || "enforcement.actions",
-          required_fix: action.required_fix || "",
-          override_allowed: Boolean(action.override_allowed),
-          backend_enforced: Boolean(action.backend_enforced),
-          frontend_enforced: true,
-          raw: action
-        };
-      }
-
-      function actionAllows(action) {
-        if (!action || typeof action !== "object") return false;
-
-        const status = String(action.status || action.verdict || "").toLowerCase();
-
-        const explicitAllowed =
-          action.allowed === true ||
-          action.action_allowed === true ||
-          action.actions_allowed === true ||
-          action.write_allowed === true ||
-          action.can_execute === true;
-
-        const explicitlyBlocked =
-          action.blocked === true ||
-          action.allowed === false ||
-          action.action_allowed === false ||
-          action.actions_allowed === false ||
-          action.write_allowed === false ||
-          ["blocked", "unknown", "unready", "not_ready", "fail", "failed", "deny", "denied"].includes(status);
-
-        if (explicitlyBlocked) return false;
-        if (explicitAllowed && ["", "pass", "ready", "allowed", "ok"].includes(status)) return true;
-
-        return false;
-      }
-
-      function updateGate(snapshot) {
-        if (!snapshot) {
-          state.gate = blockedGate("Command Centre enforcement snapshot is unavailable.", {
-            source: "window.SovereignEnforcement",
-            required_fix: "Load /js/enforcement.js and /api/finance-command-center.",
-            status: "unknown"
-          });
-          return;
-        }
-
-        if (snapshot.error) {
-          state.gate = blockedGate("Command Centre enforcement failed to load: " + snapshot.error, {
-            source: "/api/finance-command-center",
-            required_fix: "Open Command Centre and resolve backend enforcement endpoint availability.",
-            status: "unknown"
-          });
-          return;
-        }
-
-        if (!snapshot.loaded) {
-          state.gate = blockedGate("Command Centre enforcement is still loading.", {
-            source: "/api/finance-command-center",
-            required_fix: "Wait for enforcement policy to load. Unknown never becomes Ready.",
-            status: "unknown"
-          });
-          return;
-        }
-
-        const action = typeof snapshot.findAction === "function"
-          ? snapshot.findAction(ACTION)
-          : null;
-
-        if (!action) {
-          state.gate = blockedGate("No backend action policy returned for credit_card.plan_payment.", {
-            source: "enforcement.actions",
-            required_fix: "Register credit_card.plan_payment in /api/finance-command-center enforcement.actions.",
-            status: "unknown"
-          });
-          return;
-        }
-
-        state.gate = actionAllows(action)
-          ? passGate(action)
-          : blockedGate(action.reason || "Command Centre blocks credit_card.plan_payment.", {
-              source: action.source || "enforcement.actions",
-              required_fix: action.required_fix || "Resolve credit_card.plan_payment blocker in Command Centre.",
-              override_allowed: action.override_allowed,
-              backend_enforced: action.backend_enforced,
-              status: action.status || "blocked",
-              raw: action
-            });
-      }
-
-      function renderAuthority() {
-        const box = $("ccAuthority");
-        const pill = $("ccAuthorityPill");
-        const copy = $("ccAuthorityCopy");
-
-        if (!box || !pill || !copy) return;
-
-        const gate = state.gate;
-
-        box.className = "cc-authority " + (gate.allowed ? "pass" : gate.status === "unknown" ? "unknown" : "blocked");
-        pill.textContent = gate.allowed ? "Payment planning allowed" : "Payment planning blocked";
-
-        copy.textContent = gate.allowed
-          ? gate.reason + " Source: " + gate.source + "."
-          : gate.reason + " Source: " + gate.source + ". Required fix: " + gate.required_fix + " Override: " + (gate.override_allowed ? "allowed" : "not allowed") + ". Backend enforced: " + (gate.backend_enforced ? "yes" : "no") + " · Frontend enforced: yes.";
-      }
-
-      function renderPlanBlock() {
-        const el = $("ccPlanBlock");
-        const link = $("ccPlanLink");
-
-        if (!el || !link) return;
-
-        const gate = state.gate;
-
-        if (gate.allowed) {
-          el.innerHTML = "";
-          link.classList.remove("disabled");
-          return;
-        }
-
-        link.classList.add("disabled");
-
-        el.innerHTML = `
-          <div class="cc-block">
-            <div><strong>Payment planning blocked by Command Centre.</strong></div>
-            <div>Blocked: ${esc(gate.action)}</div>
-            <div>Reason: ${esc(gate.reason)}</div>
-            <div>Source: ${esc(gate.source)}</div>
-            <div>Required fix: ${esc(gate.required_fix)}</div>
-            <div>Override: ${gate.override_allowed ? "allowed" : "not allowed"} · Backend enforced: ${gate.backend_enforced ? "yes" : "no"} · Frontend enforced: yes</div>
-          </div>
-        `;
-      }
-
-      function renderChecks(result) {
-        const html = [
-          checkRow("No money-contracts dependency", true, "This page does not call /api/money-contracts."),
-          checkRow("No lifetime Credit Card spend math", true, "Historical cc_spend is not used as outstanding."),
-          checkRow("Credit Card account found", Boolean(result.cc), result.cc ? (result.cc.name || result.cc.id || "Credit Card source found.") : "No Credit Card account found."),
-          checkRow("Realtime outstanding available", result.outstanding !== null, result.source),
-          checkRow("Minimum due rule", result.outstanding !== null, "5% of realtime outstanding."),
-          checkRow("Statement rule", true, "12th of every month."),
-          checkRow("Interest-free rule", true, "55 days.")
-        ].join("");
-
-        $("ccChecks").innerHTML = html;
-
-        if (result.outstanding === null) {
-          $("ccChecks").insertAdjacentHTML(
-            "beforeend",
-            `<div class="cc-source-warning bad">
-              Realtime Credit Card outstanding was not available from /api/accounts or /api/balances.
-              The page is intentionally showing Unverified instead of guessing from transaction history.
-            </div>`
-          );
-        } else {
-          $("ccChecks").insertAdjacentHTML(
-            "beforeend",
-            `<div class="cc-source-warning good">
-              Outstanding is coming from ${esc(result.source)}.
-              Minimum due is calculated as 5% of that value.
-            </div>`
-          );
-        }
-
-        if (result.sourceErrors && result.sourceErrors.length) {
-          $("ccChecks").insertAdjacentHTML(
-            "beforeend",
-            `<div class="cc-source-warning bad">
-              Source warning: ${esc(result.sourceErrors.join(" · "))}
-            </div>`
-          );
-        }
-      }
-
-      async function load() {
-        const sources = await readSources();
-        const cc = findCcAccount(sources.accounts, sources.balances);
-        const pick = pickOutstanding(cc);
-        const outstanding = pick.value;
-        const limit = pickCreditLimit(cc);
-        const due = dueDateFromStatement();
-        const dueDays = daysUntil(due);
-
-        let minimumDue = null;
-        let utilization = null;
-
-        if (outstanding !== null) {
-          minimumDue = Math.ceil(outstanding * 0.05);
-          utilization = limit > 0 ? (outstanding / limit) * 100 : null;
-        }
-
-        setValue(
-          "ccOutstanding",
-          outstanding === null ? "Unverified" : money(outstanding),
-          outstanding === null ? "warn" : outstanding > limit ? "bad" : outstanding > 0 ? "warn" : "good"
-        );
-
-        setValue(
-          "ccMinimum",
-          minimumDue === null ? "Unverified" : money(minimumDue),
-          minimumDue === null ? "warn" : minimumDue > 0 ? "warn" : "good"
-        );
-
-        setValue(
-          "ccDue",
-          dateOnly(due),
-          dueDays <= 7 ? "warn" : "good"
-        );
-
-        setValue(
-          "ccUtil",
-          utilization === null ? "Unverified" : utilization.toFixed(2) + "%",
-          utilization === null ? "warn" : utilization >= 80 ? "bad" : utilization >= 50 ? "warn" : "good"
-        );
-
-        $("ccOutstandingNote").textContent = outstanding === null
-          ? "Realtime balance unavailable. No historical-spend guess used."
-          : "Source: " + pick.source;
-
-        $("ccMinimumNote").textContent = minimumDue === null
-          ? "Needs realtime outstanding first."
-          : "5% of realtime outstanding.";
-
-        $("ccDueNote").textContent = dueCopy(dueDays);
-
-        $("ccUtilNote").textContent = utilization === null
-          ? "Needs realtime outstanding first."
-          : "Credit limit: " + money(limit);
-
-        $("ccSource").textContent = pick.source;
-        $("ccLimit").textContent = money(limit);
-
-        $("ccMeterFill").style.width = utilization === null
-          ? "0%"
-          : Math.max(0, Math.min(100, utilization)) + "%";
-
-        const result = {
-          cc,
-          outstanding,
-          source: pick.source,
-          minimumDue,
-          limit,
-          utilization,
-          dueDate: dateOnly(due),
-          dueDays,
-          sourceErrors: sources.errors
-        };
-
-        state.result = result;
-
-        renderChecks(result);
-        renderAuthority();
-        renderPlanBlock();
-
-        window.SovereignCreditCard = {
-          version: VERSION,
-          mode: "phase4f_soft_authority",
-          action: ACTION,
-          noMoneyContracts: true,
-          noHistoricalSpendOutstanding: true,
-          result,
-          enforcement: function () {
-            return {
-              planGate: state.gate
-            };
-          }
-        };
-
-        if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
-          window.SovereignNav.scheduleOverflowCheck();
-        }
-      }
-
-      function wireEnforcement() {
-        if (window.SovereignEnforcement && typeof window.SovereignEnforcement.subscribe === "function") {
-          window.SovereignEnforcement.subscribe(snapshot => {
-            updateGate(snapshot);
-            renderAuthority();
-            renderPlanBlock();
-
-            if (window.SovereignCreditCard) {
-              window.SovereignCreditCard.enforcement = function () {
-                return {
-                  planGate: state.gate
-                };
-              };
-            }
-          });
-
-          updateGate(window.SovereignEnforcement.snapshot());
-          renderAuthority();
-          renderPlanBlock();
-          return;
-        }
-
-        updateGate(null);
-        renderAuthority();
-        renderPlanBlock();
-      }
-
-      function failSafely(err) {
-        $("ccChecks").innerHTML = `
-          <div class="cc-empty">
-            Credit Card page failed safely: ${esc(err.message)}
-          </div>
-        `;
-
-        setValue("ccOutstanding", "Unverified", "warn");
-        setValue("ccMinimum", "Unverified", "warn");
-        setValue("ccUtil", "Unverified", "warn");
-
-        window.SovereignCreditCard = {
-          version: VERSION,
-          mode: "failed_safe",
-          error: err.message,
-          noMoneyContracts: true,
-          noHistoricalSpendOutstanding: true,
-          enforcement: function () {
-            return {
-              planGate: state.gate
-            };
-          }
-        };
-
-        renderAuthority();
-        renderPlanBlock();
-      }
-
-      wireEnforcement();
-
-      load().catch(failSafely);
-    })();
-  </script>
+      </article>
+    `).join("");
+  }
+
+  async function init() {
+    console.log("[cc-ui v2.0.0] init");
+    await Promise.allSettled([loadCommandCentre(), loadAccounts()]);
+    console.log("[cc-ui v2.0.0] ready", { accounts: accounts.length, ccAccount: ccAccount ? ccAccount.id : null });
+  }
+
+  window.SovereignCreditCardUI = {
+    version: VERSION,
+    refresh: init,
+    account: () => ccAccount,
+    rows: () => rows.slice()
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
 </body>
 </html>
