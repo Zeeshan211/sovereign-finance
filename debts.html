@@ -1,21 +1,20 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en" data-page="debts">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
-  <title>Debts · Sovereign Finance</title>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sovereign Finance · Debts</title>
   <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
-
   <style>
     .debts-wrap {
-      max-width: 1280px;
+      width: min(1480px, calc(100vw - 32px));
       margin: 0 auto;
+      padding: 18px 0 96px;
     }
 
     .debts-hero {
-      color: #f8fafc;
+      position: relative;
+      overflow: hidden;
       background:
         linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.95)),
         radial-gradient(circle at top right, rgba(220, 38, 38, 0.20), transparent 28rem);
@@ -57,6 +56,64 @@
       font-size: 15px;
       line-height: 1.55;
       font-weight: 750;
+    }
+
+    .debt-authority {
+      margin: 0 0 18px;
+      padding: 16px;
+      border-radius: 24px;
+      border: 1px solid rgba(245, 158, 11, 0.28);
+      background: linear-gradient(180deg, rgba(255, 251, 235, 0.96), rgba(255, 255, 255, 0.96));
+      box-shadow: var(--shadow-sm);
+      display: grid;
+      gap: 8px;
+    }
+
+    .debt-authority.pass {
+      border-color: rgba(34, 197, 94, 0.28);
+      background: linear-gradient(180deg, rgba(240, 253, 244, 0.96), rgba(255, 255, 255, 0.96));
+    }
+
+    .debt-authority.blocked,
+    .debt-authority.unknown {
+      border-color: rgba(220, 38, 38, 0.24);
+      background: linear-gradient(180deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.96));
+    }
+
+    .debt-authority-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .debt-authority-title {
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 950;
+    }
+
+    .debt-authority-pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 6px 10px;
+      border-radius: var(--r-pill);
+      background: rgba(15, 23, 42, 0.08);
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .debt-authority-copy {
+      margin: 0;
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.45;
+      font-weight: 800;
     }
 
     .debt-stats {
@@ -115,6 +172,7 @@
       color: var(--text-muted);
       padding: 10px 14px;
       font-weight: 950;
+      cursor: pointer;
     }
 
     .debt-filter.active {
@@ -272,6 +330,24 @@
       letter-spacing: 0.04em;
     }
 
+    .debt-save-block {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 18px;
+      border: 1px solid rgba(220, 38, 38, 0.22);
+      background: rgba(254, 242, 242, 0.88);
+      color: #7f1d1d;
+      display: grid;
+      gap: 5px;
+      font-size: 12px;
+      line-height: 1.35;
+      font-weight: 800;
+    }
+
+    .debt-save-block strong {
+      font-weight: 950;
+    }
+
     .debt-config {
       display: grid;
       grid-template-columns: 150px minmax(120px, 1fr) auto;
@@ -311,11 +387,13 @@
       color: #052e16;
       font-size: 13px;
       font-weight: 950;
+      cursor: pointer;
     }
 
     .debt-save:disabled {
       background: #cbd5e1;
       color: #475569;
+      cursor: not-allowed;
     }
 
     .debt-foot {
@@ -351,7 +429,6 @@
     }
   </style>
 </head>
-
 <body>
   <header>
     <div>
@@ -365,30 +442,36 @@
       <div class="debts-kicker">Debt control</div>
       <h1 class="debts-title">Know what is due, what is owed, and what is already closed.</h1>
       <p class="debts-copy">
-        Debts now separate active from closed, I owe from they owe me, and due-date pressure from missing setup.
-        Closed debts no longer pollute active warning logic.
+        Debts now stay visible while Command Centre decides whether debt saves are safe. If write safety is unknown, the page shows the debt truth but blocks save actions instead of hiding diagnostics.
+      </p>
+    </section>
+
+    <section id="debtAuthority" class="debt-authority unknown">
+      <div class="debt-authority-top">
+        <div class="debt-authority-title">Command Centre authority</div>
+        <div id="debtAuthorityPill" class="debt-authority-pill">Checking</div>
+      </div>
+      <p id="debtAuthorityCopy" class="debt-authority-copy">
+        Loading backend enforcement policy for debt.save.
       </p>
     </section>
 
     <section class="debt-stats">
       <div class="debt-stat">
         <div class="debt-stat-label">Active debts</div>
-        <div id="debtStatActive" class="debt-stat-value">—</div>
+        <div id="debtStatActive" class="debt-stat-value"></div>
       </div>
-
       <div class="debt-stat">
         <div class="debt-stat-label">I owe</div>
-        <div id="debtStatOwe" class="debt-stat-value">—</div>
+        <div id="debtStatOwe" class="debt-stat-value"></div>
       </div>
-
       <div class="debt-stat">
         <div class="debt-stat-label">They owe me</div>
-        <div id="debtStatOwed" class="debt-stat-value">—</div>
+        <div id="debtStatOwed" class="debt-stat-value"></div>
       </div>
-
       <div class="debt-stat">
         <div class="debt-stat-label">Need action</div>
-        <div id="debtStatAttention" class="debt-stat-value">—</div>
+        <div id="debtStatAttention" class="debt-stat-value"></div>
       </div>
     </section>
 
@@ -401,7 +484,6 @@
         <button class="debt-filter" type="button" data-filter="closed">Closed</button>
         <button class="debt-filter" type="button" data-filter="all">All</button>
       </div>
-
       <button id="reloadDebts" class="debt-refresh" type="button">Refresh</button>
     </section>
 
@@ -410,14 +492,15 @@
     </section>
 
     <footer class="page-footer">
-      <span class="v">Debts v0.8.0 · debts.js v0.6.0 · nav v1.1.3 · css v1.0.2</span>
+      <span class="v">Debts v0.8.1 · debts.js v0.6.1 · nav v1.2.0 · enforcement v0.1.0 · css v1.0.2</span>
     </footer>
   </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=1.1.3"></script>
-  <script src="/js/debts.js?v=0.6.0"></script>
+  <script src="/js/nav.js?v=1.2.0"></script>
+  <script src="/js/enforcement.js?v=0.1.0"></script>
+  <script src="/js/debts.js?v=0.6.1"></script>
 </body>
 </html>
