@@ -1,28 +1,392 @@
-/* Sovereign Finance Bills v0.5.1
-   Ship 5: Bills truth stabilizer
+/* Sovereign Finance Bills UI v0.4.0
+Phase 7H: Bills page dry-run preflight wiring.
 
-   Contract:
-   - Reads /api/money-contracts v0.1.2.
-   - Shows current-month paid state.
-   - Save uses backend-safe bill fields only.
-   - No fake payments.
+Contract:
+- Loads Bills API v0.3.0+.
+- Runs bill.clear dry-run before any real clear path.
+- Runs bill.save dry-run helper for future save flows.
+- If Command Centre keeps bill.clear/bill.save blocked, stops after preflight.
+- No silent offline queue.
+- No fake ledger smoke test.
 */
 
 (function () {
   "use strict";
 
-  const VERSION = "v0.5.1";
+  const VERSION = "v0.4.0";
+  const REQUIRED_BILLS_API_VERSION = "0.3.0";
 
-  const state = {
-    bills: [],
-    rawBills: [],
-    accounts: [],
-    filter: "active"
-  };
+  let bills = [];
+  let enforcementSnapshot = null;
+  let lastProofByBill = {};
 
   const $ = id => document.getElementById(id);
 
-  function esc(value) {
+  function toast(message, kind) {
+    const old = document.querySelector(".toast");
+    if (old) old.remove();
+
+    const el = document.createElement("div");
+    el.className = "toast toast-" + (kind || "info");
+    el.textContent = message;
+    document.body.appendChild(el);
+
+    setTimeout(() => el.classList.add("show"), 20);
+    setTimeout(() => {
+      el.classList.remove("show");
+      setTimeout(() => el.remove(), 250);
+    }, 3200);
+  }
+
+  function money(value) {
+    const n = Number(value || 0);
+    return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
+  }
+
+  function todayISO() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function versionAtLeast(actual, required) {
+    const a = parseVersion(actual);
+    const r = parseVersion(required);
+    for (let i = 0; i < Math.max(a.length, r.length); i += 1) {
+      const av = a[i] || 0;
+      const rv = r[i] || 0;
+      if (av > rv) return true;
+      if (av < rv) return false;
+    }
+    return true;
+  }
+
+  function parseVersion(value) {
+    return String(value || "")
+      .replace(/^v/i, "")
+      .split(".")
+      .map(part => Number(part))
+      .map(number => Number.isFinite(number) ? number : 0);
+  }
+
+  async function fetchJSON(url, options) {
+    const res = await fetch(url, {
+      cache: "no-store",
+      ...(options || {})
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data || data.ok === false) {
+      const err = new Error((data && data.error) || ("HTTP " + res.status));
+      err.data = data;
+      err.status = res.status;
+      throw err;
+    }
+
+    return data;
+  }
+
+  async function refreshEnforcement() {
+    if (window.SovereignEnforcement && typeof window.SovereignEnforcement.refresh === "function") {
+      enforcementSnapshot = await window.SovereignEnforcement.refresh();
+      renderEnforcement();
+      return enforcementSnapshot;
+    }
+
+    enforcementSnapshot = {
+      loaded: false,
+      error: "window.SovereignEnforcement unavailable",
+      enforcement: null
+    };
+
+    renderEnforcement();
+    return enforcementSnapshot;
+  }
+
+  function findAction(actionName) {
+    const actions = enforcementSnapshot &&
+      enforcementSnapshot.enforcement &&
+      Array.isArray(enforcementSnapshot.enforcement.actions)
+      ? enforcementSnapshot.enforcement.actions
+      : [];
+
+    return actions.find(action => action.action === actionName) || null;
+  }
+
+  function actionAllowed(actionName) {
+    const action = findAction(actionName);
+    return Boolean(action && action.allowed === true);
+  }
+
+  function billAuthoritySummary() {
+    const preflight = findAction("bill.preflight");
+    const save = findAction("bill.save");
+    const clear = findAction("bill.clear");
+
+    return {
+      preflight_allowed: Boolean(preflight && preflight.allowed),
+      bill_save_allowed: Boolean(save && save.allowed),
+      bill_clear_allowed: Boolean(clear && clear.allowed),
+      save,
+      clear,
+      preflight
+    };
+  }
+
+  function renderEnforcement() {
+    const panel = $("billsEnforcement");
+    const status = $("billAuthorityStatus");
+    if (!panel) return;
+
+    const summary = billAuthoritySummary();
+
+    panel.classList.remove("pass", "blocked");
+
+    if (!enforcementSnapshot || !enforcementSnapshot.loaded) {
+      panel.classList.add("blocked");
+      panel.textContent = "Command Centre policy is not loaded. Bills actions stay blocked.";
+      if (status) status.textContent = "Blocked";
+      return;
+    }
+
+    if (summary.bill_save_allowed || summary.bill_clear_allowed) {
+      panel.classList.add("pass");
+      panel.textContent = "Command Centre allows proven Bills actions. Page still runs dry-run preflight before real write.";
+      if (status) status.textContent = "Allowed";
+      return;
+    }
+
+    if (summary.preflight_allowed) {
+      panel.textContent = "Bills preflight is allowed. Real bill save/clear remains blocked until Command Centre lift.";
+      if (status) status.textContent = "Preflight";
+      return;
+    }
+
+    panel.classList.add("blocked");
+    panel.textContent = "Bills are viewable, but bill actions are blocked until dry-run proof and page preflight are recognized.";
+    if (status) status.textContent = "Blocked";
+  }
+
+  async function loadBills() {
+    const data = await fetchJSON("/api/bills?cb=" + Date.now());
+    if (!versionAtLeast(data.version, REQUIRED_BILLS_API_VERSION)) {
+      throw new Error("Bills API must be v0.3.0+ for dry-run proof. Current: " + data.version);
+    }
+    bills = Array.isArray(data.bills) ? data.bills : [];
+    renderBills();
+  }
+
+  function renderStats() {
+    const active = bills.filter(bill => String(bill.status || "active").toLowerCase() === "active");
+    const monthlyAmount = active.reduce((sum, bill) => sum + Number(bill.amount || 0), 0);
+
+    if ($("billCount")) $("billCount").textContent = String(bills.length);
+    if ($("activeBillCount")) $("activeBillCount").textContent = String(active.length);
+    if ($("monthlyBillAmount")) $("monthlyBillAmount").textContent = money(monthlyAmount);
+  }
+
+  function renderBills() {
+    renderStats();
+    renderEnforcement();
+
+    const list = $("billsList");
+    if (!list) return;
+
+    if (!bills.length) {
+      list.innerHTML = '<div class="bills-empty">No bills returned from /api/bills.</div>';
+      return;
+    }
+
+    list.innerHTML = bills.map(renderBillCard).join("");
+
+    list.querySelectorAll("[data-bill-action]").forEach(button => {
+      button.addEventListener("click", onBillActionClick);
+    });
+  }
+
+  function renderBillCard(bill) {
+    const id = escapeHtml(bill.id || "");
+    const proof = lastProofByBill[bill.id];
+    const proofHtml = proof
+      ? `<div class="bill-proof ${proof.ok ? "" : "fail"}">${escapeHtml(proof.message)}</div>`
+      : "";
+
+    return `
+      <article class="bill-card" data-bill-id="${id}">
+        <div class="bill-card-header">
+          <div>
+            <div class="bill-name">${escapeHtml(bill.name || bill.id || "Bill")}</div>
+            <div class="bill-status">${escapeHtml(bill.status || "active")}</div>
+          </div>
+          <div class="bill-status">${escapeHtml(bill.frequency || "monthly")}</div>
+        </div>
+
+        <div class="bill-meta">
+          <div class="bill-meta-item">
+            <div class="bill-meta-label">Amount</div>
+            <div class="bill-meta-value">${escapeHtml(money(bill.amount))}</div>
+          </div>
+          <div class="bill-meta-item">
+            <div class="bill-meta-label">Due day</div>
+            <div class="bill-meta-value">${escapeHtml(bill.due_day == null ? "N/A" : String(bill.due_day))}</div>
+          </div>
+          <div class="bill-meta-item">
+            <div class="bill-meta-label">Last paid</div>
+            <div class="bill-meta-value">${escapeHtml(bill.last_paid_date || "N/A")}</div>
+          </div>
+          <div class="bill-meta-item">
+            <div class="bill-meta-label">Account</div>
+            <div class="bill-meta-value">${escapeHtml(bill.default_account_id || bill.last_paid_account_id || "N/A")}</div>
+          </div>
+        </div>
+
+        <div class="bill-actions">
+          <button class="primary" type="button" data-bill-action="clear" data-bill-id="${id}">
+            Run Clear Preflight
+          </button>
+          <button class="secondary" type="button" data-bill-action="save" data-bill-id="${id}">
+            Run Save Preflight
+          </button>
+        </div>
+
+        ${proofHtml}
+      </article>
+    `;
+  }
+
+  async function onBillActionClick(event) {
+    const button = event.currentTarget;
+    const billId = button.dataset.billId;
+    const action = button.dataset.billAction;
+    const bill = bills.find(item => item.id === billId);
+
+    if (!bill) {
+      toast("Bill not found on page.", "error");
+      return;
+    }
+
+    button.disabled = true;
+    button.classList.add("disabled");
+
+    try {
+      await refreshEnforcement();
+
+      if (action === "clear") {
+        await handleBillClear(bill);
+      } else {
+        await handleBillSave(bill);
+      }
+    } catch (err) {
+      lastProofByBill[billId] = {
+        ok: false,
+        message: err.message || String(err)
+      };
+      toast(err.message || "Bills preflight failed", "error");
+      renderBills();
+    } finally {
+      button.disabled = false;
+      button.classList.remove("disabled");
+    }
+  }
+
+  async function handleBillClear(bill) {
+    const result = await runClearPreflight(bill);
+
+    lastProofByBill[bill.id] = {
+      ok: true,
+      message: "bill.clear preflight passed. No bill, ledger, or audit rows were written."
+    };
+
+    renderBills();
+    toast("bill.clear preflight passed.", "success");
+
+    if (!actionAllowed("bill.clear")) {
+      return;
+    }
+
+    await runRealBillClear(bill);
+  }
+
+  async function handleBillSave(bill) {
+    const result = await runSavePreflight(bill);
+
+    lastProofByBill[bill.id] = {
+      ok: true,
+      message: "bill.save preflight passed. No bill, ledger, or audit rows were written."
+    };
+
+    renderBills();
+    toast("bill.save preflight passed.", "success");
+
+    if (!actionAllowed("bill.save")) {
+      return;
+    }
+
+    await runRealBillSave(bill);
+  }
+
+  async function runClearPreflight(bill) {
+    return fetchJSON("/api/bills/" + encodeURIComponent(bill.id) + "/pay?dry_run=1&cb=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dry_run: true,
+        account_id: bill.last_paid_account_id || bill.default_account_id || "cash",
+        paid_date: todayISO()
+      })
+    });
+  }
+
+  async function runSavePreflight(bill) {
+    return fetchJSON("/api/bills/" + encodeURIComponent(bill.id) + "?dry_run=1&cb=" + Date.now(), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dry_run: true,
+        amount: Number(bill.amount || 0),
+        due_day: bill.due_day,
+        frequency: bill.frequency || "monthly",
+        category_id: bill.category_id || null,
+        default_account_id: bill.default_account_id || bill.last_paid_account_id || null,
+        status: bill.status || "active"
+      })
+    });
+  }
+
+  async function runRealBillClear(bill) {
+    const result = await fetchJSON("/api/bills/" + encodeURIComponent(bill.id) + "/pay?cb=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        account_id: bill.last_paid_account_id || bill.default_account_id || "cash",
+        paid_date: todayISO()
+      })
+    });
+
+    toast("Bill cleared.", "success");
+    await loadBills();
+    return result;
+  }
+
+  async function runRealBillSave(bill) {
+    const result = await fetchJSON("/api/bills/" + encodeURIComponent(bill.id) + "?cb=" + Date.now(), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: Number(bill.amount || 0),
+        due_day: bill.due_day,
+        frequency: bill.frequency || "monthly",
+        category_id: bill.category_id || null,
+        default_account_id: bill.default_account_id || bill.last_paid_account_id || null,
+        status: bill.status || "active"
+      })
+    });
+
+    toast("Bill saved.", "success");
+    await loadBills();
+    return result;
+  }
+
+  function escapeHtml(value) {
     return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -31,274 +395,55 @@
       .replace(/'/g, "&#39;");
   }
 
-  function money(value) {
-    const n = Number(value || 0);
-    return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
-  }
-
-  async function fetchJson(url, options) {
-    const res = await fetch(url, { cache: "no-store", ...(options || {}) });
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok || !data || data.ok === false) {
-      throw new Error((data && data.error) || ("HTTP " + res.status));
-    }
-
-    return data;
-  }
-
-  function statusLabel(bill) {
-    if (bill.display_status === "paid_current_month" || bill.current_month_paid) return "Paid this month";
-    if (bill.display_status === "deleted" || bill.status === "deleted") return "Archived";
-    if (bill.display_status === "closed" || bill.status === "closed") return "Closed";
-    if (bill.days_until_due === null) return "Missing due date";
-    if (bill.days_until_due < 0) return "Overdue";
-    if (bill.days_until_due === 0) return "Due today";
-    if (bill.days_until_due <= 7) return "Due soon";
-    return "Scheduled";
-  }
-
-  function visualStatus(bill) {
-    if (bill.display_status === "paid_current_month" || bill.current_month_paid) return "paid-current";
-    if (bill.status === "deleted" || bill.status === "closed") return "archived";
-    if (bill.days_until_due === null) return "unknown";
-    if (bill.days_until_due < 0) return "overdue";
-    if (bill.days_until_due === 0) return "today";
-    if (bill.days_until_due <= 7) return "soon";
-    return "scheduled";
-  }
-
-  function dueCopy(bill) {
-    if (bill.current_month_paid) return `Clear for this month${bill.last_paid_date ? " · paid " + bill.last_paid_date : ""}`;
-    if (!bill.due_date) return "No due date";
-    if (bill.days_until_due < 0) return `${Math.abs(bill.days_until_due)} days overdue`;
-    if (bill.days_until_due === 0) return "Due today";
-    if (bill.days_until_due === 1) return "Due tomorrow";
-    return `Due in ${bill.days_until_due} days`;
-  }
-
-  function accountOptions(selected) {
-    const base = [`<option value="">Select payment account...</option>`];
-
-    state.accounts.forEach(account => {
-      base.push(`
-        <option value="${esc(account.id)}" ${String(account.id) === String(selected) ? "selected" : ""}>
-          ${esc(account.name)}${account.kind ? " · " + esc(account.kind) : ""}
-        </option>
-      `);
-    });
-
-    return base.join("");
-  }
-
-  function visibleBills() {
-    if (state.filter === "all") return state.bills;
-    if (state.filter === "attention") {
-      return state.bills.filter(b =>
-        b.status !== "deleted" &&
-        !b.current_month_paid &&
-        (b.blockers.length || b.days_until_due === null || b.days_until_due <= 7)
-      );
-    }
-    if (state.filter === "archived") return state.bills.filter(b => b.status === "deleted" || b.status === "closed");
-    return state.bills.filter(b => b.status !== "deleted" && b.status !== "closed");
-  }
-
-  async function load() {
-    $("billsList").innerHTML = `<div class="bill-empty">Loading bills...</div>`;
-
-    const contracts = await fetchJson("/api/money-contracts");
-    const raw = await fetchJson("/api/bills").catch(() => ({ bills: [] }));
-
-    state.accounts = ((((contracts.contracts || {}).accounts || {}).payment_account_options || [])).filter(a => a && a.id);
-    state.bills = ((((contracts.contracts || {}).bills || {}).rows || [])).sort(sortBills);
-    state.rawBills = raw.bills || raw.rows || raw.items || [];
-
-    render();
-  }
-
-  function sortBills(a, b) {
-    const rank = {
-      overdue: 0,
-      today: 1,
-      soon: 2,
-      unknown: 3,
-      scheduled: 4,
-      "paid-current": 5,
-      archived: 6
-    };
-
-    const ar = rank[visualStatus(a)] ?? 9;
-    const br = rank[visualStatus(b)] ?? 9;
-    if (ar !== br) return ar - br;
-
-    if (a.days_until_due === null && b.days_until_due === null) return String(a.name).localeCompare(String(b.name));
-    if (a.days_until_due === null) return 1;
-    if (b.days_until_due === null) return -1;
-    return a.days_until_due - b.days_until_due;
-  }
-
-  function renderStats() {
-    const active = state.bills.filter(b => b.status !== "deleted" && b.status !== "closed");
-    const attention = state.bills.filter(b => b.status !== "deleted" && !b.current_month_paid && (b.blockers.length || b.days_until_due === null || b.days_until_due <= 7));
-    const monthly = active.reduce((sum, b) => sum + Number(b.amount || 0), 0);
-    const missingAccount = active.filter(b => b.blockers.includes("missing_payment_account_id"));
-    const missingDue = active.filter(b => b.blockers.includes("missing_due_date"));
-
-    $("billStatActive").textContent = String(active.length);
-    $("billStatAttention").textContent = String(attention.length);
-    $("billStatMonthly").textContent = money(monthly);
-    $("billStatMissing").textContent = `${missingAccount.length} acct · ${missingDue.length} due`;
-  }
-
-  function renderBill(bill) {
-    const cls = visualStatus(bill);
-    const blockerHtml = bill.blockers && bill.blockers.length
-      ? `<div class="bill-blockers">${bill.blockers.map(b => `<span>${esc(b.replace(/_/g, " "))}</span>`).join("")}</div>`
-      : "";
-
-    const archived = bill.status === "deleted" || bill.status === "closed";
-
-    return `
-      <article class="bill-card ${esc(cls)}" data-bill-id="${esc(bill.id)}">
-        <div class="bill-main">
-          <div class="bill-left">
-            <div class="bill-status-dot"></div>
-            <div class="bill-info">
-              <div class="bill-name">${esc(bill.name)}</div>
-              <div class="bill-meta">${esc(statusLabel(bill))} · ${esc(dueCopy(bill))} · ${esc(bill.cadence || "monthly")}</div>
-            </div>
-          </div>
-          <div class="bill-amount">${money(bill.amount)}</div>
-        </div>
-
-        ${blockerHtml}
-
-        <div class="bill-config">
-          <label>
-            Payment account
-            <select data-payment-account="${esc(bill.id)}" ${archived ? "disabled" : ""}>
-              ${accountOptions(bill.payment_account_id)}
-            </select>
-          </label>
-
-          <label>
-            Due day
-            <input type="number" min="1" max="28" data-due-day="${esc(bill.id)}" value="${esc(bill.due_day || "")}" ${archived ? "disabled" : ""} />
-          </label>
-
-          <button class="bill-save" type="button" data-save="${esc(bill.id)}" ${archived ? "disabled" : ""}>Save</button>
-        </div>
-
-        <div class="bill-foot">
-          <span>ID: ${esc(bill.id)}</span>
-          <span>Pay from: ${esc(bill.payment_account_name || "Not set")}</span>
-          ${bill.current_month_paid ? `<span>Current month clear</span>` : ""}
-        </div>
-      </article>
-    `;
-  }
-
-  function render() {
-    renderStats();
-
-    document.querySelectorAll(".bill-filter").forEach(btn => {
-      btn.classList.toggle("active", btn.dataset.filter === state.filter);
-    });
-
-    const rows = visibleBills();
-    const list = $("billsList");
-
-    if (!rows.length) {
-      list.innerHTML = `<div class="bill-empty">No bills in this view.</div>`;
-      return;
-    }
-
-    list.innerHTML = rows.map(renderBill).join("");
-
-    list.querySelectorAll("[data-save]").forEach(btn => {
-      btn.addEventListener("click", () => saveBill(btn.dataset.save));
-    });
-
-    if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
-      window.SovereignNav.scheduleOverflowCheck();
-    }
-  }
-
-  function toast(message, type) {
-    const el = $("toast");
-    if (!el) return;
-    el.textContent = message;
-    el.className = "toast toast-" + (type || "success") + " show";
-    setTimeout(() => { el.className = "toast"; }, 2600);
-  }
-
-  async function saveBill(id) {
-    const card = document.querySelector(`[data-bill-id="${CSS.escape(id)}"]`);
-    if (!card) return;
-
-    const account = card.querySelector("[data-payment-account]")?.value || "";
-    const dueDay = Number(card.querySelector("[data-due-day]")?.value || 0);
-
-    if (!account) return toast("Select a payment account first.", "error");
-    if (!dueDay || dueDay < 1 || dueDay > 28) return toast("Due day must be 1-28.", "error");
-
-    const btn = card.querySelector("[data-save]");
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "Saving...";
-    }
+  async function init() {
+    console.log("[bills v0.4.0] init");
 
     try {
-      await fetchJson(`/api/bills/${encodeURIComponent(id)}`, {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          default_account_id: account,
-          payment_account_id: account,
-          due_day: dueDay,
-          frequency: "monthly",
-          updated_by: "web-bills-v0.5.1"
-        })
-      });
+      await refreshEnforcement();
+      await loadBills();
 
-      toast("Bill saved.", "success");
-      await load();
+      console.log("[bills v0.4.0] ready", {
+        bills: bills.length,
+        enforcement: billAuthoritySummary()
+      });
     } catch (err) {
-      toast("Save failed: " + err.message, "error");
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = "Save";
+      console.error("[bills v0.4.0] init failed", err);
+      toast(err.message || "Bills failed to load", "error");
+
+      const list = $("billsList");
+      if (list) {
+        list.innerHTML = '<div class="bills-empty">Bills failed to load: ' + escapeHtml(err.message || String(err)) + '</div>';
       }
     }
   }
 
-  function wire() {
-    document.querySelectorAll(".bill-filter").forEach(btn => {
-      btn.addEventListener("click", () => {
-        state.filter = btn.dataset.filter || "active";
-        render();
-      });
-    });
-
-    $("reloadBills").addEventListener("click", () => {
-      load().then(() => toast("Bills refreshed.", "success")).catch(err => toast(err.message, "error"));
-    });
-  }
-
-  window.SovereignBills = { version: VERSION, reload: load, state };
+  window.SovereignBills = {
+    version: VERSION,
+    bills: () => bills.slice(),
+    enforcement: () => billAuthoritySummary(),
+    refresh: async () => {
+      await refreshEnforcement();
+      await loadBills();
+      return {
+        bills: bills.slice(),
+        enforcement: billAuthoritySummary()
+      };
+    },
+    preflightClear: async billId => {
+      const bill = bills.find(item => item.id === billId);
+      if (!bill) throw new Error("Bill not found: " + billId);
+      return runClearPreflight(bill);
+    },
+    preflightSave: async billId => {
+      const bill = bills.find(item => item.id === billId);
+      if (!bill) throw new Error("Bill not found: " + billId);
+      return runSavePreflight(bill);
+    }
+  };
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      wire();
-      load().catch(err => {
-        $("billsList").innerHTML = `<div class="bill-empty">Bills failed: ${esc(err.message)}</div>`;
-      });
-    });
+    document.addEventListener("DOMContentLoaded", init);
   } else {
-    wire();
-    load().catch(err => {
-      $("billsList").innerHTML = `<div class="bill-empty">Bills failed: ${esc(err.message)}</div>`;
-    });
+    init();
   }
 })();
