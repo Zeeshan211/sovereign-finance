@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Bank Alfalah">
+  <rect width="96" height="96" rx="24" fill="#FEF2F2"/>
+  <circle cx="48" cy="48" r="31" fill="#FFFFFF" stroke="#B91C1C" stroke-width="4"/>
+  <path d="M48 27 69 68h-10l-4-8H41l-4 8H27l21-41Zm0 16-5 10h10l-5-10Z" fill="#B91C1C"/>
+</svg>
