@@ -10,646 +10,510 @@
   <script src="/js/nav.js?v=1.1.9" defer></script>
   <style>
     :root {
-      --bg: #f5f7fb;
-      --ink: #0f172a;
-      --muted: #64748b;
-      --soft: #f8fafc;
-      --card: rgba(255,255,255,.94);
-      --line: rgba(148,163,184,.24);
-      --green: #16a34a;
-      --green-soft: #dcfce7;
-      --blue: #2563eb;
-      --blue-soft: #dbeafe;
-      --amber: #d97706;
-      --amber-soft: #fef3c7;
-      --red: #dc2626;
-      --red-soft: #fee2e2;
-      --slate-soft: #e2e8f0;
-      --shadow: 0 18px 52px rgba(15,23,42,.10);
-      --radius: 28px;
+      --bg:#f5f7fb;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --card:#ffffff;
+      --soft:#f8fafc;
+      --line:rgba(148,163,184,.28);
+      --green:#16a34a;
+      --green-soft:#dcfce7;
+      --blue:#2563eb;
+      --blue-soft:#dbeafe;
+      --amber:#d97706;
+      --amber-soft:#fef3c7;
+      --red:#dc2626;
+      --red-soft:#fee2e2;
+      --slate-soft:#e2e8f0;
+      --shadow:0 18px 52px rgba(15,23,42,.10);
+      --radius:28px;
     }
 
     html,
     body {
-      margin: 0;
-      min-height: 100%;
-      max-width: 100%;
-      overflow-x: hidden;
+      margin:0;
+      min-height:100%;
+      max-width:100%;
+      overflow-x:hidden;
       background:
         radial-gradient(circle at 8% -6%, rgba(34,197,94,.14), transparent 34rem),
         radial-gradient(circle at 94% 0%, rgba(37,99,235,.13), transparent 34rem),
         var(--bg);
-      color: var(--ink);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color:var(--ink);
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     }
 
-    * {
-      box-sizing: border-box;
-      min-width: 0;
-    }
-
-    button,
-    input,
-    select,
-    textarea {
-      font: inherit;
-    }
+    * { box-sizing:border-box; min-width:0; }
+    button,input,select,textarea { font:inherit; }
 
     .page {
-      width: 100%;
-      max-width: var(--sf-content-max, 1440px);
-      margin: 0 auto;
-      padding: 24px 16px 76px;
+      width:100%;
+      max-width:var(--sf-content-max,1440px);
+      margin:0 auto;
+      padding:24px 16px 80px;
     }
 
     .hero {
-      position: relative;
-      overflow: hidden;
-      border-radius: 36px;
-      padding: 24px;
-      color: #f8fafc;
+      position:relative;
+      overflow:hidden;
+      border-radius:36px;
+      padding:24px;
+      color:#f8fafc;
       background:
-        linear-gradient(135deg, rgba(15,23,42,.98), rgba(30,41,59,.96)),
-        radial-gradient(circle at top right, rgba(34,197,94,.24), transparent 28rem);
-      border: 1px solid rgba(255,255,255,.10);
-      box-shadow: var(--shadow);
-      margin-bottom: 18px;
+        linear-gradient(135deg,rgba(15,23,42,.98),rgba(30,41,59,.96)),
+        radial-gradient(circle at top right,rgba(34,197,94,.24),transparent 28rem);
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow:var(--shadow);
+      margin-bottom:18px;
     }
 
     .hero-inner {
-      position: relative;
-      z-index: 1;
-      display: grid;
-      grid-template-columns: minmax(0,1fr) minmax(260px,390px);
-      gap: 22px;
-      align-items: start;
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(260px,400px);
+      gap:22px;
+      align-items:start;
     }
 
     .eyebrow {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 7px 11px;
-      border-radius: 999px;
-      background: rgba(34,197,94,.13);
-      color: #bbf7d0;
-      font-size: 12px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      margin-bottom: 12px;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:7px 11px;
+      border-radius:999px;
+      background:rgba(34,197,94,.13);
+      color:#bbf7d0;
+      font-size:12px;
+      font-weight:950;
+      text-transform:uppercase;
+      letter-spacing:.08em;
+      margin-bottom:12px;
     }
 
     .eyebrow-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: #22c55e;
-      box-shadow: 0 0 16px rgba(34,197,94,.82);
+      width:8px;
+      height:8px;
+      border-radius:999px;
+      background:#22c55e;
+      box-shadow:0 0 16px rgba(34,197,94,.82);
     }
 
     h1 {
-      margin: 0;
-      font-size: clamp(34px,5vw,62px);
-      line-height: .96;
-      letter-spacing: -.07em;
-      font-weight: 1000;
+      margin:0;
+      font-size:clamp(34px,5vw,62px);
+      line-height:.96;
+      letter-spacing:-.07em;
+      font-weight:1000;
     }
 
     .subtitle {
-      max-width: 900px;
-      margin: 13px 0 0;
-      color: #cbd5e1;
-      font-size: 15px;
-      line-height: 1.55;
-      font-weight: 750;
+      max-width:900px;
+      margin:13px 0 0;
+      color:#cbd5e1;
+      font-size:15px;
+      line-height:1.55;
+      font-weight:750;
     }
 
     .verdict-card {
-      padding: 16px;
-      border-radius: 24px;
-      background: rgba(255,255,255,.09);
-      border: 1px solid rgba(255,255,255,.13);
-      backdrop-filter: blur(16px);
+      padding:16px;
+      border-radius:24px;
+      background:rgba(255,255,255,.09);
+      border:1px solid rgba(255,255,255,.13);
+      backdrop-filter:blur(16px);
     }
 
     .verdict-label {
-      color: #cbd5e1;
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: .08em;
-      text-transform: uppercase;
+      color:#cbd5e1;
+      font-size:11px;
+      font-weight:950;
+      letter-spacing:.08em;
+      text-transform:uppercase;
     }
 
     .verdict-value {
-      margin-top: 8px;
-      font-size: 34px;
-      line-height: 1;
-      font-weight: 1000;
-      letter-spacing: -.055em;
+      margin-top:8px;
+      font-size:34px;
+      line-height:1;
+      font-weight:1000;
+      letter-spacing:-.055em;
     }
 
     .verdict-score {
-      margin-top: 6px;
-      color: #e2e8f0;
-      font-size: 15px;
-      font-weight: 900;
+      margin-top:6px;
+      color:#e2e8f0;
+      font-size:15px;
+      font-weight:900;
     }
 
     .verdict-note {
-      margin-top: 10px;
-      color: #94a3b8;
-      font-size: 12px;
-      font-weight: 750;
-      line-height: 1.45;
+      margin-top:10px;
+      color:#94a3b8;
+      font-size:12px;
+      font-weight:750;
+      line-height:1.45;
     }
 
     .controls {
-      position: relative;
-      z-index: 1;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 22px;
-      align-items: end;
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      margin-top:22px;
     }
 
     .btn {
-      min-height: 42px;
-      border: 0;
-      border-radius: 14px;
-      padding: 0 14px;
-      background: #22c55e;
-      color: #052e16;
-      font-size: 13px;
-      font-weight: 1000;
-      cursor: pointer;
+      min-height:42px;
+      border:0;
+      border-radius:14px;
+      padding:0 14px;
+      background:#22c55e;
+      color:#052e16;
+      font-size:13px;
+      font-weight:1000;
+      cursor:pointer;
     }
 
     .btn.secondary {
-      background: rgba(255,255,255,.10);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.10);
+      color:#fff;
+      border:1px solid rgba(255,255,255,.14);
     }
 
     .btn.small {
-      min-height: 34px;
-      padding: 0 10px;
-      border-radius: 11px;
-      font-size: 12px;
+      min-height:34px;
+      padding:0 10px;
+      border-radius:11px;
+      font-size:12px;
     }
 
     .panel,
+    .card,
     .loading,
-    .error,
-    .card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: 0 12px 34px rgba(15,23,42,.08);
-      min-width: 0;
+    .error {
+      background:rgba(255,255,255,.94);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:0 12px 34px rgba(15,23,42,.08);
+      min-width:0;
     }
 
     .panel {
-      overflow: hidden;
-      margin-bottom: 18px;
+      overflow:hidden;
+      margin-bottom:18px;
     }
 
     .panel-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 17px 18px;
-      background: rgba(248,250,252,.82);
-      border-bottom: 1px solid var(--line);
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      padding:17px 18px;
+      background:rgba(248,250,252,.82);
+      border-bottom:1px solid var(--line);
     }
 
     .panel-title {
-      margin: 0;
-      font-size: 18px;
-      line-height: 1.1;
-      font-weight: 1000;
-      letter-spacing: -.035em;
+      margin:0;
+      font-size:18px;
+      line-height:1.1;
+      font-weight:1000;
+      letter-spacing:-.035em;
     }
 
     .panel-sub {
-      margin: 5px 0 0;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.4;
-      font-weight: 750;
+      margin:5px 0 0;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.4;
+      font-weight:750;
     }
 
-    .panel-body {
-      padding: 16px 18px 18px;
-    }
+    .panel-body { padding:16px 18px 18px; }
 
     .grid-2 {
-      display: grid;
-      grid-template-columns: minmax(0,1fr) minmax(360px,.86fr);
-      gap: 18px;
-      align-items: start;
-      margin-bottom: 18px;
+      display:grid;
+      grid-template-columns:minmax(0,1fr) minmax(360px,.86fr);
+      gap:18px;
+      align-items:start;
+      margin-bottom:18px;
     }
 
-    .score-grid {
-      display: grid;
-      grid-template-columns: repeat(6,minmax(0,1fr));
-      gap: 12px;
-      margin-bottom: 18px;
+    .grid-3 {
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:12px;
+      margin-bottom:18px;
     }
 
-    .summary-strip {
-      display: grid;
-      grid-template-columns: repeat(7,minmax(0,1fr));
-      gap: 10px;
-      margin-bottom: 18px;
+    .grid-4 {
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
+      margin-bottom:18px;
     }
 
-    .runtime-strip {
-      display: grid;
-      grid-template-columns: repeat(4,minmax(0,1fr));
-      gap: 10px;
-      margin-bottom: 14px;
+    .grid-6 {
+      display:grid;
+      grid-template-columns:repeat(6,minmax(0,1fr));
+      gap:12px;
+      margin-bottom:18px;
     }
 
     .card {
-      padding: 13px;
-      border-radius: 20px;
-      overflow: hidden;
+      padding:14px;
+      border-radius:20px;
     }
 
     .card-number {
-      font-size: 26px;
-      line-height: 1;
-      font-weight: 1000;
-      letter-spacing: -.05em;
-      font-variant-numeric: tabular-nums;
+      font-size:28px;
+      line-height:1;
+      font-weight:1000;
+      letter-spacing:-.05em;
+      font-variant-numeric:tabular-nums;
     }
 
     .card-label {
-      margin-top: 7px;
-      color: var(--muted);
-      font-size: 10px;
-      font-weight: 950;
-      letter-spacing: .06em;
-      text-transform: uppercase;
+      margin-top:7px;
+      color:var(--muted);
+      font-size:10px;
+      font-weight:950;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+    }
+
+    .card-note {
+      margin-top:8px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.38;
+      font-weight:740;
     }
 
     .badge {
-      display: inline-flex;
-      align-items: center;
-      width: fit-content;
-      padding: 6px 9px;
-      border-radius: 999px;
-      border: 1px solid transparent;
-      font-size: 10px;
-      font-weight: 1000;
-      text-transform: uppercase;
-      letter-spacing: .04em;
-      white-space: nowrap;
+      display:inline-flex;
+      align-items:center;
+      width:fit-content;
+      padding:6px 9px;
+      border-radius:999px;
+      border:1px solid transparent;
+      font-size:10px;
+      font-weight:1000;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+      white-space:nowrap;
     }
 
-    .ready,
-    .ready-with-unknown,
-    .ready-with-warnings,
-    .pass,
-    .good,
-    .true {
-      color: #166534;
-      background: var(--green-soft);
-      border-color: rgba(22,163,74,.20);
+    .ready,.pass,.good,.true {
+      color:#166534;
+      background:var(--green-soft);
+      border-color:rgba(22,163,74,.20);
     }
 
-    .warning,
-    .warn {
-      color: #92400e;
-      background: var(--amber-soft);
-      border-color: rgba(217,119,6,.20);
+    .warning,.warn,.ready-with-warnings {
+      color:#92400e;
+      background:var(--amber-soft);
+      border-color:rgba(217,119,6,.20);
     }
 
-    .blocked,
-    .fail,
-    .bad,
-    .false {
-      color: #991b1b;
-      background: var(--red-soft);
-      border-color: rgba(220,38,38,.20);
+    .blocked,.fail,.bad,.false {
+      color:#991b1b;
+      background:var(--red-soft);
+      border-color:rgba(220,38,38,.20);
     }
 
-    .unknown,
-    .info {
-      color: #1d4ed8;
-      background: var(--blue-soft);
-      border-color: rgba(37,99,235,.18);
+    .unknown,.info,.ready-with-unknown,.soft-block {
+      color:#1d4ed8;
+      background:var(--blue-soft);
+      border-color:rgba(37,99,235,.18);
     }
 
-    .banned,
-    .protected {
-      color: #334155;
-      background: var(--slate-soft);
-      border-color: rgba(71,85,105,.22);
-    }
-
-    .metric-grid,
-    .api-grid,
-    .rule-grid,
-    .d1-grid,
-    .proof-grid,
-    .guard-grid,
-    .coverage-grid {
-      display: grid;
-      grid-template-columns: repeat(2,minmax(0,1fr));
-      gap: 10px;
-    }
-
-    .metric,
-    .api-card,
-    .rule-card,
-    .d1-card,
-    .proof-card,
-    .guard-card,
-    .coverage-card,
-    .runtime-card {
-      padding: 13px;
-      border-radius: 18px;
-      background: var(--soft);
-      border: 1px solid rgba(148,163,184,.18);
-    }
-
-    .metric-label {
-      color: var(--muted);
-      font-size: 10px;
-      font-weight: 950;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-    }
-
-    .metric-value {
-      margin-top: 7px;
-      font-size: 21px;
-      line-height: 1.05;
-      font-weight: 1000;
-      letter-spacing: -.04em;
-      font-variant-numeric: tabular-nums;
-      overflow-wrap: anywhere;
-    }
-
-    .metric-note,
-    .card-meta {
-      margin-top: 7px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.4;
-      font-weight: 740;
-    }
-
-    .card-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 13px;
-      font-weight: 1000;
-      line-height: 1.25;
-    }
-
-    .issue-list {
-      display: grid;
-      gap: 10px;
-    }
-
-    .issue {
-      display: grid;
-      grid-template-columns: 30px minmax(0,1fr);
-      gap: 10px;
-      padding: 12px;
-      border-radius: 18px;
-      background: var(--soft);
-      border: 1px solid rgba(148,163,184,.18);
-    }
-
-    .issue-mark {
-      width: 30px;
-      height: 30px;
-      display: grid;
-      place-items: center;
-      border-radius: 12px;
-      background: #fff;
-      border: 1px solid rgba(148,163,184,.22);
-      font-size: 13px;
-      font-weight: 1000;
-    }
-
-    .issue-title {
-      color: var(--ink);
-      font-size: 13px;
-      line-height: 1.28;
-      font-weight: 1000;
-    }
-
-    .issue-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 7px;
-    }
-
-    .issue-text {
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.4;
-      font-weight: 720;
+    .banned,.protected,.schema-only {
+      color:#334155;
+      background:var(--slate-soft);
+      border-color:rgba(71,85,105,.22);
     }
 
     .final-gate {
-      border: 1px solid rgba(34,197,94,.26);
-      background:
-        linear-gradient(135deg, rgba(220,252,231,.82), rgba(255,255,255,.96));
+      border-color:rgba(34,197,94,.26);
+      background:linear-gradient(135deg,rgba(220,252,231,.82),rgba(255,255,255,.96));
     }
 
     .final-gate.blocked {
-      border-color: rgba(220,38,38,.26);
-      background:
-        linear-gradient(135deg, rgba(254,226,226,.88), rgba(255,255,255,.96));
+      border-color:rgba(220,38,38,.26);
+      background:linear-gradient(135deg,rgba(254,226,226,.88),rgba(255,255,255,.96));
     }
 
     .final-gate.warning,
     .final-gate.ready-with-warnings {
-      border-color: rgba(217,119,6,.26);
-      background:
-        linear-gradient(135deg, rgba(254,243,199,.88), rgba(255,255,255,.96));
+      border-color:rgba(217,119,6,.26);
+      background:linear-gradient(135deg,rgba(254,243,199,.88),rgba(255,255,255,.96));
     }
 
     .final-gate.ready-with-unknown,
     .final-gate.unknown {
-      border-color: rgba(37,99,235,.22);
-      background:
-        linear-gradient(135deg, rgba(219,234,254,.88), rgba(255,255,255,.96));
+      border-color:rgba(37,99,235,.22);
+      background:linear-gradient(135deg,rgba(219,234,254,.88),rgba(255,255,255,.96));
     }
 
     .final-decision {
-      font-size: clamp(32px, 5vw, 56px);
-      line-height: .94;
-      letter-spacing: -.065em;
-      font-weight: 1000;
+      font-size:clamp(32px,5vw,56px);
+      line-height:.94;
+      letter-spacing:-.065em;
+      font-weight:1000;
     }
 
     .table-wrap {
-      width: 100%;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
+      width:100%;
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
     }
 
     table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 900px;
-      font-size: 12px;
+      width:100%;
+      border-collapse:collapse;
+      min-width:960px;
+      font-size:12px;
     }
 
-    th,
-    td {
-      padding: 11px 8px;
-      border-bottom: 1px solid rgba(148,163,184,.20);
-      text-align: left;
-      vertical-align: top;
+    th,td {
+      padding:11px 8px;
+      border-bottom:1px solid rgba(148,163,184,.20);
+      text-align:left;
+      vertical-align:top;
     }
 
     th {
-      color: var(--muted);
-      font-size: 10px;
-      font-weight: 1000;
-      letter-spacing: .06em;
-      text-transform: uppercase;
+      color:var(--muted);
+      font-size:10px;
+      font-weight:1000;
+      letter-spacing:.06em;
+      text-transform:uppercase;
     }
 
-    td {
-      font-weight: 760;
+    td { font-weight:760; }
+
+    .issue-list,
+    .card-grid {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
     }
 
-    .runtime-table {
-      min-width: 1040px;
+    .issue {
+      display:grid;
+      grid-template-columns:30px minmax(0,1fr);
+      gap:10px;
+      padding:12px;
+      border-radius:18px;
+      background:var(--soft);
+      border:1px solid rgba(148,163,184,.18);
+    }
+
+    .issue-mark {
+      width:30px;
+      height:30px;
+      display:grid;
+      place-items:center;
+      border-radius:12px;
+      background:#fff;
+      border:1px solid rgba(148,163,184,.22);
+      font-size:13px;
+      font-weight:1000;
+    }
+
+    .issue-title {
+      color:var(--ink);
+      font-size:13px;
+      line-height:1.28;
+      font-weight:1000;
+    }
+
+    .issue-meta {
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+      margin-top:7px;
+    }
+
+    .issue-text {
+      margin-top:6px;
+      color:var(--muted);
+      font-size:12px;
+      line-height:1.4;
+      font-weight:720;
+    }
+
+    details.audit {
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:0 12px 34px rgba(15,23,42,.07);
+      overflow:hidden;
+      margin-bottom:14px;
+    }
+
+    details.audit > summary {
+      list-style:none;
+      cursor:pointer;
+      padding:16px 18px;
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:center;
+      background:rgba(248,250,252,.84);
+      font-size:15px;
+      font-weight:1000;
+      letter-spacing:-.025em;
+    }
+
+    details.audit > summary::-webkit-details-marker { display:none; }
+
+    .loading,.error {
+      padding:34px 18px;
+      text-align:center;
+      color:var(--muted);
+      font-size:14px;
+      font-weight:900;
+    }
+
+    .error { color:var(--red); }
+
+    .empty {
+      padding:16px;
+      border:1px dashed rgba(148,163,184,.34);
+      border-radius:18px;
+      color:var(--muted);
+      background:var(--soft);
+      font-size:13px;
+      font-weight:800;
+      line-height:1.45;
     }
 
     .runtime-table select,
     .runtime-table input {
-      width: 100%;
-      border: 1px solid rgba(148,163,184,.34);
-      border-radius: 12px;
-      background: #fff;
-      color: var(--ink);
-      padding: 9px 10px;
-      font-size: 12px;
-      font-weight: 760;
-      outline: none;
+      width:100%;
+      border:1px solid rgba(148,163,184,.34);
+      border-radius:12px;
+      background:#fff;
+      color:var(--ink);
+      padding:9px 10px;
+      font-size:12px;
+      font-weight:760;
+      outline:none;
     }
 
-    .runtime-table input {
-      min-width: 260px;
+    @media (max-width:1240px) {
+      .hero-inner,
+      .grid-2 { grid-template-columns:1fr; }
+      .grid-6 { grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .grid-4 { grid-template-columns:repeat(2,minmax(0,1fr)); }
     }
 
-    details.audit {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: 0 12px 34px rgba(15,23,42,.07);
-      overflow: hidden;
-      margin-bottom: 14px;
-    }
-
-    details.audit > summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 16px 18px;
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-      background: rgba(248,250,252,.84);
-      font-size: 15px;
-      font-weight: 1000;
-      letter-spacing: -.025em;
-    }
-
-    details.audit > summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .loading,
-    .error {
-      padding: 34px 18px;
-      text-align: center;
-      color: var(--muted);
-      font-size: 14px;
-      font-weight: 900;
-    }
-
-    .error {
-      color: var(--red);
-    }
-
-    .empty {
-      padding: 16px;
-      border: 1px dashed rgba(148,163,184,.34);
-      border-radius: 18px;
-      color: var(--muted);
-      background: var(--soft);
-      font-size: 13px;
-      font-weight: 800;
-      line-height: 1.45;
-    }
-
-    @media (max-width: 1240px) {
-      .score-grid {
-        grid-template-columns: repeat(3,minmax(0,1fr));
-      }
-
-      .summary-strip {
-        grid-template-columns: repeat(4,minmax(0,1fr));
-      }
-
-      .grid-2,
-      .hero-inner {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 760px) {
-      .page {
-        padding: 18px 10px 90px;
-      }
-
-      .hero {
-        padding: 20px;
-        border-radius: 28px;
-      }
-
-      .controls,
-      .btn {
-        width: 100%;
-      }
-
-      .score-grid,
-      .summary-strip,
-      .runtime-strip,
-      .metric-grid,
-      .api-grid,
-      .rule-grid,
-      .d1-grid,
-      .proof-grid,
-      .guard-grid,
-      .coverage-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .panel-head,
-      .panel-body {
-        padding-left: 14px;
-        padding-right: 14px;
-      }
+    @media (max-width:760px) {
+      .page { padding:18px 10px 90px; }
+      .hero { padding:20px; border-radius:28px; }
+      .controls,.btn { width:100%; }
+      .grid-6,.grid-4,.grid-3,.card-grid,.issue-list { grid-template-columns:1fr; }
+      .panel-head,.panel-body { padding-left:14px; padding-right:14px; }
     }
   </style>
 </head>
@@ -658,10 +522,10 @@
     <section class="hero">
       <div class="hero-inner">
         <div>
-          <div class="eyebrow"><span class="eyebrow-dot"></span> Backend Truth Gate</div>
+          <div class="eyebrow"><span class="eyebrow-dot"></span> Backend Enforcement Display</div>
           <h1>Finance Command Centre</h1>
           <p class="subtitle">
-            v0.7.2 keeps backend truth separate from manual runtime evidence. The backend remains the audit source. The checklist below is local browser evidence only, saved in localStorage, with no D1 writes, no ledger tests, and no backend verdict overwrite.
+            v0.7.3 displays backend enforcement authority from /api/finance-command-center v0.1.2. This page shows what would be blocked, why it is blocked, the source rule, the required fix, and override status. It does not enforce routes or disable actions yet.
           </p>
         </div>
 
@@ -690,8 +554,8 @@
       "use strict";
 
       window.SovereignCommandCentre = {
-        version: "0.7.2",
-        mode: "backend-truth-display-with-manual-runtime-checklist",
+        version: "0.7.3",
+        mode: "backend-enforcement-display",
         source: "/api/finance-command-center"
       };
 
@@ -706,6 +570,7 @@
         { key: "bills", label: "Bills", url: "/bills.html" },
         { key: "debts", label: "Debts", url: "/debts.html" },
         { key: "salary", label: "Salary", url: "/salary.html" },
+        { key: "forecast", label: "Forecast", url: "/forecast.html" },
         { key: "reconciliation", label: "Reconciliation", url: "/reconciliation.html" },
         { key: "command_centre", label: "Command Centre", url: "/monthly-close.html" }
       ];
@@ -725,16 +590,28 @@
       }
 
       function norm(value) {
-        return String(value || "unknown")
-          .toLowerCase()
-          .replace(/\s+/g, "-")
-          .replace(/_/g, "-");
+        return String(value || "unknown").toLowerCase().replace(/\s+/g, "-").replace(/_/g, "-");
       }
 
       function titleCase(value) {
-        return String(value || "")
-          .replace(/[-_]/g, " ")
-          .replace(/\b\w/g, c => c.toUpperCase());
+        return String(value || "").replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      }
+
+      function badge(status, label) {
+        const clean = norm(status);
+        return `<span class="badge ${esc(clean)}">${esc(label || titleCase(clean))}</span>`;
+      }
+
+      function pct(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "Unknown";
+        return `${Math.round(n)}%`;
+      }
+
+      function num(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "0";
+        return String(n);
       }
 
       function boolText(value) {
@@ -749,25 +626,8 @@
         return "unknown";
       }
 
-      function pct(value) {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return "Unknown";
-        return `${Math.round(n)}%`;
-      }
-
-      function number(value) {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return "0";
-        return String(n);
-      }
-
-      function badge(status, label) {
-        const clean = norm(status);
-        return `<span class="badge ${esc(clean)}">${esc(label || titleCase(clean))}</span>`;
-      }
-
-      function verdictLabel(verdict) {
-        const key = norm(verdict);
+      function verdictLabel(value) {
+        const key = norm(value);
         return {
           ready: "Ready",
           warning: "Warning",
@@ -787,17 +647,389 @@
         return "unknown";
       }
 
+      function safeArray(value) {
+        return Array.isArray(value) ? value : [];
+      }
+
       function getSummary(data) {
         const summary = data.summary || {};
         return {
-          hard_blocker_count: summary.hard_blocker_count ?? (Array.isArray(data.hard_blockers) ? data.hard_blockers.length : 0),
-          warning_count: summary.warning_count ?? (Array.isArray(data.warnings) ? data.warnings.length : 0),
-          unknown_count: summary.unknown_count ?? (Array.isArray(data.unknowns) ? data.unknowns.length : 0),
-          module_count: summary.module_count ?? (Array.isArray(data.modules) ? data.modules.length : 0),
-          registered_page_count: summary.registered_page_count ?? (Array.isArray(data.pages) ? data.pages.length : 0),
-          api_check_count: summary.api_check_count ?? (Array.isArray(data.apis) ? data.apis.length : 0),
-          business_rule_count: summary.business_rule_count ?? (Array.isArray(data.business_rules) ? data.business_rules.length : 0)
+          hard_blocker_count: summary.hard_blocker_count ?? safeArray(data.hard_blockers).length,
+          warning_count: summary.warning_count ?? safeArray(data.warnings).length,
+          unknown_count: summary.unknown_count ?? safeArray(data.unknowns).length,
+          module_count: summary.module_count ?? safeArray(data.modules).length,
+          registered_page_count: summary.registered_page_count ?? safeArray(data.pages).length,
+          api_check_count: summary.api_check_count ?? safeArray(data.apis).length,
+          business_rule_count: summary.business_rule_count ?? safeArray(data.business_rules).length,
+          enforcement_blocked_action_count: summary.enforcement_blocked_action_count ?? safeArray(data.enforcement && data.enforcement.blocked_actions).length,
+          enforcement_view_only_route_count: summary.enforcement_view_only_route_count ?? safeArray(data.enforcement && data.enforcement.view_only_routes).length
         };
+      }
+
+      function renderSummaryStrip(data) {
+        const s = getSummary(data);
+        const cards = [
+          ["Modules", s.module_count],
+          ["Pages", s.registered_page_count],
+          ["API checks", s.api_check_count],
+          ["Rules", s.business_rule_count],
+          ["Blockers", s.hard_blocker_count],
+          ["Warnings", s.warning_count],
+          ["Unknowns", s.unknown_count]
+        ];
+
+        return `<section class="grid-6">${cards.map(([label, value]) => `
+          <div class="card">
+            <div class="card-number">${esc(num(value))}</div>
+            <div class="card-label">${esc(label)}</div>
+          </div>
+        `).join("")}</section>`;
+      }
+
+      function renderScores(data) {
+        const scores = data.scores || {};
+        const cards = [
+          ["Frontend Registry", scores.frontend_registry, "Known module/page/API registry coverage."],
+          ["API Health", scores.api_health, "Required APIs responding as JSON."],
+          ["D1 Truth", scores.d1_truth, "Required D1 tables readable."],
+          ["Business Rules", scores.business_rules, "Locked finance rules checked by backend."],
+          ["Write Safety", scores.write_safety, "Dry-run/write safety proof. Zero means Unknown, not failed."],
+          ["Runtime", scores.runtime, "Browser/manual runtime proof. Zero means Unknown, not failed."]
+        ];
+
+        return `<section class="grid-6">${cards.map(([label, value, note]) => `
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;">
+              <div class="card-label">${esc(label)}</div>
+              ${badge(scoreStatus(value), scoreStatus(value))}
+            </div>
+            <div class="card-number">${pct(value)}</div>
+            <div class="card-note">${esc(note)}</div>
+          </div>
+        `).join("")}</section>`;
+      }
+
+      function renderTrialGate(data) {
+        const gate = data.trial_gate || {};
+        const enforcement = data.enforcement || {};
+        const status = norm(gate.status || data.verdict || "unknown");
+
+        return `
+          <section class="panel final-gate ${esc(status)}">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Trial Gate</h2>
+                <p class="panel-sub">Backend readiness remains separate from enforcement display and manual runtime evidence.</p>
+              </div>
+              ${badge(status, verdictLabel(status))}
+            </div>
+            <div class="panel-body">
+              <div class="grid-2">
+                <div>
+                  <div class="final-decision">${esc(verdictLabel(status))}</div>
+                  <p class="card-note">${esc(gate.reason || "Backend audit returned no trial-gate reason.")}</p>
+                  <p class="card-note">Full certification must stay No until runtime and write safety are proven.</p>
+                </div>
+                <div class="card-grid">
+                  ${metric("Known-page trial", boolText(gate.ready_for_known_page_trial), badge(boolStatus(gate.ready_for_known_page_trial), boolText(gate.ready_for_known_page_trial)))}
+                  ${metric("Full certification", boolText(gate.ready_for_full_system_certification), badge(boolStatus(gate.ready_for_full_system_certification), boolText(gate.ready_for_full_system_certification)))}
+                  ${metric("Backend version", data.version || "Unknown", "Expected v0.1.2 or newer")}
+                  ${metric("Enforcement schema", enforcement.version || "Missing", enforcement.schema_only ? "Schema only" : "Live enforcement")}
+                </div>
+              </div>
+            </div>
+          </section>
+        `;
+      }
+
+      function metric(label, value, note) {
+        return `
+          <div class="card">
+            <div class="card-label">${esc(label)}</div>
+            <div class="card-number" style="font-size:22px;">${esc(value)}</div>
+            <div class="card-note">${typeof note === "string" ? esc(note) : note}</div>
+          </div>
+        `;
+      }
+
+      function renderEnforcementOverview(data) {
+        const e = data.enforcement || {};
+        const s = getSummary(data);
+
+        if (!e || !e.version) {
+          return `
+            <section class="panel final-gate blocked">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Enforcement Authority</h2>
+                  <p class="panel-sub">Backend enforcement object missing. Phase 2 cannot be trusted until backend returns enforcement.</p>
+                </div>
+                ${badge("blocked", "Missing")}
+              </div>
+              <div class="panel-body">
+                <div class="empty">No enforcement object returned by backend.</div>
+              </div>
+            </section>
+          `;
+        }
+
+        return `
+          <section class="panel final-gate ${esc(norm(e.global_status || "unknown"))}">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Enforcement Authority</h2>
+                <p class="panel-sub">Schema-only authority policy. This page displays blocks; it does not enforce them yet.</p>
+              </div>
+              ${badge(e.schema_only ? "schema-only" : e.global_status, e.schema_only ? "Schema Only" : e.global_status)}
+            </div>
+            <div class="panel-body">
+              <div class="grid-4">
+                ${metric("Global status", verdictLabel(e.global_status), `Level ${num(e.global_level)}`)}
+                ${metric("Blocked actions", num(s.enforcement_blocked_action_count), "Actions backend says should be blocked")}
+                ${metric("View-only routes", num(s.enforcement_view_only_route_count), "Routes allowed for view but not action")}
+                ${metric("Override allowed", boolText(e.overrides && e.overrides.allowed), (e.overrides && e.overrides.note) || "Override policy returned by backend")}
+              </div>
+              <div class="empty">
+                ${esc(e.enforcement_status_note || "This is backend authority schema only. Frontend and mutating APIs do not yet enforce it.")}
+              </div>
+            </div>
+          </section>
+        `;
+      }
+
+      function renderBlockExplanations(data) {
+        const e = data.enforcement || {};
+        const blocks = safeArray(e.block_explanations);
+
+        return `
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Why Things Are Blocked</h2>
+                <p class="panel-sub">Mandatory block explanations. Every block must show what, why, source, required fix, and override status.</p>
+              </div>
+              ${badge(blocks.length ? "blocked" : "good", `${blocks.length} blocks`)}
+            </div>
+            <div class="panel-body">
+              ${blocks.length ? `
+                <div class="issue-list">
+                  ${blocks.map((b, i) => `
+                    <div class="issue">
+                      <div class="issue-mark">!</div>
+                      <div>
+                        <div class="issue-title">${esc(b.blocked_item || `block_${i + 1}`)}</div>
+                        <div class="issue-meta">
+                          ${badge(b.block_type || "blocked", b.block_type || "blocked")}
+                          ${badge(b.override_allowed ? "warning" : "blocked", b.override_allowed ? "override allowed" : "no override")}
+                          ${badge(b.backend_enforced ? "pass" : "unknown", b.backend_enforced ? "backend enforced" : "not backend enforced yet")}
+                          ${badge(b.frontend_enforced ? "pass" : "unknown", b.frontend_enforced ? "frontend enforced" : "not frontend enforced yet")}
+                        </div>
+                        <div class="issue-text"><strong>Reason:</strong> ${esc(b.reason || "No reason returned.")}</div>
+                        <div class="issue-text"><strong>Source:</strong> ${esc(b.source || "No source returned.")}</div>
+                        <div class="issue-text"><strong>Required fix:</strong> ${esc(b.required_fix || "No required fix returned.")}</div>
+                      </div>
+                    </div>
+                  `).join("")}
+                </div>
+              ` : `<div class="empty">No block explanations returned. If anything is blocked later, this section must explain it.</div>`}
+            </div>
+          </section>
+        `;
+      }
+
+      function renderRouteGates(data) {
+        const routes = safeArray(data.enforcement && data.enforcement.routes);
+
+        return `
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Route Gates</h2>
+                <p class="panel-sub">Backend route authority. This is display-only in v0.7.3.</p>
+              </div>
+              ${badge("info", `${routes.length} routes`)}
+            </div>
+            <div class="panel-body">
+              ${routes.length ? `
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Route</th>
+                        <th>Module</th>
+                        <th>Status</th>
+                        <th>Level</th>
+                        <th>View</th>
+                        <th>Actions</th>
+                        <th>Reason</th>
+                        <th>Source</th>
+                        <th>Required Fix</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${routes.map(r => `
+                        <tr>
+                          <td><strong>${esc(r.route)}</strong></td>
+                          <td>${esc(r.module || "unknown")}</td>
+                          <td>${badge(r.status || "unknown", r.status || "unknown")}</td>
+                          <td>${esc(num(r.level))}</td>
+                          <td>${badge(boolStatus(r.view_allowed), boolText(r.view_allowed))}</td>
+                          <td>${badge(boolStatus(r.actions_allowed), boolText(r.actions_allowed))}</td>
+                          <td>${esc(r.reason || "")}</td>
+                          <td>${esc(r.source || "")}</td>
+                          <td>${esc(r.required_fix || "")}</td>
+                        </tr>
+                      `).join("")}
+                    </tbody>
+                  </table>
+                </div>
+              ` : `<div class="empty">No route gates returned.</div>`}
+            </div>
+          </section>
+        `;
+      }
+
+      function renderActionGates(data) {
+        const actions = safeArray(data.enforcement && data.enforcement.actions);
+
+        return `
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Action Gates</h2>
+                <p class="panel-sub">Backend action authority. These are not enforced by frontend yet.</p>
+              </div>
+              ${badge("info", `${actions.length} actions`)}
+            </div>
+            <div class="panel-body">
+              ${actions.length ? `
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Action</th>
+                        <th>Module</th>
+                        <th>Status</th>
+                        <th>Allowed</th>
+                        <th>Level</th>
+                        <th>Reason</th>
+                        <th>Source</th>
+                        <th>Required Fix</th>
+                        <th>Backend</th>
+                        <th>Frontend</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${actions.map(a => `
+                        <tr>
+                          <td><strong>${esc(a.action)}</strong></td>
+                          <td>${esc(a.module || "unknown")}</td>
+                          <td>${badge(a.status || "unknown", a.status || "unknown")}</td>
+                          <td>${badge(boolStatus(a.allowed), boolText(a.allowed))}</td>
+                          <td>${esc(num(a.level))}</td>
+                          <td>${esc(a.reason || "")}</td>
+                          <td>${esc(a.source || "")}</td>
+                          <td>${esc(a.required_fix || "")}</td>
+                          <td>${badge(boolStatus(a.backend_enforced), boolText(a.backend_enforced))}</td>
+                          <td>${badge(boolStatus(a.frontend_enforced), boolText(a.frontend_enforced))}</td>
+                        </tr>
+                      `).join("")}
+                    </tbody>
+                  </table>
+                </div>
+              ` : `<div class="empty">No action gates returned.</div>`}
+            </div>
+          </section>
+        `;
+      }
+
+      function renderEnforcementLists(data) {
+        const e = data.enforcement || {};
+        const blockedActions = safeArray(e.blocked_actions);
+        const viewOnlyRoutes = safeArray(e.view_only_routes);
+        const blockedRoutes = safeArray(e.blocked_routes);
+        const reasons = safeArray(e.reasons);
+
+        return `
+          <section class="grid-2">
+            ${renderSimpleList("Blocked Actions", "Actions backend says should not run.", blockedActions, "blocked")}
+            ${renderSimpleList("View-Only Routes", "Routes that can be inspected but should not allow risky actions.", viewOnlyRoutes, "unknown")}
+          </section>
+          <section class="grid-2">
+            ${renderSimpleList("Blocked Routes", "Routes that would be blocked if route enforcement is later enabled.", blockedRoutes, "blocked")}
+            ${renderSimpleList("Enforcement Reasons", "Deduped backend reasons behind blocks and restrictions.", reasons, "warning")}
+          </section>
+        `;
+      }
+
+      function renderSimpleList(title, subtitle, items, severity) {
+        return `
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">${esc(title)}</h2>
+                <p class="panel-sub">${esc(subtitle)}</p>
+              </div>
+              ${badge(items.length ? severity : "good", `${items.length}`)}
+            </div>
+            <div class="panel-body">
+              ${items.length ? `
+                <div class="issue-list">
+                  ${items.map((item, i) => `
+                    <div class="issue">
+                      <div class="issue-mark">${i + 1}</div>
+                      <div>
+                        <div class="issue-title">${esc(item)}</div>
+                        <div class="issue-meta">${badge(severity, severity)}</div>
+                      </div>
+                    </div>
+                  `).join("")}
+                </div>
+              ` : `<div class="empty">None returned.</div>`}
+            </div>
+          </section>
+        `;
+      }
+
+      function renderOverridePolicy(data) {
+        const e = data.enforcement || {};
+        const o = e.overrides || {};
+
+        return `
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Override Policy</h2>
+                <p class="panel-sub">Overrides are displayed only. They are not implemented as bypass logic.</p>
+              </div>
+              ${badge(o.allowed ? "warning" : "blocked", o.allowed ? "Allowed" : "Disabled")}
+            </div>
+            <div class="panel-body">
+              <div class="grid-4">
+                ${metric("Allowed", boolText(o.allowed), badge(boolStatus(o.allowed), boolText(o.allowed)))}
+                ${metric("Reason required", boolText(o.requires_reason), badge(boolStatus(o.requires_reason), boolText(o.requires_reason)))}
+                ${metric("Operator confirmation", boolText(o.requires_operator_confirmation), badge(boolStatus(o.requires_operator_confirmation), boolText(o.requires_operator_confirmation)))}
+                ${metric("Expires", `${num(o.expires_minutes)} min`, o.audit_required ? "Audit required" : "No audit flag")}
+              </div>
+              <div class="empty">${esc(o.note || "No override note returned.")}</div>
+            </div>
+          </section>
+        `;
+      }
+
+      function renderRuntimeSection() {
+        return `
+          <section class="panel">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Manual Runtime Checklist</h2>
+                <p class="panel-sub">Local browser evidence only. Saved to localStorage. Does not change backend verdict.</p>
+              </div>
+              ${badge("unknown", "manual")}
+            </div>
+            <div class="panel-body" id="runtimeChecklistMount"></div>
+          </section>
+        `;
       }
 
       function loadRuntimeState() {
@@ -817,11 +1049,7 @@
       function updateRuntimeItem(key, patch) {
         const state = loadRuntimeState();
         const current = state[key] || {};
-        state[key] = {
-          ...current,
-          ...patch,
-          checked_at: new Date().toISOString()
-        };
+        state[key] = { ...current, ...patch, checked_at: new Date().toISOString() };
         saveRuntimeState(state);
         renderRuntimeChecklist();
       }
@@ -833,27 +1061,13 @@
 
       function runtimeCounts() {
         const state = loadRuntimeState();
-        const counts = {
-          pass: 0,
-          warning: 0,
-          blocked: 0,
-          unknown: 0
-        };
-
+        const counts = { pass:0, warning:0, blocked:0, unknown:0 };
         RUNTIME_ITEMS.forEach(item => {
           const status = norm((state[item.key] && state[item.key].status) || "unknown");
           if (counts[status] == null) counts.unknown += 1;
           else counts[status] += 1;
         });
-
         return counts;
-      }
-
-      function runtimeVerdictText(counts) {
-        if (counts.blocked > 0) return "Runtime blocked";
-        if (counts.warning > 0) return "Runtime has warnings";
-        if (counts.unknown > 0) return "Runtime still Unknown";
-        return "Manual runtime checklist passed";
       }
 
       function renderRuntimeChecklist() {
@@ -862,32 +1076,22 @@
 
         const state = loadRuntimeState();
         const counts = runtimeCounts();
-        const runtimeText = runtimeVerdictText(counts);
+        const runtimeText = counts.blocked > 0
+          ? "Runtime blocked"
+          : counts.warning > 0
+            ? "Runtime has warnings"
+            : counts.unknown > 0
+              ? "Runtime still Unknown"
+              : "Manual runtime checklist passed";
 
         mount.innerHTML = `
-          <div class="runtime-strip">
-            <div class="card">
-              <div class="card-number">${esc(number(counts.pass))}</div>
-              <div class="card-label">Runtime Pass</div>
-            </div>
-            <div class="card">
-              <div class="card-number">${esc(number(counts.warning))}</div>
-              <div class="card-label">Runtime Warning</div>
-            </div>
-            <div class="card">
-              <div class="card-number">${esc(number(counts.blocked))}</div>
-              <div class="card-label">Runtime Blocked</div>
-            </div>
-            <div class="card">
-              <div class="card-number">${esc(number(counts.unknown))}</div>
-              <div class="card-label">Runtime Unknown</div>
-            </div>
-          </div>
-
-          <div class="empty" style="margin-bottom:14px;">
-            ${esc(runtimeText)}. This checklist is local browser evidence only. It does not change the backend verdict and does not certify write safety.
-          </div>
-
+          <section class="grid-4">
+            ${metric("Runtime Pass", num(counts.pass), "Local checklist only")}
+            ${metric("Runtime Warning", num(counts.warning), "Local checklist only")}
+            ${metric("Runtime Blocked", num(counts.blocked), "Local checklist only")}
+            ${metric("Runtime Unknown", num(counts.unknown), "Local checklist only")}
+          </section>
+          <div class="empty" style="margin-bottom:14px;">${esc(runtimeText)}. This does not certify write safety and does not alter backend enforcement.</div>
           <div class="table-wrap">
             <table class="runtime-table">
               <thead>
@@ -911,19 +1115,15 @@
                     <tr>
                       <td><strong>${esc(item.label)}</strong></td>
                       <td>${esc(item.url)}</td>
-                      <td>
-                        <button class="btn small secondary runtime-open" type="button" data-url="${esc(item.url)}">Open</button>
-                      </td>
+                      <td><button class="btn small secondary runtime-open" type="button" data-url="${esc(item.url)}">Open</button></td>
                       <td>
                         <select data-runtime-key="${esc(item.key)}" data-runtime-field="status">
-                          ${["unknown", "pass", "warning", "blocked"].map(option => `
+                          ${["unknown","pass","warning","blocked"].map(option => `
                             <option value="${esc(option)}" ${option === status ? "selected" : ""}>${esc(titleCase(option))}</option>
                           `).join("")}
                         </select>
                       </td>
-                      <td>
-                        <input data-runtime-key="${esc(item.key)}" data-runtime-field="note" value="${esc(note)}" placeholder="Short runtime note" />
-                      </td>
+                      <td><input data-runtime-key="${esc(item.key)}" data-runtime-field="note" value="${esc(note)}" placeholder="Short runtime note" /></td>
                       <td>${esc(checkedAt)}</td>
                     </tr>
                   `;
@@ -947,152 +1147,52 @@
             if (!key || !field) return;
             updateRuntimeItem(key, { [field]: input.value });
           };
-
-          if (input.tagName === "SELECT") {
-            input.addEventListener("change", handler);
-          } else {
-            input.addEventListener("change", handler);
-            input.addEventListener("blur", handler);
-          }
+          input.addEventListener("change", handler);
+          input.addEventListener("blur", handler);
         });
       }
 
-      function renderSummaryStrip(data) {
-        const summary = getSummary(data);
-        const cards = [
-          ["Modules", summary.module_count],
-          ["Pages", summary.registered_page_count],
-          ["API checks", summary.api_check_count],
-          ["Rules", summary.business_rule_count],
-          ["Blockers", summary.hard_blocker_count],
-          ["Warnings", summary.warning_count],
-          ["Unknowns", summary.unknown_count]
-        ];
-
-        return `
-          <section class="summary-strip">
-            ${cards.map(([label, value]) => `
-              <div class="card">
-                <div class="card-number">${esc(number(value))}</div>
-                <div class="card-label">${esc(label)}</div>
-              </div>
-            `).join("")}
-          </section>
-        `;
-      }
-
-      function renderReadinessBand(data) {
-        const summary = getSummary(data);
-        return `
-          <section class="summary-strip" style="grid-template-columns:repeat(3,minmax(0,1fr));">
-            <div class="card blocked">
-              <div class="card-number">${esc(number(summary.hard_blocker_count))}</div>
-              <div class="card-label">Hard blockers</div>
-            </div>
-            <div class="card warning">
-              <div class="card-number">${esc(number(summary.warning_count))}</div>
-              <div class="card-label">Warnings</div>
-            </div>
-            <div class="card unknown">
-              <div class="card-number">${esc(number(summary.unknown_count))}</div>
-              <div class="card-label">Unknowns</div>
-            </div>
-          </section>
-        `;
-      }
-
-      function renderScores(data) {
-        const scores = data.scores || {};
-        return `
-          <section class="score-grid">
-            ${scoreCard("Frontend Registry", scores.frontend_registry, "Known module/page/API registry coverage.")}
-            ${scoreCard("API Health", scores.api_health, "Required APIs responding as JSON.")}
-            ${scoreCard("D1 Truth", scores.d1_truth, "Required D1 tables readable.")}
-            ${scoreCard("Business Rules", scores.business_rules, "Locked finance rules checked by backend.")}
-            ${scoreCard("Write Safety", scores.write_safety, "Dry-run/write safety proof. Zero means Unknown, not failed.")}
-            ${scoreCard("Runtime", scores.runtime, "Browser/manual runtime proof. Zero means Unknown, not failed.")}
-          </section>
-        `;
-      }
-
-      function scoreCard(name, value, note) {
-        return `
-          <article class="card">
-            <div class="card-head">
-              <div class="metric-label">${esc(name)}</div>
-              ${badge(scoreStatus(value), scoreStatus(value))}
-            </div>
-            <div class="metric-value">${pct(value)}</div>
-            <div class="metric-note">${esc(note)}</div>
-          </article>
-        `;
-      }
-
-      function renderTrialGate(data) {
-        const gate = data.trial_gate || {};
-        const status = norm(gate.status || data.verdict || "unknown");
-        const label = verdictLabel(status);
-
-        return `
-          <section class="panel final-gate ${esc(status)}">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Trial Gate</h2>
-                <p class="panel-sub">Backend truth remains separate from manual runtime evidence.</p>
-              </div>
-              ${badge(status, label)}
-            </div>
-            <div class="panel-body">
-              <div class="grid-2">
-                <div>
-                  <div class="final-decision">${esc(label)}</div>
-                  <p class="metric-note">${esc(gate.reason || "Backend audit returned no trial-gate reason.")}</p>
-                  <p class="metric-note">Full certification must stay No until runtime and write safety are proven.</p>
-                </div>
-                <div class="metric-grid">
-                  <div class="metric">
-                    <div class="metric-label">Known-page trial</div>
-                    <div class="metric-value">${esc(boolText(gate.ready_for_known_page_trial))}</div>
-                    <div class="metric-note">${badge(boolStatus(gate.ready_for_known_page_trial), boolText(gate.ready_for_known_page_trial))}</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-label">Full system certification</div>
-                    <div class="metric-value">${esc(boolText(gate.ready_for_full_system_certification))}</div>
-                    <div class="metric-note">${badge(boolStatus(gate.ready_for_full_system_certification), boolText(gate.ready_for_full_system_certification))}</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-label">Business rules</div>
-                    <div class="metric-value">${esc(number(gate.business_rules_passed))}/${esc(number(gate.business_rules_total))}</div>
-                    <div class="metric-note">Passed versus total backend rules.</div>
-                  </div>
-                  <div class="metric">
-                    <div class="metric-label">Backend version</div>
-                    <div class="metric-value">${esc(data.version || "Unknown")}</div>
-                    <div class="metric-note">Expected v0.1.1 or newer.</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        `;
-      }
-
-      function renderRuntimeSection() {
+      function renderIssuePanel(title, subtitle, items, fallback, severity) {
+        items = safeArray(items);
         return `
           <section class="panel">
             <div class="panel-head">
               <div>
-                <h2 class="panel-title">Manual Runtime Checklist</h2>
-                <p class="panel-sub">Local browser evidence only. Saved to localStorage. No D1 write, no backend verdict change, no ledger smoke test.</p>
+                <h2 class="panel-title">${esc(title)}</h2>
+                <p class="panel-sub">${esc(subtitle)}</p>
               </div>
-              ${badge("unknown", "manual")}
+              ${badge(items.length ? severity : "good", `${items.length}`)}
             </div>
-            <div class="panel-body" id="runtimeChecklistMount"></div>
+            <div class="panel-body">
+              ${items.length ? `
+                <div class="issue-list">
+                  ${items.map((item, i) => issueCard(item, i, severity)).join("")}
+                </div>
+              ` : `<div class="empty">${esc(fallback)}</div>`}
+            </div>
           </section>
         `;
       }
 
-      function renderSourceProofs(proofs) {
+      function issueCard(item, index, severity) {
+        const key = item.key || item.rule || item.title || `item_${index + 1}`;
+        const message = item.message || item.detail || item.rule || item.next_action || String(item);
+        const next = item.next_action || item.next || "";
+        return `
+          <div class="issue">
+            <div class="issue-mark">${index + 1}</div>
+            <div>
+              <div class="issue-title">${esc(titleCase(key))}</div>
+              <div class="issue-meta">${badge(item.severity || item.status || severity, item.severity || item.status || severity)}</div>
+              <div class="issue-text">${esc(message)}</div>
+              ${next ? `<div class="issue-text"><strong>Next:</strong> ${esc(next)}</div>` : ""}
+            </div>
+          </div>
+        `;
+      }
+
+      function renderSourceProofs(data) {
+        const proofs = safeArray(data.source_proofs);
         return `
           <section class="panel">
             <div class="panel-head">
@@ -1100,33 +1200,34 @@
                 <h2 class="panel-title">Source Proofs</h2>
                 <p class="panel-sub">Shows what source proved the verdict. Banned money-contracts is protected, not failed.</p>
               </div>
-              ${badge("info", `${Array.isArray(proofs) ? proofs.length : 0} proofs`)}
+              ${badge("info", `${proofs.length} proofs`)}
             </div>
             <div class="panel-body">
-              ${listOrEmpty(proofs, "No source proofs returned by backend.", arr => `
-                <div class="proof-grid">
-                  ${arr.map(row => {
+              ${proofs.length ? `
+                <div class="card-grid">
+                  ${proofs.map(row => {
                     const status = norm(row.status || "unknown");
-                    const visualStatus = status === "banned" ? "protected" : status;
+                    const visual = status === "banned" ? "protected" : status;
                     return `
-                      <div class="proof-card">
-                        <div class="card-head">
-                          <span>${esc(titleCase(row.key || "proof"))}</span>
-                          ${badge(visualStatus, status === "banned" ? "Protected" : row.status || "unknown")}
+                      <div class="card">
+                        <div style="display:flex;justify-content:space-between;gap:8px;">
+                          <strong>${esc(titleCase(row.key || "proof"))}</strong>
+                          ${badge(visual, status === "banned" ? "Protected" : row.status || "unknown")}
                         </div>
-                        <div class="card-meta"><strong>Source:</strong> ${esc(row.source || "Unknown")}</div>
-                        <div class="card-meta">${esc(row.message || "No message returned.")}</div>
+                        <div class="card-note"><strong>Source:</strong> ${esc(row.source || "Unknown")}</div>
+                        <div class="card-note">${esc(row.message || "No message returned.")}</div>
                       </div>
                     `;
                   }).join("")}
                 </div>
-              `)}
+              ` : `<div class="empty">No source proofs returned.</div>`}
             </div>
           </section>
         `;
       }
 
-      function renderReadOnlyGuards(guards) {
+      function renderReadOnlyGuards(data) {
+        const guards = safeArray(data.read_only_guards);
         return `
           <section class="panel">
             <div class="panel-head">
@@ -1134,73 +1235,40 @@
                 <h2 class="panel-title">Read-Only Guardrails</h2>
                 <p class="panel-sub">Audit endpoint guardrails returned by backend.</p>
               </div>
-              ${badge("protected", `${Array.isArray(guards) ? guards.length : 0} guards`)}
+              ${badge("protected", `${guards.length} guards`)}
             </div>
             <div class="panel-body">
-              ${listOrEmpty(guards, "No read-only guards returned by backend.", arr => `
-                <div class="guard-grid">
-                  ${arr.map((guard, index) => `
-                    <div class="guard-card">
-                      <div class="card-head">
-                        <span>${esc(guard)}</span>
-                        ${badge("protected", "guard")}
-                      </div>
-                      <div class="card-meta">Guardrail ${index + 1} returned by backend audit engine.</div>
+              ${guards.length ? `
+                <div class="card-grid">
+                  ${guards.map((guard, i) => `
+                    <div class="card">
+                      <strong>${esc(guard)}</strong>
+                      <div class="card-note">Guardrail ${i + 1}</div>
                     </div>
                   `).join("")}
                 </div>
-              `)}
+              ` : `<div class="empty">No guardrails returned.</div>`}
             </div>
           </section>
         `;
       }
 
       function renderCoverage(data) {
-        const coverage = data.coverage || {};
-        const registry = coverage.registry || {};
-        const api = coverage.api || {};
-        const d1 = coverage.d1 || {};
-        const rules = coverage.business_rules || {};
-        const runtime = coverage.runtime || {};
-        const writeSafety = coverage.write_safety || {};
+        const c = data.coverage || {};
+        const registry = c.registry || {};
+        const api = c.api || {};
+        const d1 = c.d1 || {};
+        const rules = c.business_rules || {};
+        const runtime = c.runtime || {};
+        const write = c.write_safety || {};
 
         const rows = [
-          {
-            label: "Registry",
-            status: coverage.status || "unknown",
-            main: `${number(registry.modules_registered)} modules · ${number(registry.pages_registered)} pages`,
-            note: registry.note || "Registry completeness unknown outside known modules."
-          },
-          {
-            label: "API coverage",
-            status: api.required_api_count === api.required_api_pass_count ? "pass" : "warning",
-            main: `${number(api.required_api_pass_count)}/${number(api.required_api_count)} required APIs passed`,
-            note: `${number(api.checked_api_count)} total API checks returned.`
-          },
-          {
-            label: "D1 coverage",
-            status: d1.required_table_count === d1.required_table_pass_count ? "pass" : "blocked",
-            main: `${number(d1.required_table_pass_count)}/${number(d1.required_table_count)} required D1 tables passed`,
-            note: "Read-only table checks only."
-          },
-          {
-            label: "Business rules",
-            status: rules.blocked_count > 0 ? "blocked" : rules.warning_count > 0 ? "warning" : rules.unknown_count > 0 ? "unknown" : "pass",
-            main: `${number(rules.pass_count)} pass · ${number(rules.warning_count)} warning · ${number(rules.unknown_count)} unknown · ${number(rules.blocked_count)} blocked`,
-            note: `${number(rules.rule_count)} total rules returned.`
-          },
-          {
-            label: "Runtime",
-            status: runtime.status || "unknown",
-            main: titleCase(runtime.status || "unknown"),
-            note: runtime.note || "Backend cannot prove browser runtime."
-          },
-          {
-            label: "Write safety",
-            status: writeSafety.status || "unknown",
-            main: titleCase(writeSafety.status || "unknown"),
-            note: writeSafety.note || "No write dry-run endpoint exists yet."
-          }
+          ["Registry", c.status || "unknown", `${num(registry.modules_registered)} modules · ${num(registry.pages_registered)} pages`, registry.note || "Known registry only."],
+          ["API coverage", api.required_api_count === api.required_api_pass_count ? "pass" : "warning", `${num(api.required_api_pass_count)}/${num(api.required_api_count)} required APIs passed`, `${num(api.checked_api_count)} total API checks returned.`],
+          ["D1 coverage", d1.required_table_count === d1.required_table_pass_count ? "pass" : "blocked", `${num(d1.required_table_pass_count)}/${num(d1.required_table_count)} required D1 tables passed`, "Read-only table checks only."],
+          ["Business rules", rules.blocked_count > 0 ? "blocked" : rules.warning_count > 0 ? "warning" : rules.unknown_count > 0 ? "unknown" : "pass", `${num(rules.pass_count)} pass · ${num(rules.warning_count)} warning · ${num(rules.unknown_count)} unknown · ${num(rules.blocked_count)} blocked`, `${num(rules.rule_count)} total rules returned.`],
+          ["Runtime", runtime.status || "unknown", titleCase(runtime.status || "unknown"), runtime.note || "Backend cannot prove browser runtime."],
+          ["Write safety", write.status || "unknown", titleCase(write.status || "unknown"), write.note || "No write dry-run endpoint exists yet."]
         ];
 
         return `
@@ -1210,18 +1278,18 @@
                 <h2 class="panel-title">Coverage</h2>
                 <p class="panel-sub">Shows what is covered, what is only registered, and what must stay Unknown.</p>
               </div>
-              ${badge(coverage.status || "unknown", coverage.status || "unknown")}
+              ${badge(c.status || "unknown", c.status || "unknown")}
             </div>
             <div class="panel-body">
-              <div class="coverage-grid">
-                ${rows.map(row => `
-                  <div class="coverage-card">
-                    <div class="card-head">
-                      <span>${esc(row.label)}</span>
-                      ${badge(row.status, row.status)}
+              <div class="card-grid">
+                ${rows.map(([label, status, main, note]) => `
+                  <div class="card">
+                    <div style="display:flex;justify-content:space-between;gap:8px;">
+                      <strong>${esc(label)}</strong>
+                      ${badge(status, status)}
                     </div>
-                    <div class="metric-value" style="font-size:18px;">${esc(row.main)}</div>
-                    <div class="card-meta">${esc(row.note)}</div>
+                    <div class="card-number" style="font-size:18px;margin-top:8px;">${esc(main)}</div>
+                    <div class="card-note">${esc(note)}</div>
                   </div>
                 `).join("")}
               </div>
@@ -1230,193 +1298,8 @@
         `;
       }
 
-      function renderIssuePanel(title, subtitle, items, fallback, severity) {
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">${esc(title)}</h2>
-                <p class="panel-sub">${esc(subtitle)}</p>
-              </div>
-              ${badge(items && items.length ? severity : "good", items && items.length ? `${items.length}` : "0")}
-            </div>
-            <div class="panel-body">
-              ${listOrEmpty(items, fallback, arr => `<div class="issue-list">${arr.map((item, index) => issueCard(item, index, severity)).join("")}</div>`)}
-            </div>
-          </section>
-        `;
-      }
-
-      function issueCard(item, index, fallbackSeverity) {
-        const severity = item.severity || item.status || fallbackSeverity || "info";
-        const key = item.key || item.rule || item.title || `item_${index + 1}`;
-        const message = item.message || item.detail || item.rule || item.next_action || "No detail provided.";
-        const next = item.next_action || item.next || "";
-
-        return `
-          <div class="issue">
-            <div class="issue-mark">${esc(severityIcon(severity, index))}</div>
-            <div>
-              <div class="issue-title">${esc(titleCase(key))}</div>
-              <div class="issue-meta">${badge(severity, severity)}</div>
-              <div class="issue-text">${esc(message)}</div>
-              ${next ? `<div class="issue-text"><strong>Next:</strong> ${esc(next)}</div>` : ""}
-            </div>
-          </div>
-        `;
-      }
-
-      function severityIcon(severity, index) {
-        const key = norm(severity);
-        if (key === "hard-blocker" || key === "blocked") return "!";
-        if (key === "warning") return "";
-        if (key === "unknown") return "?";
-        if (key === "banned" || key === "protected") return "P";
-        return index + 1;
-      }
-
-      function renderNextActions(actions) {
-        const normalized = Array.isArray(actions) ? actions.map((message, index) => ({
-          key: `next_${index + 1}`,
-          severity: index === 0 ? "warning" : "info",
-          message
-        })) : [];
-
-        return renderIssuePanel(
-          "Next Actions",
-          "Backend-generated fix queue. Work from the top down.",
-          normalized,
-          "No next action returned by backend.",
-          "warning"
-        );
-      }
-
-      function renderApis(apis) {
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Backend API Health</h2>
-                <p class="panel-sub">Read-only availability and JSON checks returned by backend.</p>
-              </div>
-              ${badge("info", `${Array.isArray(apis) ? apis.length : 0} routes`)}
-            </div>
-            <div class="panel-body">
-              ${listOrEmpty(apis, "No API rows returned.", arr => `
-                <div class="api-grid">
-                  ${arr.map(row => `
-                    <div class="api-card">
-                      <div class="card-head">
-                        <span>${esc(row.path || row.url || row.key || "unknown")}</span>
-                        ${badge(row.status || (row.ok ? "pass" : "unknown"), row.status || "unknown")}
-                      </div>
-                      <div class="card-meta">${esc([
-                        row.required ? "required" : "optional",
-                        row.http_status ? `HTTP ${row.http_status}` : "",
-                        row.elapsed_ms != null ? `${row.elapsed_ms}ms` : "",
-                        row.version ? `v${row.version}` : "",
-                        row.error || row.note || ""
-                      ].filter(Boolean).join(" · ") || "No metadata.")}</div>
-                    </div>
-                  `).join("")}
-                </div>
-              `)}
-            </div>
-          </section>
-        `;
-      }
-
-      function renderD1(data) {
-        const d1 = data.d1 || {};
-        const tables = Array.isArray(d1.tables) ? d1.tables : [];
-        const reads = Array.isArray(d1.reads) ? d1.reads : [];
-        const rowCounts = d1.row_counts || {};
-        const truth = d1.truth || {};
-
-        return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">D1 Read-Only Truth Checks</h2>
-                <p class="panel-sub">Tables, reads, row counts, and truth checks. This section must never mutate D1.</p>
-              </div>
-              ${badge(d1.status || "unknown", d1.status || "unknown")}
-            </div>
-            <div class="panel-body">
-              <div class="d1-grid">
-                ${tables.map(row => `
-                  <div class="d1-card">
-                    <div class="card-head">
-                      <span>${esc(row.table || row.name || "Unknown table")}</span>
-                      ${badge(row.status || (row.exists ? "pass" : "unknown"), row.required ? "required" : "optional")}
-                    </div>
-                    <div class="card-meta">
-                      Exists: ${esc(row.exists === true ? "yes" : row.exists === false ? "no" : "unknown")}
-                      ${rowCounts[row.table] != null ? ` · Rows: ${esc(rowCounts[row.table])}` : ""}
-                    </div>
-                  </div>
-                `).join("")}
-              </div>
-
-              <details class="audit">
-                <summary>
-                  <span>D1 Read Probes</span>
-                  ${badge("info", `${reads.length} checks`)}
-                </summary>
-                <div class="panel-body">
-                  ${listOrEmpty(reads, "No read probes returned.", arr => `
-                    <div class="d1-grid">
-                      ${arr.map(row => `
-                        <div class="d1-card">
-                          <div class="card-head">
-                            <span>${esc(row.table || "Unknown")}</span>
-                            ${badge(row.status || (row.readable ? "pass" : "unknown"), row.status || "unknown")}
-                          </div>
-                          <div class="card-meta">${esc(row.error || "Readable.")}</div>
-                        </div>
-                      `).join("")}
-                    </div>
-                  `)}
-                </div>
-              </details>
-
-              <details class="audit">
-                <summary>
-                  <span>D1 Truth Objects</span>
-                  ${badge("info", `${Object.keys(truth).length} groups`)}
-                </summary>
-                <div class="panel-body">
-                  <div class="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Group</th>
-                          <th>Status</th>
-                          <th>Summary</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${Object.keys(truth).map(key => {
-                          const row = truth[key] || {};
-                          return `
-                            <tr>
-                              <td><strong>${esc(titleCase(key))}</strong></td>
-                              <td>${badge(row.status || "unknown", row.status || "unknown")}</td>
-                              <td>${esc(row.message || JSON.stringify(row))}</td>
-                            </tr>
-                          `;
-                        }).join("")}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </details>
-            </div>
-          </section>
-        `;
-      }
-
-      function renderBusinessRules(rules) {
+      function renderBusinessRules(data) {
+        const rules = safeArray(data.business_rules);
         return `
           <section class="panel">
             <div class="panel-head">
@@ -1424,38 +1307,111 @@
                 <h2 class="panel-title">Business Rule Checks</h2>
                 <p class="panel-sub">Locked honesty rules checked by backend.</p>
               </div>
-              ${badge("info", `${Array.isArray(rules) ? rules.length : 0} rules`)}
+              ${badge("info", `${rules.length} rules`)}
             </div>
             <div class="panel-body">
-              ${listOrEmpty(rules, "No business rules returned.", arr => `
-                <div class="rule-grid">
-                  ${arr.map(row => `
-                    <div class="rule-card">
-                      <div class="card-head">
-                        <span>${esc(titleCase(row.key || "rule"))}</span>
+              ${rules.length ? `
+                <div class="card-grid">
+                  ${rules.map(row => `
+                    <div class="card">
+                      <div style="display:flex;justify-content:space-between;gap:8px;">
+                        <strong>${esc(titleCase(row.key || "rule"))}</strong>
                         ${badge(row.status || "unknown", row.status || "unknown")}
                       </div>
-                      <div class="card-meta"><strong>Rule:</strong> ${esc(row.rule || "No rule text.")}</div>
-                      <div class="card-meta"><strong>Result:</strong> ${esc(row.message || "No result message.")}</div>
+                      <div class="card-note"><strong>Rule:</strong> ${esc(row.rule || "No rule text.")}</div>
+                      <div class="card-note"><strong>Result:</strong> ${esc(row.message || "No result message.")}</div>
                     </div>
                   `).join("")}
                 </div>
-              `)}
+              ` : `<div class="empty">No business rules returned.</div>`}
             </div>
           </section>
         `;
       }
 
-      function renderRegistry(modules, pages) {
+      function renderApis(data) {
+        const apis = safeArray(data.apis);
         return `
-          <section class="panel">
-            <div class="panel-head">
-              <div>
-                <h2 class="panel-title">Registry And Page Coverage</h2>
-                <p class="panel-sub">Backend-registered modules and pages. Runtime remains manual.</p>
+          <details class="audit">
+            <summary><span>Backend API Health</span>${badge("info", `${apis.length} routes`)}</summary>
+            <div class="panel-body">
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Path</th>
+                      <th>Status</th>
+                      <th>HTTP</th>
+                      <th>Version</th>
+                      <th>JSON</th>
+                      <th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${apis.map(a => `
+                      <tr>
+                        <td><strong>${esc(a.path || a.key || "unknown")}</strong></td>
+                        <td>${badge(a.status || "unknown", a.status || "unknown")}</td>
+                        <td>${esc(a.http_status || "")}</td>
+                        <td>${esc(a.version || "")}</td>
+                        <td>${badge(a.json_readable ? "pass" : "unknown", a.json_readable ? "Yes" : "N/A")}</td>
+                        <td>${esc(a.error || a.note || "")}</td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
               </div>
-              ${badge("info", `${Array.isArray(modules) ? modules.length : 0} modules`)}
             </div>
+          </details>
+        `;
+      }
+
+      function renderD1(data) {
+        const d1 = data.d1 || {};
+        const tables = safeArray(d1.tables);
+        const rowCounts = d1.row_counts || {};
+        const truth = d1.truth || {};
+
+        return `
+          <details class="audit">
+            <summary><span>D1 Read-Only Truth Checks</span>${badge(d1.status || "unknown", d1.status || "unknown")}</summary>
+            <div class="panel-body">
+              <div class="card-grid">
+                ${tables.map(t => `
+                  <div class="card">
+                    <div style="display:flex;justify-content:space-between;gap:8px;">
+                      <strong>${esc(t.table || "unknown")}</strong>
+                      ${badge(t.status || "unknown", t.required ? "required" : "optional")}
+                    </div>
+                    <div class="card-note">Exists: ${esc(t.exists === true ? "yes" : t.exists === false ? "no" : "unknown")}${rowCounts[t.table] != null ? ` · Rows: ${esc(rowCounts[t.table])}` : ""}</div>
+                  </div>
+                `).join("")}
+              </div>
+              <div class="table-wrap" style="margin-top:14px;">
+                <table>
+                  <thead>
+                    <tr><th>Truth Group</th><th>Status</th><th>Message</th></tr>
+                  </thead>
+                  <tbody>
+                    ${Object.keys(truth).map(key => {
+                      const row = truth[key] || {};
+                      return `<tr><td><strong>${esc(titleCase(key))}</strong></td><td>${badge(row.status || "unknown", row.status || "unknown")}</td><td>${esc(row.message || JSON.stringify(row))}</td></tr>`;
+                    }).join("")}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+        `;
+      }
+
+      function renderRegistry(data) {
+        const modules = safeArray(data.modules);
+        const pages = safeArray(data.pages);
+
+        return `
+          <details class="audit">
+            <summary><span>Registry And Page Coverage</span>${badge("info", `${modules.length} modules`)}</summary>
             <div class="panel-body">
               <div class="table-wrap">
                 <table>
@@ -1463,71 +1419,53 @@
                     <tr>
                       <th>Module</th>
                       <th>Status</th>
+                      <th>Route</th>
                       <th>Pages</th>
                       <th>APIs</th>
                       <th>D1 Tables</th>
-                      <th>Impacts</th>
                     </tr>
                   </thead>
                   <tbody>
-                    ${(Array.isArray(modules) ? modules : []).map(row => `
+                    ${modules.map(m => `
                       <tr>
-                        <td><strong>${esc(row.label || row.name || row.key || "Unknown")}</strong></td>
-                        <td>${badge(row.status || "registered", row.status || "registered")}</td>
-                        <td>${esc(Array.isArray(row.pages) ? row.pages.join(", ") : "N/A")}</td>
-                        <td>${esc(Array.isArray(row.apis) ? row.apis.join(", ") : "N/A")}</td>
-                        <td>${esc(Array.isArray(row.d1_tables) ? row.d1_tables.join(", ") : "N/A")}</td>
-                        <td>${esc(Array.isArray(row.impacts) ? row.impacts.join(", ") : "N/A")}</td>
+                        <td><strong>${esc(m.label || m.key || "unknown")}</strong></td>
+                        <td>${badge(m.status || "registered", m.status || "registered")}</td>
+                        <td>${esc(m.route || "")}</td>
+                        <td>${esc(safeArray(m.pages).join(", "))}</td>
+                        <td>${esc(safeArray(m.apis).join(", "))}</td>
+                        <td>${esc(safeArray(m.d1_tables).join(", "))}</td>
                       </tr>
                     `).join("")}
                   </tbody>
                 </table>
               </div>
-
-              <details class="audit">
-                <summary>
-                  <span>Registered Pages</span>
-                  ${badge("unknown", "runtime manual")}
-                </summary>
-                <div class="panel-body">
-                  <div class="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Page</th>
-                          <th>Module</th>
-                          <th>Status</th>
-                          <th>Runtime</th>
-                          <th>Note</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${(Array.isArray(pages) ? pages : []).map(row => `
-                          <tr>
-                            <td><strong>${esc(row.page || "Unknown")}</strong></td>
-                            <td>${esc(row.module || "Unknown")}</td>
-                            <td>${badge(row.status || "registered", row.status || "registered")}</td>
-                            <td>${badge(row.runtime_status || "unknown", row.runtime_status || "unknown")}</td>
-                            <td>${esc(row.note || "No note.")}</td>
-                          </tr>
-                        `).join("")}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </details>
+              <div class="table-wrap" style="margin-top:14px;">
+                <table>
+                  <thead>
+                    <tr><th>Page</th><th>Module</th><th>Status</th><th>Runtime</th><th>Note</th></tr>
+                  </thead>
+                  <tbody>
+                    ${pages.map(p => `
+                      <tr>
+                        <td><strong>${esc(p.page || "unknown")}</strong></td>
+                        <td>${esc(p.module || "unknown")}</td>
+                        <td>${badge(p.status || "registered", p.status || "registered")}</td>
+                        <td>${badge(p.runtime_status || "unknown", p.runtime_status || "unknown")}</td>
+                        <td>${esc(p.note || "")}</td>
+                      </tr>
+                    `).join("")}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </section>
+          </details>
         `;
       }
 
       function renderRaw(data) {
         return `
           <details class="audit">
-            <summary>
-              <span>Raw Backend JSON</span>
-              ${badge("info", "debug")}
-            </summary>
+            <summary><span>Raw Backend JSON</span>${badge("info", "debug")}</summary>
             <div class="panel-body">
               <pre style="white-space:pre-wrap;margin:0;font-size:12px;line-height:1.45;color:#334155;">${esc(JSON.stringify(data, null, 2))}</pre>
             </div>
@@ -1536,16 +1474,16 @@
       }
 
       function updateHero(data) {
-        const verdict = norm(data.verdict || "unknown");
-        const heroVerdict = document.getElementById("heroVerdict");
-        const heroScore = document.getElementById("heroScore");
-        const heroNote = document.getElementById("heroNote");
-        const summary = getSummary(data);
         const gate = data.trial_gate || {};
+        const enforcement = data.enforcement || {};
+        const summary = getSummary(data);
+        const status = gate.status || data.verdict || "unknown";
 
-        heroVerdict.textContent = verdictLabel(gate.status || verdict);
-        heroScore.textContent = `${pct(data.score)} backend score · endpoint ${data.version || "unknown"}`;
-        heroNote.textContent = `${summary.hard_blocker_count} blocker(s), ${summary.warning_count} warning(s), ${summary.unknown_count} unknown(s). Known-page trial: ${boolText(gate.ready_for_known_page_trial)}. Full certification: ${boolText(gate.ready_for_full_system_certification)}.`;
+        document.getElementById("heroVerdict").textContent = verdictLabel(enforcement.global_status || status);
+        document.getElementById("heroScore").textContent = `${pct(data.score)} backend score · endpoint ${data.version || "unknown"}`;
+        document.getElementById("heroNote").textContent =
+          `${summary.hard_blocker_count} blocker(s), ${summary.warning_count} warning(s), ${summary.unknown_count} unknown(s). ` +
+          `Enforcement: ${enforcement.version || "missing"} · blocked actions ${summary.enforcement_blocked_action_count}.`;
       }
 
       function render(data) {
@@ -1553,46 +1491,33 @@
 
         app.innerHTML = `
           ${renderSummaryStrip(data)}
-          ${renderReadinessBand(data)}
           ${renderScores(data)}
           ${renderTrialGate(data)}
+          ${renderEnforcementOverview(data)}
+          ${renderBlockExplanations(data)}
+          ${renderEnforcementLists(data)}
+          ${renderRouteGates(data)}
+          ${renderActionGates(data)}
+          ${renderOverridePolicy(data)}
           ${renderRuntimeSection()}
-          ${renderSourceProofs(data.source_proofs)}
-          ${renderReadOnlyGuards(data.read_only_guards)}
+          ${renderSourceProofs(data)}
+          ${renderReadOnlyGuards(data)}
           ${renderCoverage(data)}
 
           <section class="grid-2">
-            ${renderIssuePanel(
-              "Hard Blockers",
-              "These prevent Ready. If this is non-zero, trial should stay blocked.",
-              data.hard_blockers,
-              "No hard blocker returned by backend.",
-              "blocked"
-            )}
-            ${renderNextActions(data.next_actions)}
+            ${renderIssuePanel("Hard Blockers", "These prevent Ready.", data.hard_blockers, "No hard blocker returned by backend.", "blocked")}
+            ${renderIssuePanel("Next Actions", "Backend-generated fix queue.", safeArray(data.next_actions).map((m, i) => ({ key:`next_${i + 1}`, message:m, severity:i === 0 ? "warning" : "info" })), "No next action returned.", "warning")}
           </section>
 
           <section class="grid-2">
-            ${renderIssuePanel(
-              "Warnings",
-              "Known risk remains. This can be trial-usable only if warnings are understood.",
-              data.warnings,
-              "No warning returned by backend.",
-              "warning"
-            )}
-            ${renderIssuePanel(
-              "Unknowns",
-              "Unknown means not proven. Unknown must never become Ready silently.",
-              data.unknowns,
-              "No unknown returned by backend.",
-              "unknown"
-            )}
+            ${renderIssuePanel("Warnings", "Known risk remains.", data.warnings, "No warning returned by backend.", "warning")}
+            ${renderIssuePanel("Unknowns", "Unknown means not proven. Unknown must never become Ready silently.", data.unknowns, "No unknown returned by backend.", "unknown")}
           </section>
 
+          ${renderBusinessRules(data)}
           ${renderD1(data)}
-          ${renderBusinessRules(data.business_rules)}
-          ${renderApis(data.apis)}
-          ${renderRegistry(data.modules, data.pages)}
+          ${renderApis(data)}
+          ${renderRegistry(data)}
           ${renderRaw(data)}
         `;
 
@@ -1606,9 +1531,7 @@
       async function fetchBackendAudit() {
         const response = await fetch("/api/finance-command-center", {
           cache: "no-store",
-          headers: {
-            accept: "application/json"
-          }
+          headers: { accept: "application/json" }
         });
 
         const text = await response.text();
@@ -1660,10 +1583,7 @@
         `;
       }
 
-      refreshBtn.addEventListener("click", () => {
-        runAudit().catch(showError);
-      });
-
+      refreshBtn.addEventListener("click", () => runAudit().catch(showError));
       detailsBtn.addEventListener("click", openAllDetails);
       resetRuntimeBtn.addEventListener("click", resetRuntimeChecklist);
 
