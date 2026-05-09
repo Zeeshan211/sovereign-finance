@@ -462,22 +462,47 @@
     return true;
   }
 
-  function handleDocumentClick(event) {
+    function handleDocumentClick(event) {
     const link = event.target && event.target.closest ? event.target.closest("a[href]") : null;
-    if (!link) return;
 
-    if (!shouldGateLink(link.href)) return;
+    if (link && shouldGateLink(link.href)) {
+      const target = new URL(link.href, window.location.origin);
+      const routeStatus = statusForRoute(target.pathname);
 
-    const target = new URL(link.href, window.location.origin);
-    const routeStatus = statusForRoute(target.pathname);
+      if (state.loaded && (!routeStatus.view_allowed || routeStatus.status === "blocked")) {
+        event.preventDefault();
+        event.stopPropagation();
+        ensureRouteGateCss();
+        renderBlockedOverlay(routeStatus, normalizePath(target.pathname));
+        return;
+      }
+    }
 
-    if (!state.loaded) return;
+    const actionTarget = event.target && event.target.closest
+      ? event.target.closest("[data-command-action], [data-finance-action], [data-action], button[type='submit'], input[type='submit']")
+      : null;
 
-    if (!routeStatus.view_allowed || routeStatus.status === "blocked") {
+    if (!actionTarget || !state.loaded) return;
+
+    const activeRouteStatus = statusForCurrentRoute();
+
+    if (activeRouteStatus.view_allowed && !activeRouteStatus.actions_allowed) {
       event.preventDefault();
       event.stopPropagation();
       ensureRouteGateCss();
-      renderBlockedOverlay(routeStatus, normalizePath(target.pathname));
+      renderBlockedOverlay(activeRouteStatus, normalizePath(window.location.pathname));
+    }
+  }
+    function handleDocumentSubmit(event) {
+    if (!state.loaded) return;
+
+    const activeRouteStatus = statusForCurrentRoute();
+
+    if (activeRouteStatus.view_allowed && !activeRouteStatus.actions_allowed) {
+      event.preventDefault();
+      event.stopPropagation();
+      ensureRouteGateCss();
+      renderBlockedOverlay(activeRouteStatus, normalizePath(window.location.pathname));
     }
   }
 
@@ -542,7 +567,7 @@
 
   window.SovereignEnforcement = api;
 
-  document.addEventListener("click", handleDocumentClick, true);
+  document.addEventListener("click", handleDocumentClick, true);   document.addEventListener("submit", handleDocumentSubmit, true);
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", applyCurrentRouteGate);
