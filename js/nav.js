@@ -1,5 +1,5 @@
-/* Sovereign Finance shared navigation v1.1.0
- * Finance App Shell + grouped menus
+/* Sovereign Finance shared navigation v1.1.1
+ * Hotfix: More drawer cannot get stuck open.
  *
  * Contract:
  * - Pure frontend navigation helper.
@@ -7,14 +7,15 @@
  * - No API writes.
  * - No ledger interaction.
  * - Keeps existing page routes.
- * - Desktop gets clean grouped submenus.
- * - Mobile bottom nav stays daily-core only, with More drawer for deep tools.
+ * - Desktop gets grouped Finance shell.
+ * - Mobile gets daily bottom nav + More drawer.
+ * - Hidden mobile drawer/backdrop are force-hidden with CSS.
  */
 
 (function () {
   'use strict';
 
-  const NAV_VERSION = '1.1.0';
+  const NAV_VERSION = '1.1.1';
 
   const LINKS = [
     { key: 'hub', label: 'Hub', href: '/index.html', icon: '🏠', group: 'dashboard', daily: true },
@@ -43,41 +44,11 @@
   ];
 
   const SECTIONS = [
-    {
-      key: 'dashboard',
-      label: 'Dashboard',
-      hint: 'Status, safety, insight',
-      icon: '◈',
-      keys: ['hub', 'forecast', 'insights', 'charts']
-    },
-    {
-      key: 'money',
-      label: 'Money',
-      hint: 'Entry, ledger, accounts',
-      icon: '◍',
-      keys: ['add', 'transactions', 'accounts', 'reconciliation']
-    },
-    {
-      key: 'obligations',
-      label: 'Obligations',
-      hint: 'Bills, debts, card',
-      icon: '◇',
-      keys: ['bills', 'debts', 'cc', 'atm', 'nano-loans']
-    },
-    {
-      key: 'planning',
-      label: 'Planning',
-      hint: 'Salary, close, goals',
-      icon: '□',
-      keys: ['salary', 'monthly-close', 'budgets', 'goals']
-    },
-    {
-      key: 'records',
-      label: 'Records',
-      hint: 'Rollback and audit',
-      icon: '△',
-      keys: ['snapshots', 'audit']
-    }
+    { key: 'dashboard', label: 'Dashboard', hint: 'Status, safety, insight', icon: '◈', keys: ['hub', 'forecast', 'insights', 'charts'] },
+    { key: 'money', label: 'Money', hint: 'Entry, ledger, accounts', icon: '◍', keys: ['add', 'transactions', 'accounts', 'reconciliation'] },
+    { key: 'obligations', label: 'Obligations', hint: 'Bills, debts, card', icon: '◇', keys: ['bills', 'debts', 'cc', 'atm', 'nano-loans'] },
+    { key: 'planning', label: 'Planning', hint: 'Salary, close, goals', icon: '□', keys: ['salary', 'monthly-close', 'budgets', 'goals'] },
+    { key: 'records', label: 'Records', hint: 'Rollback and audit', icon: '△', keys: ['snapshots', 'audit'] }
   ];
 
   const MOBILE_LINKS = ['hub', 'add', 'transactions', 'bills', 'forecast'];
@@ -145,9 +116,7 @@
   }
 
   function sectionLinks(section) {
-    return section.keys
-      .map(byKey)
-      .filter(Boolean);
+    return section.keys.map(byKey).filter(Boolean);
   }
 
   function navItem(link, mode) {
@@ -168,9 +137,7 @@
   }
 
   function compactActionHtml() {
-    const actions = ['hub', 'add', 'transactions', 'forecast']
-      .map(byKey)
-      .filter(Boolean);
+    const actions = ['hub', 'add', 'transactions', 'forecast'].map(byKey).filter(Boolean);
 
     return `
       <div class="sf-quick-actions" aria-label="Quick actions">
@@ -233,10 +200,7 @@
   }
 
   function mobileNavHtml() {
-    const daily = MOBILE_LINKS
-      .map(byKey)
-      .filter(Boolean);
-
+    const daily = MOBILE_LINKS.map(byKey).filter(Boolean);
     const moreActive = !isMobileDailyKey(currentKey());
 
     return `
@@ -296,16 +260,10 @@
         --sf-nav-text: var(--text, #0f172a);
         --sf-nav-muted: var(--text-muted, #475569);
         --sf-nav-dim: var(--text-dim, #64748b);
-        --sf-nav-soft: var(--surface-2, #f8fafc);
-        --sf-nav-green: #16a34a;
       }
 
-      html {
-        overflow-x: hidden;
-      }
-
+      html,
       body {
-        min-height: 100vh;
         overflow-x: hidden;
       }
 
@@ -351,7 +309,6 @@
         font-size: 12px;
         font-weight: 950;
         letter-spacing: -0.04em;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
       }
 
       .sf-shell-brand strong {
@@ -548,11 +505,6 @@
         flex: 0 0 auto;
       }
 
-      .sf-nav-item.active .sf-nav-icon {
-        background: #dcfce7;
-        border-color: rgba(34, 197, 94, 0.28);
-      }
-
       .sf-nav-label {
         min-width: 0;
         overflow: hidden;
@@ -628,6 +580,13 @@
         white-space: nowrap;
         text-overflow: ellipsis;
         max-width: 100%;
+      }
+
+      .sf-more-backdrop[hidden],
+      .sf-more-drawer[hidden] {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
       }
 
       .sf-more-backdrop {
@@ -736,10 +695,6 @@
         border-color: rgba(34, 197, 94, 0.24);
       }
 
-      .sf-more-link span {
-        flex: 0 0 auto;
-      }
-
       .sf-more-link strong {
         min-width: 0;
         overflow: hidden;
@@ -753,8 +708,14 @@
         padding-left: calc(var(--sf-nav-width) + 18px);
       }
 
-      body.sf-nav-ready > header {
-        margin-left: 0;
+      @media (min-width: 981px) {
+        .sf-mobile-nav,
+        .sf-more-backdrop,
+        .sf-more-drawer {
+          display: none !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
+        }
       }
 
       @media (max-width: 980px) {
@@ -778,7 +739,6 @@
 
       @media (max-width: 390px) {
         .sf-mobile-nav {
-          grid-template-columns: repeat(6, minmax(0, 1fr));
           gap: 3px;
           padding: 7px;
         }
@@ -857,6 +817,10 @@
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape') closeMoreDrawer();
     });
+
+    window.addEventListener('resize', function () {
+      if (window.innerWidth > 980) closeMoreDrawer();
+    });
   }
 
   function mount() {
@@ -870,6 +834,7 @@
     document.body.classList.add('sf-nav-ready');
     document.documentElement.dataset.navVersion = NAV_VERSION;
 
+    closeMoreDrawer();
     bindEvents();
   }
 
