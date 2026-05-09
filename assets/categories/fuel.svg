@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Fuel">
+  <rect width="96" height="96" rx="24" fill="#FEF2F2"/>
+  <rect x="28" y="18" width="28" height="58" rx="8" fill="#FFFFFF" stroke="#DC2626" stroke-width="6"/>
+  <path d="M34 31h16" stroke="#DC2626" stroke-width="6" stroke-linecap="round"/>
+  <path d="M56 34h10l8 8v22c0 6-4 10-10 10h-2" fill="none" stroke="#DC2626" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M74 42h-9" stroke="#DC2626" stroke-width="6" stroke-linecap="round"/>
+</svg>
