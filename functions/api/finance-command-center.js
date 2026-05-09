@@ -1,5 +1,5 @@
 // functions/api/finance-command-center.js
-// v0.1.1 — Finance Command Centre backend read-only audit endpoint
+// v0.1.2 — Finance Command Centre backend read-only audit + enforcement schema
 //
 // Contract:
 // - Read-only only.
@@ -10,9 +10,11 @@
 // - No /api/money-contracts.
 // - Unknown stays Unknown.
 // - Suspicious source becomes blocked.
-// - Ready means impossible to fake from missing sources.
+// - Enforcement is schema-only in this version.
+// - Every blocked route/action must explain: what, why, source, required fix, override status.
 
-const VERSION = '0.1.1';
+const VERSION = '0.1.2';
+const ENFORCEMENT_VERSION = '0.1.0';
 
 const REQUIRED_CORE_TABLES = [
   'accounts',
@@ -33,6 +35,7 @@ const FINANCE_REGISTRY = [
   {
     key: 'hub',
     label: 'Hub',
+    route: '/index.html',
     pages: ['index.html'],
     apis: ['/api/balances?debug=1'],
     d1_tables: ['accounts', 'transactions', 'debts', 'bills'],
@@ -42,6 +45,7 @@ const FINANCE_REGISTRY = [
   {
     key: 'add',
     label: 'Add Transaction',
+    route: '/add.html',
     pages: ['add.html'],
     apis: ['/api/accounts', '/api/categories', '/api/transactions'],
     d1_tables: ['accounts', 'transactions', 'categories'],
@@ -51,6 +55,7 @@ const FINANCE_REGISTRY = [
   {
     key: 'transactions',
     label: 'Transactions',
+    route: '/transactions.html',
     pages: ['transactions.html'],
     apis: ['/api/transactions'],
     d1_tables: ['transactions'],
@@ -60,6 +65,7 @@ const FINANCE_REGISTRY = [
   {
     key: 'accounts',
     label: 'Accounts',
+    route: '/accounts.html',
     pages: ['accounts.html'],
     apis: ['/api/accounts'],
     d1_tables: ['accounts'],
@@ -69,6 +75,7 @@ const FINANCE_REGISTRY = [
   {
     key: 'credit_card',
     label: 'Credit Card',
+    route: '/cc.html',
     pages: ['cc.html'],
     apis: ['/api/accounts', '/api/balances?debug=1'],
     d1_tables: ['accounts', 'transactions'],
@@ -78,6 +85,7 @@ const FINANCE_REGISTRY = [
   {
     key: 'bills',
     label: 'Bills',
+    route: '/bills.html',
     pages: ['bills.html'],
     apis: ['/api/bills'],
     d1_tables: ['bills'],
@@ -87,6 +95,7 @@ const FINANCE_REGISTRY = [
   {
     key: 'debts',
     label: 'Debts',
+    route: '/debts.html',
     pages: ['debts.html'],
     apis: ['/api/debts'],
     d1_tables: ['debts'],
@@ -96,6 +105,7 @@ const FINANCE_REGISTRY = [
   {
     key: 'salary',
     label: 'Salary',
+    route: '/salary.html',
     pages: ['salary.html'],
     apis: ['/api/salary'],
     d1_tables: ['salary', 'settings'],
@@ -105,6 +115,7 @@ const FINANCE_REGISTRY = [
   {
     key: 'forecast',
     label: 'Forecast',
+    route: '/forecast.html',
     pages: ['forecast.html'],
     apis: ['/api/forecast'],
     d1_tables: ['accounts', 'transactions', 'bills', 'debts'],
@@ -114,6 +125,7 @@ const FINANCE_REGISTRY = [
   {
     key: 'reconciliation',
     label: 'Reconciliation',
+    route: '/reconciliation.html',
     pages: ['reconciliation.html'],
     apis: ['/api/reconciliation'],
     d1_tables: ['reconciliation', 'accounts'],
@@ -123,6 +135,7 @@ const FINANCE_REGISTRY = [
   {
     key: 'command_centre',
     label: 'Command Centre',
+    route: '/monthly-close.html',
     pages: ['monthly-close.html'],
     apis: ['/api/finance-command-center'],
     d1_tables: ['all known finance tables'],
@@ -153,7 +166,8 @@ const READ_ONLY_GUARDS = [
   'No /api/money-contracts',
   'Unknown remains Unknown',
   'Runtime/browser checks remain manual',
-  'Write safety remains Unknown until dry-run exists'
+  'Write safety remains Unknown until dry-run exists',
+  'Enforcement v0.1.0 is schema-only and does not yet mutate or reject API calls'
 ];
 
 export async function onRequest(context) {
@@ -189,8 +203,21 @@ export async function onRequest(context) {
     const score = averageScore(scores);
     const verdict = computeVerdict(hardBlockers, warnings, unknowns);
     const trialGate = computeTrialGate(verdict, hardBlockers, warnings, unknowns, scores, businessRules);
-    const sourceProofs = buildSourceProofs(apis, d1, businessRules);
-    const nextActions = buildNextActions(hardBlockers, warnings, unknowns, businessRules, d1, trialGate);
+    const sourceProofs = buildSourceProofs(apis, d1);
+    const enforcement = buildEnforcement({
+      computedAt: startedAt,
+      verdict,
+      hardBlockers,
+      warnings,
+      unknowns,
+      scores,
+      trialGate,
+      sourceProofs,
+      coverage,
+      businessRules,
+      d1
+    });
+    const nextActions = buildNextActions(hardBlockers, warnings, unknowns, businessRules, d1, trialGate, enforcement);
 
     return send({
       ok: hardBlockers.length === 0,
@@ -200,6 +227,7 @@ export async function onRequest(context) {
       score,
       scores,
       trial_gate: trialGate,
+      enforcement,
       summary: {
         hard_blocker_count: hardBlockers.length,
         warning_count: warnings.length,
@@ -207,7 +235,9 @@ export async function onRequest(context) {
         module_count: modules.length,
         registered_page_count: pages.length,
         api_check_count: apis.length,
-        business_rule_count: businessRules.length
+        business_rule_count: businessRules.length,
+        enforcement_blocked_action_count: enforcement.blocked_actions.length,
+        enforcement_view_only_route_count: enforcement.view_only_routes.length
       },
       read_only_guards: READ_ONLY_GUARDS,
       source_proofs: sourceProofs,
@@ -223,6 +253,12 @@ export async function onRequest(context) {
       next_actions: nextActions
     });
   } catch (err) {
+    const hardBlockers = [
+      blocker('endpoint_exception', err.message || String(err), 'Fix endpoint exception before using Command Centre as a trial gate.')
+    ];
+
+    const enforcement = buildEmergencyEnforcement(startedAt, hardBlockers[0]);
+
     return send({
       ok: false,
       version: VERSION,
@@ -236,6 +272,7 @@ export async function onRequest(context) {
         ready_for_full_system_certification: false,
         reason: 'Endpoint exception occurred.'
       },
+      enforcement,
       summary: {
         hard_blocker_count: 1,
         warning_count: 0,
@@ -243,14 +280,14 @@ export async function onRequest(context) {
         module_count: FINANCE_REGISTRY.length,
         registered_page_count: FINANCE_REGISTRY.length,
         api_check_count: 0,
-        business_rule_count: 0
+        business_rule_count: 0,
+        enforcement_blocked_action_count: enforcement.blocked_actions.length,
+        enforcement_view_only_route_count: enforcement.view_only_routes.length
       },
       read_only_guards: READ_ONLY_GUARDS,
       source_proofs: [],
       coverage: {},
-      hard_blockers: [
-        blocker('endpoint_exception', err.message || String(err), 'Fix endpoint exception before using Command Centre as a trial gate.')
-      ],
+      hard_blockers: hardBlockers,
       warnings: [],
       unknowns: [],
       modules: buildModules(),
@@ -264,6 +301,9 @@ export async function onRequest(context) {
 }
 
 function buildFailure(computedAt, key, message) {
+  const hard = blocker(key, message, 'Restore the required backend binding before running Command Centre audit.');
+  const enforcement = buildEmergencyEnforcement(computedAt, hard);
+
   return {
     ok: false,
     version: VERSION,
@@ -277,6 +317,7 @@ function buildFailure(computedAt, key, message) {
       ready_for_full_system_certification: false,
       reason: message
     },
+    enforcement,
     summary: {
       hard_blocker_count: 1,
       warning_count: 0,
@@ -284,14 +325,14 @@ function buildFailure(computedAt, key, message) {
       module_count: FINANCE_REGISTRY.length,
       registered_page_count: FINANCE_REGISTRY.length,
       api_check_count: 0,
-      business_rule_count: 0
+      business_rule_count: 0,
+      enforcement_blocked_action_count: enforcement.blocked_actions.length,
+      enforcement_view_only_route_count: enforcement.view_only_routes.length
     },
     read_only_guards: READ_ONLY_GUARDS,
     source_proofs: [],
     coverage: {},
-    hard_blockers: [
-      blocker(key, message, 'Restore the required backend binding before running Command Centre audit.')
-    ],
+    hard_blockers: [hard],
     warnings: [],
     unknowns: [],
     modules: buildModules(),
@@ -307,6 +348,7 @@ function buildModules() {
   return FINANCE_REGISTRY.map(module => ({
     key: module.key,
     label: module.label,
+    route: module.route,
     status: 'registered',
     pages: module.pages,
     apis: module.apis,
@@ -320,6 +362,7 @@ function buildPages() {
   return FINANCE_REGISTRY.flatMap(module =>
     module.pages.map(page => ({
       page,
+      route: module.route,
       module: module.key,
       status: 'registered',
       runtime_status: 'unknown',
@@ -503,13 +546,13 @@ async function auditD1(db, warnings, unknowns, hardBlockers) {
     }
   }
 
-  const accountTruth = await auditAccountsTruth(db, tableSet, columnsByTable, warnings, unknowns, hardBlockers);
-  const billsTruth = await auditBillsTruth(db, tableSet, columnsByTable, warnings, unknowns, hardBlockers);
-  const debtsTruth = await auditDebtsTruth(db, tableSet, columnsByTable, warnings, unknowns, hardBlockers);
+  const accountTruth = await auditAccountsTruth(db, tableSet, columnsByTable, unknowns, hardBlockers);
+  const transactionTruth = await auditTransactionsTruth(tableSet, rowCounts, unknowns);
+  const billsTruth = await auditBillsTruth(db, tableSet, columnsByTable, unknowns);
+  const debtsTruth = await auditDebtsTruth(db, tableSet, columnsByTable, unknowns);
   const categoriesTruth = await auditCategoriesTruth(tableSet, rowCounts, unknowns);
   const reconciliationTruth = await auditReconciliationTruth(tableSet, rowCounts, unknowns);
   const salaryTruth = await auditSalaryTruth(tableSet, columnsByTable, unknowns);
-  const transactionTruth = await auditTransactionsTruth(tableSet, rowCounts, unknowns);
 
   return {
     status: hardBlockers.some(b => b.key.startsWith('d1_')) ? 'blocked' : 'checked',
@@ -639,7 +682,7 @@ async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers
 
   warnings.push(warning(
     'month_activity_scope_not_deep_checked',
-    'Month activity separation is not deeply verified by backend endpoint v0.1.1.'
+    'Month activity separation is not deeply verified by backend endpoint v0.1.2.'
   ));
 
   if (debtsTruth.invalid_kind_count > 0) {
@@ -667,7 +710,456 @@ async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers
   return rules;
 }
 
-async function auditAccountsTruth(db, tableSet, columnsByTable, warnings, unknowns, hardBlockers) {
+function buildEnforcement(ctx) {
+  const hardBlockers = ctx.hardBlockers || [];
+  const warnings = ctx.warnings || [];
+  const unknowns = ctx.unknowns || [];
+  const sourceProofs = ctx.sourceProofs || [];
+  const businessRules = ctx.businessRules || [];
+  const coverage = ctx.coverage || {};
+  const scores = ctx.scores || {};
+  const trialGate = ctx.trialGate || {};
+
+  const policy = {
+    unknown_blocks_ready: true,
+    hard_blockers_block_actions: true,
+    write_safety_required_for_mutations: true,
+    runtime_required_for_trial: false,
+    backend_required_for_authority: true,
+    frontend_only_never_final: true,
+    command_centre_never_hides_truth: true,
+    every_block_must_show_reason: true
+  };
+
+  const blockExplanations = [];
+  const routes = [];
+  const actions = [];
+
+  const hasHardBlockers = hardBlockers.length > 0;
+  const writeSafetyUnknown = Number(scores.write_safety || 0) === 0 || getPath(coverage, 'write_safety.status') === 'unknown';
+  const runtimeUnknown = Number(scores.runtime || 0) === 0 || getPath(coverage, 'runtime.status') === 'unknown';
+  const forecastUnknown = ruleStatus(businessRules, 'forecast_precision') === 'unknown';
+  const ccSourceUnknown = ruleStatus(businessRules, 'cc_outstanding_source') === 'unknown';
+  const salaryUnknown = ruleStatus(businessRules, 'salary_baseline_split') === 'unknown';
+  const billsBlocked = ruleStatus(businessRules, 'missing_data_unknown_not_zero') === 'blocked';
+  const debtsBlocked = ruleStatus(businessRules, 'debt_direction') === 'blocked';
+
+  const ccProof = sourceProofs.find(p => p.key === 'credit_card');
+  const moneyContractsProof = sourceProofs.find(p => p.key === 'money_contracts');
+
+  routes.push(routeGate({
+    route: '/monthly-close.html',
+    module: 'command_centre',
+    status: 'pass',
+    level: 0,
+    viewAllowed: true,
+    actionsAllowed: true,
+    reason: 'Command Centre is the authority and diagnostic surface.',
+    source: 'enforcement.policy.command_centre_never_hides_truth',
+    requiredFix: 'None.'
+  }));
+
+  routes.push(routeGate({
+    route: '/index.html',
+    module: 'hub',
+    status: hasHardBlockers ? 'warn' : 'pass',
+    level: hasHardBlockers ? 1 : 0,
+    viewAllowed: true,
+    actionsAllowed: !hasHardBlockers,
+    reason: hasHardBlockers ? 'System has hard blockers. Hub remains visible for diagnosis.' : 'No hub-specific blocker returned.',
+    source: hasHardBlockers ? 'hard_blockers' : 'enforcement.registry.hub',
+    requiredFix: hasHardBlockers ? 'Resolve hard blockers shown in Command Centre.' : 'None.'
+  }));
+
+  routes.push(routeGate({
+    route: '/add.html',
+    module: 'add',
+    status: writeSafetyUnknown || hasHardBlockers ? 'soft_block' : 'pass',
+    level: writeSafetyUnknown || hasHardBlockers ? 2 : 0,
+    viewAllowed: true,
+    actionsAllowed: !(writeSafetyUnknown || hasHardBlockers),
+    reason: writeSafetyUnknown ? 'Write safety is unknown. Add page can be inspected, but save actions must stay blocked.' : 'No add-specific blocker returned.',
+    source: writeSafetyUnknown ? 'coverage.write_safety.status' : 'enforcement.registry.add',
+    requiredFix: writeSafetyUnknown ? 'Add dry-run write safety before allowing trial writes.' : 'None.'
+  }));
+
+  routes.push(routeGate({
+    route: '/cc.html',
+    module: 'credit_card',
+    status: ccSourceUnknown || hasHardBlockers ? 'soft_block' : 'pass',
+    level: ccSourceUnknown || hasHardBlockers ? 2 : 0,
+    viewAllowed: true,
+    actionsAllowed: !(ccSourceUnknown || hasHardBlockers),
+    reason: ccSourceUnknown ? 'Credit Card source proof is unknown. CC can be inspected, but decisions must stay blocked.' : 'Credit Card source proof is available.',
+    source: ccSourceUnknown ? 'business_rules.cc_outstanding_source' : (ccProof && ccProof.source ? ccProof.source : 'source_proofs.credit_card'),
+    requiredFix: ccSourceUnknown ? 'Prove realtime Credit Card account/balance source. Never use lifetime spend.' : 'None.'
+  }));
+
+  routes.push(routeGate({
+    route: '/forecast.html',
+    module: 'forecast',
+    status: forecastUnknown || hasHardBlockers ? 'soft_block' : 'pass',
+    level: forecastUnknown || hasHardBlockers ? 2 : 0,
+    viewAllowed: true,
+    actionsAllowed: !(forecastUnknown || hasHardBlockers),
+    reason: forecastUnknown ? 'Forecast precision is unknown because forecast source checks are incomplete.' : 'No forecast-specific blocker returned.',
+    source: forecastUnknown ? 'business_rules.forecast_precision' : 'enforcement.registry.forecast',
+    requiredFix: forecastUnknown ? 'Complete forecast source verification before enabling forecast decisions.' : 'None.'
+  }));
+
+  routes.push(routeGate({
+    route: '/salary.html',
+    module: 'salary',
+    status: salaryUnknown || hasHardBlockers ? 'soft_block' : 'pass',
+    level: salaryUnknown || hasHardBlockers ? 2 : 0,
+    viewAllowed: true,
+    actionsAllowed: !(salaryUnknown || hasHardBlockers),
+    reason: salaryUnknown ? 'Salary baseline split is unknown.' : 'Salary baseline source is available.',
+    source: salaryUnknown ? 'business_rules.salary_baseline_split' : 'source_proofs.salary',
+    requiredFix: salaryUnknown ? 'Prove guaranteed salary baseline separately from variable/speculative income.' : 'None.'
+  }));
+
+  routes.push(routeGate({
+    route: '/bills.html',
+    module: 'bills',
+    status: billsBlocked || writeSafetyUnknown || hasHardBlockers ? 'soft_block' : 'pass',
+    level: billsBlocked || writeSafetyUnknown || hasHardBlockers ? 2 : 0,
+    viewAllowed: true,
+    actionsAllowed: !(billsBlocked || writeSafetyUnknown || hasHardBlockers),
+    reason: billsBlocked ? 'Bill data has an active zero/invalid amount blocker.' : writeSafetyUnknown ? 'Write safety is unknown.' : 'No bills-specific blocker returned.',
+    source: billsBlocked ? 'business_rules.missing_data_unknown_not_zero' : writeSafetyUnknown ? 'coverage.write_safety.status' : 'enforcement.registry.bills',
+    requiredFix: billsBlocked ? 'Fix invalid active bill amount or mark it intentionally configured.' : writeSafetyUnknown ? 'Add dry-run write safety before allowing bill mutations.' : 'None.'
+  }));
+
+  routes.push(routeGate({
+    route: '/debts.html',
+    module: 'debts',
+    status: debtsBlocked || writeSafetyUnknown || hasHardBlockers ? 'soft_block' : 'pass',
+    level: debtsBlocked || writeSafetyUnknown || hasHardBlockers ? 2 : 0,
+    viewAllowed: true,
+    actionsAllowed: !(debtsBlocked || writeSafetyUnknown || hasHardBlockers),
+    reason: debtsBlocked ? 'Debt direction/kind is unsafe.' : writeSafetyUnknown ? 'Write safety is unknown.' : 'No debts-specific blocker returned.',
+    source: debtsBlocked ? 'business_rules.debt_direction' : writeSafetyUnknown ? 'coverage.write_safety.status' : 'enforcement.registry.debts',
+    requiredFix: debtsBlocked ? 'Fix debt kind/direction.' : writeSafetyUnknown ? 'Add dry-run write safety before allowing debt mutations.' : 'None.'
+  }));
+
+  routes.push(routeGate({
+    route: '/reconciliation.html',
+    module: 'reconciliation',
+    status: writeSafetyUnknown || hasHardBlockers ? 'soft_block' : 'pass',
+    level: writeSafetyUnknown || hasHardBlockers ? 2 : 0,
+    viewAllowed: true,
+    actionsAllowed: !(writeSafetyUnknown || hasHardBlockers),
+    reason: writeSafetyUnknown ? 'Write safety is unknown. Reconciliation declarations must stay blocked.' : 'No reconciliation-specific blocker returned.',
+    source: writeSafetyUnknown ? 'coverage.write_safety.status' : 'enforcement.registry.reconciliation',
+    requiredFix: writeSafetyUnknown ? 'Add dry-run write safety before allowing reconciliation declarations.' : 'None.'
+  }));
+
+  routes.push(routeGate({
+    route: '/transactions.html',
+    module: 'transactions',
+    status: writeSafetyUnknown || hasHardBlockers ? 'warn' : 'pass',
+    level: writeSafetyUnknown || hasHardBlockers ? 1 : 0,
+    viewAllowed: true,
+    actionsAllowed: !(writeSafetyUnknown || hasHardBlockers),
+    reason: writeSafetyUnknown ? 'Transactions are viewable, but mutating actions remain unsafe until write safety is proven.' : 'No transactions-specific blocker returned.',
+    source: writeSafetyUnknown ? 'coverage.write_safety.status' : 'enforcement.registry.transactions',
+    requiredFix: writeSafetyUnknown ? 'Add dry-run write safety before allowing transaction mutations.' : 'None.'
+  }));
+
+  routes.push(routeGate({
+    route: '/accounts.html',
+    module: 'accounts',
+    status: writeSafetyUnknown || hasHardBlockers ? 'warn' : 'pass',
+    level: writeSafetyUnknown || hasHardBlockers ? 1 : 0,
+    viewAllowed: true,
+    actionsAllowed: !(writeSafetyUnknown || hasHardBlockers),
+    reason: writeSafetyUnknown ? 'Accounts are viewable, but mutating actions remain unsafe until write safety is proven.' : 'No accounts-specific blocker returned.',
+    source: writeSafetyUnknown ? 'coverage.write_safety.status' : 'enforcement.registry.accounts',
+    requiredFix: writeSafetyUnknown ? 'Add dry-run write safety before allowing account mutations.' : 'None.'
+  }));
+
+  actions.push(actionGate({
+    action: 'transaction.save',
+    module: 'add',
+    blocked: writeSafetyUnknown || hasHardBlockers,
+    reason: writeSafetyUnknown ? 'Write safety is unknown.' : 'Hard blocker exists.',
+    source: writeSafetyUnknown ? 'coverage.write_safety.status' : 'hard_blockers',
+    requiredFix: writeSafetyUnknown ? 'Add dry-run write safety check before allowing trial writes.' : 'Resolve hard blockers shown in Command Centre.'
+  }));
+
+  actions.push(actionGate({
+    action: 'bill.save',
+    module: 'bills',
+    blocked: writeSafetyUnknown || billsBlocked || hasHardBlockers,
+    reason: billsBlocked ? 'Bill data has a blocker.' : writeSafetyUnknown ? 'Write safety is unknown.' : 'Hard blocker exists.',
+    source: billsBlocked ? 'business_rules.missing_data_unknown_not_zero' : writeSafetyUnknown ? 'coverage.write_safety.status' : 'hard_blockers',
+    requiredFix: billsBlocked ? 'Fix invalid active bill amount.' : writeSafetyUnknown ? 'Add dry-run write safety check.' : 'Resolve hard blockers.'
+  }));
+
+  actions.push(actionGate({
+    action: 'debt.save',
+    module: 'debts',
+    blocked: writeSafetyUnknown || debtsBlocked || hasHardBlockers,
+    reason: debtsBlocked ? 'Debt direction is unsafe.' : writeSafetyUnknown ? 'Write safety is unknown.' : 'Hard blocker exists.',
+    source: debtsBlocked ? 'business_rules.debt_direction' : writeSafetyUnknown ? 'coverage.write_safety.status' : 'hard_blockers',
+    requiredFix: debtsBlocked ? 'Fix debt kind/direction.' : writeSafetyUnknown ? 'Add dry-run write safety check.' : 'Resolve hard blockers.'
+  }));
+
+  actions.push(actionGate({
+    action: 'reconciliation.declare',
+    module: 'reconciliation',
+    blocked: writeSafetyUnknown || hasHardBlockers,
+    reason: writeSafetyUnknown ? 'Write safety is unknown.' : 'Hard blocker exists.',
+    source: writeSafetyUnknown ? 'coverage.write_safety.status' : 'hard_blockers',
+    requiredFix: writeSafetyUnknown ? 'Add dry-run write safety check before allowing declarations.' : 'Resolve hard blockers.'
+  }));
+
+  actions.push(actionGate({
+    action: 'salary.save',
+    module: 'salary',
+    blocked: writeSafetyUnknown || salaryUnknown || hasHardBlockers,
+    reason: salaryUnknown ? 'Salary baseline is unknown.' : writeSafetyUnknown ? 'Write safety is unknown.' : 'Hard blocker exists.',
+    source: salaryUnknown ? 'business_rules.salary_baseline_split' : writeSafetyUnknown ? 'coverage.write_safety.status' : 'hard_blockers',
+    requiredFix: salaryUnknown ? 'Prove salary baseline split.' : writeSafetyUnknown ? 'Add dry-run write safety check.' : 'Resolve hard blockers.'
+  }));
+
+  actions.push(actionGate({
+    action: 'forecast.generate',
+    module: 'forecast',
+    blocked: forecastUnknown || hasHardBlockers,
+    reason: forecastUnknown ? 'Forecast precision is unknown.' : 'Hard blocker exists.',
+    source: forecastUnknown ? 'business_rules.forecast_precision' : 'hard_blockers',
+    requiredFix: forecastUnknown ? 'Complete forecast source verification before enabling forecast decisions.' : 'Resolve hard blockers.'
+  }));
+
+  actions.push(actionGate({
+    action: 'forecast.mark_ready',
+    module: 'forecast',
+    blocked: forecastUnknown || hasHardBlockers,
+    reason: forecastUnknown ? 'Forecast precision is unknown.' : 'Hard blocker exists.',
+    source: forecastUnknown ? 'business_rules.forecast_precision' : 'hard_blockers',
+    requiredFix: forecastUnknown ? 'Complete forecast source verification.' : 'Resolve hard blockers.'
+  }));
+
+  actions.push(actionGate({
+    action: 'cc.use_for_decision',
+    module: 'credit_card',
+    blocked: ccSourceUnknown || hasHardBlockers,
+    reason: ccSourceUnknown ? 'Credit Card outstanding source is not fully proven.' : 'Hard blocker exists.',
+    source: ccSourceUnknown ? 'business_rules.cc_outstanding_source' : (ccProof && ccProof.source ? ccProof.source : 'hard_blockers'),
+    requiredFix: ccSourceUnknown ? 'Prove realtime Credit Card account/balance source. Never use lifetime spend.' : 'Resolve hard blockers.'
+  }));
+
+  actions.push(actionGate({
+    action: 'cc.use_for_forecast',
+    module: 'credit_card',
+    blocked: ccSourceUnknown || forecastUnknown || hasHardBlockers,
+    reason: ccSourceUnknown ? 'Credit Card source is unknown.' : forecastUnknown ? 'Forecast precision is unknown.' : 'Hard blocker exists.',
+    source: ccSourceUnknown ? 'business_rules.cc_outstanding_source' : forecastUnknown ? 'business_rules.forecast_precision' : 'hard_blockers',
+    requiredFix: ccSourceUnknown ? 'Prove realtime Credit Card account/balance source.' : forecastUnknown ? 'Complete forecast source verification.' : 'Resolve hard blockers.'
+  }));
+
+  actions.push(actionGate({
+    action: 'money_contracts.use_as_truth_source',
+    module: 'system',
+    blocked: true,
+    reason: '/api/money-contracts is banned as a finance-truth source.',
+    source: moneyContractsProof && moneyContractsProof.source ? moneyContractsProof.source : 'source_proofs.money_contracts',
+    requiredFix: 'Do not use /api/money-contracts for trial-trust pages.'
+  }));
+
+  routes.forEach(route => {
+    if (route.status === 'soft_block' || route.status === 'blocked') {
+      blockExplanations.push(blockExplanation({
+        blockedItem: route.route,
+        blockType: route.status === 'blocked' ? 'route_block' : 'route_soft_block',
+        reason: route.reason,
+        source: route.source,
+        requiredFix: route.required_fix,
+        overrideAllowed: false,
+        backendEnforced: false,
+        frontendEnforced: false
+      }));
+    }
+  });
+
+  actions.forEach(action => {
+    if (!action.allowed) {
+      blockExplanations.push(blockExplanation({
+        blockedItem: action.action,
+        blockType: 'action_block',
+        reason: action.reason,
+        source: action.source,
+        requiredFix: action.required_fix,
+        overrideAllowed: false,
+        backendEnforced: false,
+        frontendEnforced: false
+      }));
+    }
+  });
+
+  hardBlockers.forEach(item => {
+    blockExplanations.push(blockExplanation({
+      blockedItem: item.key,
+      blockType: 'hard_blocker',
+      reason: item.message,
+      source: 'hard_blockers.' + item.key,
+      requiredFix: item.next_action || 'Resolve hard blocker.',
+      overrideAllowed: false,
+      backendEnforced: false,
+      frontendEnforced: false
+    }));
+  });
+
+  const blockedActions = actions.filter(a => !a.allowed).map(a => a.action);
+  const viewOnlyRoutes = routes.filter(r => r.view_allowed && !r.actions_allowed).map(r => r.route);
+  const blockedRoutes = routes.filter(r => !r.view_allowed).map(r => r.route);
+
+  const globalStatus = hasHardBlockers ? 'blocked' : warnings.length ? 'warning' : unknowns.length ? 'ready_with_unknown' : 'ready';
+  const globalLevel = hasHardBlockers ? 3 : blockedActions.length ? 2 : warnings.length ? 1 : 0;
+
+  return {
+    version: ENFORCEMENT_VERSION,
+    endpoint_version: VERSION,
+    mode: 'authority',
+    computed_at: ctx.computedAt,
+    schema_only: true,
+    global_status: globalStatus,
+    global_level: globalLevel,
+    ready_for_known_page_trial: Boolean(trialGate.ready_for_known_page_trial),
+    ready_for_full_system_certification: Boolean(trialGate.ready_for_full_system_certification),
+    policy,
+    routes,
+    actions,
+    blocked_routes: blockedRoutes,
+    view_only_routes: viewOnlyRoutes,
+    blocked_actions: blockedActions,
+    block_explanations: blockExplanations,
+    reasons: dedupe(blockExplanations.map(b => b.reason)),
+    overrides: {
+      allowed: false,
+      requires_reason: true,
+      requires_operator_confirmation: true,
+      expires_minutes: 30,
+      audit_required: true,
+      note: 'Overrides are disabled in enforcement schema v0.1.0.'
+    },
+    enforcement_status_note: 'This version defines authority policy only. Frontend and mutating APIs do not yet enforce it.'
+  };
+}
+
+function buildEmergencyEnforcement(computedAt, hardBlocker) {
+  const action = actionGate({
+    action: 'system.trial',
+    module: 'system',
+    blocked: true,
+    reason: hardBlocker.message,
+    source: 'hard_blockers.' + hardBlocker.key,
+    requiredFix: hardBlocker.next_action || 'Fix backend audit before continuing.'
+  });
+
+  const explanation = blockExplanation({
+    blockedItem: 'system.trial',
+    blockType: 'hard_blocker',
+    reason: hardBlocker.message,
+    source: 'hard_blockers.' + hardBlocker.key,
+    requiredFix: hardBlocker.next_action || 'Fix backend audit before continuing.',
+    overrideAllowed: false,
+    backendEnforced: false,
+    frontendEnforced: false
+  });
+
+  return {
+    version: ENFORCEMENT_VERSION,
+    endpoint_version: VERSION,
+    mode: 'authority',
+    computed_at: computedAt,
+    schema_only: true,
+    global_status: 'blocked',
+    global_level: 3,
+    ready_for_known_page_trial: false,
+    ready_for_full_system_certification: false,
+    policy: {
+      unknown_blocks_ready: true,
+      hard_blockers_block_actions: true,
+      write_safety_required_for_mutations: true,
+      runtime_required_for_trial: false,
+      backend_required_for_authority: true,
+      frontend_only_never_final: true,
+      command_centre_never_hides_truth: true,
+      every_block_must_show_reason: true
+    },
+    routes: [],
+    actions: [action],
+    blocked_routes: [],
+    view_only_routes: [],
+    blocked_actions: ['system.trial'],
+    block_explanations: [explanation],
+    reasons: [hardBlocker.message],
+    overrides: {
+      allowed: false,
+      requires_reason: true,
+      requires_operator_confirmation: true,
+      expires_minutes: 30,
+      audit_required: true,
+      note: 'Overrides are disabled in enforcement schema v0.1.0.'
+    },
+    enforcement_status_note: 'Emergency enforcement schema generated because backend audit failed.'
+  };
+}
+
+function routeGate({ route, module, status, level, viewAllowed, actionsAllowed, reason, source, requiredFix }) {
+  return {
+    route,
+    module,
+    status,
+    level,
+    view_allowed: Boolean(viewAllowed),
+    actions_allowed: Boolean(actionsAllowed),
+    reason,
+    source,
+    required_fix: requiredFix,
+    override: {
+      allowed: false,
+      reason_required: true
+    }
+  };
+}
+
+function actionGate({ action, module, blocked, reason, source, requiredFix }) {
+  return {
+    action,
+    module,
+    status: blocked ? 'blocked' : 'pass',
+    level: blocked ? 3 : 0,
+    allowed: !blocked,
+    reason: blocked ? reason : 'No enforcement block returned for this action.',
+    source: blocked ? source : 'enforcement.policy',
+    required_fix: blocked ? requiredFix : 'None.',
+    backend_enforced: false,
+    frontend_enforced: false,
+    override: {
+      allowed: false,
+      reason_required: true
+    }
+  };
+}
+
+function blockExplanation({ blockedItem, blockType, reason, source, requiredFix, overrideAllowed, backendEnforced, frontendEnforced }) {
+  return {
+    blocked_item: blockedItem,
+    block_type: blockType,
+    reason,
+    source,
+    required_fix: requiredFix,
+    override_allowed: Boolean(overrideAllowed),
+    backend_enforced: Boolean(backendEnforced),
+    frontend_enforced: Boolean(frontendEnforced)
+  };
+}
+
+async function auditAccountsTruth(db, tableSet, columnsByTable, unknowns, hardBlockers) {
   if (!tableSet.has('accounts')) {
     return { status: 'blocked', message: 'accounts table missing' };
   }
@@ -736,9 +1228,7 @@ async function auditAccountsTruth(db, tableSet, columnsByTable, warnings, unknow
     cc_balance_source: ccBalanceSource,
     balance_column_identified: balanceColumn,
     columns_checked: columns,
-    message: activeCount > 0
-      ? 'Active accounts readable.'
-      : 'No active accounts found.'
+    message: activeCount > 0 ? 'Active accounts readable.' : 'No active accounts found.'
   };
 }
 
@@ -769,17 +1259,17 @@ async function auditTransactionsTruth(tableSet, rowCounts, unknowns) {
   };
 }
 
-async function auditBillsTruth(db, tableSet, columnsByTable, warnings, unknowns) {
+async function auditBillsTruth(db, tableSet, columnsByTable, unknowns) {
   if (!tableSet.has('bills')) {
     return { status: 'blocked', message: 'bills table missing', zero_amount_active_count: 0 };
   }
 
   const columns = columnsByTable.bills || [];
-  const hasAmount = columns.includes('amount');
+  const amountColumn = pickFirstColumn(columns, ['amount', 'expected_amount', 'monthly_amount']);
   const hasStatus = columns.includes('status');
   const hasDueDate = columns.includes('due_date') || columns.includes('due_day') || columns.includes('day');
 
-  if (!hasAmount) {
+  if (!amountColumn) {
     unknowns.push(unknown(
       'bills_amount_column_unknown',
       'Bills amount column was not found. Bill amount validity remains Unknown.'
@@ -800,7 +1290,7 @@ async function auditBillsTruth(db, tableSet, columnsByTable, warnings, unknowns)
 
   const zeroAmountActiveCount = await scalar(
     db,
-    `SELECT COUNT(*) AS n FROM bills ${activeWhere} ${activeWhere ? 'AND' : 'WHERE'} (${safeIdentifier('amount')} IS NULL OR ${safeIdentifier('amount')} <= 0)`
+    `SELECT COUNT(*) AS n FROM bills ${activeWhere} ${activeWhere ? 'AND' : 'WHERE'} (${safeIdentifier(amountColumn)} IS NULL OR ${safeIdentifier(amountColumn)} <= 0)`
   );
 
   if (!hasDueDate) {
@@ -813,6 +1303,7 @@ async function auditBillsTruth(db, tableSet, columnsByTable, warnings, unknowns)
   return {
     status: zeroAmountActiveCount > 0 ? 'blocked' : 'pass',
     zero_amount_active_count: zeroAmountActiveCount,
+    amount_column_identified: amountColumn,
     due_column_identified: hasDueDate,
     columns_checked: columns,
     message: zeroAmountActiveCount > 0
@@ -821,7 +1312,7 @@ async function auditBillsTruth(db, tableSet, columnsByTable, warnings, unknowns)
   };
 }
 
-async function auditDebtsTruth(db, tableSet, columnsByTable, warnings, unknowns) {
+async function auditDebtsTruth(db, tableSet, columnsByTable, unknowns) {
   if (!tableSet.has('debts')) {
     return { status: 'blocked', message: 'debts table missing', invalid_kind_count: 0 };
   }
@@ -977,7 +1468,7 @@ function buildCoverage(modules, pages, apis, d1, businessRules, warnings, unknow
   };
 }
 
-function buildSourceProofs(apis, d1, businessRules) {
+function buildSourceProofs(apis, d1) {
   const accountsTruth = d1.truth && d1.truth.accounts ? d1.truth.accounts : {};
   const salaryTruth = d1.truth && d1.truth.salary ? d1.truth.salary : {};
   const balancesApi = apis.find(a => a.key === 'balances');
@@ -1102,12 +1593,16 @@ function computeVerdict(hardBlockers, warnings, unknowns) {
   return 'ready';
 }
 
-function buildNextActions(hardBlockers, warnings, unknowns, businessRules, d1, trialGate) {
+function buildNextActions(hardBlockers, warnings, unknowns, businessRules, d1, trialGate, enforcement) {
   const actions = [];
 
   hardBlockers.slice(0, 5).forEach(item => {
     actions.push(item.next_action || item.message);
   });
+
+  if (!hardBlockers.length && enforcement && enforcement.blocked_actions && enforcement.blocked_actions.length) {
+    actions.push('Display enforcement blocks in Command Centre before enabling frontend soft blocks.');
+  }
 
   if (!hardBlockers.length && unknowns.length) {
     unknowns.slice(0, 5).forEach(item => {
@@ -1232,6 +1727,18 @@ function averageScore(scores) {
   if (!values.length) return 0;
 
   return Math.round(values.reduce((sum, n) => sum + n, 0) / values.length);
+}
+
+function ruleStatus(rules, key) {
+  const found = (rules || []).find(r => r.key === key);
+  return found ? found.status : 'unknown';
+}
+
+function getPath(obj, path) {
+  return String(path || '').split('.').reduce((acc, key) => {
+    if (!acc || typeof acc !== 'object') return undefined;
+    return acc[key];
+  }, obj);
 }
 
 function rule(key, status, ruleText, message) {
