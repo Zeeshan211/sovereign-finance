@@ -1,452 +1,430 @@
-/* /api/ingest/text/[[path]] v0.1.1 - SMS + notification ingest */
-/* Changes vs v0.1.0: router order fixed - UBL + Mashreq checked BEFORE Easypaisa */
-/* Reason: UBL SMS may mention Easypaisa as recipient name, was misrouting */
-/* Accepts text from MacroDroid (SMS or notification trigger), parses via per-bank rules, */
-/* creates transaction in D1, logs everything to txn_ingest_log */
-/* Idempotent via raw_hash UNIQUE INDEX */
+/* Sovereign Finance Bills v0.5.0
+   Ship 3: Bills closeout
 
-import { json, audit } from '../../_lib.js';
+   Contract:
+   - Reads /api/money-contracts for normalized backend truth.
+   - Reads /api/bills for raw due_day/default_account_id fallback.
+   - Shows active vs archived/deleted bills clearly.
+   - Computes next due date from due_date or due_day.
+   - Exposes payment account selector.
+   - Attempts PUT save only when operator changes config.
+   - No fake payments.
+   - No ledger pollution.
+*/
 
-/* ==== UTILITIES ==== */
+(function () {
+  "use strict";
 
-async function sha256Hex(s) {
-  var enc = new TextEncoder();
-  var data = enc.encode(s);
-  var buf = await crypto.subtle.digest('SHA-256', data);
-  var bytes = new Uint8Array(buf);
-  var hex = '';
-  for (var i = 0; i < bytes.length; i++) {
-    var h = bytes[i].toString(16);
-    if (h.length < 2) h = '0' + h;
-    hex += h;
+  const VERSION = "v0.5.0";
+
+  const state = {
+    bills: [],
+    rawBills: [],
+    accounts: [],
+    filter: "active",
+    saving: null
+  };
+
+  const $ = id => document.getElementById(id);
+
+  function esc(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
-  return hex;
-}
 
-function genId(prefix) {
-  return prefix + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 10);
-}
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function parseDateString(s) {
-  if (!s) return todayISO();
-  var m;
-  m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return m[1] + '-' + m[2] + '-' + m[3];
-  m = s.match(/(\d{1,2})-([A-Za-z]{3})-(\d{4})/);
-  if (m) {
-    var months = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
-    var mo = months[m[2].toLowerCase()];
-    if (mo) return m[3] + '-' + mo + '-' + (m[1].length < 2 ? '0' + m[1] : m[1]);
+  function money(value) {
+    const n = Number(value || 0);
+    return "Rs " + n.toLocaleString("en-PK", {
+      maximumFractionDigits: 0
+    });
   }
-  m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-  if (m) {
-    var year = m[3].length === 2 ? '20' + m[3] : m[3];
-    var d = m[1].length < 2 ? '0' + m[1] : m[1];
-    var mo2 = m[2].length < 2 ? '0' + m[2] : m[2];
-    return year + '-' + mo2 + '-' + d;
+
+  function todayStart() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
   }
-  return todayISO();
-}
 
-function parseAmount(s) {
-  if (!s) return null;
-  var clean = String(s).replace(/[,\s]/g, '').replace(/Rs\.?|PKR/gi, '');
-  var n = parseFloat(clean);
-  if (isNaN(n) || n <= 0) return null;
-  return n;
-}
+  function dateOnly(value) {
+    if (!value) return null;
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return d.toISOString().slice(0, 10);
+  }
 
-/* ==== SHOULD-IGNORE FILTERS ==== */
+  function nextDateFromDay(day) {
+    const n = Number(day);
+    if (!Number.isFinite(n) || n < 1) return null;
 
-function isPromotional(text) {
-  if (/loan hasil karein/i.test(text)) return true;
-  if (/deeplink/i.test(text)) return true;
-  if (/jazzcash\.com\.pk/i.test(text) && /loan|aasani|hasil/i.test(text)) return true;
-  return false;
-}
+    const safe = Math.min(28, Math.max(1, Math.floor(n)));
+    const now = todayStart();
+    let d = new Date(now.getFullYear(), now.getMonth(), safe);
 
-function isOTP(text) {
-  if (/\bOTP\b.*valid for|is your One-Time-Password|is your OTP/i.test(text)) return true;
-  if (/^\d{6}\s+is your/i.test(text)) return true;
-  return false;
-}
+    if (d < now) d = new Date(now.getFullYear(), now.getMonth() + 1, safe);
 
-function isServiceRequest(text) {
-  if (/Service Request/i.test(text)) return true;
-  if (/reference no\./i.test(text) && /resolved|reviewing/i.test(text)) return true;
-  return false;
-}
+    return dateOnly(d);
+  }
 
-function isBalanceInquiry(text) {
-  if (/^BAL/i.test(text)) return true;
-  if (/Avl Limit:/i.test(text) && !/used for PKR/i.test(text)) return true;
-  return false;
-}
+  function daysUntil(dateValue) {
+    const d = new Date(dateValue);
+    if (Number.isNaN(d.getTime())) return null;
 
-function shouldIgnore(text) {
-  if (isPromotional(text)) return { ignore: true, reason: 'promotional' };
-  if (isOTP(text)) return { ignore: true, reason: 'otp' };
-  if (isServiceRequest(text)) return { ignore: true, reason: 'service_request' };
-  if (isBalanceInquiry(text)) return { ignore: true, reason: 'balance_inquiry' };
-  return { ignore: false };
-}
+    const a = todayStart();
+    d.setHours(0, 0, 0, 0);
 
-/* ==== BANK PARSERS ==== */
+    return Math.ceil((d.getTime() - a.getTime()) / 86400000);
+  }
 
-function parseEasypaisa(text) {
-  var m = text.match(/You have Received Rs\.?([\d,]+(?:\.\d+)?)\s+from\s+(.+?)\s+in your Easypaisa Account No\.?\s*(\d+)\.?\s*Trx ID\s*(\d+)/i);
-  if (m) {
+  function statusFromDays(days, status) {
+    const s = String(status || "").toLowerCase();
+
+    if (s === "deleted" || s === "archived" || s === "inactive") return "archived";
+    if (s === "paid") return "paid";
+    if (days === null) return "unknown";
+    if (days < 0) return "overdue";
+    if (days === 0) return "today";
+    if (days <= 7) return "soon";
+
+    return "scheduled";
+  }
+
+  function statusLabel(status) {
     return {
-      amount: parseAmount(m[1]),
-      account_id: 'easypaisa',
-      type: 'income',
-      ref: 'EP-' + m[4],
-      notes: 'Received from ' + m[2].trim() + ' (Easypaisa)',
-      bank: 'easypaisa'
-    };
-  }
-  m = text.match(/You sent Rs\.?([\d,]+(?:\.\d+)?)\s+to\s+(.+?)(?:\s+at|\s+from)/i);
-  if (m && /Easypaisa/i.test(text)) {
-    return {
-      amount: parseAmount(m[1]),
-      account_id: 'easypaisa',
-      type: 'expense',
-      ref: null,
-      notes: 'Sent to ' + m[2].trim() + ' (Easypaisa)',
-      bank: 'easypaisa'
-    };
-  }
-  return null;
-}
-
-function parseUBL(text) {
-  var m = text.match(/PKR\s*([\d,]+(?:\.\d+)?)\s+sent to\s+(.+?)\s+from\s+(?:your\s+)?A\/?C[#\s]*(?:xxx)?(\d+).*?on\s+(\d{1,2}-[A-Za-z]{3}-\d{4})(?:.*?TID:?\s*(\d+))?/i);
-  if (m) {
-    var acct = m[3];
-    var account_id = (acct === '7136' || acct === 'xxx7136') ? 'ubl' :
-                     (acct === '4113' || acct === 'xxx4113') ? 'ubl_prepaid' : null;
-    if (!account_id) return null;
-    return {
-      amount: parseAmount(m[1]),
-      account_id: account_id,
-      type: 'expense',
-      date: parseDateString(m[4]),
-      ref: m[5] ? 'UBL-' + m[5] : null,
-      notes: 'Sent to ' + m[2].trim() + ' (UBL)',
-      bank: 'ubl'
-    };
-  }
-  m = text.match(/PKR\s*([\d,]+(?:\.\d+)?)\s+received from\s+(.+?)\s+to your A\/?C[#\s]*(?:xxx)?(\d+).*?on\s+(\d{1,2}-[A-Za-z]{3}-\d{4})/i);
-  if (m) {
-    var acct2 = m[3];
-    var account_id2 = (acct2 === '7136' || acct2 === 'xxx7136') ? 'ubl' :
-                      (acct2 === '4113' || acct2 === 'xxx4113') ? 'ubl_prepaid' : null;
-    if (!account_id2) return null;
-    return {
-      amount: parseAmount(m[1]),
-      account_id: account_id2,
-      type: 'income',
-      date: parseDateString(m[4]),
-      ref: null,
-      notes: 'Received from ' + m[2].trim() + ' (UBL)',
-      bank: 'ubl'
-    };
-  }
-  return null;
-}
-
-function parseMashreq(text) {
-  var m = text.match(/Islamic PayPak.*?ending with\s+(\d+)\s+was used for(?:\s+a)?\s+cash withdrawal of PKR\s*([\d,]+(?:\.\d+)?)\s+at\s+(.+?),?\s+on\s+(\d{1,2}-[A-Za-z]{3}-\d{4})/i);
-  if (m) {
-    return {
-      amount: parseAmount(m[2]),
-      account_id: 'mashreq',
-      type: 'atm',
-      date: parseDateString(m[4]),
-      ref: null,
-      notes: 'Cash withdrawal at ' + m[3].trim() + ' (Mashreq Debit ' + m[1] + ')',
-      bank: 'mashreq'
-    };
-  }
-  m = text.match(/PKR\s*([\d,]+(?:\.\d+)?)\s+was received in\s+\*+(\d+)\s+on\s+(\d{1,2}-[A-Za-z]{3}-\d{4}).*?Trx Ref\s+(\S+)/i);
-  if (m && m[2] === '2796') {
-    return {
-      amount: parseAmount(m[1]),
-      account_id: 'mashreq',
-      type: 'income',
-      date: parseDateString(m[3]),
-      ref: 'MSQ-' + m[4],
-      notes: 'Received in Mashreq ****' + m[2],
-      bank: 'mashreq'
-    };
-  }
-  m = text.match(/PKR\s*([\d,]+(?:\.\d+)?)\s+with PKR\s*([\d,]+(?:\.\d+)?)\s+fee sent from\s+\*+(\d+)\s+to\s+(.+?)\s+via.*?on\s+([\d/]+).*?Trx Ref\s+(\S+)/i);
-  if (m && m[3] === '2796') {
-    return {
-      amount: parseAmount(m[1]),
-      account_id: 'mashreq',
-      type: 'expense',
-      date: parseDateString(m[5]),
-      ref: 'MSQ-' + m[6],
-      notes: 'Sent to ' + m[4].trim() + ' (Mashreq, fee Rs ' + m[2] + ')',
-      bank: 'mashreq'
-    };
-  }
-  m = text.match(/POS transaction of PKR\s*([\d,]+(?:\.\d+)?)\s+was reversed on\s+(\d{1,2}-[A-Za-z]{3}-\d{4})/i);
-  if (m && /credited to your account/i.test(text)) {
-    return {
-      amount: parseAmount(m[1]),
-      account_id: 'mashreq',
-      type: 'income',
-      date: parseDateString(m[2]),
-      ref: null,
-      notes: 'POS reversal credit (Mashreq)',
-      bank: 'mashreq'
-    };
-  }
-  return null;
-}
-
-function parseAlfalahCC(text) {
-  var m = text.match(/Bank Alfalah card\s*\((\d+)\)\s+used for PKR\s*([\d,]+(?:\.\d+)?)\s+on\s+([\d/]+)\s+at\s+[\d:]+\s+at\s+(.+?)(?:\.|$)/i);
-  if (m && m[1] === '91349') {
-    return {
-      amount: parseAmount(m[2]),
-      account_id: 'cc',
-      type: 'cc_spend',
-      date: parseDateString(m[3]),
-      ref: null,
-      notes: 'CC charge at ' + m[4].trim() + ' (Alfalah ' + m[1] + ')',
-      bank: 'alfalah_cc'
-    };
-  }
-  m = text.match(/Bank Alfalah Credit Card payment for the amount\s*([\d,]+(?:\.\d+)?)\s+has been received on\s+([\d/]+)/i);
-  if (m) {
-    return {
-      amount: parseAmount(m[1]),
-      account_id: 'cc',
-      type: 'cc_payment',
-      date: parseDateString(m[2]),
-      ref: null,
-      notes: 'CC payment received (Alfalah)',
-      bank: 'alfalah_cc'
-    };
-  }
-  return null;
-}
-
-function parseJSBank(text) {
-  if (/JS Bank Credit Card payment/i.test(text)) {
-    return { skip: true, skipReason: 'js_bank_cc_closed' };
-  }
-  return null;
-}
-
-/* ==== ROUTER (FIXED ORDER v0.1.1) ==== */
-/* Order priority: most-specific-account-pattern FIRST, then fallback by bank name. */
-/* UBL + Mashreq must check BEFORE Easypaisa because UBL/Mashreq SMS often contain */
-/* "Easypaisa" as a recipient name, which would otherwise misroute to Easypaisa parser. */
-
-function detectBankAndParse(text) {
-  /* JS Bank - check first to skip closed CC payments */
-  if (/JS Bank|JSBL|JS bank card/i.test(text)) {
-    var js = parseJSBank(text);
-    if (js && js.skip) return { skip: true, skipReason: js.skipReason, bank: 'js_bank' };
-    if (js) return js;
+      archived: "Archived",
+      paid: "Paid",
+      overdue: "Overdue",
+      today: "Due today",
+      soon: "Due soon",
+      scheduled: "Scheduled",
+      unknown: "Missing due date"
+    }[status] || "Unknown";
   }
 
-  /* Alfalah CC - very specific pattern, low false-positive risk */
-  if (/Bank Alfalah|Alfalah card|Alfalah Credit Card/i.test(text)) {
-    return parseAlfalahCC(text);
-  }
+  async function fetchJson(url, options) {
+    const res = await fetch(url, {
+      cache: "no-store",
+      ...(options || {})
+    });
 
-  /* UBL - moved BEFORE Easypaisa to handle UBL SMS that mention Easypaisa as recipient */
-  if (/PKR.*A\/?C.*xxx?(7136|4113)|UBL/i.test(text)) {
-    return parseUBL(text);
-  }
+    const data = await res.json().catch(() => null);
 
-  /* Mashreq - moved BEFORE Easypaisa for same reason */
-  if (/Islamic PayPak|Mashreq|\*+2796|ending with 8946/i.test(text)) {
-    return parseMashreq(text);
-  }
-
-  /* Easypaisa - checked LAST since Easypaisa name often appears in other banks SMS */
-  if (/Easypaisa/i.test(text)) {
-    return parseEasypaisa(text);
-  }
-
-  return null;
-}
-
-/* ==== MAIN HANDLER ==== */
-
-export async function onRequest(context) {
-  var request = context.request;
-  var env = context.env;
-  var params = context.params;
-  var path = params.path;
-  var segments;
-  if (!path) {
-    segments = [];
-  } else if (Array.isArray(path)) {
-    segments = path;
-  } else {
-    segments = [path];
-  }
-  var method = request.method;
-  var db = env.DB;
-
-  try {
-    if (segments.length === 0 && method === 'POST') {
-      return await handleIngest(env, request);
+    if (!res.ok || !data || data.ok === false) {
+      throw new Error((data && data.error) || ("HTTP " + res.status));
     }
-    if (segments.length === 0 && method === 'GET') {
-      return await handleList(db, request);
+
+    return data;
+  }
+
+  function rawById(id) {
+    return state.rawBills.find(b => String(b.id) === String(id)) || {};
+  }
+
+  function accountName(id) {
+    if (!id) return "No payment account";
+    const found = state.accounts.find(a => String(a.id) === String(id));
+    return found ? found.name : id;
+  }
+
+  function normalizeBill(row) {
+    const raw = rawById(row.id);
+    const dueDate = row.due_date || dateOnly(raw.due_date) || dateOnly(raw.next_due_date) || nextDateFromDay(raw.due_day);
+    const days = dueDate ? daysUntil(dueDate) : null;
+
+    const paymentAccount =
+      row.payment_account_id ||
+      raw.payment_account_id ||
+      raw.default_account_id ||
+      raw.last_paid_account_id ||
+      "";
+
+    const status = statusFromDays(days, row.status || raw.status);
+
+    return {
+      id: row.id,
+      name: row.name || raw.name || row.id,
+      amount: Number(row.amount || raw.amount || 0),
+      due_date: dueDate,
+      due_day: raw.due_day || null,
+      days_until_due: days,
+      status,
+      raw_status: row.status || raw.status || "unknown",
+      cadence: row.cadence || raw.frequency || raw.cadence || "monthly",
+      payment_account_id: paymentAccount,
+      payment_account_name: paymentAccount ? accountName(paymentAccount) : null,
+      blockers: [
+        !dueDate && status !== "archived" ? "missing_due_date" : null,
+        !paymentAccount && status !== "archived" ? "missing_payment_account" : null
+      ].filter(Boolean)
+    };
+  }
+
+  async function load() {
+    setLoading();
+
+    const [contracts, raw] = await Promise.all([
+      fetchJson("/api/money-contracts"),
+      fetchJson("/api/bills").catch(() => ({ bills: [] }))
+    ]);
+
+    state.accounts =
+      (((contracts.contracts || {}).accounts || {}).payment_account_options || [])
+        .filter(a => a && a.id);
+
+    state.rawBills = raw.bills || raw.rows || raw.items || [];
+
+    state.bills =
+      ((((contracts.contracts || {}).bills || {}).rows || [])
+        .map(normalizeBill)
+        .sort(sortBills));
+
+    render();
+  }
+
+  function sortBills(a, b) {
+    const rank = {
+      overdue: 0,
+      today: 1,
+      soon: 2,
+      scheduled: 3,
+      unknown: 4,
+      paid: 5,
+      archived: 6
+    };
+
+    const ar = rank[a.status] ?? 9;
+    const br = rank[b.status] ?? 9;
+
+    if (ar !== br) return ar - br;
+
+    if (a.days_until_due === null && b.days_until_due === null) return a.name.localeCompare(b.name);
+    if (a.days_until_due === null) return 1;
+    if (b.days_until_due === null) return -1;
+
+    return a.days_until_due - b.days_until_due;
+  }
+
+  function visibleBills() {
+    if (state.filter === "all") return state.bills;
+    if (state.filter === "attention") return state.bills.filter(b => b.status === "overdue" || b.status === "today" || b.status === "soon" || b.blockers.length);
+    if (state.filter === "archived") return state.bills.filter(b => b.status === "archived" || b.status === "paid");
+    return state.bills.filter(b => b.status !== "archived" && b.status !== "paid");
+  }
+
+  function renderStats() {
+    const active = state.bills.filter(b => b.status !== "archived" && b.status !== "paid");
+    const attention = state.bills.filter(b => b.status === "overdue" || b.status === "today" || b.status === "soon" || b.blockers.length);
+    const missingAccount = state.bills.filter(b => b.blockers.includes("missing_payment_account"));
+    const missingDue = state.bills.filter(b => b.blockers.includes("missing_due_date"));
+    const monthly = active.reduce((sum, b) => sum + Number(b.amount || 0), 0);
+
+    $("billStatActive").textContent = String(active.length);
+    $("billStatAttention").textContent = String(attention.length);
+    $("billStatMonthly").textContent = money(monthly);
+    $("billStatMissing").textContent = `${missingAccount.length} acct · ${missingDue.length} due`;
+  }
+
+  function dueCopy(bill) {
+    if (!bill.due_date) return "No due date";
+
+    if (bill.days_until_due < 0) return `${Math.abs(bill.days_until_due)} days overdue`;
+    if (bill.days_until_due === 0) return "Due today";
+    if (bill.days_until_due === 1) return "Due tomorrow";
+
+    return `Due in ${bill.days_until_due} days`;
+  }
+
+  function accountOptions(selected) {
+    const base = [`<option value="">Select payment account...</option>`];
+
+    state.accounts.forEach(account => {
+      base.push(`
+        <option value="${esc(account.id)}" ${String(account.id) === String(selected) ? "selected" : ""}>
+          ${esc(account.name)}${account.kind ? " · " + esc(account.kind) : ""}
+        </option>
+      `);
+    });
+
+    return base.join("");
+  }
+
+  function renderBill(bill) {
+    const blockerHtml = bill.blockers.length
+      ? `<div class="bill-blockers">${bill.blockers.map(b => `<span>${esc(b.replace(/_/g, " "))}</span>`).join("")}</div>`
+      : "";
+
+    const dueInputValue = bill.due_date || "";
+
+    return `
+      <article class="bill-card ${esc(bill.status)}" data-bill-id="${esc(bill.id)}">
+        <div class="bill-main">
+          <div class="bill-left">
+            <div class="bill-status-dot"></div>
+            <div class="bill-info">
+              <div class="bill-name">${esc(bill.name)}</div>
+              <div class="bill-meta">
+                ${esc(statusLabel(bill.status))} · ${esc(dueCopy(bill))} · ${esc(bill.cadence)}
+              </div>
+            </div>
+          </div>
+
+          <div class="bill-amount">${money(bill.amount)}</div>
+        </div>
+
+        ${blockerHtml}
+
+        <div class="bill-config">
+          <label>
+            Payment account
+            <select data-payment-account="${esc(bill.id)}" ${bill.status === "archived" ? "disabled" : ""}>
+              ${accountOptions(bill.payment_account_id)}
+            </select>
+          </label>
+
+          <label>
+            Next due date
+            <input type="date" data-due-date="${esc(bill.id)}" value="${esc(dueInputValue)}" ${bill.status === "archived" ? "disabled" : ""} />
+          </label>
+
+          <button class="bill-save" type="button" data-save="${esc(bill.id)}" ${bill.status === "archived" ? "disabled" : ""}>
+            Save
+          </button>
+        </div>
+
+        <div class="bill-foot">
+          <span>ID: ${esc(bill.id)}</span>
+          <span>Pay from: ${esc(bill.payment_account_name || "Not set")}</span>
+        </div>
+      </article>
+    `;
+  }
+
+  function render() {
+    renderStats();
+
+    document.querySelectorAll(".bill-filter").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.filter === state.filter);
+    });
+
+    const rows = visibleBills();
+    const list = $("billsList");
+
+    if (!rows.length) {
+      list.innerHTML = `<div class="bill-empty">No bills in this view.</div>`;
+      return;
     }
-    return json({ ok: false, error: 'Method not allowed. Use POST to ingest, GET to list.' }, 405);
-  } catch (e) {
-    console.error('[ingest/text]', e);
-    return json({ ok: false, error: e.message || String(e) }, 500);
+
+    list.innerHTML = rows.map(renderBill).join("");
+
+    list.querySelectorAll("[data-save]").forEach(btn => {
+      btn.addEventListener("click", () => saveBill(btn.dataset.save));
+    });
+
+    if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
+      window.SovereignNav.scheduleOverflowCheck();
+    }
   }
-}
 
-async function handleList(db, request) {
-  var url = new URL(request.url);
-  var status = url.searchParams.get('status') || null;
-  var limit = parseInt(url.searchParams.get('limit') || '50', 10);
-  if (limit > 200) limit = 200;
+  function setLoading() {
+    $("billsList").innerHTML = `<div class="bill-empty">Loading bills...</div>`;
+  }
 
-  var query, params;
-  if (status) {
-    query = "SELECT * FROM txn_ingest_log WHERE parsed_status = ? ORDER BY received_at DESC LIMIT ?";
-    params = [status, limit];
+  function toast(message, type) {
+    const el = $("toast");
+    if (!el) return;
+
+    el.textContent = message;
+    el.className = "toast toast-" + (type || "success") + " show";
+
+    setTimeout(() => {
+      el.className = "toast";
+    }, 2600);
+  }
+
+  async function saveBill(id) {
+    if (!id) return;
+
+    const card = document.querySelector(`[data-bill-id="${CSS.escape(id)}"]`);
+    if (!card) return;
+
+    const account = card.querySelector("[data-payment-account]")?.value || "";
+    const dueDate = card.querySelector("[data-due-date]")?.value || "";
+
+    if (!account) {
+      toast("Select a payment account first.", "error");
+      return;
+    }
+
+    if (!dueDate) {
+      toast("Select a due date first.", "error");
+      return;
+    }
+
+    const btn = card.querySelector("[data-save]");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Saving...";
+    }
+
+    const payload = {
+      payment_account_id: account,
+      default_account_id: account,
+      due_date: dueDate,
+      next_due_date: dueDate,
+      updated_by: "web-bills-v0.5.0"
+    };
+
+    try {
+      await fetchJson(`/api/bills/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      toast("Bill config saved.", "success");
+      await load();
+    } catch (err) {
+      toast("Save failed: " + err.message, "error");
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Save";
+      }
+    }
+  }
+
+  function wire() {
+    document.querySelectorAll(".bill-filter").forEach(btn => {
+      btn.addEventListener("click", () => {
+        state.filter = btn.dataset.filter || "active";
+        render();
+      });
+    });
+
+    $("reloadBills").addEventListener("click", () => {
+      load().then(() => toast("Bills refreshed.", "success")).catch(err => toast(err.message, "error"));
+    });
+  }
+
+  window.SovereignBills = {
+    version: VERSION,
+    reload: load,
+    state
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      wire();
+      load().catch(err => {
+        $("billsList").innerHTML = `<div class="bill-empty">Bills failed: ${esc(err.message)}</div>`;
+      });
+    });
   } else {
-    query = "SELECT * FROM txn_ingest_log ORDER BY received_at DESC LIMIT ?";
-    params = [limit];
-  }
-  var stmt = db.prepare(query);
-  var rs = await stmt.bind.apply(stmt, params).all();
-  return json({ ok: true, log: rs.results || [], count: (rs.results || []).length });
-}
-
-async function handleIngest(env, request) {
-  var db = env.DB;
-  var body;
-  try { body = await request.json(); } catch (_) { body = {}; }
-
-  var text = body.text ? String(body.text).trim() : '';
-  var sender = body.sender ? String(body.sender).trim() : null;
-  var receivedAt = body.received_at || new Date().toISOString();
-  var source = body.source || 'sms';
-  var sourceApp = body.source_app || null;
-
-  if (!text) return json({ ok: false, error: 'text is required' }, 400);
-  if (text.length > 5000) return json({ ok: false, error: 'text too long (max 5000)' }, 400);
-
-  var rawHash = await sha256Hex(text + '|' + (sender || '') + '|' + receivedAt);
-  var logId = genId('ING');
-
-  var existing = await db.prepare("SELECT id, parsed_status, created_txn_id FROM txn_ingest_log WHERE raw_hash = ?").bind(rawHash).first();
-  if (existing) {
-    return json({
-      ok: true,
-      duplicate: true,
-      log_id: existing.id,
-      parsed_status: existing.parsed_status,
-      created_txn_id: existing.created_txn_id
+    wire();
+    load().catch(err => {
+      $("billsList").innerHTML = `<div class="bill-empty">Bills failed: ${esc(err.message)}</div>`;
     });
   }
-
-  var ignoreCheck = shouldIgnore(text);
-  if (ignoreCheck.ignore) {
-    await db.prepare(
-      "INSERT INTO txn_ingest_log (id, raw_text, raw_hash, source, source_app, sender, parsed_status, error_reason, received_at, parsed_at) VALUES (?, ?, ?, ?, ?, ?, 'ignored', ?, ?, datetime('now'))"
-    ).bind(logId, text, rawHash, source, sourceApp, sender, ignoreCheck.reason, receivedAt).run();
-    return json({ ok: true, log_id: logId, parsed_status: 'ignored', reason: ignoreCheck.reason });
-  }
-
-  var parsed = detectBankAndParse(text);
-
-  if (parsed && parsed.skip) {
-    await db.prepare(
-      "INSERT INTO txn_ingest_log (id, raw_text, raw_hash, source, source_app, sender, bank_detected, parsed_status, error_reason, received_at, parsed_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'ignored', ?, ?, datetime('now'))"
-    ).bind(logId, text, rawHash, source, sourceApp, sender, parsed.bank, parsed.skipReason, receivedAt).run();
-    return json({ ok: true, log_id: logId, parsed_status: 'ignored', reason: parsed.skipReason });
-  }
-
-  if (!parsed || !parsed.amount || !parsed.account_id || !parsed.type) {
-    await db.prepare(
-      "INSERT INTO txn_ingest_log (id, raw_text, raw_hash, source, source_app, sender, parsed_status, error_reason, received_at, parsed_at) VALUES (?, ?, ?, ?, ?, ?, 'failed', ?, ?, datetime('now'))"
-    ).bind(logId, text, rawHash, source, sourceApp, sender, 'no_parser_match_or_incomplete', receivedAt).run();
-    return json({ ok: true, log_id: logId, parsed_status: 'failed', reason: 'no_parser_match_or_incomplete' });
-  }
-
-  var txnId = genId('TXN');
-  var txnDate = parsed.date || todayISO();
-
-  try {
-    await db.prepare(
-      "INSERT INTO transactions (id, type, amount, date, account_id, category_id, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))"
-    ).bind(
-      txnId,
-      parsed.type,
-      parsed.amount,
-      txnDate,
-      parsed.account_id,
-      'auto-sms',
-      parsed.notes || ('Auto-ingested from ' + (parsed.bank || 'sms'))
-    ).run();
-
-    await db.prepare(
-      "INSERT INTO txn_ingest_log (id, raw_text, raw_hash, source, source_app, sender, bank_detected, parsed_status, parsed_amount, parsed_account_id, parsed_type, parsed_ref, parsed_notes, created_txn_id, received_at, parsed_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'parsed', ?, ?, ?, ?, ?, ?, ?, datetime('now'))"
-    ).bind(
-      logId, text, rawHash, source, sourceApp, sender, parsed.bank,
-      parsed.amount, parsed.account_id, parsed.type, parsed.ref, parsed.notes,
-      txnId, receivedAt
-    ).run();
-
-    await audit(env, {
-      action: 'TXN_AUTO_INGEST',
-      entity: 'transaction',
-      entity_id: txnId,
-      kind: 'mutation',
-      detail: JSON.stringify({
-        log_id: logId,
-        bank: parsed.bank,
-        amount: parsed.amount,
-        type: parsed.type,
-        account_id: parsed.account_id,
-        source: source,
-        sender: sender
-      }),
-      created_by: 'auto-ingest-' + (parsed.bank || 'sms')
-    });
-
-    return json({
-      ok: true,
-      log_id: logId,
-      parsed_status: 'parsed',
-      txn_id: txnId,
-      bank: parsed.bank,
-      amount: parsed.amount,
-      account_id: parsed.account_id,
-      type: parsed.type,
-      date: txnDate
-    });
-
-  } catch (e) {
-    await db.prepare(
-      "INSERT INTO txn_ingest_log (id, raw_text, raw_hash, source, source_app, sender, bank_detected, parsed_status, parsed_amount, parsed_account_id, parsed_type, error_reason, received_at, parsed_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'failed', ?, ?, ?, ?, ?, datetime('now'))"
-    ).bind(
-      logId, text, rawHash, source, sourceApp, sender, parsed.bank,
-      parsed.amount, parsed.account_id, parsed.type,
-      'txn_insert_error: ' + e.message,
-      receivedAt
-    ).run();
-    return json({ ok: false, log_id: logId, parsed_status: 'failed', error: e.message }, 500);
-  }
-}
+})();
