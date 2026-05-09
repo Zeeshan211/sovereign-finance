@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-label="Food">
+  <rect width="96" height="96" rx="24" fill="#FFF7ED"/>
+  <path d="M34 18v30" stroke="#EA580C" stroke-width="6" stroke-linecap="round"/>
+  <path d="M26 18v26c0 8 6 14 14 14s14-6 14-14V18" stroke="#EA580C" stroke-width="6" stroke-linecap="round"/>
+  <path d="M40 58v20" stroke="#EA580C" stroke-width="6" stroke-linecap="round"/>
+  <path d="M64 18v60" stroke="#EA580C" stroke-width="6" stroke-linecap="round"/>
+  <path d="M64 18c10 8 10 22 0 30" stroke="#EA580C" stroke-width="6" stroke-linecap="round"/>
+</svg>
