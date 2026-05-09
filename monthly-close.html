@@ -6,14 +6,13 @@
 
   <title>Sovereign Finance · Monthly Close</title>
 
-  <script src="/js/nav.js?v=1.1.0" defer></script>
+  <script src="/js/nav.js?v=1.1.2" defer></script>
 
   <style>
     :root {
       --bg: #f6f8fb;
       --surface: #ffffff;
       --surface-2: #f8fafc;
-      --surface-3: #eef2f7;
       --text: #0f172a;
       --muted: #475569;
       --dim: #64748b;
@@ -26,21 +25,20 @@
       --amber-soft: #fef3c7;
       --blue: #2563eb;
       --blue-soft: #dbeafe;
-      --shadow: 0 20px 60px rgba(15, 23, 42, 0.10);
+      --shadow: 0 18px 46px rgba(15, 23, 42, 0.09);
       --radius: 24px;
     }
 
     * {
       box-sizing: border-box;
+      min-width: 0;
     }
 
-    html {
-      overflow-x: hidden;
-    }
-
+    html,
     body {
       margin: 0;
-      min-height: 100vh;
+      min-height: 100%;
+      max-width: 100%;
       overflow-x: hidden;
       background:
         radial-gradient(circle at top left, rgba(34, 197, 94, 0.12), transparent 30%),
@@ -55,9 +53,11 @@
     }
 
     .page {
-      width: min(1440px, calc(100vw - 32px));
-      margin: 0 auto;
-      padding: 28px 0 72px;
+      width: 100%;
+      max-width: var(--sf-content-max, 1440px);
+      margin-inline: auto;
+      padding: 24px 16px 72px;
+      min-width: 0;
     }
 
     .topbar {
@@ -75,23 +75,22 @@
       padding: 7px 10px;
       border: 1px solid var(--border);
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.72);
+      background: rgba(255, 255, 255, 0.74);
       color: var(--muted);
       font-size: 12px;
       font-weight: 900;
-      letter-spacing: 0.01em;
     }
 
     h1 {
       margin: 12px 0 7px;
-      font-size: clamp(30px, 4vw, 54px);
-      line-height: 0.95;
+      font-size: clamp(30px, 4vw, 52px);
+      line-height: 0.98;
       letter-spacing: -0.07em;
     }
 
     .subtitle {
       margin: 0;
-      max-width: 760px;
+      max-width: 780px;
       color: var(--muted);
       font-size: 15px;
       line-height: 1.55;
@@ -100,7 +99,7 @@
 
     .controls {
       display: flex;
-      align-items: center;
+      align-items: end;
       gap: 10px;
       flex-wrap: wrap;
       justify-content: flex-end;
@@ -144,24 +143,12 @@
       cursor: pointer;
     }
 
-    button.secondary {
-      background: #fff;
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-
-    .hero-grid {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 16px;
-      margin: 18px 0;
-    }
-
     .panel {
       min-width: 0;
+      max-width: 100%;
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      background: rgba(255, 255, 255, 0.88);
+      background: rgba(255, 255, 255, 0.90);
       box-shadow: var(--shadow);
       overflow: hidden;
     }
@@ -170,48 +157,56 @@
       padding: 18px;
     }
 
-    .status-split {
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      gap: 16px;
+      margin: 18px 0;
+    }
+
+    .status-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
+      gap: 12px;
     }
 
     .status-card {
-      min-width: 0;
       padding: 18px;
       border-radius: 22px;
       border: 1px solid var(--border);
-      background: var(--surface);
+      background: #fff;
+      min-width: 0;
     }
 
     .status-card.ready {
-      border-color: rgba(22, 163, 74, 0.28);
+      border-color: rgba(22, 163, 74, 0.26);
       background: linear-gradient(135deg, rgba(220, 252, 231, 0.9), #fff);
     }
 
     .status-card.not-ready,
     .status-card.critical {
       border-color: rgba(220, 38, 38, 0.22);
-      background: linear-gradient(135deg, rgba(254, 226, 226, 0.88), #fff);
+      background: linear-gradient(135deg, rgba(254, 226, 226, 0.90), #fff);
     }
 
     .status-card.watch {
       border-color: rgba(217, 119, 6, 0.26);
-      background: linear-gradient(135deg, rgba(254, 243, 199, 0.9), #fff);
+      background: linear-gradient(135deg, rgba(254, 243, 199, 0.90), #fff);
     }
 
     .status-card h2 {
       margin: 0 0 8px;
-      font-size: 14px;
       color: var(--muted);
+      font-size: 12px;
+      font-weight: 950;
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }
 
     .status-value {
       margin: 0;
-      font-size: clamp(25px, 4vw, 44px);
-      line-height: 0.95;
+      font-size: clamp(26px, 4vw, 42px);
+      line-height: 0.98;
       font-weight: 1000;
       letter-spacing: -0.07em;
     }
@@ -224,9 +219,9 @@
       font-weight: 700;
     }
 
-    .summary-grid {
+    .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
     }
 
@@ -240,18 +235,19 @@
 
     .metric label {
       display: block;
+      margin-bottom: 6px;
       color: var(--dim);
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 950;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      margin-bottom: 6px;
     }
 
     .metric strong {
       display: block;
       overflow-wrap: anywhere;
-      font-size: 20px;
+      font-size: 19px;
+      line-height: 1.05;
       font-weight: 1000;
       letter-spacing: -0.04em;
     }
@@ -261,6 +257,7 @@
       margin-top: 5px;
       color: var(--dim);
       font-size: 11px;
+      line-height: 1.35;
       font-weight: 750;
     }
 
@@ -317,6 +314,7 @@
     }
 
     .badge.not-ready,
+    .badge.not_ready,
     .badge.fail,
     .badge.critical,
     .badge.unsafe,
@@ -355,6 +353,7 @@
       border-radius: 16px;
       background: var(--surface-2);
       border: 1px solid rgba(148, 163, 184, 0.18);
+      min-width: 0;
     }
 
     .item-mark {
@@ -386,9 +385,42 @@
       font-weight: 650;
     }
 
-    .table-wrap {
-      overflow: auto;
+    details.audit-details {
+      margin-top: 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    details.audit-details > summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 16px 18px;
+      background: rgba(248, 250, 252, 0.90);
+      font-weight: 1000;
+      letter-spacing: -0.02em;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    details.audit-details > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .detail-body {
       padding: 0 18px 18px;
+    }
+
+    .table-wrap {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
     }
 
     table {
@@ -438,62 +470,54 @@
     }
 
     .loading,
-    .error {
-      padding: 28px;
+    .error,
+    .empty {
+      padding: 26px;
       text-align: center;
+      color: var(--muted);
+      font-weight: 750;
     }
 
     .error {
       color: #991b1b;
     }
 
-    .empty {
-      padding: 18px;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 750;
-    }
-
-    @media (max-width: 1100px) {
-      .hero-grid,
+    @media (max-width: 1180px) {
+      .hero,
       .section-grid {
         grid-template-columns: 1fr;
       }
 
-      .summary-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+      .kpi-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
       }
     }
 
-    @media (max-width: 720px) {
+    @media (max-width: 760px) {
       .page {
-        width: min(100vw - 20px, 720px);
-        padding-top: 18px;
+        padding: 18px 10px 90px;
       }
 
       .topbar {
         display: grid;
       }
 
-      .controls {
-        justify-content: stretch;
-      }
-
+      .controls,
       .control,
       input[type="month"],
       button {
         width: 100%;
       }
 
-      .status-split,
-      .summary-grid {
+      .status-grid,
+      .kpi-grid {
         grid-template-columns: 1fr;
       }
 
       .panel-pad,
       .section-title,
       .list,
-      .table-wrap {
+      .detail-body {
         padding-left: 14px;
         padding-right: 14px;
       }
@@ -502,13 +526,13 @@
 </head>
 
 <body>
-  <main class="page">
+  <main class="page app-page">
     <div class="topbar">
       <div>
         <div class="eyebrow">✅ Monthly Close · Production Readiness</div>
         <h1>Finance Close Center</h1>
         <p class="subtitle">
-          This page separates system certification from real money readiness. A production-grade system can be technically ready while correctly warning that cash safety or reconciliation still needs action.
+          One screen for month-end judgment: system certification, money close readiness, top blockers, and the exact next action. Detailed audit data stays below the fold.
         </p>
       </div>
 
@@ -522,13 +546,11 @@
     </div>
 
     <div id="app">
-      <section class="panel loading">
-        Loading Monthly Close...
-      </section>
+      <section class="panel loading">Loading Monthly Close...</section>
     </div>
 
     <div class="footer">
-      monthly-close.html v0.2.0 · UI readiness split · backend /api/monthly-close v0.1.1
+      monthly-close.html v0.2.1 · smart layout · backend /api/monthly-close v0.1.1
     </div>
   </main>
 
@@ -544,9 +566,7 @@
 
     monthInput.value = new URLSearchParams(location.search).get('month') || currentMonth();
 
-    refreshBtn.addEventListener('click', () => {
-      loadMonthlyClose();
-    });
+    refreshBtn.addEventListener('click', loadMonthlyClose);
 
     monthInput.addEventListener('change', () => {
       const url = new URL(location.href);
@@ -559,12 +579,6 @@
       const n = Number(value);
       if (!Number.isFinite(n)) return 'N/A';
       return `Rs ${n.toLocaleString('en-PK', { maximumFractionDigits: 2 })}`;
-    }
-
-    function pct(value) {
-      const n = Number(value);
-      if (!Number.isFinite(n)) return 'N/A';
-      return `${(n * 100).toFixed(1)}%`;
     }
 
     function text(value, fallback = 'N/A') {
@@ -581,13 +595,25 @@
         .replace(/'/g, '&#39;');
     }
 
-    function normalizeStatus(value) {
+    function statusClass(value) {
       return String(value || 'unknown').toLowerCase().replace(/\s+/g, '_');
     }
 
     function badge(value, label) {
-      const status = normalizeStatus(value);
-      return `<span class="badge ${esc(status)}">${esc(label || value || 'unknown')}</span>`;
+      const cls = statusClass(value);
+      return `<span class="badge ${esc(cls)}">${esc(label || value || 'unknown')}</span>`;
+    }
+
+    function item(mark, title, note) {
+      return `
+        <div class="item">
+          <div class="item-mark">${esc(mark)}</div>
+          <div>
+            <strong>${esc(title)}</strong>
+            <span>${esc(note)}</span>
+          </div>
+        </div>
+      `;
     }
 
     function systemCertificationStatus(data) {
@@ -629,32 +655,6 @@
       return 'ready';
     }
 
-    function item(mark, title, note) {
-      return `
-        <div class="item">
-          <div class="item-mark">${esc(mark)}</div>
-          <div>
-            <strong>${esc(title)}</strong>
-            <span>${esc(note)}</span>
-          </div>
-        </div>
-      `;
-    }
-
-    function blockersList(data) {
-      const blockers = data.audit_readiness?.blockers || [];
-      const warnings = data.audit_readiness?.warnings || [];
-
-      if (!blockers.length && !warnings.length) {
-        return item('✓', 'No close blockers', 'Money Close is ready based on current rules.');
-      }
-
-      return [
-        ...blockers.map(x => item('!', blockerTitle(x), blockerMeaning(x))),
-        ...warnings.map(x => item('•', warningTitle(x), warningMeaning(x)))
-      ].join('');
-    }
-
     function blockerTitle(code) {
       const map = {
         forecast_has_unsafe_date: 'Forecast has an unsafe date',
@@ -666,14 +666,13 @@
         forecast_api_unavailable: 'Forecast API unavailable',
         safety_api_unavailable: 'Safety API unavailable'
       };
-
       return map[code] || code;
     }
 
     function blockerMeaning(code) {
       const map = {
         forecast_has_unsafe_date: 'Cash is projected to fall below the safe threshold before or around salary.',
-        forecast_has_unsafe_days: 'The 30-day projection contains one or more unsafe cash days.',
+        forecast_has_unsafe_days: 'The 30-day projection contains unsafe cash days.',
         safety_status_critical: 'The Safety Engine found a real-world action risk. This is not a code failure.',
         safety_status_unsafe: 'The Safety Engine is reporting unsafe status.',
         reconciliation_drift: 'At least one declared balance does not match full-ledger app balance.',
@@ -681,7 +680,6 @@
         forecast_api_unavailable: 'Monthly Close cannot certify without the Forecast API.',
         safety_api_unavailable: 'Monthly Close cannot certify without the Safety API.'
       };
-
       return map[code] || 'Review this blocker before treating the month as closed.';
     }
 
@@ -693,7 +691,6 @@
         debts_missing_required_data: 'Debts missing required data',
         insights_api_unavailable: 'Insights unavailable'
       };
-
       return map[code] || code;
     }
 
@@ -705,8 +702,22 @@
         debts_missing_required_data: 'Some debts need due date/day information.',
         insights_api_unavailable: 'Insights are useful but not a hard blocker.'
       };
-
       return map[code] || 'Review this warning before final close.';
+    }
+
+    function blockersList(data, maxItems) {
+      const blockers = data.audit_readiness?.blockers || [];
+      const warnings = data.audit_readiness?.warnings || [];
+      const rows = [
+        ...blockers.map(x => ['!', blockerTitle(x), blockerMeaning(x)]),
+        ...warnings.map(x => ['•', warningTitle(x), warningMeaning(x)])
+      ];
+
+      if (!rows.length) {
+        return item('✓', 'No close blockers', 'Money Close is ready based on current rules.');
+      }
+
+      return rows.slice(0, maxItems || rows.length).map(row => item(row[0], row[1], row[2])).join('');
     }
 
     function certificationChecks(data) {
@@ -727,10 +738,7 @@
 
     function reconciliationRows(data) {
       const rows = data.reconciliation?.accounts || [];
-
-      if (!rows.length) {
-        return `<div class="empty">No reconciliation rows returned.</div>`;
-      }
+      if (!rows.length) return `<div class="empty">No reconciliation rows returned.</div>`;
 
       return `
         <div class="table-wrap">
@@ -765,40 +773,6 @@
       `;
     }
 
-    function obligationsRows(title, rows, emptyText) {
-      if (!rows || !rows.length) {
-        return `<div class="empty">${esc(emptyText)}</div>`;
-      }
-
-      return `
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>${esc(title)}</th>
-                <th>Amount</th>
-                <th>Due</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows.map(row => `
-                <tr>
-                  <td>
-                    <strong>${esc(row.name || row.id)}</strong>
-                    <div class="muted mono">${esc(row.id || '')}</div>
-                  </td>
-                  <td>${money(row.amount || row.remaining_amount || row.installment_amount || 0)}</td>
-                  <td>${esc(row.due_date || 'N/A')}</td>
-                  <td>${row.paid_this_due_cycle !== undefined ? badge(row.paid_this_due_cycle ? 'ready' : 'watch', row.paid_this_due_cycle ? 'paid' : 'unpaid') : badge(row.status || 'active', row.status || 'active')}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    }
-
     function render(data) {
       const systemStatus = systemCertificationStatus(data);
       const closeStatus = moneyCloseStatus(data);
@@ -806,38 +780,34 @@
       const reconStatus = reconciliationStatus(data);
 
       app.innerHTML = `
-        <section class="hero-grid">
+        <section class="hero">
           <div class="panel panel-pad">
-            <div class="status-split">
+            <div class="status-grid">
               <div class="status-card ${systemStatus === 'ready' ? 'ready' : 'not-ready'}">
                 <h2>System Certification</h2>
                 <p class="status-value">${systemStatus === 'ready' ? 'READY' : 'CHECK'}</p>
-                <p class="status-note">
-                  Code, formulas, API health, scope separation, and reconciliation logic are evaluated here. This is separate from real money safety.
-                </p>
+                <p class="status-note">Code, formulas, APIs, routing, and full-ledger scope separation.</p>
               </div>
 
               <div class="status-card ${closeStatus === 'ready' ? 'ready' : 'not-ready'}">
                 <h2>Money Close Readiness</h2>
                 <p class="status-value">${closeStatus === 'ready' ? 'READY' : 'NOT READY'}</p>
-                <p class="status-note">
-                  This checks real financial state: safety, unsafe dates, declarations, stale accounts, and close blockers.
-                </p>
+                <p class="status-note">Real cash safety, unsafe dates, stale declarations, and close blockers.</p>
               </div>
             </div>
           </div>
 
           <div class="panel panel-pad">
-            <div class="summary-grid">
+            <div class="kpi-grid">
               <div class="metric">
                 <label>Safety</label>
                 <strong>${esc(safeStatus).toUpperCase()}</strong>
                 <small>${esc(data.safety?.top_action || 'No action returned')}</small>
               </div>
               <div class="metric">
-                <label>Runway</label>
-                <strong>${esc(data.forecast?.runway_status || 'N/A')}</strong>
-                <small>First unsafe: ${esc(data.forecast?.first_unsafe_date || 'N/A')}</small>
+                <label>First unsafe</label>
+                <strong>${esc(data.forecast?.first_unsafe_date || 'N/A')}</strong>
+                <small>${esc(data.forecast?.runway_status || 'N/A')}</small>
               </div>
               <div class="metric">
                 <label>Liquid</label>
@@ -845,9 +815,9 @@
                 <small>Full-ledger truth</small>
               </div>
               <div class="metric">
-                <label>CC outstanding</label>
+                <label>CC</label>
                 <strong>${money(data.summary?.cc_outstanding)}</strong>
-                <small>Full-ledger truth</small>
+                <small>Outstanding</small>
               </div>
             </div>
           </div>
@@ -857,36 +827,47 @@
           <div class="panel">
             <div class="section-title">
               <div>
-                <h2>Why Money Close Is Not Ready</h2>
-                <p>These are real-world blockers, not proof that the Finance system is broken.</p>
+                <h2>Top Close Blockers</h2>
+                <p>What must be handled before this month can be considered clean.</p>
               </div>
               ${badge(closeStatus, closeStatus.replace('_', ' '))}
             </div>
-            <div class="list">${blockersList(data)}</div>
+            <div class="list">${blockersList(data, 4)}</div>
           </div>
 
           <div class="panel">
             <div class="section-title">
               <div>
-                <h2>System Certification Gates</h2>
-                <p>These determine whether the Monthly Close logic is production-grade.</p>
-              </div>
-              ${badge(systemStatus, systemStatus)}
-            </div>
-            <div class="list">${certificationChecks(data)}</div>
-          </div>
-        </section>
-
-        <section class="section-grid">
-          <div class="panel">
-            <div class="section-title">
-              <div>
-                <h2>Forecast Safety</h2>
-                <p>Cash runway and salary-cycle pressure.</p>
+                <h2>Next Action</h2>
+                <p>The shortest path from not ready to close-ready.</p>
               </div>
               ${badge(safeStatus, safeStatus)}
             </div>
-            <div class="summary-grid panel-pad">
+            <div class="list">
+              ${item('1', 'Fix first unsafe date', data.safety?.top_action || 'Open Forecast and resolve the first unsafe date.')}
+              ${item('2', 'Update stale declarations', 'Re-declare accounts that have transactions after their last declared balance.')}
+              ${item('3', 'Declare active undeclared accounts', 'Declare real balances for active accounts so close confidence improves.')}
+            </div>
+          </div>
+        </section>
+
+        <details class="audit-details" open>
+          <summary>
+            <span>System Certification Gates</span>
+            ${badge(systemStatus, systemStatus)}
+          </summary>
+          <div class="detail-body">
+            <div class="list">${certificationChecks(data)}</div>
+          </div>
+        </details>
+
+        <details class="audit-details">
+          <summary>
+            <span>Forecast Safety Details</span>
+            ${badge(safeStatus, safeStatus)}
+          </summary>
+          <div class="detail-body">
+            <div class="kpi-grid" style="margin-top: 16px;">
               <div class="metric">
                 <label>Unsafe days</label>
                 <strong>${text(data.forecast?.unsafe_days_count)}</strong>
@@ -905,20 +886,19 @@
               <div class="metric">
                 <label>Manual variables</label>
                 <strong>${data.forecast?.manual_variables_separated ? 'Separated' : 'Check'}</strong>
-                <small>Safety must stay conservative</small>
+                <small>Safety stays conservative</small>
               </div>
             </div>
           </div>
+        </details>
 
-          <div class="panel">
-            <div class="section-title">
-              <div>
-                <h2>Month Activity</h2>
-                <p>Selected-month transactions only. Not used as full balance truth.</p>
-              </div>
-              ${badge('info', data.month)}
-            </div>
-            <div class="summary-grid panel-pad">
+        <details class="audit-details">
+          <summary>
+            <span>Month Activity</span>
+            ${badge('info', data.month)}
+          </summary>
+          <div class="detail-body">
+            <div class="kpi-grid" style="margin-top: 16px;">
               <div class="metric">
                 <label>Income</label>
                 <strong>${money(data.month_activity?.income_total)}</strong>
@@ -941,117 +921,101 @@
               </div>
             </div>
           </div>
-        </section>
+        </details>
 
-        <section class="section-grid">
-          <div class="panel">
-            <div class="section-title">
-              <div>
-                <h2>Bills</h2>
-                <p>Due-cycle logic prevents this month’s paid flag from hiding next month’s bill.</p>
-              </div>
-              ${badge(data.bills?.unpaid_count > 0 ? 'watch' : 'ready', `${text(data.bills?.unpaid_count, 0)} unpaid`)}
-            </div>
-            ${obligationsRows('Bill', data.bills?.due || [], 'No bills returned for this month.')}
-          </div>
-
-          <div class="panel">
-            <div class="section-title">
-              <div>
-                <h2>Debts & Receivables</h2>
-                <p>Payable debt and receivables stay separated.</p>
-              </div>
-              ${badge('info', 'split')}
-            </div>
-            <div class="summary-grid panel-pad">
+        <details class="audit-details">
+          <summary>
+            <span>Bills, Debts, and Receivables</span>
+            ${badge('info', 'split')}
+          </summary>
+          <div class="detail-body">
+            <div class="kpi-grid" style="margin-top: 16px;">
               <div class="metric">
-                <label>Payable remaining</label>
+                <label>Bills due</label>
+                <strong>${money(data.bills?.due_total)}</strong>
+                <small>${text(data.bills?.unpaid_count, 0)} unpaid</small>
+              </div>
+              <div class="metric">
+                <label>Payable debt</label>
                 <strong>${money(data.debts?.total_payable_remaining)}</strong>
                 <small>${text(data.debts?.payable_count, 0)} active</small>
               </div>
               <div class="metric">
-                <label>Receivable remaining</label>
+                <label>Receivables</label>
                 <strong>${money(data.debts?.total_receivable_remaining)}</strong>
                 <small>${text(data.debts?.receivable_count, 0)} active</small>
               </div>
               <div class="metric">
-                <label>Paid this month</label>
+                <label>Debt paid this month</label>
                 <strong>${money(data.debts?.debt_paid_this_month)}</strong>
                 <small>${text(data.debts?.debt_payment_count_this_month, 0)} payments</small>
               </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="audit-details">
+          <summary>
+            <span>Reconciliation</span>
+            ${badge(reconStatus, reconStatus)}
+          </summary>
+          <div class="detail-body">
+            <div class="kpi-grid" style="margin-top: 16px;">
               <div class="metric">
-                <label>Scope</label>
-                <strong>${esc(data.debts?.payment_scope || 'N/A')}</strong>
-                <small>Payment activity only</small>
+                <label>Matched</label>
+                <strong>${text(data.reconciliation?.matched_count, 0)}</strong>
+                <small>Accounts</small>
+              </div>
+              <div class="metric">
+                <label>Stale</label>
+                <strong>${text(data.reconciliation?.stale_count, 0)}</strong>
+                <small>Needs re-declare</small>
+              </div>
+              <div class="metric">
+                <label>Undeclared</label>
+                <strong>${text(data.reconciliation?.undeclared_count, 0)}</strong>
+                <small>Needs declaration</small>
+              </div>
+              <div class="metric">
+                <label>Drifted</label>
+                <strong>${text(data.reconciliation?.drifted_count, 0)}</strong>
+                <small>Hard issue if above zero</small>
+              </div>
+            </div>
+            ${reconciliationRows(data)}
+          </div>
+        </details>
+
+        <details class="audit-details">
+          <summary>
+            <span>Scope Proof</span>
+            ${badge('ready', 'v0.1.1')}
+          </summary>
+          <div class="detail-body">
+            <div class="kpi-grid" style="margin-top: 16px;">
+              <div class="metric">
+                <label>Month activity</label>
+                <strong>${text(data.scopes?.month_activity_scope?.transaction_count, 0)} txns</strong>
+                <small>${esc(data.scopes?.month_activity_scope?.date_start || '')} to ${esc(data.scopes?.month_activity_scope?.date_end_exclusive || '')}</small>
+              </div>
+              <div class="metric">
+                <label>Full ledger</label>
+                <strong>${text(data.scopes?.full_ledger_scope?.transaction_count, 0)} txns</strong>
+                <small>${esc(data.scopes?.full_ledger_scope?.date_start || '')} to ${esc(data.scopes?.full_ledger_scope?.date_end || '')}</small>
+              </div>
+              <div class="metric">
+                <label>Balance scope</label>
+                <strong>${esc(data.reconciliation?.balance_scope || 'N/A')}</strong>
+                <small>Must be full_ledger</small>
+              </div>
+              <div class="metric">
+                <label>API version</label>
+                <strong>${esc(data.version || 'N/A')}</strong>
+                <small>${esc(data.computed_at || '')}</small>
               </div>
             </div>
           </div>
-        </section>
-
-        <section class="panel" style="margin-top: 16px;">
-          <div class="section-title">
-            <div>
-              <h2>Reconciliation</h2>
-              <p>Full-ledger balance truth. Stale/undeclared accounts reduce close confidence but do not mean formulas failed.</p>
-            </div>
-            ${badge(reconStatus, reconStatus)}
-          </div>
-          <div class="summary-grid panel-pad">
-            <div class="metric">
-              <label>Matched</label>
-              <strong>${text(data.reconciliation?.matched_count, 0)}</strong>
-              <small>Accounts</small>
-            </div>
-            <div class="metric">
-              <label>Stale</label>
-              <strong>${text(data.reconciliation?.stale_count, 0)}</strong>
-              <small>Needs re-declare</small>
-            </div>
-            <div class="metric">
-              <label>Undeclared</label>
-              <strong>${text(data.reconciliation?.undeclared_count, 0)}</strong>
-              <small>Needs declaration</small>
-            </div>
-            <div class="metric">
-              <label>Drifted</label>
-              <strong>${text(data.reconciliation?.drifted_count, 0)}</strong>
-              <small>Hard issue if >0</small>
-            </div>
-          </div>
-          ${reconciliationRows(data)}
-        </section>
-
-        <section class="panel" style="margin-top: 16px;">
-          <div class="section-title">
-            <div>
-              <h2>Scope Proof</h2>
-              <p>This is the certification fix: month activity and full-ledger truth are separate.</p>
-            </div>
-            ${badge('ready', 'v0.1.1')}
-          </div>
-          <div class="summary-grid panel-pad">
-            <div class="metric">
-              <label>Month activity</label>
-              <strong>${text(data.scopes?.month_activity_scope?.transaction_count, 0)} txns</strong>
-              <small>${esc(data.scopes?.month_activity_scope?.date_start || '')} to ${esc(data.scopes?.month_activity_scope?.date_end_exclusive || '')}</small>
-            </div>
-            <div class="metric">
-              <label>Full ledger</label>
-              <strong>${text(data.scopes?.full_ledger_scope?.transaction_count, 0)} txns</strong>
-              <small>${esc(data.scopes?.full_ledger_scope?.date_start || '')} to ${esc(data.scopes?.full_ledger_scope?.date_end || '')}</small>
-            </div>
-            <div class="metric">
-              <label>Balance scope</label>
-              <strong>${esc(data.reconciliation?.balance_scope || 'N/A')}</strong>
-              <small>Must be full_ledger</small>
-            </div>
-            <div class="metric">
-              <label>API version</label>
-              <strong>${esc(data.version || 'N/A')}</strong>
-              <small>${esc(data.computed_at || '')}</small>
-            </div>
-          </div>
-        </section>
+        </details>
       `;
     }
 
@@ -1060,10 +1024,7 @@
 
       try {
         const month = monthInput.value || currentMonth();
-        const res = await fetch(`/api/monthly-close?month=${encodeURIComponent(month)}`, {
-          cache: 'no-store'
-        });
-
+        const res = await fetch(`/api/monthly-close?month=${encodeURIComponent(month)}`, { cache: 'no-store' });
         const data = await res.json();
 
         if (!res.ok || !data || data.ok === false) {
@@ -1071,6 +1032,10 @@
         }
 
         render(data);
+
+        if (window.SovereignNav && typeof window.SovereignNav.checkOverflow === 'function') {
+          window.setTimeout(window.SovereignNav.checkOverflow, 150);
+        }
       } catch (error) {
         app.innerHTML = `
           <section class="panel error">
