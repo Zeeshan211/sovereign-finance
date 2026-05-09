@@ -1,5 +1,5 @@
 // functions/api/finance-command-center.js
-// v0.1.0 — Finance Command Centre backend read-only audit endpoint
+// v0.1.1 — Finance Command Centre backend read-only audit endpoint
 //
 // Contract:
 // - Read-only only.
@@ -10,8 +10,9 @@
 // - No /api/money-contracts.
 // - Unknown stays Unknown.
 // - Suspicious source becomes blocked.
+// - Ready means impossible to fake from missing sources.
 
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 
 const REQUIRED_CORE_TABLES = [
   'accounts',
@@ -142,6 +143,19 @@ const API_REGISTRY = [
   { key: 'forecast', path: '/api/forecast', required: false }
 ];
 
+const READ_ONLY_GUARDS = [
+  'No D1 INSERT',
+  'No D1 UPDATE',
+  'No D1 DELETE',
+  'No D1 ALTER',
+  'No ledger smoke tests',
+  'No transaction creation',
+  'No /api/money-contracts',
+  'Unknown remains Unknown',
+  'Runtime/browser checks remain manual',
+  'Write safety remains Unknown until dry-run exists'
+];
+
 export async function onRequest(context) {
   const startedAt = new Date().toISOString();
 
@@ -164,15 +178,19 @@ export async function onRequest(context) {
     const hardBlockers = [];
     const warnings = [];
     const unknowns = [];
+
     const modules = buildModules();
     const pages = buildPages();
     const apis = await auditApis(context, warnings, unknowns, hardBlockers);
     const d1 = await auditD1(db, warnings, unknowns, hardBlockers);
     const businessRules = await auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers);
-    const scores = computeScores({ apis, d1, businessRules, unknowns, warnings, hardBlockers });
+    const coverage = buildCoverage(modules, pages, apis, d1, businessRules, warnings, unknowns);
+    const scores = computeScores({ apis, d1, businessRules, coverage });
     const score = averageScore(scores);
     const verdict = computeVerdict(hardBlockers, warnings, unknowns);
-    const nextActions = buildNextActions(hardBlockers, warnings, unknowns, businessRules, d1);
+    const trialGate = computeTrialGate(verdict, hardBlockers, warnings, unknowns, scores, businessRules);
+    const sourceProofs = buildSourceProofs(apis, d1, businessRules);
+    const nextActions = buildNextActions(hardBlockers, warnings, unknowns, businessRules, d1, trialGate);
 
     return send({
       ok: hardBlockers.length === 0,
@@ -181,6 +199,19 @@ export async function onRequest(context) {
       verdict,
       score,
       scores,
+      trial_gate: trialGate,
+      summary: {
+        hard_blocker_count: hardBlockers.length,
+        warning_count: warnings.length,
+        unknown_count: unknowns.length,
+        module_count: modules.length,
+        registered_page_count: pages.length,
+        api_check_count: apis.length,
+        business_rule_count: businessRules.length
+      },
+      read_only_guards: READ_ONLY_GUARDS,
+      source_proofs: sourceProofs,
+      coverage,
       hard_blockers: hardBlockers,
       warnings,
       unknowns,
@@ -198,14 +229,25 @@ export async function onRequest(context) {
       computed_at: startedAt,
       verdict: 'blocked',
       score: 0,
-      scores: {
-        frontend_registry: 0,
-        api_health: 0,
-        d1_truth: 0,
-        business_rules: 0,
-        write_safety: 0,
-        runtime: 0
+      scores: emptyScores(),
+      trial_gate: {
+        status: 'blocked',
+        ready_for_known_page_trial: false,
+        ready_for_full_system_certification: false,
+        reason: 'Endpoint exception occurred.'
       },
+      summary: {
+        hard_blocker_count: 1,
+        warning_count: 0,
+        unknown_count: 0,
+        module_count: FINANCE_REGISTRY.length,
+        registered_page_count: FINANCE_REGISTRY.length,
+        api_check_count: 0,
+        business_rule_count: 0
+      },
+      read_only_guards: READ_ONLY_GUARDS,
+      source_proofs: [],
+      coverage: {},
       hard_blockers: [
         blocker('endpoint_exception', err.message || String(err), 'Fix endpoint exception before using Command Centre as a trial gate.')
       ],
@@ -228,14 +270,25 @@ function buildFailure(computedAt, key, message) {
     computed_at: computedAt,
     verdict: 'blocked',
     score: 0,
-    scores: {
-      frontend_registry: 0,
-      api_health: 0,
-      d1_truth: 0,
-      business_rules: 0,
-      write_safety: 0,
-      runtime: 0
+    scores: emptyScores(),
+    trial_gate: {
+      status: 'blocked',
+      ready_for_known_page_trial: false,
+      ready_for_full_system_certification: false,
+      reason: message
     },
+    summary: {
+      hard_blocker_count: 1,
+      warning_count: 0,
+      unknown_count: 0,
+      module_count: FINANCE_REGISTRY.length,
+      registered_page_count: FINANCE_REGISTRY.length,
+      api_check_count: 0,
+      business_rule_count: 0
+    },
+    read_only_guards: READ_ONLY_GUARDS,
+    source_proofs: [],
+    coverage: {},
     hard_blockers: [
       blocker(key, message, 'Restore the required backend binding before running Command Centre audit.')
     ],
@@ -270,7 +323,7 @@ function buildPages() {
       module: module.key,
       status: 'registered',
       runtime_status: 'unknown',
-      note: 'Backend cannot prove browser runtime. Manual browser check remains required.'
+      note: 'Backend can register this page but cannot prove browser runtime. Manual browser check remains required.'
     }))
   );
 }
@@ -287,7 +340,7 @@ async function auditApis(context, warnings, unknowns, hardBlockers) {
       const res = await fetch(url, {
         method: 'GET',
         headers: {
-          'accept': 'application/json',
+          accept: 'application/json',
           'x-finance-command-center-audit': VERSION
         }
       });
@@ -297,18 +350,20 @@ async function auditApis(context, warnings, unknowns, hardBlockers) {
       let jsonReadable = false;
       let version = null;
       let error = null;
+      let shape = null;
 
       try {
         parsed = await res.clone().json();
         jsonReadable = true;
         version = parsed && parsed.version ? String(parsed.version) : null;
+        shape = summarizeJsonShape(parsed);
       } catch (e) {
         error = 'Response is not readable JSON.';
       }
 
       const status = res.ok && jsonReadable ? 'pass' : (item.required ? 'blocked' : 'unknown');
 
-      const auditRow = {
+      results.push({
         key: item.key,
         path: item.path,
         required: item.required,
@@ -318,10 +373,9 @@ async function auditApis(context, warnings, unknowns, hardBlockers) {
         json_readable: jsonReadable,
         version,
         elapsed_ms,
+        shape,
         error
-      };
-
-      results.push(auditRow);
+      });
 
       if (item.required && status === 'blocked') {
         hardBlockers.push(blocker(
@@ -337,6 +391,7 @@ async function auditApis(context, warnings, unknowns, hardBlockers) {
       }
     } catch (err) {
       const status = item.required ? 'blocked' : 'unknown';
+
       results.push({
         key: item.key,
         path: item.path,
@@ -368,12 +423,13 @@ async function auditApis(context, warnings, unknowns, hardBlockers) {
     required: false,
     status: 'banned',
     ok: false,
+    called: false,
     note: 'This endpoint is intentionally not called. It is not allowed as a trial-trust source.'
   });
 
   warnings.push(warning(
     'api_contract_depth_limited',
-    'API health verifies availability and JSON readability. It does not prove every downstream formula yet.'
+    'API health verifies route availability and JSON readability. It does not prove every downstream formula yet.'
   ));
 
   return results;
@@ -391,6 +447,7 @@ async function auditD1(db, warnings, unknowns, hardBlockers) {
 
   for (const table of REQUIRED_CORE_TABLES) {
     const exists = tableSet.has(table);
+
     tableAudits.push({
       table,
       required: true,
@@ -426,6 +483,7 @@ async function auditD1(db, warnings, unknowns, hardBlockers) {
 
   for (const table of OPTIONAL_TABLES) {
     const exists = tableSet.has(table);
+
     tableAudits.push({
       table,
       required: false,
@@ -448,9 +506,10 @@ async function auditD1(db, warnings, unknowns, hardBlockers) {
   const accountTruth = await auditAccountsTruth(db, tableSet, columnsByTable, warnings, unknowns, hardBlockers);
   const billsTruth = await auditBillsTruth(db, tableSet, columnsByTable, warnings, unknowns, hardBlockers);
   const debtsTruth = await auditDebtsTruth(db, tableSet, columnsByTable, warnings, unknowns, hardBlockers);
-  const categoriesTruth = await auditCategoriesTruth(db, tableSet, rowCounts, unknowns);
-  const reconciliationTruth = await auditReconciliationTruth(db, tableSet, rowCounts, unknowns);
-  const salaryTruth = await auditSalaryTruth(db, tableSet, columnsByTable, unknowns);
+  const categoriesTruth = await auditCategoriesTruth(tableSet, rowCounts, unknowns);
+  const reconciliationTruth = await auditReconciliationTruth(tableSet, rowCounts, unknowns);
+  const salaryTruth = await auditSalaryTruth(tableSet, columnsByTable, unknowns);
+  const transactionTruth = await auditTransactionsTruth(tableSet, rowCounts, unknowns);
 
   return {
     status: hardBlockers.some(b => b.key.startsWith('d1_')) ? 'blocked' : 'checked',
@@ -460,6 +519,7 @@ async function auditD1(db, warnings, unknowns, hardBlockers) {
     columns: columnsByTable,
     truth: {
       accounts: accountTruth,
+      transactions: transactionTruth,
       bills: billsTruth,
       debts: debtsTruth,
       categories: categoriesTruth,
@@ -477,20 +537,25 @@ async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers
   const billsTruth = d1.truth && d1.truth.bills ? d1.truth.bills : {};
   const debtsTruth = d1.truth && d1.truth.debts ? d1.truth.debts : {};
   const salaryTruth = d1.truth && d1.truth.salary ? d1.truth.salary : {};
+  const transactionsTruth = d1.truth && d1.truth.transactions ? d1.truth.transactions : {};
+
+  const ccSourceStatus = accountsTruth.cc_account_count > 0 && accountsTruth.cc_balance_source
+    ? 'pass'
+    : 'unknown';
 
   rules.push(rule(
     'cc_outstanding_source',
-    accountsTruth.cc_account_count > 0 && balancesApi && balancesApi.status === 'pass' ? 'pass' : 'unknown',
+    ccSourceStatus,
     'Credit Card outstanding must not come from lifetime spend.',
-    accountsTruth.cc_account_count > 0
-      ? 'Credit Card account exists. Backend audit treats /api/balances account-balance model as current source.'
-      : 'No Credit Card account could be verified from accounts table.'
+    ccSourceStatus === 'pass'
+      ? 'Credit Card source proof found from accounts table balance column: ' + accountsTruth.cc_balance_source + '. Lifetime spend is not used.'
+      : 'Credit Card realtime account/balance source could not be fully proven. Must remain Unknown on trust surfaces.'
   ));
 
-  if (!accountsTruth.cc_account_count) {
+  if (ccSourceStatus !== 'pass') {
     unknowns.push(unknown(
       'cc_outstanding_source_unknown',
-      'Credit Card account/balance truth could not be verified. CC outstanding must remain Unknown on trust surfaces.'
+      'Credit Card account/balance truth could not be fully verified. CC outstanding must remain Unknown on trust surfaces.'
     ));
   }
 
@@ -498,7 +563,7 @@ async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers
     'cc_unknown_not_zero',
     'pass',
     'Missing CC outstanding must show Unknown, not fake zero.',
-    'Audit contract enforces Unknown when CC truth source is unavailable.'
+    'Audit contract requires Unknown if CC truth source is unavailable.'
   ));
 
   rules.push(rule(
@@ -519,14 +584,16 @@ async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers
     'forecast_precision',
     'unknown',
     'Forecast must not fake precision when sources are missing.',
-    'Forecast precision requires frontend/backend forecast contract review in a later ship.'
+    'Forecast endpoint/page contract is not deeply verified by this backend version. Forecast precision remains Unknown.'
   ));
+
   unknowns.push(unknown(
     'forecast_precision_not_deep_checked',
     'Forecast endpoint/page not deeply checked yet. Do not allow this to become Ready.'
   ));
 
   const missingDataStatus = billsTruth.zero_amount_active_count > 0 ? 'blocked' : 'pass';
+
   rules.push(rule(
     'missing_data_unknown_not_zero',
     missingDataStatus,
@@ -550,6 +617,7 @@ async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers
     'Add must not silently queue failed saves.',
     'Write safety cannot be proven without dry-run support. Must remain Unknown.'
   ));
+
   unknowns.push(unknown(
     'add_write_safety_unknown',
     'Add write path is not dry-run verified. Do not mark write safety Ready.'
@@ -564,13 +632,14 @@ async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers
 
   rules.push(rule(
     'month_activity_scope',
-    'unknown',
+    transactionsTruth.status === 'pass' ? 'warning' : 'unknown',
     'Month activity must stay separate from full ledger truth.',
-    'Month-vs-ledger source separation requires monthly-close frontend review in a later ship.'
+    'Transactions table exists, but month-vs-ledger separation is not deeply verified here.'
   ));
-  unknowns.push(unknown(
-    'month_activity_scope_unknown',
-    'Month activity separation is not deeply verified by backend endpoint v0.1.'
+
+  warnings.push(warning(
+    'month_activity_scope_not_deep_checked',
+    'Month activity separation is not deeply verified by backend endpoint v0.1.1.'
   ));
 
   if (debtsTruth.invalid_kind_count > 0) {
@@ -580,6 +649,7 @@ async function auditBusinessRules(db, apis, d1, warnings, unknowns, hardBlockers
       'Active debts must have payable/receivable direction.',
       'Invalid debt kind rows detected.'
     ));
+
     hardBlockers.push(blocker(
       'debt_direction_invalid',
       'Active debt rows have missing or invalid kind.',
@@ -603,27 +673,50 @@ async function auditAccountsTruth(db, tableSet, columnsByTable, warnings, unknow
   }
 
   const columns = columnsByTable.accounts || [];
+  const hasStatus = columns.includes('status');
   const hasKind = columns.includes('kind');
   const hasType = columns.includes('type');
-  const hasStatus = columns.includes('status');
+  const hasName = columns.includes('name');
+  const balanceColumn = pickFirstColumn(columns, [
+    'balance',
+    'current_balance',
+    'available_balance',
+    'amount',
+    'current_amount'
+  ]);
 
   const whereActive = hasStatus
-    ? "WHERE status IS NULL OR status = '' OR status = 'active'"
+    ? "WHERE status IS NULL OR status = '' OR LOWER(status) = 'active'"
     : '';
 
   const activeCount = await scalar(db, `SELECT COUNT(*) AS n FROM accounts ${whereActive}`);
-  const ccCondition = [
-    hasKind ? "LOWER(COALESCE(kind, '')) IN ('cc', 'credit', 'credit_card')" : null,
-    hasType ? "LOWER(COALESCE(type, '')) IN ('cc', 'credit', 'credit_card', 'liability')" : null
-  ].filter(Boolean).join(' OR ');
+
+  const ccClauses = [];
+  if (hasKind) ccClauses.push("LOWER(COALESCE(kind, '')) IN ('cc', 'credit', 'credit_card')");
+  if (hasType) ccClauses.push("LOWER(COALESCE(type, '')) IN ('cc', 'credit', 'credit_card', 'liability')");
+  if (hasName) ccClauses.push("LOWER(COALESCE(name, '')) LIKE '%credit%'");
 
   let ccAccountCount = 0;
-  if (ccCondition) {
-    ccAccountCount = await scalar(db, `SELECT COUNT(*) AS n FROM accounts WHERE ${ccCondition}`);
+  let ccBalanceReadable = false;
+  let ccBalanceSource = null;
+
+  if (ccClauses.length) {
+    const ccWhere = ccClauses.join(' OR ');
+    ccAccountCount = await scalar(db, `SELECT COUNT(*) AS n FROM accounts WHERE ${ccWhere}`);
+
+    if (ccAccountCount > 0 && balanceColumn) {
+      const sample = await firstRow(
+        db,
+        `SELECT ${safeIdentifier(balanceColumn)} AS balance_value FROM accounts WHERE ${ccWhere} LIMIT 1`
+      );
+
+      ccBalanceReadable = sample && Object.prototype.hasOwnProperty.call(sample, 'balance_value');
+      ccBalanceSource = ccBalanceReadable ? 'accounts.' + balanceColumn : null;
+    }
   } else {
     unknowns.push(unknown(
       'accounts_cc_columns_unknown',
-      'accounts table does not expose kind/type columns for Credit Card detection.'
+      'accounts table does not expose kind/type/name columns for Credit Card detection.'
     ));
   }
 
@@ -639,6 +732,9 @@ async function auditAccountsTruth(db, tableSet, columnsByTable, warnings, unknow
     status: activeCount > 0 ? 'pass' : 'blocked',
     active_account_count: activeCount,
     cc_account_count: ccAccountCount,
+    cc_balance_readable: ccBalanceReadable,
+    cc_balance_source: ccBalanceSource,
+    balance_column_identified: balanceColumn,
     columns_checked: columns,
     message: activeCount > 0
       ? 'Active accounts readable.'
@@ -646,7 +742,34 @@ async function auditAccountsTruth(db, tableSet, columnsByTable, warnings, unknow
   };
 }
 
-async function auditBillsTruth(db, tableSet, columnsByTable, warnings, unknowns, hardBlockers) {
+async function auditTransactionsTruth(tableSet, rowCounts, unknowns) {
+  if (!tableSet.has('transactions')) {
+    return { status: 'blocked', message: 'transactions table missing' };
+  }
+
+  const count = rowCounts.transactions || 0;
+
+  if (count <= 0) {
+    unknowns.push(unknown(
+      'transactions_empty',
+      'Transactions table is readable but empty. Ledger truth remains Unknown.'
+    ));
+
+    return {
+      status: 'unknown',
+      row_count: count,
+      message: 'Transactions table empty.'
+    };
+  }
+
+  return {
+    status: 'pass',
+    row_count: count,
+    message: 'Transactions table has rows.'
+  };
+}
+
+async function auditBillsTruth(db, tableSet, columnsByTable, warnings, unknowns) {
   if (!tableSet.has('bills')) {
     return { status: 'blocked', message: 'bills table missing', zero_amount_active_count: 0 };
   }
@@ -661,20 +784,23 @@ async function auditBillsTruth(db, tableSet, columnsByTable, warnings, unknowns,
       'bills_amount_column_unknown',
       'Bills amount column was not found. Bill amount validity remains Unknown.'
     ));
+
     return {
       status: 'unknown',
       zero_amount_active_count: 0,
+      due_column_identified: hasDueDate,
+      columns_checked: columns,
       message: 'Bills amount column unknown.'
     };
   }
 
   const activeWhere = hasStatus
-    ? "WHERE status IS NULL OR status = '' OR status = 'active'"
+    ? "WHERE status IS NULL OR status = '' OR LOWER(status) = 'active'"
     : '';
 
   const zeroAmountActiveCount = await scalar(
     db,
-    `SELECT COUNT(*) AS n FROM bills ${activeWhere} ${activeWhere ? 'AND' : 'WHERE'} (amount IS NULL OR amount <= 0)`
+    `SELECT COUNT(*) AS n FROM bills ${activeWhere} ${activeWhere ? 'AND' : 'WHERE'} (${safeIdentifier('amount')} IS NULL OR ${safeIdentifier('amount')} <= 0)`
   );
 
   if (!hasDueDate) {
@@ -695,7 +821,7 @@ async function auditBillsTruth(db, tableSet, columnsByTable, warnings, unknowns,
   };
 }
 
-async function auditDebtsTruth(db, tableSet, columnsByTable, warnings, unknowns, hardBlockers) {
+async function auditDebtsTruth(db, tableSet, columnsByTable, warnings, unknowns) {
   if (!tableSet.has('debts')) {
     return { status: 'blocked', message: 'debts table missing', invalid_kind_count: 0 };
   }
@@ -709,15 +835,17 @@ async function auditDebtsTruth(db, tableSet, columnsByTable, warnings, unknowns,
       'debts_kind_column_unknown',
       'Debts kind column missing. Payable/receivable direction remains Unknown.'
     ));
+
     return {
       status: 'unknown',
       invalid_kind_count: 0,
+      columns_checked: columns,
       message: 'Debt direction column unknown.'
     };
   }
 
   const activeWhere = hasStatus
-    ? "WHERE status IS NULL OR status = '' OR status = 'active'"
+    ? "WHERE status IS NULL OR status = '' OR LOWER(status) = 'active'"
     : '';
 
   const invalidKindCount = await scalar(
@@ -735,47 +863,51 @@ async function auditDebtsTruth(db, tableSet, columnsByTable, warnings, unknowns,
   };
 }
 
-async function auditCategoriesTruth(db, tableSet, rowCounts, unknowns) {
+async function auditCategoriesTruth(tableSet, rowCounts, unknowns) {
   if (!tableSet.has('categories')) {
     return { status: 'blocked', message: 'categories table missing' };
   }
 
   const count = rowCounts.categories || 0;
+
   if (count <= 0) {
     unknowns.push(unknown(
       'categories_empty',
       'Categories table is readable but empty. Add/Transactions category confidence remains Unknown.'
     ));
+
     return { status: 'unknown', row_count: count, message: 'Categories table empty.' };
   }
 
   return { status: 'pass', row_count: count, message: 'Categories readable.' };
 }
 
-async function auditReconciliationTruth(db, tableSet, rowCounts, unknowns) {
+async function auditReconciliationTruth(tableSet, rowCounts, unknowns) {
   if (!tableSet.has('reconciliation')) {
     return { status: 'blocked', message: 'reconciliation table missing' };
   }
 
   const count = rowCounts.reconciliation || 0;
+
   if (count <= 0) {
     unknowns.push(unknown(
       'reconciliation_empty',
       'Reconciliation table is readable but has no rows. Declared balance confidence remains Unknown.'
     ));
+
     return { status: 'unknown', row_count: count, message: 'Reconciliation has no rows.' };
   }
 
   return { status: 'pass', row_count: count, message: 'Reconciliation readable.' };
 }
 
-async function auditSalaryTruth(db, tableSet, columnsByTable, unknowns) {
+async function auditSalaryTruth(tableSet, columnsByTable, unknowns) {
   if (tableSet.has('salary')) {
     return {
       status: 'pass',
       source: 'salary',
       columns_checked: columnsByTable.salary || [],
-      message: 'salary table exists and is readable.'
+      message: 'salary table exists and is readable. Baseline split still depends on salary schema meaning.'
     };
   }
 
@@ -798,6 +930,207 @@ async function auditSalaryTruth(db, tableSet, columnsByTable, unknowns) {
     source: null,
     message: 'No salary source identified.'
   };
+}
+
+function buildCoverage(modules, pages, apis, d1, businessRules, warnings, unknowns) {
+  const registeredModules = modules.length;
+  const registeredPages = pages.length;
+  const checkedApis = apis.filter(a => a.key !== 'money_contracts').length;
+  const requiredApis = apis.filter(a => a.required);
+  const passedRequiredApis = requiredApis.filter(a => a.status === 'pass').length;
+  const requiredTables = Array.isArray(d1.tables) ? d1.tables.filter(t => t.required) : [];
+  const passedRequiredTables = requiredTables.filter(t => t.status === 'pass').length;
+  const passedRules = businessRules.filter(r => r.status === 'pass').length;
+
+  return {
+    status: unknowns.length ? 'unknown' : 'checked',
+    registry: {
+      modules_registered: registeredModules,
+      pages_registered: registeredPages,
+      registry_completeness: 'known_modules_only',
+      note: 'Backend can verify registered modules only. Anything outside registry remains unknown.'
+    },
+    api: {
+      required_api_count: requiredApis.length,
+      required_api_pass_count: passedRequiredApis,
+      checked_api_count: checkedApis
+    },
+    d1: {
+      required_table_count: requiredTables.length,
+      required_table_pass_count: passedRequiredTables
+    },
+    business_rules: {
+      rule_count: businessRules.length,
+      pass_count: passedRules,
+      unknown_count: businessRules.filter(r => r.status === 'unknown').length,
+      warning_count: businessRules.filter(r => r.status === 'warning').length,
+      blocked_count: businessRules.filter(r => r.status === 'blocked').length
+    },
+    runtime: {
+      status: 'unknown',
+      note: 'Backend cannot prove browser runtime.'
+    },
+    write_safety: {
+      status: 'unknown',
+      note: 'No write dry-run endpoint exists yet.'
+    }
+  };
+}
+
+function buildSourceProofs(apis, d1, businessRules) {
+  const accountsTruth = d1.truth && d1.truth.accounts ? d1.truth.accounts : {};
+  const salaryTruth = d1.truth && d1.truth.salary ? d1.truth.salary : {};
+  const balancesApi = apis.find(a => a.key === 'balances');
+
+  return [
+    {
+      key: 'credit_card',
+      status: accountsTruth.cc_balance_source ? 'pass' : 'unknown',
+      source: accountsTruth.cc_balance_source || null,
+      message: accountsTruth.cc_balance_source
+        ? 'Credit Card balance source proof comes from accounts table, not lifetime spend.'
+        : 'Credit Card balance source proof unavailable.'
+    },
+    {
+      key: 'balances_api',
+      status: balancesApi && balancesApi.status === 'pass' ? 'pass' : 'unknown',
+      source: '/api/balances?debug=1',
+      message: balancesApi && balancesApi.status === 'pass'
+        ? 'Balances API is reachable and returns JSON.'
+        : 'Balances API not verified.'
+    },
+    {
+      key: 'salary',
+      status: salaryTruth.status || 'unknown',
+      source: salaryTruth.source || null,
+      message: salaryTruth.message || 'Salary source not identified.'
+    },
+    {
+      key: 'money_contracts',
+      status: 'banned',
+      source: '/api/money-contracts',
+      message: 'Endpoint is banned and intentionally not called.'
+    }
+  ];
+}
+
+function computeScores({ apis, d1, businessRules, coverage }) {
+  const requiredApis = apis.filter(a => a.required);
+  const passedRequiredApis = requiredApis.filter(a => a.status === 'pass').length;
+
+  const apiHealth = requiredApis.length
+    ? Math.round((passedRequiredApis / requiredApis.length) * 100)
+    : 0;
+
+  const requiredTables = d1.tables ? d1.tables.filter(t => t.required) : [];
+  const passedRequiredTables = requiredTables.filter(t => t.status === 'pass').length;
+
+  const d1Truth = requiredTables.length
+    ? Math.round((passedRequiredTables / requiredTables.length) * 100)
+    : 0;
+
+  const blockedRules = businessRules.filter(r => r.status === 'blocked').length;
+  const warningRules = businessRules.filter(r => r.status === 'warning').length;
+  const unknownRules = businessRules.filter(r => r.status === 'unknown').length;
+  const passedRules = businessRules.filter(r => r.status === 'pass').length;
+
+  const businessRuleScore = businessRules.length
+    ? Math.max(
+      0,
+      Math.round((passedRules / businessRules.length) * 100) -
+      (blockedRules * 25) -
+      (warningRules * 10) -
+      (unknownRules * 6)
+    )
+    : 0;
+
+  const frontendRegistry = coverage && coverage.registry && coverage.registry.modules_registered
+    ? 85
+    : 0;
+
+  return {
+    frontend_registry: frontendRegistry,
+    api_health: apiHealth,
+    d1_truth: d1Truth,
+    business_rules: businessRuleScore,
+    write_safety: 0,
+    runtime: 0
+  };
+}
+
+function computeTrialGate(verdict, hardBlockers, warnings, unknowns, scores, businessRules) {
+  const blocked = hardBlockers.length > 0;
+  const writeUnknown = Number(scores.write_safety) === 0;
+  const runtimeUnknown = Number(scores.runtime) === 0;
+  const hasWarnings = warnings.length > 0;
+  const hasUnknowns = unknowns.length > 0;
+
+  let status = verdict;
+  let reason = 'Backend audit completed.';
+
+  if (blocked) {
+    status = 'blocked';
+    reason = 'Hard blocker exists.';
+  } else if (hasWarnings) {
+    status = 'ready_with_warnings';
+    reason = 'No hard blockers, but warning-level risk remains.';
+  } else if (hasUnknowns || writeUnknown || runtimeUnknown) {
+    status = 'ready_with_unknown';
+    reason = 'Known backend checks passed, but unknowns/runtime/write safety remain.';
+  } else {
+    status = 'ready';
+    reason = 'Known backend checks passed without blockers, warnings, or unknowns.';
+  }
+
+  return {
+    status,
+    ready_for_known_page_trial: !blocked,
+    ready_for_full_system_certification: !blocked && !hasWarnings && !hasUnknowns && !writeUnknown && !runtimeUnknown,
+    reason,
+    hard_blockers: hardBlockers.length,
+    warnings: warnings.length,
+    unknowns: unknowns.length,
+    business_rules_passed: businessRules.filter(r => r.status === 'pass').length,
+    business_rules_total: businessRules.length
+  };
+}
+
+function computeVerdict(hardBlockers, warnings, unknowns) {
+  if (hardBlockers.length) return 'blocked';
+  if (warnings.length) return 'warning';
+  if (unknowns.length) return 'ready_with_unknown';
+  return 'ready';
+}
+
+function buildNextActions(hardBlockers, warnings, unknowns, businessRules, d1, trialGate) {
+  const actions = [];
+
+  hardBlockers.slice(0, 5).forEach(item => {
+    actions.push(item.next_action || item.message);
+  });
+
+  if (!hardBlockers.length && unknowns.length) {
+    unknowns.slice(0, 5).forEach(item => {
+      actions.push('Resolve Unknown: ' + item.message);
+    });
+  }
+
+  if (!hardBlockers.length && !unknowns.length && warnings.length) {
+    warnings.slice(0, 3).forEach(item => {
+      actions.push('Review warning: ' + item.message);
+    });
+  }
+
+  if (!actions.length && trialGate.ready_for_known_page_trial && !trialGate.ready_for_full_system_certification) {
+    actions.push('Run manual browser/runtime verification for monthly-close.html and core finance pages.');
+    actions.push('Add future dry-run write safety endpoint before full system certification.');
+  }
+
+  if (!actions.length) {
+    actions.push('Keep Command Centre as display-only truth cockpit and update state file with current pass.');
+  }
+
+  return dedupe(actions);
 }
 
 async function getTables(db) {
@@ -825,6 +1158,7 @@ async function getColumns(db, table) {
 async function readProbe(db, table) {
   try {
     await db.prepare(`SELECT * FROM ${safeIdentifier(table)} LIMIT 1`).all();
+
     return {
       table,
       status: 'pass',
@@ -850,37 +1184,44 @@ async function countRows(db, table) {
 
 async function scalar(db, sql) {
   const row = await db.prepare(sql).first();
+
   if (!row) return 0;
   if (row.n != null) return Number(row.n) || 0;
+
   const firstKey = Object.keys(row)[0];
   return Number(row[firstKey]) || 0;
 }
 
-function computeScores({ apis, d1, businessRules, unknowns, warnings, hardBlockers }) {
-  const requiredApis = apis.filter(a => a.required);
-  const passedRequiredApis = requiredApis.filter(a => a.status === 'pass').length;
-  const apiHealth = requiredApis.length
-    ? Math.round((passedRequiredApis / requiredApis.length) * 100)
-    : 0;
+async function firstRow(db, sql) {
+  try {
+    return await db.prepare(sql).first();
+  } catch (e) {
+    return null;
+  }
+}
 
-  const requiredTables = d1.tables ? d1.tables.filter(t => t.required) : [];
-  const passedRequiredTables = requiredTables.filter(t => t.status === 'pass').length;
-  const d1Truth = requiredTables.length
-    ? Math.round((passedRequiredTables / requiredTables.length) * 100)
-    : 0;
+function summarizeJsonShape(value) {
+  if (!value || typeof value !== 'object') return null;
 
-  const blockedRules = businessRules.filter(r => r.status === 'blocked').length;
-  const unknownRules = businessRules.filter(r => r.status === 'unknown').length;
-  const passedRules = businessRules.filter(r => r.status === 'pass').length;
-  const businessRuleScore = businessRules.length
-    ? Math.max(0, Math.round((passedRules / businessRules.length) * 100) - (blockedRules * 20) - (unknownRules * 5))
-    : 0;
+  if (Array.isArray(value)) {
+    return {
+      type: 'array',
+      length: value.length
+    };
+  }
 
   return {
-    frontend_registry: 80,
-    api_health: apiHealth,
-    d1_truth: d1Truth,
-    business_rules: businessRuleScore,
+    type: 'object',
+    keys: Object.keys(value).slice(0, 20)
+  };
+}
+
+function emptyScores() {
+  return {
+    frontend_registry: 0,
+    api_health: 0,
+    d1_truth: 0,
+    business_rules: 0,
     write_safety: 0,
     runtime: 0
   };
@@ -889,40 +1230,8 @@ function computeScores({ apis, d1, businessRules, unknowns, warnings, hardBlocke
 function averageScore(scores) {
   const values = Object.values(scores).map(n => Number(n) || 0);
   if (!values.length) return 0;
+
   return Math.round(values.reduce((sum, n) => sum + n, 0) / values.length);
-}
-
-function computeVerdict(hardBlockers, warnings, unknowns) {
-  if (hardBlockers.length) return 'blocked';
-  if (warnings.length) return 'warning';
-  if (unknowns.length) return 'ready_with_unknown';
-  return 'ready';
-}
-
-function buildNextActions(hardBlockers, warnings, unknowns, businessRules, d1) {
-  const actions = [];
-
-  hardBlockers.slice(0, 5).forEach(item => {
-    actions.push(item.next_action || item.message);
-  });
-
-  if (!hardBlockers.length && unknowns.length) {
-    unknowns.slice(0, 5).forEach(item => {
-      actions.push('Resolve Unknown: ' + item.message);
-    });
-  }
-
-  if (!actions.length && warnings.length) {
-    warnings.slice(0, 3).forEach(item => {
-      actions.push('Review warning: ' + item.message);
-    });
-  }
-
-  if (!actions.length) {
-    actions.push('Connect monthly-close.html to /api/finance-command-center and display backend verdict.');
-  }
-
-  return dedupe(actions);
 }
 
 function rule(key, status, ruleText, message) {
@@ -963,11 +1272,21 @@ function dedupe(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
+function pickFirstColumn(columns, candidates) {
+  for (const candidate of candidates) {
+    if (columns.includes(candidate)) return candidate;
+  }
+
+  return null;
+}
+
 function safeIdentifier(identifier) {
   const value = String(identifier || '');
+
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) {
     throw new Error('Unsafe SQL identifier: ' + value);
   }
+
   return value;
 }
 
