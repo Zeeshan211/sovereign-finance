@@ -1,25 +1,28 @@
-/* Sovereign Finance nav.css v1.1.5
-   Visual-only navigation shell.
+/* Sovereign Finance nav.css v1.1.6
+   Floating command dock.
 
    Contract:
-   - Styles only navigation classes and shell offset.
-   - Does not style bank icons.
-   - Does not style account icons.
-   - Does not style cards, tables, forms, balances, or page internals.
-   - Desktop offset only prevents fixed sidebar overlap.
+   - Navigation shell only.
+   - No bank icon styling.
+   - No account icon styling.
+   - No finance card/table/form styling.
+   - No money logic.
+   - Desktop offset only reserves safe space for the fixed dock.
 */
 
 :root {
-  --sfn-width: 282px;
-  --sfn-gap: 18px;
-  --sfn-offset: 300px;
-  --sfn-content-gap: 18px;
+  --sfn-dock-width: 268px;
+  --sfn-dock-left: 16px;
+  --sfn-dock-top: 16px;
+  --sfn-dock-bottom: 16px;
+  --sfn-content-left: 304px;
+  --sfn-content-right: 18px;
   --sfn-mobile-height: 76px;
 
-  --sfn-bg: rgba(255, 255, 255, 0.86);
-  --sfn-bg-strong: rgba(255, 255, 255, 0.97);
-  --sfn-border: rgba(148, 163, 184, 0.26);
-  --sfn-border-strong: rgba(34, 197, 94, 0.32);
+  --sfn-bg: rgba(255, 255, 255, 0.82);
+  --sfn-bg-strong: rgba(255, 255, 255, 0.96);
+  --sfn-border: rgba(148, 163, 184, 0.24);
+  --sfn-border-strong: rgba(34, 197, 94, 0.30);
 
   --sfn-text: #0f172a;
   --sfn-muted: #64748b;
@@ -27,8 +30,10 @@
 
   --sfn-green: #16a34a;
   --sfn-green-soft: rgba(34, 197, 94, 0.12);
+  --sfn-blue-soft: rgba(37, 99, 235, 0.09);
 
-  --sfn-shadow: 0 24px 70px rgba(15, 23, 42, 0.14);
+  --sfn-shadow: 0 22px 60px rgba(15, 23, 42, 0.13);
+  --sfn-shadow-soft: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
 body.sf-nav-ready .desktop-nav,
@@ -38,28 +43,31 @@ body.sf-nav-ready .bottom-nav {
   pointer-events: none !important;
 }
 
-/* Desktop side panel */
+/* Desktop floating dock */
 
 .sf-shell-nav {
   position: fixed;
-  inset: 0 auto 0 0;
+  left: var(--sfn-dock-left);
+  top: var(--sfn-dock-top);
+  bottom: var(--sfn-dock-bottom);
   z-index: 1200;
-  width: var(--sfn-width);
-  padding: 14px;
+  width: var(--sfn-dock-width);
   pointer-events: none;
 }
 
-.sfn-card {
+.sfn-dock {
   height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   pointer-events: auto;
+
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.88)),
-    radial-gradient(circle at top left, rgba(34, 197, 94, 0.14), transparent 16rem);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.84)),
+    radial-gradient(circle at 14% 0%, rgba(34, 197, 94, 0.15), transparent 15rem),
+    radial-gradient(circle at 100% 18%, rgba(37, 99, 235, 0.10), transparent 13rem);
   border: 1px solid var(--sfn-border);
-  border-radius: 28px;
+  border-radius: 30px;
   box-shadow: var(--sfn-shadow);
   backdrop-filter: blur(22px);
 }
@@ -68,23 +76,24 @@ body.sf-nav-ready .bottom-nav {
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 16px 14px 12px;
+  padding: 15px 14px 10px;
   color: var(--sfn-text);
   text-decoration: none;
 }
 
 .sfn-brand-mark {
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 16px;
+  border-radius: 15px;
   color: #052e16;
-  background: linear-gradient(135deg, #bbf7d0, #93c5fd);
+  background: linear-gradient(135deg, #bbf7d0, #bfdbfe);
   font-size: 12px;
   font-weight: 950;
   letter-spacing: -0.04em;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 .sfn-brand-text {
@@ -94,46 +103,52 @@ body.sf-nav-ready .bottom-nav {
 .sfn-brand strong {
   display: block;
   color: var(--sfn-text);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 950;
   line-height: 1.08;
   letter-spacing: -0.035em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sfn-brand small {
   display: block;
   margin-top: 3px;
   color: var(--sfn-muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 850;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.sfn-active-card {
+.sfn-current {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 2px 12px 10px;
-  padding: 12px;
+  padding: 11px;
   border-radius: 20px;
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.13), rgba(37, 99, 235, 0.09));
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.13), rgba(37, 99, 235, 0.08));
   border: 1px solid rgba(34, 197, 94, 0.22);
 }
 
-.sfn-active-mark {
-  width: 34px;
-  height: 34px;
+.sfn-current-mark {
+  width: 32px;
+  height: 32px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 14px;
+  border-radius: 13px;
   background: #ffffff;
   color: var(--sfn-green);
   border: 1px solid rgba(34, 197, 94, 0.24);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 950;
 }
 
-.sfn-active-card small {
+.sfn-current small {
   display: block;
   color: var(--sfn-muted);
   font-size: 10px;
@@ -142,48 +157,64 @@ body.sf-nav-ready .bottom-nav {
   letter-spacing: 0.06em;
 }
 
-.sfn-active-card strong {
+.sfn-current strong {
   display: block;
   margin-top: 2px;
   color: var(--sfn-text);
   font-size: 13px;
   font-weight: 950;
   line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sfn-quick {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 7px;
   padding: 0 12px 12px;
 }
 
 .sfn-quick-btn {
   min-width: 0;
-  min-height: 54px;
-  display: grid;
-  place-items: center;
-  gap: 3px;
-  padding: 8px 4px;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(148, 163, 184, 0.20);
+  background: rgba(255, 255, 255, 0.66);
+  border: 1px solid rgba(148, 163, 184, 0.18);
   color: var(--sfn-muted);
   text-decoration: none;
-  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease;
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .sfn-quick-btn span {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #ffffff;
   color: var(--sfn-text);
-  font-size: 13px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  font-size: 12px;
   font-weight: 950;
 }
 
 .sfn-quick-btn strong {
-  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   color: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 950;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -195,26 +226,27 @@ body.sf-nav-ready .bottom-nav {
   color: var(--sfn-text);
   background: var(--sfn-green-soft);
   border-color: var(--sfn-border-strong);
+  box-shadow: var(--sfn-shadow-soft);
 }
 
 .sfn-sections {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 2px 10px 10px;
+  padding: 0 10px 10px;
 }
 
 .sfn-sections::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 .sfn-sections::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.34);
+  background: rgba(148, 163, 184, 0.32);
   border-radius: 999px;
 }
 
 .sfn-section {
-  margin: 8px 0;
+  margin: 7px 0;
   border-radius: 18px;
 }
 
@@ -224,18 +256,19 @@ body.sf-nav-ready .bottom-nav {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 46px;
-  padding: 9px 10px;
+  min-height: 43px;
+  padding: 8px 10px;
   border: 0;
-  border-radius: 18px;
+  border-radius: 17px;
   background: transparent;
   color: var(--sfn-muted);
   text-align: left;
   cursor: pointer;
+  font-family: inherit;
 }
 
 .sfn-section-head:hover {
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(255, 255, 255, 0.62);
   color: var(--sfn-text);
 }
 
@@ -248,10 +281,13 @@ body.sf-nav-ready .bottom-nav {
 
 .sfn-section-head small {
   display: block;
-  margin-top: 2px;
+  margin-top: 1px;
   color: var(--sfn-muted);
   font-size: 10px;
   font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sfn-chevron {
@@ -267,7 +303,7 @@ body.sf-nav-ready .bottom-nav {
 
 .sfn-section-body {
   display: none;
-  padding: 0 4px 8px;
+  padding: 0 4px 7px;
 }
 
 .sfn-section.open .sfn-section-body {
@@ -280,14 +316,18 @@ body.sf-nav-ready .bottom-nav {
   display: flex;
   align-items: center;
   gap: 9px;
-  min-height: 38px;
+  min-height: 36px;
   min-width: 0;
-  padding: 8px 9px;
+  padding: 7px 9px;
   border-radius: 14px;
   color: var(--sfn-muted);
   text-decoration: none;
   border: 1px solid transparent;
-  transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, color 180ms ease;
+  transition:
+    transform 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease;
 }
 
 .sfn-link::before {
@@ -304,13 +344,13 @@ body.sf-nav-ready .bottom-nav {
 .sfn-link:hover {
   transform: translateX(1px);
   color: var(--sfn-text);
-  background: rgba(255, 255, 255, 0.74);
+  background: rgba(255, 255, 255, 0.70);
 }
 
 .sfn-link.active {
   color: var(--sfn-text);
   background: linear-gradient(135deg, rgba(34, 197, 94, 0.14), rgba(37, 99, 235, 0.07));
-  border-color: rgba(34, 197, 94, 0.24);
+  border-color: rgba(34, 197, 94, 0.22);
 }
 
 .sfn-link.active::before {
@@ -318,14 +358,14 @@ body.sf-nav-ready .bottom-nav {
 }
 
 .sfn-mark {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  border-radius: 11px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  border: 1px solid rgba(148, 163, 184, 0.20);
   color: var(--sfn-text);
   font-size: 11px;
   font-weight: 950;
@@ -349,16 +389,16 @@ body.sf-nav-ready .bottom-nav {
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 14px 14px;
+  padding: 9px 14px 13px;
   color: var(--sfn-faint);
-  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
   font-size: 10px;
   font-weight: 850;
 }
 
 /* Desktop shell offset.
-   This only reserves space for the fixed sidebar.
-   It does not style app internals.
+   Only reserves safe space beside the dock.
+   Does not style page internals.
 */
 
 @media (min-width: 981px) {
@@ -385,18 +425,18 @@ body.sf-nav-ready .bottom-nav {
   body.sf-nav-ready .audit-wrap,
   body.sf-nav-ready .snapshots-wrap {
     width: auto !important;
-    max-width: min(1440px, calc(100vw - var(--sfn-offset) - var(--sfn-content-gap))) !important;
-    margin-left: var(--sfn-offset) !important;
-    margin-right: var(--sfn-content-gap) !important;
+    max-width: min(1440px, calc(100vw - var(--sfn-content-left) - var(--sfn-content-right))) !important;
+    margin-left: var(--sfn-content-left) !important;
+    margin-right: var(--sfn-content-right) !important;
     box-sizing: border-box !important;
   }
 
   body.sf-nav-ready > header:first-of-type {
-    margin-top: 24px !important;
+    margin-top: 18px !important;
   }
 }
 
-/* Mobile nav */
+/* Mobile navigation */
 
 .sf-mobile-nav {
   position: fixed;
@@ -453,7 +493,7 @@ body.sf-nav-ready .bottom-nav {
 .sfm-label {
   max-width: 100%;
   overflow: hidden;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 950;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -591,7 +631,7 @@ body.sf-nav-ready .bottom-nav {
   text-overflow: ellipsis;
 }
 
-/* Responsive visibility only */
+/* Responsive visibility */
 
 @media (min-width: 981px) {
   .sf-mobile-nav,
@@ -622,7 +662,7 @@ body.sf-nav-ready .bottom-nav {
   }
 
   .sfm-label {
-    font-size: 9px;
+    font-size: 8.5px;
   }
 
   .sfmore-grid {
