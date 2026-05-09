@@ -2,35 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sovereign Finance — Monthly Close</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Sovereign Finance — Command Centre</title>
   <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
   <script src="/js/theme.js?v=1.0.0" defer></script>
-  <script src="/js/nav.js?v=1.1.3" defer></script>
+  <script src="/js/nav.js?v=1.1.9" defer></script>
   <style>
     :root {
-      --bg: #f6f8fb;
-      --surface: #ffffff;
-      --surface-2: #f8fafc;
-      --text: #0f172a;
-      --muted: #475569;
-      --dim: #64748b;
-      --border: rgba(148, 163, 184, 0.28);
-      --green: #16a34a;
-      --green-soft: #dcfce7;
-      --red: #dc2626;
-      --red-soft: #fee2e2;
-      --amber: #d97706;
-      --amber-soft: #fef3c7;
-      --blue: #2563eb;
-      --blue-soft: #dbeafe;
-      --shadow: 0 18px 46px rgba(15, 23, 42, 0.09);
-      --radius: 24px;
-    }
-
-    * {
-      box-sizing: border-box;
-      min-width: 0;
+      --cc-bg: #f5f7fb;
+      --cc-ink: #0f172a;
+      --cc-muted: #64748b;
+      --cc-soft: #f8fafc;
+      --cc-card: rgba(255, 255, 255, 0.92);
+      --cc-line: rgba(148, 163, 184, 0.24);
+      --cc-green: #16a34a;
+      --cc-green-soft: #dcfce7;
+      --cc-blue: #2563eb;
+      --cc-blue-soft: #dbeafe;
+      --cc-amber: #d97706;
+      --cc-amber-soft: #fef3c7;
+      --cc-red: #dc2626;
+      --cc-red-soft: #fee2e2;
+      --cc-shadow: 0 18px 52px rgba(15, 23, 42, 0.10);
+      --cc-radius: 28px;
     }
 
     html,
@@ -40,67 +35,153 @@
       max-width: 100%;
       overflow-x: hidden;
       background:
-        radial-gradient(circle at top left, rgba(34, 197, 94, 0.12), transparent 30%),
-        radial-gradient(circle at top right, rgba(37, 99, 235, 0.10), transparent 32%),
-        var(--bg);
-      color: var(--text);
+        radial-gradient(circle at 8% -6%, rgba(34, 197, 94, 0.14), transparent 34rem),
+        radial-gradient(circle at 94% 0%, rgba(37, 99, 235, 0.13), transparent 34rem),
+        var(--cc-bg);
+      color: var(--cc-ink);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    a {
-      color: inherit;
+    * {
+      box-sizing: border-box;
+      min-width: 0;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
     }
 
     .page {
       width: 100%;
       max-width: var(--sf-content-max, 1440px);
-      margin-inline: auto;
-      padding: 24px 16px 72px;
+      margin: 0 auto;
+      padding: 24px 16px 76px;
     }
 
-    .topbar {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 16px;
+    .hero {
+      position: relative;
+      overflow: hidden;
+      border-radius: 36px;
+      padding: 24px;
+      color: #f8fafc;
+      background:
+        linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.96)),
+        radial-gradient(circle at top right, rgba(34, 197, 94, 0.24), transparent 28rem);
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      box-shadow: var(--cc-shadow);
       margin-bottom: 18px;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 380px;
+      height: 380px;
+      right: -120px;
+      bottom: -160px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.24), transparent 68%);
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+      gap: 22px;
+      align-items: start;
     }
 
     .eyebrow {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 7px 10px;
-      border: 1px solid var(--border);
+      padding: 7px 11px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.74);
-      color: var(--muted);
+      background: rgba(34, 197, 94, 0.13);
+      color: #bbf7d0;
       font-size: 12px;
-      font-weight: 900;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+
+    .eyebrow-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 16px rgba(34, 197, 94, 0.82);
     }
 
     h1 {
-      margin: 12px 0 7px;
-      font-size: clamp(30px, 4vw, 52px);
-      line-height: 0.98;
+      margin: 0;
+      font-size: clamp(34px, 5vw, 62px);
+      line-height: 0.96;
       letter-spacing: -0.07em;
+      font-weight: 1000;
     }
 
     .subtitle {
-      margin: 0;
       max-width: 780px;
-      color: var(--muted);
+      margin: 13px 0 0;
+      color: #cbd5e1;
       font-size: 15px;
       line-height: 1.55;
-      font-weight: 650;
+      font-weight: 750;
+    }
+
+    .verdict-card {
+      padding: 16px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      backdrop-filter: blur(16px);
+    }
+
+    .verdict-label {
+      color: #cbd5e1;
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .verdict-value {
+      margin-top: 8px;
+      font-size: 34px;
+      line-height: 1;
+      font-weight: 1000;
+      letter-spacing: -0.055em;
+    }
+
+    .verdict-score {
+      margin-top: 6px;
+      color: #e2e8f0;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .verdict-note {
+      margin-top: 10px;
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 750;
+      line-height: 1.45;
     }
 
     .controls {
+      position: relative;
+      z-index: 1;
       display: flex;
-      align-items: end;
-      gap: 10px;
       flex-wrap: wrap;
-      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 22px;
+      align-items: end;
     }
 
     .control {
@@ -109,372 +190,407 @@
     }
 
     .control label {
-      color: var(--dim);
+      color: #cbd5e1;
       font-size: 11px;
-      font-weight: 900;
+      font-weight: 950;
       text-transform: uppercase;
       letter-spacing: 0.06em;
     }
 
     input[type="month"] {
       height: 42px;
-      min-width: 160px;
+      min-width: 164px;
       padding: 0 12px;
       border-radius: 14px;
-      border: 1px solid var(--border);
-      background: #fff;
-      color: var(--text);
-      font: inherit;
-      font-weight: 850;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.10);
+      color: #fff;
+      font-weight: 900;
     }
 
-    button {
+    .btn {
       height: 42px;
-      padding: 0 14px;
       border: 0;
       border-radius: 14px;
-      background: var(--text);
-      color: #fff;
-      font: inherit;
+      padding: 0 14px;
+      background: #22c55e;
+      color: #052e16;
       font-size: 13px;
-      font-weight: 950;
+      font-weight: 1000;
       cursor: pointer;
     }
 
-    .panel {
+    .btn.secondary {
+      background: rgba(255, 255, 255, 0.10);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .score-card,
+    .panel,
+    .loading,
+    .error {
+      background: var(--cc-card);
+      border: 1px solid var(--cc-line);
+      border-radius: var(--cc-radius);
+      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
       min-width: 0;
-      max-width: 100%;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: rgba(255, 255, 255, 0.90);
-      box-shadow: var(--shadow);
+    }
+
+    .score-card {
+      padding: 16px;
       overflow: hidden;
     }
 
-    .panel-pad {
-      padding: 18px;
+    .score-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
     }
 
-    .hero {
-      display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
-      gap: 16px;
-      margin: 18px 0;
-    }
-
-    .status-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .status-card {
-      padding: 18px;
-      border-radius: 22px;
-      border: 1px solid var(--border);
-      background: #fff;
-      min-width: 0;
-    }
-
-    .status-card.ready {
-      border-color: rgba(22, 163, 74, 0.26);
-      background: linear-gradient(135deg, rgba(220, 252, 231, 0.9), #fff);
-    }
-
-    .status-card.not-ready,
-    .status-card.critical {
-      border-color: rgba(220, 38, 38, 0.22);
-      background: linear-gradient(135deg, rgba(254, 226, 226, 0.90), #fff);
-    }
-
-    .status-card.watch {
-      border-color: rgba(217, 119, 6, 0.26);
-      background: linear-gradient(135deg, rgba(254, 243, 199, 0.90), #fff);
-    }
-
-    .status-card h2 {
-      margin: 0 0 8px;
-      color: var(--muted);
-      font-size: 12px;
+    .score-name {
+      color: var(--cc-muted);
+      font-size: 11px;
       font-weight: 950;
-      text-transform: uppercase;
       letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
 
-    .status-value {
-      margin: 0;
-      font-size: clamp(26px, 4vw, 42px);
-      line-height: 0.98;
+    .score-pill,
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 6px 9px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 10px;
       font-weight: 1000;
-      letter-spacing: -0.07em;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
     }
 
-    .status-note {
-      margin: 10px 0 0;
-      color: var(--muted);
+    .score-number {
+      margin-top: 11px;
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 1000;
+      letter-spacing: -0.055em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .score-note {
+      margin-top: 8px;
+      color: var(--cc-muted);
+      font-size: 12px;
+      line-height: 1.38;
+      font-weight: 750;
+    }
+
+    .ready,
+    .pass,
+    .good {
+      color: #166534;
+      background: var(--cc-green-soft);
+      border-color: rgba(22, 163, 74, 0.20);
+    }
+
+    .warning,
+    .warn,
+    .degraded {
+      color: #92400e;
+      background: var(--cc-amber-soft);
+      border-color: rgba(217, 119, 6, 0.20);
+    }
+
+    .blocked,
+    .fail,
+    .bad {
+      color: #991b1b;
+      background: var(--cc-red-soft);
+      border-color: rgba(220, 38, 38, 0.20);
+    }
+
+    .unknown,
+    .info {
+      color: #1d4ed8;
+      background: var(--cc-blue-soft);
+      border-color: rgba(37, 99, 235, 0.18);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 0.86fr);
+      gap: 18px;
+      align-items: start;
+      margin-bottom: 18px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .panel {
+      overflow: hidden;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 17px 18px;
+      background: rgba(248, 250, 252, 0.82);
+      border-bottom: 1px solid var(--cc-line);
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.1;
+      font-weight: 1000;
+      letter-spacing: -0.035em;
+    }
+
+    .panel-sub {
+      margin: 5px 0 0;
+      color: var(--cc-muted);
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 750;
+    }
+
+    .panel-body {
+      padding: 16px 18px 18px;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .issue {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      gap: 10px;
+      padding: 12px;
+      border-radius: 18px;
+      background: var(--cc-soft);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .issue-mark {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid rgba(148, 163, 184, 0.22);
       font-size: 13px;
-      line-height: 1.45;
-      font-weight: 700;
+      font-weight: 1000;
     }
 
-    .kpi-grid {
+    .issue-title {
+      color: var(--cc-ink);
+      font-size: 13px;
+      line-height: 1.28;
+      font-weight: 1000;
+    }
+
+    .issue-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 7px;
+    }
+
+    .issue-text {
+      margin-top: 6px;
+      color: var(--cc-muted);
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 720;
+    }
+
+    .metric-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 10px;
     }
 
     .metric {
-      min-width: 0;
-      padding: 14px;
+      padding: 13px;
       border-radius: 18px;
-      background: var(--surface-2);
-      border: 1px solid rgba(148, 163, 184, 0.20);
+      background: var(--cc-soft);
+      border: 1px solid rgba(148, 163, 184, 0.18);
     }
 
-    .metric label {
-      display: block;
-      margin-bottom: 6px;
-      color: var(--dim);
+    .metric-label {
+      color: var(--cc-muted);
       font-size: 10px;
       font-weight: 950;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
     }
 
-    .metric strong {
-      display: block;
-      overflow-wrap: anywhere;
-      font-size: 19px;
+    .metric-value {
+      margin-top: 7px;
+      font-size: 21px;
       line-height: 1.05;
       font-weight: 1000;
       letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
     }
 
-    .metric small {
-      display: block;
+    .metric-note {
       margin-top: 5px;
-      color: var(--dim);
+      color: var(--cc-muted);
       font-size: 11px;
       line-height: 1.35;
-      font-weight: 750;
+      font-weight: 740;
     }
 
-    .section-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 16px;
-      margin-top: 16px;
-    }
-
-    .section-title {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      padding: 16px 18px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(248, 250, 252, 0.84);
-    }
-
-    .section-title h2 {
-      margin: 0;
-      font-size: 17px;
-      letter-spacing: -0.03em;
-    }
-
-    .section-title p {
-      margin: 4px 0 0;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.35;
-      font-weight: 700;
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 9px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 950;
-      white-space: nowrap;
-      border: 1px solid transparent;
-      text-transform: capitalize;
-    }
-
-    .badge.ready,
-    .badge.pass,
-    .badge.safe,
-    .badge.high {
-      color: #166534;
-      background: var(--green-soft);
-      border-color: rgba(22, 163, 74, 0.18);
-    }
-
-    .badge.not-ready,
-    .badge.not_ready,
-    .badge.fail,
-    .badge.critical,
-    .badge.unsafe,
-    .badge.low {
-      color: #991b1b;
-      background: var(--red-soft);
-      border-color: rgba(220, 38, 38, 0.18);
-    }
-
-    .badge.watch,
-    .badge.medium,
-    .badge.medium_low,
-    .badge.warning {
-      color: #92400e;
-      background: var(--amber-soft);
-      border-color: rgba(217, 119, 6, 0.18);
-    }
-
-    .badge.info {
-      color: #1d4ed8;
-      background: var(--blue-soft);
-      border-color: rgba(37, 99, 235, 0.18);
-    }
-
-    .list {
-      display: grid;
-      gap: 9px;
-      padding: 16px 18px 18px;
-    }
-
-    .item {
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-      padding: 12px;
-      border-radius: 16px;
-      background: var(--surface-2);
-      border: 1px solid rgba(148, 163, 184, 0.18);
-      min-width: 0;
-    }
-
-    .item-mark {
-      width: 24px;
-      height: 24px;
-      flex: 0 0 auto;
-      display: grid;
-      place-items: center;
-      border-radius: 10px;
-      background: #fff;
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      font-size: 12px;
-      font-weight: 1000;
-    }
-
-    .item strong {
-      display: block;
-      font-size: 13px;
-      line-height: 1.25;
-      font-weight: 950;
-    }
-
-    .item span {
-      display: block;
-      margin-top: 4px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.4;
-      font-weight: 650;
-    }
-
-    details.audit-details {
-      margin-top: 16px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      background: rgba(255, 255, 255, 0.88);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    details.audit-details > summary {
-      cursor: pointer;
-      list-style: none;
-      padding: 16px 18px;
-      background: rgba(248, 250, 252, 0.90);
-      font-weight: 1000;
-      letter-spacing: -0.02em;
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-    }
-
-    details.audit-details > summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .detail-body {
-      padding: 0 18px 18px;
-    }
-
-    .table-wrap {
+    .module-table-wrap {
       width: 100%;
-      max-width: 100%;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
-      padding-bottom: 2px;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 620px;
+      min-width: 780px;
       font-size: 12px;
     }
 
     th,
     td {
-      text-align: left;
-      padding: 10px 8px;
+      padding: 11px 8px;
       border-bottom: 1px solid rgba(148, 163, 184, 0.20);
+      text-align: left;
       vertical-align: top;
     }
 
     th {
-      color: var(--dim);
+      color: var(--cc-muted);
       font-size: 10px;
       font-weight: 1000;
-      text-transform: uppercase;
       letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
 
     td {
-      color: var(--text);
-      font-weight: 750;
+      font-weight: 760;
     }
 
-    .muted {
-      color: var(--muted);
+    .impact-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .impact-card {
+      padding: 13px;
+      border-radius: 18px;
+      background: var(--cc-soft);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .impact-name {
+      font-size: 13px;
+      font-weight: 1000;
+      line-height: 1.25;
+    }
+
+    .impact-list {
+      margin-top: 6px;
+      color: var(--cc-muted);
+      font-size: 12px;
+      line-height: 1.4;
+      font-weight: 740;
+    }
+
+    details.audit {
+      background: var(--cc-card);
+      border: 1px solid var(--cc-line);
+      border-radius: var(--cc-radius);
+      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.07);
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    details.audit > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 16px 18px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      background: rgba(248, 250, 252, 0.84);
+      font-size: 15px;
+      font-weight: 1000;
+      letter-spacing: -0.025em;
+    }
+
+    details.audit > summary::-webkit-details-marker {
+      display: none;
     }
 
     .loading,
-    .error,
-    .empty {
-      padding: 26px;
+    .error {
+      padding: 34px 18px;
       text-align: center;
-      color: var(--muted);
-      font-weight: 750;
+      color: var(--cc-muted);
+      font-size: 14px;
+      font-weight: 900;
     }
 
     .error {
-      color: #991b1b;
+      color: var(--cc-red);
+    }
+
+    .empty {
+      padding: 16px;
+      border: 1px dashed rgba(148, 163, 184, 0.34);
+      border-radius: 18px;
+      color: var(--cc-muted);
+      background: var(--cc-soft);
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .small-muted {
+      color: var(--cc-muted);
+      font-size: 12px;
+      font-weight: 740;
+      line-height: 1.4;
     }
 
     @media (max-width: 1180px) {
-      .hero,
-      .section-grid {
-        grid-template-columns: 1fr;
+      .score-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .kpi-grid {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+      .grid-2,
+      .grid-3,
+      .hero-inner {
+        grid-template-columns: 1fr;
       }
     }
 
@@ -483,26 +599,26 @@
         padding: 18px 10px 90px;
       }
 
-      .topbar {
-        display: grid;
+      .hero {
+        padding: 20px;
+        border-radius: 28px;
       }
 
       .controls,
       .control,
       input[type="month"],
-      button {
+      .btn {
         width: 100%;
       }
 
-      .status-grid,
-      .kpi-grid {
+      .score-grid,
+      .metric-grid,
+      .impact-grid {
         grid-template-columns: 1fr;
       }
 
-      .panel-pad,
-      .section-title,
-      .list,
-      .detail-body {
+      .panel-head,
+      .panel-body {
         padding-left: 14px;
         padding-right: 14px;
       }
@@ -511,487 +627,1086 @@
 </head>
 <body>
   <main class="page app-page">
-    <div class="topbar">
-      <div>
-        <div class="eyebrow">Monthly Close</div>
-        <h1>Finance Close Center</h1>
-        <p class="subtitle">
-          One screen for month-end judgment: close readiness, money pressure, blockers, and the exact next action.
-          Detailed checks stay below the fold.
-        </p>
+    <section class="hero">
+      <div class="hero-inner">
+        <div>
+          <div class="eyebrow"><span class="eyebrow-dot"></span> Finance QA</div>
+          <h1>Finance Command Centre</h1>
+          <p class="subtitle">
+            Whole-system status for money truth, wiring, logic, UI cleanliness, impact safety, and trial readiness.
+            This page does not mutate the ledger. It reads signals and tells you what is safe, degraded, blocked, or unknown.
+          </p>
+        </div>
+
+        <aside class="verdict-card">
+          <div class="verdict-label">System verdict</div>
+          <div class="verdict-value" id="heroVerdict">Loading</div>
+          <div class="verdict-score" id="heroScore">Audit running</div>
+          <div class="verdict-note" id="heroNote">Reading finance cockpit health.</div>
+        </aside>
       </div>
+
       <div class="controls">
         <div class="control">
-          <label for="monthInput">Close month</label>
+          <label for="monthInput">Month lens</label>
           <input id="monthInput" type="month" />
         </div>
-        <button id="refreshBtn" type="button">Refresh</button>
+        <button class="btn" id="refreshBtn" type="button">Run Audit</button>
+        <button class="btn secondary" id="detailsBtn" type="button">Open Details</button>
       </div>
-    </div>
+    </section>
 
     <div id="app">
-      <section class="panel loading">Loading Monthly Close...</section>
+      <section class="loading">Running command centre audit...</section>
     </div>
   </main>
 
   <script>
-    window.SovereignMonthlyClose = { version: "0.2.2", mode: "trial-clean-visual" };
+    (function () {
+      "use strict";
 
-    const app = document.getElementById("app");
-    const monthInput = document.getElementById("monthInput");
-    const refreshBtn = document.getElementById("refreshBtn");
-
-    function currentMonth() {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    }
-
-    monthInput.value = new URLSearchParams(location.search).get("month") || currentMonth();
-    refreshBtn.addEventListener("click", loadMonthlyClose);
-
-    monthInput.addEventListener("change", () => {
-      const url = new URL(location.href);
-      url.searchParams.set("month", monthInput.value);
-      history.replaceState(null, "", url.toString());
-      loadMonthlyClose();
-    });
-
-    function money(value) {
-      const n = Number(value);
-      if (!Number.isFinite(n)) return "N/A";
-      return `Rs ${n.toLocaleString("en-PK", { maximumFractionDigits: 2 })}`;
-    }
-
-    function text(value, fallback = "N/A") {
-      if (value === null || value === undefined || value === "") return fallback;
-      return String(value);
-    }
-
-    function esc(value) {
-      return String(value == null ? "" : value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
-
-    function statusClass(value) {
-      return String(value || "unknown").toLowerCase().replace(/\s+/g, "_");
-    }
-
-    function cleanStatus(value) {
-      return String(value || "unknown").replace(/_/g, " ");
-    }
-
-    function badge(value, label) {
-      const cls = statusClass(value);
-      return `<span class="badge ${esc(cls)}">${esc(label || cleanStatus(value))}</span>`;
-    }
-
-    function item(mark, title, note) {
-      return `
-        <div class="item">
-          <div class="item-mark">${esc(mark)}</div>
-          <div>
-            <strong>${esc(title)}</strong>
-            <span>${esc(note)}</span>
-          </div>
-        </div>
-      `;
-    }
-
-    function systemCertificationStatus(data) {
-      const ready = data &&
-        data.ok === true &&
-        data.scopes &&
-        data.scopes.month_activity_scope &&
-        data.scopes.full_ledger_scope &&
-        data.reconciliation &&
-        data.audit_readiness &&
-        data.audit_readiness.audit_scope_ready &&
-        data.audit_readiness.audit_scope_ready.api_routes === true &&
-        data.audit_readiness.audit_scope_ready.formulas === true &&
-        data.audit_readiness.audit_scope_ready.reconciliation === true &&
-        data.audit_readiness.audit_scope_ready.manual_variable_separation === true &&
-        data.audit_readiness.audit_scope_ready.required_data === true &&
-        data.audit_readiness.audit_scope_ready.month_activity_scope_separated === true &&
-        data.audit_readiness.audit_scope_ready.full_ledger_truth_scope_separated === true;
-
-      return ready ? "ready" : "not_ready";
-    }
-
-    function moneyCloseStatus(data) {
-      return data && data.audit_readiness ? data.audit_readiness.status : "unknown";
-    }
-
-    function safetyStatus(data) {
-      return data && data.safety ? data.safety.status : "unknown";
-    }
-
-    function reconciliationStatus(data) {
-      const r = data && data.reconciliation ? data.reconciliation : {};
-      if (Number(r.drifted_count || 0) > 0) return "critical";
-      if (Number(r.stale_count || 0) > 0 || Number(r.undeclared_count || 0) > 0) return "watch";
-      return "ready";
-    }
-
-    function blockerTitle(code) {
-      const map = {
-        forecast_has_unsafe_date: "Forecast has an unsafe date",
-        forecast_has_unsafe_days: "Forecast has unsafe days",
-        safety_status_critical: "Safety Engine is critical",
-        safety_status_unsafe: "Safety Engine is unsafe",
-        reconciliation_drift: "Reconciliation has drift",
-        manual_variables_used_for_safety: "Manual variables are affecting safety",
-        forecast_api_unavailable: "Forecast unavailable",
-        safety_api_unavailable: "Safety signal unavailable"
+      window.SovereignCommandCentre = {
+        version: "0.1.0",
+        mode: "frontend-audit-shell"
       };
-      return map[code] || code;
-    }
 
-    function blockerMeaning(code) {
-      const map = {
-        forecast_has_unsafe_date: "Cash is projected to fall below the safe threshold before or around salary.",
-        forecast_has_unsafe_days: "The 30-day projection contains unsafe cash days.",
-        safety_status_critical: "The safety view found a real-world action risk.",
-        safety_status_unsafe: "The safety view is reporting unsafe status.",
-        reconciliation_drift: "At least one declared balance does not match the app balance.",
-        manual_variables_used_for_safety: "Safety math should stay conservative and avoid speculative income.",
-        forecast_api_unavailable: "Monthly Close cannot certify without forecast data.",
-        safety_api_unavailable: "Monthly Close cannot certify without safety data."
-      };
-      return map[code] || "Review this blocker before treating the month as closed.";
-    }
+      const app = document.getElementById("app");
+      const monthInput = document.getElementById("monthInput");
+      const refreshBtn = document.getElementById("refreshBtn");
+      const detailsBtn = document.getElementById("detailsBtn");
 
-    function warningTitle(code) {
-      const map = {
-        undeclared_accounts: "Some accounts are undeclared",
-        stale_account_declarations: "Some declarations are stale",
-        bills_missing_required_data: "Bills missing required data",
-        debts_missing_required_data: "Debts missing required data",
-        insights_api_unavailable: "Insights unavailable"
-      };
-      return map[code] || code;
-    }
-
-    function warningMeaning(code) {
-      const map = {
-        undeclared_accounts: "Declare real balances for active accounts so close confidence improves.",
-        stale_account_declarations: "New transactions happened after declaration. Re-declare affected accounts.",
-        bills_missing_required_data: "Some bills need due date or default account details.",
-        debts_missing_required_data: "Some debts need due date information.",
-        insights_api_unavailable: "Insights are useful but not a hard close blocker."
-      };
-      return map[code] || "Review this warning before final close.";
-    }
-
-    function blockersList(data, maxItems) {
-      const blockers = data.audit_readiness?.blockers || [];
-      const warnings = data.audit_readiness?.warnings || [];
-      const rows = [
-        ...blockers.map(x => ["!", blockerTitle(x), blockerMeaning(x)]),
-        ...warnings.map(x => ["", warningTitle(x), warningMeaning(x)])
+      const MODULES = [
+        {
+          key: "hub",
+          name: "Hub",
+          pages: ["index.html"],
+          apis: ["balances"],
+          dependsOn: ["accounts", "transactions", "bills", "debts"],
+          impacts: ["whole cockpit"],
+          risk: "high"
+        },
+        {
+          key: "add",
+          name: "Add Transaction",
+          pages: ["add.html"],
+          apis: ["accounts", "categories", "transactions"],
+          dependsOn: ["accounts", "categories", "store"],
+          impacts: ["transactions", "accounts", "balances", "hub", "forecast"],
+          risk: "high"
+        },
+        {
+          key: "transactions",
+          name: "Transactions",
+          pages: ["transactions.html"],
+          apis: ["transactions"],
+          dependsOn: ["accounts", "categories"],
+          impacts: ["balances", "forecast", "command centre"],
+          risk: "high"
+        },
+        {
+          key: "accounts",
+          name: "Accounts",
+          pages: ["accounts.html"],
+          apis: ["accounts"],
+          dependsOn: ["transactions"],
+          impacts: ["balances", "hub", "reconciliation"],
+          risk: "high"
+        },
+        {
+          key: "credit-card",
+          name: "Credit Card",
+          pages: ["cc.html"],
+          apis: ["accounts", "transactions"],
+          dependsOn: ["cc account balance"],
+          impacts: ["hub", "forecast", "command centre"],
+          risk: "high"
+        },
+        {
+          key: "bills",
+          name: "Bills",
+          pages: ["bills.html"],
+          apis: ["bills"],
+          dependsOn: ["accounts"],
+          impacts: ["forecast", "command centre"],
+          risk: "medium"
+        },
+        {
+          key: "debts",
+          name: "Debts",
+          pages: ["debts.html"],
+          apis: ["debts"],
+          dependsOn: ["accounts"],
+          impacts: ["forecast", "command centre"],
+          risk: "medium"
+        },
+        {
+          key: "salary",
+          name: "Salary",
+          pages: ["salary.html"],
+          apis: ["salary"],
+          dependsOn: ["salary config", "payslip"],
+          impacts: ["forecast", "command centre"],
+          risk: "high"
+        },
+        {
+          key: "forecast",
+          name: "Forecast",
+          pages: ["forecast.html"],
+          apis: ["forecast"],
+          dependsOn: ["balances", "bills", "debts", "salary"],
+          impacts: ["command centre"],
+          risk: "high"
+        },
+        {
+          key: "reconciliation",
+          name: "Reconciliation",
+          pages: ["reconciliation.html"],
+          apis: ["reconciliation"],
+          dependsOn: ["accounts", "transactions"],
+          impacts: ["command centre"],
+          risk: "medium"
+        },
+        {
+          key: "command-centre",
+          name: "Command Centre",
+          pages: ["monthly-close.html"],
+          apis: ["monthly-close", "balances", "accounts", "transactions", "bills", "debts", "salary", "forecast"],
+          dependsOn: ["all finance modules"],
+          impacts: ["trial decision"],
+          risk: "high"
+        }
       ];
 
-      if (!rows.length) {
-        return item("", "No close blockers", "Money Close is ready based on current rules.");
+      const API_ROUTES = {
+        "monthly-close": month => `/api/monthly-close?month=${encodeURIComponent(month)}`,
+        balances: () => "/api/balances",
+        accounts: () => "/api/accounts",
+        transactions: () => "/api/transactions",
+        bills: () => "/api/bills",
+        debts: () => "/api/debts",
+        salary: () => "/api/salary",
+        forecast: () => "/api/forecast",
+        categories: () => "/api/categories",
+        reconciliation: () => "/api/reconciliation"
+      };
+
+      const UI_BLOCK_PATTERNS = [
+        { label: "visible version label", pattern: /\b(?:nav|css|cockpit|html|backend|store|add|bills|debts|salary)\s*v?\d+\.\d+\.\d+/i, severity: "warning" },
+        { label: "backend route exposed", pattern: /\/api\/[a-z0-9/_?=&.-]+/i, severity: "warning" },
+        { label: "debug wording", pattern: /\b(debug|backend_score|computed_from|ready_with_warnings|raw json)\b/i, severity: "warning" },
+        { label: "unsafe contract wording", pattern: /\bmoney-contracts\b/i, severity: "blocked" },
+        { label: "raw id wording", pattern: /\b(account_id|bill_id|debt_id|salary_config_id|active_payslip_id)\b/i, severity: "warning" }
+      ];
+
+      function currentMonth() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       }
 
-      return rows.slice(0, maxItems || rows.length).map(row => item(row[0], row[1], row[2])).join("");
-    }
+      function money(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "Unknown";
+        return `Rs ${n.toLocaleString("en-PK", { maximumFractionDigits: 2 })}`;
+      }
 
-    function reviewChecks(data) {
-      const a = data.audit_readiness?.audit_scope_ready || {};
-      const checks = [
-        ["Core routes healthy", a.api_routes],
-        ["Formulas readable", a.formulas],
-        ["Balances reconciled", a.reconciliation],
-        ["Manual variables separated", a.manual_variable_separation],
-        ["Required data present", a.required_data],
-        ["Monthly activity separated", a.month_activity_scope_separated],
-        ["Full history protected", a.full_ledger_truth_scope_separated]
-      ];
+      function pct(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "Unknown";
+        return `${Math.round(n)}%`;
+      }
 
-      return checks.map(([name, pass]) => item(pass ? "" : "!", name, pass ? "Passed" : "Needs review")).join("");
-    }
+      function esc(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
 
-    function reconciliationRows(data) {
-      const rows = data.reconciliation?.accounts || [];
-      if (!rows.length) return `<div class="empty">No reconciliation rows returned.</div>`;
+      function normalizeStatus(status) {
+        return String(status || "unknown").toLowerCase().replace(/\s+/g, "-").replace(/_/g, "-");
+      }
 
-      return `
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Account</th>
-                <th>Status</th>
-                <th>App balance</th>
-                <th>Declared</th>
-                <th>Drift</th>
-                <th>Latest activity</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows.map(row => `
+      function badge(status, label) {
+        const cls = normalizeStatus(status);
+        const clean = label || String(status || "unknown").replace(/_/g, " ");
+        return `<span class="badge ${esc(cls)}">${esc(clean)}</span>`;
+      }
+
+      function scoreStatus(score, hasBlocker, hasUnknown) {
+        if (hasBlocker) return "blocked";
+        if (hasUnknown) return "unknown";
+        if (score >= 100) return "ready";
+        if (score >= 85) return "warning";
+        if (score >= 60) return "degraded";
+        return "blocked";
+      }
+
+      function verdictLabel(status) {
+        const map = {
+          ready: "Ready",
+          warning: "Ready with warnings",
+          degraded: "Degraded",
+          blocked: "Blocked",
+          unknown: "Unknown"
+        };
+        return map[status] || "Unknown";
+      }
+
+      function issueIcon(severity) {
+        if (severity === "blocked") return "!";
+        if (severity === "warning") return "";
+        if (severity === "unknown") return "?";
+        return "";
+      }
+
+      function issueCard(issue, index) {
+        return `
+          <div class="issue">
+            <div class="issue-mark">${esc(issueIcon(issue.severity) || index + 1)}</div>
+            <div>
+              <div class="issue-title">${esc(issue.title)}</div>
+              <div class="issue-meta">
+                ${badge(issue.severity, issue.severity)}
+                ${badge("info", issue.module || "system")}
+              </div>
+              <div class="issue-text">${esc(issue.detail)}</div>
+              <div class="issue-text"><strong>Next:</strong> ${esc(issue.next || "Review this item before trial.")}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      function currentQueryMonth() {
+        return monthInput.value || currentMonth();
+      }
+
+      async function fetchJson(route, month) {
+        const started = Date.now();
+
+        try {
+          const res = await fetch(route, { cache: "no-store" });
+          const data = await res.json().catch(() => null);
+
+          if (!res.ok || !data) {
+            return {
+              ok: false,
+              status: res.status,
+              ms: Date.now() - started,
+              error: `HTTP ${res.status}`,
+              data
+            };
+          }
+
+          if (data.ok === false) {
+            return {
+              ok: false,
+              status: res.status,
+              ms: Date.now() - started,
+              error: data.error || "Response returned not ok",
+              data
+            };
+          }
+
+          return {
+            ok: true,
+            status: res.status,
+            ms: Date.now() - started,
+            data
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            status: 0,
+            ms: Date.now() - started,
+            error: error.message || String(error),
+            data: null
+          };
+        }
+      }
+
+      async function fetchText(path) {
+        const started = Date.now();
+
+        try {
+          const res = await fetch(`/${path}`, { cache: "no-store" });
+          const text = await res.text();
+
+          return {
+            ok: res.ok,
+            status: res.status,
+            ms: Date.now() - started,
+            text
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            status: 0,
+            ms: Date.now() - started,
+            text: "",
+            error: error.message || String(error)
+          };
+        }
+      }
+
+      function pickArray(payload, keys) {
+        if (Array.isArray(payload)) return payload;
+        if (!payload || typeof payload !== "object") return [];
+
+        for (const key of keys) {
+          if (Array.isArray(payload[key])) return payload[key];
+        }
+
+        if (payload.data && Array.isArray(payload.data)) return payload.data;
+        if (payload.result && Array.isArray(payload.result)) return payload.result;
+
+        return [];
+      }
+
+      function num(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      function extractHealth(api) {
+        const balances = api.balances && api.balances.data ? api.balances.data : {};
+        const accountsPayload = api.accounts && api.accounts.data ? api.accounts.data : {};
+        const billsPayload = api.bills && api.bills.data ? api.bills.data : {};
+        const debtsPayload = api.debts && api.debts.data ? api.debts.data : {};
+        const txPayload = api.transactions && api.transactions.data ? api.transactions.data : {};
+        const forecast = api.forecast && api.forecast.data ? api.forecast.data : {};
+        const monthly = api["monthly-close"] && api["monthly-close"].data ? api["monthly-close"].data : {};
+
+        const accounts = pickArray(accountsPayload, ["accounts", "items", "balances"]);
+        const bills = pickArray(billsPayload, ["bills", "items"]);
+        const debts = pickArray(debtsPayload, ["debts", "items"]);
+        const transactions = pickArray(txPayload, ["transactions", "items"]);
+
+        const liquid =
+          num(balances.liquid) ??
+          num(balances.liquid_total) ??
+          num(balances.current_liquid) ??
+          num(monthly.summary && monthly.summary.current_liquid);
+
+        const ccOutstanding =
+          num(balances.cc_outstanding) ??
+          num(balances.credit_card_outstanding) ??
+          num(monthly.summary && monthly.summary.cc_outstanding);
+
+        const debt =
+          num(balances.payable_debt) ??
+          num(balances.debt_remaining) ??
+          num(monthly.summary && monthly.summary.payable_debt);
+
+        const receivable =
+          num(balances.receivables) ??
+          num(balances.receivable_remaining) ??
+          num(monthly.summary && monthly.summary.receivables);
+
+        return {
+          balances,
+          accounts,
+          bills,
+          debts,
+          transactions,
+          forecast,
+          monthly,
+          liquid,
+          ccOutstanding,
+          debt,
+          receivable
+        };
+      }
+
+      function analyzeApis(apiResults) {
+        const issues = [];
+        const apiKeys = Object.keys(API_ROUTES);
+        let okCount = 0;
+
+        apiKeys.forEach(key => {
+          const result = apiResults[key];
+
+          if (result && result.ok) {
+            okCount += 1;
+          } else {
+            issues.push({
+              severity: key === "categories" || key === "reconciliation" ? "warning" : "blocked",
+              module: key,
+              title: `${prettyName(key)} data did not load`,
+              detail: result && result.error ? result.error : "The command centre could not read this data source.",
+              next: "Open the related page and verify the source before trial."
+            });
+          }
+        });
+
+        return {
+          score: Math.round((okCount / apiKeys.length) * 100),
+          okCount,
+          total: apiKeys.length,
+          issues
+        };
+      }
+
+      function analyzePages(pageResults) {
+        const issues = [];
+        const expectedPages = MODULES.flatMap(m => m.pages);
+        let okCount = 0;
+
+        expectedPages.forEach(path => {
+          const result = pageResults[path];
+
+          if (result && result.ok && result.text && result.text.length > 100) {
+            okCount += 1;
+          } else {
+            issues.push({
+              severity: "blocked",
+              module: path.replace(".html", ""),
+              title: `${path} did not load cleanly`,
+              detail: result && result.status ? `Page returned ${result.status}.` : "Page could not be read.",
+              next: "Fix the page route before using trial mode."
+            });
+          }
+        });
+
+        return {
+          score: Math.round((okCount / expectedPages.length) * 100),
+          okCount,
+          total: expectedPages.length,
+          issues
+        };
+      }
+
+      function analyzeUiCleanliness(pageResults) {
+        const issues = [];
+        let cleanPages = 0;
+        const pageKeys = Object.keys(pageResults);
+
+        pageKeys.forEach(path => {
+          const result = pageResults[path];
+
+          if (!result || !result.ok || !result.text) return;
+
+          const hits = [];
+
+          UI_BLOCK_PATTERNS.forEach(rule => {
+            if (rule.pattern.test(result.text)) {
+              hits.push(rule);
+            }
+          });
+
+          if (!hits.length) {
+            cleanPages += 1;
+          } else {
+            hits.forEach(hit => {
+              issues.push({
+                severity: hit.severity,
+                module: path.replace(".html", ""),
+                title: `${prettyName(path.replace(".html", ""))} exposes ${hit.label}`,
+                detail: "Trial UI should hide internal labels, routes, file names, versions, and unsafe source wording.",
+                next: "Convert the wording into user-safe cockpit language or move it behind admin-only debug."
+              });
+            });
+          }
+        });
+
+        return {
+          score: pageKeys.length ? Math.max(0, Math.round((cleanPages / pageKeys.length) * 100)) : 0,
+          cleanPages,
+          total: pageKeys.length,
+          issues
+        };
+      }
+
+      function analyzeFinanceTruth(apiResults) {
+        const issues = [];
+        const h = extractHealth(apiResults);
+
+        if (h.liquid === null) {
+          issues.push({
+            severity: "blocked",
+            module: "balances",
+            title: "Liquid balance is unknown",
+            detail: "The cockpit cannot decide readiness without a usable liquid cash signal.",
+            next: "Verify balances and accounts before trial."
+          });
+        }
+
+        if (h.ccOutstanding === null) {
+          issues.push({
+            severity: "blocked",
+            module: "credit card",
+            title: "Credit Card outstanding is unknown",
+            detail: "Credit Card truth is a hard trust layer for the cockpit.",
+            next: "Use realtime account/balance source only. Never use lifetime spend as outstanding."
+          });
+        }
+
+        const activeZeroBills = h.bills.filter(bill => {
+          const status = String(bill.status || "").toLowerCase();
+          const amount = num(bill.amount ?? bill.monthly_amount ?? bill.expected_amount);
+          return !status.includes("paid") && !status.includes("closed") && amount !== null && amount <= 0;
+        });
+
+        if (activeZeroBills.length) {
+          issues.push({
+            severity: "warning",
+            module: "bills",
+            title: "Active bill has zero or invalid amount",
+            detail: `${activeZeroBills.length} active bill row(s) need amount review.`,
+            next: "Fix bill setup before relying on Forecast or Command Centre."
+          });
+        }
+
+        const missingDebtDirection = h.debts.filter(debt => {
+          const status = String(debt.status || "").toLowerCase();
+          const kind = String(debt.kind || debt.type || "").toLowerCase();
+          return !status.includes("paid") && !status.includes("closed") && !kind;
+        });
+
+        if (missingDebtDirection.length) {
+          issues.push({
+            severity: "warning",
+            module: "debts",
+            title: "Debt direction is unclear",
+            detail: `${missingDebtDirection.length} active debt row(s) do not clearly show payable vs receivable direction.`,
+            next: "Confirm each active debt has clear owed/owe direction."
+          });
+        }
+
+        const forecastUnsafe =
+          h.forecast.first_unsafe_date ||
+          Number(h.forecast.unsafe_days_count || 0) > 0 ||
+          String(h.forecast.status || h.forecast.runway_status || "").toLowerCase().includes("unsafe");
+
+        if (forecastUnsafe) {
+          issues.push({
+            severity: "warning",
+            module: "forecast",
+            title: "Forecast shows pressure or unsafe days",
+            detail: "The forecast has at least one unsafe signal. That does not mean the app is broken, but it blocks a clean readiness claim.",
+            next: "Review Forecast before marking the cockpit ready."
+          });
+        }
+
+        let score = 100;
+        issues.forEach(issue => {
+          score -= issue.severity === "blocked" ? 30 : 12;
+        });
+
+        return {
+          score: Math.max(0, score),
+          issues,
+          health: h
+        };
+      }
+
+      function analyzeLogic(pageResults, apiResults) {
+        const issues = [];
+        const salaryPage = pageResults["salary.html"];
+        const forecastPage = pageResults["forecast.html"];
+        const ccPage = pageResults["cc.html"];
+        const monthlyPage = pageResults["monthly-close.html"];
+
+        const moneyContractsHits = [
+          ["Salary", salaryPage],
+          ["Forecast", forecastPage],
+          ["Credit Card", ccPage],
+          ["Command Centre", monthlyPage]
+        ].filter(([name, result]) => result && result.text && /money-contracts/i.test(result.text));
+
+        moneyContractsHits.forEach(([name]) => {
+          issues.push({
+            severity: "blocked",
+            module: name.toLowerCase(),
+            title: `${name} references unsafe contract source`,
+            detail: "Recovery rule says no page should depend on unsafe money-contracts logic for trial trust.",
+            next: "Remove that dependency before treating this module as ready."
+          });
+        });
+
+        const h = extractHealth(apiResults);
+        const ccFromBalances = h.ccOutstanding;
+
+        if (ccFromBalances !== null && ccFromBalances > 0 && ccFromBalances > 200000) {
+          issues.push({
+            severity: "blocked",
+            module: "credit card",
+            title: "Credit Card outstanding looks unsafe",
+            detail: "Outstanding is above the known safe realtime range and may be using lifetime spend logic.",
+            next: "Verify it against realtime account balance before trial."
+          });
+        }
+
+        if (String(JSON.stringify(apiResults.salary && apiResults.salary.data || {})).toLowerCase().includes("speculative")) {
+          issues.push({
+            severity: "warning",
+            module: "salary",
+            title: "Salary includes speculative wording",
+            detail: "Variable income must not be treated as baseline safety.",
+            next: "Keep guaranteed salary separate from variable/scenario income."
+          });
+        }
+
+        let score = 100;
+        issues.forEach(issue => {
+          score -= issue.severity === "blocked" ? 35 : 12;
+        });
+
+        return {
+          score: Math.max(0, score),
+          issues
+        };
+      }
+
+      function analyzeImpactSafety() {
+        const issues = [
+          {
+            severity: "warning",
+            module: "impact map",
+            title: "Impact graph is frontend-declared only",
+            detail: "The Command Centre knows expected dependencies, but it does not yet have a backend code scanner or runtime test engine.",
+            next: "Use this as the first impact map. Add backend audit engine later for deeper proof."
+          }
+        ];
+
+        return {
+          score: 85,
+          issues
+        };
+      }
+
+      function analyzeWriteSafety(pageResults) {
+        const issues = [];
+        const addPage = pageResults["add.html"];
+
+        if (!addPage || !addPage.ok) {
+          issues.push({
+            severity: "blocked",
+            module: "add",
+            title: "Add page cannot be checked",
+            detail: "Write safety cannot be judged because Add page did not load.",
+            next: "Fix Add page before any write-path trial."
+          });
+        } else {
+          const text = addPage.text || "";
+
+          if (/queued offline/i.test(text)) {
+            issues.push({
+              severity: "blocked",
+              module: "add",
+              title: "Add page still contains offline queue wording",
+              detail: "Recovery rule says failed saves must not silently queue.",
+              next: "Remove offline queue behavior and wording before trial."
+            });
+          }
+
+          if (!/No silent queue/i.test(text)) {
+            issues.push({
+              severity: "warning",
+              module: "add",
+              title: "Add page does not clearly state no silent queue",
+              detail: "User trust improves when failed save behavior is explicit.",
+              next: "Keep Add save behavior copy clear."
+            });
+          }
+        }
+
+        let score = 100;
+        issues.forEach(issue => {
+          score -= issue.severity === "blocked" ? 60 : 20;
+        });
+
+        return {
+          score: Math.max(0, score),
+          issues
+        };
+      }
+
+      function prettyName(key) {
+        return String(key || "")
+          .replace(/-/g, " ")
+          .replace(/\b\w/g, ch => ch.toUpperCase());
+      }
+
+      function buildScores(audits) {
+        const allIssues = [
+          ...audits.api.issues,
+          ...audits.pages.issues,
+          ...audits.ui.issues,
+          ...audits.truth.issues,
+          ...audits.logic.issues,
+          ...audits.impact.issues,
+          ...audits.write.issues
+        ];
+
+        const hardBlockers = allIssues.filter(i => i.severity === "blocked");
+        const unknowns = allIssues.filter(i => i.severity === "unknown");
+
+        const scores = {
+          financeTruth: audits.truth.score,
+          wiring: Math.round((audits.api.score * 0.55) + (audits.pages.score * 0.45)),
+          logic: audits.logic.score,
+          uiCleanliness: audits.ui.score,
+          impactSafety: audits.impact.score,
+          writeSafety: audits.write.score
+        };
+
+        const weighted = Math.round(
+          (scores.financeTruth * 0.30) +
+          (scores.wiring * 0.20) +
+          (scores.logic * 0.20) +
+          (scores.uiCleanliness * 0.15) +
+          (scores.impactSafety * 0.10) +
+          (scores.writeSafety * 0.05)
+        );
+
+        const overallStatus = scoreStatus(weighted, hardBlockers.length > 0, unknowns.length > 0);
+
+        return {
+          scores,
+          weighted,
+          overallStatus,
+          allIssues,
+          hardBlockers,
+          unknowns
+        };
+      }
+
+      function scoreCard(name, score, note, statusOverride) {
+        const status = statusOverride || scoreStatus(score, false, false);
+
+        return `
+          <article class="score-card">
+            <div class="score-top">
+              <div class="score-name">${esc(name)}</div>
+              <span class="score-pill ${esc(normalizeStatus(status))}">${esc(verdictLabel(status))}</span>
+            </div>
+            <div class="score-number">${pct(score)}</div>
+            <div class="score-note">${esc(note)}</div>
+          </article>
+        `;
+      }
+
+      function renderMetrics(health, apiAudit, pageAudit) {
+        return `
+          <div class="metric-grid">
+            <div class="metric">
+              <div class="metric-label">Liquid position</div>
+              <div class="metric-value">${money(health.liquid)}</div>
+              <div class="metric-note">Current usable cash signal.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Credit Card</div>
+              <div class="metric-value">${money(health.ccOutstanding)}</div>
+              <div class="metric-note">Must come from realtime account/balance source.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">APIs readable</div>
+              <div class="metric-value">${apiAudit.okCount}/${apiAudit.total}</div>
+              <div class="metric-note">Existing finance data sources checked.</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Pages readable</div>
+              <div class="metric-value">${pageAudit.okCount}/${pageAudit.total}</div>
+              <div class="metric-note">Static app routes checked.</div>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderImpactMap() {
+        return `
+          <div class="impact-grid">
+            ${MODULES.filter(m => m.key !== "command-centre").map(module => `
+              <div class="impact-card">
+                <div class="impact-name">${esc(module.name)}</div>
+                <div class="impact-list">
+                  Impacts: ${esc(module.impacts.join(", "))}<br>
+                  Risk: ${esc(module.risk)}
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
+      function renderModuleTable(apiResults, pageResults) {
+        return `
+          <div class="module-table-wrap">
+            <table>
+              <thead>
                 <tr>
-                  <td><strong>${esc(row.account_name || "Account")}</strong></td>
-                  <td>${badge(row.status, cleanStatus(row.status))}</td>
-                  <td>${money(row.app_balance)}</td>
-                  <td>${row.declared_balance === null || row.declared_balance === undefined ? "N/A" : money(row.declared_balance)}</td>
-                  <td>${row.drift === null || row.drift === undefined ? "N/A" : money(row.drift)}</td>
-                  <td>${esc(row.latest_transaction_date || "N/A")}</td>
+                  <th>Module</th>
+                  <th>Status</th>
+                  <th>Pages</th>
+                  <th>Data</th>
+                  <th>Impacts</th>
                 </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        </div>
-      `;
-    }
+              </thead>
+              <tbody>
+                ${MODULES.map(module => {
+                  const pageOk = module.pages.every(path => pageResults[path] && pageResults[path].ok);
+                  const apiOk = module.apis.every(key => apiResults[key] && apiResults[key].ok);
+                  const status = pageOk && apiOk ? "ready" : pageOk || apiOk ? "warning" : "blocked";
 
-    function render(data) {
-      const systemStatus = systemCertificationStatus(data);
-      const closeStatus = moneyCloseStatus(data);
-      const safeStatus = safetyStatus(data);
-      const reconStatus = reconciliationStatus(data);
-
-      app.innerHTML = `
-        <section class="hero">
-          <div class="panel panel-pad">
-            <div class="status-grid">
-              <div class="status-card ${systemStatus === "ready" ? "ready" : "not-ready"}">
-                <h2>System readiness</h2>
-                <p class="status-value">${systemStatus === "ready" ? "READY" : "CHECK"}</p>
-                <p class="status-note">Core finance checks are readable for this close view.</p>
-              </div>
-              <div class="status-card ${closeStatus === "ready" ? "ready" : "not-ready"}">
-                <h2>Money close</h2>
-                <p class="status-value">${closeStatus === "ready" ? "READY" : "NOT READY"}</p>
-                <p class="status-note">Real cash safety, unsafe dates, stale declarations, and close blockers.</p>
-              </div>
-            </div>
+                  return `
+                    <tr>
+                      <td><strong>${esc(module.name)}</strong></td>
+                      <td>${badge(status, verdictLabel(status))}</td>
+                      <td>${esc(module.pages.join(", "))}</td>
+                      <td>${esc(module.apis.join(", "))}</td>
+                      <td>${esc(module.impacts.join(", "))}</td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
           </div>
+        `;
+      }
 
-          <div class="panel panel-pad">
-            <div class="kpi-grid">
-              <div class="metric">
-                <label>Safety</label>
-                <strong>${esc(safeStatus).toUpperCase()}</strong>
-                <small>${esc(data.safety?.top_action || "No action returned")}</small>
-              </div>
-              <div class="metric">
-                <label>First unsafe</label>
-                <strong>${esc(data.forecast?.first_unsafe_date || "N/A")}</strong>
-                <small>${esc(data.forecast?.runway_status || "N/A")}</small>
-              </div>
-              <div class="metric">
-                <label>Liquid</label>
-                <strong>${money(data.summary?.current_liquid)}</strong>
-                <small>Current usable cash signal</small>
-              </div>
-              <div class="metric">
-                <label>Credit Card</label>
-                <strong>${money(data.summary?.cc_outstanding)}</strong>
-                <small>Outstanding balance signal</small>
-              </div>
+      function renderAuditDetails(title, audit, issues) {
+        return `
+          <details class="audit">
+            <summary>
+              <span>${esc(title)}</span>
+              ${badge(scoreStatus(audit.score || 0, issues.some(i => i.severity === "blocked"), false), pct(audit.score || 0))}
+            </summary>
+            <div class="panel-body">
+              ${issues.length ? `<div class="list">${issues.map(issueCard).join("")}</div>` : `<div class="empty">No blocker found in this audit layer.</div>`}
             </div>
-          </div>
-        </section>
+          </details>
+        `;
+      }
 
-        <section class="section-grid">
-          <div class="panel">
-            <div class="section-title">
-              <div>
-                <h2>Top Close Blockers</h2>
-                <p>What must be handled before this month can be considered clean.</p>
-              </div>
-              ${badge(closeStatus, cleanStatus(closeStatus))}
-            </div>
-            <div class="list">${blockersList(data, 4)}</div>
-          </div>
+      function updateHero(result) {
+        const verdict = document.getElementById("heroVerdict");
+        const score = document.getElementById("heroScore");
+        const note = document.getElementById("heroNote");
 
-          <div class="panel">
-            <div class="section-title">
-              <div>
-                <h2>Next Action</h2>
-                <p>The shortest path from not ready to close-ready.</p>
-              </div>
-              ${badge(safeStatus, cleanStatus(safeStatus))}
-            </div>
-            <div class="list">
-              ${item("1", "Fix the first unsafe date", data.safety?.top_action || "Open Forecast and resolve the first unsafe date.")}
-              ${item("2", "Update stale declarations", "Re-declare accounts that changed after their last declared balance.")}
-              ${item("3", "Declare active undeclared accounts", "Declare real balances for active accounts so close confidence improves.")}
-            </div>
-          </div>
-        </section>
+        const topIssue = result.hardBlockers[0] || result.allIssues[0];
 
-        <details class="audit-details">
-          <summary>
-            <span>Review Checks</span>
-            ${badge(systemStatus, cleanStatus(systemStatus))}
-          </summary>
-          <div class="detail-body">
-            <div class="list">${reviewChecks(data)}</div>
-          </div>
-        </details>
+        verdict.textContent = verdictLabel(result.overallStatus);
+        score.textContent = `${result.weighted}% readiness`;
 
-        <details class="audit-details">
-          <summary>
-            <span>Forecast Safety</span>
-            ${badge(safeStatus, cleanStatus(safeStatus))}
-          </summary>
-          <div class="detail-body">
-            <div class="kpi-grid" style="margin-top: 16px;">
-              <div class="metric">
-                <label>Unsafe days</label>
-                <strong>${text(data.forecast?.unsafe_days_count)}</strong>
-                <small>Near-term projection</small>
-              </div>
-              <div class="metric">
-                <label>Lowest balance</label>
-                <strong>${money(data.forecast?.lowest_projected_balance)}</strong>
-                <small>${esc(data.forecast?.lowest_projected_balance_date || "N/A")}</small>
-              </div>
-              <div class="metric">
-                <label>After salary + obligations</label>
-                <strong>${money(data.forecast?.cash_after_salary_and_obligations)}</strong>
-                <small>Conservative baseline</small>
-              </div>
-              <div class="metric">
-                <label>Variable income</label>
-                <strong>${data.forecast?.manual_variables_separated ? "Separated" : "Check"}</strong>
-                <small>Safety stays conservative</small>
-              </div>
-            </div>
-          </div>
-        </details>
-
-        <details class="audit-details">
-          <summary>
-            <span>Monthly Activity</span>
-            ${badge("info", data.month)}
-          </summary>
-          <div class="detail-body">
-            <div class="kpi-grid" style="margin-top: 16px;">
-              <div class="metric">
-                <label>Income</label>
-                <strong>${money(data.month_activity?.income_total)}</strong>
-                <small>${text(data.income?.count, 0)} rows</small>
-              </div>
-              <div class="metric">
-                <label>Outflow</label>
-                <strong>${money(data.month_activity?.outflow_total)}</strong>
-                <small>${text(data.outflow?.count, 0)} rows</small>
-              </div>
-              <div class="metric">
-                <label>Net movement</label>
-                <strong>${money(data.month_activity?.net_income_minus_outflow)}</strong>
-                <small>Income minus outflow</small>
-              </div>
-              <div class="metric">
-                <label>Transfers</label>
-                <strong>${money(data.month_activity?.transfer_movement_total)}</strong>
-                <small>${text(data.month_activity?.transfer_count, 0)} rows</small>
-              </div>
-            </div>
-          </div>
-        </details>
-
-        <details class="audit-details">
-          <summary>
-            <span>Bills, Debts, and Receivables</span>
-            ${badge("info", "split")}
-          </summary>
-          <div class="detail-body">
-            <div class="kpi-grid" style="margin-top: 16px;">
-              <div class="metric">
-                <label>Bills due</label>
-                <strong>${money(data.bills?.due_total)}</strong>
-                <small>${text(data.bills?.unpaid_count, 0)} unpaid</small>
-              </div>
-              <div class="metric">
-                <label>Payable debt</label>
-                <strong>${money(data.debts?.total_payable_remaining)}</strong>
-                <small>${text(data.debts?.payable_count, 0)} active</small>
-              </div>
-              <div class="metric">
-                <label>Receivables</label>
-                <strong>${money(data.debts?.total_receivable_remaining)}</strong>
-                <small>${text(data.debts?.receivable_count, 0)} active</small>
-              </div>
-              <div class="metric">
-                <label>Debt paid this month</label>
-                <strong>${money(data.debts?.debt_paid_this_month)}</strong>
-                <small>${text(data.debts?.debt_payment_count_this_month, 0)} payments</small>
-              </div>
-            </div>
-          </div>
-        </details>
-
-        <details class="audit-details">
-          <summary>
-            <span>Reconciliation</span>
-            ${badge(reconStatus, cleanStatus(reconStatus))}
-          </summary>
-          <div class="detail-body">
-            <div class="kpi-grid" style="margin-top: 16px;">
-              <div class="metric">
-                <label>Matched</label>
-                <strong>${text(data.reconciliation?.matched_count, 0)}</strong>
-                <small>Accounts</small>
-              </div>
-              <div class="metric">
-                <label>Stale</label>
-                <strong>${text(data.reconciliation?.stale_count, 0)}</strong>
-                <small>Needs re-declare</small>
-              </div>
-              <div class="metric">
-                <label>Undeclared</label>
-                <strong>${text(data.reconciliation?.undeclared_count, 0)}</strong>
-                <small>Needs declaration</small>
-              </div>
-              <div class="metric">
-                <label>Drifted</label>
-                <strong>${text(data.reconciliation?.drifted_count, 0)}</strong>
-                <small>Hard issue if above zero</small>
-              </div>
-            </div>
-            ${reconciliationRows(data)}
-          </div>
-        </details>
-      `;
-    }
-
-    async function loadMonthlyClose() {
-      app.innerHTML = `<section class="panel loading">Loading Monthly Close...</section>`;
-
-      try {
-        const month = monthInput.value || currentMonth();
-        const res = await fetch(`/api/monthly-close?month=${encodeURIComponent(month)}`, { cache: "no-store" });
-        const data = await res.json();
-
-        if (!res.ok || !data || data.ok === false) {
-          throw new Error((data && data.error) || `HTTP ${res.status}`);
+        if (topIssue) {
+          note.textContent = `${topIssue.title}. Next: ${topIssue.next}`;
+        } else {
+          note.textContent = "No blocker found in the current frontend audit shell.";
         }
+      }
 
-        render(data);
+      function render(audits, apiResults, pageResults) {
+        const result = buildScores(audits);
+        const health = audits.truth.health;
+        const topIssues = result.allIssues
+          .slice()
+          .sort((a, b) => {
+            const weight = { blocked: 0, warning: 1, unknown: 2 };
+            return (weight[a.severity] ?? 3) - (weight[b.severity] ?? 3);
+          })
+          .slice(0, 5);
 
-        if (window.SovereignNav && typeof window.SovereignNav.checkOverflow === "function") {
-          window.setTimeout(window.SovereignNav.checkOverflow, 150);
-        }
-      } catch (error) {
+        updateHero(result);
+
         app.innerHTML = `
-          <section class="panel error">
-            <h2>Monthly Close could not load</h2>
+          <section class="score-grid">
+            ${scoreCard("Finance Truth", result.scores.financeTruth, "Balances, CC, bills, debts, salary, forecast trust.")}
+            ${scoreCard("Wiring", result.scores.wiring, "Pages and data sources connected and readable.")}
+            ${scoreCard("Logic", result.scores.logic, "Unsafe calculation sources and bad assumptions.")}
+            ${scoreCard("UI Cleanliness", result.scores.uiCleanliness, "Debug, source, version, and internal labels.")}
+            ${scoreCard("Impact Safety", result.scores.impactSafety, "Known dependency graph and recent-change risk.")}
+          </section>
+
+          <section class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Top Fix Queue</h2>
+                  <p class="panel-sub">Ranked blockers and warnings. Fix these before calling the cockpit trial-ready.</p>
+                </div>
+                ${badge(result.overallStatus, verdictLabel(result.overallStatus))}
+              </div>
+              <div class="panel-body">
+                ${topIssues.length ? `<div class="list">${topIssues.map(issueCard).join("")}</div>` : `<div class="empty">No current blocker found. This does not replace backend audit engine yet.</div>`}
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Money + Wiring Snapshot</h2>
+                  <p class="panel-sub">Fast signal from existing finance pages and data sources.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderMetrics(health, audits.api, audits.pages)}
+              </div>
+            </div>
+          </section>
+
+          <section class="grid-2">
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Impact Map</h2>
+                  <p class="panel-sub">If one module changes, these are the areas that need recheck.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                ${renderImpactMap()}
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <div>
+                  <h2 class="panel-title">Trial Decision</h2>
+                  <p class="panel-sub">This page refuses fake 100% readiness while audit depth is incomplete.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="list">
+                  ${issueCard({
+                    severity: result.overallStatus === "ready" ? "good" : result.overallStatus === "warning" ? "warning" : "blocked",
+                    module: "trial",
+                    title: verdictLabel(result.overallStatus),
+                    detail: result.overallStatus === "ready"
+                      ? "Current frontend audit shell found no blockers."
+                      : "Do not call the cockpit 100% ready until blockers are resolved and deeper backend/runtime audit exists.",
+                    next: result.hardBlockers[0] ? result.hardBlockers[0].next : "Use the fix queue and rerun audit."
+                  }, 0)}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" style="margin-bottom:18px;">
+            <div class="panel-head">
+              <div>
+                <h2 class="panel-title">Module Health</h2>
+                <p class="panel-sub">Static route and data-source registry for the finance cockpit.</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              ${renderModuleTable(apiResults, pageResults)}
+            </div>
+          </section>
+
+          ${renderAuditDetails("Finance Truth Audit", audits.truth, audits.truth.issues)}
+          ${renderAuditDetails("Wiring Audit", { score: result.scores.wiring }, audits.api.issues.concat(audits.pages.issues))}
+          ${renderAuditDetails("Logic Audit", audits.logic, audits.logic.issues)}
+          ${renderAuditDetails("UI Cleanliness Audit", audits.ui, audits.ui.issues)}
+          ${renderAuditDetails("Impact Safety Audit", audits.impact, audits.impact.issues)}
+          ${renderAuditDetails("Write Safety Audit", audits.write, audits.write.issues)}
+
+          <details class="audit">
+            <summary>
+              <span>What v0.1 Can and Cannot Prove</span>
+              ${badge("info", "v0.1")}
+            </summary>
+            <div class="panel-body">
+              <div class="list">
+                ${issueCard({
+                  severity: "good",
+                  module: "v0.1",
+                  title: "Can prove basic route, data, logic, UI source, and impact-map signals",
+                  detail: "This version checks existing pages and existing data sources without mutating anything.",
+                  next: "Use it as the command centre shell."
+                }, 0)}
+                ${issueCard({
+                  severity: "warning",
+                  module: "future",
+                  title: "Cannot perfectly prove browser runtime or write-path safety yet",
+                  detail: "A backend audit engine and dry-run validation endpoint are needed for deeper proof.",
+                  next: "Build backend audit engine only after explicit approval."
+                }, 1)}
+              </div>
+            </div>
+          </details>
+        `;
+
+        if (window.SovereignNav && typeof window.SovereignNav.scheduleOverflowCheck === "function") {
+          window.SovereignNav.scheduleOverflowCheck();
+        }
+      }
+
+      async function runAudit() {
+        const month = currentQueryMonth();
+
+        app.innerHTML = `<section class="loading">Running command centre audit...</section>`;
+        document.getElementById("heroVerdict").textContent = "Loading";
+        document.getElementById("heroScore").textContent = "Audit running";
+        document.getElementById("heroNote").textContent = "Reading finance cockpit health.";
+
+        const apiKeys = Object.keys(API_ROUTES);
+        const pageKeys = Array.from(new Set(MODULES.flatMap(m => m.pages)));
+
+        const apiEntries = await Promise.all(apiKeys.map(async key => {
+          const route = API_ROUTES[key](month);
+          const result = await fetchJson(route, month);
+          return [key, result];
+        }));
+
+        const pageEntries = await Promise.all(pageKeys.map(async path => {
+          const result = await fetchText(path);
+          return [path, result];
+        }));
+
+        const apiResults = Object.fromEntries(apiEntries);
+        const pageResults = Object.fromEntries(pageEntries);
+
+        const apiAudit = analyzeApis(apiResults);
+        const pageAudit = analyzePages(pageResults);
+        const uiAudit = analyzeUiCleanliness(pageResults);
+        const truthAudit = analyzeFinanceTruth(apiResults);
+        const logicAudit = analyzeLogic(pageResults, apiResults);
+        const impactAudit = analyzeImpactSafety();
+        const writeAudit = analyzeWriteSafety(pageResults);
+
+        render({
+          api: apiAudit,
+          pages: pageAudit,
+          ui: uiAudit,
+          truth: truthAudit,
+          logic: logicAudit,
+          impact: impactAudit,
+          write: writeAudit
+        }, apiResults, pageResults);
+      }
+
+      function openAllDetails() {
+        document.querySelectorAll("details.audit").forEach(detail => {
+          detail.open = true;
+        });
+      }
+
+      monthInput.value = new URLSearchParams(location.search || "").get("month") || currentMonth();
+
+      refreshBtn.addEventListener("click", runAudit);
+      detailsBtn.addEventListener("click", openAllDetails);
+
+      monthInput.addEventListener("change", () => {
+        const url = new URL(location.href);
+        url.searchParams.set("month", monthInput.value);
+        history.replaceState(null, "", url.toString());
+        runAudit();
+      });
+
+      runAudit().catch(error => {
+        document.getElementById("heroVerdict").textContent = "Unknown";
+        document.getElementById("heroScore").textContent = "Audit failed";
+        document.getElementById("heroNote").textContent = "Command Centre could not complete the audit.";
+
+        app.innerHTML = `
+          <section class="error">
+            <h2>Command Centre audit failed</h2>
             <p>${esc(error.message || String(error))}</p>
           </section>
         `;
-      }
-    }
-
-    loadMonthlyClose();
+      });
+    })();
   </script>
 </body>
 </html>
