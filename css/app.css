@@ -1421,3 +1421,54 @@ tr:hover td {
 .hidden {
   display: none !important;
 }
+/* Global theme authority patch
+   Keeps finance pages on one theme system.
+   Prevents old page-level dark/light classes from fighting data-theme.
+*/
+
+html:not([data-theme]),
+html[data-theme="light"] {
+  color-scheme: light;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] body,
+body[data-theme="light"] {
+  background:
+    radial-gradient(circle at top left, rgba(4, 120, 87, 0.08), transparent 28rem),
+    radial-gradient(circle at top right, rgba(29, 78, 216, 0.08), transparent 30rem),
+    var(--bg) !important;
+  color: var(--text) !important;
+}
+
+html[data-theme="dark"] body,
+body[data-theme="dark"] {
+  background:
+    radial-gradient(circle at top left, rgba(4, 120, 87, 0.08), transparent 28rem),
+    radial-gradient(circle at top right, rgba(29, 78, 216, 0.08), transparent 30rem),
+    var(--bg) !important;
+  color: var(--text) !important;
+}
+
+html[data-theme] .card,
+html[data-theme] .panel,
+html[data-theme] .sf-card,
+html[data-theme] .surface-card,
+html[data-theme] .kpi-card,
+html[data-theme] .stat-card,
+html[data-theme] .metric-card {
+  background: var(--surface-1);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+html[data-theme] input,
+html[data-theme] select,
+html[data-theme] textarea {
+  background: var(--surface-1);
+  color: var(--text-strong);
+  border-color: var(--border);
+}
