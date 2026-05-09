@@ -1,30 +1,28 @@
-<!doctype html>
-<html lang="en" data-page="forecast">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
-  <title>Forecast · Sovereign Finance</title>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sovereign Finance — Forecast</title>
   <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
-
   <style>
     :root {
       --fc-ink: #0f172a;
       --fc-muted: #64748b;
       --fc-line: rgba(148, 163, 184, 0.24);
       --fc-card: rgba(255, 255, 255, 0.92);
-      --fc-card-strong: #ffffff;
       --fc-green: #16a34a;
-      --fc-green-soft: rgba(34, 197, 94, 0.12);
       --fc-blue: #2563eb;
-      --fc-blue-soft: rgba(37, 99, 235, 0.12);
       --fc-amber: #d97706;
-      --fc-amber-soft: rgba(217, 119, 6, 0.12);
       --fc-red: #dc2626;
-      --fc-red-soft: rgba(220, 38, 38, 0.10);
       --fc-shadow: 0 20px 56px rgba(15, 23, 42, 0.12);
       --fc-radius: 28px;
+    }
+
+    html, body {
+      margin: 0;
+      max-width: 100%;
+      overflow-x: hidden;
     }
 
     body {
@@ -32,13 +30,20 @@
         radial-gradient(circle at 10% -10%, rgba(34, 197, 94, 0.16), transparent 34rem),
         radial-gradient(circle at 90% 0%, rgba(37, 99, 235, 0.15), transparent 34rem),
         #eef4ff;
+      color: var(--fc-ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      min-width: 0;
     }
 
     .forecast-page {
       width: 100%;
-      max-width: 1440px;
+      max-width: var(--sf-content-max, 1440px);
       margin: 0 auto;
-      padding: 0 16px 48px;
+      padding: 24px 16px 56px;
     }
 
     .forecast-hero {
@@ -191,13 +196,18 @@
       margin: 18px 0;
     }
 
-    .kpi-card {
+    .kpi-card,
+    .panel,
+    .loading-shell {
       min-width: 0;
-      padding: 18px;
       border-radius: var(--fc-radius);
       background: var(--fc-card);
       border: 1px solid var(--fc-line);
       box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
+    }
+
+    .kpi-card {
+      padding: 18px;
     }
 
     .kpi-label {
@@ -248,11 +258,6 @@
     }
 
     .panel {
-      min-width: 0;
-      border-radius: var(--fc-radius);
-      background: var(--fc-card);
-      border: 1px solid var(--fc-line);
-      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
       overflow: hidden;
     }
 
@@ -326,26 +331,27 @@
       to { transform: scaleY(1); opacity: 1; }
     }
 
+    .bar-label,
+    .bar-value {
+      text-align: center;
+      white-space: nowrap;
+      font-weight: 950;
+      font-size: 11px;
+    }
+
     .bar-label {
       margin-top: 9px;
       color: var(--fc-muted);
-      font-size: 11px;
-      font-weight: 900;
-      text-align: center;
-      white-space: nowrap;
     }
 
     .bar-value {
       margin-top: 4px;
       color: var(--fc-ink);
-      font-size: 11px;
-      font-weight: 950;
-      text-align: center;
       font-variant-numeric: tabular-nums;
-      white-space: nowrap;
     }
 
-    .insight-list {
+    .insight-list,
+    .mini-table {
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -369,17 +375,9 @@
       background: var(--fc-blue);
     }
 
-    .insight.good .insight-dot {
-      background: var(--fc-green);
-    }
-
-    .insight.warn .insight-dot {
-      background: var(--fc-amber);
-    }
-
-    .insight.bad .insight-dot {
-      background: var(--fc-red);
-    }
+    .insight.good .insight-dot { background: var(--fc-green); }
+    .insight.warn .insight-dot { background: var(--fc-amber); }
+    .insight.bad .insight-dot { background: var(--fc-red); }
 
     .insight-title {
       color: var(--fc-ink);
@@ -400,12 +398,6 @@
       display: flex;
       flex-direction: column;
       gap: 14px;
-    }
-
-    .mini-table {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
     }
 
     .mini-row {
@@ -454,37 +446,19 @@
       line-height: 1.45;
     }
 
-    .source-strip {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 14px;
-    }
-
-    .source-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 10px;
-      border-radius: 999px;
-      background: #f8fafc;
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      color: var(--fc-muted);
-      font-size: 11px;
-      font-weight: 900;
-    }
-
     .loading-shell {
       display: grid;
       place-items: center;
       min-height: 360px;
-      border-radius: var(--fc-radius);
-      background: var(--fc-card);
-      border: 1px solid var(--fc-line);
       color: var(--fc-muted);
       font-size: 14px;
       font-weight: 900;
-      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
+      text-align: center;
+      padding: 24px;
+    }
+
+    .sr-only-debug {
+      display: none !important;
     }
 
     @media (max-width: 1100px) {
@@ -535,76 +509,68 @@
     }
   </style>
 </head>
-
 <body>
-  <main class="forecast-page">
+  <main class="forecast-page app-page">
     <section class="forecast-hero">
       <div class="hero-top">
         <div>
-          <div class="eyebrow"><span class="eyebrow-dot"></span> Forecast cockpit</div>
+          <div class="eyebrow"><span class="eyebrow-dot"></span> Forecast</div>
           <h1 class="forecast-title">Know the next cash pressure before it arrives.</h1>
           <p class="forecast-subtitle">
-            This page reads live finance data and turns it into a 90-day money forecast: runway, obligations,
-            salary timing, burn rate, and the safest next action.
+            A clean 90-day view of available cash, upcoming obligations, salary timing, and the next pressure point.
           </p>
         </div>
-
         <div class="hero-status">
           <div class="hero-status-label">Forecast status</div>
           <div class="hero-status-value" id="heroStatus">Loading</div>
-          <div class="hero-status-note" id="heroStatusNote">Reading live finance data.</div>
+          <div class="hero-status-note" id="heroStatusNote">Reading finance data.</div>
         </div>
       </div>
 
       <div class="scenario-strip">
         <div class="scenario-card">
           <div class="scenario-label">30-day projection</div>
-          <div class="scenario-value" id="proj30">—</div>
-          <div class="scenario-note">Expected position after near-term income and obligations.</div>
+          <div class="scenario-value" id="proj30"></div>
+          <div class="scenario-note">Near-term position after expected income and obligations.</div>
         </div>
-
         <div class="scenario-card">
           <div class="scenario-label">60-day projection</div>
-          <div class="scenario-value" id="proj60">—</div>
+          <div class="scenario-value" id="proj60"></div>
           <div class="scenario-note">Pressure view across the next salary cycle.</div>
         </div>
-
         <div class="scenario-card">
           <div class="scenario-label">90-day projection</div>
-          <div class="scenario-value" id="proj90">—</div>
-          <div class="scenario-note">Longer cash runway signal, not a guarantee.</div>
+          <div class="scenario-value" id="proj90"></div>
+          <div class="scenario-note">Longer runway signal, not a guarantee.</div>
         </div>
       </div>
     </section>
 
     <section id="loadingShell" class="loading-shell">
-      Building forecast from accounts, transactions, bills, debts, and salary data.
+      Building your forecast from current balances and upcoming obligations.
     </section>
 
     <section id="forecastContent" hidden>
       <div class="kpi-grid">
         <article class="kpi-card" id="liquidCard">
           <div class="kpi-label">Liquid position</div>
-          <div class="kpi-value" id="liquidValue">—</div>
-          <div class="kpi-note" id="liquidNote">Cash and positive asset balances detected from accounts.</div>
+          <div class="kpi-value" id="liquidValue"></div>
+          <div class="kpi-note" id="liquidNote">Current usable cash signal.</div>
         </article>
-
         <article class="kpi-card" id="burnCard">
           <div class="kpi-label">Daily burn</div>
-          <div class="kpi-value" id="burnValue">—</div>
-          <div class="kpi-note" id="burnNote">Average spend from recent expense transactions.</div>
+          <div class="kpi-value" id="burnValue"></div>
+          <div class="kpi-note" id="burnNote">Recent spending pace.</div>
         </article>
-
         <article class="kpi-card" id="dueCard">
           <div class="kpi-label">Due soon</div>
-          <div class="kpi-value" id="dueValue">—</div>
-          <div class="kpi-note" id="dueNote">Bills and debt obligations due in the next 14 days.</div>
+          <div class="kpi-value" id="dueValue"></div>
+          <div class="kpi-note" id="dueNote">Near-term bills and debt pressure.</div>
         </article>
-
         <article class="kpi-card" id="runwayCard">
           <div class="kpi-label">Runway</div>
-          <div class="kpi-value" id="runwayValue">—</div>
-          <div class="kpi-note" id="runwayNote">Days of cover at current recent burn rate.</div>
+          <div class="kpi-value" id="runwayValue"></div>
+          <div class="kpi-note" id="runwayNote">Days of cover at current burn rate.</div>
         </article>
       </div>
 
@@ -616,11 +582,8 @@
               <p class="panel-sub">Projected cash position using current balance, recent spending, salary signal, bills, and debts.</p>
             </div>
           </div>
-
           <div class="panel-body">
             <div class="forecast-bars" id="forecastBars"></div>
-
-            <div class="source-strip" id="sourceStrip"></div>
           </div>
         </section>
 
@@ -629,7 +592,7 @@
             <div class="panel-head">
               <div>
                 <h2 class="panel-title">What needs action</h2>
-                <p class="panel-sub">Priority signals from the forecast engine.</p>
+                <p class="panel-sub">The shortest useful reading of the forecast.</p>
               </div>
             </div>
             <div class="panel-body">
@@ -656,7 +619,7 @@
           <div class="panel-head">
             <div>
               <h2 class="panel-title">Account base</h2>
-              <p class="panel-sub">Balances used for the forecast starting point.</p>
+              <p class="panel-sub">Balances used as the forecast starting point.</p>
             </div>
           </div>
           <div class="panel-body">
@@ -667,8 +630,8 @@
         <section class="panel">
           <div class="panel-head">
             <div>
-              <h2 class="panel-title">Forecast method</h2>
-              <p class="panel-sub">Clear assumptions so the number is useful, not magic.</p>
+              <h2 class="panel-title">How to read this</h2>
+              <p class="panel-sub">Plain assumptions so the view stays useful.</p>
             </div>
           </div>
           <div class="panel-body">
@@ -676,24 +639,22 @@
               <div class="insight">
                 <span class="insight-dot"></span>
                 <div>
-                  <div class="insight-title">Recent spend drives burn rate</div>
-                  <div class="insight-text">The page uses expense transactions from the last 30 days where available.</div>
+                  <div class="insight-title">Recent spending shapes the burn rate</div>
+                  <div class="insight-text">If recent spending is thin, runway is shown as unknown instead of fake precision.</div>
                 </div>
               </div>
-
               <div class="insight">
                 <span class="insight-dot"></span>
                 <div>
-                  <div class="insight-title">Salary is treated as a signal</div>
-                  <div class="insight-text">If salary data is available, it is included. If not, the page avoids fake precision.</div>
+                  <div class="insight-title">Salary is included only when available</div>
+                  <div class="insight-text">Confirmed recurring income improves the forecast; missing salary data is not guessed.</div>
                 </div>
               </div>
-
               <div class="insight">
                 <span class="insight-dot"></span>
                 <div>
-                  <div class="insight-title">Bills and debts reduce projection</div>
-                  <div class="insight-text">Upcoming dated obligations are deducted inside the 90-day window.</div>
+                  <div class="insight-title">Obligations reduce the projection</div>
+                  <div class="insight-text">Upcoming dated bills and debts are deducted inside the visible window.</div>
                 </div>
               </div>
             </div>
@@ -701,18 +662,15 @@
         </section>
       </div>
     </section>
-
-    <footer>
-      Sovereign Finance · Forecast cockpit v0.3.0 · nav v1.1.3 · css v1.0.2
-    </footer>
   </main>
 
   <script src="/js/theme.js?v=1.0.0"></script>
   <script src="/js/nav.js?v=1.1.3"></script>
-
   <script>
     (function () {
       "use strict";
+
+      window.SovereignForecast = { version: "0.3.1", mode: "trial-clean-visual" };
 
       const PKR = new Intl.NumberFormat("en-PK", {
         style: "currency",
@@ -725,21 +683,20 @@
         transactions: [],
         bills: [],
         debts: [],
-        salary: null,
-        sources: []
+        salary: null
       };
 
       const $ = (id) => document.getElementById(id);
 
       function money(value) {
         const n = Number(value || 0);
-        if (!Number.isFinite(n)) return "—";
+        if (!Number.isFinite(n)) return "";
         return PKR.format(n).replace("PKR", "Rs");
       }
 
       function number(value) {
         const n = Number(value || 0);
-        if (!Number.isFinite(n)) return "—";
+        if (!Number.isFinite(n)) return "";
         return new Intl.NumberFormat("en-PK", { maximumFractionDigits: 0 }).format(n);
       }
 
@@ -752,8 +709,7 @@
       function parseDate(value) {
         if (!value) return null;
         const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return null;
-        return d;
+        return Number.isNaN(d.getTime()) ? null : d;
       }
 
       function daysBetween(a, b) {
@@ -772,15 +728,14 @@
         return [];
       }
 
-      async function fetchJson(url, label, keys) {
+      async function fetchJson(url, keys) {
         try {
           const res = await fetch(url, { cache: "no-store" });
           if (!res.ok) throw new Error(String(res.status));
           const payload = await res.json();
-          state.sources.push(label);
           return keys ? pickArray(payload, keys) : payload;
         } catch (err) {
-          console.warn("Forecast source unavailable:", label, err);
+          console.warn("Forecast data unavailable:", err);
           return keys ? [] : null;
         }
       }
@@ -797,14 +752,12 @@
           "minimum_due",
           "monthly_amount"
         ];
-
         for (const key of keys) {
           if (obj && obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
             const n = Number(obj[key]);
             if (Number.isFinite(n)) return n;
           }
         }
-
         return 0;
       }
 
@@ -819,20 +772,16 @@
       function isAssetAccount(account) {
         const kind = accountKind(account);
         const name = String(nameOf(account, "")).toLowerCase();
-
         if (kind.includes("liability") || kind.includes("credit") || kind.includes("debt")) return false;
         if (name.includes("credit card") || name.includes("cc ")) return false;
-
         return true;
       }
 
       function transactionAmount(tx) {
         const raw = amountOf(tx);
         const type = String(tx.type || tx.kind || tx.direction || "").toLowerCase();
-
         if (type.includes("expense") || type.includes("debit") || type.includes("out")) return -Math.abs(raw);
         if (type.includes("income") || type.includes("credit") || type.includes("in")) return Math.abs(raw);
-
         return Number(raw || 0);
       }
 
@@ -997,13 +946,18 @@
         const p60 = projection.find(x => x.day === 60);
         const p90 = projection.find(x => x.day === 90);
 
-        $("proj30").textContent = p30 ? money(p30.value) : "—";
-        $("proj60").textContent = p60 ? money(p60.value) : "—";
-        $("proj90").textContent = p90 ? money(p90.value) : "—";
+        $("proj30").textContent = p30 ? money(p30.value) : "";
+        $("proj60").textContent = p60 ? money(p60.value) : "";
+        $("proj90").textContent = p90 ? money(p90.value) : "";
 
-        const status = p30 && p30.value < 0 ? "Pressure ahead" : dueSoon > liquid ? "Needs review" : "Readable";
+        const status = p30 && p30.value < 0
+          ? "Pressure ahead"
+          : dueSoon > liquid
+            ? "Needs review"
+            : "Readable";
+
         const note = p30 && p30.value < 0
-          ? "30-day projection goes below zero based on current signals."
+          ? "30-day view goes below zero based on current signals."
           : dueSoon > liquid
             ? "Near-term obligations exceed current liquid balance."
             : "Forecast loaded with current available signals.";
@@ -1021,19 +975,19 @@
         $("runwayValue").textContent = runway === null ? "Unknown" : `${number(runway)} days`;
 
         $("liquidNote").textContent = state.accounts.length
-          ? `${state.accounts.length} account record(s) scanned.`
-          : "No account records found from API.";
+          ? `${state.accounts.length} balance record(s) included.`
+          : "No balance records available.";
 
         $("burnNote").textContent = burn > 0
-          ? "Based on recent expense transactions."
-          : "Not enough recent expense data to compute burn.";
+          ? "Based on recent expense activity."
+          : "Not enough recent expense activity to compute burn.";
 
         $("dueNote").textContent = dueSoon > 0
-          ? "Bills/debts due inside 14 days."
+          ? "Obligations due inside 14 days."
           : "No dated obligations found inside 14 days.";
 
         $("runwayNote").textContent = runway === null
-          ? "Runway needs recent expense data."
+          ? "Runway needs recent spending data."
           : "Calculated from liquid balance divided by daily burn.";
 
         setCardClass("liquidCard", liquid > 0 ? "good" : "bad");
@@ -1064,13 +1018,6 @@
         }).join("");
       }
 
-      function renderSources() {
-        const sources = state.sources.length ? state.sources : ["No live source returned data"];
-        $("sourceStrip").innerHTML = sources.map(source => `
-          <span class="source-pill">${escapeHtml(source)}</span>
-        `).join("");
-      }
-
       function renderInsights(liquid, burn, dueSoon, projection) {
         const p30 = projection.find(x => x.day === 30);
         const p90 = projection.find(x => x.day === 90);
@@ -1079,7 +1026,7 @@
         if (!state.accounts.length) {
           insights.push({
             cls: "bad",
-            title: "Account data missing",
+            title: "Balance data missing",
             text: "The forecast cannot be trusted until account balances are available."
           });
         }
@@ -1088,7 +1035,7 @@
           insights.push({
             cls: "bad",
             title: "30-day projection goes negative",
-            text: "Reduce upcoming outflow or verify missing income before relying on this forecast."
+            text: "Reduce upcoming outflow or verify missing income before relying on this view."
           });
         }
 
@@ -1104,7 +1051,7 @@
           insights.push({
             cls: "warn",
             title: "Burn rate is unavailable",
-            text: "There are not enough recent expense transactions to calculate realistic runway."
+            text: "There is not enough recent expense activity to calculate realistic runway."
           });
         }
 
@@ -1169,7 +1116,7 @@
         const el = $("accountList");
 
         if (!state.accounts.length) {
-          el.innerHTML = `<div class="empty">No accounts returned from the API.</div>`;
+          el.innerHTML = `<div class="empty">No accounts returned.</div>`;
           return;
         }
 
@@ -1206,12 +1153,12 @@
           salary,
           balances
         ] = await Promise.all([
-          fetchJson("/api/accounts", "Accounts", ["accounts", "items"]),
-          fetchJson("/api/transactions", "Transactions", ["transactions", "items"]),
-          fetchJson("/api/bills", "Bills", ["bills", "items"]),
-          fetchJson("/api/debts", "Debts", ["debts", "items"]),
-          fetchJson("/api/salary", "Salary", null),
-          fetchJson("/api/balances", "Balances", null)
+          fetchJson("/api/accounts", ["accounts", "items"]),
+          fetchJson("/api/transactions", ["transactions", "items"]),
+          fetchJson("/api/bills", ["bills", "items"]),
+          fetchJson("/api/debts", ["debts", "items"]),
+          fetchJson("/api/salary", null),
+          fetchJson("/api/balances", null)
         ]);
 
         state.accounts = accounts || [];
@@ -1233,7 +1180,6 @@
         renderHero(liquid, burn, dueSoon, projection);
         renderKpis(liquid, burn, dueSoon);
         renderBars(projection, burn);
-        renderSources();
         renderInsights(liquid, burn, dueSoon, projection);
         renderObligations();
         renderAccounts();
@@ -1247,11 +1193,11 @@
       }
 
       load().catch(err => {
-        console.error("Forecast cockpit failed:", err);
+        console.error("Forecast could not load:", err);
         $("loadingShell").innerHTML = `
           <div>
             <div style="font-size:18px;font-weight:950;color:#dc2626;margin-bottom:6px;">Forecast could not load.</div>
-            <div style="color:#64748b;font-size:13px;font-weight:800;">Open console and paste the error if this repeats.</div>
+            <div style="color:#64748b;font-size:13px;font-weight:800;">Refresh once. If it repeats, inspect the page console.</div>
           </div>
         `;
       });
