@@ -1,20 +1,30 @@
-<!doctype html>
-<html lang="en" data-page="add">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0f172a" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-
-  <title>Add Transaction · Sovereign Finance</title>
-
+  <title>Add Transaction - Sovereign Finance</title>
   <link rel="stylesheet" href="/css/app.css?v=1.0.2" />
-
   <style>
+    html,
+    body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    * {
+      box-sizing: border-box;
+      min-width: 0;
+    }
+
     .add-wrap {
+      width: 100%;
       max-width: 980px;
       margin: 0 auto;
+      padding: 0 12px 64px;
     }
 
     .add-hero {
@@ -28,7 +38,7 @@
       border-radius: 34px;
       box-shadow: var(--shadow-lg);
       padding: 26px;
-      margin-bottom: 18px;
+      margin: 14px 0 18px;
     }
 
     .add-kicker {
@@ -69,7 +79,7 @@
       font-size: 15px;
       line-height: 1.55;
       font-weight: 750;
-      margin-top: 12px;
+      margin: 12px 0 0;
       max-width: 760px;
     }
 
@@ -81,16 +91,23 @@
     }
 
     .add-type-grid .type-btn {
-      min-height: 108px;
+      min-height: 106px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 7px;
       border-width: 2px;
       background: rgba(255, 255, 255, 0.08);
       color: #f8fafc;
       border-color: rgba(255, 255, 255, 0.12);
+      border-radius: 22px;
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .add-type-grid .type-btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255, 255, 255, 0.24);
     }
 
     .add-type-grid .type-btn.active {
@@ -99,10 +116,17 @@
       border-color: rgba(34, 197, 94, 0.42);
     }
 
+    .type-main {
+      font-size: 16px;
+      font-weight: 950;
+      letter-spacing: -0.02em;
+    }
+
     .type-small {
       color: #cbd5e1;
       font-size: 12px;
       font-weight: 850;
+      margin-top: 5px;
     }
 
     .add-trust-panel {
@@ -220,7 +244,16 @@
       text-align: center;
     }
 
+    .add-page-meta {
+      display: none !important;
+    }
+
     @media (max-width: 720px) {
+      .add-wrap {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+
       .add-type-grid,
       .add-grid {
         grid-template-columns: 1fr;
@@ -234,7 +267,6 @@
     }
   </style>
 </head>
-
 <body>
   <header>
     <div>
@@ -243,28 +275,26 @@
     </div>
   </header>
 
-  <main class="add-wrap">
+  <main class="add-wrap app-page">
     <section class="add-hero">
       <div class="add-kicker">Ledger write path</div>
       <h1 class="add-heading">Add one clean money event.</h1>
       <p class="add-copy">
         Expenses reduce an account, income increases an account, and transfers move money between accounts.
-        This page writes only real ledger events and never silently queues failed saves.
+        If saving fails, nothing is silently queued.
       </p>
 
       <div class="add-type-grid" aria-label="Transaction type">
         <button class="type-btn active" type="button" data-type="expense">
-          <span>Expense</span>
+          <span class="type-main">Expense</span>
           <span class="type-small">money out</span>
         </button>
-
         <button class="type-btn" type="button" data-type="income">
-          <span>Income</span>
+          <span class="type-main">Income</span>
           <span class="type-small">money in</span>
         </button>
-
         <button class="type-btn" type="button" data-type="transfer">
-          <span>Transfer</span>
+          <span class="type-main">Transfer</span>
           <span class="type-small">between accounts</span>
         </button>
       </div>
@@ -296,7 +326,7 @@
           <div class="field">
             <label id="accountFromLabel" for="accountSelect">Account</label>
             <select id="accountSelect" class="select" name="account" required>
-              <option value="">Pick account...</option>
+              <option value="">Loading accounts...</option>
             </select>
           </div>
 
@@ -310,7 +340,7 @@
           <div class="field" id="categoryWrap">
             <label for="categorySelect">Category <small>optional</small></label>
             <select id="categorySelect" class="select" name="category">
-              <option value="">Pick category...</option>
+              <option value="">Loading categories...</option>
             </select>
           </div>
 
@@ -331,14 +361,15 @@
           </button>
 
           <p id="addSafetyText" class="add-safety">
-            Expense mode creates one transaction and reduces the selected account. If saving fails, nothing is silently queued.
+            Expense mode creates one transaction and reduces the selected account.
+            If saving fails, nothing is silently queued.
           </p>
         </div>
       </form>
     </section>
 
-    <footer class="page-footer">
-      <span class="v">Add Transaction v0.7.0 · app.css v1.0.2 · store v0.2.3 · add v0.4.0 · nav v1.1.9</span>
+    <footer class="add-page-meta" aria-hidden="true">
+      Add Transaction clean UI
     </footer>
   </main>
 
@@ -346,7 +377,7 @@
 
   <script src="/js/theme.js?v=1.0.0"></script>
   <script src="/js/nav.js?v=1.1.9"></script>
-  <script src="/js/store.js?v=0.2.3"></script>
-  <script src="/js/add.js?v=0.4.0"></script>
+  <script src="/js/store.js?v=0.2.4"></script>
+  <script src="/js/add.js?v=0.4.2"></script>
 </body>
 </html>
