@@ -597,16 +597,18 @@ Debts preflight UI v2.2.0
         ? command.enforcement.actions
         : [];
 
-      const save = actions.find(a => a.action === "debt.save");
-      const pay = actions.find(a => a.action === "debt.pay");
+      const preflight = actions.find(a => a.action === "debt.preflight");
+const save = actions.find(a => a.action === "debt.save");
+const pay = actions.find(a => a.action === "debt.pay");
 
-      const saveAllowed = Boolean(save && save.allowed);
-      const payAllowed = Boolean(pay && pay.allowed);
+const preflightAllowed = Boolean(preflight && preflight.allowed);
+const saveAllowed = Boolean(save && save.allowed);
+const payAllowed = Boolean(pay && pay.allowed);
 
-      setBadge("debtsGovernorBadge", saveAllowed || payAllowed ? "Debt writes allowed" : "Debt writes gated", saveAllowed || payAllowed ? "badge-ready" : "badge-blocked");
+      setBadge(   "debtsGovernorBadge",   saveAllowed || payAllowed ? "Debt writes allowed" : preflightAllowed ? "Debt preflight recognized" : "Debt writes gated",   saveAllowed || payAllowed ? "badge-ready" : preflightAllowed ? "badge-preflight" : "badge-blocked" );
       setBadge("debtsSaveBadge", saveAllowed ? "debt.save allowed" : "debt.save blocked", saveAllowed ? "badge-ready" : "badge-blocked");
       setBadge("debtsPayBadge", payAllowed ? "debt.pay allowed" : "debt.pay blocked", payAllowed ? "badge-ready" : "badge-blocked");
-      setText("debtAuthorityStatus", saveAllowed || payAllowed ? "Allowed" : "Gated");
+      setText("debtAuthorityStatus", saveAllowed || payAllowed ? "Allowed" : preflightAllowed ? "Preflight" : "Gated");
 
       const panel = $("debtsEnforcement");
       if (panel) {
@@ -615,7 +617,7 @@ Debts preflight UI v2.2.0
           panel.textContent = "Command Centre allows debt actions. Page still runs dry-run proof before any real write.";
         } else {
           panel.className = "debts-enforcement preflight";
-          panel.textContent = "Debt dry-run proof is available at API level. Real debt actions remain blocked until Command Centre recognizes page preflight and lifts debt.save/debt.pay.";
+          panel.textContent = preflightAllowed   ? "Debt preflight is recognized by Command Centre. Real debt.save and debt.pay remain blocked until Phase 4 explicit lift."   : "Debt dry-run proof is available at API level. Real debt actions remain blocked until Command Centre recognizes page preflight and lifts debt.save/debt.pay.";
         }
       }
     } catch (err) {
