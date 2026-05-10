@@ -1,4 +1,4 @@
-const VERSION = "v0.5.0-bills-ledger-atomic";
+const VERSION = "v0.5.1-bills-ledger-atomic";
 
 export async function onRequestGet({ env, request }) {
   try {
@@ -9,18 +9,12 @@ export async function onRequestGet({ env, request }) {
     const includeInactive = url.searchParams.get("include_inactive") === "1";
     const month = url.searchParams.get("month") || currentMonth();
 
-    const billsRaw = await db.prepare(`SELECT * FROM bills ORDER BY name ASC`).all();
-    const paymentsRaw = await db.prepare(`
-      SELECT *
-      FROM bill_payments
-      WHERE month = ?
-      ORDER BY payment_date DESC, created_at DESC
-    `).bind(month).all();
+    const billsResult = await db.prepare(`SELECT * FROM bills ORDER BY name ASC`).all();
+    const payments = await getBillPaymentsForMonth(db, month);
 
-    const payments = paymentsRaw.results || [];
-    const bills = (billsRaw.results || [])
+    const bills = (billsResult.results || [])
       .map(row => normalizeBill(row, payments, month))
-      .filter(b => includeInactive || !["archived", "deleted"].includes(String(b.status || "").toLowerCase()));
+      .filter(bill => includeInactive || !["archived", "deleted"].includes(String(bill.status || "").toLowerCase()));
 
     return json({
       ok: true,
@@ -52,7 +46,7 @@ export async function onRequestPost({ env, request }) {
       return json({ ok: true, version: VERSION, ...result });
     }
 
-    if (["pay", "clear", "paid"].includes(action)) {
+    if (["pay", "paid"].includes(action)) {
       const result = await payBill(db, requireText(body.id || body.bill_id, "id"), body);
       return json({ ok: true, version: VERSION, ...result });
     }
@@ -90,6 +84,7 @@ async function createBill(db, body) {
   const category = cleanText(body.category_id || body.category) || "bills";
   const dueDay = optionalInteger(body.due_day ?? body.dueDay);
   const dueDate = cleanText(body.due_date || body.next_due_date);
+  const frequency = cleanText(body.frequency) || "monthly";
 
   const insert = buildInsert("bills", columns, {
     id,
@@ -107,9 +102,9 @@ async function createBill(db, body) {
     due_day: dueDay,
     due_date: dueDate || null,
     next_due_date: dueDate || null,
+    frequency,
     created_at: now,
-    updated_at: now,
-    frequency: cleanText(body.frequency) || "monthly"
+    updated_at: now
   });
 
   await db.prepare(insert.sql).bind(...insert.values).run();
@@ -133,6 +128,7 @@ async function updateBill(db, id, body) {
   const category = cleanText(body.category_id || body.category) || existing.category_id || existing.category || "bills";
   const dueDay = optionalInteger(body.due_day ?? body.dueDay) ?? existing.due_day ?? null;
   const dueDate = cleanText(body.due_date || body.next_due_date) || existing.due_date || existing.next_due_date || null;
+  const frequency = cleanText(body.frequency) || existing.frequency || "monthly";
 
   const update = buildUpdate("bills", columns, {
     name,
@@ -149,8 +145,8 @@ async function updateBill(db, id, body) {
     due_day: dueDay,
     due_date: dueDate,
     next_due_date: dueDate,
-    updated_at: new Date().toISOString(),
-    frequency: cleanText(body.frequency) || existing.frequency || "monthly"
+    frequency,
+    updated_at: new Date().toISOString()
   }, "id", id);
 
   await db.prepare(update.sql).bind(...update.values).run();
@@ -180,7 +176,6 @@ async function payBill(db, id, body) {
 
   const txId = makeId("tx_bill_expense");
   const paymentId = makeId("billpay");
-
   const billName = bill.name || bill.title || bill.bill_name || id;
   const categoryId = bill.category_id || bill.category || body.category_id || body.category || "bills";
 
@@ -231,11 +226,10 @@ async function payBill(db, id, body) {
   await db.batch([insertTx, insertPayment]);
 
   const payments = await getBillPaymentsForMonth(db, month);
-  const updatedBill = normalizeBill(await getBill(db, id), payments, month);
 
   return {
     action: "pay",
-    bill: updatedBill,
+    bill: normalizeBill(await getBill(db, id), payments, month),
     bill_payment: {
       id: paymentId,
       bill_id: id,
@@ -430,8 +424,7 @@ function optionalNumber(value) {
 function optionalInteger(value) {
   if (value === undefined || value === null || value === "") return null;
   const n = Number(value);
-  if (!Number.isInteger(n)) return null;
-  return n;
+  return Number.isInteger(n) ? n : null;
 }
 
 function round2(value) {
