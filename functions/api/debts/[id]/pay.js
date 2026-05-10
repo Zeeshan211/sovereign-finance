@@ -145,31 +145,7 @@ export async function onRequestPost(context) {
       });
     }
 
-    return jsonResponse({
-      ok: false,
-      version: VERSION,
-      error: 'Command Centre blocked real debt writes',
-      action: 'debt.pay',
-      dry_run: false,
-      writes_performed: false,
-      audit_performed: false,
-      enforcement: {
-        action: 'debt.pay',
-        allowed: false,
-        status: 'blocked',
-        level: 3,
-        reason: 'debt.pay real writes remain blocked until debt dry-run proof, Debts page preflight, backend gate, and Command Centre lift are complete.',
-        source: 'coverage.write_safety.debt_pay',
-        required_fix: 'Make Command Centre recognize debt.pay proof, wire Debts page preflight, then explicitly lift debt.pay.',
-        backend_enforced: true,
-        frontend_enforced: true,
-        override: {
-          allowed: false,
-          reason_required: true
-        }
-      },
-      proof
-    }, 423);
+    error: 'Command Centre blocked real debt writes',
   } catch (err) {
     return jsonResponse({
       ok: false,
@@ -354,7 +330,27 @@ async function readJSON(request) {
     return {};
   }
 }
+async function commandAllowsDebtAction(context, action) {
+  try {
+    const origin = new URL(context.request.url).origin;
+    const res = await fetch(origin + '/api/finance-command-center?gate=' + encodeURIComponent(action) + '&cb=' + Date.now(), {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        'x-sovereign-debt-gate': action
+      }
+    });
 
+    const data = await res.json().catch(() => null);
+    const found = data && data.enforcement && Array.isArray(data.enforcement.actions)
+      ? data.enforcement.actions.find(item => item.action === action)
+      : null;
+
+    return Boolean(found && found.allowed);
+  } catch (err) {
+    return false;
+  }
+}
 function jsonResponse(obj, status) {
   return new Response(JSON.stringify(obj), {
     status: status || 200,
