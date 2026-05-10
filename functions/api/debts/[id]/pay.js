@@ -1,11 +1,13 @@
 /* Sovereign Finance Debt Pay Route v0.3.2-pay
    POST /api/debts/:id/pay
 
-   Debt Phase 1B:
-   - Adds true dry_run support.
-   - Dry-run validates debt.pay and exits before D1 writes.
-   - Real debt.pay remains blocked until Command Centre recognizes debt proof and explicitly lifts debt.pay.
-   - Prevents the old FK crash caused by dry_run entering transaction insert.
+   Phase 4 prep:
+   - dry_run remains safe.
+   - real debt.pay asks Command Centre before writing.
+   - if Command Centre blocks, returns 423.
+   - if Command Centre allows, writes transaction + debt update.
+   - no version bump.
+   - category_id is intentionally NULL to avoid category FK crash.
 */
 
 const VERSION = 'v0.3.2-pay';
@@ -145,7 +147,106 @@ export async function onRequestPost(context) {
       });
     }
 
-    error: 'Command Centre blocked real debt writes',
+    const allowed = await commandAllowsDebtAction(context, 'debt.pay');
+
+    if (!allowed) {
+      return jsonResponse({
+        ok: false,
+        version: VERSION,
+        error: 'Command Centre blocked real debt writes',
+        action: 'debt.pay',
+        dry_run: false,
+        writes_performed: false,
+        audit_performed: false,
+        enforcement: {
+          action: 'debt.pay',
+          allowed: false,
+          status: 'blocked',
+          level: 3,
+          reason: 'debt.pay real write blocked by Command Centre.',
+          source: 'coverage.write_safety.debts.debt_pay_allowed',
+          required_fix: 'Run Command Centre audit and confirm debt.pay is allowed.',
+          backend_enforced: true,
+          frontend_enforced: true
+        },
+        proof
+      }, 423);
+    }
+
+    const notes = safeText(
+      body.notes,
+      (normalizedDebt.kind === 'owe' ? 'Paid ' : 'Received from ') + normalizedDebt.name,
+      240
+    );
+
+    try {
+      await db.batch([
+        db.prepare(
+          `INSERT INTO transactions
+           (id, type, amount, date, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount)
+           VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, 0, 0)`
+        ).bind(
+          txId,
+          txType,
+          round2(amount),
+          date,
+          account.id,
+          notes
+        ),
+        db.prepare(
+          `UPDATE debts
+           SET paid_amount = ?,
+               status = ?,
+               last_paid_date = ?
+           WHERE id = ?`
+        ).bind(
+          newPaid,
+          nextStatus,
+          date,
+          debtId
+        )
+      ]);
+    } catch (err) {
+      return jsonResponse({
+        ok: false,
+        version: VERSION,
+        error: err.message || String(err),
+        action: 'debt.pay',
+        writes_performed: false,
+        audit_performed: false,
+        d1_guard: {
+          account_id: account.id,
+          category_id: null,
+          note: 'category_id is intentionally NULL to avoid category FK crash.'
+        }
+      }, 500);
+    }
+
+    const afterDebt = await db.prepare(
+      `SELECT *
+       FROM debts
+       WHERE id = ?
+       LIMIT 1`
+    ).bind(debtId).first();
+
+    return jsonResponse({
+      ok: true,
+      version: VERSION,
+      action: 'debt.pay',
+      debt_id: debtId,
+      tx_id: txId,
+      amount: round2(amount),
+      account_id: account.id,
+      account_name: account.name || account.id,
+      account_resolved_from: accountInput,
+      new_paid_amount: newPaid,
+      remaining,
+      status: nextStatus,
+      writes_performed: true,
+      audit_performed: false,
+      debt: afterDebt ? normalizeDebt(afterDebt) : null,
+      proof
+    });
   } catch (err) {
     return jsonResponse({
       ok: false,
@@ -197,6 +298,28 @@ async function resolvePaymentAccount(db, input) {
   };
 }
 
+async function commandAllowsDebtAction(context, action) {
+  try {
+    const origin = new URL(context.request.url).origin;
+    const res = await fetch(origin + '/api/finance-command-center?gate=' + encodeURIComponent(action) + '&cb=' + Date.now(), {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        'x-sovereign-debt-gate': action
+      }
+    });
+
+    const data = await res.json().catch(() => null);
+    const found = data && data.enforcement && Array.isArray(data.enforcement.actions)
+      ? data.enforcement.actions.find(item => item.action === action)
+      : null;
+
+    return Boolean(found && found.allowed);
+  } catch (err) {
+    return false;
+  }
+}
+
 function buildDebtPayProof(input) {
   return {
     action: 'debt.pay',
@@ -204,7 +327,7 @@ function buildDebtPayProof(input) {
     writes_performed: false,
     audit_performed: false,
     validation_status: 'pass',
-    write_model: 'debt_payment_real_write_blocked_until_command_centre_lift',
+    write_model: 'debt_payment_command_centre_gated',
     expected_debt_rows: 1,
     expected_transaction_rows: 1,
     expected_ledger_rows: 0,
@@ -232,15 +355,10 @@ function buildDebtPayProof(input) {
       proofCheck('account_valid', 'pass', 'accounts.id', 'Payment account resolves to canonical active account id.'),
       proofCheck('date_valid', 'pass', 'request.date', 'Payment date normalized.'),
       proofCheck('transaction_model_valid', 'pass', 'computed.txn_type', 'owe becomes expense, owed becomes income.'),
-      proofCheck('fk_guard', 'pass', 'accounts.id', 'Account is checked before any future transaction insert.'),
+      proofCheck('fk_guard', 'pass', 'accounts.id', 'Account is checked before transaction insert. category_id is NULL.'),
+      proofCheck('command_gate_required', 'pass', 'finance-command-center', 'Real write asks Command Centre before transaction insert.'),
       proofCheck('dry_run_no_write', 'pass', 'api.contract', 'Dry-run returns before transaction insert or debt update.')
-    ],
-    lift_candidate: {
-      coverage_key: 'coverage.write_safety.debt_pay',
-      current_expected_state: 'blocked',
-      required_next_state: 'dry_run_available',
-      reason: 'debt.pay dry-run validates without writing transaction, debt, ledger, or audit rows.'
-    }
+    ]
   };
 }
 
@@ -330,27 +448,7 @@ async function readJSON(request) {
     return {};
   }
 }
-async function commandAllowsDebtAction(context, action) {
-  try {
-    const origin = new URL(context.request.url).origin;
-    const res = await fetch(origin + '/api/finance-command-center?gate=' + encodeURIComponent(action) + '&cb=' + Date.now(), {
-      method: 'GET',
-      headers: {
-        accept: 'application/json',
-        'x-sovereign-debt-gate': action
-      }
-    });
 
-    const data = await res.json().catch(() => null);
-    const found = data && data.enforcement && Array.isArray(data.enforcement.actions)
-      ? data.enforcement.actions.find(item => item.action === action)
-      : null;
-
-    return Boolean(found && found.allowed);
-  } catch (err) {
-    return false;
-  }
-}
 function jsonResponse(obj, status) {
   return new Response(JSON.stringify(obj), {
     status: status || 200,
