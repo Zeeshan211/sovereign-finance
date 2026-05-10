@@ -6,163 +6,104 @@
   <title>Sovereign Finance</title>
   <meta name="description" content="Personal finance dashboard for accounts, bills, debts, salary, forecast, and reconciliation." />
 
-  <link rel="stylesheet" href="/css/app.css?v=2A-corrected-1" />
+  <link rel="stylesheet" href="/css/app.css?v=ui1-shell-1" />
   <link rel="stylesheet" href="/css/nav.css" />
   <link rel="stylesheet" href="/css/icons.css" />
-
-  <style>
-    body.index-rebrand {
-      padding-left: 0 !important;
-    }
-
-    body.index-rebrand .sf-topbar {
-      left: 0 !important;
-    }
-
-    body.index-rebrand .index-flat-nav {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    body.index-rebrand .index-flat-nav a {
-      min-height: 38px;
-      padding: 9px 12px;
-      border-radius: var(--r-pill);
-      border: 1px solid var(--border);
-      background: var(--surface-1);
-      color: var(--text-strong);
-      text-decoration: none;
-      font-size: 12px;
-      font-weight: 950;
-      box-shadow: var(--shadow-xs);
-    }
-
-    body.index-rebrand .index-flat-nav a:hover {
-      background: var(--surface-2);
-      border-color: var(--border-strong);
-    }
-
-    body.index-rebrand .index-hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 22px;
-    }
-
-    body.index-rebrand .index-list {
-      display: grid;
-      gap: 10px;
-    }
-
-    body.index-rebrand .index-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: center;
-      padding: 14px;
-      border-radius: var(--r-lg);
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-    }
-
-    body.index-rebrand .index-row-title {
-      color: var(--text-strong);
-      font-weight: 950;
-    }
-
-    body.index-rebrand .index-row-sub {
-      margin-top: 3px;
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 760;
-    }
-
-    body.index-rebrand .index-row-amount {
-      color: var(--text-strong);
-      font-weight: 950;
-      text-align: right;
-      white-space: nowrap;
-    }
-
-    body.index-rebrand .index-state {
-      padding: 18px;
-      border-radius: var(--r-lg);
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      font-weight: 760;
-      text-align: center;
-    }
-
-    body.index-rebrand .index-state.error {
-      background: var(--danger-soft);
-      border-color: rgba(185, 28, 28, 0.22);
-      color: var(--danger);
-    }
-
-    body.index-rebrand .index-debug {
-      display: none;
-      margin-top: 22px;
-      white-space: pre-wrap;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      padding: 16px;
-      border-radius: var(--r-lg);
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      color: var(--text);
-      overflow: auto;
-      max-height: 460px;
-    }
-
-    body.index-rebrand.debug .index-debug {
-      display: block;
-    }
-
-    @media (max-width: 860px) {
-      body.index-rebrand .sf-topbar {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      body.index-rebrand .index-flat-nav {
-        justify-content: flex-start;
-      }
-
-      body.index-rebrand .index-row {
-        grid-template-columns: 1fr;
-      }
-
-      body.index-rebrand .index-row-amount {
-        text-align: left;
-      }
-    }
-  </style>
 </head>
 
-<body class="index-rebrand">
+<body>
+  <aside class="sf-sidebar" aria-label="Sovereign Finance navigation">
+    <div class="sf-sidebar-brand">
+      <a class="sf-brand-home" href="/index.html">
+        <span class="sf-brand-mark">SF</span>
+        <span class="sf-brand-copy">
+          <span class="sf-brand-title">Sovereign Finance</span>
+          <span class="sf-brand-subtitle">Personal finance system</span>
+        </span>
+      </a>
+
+      <button class="sf-sidebar-fold" type="button" id="sidebarFold" aria-label="Collapse sidebar">
+        <span class="sf-nav-icon">‹</span>
+      </button>
+    </div>
+
+    <nav class="sf-nav-scroll" aria-label="Main navigation">
+      <a class="sf-nav-link active" href="/index.html" aria-current="page">
+        <span class="sf-nav-icon">⌂</span>
+        <span class="sf-nav-label">Hub</span>
+      </a>
+
+      <a class="sf-nav-link" href="/add.html">
+        <span class="sf-nav-icon">＋</span>
+        <span class="sf-nav-label">Add</span>
+      </a>
+
+      <a class="sf-nav-link" href="/transactions.html">
+        <span class="sf-nav-icon">≡</span>
+        <span class="sf-nav-label">Ledger</span>
+      </a>
+
+      <a class="sf-nav-link" href="/bills.html">
+        <span class="sf-nav-icon">◷</span>
+        <span class="sf-nav-label">Bills</span>
+      </a>
+
+      <a class="sf-nav-link" href="/debts.html">
+        <span class="sf-nav-icon">↔</span>
+        <span class="sf-nav-label">Debts</span>
+      </a>
+
+      <a class="sf-nav-link" href="/salary.html">
+        <span class="sf-nav-icon">₨</span>
+        <span class="sf-nav-label">Salary</span>
+      </a>
+
+      <a class="sf-nav-link" href="/forecast.html">
+        <span class="sf-nav-icon">⌁</span>
+        <span class="sf-nav-label">Forecast</span>
+      </a>
+
+      <a class="sf-nav-link" href="/reconciliation.html">
+        <span class="sf-nav-icon">✓</span>
+        <span class="sf-nav-label">Reconcile</span>
+      </a>
+
+      <a class="sf-nav-link" href="/accounts.html">
+        <span class="sf-nav-icon">◫</span>
+        <span class="sf-nav-label">Accounts</span>
+      </a>
+
+      <a class="sf-nav-link" href="/cc.html">
+        <span class="sf-nav-icon">▣</span>
+        <span class="sf-nav-label">Credit Card</span>
+      </a>
+
+      <a class="sf-nav-link" href="/monthly-close.html">
+        <span class="sf-nav-icon">⚙</span>
+        <span class="sf-nav-label">Command Centre</span>
+      </a>
+    </nav>
+
+    <div class="sf-sidebar-footer">
+      <div class="sf-sidebar-footer-title">Flat navigation</div>
+      <div class="sf-sidebar-footer-copy">No submenus. No nested routes.</div>
+    </div>
+  </aside>
+
+  <div class="sf-overlay" id="navOverlay"></div>
+
   <header class="sf-topbar">
     <div class="sf-topbar-left">
+      <button class="sf-mobile-menu" type="button" id="mobileMenu" aria-label="Open navigation">☰</button>
       <div>
         <div class="sf-page-eyebrow">Sovereign Finance</div>
         <div class="sf-page-title">Dashboard</div>
       </div>
     </div>
 
-    <nav class="index-flat-nav" aria-label="Main navigation">
-      <a href="/index.html" aria-current="page">Hub</a>
-      <a href="/add.html">Add</a>
-      <a href="/transactions.html">Ledger</a>
-      <a href="/bills.html">Bills</a>
-      <a href="/debts.html">Debts</a>
-      <a href="/salary.html">Salary</a>
-      <a href="/forecast.html">Forecast</a>
-      <a href="/reconciliation.html">Reconcile</a>
-      <a href="/monthly-close.html">Command Centre</a>
-    </nav>
+    <div class="sf-topbar-right">
+      <button class="sf-theme-toggle" type="button" id="themeToggle" aria-label="Toggle theme">◐</button>
+    </div>
   </header>
 
   <main class="app-page">
@@ -173,7 +114,7 @@
         View accounts, bills, debts, salary, and forecast from one fast daily dashboard.
       </p>
 
-      <div class="index-hero-actions">
+      <div class="stack-sm" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;">
         <a class="btn btn-success" href="/add.html">Add Transaction</a>
         <a class="btn btn-secondary" href="/bills.html">Manage Bills</a>
         <a class="btn btn-secondary" href="/forecast.html">Open Forecast</a>
@@ -212,9 +153,8 @@
           <div class="section-kicker">Accounts</div>
           <h2 class="authority-title" style="margin-top:12px;">Current balances</h2>
           <p class="authority-copy">Source account balances shown for daily review.</p>
-
-          <div class="index-list" id="accountsList" style="margin-top:16px;">
-            <div class="index-state">Loading accounts...</div>
+          <div class="stack-sm" id="accountsList" style="margin-top:16px;">
+            <div class="card card-compact muted">Loading accounts...</div>
           </div>
         </article>
 
@@ -222,9 +162,8 @@
           <div class="section-kicker">Bills</div>
           <h2 class="authority-title" style="margin-top:12px;">Upcoming obligations</h2>
           <p class="authority-copy">Active bills and monthly pressure.</p>
-
-          <div class="index-list" id="billsList" style="margin-top:16px;">
-            <div class="index-state">Loading bills...</div>
+          <div class="stack-sm" id="billsList" style="margin-top:16px;">
+            <div class="card card-compact muted">Loading bills...</div>
           </div>
         </article>
       </div>
@@ -246,36 +185,29 @@
           <div class="section-kicker">Debt pressure</div>
           <h2 class="authority-title" style="margin-top:12px;">Outstanding records</h2>
           <p class="authority-copy">Active debt and receivable snapshot.</p>
-
-          <div class="index-list" id="debtsList" style="margin-top:16px;">
-            <div class="index-state">Loading debts...</div>
+          <div class="stack-sm" id="debtsList" style="margin-top:16px;">
+            <div class="card card-compact muted">Loading debts...</div>
           </div>
         </article>
 
         <article class="card card-padded">
           <div class="section-kicker">System</div>
           <h2 class="authority-title" style="margin-top:12px;" id="dashboardStatus">Loading</h2>
-          <p class="authority-copy">
-            Last refreshed: <span id="lastRefreshed">—</span>
-          </p>
-          <p class="authority-copy">
-            Next action: <span id="nextAction">Review</span>
-          </p>
+          <p class="authority-copy">Last refreshed: <span id="lastRefreshed">—</span></p>
+          <p class="authority-copy">Next action: <span id="nextAction">Review</span></p>
         </article>
       </aside>
     </section>
 
-    <pre class="index-debug" id="debugPanel"></pre>
+    <pre id="debugPanel" hidden></pre>
   </main>
 
   <script>
     (() => {
       "use strict";
 
-      const VERSION = "2A-corrected-1";
+      const VERSION = "ui1-shell-1";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
-
-      if (DEBUG) document.body.classList.add("debug");
 
       const state = {
         accounts: null,
@@ -289,6 +221,10 @@
       const $ = id => document.getElementById(id);
 
       const els = {
+        mobileMenu: $("mobileMenu"),
+        navOverlay: $("navOverlay"),
+        sidebarFold: $("sidebarFold"),
+        themeToggle: $("themeToggle"),
         dashboardStatus: $("dashboardStatus"),
         lastRefreshed: $("lastRefreshed"),
         nextAction: $("nextAction"),
@@ -312,10 +248,33 @@
         getState: () => JSON.parse(JSON.stringify(state))
       };
 
+      function setupShell() {
+        const savedTheme = localStorage.getItem("sf_theme") || "light";
+        document.documentElement.setAttribute("data-theme", savedTheme);
+
+        els.mobileMenu?.addEventListener("click", () => {
+          document.body.classList.add("sf-nav-open");
+        });
+
+        els.navOverlay?.addEventListener("click", () => {
+          document.body.classList.remove("sf-nav-open");
+        });
+
+        els.sidebarFold?.addEventListener("click", () => {
+          document.body.classList.toggle("sf-sidebar-collapsed");
+        });
+
+        els.themeToggle?.addEventListener("click", () => {
+          const current = document.documentElement.getAttribute("data-theme") || "light";
+          const next = current === "dark" ? "light" : "dark";
+          document.documentElement.setAttribute("data-theme", next);
+          localStorage.setItem("sf_theme", next);
+        });
+      }
+
       function money(value) {
         const n = Number(value);
         if (!Number.isFinite(n)) return "—";
-
         return new Intl.NumberFormat("en-PK", {
           style: "currency",
           currency: "PKR",
@@ -383,11 +342,9 @@
       function asArray(payload, keys) {
         if (!payload) return [];
         if (Array.isArray(payload)) return payload;
-
         for (const key of keys) {
           if (Array.isArray(payload[key])) return payload[key];
         }
-
         return [];
       }
 
@@ -428,9 +385,9 @@
 
       function renderLoading() {
         els.dashboardStatus.textContent = "Loading";
-        els.accountsList.innerHTML = `<div class="index-state">Loading accounts...</div>`;
-        els.billsList.innerHTML = `<div class="index-state">Loading bills...</div>`;
-        els.debtsList.innerHTML = `<div class="index-state">Loading debts...</div>`;
+        els.accountsList.innerHTML = `<div class="card card-compact muted">Loading accounts...</div>`;
+        els.billsList.innerHTML = `<div class="card card-compact muted">Loading bills...</div>`;
+        els.debtsList.innerHTML = `<div class="card card-compact muted">Loading debts...</div>`;
       }
 
       function render() {
@@ -473,12 +430,12 @@
           : `${accounts.length} account${accounts.length === 1 ? "" : "s"}`;
 
         if (state.errors.accounts) {
-          els.accountsList.innerHTML = `<div class="index-state error">${escapeHtml(state.errors.accounts)}</div>`;
+          els.accountsList.innerHTML = `<div class="authority-panel blocked">${escapeHtml(state.errors.accounts)}</div>`;
           return;
         }
 
         if (!accounts.length) {
-          els.accountsList.innerHTML = `<div class="index-state">No accounts found.</div>`;
+          els.accountsList.innerHTML = `<div class="card card-compact muted">No accounts found.</div>`;
           return;
         }
 
@@ -487,12 +444,14 @@
           const type = account.type || account.account_type || account.kind || "account";
 
           return `
-            <div class="index-row">
-              <div>
-                <div class="index-row-title">${escapeHtml(rowName(account, "Account"))}</div>
-                <div class="index-row-sub">${escapeHtml(type)}</div>
+            <div class="card card-compact">
+              <div class="grid-2" style="align-items:center;">
+                <div>
+                  <div class="strong">${escapeHtml(rowName(account, "Account"))}</div>
+                  <div class="muted">${escapeHtml(type)}</div>
+                </div>
+                <div class="text-right strong">${money(balance)}</div>
               </div>
-              <div class="index-row-amount">${money(balance)}</div>
             </div>
           `;
         }).join("");
@@ -510,12 +469,12 @@
           : `${active.length} active bill${active.length === 1 ? "" : "s"}`;
 
         if (state.errors.bills) {
-          els.billsList.innerHTML = `<div class="index-state error">${escapeHtml(state.errors.bills)}</div>`;
+          els.billsList.innerHTML = `<div class="authority-panel blocked">${escapeHtml(state.errors.bills)}</div>`;
           return;
         }
 
         if (!active.length) {
-          els.billsList.innerHTML = `<div class="index-state">No active bills found.</div>`;
+          els.billsList.innerHTML = `<div class="card card-compact muted">No active bills found.</div>`;
           return;
         }
 
@@ -523,12 +482,14 @@
           const due = bill.due_day || bill.dueDay || bill.day || bill.due_date || "—";
 
           return `
-            <div class="index-row">
-              <div>
-                <div class="index-row-title">${escapeHtml(rowName(bill, "Bill"))}</div>
-                <div class="index-row-sub">Due ${escapeHtml(due)}</div>
+            <div class="card card-compact">
+              <div class="grid-2" style="align-items:center;">
+                <div>
+                  <div class="strong">${escapeHtml(rowName(bill, "Bill"))}</div>
+                  <div class="muted">Due ${escapeHtml(due)}</div>
+                </div>
+                <div class="text-right strong">${money(billAmount(bill))}</div>
               </div>
-              <div class="index-row-amount">${money(billAmount(bill))}</div>
             </div>
           `;
         }).join("");
@@ -546,12 +507,12 @@
           : `${active.length} active record${active.length === 1 ? "" : "s"}`;
 
         if (state.errors.debts) {
-          els.debtsList.innerHTML = `<div class="index-state error">${escapeHtml(state.errors.debts)}</div>`;
+          els.debtsList.innerHTML = `<div class="authority-panel blocked">${escapeHtml(state.errors.debts)}</div>`;
           return;
         }
 
         if (!active.length) {
-          els.debtsList.innerHTML = `<div class="index-state">No active debt records found.</div>`;
+          els.debtsList.innerHTML = `<div class="card card-compact muted">No active debt records found.</div>`;
           return;
         }
 
@@ -560,12 +521,14 @@
           const status = debt.status || "active";
 
           return `
-            <div class="index-row">
-              <div>
-                <div class="index-row-title">${escapeHtml(rowName(debt, "Debt"))}</div>
-                <div class="index-row-sub">${escapeHtml(direction)} · ${escapeHtml(status)}</div>
+            <div class="card card-compact">
+              <div class="grid-2" style="align-items:center;">
+                <div>
+                  <div class="strong">${escapeHtml(rowName(debt, "Debt"))}</div>
+                  <div class="muted">${escapeHtml(direction)} · ${escapeHtml(status)}</div>
+                </div>
+                <div class="text-right strong">${money(debtOutstanding(debt))}</div>
               </div>
-              <div class="index-row-amount">${money(debtOutstanding(debt))}</div>
             </div>
           `;
         }).join("");
@@ -598,6 +561,7 @@
       function renderDebug() {
         if (!DEBUG || !els.debugPanel) return;
 
+        els.debugPanel.hidden = false;
         els.debugPanel.textContent = JSON.stringify({
           ui_version: VERSION,
           mode: "debug",
@@ -613,6 +577,7 @@
         }, null, 2);
       }
 
+      setupShell();
       refresh();
     })();
   </script>
