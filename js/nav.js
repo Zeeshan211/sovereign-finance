@@ -4,66 +4,16 @@
   const VERSION = "nav-internal-report-v2.1.0";
 
   const ROUTES = [
-    {
-      href: "/index.html",
-      label: "Hub",
-      icon: "⌂",
-      keys: ["/", "/index.html", "/home.html"]
-    },
-    {
-      href: "/add.html",
-      label: "Add",
-      icon: "＋",
-      keys: ["/add.html", "/add"]
-    },
-    {
-      href: "/transactions.html",
-      label: "Ledger",
-      icon: "≡",
-      keys: ["/transactions.html", "/transactions", "/ledger.html", "/ledger"]
-    },
-    {
-      href: "/bills.html",
-      label: "Bills",
-      icon: "◷",
-      keys: ["/bills.html", "/bills"]
-    },
-    {
-      href: "/debts.html",
-      label: "Debts",
-      icon: "↔",
-      keys: ["/debts.html", "/debts"]
-    },
-    {
-      href: "/salary.html",
-      label: "Salary",
-      icon: "₨",
-      keys: ["/salary.html", "/salary"]
-    },
-    {
-      href: "/forecast.html",
-      label: "Forecast",
-      icon: "⌁",
-      keys: ["/forecast.html", "/forecast"]
-    },
-    {
-      href: "/reconciliation.html",
-      label: "Reconcile",
-      icon: "✓",
-      keys: ["/reconciliation.html", "/reconciliation", "/reconcile.html", "/reconcile"]
-    },
-    {
-      href: "/accounts.html",
-      label: "Accounts",
-      icon: "◫",
-      keys: ["/accounts.html", "/accounts"]
-    },
-    {
-      href: "/cc.html",
-      label: "Credit Card",
-      icon: "▣",
-      keys: ["/cc.html", "/cc", "/credit-card.html", "/credit-card"]
-    }
+    { href: "/index.html", label: "Hub", icon: "⌂", keys: ["/", "/index.html", "/home.html"] },
+    { href: "/add.html", label: "Add", icon: "＋", keys: ["/add.html", "/add"] },
+    { href: "/transactions.html", label: "Ledger", icon: "≡", keys: ["/transactions.html", "/transactions", "/ledger.html", "/ledger"] },
+    { href: "/bills.html", label: "Bills", icon: "◷", keys: ["/bills.html", "/bills"] },
+    { href: "/debts.html", label: "Debts", icon: "↔", keys: ["/debts.html", "/debts"] },
+    { href: "/salary.html", label: "Salary", icon: "₨", keys: ["/salary.html", "/salary"] },
+    { href: "/forecast.html", label: "Forecast", icon: "⌁", keys: ["/forecast.html", "/forecast"] },
+    { href: "/reconciliation.html", label: "Reconcile", icon: "✓", keys: ["/reconciliation.html", "/reconciliation", "/reconcile.html", "/reconcile"] },
+    { href: "/accounts.html", label: "Accounts", icon: "◫", keys: ["/accounts.html", "/accounts"] },
+    { href: "/cc.html", label: "Credit Card", icon: "▣", keys: ["/cc.html", "/cc", "/credit-card.html", "/credit-card"] }
   ];
 
   const INTERNAL_REPORT_ROUTE = {
@@ -81,13 +31,8 @@
   function normalizePath(path) {
     let value = String(path || "/").trim();
 
-    if (!value.startsWith("/")) {
-      value = "/" + value;
-    }
-
-    if (value.length > 1 && value.endsWith("/")) {
-      value = value.slice(0, -1);
-    }
+    if (!value.startsWith("/")) value = "/" + value;
+    if (value.length > 1 && value.endsWith("/")) value = value.slice(0, -1);
 
     return value || "/";
   }
@@ -180,6 +125,7 @@
 
     if (!overlay) {
       const sidebar = document.querySelector(".sf-sidebar");
+
       if (sidebar) {
         sidebar.insertAdjacentHTML("afterend", buildOverlayHtml());
       } else {
@@ -229,9 +175,7 @@
   }
 
   function scrubCommandCentreText() {
-    if (internalPage) {
-      return;
-    }
+    if (internalPage) return;
 
     const walker = document.createTreeWalker(
       document.body,
@@ -276,9 +220,7 @@
   }
 
   function scrubRemainingVisibleInternalReportLabels() {
-    if (internalPage || debugMode) {
-      return;
-    }
+    if (internalPage || debugMode) return;
 
     Array.from(document.querySelectorAll(".sf-sidebar, .sf-topbar, nav, header")).forEach(area => {
       if (!area) return;
@@ -288,6 +230,7 @@
 
         if (/Internal Report|Command Centre/i.test(text)) {
           const link = el.closest("a");
+
           if (link && /monthly-close|finance-command-center/i.test(link.getAttribute("href") || "")) {
             link.remove();
           }
@@ -301,11 +244,13 @@
 
     if (!button) {
       const topbar = document.querySelector(".sf-topbar, header");
+
       if (topbar) {
         topbar.insertAdjacentHTML(
           "afterbegin",
           '<button class="sf-mobile-menu" type="button" id="mobileMenu" aria-label="Open navigation">☰</button>'
         );
+
         button = document.getElementById("mobileMenu");
       }
     }
@@ -353,9 +298,7 @@
     }
 
     document.addEventListener("keydown", event => {
-      if (event.key === "Escape") {
-        closeMobileNav();
-      }
+      if (event.key === "Escape") closeMobileNav();
     }, { passive: true });
 
     Array.from(document.querySelectorAll(".sf-nav-link")).forEach(link => {
@@ -380,9 +323,7 @@
   }
 
   function verifyNormalSurface() {
-    if (internalPage) {
-      return;
-    }
+    if (internalPage) return;
 
     const normalForbidden = Array.from(
       document.body.innerText.matchAll(/Command Centre|preflight|dry-run|governor|proof-first|write safety|Command Centre decides/gi)
