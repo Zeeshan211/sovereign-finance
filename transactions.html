@@ -103,7 +103,7 @@
     }
 
     .tx-table {
-      min-width: 980px;
+      min-width: 1080px;
     }
 
     .tx-table th {
@@ -194,6 +194,57 @@
       overflow-wrap: anywhere;
     }
 
+    .tx-action-btn {
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text-strong);
+      border-radius: 999px;
+      padding: 8px 11px;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .tx-action-btn:hover {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .tx-action-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .tx-toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 50;
+      max-width: 420px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      color: var(--text-strong);
+      font-size: 13px;
+      font-weight: 780;
+      display: none;
+    }
+
+    .tx-toast.show {
+      display: block;
+    }
+
+    .tx-toast.success {
+      border-color: rgba(4, 120, 87, 0.35);
+    }
+
+    .tx-toast.error {
+      border-color: rgba(220, 38, 38, 0.35);
+    }
+
     @media (max-width: 1180px) {
       .tx-hero-grid {
         grid-template-columns: 1fr;
@@ -226,10 +277,10 @@
     <section class="finance-hero">
       <div class="tx-hero-grid">
         <div>
-          <div class="hero-kicker">Ledger Reader</div>
+          <div class="hero-kicker">Ledger</div>
           <h1 class="hero-title">Transactions</h1>
           <p class="hero-copy">
-            Read-only ledger from the finance database.
+            Read-only ledger with guarded reversal actions for correcting mistakes.
           </p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
             <a class="btn btn-success" href="/add.html">Add Transaction</a>
@@ -272,9 +323,9 @@
       </div>
 
       <div class="tx-health-card">
-        <div class="tx-health-title">Page Mode</div>
-        <div class="tx-health-value">Read-only</div>
-        <div class="tx-health-sub">No write action is performed here</div>
+        <div class="tx-health-title">Correction Mode</div>
+        <div class="tx-health-value">Guarded</div>
+        <div class="tx-health-sub">Reverse sends id + reason to backend</div>
       </div>
     </section>
 
@@ -333,12 +384,13 @@
               <th>Category</th>
               <th>Notes</th>
               <th class="text-right">Amount</th>
+              <th>Action</th>
               <th id="txIdHeader">ID</th>
             </tr>
           </thead>
           <tbody id="transactionsBody">
             <tr>
-              <td colspan="7">
+              <td colspan="8">
                 <div class="tx-empty">Loading ledger…</div>
               </td>
             </tr>
@@ -348,6 +400,8 @@
     </section>
   </main>
 
+  <div class="tx-toast" id="txToast"></div>
+
   <script src="/js/theme.js?v=1.0.0"></script>
   <script src="/js/nav.js?v=2.0.3"></script>
 
@@ -355,8 +409,9 @@
     (function () {
       "use strict";
 
-      const VERSION = "transactions-recovery-v1.0.0";
+      const VERSION = "transactions-reverse-ui-v1.1.0";
       const TRANSACTIONS_ENDPOINT = "/api/transactions";
+      const REVERSE_ENDPOINT = "/api/transactions/reverse";
       const BALANCES_ENDPOINT = "/api/balances?debug=1";
       const CATEGORIES_ENDPOINT = "/api/categories";
       const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
@@ -367,6 +422,7 @@
       let accountMap = new Map();
       let categoryMap = new Map();
       let filtered = [];
+      let reversing = false;
 
       const $ = id => document.getElementById(id);
 
@@ -433,6 +489,27 @@
 
         if (data.ok === false) {
           throw new Error(data.error || "Request failed");
+        }
+
+        return data;
+      }
+
+      async function postJson(url, body) {
+        const response = await fetch(url, {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+            "x-sovereign-page": VERSION
+          },
+          body: JSON.stringify(body || {})
+        });
+
+        const data = await response.json().catch(() => null);
+
+        if (!response.ok || !data || data.ok === false) {
+          throw new Error((data && data.error) || "HTTP " + response.status);
         }
 
         return data;
@@ -538,7 +615,10 @@
           transfer_to_account_id: toAccountId,
           category_id: categoryId,
           notes: clean(row.notes || row.description || row.memo || row.narration || "", ""),
-          status: clean(row.status || row.state || "active", "active")
+          status: clean(row.status || row.state || "active", "active"),
+          reversed_by: clean(row.reversed_by, ""),
+          reversed_at: clean(row.reversed_at, ""),
+          linked_txn_id: clean(row.linked_txn_id, "")
         };
       }
 
@@ -607,6 +687,16 @@
         if (tx.type === "expense") return -Math.abs(tx.amount);
         if (tx.type === "income") return Math.abs(tx.amount);
         return 0;
+      }
+
+      function canReverse(tx) {
+        if (!tx || !tx.id) return false;
+        if (tx.reversed_by || tx.reversed_at) return false;
+
+        const notes = String(tx.notes || "").toUpperCase();
+        if (notes.includes("[REVERSAL OF ")) return false;
+
+        return true;
       }
 
       function renderFilters() {
@@ -696,7 +786,7 @@
 
         if (!filtered.length) {
           body.innerHTML = (
-            '<tr><td colspan="' + (DEBUG ? '7' : '6') + '">' +
+            '<tr><td colspan="' + (DEBUG ? '8' : '7') + '">' +
             '<div class="tx-empty">No transactions match the current filter.</div>' +
             '</td></tr>'
           );
@@ -712,7 +802,7 @@
               : "- " + money(tx.amount);
 
           return (
-            "<tr>" +
+            '<tr data-tx-id="' + escapeHtml(tx.id) + '">' +
             "<td>" + escapeHtml(prettyDate(tx.date)) + "</td>" +
             "<td>" + typeBadge(tx.type) + "</td>" +
             "<td>" + accountMovement(tx) + "</td>" +
@@ -724,10 +814,19 @@
               "</div>" +
             "</td>" +
             '<td class="tx-amount ' + amountClass + '">' + escapeHtml(amountText) + "</td>" +
+            "<td>" + reverseActionHtml(tx) + "</td>" +
             (DEBUG ? "<td><code>" + escapeHtml(tx.id) + "</code></td>" : "") +
             "</tr>"
           );
         }).join("");
+      }
+
+      function reverseActionHtml(tx) {
+        if (!canReverse(tx)) {
+          return '<span class="tx-secondary">Locked</span>';
+        }
+
+        return '<button class="tx-action-btn" type="button" data-reverse-id="' + escapeHtml(tx.id) + '">Reverse</button>';
       }
 
       function setApiStatus(kind, ok, message) {
@@ -839,6 +938,93 @@
         applyFilters();
       }
 
+      async function reverseTransaction(id) {
+        if (reversing) return;
+
+        const tx = transactions.find(item => item.id === id);
+        if (!tx) {
+          showToast("Transaction not found on page.", "error");
+          return;
+        }
+
+        const summary = [
+          prettyDate(tx.date),
+          tx.type.toUpperCase(),
+          accountName(tx.account_id),
+          money(tx.amount),
+          tx.notes || tx.id
+        ].join(" · ");
+
+        const confirmed = window.confirm(
+          "Reverse this transaction?\n\n" +
+          summary + "\n\n" +
+          "This correction is handled by the backend against the original account linkage."
+        );
+
+        if (!confirmed) return;
+
+        const reason = window.prompt("Reason for reversal? Required for audit trail.", "Correction");
+        if (!reason || !reason.trim()) {
+          showToast("Reverse cancelled. Reason is required.", "error");
+          return;
+        }
+
+        reversing = true;
+        setReverseButtonsDisabled(true);
+
+        try {
+          const before = await fetchJson(BALANCES_ENDPOINT);
+          const result = await postJson(REVERSE_ENDPOINT, {
+            id,
+            reason: reason.trim(),
+            created_by: "web-ledger"
+          });
+          const after = await fetchJson(BALANCES_ENDPOINT);
+
+          showToast(
+            result.paired
+              ? "Transfer pair reversed and ledger refreshed."
+              : "Transaction reversed and ledger refreshed.",
+            "success"
+          );
+
+          console.log("[transactions reverse proof]", {
+            request_id: id,
+            result,
+            before_balances: before,
+            after_balances: after
+          });
+
+          await refreshAll();
+        } catch (err) {
+          console.error("[transactions reverse failed]", err);
+          showToast(err.message || "Unable to reverse transaction.", "error");
+        } finally {
+          reversing = false;
+          setReverseButtonsDisabled(false);
+        }
+      }
+
+      function setReverseButtonsDisabled(disabled) {
+        document.querySelectorAll("[data-reverse-id]").forEach(button => {
+          button.disabled = disabled;
+        });
+      }
+
+      function showToast(message, type) {
+        const toast = $("txToast");
+        if (!toast) return;
+
+        toast.textContent = message;
+        toast.className = "tx-toast show " + (type || "");
+
+        window.clearTimeout(showToast.timer);
+        showToast.timer = window.setTimeout(() => {
+          toast.className = "tx-toast";
+          toast.textContent = "";
+        }, 3600);
+      }
+
       function renderDebugMode() {
         const idHeader = $("txIdHeader");
         if (idHeader) idHeader.hidden = !DEBUG;
@@ -854,6 +1040,12 @@
 
         if ($("refreshBtn")) $("refreshBtn").addEventListener("click", refreshAll);
         if ($("clearFiltersBtn")) $("clearFiltersBtn").addEventListener("click", clearFilters);
+
+        document.addEventListener("click", event => {
+          const button = event.target.closest("[data-reverse-id]");
+          if (!button) return;
+          reverseTransaction(button.getAttribute("data-reverse-id"));
+        });
       }
 
       function initSavedNotice() {
@@ -879,6 +1071,7 @@
         window.SovereignTransactionsPage = {
           version: VERSION,
           refresh: refreshAll,
+          reverseTransaction,
           rows: function () {
             return transactions.slice();
           },
