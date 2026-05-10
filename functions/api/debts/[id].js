@@ -1,11 +1,13 @@
 /* Sovereign Finance Debt Item Route v0.3.2-item
    /api/debts/:id
 
-   Phase 4 prep:
-   - GET remains read-only.
-   - PUT dry_run remains safe.
+   Stable contract:
+   - GET is read-only.
+   - PUT dry_run validates and performs no write.
    - PUT real write asks Command Centre before writing.
-   - DELETE remains blocked unless dry_run.
+   - DELETE dry_run validates and performs no write.
+   - DELETE real write remains blocked.
+   - No audit writes here.
    - No version bump.
 */
 
@@ -39,12 +41,7 @@ export async function onRequestGet(context) {
       return jsonResponse({ ok: false, version: VERSION, error: 'Debt id required' }, 400);
     }
 
-    const row = await db.prepare(
-      `SELECT ${DEBT_COLUMNS}
-       FROM debts
-       WHERE id = ?
-       LIMIT 1`
-    ).bind(id).first();
+    const row = await readDebt(db, id);
 
     if (!row) {
       return jsonResponse({ ok: false, version: VERSION, error: 'Debt not found' }, 404);
@@ -75,12 +72,7 @@ export async function onRequestPut(context) {
       return jsonResponse({ ok: false, version: VERSION, error: 'Debt id required' }, 400);
     }
 
-    const beforeRaw = await db.prepare(
-      `SELECT ${DEBT_COLUMNS}
-       FROM debts
-       WHERE id = ?
-       LIMIT 1`
-    ).bind(id).first();
+    const beforeRaw = await readDebt(db, id);
 
     if (!beforeRaw) {
       return jsonResponse({ ok: false, version: VERSION, error: 'Debt not found' }, 404);
@@ -122,7 +114,6 @@ export async function onRequestPut(context) {
         proof,
         normalized_payload: {
           id,
-          mode: 'update',
           fields: patch.fields,
           values: patch.values.map(cleanBind),
           before,
@@ -146,12 +137,9 @@ export async function onRequestPut(context) {
           action: 'debt.save',
           allowed: false,
           status: 'blocked',
-          level: 3,
           reason: 'debt.save real write blocked by Command Centre.',
           source: 'coverage.write_safety.debts.debt_save_allowed',
-          required_fix: 'Run Command Centre audit and confirm debt.save is allowed.',
-          backend_enforced: true,
-          frontend_enforced: true
+          backend_enforced: true
         },
         proof
       }, 423);
@@ -164,12 +152,7 @@ export async function onRequestPut(context) {
       `UPDATE debts SET ${setSql} WHERE id = ?`
     ).bind(...bindValues).run();
 
-    const afterWrittenRaw = await db.prepare(
-      `SELECT ${DEBT_COLUMNS}
-       FROM debts
-       WHERE id = ?
-       LIMIT 1`
-    ).bind(id).first();
+    const afterWrittenRaw = await readDebt(db, id);
 
     return jsonResponse({
       ok: true,
@@ -200,12 +183,7 @@ export async function onRequestDelete(context) {
       return jsonResponse({ ok: false, version: VERSION, error: 'Debt id required' }, 400);
     }
 
-    const beforeRaw = await db.prepare(
-      `SELECT ${DEBT_COLUMNS}
-       FROM debts
-       WHERE id = ?
-       LIMIT 1`
-    ).bind(id).first();
+    const beforeRaw = await readDebt(db, id);
 
     if (!beforeRaw) {
       return jsonResponse({ ok: false, version: VERSION, error: 'Debt not found' }, 404);
@@ -242,6 +220,15 @@ export async function onRequestDelete(context) {
       error: err.message || String(err)
     }, 500);
   }
+}
+
+async function readDebt(db, id) {
+  return db.prepare(
+    `SELECT ${DEBT_COLUMNS}
+     FROM debts
+     WHERE id = ?
+     LIMIT 1`
+  ).bind(id).first();
 }
 
 function buildDebtPatch(body, before) {
@@ -337,13 +324,13 @@ function buildDebtPatch(body, before) {
     values.push(status);
   }
 
-  const nextRaw = { ...before };
+  const next = { ...before };
   fields.forEach((field, index) => {
-    nextRaw[field] = values[index];
+    next[field] = values[index];
   });
 
-  const original = Number(nextRaw.original_amount);
-  const paid = Number(nextRaw.paid_amount);
+  const original = Number(next.original_amount);
+  const paid = Number(next.paid_amount);
 
   if (Number.isFinite(original) && Number.isFinite(paid) && paid > original) {
     return { ok: false, error: 'paid_amount cannot exceed original_amount' };
@@ -366,8 +353,6 @@ function buildDebtSaveProof(input) {
     expected_audit_rows: 0,
     normalized_summary: {
       id: input.id,
-      before_kind: input.before.kind,
-      after_kind: input.after.kind,
       before_remaining_amount: input.before.remaining_amount,
       after_remaining_amount: input.after.remaining_amount,
       before_status: input.before.status,
@@ -590,19 +575,15 @@ function normalizeDate(value) {
 
 function normalizeDueDay(value) {
   if (value === undefined || value === null || value === '') return null;
-
   const day = Number(value);
   if (!Number.isFinite(day) || day < 1 || day > 31) return null;
-
   return Math.floor(day);
 }
 
 function normalizeNullableAmount(value) {
   if (value === undefined || value === null || value === '') return null;
-
   const amount = Number(value);
   if (!Number.isFinite(amount) || amount < 0) return null;
-
   return amount;
 }
 
@@ -614,10 +595,8 @@ function normalizeFrequency(value) {
 
 function normalizeKind(kind) {
   const text = String(kind || '').trim().toLowerCase();
-
   if (['owe', 'i_owe', 'payable', 'debt'].includes(text)) return 'owe';
   if (['owed', 'owed_me', 'receivable', 'to_me'].includes(text)) return 'owed';
-
   return null;
 }
 
