@@ -1,13 +1,15 @@
 /* Sovereign Finance Debt Pay Route v0.3.2-pay
    POST /api/debts/:id/pay
 
-   Phase 4 prep:
-   - dry_run remains safe.
+   Stable contract:
+   - dry_run validates and performs no write.
    - real debt.pay asks Command Centre before writing.
    - if Command Centre blocks, returns 423.
-   - if Command Centre allows, writes transaction + debt update.
-   - no version bump.
-   - category_id is intentionally NULL to avoid category FK crash.
+   - if Command Centre allows, writes transaction + debt paid_amount update.
+   - category_id is intentionally NULL to avoid category FK crashes.
+   - paid-off debts remain visible through active status; UI derives paid_off from remaining_amount = 0.
+   - No audit writes here.
+   - No version bump.
 */
 
 const VERSION = 'v0.3.2-pay';
@@ -104,7 +106,13 @@ export async function onRequestPost(context) {
     const txId = 'tx_pay_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
     const newPaid = round2(normalizedDebt.paid_amount + amount);
     const remaining = round2(Math.max(0, normalizedDebt.original_amount - newPaid));
-    const nextStatus = remaining <= 0 ? 'closed' : 'active';
+    const nextStatus = 'active';
+
+    const notes = safeText(
+      body.notes,
+      (normalizedDebt.kind === 'owe' ? 'Paid ' : 'Received from ') + normalizedDebt.name,
+      240
+    );
 
     const proof = buildDebtPayProof({
       debt: normalizedDebt,
@@ -162,34 +170,25 @@ export async function onRequestPost(context) {
           action: 'debt.pay',
           allowed: false,
           status: 'blocked',
-          level: 3,
           reason: 'debt.pay real write blocked by Command Centre.',
           source: 'coverage.write_safety.debts.debt_pay_allowed',
-          required_fix: 'Run Command Centre audit and confirm debt.pay is allowed.',
-          backend_enforced: true,
-          frontend_enforced: true
+          backend_enforced: true
         },
         proof
       }, 423);
     }
 
-    const notes = safeText(
-      body.notes,
-      (normalizedDebt.kind === 'owe' ? 'Paid ' : 'Received from ') + normalizedDebt.name,
-      240
-    );
-
     try {
       await db.batch([
         db.prepare(
           `INSERT INTO transactions
-           (id, type, amount, date, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount)
-           VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, 0, 0)`
+           (id, date, type, amount, account_id, category_id, notes)
+           VALUES (?, ?, ?, ?, ?, NULL, ?)`
         ).bind(
           txId,
+          date,
           txType,
           round2(amount),
-          date,
           account.id,
           notes
         ),
@@ -355,7 +354,7 @@ function buildDebtPayProof(input) {
       proofCheck('account_valid', 'pass', 'accounts.id', 'Payment account resolves to canonical active account id.'),
       proofCheck('date_valid', 'pass', 'request.date', 'Payment date normalized.'),
       proofCheck('transaction_model_valid', 'pass', 'computed.txn_type', 'owe becomes expense, owed becomes income.'),
-      proofCheck('fk_guard', 'pass', 'accounts.id', 'Account is checked before transaction insert. category_id is NULL.'),
+      proofCheck('fk_guard', 'pass', 'accounts.id/category_id', 'Account is checked before transaction insert. category_id is NULL.'),
       proofCheck('command_gate_required', 'pass', 'finance-command-center', 'Real write asks Command Centre before transaction insert.'),
       proofCheck('dry_run_no_write', 'pass', 'api.contract', 'Dry-run returns before transaction insert or debt update.')
     ]
