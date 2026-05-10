@@ -1,4 +1,5 @@
-const VERSION = "v0.5.1-bills-ledger-atomic-pay";
+const VERSION = "v0.6.0-bills-money-truth-pay";
+const BILL_CATEGORY = "bills_utilities";
 
 export async function onRequestPost({ env, params, request }) {
   try {
@@ -6,16 +7,15 @@ export async function onRequestPost({ env, params, request }) {
     await ensureBillPayments(db);
 
     const id = requireText(params.id, "id");
-    const body = await request.json();
-    const result = await payBill(db, id, body);
+    const body = await request.json().catch(() => ({}));
 
     return json({
       ok: true,
       version: VERSION,
-      ...result
+      ...(await payBill(db, id, body))
     });
   } catch (err) {
-    return json({ ok: false, version: VERSION, error: err.message }, 500);
+    return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
   }
 }
 
@@ -35,60 +35,66 @@ async function payBill(db, id, body) {
   const notes = cleanText(body.notes);
   const now = new Date().toISOString();
 
+  await requireActiveAccount(db, accountId);
+  await requireCategory(db, BILL_CATEGORY);
+
+  const paymentsBefore = await getBillPaymentsForMonth(db, month);
+  const billBefore = normalizeBill(bill, paymentsBefore, month);
+
+  if (amount > billBefore.remaining_this_month) {
+    throw new Error(`Payment exceeds remaining amount. Remaining is ${billBefore.remaining_this_month}.`);
+  }
+
   const txId = makeId("tx_bill_expense");
   const paymentId = makeId("billpay");
-
   const billName = bill.name || bill.title || bill.bill_name || id;
-  const categoryId = bill.category_id || bill.category || body.category_id || body.category || "bills";
 
   const txNotes = [
     `Bill payment: ${billName}`,
     `bill_id=${id}`,
+    `bill_payment_id=${paymentId}`,
     notes ? `notes=${notes}` : null
   ].filter(Boolean).join(" | ");
 
-  const insertTx = db.prepare(`
-    INSERT INTO transactions (
-      id,
-      date,
-      type,
-      amount,
-      account_id,
-      transfer_to_account_id,
-      category_id,
-      merchant_id,
-      notes,
-      fee_amount,
-      pra_amount,
-      is_pending_reversal,
-      reversal_due_date,
-      created_at,
-      reversed_by,
-      reversed_at,
-      linked_txn_id
-    )
-    VALUES (?, ?, 'expense', ?, ?, NULL, ?, NULL, ?, 0, 0, 0, NULL, ?, NULL, NULL, NULL)
-  `).bind(txId, paymentDate, amount, accountId, categoryId, txNotes, now);
+  const txColumns = await getColumns(db, "transactions");
 
-  const insertPayment = db.prepare(`
-    INSERT INTO bill_payments (
-      id,
-      bill_id,
-      transaction_id,
-      account_id,
-      amount,
-      payment_date,
-      month,
-      notes,
-      created_at
-    )
+  const txInsert = buildInsert("transactions", txColumns, {
+    id: txId,
+    date: paymentDate,
+    type: "expense",
+    amount,
+    account_id: accountId,
+    transfer_to_account_id: null,
+    category_id: BILL_CATEGORY,
+    merchant_id: null,
+    notes: txNotes,
+    fee_amount: 0,
+    pra_amount: 0,
+    is_pending_reversal: 0,
+    reversal_due_date: null,
+    created_at: now,
+    reversed_by: null,
+    reversed_at: null,
+    linked_txn_id: null
+  });
+
+  const paymentInsert = db.prepare(`
+    INSERT INTO bill_payments
+      (id, bill_id, transaction_id, account_id, amount, payment_date, month, notes, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(paymentId, id, txId, accountId, amount, paymentDate, month, notes || null, now);
 
-  await db.batch([insertTx, insertPayment]);
+  await db.batch([
+    db.prepare(txInsert.sql).bind(...txInsert.values),
+    paymentInsert
+  ]);
+
+  const paymentsAfter = await getBillPaymentsForMonth(db, month);
+  const billAfter = normalizeBill(await getBill(db, id), paymentsAfter, month);
 
   return {
     action: "pay",
+    bill: billAfter,
     bill_payment: {
       id: paymentId,
       bill_id: id,
@@ -103,7 +109,17 @@ async function payBill(db, id, body) {
       type: "expense",
       amount,
       account_id: accountId,
+      category_id: BILL_CATEGORY,
       effect: "decrease_account"
+    },
+    proof: {
+      account_effect: "decrease_selected_account",
+      linked_transaction_id: txId,
+      payment_record_id: paymentId,
+      month,
+      paid_this_month: billAfter.paid_this_month,
+      remaining_this_month: billAfter.remaining_this_month,
+      current_month_cleared: billAfter.current_month_cleared
     }
   };
 }
@@ -128,6 +144,89 @@ async function ensureBillPayments(db) {
   `).run();
 }
 
+async function getBillPaymentsForMonth(db, month) {
+  const result = await db.prepare(`SELECT * FROM bill_payments WHERE month = ?`).bind(month).all();
+  return result.results || [];
+}
+
+function normalizeBill(row, payments, month) {
+  const amount = readBillAmount(row);
+  const paidThisMonth = payments
+    .filter(p => String(p.bill_id) === String(row.id))
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
+  const remainingThisMonth = Math.max(0, round2(amount - paidThisMonth));
+  const cleared = amount > 0 && paidThisMonth >= amount;
+  const latest = latestPayment(payments, row.id);
+
+  return {
+    ...row,
+    id: row.id,
+    name: row.name || row.title || row.bill_name || "Unnamed bill",
+    amount,
+    monthly_amount: amount,
+    category: BILL_CATEGORY,
+    category_id: BILL_CATEGORY,
+    month,
+    paid_this_month: round2(paidThisMonth),
+    remaining_this_month: remainingThisMonth,
+    cleared,
+    current_month_cleared: cleared,
+    clear_status: cleared ? "cleared" : paidThisMonth > 0 ? "partial" : "pending",
+    ledger_linked_payment_count: payments.filter(p => String(p.bill_id) === String(row.id)).length,
+    last_paid_transaction_id: latest?.transaction_id || null,
+    last_paid_account_id: latest?.account_id || null,
+    last_paid_date: latest?.payment_date || null
+  };
+}
+
+function latestPayment(payments, billId) {
+  return payments
+    .filter(p => String(p.bill_id) === String(billId))
+    .sort((a, b) =>
+      String(b.payment_date || "").localeCompare(String(a.payment_date || "")) ||
+      String(b.created_at || "").localeCompare(String(a.created_at || ""))
+    )[0] || null;
+}
+
+async function requireActiveAccount(db, id) {
+  const account = await db.prepare(`
+    SELECT id FROM accounts
+    WHERE id = ?
+      AND (deleted_at IS NULL OR deleted_at = '')
+      AND (archived_at IS NULL OR archived_at = '')
+      AND (status IS NULL OR status = '' OR status = 'active')
+  `).bind(id).first();
+
+  if (!account) throw new Error("Account not found or inactive.");
+  return account;
+}
+
+async function requireCategory(db, id) {
+  const category = await db.prepare(`SELECT id FROM categories WHERE id = ?`).bind(id).first();
+  if (!category) throw new Error(`Required category missing: ${id}`);
+  return category;
+}
+
+async function getColumns(db, table) {
+  const result = await db.prepare(`PRAGMA table_info(${table})`).all();
+  return new Set((result.results || []).map(r => r.name));
+}
+
+function buildInsert(table, columns, valuesByColumn) {
+  const keys = Object.keys(valuesByColumn).filter(k => columns.has(k));
+  if (!keys.length) throw new Error(`No insertable columns found for ${table}.`);
+
+  return {
+    sql: `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${keys.map(() => "?").join(", ")})`,
+    values: keys.map(k => valuesByColumn[k])
+  };
+}
+
+function readBillAmount(row) {
+  return Number(row.amount ?? row.monthly_amount ?? row.expected_amount ?? row.value ?? 0);
+}
+
 function requireDb(env) {
   if (!env || !env.DB) throw new Error("D1 binding DB is missing.");
   return env.DB;
@@ -147,7 +246,11 @@ function cleanText(value) {
 function requirePositiveNumber(value, field) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) throw new Error(`${field} must be greater than zero.`);
-  return Math.round(n * 100) / 100;
+  return round2(n);
+}
+
+function round2(value) {
+  return Math.round(Number(value) * 100) / 100;
 }
 
 function makeId(prefix) {
