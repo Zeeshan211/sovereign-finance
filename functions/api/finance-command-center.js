@@ -1,4 +1,4 @@
-// v0.8.1 Finance Command Centre governor with Debt Phase 4 recognition/lift
+// v0.8.1 Finance Command Centre governor with Debt + Reconciliation recovery
 //
 // Contract:
 // - Command Centre remains read-only.
@@ -8,9 +8,9 @@
 // - Unknown remains Unknown.
 // - transaction.save is allowed when Add proof exists.
 // - bill.save and bill.clear are allowed when Bills proof exists.
-// - debt.preflight is allowed when Debts API + Debts page proof exist.
 // - debt.save and debt.pay are allowed when Debts proof exists.
-// - reconciliation.declare, salary.save, forecast.generate remain blocked until their own proofs exist.
+// - reconciliation.declare is allowed when Reconciliation API + page proof exists.
+// - salary.save and forecast.generate remain blocked until their own proofs exist.
 // - Overrides are not silent and do not bypass backend APIs from Command Centre.
 // - Any future override application must be implemented in the owning mutating API with reason, expiry, and audit.
 
@@ -51,7 +51,7 @@ const READ_ONLY_GUARDS = [
   "transaction.save allowed only when Add proof exists",
   "bill.save and bill.clear allowed only when Bills proof exists",
   "debt.save and debt.pay allowed only when Debts proof exists",
-  "reconciliation.declare remains blocked",
+  "reconciliation.declare allowed only when Reconciliation proof exists",
   "salary.save remains blocked",
   "forecast.generate remains blocked until source precision is proven",
   "Overrides must be explicit, reasoned, time-bound, visible, and API-owned",
@@ -101,7 +101,7 @@ export async function onRequest(context) {
         status: hardBlockers.length ? "blocked" : "governor_complete",
         ready_for_known_page_trial: hardBlockers.length === 0,
         ready_for_full_system_certification: false,
-        reason: "Command Centre governor governs Add, Bills, and Debts when proof exists; unproven domains remain blocked."
+        reason: "Command Centre governs Add, Bills, Debts, and Reconciliation when proof exists; unproven domains remain blocked."
       },
       enforcement,
       summary: {
@@ -137,10 +137,10 @@ export async function onRequest(context) {
       override_policy: buildOverridePolicy(),
       emergency_playbooks: buildEmergencyPlaybooks(),
       next_actions: [
-        "Debt Phase 4 Command Centre lift is active when Debts API and Debts page proof are detected.",
-        "Verify debt.save and debt.pay backend routes ask Command Centre before real writes.",
-        "Run dry-run first before any real debt operation.",
-        "Keep Reconciliation, Salary, Forecast, and Credit Card decision paths blocked until their own proofs exist.",
+        "Reconciliation is governed when /api/reconciliation and /reconciliation.html proof are detected.",
+        "Verify reconciliation.declare backend asks Command Centre before real writes.",
+        "Run dry-run first before any real balance declaration.",
+        "Keep Salary, Forecast, and Credit Card decision paths blocked until their own proofs exist.",
         "Do not implement silent overrides. Any future override must live in the owning API with reason, expiry, and audit."
       ]
     });
@@ -214,7 +214,8 @@ async function auditPageProofs(origin) {
   return [
     await pageScriptProof(origin, "/add.html", "/js/add.js", "0.4.5", "add_page_preflight"),
     await pageScriptProof(origin, "/bills.html", "/js/bills.js", "0.4.0", "bills_page_preflight"),
-    await inlinePageProof(origin, "/debts.html", "SovereignDebtsUI", "2.2.0", "debts_page_preflight")
+    await inlinePageProof(origin, "/debts.html", "SovereignDebtsUI", "2.2.0", "debts_page_preflight"),
+    await inlinePageProof(origin, "/reconciliation.html", "SovereignReconciliationUI", "1.0.0", "reconciliation_page")
   ];
 }
 
@@ -333,10 +334,12 @@ function buildCoverage(apis, pageProofs, d1) {
   const transactionsApi = apis.find(api => api.key === "transactions");
   const billsApi = apis.find(api => api.key === "bills");
   const debtsApi = apis.find(api => api.key === "debts");
+  const reconciliationApi = apis.find(api => api.key === "reconciliation");
 
   const addProof = pageProofs.find(proof => proof.key === "add_page_preflight");
   const billsProof = pageProofs.find(proof => proof.key === "bills_page_preflight");
   const debtsProof = pageProofs.find(proof => proof.key === "debts_page_preflight");
+  const reconciliationProof = pageProofs.find(proof => proof.key === "reconciliation_page");
 
   const transactionDryRun =
     transactionsApi &&
@@ -368,6 +371,13 @@ function buildCoverage(apis, pageProofs, d1) {
     debtsProof &&
     debtsProof.status === "pass";
 
+  const reconciliationReady =
+    reconciliationApi &&
+    reconciliationApi.status === "pass" &&
+    versionAtLeast(reconciliationApi.version, "0.1.0") &&
+    reconciliationProof &&
+    reconciliationProof.status === "pass";
+
   const transactionReady = transactionDryRun && addPreflight;
   const billsReady = billsDryRun && billsPreflight;
   const debtsReady = debtsDryRun && debtsPreflight;
@@ -375,25 +385,29 @@ function buildCoverage(apis, pageProofs, d1) {
   return {
     d1,
     write_safety: {
-      status: transactionReady && billsReady && debtsReady
-        ? "debt_writes_ready"
-        : transactionReady && billsReady
-          ? "command_centre_governor_complete"
-          : billsPreflight
-            ? "bills_preflight_ready"
-            : transactionReady
-              ? "transaction_save_ready"
-              : "unknown",
+      status: transactionReady && billsReady && debtsReady && reconciliationReady
+        ? "reconciliation_ready"
+        : transactionReady && billsReady && debtsReady
+          ? "debt_writes_ready"
+          : transactionReady && billsReady
+            ? "command_centre_governor_complete"
+            : billsPreflight
+              ? "bills_preflight_ready"
+              : transactionReady
+                ? "transaction_save_ready"
+                : "unknown",
 
-      score: transactionReady && billsReady && debtsReady
-        ? 98
-        : transactionReady && billsReady
-          ? 95
-          : billsPreflight
-            ? 88
-            : transactionReady
-              ? 80
-              : 0,
+      score: transactionReady && billsReady && debtsReady && reconciliationReady
+        ? 99
+        : transactionReady && billsReady && debtsReady
+          ? 98
+          : transactionReady && billsReady
+            ? 95
+            : billsPreflight
+              ? 88
+              : transactionReady
+                ? 80
+                : 0,
 
       transaction_save: {
         dry_run_available: transactionDryRun,
@@ -419,10 +433,18 @@ function buildCoverage(apis, pageProofs, d1) {
         debt_pay_allowed: debtsReady
       },
 
+      reconciliation: {
+        dry_run_available: Boolean(reconciliationApi && reconciliationApi.status === "pass" && versionAtLeast(reconciliationApi.version, "0.1.0")),
+        page_wired: Boolean(reconciliationProof && reconciliationProof.status === "pass"),
+        real_writes_allowed: Boolean(reconciliationReady),
+        reconciliation_declare_allowed: Boolean(reconciliationReady)
+      },
+
       real_write_scope: [
         ...(transactionReady ? ["transaction.save"] : []),
         ...(billsReady ? ["bill.save", "bill.clear"] : []),
-        ...(debtsReady ? ["debt.save", "debt.pay"] : [])
+        ...(debtsReady ? ["debt.save", "debt.pay"] : []),
+        ...(reconciliationReady ? ["reconciliation.declare"] : [])
       ],
 
       debt_save: {
@@ -440,8 +462,10 @@ function buildCoverage(apis, pageProofs, d1) {
       },
 
       reconciliation_declare: {
-        allowed: false,
-        reason: "reconciliation.declare dry-run proof does not exist yet."
+        allowed: Boolean(reconciliationReady),
+        reason: reconciliationReady
+          ? "reconciliation.declare is allowed after Reconciliation API and page proof."
+          : "reconciliation.declare dry-run proof does not exist yet."
       },
 
       salary_save: {
@@ -479,6 +503,7 @@ function buildEnforcement(computedAt, coverage) {
   const billsReady = Boolean(coverage.write_safety.bills.real_writes_allowed);
   const debtsPreflightReady = Boolean(coverage.write_safety.debts && coverage.write_safety.debts.preflight_allowed);
   const debtsReady = Boolean(coverage.write_safety.debts && coverage.write_safety.debts.real_writes_allowed);
+  const reconciliationReady = Boolean(coverage.write_safety.reconciliation && coverage.write_safety.reconciliation.real_writes_allowed);
   const overridePolicy = buildOverridePolicy();
 
   const actions = [
@@ -493,7 +518,8 @@ function buildEnforcement(computedAt, coverage) {
     actionGate("debt.save", "debts", !debtsReady, debtsReady ? "debt.save is allowed after Debts proof." : "debt.save is blocked until Debts proof exists.", "coverage.write_safety.debts.debt_save_allowed", debtsReady ? "None." : "Complete Debts proof.", true, true),
     actionGate("debt.pay", "debts", !debtsReady, debtsReady ? "debt.pay is allowed after Debts proof." : "debt.pay is blocked until Debts proof exists.", "coverage.write_safety.debts.debt_pay_allowed", debtsReady ? "None." : "Complete Debts proof.", true, true),
 
-    actionGate("reconciliation.declare", "reconciliation", true, "reconciliation.declare remains blocked until reconciliation dry-run exists.", "coverage.write_safety.reconciliation", "Add reconciliation dry-run proof.", false, true),
+    actionGate("reconciliation.declare", "reconciliation", !reconciliationReady, reconciliationReady ? "reconciliation.declare is allowed after Reconciliation proof." : "reconciliation.declare remains blocked until reconciliation dry-run exists.", "coverage.write_safety.reconciliation", reconciliationReady ? "None." : "Add reconciliation dry-run proof.", true, true),
+
     actionGate("salary.save", "salary", true, "salary.save remains blocked until salary dry-run exists.", "coverage.write_safety.salary", "Add salary dry-run proof.", false, true),
     actionGate("forecast.generate", "forecast", true, "forecast.generate remains blocked until source precision is proven.", "business_rules.forecast_precision", "Complete forecast source verification.", false, true),
 
@@ -510,7 +536,7 @@ function buildEnforcement(computedAt, coverage) {
     routeGate("/add.html", "add", txReady ? "pass" : "soft_block", true, txReady, txReady ? "Add Transaction is governed and allowed." : "Add Transaction not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete transaction proof."),
     routeGate("/bills.html", "bills", billsReady ? "pass" : "soft_block", true, billsReady, billsReady ? "Bills are governed and allowed." : "Bills proof not ready.", "coverage.write_safety.bills", billsReady ? "None." : "Complete Bills proof."),
     routeGate("/debts.html", "debts", debtsReady ? "pass" : debtsPreflightReady ? "preflight_only" : "preflight_required", true, debtsReady, debtsReady ? "Debts are governed and allowed." : debtsPreflightReady ? "Debts page may run preflight. Real writes remain blocked." : "Debts viewable but writes blocked.", "coverage.write_safety.debts", debtsReady ? "None." : debtsPreflightReady ? "Backend lift pending." : "Add debt proof."),
-    routeGate("/reconciliation.html", "reconciliation", "preflight_required", true, false, "Reconciliation viewable but declarations blocked.", "coverage.write_safety.reconciliation", "Add reconciliation proof."),
+    routeGate("/reconciliation.html", "reconciliation", reconciliationReady ? "pass" : "preflight_required", true, reconciliationReady, reconciliationReady ? "Reconciliation is governed and allowed." : "Reconciliation viewable but declarations blocked.", "coverage.write_safety.reconciliation", reconciliationReady ? "None." : "Add reconciliation proof."),
     routeGate("/salary.html", "salary", "preflight_required", true, false, "Salary viewable but writes blocked.", "coverage.write_safety.salary", "Add salary proof."),
     routeGate("/forecast.html", "forecast", "soft_block", true, false, "Forecast decisions blocked.", "business_rules.forecast_precision", "Prove forecast precision."),
     routeGate("/cc.html", "credit_card", "soft_block", true, false, "Credit Card decision source guarded.", "business_rules.cc_outstanding_source", "Prove CC source."),
@@ -535,6 +561,7 @@ function buildEnforcement(computedAt, coverage) {
       bill_clear_real_write_lifted: billsReady,
       debt_save_real_write_lifted: debtsReady,
       debt_pay_real_write_lifted: debtsReady,
+      reconciliation_declare_real_write_lifted: reconciliationReady,
       remaining_mutations_blocked: true,
       emergency_override_policy_complete: true,
       command_centre_applies_overrides: false,
@@ -572,16 +599,16 @@ function buildEnforcement(computedAt, coverage) {
         lift_rule: "Only lift in the owning mutating API with reason, expiry, audit, and visible Command Centre warning."
       },
       {
-        action: "reconciliation.declare",
-        current_status: "blocked",
-        can_lift_now: false,
-        lift_rule: "Add reconciliation-specific dry-run proof first."
-      },
-      {
         action: "salary.save",
         current_status: "blocked",
         can_lift_now: false,
         lift_rule: "Add salary-specific dry-run proof first."
+      },
+      {
+        action: "forecast.generate",
+        current_status: "blocked",
+        can_lift_now: false,
+        lift_rule: "Complete forecast source verification first."
       }
     ],
     action_proof_status: {
@@ -591,6 +618,7 @@ function buildEnforcement(computedAt, coverage) {
       "debt.preflight": { status: debtsPreflightReady ? "pass" : "blocked" },
       "debt.save": { status: debtsReady ? "pass" : "blocked" },
       "debt.pay": { status: debtsReady ? "pass" : "blocked" },
+      "reconciliation.declare": { status: reconciliationReady ? "pass" : "blocked" },
       "override.request": { status: "pass" },
       "override.apply": { status: "blocked" }
     },
@@ -607,9 +635,11 @@ function buildEnforcement(computedAt, coverage) {
     reasons: actions.filter(action => !action.allowed).map(action => action.reason),
     overrides: overridePolicy,
     emergency_playbooks: buildEmergencyPlaybooks(),
-    enforcement_status_note: debtsReady
-      ? "Command Centre governor is complete: Add Transaction, Bills, and Debts are governed; emergency override policy is visible; unproven domains remain blocked."
-      : "Command Centre governor is complete: Add Transaction and Bills are governed; Debts await proof; unproven domains remain blocked."
+    enforcement_status_note: reconciliationReady
+      ? "Command Centre governor is complete: Add Transaction, Bills, Debts, and Reconciliation are governed; unproven domains remain blocked."
+      : debtsReady
+        ? "Command Centre governor is complete: Add Transaction, Bills, and Debts are governed; Reconciliation awaits proof; unproven domains remain blocked."
+        : "Command Centre governor is complete: Add Transaction and Bills are governed; unproven domains remain blocked."
   };
 }
 
@@ -618,7 +648,8 @@ function buildBusinessRules(coverage) {
     rule("add_write_path", coverage.write_safety.transaction_save.real_writes_allowed ? "pass" : "blocked", "Add write path", "transaction.save governed."),
     rule("bills_write_path", coverage.write_safety.bills.real_writes_allowed ? "pass" : "blocked", "Bills write path", "Bills governed."),
     rule("debts_write_path", coverage.write_safety.debts.real_writes_allowed ? "pass" : "blocked", "Debts write path", "Debts governed when proof exists."),
-    rule("remaining_mutations_blocked", "pass", "Remaining mutations blocked", "Reconciliation, salary, and forecast remain blocked."),
+    rule("reconciliation_write_path", coverage.write_safety.reconciliation.real_writes_allowed ? "pass" : "blocked", "Reconciliation write path", "Reconciliation governed when proof exists."),
+    rule("remaining_mutations_blocked", "pass", "Remaining mutations blocked", "Salary and forecast remain blocked."),
     rule("override_policy", "pass", "Emergency override policy", "Override policy is visible and does not silently bypass APIs."),
     rule("money_contracts_banned", "pass", "Money contracts banned", "/api/money-contracts is not used."),
     rule("forecast_precision", "unknown", "Forecast precision", "Forecast source precision not complete.")
@@ -724,11 +755,11 @@ function buildEmergencyPlaybooks() {
 function buildWarnings(coverage) {
   const warnings = [];
 
-  if (!coverage.write_safety.debts.real_writes_allowed) {
-    warnings.push(warning("debt_not_lifted", "Debt proof is not fully lifted yet."));
+  if (!coverage.write_safety.reconciliation.real_writes_allowed) {
+    warnings.push(warning("reconciliation_not_lifted", "Reconciliation proof is not fully lifted yet."));
   }
 
-  warnings.push(warning("governor_complete_not_full_finance_complete", "Command Centre governor is complete, but reconciliation/salary/forecast writes are intentionally blocked."));
+  warnings.push(warning("governor_complete_not_full_finance_complete", "Command Centre governor is complete, but salary/forecast writes are intentionally blocked."));
   warnings.push(warning("override_application_not_enabled", "Override policy is complete, but Command Centre does not directly apply overrides. This prevents silent bypass."));
 
   return warnings;
@@ -791,6 +822,18 @@ function buildSourceProofs(coverage, apis, pageProofs) {
       status: coverage.write_safety.debts.page_preflight_wired ? "pass" : "unknown",
       source: "/debts.html inline SovereignDebtsUI v2.2.0+",
       details: pageProofs.find(proof => proof.key === "debts_page_preflight") || null
+    },
+    {
+      key: "reconciliation_api",
+      status: coverage.write_safety.reconciliation.dry_run_available ? "pass" : "unknown",
+      source: "/api/reconciliation version >= v0.1.0",
+      details: apis.find(api => api.key === "reconciliation") || null
+    },
+    {
+      key: "reconciliation_page",
+      status: coverage.write_safety.reconciliation.page_wired ? "pass" : "unknown",
+      source: "/reconciliation.html inline SovereignReconciliationUI v1.0.0+",
+      details: pageProofs.find(proof => proof.key === "reconciliation_page") || null
     },
     {
       key: "override_policy",
