@@ -1,367 +1,361 @@
-const VERSION = "v0.4.1-ledger-atomic-item";
+/* /api/debts/:id — item/update/defer/archive/reactivate */
+/* Sovereign Finance v0.5.0-debts-money-truth-item */
 
-export async function onRequestGet({ env, params }) {
+const VERSION = "v0.5.0-debts-money-truth-item";
+
+const DEBT_COLUMNS = `
+  id,
+  name,
+  kind,
+  original_amount,
+  paid_amount,
+  snowball_order,
+  due_date,
+  due_day,
+  installment_amount,
+  frequency,
+  last_paid_date,
+  status,
+  notes,
+  created_at
+`;
+
+export async function onRequestGet(context) {
   try {
-    const db = requireDb(env);
-    const id = requireText(params.id, "id");
-    const debt = await getDebt(db, id);
+    const db = requireDb(context.env);
+    const id = requireClean(context.params.id, "id");
+    const debt = await readDebt(db, id);
 
-    if (!debt) {
-      return json({ ok: false, version: VERSION, error: "Debt not found." }, 404);
+    if (!debt) return json({ ok: false, version: VERSION, error: "Debt not found" }, 404);
+
+    return json({
+      ok: true,
+      version: VERSION,
+      debt: normalizeDebt(debt)
+    });
+  } catch (err) {
+    return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
+  }
+}
+
+export async function onRequestPut(context) {
+  return onRequestPost(context);
+}
+
+export async function onRequestPost(context) {
+  try {
+    const db = requireDb(context.env);
+    const id = requireClean(context.params.id, "id");
+    const body = await readJson(context.request);
+    const action = clean(body.action || "update").toLowerCase();
+
+    const before = await readDebt(db, id);
+    if (!before) return json({ ok: false, version: VERSION, error: "Debt not found" }, 404);
+
+    const normalizedBefore = normalizeDebt(before);
+
+    if (action === "defer") {
+      return json({
+        ok: true,
+        version: VERSION,
+        action: "defer",
+        ...(await deferDebt(db, id, body, before))
+      });
+    }
+
+    if (action === "archive") {
+      return json({
+        ok: true,
+        version: VERSION,
+        action: "archive",
+        ...(await setStatus(db, id, "archived", body.notes, before))
+      });
+    }
+
+    if (action === "reactivate") {
+      return json({
+        ok: true,
+        version: VERSION,
+        action: "reactivate",
+        ...(await setStatus(db, id, "active", body.notes, before))
+      });
+    }
+
+    if (action === "settle") {
+      return json({
+        ok: true,
+        version: VERSION,
+        action: "settle",
+        ...(await settleDebt(db, id, body, before))
+      });
+    }
+
+    if (["settled", "archived", "deleted", "closed", "cancelled"].includes(normalizedBefore.status)) {
+      return json({ ok: false, version: VERSION, error: "Settled/archived debts allow edit-only, no money movement." }, 409);
     }
 
     return json({
       ok: true,
       version: VERSION,
-      debt: normalizeDebtRow(debt)
+      action: "update",
+      ...(await updateDebt(db, id, body, before))
     });
   } catch (err) {
-    return json({ ok: false, version: VERSION, error: err.message }, 500);
+    return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
   }
 }
 
-export async function onRequestPut({ env, params, request }) {
-  try {
-    const db = requireDb(env);
-    const id = requireText(params.id, "id");
-    const body = await request.json();
-    const action = String(body.action || "update").toLowerCase();
+async function updateDebt(db, id, body, before) {
+  const columns = await getColumns(db, "debts");
+  const patch = {};
 
-    if (action === "defer") {
-      const result = await deferDebt(db, id, body);
-      return json({ ok: true, version: VERSION, ...result });
+  if ("name" in body) patch.name = requireClean(body.name, "name");
+  if ("kind" in body || "direction" in body) patch.kind = normalizeKind(body.kind || body.direction);
+  if ("original_amount" in body || "amount" in body) patch.original_amount = nonNegativeNumber(body.original_amount ?? body.amount, "original_amount");
+  if ("paid_amount" in body) patch.paid_amount = nonNegativeNumber(body.paid_amount, "paid_amount");
+  if ("snowball_order" in body) patch.snowball_order = nullableNumber(body.snowball_order);
+  if ("due_date" in body || "next_due_date" in body) patch.due_date = normalizeDate(body.due_date || body.next_due_date);
+  if ("due_day" in body) patch.due_day = normalizeDueDay(body.due_day);
+  if ("installment_amount" in body || "installment" in body) patch.installment_amount = nullableNonNegative(body.installment_amount ?? body.installment);
+  if ("frequency" in body) patch.frequency = normalizeFrequency(body.frequency);
+  if ("last_paid_date" in body) patch.last_paid_date = normalizeDate(body.last_paid_date);
+  if ("notes" in body) patch.notes = clean(body.notes);
+  if ("status" in body) patch.status = normalizeStatus(body.status);
+
+  const nextOriginal = "original_amount" in patch ? patch.original_amount : Number(before.original_amount || 0);
+  const nextPaid = "paid_amount" in patch ? patch.paid_amount : Number(before.paid_amount || 0);
+
+  if (nextPaid > nextOriginal) throw new Error("paid_amount cannot exceed original_amount.");
+
+  if (!Object.keys(patch).length) throw new Error("Nothing to update.");
+
+  const update = buildUpdate("debts", columns, patch, "id", id);
+  await db.prepare(update.sql).bind(...update.values).run();
+
+  const after = await readDebt(db, id);
+
+  return {
+    debt: normalizeDebt(after),
+    ledger_transaction: null,
+    proof: {
+      money_movement: false,
+      updated_fields: Object.keys(patch)
     }
-
-    if (action === "payment" || action === "received") {
-      const result = await recordDebtMovement(db, id, body);
-      return json({ ok: true, version: VERSION, ...result });
-    }
-
-    const result = await updateDebt(db, id, body);
-    return json({ ok: true, version: VERSION, ...result });
-  } catch (err) {
-    return json({ ok: false, version: VERSION, error: err.message }, 500);
-  }
+  };
 }
 
-export async function onRequestPost({ env, params, request }) {
-  try {
-    const db = requireDb(env);
-    const id = requireText(params.id, "id");
-    const body = await request.json();
-    const action = String(body.action || "update").toLowerCase();
+async function deferDebt(db, id, body, before) {
+  const columns = await getColumns(db, "debts");
+  const nextDate = normalizeDate(body.next_due_date || body.due_date || body.follow_up_date);
 
-    if (action === "defer") {
-      const result = await deferDebt(db, id, body);
-      return json({ ok: true, version: VERSION, ...result });
+  if (!nextDate) throw new Error("next_due_date must be YYYY-MM-DD.");
+
+  const notes = appendNote(before.notes, body.notes, `Deferred to ${nextDate}`);
+
+  const update = buildUpdate("debts", columns, {
+    due_date: nextDate,
+    notes
+  }, "id", id);
+
+  await db.prepare(update.sql).bind(...update.values).run();
+
+  return {
+    debt: normalizeDebt(await readDebt(db, id)),
+    ledger_transaction: null,
+    proof: {
+      money_movement: false,
+      account_effect: "none",
+      next_due_date: nextDate
     }
-
-    if (action === "payment" || action === "received") {
-      const result = await recordDebtMovement(db, id, body);
-      return json({ ok: true, version: VERSION, ...result });
-    }
-
-    const result = await updateDebt(db, id, body);
-    return json({ ok: true, version: VERSION, ...result });
-  } catch (err) {
-    return json({ ok: false, version: VERSION, error: err.message }, 500);
-  }
+  };
 }
 
-async function updateDebt(db, id, body) {
-  const existing = await getDebt(db, id);
-  if (!existing) throw new Error("Debt not found.");
+async function setStatus(db, id, status, note, before) {
+  const columns = await getColumns(db, "debts");
+  const notes = appendNote(before.notes, note, `Status changed to ${status}`);
 
-  const name = cleanText(body.name) || existing.name;
-  const kind = normalizeKind(body.kind || body.direction || body.type || existing.kind);
-  const original = optionalNumber(body.original_amount ?? body.amount) ?? Number(existing.original_amount);
-  const paid = optionalNumber(body.paid_amount) ?? Number(existing.paid_amount || 0);
-  const dueDate = cleanText(body.next_due_date || body.due_date) || null;
-  const notes = cleanText(body.notes) || existing.notes || null;
-  const installment = optionalNumber(body.installment_amount);
-  const frequency = cleanText(body.frequency) || existing.frequency || "custom";
-  const status = cleanText(body.status) || existing.status || "active";
-
-  if (original <= 0) throw new Error("original_amount must be greater than zero.");
-  if (paid < 0) throw new Error("paid_amount cannot be negative.");
-  if (paid > original) throw new Error("paid_amount cannot exceed original_amount.");
-
-  await db.prepare(`
-    UPDATE debts
-    SET
-      name = ?,
-      kind = ?,
-      original_amount = ?,
-      paid_amount = ?,
-      due_date = ?,
-      status = ?,
-      notes = ?,
-      installment_amount = ?,
-      frequency = ?
-    WHERE id = ?
-  `).bind(
-    name,
-    kind,
-    original,
-    paid,
-    dueDate,
+  const update = buildUpdate("debts", columns, {
     status,
-    notes,
-    installment,
-    frequency,
-    id
-  ).run();
+    notes
+  }, "id", id);
+
+  await db.prepare(update.sql).bind(...update.values).run();
 
   return {
-    action: "update",
-    debt: normalizeDebtRow(await getDebt(db, id)),
-    ledger_transaction: null
-  };
-}
-
-async function deferDebt(db, id, body) {
-  const existing = await getDebt(db, id);
-  if (!existing) throw new Error("Debt not found.");
-
-  if (isClosed(existing.status)) {
-    throw new Error("Settled or archived debts can only be edited.");
-  }
-
-  const nextDueDate = requireText(body.next_due_date || body.due_date, "next_due_date");
-  const notes = appendNote(existing.notes, body.notes, `Deferred to ${nextDueDate}`);
-
-  await db.prepare(`
-    UPDATE debts
-    SET
-      due_date = ?,
-      notes = ?
-    WHERE id = ?
-  `).bind(nextDueDate, notes, id).run();
-
-  return {
-    action: "defer",
-    debt: normalizeDebtRow(await getDebt(db, id)),
-    ledger_transaction: null
-  };
-}
-
-async function recordDebtMovement(db, id, body) {
-  const existing = await getDebt(db, id);
-  if (!existing) throw new Error("Debt not found.");
-
-  if (isClosed(existing.status)) {
-    throw new Error("Settled or archived debts can only be edited.");
-  }
-
-  const action = normalizeMovementAction(body.action || body.type);
-  const kind = normalizeKind(existing.kind);
-
-  if (kind === "owe" && action !== "payment") {
-    throw new Error("This debt is money you owe. Use payment only.");
-  }
-
-  if (kind === "owed" && action !== "received") {
-    throw new Error("This debt is owed to you. Use received only.");
-  }
-
-  const amount = requirePositiveNumber(body.amount, "amount");
-  const accountId = requireText(body.account_id, "account_id");
-  const date = requireText(body.date, "date");
-  const now = new Date().toISOString();
-
-  const original = Number(existing.original_amount);
-  const paidBefore = Number(existing.paid_amount || 0);
-  const remainingBefore = round2(original - paidBefore);
-
-  if (amount > remainingBefore + 0.00001) {
-    throw new Error(`Amount exceeds outstanding debt. Outstanding is ${remainingBefore}.`);
-  }
-
-  const paidAfter = round2(paidBefore + amount);
-  const remainingAfter = round2(original - paidAfter);
-  const settled = remainingAfter <= 0.00001;
-
-  const nextDueDate = settled ? null : cleanText(body.next_due_date || body.due_date || existing.due_date);
-  const status = settled ? "closed" : "active";
-
-  const txType = action === "payment" ? "repay" : "income";
-  const txEffect = action === "payment" ? "decrease_account" : "increase_account";
-  const txId = makeId(`tx_${txType}`);
-
-  const newNotes = appendNote(
-    existing.notes,
-    body.notes,
-    action === "payment" ? `Payment ${amount} on ${date}` : `Received ${amount} on ${date}`
-  );
-
-  const txNotes = [
-    action === "payment" ? `Debt payment: ${existing.name}` : `Debt received: ${existing.name}`,
-    `debt_id=${id}`,
-    `kind=${kind}`,
-    cleanText(body.notes) ? `notes=${cleanText(body.notes)}` : null
-  ].filter(Boolean).join(" | ");
-
-  const debtUpdate = db.prepare(`
-    UPDATE debts
-    SET
-      paid_amount = ?,
-      status = ?,
-      due_date = ?,
-      last_paid_date = ?,
-      notes = ?
-    WHERE id = ?
-  `).bind(paidAfter, status, nextDueDate, date, newNotes, id);
-
-  const transactionInsert = db.prepare(`
-    INSERT INTO transactions (
-      id,
-      date,
-      type,
-      amount,
-      account_id,
-      transfer_to_account_id,
-      category_id,
-      merchant_id,
-      notes,
-      fee_amount,
-      pra_amount,
-      is_pending_reversal,
-      reversal_due_date,
-      created_at,
-      reversed_by,
-      reversed_at,
-      linked_txn_id
-    )
-    VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, 0, 0, 0, NULL, ?, NULL, NULL, NULL)
-  `).bind(txId, date, txType, amount, accountId, txNotes, now);
-
-  await db.batch([debtUpdate, transactionInsert]);
-
-  return {
-    action,
-    debt: normalizeDebtRow(await getDebt(db, id)),
-    ledger_transaction: {
-      id: txId,
-      type: txType,
-      date,
-      amount,
-      account_id: accountId,
-      effect: txEffect
+    debt: normalizeDebt(await readDebt(db, id)),
+    ledger_transaction: null,
+    proof: {
+      money_movement: false,
+      status
     }
   };
 }
 
-async function getDebt(db, id) {
-  return await db.prepare(`
-    SELECT
-      id,
-      name,
-      kind,
-      original_amount,
-      paid_amount,
-      snowball_order,
-      due_date,
-      status,
-      notes,
-      created_at,
-      due_day,
-      installment_amount,
-      frequency,
-      last_paid_date
-    FROM debts
-    WHERE id = ?
-  `).bind(id).first();
-}
+async function settleDebt(db, id, body, before) {
+  const columns = await getColumns(db, "debts");
+  const original = Number(before.original_amount || 0);
+  const notes = appendNote(before.notes, body.notes, "Marked settled manually");
 
-function normalizeDebtRow(row) {
-  if (!row) return null;
+  const update = buildUpdate("debts", columns, {
+    paid_amount: original,
+    status: "settled",
+    notes
+  }, "id", id);
 
-  const original = Number(row.original_amount || 0);
-  const paid = Number(row.paid_amount || 0);
-  const remaining = round2(original - paid);
-  const normalizedKind = normalizeKind(row.kind);
+  await db.prepare(update.sql).bind(...update.values).run();
 
   return {
-    ...row,
-    kind: normalizedKind,
-    direction: normalizedKind === "owed" ? "owed_to_me" : "i_owe",
-    type: normalizedKind === "owed" ? "owed_to_me" : "i_owe",
-    original_amount: original,
-    amount: original,
-    paid_amount: paid,
-    outstanding: remaining,
-    outstanding_amount: remaining,
-    remaining_amount: remaining,
-    next_due_date: row.due_date || null,
-    settled: remaining <= 0.00001 || isClosed(row.status)
+    debt: normalizeDebt(await readDebt(db, id)),
+    ledger_transaction: null,
+    proof: {
+      money_movement: false,
+      manual_settle: true
+    }
   };
 }
 
-function normalizeMovementAction(value) {
-  const action = String(value || "").toLowerCase();
+async function readDebt(db, id) {
+  return await db.prepare(`SELECT ${DEBT_COLUMNS} FROM debts WHERE id = ? LIMIT 1`).bind(id).first();
+}
 
-  if (["payment", "pay", "paid", "repay"].includes(action)) return "payment";
-  if (["received", "receive", "receipt", "income"].includes(action)) return "received";
+function normalizeDebt(row) {
+  const original = Number(row?.original_amount || 0);
+  const paid = Number(row?.paid_amount || 0);
+  const remaining = Math.max(0, original - paid);
+  const kind = normalizeKind(row?.kind);
+  const direction = kind === "owed" ? "owed_to_me" : "i_owe";
+  const statusRaw = normalizeStatus(row?.status || "active");
+  const status = remaining <= 0 && statusRaw === "active" ? "settled" : statusRaw;
 
-  throw new Error("action must be payment or received.");
+  return {
+    id: clean(row?.id),
+    name: clean(row?.name),
+    kind,
+    direction,
+    original_amount: round2(original),
+    paid_amount: round2(paid),
+    remaining_amount: round2(remaining),
+    outstanding_amount: round2(remaining),
+    snowball_order: row?.snowball_order == null ? null : Number(row.snowball_order),
+    due_date: normalizeDate(row?.due_date),
+    due_day: normalizeDueDay(row?.due_day),
+    installment_amount: nullableNonNegative(row?.installment_amount),
+    frequency: normalizeFrequency(row?.frequency || "custom") || "custom",
+    last_paid_date: normalizeDate(row?.last_paid_date),
+    next_due_date: normalizeDate(row?.due_date),
+    status,
+    notes: clean(row?.notes),
+    created_at: row?.created_at || null,
+    allowed_actions: allowedActions(direction, status)
+  };
+}
+
+function allowedActions(direction, status) {
+  if (["settled", "archived", "deleted", "closed", "cancelled"].includes(status)) return ["edit"];
+  if (direction === "i_owe") return ["pay", "defer", "edit", "archive"];
+  if (direction === "owed_to_me") return ["receive", "defer", "edit", "archive"];
+  return ["edit"];
+}
+
+async function getColumns(db, table) {
+  const result = await db.prepare(`PRAGMA table_info(${table})`).all();
+  return new Set((result.results || []).map(row => row.name));
+}
+
+function buildUpdate(table, columns, valuesByColumn, whereColumn, whereValue) {
+  const keys = Object.keys(valuesByColumn).filter(key => columns.has(key));
+  if (!keys.length) throw new Error(`No updatable columns for ${table}.`);
+
+  return {
+    sql: `UPDATE ${table} SET ${keys.map(key => `${key} = ?`).join(", ")} WHERE ${whereColumn} = ?`,
+    values: [...keys.map(key => valuesByColumn[key]), whereValue]
+  };
 }
 
 function normalizeKind(value) {
-  const v = String(value || "").toLowerCase();
+  const text = clean(value).toLowerCase();
 
-  if (["owed", "owed_to_me", "receivable", "to_me", "they_owe_me", "received"].includes(v)) return "owed";
-  if (["owe", "i_owe", "payable", "i owe", "debt"].includes(v)) return "owe";
+  if (["i_owe", "owe", "payable", "debt", "debt_out"].includes(text)) return "owe";
+  if (["owed_to_me", "owed", "owed_me", "receivable", "to_me", "debt_in"].includes(text)) return "owed";
 
-  throw new Error("kind/direction must be either owe or owed.");
+  return "owe";
 }
 
-function isClosed(status) {
-  return ["closed", "settled", "archived", "deleted"].includes(String(status || "").toLowerCase());
+function normalizeStatus(value) {
+  const text = clean(value || "active").toLowerCase();
+  if (["active", "settled", "archived", "deleted", "closed", "cancelled"].includes(text)) return text;
+  return "active";
 }
 
-function requireDb(env) {
-  if (!env || !env.DB) throw new Error("D1 binding DB is missing.");
-  return env.DB;
+function normalizeDate(value) {
+  const raw = clean(value);
+  if (!raw) return null;
+  if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
+  return raw.slice(0, 10);
 }
 
-function requireText(value, field) {
-  const text = cleanText(value);
-  if (!text) throw new Error(`${field} is required.`);
+function normalizeDueDay(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 1 || n > 31) return null;
+  return Math.floor(n);
+}
+
+function normalizeFrequency(value) {
+  const text = clean(value || "custom").toLowerCase();
+  return ["monthly", "weekly", "yearly", "custom"].includes(text) ? text : null;
+}
+
+function nullableNumber(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function nullableNonNegative(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return round2(n);
+}
+
+function nonNegativeNumber(value, field) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) throw new Error(`${field} must be 0 or greater.`);
+  return round2(n);
+}
+
+function requireClean(value, field) {
+  const text = clean(value);
+  if (!text) throw new Error(`${field} required`);
   return text;
 }
 
-function cleanText(value) {
-  if (value === undefined || value === null) return "";
-  return String(value).trim();
-}
-
-function requirePositiveNumber(value, field) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) throw new Error(`${field} must be greater than zero.`);
-  return round2(n);
-}
-
-function optionalNumber(value) {
-  if (value === undefined || value === null || value === "") return null;
-  const n = Number(value);
-  if (!Number.isFinite(n)) throw new Error("Invalid number.");
-  return round2(n);
+function appendNote(existing, incoming, systemNote) {
+  return [clean(existing), systemNote ? `[${new Date().toISOString()}] ${systemNote}` : "", clean(incoming)]
+    .filter(Boolean)
+    .join(" | ");
 }
 
 function round2(value) {
-  return Math.round(Number(value) * 100) / 100;
+  return Math.round((Number(value) || 0) * 100) / 100;
 }
 
-function makeId(prefix) {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+function clean(value) {
+  return String(value == null ? "" : value).trim();
 }
 
-function appendNote(existing, incoming, systemNote) {
-  return [
-    cleanText(existing),
-    systemNote ? `[${new Date().toISOString()}] ${systemNote}` : "",
-    cleanText(incoming)
-  ].filter(Boolean).join(" | ");
+async function readJson(request) {
+  try {
+    return await request.json();
+  } catch {
+    return {};
+  }
+}
+
+function requireDb(env) {
+  if (!env?.DB) throw new Error("D1 binding DB is missing.");
+  return env.DB;
 }
 
 function json(payload, status = 200) {
