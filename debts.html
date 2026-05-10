@@ -380,7 +380,7 @@
     (() => {
       "use strict";
 
-      const VERSION = "ui5-debts-3";
+      const VERSION = "ui5-debts-4";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
       const state = {
@@ -997,29 +997,29 @@
         const candidates = [
           { url: `/api/debts/${encodeURIComponent(id)}/pay`, method: "POST", body },
           { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body },
-          { url: "/api/debts", method: "POST", body }
+    
         ];
 
         return tryMutation(candidates, body);
       }
 
-      async function deferDebt(payload) {
-        const id = payload.id;
+     async function deferDebt(payload) {
+  const id = payload.id;
 
-        const body = {
-          ...payload,
-          action: "defer",
-          debt_id: id
-        };
+  const body = {
+    ...payload,
+    action: "defer",
+    debt_id: id
+  };
 
-        const candidates = [
-          { url: `/api/debts/${encodeURIComponent(id)}/defer`, method: "POST", body },
-          { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body },
-          { url: "/api/debts", method: "POST", body }
-        ];
+  const candidates = [
+    { url: `/api/debts/${encodeURIComponent(id)}/defer`, method: "POST", body },
+    { url: `/api/debts/${encodeURIComponent(id)}`, method: "PUT", body },
+    { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body: { ...body, action: "update" } }
+  ];
 
-        return tryMutation(candidates, body);
-      }
+  return tryMutation(candidates, body);
+}
 
       function bindEvents() {
         els.addDebtBtn.addEventListener("click", () => openDebtModal());
