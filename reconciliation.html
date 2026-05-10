@@ -8,9 +8,7 @@
 <link rel="stylesheet" href="/css/app.css?v=2.0.2" />
 
 <style>
-.recon-page {
-  max-width: 1480px;
-}
+.recon-page { max-width: 1480px; }
 
 .recon-hero-grid {
   display: grid;
@@ -19,10 +17,7 @@
   align-items: stretch;
 }
 
-.recon-side {
-  display: grid;
-  gap: 14px;
-}
+.recon-side { display: grid; gap: 14px; }
 
 .recon-actions,
 .recon-status-strip,
@@ -32,9 +27,7 @@
   gap: 8px;
 }
 
-.recon-status-strip {
-  margin-top: 18px;
-}
+.recon-status-strip { margin-top: 18px; }
 
 .recon-card {
   padding: 18px;
@@ -139,9 +132,7 @@
   letter-spacing: -0.05em;
 }
 
-.recon-account-balance.negative {
-  color: var(--danger);
-}
+.recon-account-balance.negative { color: var(--danger); }
 
 .recon-form-card {
   position: sticky;
@@ -153,10 +144,7 @@
   box-shadow: var(--shadow-md);
 }
 
-.recon-form-grid {
-  display: grid;
-  gap: 14px;
-}
+.recon-form-grid { display: grid; gap: 14px; }
 
 .recon-delta-card {
   padding: 14px;
@@ -182,13 +170,8 @@
   letter-spacing: -0.06em;
 }
 
-.recon-delta-value.positive {
-  color: var(--success);
-}
-
-.recon-delta-value.negative {
-  color: var(--danger);
-}
+.recon-delta-value.positive { color: var(--success); }
+.recon-delta-value.negative { color: var(--danger); }
 
 .recon-notice {
   margin-top: 14px;
@@ -224,9 +207,7 @@
   background: rgba(37, 99, 235, 0.08);
 }
 
-.recon-review.on {
-  display: block;
-}
+.recon-review.on { display: block; }
 
 .recon-review-row {
   display: flex;
@@ -239,9 +220,7 @@
   font-weight: 800;
 }
 
-.recon-review-row:last-child {
-  border-bottom: 0;
-}
+.recon-review-row:last-child { border-bottom: 0; }
 
 .recon-review-row strong {
   color: var(--text-strong);
@@ -258,9 +237,7 @@
   box-shadow: var(--shadow-sm);
 }
 
-.recon-debug.on {
-  display: block;
-}
+.recon-debug.on { display: block; }
 
 .recon-debug pre {
   max-height: 360px;
@@ -285,30 +262,20 @@
   text-align: center;
 }
 
-.recon-page-meta {
-  display: none !important;
-}
+.recon-page-meta { display: none !important; }
 
 @media (max-width: 1180px) {
   .recon-hero-grid,
-  .recon-layout {
-    grid-template-columns: 1fr;
-  }
+  .recon-layout { grid-template-columns: 1fr; }
 
-  .recon-form-card {
-    position: static;
-  }
+  .recon-form-card { position: static; }
 
-  .recon-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .recon-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 760px) {
   .recon-kpi-grid,
-  .recon-account-grid {
-    grid-template-columns: 1fr;
-  }
+  .recon-account-grid { grid-template-columns: 1fr; }
 
   .recon-section-head {
     align-items: flex-start;
@@ -316,9 +283,7 @@
   }
 
   .recon-actions,
-  .recon-actions .btn {
-    width: 100%;
-  }
+  .recon-actions .btn { width: 100%; }
 }
 </style>
 </head>
@@ -337,11 +302,12 @@
 <div class="hero-kicker">Balance control</div>
 <h1 class="hero-title">Keep app balances aligned with real accounts.</h1>
 <p class="hero-copy">
-Select an account, enter the real bank/app balance, review the difference, and declare it. Safety checks run quietly in the background.
+Select an account, enter the actual bank/app balance, review the difference, and declare it. Displayed app balances come directly from Accounts.
 </p>
 
 <div id="debugBadges" class="recon-status-strip" hidden>
-<span id="reconApiBadge" class="badge badge-unknown">API loading</span>
+<span id="accountsApiBadge" class="badge badge-unknown">Accounts loading</span>
+<span id="reconApiBadge" class="badge badge-unknown">Reconciliation loading</span>
 <span id="reconAuthorityBadge" class="badge badge-unknown">Authority loading</span>
 </div>
 </div>
@@ -356,9 +322,9 @@ Select an account, enter the real bank/app balance, review the difference, and d
 </div>
 
 <div class="recon-card">
-<div class="recon-card-title">Clean declaration flow</div>
+<div class="recon-card-title">Source rule</div>
 <div class="recon-card-copy">
-A declaration creates one adjustment transaction only if the real balance differs from the app balance.
+Current app balances on this page are loaded from Accounts. Reconciliation only handles declarations.
 </div>
 </div>
 </aside>
@@ -368,13 +334,13 @@ A declaration creates one adjustment transaction only if the real balance differ
 <div class="kpi-card">
 <div class="kpi-label">Accounts</div>
 <div id="accountCount" class="kpi-value">-</div>
-<div class="kpi-sub">Loaded accounts</div>
+<div class="kpi-sub">Loaded from Accounts</div>
 </div>
 
 <div class="kpi-card">
 <div class="kpi-label">Total App Balance</div>
 <div id="totalBalance" class="kpi-value">-</div>
-<div class="kpi-sub">Across listed accounts</div>
+<div class="kpi-sub">Accounts source</div>
 </div>
 
 <div class="kpi-card">
@@ -466,13 +432,13 @@ A declaration creates one adjustment transaction only if the real balance differ
 
 <div id="debugPanel" class="recon-debug">
 <div class="recon-card-title">Debug mode</div>
-<div class="recon-card-copy">Internal proof and Command Centre details are visible because this page was opened with <code>?debug=1</code>.</div>
+<div class="recon-card-copy">Internal proof and source details are visible because this page was opened with <code>?debug=1</code>.</div>
 <pre id="debugOutput">{}</pre>
 </div>
 </section>
 
 <footer class="recon-page-meta" aria-hidden="true">
-Reconciliation UI v1.1.0
+Reconciliation UI v1.2.0
 </footer>
 </main>
 
@@ -486,7 +452,7 @@ Reconciliation UI v1.1.0
 (function () {
   "use strict";
 
-  const VERSION = "1.1.0";
+  const VERSION = "1.2.0";
   const DEBUG = new URL(location.href).searchParams.get("debug") === "1";
 
   let accounts = [];
@@ -495,6 +461,7 @@ Reconciliation UI v1.1.0
   let command = null;
   let lastProof = null;
   let pendingPayload = null;
+  let reconciliationSource = null;
 
   const $ = id => document.getElementById(id);
 
@@ -525,11 +492,19 @@ Reconciliation UI v1.1.0
     el.textContent = "";
   }
 
+  function toNumber(value, fallback) {
+    if (value === undefined || value === null || value === "") return fallback;
+    if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
+
+    const cleaned = String(value).replace(/rs/ig, "").replace(/,/g, "").trim();
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
   function money(value) {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return "Rs 0";
+    const n = toNumber(value, 0);
     const prefix = n < 0 ? "-" : "";
-    return prefix + "Rs " + Math.abs(n).toLocaleString("en-PK", { maximumFractionDigits: 0 });
+    return prefix + "Rs " + Math.abs(n).toLocaleString("en-PK", { maximumFractionDigits: 2 });
   }
 
   function escapeHtml(value) {
@@ -566,19 +541,45 @@ Reconciliation UI v1.1.0
     return data;
   }
 
+  function normalizeAccount(row) {
+    const id = String(row.id || row.account_id || "").trim();
+    const name = String(row.name || row.label || id).trim();
+    const kind = String(row.kind || row.type || row.account_type || "").trim();
+    const status = String(row.status || "active").trim().toLowerCase();
+
+    const balance = firstNumber([
+      row.balance,
+      row.current_balance,
+      row.available_balance,
+      row.account_balance,
+      row.computed_balance,
+      row.amount,
+      row.total
+    ], 0);
+
+    return { id, name, kind, type: kind, status, balance, source: "/api/accounts" };
+  }
+
+  function firstNumber(values, fallback) {
+    for (const value of values) {
+      const n = toNumber(value, NaN);
+      if (Number.isFinite(n)) return n;
+    }
+    return fallback;
+  }
+
   function selectedAccount() {
     return accounts.find(account => account.id === selectedId) || null;
   }
 
   function accountBalance(account) {
-    const n = Number(account && account.balance);
-    return Number.isFinite(n) ? n : 0;
+    return account ? toNumber(account.balance, 0) : 0;
   }
 
   function deltaValue() {
     const account = selectedAccount();
     const current = accountBalance(account);
-    const declared = Number($("declaredBalanceInput").value);
+    const declared = toNumber($("declaredBalanceInput").value, NaN);
     return Number.isFinite(declared) ? declared - current : 0;
   }
 
@@ -594,10 +595,12 @@ Reconciliation UI v1.1.0
     $("debugPanel").classList.add("on");
     $("debugOutput").textContent = JSON.stringify({
       version: VERSION,
+      source_rule: "visible balances loaded from /api/accounts",
       authority,
       command_version: command && command.version,
       selected_id: selectedId,
       account_count: accounts.length,
+      reconciliation_api_source: reconciliationSource,
       pending_payload: pendingPayload,
       last_proof: lastProof
     }, null, 2);
@@ -631,22 +634,50 @@ Reconciliation UI v1.1.0
     updateDebug();
   }
 
-  async function loadReconciliation() {
-    const data = await fetchJSON("/api/reconciliation?cb=" + Date.now());
-    accounts = Array.isArray(data.accounts) ? data.accounts : [];
+  async function loadAccountsTruth() {
+    const data = await fetchJSON("/api/accounts?cb=" + Date.now());
+    const raw = Array.isArray(data.accounts) ? data.accounts : Array.isArray(data) ? data : [];
+
+    accounts = raw.map(normalizeAccount).filter(account => account.id);
 
     if (DEBUG) {
-      setBadge("reconApiBadge", "API " + (data.version || "live"), "badge-ready");
+      setBadge("accountsApiBadge", "Accounts API " + (data.version || "live"), "badge-ready");
     }
 
     if (!selectedId && accounts.length) selectedId = accounts[0].id;
 
+    const total = accounts.reduce((sum, account) => sum + accountBalance(account), 0);
+
     setText("accountCount", String(accounts.length));
-    setText("totalBalance", money(data.summary && data.summary.total_balance || 0));
-    setText("reconSummary", accounts.length + " account(s) loaded for reconciliation.");
+    setText("totalBalance", money(total));
+    setText("reconSummary", accounts.length + " account(s) loaded directly from Accounts.");
 
     renderAccounts();
     updateSelectedAccount();
+    updateDebug();
+  }
+
+  async function loadReconciliationMetadata() {
+    try {
+      const data = await fetchJSON("/api/reconciliation?cb=" + Date.now());
+      reconciliationSource = {
+        version: data.version,
+        source: data.source,
+        source_rule: data.source_rule,
+        count: Array.isArray(data.accounts) ? data.accounts.length : 0
+      };
+
+      if (DEBUG) {
+        setBadge("reconApiBadge", "Recon API " + (data.version || "live"), "badge-ready");
+      }
+    } catch (err) {
+      reconciliationSource = { error: err.message || String(err) };
+
+      if (DEBUG) {
+        setBadge("reconApiBadge", "Recon API error", "badge-blocked");
+      }
+    }
+
     updateDebug();
   }
 
@@ -724,7 +755,7 @@ Reconciliation UI v1.1.0
       return;
     }
 
-    const declaredBalance = Number($("declaredBalanceInput").value);
+    const declaredBalance = toNumber($("declaredBalanceInput").value, NaN);
 
     if (!Number.isFinite(declaredBalance)) {
       showNotice("Enter a valid actual balance.", "fail");
@@ -780,17 +811,19 @@ Reconciliation UI v1.1.0
   }
 
   async function refresh() {
-    console.log("[reconciliation-ui v1.1.0] refresh");
+    console.log("[reconciliation-ui v1.2.0] refresh");
     await loadCommandCentre();
-    await loadReconciliation();
-    console.log("[reconciliation-ui v1.1.0] ready", {
+    await loadAccountsTruth();
+    await loadReconciliationMetadata();
+    console.log("[reconciliation-ui v1.2.0] ready", {
       accounts: accounts.length,
-      authority
+      authority,
+      source: "/api/accounts"
     });
   }
 
   function init() {
-    console.log("[reconciliation-ui v1.1.0] init");
+    console.log("[reconciliation-ui v1.2.0] init");
 
     $("declaredDateInput").value = todayISO();
     $("refreshBtn").addEventListener("click", refresh);
