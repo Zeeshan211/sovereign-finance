@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Debts · Sovereign Finance</title>
-  <meta name="description" content="Manage debts, payments, and receivables in Sovereign Finance." />
+  <meta name="description" content="Manage debts, payments, received amounts, installments, and due dates in Sovereign Finance." />
 
   <link rel="stylesheet" href="/css/app.css?v=ui-token-lock-2-1" />
   <link rel="stylesheet" href="/css/nav.css" />
@@ -66,9 +66,9 @@
   <main class="app-page">
     <section class="finance-hero">
       <div class="hero-kicker">Debt register</div>
-      <h1 class="hero-title">Debts, payments, and receivables.</h1>
+      <h1 class="hero-title">Debts, installments, and due dates.</h1>
       <p class="hero-copy">
-        Track what you owe, what is owed to you, and every payment or received amount from one clean register.
+        Track what you owe, what is owed to you, partial payments, received installments, and deferred next dates.
       </p>
 
       <div class="stack-sm" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;">
@@ -109,7 +109,7 @@
         <article class="card card-padded">
           <div class="section-kicker">Debt register</div>
           <h2 class="authority-title" style="margin-top:12px;">Active and settled records</h2>
-          <p class="authority-copy">Add, edit, record payment, or record received amount.</p>
+          <p class="authority-copy">Direction controls the available action: payment for money you owe, received for money owed to you.</p>
 
           <div class="grid-2" style="margin-top:16px;align-items:end;">
             <div class="field">
@@ -137,13 +137,14 @@
                   <th>Direction</th>
                   <th>Original</th>
                   <th>Outstanding</th>
+                  <th>Next date</th>
                   <th>Status</th>
                   <th class="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody id="debtsTableBody">
                 <tr>
-                  <td colspan="6" class="muted text-center">Loading debts...</td>
+                  <td colspan="7" class="muted text-center">Loading debts...</td>
                 </tr>
               </tbody>
             </table>
@@ -185,7 +186,7 @@
 
   <section id="debtModal" hidden>
     <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
-    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,640px);max-height:90vh;overflow:auto;">
+    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,660px);max-height:90vh;overflow:auto;">
       <div class="grid-2" style="align-items:start;">
         <div>
           <div class="section-kicker">Debt</div>
@@ -236,6 +237,18 @@
           </div>
         </div>
 
+        <div class="grid-2">
+          <div class="field">
+            <label for="debtInstallmentAmount">Installment amount</label>
+            <input id="debtInstallmentAmount" type="number" min="0" step="0.01" placeholder="Optional" />
+          </div>
+
+          <div class="field">
+            <label for="debtNextDueDate">Next due / follow-up date</label>
+            <input id="debtNextDueDate" type="date" />
+          </div>
+        </div>
+
         <div class="field">
           <label for="debtNotes">Notes</label>
           <textarea id="debtNotes" placeholder="Optional"></textarea>
@@ -248,7 +261,7 @@
 
   <section id="movementModal" hidden>
     <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
-    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,560px);max-height:90vh;overflow:auto;">
+    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,600px);max-height:90vh;overflow:auto;">
       <div class="grid-2" style="align-items:start;">
         <div>
           <div class="section-kicker" id="movementKicker">Payment</div>
@@ -271,9 +284,21 @@
           </div>
 
           <div class="field">
-            <label for="movementAmount">Amount</label>
+            <label for="movementAmount" id="movementAmountLabel">Amount</label>
             <input id="movementAmount" type="number" min="0" step="0.01" required />
           </div>
+        </div>
+
+        <div class="field">
+          <label for="movementAccount" id="movementAccountLabel">Account</label>
+          <select id="movementAccount" required>
+            <option value="">Select account</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="movementNextDueDate" id="movementNextDateLabel">Next due / follow-up date</label>
+          <input id="movementNextDueDate" type="date" />
         </div>
 
         <div class="field">
@@ -282,6 +307,38 @@
         </div>
 
         <button class="primary-submit" type="submit" id="movementSubmit">Record</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="deferModal" hidden>
+    <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
+    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,560px);max-height:90vh;overflow:auto;">
+      <div class="grid-2" style="align-items:start;">
+        <div>
+          <div class="section-kicker">Defer</div>
+          <h2 class="authority-title" style="margin-top:12px;" id="deferTitle">Defer Debt</h2>
+          <p class="authority-copy" id="deferCopy">Move the next due date without changing the balance.</p>
+        </div>
+        <div class="text-right">
+          <button class="btn btn-secondary" type="button" id="closeDeferModal">Close</button>
+        </div>
+      </div>
+
+      <form id="deferForm" class="stack" style="margin-top:18px;">
+        <input type="hidden" id="deferDebtId" />
+
+        <div class="field">
+          <label for="deferNextDate">New next due / follow-up date</label>
+          <input id="deferNextDate" type="date" required />
+        </div>
+
+        <div class="field">
+          <label for="deferNotes">Reason / notes</label>
+          <textarea id="deferNotes" placeholder="Optional"></textarea>
+        </div>
+
+        <button class="primary-submit" type="submit">Defer Debt</button>
       </form>
     </div>
   </section>
@@ -295,13 +352,16 @@
     (() => {
       "use strict";
 
-      const VERSION = "ui5-debts-1";
+      const VERSION = "ui5-debts-2";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
       const state = {
         debts: [],
+        accounts: [],
         raw: null,
+        accountsRaw: null,
         error: null,
+        accountsError: null,
         search: "",
         filter: "active"
       };
@@ -325,6 +385,7 @@
         sideAddDebtBtn: $("sideAddDebtBtn"),
         refreshBtn: $("refreshBtn"),
         sideRefreshBtn: $("sideRefreshBtn"),
+
         debtModal: $("debtModal"),
         closeDebtModal: $("closeDebtModal"),
         debtForm: $("debtForm"),
@@ -335,7 +396,10 @@
         debtStatus: $("debtStatus"),
         debtOriginalAmount: $("debtOriginalAmount"),
         debtOutstandingAmount: $("debtOutstandingAmount"),
+        debtInstallmentAmount: $("debtInstallmentAmount"),
+        debtNextDueDate: $("debtNextDueDate"),
         debtNotes: $("debtNotes"),
+
         movementModal: $("movementModal"),
         closeMovementModal: $("closeMovementModal"),
         movementForm: $("movementForm"),
@@ -346,8 +410,23 @@
         movementCopy: $("movementCopy"),
         movementDate: $("movementDate"),
         movementAmount: $("movementAmount"),
+        movementAmountLabel: $("movementAmountLabel"),
+        movementAccount: $("movementAccount"),
+        movementAccountLabel: $("movementAccountLabel"),
+        movementNextDueDate: $("movementNextDueDate"),
+        movementNextDateLabel: $("movementNextDateLabel"),
         movementNotes: $("movementNotes"),
         movementSubmit: $("movementSubmit"),
+
+        deferModal: $("deferModal"),
+        closeDeferModal: $("closeDeferModal"),
+        deferForm: $("deferForm"),
+        deferDebtId: $("deferDebtId"),
+        deferNextDate: $("deferNextDate"),
+        deferNotes: $("deferNotes"),
+        deferTitle: $("deferTitle"),
+        deferCopy: $("deferCopy"),
+
         toast: $("toast"),
         debugPanel: $("debugPanel")
       };
@@ -421,14 +500,40 @@
         return [];
       }
 
+      function asAccountsArray(payload) {
+        if (!payload) return [];
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload.accounts)) return payload.accounts;
+        if (Array.isArray(payload.items)) return payload.items;
+        if (Array.isArray(payload.data)) return payload.data;
+        if (Array.isArray(payload.rows)) return payload.rows;
+        return [];
+      }
+
+      function accountId(account) {
+        return account.id || account.account_id || account.name;
+      }
+
+      function accountName(account) {
+        return account.name || account.account_name || account.label || account.id || account.account_id || "Account";
+      }
+
       function normalizeDirection(value) {
         const v = String(value ?? "").toLowerCase();
 
-        if (["owed_to_me", "owed", "receivable", "to_me", "they_owe_me", "receive"].includes(v)) {
+        if (["owed_to_me", "owed", "receivable", "to_me", "they_owe_me", "receive", "received"].includes(v)) {
           return "owed_to_me";
         }
 
+        if (["i_owe", "owe", "payable", "i owe", "debt"].includes(v)) {
+          return "i_owe";
+        }
+
         return "i_owe";
+      }
+
+      function directionLabel(direction) {
+        return direction === "owed_to_me" ? "Owed to me" : "I owe";
       }
 
       function normalizeStatus(value, outstanding) {
@@ -453,7 +558,9 @@
           raw.current_balance ??
           raw.amount
         );
+        const installment = num(raw.installment_amount ?? raw.installment ?? raw.expected_installment);
         const paid = num(raw.paid_amount ?? raw.paid ?? raw.amount_paid);
+        const nextDueDate = raw.next_due_date ?? raw.due_date ?? raw.nextDueDate ?? null;
         const status = normalizeStatus(raw.status, outstanding);
         const notes = raw.notes ?? raw.description ?? "";
 
@@ -464,7 +571,9 @@
           direction,
           original,
           outstanding,
+          installment,
           paid,
+          next_due_date: nextDueDate,
           status,
           notes
         };
@@ -472,16 +581,20 @@
 
       async function refresh() {
         state.error = null;
+        state.accountsError = null;
         renderLoading();
 
         try {
-          const payload = await readJson(`/api/debts?cb=${Date.now()}`);
-          state.raw = payload;
-          state.debts = asArray(payload).map(normalizeDebt);
-          state.error = null;
+          const [debtsPayload, accountsPayload] = await Promise.all([
+            readJson(`/api/debts?cb=${Date.now()}`),
+            readJson(`/api/accounts?cb=${Date.now()}`)
+          ]);
+
+          state.raw = debtsPayload;
+          state.accountsRaw = accountsPayload;
+          state.debts = asArray(debtsPayload).map(normalizeDebt);
+          state.accounts = asAccountsArray(accountsPayload);
         } catch (err) {
-          state.raw = null;
-          state.debts = [];
           state.error = err?.message || "Unable to load debts.";
         }
 
@@ -510,7 +623,7 @@
       function renderLoading() {
         els.pageStatus.textContent = "Loading";
         els.pageStatusDetail.textContent = "Fetching debts.";
-        els.debtsTableBody.innerHTML = `<tr><td colspan="6" class="muted text-center">Loading debts...</td></tr>`;
+        els.debtsTableBody.innerHTML = `<tr><td colspan="7" class="muted text-center">Loading debts...</td></tr>`;
         els.priorityList.innerHTML = `<div class="card card-compact muted">Loading debts...</div>`;
       }
 
@@ -561,21 +674,47 @@
         els.settledDebtCount.textContent = state.error ? "—" : String(settled.length);
       }
 
+      function renderDebtActions(debt) {
+        const id = escapeHtml(debt.id);
+        const status = String(debt.status || "").toLowerCase();
+
+        if (status === "settled" || status === "archived") {
+          return `<button class="btn btn-secondary" type="button" data-edit="${id}">Edit</button>`;
+        }
+
+        if (debt.direction === "i_owe") {
+          return `
+            <button class="btn btn-secondary" type="button" data-edit="${id}">Edit</button>
+            <button class="btn btn-success" type="button" data-pay="${id}">Payment</button>
+            <button class="btn btn-secondary" type="button" data-defer="${id}">Defer</button>
+          `;
+        }
+
+        if (debt.direction === "owed_to_me") {
+          return `
+            <button class="btn btn-secondary" type="button" data-edit="${id}">Edit</button>
+            <button class="btn btn-success" type="button" data-receive="${id}">Received</button>
+            <button class="btn btn-secondary" type="button" data-defer="${id}">Defer</button>
+          `;
+        }
+
+        return `<button class="btn btn-secondary" type="button" data-edit="${id}">Edit</button>`;
+      }
+
       function renderTable() {
         if (state.error) {
-          els.debtsTableBody.innerHTML = `<tr><td colspan="6" class="text-center">${escapeHtml(state.error)}</td></tr>`;
+          els.debtsTableBody.innerHTML = `<tr><td colspan="7" class="text-center">${escapeHtml(state.error)}</td></tr>`;
           return;
         }
 
         const debts = filteredDebts();
 
         if (!debts.length) {
-          els.debtsTableBody.innerHTML = `<tr><td colspan="6" class="muted text-center">No debts found.</td></tr>`;
+          els.debtsTableBody.innerHTML = `<tr><td colspan="7" class="muted text-center">No debts found.</td></tr>`;
           return;
         }
 
         els.debtsTableBody.innerHTML = debts.map(debt => {
-          const directionLabel = debt.direction === "owed_to_me" ? "Owed to me" : "I owe";
           const badgeClass = debt.status === "settled" ? "badge-pass" : debt.status === "archived" ? "badge-unknown" : "badge-warning";
 
           return `
@@ -584,14 +723,13 @@
                 <div class="strong">${escapeHtml(debt.name)}</div>
                 <div class="muted">${debt.notes ? escapeHtml(debt.notes) : "—"}</div>
               </td>
-              <td>${escapeHtml(directionLabel)}</td>
+              <td>${escapeHtml(directionLabel(debt.direction))}</td>
               <td>${money(debt.original)}</td>
               <td>${money(debt.outstanding)}</td>
+              <td>${debt.next_due_date ? escapeHtml(debt.next_due_date) : "—"}</td>
               <td><span class="badge ${badgeClass}">${escapeHtml(debt.status)}</span></td>
               <td class="text-right">
-                <button class="btn btn-secondary" type="button" data-edit="${escapeHtml(debt.id)}">Edit</button>
-                <button class="btn btn-success" type="button" data-pay="${escapeHtml(debt.id)}">Payment</button>
-                <button class="btn btn-secondary" type="button" data-receive="${escapeHtml(debt.id)}">Received</button>
+                ${renderDebtActions(debt)}
               </td>
             </tr>
           `;
@@ -615,21 +753,17 @@
           return;
         }
 
-        els.priorityList.innerHTML = priority.map(debt => {
-          const directionLabel = debt.direction === "owed_to_me" ? "Owed to me" : "I owe";
-
-          return `
-            <div class="card card-compact">
-              <div class="grid-2" style="align-items:center;">
-                <div>
-                  <div class="strong">${escapeHtml(debt.name)}</div>
-                  <div class="muted">${escapeHtml(directionLabel)}</div>
-                </div>
-                <div class="text-right strong">${money(debt.outstanding)}</div>
+        els.priorityList.innerHTML = priority.map(debt => `
+          <div class="card card-compact">
+            <div class="grid-2" style="align-items:center;">
+              <div>
+                <div class="strong">${escapeHtml(debt.name)}</div>
+                <div class="muted">${escapeHtml(directionLabel(debt.direction))}${debt.next_due_date ? ` · ${escapeHtml(debt.next_due_date)}` : ""}</div>
               </div>
+              <div class="text-right strong">${money(debt.outstanding)}</div>
             </div>
-          `;
-        }).join("");
+          </div>
+        `).join("");
       }
 
       function renderDebug() {
@@ -640,15 +774,33 @@
           ui_version: VERSION,
           mode: "debug",
           error: state.error,
-          count: state.debts.length,
+          accounts_error: state.accountsError,
+          debt_count: state.debts.length,
+          account_count: state.accounts.length,
           filter: state.filter,
           search: state.search,
-          raw_payload: state.raw
+          raw_payload: state.raw,
+          accounts_payload: state.accountsRaw
         }, null, 2);
       }
 
       function debtById(id) {
         return state.debts.find(d => String(d.id) === String(id));
+      }
+
+      function renderAccountOptions(selected = "") {
+        const accounts = state.accounts || [];
+
+        els.movementAccount.innerHTML = `
+          <option value="">Select account</option>
+          ${accounts.map(account => {
+            const id = accountId(account);
+            const name = accountName(account);
+            const balance = account.balance ?? account.current_balance;
+            const label = Number.isFinite(Number(balance)) ? `${name} · ${money(balance)}` : name;
+            return `<option value="${escapeHtml(id)}"${String(id) === String(selected) ? " selected" : ""}>${escapeHtml(label)}</option>`;
+          }).join("")}
+        `;
       }
 
       function openDebtModal(debt = null) {
@@ -660,6 +812,8 @@
         els.debtStatus.value = debt?.status ?? "active";
         els.debtOriginalAmount.value = debt?.original ?? "";
         els.debtOutstandingAmount.value = debt?.outstanding ?? "";
+        els.debtInstallmentAmount.value = debt?.installment ?? "";
+        els.debtNextDueDate.value = debt?.next_due_date ?? "";
         els.debtNotes.value = debt?.notes ?? "";
         setTimeout(() => els.debtName.focus(), 30);
       }
@@ -677,14 +831,23 @@
         els.movementDebtId.value = debt.id;
         els.movementType.value = type;
         els.movementDate.value = todayIso();
-        els.movementAmount.value = "";
+        els.movementAmount.value = debt.installment ?? "";
+        els.movementNextDueDate.value = debt.next_due_date ?? "";
         els.movementNotes.value = "";
+
         els.movementKicker.textContent = isReceived ? "Received" : "Payment";
         els.movementTitle.textContent = isReceived ? "Record Received" : "Record Payment";
         els.movementCopy.textContent = isReceived
           ? `Record amount received for ${debt.name}.`
           : `Record payment made for ${debt.name}.`;
+
+        els.movementAmountLabel.textContent = isReceived ? "Amount received" : "Amount paid";
+        els.movementAccountLabel.textContent = isReceived ? "Received into account" : "Paid from account";
+        els.movementNextDateLabel.textContent = isReceived ? "Next follow-up date" : "Next due date";
         els.movementSubmit.textContent = isReceived ? "Record Received" : "Record Payment";
+
+        renderAccountOptions();
+
         setTimeout(() => els.movementAmount.focus(), 30);
       }
 
@@ -693,6 +856,22 @@
         els.movementForm.reset();
         els.movementDebtId.value = "";
         els.movementType.value = "";
+      }
+
+      function openDeferModal(debt) {
+        els.deferModal.hidden = false;
+        els.deferDebtId.value = debt.id;
+        els.deferNextDate.value = debt.next_due_date ?? "";
+        els.deferNotes.value = "";
+        els.deferTitle.textContent = `Defer ${debt.name}`;
+        els.deferCopy.textContent = "Move the next due date. No money movement is recorded.";
+        setTimeout(() => els.deferNextDate.focus(), 30);
+      }
+
+      function closeDeferModal() {
+        els.deferModal.hidden = true;
+        els.deferForm.reset();
+        els.deferDebtId.value = "";
       }
 
       function toast(message, type = "") {
@@ -726,6 +905,8 @@
         const original = Number(els.debtOriginalAmount.value);
         const outstandingInput = els.debtOutstandingAmount.value.trim();
         const outstanding = outstandingInput ? Number(outstandingInput) : original;
+        const installmentInput = els.debtInstallmentAmount.value.trim();
+        const installment = installmentInput ? Number(installmentInput) : null;
 
         const payload = {
           name: els.debtName.value.trim(),
@@ -735,6 +916,9 @@
           amount: original,
           outstanding_amount: outstanding,
           outstanding,
+          installment_amount: installment,
+          next_due_date: els.debtNextDueDate.value || null,
+          due_date: els.debtNextDueDate.value || null,
           status: els.debtStatus.value,
           notes: els.debtNotes.value.trim()
         };
@@ -763,13 +947,38 @@
         const id = payload.id;
         const action = payload.type === "received" ? "received" : "payment";
 
+        const body = {
+          ...payload,
+          action,
+          debt_id: id,
+          account_id: payload.account_id
+        };
+
         const candidates = [
-          { url: `/api/debts/${encodeURIComponent(id)}/pay`, method: "POST", body: { ...payload, action } },
-          { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body: { ...payload, action } },
-          { url: "/api/debts", method: "POST", body: { ...payload, debt_id: id, action } }
+          { url: `/api/debts/${encodeURIComponent(id)}/pay`, method: "POST", body },
+          { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body },
+          { url: "/api/debts", method: "POST", body }
         ];
 
-        return tryMutation(candidates, payload);
+        return tryMutation(candidates, body);
+      }
+
+      async function deferDebt(payload) {
+        const id = payload.id;
+
+        const body = {
+          ...payload,
+          action: "defer",
+          debt_id: id
+        };
+
+        const candidates = [
+          { url: `/api/debts/${encodeURIComponent(id)}/defer`, method: "POST", body },
+          { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body },
+          { url: "/api/debts", method: "POST", body }
+        ];
+
+        return tryMutation(candidates, body);
       }
 
       function bindEvents() {
@@ -777,8 +986,10 @@
         els.sideAddDebtBtn.addEventListener("click", () => openDebtModal());
         els.refreshBtn.addEventListener("click", refresh);
         els.sideRefreshBtn.addEventListener("click", refresh);
+
         els.closeDebtModal.addEventListener("click", closeDebtModal);
         els.closeMovementModal.addEventListener("click", closeMovementModal);
+        els.closeDeferModal.addEventListener("click", closeDeferModal);
 
         els.searchInput.addEventListener("input", event => {
           state.search = event.target.value;
@@ -794,6 +1005,7 @@
           const editId = event.target?.getAttribute?.("data-edit");
           const payId = event.target?.getAttribute?.("data-pay");
           const receiveId = event.target?.getAttribute?.("data-receive");
+          const deferId = event.target?.getAttribute?.("data-defer");
 
           if (editId) {
             const debt = debtById(editId);
@@ -809,12 +1021,18 @@
             const debt = debtById(receiveId);
             if (debt) openMovementModal(debt, "received");
           }
+
+          if (deferId) {
+            const debt = debtById(deferId);
+            if (debt) openDeferModal(debt);
+          }
         });
 
         document.addEventListener("keydown", event => {
           if (event.key === "Escape") {
             closeDebtModal();
             closeMovementModal();
+            closeDeferModal();
           }
         });
 
@@ -838,6 +1056,11 @@
             return;
           }
 
+          if (payload.installment_amount !== null && !Number.isFinite(payload.installment_amount)) {
+            toast("Installment amount is invalid.", "toast-warning");
+            return;
+          }
+
           try {
             await saveDebt(payload);
             closeDebtModal();
@@ -854,13 +1077,21 @@
           const payload = {
             id: els.movementDebtId.value,
             type: els.movementType.value,
+            action: els.movementType.value === "received" ? "received" : "payment",
             date: els.movementDate.value,
             amount: Number(els.movementAmount.value),
+            account_id: els.movementAccount.value,
+            next_due_date: els.movementNextDueDate.value || null,
             notes: els.movementNotes.value.trim()
           };
 
-          if (!payload.id || !payload.date || !Number.isFinite(payload.amount)) {
-            toast("Date and amount are required.", "toast-warning");
+          if (!payload.id || !payload.date || !Number.isFinite(payload.amount) || !payload.account_id) {
+            toast("Date, amount, and account are required.", "toast-warning");
+            return;
+          }
+
+          if (payload.amount <= 0) {
+            toast("Amount must be greater than zero.", "toast-warning");
             return;
           }
 
@@ -871,6 +1102,31 @@
             await refresh();
           } catch (err) {
             toast(err?.message || "Unable to record movement.", "toast-error");
+          }
+        });
+
+        els.deferForm.addEventListener("submit", async event => {
+          event.preventDefault();
+
+          const payload = {
+            id: els.deferDebtId.value,
+            action: "defer",
+            next_due_date: els.deferNextDate.value,
+            notes: els.deferNotes.value.trim()
+          };
+
+          if (!payload.id || !payload.next_due_date) {
+            toast("New next due date is required.", "toast-warning");
+            return;
+          }
+
+          try {
+            await deferDebt(payload);
+            closeDeferModal();
+            toast("Debt deferred.", "toast-success");
+            await refresh();
+          } catch (err) {
+            toast(err?.message || "Unable to defer debt.", "toast-error");
           }
         });
       }
