@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0f172a" />
 <title>Command Centre - Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=2.0.0" />
+<link rel="stylesheet" href="/css/app.css?v=2.0.2" />
 
 <style>
 .command-page {
@@ -65,7 +65,8 @@
   font-weight: 760;
 }
 
-.command-kpi-grid {
+.command-kpi-grid,
+.command-score-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
@@ -97,7 +98,8 @@
 
 .command-card.blocked,
 .command-card.soft_block,
-.command-card.preflight_required {
+.command-card.preflight_required,
+.command-card.banned {
   border-color: rgba(185, 28, 28, 0.22);
 }
 
@@ -121,6 +123,61 @@
   line-height: 1.45;
   font-weight: 740;
   overflow-wrap: anywhere;
+}
+
+.command-score-card {
+  position: relative;
+  overflow: hidden;
+  padding: 18px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.command-score-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, var(--info), transparent);
+}
+
+.command-score-card.ready::before {
+  background: linear-gradient(90deg, var(--success), transparent);
+}
+
+.command-score-card.warning::before {
+  background: linear-gradient(90deg, var(--warn), transparent);
+}
+
+.command-score-card.blocked::before {
+  background: linear-gradient(90deg, var(--danger), transparent);
+}
+
+.command-score-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.command-score-value {
+  margin-top: 8px;
+  color: var(--text-strong);
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1;
+  font-weight: 950;
+  letter-spacing: -0.06em;
+}
+
+.command-score-sub {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  font-weight: 760;
 }
 
 .command-meta {
@@ -296,13 +353,15 @@
     grid-template-columns: 1fr;
   }
 
-  .command-kpi-grid {
+  .command-kpi-grid,
+  .command-score-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 720px) {
-  .command-kpi-grid {
+  .command-kpi-grid,
+  .command-score-grid {
     grid-template-columns: 1fr;
   }
 
@@ -332,21 +391,29 @@
 <main class="app-page command-page">
 <section class="command-grid">
 <div class="command-hero">
-<div class="hero-kicker">Authority dashboard</div>
-<h1 class="hero-title">Full governor surface. Nothing hidden.</h1>
+<div class="hero-kicker">Live authority audit</div>
+<h1 class="hero-title">Command Centre audits the whole finance system.</h1>
 <p class="hero-copy">
-Command Centre shows every route, action, proof, checklist, lift rule, blocker, override policy, emergency playbook, and next action returned by the backend authority model.
+Run a manual audit, refresh live authority, measure progress, and inspect every route, action, proof, checklist, blocker, override policy, and next build layer.
 </p>
 
 <div class="command-status-strip">
 <span id="cmdVersionBadge" class="badge badge-unknown">Version loading</span>
 <span id="cmdGovernorBadge" class="badge badge-unknown">Governor loading</span>
+<span id="cmdAuditBadge" class="badge badge-unknown">Audit not run</span>
 <span id="cmdWriteScopeBadge" class="badge badge-info">Scope loading</span>
 <span id="cmdOverrideBadge" class="badge badge-unknown">Overrides loading</span>
 </div>
 
+<div class="command-actions-row" style="margin-top:18px">
+<button id="cmdManualAuditBtn" class="btn btn-success" type="button">Run Manual Audit</button>
+<button id="cmdRefreshBtn" class="btn btn-secondary" type="button">Refresh</button>
+<a class="btn btn-secondary" href="/index.html">Open Hub</a>
+<a class="btn btn-secondary" href="/bills.html">Open Bills</a>
+</div>
+
 <div class="command-tabs">
-<a class="btn btn-secondary" href="#overview">Overview</a>
+<a class="btn btn-secondary" href="#progress">Progress</a>
 <a class="btn btn-secondary" href="#actions">Actions</a>
 <a class="btn btn-secondary" href="#routes">Routes</a>
 <a class="btn btn-secondary" href="#proofs">Proofs</a>
@@ -356,15 +423,76 @@ Command Centre shows every route, action, proof, checklist, lift rule, blocker, 
 </div>
 
 <aside class="command-side-card">
-<div class="command-side-title">Emergency posture</div>
+<div class="command-side-title">Audit status</div>
 <div id="cmdEmergencyCopy" class="command-side-copy">
-Loading override and emergency policy...
+Loading audit and override policy...
 </div>
-<div class="command-actions-row" style="margin-top:14px">
-<a class="btn btn-secondary" href="/index.html">Open Hub</a>
-<a class="btn btn-secondary" href="/bills.html">Open Bills</a>
+<div class="command-meta">
+<div class="command-meta-row"><span>Last audit</span><strong id="cmdLastAudit">Never</strong></div>
+<div class="command-meta-row"><span>Audit mode</span><strong id="cmdAuditMode">Loading</strong></div>
+<div class="command-meta-row"><span>Broadcast</span><strong id="cmdBroadcastStatus">Pending</strong></div>
 </div>
 </aside>
+</section>
+
+<section id="progress" class="command-section">
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Live progress scoreboard</div>
+<div class="command-section-copy">Top-level operational audit cards restored from the Command Centre model.</div>
+</div>
+<span id="cmdComputedAt" class="badge badge-info">Loading</span>
+</div>
+
+<div class="command-score-grid">
+<div id="scoreOverallCard" class="command-score-card">
+<div class="command-score-label">Overall command score</div>
+<div id="scoreOverall" class="command-score-value">-</div>
+<div id="scoreOverallSub" class="command-score-sub">Loading</div>
+</div>
+
+<div id="scoreApiCard" class="command-score-card">
+<div class="command-score-label">API Health</div>
+<div id="scoreApi" class="command-score-value">-</div>
+<div id="scoreApiSub" class="command-score-sub">Loading</div>
+</div>
+
+<div id="scoreTruthCard" class="command-score-card">
+<div class="command-score-label">Finance Truth</div>
+<div id="scoreTruth" class="command-score-value">-</div>
+<div id="scoreTruthSub" class="command-score-sub">Loading</div>
+</div>
+
+<div id="scoreWiringCard" class="command-score-card">
+<div class="command-score-label">Wiring</div>
+<div id="scoreWiring" class="command-score-value">-</div>
+<div id="scoreWiringSub" class="command-score-sub">Loading</div>
+</div>
+
+<div id="scoreLogicCard" class="command-score-card">
+<div class="command-score-label">Logic</div>
+<div id="scoreLogic" class="command-score-value">-</div>
+<div id="scoreLogicSub" class="command-score-sub">Loading</div>
+</div>
+
+<div id="scoreUiCard" class="command-score-card">
+<div class="command-score-label">UI Cleanliness</div>
+<div id="scoreUi" class="command-score-value">-</div>
+<div id="scoreUiSub" class="command-score-sub">Loading</div>
+</div>
+
+<div id="scoreSafetyCard" class="command-score-card">
+<div class="command-score-label">Impact Safety</div>
+<div id="scoreSafety" class="command-score-value">-</div>
+<div id="scoreSafetySub" class="command-score-sub">Loading</div>
+</div>
+
+<div id="scoreUnknownsCard" class="command-score-card">
+<div class="command-score-label">Unknowns / blockers</div>
+<div id="scoreUnknowns" class="command-score-value">-</div>
+<div id="scoreUnknownsSub" class="command-score-sub">Loading</div>
+</div>
+</div>
 </section>
 
 <section id="overview" class="command-section">
@@ -373,7 +501,6 @@ Loading override and emergency policy...
 <div class="command-section-title">Governor overview</div>
 <div class="command-section-copy">Live summary of Command Centre authority and readiness.</div>
 </div>
-<span id="cmdComputedAt" class="badge badge-info">Loading</span>
 </div>
 
 <div class="command-kpi-grid">
@@ -519,7 +646,7 @@ Loading override and emergency policy...
 </section>
 
 <footer class="command-page-meta" aria-hidden="true">
-Command Centre full surface UI v2.1.0
+Operational Command Centre UI v2.2.0
 </footer>
 </main>
 
@@ -533,8 +660,11 @@ Command Centre full surface UI v2.1.0
 (function () {
   "use strict";
 
-  const VERSION = "2.1.0";
+  const VERSION = "2.2.0";
+  const LAST_AUDIT_KEY = "sovereign_command_centre_last_audit";
+
   let commandData = null;
+  let auditRunning = false;
 
   const $ = id => document.getElementById(id);
 
@@ -584,6 +714,35 @@ Command Centre full surface UI v2.1.0
     return "";
   }
 
+  function scoreClass(score) {
+    const n = Number(score);
+    if (!Number.isFinite(n)) return "blocked";
+    if (n >= 90) return "ready";
+    if (n >= 70) return "warning";
+    return "blocked";
+  }
+
+  function scoreLabel(score) {
+    const n = Number(score);
+    if (!Number.isFinite(n)) return "UNKNOWN";
+    if (n >= 90) return "READY";
+    if (n >= 70) return "WARNING";
+    if (n >= 40) return "DEGRADED";
+    return "BLOCKED";
+  }
+
+  function pct(score) {
+    const n = Number(score);
+    if (!Number.isFinite(n)) return "—";
+    return Math.round(n) + "%";
+  }
+
+  function avg(values) {
+    const clean = values.map(Number).filter(Number.isFinite);
+    if (!clean.length) return 0;
+    return clean.reduce((sum, value) => sum + value, 0) / clean.length;
+  }
+
   async function fetchCommandCentre() {
     const res = await fetch("/api/finance-command-center?cb=" + Date.now(), { cache: "no-store" });
     const data = await res.json().catch(() => null);
@@ -593,6 +752,100 @@ Command Centre full surface UI v2.1.0
     }
 
     return data;
+  }
+
+  function setAuditButtons(disabled) {
+    ["cmdManualAuditBtn", "cmdRefreshBtn"].forEach(id => {
+      const btn = $(id);
+      if (btn) btn.disabled = disabled;
+    });
+  }
+
+  function persistAudit(data, mode) {
+    const payload = {
+      saved_at: new Date().toISOString(),
+      mode,
+      version: data.version,
+      computed_at: data.computed_at,
+      status: data.coverage?.write_safety?.status || data.enforcement?.global_status || data.verdict || "unknown",
+      counts: {
+        actions: data.enforcement?.actions?.length || 0,
+        routes: data.enforcement?.routes?.length || 0,
+        proofs: data.source_proofs?.length || 0,
+        checklists: data.enforcement?.action_checklists?.length || 0,
+        blocks: data.enforcement?.block_explanations?.length || 0
+      }
+    };
+
+    localStorage.setItem(LAST_AUDIT_KEY, JSON.stringify(payload));
+    setText("cmdLastAudit", new Date(payload.saved_at).toLocaleString());
+    setText("cmdAuditMode", mode);
+  }
+
+  function broadcastAudit(data) {
+    window.SovereignCommandAudit = data;
+
+    window.dispatchEvent(new CustomEvent("sovereign:command-centre-audited", {
+      detail: data
+    }));
+
+    window.dispatchEvent(new CustomEvent("sovereign:authority-updated", {
+      detail: data
+    }));
+
+    setText("cmdBroadcastStatus", "Sent");
+
+    if (window.SovereignEnforcement && typeof window.SovereignEnforcement.refresh === "function") {
+      window.SovereignEnforcement.refresh().catch(() => {});
+    }
+  }
+
+  async function runAudit(mode) {
+    if (auditRunning) return;
+
+    auditRunning = true;
+    setAuditButtons(true);
+
+    const badge = $("cmdAuditBadge");
+    if (badge) {
+      badge.className = "badge badge-preflight";
+      badge.textContent = mode === "manual" ? "Manual audit running" : "Refresh running";
+    }
+
+    setText("cmdBroadcastStatus", "Pending");
+
+    try {
+      const data = await fetchCommandCentre();
+      commandData = data;
+
+      renderAll(data);
+      persistAudit(data, mode);
+      broadcastAudit(data);
+
+      if (badge) {
+        badge.className = "badge badge-ready";
+        badge.textContent = mode === "manual" ? "Manual audit complete" : "Refresh complete";
+      }
+
+      console.log("[command-ui v2.2.0] audit complete", {
+        mode,
+        version: data.version,
+        actions: data.enforcement?.actions?.length,
+        routes: data.enforcement?.routes?.length,
+        checklists: data.enforcement?.action_checklists?.length
+      });
+    } catch (err) {
+      console.error("[command-ui v2.2.0] audit failed", err);
+      renderError(err);
+
+      if (badge) {
+        badge.className = "badge badge-blocked";
+        badge.textContent = "Audit failed";
+      }
+    } finally {
+      auditRunning = false;
+      setAuditButtons(false);
+    }
   }
 
   function actionCard(action) {
@@ -610,6 +863,22 @@ Command Centre full surface UI v2.1.0
         <span class="${action.allowed ? "badge badge-ready" : "badge badge-blocked"}">${action.allowed ? "Allowed" : "Blocked"}</span>
       </article>
     `;
+  }
+
+  function renderAll(data) {
+    renderHeader(data);
+    renderScoreboard(data);
+    renderOverview(data);
+    renderActions(data);
+    renderRoutes(data);
+    renderProofs(data);
+    renderChecklists(data);
+    renderLiftCriteria(data);
+    renderBlockExplanations(data);
+    renderOverridePolicy(data);
+    renderPlaybooks(data);
+    renderNextActions(data);
+    renderDiagnostic(data);
   }
 
   function renderHeader(data) {
@@ -645,6 +914,57 @@ Command Centre full surface UI v2.1.0
 
     setText("cmdComputedAt", data.computed_at ? "Computed " + new Date(data.computed_at).toLocaleString() : "Computed now");
     setText("cmdEmergencyCopy", data.enforcement?.enforcement_status_note || "Command Centre authority loaded.");
+  }
+
+  function setScoreCard(cardId, valueId, subId, score, sub) {
+    const card = $(cardId);
+    if (card) {
+      card.classList.remove("ready", "warning", "blocked");
+      card.classList.add(scoreClass(score));
+    }
+
+    setText(valueId, pct(score));
+    setText(subId, scoreLabel(score) + " · " + sub);
+  }
+
+  function renderScoreboard(data) {
+    const scores = data.scores || {};
+    const hard = Array.isArray(data.hard_blockers) ? data.hard_blockers.length : 0;
+    const warnings = Array.isArray(data.warnings) ? data.warnings.length : 0;
+    const unknowns = Array.isArray(data.unknowns) ? data.unknowns.length : 0;
+    const pageProofs = Array.isArray(data.page_proofs) ? data.page_proofs : [];
+    const routes = data.enforcement && Array.isArray(data.enforcement.routes) ? data.enforcement.routes : [];
+    const proofs = Array.isArray(data.source_proofs) ? data.source_proofs : [];
+
+    const pageProofScore = pageProofs.length ? pageProofs.filter(p => p.status === "pass").length / pageProofs.length * 100 : 0;
+    const routeScore = routes.length ? routes.filter(r => r.view_allowed).length / routes.length * 100 : 0;
+    const proofScore = proofs.length ? proofs.filter(p => p.status === "pass" || p.status === "banned").length / proofs.length * 100 : 0;
+
+    const apiHealth = Number(scores.api_health || 0);
+    const financeTruth = avg([scores.d1_core, scores.business_rules]);
+    const wiring = avg([pageProofScore, routeScore, proofScore]);
+    const logic = Number(scores.business_rules || 0);
+    const uiCleanliness = pageProofScore || 80;
+    const impactSafety = Number(scores.write_safety || 0);
+    const overall = Number.isFinite(Number(data.score)) ? Number(data.score) : avg([apiHealth, financeTruth, wiring, logic, uiCleanliness, impactSafety]);
+
+    setScoreCard("scoreOverallCard", "scoreOverall", "scoreOverallSub", overall, "overall governor score");
+    setScoreCard("scoreApiCard", "scoreApi", "scoreApiSub", apiHealth, "required APIs");
+    setScoreCard("scoreTruthCard", "scoreTruth", "scoreTruthSub", financeTruth, "D1 + business rules");
+    setScoreCard("scoreWiringCard", "scoreWiring", "scoreWiringSub", wiring, "routes + proofs + page wiring");
+    setScoreCard("scoreLogicCard", "scoreLogic", "scoreLogicSub", logic, "business rule score");
+    setScoreCard("scoreUiCard", "scoreUi", "scoreUiSub", uiCleanliness, "page proof / UI wiring");
+    setScoreCard("scoreSafetyCard", "scoreSafety", "scoreSafetySub", impactSafety, "write safety score");
+
+    const unknownScore = hard ? 0 : warnings || unknowns ? 70 : 100;
+    const unknownCard = $("scoreUnknownsCard");
+    if (unknownCard) {
+      unknownCard.classList.remove("ready", "warning", "blocked");
+      unknownCard.classList.add(scoreClass(unknownScore));
+    }
+
+    setText("scoreUnknowns", String(hard + warnings + unknowns));
+    setText("scoreUnknownsSub", hard + " hard · " + warnings + " warnings · " + unknowns + " unknowns");
   }
 
   function renderOverview(data) {
@@ -852,7 +1172,6 @@ Command Centre full surface UI v2.1.0
     if (!container) return;
 
     const policy = data.enforcement?.overrides || data.override_policy || {};
-
     const requestSchema = policy.request_schema || {};
     const backendContract = policy.required_backend_contract_for_future_application || {};
 
@@ -998,48 +1317,46 @@ Command Centre full surface UI v2.1.0
   function wireEvents() {
     const toggle = $("cmdToggleRaw");
     const raw = $("cmdRawJson");
+
     if (toggle && raw) {
       toggle.addEventListener("click", () => {
         raw.hidden = !raw.hidden;
       });
     }
+
+    const manual = $("cmdManualAuditBtn");
+    const refresh = $("cmdRefreshBtn");
+
+    if (manual) manual.addEventListener("click", () => runAudit("manual"));
+    if (refresh) refresh.addEventListener("click", () => runAudit("refresh"));
   }
 
-  async function init() {
-    console.log("[command-ui v2.1.0] init");
-    wireEvents();
-
+  function restoreLastAudit() {
     try {
-      commandData = await fetchCommandCentre();
+      const raw = localStorage.getItem(LAST_AUDIT_KEY);
+      if (!raw) return;
 
-      renderHeader(commandData);
-      renderOverview(commandData);
-      renderActions(commandData);
-      renderRoutes(commandData);
-      renderProofs(commandData);
-      renderChecklists(commandData);
-      renderLiftCriteria(commandData);
-      renderBlockExplanations(commandData);
-      renderOverridePolicy(commandData);
-      renderPlaybooks(commandData);
-      renderNextActions(commandData);
-      renderDiagnostic(commandData);
-
-      console.log("[command-ui v2.1.0] ready", {
-        version: commandData.version,
-        actions: commandData.enforcement?.actions?.length,
-        routes: commandData.enforcement?.routes?.length,
-        checklists: commandData.enforcement?.action_checklists?.length
-      });
+      const saved = JSON.parse(raw);
+      if (saved && saved.saved_at) {
+        setText("cmdLastAudit", new Date(saved.saved_at).toLocaleString());
+        setText("cmdAuditMode", saved.mode || "saved");
+      }
     } catch (err) {
-      console.error("[command-ui v2.1.0] failed", err);
-      renderError(err);
+      localStorage.removeItem(LAST_AUDIT_KEY);
     }
+  }
+
+  function init() {
+    console.log("[command-ui v2.2.0] init");
+    wireEvents();
+    restoreLastAudit();
+    runAudit("initial");
   }
 
   window.SovereignCommandUI = {
     version: VERSION,
-    refresh: init,
+    refresh: () => runAudit("refresh"),
+    manualAudit: () => runAudit("manual"),
     data: () => commandData
   };
 
