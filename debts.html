@@ -122,7 +122,7 @@
 
 .debts-table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1080px;
   border-collapse: collapse;
 }
 
@@ -221,6 +221,12 @@
   border-color: transparent;
 }
 
+.debt-action-button.danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: transparent;
+}
+
 .debt-action-button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -313,14 +319,15 @@
 <section class="debts-hero-grid">
 <div class="page-hero">
 <div class="hero-kicker">Debt authority layer</div>
-<h1 class="hero-title">Debt visibility is live. Writes prove first.</h1>
+<h1 class="hero-title">Debt visibility is live. Writes obey Command Centre.</h1>
 <p class="hero-copy">
-Debts now have safe dry-run proof for save and pay routes. Real debt writes remain blocked until Command Centre recognizes page preflight and explicitly lifts debt.save and debt.pay.
+Debts can read live data and run dry-run proof. Real save/pay actions only unlock when Command Centre returns debt.save and debt.pay as allowed.
 </p>
 
 <div class="debts-status-strip">
 <span id="debtsApiBadge" class="badge badge-unknown">Debts API loading</span>
 <span id="debtsGovernorBadge" class="badge badge-unknown">Governor loading</span>
+<span id="debtsPreflightBadge" class="badge badge-unknown">debt.preflight checking</span>
 <span id="debtsSaveBadge" class="badge badge-blocked">debt.save checking</span>
 <span id="debtsPayBadge" class="badge badge-blocked">debt.pay checking</span>
 </div>
@@ -329,20 +336,20 @@ Debts now have safe dry-run proof for save and pay routes. Real debt writes rema
 <aside class="debts-side">
 <div class="debts-card">
 <div class="debts-card-title">Debt safety posture</div>
-<div class="debts-card-copy">
-This page can read debts and run dry-run proof. Real debt creation, update, cancel, and payment remain gated by Command Centre.
+<div id="debtSafetyCopy" class="debts-card-copy">
+Loading Command Centre debt authority...
 </div>
 <div style="margin-top:12px">
 <span class="badge badge-ready">Read healthy</span>
-<span class="badge badge-preflight">Dry-run available</span>
-<span class="badge badge-blocked">Real writes gated</span>
+<span id="debtDryRunBadge" class="badge badge-preflight">Dry-run checking</span>
+<span id="debtRealWriteBadge" class="badge badge-blocked">Real writes checking</span>
 </div>
 </div>
 
 <div class="debts-card">
-<div class="debts-card-title">Next Command Centre lift</div>
-<div class="debts-card-copy">
-After page preflight is verified, Command Centre can recognize debt proof and later lift debt.save and debt.pay.
+<div class="debts-card-title">Command Centre lift state</div>
+<div id="debtLiftCopy" class="debts-card-copy">
+This page will enable real buttons only after Command Centre allows the matching action.
 </div>
 </div>
 </aside>
@@ -370,7 +377,7 @@ After page preflight is verified, Command Centre can recognize debt proof and la
 <div class="kpi-card">
 <div class="kpi-label">Authority</div>
 <div id="debtAuthorityStatus" class="kpi-value">Gated</div>
-<div class="kpi-sub">Until Command Centre lift</div>
+<div id="debtAuthoritySub" class="kpi-sub">Until Command Centre lift</div>
 </div>
 </section>
 
@@ -405,7 +412,7 @@ Checking Command Centre debt authority...
 <th>Paid</th>
 <th>Remaining</th>
 <th>Due</th>
-<th>Proof actions</th>
+<th>Proof / real actions</th>
 </tr>
 </thead>
 <tbody id="debtsTableBody"></tbody>
@@ -419,9 +426,9 @@ Checking Command Centre debt authority...
 <div class="debts-section-head">
 <div>
 <div class="debts-section-title">Debt action staging</div>
-<div class="debts-section-copy">Visual form only. Real write remains disabled until Command Centre lift.</div>
+<div class="debts-section-copy">Real form remains disabled until Command Centre allows debt.save.</div>
 </div>
-<span class="badge badge-blocked">Real write disabled</span>
+<span id="formAuthorityBadge" class="badge badge-blocked">Real write disabled</span>
 </div>
 
 <div class="debt-form-card">
@@ -456,17 +463,17 @@ Checking Command Centre debt authority...
 </div>
 
 <button class="primary-submit" type="button" disabled>
-debt.save proof required before real write
+debt.save page form disabled
 </button>
 
-<div class="debt-disabled-note">
-Debt form is intentionally disabled. Use row-level dry-run proof first. Real save/pay will be enabled only after Command Centre recognizes debt proof and lifts the action.
+<div id="debtFormNote" class="debt-disabled-note">
+Use row-level dry-run proof first. Real save/pay depends on Command Centre action state.
 </div>
 </div>
 </section>
 
 <footer class="debts-page-meta" aria-hidden="true">
-Debts preflight UI v2.2.0
+Debts UI v2.2.0
 </footer>
 </main>
 
@@ -486,6 +493,11 @@ Debts preflight UI v2.2.0
   let debts = [];
   let command = null;
   let proofs = {};
+  let authority = {
+    preflight: false,
+    save: false,
+    pay: false
+  };
 
   const $ = id => document.getElementById(id);
 
@@ -517,12 +529,7 @@ Debts preflight UI v2.2.0
   }
 
   function debtRemaining(debt) {
-    const candidates = [
-      debt.remaining_amount,
-      debt.balance,
-      debt.outstanding,
-      debt.amount
-    ];
+    const candidates = [debt.remaining_amount, debt.balance, debt.outstanding, debt.amount];
 
     for (const value of candidates) {
       const n = Number(value);
@@ -590,6 +597,11 @@ Debts preflight UI v2.2.0
     return data;
   }
 
+  function actionAllowed(actions, name) {
+    const found = actions.find(action => action.action === name);
+    return Boolean(found && found.allowed);
+  }
+
   async function loadCommandCentre() {
     try {
       command = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
@@ -597,35 +609,114 @@ Debts preflight UI v2.2.0
         ? command.enforcement.actions
         : [];
 
-      const preflight = actions.find(a => a.action === "debt.preflight");
-const save = actions.find(a => a.action === "debt.save");
-const pay = actions.find(a => a.action === "debt.pay");
+      authority = {
+        preflight: actionAllowed(actions, "debt.preflight"),
+        save: actionAllowed(actions, "debt.save"),
+        pay: actionAllowed(actions, "debt.pay")
+      };
 
-const preflightAllowed = Boolean(preflight && preflight.allowed);
-const saveAllowed = Boolean(save && save.allowed);
-const payAllowed = Boolean(pay && pay.allowed);
+      const anyReal = authority.save || authority.pay;
 
-      setBadge(   "debtsGovernorBadge",   saveAllowed || payAllowed ? "Debt writes allowed" : preflightAllowed ? "Debt preflight recognized" : "Debt writes gated",   saveAllowed || payAllowed ? "badge-ready" : preflightAllowed ? "badge-preflight" : "badge-blocked" );
-      setBadge("debtsSaveBadge", saveAllowed ? "debt.save allowed" : "debt.save blocked", saveAllowed ? "badge-ready" : "badge-blocked");
-      setBadge("debtsPayBadge", payAllowed ? "debt.pay allowed" : "debt.pay blocked", payAllowed ? "badge-ready" : "badge-blocked");
-      setText("debtAuthorityStatus", saveAllowed || payAllowed ? "Allowed" : preflightAllowed ? "Preflight" : "Gated");
+      setBadge(
+        "debtsGovernorBadge",
+        anyReal ? "Debt writes allowed" : authority.preflight ? "Debt preflight recognized" : "Debt writes gated",
+        anyReal ? "badge-ready" : authority.preflight ? "badge-preflight" : "badge-blocked"
+      );
+
+      setBadge(
+        "debtsPreflightBadge",
+        authority.preflight ? "debt.preflight allowed" : "debt.preflight blocked",
+        authority.preflight ? "badge-ready" : "badge-blocked"
+      );
+
+      setBadge(
+        "debtsSaveBadge",
+        authority.save ? "debt.save allowed" : "debt.save blocked",
+        authority.save ? "badge-ready" : "badge-blocked"
+      );
+
+      setBadge(
+        "debtsPayBadge",
+        authority.pay ? "debt.pay allowed" : "debt.pay blocked",
+        authority.pay ? "badge-ready" : "badge-blocked"
+      );
+
+      setBadge(
+        "debtDryRunBadge",
+        authority.preflight ? "Dry-run recognized" : "Dry-run local only",
+        authority.preflight ? "badge-ready" : "badge-preflight"
+      );
+
+      setBadge(
+        "debtRealWriteBadge",
+        anyReal ? "Real writes allowed" : "Real writes gated",
+        anyReal ? "badge-ready" : "badge-blocked"
+      );
+
+      setBadge(
+        "formAuthorityBadge",
+        authority.save ? "Real save allowed" : "Real write disabled",
+        authority.save ? "badge-ready" : "badge-blocked"
+      );
+
+      setText(
+        "debtAuthorityStatus",
+        anyReal ? "Allowed" : authority.preflight ? "Preflight" : "Gated"
+      );
+
+      setText(
+        "debtAuthoritySub",
+        anyReal ? "Command Centre lift active" : authority.preflight ? "Preflight recognized" : "Until Command Centre recognition"
+      );
+
+      setText(
+        "debtSafetyCopy",
+        anyReal
+          ? "Command Centre allows real debt writes. Page still offers dry-run proof before action."
+          : authority.preflight
+            ? "Debt preflight is recognized by Command Centre. Real debt.save and debt.pay remain blocked until Phase 4 lift."
+            : "This page can read debts and run local dry-run proof. Command Centre has not recognized debt preflight yet."
+      );
+
+      setText(
+        "debtLiftCopy",
+        anyReal
+          ? "Debt Phase 4 lift is active. Use real buttons only for real-world debt events."
+          : authority.preflight
+            ? "Recognition is complete. Next lift must update backend allow-checks before real debt writes are enabled."
+            : "After page preflight is verified, Command Centre can recognize debt proof and later lift debt.save and debt.pay."
+      );
 
       const panel = $("debtsEnforcement");
       if (panel) {
-        if (saveAllowed || payAllowed) {
+        if (anyReal) {
           panel.className = "debts-enforcement pass";
-          panel.textContent = "Command Centre allows debt actions. Page still runs dry-run proof before any real write.";
-        } else {
+          panel.textContent = "Command Centre allows debt actions. Dry-run remains available before real writes.";
+        } else if (authority.preflight) {
           panel.className = "debts-enforcement preflight";
-          panel.textContent = preflightAllowed   ? "Debt preflight is recognized by Command Centre. Real debt.save and debt.pay remain blocked until Phase 4 explicit lift."   : "Debt dry-run proof is available at API level. Real debt actions remain blocked until Command Centre recognizes page preflight and lifts debt.save/debt.pay.";
+          panel.textContent = "Debt preflight is recognized by Command Centre. Real debt.save and debt.pay remain blocked until Phase 4 explicit lift.";
+        } else {
+          panel.className = "debts-enforcement";
+          panel.textContent = "Debt dry-run proof is available at API level. Real debt actions remain blocked until Command Centre recognizes page preflight and lifts debt.save/debt.pay.";
         }
       }
+
+      setText(
+        "debtFormNote",
+        authority.save
+          ? "Command Centre allows debt.save, but this staged form remains disabled until a dedicated create/edit workflow is restored."
+          : "Use row-level dry-run proof first. Real save/pay depends on Command Centre action state."
+      );
     } catch (err) {
       command = null;
+      authority = { preflight: false, save: false, pay: false };
+
       setBadge("debtsGovernorBadge", "Governor unknown", "badge-unknown");
+      setBadge("debtsPreflightBadge", "debt.preflight unknown", "badge-unknown");
       setBadge("debtsSaveBadge", "debt.save unknown", "badge-unknown");
       setBadge("debtsPayBadge", "debt.pay unknown", "badge-unknown");
       setText("debtAuthorityStatus", "Unknown");
+      setText("debtAuthoritySub", "Command Centre unavailable");
 
       const panel = $("debtsEnforcement");
       if (panel) {
@@ -669,8 +760,6 @@ const payAllowed = Boolean(pay && pay.allowed);
       const kind = debtKind(debt);
       const remaining = debtRemaining(debt);
       const paidOff = remaining <= 0;
-      const saveDisabled = false;
-      const payDisabled = paidOff;
 
       return `
         <tr data-debt-id="${escapeHtml(id)}">
@@ -690,11 +779,17 @@ const payAllowed = Boolean(pay && pay.allowed);
           </td>
           <td>
             <div class="debt-row-actions">
-              <button class="debt-action-button" type="button" data-action="save-preflight" data-id="${escapeHtml(id)}" ${saveDisabled ? "disabled" : ""}>
+              <button class="debt-action-button" type="button" data-action="save-preflight" data-id="${escapeHtml(id)}">
                 Save Preflight
               </button>
-              <button class="debt-action-button primary" type="button" data-action="pay-preflight" data-id="${escapeHtml(id)}" ${payDisabled ? "disabled" : ""}>
+              <button class="debt-action-button primary" type="button" data-action="pay-preflight" data-id="${escapeHtml(id)}" ${paidOff ? "disabled" : ""}>
                 Pay Preflight
+              </button>
+              <button class="debt-action-button" type="button" data-action="real-save" data-id="${escapeHtml(id)}" ${authority.save ? "" : "disabled"}>
+                Real Save
+              </button>
+              <button class="debt-action-button danger" type="button" data-action="real-pay" data-id="${escapeHtml(id)}" ${authority.pay && !paidOff ? "" : "disabled"}>
+                Real Pay
               </button>
             </div>
           </td>
@@ -725,10 +820,18 @@ const payAllowed = Boolean(pay && pay.allowed);
       if (action === "pay-preflight") {
         await runDebtPayPreflight(debt);
       }
+
+      if (action === "real-save") {
+        await runDebtRealSave(debt);
+      }
+
+      if (action === "real-pay") {
+        await runDebtRealPay(debt);
+      }
     } catch (err) {
       proofs[id] = {
         ok: false,
-        message: err.message || "Preflight failed"
+        message: err.message || "Debt action failed"
       };
       renderDebts();
     } finally {
@@ -736,22 +839,26 @@ const payAllowed = Boolean(pay && pay.allowed);
     }
   }
 
+  function debtSavePayload(debt, dryRun) {
+    return {
+      dry_run: Boolean(dryRun),
+      name: debt.name,
+      kind: debt.kind,
+      original_amount: debt.original_amount,
+      paid_amount: debt.paid_amount,
+      due_date: debt.due_date,
+      due_day: debt.due_day,
+      installment_amount: debt.installment_amount,
+      frequency: debt.frequency,
+      notes: debt.notes || ""
+    };
+  }
+
   async function runDebtSavePreflight(debt) {
     const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "?dry_run=1&cb=" + Date.now(), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dry_run: true,
-        name: debt.name,
-        kind: debt.kind,
-        original_amount: debt.original_amount,
-        paid_amount: debt.paid_amount,
-        due_date: debt.due_date,
-        due_day: debt.due_day,
-        installment_amount: debt.installment_amount,
-        frequency: debt.frequency,
-        notes: debt.notes || ""
-      })
+      body: JSON.stringify(debtSavePayload(debt, true))
     });
 
     proofs[debt.id] = {
@@ -791,20 +898,80 @@ const payAllowed = Boolean(pay && pay.allowed);
     return data;
   }
 
+  async function runDebtRealSave(debt) {
+    if (!authority.save) {
+      throw new Error("Command Centre has not allowed debt.save.");
+    }
+
+    const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "?cb=" + Date.now(), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(debtSavePayload(debt, false))
+    });
+
+    proofs[debt.id] = {
+      ok: true,
+      message: "Real debt.save completed under Command Centre authority."
+    };
+
+    await refresh();
+    return data;
+  }
+
+  async function runDebtRealPay(debt) {
+    if (!authority.pay) {
+      throw new Error("Command Centre has not allowed debt.pay.");
+    }
+
+    const remaining = debtRemaining(debt);
+    const raw = prompt("Real debt payment amount for " + (debt.name || debt.id) + " (remaining " + money(remaining) + "):", String(Math.min(1000, remaining)));
+    if (raw === null) return null;
+
+    const amount = Number(raw);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error("Invalid real payment amount.");
+    }
+
+    if (amount > remaining + 0.01) {
+      throw new Error("Real payment cannot exceed remaining amount.");
+    }
+
+    const accountId = prompt("Account id for real payment:", DEFAULT_PREFLIGHT_ACCOUNT);
+    if (!accountId) return null;
+
+    const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "/pay?cb=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount,
+        account_id: accountId,
+        paid_date: new Date().toISOString().slice(0, 10)
+      })
+    });
+
+    proofs[debt.id] = {
+      ok: true,
+      message: "Real debt.pay completed for " + money(amount) + " under Command Centre authority."
+    };
+
+    await refresh();
+    return data;
+  }
+
   async function refresh() {
     console.log("[debts-ui v2.2.0] refresh");
-    await Promise.allSettled([loadCommandCentre(), loadDebts()]);
+    await loadCommandCentre();
+    await loadDebts();
     console.log("[debts-ui v2.2.0] ready", {
       debts: debts.length,
+      authority,
       total_remaining: debts.reduce((sum, debt) => sum + debtRemaining(debt), 0)
     });
   }
 
   function init() {
     console.log("[debts-ui v2.2.0] init");
-
     $("refreshDebtsBtn")?.addEventListener("click", refresh);
-
     refresh();
   }
 
@@ -812,6 +979,7 @@ const payAllowed = Boolean(pay && pay.allowed);
     version: VERSION,
     refresh,
     debts: () => debts.slice(),
+    authority: () => ({ ...authority }),
     proofs: () => ({ ...proofs }),
     preflightSave: id => {
       const debt = debts.find(row => row.id === id);
@@ -822,6 +990,16 @@ const payAllowed = Boolean(pay && pay.allowed);
       const debt = debts.find(row => row.id === id);
       if (!debt) throw new Error("Debt not found: " + id);
       return runDebtPayPreflight(debt);
+    },
+    realSave: id => {
+      const debt = debts.find(row => row.id === id);
+      if (!debt) throw new Error("Debt not found: " + id);
+      return runDebtRealSave(debt);
+    },
+    realPay: id => {
+      const debt = debts.find(row => row.id === id);
+      if (!debt) throw new Error("Debt not found: " + id);
+      return runDebtRealPay(debt);
     }
   };
 
