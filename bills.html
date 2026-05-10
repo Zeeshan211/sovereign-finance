@@ -1,530 +1,691 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
-<title>Bills - Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=2.0.0" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bills - Sovereign Finance</title>
+  <meta name="description" content="Manage recurring obligations in Sovereign Finance." />
 
-<style>
-.bills-page {
-  max-width: 1480px;
-}
+  <style>
+    :root {
+      --bg: #070b12;
+      --panel: #0d1422;
+      --panel-2: #111b2d;
+      --text: #eef4ff;
+      --muted: #93a4bd;
+      --line: rgba(255,255,255,.09);
+      --accent: #65d6ad;
+      --accent-2: #7aa7ff;
+      --danger: #ff6b7a;
+      --warn: #ffd166;
+      --shadow: 0 20px 70px rgba(0,0,0,.38);
+      --radius: 20px;
+      --radius-sm: 14px;
+      --max: 1180px;
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
 
-.bills-hero-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
-  gap: 18px;
-  align-items: stretch;
-}
+    * { box-sizing: border-box; }
 
-.bills-side {
-  display: grid;
-  gap: 14px;
-}
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(101,214,173,.12), transparent 32rem),
+        radial-gradient(circle at top right, rgba(122,167,255,.13), transparent 34rem),
+        var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+    }
 
-.bills-authority-card {
-  padding: 18px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-md);
-}
+    a { color: inherit; text-decoration: none; }
 
-.bills-authority-title {
-  color: var(--text-strong);
-  font-size: 17px;
-  font-weight: 950;
-  letter-spacing: -0.035em;
-}
+    button, input, select, textarea {
+      font: inherit;
+    }
 
-.bills-authority-copy {
-  margin-top: 8px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 760;
-}
+    .shell {
+      width: min(var(--max), calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 60px;
+    }
 
-.bills-status-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 18px;
-}
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 26px;
+    }
 
-.bills-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 18px;
-}
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
 
-.bills-section-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 26px 0 14px;
-}
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 12px 30px rgba(101,214,173,.18);
+    }
 
-.bills-section-title {
-  color: var(--text-strong);
-  font-size: 22px;
-  font-weight: 950;
-  letter-spacing: -0.045em;
-}
+    .nav {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
 
-.bills-section-copy {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 760;
-}
+    .nav a,
+    .ghost-btn,
+    .primary-btn,
+    .danger-btn {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: transform .14s ease, border-color .14s ease, background .14s ease;
+    }
 
-.bills-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
+    .nav a:hover,
+    .ghost-btn:hover,
+    .primary-btn:hover,
+    .danger-btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,.18);
+      background: rgba(255,255,255,.07);
+    }
 
-.bills-enforcement {
-  padding: 16px;
-  border-radius: var(--r-xl);
-  border: 1px solid rgba(180, 83, 9, 0.24);
-  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
-  color: var(--warn);
-  box-shadow: var(--shadow-sm);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 790;
-}
+    .primary-btn {
+      background: linear-gradient(135deg, rgba(101,214,173,.96), rgba(122,167,255,.92));
+      color: #071018;
+      border: 0;
+      font-weight: 800;
+    }
 
-.bills-enforcement.pass {
-  border-color: rgba(4, 120, 87, 0.24);
-  background: linear-gradient(135deg, var(--success-soft), var(--surface-1));
-  color: var(--success);
-}
+    .danger-btn {
+      background: rgba(255,107,122,.12);
+      border-color: rgba(255,107,122,.25);
+      color: #ffd8dd;
+    }
 
-.bills-enforcement.blocked {
-  border-color: rgba(185, 28, 28, 0.22);
-  background: linear-gradient(135deg, var(--danger-soft), var(--surface-1));
-  color: var(--danger);
-}
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
 
-.bills-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
 
-.bill-card {
-  position: relative;
-  overflow: hidden;
-  min-height: 230px;
-  padding: 18px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
-}
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: clamp(34px, 5vw, 58px);
+      letter-spacing: -.055em;
+      line-height: .95;
+    }
 
-.bill-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  background: linear-gradient(90deg, var(--info), transparent);
-}
+    .hero p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 720px;
+    }
 
-.bill-card[data-status="active"]::before {
-  background: linear-gradient(90deg, var(--accent), transparent);
-}
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
 
-.bill-card[data-status="deleted"]::before,
-.bill-card[data-status="inactive"]::before {
-  background: linear-gradient(90deg, var(--unknown), transparent);
-}
+    .status-card {
+      display: grid;
+      align-content: space-between;
+      gap: 16px;
+    }
 
-.bill-card-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  align-items: flex-start;
-}
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(0,0,0,.16);
+      font-size: 13px;
+    }
 
-.bill-name {
-  color: var(--text-strong);
-  font-size: 18px;
-  font-weight: 950;
-  letter-spacing: -0.035em;
-}
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 99px;
+      background: var(--warn);
+      box-shadow: 0 0 0 4px rgba(255,209,102,.12);
+    }
 
-.bill-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  padding: 6px 10px;
-  border-radius: var(--r-pill);
-  border: 1px solid rgba(4, 120, 87, 0.22);
-  background: var(--success-soft);
-  color: var(--success);
-  font-size: 10px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-}
+    .dot.ready {
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(101,214,173,.12);
+    }
 
-.bill-status::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: currentColor;
-}
+    .dot.bad {
+      background: var(--danger);
+      box-shadow: 0 0 0 4px rgba(255,107,122,.12);
+    }
 
-.bill-amount {
-  margin-top: 16px;
-  color: var(--text-strong);
-  font-size: clamp(28px, 4vw, 40px);
-  line-height: 1;
-  font-weight: 950;
-  letter-spacing: -0.06em;
-}
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 18px;
+    }
 
-.bill-subline {
-  margin-top: 7px;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 760;
-}
+    .stat {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 18px;
+    }
 
-.bill-meta {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
-  margin-top: 16px;
-}
+    .stat .label {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
 
-.bill-meta-item {
-  padding: 11px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-}
+    .stat .value {
+      font-size: 26px;
+      font-weight: 850;
+      letter-spacing: -.035em;
+    }
 
-.bill-meta-label {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin: 20px 0 14px;
+    }
 
-.bill-meta-value {
-  margin-top: 4px;
-  color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 900;
-}
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
 
-.bill-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-}
+    .input,
+    .select,
+    .textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(0,0,0,.2);
+      color: var(--text);
+      padding: 12px 13px;
+      outline: none;
+    }
 
-.bill-actions button {
-  appearance: none;
-  border: 0;
-  min-height: 42px;
-  padding: 10px 13px;
-  border-radius: 14px;
-  font-size: 13px;
-  font-weight: 950;
-  cursor: pointer;
-}
+    .input:focus,
+    .select:focus,
+    .textarea:focus {
+      border-color: rgba(101,214,173,.58);
+      box-shadow: 0 0 0 4px rgba(101,214,173,.08);
+    }
 
-.bill-actions .primary {
-  background: var(--brand);
-  color: #fff;
-  box-shadow: var(--shadow-sm);
-}
+    .filters .input {
+      min-width: 260px;
+    }
 
-.bill-actions .secondary {
-  background: var(--surface-3);
-  color: var(--text-strong);
-  border: 1px solid var(--border);
-}
+    .filters .select {
+      min-width: 170px;
+    }
 
-.bill-actions .disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
+    .table-card {
+      overflow: hidden;
+      padding: 0;
+    }
 
-.bill-proof {
-  margin-top: 12px;
-  padding: 11px;
-  border-radius: var(--r-md);
-  border: 1px solid rgba(4, 120, 87, 0.22);
-  background: var(--success-soft);
-  color: var(--success);
-  font-size: 12px;
-  font-weight: 820;
-  line-height: 1.42;
-}
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
 
-.bill-proof.fail {
-  border-color: rgba(185, 28, 28, 0.22);
-  background: var(--danger-soft);
-  color: var(--danger);
-}
+    th, td {
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: middle;
+      font-size: 14px;
+    }
 
-.bills-empty {
-  grid-column: 1 / -1;
-  padding: 28px;
-  border-radius: var(--r-xl);
-  border: 1px dashed var(--border);
-  background: var(--surface-1);
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 820;
-  text-align: center;
-}
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      background: rgba(0,0,0,.15);
+    }
 
-.bills-note-panel {
-  padding: 18px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
-}
+    tr:last-child td { border-bottom: 0; }
 
-.bills-note-title {
-  color: var(--text-strong);
-  font-size: 15px;
-  font-weight: 950;
-  letter-spacing: -0.03em;
-}
+    .bill-name {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
 
-.bills-note-copy {
-  margin-top: 7px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 760;
-}
+    .bill-name strong { font-size: 15px; }
 
-.bills-page-meta {
-  display: none !important;
-}
+    .sub {
+      color: var(--muted);
+      font-size: 12px;
+    }
 
-@media (max-width: 1180px) {
-  .bills-hero-grid {
-    grid-template-columns: 1fr;
-  }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      background: rgba(255,255,255,.035);
+      white-space: nowrap;
+    }
 
-  .bills-kpi-grid,
-  .bills-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
+    .badge.ok {
+      color: #bdf8dd;
+      border-color: rgba(101,214,173,.25);
+      background: rgba(101,214,173,.08);
+    }
 
-@media (max-width: 720px) {
-  .bills-kpi-grid,
-  .bills-list,
-  .bill-meta {
-    grid-template-columns: 1fr;
-  }
+    .badge.warn {
+      color: #ffe4a3;
+      border-color: rgba(255,209,102,.28);
+      background: rgba(255,209,102,.08);
+    }
 
-  .bills-section-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+    .row-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
 
-  .bills-actions {
-    width: 100%;
-  }
+    .small-btn {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.045);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
 
-  .bills-actions .btn {
-    width: 100%;
-  }
-}
-</style>
+    .small-btn:hover {
+      background: rgba(255,255,255,.075);
+    }
+
+    .empty {
+      padding: 34px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .debug {
+      display: none;
+      margin-top: 18px;
+      white-space: pre-wrap;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      color: #b8c7df;
+      background: rgba(0,0,0,.28);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      overflow: auto;
+      max-height: 360px;
+    }
+
+    body.debug .debug { display: block; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.62);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 100;
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      width: min(640px, 100%);
+      background: #0b1220;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+
+    .modal-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    .modal h2 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      letter-spacing: -.03em;
+    }
+
+    .modal p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field.full { grid-column: 1 / -1; }
+
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      width: min(420px, calc(100vw - 36px));
+      background: #0b1220;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px 16px;
+      box-shadow: var(--shadow);
+      color: var(--text);
+      display: none;
+      z-index: 200;
+    }
+
+    .toast.show { display: block; }
+
+    .toast .muted {
+      color: var(--muted);
+      margin-top: 4px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 860px) {
+      .hero,
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      table, thead, tbody, tr, th, td {
+        display: block;
+      }
+
+      thead { display: none; }
+
+      tr {
+        border-bottom: 1px solid var(--line);
+        padding: 12px;
+      }
+
+      td {
+        border: 0;
+        padding: 8px 0;
+      }
+
+      td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        margin-bottom: 4px;
+      }
+
+      .row-actions {
+        justify-content: flex-start;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
 
 <body>
-<header>
-<div>
-<div class="brand">Sovereign Finance</div>
-<div class="title">Bills</div>
-</div>
-</header>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/index.html" aria-label="Open Sovereign Finance hub">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Sovereign Finance</span>
+      </a>
 
-<main class="app-page bills-page">
-<section class="bills-hero-grid">
-<div class="page-hero">
-<div class="hero-kicker">Bills authority</div>
-<h1 class="hero-title">Recurring obligations, governed before clearing.</h1>
-<p class="hero-copy">
-Bills are now handled through a proof-first workflow. Clear and save actions run dry-run validation before real writes, while Command Centre decides what is allowed.
-</p>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/index.html">Hub</a>
+        <a href="/add.html">Add Transaction</a>
+        <a href="/transactions.html">Ledger</a>
+        <a href="/monthly-close.html">Command Centre</a>
+      </nav>
+    </header>
 
-<div class="bills-status-strip">
-<span id="billsApiBadge" class="badge badge-unknown">Bills API loading</span>
-<span id="billsGovernorBadge" class="badge badge-unknown">Governor loading</span>
-<span id="billsWriteBadge" class="badge badge-info">Write scope loading</span>
-</div>
-</div>
+    <section class="hero">
+      <div class="card">
+        <h1>Bills</h1>
+        <p>Track recurring obligations, due dates, monthly totals, and clearing status from one clean register.</p>
+        <div class="actions">
+          <button class="primary-btn" type="button" id="addBillBtn">Add Bill</button>
+          <button class="ghost-btn" type="button" id="refreshBtn">Refresh</button>
+          <a class="ghost-btn" href="/add.html">Add Transaction</a>
+        </div>
+      </div>
 
-<aside class="bills-side">
-<div class="bills-authority-card">
-<div class="bills-authority-title">Bills safety posture</div>
-<div class="bills-authority-copy">
-Each bill action is validated against the Bills API first. Real writes only proceed when Command Centre allows the matching action.
-</div>
-<div style="margin-top:12px">
-<span class="badge badge-ready">Dry-run first</span>
-<span class="badge badge-info">API enforced</span>
-</div>
-</div>
+      <aside class="card status-card">
+        <div>
+          <span class="status-pill"><span id="statusDot" class="dot"></span><span id="statusText">Loading bills</span></span>
+        </div>
+        <p id="statusDetail">Fetching your current obligations.</p>
+      </aside>
+    </section>
 
-<div class="bills-note-panel">
-<div class="bills-note-title">Known cleanup lane</div>
-<div class="bills-note-copy">
-After the UI package, use this page to clean real bill state: Maid amount, current-month clear status, and any active bill mismatch.
-</div>
-</div>
-</aside>
-</section>
+    <section class="stats" aria-label="Bills summary">
+      <article class="stat">
+        <div class="label">Active bills</div>
+        <div class="value" id="activeCount">—</div>
+      </article>
+      <article class="stat">
+        <div class="label">Monthly total</div>
+        <div class="value" id="monthlyTotal">—</div>
+      </article>
+      <article class="stat">
+        <div class="label">Due this month</div>
+        <div class="value" id="dueCount">—</div>
+      </article>
+    </section>
 
-<section class="bills-kpi-grid">
-<div class="kpi-card">
-<div class="kpi-label">Bills</div>
-<div id="billCount" class="kpi-value">-</div>
-<div class="kpi-sub">Total returned rows</div>
-</div>
+    <section class="toolbar" aria-label="Bills controls">
+      <div class="filters">
+        <input class="input" id="searchInput" type="search" placeholder="Search bills..." autocomplete="off" />
+        <select class="select" id="statusFilter">
+          <option value="active">Active</option>
+          <option value="all">All</option>
+          <option value="cleared">Cleared</option>
+          <option value="pending">Pending</option>
+        </select>
+      </div>
+    </section>
 
-<div class="kpi-card">
-<div class="kpi-label">Active</div>
-<div id="activeBillCount" class="kpi-value">-</div>
-<div class="kpi-sub">Current obligations</div>
-</div>
+    <section class="card table-card" aria-label="Bills register">
+      <table>
+        <thead>
+          <tr>
+            <th>Bill</th>
+            <th>Amount</th>
+            <th>Due</th>
+            <th>Status</th>
+            <th style="text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="billsBody">
+          <tr>
+            <td colspan="5" class="empty">Loading bills...</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
 
-<div class="kpi-card">
-<div class="kpi-label">Monthly amount</div>
-<div id="monthlyBillAmount" class="kpi-value">-</div>
-<div class="kpi-sub">Active bill total</div>
-</div>
+    <pre class="debug" id="debugPanel"></pre>
+  </main>
 
-<div class="kpi-card">
-<div class="kpi-label">Authority</div>
-<div id="billAuthorityStatus" class="kpi-value">-</div>
-<div class="kpi-sub">Command Centre state</div>
-</div>
-</section>
+  <section class="modal-backdrop" id="billModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="billModalTitle">
+      <div class="modal-head">
+        <div>
+          <h2 id="billModalTitle">Add Bill</h2>
+          <p>Save the obligation details you want tracked every month.</p>
+        </div>
+        <button class="small-btn" type="button" data-close-modal>Close</button>
+      </div>
 
-<section>
-<div class="bills-section-head">
-<div>
-<div class="bills-section-title">Bills register</div>
-<div class="bills-section-copy">Run preflight, verify proof, then allow only governed real actions.</div>
-</div>
+      <form id="billForm">
+        <input type="hidden" id="billId" />
 
-<div class="bills-actions">
-<a class="btn btn-secondary" href="/monthly-close.html">Open Command Centre</a>
-<a class="btn btn-success" href="/add.html">Add Transaction</a>
-</div>
-</div>
+        <div class="form-grid">
+          <div class="field full">
+            <label for="billName">Name</label>
+            <input class="input" id="billName" required placeholder="e.g. Internet, Rent, School fee" />
+          </div>
 
-<div id="billsEnforcement" class="bills-enforcement">
-Checking Command Centre Bills authority...
-</div>
+          <div class="field">
+            <label for="billAmount">Amount</label>
+            <input class="input" id="billAmount" required type="number" min="0" step="0.01" placeholder="0.00" />
+          </div>
 
-<div style="height:14px"></div>
-<div id="billsList" class="bills-list"></div>
-</section>
+          <div class="field">
+            <label for="billDueDay">Due day</label>
+            <input class="input" id="billDueDay" type="number" min="1" max="31" step="1" placeholder="1-31" />
+          </div>
 
-<footer class="bills-page-meta" aria-hidden="true">
-Bills premium UI v2.0.0
-</footer>
-</main>
+          <div class="field">
+            <label for="billCategory">Category</label>
+            <input class="input" id="billCategory" placeholder="bills" />
+          </div>
 
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
+          <div class="field">
+            <label for="billStatus">Status</label>
+            <select class="select" id="billStatus">
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+              <option value="deleted">Deleted</option>
+            </select>
+          </div>
 
-<script src="/js/theme.js?v=1.0.0"></script>
-<script src="/js/nav.js?v=2.0.0"></script>
-<script src="/js/enforcement.js?v=0.2.0"></script>
-<script src="/js/store.js?v=0.2.4"></script>
-<script src="/js/bills.js?v=0.4.0"></script>
+          <div class="field full">
+            <label for="billNotes">Notes</label>
+            <textarea class="textarea" id="billNotes" rows="3" placeholder="Optional"></textarea>
+          </div>
+        </div>
 
-<script>
-(function () {
-  "use strict";
+        <div class="modal-actions">
+          <button class="ghost-btn" type="button" data-close-modal>Cancel</button>
+          <button class="primary-btn" type="submit">Save Bill</button>
+        </div>
+      </form>
+    </div>
+  </section>
 
-  const VERSION = "2.0.0";
+  <section class="modal-backdrop" id="clearModal" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="clearModalTitle">
+      <div class="modal-head">
+        <div>
+          <h2 id="clearModalTitle">Clear Bill</h2>
+          <p id="clearModalText">Mark this bill as cleared for the selected month.</p>
+        </div>
+        <button class="small-btn" type="button" data-close-clear>Close</button>
+      </div>
 
-  function $(id) {
-    return document.getElementById(id);
-  }
+      <form id="clearForm">
+        <input type="hidden" id="clearBillId" />
 
-  function setBadge(id, text, cls) {
-    const el = $(id);
-    if (!el) return;
-    el.textContent = text;
-    el.className = "badge " + cls;
-  }
+        <div class="form-grid">
+          <div class="field">
+            <label for="clearMonth">Month</label>
+            <input class="input" id="clearMonth" type="month" required />
+          </div>
 
-  async function fetchJSON(url) {
-    const res = await fetch(url, { cache: "no-store" });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data) throw new Error("Failed to read " + url);
-    return data;
-  }
+          <div class="field">
+            <label for="clearAmount">Amount paid</label>
+            <input class="input" id="clearAmount" type="number" min="0" step="0.01" required />
+          </div>
 
-  async function decorateBillsAuthority() {
-    try {
-      const bills = await fetchJSON("/api/bills?cb=" + Date.now());
-      setBadge("billsApiBadge", "Bills API v" + (bills.version || "live"), "badge-ready");
+          <div class="field full">
+            <label for="clearNotes">Notes</label>
+            <textarea class="textarea" id="clearNotes" rows="3" placeholder="Optional"></textarea>
+          </div>
+        </div>
 
-      const cmd = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
-      const actions = cmd.enforcement && Array.isArray(cmd.enforcement.actions) ? cmd.enforcement.actions : [];
-      const billSave = actions.find(action => action.action === "bill.save");
-      const billClear = actions.find(action => action.action === "bill.clear");
-      const preflight = actions.find(action => action.action === "bill.preflight");
+        <div class="modal-actions">
+          <button class="ghost-btn" type="button" data-close-clear>Cancel</button>
+          <button class="primary-btn" type="submit">Mark Cleared</button>
+        </div>
+      </form>
+    </div>
+  </section>
 
-      if (billSave?.allowed && billClear?.allowed) {
-        setBadge("billsGovernorBadge", "Bills governed", "badge-ready");
-        setBadge("billsWriteBadge", "Scope: bill.save, bill.clear", "badge-ready");
-      } else if (preflight?.allowed) {
-        setBadge("billsGovernorBadge", "Preflight ready", "badge-preflight");
-        setBadge("billsWriteBadge", "Real writes gated", "badge-preflight");
-      } else {
-        setBadge("billsGovernorBadge", "Bills blocked", "badge-blocked");
-        setBadge("billsWriteBadge", "No bill write scope", "badge-blocked");
-      }
-    } catch (err) {
-      setBadge("billsApiBadge", "Bills source unknown", "badge-unknown");
-      setBadge("billsGovernorBadge", "Governor unknown", "badge-unknown");
-      setBadge("billsWriteBadge", "Scope unknown", "badge-unknown");
-    }
-  }
+  <div class="toast" id="toast">
+    <strong id="toastTitle">Saved</strong>
+    <div class="muted" id="toastBody"></div>
+  </div>
 
-  window.SovereignBillsPageUI = {
-    version: VERSION,
-    refresh: decorateBillsAuthority
-  };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", decorateBillsAuthority);
-  } else {
-    decorateBillsAuthority();
-  }
-})();
-</script>
+  <script src="/js/bills.js?v=0.4.1" defer></script>
 </body>
 </html>
