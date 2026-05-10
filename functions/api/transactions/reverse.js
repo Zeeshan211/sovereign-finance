@@ -1,3 +1,24 @@
+/* /api/transactions/reverse — POST */
+/* Sovereign Finance v0.3.0-schema-safe-reversal
+ *
+ * Restore goal:
+ * - Bring back old working ledger correction flow.
+ * - Frontend sends only transaction id + reason.
+ * - Backend reverses against the original account/category/linkage.
+ * - No Command Centre dependency.
+ * - Schema-safe: only writes columns that exist in live D1.
+ *
+ * Single transaction reversal:
+ * - insert audit reversal row with [REVERSAL OF original_id]
+ * - mark original reversed_by / reversed_at / reversal_reason when those columns exist
+ *
+ * Transfer pair reversal:
+ * - find linked transfer pair through linked_txn_id or [linked: ...] notes
+ * - insert income back to source account
+ * - insert expense out of destination account
+ * - mark both original rows reversed when columns exist
+ */
+
 const VERSION = "v0.3.0-schema-safe-reversal";
 
 export async function onRequestPost(context) {
@@ -6,7 +27,7 @@ export async function onRequestPost(context) {
     const body = await readJson(context.request);
 
     const id = clean(body.id);
-    const reason = clean(body.reason || "Correction");
+    const reason = clean(body.reason);
     const createdBy = clean(body.created_by || "web-ledger");
 
     if (!id) {
@@ -28,6 +49,7 @@ export async function onRequestPost(context) {
     }
 
     const guard = guardReversible(original);
+
     if (!guard.ok) {
       return json({ ok: false, version: VERSION, error: guard.error }, 400);
     }
@@ -36,11 +58,16 @@ export async function onRequestPost(context) {
 
     if (linked) {
       const linkedGuard = guardReversible(linked);
+
       if (!linkedGuard.ok) {
-        return json({ ok: false, version: VERSION, error: "Linked transaction cannot be reversed: " + linkedGuard.error }, 400);
+        return json({
+          ok: false,
+          version: VERSION,
+          error: "Linked transaction cannot be reversed: " + linkedGuard.error
+        }, 400);
       }
 
-      return await reversePair({
+      return reverseLinkedPair({
         db,
         columns,
         original,
@@ -50,7 +77,7 @@ export async function onRequestPost(context) {
       });
     }
 
-    return await reverseSingle({
+    return reverseSingle({
       db,
       columns,
       original,
@@ -71,25 +98,33 @@ async function reverseSingle(input) {
 
   const now = new Date().toISOString();
   const today = now.slice(0, 10);
-  const reversalId = makeId("rev");
 
-  const originalType = clean(original.type || original.transaction_type || original.kind || "expense");
-  const reversalType = oppositeType(originalType);
+  const originalId = clean(original.id);
+  const originalType = clean(original.type || original.transaction_type || original.kind || "expense").toLowerCase();
   const amount = Math.abs(Number(original.amount || 0));
 
   if (!Number.isFinite(amount) || amount <= 0) {
     return json({ ok: false, version: VERSION, error: "Original amount is invalid" }, 400);
   }
 
+  const reversalId = makeId("rev");
+  const reversalType = oppositeType(originalType);
+
   const reversalRow = {
     id: reversalId,
     date: today,
     type: reversalType,
+    transaction_type: reversalType,
     amount,
     account_id: original.account_id || null,
+    transfer_to_account_id: null,
     category_id: original.category_id || null,
-    notes: `[REVERSAL OF ${original.id}] Reason: ${reason}`,
-    linked_txn_id: original.id,
+    category: original.category || null,
+    notes: `[REVERSAL OF ${originalId}] Reason: ${reason}`,
+    description: `[REVERSAL OF ${originalId}] Reason: ${reason}`,
+    memo: `[REVERSAL OF ${originalId}] Reason: ${reason}`,
+    linked_txn_id: originalId,
+    reversed_of: originalId,
     created_by: createdBy,
     created_at: now,
     updated_at: now,
@@ -100,19 +135,19 @@ async function reverseSingle(input) {
 
   const insert = buildInsert("transactions", columns, reversalRow);
 
-  const updates = {
+  const markOriginal = buildUpdate("transactions", columns, {
     reversed_by: reversalId,
     reversed_at: now,
     reversal_reason: reason,
     updated_at: now
-  };
+  }, "id = ?", [originalId]);
 
-  const update = buildUpdate("transactions", columns, updates, "id = ?", [original.id]);
+  const statements = [
+    db.prepare(insert.sql).bind(...insert.values)
+  ];
 
-  const statements = [db.prepare(insert.sql).bind(...insert.values)];
-
-  if (update) {
-    statements.push(db.prepare(update.sql).bind(...update.values));
+  if (markOriginal) {
+    statements.push(db.prepare(markOriginal.sql).bind(...markOriginal.values));
   }
 
   await db.batch(statements);
@@ -121,22 +156,24 @@ async function reverseSingle(input) {
     ok: true,
     version: VERSION,
     mode: "single",
-    original_id: original.id,
+    original_id: originalId,
     reversal_id: reversalId,
+    original_type: originalType,
     reversal_type: reversalType,
     amount,
     account_id: original.account_id || null,
-    reason
+    reason,
+    marked_original_reversed: Boolean(markOriginal)
   });
 }
 
-async function reversePair(input) {
+async function reverseLinkedPair(input) {
   const { db, columns, original, linked, reason, createdBy } = input;
 
   const now = new Date().toISOString();
   const today = now.slice(0, 10);
 
-  const pair = normalizePair(original, linked);
+  const pair = normalizeTransferPair(original, linked);
 
   if (!pair.ok) {
     return json({ ok: false, version: VERSION, error: pair.error }, 400);
@@ -148,18 +185,30 @@ async function reversePair(input) {
     return json({ ok: false, version: VERSION, error: "Linked transfer amount is invalid" }, 400);
   }
 
-  const reversalOutId = makeId("revout");
-  const reversalInId = makeId("revin");
+  const reversalSourceId = makeId("revsrc");
+  const reversalDestId = makeId("revdst");
 
-  const reversalOut = {
-    id: reversalOutId,
+  const sourceReversalNotes =
+    `[REVERSAL OF ${pair.outRow.id}] [linked: ${reversalDestId}] Reason: ${reason}`;
+
+  const destinationReversalNotes =
+    `[REVERSAL OF ${pair.inRow.id}] [linked: ${reversalSourceId}] Reason: ${reason}`;
+
+  const sourceReversalRow = {
+    id: reversalSourceId,
     date: today,
     type: "income",
+    transaction_type: "income",
     amount,
     account_id: pair.sourceAccount,
+    transfer_to_account_id: null,
     category_id: null,
-    notes: `[REVERSAL OF ${pair.out.id}] [linked: ${reversalInId}] Reason: ${reason}`,
-    linked_txn_id: reversalInId,
+    category: null,
+    notes: sourceReversalNotes,
+    description: sourceReversalNotes,
+    memo: sourceReversalNotes,
+    linked_txn_id: reversalDestId,
+    reversed_of: pair.outRow.id,
     created_by: createdBy,
     created_at: now,
     updated_at: now,
@@ -168,15 +217,21 @@ async function reversePair(input) {
     pra_amount: 0
   };
 
-  const reversalIn = {
-    id: reversalInId,
+  const destinationReversalRow = {
+    id: reversalDestId,
     date: today,
     type: "expense",
+    transaction_type: "expense",
     amount,
     account_id: pair.destinationAccount,
+    transfer_to_account_id: null,
     category_id: null,
-    notes: `[REVERSAL OF ${pair.in.id}] [linked: ${reversalOutId}] Reason: ${reason}`,
-    linked_txn_id: reversalOutId,
+    category: null,
+    notes: destinationReversalNotes,
+    description: destinationReversalNotes,
+    memo: destinationReversalNotes,
+    linked_txn_id: reversalSourceId,
+    reversed_of: pair.inRow.id,
     created_by: createdBy,
     created_at: now,
     updated_at: now,
@@ -185,30 +240,35 @@ async function reversePair(input) {
     pra_amount: 0
   };
 
-  const insertOut = buildInsert("transactions", columns, reversalOut);
-  const insertIn = buildInsert("transactions", columns, reversalIn);
+  const insertSource = buildInsert("transactions", columns, sourceReversalRow);
+  const insertDestination = buildInsert("transactions", columns, destinationReversalRow);
 
-  const updateOut = buildUpdate("transactions", columns, {
-    reversed_by: reversalOutId,
+  const markOut = buildUpdate("transactions", columns, {
+    reversed_by: reversalSourceId,
     reversed_at: now,
     reversal_reason: reason,
     updated_at: now
-  }, "id = ?", [pair.out.id]);
+  }, "id = ?", [pair.outRow.id]);
 
-  const updateIn = buildUpdate("transactions", columns, {
-    reversed_by: reversalInId,
+  const markIn = buildUpdate("transactions", columns, {
+    reversed_by: reversalDestId,
     reversed_at: now,
     reversal_reason: reason,
     updated_at: now
-  }, "id = ?", [pair.in.id]);
+  }, "id = ?", [pair.inRow.id]);
 
   const statements = [
-    db.prepare(insertOut.sql).bind(...insertOut.values),
-    db.prepare(insertIn.sql).bind(...insertIn.values)
+    db.prepare(insertSource.sql).bind(...insertSource.values),
+    db.prepare(insertDestination.sql).bind(...insertDestination.values)
   ];
 
-  if (updateOut) statements.push(db.prepare(updateOut.sql).bind(...updateOut.values));
-  if (updateIn) statements.push(db.prepare(updateIn.sql).bind(...updateIn.values));
+  if (markOut) {
+    statements.push(db.prepare(markOut.sql).bind(...markOut.values));
+  }
+
+  if (markIn) {
+    statements.push(db.prepare(markIn.sql).bind(...markIn.values));
+  }
 
   await db.batch(statements);
 
@@ -216,14 +276,15 @@ async function reversePair(input) {
     ok: true,
     version: VERSION,
     mode: "linked_transfer",
-    original_out_id: pair.out.id,
-    original_in_id: pair.in.id,
-    reversal_out_id: reversalOutId,
-    reversal_in_id: reversalInId,
+    original_out_id: pair.outRow.id,
+    original_in_id: pair.inRow.id,
+    reversal_source_id: reversalSourceId,
+    reversal_destination_id: reversalDestId,
     amount,
     source_account: pair.sourceAccount,
     destination_account: pair.destinationAccount,
-    reason
+    reason,
+    marked_originals_reversed: Boolean(markOut && markIn)
   });
 }
 
@@ -240,7 +301,7 @@ function buildInsert(table, columns, row) {
     throw new Error("transactions table missing id column");
   }
 
-  if (!keys.includes("type")) {
+  if (!keys.includes("type") && !keys.includes("transaction_type")) {
     throw new Error("transactions table missing type column");
   }
 
@@ -258,7 +319,9 @@ function buildInsert(table, columns, row) {
 function buildUpdate(table, columns, updates, whereSql, whereValues) {
   const keys = Object.keys(updates).filter(key => columns.has(key));
 
-  if (!keys.length) return null;
+  if (!keys.length) {
+    return null;
+  }
 
   const setSql = keys.map(key => `${key} = ?`).join(", ");
   const sql = `UPDATE ${table} SET ${setSql} WHERE ${whereSql}`;
@@ -269,10 +332,12 @@ function buildUpdate(table, columns, updates, whereSql, whereValues) {
 
 async function findLinkedTransaction(db, tx) {
   const direct = clean(tx.linked_txn_id);
-  const fromNotes = extractLinkedId(tx.notes);
+  const fromNotes = extractLinkedId(tx.notes || tx.description || tx.memo);
   const linkedId = direct || fromNotes;
 
-  if (!linkedId || linkedId === tx.id) return null;
+  if (!linkedId || linkedId === tx.id) {
+    return null;
+  }
 
   try {
     return await db.prepare(
@@ -283,15 +348,15 @@ async function findLinkedTransaction(db, tx) {
   }
 }
 
-function normalizePair(a, b) {
-  const aType = clean(a.type).toLowerCase();
-  const bType = clean(b.type).toLowerCase();
+function normalizeTransferPair(a, b) {
+  const aType = clean(a.type || a.transaction_type).toLowerCase();
+  const bType = clean(b.type || b.transaction_type).toLowerCase();
 
   if (aType === "transfer" && bType === "income") {
     return {
       ok: true,
-      out: a,
-      in: b,
+      outRow: a,
+      inRow: b,
       amount: Number(a.amount || b.amount || 0),
       sourceAccount: a.account_id,
       destinationAccount: b.account_id
@@ -301,8 +366,8 @@ function normalizePair(a, b) {
   if (bType === "transfer" && aType === "income") {
     return {
       ok: true,
-      out: b,
-      in: a,
+      outRow: b,
+      inRow: a,
       amount: Number(b.amount || a.amount || 0),
       sourceAccount: b.account_id,
       destinationAccount: a.account_id
@@ -324,7 +389,7 @@ function guardReversible(tx) {
     return { ok: false, error: "Transaction is already reversed" };
   }
 
-  const notes = clean(tx.notes).toUpperCase();
+  const notes = clean(tx.notes || tx.description || tx.memo).toUpperCase();
 
   if (notes.includes("[REVERSAL OF ")) {
     return { ok: false, error: "Cannot reverse a reversal row" };
@@ -349,11 +414,15 @@ function oppositeType(type) {
   if (t === "debt_in") return "debt_out";
   if (t === "debt_out") return "debt_in";
 
+  if (t === "atm") return "income";
+  if (t === "salary") return "expense";
+  if (t === "opening") return "expense";
+
   return t || "expense";
 }
 
-function extractLinkedId(notes) {
-  const text = clean(notes);
+function extractLinkedId(value) {
+  const text = clean(value);
   const match = text.match(/\[linked:\s*([^\]\s]+)\]/i);
   return match ? clean(match[1]) : "";
 }
