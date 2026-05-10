@@ -24,9 +24,9 @@
   gap: 14px;
 }
 
-.debts-status-strip,
 .debts-actions,
-.debt-row-actions {
+.debt-row-actions,
+.debts-status-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -88,30 +88,6 @@
   font-weight: 760;
 }
 
-.debts-enforcement {
-  padding: 16px;
-  border-radius: var(--r-xl);
-  border: 1px solid rgba(185, 28, 28, 0.22);
-  background: linear-gradient(135deg, var(--danger-soft), var(--surface-1));
-  color: var(--danger);
-  box-shadow: var(--shadow-sm);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 790;
-}
-
-.debts-enforcement.pass {
-  border-color: rgba(4, 120, 87, 0.24);
-  background: linear-gradient(135deg, var(--success-soft), var(--surface-1));
-  color: var(--success);
-}
-
-.debts-enforcement.preflight {
-  border-color: rgba(180, 83, 9, 0.24);
-  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
-  color: var(--warn);
-}
-
 .debts-table-wrap {
   overflow: auto;
   border-radius: var(--r-xl);
@@ -122,7 +98,7 @@
 
 .debts-table {
   width: 100%;
-  min-width: 1080px;
+  min-width: 1040px;
   border-collapse: collapse;
 }
 
@@ -178,30 +154,6 @@
   color: var(--success);
 }
 
-.debt-proof {
-  margin-top: 10px;
-  padding: 10px;
-  border-radius: var(--r-md);
-  border: 1px solid rgba(180, 83, 9, 0.24);
-  background: var(--warn-soft);
-  color: var(--warn);
-  font-size: 12px;
-  line-height: 1.42;
-  font-weight: 790;
-}
-
-.debt-proof.pass {
-  border-color: rgba(4, 120, 87, 0.24);
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.debt-proof.fail {
-  border-color: rgba(185, 28, 28, 0.22);
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
 .debt-action-button {
   appearance: none;
   min-height: 38px;
@@ -221,8 +173,8 @@
   border-color: transparent;
 }
 
-.debt-action-button.danger {
-  background: var(--danger);
+.debt-action-button.success {
+  background: var(--success);
   color: #fff;
   border-color: transparent;
 }
@@ -243,35 +195,55 @@
   text-align: center;
 }
 
-.debt-form-card {
-  margin-top: 16px;
-  padding: 18px;
+.debt-notice {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 780;
+  box-shadow: var(--shadow-xs);
+}
+
+.debt-notice.success {
+  border-color: rgba(4, 120, 87, 0.24);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.debt-notice.fail {
+  border-color: rgba(185, 28, 28, 0.22);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.debt-debug {
+  display: none;
+  margin-top: 18px;
+  padding: 16px;
   border-radius: var(--r-xl);
   border: 1px solid var(--border);
   background: var(--surface-1);
   box-shadow: var(--shadow-sm);
 }
 
-.debt-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+.debt-debug.on {
+  display: block;
 }
 
-.debt-form-grid .full {
-  grid-column: 1 / -1;
-}
-
-.debt-disabled-note {
-  margin-top: 12px;
+.debt-debug pre {
+  max-height: 360px;
+  overflow: auto;
   padding: 12px;
-  border-radius: var(--r-md);
-  border: 1px solid rgba(180, 83, 9, 0.24);
-  background: var(--warn-soft);
-  color: var(--warn);
-  font-size: 12px;
-  font-weight: 800;
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 11px;
   line-height: 1.45;
+  white-space: pre-wrap;
 }
 
 .debts-page-meta {
@@ -289,8 +261,7 @@
 }
 
 @media (max-width: 720px) {
-  .debts-kpi-grid,
-  .debt-form-grid {
+  .debts-kpi-grid {
     grid-template-columns: 1fr;
   }
 
@@ -318,38 +289,35 @@
 <main class="app-page debts-page">
 <section class="debts-hero-grid">
 <div class="page-hero">
-<div class="hero-kicker">Debt authority layer</div>
-<h1 class="hero-title">Debt visibility is live. Writes obey Command Centre.</h1>
+<div class="hero-kicker">Debt control</div>
+<h1 class="hero-title">Track what I owe and what is owed to me.</h1>
 <p class="hero-copy">
-Debts can read live data and run dry-run proof. Real save/pay actions only unlock when Command Centre returns debt.save and debt.pay as allowed.
+Use this page for normal debt work: edit details, record payments, and mark received money. Safety checks run quietly in the background.
 </p>
 
-<div class="debts-status-strip">
-<span id="debtsApiBadge" class="badge badge-unknown">Debts API loading</span>
-<span id="debtsGovernorBadge" class="badge badge-unknown">Governor loading</span>
-<span id="debtsPreflightBadge" class="badge badge-unknown">debt.preflight checking</span>
-<span id="debtsSaveBadge" class="badge badge-blocked">debt.save checking</span>
-<span id="debtsPayBadge" class="badge badge-blocked">debt.pay checking</span>
+<div id="debugBadges" class="debts-status-strip" hidden>
+<span id="debtsApiBadge" class="badge badge-unknown">API loading</span>
+<span id="debtsGovernorBadge" class="badge badge-unknown">Authority loading</span>
+<span id="debtsSaveBadge" class="badge badge-unknown">save checking</span>
+<span id="debtsPayBadge" class="badge badge-unknown">pay checking</span>
 </div>
 </div>
 
 <aside class="debts-side">
 <div class="debts-card">
-<div class="debts-card-title">Debt safety posture</div>
-<div id="debtSafetyCopy" class="debts-card-copy">
-Loading Command Centre debt authority...
-</div>
-<div style="margin-top:12px">
-<span class="badge badge-ready">Read healthy</span>
-<span id="debtDryRunBadge" class="badge badge-preflight">Dry-run checking</span>
-<span id="debtRealWriteBadge" class="badge badge-blocked">Real writes checking</span>
+<div class="debts-card-title">Current position</div>
+<div id="debtPositionCopy" class="debts-card-copy">
+Loading debt position...
 </div>
 </div>
 
 <div class="debts-card">
-<div class="debts-card-title">Command Centre lift state</div>
-<div id="debtLiftCopy" class="debts-card-copy">
-This page will enable real buttons only after Command Centre allows the matching action.
+<div class="debts-card-title">Page status</div>
+<div id="debtPageStatusCopy" class="debts-card-copy">
+Loading...
+</div>
+<div style="margin-top:12px">
+<span id="debtPageStatusBadge" class="badge badge-unknown">Loading</span>
 </div>
 </div>
 </aside>
@@ -359,25 +327,25 @@ This page will enable real buttons only after Command Centre allows the matching
 <div class="kpi-card">
 <div class="kpi-label">I owe</div>
 <div id="totalOwe" class="kpi-value">-</div>
-<div class="kpi-sub">From /api/debts total_owe</div>
+<div class="kpi-sub">Active payable debts</div>
 </div>
 
 <div class="kpi-card">
 <div class="kpi-label">Owed to me</div>
 <div id="totalOwed" class="kpi-value">-</div>
-<div class="kpi-sub">From /api/debts total_owed</div>
+<div class="kpi-sub">Active receivables</div>
 </div>
 
 <div class="kpi-card">
-<div class="kpi-label">Debt sources</div>
+<div class="kpi-label">Net position</div>
+<div id="netPosition" class="kpi-value">-</div>
+<div class="kpi-sub">Owed to me minus I owe</div>
+</div>
+
+<div class="kpi-card">
+<div class="kpi-label">Active rows</div>
 <div id="debtCount" class="kpi-value">-</div>
-<div class="kpi-sub">Rows from debts API</div>
-</div>
-
-<div class="kpi-card">
-<div class="kpi-label">Authority</div>
-<div id="debtAuthorityStatus" class="kpi-value">Gated</div>
-<div id="debtAuthoritySub" class="kpi-sub">Until Command Centre lift</div>
+<div class="kpi-sub">Debt records</div>
 </div>
 </section>
 
@@ -389,15 +357,13 @@ This page will enable real buttons only after Command Centre allows the matching
 </div>
 
 <div class="debts-actions">
-<button id="refreshDebtsBtn" class="btn btn-secondary" type="button">Refresh Debts</button>
+<button id="refreshDebtsBtn" class="btn btn-secondary" type="button">Refresh</button>
 <a class="btn btn-secondary" href="/transactions.html">Transactions</a>
 <a class="btn btn-secondary" href="/monthly-close.html">Command Centre</a>
 </div>
 </div>
 
-<div id="debtsEnforcement" class="debts-enforcement">
-Checking Command Centre debt authority...
-</div>
+<div id="debtNotice" class="debt-notice" hidden></div>
 
 <div style="height:14px"></div>
 
@@ -405,75 +371,33 @@ Checking Command Centre debt authority...
 <table class="debts-table">
 <thead>
 <tr>
-<th>Debt</th>
+<th>Name</th>
 <th>Type</th>
 <th>Status</th>
 <th>Original</th>
 <th>Paid</th>
 <th>Remaining</th>
 <th>Due</th>
-<th>Proof / real actions</th>
+<th>Actions</th>
 </tr>
 </thead>
 <tbody id="debtsTableBody"></tbody>
 </table>
 </div>
 
-<div id="debtsEmpty" class="debts-empty" hidden>No debts returned from /api/debts.</div>
-</section>
+<div id="debtsEmpty" class="debts-empty" hidden>No debts found.</div>
 
-<section>
-<div class="debts-section-head">
-<div>
-<div class="debts-section-title">Debt action staging</div>
-<div class="debts-section-copy">Real form remains disabled until Command Centre allows debt.save.</div>
+<div id="debugPanel" class="debt-debug">
+<div class="debts-card-title">Debug mode</div>
+<div class="debts-card-copy">
+Internal proof and Command Centre details are visible because this page was opened with <code>?debug=1</code>.
 </div>
-<span id="formAuthorityBadge" class="badge badge-blocked">Real write disabled</span>
-</div>
-
-<div class="debt-form-card">
-<div class="debt-form-grid">
-<div class="field">
-<label for="debtNameInput">Debt Name</label>
-<input id="debtNameInput" class="input" type="text" placeholder="Name" disabled />
-</div>
-
-<div class="field">
-<label for="debtAmountInput">Amount</label>
-<input id="debtAmountInput" class="input" type="number" placeholder="0.00" disabled />
-</div>
-
-<div class="field">
-<label for="debtKindInput">Type</label>
-<select id="debtKindInput" class="select" disabled>
-<option>owe</option>
-<option>owed</option>
-</select>
-</div>
-
-<div class="field">
-<label for="debtDateInput">Date</label>
-<input id="debtDateInput" class="input" type="date" disabled />
-</div>
-
-<div class="field full">
-<label for="debtNotesInput">Notes</label>
-<textarea id="debtNotesInput" class="textarea" placeholder="Notes" disabled></textarea>
-</div>
-</div>
-
-<button class="primary-submit" type="button" disabled>
-debt.save page form disabled
-</button>
-
-<div id="debtFormNote" class="debt-disabled-note">
-Use row-level dry-run proof first. Real save/pay depends on Command Centre action state.
-</div>
+<pre id="debugOutput">{}</pre>
 </div>
 </section>
 
 <footer class="debts-page-meta" aria-hidden="true">
-Debts UI v2.2.0
+Debts clean UI v2.3.0
 </footer>
 </main>
 
@@ -487,17 +411,14 @@ Debts UI v2.2.0
 (function () {
   "use strict";
 
-  const VERSION = "2.2.0";
-  const DEFAULT_PREFLIGHT_ACCOUNT = "meezan";
+  const VERSION = "2.3.0";
+  const DEFAULT_ACCOUNT = "meezan";
+  const DEBUG = new URL(location.href).searchParams.get("debug") === "1";
 
   let debts = [];
   let command = null;
-  let proofs = {};
-  let authority = {
-    preflight: false,
-    save: false,
-    pay: false
-  };
+  let authority = { save: false, pay: false, preflight: false };
+  let lastProof = null;
 
   const $ = id => document.getElementById(id);
 
@@ -513,6 +434,21 @@ Debts UI v2.2.0
     el.className = "badge " + cls;
   }
 
+  function showNotice(message, type) {
+    const el = $("debtNotice");
+    if (!el) return;
+    el.hidden = false;
+    el.className = "debt-notice " + (type || "");
+    el.textContent = message;
+  }
+
+  function clearNotice() {
+    const el = $("debtNotice");
+    if (!el) return;
+    el.hidden = true;
+    el.textContent = "";
+  }
+
   function escapeHtml(value) {
     return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
@@ -524,18 +460,23 @@ Debts UI v2.2.0
 
   function money(value) {
     const n = Number(value);
-    if (!Number.isFinite(n)) return "Unknown";
+    if (!Number.isFinite(n)) return "Rs 0";
     return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
+  }
+
+  function signedMoney(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "Rs 0";
+    const prefix = n < 0 ? "-" : "";
+    return prefix + money(Math.abs(n));
   }
 
   function debtRemaining(debt) {
     const candidates = [debt.remaining_amount, debt.balance, debt.outstanding, debt.amount];
-
     for (const value of candidates) {
       const n = Number(value);
       if (Number.isFinite(n)) return n;
     }
-
     return 0;
   }
 
@@ -565,25 +506,14 @@ Debts UI v2.2.0
     return debt.next_due_date || debt.due_date || (debt.due_day ? "day " + debt.due_day : "N/A");
   }
 
-  function proofMessage(debtId) {
-    const proof = proofs[debtId];
-    if (!proof) return "";
-
-    const cls = proof.ok ? "debt-proof pass" : "debt-proof fail";
-    return `<div class="${cls}">${escapeHtml(proof.message)}</div>`;
-  }
-
   async function fetchJSON(url, options) {
-    const res = await fetch(url, {
-      cache: "no-store",
-      ...(options || {})
-    });
-
+    const res = await fetch(url, { cache: "no-store", ...(options || {}) });
     const text = await res.text();
     let data = null;
-    try { data = JSON.parse(text); } catch (err) {}
 
-    if (!data) {
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
       throw new Error("Non-JSON response from " + url);
     }
 
@@ -602,6 +532,26 @@ Debts UI v2.2.0
     return Boolean(found && found.allowed);
   }
 
+  function updateDebug() {
+    if (!DEBUG) return;
+    const panel = $("debugPanel");
+    const output = $("debugOutput");
+    const badges = $("debugBadges");
+
+    if (panel) panel.classList.add("on");
+    if (badges) badges.hidden = false;
+
+    if (output) {
+      output.textContent = JSON.stringify({
+        version: VERSION,
+        authority,
+        command_version: command && command.version,
+        last_proof: lastProof,
+        debts_count: debts.length
+      }, null, 2);
+    }
+  }
+
   async function loadCommandCentre() {
     try {
       command = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
@@ -615,128 +565,70 @@ Debts UI v2.2.0
         pay: actionAllowed(actions, "debt.pay")
       };
 
-      const anyReal = authority.save || authority.pay;
-
-      setBadge(
-        "debtsGovernorBadge",
-        anyReal ? "Debt writes allowed" : authority.preflight ? "Debt preflight recognized" : "Debt writes gated",
-        anyReal ? "badge-ready" : authority.preflight ? "badge-preflight" : "badge-blocked"
-      );
-
-      setBadge(
-        "debtsPreflightBadge",
-        authority.preflight ? "debt.preflight allowed" : "debt.preflight blocked",
-        authority.preflight ? "badge-ready" : "badge-blocked"
-      );
-
-      setBadge(
-        "debtsSaveBadge",
-        authority.save ? "debt.save allowed" : "debt.save blocked",
-        authority.save ? "badge-ready" : "badge-blocked"
-      );
-
-      setBadge(
-        "debtsPayBadge",
-        authority.pay ? "debt.pay allowed" : "debt.pay blocked",
-        authority.pay ? "badge-ready" : "badge-blocked"
-      );
-
-      setBadge(
-        "debtDryRunBadge",
-        authority.preflight ? "Dry-run recognized" : "Dry-run local only",
-        authority.preflight ? "badge-ready" : "badge-preflight"
-      );
-
-      setBadge(
-        "debtRealWriteBadge",
-        anyReal ? "Real writes allowed" : "Real writes gated",
-        anyReal ? "badge-ready" : "badge-blocked"
-      );
-
-      setBadge(
-        "formAuthorityBadge",
-        authority.save ? "Real save allowed" : "Real write disabled",
-        authority.save ? "badge-ready" : "badge-blocked"
-      );
-
-      setText(
-        "debtAuthorityStatus",
-        anyReal ? "Allowed" : authority.preflight ? "Preflight" : "Gated"
-      );
-
-      setText(
-        "debtAuthoritySub",
-        anyReal ? "Command Centre lift active" : authority.preflight ? "Preflight recognized" : "Until Command Centre recognition"
-      );
-
-      setText(
-        "debtSafetyCopy",
-        anyReal
-          ? "Command Centre allows real debt writes. Page still offers dry-run proof before action."
-          : authority.preflight
-            ? "Debt preflight is recognized by Command Centre. Real debt.save and debt.pay remain blocked until Phase 4 lift."
-            : "This page can read debts and run local dry-run proof. Command Centre has not recognized debt preflight yet."
-      );
-
-      setText(
-        "debtLiftCopy",
-        anyReal
-          ? "Debt Phase 4 lift is active. Use real buttons only for real-world debt events."
-          : authority.preflight
-            ? "Recognition is complete. Next lift must update backend allow-checks before real debt writes are enabled."
-            : "After page preflight is verified, Command Centre can recognize debt proof and later lift debt.save and debt.pay."
-      );
-
-      const panel = $("debtsEnforcement");
-      if (panel) {
-        if (anyReal) {
-          panel.className = "debts-enforcement pass";
-          panel.textContent = "Command Centre allows debt actions. Dry-run remains available before real writes.";
-        } else if (authority.preflight) {
-          panel.className = "debts-enforcement preflight";
-          panel.textContent = "Debt preflight is recognized by Command Centre. Real debt.save and debt.pay remain blocked until Phase 4 explicit lift.";
-        } else {
-          panel.className = "debts-enforcement";
-          panel.textContent = "Debt dry-run proof is available at API level. Real debt actions remain blocked until Command Centre recognizes page preflight and lifts debt.save/debt.pay.";
-        }
+      if (DEBUG) {
+        setBadge("debtsGovernorBadge", authority.save || authority.pay ? "Writes allowed" : authority.preflight ? "Preflight ready" : "Gated", authority.save || authority.pay ? "badge-ready" : authority.preflight ? "badge-preflight" : "badge-blocked");
+        setBadge("debtsSaveBadge", authority.save ? "save allowed" : "save blocked", authority.save ? "badge-ready" : "badge-blocked");
+        setBadge("debtsPayBadge", authority.pay ? "pay allowed" : "pay blocked", authority.pay ? "badge-ready" : "badge-blocked");
       }
 
+      const pageReady = authority.save || authority.pay;
+
+      setBadge(
+        "debtPageStatusBadge",
+        pageReady ? "Ready" : "View only",
+        pageReady ? "badge-ready" : "badge-preflight"
+      );
+
       setText(
-        "debtFormNote",
-        authority.save
-          ? "Command Centre allows debt.save, but this staged form remains disabled until a dedicated create/edit workflow is restored."
-          : "Use row-level dry-run proof first. Real save/pay depends on Command Centre action state."
+        "debtPageStatusCopy",
+        pageReady
+          ? "Actions are available. Safety checks still run before each real update."
+          : "Debt records are visible. Actions are temporarily unavailable until Command Centre allows them."
       );
     } catch (err) {
       command = null;
-      authority = { preflight: false, save: false, pay: false };
+      authority = { save: false, pay: false, preflight: false };
 
-      setBadge("debtsGovernorBadge", "Governor unknown", "badge-unknown");
-      setBadge("debtsPreflightBadge", "debt.preflight unknown", "badge-unknown");
-      setBadge("debtsSaveBadge", "debt.save unknown", "badge-unknown");
-      setBadge("debtsPayBadge", "debt.pay unknown", "badge-unknown");
-      setText("debtAuthorityStatus", "Unknown");
-      setText("debtAuthoritySub", "Command Centre unavailable");
-
-      const panel = $("debtsEnforcement");
-      if (panel) {
-        panel.className = "debts-enforcement";
-        panel.textContent = "Command Centre could not be loaded. Debt real writes remain unavailable.";
-      }
+      setBadge("debtPageStatusBadge", "Unavailable", "badge-blocked");
+      setText("debtPageStatusCopy", "Command Centre could not be reached. Debt actions are disabled.");
     }
+
+    updateDebug();
   }
 
   async function loadDebts() {
     const data = await fetchJSON("/api/debts?cb=" + Date.now());
     debts = Array.isArray(data.debts) ? data.debts : [];
 
-    setBadge("debtsApiBadge", "Debts API " + (data.version || "live"), "badge-ready");
-    setText("totalOwe", money(data.total_owe || 0));
-    setText("totalOwed", money(data.total_owed || 0));
+    const totalOwe = Number(data.total_owe || 0);
+    const totalOwed = Number(data.total_owed || 0);
+    const net = totalOwed - totalOwe;
+
+    if (DEBUG) {
+      setBadge("debtsApiBadge", "Debts API " + (data.version || "live"), "badge-ready");
+    }
+
+    setText("totalOwe", money(totalOwe));
+    setText("totalOwed", money(totalOwed));
+    setText("netPosition", signedMoney(net));
     setText("debtCount", String(debts.length));
-    setText("debtsSummary", debts.length + " debt source(s) visible · total_owe " + money(data.total_owe || 0) + " · total_owed " + money(data.total_owed || 0));
+
+    setText(
+      "debtPositionCopy",
+      totalOwe > totalOwed
+        ? "I currently owe more than is owed to me."
+        : totalOwed > totalOwe
+          ? "More money is owed to me than I owe out."
+          : "Debt position is balanced."
+    );
+
+    setText(
+      "debtsSummary",
+      debts.length + " debt record(s) · I owe " + money(totalOwe) + " · Owed to me " + money(totalOwed)
+    );
 
     renderDebts();
+    updateDebug();
   }
 
   function renderDebts() {
@@ -760,15 +652,15 @@ Debts UI v2.2.0
       const kind = debtKind(debt);
       const remaining = debtRemaining(debt);
       const paidOff = remaining <= 0;
+      const actionLabel = kind === "owed" ? "Record Received" : "Record Payment";
 
       return `
         <tr data-debt-id="${escapeHtml(id)}">
           <td>
             <div class="debt-name">${escapeHtml(debt.name || id || "Debt")}</div>
             <div class="debt-id">${escapeHtml(id)}</div>
-            ${proofMessage(id)}
           </td>
-          <td><span class="${kind === "owed" ? "badge badge-ready" : "badge badge-preflight"}">${escapeHtml(kind)}</span></td>
+          <td><span class="${kind === "owed" ? "badge badge-ready" : "badge badge-preflight"}">${escapeHtml(kind === "owed" ? "Owed to me" : "I owe")}</span></td>
           <td><span class="${paidOff ? "badge badge-ready" : "badge badge-info"}">${escapeHtml(debtStatus(debt))}</span></td>
           <td><div class="debt-amount">${escapeHtml(money(debtOriginal(debt)))}</div></td>
           <td><div class="debt-amount">${escapeHtml(money(debtPaid(debt)))}</div></td>
@@ -779,18 +671,16 @@ Debts UI v2.2.0
           </td>
           <td>
             <div class="debt-row-actions">
-              <button class="debt-action-button" type="button" data-action="save-preflight" data-id="${escapeHtml(id)}">
-                Save Preflight
+              <button class="debt-action-button" type="button" data-action="edit" data-id="${escapeHtml(id)}" ${authority.save ? "" : "disabled"}>
+                Edit
               </button>
-              <button class="debt-action-button primary" type="button" data-action="pay-preflight" data-id="${escapeHtml(id)}" ${paidOff ? "disabled" : ""}>
-                Pay Preflight
+              <button class="debt-action-button primary" type="button" data-action="pay" data-id="${escapeHtml(id)}" ${authority.pay && !paidOff ? "" : "disabled"}>
+                ${escapeHtml(actionLabel)}
               </button>
-              <button class="debt-action-button" type="button" data-action="real-save" data-id="${escapeHtml(id)}" ${authority.save ? "" : "disabled"}>
-                Real Save
-              </button>
-              <button class="debt-action-button danger" type="button" data-action="real-pay" data-id="${escapeHtml(id)}" ${authority.pay && !paidOff ? "" : "disabled"}>
-                Real Pay
-              </button>
+              ${DEBUG ? `
+                <button class="debt-action-button" type="button" data-action="debug-save" data-id="${escapeHtml(id)}">Dry Save</button>
+                <button class="debt-action-button" type="button" data-action="debug-pay" data-id="${escapeHtml(id)}" ${paidOff ? "disabled" : ""}>Dry Pay</button>
+              ` : ""}
             </div>
           </td>
         </tr>
@@ -811,71 +701,55 @@ Debts UI v2.2.0
     if (!debt) return;
 
     button.disabled = true;
+    clearNotice();
 
     try {
-      if (action === "save-preflight") {
-        await runDebtSavePreflight(debt);
-      }
-
-      if (action === "pay-preflight") {
-        await runDebtPayPreflight(debt);
-      }
-
-      if (action === "real-save") {
-        await runDebtRealSave(debt);
-      }
-
-      if (action === "real-pay") {
-        await runDebtRealPay(debt);
-      }
+      if (action === "edit") await editDebt(debt);
+      if (action === "pay") await recordDebtPayment(debt);
+      if (action === "debug-save") await runDebtSavePreflight(debt);
+      if (action === "debug-pay") await runDebtPayPreflight(debt);
     } catch (err) {
-      proofs[id] = {
-        ok: false,
-        message: err.message || "Debt action failed"
-      };
-      renderDebts();
+      showNotice(err.message || "Debt action failed.", "fail");
     } finally {
       button.disabled = false;
+      renderDebts();
+      updateDebug();
     }
   }
 
-  function debtSavePayload(debt, dryRun) {
+  function debtSavePayload(debt, dryRun, overrides) {
     return {
       dry_run: Boolean(dryRun),
-      name: debt.name,
-      kind: debt.kind,
-      original_amount: debt.original_amount,
-      paid_amount: debt.paid_amount,
-      due_date: debt.due_date,
-      due_day: debt.due_day,
-      installment_amount: debt.installment_amount,
-      frequency: debt.frequency,
-      notes: debt.notes || ""
+      name: overrides && overrides.name !== undefined ? overrides.name : debt.name,
+      kind: overrides && overrides.kind !== undefined ? overrides.kind : debt.kind,
+      original_amount: overrides && overrides.original_amount !== undefined ? overrides.original_amount : debt.original_amount,
+      paid_amount: overrides && overrides.paid_amount !== undefined ? overrides.paid_amount : debt.paid_amount,
+      due_date: overrides && overrides.due_date !== undefined ? overrides.due_date : debt.due_date,
+      due_day: overrides && overrides.due_day !== undefined ? overrides.due_day : debt.due_day,
+      installment_amount: overrides && overrides.installment_amount !== undefined ? overrides.installment_amount : debt.installment_amount,
+      frequency: overrides && overrides.frequency !== undefined ? overrides.frequency : debt.frequency,
+      notes: overrides && overrides.notes !== undefined ? overrides.notes : (debt.notes || "")
     };
   }
 
-  async function runDebtSavePreflight(debt) {
+  async function runDebtSavePreflight(debt, overrides) {
     const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "?dry_run=1&cb=" + Date.now(), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(debtSavePayload(debt, true))
+      body: JSON.stringify(debtSavePayload(debt, true, overrides))
     });
 
-    proofs[debt.id] = {
-      ok: true,
-      message: "debt.save dry-run passed. No debt, transaction, ledger, or audit rows were written."
-    };
-
-    renderDebts();
+    lastProof = data;
+    if (DEBUG) showNotice("Dry save passed. No real write was made.", "success");
     return data;
   }
 
-  async function runDebtPayPreflight(debt) {
+  async function runDebtPayPreflight(debt, amount, accountId) {
     const remaining = debtRemaining(debt);
-    const amount = Math.min(1000, remaining);
+    const testAmount = Number(amount || Math.min(1000, remaining));
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw new Error("Debt has no remaining amount to pay.");
+    if (!Number.isFinite(testAmount) || testAmount <= 0) {
+      throw new Error("Invalid payment amount.");
     }
 
     const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "/pay?dry_run=1&cb=" + Date.now(), {
@@ -883,61 +757,86 @@ Debts UI v2.2.0
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         dry_run: true,
-        amount,
-        account_id: DEFAULT_PREFLIGHT_ACCOUNT,
+        amount: testAmount,
+        account_id: accountId || DEFAULT_ACCOUNT,
         paid_date: new Date().toISOString().slice(0, 10)
       })
     });
 
-    proofs[debt.id] = {
-      ok: true,
-      message: "debt.pay dry-run passed for " + money(amount) + ". No real payment or transaction was written."
-    };
-
-    renderDebts();
+    lastProof = data;
+    if (DEBUG) showNotice("Dry payment passed. No real write was made.", "success");
     return data;
   }
 
-  async function runDebtRealSave(debt) {
+  async function editDebt(debt) {
     if (!authority.save) {
-      throw new Error("Command Centre has not allowed debt.save.");
+      throw new Error("Editing is temporarily unavailable.");
     }
+
+    const name = prompt("Debt name:", debt.name || "");
+    if (name === null) return;
+
+    const originalRaw = prompt("Original amount:", String(debtOriginal(debt)));
+    if (originalRaw === null) return;
+
+    const notes = prompt("Notes:", debt.notes || "");
+    if (notes === null) return;
+
+    const originalAmount = Number(originalRaw);
+    if (!Number.isFinite(originalAmount) || originalAmount < 0) {
+      throw new Error("Invalid amount.");
+    }
+
+    const overrides = {
+      name,
+      original_amount: originalAmount,
+      notes
+    };
+
+    await runDebtSavePreflight(debt, overrides);
+
+    const confirmed = confirm("Save changes to " + (debt.name || debt.id) + "?");
+    if (!confirmed) return;
 
     const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "?cb=" + Date.now(), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(debtSavePayload(debt, false))
+      body: JSON.stringify(debtSavePayload(debt, false, overrides))
     });
 
-    proofs[debt.id] = {
-      ok: true,
-      message: "Real debt.save completed under Command Centre authority."
-    };
-
+    showNotice("Debt updated.", "success");
     await refresh();
     return data;
   }
 
-  async function runDebtRealPay(debt) {
+  async function recordDebtPayment(debt) {
     if (!authority.pay) {
-      throw new Error("Command Centre has not allowed debt.pay.");
+      throw new Error("Payments are temporarily unavailable.");
     }
 
     const remaining = debtRemaining(debt);
-    const raw = prompt("Real debt payment amount for " + (debt.name || debt.id) + " (remaining " + money(remaining) + "):", String(Math.min(1000, remaining)));
-    if (raw === null) return null;
+    const kind = debtKind(debt);
+    const label = kind === "owed" ? "received" : "paid";
 
-    const amount = Number(raw);
+    const amountRaw = prompt("Amount " + label + " for " + (debt.name || debt.id) + " (remaining " + money(remaining) + "):", String(Math.min(1000, remaining)));
+    if (amountRaw === null) return;
+
+    const amount = Number(amountRaw);
     if (!Number.isFinite(amount) || amount <= 0) {
-      throw new Error("Invalid real payment amount.");
+      throw new Error("Invalid payment amount.");
     }
 
     if (amount > remaining + 0.01) {
-      throw new Error("Real payment cannot exceed remaining amount.");
+      throw new Error("Amount cannot exceed remaining balance.");
     }
 
-    const accountId = prompt("Account id for real payment:", DEFAULT_PREFLIGHT_ACCOUNT);
-    if (!accountId) return null;
+    const accountId = prompt("Account id:", DEFAULT_ACCOUNT);
+    if (!accountId) return;
+
+    await runDebtPayPreflight(debt, amount, accountId);
+
+    const confirmed = confirm("This will record " + money(amount) + " as " + label + " for " + (debt.name || debt.id) + ". Continue?");
+    if (!confirmed) return;
 
     const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "/pay?cb=" + Date.now(), {
       method: "POST",
@@ -949,20 +848,16 @@ Debts UI v2.2.0
       })
     });
 
-    proofs[debt.id] = {
-      ok: true,
-      message: "Real debt.pay completed for " + money(amount) + " under Command Centre authority."
-    };
-
+    showNotice("Debt payment recorded.", "success");
     await refresh();
     return data;
   }
 
   async function refresh() {
-    console.log("[debts-ui v2.2.0] refresh");
+    console.log("[debts-ui v2.3.0] refresh");
     await loadCommandCentre();
     await loadDebts();
-    console.log("[debts-ui v2.2.0] ready", {
+    console.log("[debts-ui v2.3.0] ready", {
       debts: debts.length,
       authority,
       total_remaining: debts.reduce((sum, debt) => sum + debtRemaining(debt), 0)
@@ -970,7 +865,7 @@ Debts UI v2.2.0
   }
 
   function init() {
-    console.log("[debts-ui v2.2.0] init");
+    console.log("[debts-ui v2.3.0] init");
     $("refreshDebtsBtn")?.addEventListener("click", refresh);
     refresh();
   }
@@ -980,7 +875,7 @@ Debts UI v2.2.0
     refresh,
     debts: () => debts.slice(),
     authority: () => ({ ...authority }),
-    proofs: () => ({ ...proofs }),
+    lastProof: () => lastProof,
     preflightSave: id => {
       const debt = debts.find(row => row.id === id);
       if (!debt) throw new Error("Debt not found: " + id);
@@ -990,16 +885,6 @@ Debts UI v2.2.0
       const debt = debts.find(row => row.id === id);
       if (!debt) throw new Error("Debt not found: " + id);
       return runDebtPayPreflight(debt);
-    },
-    realSave: id => {
-      const debt = debts.find(row => row.id === id);
-      if (!debt) throw new Error("Debt not found: " + id);
-      return runDebtRealSave(debt);
-    },
-    realPay: id => {
-      const debt = debts.find(row => row.id === id);
-      if (!debt) throw new Error("Debt not found: " + id);
-      return runDebtRealPay(debt);
     }
   };
 
