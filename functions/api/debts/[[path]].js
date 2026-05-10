@@ -1,4 +1,4 @@
-const VERSION = "v0.4.0-ledger-atomic";
+const VERSION = "v0.4.1-ledger-atomic";
 
 export async function onRequestGet({ env, request }) {
   try {
@@ -53,7 +53,6 @@ export async function onRequestPost({ env, request }) {
   try {
     const db = requireDb(env);
     const body = await request.json();
-
     const action = String(body.action || "create").toLowerCase();
 
     if (action === "create" || !body.id) {
@@ -76,7 +75,11 @@ export async function onRequestPost({ env, request }) {
       return json({ ok: true, version: VERSION, ...result });
     }
 
-    return json({ ok: false, version: VERSION, error: `Unsupported debt action: ${action}` }, 400);
+    return json({
+      ok: false,
+      version: VERSION,
+      error: `Unsupported debt action: ${action}`
+    }, 400);
   } catch (err) {
     return json({ ok: false, version: VERSION, error: err.message }, 500);
   }
@@ -136,6 +139,7 @@ async function createDebt(db, body) {
 
   if (!createLedgerEntry) {
     await db.batch([debtInsert]);
+
     return {
       action: "create",
       debt: normalizeDebtRow({
@@ -144,9 +148,9 @@ async function createDebt(db, body) {
         kind,
         original_amount: original,
         paid_amount: paid,
-        due_date: dueDate,
+        due_date: dueDate || null,
         status,
-        notes,
+        notes: notes || null,
         created_at: now,
         installment_amount: installment,
         frequency,
@@ -159,15 +163,14 @@ async function createDebt(db, body) {
   const accountId = requireText(body.account_id, "account_id");
   const date = requireText(body.movement_date || body.date, "movement_date");
 
-  const transactionType = kind === "owed" ? "debt_out" : "debt_in";
-  const ledgerDirection = kind === "owed" ? "money_out" : "money_in";
+  const transactionType = kind === "owed" ? "expense" : "borrow";
+  const ledgerEffect = kind === "owed" ? "decrease_account" : "increase_account";
   const txId = makeId(`tx_${transactionType}`);
 
   const txNotes = [
-    `Debt created: ${name}`,
+    kind === "owed" ? `Debt given: ${name}` : `Debt borrowed: ${name}`,
     `debt_id=${id}`,
     `kind=${kind}`,
-    `ledger_direction=${ledgerDirection}`,
     notes ? `notes=${notes}` : null
   ].filter(Boolean).join(" | ");
 
@@ -212,9 +215,9 @@ async function createDebt(db, body) {
       kind,
       original_amount: original,
       paid_amount: paid,
-      due_date: dueDate,
+      due_date: dueDate || null,
       status,
-      notes,
+      notes: notes || null,
       created_at: now,
       installment_amount: installment,
       frequency,
@@ -226,7 +229,7 @@ async function createDebt(db, body) {
       date,
       amount: original,
       account_id: accountId,
-      effect: ledgerDirection
+      effect: ledgerEffect
     }
   };
 }
@@ -239,10 +242,10 @@ async function updateDebt(db, id, body) {
 
   const name = cleanText(body.name) || existing.name;
   const kind = normalizeKind(body.kind || body.direction || body.type || existing.kind);
-  const original = optionalNumber(body.original_amount ?? body.amount) ?? existing.original_amount;
-  const paid = optionalNumber(body.paid_amount) ?? existing.paid_amount ?? 0;
+  const original = optionalNumber(body.original_amount ?? body.amount) ?? Number(existing.original_amount);
+  const paid = optionalNumber(body.paid_amount) ?? Number(existing.paid_amount || 0);
   const dueDate = cleanText(body.next_due_date || body.due_date) || null;
-  const notes = cleanText(body.notes);
+  const notes = cleanText(body.notes) || existing.notes || null;
   const installment = optionalNumber(body.installment_amount);
   const frequency = cleanText(body.frequency) || existing.frequency || "custom";
   const status = cleanText(body.status) || existing.status || "active";
@@ -271,7 +274,7 @@ async function updateDebt(db, id, body) {
     paid,
     dueDate,
     status,
-    notes || existing.notes || null,
+    notes,
     installment,
     frequency,
     id
@@ -279,13 +282,13 @@ async function updateDebt(db, id, body) {
 
   return {
     action: "update",
-    debt: normalizeDebtRow(await getDebt(db, id))
+    debt: normalizeDebtRow(await getDebt(db, id)),
+    ledger_transaction: null
   };
 }
 
 async function deferDebt(db, id, body) {
   id = requireText(id, "id");
-  const nextDueDate = requireText(body.next_due_date || body.due_date, "next_due_date");
 
   const existing = await getDebt(db, id);
   if (!existing) throw new Error("Debt not found.");
@@ -294,6 +297,7 @@ async function deferDebt(db, id, body) {
     throw new Error("Settled or archived debts can only be edited.");
   }
 
+  const nextDueDate = requireText(body.next_due_date || body.due_date, "next_due_date");
   const notes = appendNote(existing.notes, body.notes, `Deferred to ${nextDueDate}`);
 
   await db.prepare(`
@@ -321,7 +325,7 @@ async function recordDebtMovement(db, id, body) {
     throw new Error("Settled or archived debts can only be edited.");
   }
 
-  const action = String(body.action || body.type || "").toLowerCase();
+  const action = normalizeMovementAction(body.action || body.type);
   const kind = normalizeKind(existing.kind);
 
   if (kind === "owe" && action !== "payment") {
@@ -339,7 +343,7 @@ async function recordDebtMovement(db, id, body) {
 
   const original = Number(existing.original_amount);
   const paidBefore = Number(existing.paid_amount || 0);
-  const remainingBefore = original - paidBefore;
+  const remainingBefore = round2(original - paidBefore);
 
   if (amount > remainingBefore + 0.00001) {
     throw new Error(`Amount exceeds outstanding debt. Outstanding is ${remainingBefore}.`);
@@ -351,7 +355,9 @@ async function recordDebtMovement(db, id, body) {
 
   const nextDueDate = settled ? null : cleanText(body.next_due_date || body.due_date || existing.due_date);
   const status = settled ? "closed" : "active";
-  const txType = action === "payment" ? "debt_out" : "debt_in";
+
+  const txType = action === "payment" ? "repay" : "income";
+  const txEffect = action === "payment" ? "decrease_account" : "increase_account";
   const txId = makeId(`tx_${txType}`);
 
   const txNotes = [
@@ -427,7 +433,7 @@ async function recordDebtMovement(db, id, body) {
       date,
       amount,
       account_id: accountId,
-      effect: txType === "debt_in" ? "increase_account" : "decrease_account"
+      effect: txEffect
     }
   };
 }
@@ -460,11 +466,13 @@ function normalizeDebtRow(row) {
   const original = Number(row.original_amount || 0);
   const paid = Number(row.paid_amount || 0);
   const remaining = round2(original - paid);
+  const normalizedKind = normalizeKind(row.kind);
 
   return {
     ...row,
-    direction: normalizeKind(row.kind) === "owed" ? "owed_to_me" : "i_owe",
-    type: normalizeKind(row.kind) === "owed" ? "owed_to_me" : "i_owe",
+    kind: normalizedKind,
+    direction: normalizedKind === "owed" ? "owed_to_me" : "i_owe",
+    type: normalizedKind === "owed" ? "owed_to_me" : "i_owe",
     original_amount: original,
     amount: original,
     paid_amount: paid,
@@ -476,23 +484,26 @@ function normalizeDebtRow(row) {
   };
 }
 
+function normalizeMovementAction(value) {
+  const action = String(value || "").toLowerCase();
+
+  if (["payment", "pay", "paid", "repay"].includes(action)) return "payment";
+  if (["received", "receive", "receipt", "income"].includes(action)) return "received";
+
+  throw new Error("action must be payment or received.");
+}
+
 function normalizeKind(value) {
   const v = String(value || "").toLowerCase();
 
-  if (["owed", "owed_to_me", "receivable", "to_me", "they_owe_me", "received"].includes(v)) {
-    return "owed";
-  }
-
-  if (["owe", "i_owe", "payable", "i owe", "debt"].includes(v)) {
-    return "owe";
-  }
+  if (["owed", "owed_to_me", "receivable", "to_me", "they_owe_me", "received"].includes(v)) return "owed";
+  if (["owe", "i_owe", "payable", "i owe", "debt"].includes(v)) return "owe";
 
   throw new Error("kind/direction must be either owe or owed.");
 }
 
 function isClosed(status) {
-  const s = String(status || "").toLowerCase();
-  return ["closed", "settled", "archived", "deleted"].includes(s);
+  return ["closed", "settled", "archived", "deleted"].includes(String(status || "").toLowerCase());
 }
 
 function requireDb(env) {
@@ -540,13 +551,11 @@ function makeId(prefix) {
 }
 
 function appendNote(existing, incoming, systemNote) {
-  const parts = [
+  return [
     cleanText(existing),
     systemNote ? `[${new Date().toISOString()}] ${systemNote}` : "",
     cleanText(incoming)
-  ].filter(Boolean);
-
-  return parts.join(" | ");
+  ].filter(Boolean).join(" | ");
 }
 
 function json(payload, status = 200) {
