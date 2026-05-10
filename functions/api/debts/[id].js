@@ -1,12 +1,12 @@
 /* Sovereign Finance Debt Item Route v0.3.2-item
    /api/debts/:id
 
-   Debt Phase 1C:
-   - Keeps GET /api/debts/:id readable.
-   - Adds true dry_run support for PUT /api/debts/:id?dry_run=1.
-   - Blocks real PUT /api/debts/:id until Command Centre explicitly lifts debt.save.
-   - Blocks DELETE /api/debts/:id until delete proof/lift exists.
-   - Prevents dedicated item route from bypassing the catch-all dry-run guard.
+   Phase 4 prep:
+   - GET remains read-only.
+   - PUT dry_run remains safe.
+   - PUT real write asks Command Centre before writing.
+   - DELETE remains blocked unless dry_run.
+   - No version bump.
 */
 
 const VERSION = 'v0.3.2-item';
@@ -87,7 +87,7 @@ export async function onRequestPut(context) {
     }
 
     const before = normalizeDebt(beforeRaw);
-    const patch = buildDebtPatch(body);
+    const patch = buildDebtPatch(body, before);
 
     if (!patch.ok) {
       return jsonResponse({ ok: false, version: VERSION, error: patch.error }, 400);
@@ -97,16 +97,17 @@ export async function onRequestPut(context) {
       return jsonResponse({ ok: false, version: VERSION, error: 'Nothing to update' }, 400);
     }
 
-    const afterRaw = { ...beforeRaw };
+    const previewRaw = { ...beforeRaw };
     patch.fields.forEach((field, index) => {
-      afterRaw[field] = patch.values[index];
+      previewRaw[field] = patch.values[index];
     });
 
-    const after = normalizeDebt(afterRaw);
+    const afterPreview = normalizeDebt(previewRaw);
+
     const proof = buildDebtSaveProof({
       id,
       before,
-      after,
+      after: afterPreview,
       fields: patch.fields
     });
 
@@ -125,65 +126,61 @@ export async function onRequestPut(context) {
           fields: patch.fields,
           values: patch.values.map(cleanBind),
           before,
-          after
+          after: afterPreview
         }
       });
     }
 
     const allowed = await commandAllowsDebtAction(context, 'debt.save');
 
-if (!allowed) {
-  return jsonResponse({
-    ok: false,
-    version: VERSION,
-    error: 'Command Centre blocked real debt writes',
-    action: 'debt.save',
-    dry_run: false,
-    writes_performed: false,
-    audit_performed: false,
-    enforcement: {
+    if (!allowed) {
+      return jsonResponse({
+        ok: false,
+        version: VERSION,
+        error: 'Command Centre blocked real debt writes',
+        action: 'debt.save',
+        dry_run: false,
+        writes_performed: false,
+        audit_performed: false,
+        enforcement: {
+          action: 'debt.save',
+          allowed: false,
+          status: 'blocked',
+          level: 3,
+          reason: 'debt.save real write blocked by Command Centre.',
+          source: 'coverage.write_safety.debts.debt_save_allowed',
+          required_fix: 'Run Command Centre audit and confirm debt.save is allowed.',
+          backend_enforced: true,
+          frontend_enforced: true
+        },
+        proof
+      }, 423);
+    }
+
+    const setSql = patch.fields.map(field => `${field} = ?`).join(', ');
+    const bindValues = patch.values.concat([id]).map(cleanBind);
+
+    await db.prepare(
+      `UPDATE debts SET ${setSql} WHERE id = ?`
+    ).bind(...bindValues).run();
+
+    const afterWrittenRaw = await db.prepare(
+      `SELECT ${DEBT_COLUMNS}
+       FROM debts
+       WHERE id = ?
+       LIMIT 1`
+    ).bind(id).first();
+
+    return jsonResponse({
+      ok: true,
+      version: VERSION,
       action: 'debt.save',
-      allowed: false,
-      status: 'blocked',
-      level: 3,
-      reason: 'debt.save real write blocked by Command Centre.',
-      source: 'coverage.write_safety.debts.debt_save_allowed',
-      required_fix: 'Run Command Centre audit and confirm debt.save is allowed.',
-      backend_enforced: true,
-      frontend_enforced: true,
-      override: {
-        allowed: false,
-        reason_required: true
-      }
-    },
-    proof
-  }, 423);
-}
-
-const setSql = patch.fields.map(field => `${field} = ?`).join(', ');
-const bindValues = patch.values.concat([id]).map(cleanBind);
-
-await db.prepare(
-  `UPDATE debts SET ${setSql} WHERE id = ?`
-).bind(...bindValues).run();
-
-const afterWrittenRaw = await db.prepare(
-  `SELECT ${DEBT_COLUMNS}
-   FROM debts
-   WHERE id = ?
-   LIMIT 1`
-).bind(id).first();
-
-return jsonResponse({
-  ok: true,
-  version: VERSION,
-  action: 'debt.save',
-  id,
-  writes_performed: true,
-  audit_performed: false,
-  debt: normalizeDebt(afterWrittenRaw),
-  proof
-});
+      id,
+      writes_performed: true,
+      audit_performed: false,
+      debt: normalizeDebt(afterWrittenRaw),
+      proof
+    });
   } catch (err) {
     return jsonResponse({
       ok: false,
@@ -197,8 +194,7 @@ export async function onRequestDelete(context) {
   try {
     const db = context.env.DB;
     const id = safeText(context.params.id, '', 160);
-    const url = new URL(context.request.url);
-    const dryRun = url.searchParams.get('dry_run') === '1' || url.searchParams.get('dry_run') === 'true';
+    const dryRun = new URL(context.request.url).searchParams.get('dry_run') === '1';
 
     if (!id) {
       return jsonResponse({ ok: false, version: VERSION, error: 'Debt id required' }, 400);
@@ -226,12 +222,7 @@ export async function onRequestDelete(context) {
         action: 'debt.delete',
         writes_performed: false,
         audit_performed: false,
-        proof,
-        normalized_payload: {
-          id,
-          before,
-          after_status: 'cancelled'
-        }
+        proof
       });
     }
 
@@ -240,24 +231,8 @@ export async function onRequestDelete(context) {
       version: VERSION,
       error: 'Command Centre blocked debt.delete',
       action: 'debt.delete',
-      dry_run: false,
       writes_performed: false,
       audit_performed: false,
-      enforcement: {
-        action: 'debt.delete',
-        allowed: false,
-        status: 'blocked',
-        level: 3,
-        reason: 'debt.delete remains blocked until debt.delete dry-run proof and Command Centre lift exist.',
-        source: 'coverage.write_safety.debt_delete',
-        required_fix: 'Add debt.delete proof only if delete/cancel becomes part of the allowed finance scope.',
-        backend_enforced: true,
-        frontend_enforced: true,
-        override: {
-          allowed: false,
-          reason_required: true
-        }
-      },
       proof
     }, 423);
   } catch (err) {
@@ -269,7 +244,7 @@ export async function onRequestDelete(context) {
   }
 }
 
-function buildDebtPatch(body) {
+function buildDebtPatch(body, before) {
   const fields = [];
   const values = [];
 
@@ -362,20 +337,16 @@ function buildDebtPatch(body) {
     values.push(status);
   }
 
-  if (
-    Object.prototype.hasOwnProperty.call(body, 'original_amount') ||
-    Object.prototype.hasOwnProperty.call(body, 'paid_amount')
-  ) {
-    const original = Object.prototype.hasOwnProperty.call(body, 'original_amount')
-      ? Number(body.original_amount)
-      : null;
-    const paid = Object.prototype.hasOwnProperty.call(body, 'paid_amount')
-      ? Number(body.paid_amount)
-      : null;
+  const nextRaw = { ...before };
+  fields.forEach((field, index) => {
+    nextRaw[field] = values[index];
+  });
 
-    if (original !== null && paid !== null && paid > original) {
-      return { ok: false, error: 'paid_amount cannot exceed original_amount' };
-    }
+  const original = Number(nextRaw.original_amount);
+  const paid = Number(nextRaw.paid_amount);
+
+  if (Number.isFinite(original) && Number.isFinite(paid) && paid > original) {
+    return { ok: false, error: 'paid_amount cannot exceed original_amount' };
   }
 
   return { ok: true, fields, values };
@@ -388,7 +359,7 @@ function buildDebtSaveProof(input) {
     writes_performed: false,
     audit_performed: false,
     validation_status: 'pass',
-    write_model: 'debt_item_update_blocked_until_command_centre_lift',
+    write_model: 'debt_item_update_command_centre_gated',
     expected_debt_rows: 1,
     expected_transaction_rows: 0,
     expected_ledger_rows: 0,
@@ -409,14 +380,9 @@ function buildDebtSaveProof(input) {
       proofCheck('amounts_valid', input.after.original_amount >= 0 && input.after.paid_amount >= 0 && input.after.remaining_amount >= 0 ? 'pass' : 'blocked', 'request.amounts', 'Debt amounts are numerically safe.'),
       proofCheck('updated_fields_valid', Array.isArray(input.fields) && input.fields.length ? 'pass' : 'blocked', 'request.patch', 'Patch fields are explicit.'),
       proofCheck('undefined_guard', 'pass', 'cleanBind', 'No undefined values are bound into D1.'),
-      proofCheck('dry_run_no_write', 'pass', 'api.contract', 'Dry-run returns before UPDATE/audit.')
-    ],
-    lift_candidate: {
-      coverage_key: 'coverage.write_safety.debt_save',
-      current_expected_state: 'blocked',
-      required_next_state: 'dry_run_available',
-      reason: 'debt.save dry-run validates debt update without writing debt, transaction, ledger, or audit rows.'
-    }
+      proofCheck('command_gate_required', 'pass', 'finance-command-center', 'Real write asks Command Centre before UPDATE.'),
+      proofCheck('dry_run_no_write', 'pass', 'api.contract', 'Dry-run returns before UPDATE.')
+    ]
   };
 }
 
@@ -427,11 +393,7 @@ function buildDebtDeleteProof(input) {
     writes_performed: false,
     audit_performed: false,
     validation_status: 'pass',
-    write_model: 'debt_soft_cancel_blocked_until_command_centre_lift',
-    expected_debt_rows: 1,
-    expected_transaction_rows: 0,
-    expected_ledger_rows: 0,
-    expected_audit_rows: 0,
+    write_model: 'debt_delete_blocked',
     normalized_summary: {
       id: input.id,
       before_status: input.before.status,
@@ -439,15 +401,31 @@ function buildDebtDeleteProof(input) {
     },
     checks: [
       proofCheck('debt_exists', 'pass', 'debts.id', 'Debt id resolved.'),
-      proofCheck('dry_run_no_write', 'pass', 'api.contract', 'Dry-run returns before soft cancel UPDATE/audit.')
-    ],
-    lift_candidate: {
-      coverage_key: 'coverage.write_safety.debt_delete',
-      current_expected_state: 'blocked',
-      required_next_state: 'dry_run_available',
-      reason: 'debt.delete is not part of current Command Centre lift scope.'
-    }
+      proofCheck('dry_run_no_write', 'pass', 'api.contract', 'Dry-run returns before delete/cancel.')
+    ]
   };
+}
+
+async function commandAllowsDebtAction(context, action) {
+  try {
+    const origin = new URL(context.request.url).origin;
+    const res = await fetch(origin + '/api/finance-command-center?gate=' + encodeURIComponent(action) + '&cb=' + Date.now(), {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        'x-sovereign-debt-gate': action
+      }
+    });
+
+    const data = await res.json().catch(() => null);
+    const found = data && data.enforcement && Array.isArray(data.enforcement.actions)
+      ? data.enforcement.actions.find(item => item.action === action)
+      : null;
+
+    return Boolean(found && found.allowed);
+  } catch (err) {
+    return false;
+  }
 }
 
 function proofCheck(check, status, source, detail) {
@@ -460,9 +438,7 @@ function normalizeDebt(row) {
   const remaining = Math.max(0, original - paid);
   const dueDate = row && row.due_date ? normalizeDate(row.due_date) : null;
   const dueDay = row && row.due_day == null ? null : normalizeDueDay(row.due_day);
-  const installmentAmount = row && row.installment_amount == null
-    ? null
-    : normalizeNullableAmount(row.installment_amount);
+  const installmentAmount = row && row.installment_amount == null ? null : normalizeNullableAmount(row.installment_amount);
   const frequency = normalizeFrequency(row && row.frequency ? row.frequency : 'monthly') || 'monthly';
   const lastPaidDate = row && row.last_paid_date ? normalizeDate(row.last_paid_date) : null;
 
@@ -690,27 +666,7 @@ function isDryRunRequest(context, body) {
     || body.dry_run === '1'
     || body.dry_run === 'true';
 }
-async function commandAllowsDebtAction(context, action) {
-  try {
-    const origin = new URL(context.request.url).origin;
-    const res = await fetch(origin + '/api/finance-command-center?gate=' + encodeURIComponent(action) + '&cb=' + Date.now(), {
-      method: 'GET',
-      headers: {
-        accept: 'application/json',
-        'x-sovereign-debt-gate': action
-      }
-    });
 
-    const data = await res.json().catch(() => null);
-    const found = data && data.enforcement && Array.isArray(data.enforcement.actions)
-      ? data.enforcement.actions.find(item => item.action === action)
-      : null;
-
-    return Boolean(found && found.allowed);
-  } catch (err) {
-    return false;
-  }
-}
 function jsonResponse(obj, status) {
   return new Response(JSON.stringify(obj), {
     status: status || 200,
