@@ -1,27 +1,26 @@
 /* /api/transactions — GET list, POST create */
-/* Sovereign Finance v0.4.0-old-ledger-direct-write
+/* Sovereign Finance v0.4.1-contract-lock
  *
- * Restore goal:
+ * Shipment 3:
  * - No Command Centre gate in production write path.
- * - GET stays read-only.
- * - POST writes directly after backend validation.
- * - Expense/income create one ledger row.
- * - Transfer creates legacy two-row pair:
- *   - transfer OUT row from source account
- *   - income IN row to destination account
- * - Formula APIs continue to exclude:
- *   - originals marked reversed_by / reversed_at
- *   - reversal machinery rows with [REVERSAL OF ...]
+ * - Backend owns transaction type validation.
+ * - Frontend-facing Add types are only expense, income, transfer.
+ * - Backend still accepts legacy/system types so old data does not break.
+ * - Category inputs are canonicalized against /api/categories aliases.
+ * - "adjustment" is explicitly rejected.
  */
 
 import { audit } from './_lib.js';
 
-const VERSION = 'v0.4.0-old-ledger-direct-write';
+const VERSION = 'v0.4.1-contract-lock';
 
-const ALLOWED_TYPES = [
+const FRONTEND_ADD_TYPES = [
   'expense',
   'income',
-  'transfer',
+  'transfer'
+];
+
+const SYSTEM_TYPES = [
   'cc_payment',
   'cc_spend',
   'borrow',
@@ -33,6 +32,60 @@ const ALLOWED_TYPES = [
   'debt_out'
 ];
 
+const ALLOWED_TYPES = FRONTEND_ADD_TYPES.concat(SYSTEM_TYPES);
+
+const CATEGORY_ALIASES = {
+  grocery: 'groceries',
+  groceries: 'groceries',
+
+  food: 'food_dining',
+  food_dining: 'food_dining',
+  dining: 'food_dining',
+
+  transport: 'transport',
+  travel: 'transport',
+
+  bill: 'bills_utilities',
+  bills: 'bills_utilities',
+  utility: 'bills_utilities',
+  utilities: 'bills_utilities',
+  bills_utilities: 'bills_utilities',
+
+  health: 'health',
+  medical: 'health',
+
+  fee: 'bank_fee',
+  bank_fee: 'bank_fee',
+  atm: 'atm_fee',
+  atm_fee: 'atm_fee',
+
+  cc: 'credit_card',
+  card: 'credit_card',
+  credit: 'credit_card',
+  credit_card: 'credit_card',
+  cc_payment: 'credit_card',
+  cc_spend: 'credit_card',
+
+  debt: 'debt_payment',
+  debt_payment: 'debt_payment',
+  repay: 'debt_payment',
+  repayment: 'debt_payment',
+
+  salary: 'salary_income',
+  salary_income: 'salary_income',
+
+  income: 'manual_income',
+  manual_income: 'manual_income',
+  manual: 'manual_income',
+
+  transfer: 'transfer',
+
+  misc: 'misc',
+  miscellaneous: 'misc',
+  other: 'misc',
+  general: 'misc'
+};
+
 const ACTIVE_ACCOUNT_CONDITION =
   "(deleted_at IS NULL OR deleted_at = '') AND (archived_at IS NULL OR archived_at = '') AND (status IS NULL OR status = '' OR status = 'active')";
 
@@ -41,21 +94,17 @@ export async function onRequestGet(context) {
     const url = new URL(context.request.url);
     const includeReversed = url.searchParams.get('include_reversed') === '1';
 
-    const stmt = context.env.DB.prepare(
+    const result = await context.env.DB.prepare(
       `SELECT id, date, type, amount, account_id, transfer_to_account_id,
               category_id, notes, fee_amount, pra_amount, created_at,
               reversed_by, reversed_at, linked_txn_id
        FROM transactions
        ORDER BY date DESC, datetime(created_at) DESC, id DESC
        LIMIT 200`
-    );
+    ).all();
 
-    const result = await stmt.all();
     const allRows = result.results || [];
-
-    const visibleRows = includeReversed
-      ? allRows
-      : allRows.filter(t => !isReversalRow(t));
+    const visibleRows = includeReversed ? allRows : allRows.filter(t => !isReversalRow(t));
 
     return jsonResponse({
       ok: true,
@@ -63,6 +112,12 @@ export async function onRequestGet(context) {
       include_reversed: includeReversed,
       count: visibleRows.length,
       hidden_reversal_count: allRows.length - visibleRows.length,
+      contract: {
+        frontend_add_types: FRONTEND_ADD_TYPES,
+        backend_system_types: SYSTEM_TYPES,
+        unsupported_types: ['adjustment'],
+        category_aliases: CATEGORY_ALIASES
+      },
       transactions: visibleRows
     });
   } catch (err) {
@@ -113,18 +168,27 @@ export async function onRequestPost(context) {
 async function validateTransactionPayload(context, body) {
   const db = context.env.DB;
   const amount = Number(body.amount);
-  const type = cleanText(body.type || body.transaction_type, '', 40).toLowerCase();
+  const requestedType = cleanText(body.type || body.transaction_type, '', 40).toLowerCase();
+  const type = normalizeType(requestedType);
 
   if (!Number.isFinite(amount) || amount <= 0) {
     return { ok: false, status: 400, error: 'Amount must be greater than 0' };
   }
 
-  if (!body.account_id && !body.from_account_id) {
-    return { ok: false, status: 400, error: 'account_id required' };
+  if (!requestedType) {
+    return { ok: false, status: 400, error: 'type required' };
   }
 
-  if (!type) {
-    return { ok: false, status: 400, error: 'type required' };
+  if (requestedType === 'adjustment' || type === 'adjustment') {
+    return {
+      ok: false,
+      status: 400,
+      error: 'Unsupported transaction type',
+      details: {
+        rejected_type: requestedType,
+        allowed_frontend_types: FRONTEND_ADD_TYPES
+      }
+    };
   }
 
   if (!ALLOWED_TYPES.includes(type)) {
@@ -132,11 +196,20 @@ async function validateTransactionPayload(context, body) {
       ok: false,
       status: 400,
       error: 'Invalid type',
-      details: { allowed_types: ALLOWED_TYPES }
+      details: {
+        rejected_type: requestedType,
+        allowed_types: ALLOWED_TYPES,
+        frontend_add_types: FRONTEND_ADD_TYPES
+      }
     };
   }
 
   const sourceAccountInput = body.account_id || body.from_account_id;
+
+  if (!sourceAccountInput) {
+    return { ok: false, status: 400, error: 'account_id required' };
+  }
+
   const sourceAccountResult = await resolveAccount(db, sourceAccountInput);
 
   if (!sourceAccountResult.ok) {
@@ -193,7 +266,7 @@ async function validateTransactionPayload(context, body) {
 
   if (type !== 'transfer') {
     const categoryInput = body.category_id || body.category;
-    const categoryResult = await resolveCategory(db, categoryInput);
+    const categoryResult = await resolveCategory(db, categoryInput, type);
 
     if (!categoryResult.ok) {
       return {
@@ -210,6 +283,7 @@ async function validateTransactionPayload(context, body) {
   const normalized = {
     date: normalizeDate(body.date) || todayISO(),
     type,
+    requested_type: requestedType,
     amount,
     account_id: sourceAccount.id,
     account_name: sourceAccount.name || sourceAccount.id,
@@ -229,6 +303,17 @@ async function validateTransactionPayload(context, body) {
   };
 }
 
+function normalizeType(type) {
+  const raw = cleanText(type, '', 40).toLowerCase();
+
+  if (raw === 'manual_income') return 'income';
+  if (raw === 'salary_income') return 'salary';
+  if (raw === 'debt_payment') return 'repay';
+  if (raw === 'credit_card') return 'cc_spend';
+
+  return raw;
+}
+
 function buildWriteProof(payload) {
   const isTransfer = payload.type === 'transfer';
 
@@ -240,6 +325,13 @@ function buildWriteProof(payload) {
     write_model: isTransfer ? 'legacy_2_row_transfer_pair' : 'single_transaction_row',
     expected_transaction_rows: isTransfer ? 2 : 1,
     expected_audit_rows: 1,
+    contract: {
+      frontend_add_types: FRONTEND_ADD_TYPES,
+      unsupported_types: ['adjustment'],
+      requested_type: payload.requested_type,
+      normalized_type: payload.type,
+      canonical_category_id: payload.category_id
+    },
     checks: [
       {
         check: 'amount_valid',
@@ -251,7 +343,7 @@ function buildWriteProof(payload) {
         check: 'type_allowed',
         status: 'pass',
         source: 'request.type',
-        detail: 'Type is included in allowed transaction types.'
+        detail: 'Type normalized to ' + payload.type + '.'
       },
       {
         check: 'source_account_active',
@@ -272,7 +364,7 @@ function buildWriteProof(payload) {
         status: payload.category_id ? 'pass' : 'not_required',
         source: 'categories',
         detail: payload.category_id
-          ? 'Category resolved to category_id ' + payload.category_id + '.'
+          ? 'Category resolved to canonical category_id ' + payload.category_id + '.'
           : 'Category is empty or not required.'
       }
     ]
@@ -322,6 +414,7 @@ async function createSingleTransaction(context, validation) {
     kind: 'mutation',
     detail: {
       type: payload.type,
+      requested_type: payload.requested_type,
       amount: payload.amount,
       account_id: payload.account_id,
       account_name: payload.account_name,
@@ -498,19 +591,25 @@ async function resolveAccount(db, input) {
   };
 }
 
-async function resolveCategory(db, input) {
+async function resolveCategory(db, input, type) {
   const raw = cleanText(input, '', 160);
 
   if (!raw) {
-    return { ok: true, category_id: null };
+    if (type === 'income' || type === 'salary') {
+      return resolveCategory(db, type === 'salary' ? 'salary_income' : 'manual_income', type);
+    }
+
+    return resolveCategory(db, 'misc', type);
   }
+
+  const canonicalInput = canonicalCategory(raw);
 
   try {
     const exact = await db.prepare(
       `SELECT id
        FROM categories
        WHERE id = ?`
-    ).bind(raw).first();
+    ).bind(canonicalInput).first();
 
     if (exact && exact.id) {
       return { ok: true, category_id: exact.id };
@@ -523,7 +622,7 @@ async function resolveCategory(db, input) {
     ).all();
 
     const categories = categoriesResult.results || [];
-    const wanted = token(raw);
+    const wanted = token(canonicalInput);
 
     const matched = categories.find(category => {
       return wanted === token(category.id)
@@ -538,15 +637,20 @@ async function resolveCategory(db, input) {
     return {
       ok: false,
       status: 409,
-      error: 'Category not found. Clear category or refresh categories and retry.'
+      error: 'Category not found. Use a category from /api/categories.'
     };
   } catch (err) {
     return {
       ok: false,
       status: 409,
-      error: 'Category validation failed. Clear category and retry.'
+      error: 'Category validation failed. Use a category from /api/categories.'
     };
   }
+}
+
+function canonicalCategory(value) {
+  const key = token(value);
+  return CATEGORY_ALIASES[key] || cleanText(value, '', 160);
 }
 
 function isDryRunRequest(url, body) {
@@ -563,7 +667,6 @@ function isReversalRow(t) {
   if (t.reversed_by || t.reversed_at) return true;
 
   const notes = String(t.notes || '').toUpperCase();
-
   return notes.includes('[REVERSED BY ') || notes.includes('[REVERSAL OF ');
 }
 
@@ -621,7 +724,6 @@ function cleanNotes(notes) {
 
 function cleanText(value, fallback, maxLen) {
   const raw = value == null ? fallback : value;
-
   return String(raw == null ? '' : raw).trim().slice(0, maxLen || 500);
 }
 
