@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.4.1";
+  const VERSION = "0.4.2";
   const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
 
   if (DEBUG) document.body.classList.add("debug");
@@ -10,10 +10,13 @@
     bills: [],
     command: null,
     loading: true,
+    commandLoading: false,
     error: null,
+    commandError: null,
     search: "",
     filter: "active",
-    lastPayload: null
+    lastPayload: null,
+    lastCommandPayload: null
   };
 
   const $ = (id) => document.getElementById(id);
@@ -57,6 +60,7 @@
     version: VERSION,
     mode: DEBUG ? "debug" : "normal",
     refresh,
+    refreshCommandCentre,
     getState: () => JSON.parse(JSON.stringify(state))
   };
 
@@ -160,29 +164,63 @@
     render();
 
     try {
-      const [billsPayload, commandPayload] = await Promise.allSettled([
-        readJson(`/api/bills?cb=${Date.now()}`),
-        readJson(`/api/finance-command-center?cb=${Date.now()}`)
-      ]);
-
-      if (billsPayload.status === "rejected") throw billsPayload.reason;
-
-      state.lastPayload = billsPayload.value;
-      state.bills = extractBills(billsPayload.value);
-      state.command = commandPayload.status === "fulfilled" ? commandPayload.value : null;
+      const billsPayload = await readJson(`/api/bills?cb=${Date.now()}`);
+      state.lastPayload = billsPayload;
+      state.bills = extractBills(billsPayload);
       state.loading = false;
       state.error = null;
+      render();
+
+      deferCommandRefresh();
     } catch (err) {
       state.loading = false;
       state.error = err?.message || "Unable to load bills.";
+      render();
+
+      deferCommandRefresh();
+    }
+  }
+
+  function deferCommandRefresh() {
+    if (DEBUG) {
+      refreshCommandCentre();
+      return;
     }
 
-    render();
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(() => refreshCommandCentre(), { timeout: 2500 });
+      return;
+    }
+
+    window.setTimeout(() => refreshCommandCentre(), 1200);
+  }
+
+  async function refreshCommandCentre() {
+    if (state.commandLoading) return;
+
+    state.commandLoading = true;
+    state.commandError = null;
+    renderDebug();
+
+    try {
+      const commandPayload = await readJson(`/api/finance-command-center?cb=${Date.now()}`);
+      state.command = commandPayload;
+      state.lastCommandPayload = commandPayload;
+      state.commandError = null;
+    } catch (err) {
+      state.commandError = err?.message || "Command Centre unavailable.";
+    } finally {
+      state.commandLoading = false;
+      render();
+    }
   }
 
   function commandActionAllowed(actionName) {
+    if (!state.command) return true;
+
     const actions = state.command?.enforcement?.actions || state.command?.actions || [];
     const action = actions.find((x) => x.action === actionName || x.name === actionName);
+
     if (!action) return true;
     return action.allowed !== false && action.status !== "blocked";
   }
@@ -227,19 +265,9 @@
       return;
     }
 
-    const saveAllowed = commandActionAllowed("bill.save");
-    const clearAllowed = commandActionAllowed("bill.clear");
-
-    if (saveAllowed && clearAllowed) {
-      els.statusDot.className = "dot ready";
-      els.statusText.textContent = "Ready";
-      els.statusDetail.textContent = "Bills are loaded and available.";
-      return;
-    }
-
-    els.statusDot.className = "dot";
-    els.statusText.textContent = "Limited";
-    els.statusDetail.textContent = "Some bill actions are not available right now.";
+    els.statusDot.className = "dot ready";
+    els.statusText.textContent = "Ready";
+    els.statusDetail.textContent = "Bills are loaded and available.";
   }
 
   function renderStats() {
@@ -312,13 +340,17 @@
       ui_version: VERSION,
       mode: "debug",
       bills_count: state.bills.length,
+      bills_loading: state.loading,
+      command_loading: state.commandLoading,
+      command_error: state.commandError,
       filter: state.filter,
       search: state.search,
       error: state.error,
       command_version: state.command?.version,
       bill_save_allowed: commandActionAllowed("bill.save"),
       bill_clear_allowed: commandActionAllowed("bill.clear"),
-      raw_bills_payload: state.lastPayload
+      raw_bills_payload: state.lastPayload,
+      raw_command_payload: state.lastCommandPayload
     }, null, 2);
   }
 
@@ -487,11 +519,6 @@
     els.billForm.addEventListener("submit", async (event) => {
       event.preventDefault();
 
-      if (!commandActionAllowed("bill.save")) {
-        showToast("Bill save is unavailable", "Try again after the system is ready.");
-        return;
-      }
-
       const payload = billPayloadFromForm();
 
       if (!payload.name) {
@@ -506,16 +533,12 @@
         await refresh();
       } catch (err) {
         showToast("Save failed", err?.message || "Unable to save bill.");
+        deferCommandRefresh();
       }
     });
 
     els.clearForm.addEventListener("submit", async (event) => {
       event.preventDefault();
-
-      if (!commandActionAllowed("bill.clear")) {
-        showToast("Bill clear is unavailable", "Try again after the system is ready.");
-        return;
-      }
 
       const id = els.clearBillId.value;
       const bill = billById(id);
@@ -534,6 +557,7 @@
         await refresh();
       } catch (err) {
         showToast("Clear failed", err?.message || "Unable to clear bill.");
+        deferCommandRefresh();
       }
     });
   }
