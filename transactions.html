@@ -229,7 +229,7 @@
           <div class="hero-kicker">Ledger Reader</div>
           <h1 class="hero-title">Transactions</h1>
           <p class="hero-copy">
-            Live ledger view from the finance database. This page is read-only. Money writes stay protected by backend Command Centre gates on the Add page and transaction API.
+            Read-only ledger from the finance database.
           </p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
             <a class="btn btn-success" href="/add.html">Add Transaction</a>
@@ -333,7 +333,7 @@
               <th>Category</th>
               <th>Notes</th>
               <th class="text-right">Amount</th>
-              <th>ID</th>
+              <th id="txIdHeader">ID</th>
             </tr>
           </thead>
           <tbody id="transactionsBody">
@@ -359,6 +359,7 @@
       const TRANSACTIONS_ENDPOINT = "/api/transactions";
       const BALANCES_ENDPOINT = "/api/balances?debug=1";
       const CATEGORIES_ENDPOINT = "/api/categories";
+      const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
 
       let transactions = [];
       let accounts = [];
@@ -597,7 +598,7 @@
         return (
           '<div class="tx-main">' +
           '<div class="tx-primary">' + escapeHtml(accountName(tx.account_id)) + '</div>' +
-          '<div class="tx-secondary">' + escapeHtml(tx.account_id || "No account ID") + '</div>' +
+          (DEBUG ? '<div class="tx-secondary">' + escapeHtml(tx.account_id || "No account ID") + '</div>' : '') +
           '</div>'
         );
       }
@@ -695,7 +696,7 @@
 
         if (!filtered.length) {
           body.innerHTML = (
-            '<tr><td colspan="7">' +
+            '<tr><td colspan="' + (DEBUG ? '7' : '6') + '">' +
             '<div class="tx-empty">No transactions match the current filter.</div>' +
             '</td></tr>'
           );
@@ -719,11 +720,11 @@
             "<td>" +
               '<div class="tx-main">' +
               '<div class="tx-primary">' + escapeHtml(tx.notes || "—") + '</div>' +
-              '<div class="tx-secondary">' + escapeHtml(tx.status || "active") + '</div>' +
+              (DEBUG ? '<div class="tx-secondary">' + escapeHtml(tx.status || "active") + '</div>' : '') +
               "</div>" +
             "</td>" +
             '<td class="tx-amount ' + amountClass + '">' + escapeHtml(amountText) + "</td>" +
-            "<td><code>" + escapeHtml(tx.id) + "</code></td>" +
+            (DEBUG ? "<td><code>" + escapeHtml(tx.id) + "</code></td>" : "") +
             "</tr>"
           );
         }).join("");
@@ -838,6 +839,11 @@
         applyFilters();
       }
 
+      function renderDebugMode() {
+        const idHeader = $("txIdHeader");
+        if (idHeader) idHeader.hidden = !DEBUG;
+      }
+
       function wireEvents() {
         ["searchInput", "typeFilter", "accountFilter", "fromDate", "toDate"].forEach(id => {
           const el = $(id);
@@ -865,6 +871,7 @@
       async function init() {
         console.log("[transactions " + VERSION + "] init");
 
+        renderDebugMode();
         wireEvents();
         initSavedNotice();
         await refreshAll();
