@@ -1,191 +1,281 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sovereign Finance</title>
-  <meta name="description" content="Private finance dashboard for accounts, bills, debts, salary, forecast, and reconciliation." />
+  <meta name="description" content="Personal finance dashboard for accounts, bills, debts, salary, forecast, and reconciliation." />
 
-  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="stylesheet" href="/css/app.css?v=2A-corrected-1" />
   <link rel="stylesheet" href="/css/nav.css" />
   <link rel="stylesheet" href="/css/icons.css" />
-  <link rel="stylesheet" href="/css/rebuild.css?v=2A-safe-1" />
+
+  <style>
+    body.index-rebrand {
+      padding-left: 0 !important;
+    }
+
+    body.index-rebrand .sf-topbar {
+      left: 0 !important;
+    }
+
+    body.index-rebrand .index-flat-nav {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    body.index-rebrand .index-flat-nav a {
+      min-height: 38px;
+      padding: 9px 12px;
+      border-radius: var(--r-pill);
+      border: 1px solid var(--border);
+      background: var(--surface-1);
+      color: var(--text-strong);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 950;
+      box-shadow: var(--shadow-xs);
+    }
+
+    body.index-rebrand .index-flat-nav a:hover {
+      background: var(--surface-2);
+      border-color: var(--border-strong);
+    }
+
+    body.index-rebrand .index-hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    body.index-rebrand .index-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    body.index-rebrand .index-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      border-radius: var(--r-lg);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
+
+    body.index-rebrand .index-row-title {
+      color: var(--text-strong);
+      font-weight: 950;
+    }
+
+    body.index-rebrand .index-row-sub {
+      margin-top: 3px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    body.index-rebrand .index-row-amount {
+      color: var(--text-strong);
+      font-weight: 950;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    body.index-rebrand .index-state {
+      padding: 18px;
+      border-radius: var(--r-lg);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-weight: 760;
+      text-align: center;
+    }
+
+    body.index-rebrand .index-state.error {
+      background: var(--danger-soft);
+      border-color: rgba(185, 28, 28, 0.22);
+      color: var(--danger);
+    }
+
+    body.index-rebrand .index-debug {
+      display: none;
+      margin-top: 22px;
+      white-space: pre-wrap;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 16px;
+      border-radius: var(--r-lg);
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      color: var(--text);
+      overflow: auto;
+      max-height: 460px;
+    }
+
+    body.index-rebrand.debug .index-debug {
+      display: block;
+    }
+
+    @media (max-width: 860px) {
+      body.index-rebrand .sf-topbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      body.index-rebrand .index-flat-nav {
+        justify-content: flex-start;
+      }
+
+      body.index-rebrand .index-row {
+        grid-template-columns: 1fr;
+      }
+
+      body.index-rebrand .index-row-amount {
+        text-align: left;
+      }
+    }
+  </style>
 </head>
 
-<body>
-  <main class="sf-hub" id="sfHub">
-    <header class="sf-shell-top">
-      <a class="sf-brand" href="/index.html" aria-label="Sovereign Finance home">
-        <span class="sf-brand-mark" aria-hidden="true"></span>
-        <span>Sovereign Finance</span>
-      </a>
+<body class="index-rebrand">
+  <header class="sf-topbar">
+    <div class="sf-topbar-left">
+      <div>
+        <div class="sf-page-eyebrow">Sovereign Finance</div>
+        <div class="sf-page-title">Dashboard</div>
+      </div>
+    </div>
 
-      <nav class="sf-nav" aria-label="Main navigation">
-        <a href="/add.html">Add</a>
-        <a href="/transactions.html">Ledger</a>
-        <a href="/bills.html">Bills</a>
-        <a href="/debts.html">Debts</a>
-        <a href="/salary.html">Salary</a>
-        <a href="/forecast.html">Forecast</a>
-        <a href="/reconciliation.html">Reconcile</a>
-        <a href="/monthly-close.html">Command Centre</a>
-      </nav>
-    </header>
+    <nav class="index-flat-nav" aria-label="Main navigation">
+      <a href="/index.html" aria-current="page">Hub</a>
+      <a href="/add.html">Add</a>
+      <a href="/transactions.html">Ledger</a>
+      <a href="/bills.html">Bills</a>
+      <a href="/debts.html">Debts</a>
+      <a href="/salary.html">Salary</a>
+      <a href="/forecast.html">Forecast</a>
+      <a href="/reconciliation.html">Reconcile</a>
+      <a href="/monthly-close.html">Command Centre</a>
+    </nav>
+  </header>
 
-    <section class="sf-hero">
-      <div class="sf-card sf-hero-main">
-        <div class="sf-eyebrow">Private finance dashboard</div>
-        <h1 class="sf-title">Your money position, clean and current.</h1>
-        <p class="sf-subtitle">View balances, obligations, debt pressure, and near-term forecast from one fast daily dashboard.</p>
+  <main class="app-page">
+    <section class="finance-hero">
+      <div class="hero-kicker">Private finance dashboard</div>
+      <h1 class="hero-title">Your money position, clean and current.</h1>
+      <p class="hero-copy">
+        View accounts, bills, debts, salary, and forecast from one fast daily dashboard.
+      </p>
 
-        <div class="sf-actions">
-          <a class="sf-btn sf-btn-primary" href="/add.html">Add Transaction</a>
-          <a class="sf-btn" href="/bills.html">Manage Bills</a>
-          <a class="sf-btn" href="/forecast.html">Open Forecast</a>
-        </div>
+      <div class="index-hero-actions">
+        <a class="btn btn-success" href="/add.html">Add Transaction</a>
+        <a class="btn btn-secondary" href="/bills.html">Manage Bills</a>
+        <a class="btn btn-secondary" href="/forecast.html">Open Forecast</a>
+      </div>
+    </section>
+
+    <section class="grid-4">
+      <article class="kpi-card">
+        <div class="kpi-label">Accounts balance</div>
+        <div class="kpi-value" id="accountsTotal">—</div>
+        <div class="kpi-sub" id="accountsNote">Loading accounts</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-label">Monthly bills</div>
+        <div class="kpi-value" id="billsTotal">—</div>
+        <div class="kpi-sub" id="billsNote">Loading bills</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-label">Debt outstanding</div>
+        <div class="kpi-value" id="debtsTotal">—</div>
+        <div class="kpi-sub" id="debtsNote">Loading debts</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-label">Forecast ending</div>
+        <div class="kpi-value" id="forecastEnding">—</div>
+        <div class="kpi-sub" id="forecastNote">Loading forecast</div>
+      </article>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="stack">
+        <article class="card card-padded">
+          <div class="section-kicker">Accounts</div>
+          <h2 class="authority-title" style="margin-top:12px;">Current balances</h2>
+          <p class="authority-copy">Source account balances shown for daily review.</p>
+
+          <div class="index-list" id="accountsList" style="margin-top:16px;">
+            <div class="index-state">Loading accounts...</div>
+          </div>
+        </article>
+
+        <article class="card card-padded">
+          <div class="section-kicker">Bills</div>
+          <h2 class="authority-title" style="margin-top:12px;">Upcoming obligations</h2>
+          <p class="authority-copy">Active bills and monthly pressure.</p>
+
+          <div class="index-list" id="billsList" style="margin-top:16px;">
+            <div class="index-state">Loading bills...</div>
+          </div>
+        </article>
       </div>
 
-      <aside class="sf-card sf-side">
-        <div class="sf-signal">
-          <span class="sf-signal-label">Dashboard status</span>
-          <strong class="sf-signal-value" id="dashboardStatus">Loading</strong>
-        </div>
+      <aside class="stack">
+        <article class="card card-padded">
+          <div class="section-kicker">Quick actions</div>
+          <div class="stack-sm" style="margin-top:16px;">
+            <a class="btn btn-success" href="/add.html">Add Transaction</a>
+            <a class="btn btn-secondary" href="/bills.html">Clear Bills</a>
+            <a class="btn btn-secondary" href="/debts.html">Record Debt Payment</a>
+            <a class="btn btn-secondary" href="/salary.html">Update Salary</a>
+            <a class="btn btn-secondary" href="/forecast.html">Generate Forecast</a>
+            <a class="btn btn-secondary" href="/reconciliation.html">Declare Balance</a>
+          </div>
+        </article>
 
-        <div class="sf-signal">
-          <span class="sf-signal-label">Last refreshed</span>
-          <strong class="sf-signal-value" id="lastRefreshed">—</strong>
-        </div>
+        <article class="card card-padded">
+          <div class="section-kicker">Debt pressure</div>
+          <h2 class="authority-title" style="margin-top:12px;">Outstanding records</h2>
+          <p class="authority-copy">Active debt and receivable snapshot.</p>
 
-        <div class="sf-signal">
-          <span class="sf-signal-label">Next action</span>
-          <strong class="sf-signal-value" id="nextAction">Review</strong>
-        </div>
+          <div class="index-list" id="debtsList" style="margin-top:16px;">
+            <div class="index-state">Loading debts...</div>
+          </div>
+        </article>
+
+        <article class="card card-padded">
+          <div class="section-kicker">System</div>
+          <h2 class="authority-title" style="margin-top:12px;" id="dashboardStatus">Loading</h2>
+          <p class="authority-copy">
+            Last refreshed: <span id="lastRefreshed">—</span>
+          </p>
+          <p class="authority-copy">
+            Next action: <span id="nextAction">Review</span>
+          </p>
+        </article>
       </aside>
     </section>
 
-    <section class="sf-grid sf-summary-grid" aria-label="Finance summary">
-      <article class="sf-card sf-stat">
-        <div class="sf-stat-label">Accounts balance</div>
-        <div class="sf-stat-value" id="accountsTotal">—</div>
-        <div class="sf-stat-note" id="accountsNote">Loading accounts</div>
-      </article>
-
-      <article class="sf-card sf-stat">
-        <div class="sf-stat-label">Monthly bills</div>
-        <div class="sf-stat-value" id="billsTotal">—</div>
-        <div class="sf-stat-note" id="billsNote">Loading bills</div>
-      </article>
-
-      <article class="sf-card sf-stat">
-        <div class="sf-stat-label">Debt outstanding</div>
-        <div class="sf-stat-value" id="debtsTotal">—</div>
-        <div class="sf-stat-note" id="debtsNote">Loading debts</div>
-      </article>
-
-      <article class="sf-card sf-stat">
-        <div class="sf-stat-label">Forecast ending</div>
-        <div class="sf-stat-value" id="forecastEnding">—</div>
-        <div class="sf-stat-note" id="forecastNote">Loading forecast</div>
-      </article>
-    </section>
-
-    <section class="sf-grid sf-main-grid">
-      <article class="sf-card sf-section">
-        <div class="sf-section-head">
-          <div>
-            <h2 class="sf-section-title">Accounts</h2>
-            <p class="sf-section-copy">Current account view from source balances.</p>
-          </div>
-          <a class="sf-badge" href="/accounts.html">Open</a>
-        </div>
-
-        <div class="sf-list" id="accountsList">
-          <div class="sf-state">Loading accounts...</div>
-        </div>
-      </article>
-
-      <article class="sf-card sf-section">
-        <div class="sf-section-head">
-          <div>
-            <h2 class="sf-section-title">Quick actions</h2>
-            <p class="sf-section-copy">Jump straight into the work.</p>
-          </div>
-        </div>
-
-        <div class="sf-quick-grid">
-          <a class="sf-quick" href="/add.html">
-            <strong class="sf-quick-title">Add Transaction</strong>
-            <span class="sf-quick-copy">Record income, expense, transfer, or adjustment.</span>
-          </a>
-
-          <a class="sf-quick" href="/bills.html">
-            <strong class="sf-quick-title">Clear Bills</strong>
-            <span class="sf-quick-copy">Review monthly obligations and mark paid items.</span>
-          </a>
-
-          <a class="sf-quick" href="/debts.html">
-            <strong class="sf-quick-title">Record Debt Payment</strong>
-            <span class="sf-quick-copy">Update what you owe or what was received.</span>
-          </a>
-
-          <a class="sf-quick" href="/reconciliation.html">
-            <strong class="sf-quick-title">Declare Balance</strong>
-            <span class="sf-quick-copy">Compare app balance against real account balance.</span>
-          </a>
-
-          <a class="sf-quick" href="/salary.html">
-            <strong class="sf-quick-title">Update Salary</strong>
-            <span class="sf-quick-copy">Manage guaranteed and confirmed variable income.</span>
-          </a>
-
-          <a class="sf-quick" href="/forecast.html">
-            <strong class="sf-quick-title">Generate Forecast</strong>
-            <span class="sf-quick-copy">See the next cash position using known inputs.</span>
-          </a>
-        </div>
-      </article>
-
-      <article class="sf-card sf-section">
-        <div class="sf-section-head">
-          <div>
-            <h2 class="sf-section-title">Bills due</h2>
-            <p class="sf-section-copy">Upcoming active obligations.</p>
-          </div>
-          <a class="sf-badge" href="/bills.html">Manage</a>
-        </div>
-
-        <div class="sf-list" id="billsList">
-          <div class="sf-state">Loading bills...</div>
-        </div>
-      </article>
-
-      <article class="sf-card sf-section">
-        <div class="sf-section-head">
-          <div>
-            <h2 class="sf-section-title">Debt pressure</h2>
-            <p class="sf-section-copy">Outstanding debt and receivable snapshot.</p>
-          </div>
-          <a class="sf-badge" href="/debts.html">Open</a>
-        </div>
-
-        <div class="sf-list" id="debtsList">
-          <div class="sf-state">Loading debts...</div>
-        </div>
-      </article>
-    </section>
-
-    <pre class="sf-debug" id="debugPanel"></pre>
+    <pre class="index-debug" id="debugPanel"></pre>
   </main>
 
   <script>
     (() => {
       "use strict";
 
-      const VERSION = "2A-safe-1";
+      const VERSION = "2A-corrected-1";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
-      const hub = document.getElementById("sfHub");
 
-      if (DEBUG) hub.classList.add("sf-debug-on");
+      if (DEBUG) document.body.classList.add("debug");
 
       const state = {
         accounts: null,
@@ -338,9 +428,9 @@
 
       function renderLoading() {
         els.dashboardStatus.textContent = "Loading";
-        els.accountsList.innerHTML = `<div class="sf-state">Loading accounts...</div>`;
-        els.billsList.innerHTML = `<div class="sf-state">Loading bills...</div>`;
-        els.debtsList.innerHTML = `<div class="sf-state">Loading debts...</div>`;
+        els.accountsList.innerHTML = `<div class="index-state">Loading accounts...</div>`;
+        els.billsList.innerHTML = `<div class="index-state">Loading bills...</div>`;
+        els.debtsList.innerHTML = `<div class="index-state">Loading debts...</div>`;
       }
 
       function render() {
@@ -383,12 +473,12 @@
           : `${accounts.length} account${accounts.length === 1 ? "" : "s"}`;
 
         if (state.errors.accounts) {
-          els.accountsList.innerHTML = `<div class="sf-state sf-state-error">${escapeHtml(state.errors.accounts)}</div>`;
+          els.accountsList.innerHTML = `<div class="index-state error">${escapeHtml(state.errors.accounts)}</div>`;
           return;
         }
 
         if (!accounts.length) {
-          els.accountsList.innerHTML = `<div class="sf-state">No accounts found.</div>`;
+          els.accountsList.innerHTML = `<div class="index-state">No accounts found.</div>`;
           return;
         }
 
@@ -397,12 +487,12 @@
           const type = account.type || account.account_type || account.kind || "account";
 
           return `
-            <div class="sf-item">
+            <div class="index-row">
               <div>
-                <strong class="sf-item-title">${escapeHtml(rowName(account, "Account"))}</strong>
-                <span class="sf-item-sub">${escapeHtml(type)}</span>
+                <div class="index-row-title">${escapeHtml(rowName(account, "Account"))}</div>
+                <div class="index-row-sub">${escapeHtml(type)}</div>
               </div>
-              <div class="sf-amount">${money(balance)}</div>
+              <div class="index-row-amount">${money(balance)}</div>
             </div>
           `;
         }).join("");
@@ -420,29 +510,25 @@
           : `${active.length} active bill${active.length === 1 ? "" : "s"}`;
 
         if (state.errors.bills) {
-          els.billsList.innerHTML = `<div class="sf-state sf-state-error">${escapeHtml(state.errors.bills)}</div>`;
+          els.billsList.innerHTML = `<div class="index-state error">${escapeHtml(state.errors.bills)}</div>`;
           return;
         }
 
         if (!active.length) {
-          els.billsList.innerHTML = `<div class="sf-state">No active bills found.</div>`;
+          els.billsList.innerHTML = `<div class="index-state">No active bills found.</div>`;
           return;
         }
 
         els.billsList.innerHTML = active.slice(0, 5).map(bill => {
           const due = bill.due_day || bill.dueDay || bill.day || bill.due_date || "—";
-          const cleared = bill.cleared || bill.is_cleared || String(bill.clear_status || "").toLowerCase() === "cleared";
 
           return `
-            <div class="sf-item">
+            <div class="index-row">
               <div>
-                <strong class="sf-item-title">${escapeHtml(rowName(bill, "Bill"))}</strong>
-                <span class="sf-item-sub">Due ${escapeHtml(due)}</span>
+                <div class="index-row-title">${escapeHtml(rowName(bill, "Bill"))}</div>
+                <div class="index-row-sub">Due ${escapeHtml(due)}</div>
               </div>
-              <div>
-                <div class="sf-amount">${money(billAmount(bill))}</div>
-                <span class="sf-badge ${cleared ? "sf-badge-good" : "sf-badge-warn"}">${cleared ? "Cleared" : "Pending"}</span>
-              </div>
+              <div class="index-row-amount">${money(billAmount(bill))}</div>
             </div>
           `;
         }).join("");
@@ -460,12 +546,12 @@
           : `${active.length} active record${active.length === 1 ? "" : "s"}`;
 
         if (state.errors.debts) {
-          els.debtsList.innerHTML = `<div class="sf-state sf-state-error">${escapeHtml(state.errors.debts)}</div>`;
+          els.debtsList.innerHTML = `<div class="index-state error">${escapeHtml(state.errors.debts)}</div>`;
           return;
         }
 
         if (!active.length) {
-          els.debtsList.innerHTML = `<div class="sf-state">No active debt records found.</div>`;
+          els.debtsList.innerHTML = `<div class="index-state">No active debt records found.</div>`;
           return;
         }
 
@@ -474,12 +560,12 @@
           const status = debt.status || "active";
 
           return `
-            <div class="sf-item">
+            <div class="index-row">
               <div>
-                <strong class="sf-item-title">${escapeHtml(rowName(debt, "Debt"))}</strong>
-                <span class="sf-item-sub">${escapeHtml(direction)} · ${escapeHtml(status)}</span>
+                <div class="index-row-title">${escapeHtml(rowName(debt, "Debt"))}</div>
+                <div class="index-row-sub">${escapeHtml(direction)} · ${escapeHtml(status)}</div>
               </div>
-              <div class="sf-amount">${money(debtOutstanding(debt))}</div>
+              <div class="index-row-amount">${money(debtOutstanding(debt))}</div>
             </div>
           `;
         }).join("");
