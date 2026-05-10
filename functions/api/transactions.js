@@ -193,7 +193,6 @@ async function validateTransactionPayload(context, body) {
 
   if (type !== 'transfer') {
     const categoryInput = body.category_id || body.category;
-
     const categoryResult = await resolveCategory(db, categoryInput);
 
     if (!categoryResult.ok) {
