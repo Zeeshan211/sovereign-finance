@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0f172a" />
 <title>Command Centre - Sovereign Finance</title>
 <link rel="stylesheet" href="/css/app.css?v=2.0.0" />
+
 <style>
 .command-page {
   max-width: 1480px;
@@ -13,16 +14,33 @@
 
 .command-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.65fr);
+  grid-template-columns: minmax(0, 1.25fr) minmax(340px, 0.75fr);
   gap: 18px;
   align-items: start;
 }
 
-.command-status-strip {
+.command-status-strip,
+.command-tabs,
+.command-actions-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.command-status-strip {
   margin-top: 18px;
+}
+
+.command-tabs {
+  margin: 22px 0 0;
+}
+
+.command-tabs a {
+  text-decoration: none;
+}
+
+.command-section {
+  margin-top: 26px;
 }
 
 .command-section-head {
@@ -30,7 +48,7 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin: 26px 0 12px;
+  margin-bottom: 12px;
 }
 
 .command-section-title {
@@ -59,98 +77,82 @@
   gap: 14px;
 }
 
-.command-action-grid {
+.command-three-col {
   display: grid;
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.command-action-card {
-  padding: 14px;
-  border-radius: var(--r-lg);
+.command-card {
+  padding: 16px;
+  border-radius: var(--r-xl);
   border: 1px solid var(--border);
   background: var(--surface-1);
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--shadow-sm);
 }
 
-.command-action-top {
+.command-card.pass {
+  border-color: rgba(4, 120, 87, 0.24);
+}
+
+.command-card.blocked,
+.command-card.soft_block,
+.command-card.preflight_required {
+  border-color: rgba(185, 28, 28, 0.22);
+}
+
+.command-card.warning,
+.command-card.warn,
+.command-card.preflight_only {
+  border-color: rgba(180, 83, 9, 0.24);
+}
+
+.command-card-title {
+  color: var(--text-strong);
+  font-size: 15px;
+  font-weight: 950;
+  letter-spacing: -0.03em;
+}
+
+.command-card-sub {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 740;
+  overflow-wrap: anywhere;
+}
+
+.command-meta {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.command-meta-row {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  align-items: flex-start;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 820;
 }
 
-.command-action-title {
+.command-meta-row strong {
   color: var(--text-strong);
-  font-size: 14px;
   font-weight: 950;
-  letter-spacing: -0.025em;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
-.command-action-meta {
-  margin-top: 8px;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.45;
-  font-weight: 740;
-}
-
-.command-route-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.command-route-card {
-  padding: 15px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-xs);
-}
-
-.command-route-card.pass {
-  border-color: rgba(4, 120, 87, 0.22);
-}
-
-.command-route-card.blocked,
-.command-route-card.soft_block,
-.command-route-card.preflight_required {
-  border-color: rgba(185, 28, 28, 0.16);
-}
-
-.command-route-card.preflight_only,
-.command-route-card.warn,
-.command-route-card.warning {
-  border-color: rgba(180, 83, 9, 0.20);
-}
-
-.command-route-title {
-  color: var(--text-strong);
-  font-size: 14px;
-  font-weight: 950;
-}
-
-.command-route-path {
-  margin-top: 3px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-family: var(--font-mono);
-}
-
-.command-route-reason {
-  margin-top: 10px;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.45;
-  font-weight: 740;
-}
-
-.command-proof-list {
+.command-list {
   display: grid;
   gap: 10px;
 }
 
-.command-proof-row {
+.command-list-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
@@ -158,117 +160,167 @@
   padding: 13px;
   border-radius: var(--r-lg);
   border: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-xs);
 }
 
-.command-proof-title {
+.command-list-row.pass {
+  border-color: rgba(4, 120, 87, 0.24);
+}
+
+.command-list-row.blocked,
+.command-list-row.soft_block,
+.command-list-row.preflight_required,
+.command-list-row.banned {
+  border-color: rgba(185, 28, 28, 0.22);
+}
+
+.command-list-row.warning,
+.command-list-row.warn,
+.command-list-row.preflight_only {
+  border-color: rgba(180, 83, 9, 0.24);
+}
+
+.command-list-title {
   color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 920;
+  font-size: 14px;
+  font-weight: 950;
+  overflow-wrap: anywhere;
 }
 
-.command-proof-source {
+.command-list-sub {
   margin-top: 4px;
   color: var(--text-muted);
   font-size: 12px;
-  line-height: 1.4;
-  font-family: var(--font-mono);
+  line-height: 1.45;
+  font-weight: 740;
+  overflow-wrap: anywhere;
 }
 
-.command-emergency-card {
+.command-checklist {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.command-check-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.command-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-top: 4px;
+  background: var(--unknown);
+}
+
+.command-dot.pass {
+  background: var(--success);
+}
+
+.command-dot.blocked,
+.command-dot.fail {
+  background: var(--danger);
+}
+
+.command-dot.warning,
+.command-dot.unknown,
+.command-dot.not_required {
+  background: var(--warn);
+}
+
+.command-empty {
+  padding: 20px;
+  border-radius: var(--r-xl);
+  border: 1px dashed var(--border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 820;
+  text-align: center;
+}
+
+.command-side-card {
   padding: 18px;
   border-radius: var(--r-xl);
-  border: 1px solid rgba(180, 83, 9, 0.24);
-  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-md);
 }
 
-.command-emergency-title {
+.command-side-title {
   color: var(--text-strong);
   font-size: 17px;
   font-weight: 950;
   letter-spacing: -0.035em;
 }
 
-.command-emergency-copy {
+.command-side-copy {
   margin-top: 8px;
   color: var(--text-muted);
   font-size: 13px;
-  font-weight: 760;
   line-height: 1.5;
+  font-weight: 760;
 }
 
-.command-playbook {
-  margin-top: 12px;
-  display: grid;
-  gap: 9px;
-}
-
-.command-playbook-item {
-  padding: 11px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,0.50);
-}
-
-html[data-theme="dark"] .command-playbook-item,
-body[data-theme="dark"] .command-playbook-item {
-  background: rgba(15,23,42,0.42);
-}
-
-.command-playbook-title {
-  color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.command-playbook-copy {
-  margin-top: 3px;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.command-empty {
-  padding: 18px;
+.command-json {
+  max-height: 460px;
+  overflow: auto;
+  padding: 14px;
   border-radius: var(--r-lg);
-  border: 1px dashed var(--border);
-  color: var(--text-muted);
+  border: 1px solid var(--border);
   background: var(--surface-2);
-  font-size: 13px;
-  font-weight: 780;
-  text-align: center;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.command-page-meta {
+  display: none !important;
 }
 
 @media (max-width: 1180px) {
   .command-grid,
-  .command-two-col {
+  .command-two-col,
+  .command-three-col {
     grid-template-columns: 1fr;
   }
 
-  .command-kpi-grid,
-  .command-route-grid {
+  .command-kpi-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 720px) {
-  .command-kpi-grid,
-  .command-route-grid {
+  .command-kpi-grid {
     grid-template-columns: 1fr;
   }
 
-  .command-section-head {
-    align-items: flex-start;
+  .command-section-head,
+  .command-list-row {
+    display: flex;
     flex-direction: column;
+    align-items: flex-start;
   }
 
-  .command-proof-row {
-    grid-template-columns: 1fr;
+  .command-tabs .btn,
+  .command-actions-row .btn {
+    width: 100%;
   }
 }
 </style>
 </head>
+
 <body>
 <header>
 <div>
@@ -281,9 +333,9 @@ body[data-theme="dark"] .command-playbook-item {
 <section class="command-grid">
 <div class="command-hero">
 <div class="hero-kicker">Authority dashboard</div>
-<h1 class="hero-title">Nothing moves unless the governor says it is safe.</h1>
+<h1 class="hero-title">Full governor surface. Nothing hidden.</h1>
 <p class="hero-copy">
-Command Centre shows what is allowed, what is blocked, what proof exists, and what still needs dry-run evidence. It does not hide risk and it does not turn Unknown into Ready.
+Command Centre shows every route, action, proof, checklist, lift rule, blocker, override policy, emergency playbook, and next action returned by the backend authority model.
 </p>
 
 <div class="command-status-strip">
@@ -292,31 +344,43 @@ Command Centre shows what is allowed, what is blocked, what proof exists, and wh
 <span id="cmdWriteScopeBadge" class="badge badge-info">Scope loading</span>
 <span id="cmdOverrideBadge" class="badge badge-unknown">Overrides loading</span>
 </div>
+
+<div class="command-tabs">
+<a class="btn btn-secondary" href="#overview">Overview</a>
+<a class="btn btn-secondary" href="#actions">Actions</a>
+<a class="btn btn-secondary" href="#routes">Routes</a>
+<a class="btn btn-secondary" href="#proofs">Proofs</a>
+<a class="btn btn-secondary" href="#checklists">Checklists</a>
+<a class="btn btn-secondary" href="#overrides">Overrides</a>
+</div>
 </div>
 
-<aside class="command-emergency-card">
-<div class="command-emergency-title">Emergency / override posture</div>
-<div id="cmdEmergencyCopy" class="command-emergency-copy">
-Loading override policy...
+<aside class="command-side-card">
+<div class="command-side-title">Emergency posture</div>
+<div id="cmdEmergencyCopy" class="command-side-copy">
+Loading override and emergency policy...
 </div>
-<div id="cmdEmergencyPlaybook" class="command-playbook"></div>
+<div class="command-actions-row" style="margin-top:14px">
+<a class="btn btn-secondary" href="/index.html">Open Hub</a>
+<a class="btn btn-secondary" href="/bills.html">Open Bills</a>
+</div>
 </aside>
 </section>
 
-<section>
+<section id="overview" class="command-section">
 <div class="command-section-head">
 <div>
-<div class="command-section-title">Governor state</div>
-<div class="command-section-copy">High-level health, write scope, and blocked action count.</div>
+<div class="command-section-title">Governor overview</div>
+<div class="command-section-copy">Live summary of Command Centre authority and readiness.</div>
 </div>
 <span id="cmdComputedAt" class="badge badge-info">Loading</span>
 </div>
 
 <div class="command-kpi-grid">
 <div class="kpi-card">
-<div class="kpi-label">Status</div>
-<div id="cmdStatus" class="kpi-value">-</div>
-<div id="cmdStatusSub" class="kpi-sub">Loading Command Centre</div>
+<div class="kpi-label">Version</div>
+<div id="cmdVersion" class="kpi-value">-</div>
+<div id="cmdVersionSub" class="kpi-sub">Command API</div>
 </div>
 
 <div class="kpi-card">
@@ -326,63 +390,136 @@ Loading override policy...
 </div>
 
 <div class="kpi-card">
-<div class="kpi-label">Allowed actions</div>
+<div class="kpi-label">Allowed</div>
 <div id="cmdAllowedCount" class="kpi-value">-</div>
-<div id="cmdAllowedSub" class="kpi-sub">Loading actions</div>
+<div id="cmdAllowedSub" class="kpi-sub">Allowed actions</div>
 </div>
 
 <div class="kpi-card">
-<div class="kpi-label">Blocked actions</div>
+<div class="kpi-label">Blocked</div>
 <div id="cmdBlockedCount" class="kpi-value">-</div>
-<div id="cmdBlockedSub" class="kpi-sub">Loading blockers</div>
+<div id="cmdBlockedSub" class="kpi-sub">Blocked actions</div>
 </div>
 </div>
 </section>
 
-<section class="command-two-col">
-<div>
+<section id="actions" class="command-section">
 <div class="command-section-head">
 <div>
-<div class="command-section-title">Allowed / blocked actions</div>
-<div class="command-section-copy">The exact action-level authority state.</div>
+<div class="command-section-title">Allowed actions</div>
+<div class="command-section-copy">Actions currently allowed by Command Centre.</div>
 </div>
+<span id="cmdAllowedBadge" class="badge badge-ready">Allowed</span>
 </div>
-<div id="cmdActions" class="command-action-grid"></div>
-</div>
-
-<div>
-<div class="command-section-head">
-<div>
-<div class="command-section-title">Source proofs</div>
-<div class="command-section-copy">Evidence Command Centre used to make decisions.</div>
-</div>
-</div>
-<div id="cmdProofs" class="command-proof-list"></div>
-</div>
+<div id="cmdAllowedActions" class="command-list"></div>
 </section>
 
-<section>
+<section class="command-section">
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Blocked actions</div>
+<div class="command-section-copy">Actions intentionally blocked with reason, source, and required fix.</div>
+</div>
+<span id="cmdBlockedBadge" class="badge badge-blocked">Blocked</span>
+</div>
+<div id="cmdBlockedActions" class="command-list"></div>
+</section>
+
+<section id="routes" class="command-section">
 <div class="command-section-head">
 <div>
 <div class="command-section-title">Routes and pages</div>
-<div class="command-section-copy">Pages stay viewable when useful, but unsafe actions stay gated.</div>
+<div class="command-section-copy">Every governed page and whether actions are allowed, preflight-only, or blocked.</div>
 </div>
 </div>
-<div id="cmdRoutes" class="command-route-grid"></div>
+<div id="cmdRoutes" class="command-three-col"></div>
 </section>
 
-<section>
+<section id="proofs" class="command-section">
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Source proofs</div>
+<div class="command-section-copy">Evidence used by Command Centre to make decisions.</div>
+</div>
+</div>
+<div id="cmdProofs" class="command-list"></div>
+</section>
+
+<section id="checklists" class="command-section">
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Action checklists</div>
+<div class="command-section-copy">Per-action proof checklist and blocking keys.</div>
+</div>
+</div>
+<div id="cmdChecklists" class="command-two-col"></div>
+</section>
+
+<section class="command-section">
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Lift criteria</div>
+<div class="command-section-copy">Rules required before blocked actions can become allowed.</div>
+</div>
+</div>
+<div id="cmdLiftCriteria" class="command-list"></div>
+</section>
+
+<section class="command-section">
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Block explanations</div>
+<div class="command-section-copy">Detailed explanation of every active blocker.</div>
+</div>
+</div>
+<div id="cmdBlockExplanations" class="command-list"></div>
+</section>
+
+<section id="overrides" class="command-section">
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Override policy</div>
+<div class="command-section-copy">Emergency policy, request schema, never-override list, and backend ownership requirements.</div>
+</div>
+</div>
+<div id="cmdOverridePolicy" class="command-two-col"></div>
+</section>
+
+<section class="command-section">
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Emergency playbooks</div>
+<div class="command-section-copy">Operational playbooks for wrong blocks, urgent corrections, API errors, and override requests.</div>
+</div>
+</div>
+<div id="cmdPlaybooks" class="command-two-col"></div>
+</section>
+
+<section class="command-section">
 <div class="command-section-head">
 <div>
 <div class="command-section-title">Next actions</div>
-<div class="command-section-copy">What remains after the governor is complete.</div>
+<div class="command-section-copy">What to build next to move finance toward 100% readiness.</div>
 </div>
 </div>
-<div id="cmdNextActions" class="command-proof-list"></div>
+<div id="cmdNextActions" class="command-list"></div>
 </section>
 
-<footer class="bills-page-meta" aria-hidden="true">
-Command Centre dashboard UI v2.0.0
+<section class="command-section">
+<div class="command-section-head">
+<div>
+<div class="command-section-title">Compact diagnostic</div>
+<div class="command-section-copy">Counts and key state for quick debugging.</div>
+</div>
+<button id="cmdToggleRaw" class="btn btn-secondary" type="button">Toggle raw JSON</button>
+</div>
+
+<div id="cmdDiagnostic" class="command-two-col"></div>
+<pre id="cmdRawJson" class="command-json" hidden></pre>
+</section>
+
+<footer class="command-page-meta" aria-hidden="true">
+Command Centre full surface UI v2.1.0
 </footer>
 </main>
 
@@ -391,15 +528,15 @@ Command Centre dashboard UI v2.0.0
 <script src="/js/theme.js?v=1.0.0"></script>
 <script src="/js/nav.js?v=2.0.0"></script>
 <script src="/js/enforcement.js?v=0.2.0"></script>
+
 <script>
 (function () {
   "use strict";
 
-  const VERSION = "2.0.0";
+  const VERSION = "2.1.0";
+  let commandData = null;
 
-  function $(id) {
-    return document.getElementById(id);
-  }
+  const $ = id => document.getElementById(id);
 
   function setText(id, value) {
     const el = $(id);
@@ -415,21 +552,36 @@ Command Centre dashboard UI v2.0.0
       .replace(/'/g, "&#39;");
   }
 
+  function pretty(value) {
+    if (value === true) return "true";
+    if (value === false) return "false";
+    if (value == null) return "N/A";
+    if (Array.isArray(value)) return value.length ? value.join(", ") : "None";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  }
+
+  function statusText(value) {
+    return String(value || "unknown").replace(/_/g, " ");
+  }
+
   function badgeClass(status) {
     const s = String(status || "").toLowerCase();
 
-    if (s === "pass" || s === "allowed" || s === "ready" || s === "governor_complete" || s === "policy_complete") return "badge badge-ready";
-    if (s === "preflight_only" || s === "preflight_ready" || s === "warning" || s === "warn" || s === "ready_with_warnings") return "badge badge-preflight";
-    if (s === "blocked" || s === "soft_block" || s === "preflight_required") return "badge badge-blocked";
-    if (s === "banned") return "badge badge-blocked";
-    if (s === "unknown") return "badge badge-unknown";
+    if (s === "pass" || s === "allowed" || s === "ready" || s === "governor_complete" || s === "policy_complete" || s === "checked") return "badge badge-ready";
+    if (s === "preflight_only" || s === "preflight_ready" || s === "warning" || s === "warn" || s === "ready_with_warnings" || s === "not_required") return "badge badge-preflight";
+    if (s === "blocked" || s === "soft_block" || s === "preflight_required" || s === "banned") return "badge badge-blocked";
+    if (s === "unknown" || s === "ready_with_unknowns") return "badge badge-unknown";
 
     return "badge badge-info";
   }
 
-  function short(value, fallback) {
-    const text = String(value || fallback || "");
-    return text.length > 120 ? text.slice(0, 117) + "..." : text;
+  function cardStatusClass(status) {
+    const s = String(status || "").toLowerCase();
+    if (s.includes("block") || s === "banned") return "blocked";
+    if (s.includes("warn") || s.includes("preflight")) return "warning";
+    if (s === "pass" || s === "allowed" || s === "checked") return "pass";
+    return "";
   }
 
   async function fetchCommandCentre() {
@@ -441,6 +593,23 @@ Command Centre dashboard UI v2.0.0
     }
 
     return data;
+  }
+
+  function actionCard(action) {
+    return `
+      <article class="command-list-row ${action.allowed ? "pass" : "blocked"}">
+        <div>
+          <div class="command-list-title">${escapeHtml(action.action || "unknown.action")}</div>
+          <div class="command-list-sub">
+            <strong>Module:</strong> ${escapeHtml(action.module || "system")}<br>
+            <strong>Reason:</strong> ${escapeHtml(action.reason || "No reason returned.")}<br>
+            <strong>Source:</strong> ${escapeHtml(action.source || "N/A")}<br>
+            <strong>Fix:</strong> ${escapeHtml(action.required_fix || "None.")}
+          </div>
+        </div>
+        <span class="${action.allowed ? "badge badge-ready" : "badge badge-blocked"}">${action.allowed ? "Allowed" : "Blocked"}</span>
+      </article>
+    `;
   }
 
   function renderHeader(data) {
@@ -461,7 +630,7 @@ Command Centre dashboard UI v2.0.0
 
     if (governorBadge) {
       governorBadge.className = badgeClass(globalStatus);
-      governorBadge.textContent = String(globalStatus || "unknown").replace(/_/g, " ");
+      governorBadge.textContent = statusText(globalStatus);
     }
 
     if (scopeBadge) {
@@ -471,73 +640,79 @@ Command Centre dashboard UI v2.0.0
 
     if (overrideBadge) {
       overrideBadge.className = badgeClass(overrideStatus);
-      overrideBadge.textContent = "Overrides: " + String(overrideStatus || "unknown").replace(/_/g, " ");
+      overrideBadge.textContent = "Overrides: " + statusText(overrideStatus);
     }
 
     setText("cmdComputedAt", data.computed_at ? "Computed " + new Date(data.computed_at).toLocaleString() : "Computed now");
+    setText("cmdEmergencyCopy", data.enforcement?.enforcement_status_note || "Command Centre authority loaded.");
   }
 
-  function renderKpis(data) {
+  function renderOverview(data) {
     const actions = data.enforcement && Array.isArray(data.enforcement.actions) ? data.enforcement.actions : [];
     const allowed = actions.filter(action => action.allowed);
     const blocked = actions.filter(action => !action.allowed);
     const writeSafety = data.coverage && data.coverage.write_safety ? data.coverage.write_safety : {};
 
-    setText("cmdStatus", String(data.enforcement?.global_status || data.verdict || "Unknown").replace(/_/g, " "));
-    setText("cmdStatusSub", data.trial_gate?.reason || data.enforcement?.enforcement_status_note || "Governor state loaded");
+    setText("cmdVersion", data.version || "-");
+    setText("cmdVersionSub", "API version");
 
-    setText("cmdWriteSafety", String(writeSafety.status || "Unknown").replace(/_/g, " "));
+    setText("cmdWriteSafety", statusText(writeSafety.status || "-"));
     setText("cmdWriteSafetySub", Array.isArray(writeSafety.real_write_scope) && writeSafety.real_write_scope.length ? "Scope: " + writeSafety.real_write_scope.join(", ") : "No real write scope");
 
     setText("cmdAllowedCount", String(allowed.length));
-    setText("cmdAllowedSub", allowed.slice(0, 3).map(a => a.action).join(", ") || "No allowed actions");
+    setText("cmdAllowedSub", allowed.slice(0, 4).map(a => a.action).join(", ") || "No allowed actions");
 
     setText("cmdBlockedCount", String(blocked.length));
-    setText("cmdBlockedSub", blocked.slice(0, 3).map(a => a.action).join(", ") || "No blocked actions");
+    setText("cmdBlockedSub", blocked.slice(0, 4).map(a => a.action).join(", ") || "No blocked actions");
+
+    setText("cmdAllowedBadge", allowed.length + " allowed");
+    setText("cmdBlockedBadge", blocked.length + " blocked");
   }
 
   function renderActions(data) {
-    const container = $("cmdActions");
+    const actions = data.enforcement && Array.isArray(data.enforcement.actions) ? data.enforcement.actions : [];
+    const allowed = actions.filter(action => action.allowed);
+    const blocked = actions.filter(action => !action.allowed);
+
+    const allowedEl = $("cmdAllowedActions");
+    const blockedEl = $("cmdBlockedActions");
+
+    if (allowedEl) {
+      allowedEl.innerHTML = allowed.length ? allowed.map(actionCard).join("") : '<div class="command-empty">No allowed actions returned.</div>';
+    }
+
+    if (blockedEl) {
+      blockedEl.innerHTML = blocked.length ? blocked.map(actionCard).join("") : '<div class="command-empty">No blocked actions returned.</div>';
+    }
+  }
+
+  function renderRoutes(data) {
+    const container = $("cmdRoutes");
     if (!container) return;
 
-    const actions = data.enforcement && Array.isArray(data.enforcement.actions) ? data.enforcement.actions : [];
+    const routes = data.enforcement && Array.isArray(data.enforcement.routes) ? data.enforcement.routes : [];
 
-    if (!actions.length) {
-      container.innerHTML = '<div class="command-empty">No action policy returned.</div>';
+    if (!routes.length) {
+      container.innerHTML = '<div class="command-empty">No route policy returned.</div>';
       return;
     }
 
-    const priority = [
-      "transaction.save",
-      "bill.save",
-      "bill.clear",
-      "override.request",
-      "override.apply",
-      "debt.save",
-      "reconciliation.declare",
-      "salary.save",
-      "forecast.generate",
-      "money_contracts.use_as_truth_source"
-    ];
-
-    const sorted = actions.slice().sort((a, b) => {
-      const ai = priority.indexOf(a.action);
-      const bi = priority.indexOf(b.action);
-      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-    });
-
-    container.innerHTML = sorted.map(action => `
-      <article class="command-action-card">
-        <div class="command-action-top">
-          <div class="command-action-title">${escapeHtml(action.action)}</div>
-          <span class="${action.allowed ? "badge badge-ready" : "badge badge-blocked"}">${action.allowed ? "Allowed" : "Blocked"}</span>
+    container.innerHTML = routes.map(route => `
+      <article class="command-card ${cardStatusClass(route.status)}">
+        <div class="command-list-row" style="box-shadow:none;padding:0;border:0;background:transparent">
+          <div>
+            <div class="command-card-title">${escapeHtml(route.module || route.route || "route")}</div>
+            <div class="command-card-sub">${escapeHtml(route.route || "")}</div>
+          </div>
+          <span class="${badgeClass(route.status)}">${escapeHtml(statusText(route.status))}</span>
         </div>
-        <div class="command-action-meta">
-          <strong>Module:</strong> ${escapeHtml(action.module || "system")}<br>
-          <strong>Source:</strong> ${escapeHtml(action.source || "N/A")}<br>
-          <strong>Reason:</strong> ${escapeHtml(action.reason || "No reason returned.")}<br>
-          <strong>Fix:</strong> ${escapeHtml(action.required_fix || "None.")}
+        <div class="command-meta">
+          <div class="command-meta-row"><span>View</span><strong>${route.view_allowed ? "Allowed" : "Blocked"}</strong></div>
+          <div class="command-meta-row"><span>Actions</span><strong>${route.actions_allowed ? "Allowed" : "Gated"}</strong></div>
+          <div class="command-meta-row"><span>Source</span><strong>${escapeHtml(route.source || "N/A")}</strong></div>
+          <div class="command-meta-row"><span>Fix</span><strong>${escapeHtml(route.required_fix || "None.")}</strong></div>
         </div>
+        <div class="command-card-sub"><strong>Reason:</strong> ${escapeHtml(route.reason || "No reason returned.")}</div>
       </article>
     `).join("");
   }
@@ -554,75 +729,196 @@ Command Centre dashboard UI v2.0.0
     }
 
     container.innerHTML = proofs.map(proof => `
-      <div class="command-proof-row">
+      <article class="command-list-row ${cardStatusClass(proof.status)}">
         <div>
-          <div class="command-proof-title">${escapeHtml(proof.key || "proof")}</div>
-          <div class="command-proof-source">${escapeHtml(proof.source || "No source returned")}</div>
-        </div>
-        <span class="${badgeClass(proof.status)}">${escapeHtml(proof.status || "unknown")}</span>
-      </div>
-    `).join("");
-  }
-
-  function renderRoutes(data) {
-    const container = $("cmdRoutes");
-    if (!container) return;
-
-    const routes = data.enforcement && Array.isArray(data.enforcement.routes) ? data.enforcement.routes : [];
-
-    if (!routes.length) {
-      container.innerHTML = '<div class="command-empty">No route policy returned.</div>';
-      return;
-    }
-
-    container.innerHTML = routes.map(route => `
-      <article class="command-route-card ${escapeHtml(route.status || "unknown")}">
-        <div class="command-action-top">
-          <div>
-            <div class="command-route-title">${escapeHtml(route.module || route.route || "route")}</div>
-            <div class="command-route-path">${escapeHtml(route.route || "")}</div>
+          <div class="command-list-title">${escapeHtml(proof.key || "proof")}</div>
+          <div class="command-list-sub">
+            <strong>Source:</strong> ${escapeHtml(proof.source || "No source returned")}<br>
+            <strong>Details:</strong> ${escapeHtml(pretty(proof.details))}
           </div>
-          <span class="${badgeClass(route.status)}">${escapeHtml(route.status || "unknown")}</span>
         </div>
-        <div class="command-route-reason">
-          <strong>Actions:</strong> ${route.actions_allowed ? "Allowed" : "Blocked / gated"}<br>
-          <strong>Reason:</strong> ${escapeHtml(short(route.reason, "No reason returned."))}<br>
-          <strong>Fix:</strong> ${escapeHtml(short(route.required_fix, "None."))}
-        </div>
+        <span class="${badgeClass(proof.status)}">${escapeHtml(statusText(proof.status))}</span>
       </article>
     `).join("");
   }
 
-  function renderEmergency(data) {
-    const copy = $("cmdEmergencyCopy");
-    const playbook = $("cmdEmergencyPlaybook");
-    const overrides = data.enforcement && data.enforcement.overrides ? data.enforcement.overrides : data.override_policy;
+  function renderChecklists(data) {
+    const container = $("cmdChecklists");
+    if (!container) return;
 
-    if (copy) {
-      copy.textContent = overrides
-        ? "Override posture: " + (overrides.status || "policy available") + ". Silent bypass is not allowed. Any future override must be explicit, reasoned, time-bound, and API-owned."
-        : "Override policy not returned.";
-    }
+    const checklists = data.enforcement && Array.isArray(data.enforcement.action_checklists) ? data.enforcement.action_checklists : [];
 
-    const playbooks = data.emergency_playbooks || [];
-
-    if (!playbook) return;
-
-    if (!playbooks.length) {
-      playbook.innerHTML = `
-        <div class="command-playbook-item">
-          <div class="command-playbook-title">Emergency rule</div>
-          <div class="command-playbook-copy">Do not silently bypass Command Centre. Fix proof or implement API-owned override with audit.</div>
-        </div>
-      `;
+    if (!checklists.length) {
+      container.innerHTML = '<div class="command-empty">No action checklists returned.</div>';
       return;
     }
 
-    playbook.innerHTML = playbooks.slice(0, 4).map(item => `
-      <div class="command-playbook-item">
-        <div class="command-playbook-title">${escapeHtml(item.label || item.key || "Playbook")}</div>
-        <div class="command-playbook-copy">${escapeHtml(Array.isArray(item.steps) ? item.steps.slice(0, 2).join(" · ") : "Follow emergency policy.")}</div>
-      </div>
+    container.innerHTML = checklists.map(list => {
+      const items = Array.isArray(list.items) ? list.items : [];
+
+      return `
+        <article class="command-card ${cardStatusClass(list.status)}">
+          <div class="command-list-row" style="box-shadow:none;padding:0;border:0;background:transparent">
+            <div>
+              <div class="command-card-title">${escapeHtml(list.action || "action")}</div>
+              <div class="command-card-sub">${escapeHtml(list.title || list.module || "")}</div>
+            </div>
+            <span class="${badgeClass(list.status)}">${escapeHtml(statusText(list.status))}</span>
+          </div>
+
+          <div class="command-meta">
+            <div class="command-meta-row"><span>Allowed policy</span><strong>${list.allowed_by_action_policy ? "Yes" : "No"}</strong></div>
+            <div class="command-meta-row"><span>Passed</span><strong>${pretty(list.passed_count)} / ${pretty(list.total_count)}</strong></div>
+            <div class="command-meta-row"><span>Failed</span><strong>${pretty(list.failed_count)}</strong></div>
+          </div>
+
+          <div class="command-checklist">
+            ${items.length ? items.map(item => `
+              <div class="command-check-item">
+                <span class="command-dot ${escapeHtml(item.status || (item.passed ? "pass" : "blocked"))}"></span>
+                <div>
+                  <div class="command-list-title">${escapeHtml(item.label || item.key || "check")}</div>
+                  <div class="command-list-sub">
+                    <strong>Source:</strong> ${escapeHtml(item.source || "N/A")}<br>
+                    <strong>Fix:</strong> ${escapeHtml(item.required_fix || "None.")}
+                  </div>
+                </div>
+              </div>
+            `).join("") : '<div class="command-empty">No checklist items.</div>'}
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  function renderLiftCriteria(data) {
+    const container = $("cmdLiftCriteria");
+    if (!container) return;
+
+    const criteria = data.enforcement && Array.isArray(data.enforcement.lift_criteria) ? data.enforcement.lift_criteria : [];
+
+    if (!criteria.length) {
+      container.innerHTML = '<div class="command-empty">No lift criteria returned.</div>';
+      return;
+    }
+
+    container.innerHTML = criteria.map(item => `
+      <article class="command-list-row ${item.can_lift_now ? "pass" : "blocked"}">
+        <div>
+          <div class="command-list-title">${escapeHtml(item.action || "action")}</div>
+          <div class="command-list-sub">
+            <strong>Current:</strong> ${escapeHtml(item.current_status || "unknown")}<br>
+            <strong>Can lift now:</strong> ${item.can_lift_now ? "Yes" : "No"}<br>
+            <strong>Rule:</strong> ${escapeHtml(item.lift_rule || "No lift rule returned.")}<br>
+            <strong>Required:</strong> ${escapeHtml(pretty(item.required_to_lift))}
+          </div>
+        </div>
+        <span class="${item.can_lift_now ? "badge badge-ready" : "badge badge-blocked"}">${item.can_lift_now ? "Can lift" : "Cannot lift"}</span>
+      </article>
+    `).join("");
+  }
+
+  function renderBlockExplanations(data) {
+    const container = $("cmdBlockExplanations");
+    if (!container) return;
+
+    const blocks = data.enforcement && Array.isArray(data.enforcement.block_explanations) ? data.enforcement.block_explanations : [];
+
+    if (!blocks.length) {
+      container.innerHTML = '<div class="command-empty">No block explanations returned.</div>';
+      return;
+    }
+
+    container.innerHTML = blocks.map(block => `
+      <article class="command-list-row blocked">
+        <div>
+          <div class="command-list-title">${escapeHtml(block.blocked_item || "blocked item")}</div>
+          <div class="command-list-sub">
+            <strong>Type:</strong> ${escapeHtml(block.block_type || "block")}<br>
+            <strong>Reason:</strong> ${escapeHtml(block.reason || "No reason returned.")}<br>
+            <strong>Source:</strong> ${escapeHtml(block.source || "N/A")}<br>
+            <strong>Fix:</strong> ${escapeHtml(block.required_fix || "None.")}<br>
+            <strong>Backend enforced:</strong> ${block.backend_enforced ? "Yes" : "No"} ·
+            <strong>Frontend enforced:</strong> ${block.frontend_enforced ? "Yes" : "No"}
+          </div>
+        </div>
+        <span class="badge badge-blocked">Blocked</span>
+      </article>
+    `).join("");
+  }
+
+  function renderOverridePolicy(data) {
+    const container = $("cmdOverridePolicy");
+    if (!container) return;
+
+    const policy = data.enforcement?.overrides || data.override_policy || {};
+
+    const requestSchema = policy.request_schema || {};
+    const backendContract = policy.required_backend_contract_for_future_application || {};
+
+    container.innerHTML = `
+      <article class="command-card ${cardStatusClass(policy.status)}">
+        <div class="command-card-title">Policy</div>
+        <div class="command-card-sub">${escapeHtml(policy.note || "Override policy returned.")}</div>
+        <div class="command-meta">
+          <div class="command-meta-row"><span>Status</span><strong>${escapeHtml(policy.status || "unknown")}</strong></div>
+          <div class="command-meta-row"><span>Requestable</span><strong>${policy.requestable ? "Yes" : "No"}</strong></div>
+          <div class="command-meta-row"><span>Applies from Command</span><strong>${policy.applies_directly_from_command_centre ? "Yes" : "No"}</strong></div>
+          <div class="command-meta-row"><span>Silent bypass</span><strong>${policy.silent_bypass_allowed ? "Allowed" : "Forbidden"}</strong></div>
+          <div class="command-meta-row"><span>Expiry</span><strong>${pretty(policy.default_expiry_minutes)} min default / ${pretty(policy.max_expiry_minutes)} max</strong></div>
+        </div>
+      </article>
+
+      <article class="command-card">
+        <div class="command-card-title">Request schema</div>
+        <div class="command-card-sub">
+          ${Object.keys(requestSchema).length ? Object.entries(requestSchema).map(([key, value]) => `
+            <strong>${escapeHtml(key)}:</strong> ${escapeHtml(pretty(value))}<br>
+          `).join("") : "No request schema returned."}
+        </div>
+      </article>
+
+      <article class="command-card">
+        <div class="command-card-title">Requestable actions</div>
+        <div class="command-card-sub">${escapeHtml(pretty(policy.requestable_actions || []))}</div>
+      </article>
+
+      <article class="command-card blocked">
+        <div class="command-card-title">Never override</div>
+        <div class="command-card-sub">${escapeHtml(pretty(policy.never_override_actions || []))}</div>
+      </article>
+
+      <article class="command-card">
+        <div class="command-card-title">Future backend contract</div>
+        <div class="command-card-sub">
+          ${Object.keys(backendContract).length ? Object.entries(backendContract).map(([key, value]) => `
+            <strong>${escapeHtml(key)}:</strong> ${escapeHtml(pretty(value))}<br>
+          `).join("") : "No backend contract returned."}
+        </div>
+      </article>
+    `;
+  }
+
+  function renderPlaybooks(data) {
+    const container = $("cmdPlaybooks");
+    if (!container) return;
+
+    const playbooks = Array.isArray(data.emergency_playbooks) ? data.emergency_playbooks : [];
+
+    if (!playbooks.length) {
+      container.innerHTML = '<div class="command-empty">No emergency playbooks returned.</div>';
+      return;
+    }
+
+    container.innerHTML = playbooks.map(book => `
+      <article class="command-card">
+        <div class="command-card-title">${escapeHtml(book.label || book.key || "Playbook")}</div>
+        <div class="command-card-sub">
+          ${(Array.isArray(book.steps) ? book.steps : []).map((step, index) => `
+            <strong>${index + 1}.</strong> ${escapeHtml(step)}<br>
+          `).join("") || "No steps returned."}
+        </div>
+      </article>
     `).join("");
   }
 
@@ -630,64 +926,121 @@ Command Centre dashboard UI v2.0.0
     const container = $("cmdNextActions");
     if (!container) return;
 
-    const actions = Array.isArray(data.next_actions) ? data.next_actions : [];
+    const next = Array.isArray(data.next_actions) ? data.next_actions : [];
 
-    if (!actions.length) {
+    if (!next.length) {
       container.innerHTML = '<div class="command-empty">No next actions returned.</div>';
       return;
     }
 
-    container.innerHTML = actions.map((action, index) => `
-      <div class="command-proof-row">
+    container.innerHTML = next.map((item, index) => `
+      <article class="command-list-row">
         <div>
-          <div class="command-proof-title">Next ${index + 1}</div>
-          <div class="command-proof-source">${escapeHtml(action)}</div>
+          <div class="command-list-title">Next ${index + 1}</div>
+          <div class="command-list-sub">${escapeHtml(item)}</div>
         </div>
         <span class="badge badge-info">Open</span>
-      </div>
+      </article>
     `).join("");
   }
 
+  function renderDiagnostic(data) {
+    const container = $("cmdDiagnostic");
+    const raw = $("cmdRawJson");
+    if (!container) return;
+
+    const out = {
+      version: data.version,
+      actions: data.enforcement?.actions?.length || 0,
+      routes: data.enforcement?.routes?.length || 0,
+      source_proofs: data.source_proofs?.length || 0,
+      action_checklists: data.enforcement?.action_checklists?.length || 0,
+      lift_criteria: data.enforcement?.lift_criteria?.length || 0,
+      block_explanations: data.enforcement?.block_explanations?.length || 0,
+      emergency_playbooks: data.emergency_playbooks?.length || 0,
+      next_actions: data.next_actions?.length || 0
+    };
+
+    container.innerHTML = Object.entries(out).map(([key, value]) => `
+      <article class="command-card">
+        <div class="command-card-title">${escapeHtml(key.replace(/_/g, " "))}</div>
+        <div class="command-card-sub">${escapeHtml(pretty(value))}</div>
+      </article>
+    `).join("");
+
+    if (raw) raw.textContent = JSON.stringify(data, null, 2);
+  }
+
   function renderError(err) {
-    setText("cmdStatus", "Blocked");
-    setText("cmdStatusSub", err.message || "Command Centre unavailable");
+    setText("cmdVersion", "Error");
+    setText("cmdVersionSub", err.message || "Command Centre unavailable");
     setText("cmdWriteSafety", "Unknown");
     setText("cmdWriteSafetySub", "Could not load proof state");
-    setText("cmdAllowedCount", "-");
-    setText("cmdBlockedCount", "-");
 
-    const containers = ["cmdActions", "cmdProofs", "cmdRoutes", "cmdNextActions"];
-    containers.forEach(id => {
+    [
+      "cmdAllowedActions",
+      "cmdBlockedActions",
+      "cmdRoutes",
+      "cmdProofs",
+      "cmdChecklists",
+      "cmdLiftCriteria",
+      "cmdBlockExplanations",
+      "cmdOverridePolicy",
+      "cmdPlaybooks",
+      "cmdNextActions",
+      "cmdDiagnostic"
+    ].forEach(id => {
       const el = $(id);
       if (el) el.innerHTML = '<div class="command-empty">Command Centre failed to load: ' + escapeHtml(err.message || String(err)) + '</div>';
     });
   }
 
+  function wireEvents() {
+    const toggle = $("cmdToggleRaw");
+    const raw = $("cmdRawJson");
+    if (toggle && raw) {
+      toggle.addEventListener("click", () => {
+        raw.hidden = !raw.hidden;
+      });
+    }
+  }
+
   async function init() {
-    console.log("[command-ui v2.0.0] init");
+    console.log("[command-ui v2.1.0] init");
+    wireEvents();
 
     try {
-      const data = await fetchCommandCentre();
-      renderHeader(data);
-      renderKpis(data);
-      renderActions(data);
-      renderProofs(data);
-      renderRoutes(data);
-      renderEmergency(data);
-      renderNextActions(data);
-      console.log("[command-ui v2.0.0] ready", {
-        version: data.version,
-        status: data.coverage?.write_safety?.status
+      commandData = await fetchCommandCentre();
+
+      renderHeader(commandData);
+      renderOverview(commandData);
+      renderActions(commandData);
+      renderRoutes(commandData);
+      renderProofs(commandData);
+      renderChecklists(commandData);
+      renderLiftCriteria(commandData);
+      renderBlockExplanations(commandData);
+      renderOverridePolicy(commandData);
+      renderPlaybooks(commandData);
+      renderNextActions(commandData);
+      renderDiagnostic(commandData);
+
+      console.log("[command-ui v2.1.0] ready", {
+        version: commandData.version,
+        actions: commandData.enforcement?.actions?.length,
+        routes: commandData.enforcement?.routes?.length,
+        checklists: commandData.enforcement?.action_checklists?.length
       });
     } catch (err) {
-      console.error("[command-ui v2.0.0] failed", err);
+      console.error("[command-ui v2.1.0] failed", err);
       renderError(err);
     }
   }
 
   window.SovereignCommandUI = {
     version: VERSION,
-    refresh: init
+    refresh: init,
+    data: () => commandData
   };
 
   if (document.readyState === "loading") {
