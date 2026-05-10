@@ -1,4 +1,4 @@
-const VERSION = "v0.4.0-ledger-atomic-item";
+const VERSION = "v0.4.1-ledger-atomic-item";
 
 export async function onRequestGet({ env, params }) {
   try {
@@ -6,7 +6,9 @@ export async function onRequestGet({ env, params }) {
     const id = requireText(params.id, "id");
     const debt = await getDebt(db, id);
 
-    if (!debt) return json({ ok: false, version: VERSION, error: "Debt not found." }, 404);
+    if (!debt) {
+      return json({ ok: false, version: VERSION, error: "Debt not found." }, 404);
+    }
 
     return json({
       ok: true,
@@ -23,11 +25,15 @@ export async function onRequestPut({ env, params, request }) {
     const db = requireDb(env);
     const id = requireText(params.id, "id");
     const body = await request.json();
-
     const action = String(body.action || "update").toLowerCase();
 
     if (action === "defer") {
       const result = await deferDebt(db, id, body);
+      return json({ ok: true, version: VERSION, ...result });
+    }
+
+    if (action === "payment" || action === "received") {
+      const result = await recordDebtMovement(db, id, body);
       return json({ ok: true, version: VERSION, ...result });
     }
 
@@ -43,7 +49,6 @@ export async function onRequestPost({ env, params, request }) {
     const db = requireDb(env);
     const id = requireText(params.id, "id");
     const body = await request.json();
-
     const action = String(body.action || "update").toLowerCase();
 
     if (action === "defer") {
@@ -148,7 +153,7 @@ async function recordDebtMovement(db, id, body) {
     throw new Error("Settled or archived debts can only be edited.");
   }
 
-  const action = String(body.action || body.type || "").toLowerCase();
+  const action = normalizeMovementAction(body.action || body.type);
   const kind = normalizeKind(existing.kind);
 
   if (kind === "owe" && action !== "payment") {
@@ -166,7 +171,7 @@ async function recordDebtMovement(db, id, body) {
 
   const original = Number(existing.original_amount);
   const paidBefore = Number(existing.paid_amount || 0);
-  const remainingBefore = original - paidBefore;
+  const remainingBefore = round2(original - paidBefore);
 
   if (amount > remainingBefore + 0.00001) {
     throw new Error(`Amount exceeds outstanding debt. Outstanding is ${remainingBefore}.`);
@@ -178,7 +183,9 @@ async function recordDebtMovement(db, id, body) {
 
   const nextDueDate = settled ? null : cleanText(body.next_due_date || body.due_date || existing.due_date);
   const status = settled ? "closed" : "active";
-  const txType = action === "payment" ? "debt_out" : "debt_in";
+
+  const txType = action === "payment" ? "repay" : "income";
+  const txEffect = action === "payment" ? "decrease_account" : "increase_account";
   const txId = makeId(`tx_${txType}`);
 
   const newNotes = appendNote(
@@ -239,7 +246,7 @@ async function recordDebtMovement(db, id, body) {
       date,
       amount,
       account_id: accountId,
-      effect: txType === "debt_in" ? "increase_account" : "decrease_account"
+      effect: txEffect
     }
   };
 }
@@ -272,11 +279,13 @@ function normalizeDebtRow(row) {
   const original = Number(row.original_amount || 0);
   const paid = Number(row.paid_amount || 0);
   const remaining = round2(original - paid);
+  const normalizedKind = normalizeKind(row.kind);
 
   return {
     ...row,
-    direction: normalizeKind(row.kind) === "owed" ? "owed_to_me" : "i_owe",
-    type: normalizeKind(row.kind) === "owed" ? "owed_to_me" : "i_owe",
+    kind: normalizedKind,
+    direction: normalizedKind === "owed" ? "owed_to_me" : "i_owe",
+    type: normalizedKind === "owed" ? "owed_to_me" : "i_owe",
     original_amount: original,
     amount: original,
     paid_amount: paid,
@@ -286,6 +295,15 @@ function normalizeDebtRow(row) {
     next_due_date: row.due_date || null,
     settled: remaining <= 0.00001 || isClosed(row.status)
   };
+}
+
+function normalizeMovementAction(value) {
+  const action = String(value || "").toLowerCase();
+
+  if (["payment", "pay", "paid", "repay"].includes(action)) return "payment";
+  if (["received", "receive", "receipt", "income"].includes(action)) return "received";
+
+  throw new Error("action must be payment or received.");
 }
 
 function normalizeKind(value) {
