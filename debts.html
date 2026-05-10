@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Debts · Sovereign Finance</title>
-  <meta name="description" content="Manage debts, payments, received amounts, installments, and due dates in Sovereign Finance." />
+  <meta name="description" content="Manage debts, account-linked lending, payments, received amounts, installments, and due dates." />
 
   <link rel="stylesheet" href="/css/app.css?v=ui-token-lock-2-1" />
   <link rel="stylesheet" href="/css/nav.css" />
@@ -21,7 +21,6 @@
           <span class="sf-brand-subtitle">Personal finance system</span>
         </span>
       </a>
-
       <button class="sf-sidebar-fold" type="button" id="sidebarFold" aria-label="Collapse sidebar">
         <span class="sf-nav-icon">‹</span>
       </button>
@@ -66,15 +65,15 @@
   <main class="app-page">
     <section class="finance-hero">
       <div class="hero-kicker">Debt register</div>
-      <h1 class="hero-title">Debts, installments, and due dates.</h1>
+      <h1 class="hero-title">Debts, ledger-linked.</h1>
       <p class="hero-copy">
-        Track what you owe, what is owed to you, partial payments, received installments, and deferred next dates.
+        Create debts with account movement, record partial payments, receive installments, and defer next dates without breaking the ledger.
       </p>
 
       <div class="stack-sm" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;">
         <button class="btn btn-success" type="button" id="addDebtBtn">Add Debt</button>
         <button class="btn btn-secondary" type="button" id="refreshBtn">Refresh</button>
-        <a class="btn btn-secondary" href="/add.html">Add Transaction</a>
+        <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
       </div>
     </section>
 
@@ -109,7 +108,9 @@
         <article class="card card-padded">
           <div class="section-kicker">Debt register</div>
           <h2 class="authority-title" style="margin-top:12px;">Active and settled records</h2>
-          <p class="authority-copy">Direction controls actions: payment for money you owe, received for money owed to you.</p>
+          <p class="authority-copy">
+            Direction controls the action. Money movement always asks for the account it hits.
+          </p>
 
           <div class="grid-2" style="margin-top:16px;align-items:end;">
             <div class="field">
@@ -158,7 +159,7 @@
           <div class="stack-sm" style="margin-top:16px;">
             <button class="btn btn-success" type="button" id="sideAddDebtBtn">Add Debt</button>
             <button class="btn btn-secondary" type="button" id="sideRefreshBtn">Refresh Debts</button>
-            <a class="btn btn-secondary" href="/add.html">Add Transaction</a>
+            <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
           </div>
         </article>
 
@@ -166,7 +167,6 @@
           <div class="section-kicker">Priority</div>
           <h2 class="authority-title" style="margin-top:12px;">Largest outstanding</h2>
           <p class="authority-copy">Active debts ordered by outstanding amount.</p>
-
           <div class="stack-sm" id="priorityList" style="margin-top:16px;">
             <div class="card card-compact muted">Loading debts...</div>
           </div>
@@ -186,12 +186,12 @@
 
   <section id="debtModal" hidden>
     <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
-    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,660px);max-height:90vh;overflow:auto;">
+    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,720px);max-height:90vh;overflow:auto;">
       <div class="grid-2" style="align-items:start;">
         <div>
           <div class="section-kicker">Debt</div>
           <h2 class="authority-title" style="margin-top:12px;" id="debtModalTitle">Add Debt</h2>
-          <p class="authority-copy">Save the debt or receivable details.</p>
+          <p class="authority-copy" id="debtModalCopy">Create a debt record. If money moves now, select the account it hits.</p>
         </div>
         <div class="text-right">
           <button class="btn btn-secondary" type="button" id="closeDebtModal">Close</button>
@@ -201,26 +201,17 @@
       <form id="debtForm" class="stack" style="margin-top:18px;">
         <input type="hidden" id="debtId" />
 
-        <div class="field">
-          <label for="debtName">Name / code</label>
-          <input id="debtName" required placeholder="Use existing code or short label" />
-        </div>
-
         <div class="grid-2">
           <div class="field">
-            <label for="debtDirection">Direction</label>
-            <select id="debtDirection">
-              <option value="i_owe">I owe</option>
-              <option value="owed_to_me">Owed to me</option>
-            </select>
+            <label for="debtName">Name / code</label>
+            <input id="debtName" required placeholder="Use existing code or short label" />
           </div>
 
           <div class="field">
-            <label for="debtStatus">Status</label>
-            <select id="debtStatus">
-              <option value="active">Active</option>
-              <option value="settled">Settled</option>
-              <option value="archived">Archived</option>
+            <label for="debtDirection">Direction</label>
+            <select id="debtDirection">
+              <option value="owed_to_me">Owed to me</option>
+              <option value="i_owe">I owe</option>
             </select>
           </div>
         </div>
@@ -249,19 +240,57 @@
           </div>
         </div>
 
+        <div class="grid-2">
+          <div class="field">
+            <label for="debtStatus">Status</label>
+            <select id="debtStatus">
+              <option value="active">Active</option>
+              <option value="settled">Settled</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="debtLedgerMode">Ledger movement now</label>
+            <select id="debtLedgerMode">
+              <option value="with_ledger">Yes, money moved now</option>
+              <option value="debt_only">No, debt record only</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card card-compact" id="debtLedgerPanel">
+          <div class="grid-2">
+            <div class="field">
+              <label for="debtAccount" id="debtAccountLabel">Source account</label>
+              <select id="debtAccount">
+                <option value="">Select account</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="debtMovementDate">Movement date</label>
+              <input id="debtMovementDate" type="date" />
+            </div>
+          </div>
+          <p class="authority-copy" id="debtLedgerHint" style="margin-top:10px;">
+            Owed to me means money leaves the selected account. I owe means money enters the selected account.
+          </p>
+        </div>
+
         <div class="field">
           <label for="debtNotes">Notes</label>
           <textarea id="debtNotes" placeholder="Optional"></textarea>
         </div>
 
-        <button class="primary-submit" type="submit">Save Debt</button>
+        <button class="primary-submit" type="submit" id="debtSubmit">Save Debt</button>
       </form>
     </div>
   </section>
 
   <section id="movementModal" hidden>
     <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
-    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,620px);max-height:90vh;overflow:auto;">
+    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,640px);max-height:90vh;overflow:auto;">
       <div class="grid-2" style="align-items:start;">
         <div>
           <div class="section-kicker" id="movementKicker">Payment</div>
@@ -380,7 +409,7 @@
     (() => {
       "use strict";
 
-      const VERSION = "ui5-debts-4";
+      const VERSION = "ui5-debts-5";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
       const state = {
@@ -389,7 +418,6 @@
         raw: null,
         accountsRaw: null,
         error: null,
-        accountsError: null,
         search: "",
         filter: "active"
       };
@@ -418,15 +446,23 @@
         closeDebtModal: $("closeDebtModal"),
         debtForm: $("debtForm"),
         debtModalTitle: $("debtModalTitle"),
+        debtModalCopy: $("debtModalCopy"),
         debtId: $("debtId"),
         debtName: $("debtName"),
         debtDirection: $("debtDirection"),
-        debtStatus: $("debtStatus"),
         debtOriginalAmount: $("debtOriginalAmount"),
         debtOutstandingAmount: $("debtOutstandingAmount"),
         debtInstallmentAmount: $("debtInstallmentAmount"),
         debtNextDueDate: $("debtNextDueDate"),
+        debtStatus: $("debtStatus"),
+        debtLedgerMode: $("debtLedgerMode"),
+        debtLedgerPanel: $("debtLedgerPanel"),
+        debtAccount: $("debtAccount"),
+        debtAccountLabel: $("debtAccountLabel"),
+        debtMovementDate: $("debtMovementDate"),
+        debtLedgerHint: $("debtLedgerHint"),
         debtNotes: $("debtNotes"),
+        debtSubmit: $("debtSubmit"),
 
         movementModal: $("movementModal"),
         closeMovementModal: $("closeMovementModal"),
@@ -456,7 +492,6 @@
         deferNextDate: $("deferNextDate"),
         deferNotes: $("deferNotes"),
         deferTitle: $("deferTitle"),
-        deferCopy: $("deferCopy"),
         deferDebtName: $("deferDebtName"),
         deferDebtDirection: $("deferDebtDirection"),
         deferDebtOutstanding: $("deferDebtOutstanding"),
@@ -509,8 +544,8 @@
         });
 
         const text = await res.text();
-
         let json;
+
         try {
           json = text ? JSON.parse(text) : {};
         } catch {
@@ -524,20 +559,10 @@
         return json;
       }
 
-      function asArray(payload) {
+      function asArray(payload, key) {
         if (!payload) return [];
         if (Array.isArray(payload)) return payload;
-        if (Array.isArray(payload.debts)) return payload.debts;
-        if (Array.isArray(payload.items)) return payload.items;
-        if (Array.isArray(payload.data)) return payload.data;
-        if (Array.isArray(payload.rows)) return payload.rows;
-        return [];
-      }
-
-      function asAccountsArray(payload) {
-        if (!payload) return [];
-        if (Array.isArray(payload)) return payload;
-        if (Array.isArray(payload.accounts)) return payload.accounts;
+        if (Array.isArray(payload[key])) return payload[key];
         if (Array.isArray(payload.items)) return payload.items;
         if (Array.isArray(payload.data)) return payload.data;
         if (Array.isArray(payload.rows)) return payload.rows;
@@ -593,10 +618,8 @@
           raw.amount
         );
         const installment = num(raw.installment_amount ?? raw.installment ?? raw.expected_installment);
-        const paid = num(raw.paid_amount ?? raw.paid ?? raw.amount_paid);
         const nextDueDate = raw.next_due_date ?? raw.due_date ?? raw.nextDueDate ?? null;
         const status = normalizeStatus(raw.status, outstanding);
-        const notes = raw.notes ?? raw.description ?? "";
 
         return {
           ...raw,
@@ -606,16 +629,14 @@
           original,
           outstanding,
           installment,
-          paid,
           next_due_date: nextDueDate,
           status,
-          notes
+          notes: raw.notes ?? raw.description ?? ""
         };
       }
 
       async function refresh() {
         state.error = null;
-        state.accountsError = null;
         renderLoading();
 
         try {
@@ -626,8 +647,8 @@
 
           state.raw = debtsPayload;
           state.accountsRaw = accountsPayload;
-          state.debts = asArray(debtsPayload).map(normalizeDebt);
-          state.accounts = asAccountsArray(accountsPayload);
+          state.debts = asArray(debtsPayload, "debts").map(normalizeDebt);
+          state.accounts = asArray(accountsPayload, "accounts");
         } catch (err) {
           state.error = err?.message || "Unable to load debts.";
         }
@@ -643,14 +664,12 @@
             .filter(Boolean)
             .some(v => String(v).toLowerCase().includes(q));
 
-          let matchesFilter = true;
-
-          if (state.filter === "active") matchesFilter = debt.status === "active";
-          if (state.filter === "i_owe") matchesFilter = debt.direction === "i_owe";
-          if (state.filter === "owed_to_me") matchesFilter = debt.direction === "owed_to_me";
-          if (state.filter === "settled") matchesFilter = debt.status === "settled";
-
-          return matchesSearch && matchesFilter;
+          if (!matchesSearch) return false;
+          if (state.filter === "active") return debt.status === "active";
+          if (state.filter === "i_owe") return debt.direction === "i_owe";
+          if (state.filter === "owed_to_me") return debt.direction === "owed_to_me";
+          if (state.filter === "settled") return debt.status === "settled";
+          return true;
         });
       }
 
@@ -682,7 +701,7 @@
         }
 
         els.pageStatus.textContent = "Ready";
-        els.pageStatusDetail.textContent = "Debts are loaded.";
+        els.pageStatusDetail.textContent = "Debts and accounts are loaded.";
       }
 
       function renderStats() {
@@ -724,15 +743,11 @@
           `;
         }
 
-        if (debt.direction === "owed_to_me") {
-          return `
-            <button class="btn btn-secondary" type="button" data-edit="${id}">Edit</button>
-            <button class="btn btn-success" type="button" data-receive="${id}">Received</button>
-            <button class="btn btn-secondary" type="button" data-defer="${id}">Defer</button>
-          `;
-        }
-
-        return `<button class="btn btn-secondary" type="button" data-edit="${id}">Edit</button>`;
+        return `
+          <button class="btn btn-secondary" type="button" data-edit="${id}">Edit</button>
+          <button class="btn btn-success" type="button" data-receive="${id}">Received</button>
+          <button class="btn btn-secondary" type="button" data-defer="${id}">Defer</button>
+        `;
       }
 
       function renderTable() {
@@ -804,13 +819,10 @@
         els.debugPanel.hidden = false;
         els.debugPanel.textContent = JSON.stringify({
           ui_version: VERSION,
-          mode: "debug",
           error: state.error,
-          accounts_error: state.accountsError,
           debt_count: state.debts.length,
           account_count: state.accounts.length,
           filter: state.filter,
-          search: state.search,
           raw_payload: state.raw,
           accounts_payload: state.accountsRaw
         }, null, 2);
@@ -820,12 +832,10 @@
         return state.debts.find(d => String(d.id) === String(id));
       }
 
-      function renderAccountOptions(selected = "") {
-        const accounts = state.accounts || [];
-
-        els.movementAccount.innerHTML = `
+      function accountOptions(selected = "") {
+        return `
           <option value="">Select account</option>
-          ${accounts.map(account => {
+          ${state.accounts.map(account => {
             const id = accountId(account);
             const name = accountName(account);
             const balance = account.balance ?? account.current_balance;
@@ -835,18 +845,57 @@
         `;
       }
 
+      function renderDebtAccountOptions() {
+        els.debtAccount.innerHTML = accountOptions(els.debtAccount.value);
+      }
+
+      function renderMovementAccountOptions() {
+        els.movementAccount.innerHTML = accountOptions(els.movementAccount.value);
+      }
+
+      function renderDebtLedgerMode() {
+        const mode = els.debtLedgerMode.value;
+        const direction = els.debtDirection.value;
+        const withLedger = mode === "with_ledger";
+
+        els.debtLedgerPanel.hidden = !withLedger;
+        els.debtAccount.required = withLedger;
+        els.debtMovementDate.required = withLedger;
+
+        if (direction === "owed_to_me") {
+          els.debtAccountLabel.textContent = "Money went out from account";
+          els.debtLedgerHint.textContent = "This creates an owed-to-me debt, writes a linked ledger outflow, and reduces the selected account.";
+        } else {
+          els.debtAccountLabel.textContent = "Money received into account";
+          els.debtLedgerHint.textContent = "This creates an I-owe debt, writes a linked ledger inflow, and increases the selected account.";
+        }
+      }
+
       function openDebtModal(debt = null) {
+        const editing = Boolean(debt);
+
         els.debtModal.hidden = false;
-        els.debtModalTitle.textContent = debt ? "Edit Debt" : "Add Debt";
+        els.debtModalTitle.textContent = editing ? "Edit Debt" : "Add Debt";
+        els.debtModalCopy.textContent = editing
+          ? "Update debt details. Existing ledger movement is not recreated here."
+          : "Create a debt record. If money moves now, select the account it hits.";
+
         els.debtId.value = debt?.id ?? "";
         els.debtName.value = debt?.name ?? "";
-        els.debtDirection.value = debt?.direction ?? "i_owe";
-        els.debtStatus.value = debt?.status ?? "active";
+        els.debtDirection.value = debt?.direction ?? "owed_to_me";
         els.debtOriginalAmount.value = debt?.original ?? "";
         els.debtOutstandingAmount.value = debt?.outstanding ?? "";
         els.debtInstallmentAmount.value = debt?.installment ?? "";
         els.debtNextDueDate.value = debt?.next_due_date ?? "";
+        els.debtStatus.value = debt?.status ?? "active";
+        els.debtLedgerMode.value = editing ? "debt_only" : "with_ledger";
+        els.debtMovementDate.value = todayIso();
+        els.debtAccount.value = "";
         els.debtNotes.value = debt?.notes ?? "";
+
+        renderDebtAccountOptions();
+        renderDebtLedgerMode();
+
         setTimeout(() => els.debtName.focus(), 30);
       }
 
@@ -882,15 +931,14 @@
         els.movementNextDateLabel.textContent = isReceived ? "Next follow-up date" : "Next due date";
         els.movementSubmit.textContent = isReceived ? "Record Received" : "Record Payment";
 
-        renderAccountOptions();
+        renderMovementAccountOptions();
+
         setTimeout(() => els.movementAmount.focus(), 30);
       }
 
       function closeMovementModal() {
         els.movementModal.hidden = true;
         els.movementForm.reset();
-        els.movementDebtId.value = "";
-        els.movementType.value = "";
       }
 
       function openDeferModal(debt) {
@@ -898,20 +946,16 @@
         els.deferDebtId.value = debt.id;
         els.deferNextDate.value = debt.next_due_date ?? "";
         els.deferNotes.value = "";
-
         els.deferTitle.textContent = `Defer ${debt.name}`;
-        els.deferCopy.textContent = "Move the next due date. No money movement is recorded.";
         els.deferDebtName.textContent = debt.name || "Selected debt";
         els.deferDebtDirection.textContent = directionLabel(debt.direction);
         els.deferDebtOutstanding.textContent = money(debt.outstanding);
-
         setTimeout(() => els.deferNextDate.focus(), 30);
       }
 
       function closeDeferModal() {
         els.deferModal.hidden = true;
         els.deferForm.reset();
-        els.deferDebtId.value = "";
       }
 
       function toast(message, type = "") {
@@ -947,8 +991,11 @@
         const outstanding = outstandingInput ? Number(outstandingInput) : original;
         const installmentInput = els.debtInstallmentAmount.value.trim();
         const installment = installmentInput ? Number(installmentInput) : null;
+        const withLedger = els.debtLedgerMode.value === "with_ledger";
 
         const payload = {
+          id: id || undefined,
+          action: id ? "update" : "create",
           name: els.debtName.value.trim(),
           direction: els.debtDirection.value,
           type: els.debtDirection.value,
@@ -960,27 +1007,39 @@
           next_due_date: els.debtNextDueDate.value || null,
           due_date: els.debtNextDueDate.value || null,
           status: els.debtStatus.value,
-          notes: els.debtNotes.value.trim()
+          notes: els.debtNotes.value.trim(),
+          ledger_mode: withLedger ? "with_ledger" : "debt_only",
+          create_ledger_entry: withLedger,
+          account_id: withLedger ? els.debtAccount.value : null,
+          movement_date: withLedger ? els.debtMovementDate.value : null
         };
 
-        if (id) payload.id = id;
+        if (withLedger && payload.direction === "owed_to_me") {
+          payload.ledger_direction = "out";
+          payload.transaction_type = "debt_given";
+          payload.ledger_effect = "decrease_account";
+        }
+
+        if (withLedger && payload.direction === "i_owe") {
+          payload.ledger_direction = "in";
+          payload.transaction_type = "debt_borrowed";
+          payload.ledger_effect = "increase_account";
+        }
+
         return payload;
       }
 
       async function saveDebt(payload) {
-        const isEdit = Boolean(payload.id);
+        if (payload.id) {
+          return tryMutation([
+            { url: `/api/debts/${encodeURIComponent(payload.id)}`, method: "PUT", body: payload },
+            { url: `/api/debts/${encodeURIComponent(payload.id)}`, method: "POST", body: { ...payload, action: "update" } }
+          ], payload);
+        }
 
-        const candidates = isEdit
-          ? [
-              { url: `/api/debts/${encodeURIComponent(payload.id)}`, method: "PUT", body: payload },
-              { url: `/api/debts/${encodeURIComponent(payload.id)}`, method: "POST", body: payload },
-              { url: "/api/debts", method: "POST", body: { ...payload, action: "update" } }
-            ]
-          : [
-              { url: "/api/debts", method: "POST", body: payload }
-            ];
-
-        return tryMutation(candidates, payload);
+        return tryMutation([
+          { url: "/api/debts", method: "POST", body: payload }
+        ], payload);
       }
 
       async function recordMovement(payload) {
@@ -994,32 +1053,27 @@
           account_id: payload.account_id
         };
 
-        const candidates = [
+        return tryMutation([
           { url: `/api/debts/${encodeURIComponent(id)}/pay`, method: "POST", body },
-          { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body },
-    
-        ];
-
-        return tryMutation(candidates, body);
+          { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body }
+        ], body);
       }
 
-     async function deferDebt(payload) {
-  const id = payload.id;
+      async function deferDebt(payload) {
+        const id = payload.id;
 
-  const body = {
-    ...payload,
-    action: "defer",
-    debt_id: id
-  };
+        const body = {
+          ...payload,
+          action: "defer",
+          debt_id: id
+        };
 
-  const candidates = [
-    { url: `/api/debts/${encodeURIComponent(id)}/defer`, method: "POST", body },
-    { url: `/api/debts/${encodeURIComponent(id)}`, method: "PUT", body },
-    { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body: { ...body, action: "update" } }
-  ];
-
-  return tryMutation(candidates, body);
-}
+        return tryMutation([
+          { url: `/api/debts/${encodeURIComponent(id)}/defer`, method: "POST", body },
+          { url: `/api/debts/${encodeURIComponent(id)}`, method: "PUT", body },
+          { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body: { ...body, action: "update" } }
+        ], body);
+      }
 
       function bindEvents() {
         els.addDebtBtn.addEventListener("click", () => openDebtModal());
@@ -1030,6 +1084,9 @@
         els.closeDebtModal.addEventListener("click", closeDebtModal);
         els.closeMovementModal.addEventListener("click", closeMovementModal);
         els.closeDeferModal.addEventListener("click", closeDeferModal);
+
+        els.debtDirection.addEventListener("change", renderDebtLedgerMode);
+        els.debtLedgerMode.addEventListener("change", renderDebtLedgerMode);
 
         els.searchInput.addEventListener("input", event => {
           state.search = event.target.value;
@@ -1081,24 +1138,13 @@
 
           const payload = debtPayloadFromForm();
 
-          if (!payload.name) {
-            toast("Debt name or code is required.", "toast-warning");
-            return;
-          }
+          if (!payload.name) return toast("Debt name or code is required.", "toast-warning");
+          if (!Number.isFinite(payload.original_amount)) return toast("Original amount is required.", "toast-warning");
+          if (!Number.isFinite(payload.outstanding_amount)) return toast("Outstanding amount is invalid.", "toast-warning");
+          if (payload.installment_amount !== null && !Number.isFinite(payload.installment_amount)) return toast("Installment amount is invalid.", "toast-warning");
 
-          if (!Number.isFinite(payload.original_amount)) {
-            toast("Original amount is required.", "toast-warning");
-            return;
-          }
-
-          if (!Number.isFinite(payload.outstanding_amount)) {
-            toast("Outstanding amount is invalid.", "toast-warning");
-            return;
-          }
-
-          if (payload.installment_amount !== null && !Number.isFinite(payload.installment_amount)) {
-            toast("Installment amount is invalid.", "toast-warning");
-            return;
+          if (payload.create_ledger_entry && (!payload.account_id || !payload.movement_date)) {
+            return toast("Account and movement date are required when money moved.", "toast-warning");
           }
 
           try {
@@ -1126,14 +1172,10 @@
           };
 
           if (!payload.id || !payload.date || !Number.isFinite(payload.amount) || !payload.account_id) {
-            toast("Date, amount, and account are required.", "toast-warning");
-            return;
+            return toast("Date, amount, and account are required.", "toast-warning");
           }
 
-          if (payload.amount <= 0) {
-            toast("Amount must be greater than zero.", "toast-warning");
-            return;
-          }
+          if (payload.amount <= 0) return toast("Amount must be greater than zero.", "toast-warning");
 
           try {
             await recordMovement(payload);
@@ -1169,8 +1211,7 @@
           };
 
           if (!payload.id || !payload.name || !payload.next_due_date) {
-            toast("Debt and new next due date are required.", "toast-warning");
-            return;
+            return toast("Debt and new next due date are required.", "toast-warning");
           }
 
           try {
