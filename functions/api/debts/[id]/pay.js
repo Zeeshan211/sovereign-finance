@@ -1,233 +1,325 @@
-const VERSION = "v0.4.1-ledger-atomic-pay";
+/* /api/debts/:id/pay — pay money I owe */
+/* Sovereign Finance v0.5.0-debts-money-truth-pay
+ *
+ * Only allowed for i_owe / owe / payable.
+ * Effect:
+ * - creates expense transaction from selected account
+ * - increases paid_amount
+ * - reduces remaining payable
+ */
 
-export async function onRequestPost({ env, params, request }) {
+const VERSION = "v0.5.0-debts-money-truth-pay";
+const DEBT_CATEGORY = "debt_payment";
+
+const ACTIVE_ACCOUNT_CONDITION =
+  "(deleted_at IS NULL OR deleted_at = '') AND (archived_at IS NULL OR archived_at = '') AND (status IS NULL OR status = '' OR status = 'active')";
+
+export async function onRequestPost(context) {
   try {
-    const db = requireDb(env);
-    const id = requireText(params.id, "id");
-    const body = await request.json();
+    const db = requireDb(context.env);
+    const debtId = requireClean(context.params.id, "id");
+    const body = await readJson(context.request);
+    const dryRun = isDryRun(context.request, body);
 
-    const result = await recordDebtMovement(db, id, body);
+    const debtRow = await readDebt(db, debtId);
+    if (!debtRow) return json({ ok: false, version: VERSION, error: "Debt not found" }, 404);
+
+    const debt = normalizeDebt(debtRow);
+
+    if (debt.direction !== "i_owe") {
+      return json({
+        ok: false,
+        version: VERSION,
+        error: "Use receive endpoint for owed_to_me debts.",
+        direction: debt.direction,
+        allowed_endpoint: `/api/debts/${debtId}/receive`
+      }, 409);
+    }
+
+    const statusCheck = assertMoneyActionAllowed(debt);
+    if (!statusCheck.ok) return json({ ok: false, version: VERSION, error: statusCheck.error }, 409);
+
+    const amount = positiveNumber(body.amount, "amount");
+    if (amount > debt.remaining_amount + 0.01) {
+      return json({
+        ok: false,
+        version: VERSION,
+        error: "Amount cannot exceed remaining debt.",
+        requested_amount: round2(amount),
+        remaining_amount: debt.remaining_amount
+      }, 400);
+    }
+
+    const accountId = requireClean(body.account_id || body.source_account_id, "account_id");
+    const account = await resolveAccount(db, accountId);
+    if (!account.ok) return json(account, account.status || 409);
+
+    const date = normalizeDate(body.date || body.payment_date || body.paid_date) || today();
+    const notes = clean(body.notes);
+    await requireCategory(db, DEBT_CATEGORY);
+
+    const nextPaid = round2(debt.paid_amount + amount);
+    const remaining = round2(Math.max(0, debt.original_amount - nextPaid));
+    const nextStatus = remaining <= 0 ? "settled" : "active";
+
+    const txId = makeId("tx_debt_pay");
+    const txNotes = [
+      `Debt payment: ${debt.name}`,
+      `debt_id=${debt.id}`,
+      notes ? `notes=${notes}` : null
+    ].filter(Boolean).join(" | ");
+
+    const proof = {
+      action: "debt.pay",
+      version: VERSION,
+      direction: debt.direction,
+      transaction_type: "expense",
+      account_effect: "selected_account_decreases",
+      amount: round2(amount),
+      before_remaining: debt.remaining_amount,
+      after_remaining: remaining,
+      category_id: DEBT_CATEGORY
+    };
+
+    if (dryRun) {
+      return json({
+        ok: true,
+        version: VERSION,
+        dry_run: true,
+        writes_performed: false,
+        proof,
+        normalized_payload: {
+          debt_id: debt.id,
+          account_id: account.account.id,
+          amount: round2(amount),
+          date,
+          next_paid_amount: nextPaid,
+          next_remaining_amount: remaining,
+          next_status: nextStatus
+        }
+      });
+    }
+
+    const txColumns = await getColumns(db, "transactions");
+    const debtColumns = await getColumns(db, "debts");
+
+    const txInsert = buildInsert("transactions", txColumns, {
+      id: txId,
+      date,
+      type: "expense",
+      amount: round2(amount),
+      account_id: account.account.id,
+      transfer_to_account_id: null,
+      category_id: DEBT_CATEGORY,
+      notes: txNotes,
+      fee_amount: 0,
+      pra_amount: 0,
+      created_at: new Date().toISOString(),
+      reversed_by: null,
+      reversed_at: null,
+      linked_txn_id: null
+    });
+
+    const debtUpdate = buildUpdate("debts", debtColumns, {
+      paid_amount: nextPaid,
+      status: nextStatus,
+      last_paid_date: date
+    }, "id", debt.id);
+
+    await db.batch([
+      db.prepare(txInsert.sql).bind(...txInsert.values),
+      db.prepare(debtUpdate.sql).bind(...debtUpdate.values)
+    ]);
+
+    const afterDebt = normalizeDebt(await readDebt(db, debt.id));
 
     return json({
       ok: true,
       version: VERSION,
-      ...result
+      action: "debt.pay",
+      debt_id: debt.id,
+      transaction_id: txId,
+      ledger_transaction: {
+        id: txId,
+        type: "expense",
+        amount: round2(amount),
+        account_id: account.account.id,
+        category_id: DEBT_CATEGORY,
+        effect: "decrease_account"
+      },
+      debt: afterDebt,
+      proof
     });
   } catch (err) {
-    return json({ ok: false, version: VERSION, error: err.message }, 500);
+    return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
   }
 }
 
-async function recordDebtMovement(db, id, body) {
-  const existing = await getDebt(db, id);
-  if (!existing) throw new Error("Debt not found.");
+const DEBT_COLUMNS = `
+  id,
+  name,
+  kind,
+  original_amount,
+  paid_amount,
+  snowball_order,
+  due_date,
+  due_day,
+  installment_amount,
+  frequency,
+  last_paid_date,
+  status,
+  notes,
+  created_at
+`;
 
-  if (isClosed(existing.status)) {
-    throw new Error("Settled or archived debts can only be edited.");
-  }
+async function readDebt(db, id) {
+  return await db.prepare(`SELECT ${DEBT_COLUMNS} FROM debts WHERE id = ? LIMIT 1`).bind(id).first();
+}
 
-  const action = normalizeAction(body.action || body.type, existing.kind);
-  const kind = normalizeKind(existing.kind);
-
-  if (kind === "owe" && action !== "payment") {
-    throw new Error("This debt is money you owe. Use payment only.");
-  }
-
-  if (kind === "owed" && action !== "received") {
-    throw new Error("This debt is owed to you. Use received only.");
-  }
-
-  const amount = requirePositiveNumber(body.amount, "amount");
-  const accountId = requireText(body.account_id, "account_id");
-  const date = requireText(body.date, "date");
-  const now = new Date().toISOString();
-
-  const original = Number(existing.original_amount);
-  const paidBefore = Number(existing.paid_amount || 0);
-  const remainingBefore = round2(original - paidBefore);
-
-  if (amount > remainingBefore + 0.00001) {
-    throw new Error(`Amount exceeds outstanding debt. Outstanding is ${remainingBefore}.`);
-  }
-
-  const paidAfter = round2(paidBefore + amount);
-  const remainingAfter = round2(original - paidAfter);
-  const settled = remainingAfter <= 0.00001;
-
-  const nextDueDate = settled ? null : cleanText(body.next_due_date || body.due_date || existing.due_date);
-  const status = settled ? "closed" : "active";
-
-  const txType = action === "payment" ? "repay" : "income";
-  const txEffect = action === "payment" ? "decrease_account" : "increase_account";
-  const txId = makeId(`tx_${txType}`);
-
-  const newNotes = appendNote(
-    existing.notes,
-    body.notes,
-    action === "payment" ? `Payment ${amount} on ${date}` : `Received ${amount} on ${date}`
-  );
-
-  const txNotes = [
-    action === "payment" ? `Debt payment: ${existing.name}` : `Debt received: ${existing.name}`,
-    `debt_id=${id}`,
-    `kind=${kind}`,
-    cleanText(body.notes) ? `notes=${cleanText(body.notes)}` : null
-  ].filter(Boolean).join(" | ");
-
-  const debtUpdate = db.prepare(`
-    UPDATE debts
-    SET
-      paid_amount = ?,
-      status = ?,
-      due_date = ?,
-      last_paid_date = ?,
-      notes = ?
-    WHERE id = ?
-  `).bind(paidAfter, status, nextDueDate, date, newNotes, id);
-
-  const transactionInsert = db.prepare(`
-    INSERT INTO transactions (
-      id,
-      date,
-      type,
-      amount,
-      account_id,
-      transfer_to_account_id,
-      category_id,
-      merchant_id,
-      notes,
-      fee_amount,
-      pra_amount,
-      is_pending_reversal,
-      reversal_due_date,
-      created_at,
-      reversed_by,
-      reversed_at,
-      linked_txn_id
-    )
-    VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, 0, 0, 0, NULL, ?, NULL, NULL, NULL)
-  `).bind(txId, date, txType, amount, accountId, txNotes, now);
-
-  await db.batch([debtUpdate, transactionInsert]);
+function normalizeDebt(row) {
+  const original = Number(row?.original_amount || 0);
+  const paid = Number(row?.paid_amount || 0);
+  const remaining = Math.max(0, original - paid);
+  const kind = normalizeKind(row?.kind);
+  const direction = kind === "owed" ? "owed_to_me" : "i_owe";
+  const statusRaw = clean(row?.status || "active").toLowerCase();
+  const status = remaining <= 0 && statusRaw === "active" ? "settled" : statusRaw;
 
   return {
-    action,
-    debt: normalizeDebtRow(await getDebt(db, id)),
-    ledger_transaction: {
-      id: txId,
-      type: txType,
-      date,
-      amount,
-      account_id: accountId,
-      effect: txEffect
-    }
+    id: clean(row?.id),
+    name: clean(row?.name),
+    kind,
+    direction,
+    original_amount: round2(original),
+    paid_amount: round2(paid),
+    remaining_amount: round2(remaining),
+    outstanding_amount: round2(remaining),
+    status,
+    last_paid_date: normalizeDate(row?.last_paid_date),
+    notes: clean(row?.notes)
   };
 }
 
-async function getDebt(db, id) {
-  return await db.prepare(`
-    SELECT
-      id,
-      name,
-      kind,
-      original_amount,
-      paid_amount,
-      snowball_order,
-      due_date,
-      status,
-      notes,
-      created_at,
-      due_day,
-      installment_amount,
-      frequency,
-      last_paid_date
-    FROM debts
-    WHERE id = ?
-  `).bind(id).first();
+function assertMoneyActionAllowed(debt) {
+  if (["settled", "archived", "deleted", "closed", "cancelled"].includes(debt.status)) {
+    return { ok: false, error: "Settled/archived debts allow edit-only, no money movement." };
+  }
+
+  if (debt.remaining_amount <= 0) {
+    return { ok: false, error: "Debt is already settled." };
+  }
+
+  return { ok: true };
 }
 
-function normalizeDebtRow(row) {
-  if (!row) return null;
+async function resolveAccount(db, input) {
+  const raw = clean(input);
 
-  const original = Number(row.original_amount || 0);
-  const paid = Number(row.paid_amount || 0);
-  const remaining = round2(original - paid);
-  const normalizedKind = normalizeKind(row.kind);
+  const account = await db.prepare(`
+    SELECT id, name, kind, type, status
+    FROM accounts
+    WHERE id = ?
+      AND ${ACTIVE_ACCOUNT_CONDITION}
+    LIMIT 1
+  `).bind(raw).first();
+
+  if (account?.id) return { ok: true, account };
+
+  return { ok: false, status: 409, error: "Account not found or inactive." };
+}
+
+async function requireCategory(db, id) {
+  const category = await db.prepare(`SELECT id FROM categories WHERE id = ?`).bind(id).first();
+  if (!category?.id) throw new Error(`Required category missing: ${id}`);
+}
+
+async function getColumns(db, table) {
+  const result = await db.prepare(`PRAGMA table_info(${table})`).all();
+  return new Set((result.results || []).map(row => row.name));
+}
+
+function buildInsert(table, columns, valuesByColumn) {
+  const keys = Object.keys(valuesByColumn).filter(key => columns.has(key));
+  if (!keys.length) throw new Error(`No insertable columns for ${table}.`);
 
   return {
-    ...row,
-    kind: normalizedKind,
-    direction: normalizedKind === "owed" ? "owed_to_me" : "i_owe",
-    type: normalizedKind === "owed" ? "owed_to_me" : "i_owe",
-    original_amount: original,
-    amount: original,
-    paid_amount: paid,
-    outstanding: remaining,
-    outstanding_amount: remaining,
-    remaining_amount: remaining,
-    next_due_date: row.due_date || null,
-    settled: remaining <= 0.00001 || isClosed(row.status)
+    sql: `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${keys.map(() => "?").join(", ")})`,
+    values: keys.map(key => valuesByColumn[key])
   };
 }
 
-function normalizeAction(value, kind) {
-  const action = String(value || "").toLowerCase();
+function buildUpdate(table, columns, valuesByColumn, whereColumn, whereValue) {
+  const keys = Object.keys(valuesByColumn).filter(key => columns.has(key));
+  if (!keys.length) throw new Error(`No updatable columns for ${table}.`);
 
-  if (["payment", "pay", "paid", "repay"].includes(action)) return "payment";
-  if (["received", "receive", "receipt", "income"].includes(action)) return "received";
-
-  return normalizeKind(kind) === "owed" ? "received" : "payment";
+  return {
+    sql: `UPDATE ${table} SET ${keys.map(key => `${key} = ?`).join(", ")} WHERE ${whereColumn} = ?`,
+    values: [...keys.map(key => valuesByColumn[key]), whereValue]
+  };
 }
 
 function normalizeKind(value) {
-  const v = String(value || "").toLowerCase();
-
-  if (["owed", "owed_to_me", "receivable", "to_me", "they_owe_me", "received"].includes(v)) return "owed";
-  if (["owe", "i_owe", "payable", "i owe", "debt"].includes(v)) return "owe";
-
-  throw new Error("kind/direction must be either owe or owed.");
+  const text = clean(value).toLowerCase();
+  if (["i_owe", "owe", "payable", "debt", "debt_out"].includes(text)) return "owe";
+  if (["owed_to_me", "owed", "owed_me", "receivable", "to_me", "debt_in"].includes(text)) return "owed";
+  return "owe";
 }
 
-function isClosed(status) {
-  return ["closed", "settled", "archived", "deleted"].includes(String(status || "").toLowerCase());
+function normalizeDate(value) {
+  const raw = clean(value);
+  if (!raw) return null;
+  if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
+  return raw.slice(0, 10);
 }
 
-function requireDb(env) {
-  if (!env || !env.DB) throw new Error("D1 binding DB is missing.");
-  return env.DB;
+function positiveNumber(value, field) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) throw new Error(`${field} must be greater than zero.`);
+  return n;
 }
 
-function requireText(value, field) {
-  const text = cleanText(value);
-  if (!text) throw new Error(`${field} is required.`);
+function requireClean(value, field) {
+  const text = clean(value);
+  if (!text) throw new Error(`${field} required`);
   return text;
 }
 
-function cleanText(value) {
-  if (value === undefined || value === null) return "";
-  return String(value).trim();
+function isDryRun(request, body) {
+  const url = new URL(request.url);
+  return url.searchParams.get("dry_run") === "1"
+    || url.searchParams.get("dry_run") === "true"
+    || body.dry_run === true
+    || body.dry_run === "1"
+    || body.dry_run === "true";
 }
 
-function requirePositiveNumber(value, field) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) throw new Error(`${field} must be greater than zero.`);
-  return round2(n);
-}
-
-function round2(value) {
-  return Math.round(Number(value) * 100) / 100;
+function today() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function makeId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function appendNote(existing, incoming, systemNote) {
-  return [
-    cleanText(existing),
-    systemNote ? `[${new Date().toISOString()}] ${systemNote}` : "",
-    cleanText(incoming)
-  ].filter(Boolean).join(" | ");
+function round2(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function clean(value) {
+  return String(value == null ? "" : value).trim();
+}
+
+async function readJson(request) {
+  try {
+    return await request.json();
+  } catch {
+    return {};
+  }
+}
+
+function requireDb(env) {
+  if (!env?.DB) throw new Error("D1 binding DB is missing.");
+  return env.DB;
 }
 
 function json(payload, status = 200) {
