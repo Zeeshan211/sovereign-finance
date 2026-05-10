@@ -1,702 +1,834 @@
-<!doctype html>
-<html lang="en" data-theme="light">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="color-scheme" content="light" />
-  <title>Debts · Sovereign Finance</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0f172a" />
+<title>Debts - Sovereign Finance</title>
+<link rel="stylesheet" href="/css/app.css?v=2.0.2" />
 
-  <link rel="stylesheet" href="/css/app.css?v=2.0.3" />
+<style>
+.debts-page {
+  max-width: 1480px;
+}
 
-  <style>
-    .debt-hero-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
-      gap: 18px;
-      align-items: stretch;
-    }
+.debts-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 18px;
+  align-items: stretch;
+}
 
-    .debt-hero-side {
-      display: grid;
-      gap: 12px;
-    }
+.debts-side {
+  display: grid;
+  gap: 14px;
+}
 
-    .debt-glass-card {
-      padding: 18px;
-      border-radius: 24px;
-      background: rgba(255,255,255,.10);
-      border: 1px solid rgba(255,255,255,.14);
-      color: #fff;
-    }
+.debts-status-strip,
+.debts-actions,
+.debt-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
-    .debt-glass-label {
-      color: #cbd5e1;
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
+.debts-status-strip {
+  margin-top: 18px;
+}
 
-    .debt-glass-value {
-      margin-top: 8px;
-      font-size: 30px;
-      line-height: 1;
-      font-weight: 950;
-      letter-spacing: -.06em;
-    }
+.debts-card {
+  padding: 18px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-md);
+}
 
-    .debt-glass-sub {
-      margin-top: 7px;
-      color: #cbd5e1;
-      font-size: 12px;
-      font-weight: 760;
-    }
+.debts-card-title {
+  color: var(--text-strong);
+  font-size: 17px;
+  font-weight: 950;
+  letter-spacing: -0.035em;
+}
 
-    .debt-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(300px, 430px);
-      gap: 18px;
-      align-items: start;
-    }
+.debts-card-copy {
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 760;
+}
 
-    .debt-panel {
-      overflow: hidden;
-      border-radius: 28px;
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow-sm);
-    }
+.debts-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
 
-    .debt-panel-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: center;
-      padding: 18px 20px;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface-2);
-    }
+.debts-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 26px 0 14px;
+}
 
-    .debt-panel-title {
-      color: var(--text-strong);
-      font-size: 17px;
-      font-weight: 950;
-      letter-spacing: -.03em;
-    }
+.debts-section-title {
+  color: var(--text-strong);
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+}
 
-    .debt-panel-sub {
-      margin-top: 3px;
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 760;
-    }
+.debts-section-copy {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 760;
+}
 
-    .debt-health-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-    }
+.debts-enforcement {
+  padding: 16px;
+  border-radius: var(--r-xl);
+  border: 1px solid rgba(185, 28, 28, 0.22);
+  background: linear-gradient(135deg, var(--danger-soft), var(--surface-1));
+  color: var(--danger);
+  box-shadow: var(--shadow-sm);
+  font-size: 13px;
+  line-height: 1.5;
+  font-weight: 790;
+}
 
-    .debt-list {
-      display: grid;
-    }
+.debts-enforcement.pass {
+  border-color: rgba(4, 120, 87, 0.24);
+  background: linear-gradient(135deg, var(--success-soft), var(--surface-1));
+  color: var(--success);
+}
 
-    .debt-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 14px;
-      padding: 15px 18px;
-      border-bottom: 1px solid var(--border);
-    }
+.debts-enforcement.preflight {
+  border-color: rgba(180, 83, 9, 0.24);
+  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
+  color: var(--warn);
+}
 
-    .debt-row:last-child {
-      border-bottom: 0;
-    }
+.debts-table-wrap {
+  overflow: auto;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
 
-    .debt-row-title {
-      color: var(--text-strong);
-      font-size: 14px;
-      font-weight: 940;
-      overflow-wrap: anywhere;
-    }
+.debts-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
 
-    .debt-row-sub {
-      margin-top: 4px;
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 740;
-      overflow-wrap: anywhere;
-    }
+.debts-table th {
+  padding: 12px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
 
-    .debt-row-amount {
-      color: var(--danger);
-      font-family: var(--font-mono);
-      font-size: 14px;
-      font-weight: 950;
-      white-space: nowrap;
-      text-align: right;
-    }
+.debts-table td {
+  padding: 13px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  vertical-align: top;
+}
 
-    .debt-empty {
-      padding: 38px 18px;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 760;
-    }
+.debts-table tr:last-child td {
+  border-bottom: 0;
+}
 
-    .debt-form {
-      display: grid;
-      gap: 14px;
-      padding: 18px;
-    }
+.debt-name {
+  color: var(--text-strong);
+  font-size: 14px;
+  font-weight: 950;
+}
 
-    .debt-form-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
+.debt-id {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
 
-    .field-full {
-      grid-column: 1 / -1;
-    }
+.debt-amount {
+  color: var(--text-strong);
+  font-size: 15px;
+  font-weight: 950;
+  white-space: nowrap;
+}
 
-    .debt-law-box {
-      margin: 18px;
-      padding: 16px;
-      border-radius: 22px;
-      background: var(--warn-soft);
-      border: 1px solid rgba(180, 83, 9, .24);
-      color: var(--warn);
-    }
+.debt-amount.owe {
+  color: var(--warn);
+}
 
-    .debt-law-title {
-      font-size: 13px;
-      font-weight: 950;
-      letter-spacing: -.02em;
-    }
+.debt-amount.owed {
+  color: var(--success);
+}
 
-    .debt-law-copy {
-      margin-top: 6px;
-      font-size: 12px;
-      line-height: 1.5;
-      font-weight: 760;
-    }
+.debt-proof {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12px;
+  line-height: 1.42;
+  font-weight: 790;
+}
 
-    .debt-table-wrap {
-      overflow: auto;
-      max-height: calc(100vh - 360px);
-      min-height: 360px;
-    }
+.debt-proof.pass {
+  border-color: rgba(4, 120, 87, 0.24);
+  background: var(--success-soft);
+  color: var(--success);
+}
 
-    .debt-table {
-      min-width: 880px;
-    }
+.debt-proof.fail {
+  border-color: rgba(185, 28, 28, 0.22);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
 
-    .debt-table th {
-      position: sticky;
-      top: 0;
-      z-index: 1;
-    }
+.debt-action-button {
+  appearance: none;
+  min-height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  background: var(--surface-3);
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
 
-    @media (max-width: 1180px) {
-      .debt-hero-grid,
-      .debt-grid {
-        grid-template-columns: 1fr;
-      }
+.debt-action-button.primary {
+  background: var(--brand);
+  color: #fff;
+  border-color: transparent;
+}
 
-      .debt-health-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
+.debt-action-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
 
-    @media (max-width: 680px) {
-      .debt-health-grid,
-      .debt-form-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+.debts-empty {
+  padding: 28px;
+  border-radius: var(--r-xl);
+  border: 1px dashed var(--border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 820;
+  text-align: center;
+}
+
+.debt-form-card {
+  margin-top: 16px;
+  padding: 18px;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.debt-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.debt-form-grid .full {
+  grid-column: 1 / -1;
+}
+
+.debt-disabled-note {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(180, 83, 9, 0.24);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.debts-page-meta {
+  display: none !important;
+}
+
+@media (max-width: 1180px) {
+  .debts-hero-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .debts-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .debts-kpi-grid,
+  .debt-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .debts-section-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .debts-actions,
+  .debts-actions .btn {
+    width: 100%;
+  }
+}
+</style>
 </head>
 
 <body>
-  <main class="app-page">
-    <section class="finance-hero">
-      <div class="debt-hero-grid">
-        <div>
-          <div class="hero-kicker">Liability Control</div>
-          <h1 class="hero-title">Debts</h1>
-          <p class="hero-copy">
-            Debt visibility is restored as a normal finance page. Real debt creation and payment remain locked until debt.save and debt.pay receive their own Command Centre proof.
-          </p>
+<header>
+<div>
+<div class="brand">Sovereign Finance</div>
+<div class="title">Debts</div>
+</div>
+</header>
 
-          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
-            <button class="btn btn-secondary" type="button" id="refreshDebtsBtn">Refresh Debts</button>
-            <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
-            <a class="btn btn-secondary" href="/monthly-close.html">Command Centre</a>
-          </div>
-        </div>
+<main class="app-page debts-page">
+<section class="debts-hero-grid">
+<div class="page-hero">
+<div class="hero-kicker">Debt authority layer</div>
+<h1 class="hero-title">Debt visibility is live. Writes prove first.</h1>
+<p class="hero-copy">
+Debts now have safe dry-run proof for save and pay routes. Real debt writes remain blocked until Command Centre recognizes page preflight and explicitly lifts debt.save and debt.pay.
+</p>
 
-        <div class="debt-hero-side">
-          <div class="debt-glass-card">
-            <div class="debt-glass-label">Outstanding Debt</div>
-            <div class="debt-glass-value" id="totalDebt">—</div>
-            <div class="debt-glass-sub" id="totalDebtSub">Loading debt position</div>
-          </div>
+<div class="debts-status-strip">
+<span id="debtsApiBadge" class="badge badge-unknown">Debts API loading</span>
+<span id="debtsGovernorBadge" class="badge badge-unknown">Governor loading</span>
+<span id="debtsSaveBadge" class="badge badge-blocked">debt.save checking</span>
+<span id="debtsPayBadge" class="badge badge-blocked">debt.pay checking</span>
+</div>
+</div>
 
-          <div class="debt-glass-card">
-            <div class="debt-glass-label">Debt Sources</div>
-            <div class="debt-glass-value" id="debtCount">—</div>
-            <div class="debt-glass-sub">Loaded from debt API or balances fallback</div>
-          </div>
-        </div>
-      </div>
-    </section>
+<aside class="debts-side">
+<div class="debts-card">
+<div class="debts-card-title">Debt safety posture</div>
+<div class="debts-card-copy">
+This page can read debts and run dry-run proof. Real debt creation, update, cancel, and payment remain gated by Command Centre.
+</div>
+<div style="margin-top:12px">
+<span class="badge badge-ready">Read healthy</span>
+<span class="badge badge-preflight">Dry-run available</span>
+<span class="badge badge-blocked">Real writes gated</span>
+</div>
+</div>
 
-    <section class="debt-health-grid">
-      <div class="kpi-card">
-        <div class="kpi-label">Debts API</div>
-        <div class="kpi-value" id="debtsApiStatus">Loading</div>
-        <div class="kpi-sub" id="debtsApiSub">/api/debts</div>
-      </div>
+<div class="debts-card">
+<div class="debts-card-title">Next Command Centre lift</div>
+<div class="debts-card-copy">
+After page preflight is verified, Command Centre can recognize debt proof and later lift debt.save and debt.pay.
+</div>
+</div>
+</aside>
+</section>
 
-      <div class="kpi-card">
-        <div class="kpi-label">Balances Fallback</div>
-        <div class="kpi-value" id="balancesApiStatus">Loading</div>
-        <div class="kpi-sub" id="balancesApiSub">/api/balances?debug=1</div>
-      </div>
+<section class="debts-kpi-grid">
+<div class="kpi-card">
+<div class="kpi-label">I owe</div>
+<div id="totalOwe" class="kpi-value">-</div>
+<div class="kpi-sub">From /api/debts total_owe</div>
+</div>
 
-      <div class="kpi-card">
-        <div class="kpi-label">debt.save</div>
-        <div class="kpi-value" id="debtSaveStatus">Checking</div>
-        <div class="kpi-sub" id="debtSaveSub">Command Centre law</div>
-      </div>
+<div class="kpi-card">
+<div class="kpi-label">Owed to me</div>
+<div id="totalOwed" class="kpi-value">-</div>
+<div class="kpi-sub">From /api/debts total_owed</div>
+</div>
 
-      <div class="kpi-card">
-        <div class="kpi-label">debt.pay</div>
-        <div class="kpi-value" id="debtPayStatus">Checking</div>
-        <div class="kpi-sub" id="debtPaySub">Command Centre law</div>
-      </div>
-    </section>
+<div class="kpi-card">
+<div class="kpi-label">Debt sources</div>
+<div id="debtCount" class="kpi-value">-</div>
+<div class="kpi-sub">Rows from debts API</div>
+</div>
 
-    <section class="debt-grid">
-      <div class="debt-panel">
-        <div class="debt-panel-head">
-          <div>
-            <div class="debt-panel-title">Debt Register</div>
-            <div class="debt-panel-sub" id="debtRegisterSub">Loading debts…</div>
-          </div>
-          <span class="badge badge-info" id="debtRegisterBadge">Loading</span>
-        </div>
+<div class="kpi-card">
+<div class="kpi-label">Authority</div>
+<div id="debtAuthorityStatus" class="kpi-value">Gated</div>
+<div class="kpi-sub">Until Command Centre lift</div>
+</div>
+</section>
 
-        <div class="debt-table-wrap">
-          <table class="debt-table">
-            <thead>
-              <tr>
-                <th>Debt</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Source</th>
-                <th class="text-right">Outstanding</th>
-              </tr>
-            </thead>
-            <tbody id="debtTableBody">
-              <tr>
-                <td colspan="5">
-                  <div class="debt-empty">Loading debt register…</div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+<section>
+<div class="debts-section-head">
+<div>
+<div class="debts-section-title">Debt register</div>
+<div id="debtsSummary" class="debts-section-copy">Loading debts...</div>
+</div>
 
-      <aside class="debt-panel">
-        <div class="debt-panel-head">
-          <div>
-            <div class="debt-panel-title">Debt Actions</div>
-            <div class="debt-panel-sub">Visible but locked until proof exists</div>
-          </div>
-          <span class="badge badge-warning">Gated</span>
-        </div>
+<div class="debts-actions">
+<button id="refreshDebtsBtn" class="btn btn-secondary" type="button">Refresh Debts</button>
+<a class="btn btn-secondary" href="/transactions.html">Transactions</a>
+<a class="btn btn-secondary" href="/monthly-close.html">Command Centre</a>
+</div>
+</div>
 
-        <div class="debt-law-box">
-          <div class="debt-law-title">Command Centre law is active</div>
-          <div class="debt-law-copy">
-            This page can display debts now. Real add/pay actions stay disabled until debt.save and debt.pay pass their own dry-run proof and backend gate. This prevents unproven liability writes.
-          </div>
-        </div>
+<div id="debtsEnforcement" class="debts-enforcement">
+Checking Command Centre debt authority...
+</div>
 
-        <form class="debt-form" id="debtDraftForm">
-          <div class="debt-form-grid">
-            <div class="field">
-              <label for="debtNameInput">Debt Name</label>
-              <input id="debtNameInput" type="text" placeholder="Example: Personal loan" disabled />
+<div style="height:14px"></div>
+
+<div id="debtsTableWrap" class="debts-table-wrap">
+<table class="debts-table">
+<thead>
+<tr>
+<th>Debt</th>
+<th>Type</th>
+<th>Status</th>
+<th>Original</th>
+<th>Paid</th>
+<th>Remaining</th>
+<th>Due</th>
+<th>Proof actions</th>
+</tr>
+</thead>
+<tbody id="debtsTableBody"></tbody>
+</table>
+</div>
+
+<div id="debtsEmpty" class="debts-empty" hidden>No debts returned from /api/debts.</div>
+</section>
+
+<section>
+<div class="debts-section-head">
+<div>
+<div class="debts-section-title">Debt action staging</div>
+<div class="debts-section-copy">Visual form only. Real write remains disabled until Command Centre lift.</div>
+</div>
+<span class="badge badge-blocked">Real write disabled</span>
+</div>
+
+<div class="debt-form-card">
+<div class="debt-form-grid">
+<div class="field">
+<label for="debtNameInput">Debt Name</label>
+<input id="debtNameInput" class="input" type="text" placeholder="Name" disabled />
+</div>
+
+<div class="field">
+<label for="debtAmountInput">Amount</label>
+<input id="debtAmountInput" class="input" type="number" placeholder="0.00" disabled />
+</div>
+
+<div class="field">
+<label for="debtKindInput">Type</label>
+<select id="debtKindInput" class="select" disabled>
+<option>owe</option>
+<option>owed</option>
+</select>
+</div>
+
+<div class="field">
+<label for="debtDateInput">Date</label>
+<input id="debtDateInput" class="input" type="date" disabled />
+</div>
+
+<div class="field full">
+<label for="debtNotesInput">Notes</label>
+<textarea id="debtNotesInput" class="textarea" placeholder="Notes" disabled></textarea>
+</div>
+</div>
+
+<button class="primary-submit" type="button" disabled>
+debt.save proof required before real write
+</button>
+
+<div class="debt-disabled-note">
+Debt form is intentionally disabled. Use row-level dry-run proof first. Real save/pay will be enabled only after Command Centre recognizes debt proof and lifts the action.
+</div>
+</div>
+</section>
+
+<footer class="debts-page-meta" aria-hidden="true">
+Debts preflight UI v2.2.0
+</footer>
+</main>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="/js/theme.js?v=1.0.0"></script>
+<script src="/js/nav.js?v=2.0.3"></script>
+<script src="/js/enforcement.js?v=0.3.0"></script>
+
+<script>
+(function () {
+  "use strict";
+
+  const VERSION = "2.2.0";
+  const DEFAULT_PREFLIGHT_ACCOUNT = "meezan";
+
+  let debts = [];
+  let command = null;
+  let proofs = {};
+
+  const $ = id => document.getElementById(id);
+
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value;
+  }
+
+  function setBadge(id, text, cls) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = "badge " + cls;
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function money(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "Unknown";
+    return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
+  }
+
+  function debtRemaining(debt) {
+    const candidates = [
+      debt.remaining_amount,
+      debt.balance,
+      debt.outstanding,
+      debt.amount
+    ];
+
+    for (const value of candidates) {
+      const n = Number(value);
+      if (Number.isFinite(n)) return n;
+    }
+
+    return 0;
+  }
+
+  function debtOriginal(debt) {
+    const n = Number(debt.original_amount);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function debtPaid(debt) {
+    const n = Number(debt.paid_amount);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function debtKind(debt) {
+    const text = String(debt.kind || debt.direction || debt.type || "").toLowerCase().trim();
+    if (["owe", "payable", "debt_out"].includes(text)) return "owe";
+    if (["owed", "receivable", "debt_in"].includes(text)) return "owed";
+    return text || "unknown";
+  }
+
+  function debtStatus(debt) {
+    if (debtRemaining(debt) <= 0) return "paid_off";
+    return String(debt.status || "active").toLowerCase().trim();
+  }
+
+  function debtDue(debt) {
+    return debt.next_due_date || debt.due_date || (debt.due_day ? "day " + debt.due_day : "N/A");
+  }
+
+  function proofMessage(debtId) {
+    const proof = proofs[debtId];
+    if (!proof) return "";
+
+    const cls = proof.ok ? "debt-proof pass" : "debt-proof fail";
+    return `<div class="${cls}">${escapeHtml(proof.message)}</div>`;
+  }
+
+  async function fetchJSON(url, options) {
+    const res = await fetch(url, {
+      cache: "no-store",
+      ...(options || {})
+    });
+
+    const text = await res.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch (err) {}
+
+    if (!data) {
+      throw new Error("Non-JSON response from " + url);
+    }
+
+    if (!res.ok || data.ok === false) {
+      const error = new Error(data.error || ("HTTP " + res.status));
+      error.status = res.status;
+      error.data = data;
+      throw error;
+    }
+
+    return data;
+  }
+
+  async function loadCommandCentre() {
+    try {
+      command = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
+      const actions = command.enforcement && Array.isArray(command.enforcement.actions)
+        ? command.enforcement.actions
+        : [];
+
+      const save = actions.find(a => a.action === "debt.save");
+      const pay = actions.find(a => a.action === "debt.pay");
+
+      const saveAllowed = Boolean(save && save.allowed);
+      const payAllowed = Boolean(pay && pay.allowed);
+
+      setBadge("debtsGovernorBadge", saveAllowed || payAllowed ? "Debt writes allowed" : "Debt writes gated", saveAllowed || payAllowed ? "badge-ready" : "badge-blocked");
+      setBadge("debtsSaveBadge", saveAllowed ? "debt.save allowed" : "debt.save blocked", saveAllowed ? "badge-ready" : "badge-blocked");
+      setBadge("debtsPayBadge", payAllowed ? "debt.pay allowed" : "debt.pay blocked", payAllowed ? "badge-ready" : "badge-blocked");
+      setText("debtAuthorityStatus", saveAllowed || payAllowed ? "Allowed" : "Gated");
+
+      const panel = $("debtsEnforcement");
+      if (panel) {
+        if (saveAllowed || payAllowed) {
+          panel.className = "debts-enforcement pass";
+          panel.textContent = "Command Centre allows debt actions. Page still runs dry-run proof before any real write.";
+        } else {
+          panel.className = "debts-enforcement preflight";
+          panel.textContent = "Debt dry-run proof is available at API level. Real debt actions remain blocked until Command Centre recognizes page preflight and lifts debt.save/debt.pay.";
+        }
+      }
+    } catch (err) {
+      command = null;
+      setBadge("debtsGovernorBadge", "Governor unknown", "badge-unknown");
+      setBadge("debtsSaveBadge", "debt.save unknown", "badge-unknown");
+      setBadge("debtsPayBadge", "debt.pay unknown", "badge-unknown");
+      setText("debtAuthorityStatus", "Unknown");
+
+      const panel = $("debtsEnforcement");
+      if (panel) {
+        panel.className = "debts-enforcement";
+        panel.textContent = "Command Centre could not be loaded. Debt real writes remain unavailable.";
+      }
+    }
+  }
+
+  async function loadDebts() {
+    const data = await fetchJSON("/api/debts?cb=" + Date.now());
+    debts = Array.isArray(data.debts) ? data.debts : [];
+
+    setBadge("debtsApiBadge", "Debts API " + (data.version || "live"), "badge-ready");
+    setText("totalOwe", money(data.total_owe || 0));
+    setText("totalOwed", money(data.total_owed || 0));
+    setText("debtCount", String(debts.length));
+    setText("debtsSummary", debts.length + " debt source(s) visible · total_owe " + money(data.total_owe || 0) + " · total_owed " + money(data.total_owed || 0));
+
+    renderDebts();
+  }
+
+  function renderDebts() {
+    const tbody = $("debtsTableBody");
+    const wrap = $("debtsTableWrap");
+    const empty = $("debtsEmpty");
+
+    if (!tbody || !wrap || !empty) return;
+
+    if (!debts.length) {
+      wrap.hidden = true;
+      empty.hidden = false;
+      return;
+    }
+
+    wrap.hidden = false;
+    empty.hidden = true;
+
+    tbody.innerHTML = debts.map(debt => {
+      const id = debt.id || "";
+      const kind = debtKind(debt);
+      const remaining = debtRemaining(debt);
+      const paidOff = remaining <= 0;
+      const saveDisabled = false;
+      const payDisabled = paidOff;
+
+      return `
+        <tr data-debt-id="${escapeHtml(id)}">
+          <td>
+            <div class="debt-name">${escapeHtml(debt.name || id || "Debt")}</div>
+            <div class="debt-id">${escapeHtml(id)}</div>
+            ${proofMessage(id)}
+          </td>
+          <td><span class="${kind === "owed" ? "badge badge-ready" : "badge badge-preflight"}">${escapeHtml(kind)}</span></td>
+          <td><span class="${paidOff ? "badge badge-ready" : "badge badge-info"}">${escapeHtml(debtStatus(debt))}</span></td>
+          <td><div class="debt-amount">${escapeHtml(money(debtOriginal(debt)))}</div></td>
+          <td><div class="debt-amount">${escapeHtml(money(debtPaid(debt)))}</div></td>
+          <td><div class="debt-amount ${escapeHtml(kind)}">${escapeHtml(money(remaining))}</div></td>
+          <td>
+            <div>${escapeHtml(debtDue(debt))}</div>
+            <div class="debt-id">${escapeHtml(debt.due_status || "")}</div>
+          </td>
+          <td>
+            <div class="debt-row-actions">
+              <button class="debt-action-button" type="button" data-action="save-preflight" data-id="${escapeHtml(id)}" ${saveDisabled ? "disabled" : ""}>
+                Save Preflight
+              </button>
+              <button class="debt-action-button primary" type="button" data-action="pay-preflight" data-id="${escapeHtml(id)}" ${payDisabled ? "disabled" : ""}>
+                Pay Preflight
+              </button>
             </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
 
-            <div class="field">
-              <label for="debtAmountInput">Amount</label>
-              <input id="debtAmountInput" type="number" min="0" step="1" placeholder="0" disabled />
-            </div>
+    tbody.querySelectorAll("[data-action]").forEach(button => {
+      button.addEventListener("click", onDebtAction);
+    });
+  }
 
-            <div class="field">
-              <label for="debtTypeInput">Type</label>
-              <select id="debtTypeInput" disabled>
-                <option>Loan</option>
-                <option>Credit</option>
-                <option>Personal</option>
-                <option>Other</option>
-              </select>
-            </div>
+  async function onDebtAction(event) {
+    const button = event.currentTarget;
+    const id = button.dataset.id;
+    const action = button.dataset.action;
+    const debt = debts.find(row => row.id === id);
 
-            <div class="field">
-              <label for="debtDateInput">Date</label>
-              <input id="debtDateInput" type="date" disabled />
-            </div>
+    if (!debt) return;
 
-            <div class="field field-full">
-              <label for="debtNotesInput">Notes</label>
-              <textarea id="debtNotesInput" placeholder="Debt context" disabled></textarea>
-            </div>
-          </div>
+    button.disabled = true;
 
-          <button class="primary-submit" id="debtSaveBtn" type="button" disabled>
-            debt.save proof required
-          </button>
-
-          <button class="btn btn-secondary" id="debtPayBtn" type="button" disabled>
-            debt.pay proof required
-          </button>
-        </form>
-      </aside>
-    </section>
-  </main>
-
-  <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=2.0.3"></script>
-  <script src="/js/enforcement.js?v=0.3.0"></script>
-
-  <script>
-    (function () {
-      "use strict";
-
-      const VERSION = "debts-recovery-v1.0.0";
-      const DEBTS_ENDPOINT = "/api/debts";
-      const BALANCES_ENDPOINT = "/api/balances?debug=1";
-
-      let debts = [];
-      let balancesFallback = [];
-
-      const $ = id => document.getElementById(id);
-
-      function clean(value, fallback) {
-        const raw = value == null ? fallback : value;
-        return String(raw == null ? "" : raw).trim();
+    try {
+      if (action === "save-preflight") {
+        await runDebtSavePreflight(debt);
       }
 
-      function num(value) {
-        const n = Number(value);
-        return Number.isFinite(n) ? n : 0;
+      if (action === "pay-preflight") {
+        await runDebtPayPreflight(debt);
       }
+    } catch (err) {
+      proofs[id] = {
+        ok: false,
+        message: err.message || "Preflight failed"
+      };
+      renderDebts();
+    } finally {
+      button.disabled = false;
+    }
+  }
 
-      function money(value) {
-        return "Rs " + num(value).toLocaleString("en-PK", {
-          maximumFractionDigits: 0
-        });
-      }
+  async function runDebtSavePreflight(debt) {
+    const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "?dry_run=1&cb=" + Date.now(), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dry_run: true,
+        name: debt.name,
+        kind: debt.kind,
+        original_amount: debt.original_amount,
+        paid_amount: debt.paid_amount,
+        due_date: debt.due_date,
+        due_day: debt.due_day,
+        installment_amount: debt.installment_amount,
+        frequency: debt.frequency,
+        notes: debt.notes || ""
+      })
+    });
 
-      function escapeHtml(value) {
-        return clean(value, "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      }
+    proofs[debt.id] = {
+      ok: true,
+      message: "debt.save dry-run passed. No debt, transaction, ledger, or audit rows were written."
+    };
 
-      async function fetchJson(url) {
-        const response = await fetch(url + (url.includes("?") ? "&" : "?") + "cb=" + Date.now(), {
-          cache: "no-store",
-          headers: {
-            accept: "application/json",
-            "x-sovereign-page": VERSION
-          }
-        });
+    renderDebts();
+    return data;
+  }
 
-        const data = await response.json().catch(() => null);
+  async function runDebtPayPreflight(debt) {
+    const remaining = debtRemaining(debt);
+    const amount = Math.min(1000, remaining);
 
-        if (!response.ok || !data) {
-          throw new Error((data && data.error) || "HTTP " + response.status);
-        }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error("Debt has no remaining amount to pay.");
+    }
 
-        if (data.ok === false) {
-          throw new Error(data.error || "Request failed");
-        }
+    const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "/pay?dry_run=1&cb=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dry_run: true,
+        amount,
+        account_id: DEFAULT_PREFLIGHT_ACCOUNT,
+        paid_date: new Date().toISOString().slice(0, 10)
+      })
+    });
 
-        return data;
-      }
+    proofs[debt.id] = {
+      ok: true,
+      message: "debt.pay dry-run passed for " + money(amount) + ". No real payment or transaction was written."
+    };
 
-      function arrayFrom(data, keys) {
-        if (Array.isArray(data)) return data;
+    renderDebts();
+    return data;
+  }
 
-        for (const key of keys) {
-          if (data && Array.isArray(data[key])) return data[key];
-        }
+  async function refresh() {
+    console.log("[debts-ui v2.2.0] refresh");
+    await Promise.allSettled([loadCommandCentre(), loadDebts()]);
+    console.log("[debts-ui v2.2.0] ready", {
+      debts: debts.length,
+      total_remaining: debts.reduce((sum, debt) => sum + debtRemaining(debt), 0)
+    });
+  }
 
-        if (data && data.data && Array.isArray(data.data)) return data.data;
-        if (data && data.rows && Array.isArray(data.rows)) return data.rows;
+  function init() {
+    console.log("[debts-ui v2.2.0] init");
 
-        return [];
-      }
+    $("refreshDebtsBtn")?.addEventListener("click", refresh);
 
-      function normalizeDebt(row, index, source) {
-        const name = clean(
-          row.name ||
-          row.debt_name ||
-          row.creditor ||
-          row.label ||
-          row.account_name ||
-          row.id ||
-          "Debt " + (index + 1),
-          ""
-        );
+    refresh();
+  }
 
-        const outstanding = Math.abs(num(
-          row.outstanding ??
-          row.balance ??
-          row.current_balance ??
-          row.amount ??
-          row.value ??
-          row.remaining
-        ));
+  window.SovereignDebtsUI = {
+    version: VERSION,
+    refresh,
+    debts: () => debts.slice(),
+    proofs: () => ({ ...proofs }),
+    preflightSave: id => {
+      const debt = debts.find(row => row.id === id);
+      if (!debt) throw new Error("Debt not found: " + id);
+      return runDebtSavePreflight(debt);
+    },
+    preflightPay: id => {
+      const debt = debts.find(row => row.id === id);
+      if (!debt) throw new Error("Debt not found: " + id);
+      return runDebtPayPreflight(debt);
+    }
+  };
 
-        return {
-          id: clean(row.id || row.debt_id || row.account_id || "debt_" + index, ""),
-          name,
-          type: clean(row.type || row.kind || row.debt_type || "Debt", "Debt"),
-          status: clean(row.status || row.state || "active", "active"),
-          source: source || clean(row.source || "debts-api", "debts-api"),
-          outstanding
-        };
-      }
-
-      function normalizeBalanceDebts(data) {
-        let raw = arrayFrom(data, ["accounts", "balances"]);
-
-        if (!raw.length && data && data.accounts && typeof data.accounts === "object") {
-          raw = Object.keys(data.accounts).map(id => ({ id, ...data.accounts[id] }));
-        }
-
-        if (!raw.length && data && data.balances && typeof data.balances === "object") {
-          raw = Object.keys(data.balances).map(id => ({ id, ...data.balances[id] }));
-        }
-
-        return raw
-          .filter(item => {
-            const haystack = [
-              item.id,
-              item.name,
-              item.label,
-              item.type,
-              item.kind,
-              item.account_type
-            ].join(" ").toLowerCase();
-
-            return /debt|loan|liability|borrow|credit|cc/.test(haystack);
-          })
-          .map((item, index) => normalizeDebt(item, index, "balances-fallback"))
-          .filter(item => item.outstanding > 0 || /debt|loan|liability|credit|cc/i.test(item.name + " " + item.type));
-      }
-
-      function setStatus(idValue, idSub, ok, message) {
-        const value = $(idValue);
-        const sub = $(idSub);
-
-        if (value) {
-          value.textContent = ok ? "Live" : "Error";
-          value.style.color = ok ? "var(--success)" : "var(--danger)";
-        }
-
-        if (sub) sub.textContent = message;
-      }
-
-      function updateGate(action, valueId, subId, buttonId) {
-        const value = $(valueId);
-        const sub = $(subId);
-        const button = $(buttonId);
-
-        const gate = window.SovereignEnforcement && typeof window.SovereignEnforcement.requireAction === "function"
-          ? window.SovereignEnforcement.requireAction(action)
-          : {
-              allowed: false,
-              reason: "Command Centre bridge not loaded.",
-              required_fix: "Load enforcement bridge."
-            };
-
-        if (value) {
-          value.textContent = gate.allowed ? "Allowed" : "Blocked";
-          value.style.color = gate.allowed ? "var(--success)" : "var(--warn)";
-        }
-
-        if (sub) {
-          sub.textContent = gate.allowed ? "Proof passed" : (gate.reason || "Proof required");
-        }
-
-        if (button) {
-          button.disabled = !gate.allowed;
-          button.textContent = gate.allowed
-            ? action
-            : action + " proof required";
-        }
-
-        return gate;
-      }
-
-      function updateLaw() {
-        updateGate("debt.save", "debtSaveStatus", "debtSaveSub", "debtSaveBtn");
-        updateGate("debt.pay", "debtPayStatus", "debtPaySub", "debtPayBtn");
-      }
-
-      async function loadDebtsApi() {
-        try {
-          const data = await fetchJson(DEBTS_ENDPOINT);
-          debts = arrayFrom(data, ["debts", "items"])
-            .map((row, index) => normalizeDebt(row, index, "debts-api"))
-            .filter(item => item.id);
-
-          setStatus("debtsApiStatus", "debtsApiSub", true, "Loaded " + debts.length + " debt rows");
-        } catch (err) {
-          console.warn("[debts] /api/debts unavailable:", err);
-          debts = [];
-          setStatus("debtsApiStatus", "debtsApiSub", false, err.message || String(err));
-        }
-      }
-
-      async function loadBalancesFallback() {
-        try {
-          const data = await fetchJson(BALANCES_ENDPOINT);
-          balancesFallback = normalizeBalanceDebts(data);
-          setStatus("balancesApiStatus", "balancesApiSub", true, "Loaded " + balancesFallback.length + " liability-like accounts");
-        } catch (err) {
-          console.warn("[debts] balances fallback unavailable:", err);
-          balancesFallback = [];
-          setStatus("balancesApiStatus", "balancesApiSub", false, err.message || String(err));
-        }
-      }
-
-      function mergedDebts() {
-        if (debts.length) return debts;
-
-        return balancesFallback;
-      }
-
-      function render() {
-        const rows = mergedDebts();
-        const total = rows.reduce((sum, item) => sum + Math.abs(num(item.outstanding)), 0);
-
-        if ($("totalDebt")) $("totalDebt").textContent = money(total);
-        if ($("totalDebtSub")) {
-          $("totalDebtSub").textContent = debts.length
-            ? "From /api/debts"
-            : balancesFallback.length
-              ? "From balances fallback"
-              : "No debt rows detected";
-        }
-
-        if ($("debtCount")) $("debtCount").textContent = String(rows.length);
-        if ($("debtRegisterSub")) $("debtRegisterSub").textContent = rows.length + " debt source(s) visible";
-
-        const badge = $("debtRegisterBadge");
-        if (badge) {
-          badge.textContent = rows.length ? "Visible" : "Empty";
-          badge.className = rows.length ? "badge badge-ready" : "badge badge-warning";
-        }
-
-        const body = $("debtTableBody");
-        if (!body) return;
-
-        if (!rows.length) {
-          body.innerHTML = '<tr><td colspan="5"><div class="debt-empty">No debt rows found from /api/debts or balances fallback.</div></td></tr>';
-          return;
-        }
-
-        body.innerHTML = rows.map(item => {
-          return (
-            "<tr>" +
-              "<td>" +
-                '<div class="debt-row-title">' + escapeHtml(item.name) + "</div>" +
-                '<div class="debt-row-sub"><code>' + escapeHtml(item.id) + "</code></div>" +
-              "</td>" +
-              "<td>" + escapeHtml(item.type || "Debt") + "</td>" +
-              "<td><span class=\"badge badge-warning\">" + escapeHtml(item.status || "active") + "</span></td>" +
-              "<td>" + escapeHtml(item.source || "unknown") + "</td>" +
-              '<td class="text-right"><span class="debt-row-amount">' + escapeHtml(money(item.outstanding)) + "</span></td>" +
-            "</tr>"
-          );
-        }).join("");
-      }
-
-      async function refreshDebts() {
-        const button = $("refreshDebtsBtn");
-
-        if (button) {
-          button.disabled = true;
-          button.textContent = "Refreshing...";
-        }
-
-        await Promise.all([
-          loadDebtsApi(),
-          loadBalancesFallback()
-        ]);
-
-        updateLaw();
-        render();
-
-        if (button) {
-          button.disabled = false;
-          button.textContent = "Refresh Debts";
-        }
-      }
-
-      function wireEvents() {
-        if ($("refreshDebtsBtn")) $("refreshDebtsBtn").addEventListener("click", refreshDebts);
-
-        window.addEventListener("sovereign:enforcement", updateLaw);
-      }
-
-      async function init() {
-        console.log("[debts " + VERSION + "] init");
-
-        wireEvents();
-        await refreshDebts();
-
-        window.SovereignDebtsPage = {
-          version: VERSION,
-          refresh: refreshDebts,
-          debts: function () {
-            return mergedDebts().slice();
-          },
-          rawDebtsApi: function () {
-            return debts.slice();
-          },
-          balancesFallback: function () {
-            return balancesFallback.slice();
-          }
-        };
-
-        console.log("[debts " + VERSION + "] ready", {
-          debts_api: debts.length,
-          fallback: balancesFallback.length,
-          visible: mergedDebts().length
-        });
-      }
-
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", init);
-      } else {
-        init();
-      }
-    })();
-  </script>
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
 </body>
 </html>
