@@ -64,6 +64,50 @@
       box-shadow: var(--shadow-sm);
     }
 
+    .tx-mode-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 16px 18px;
+      border-radius: 26px;
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .tx-mode-title {
+      color: var(--text-strong);
+      font-size: 14px;
+      font-weight: 950;
+      letter-spacing: -0.02em;
+    }
+
+    .tx-mode-copy {
+      margin-top: 3px;
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 740;
+    }
+
+    .tx-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+      color: var(--text-strong);
+      font-size: 13px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .tx-switch input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--sf-accent, #047857);
+    }
+
     .tx-table-card {
       overflow: hidden;
       border-radius: 28px;
@@ -98,12 +142,12 @@
 
     .tx-table-wrap {
       overflow: auto;
-      max-height: calc(100vh - 330px);
-      min-height: 360px;
+      max-height: calc(100vh - 350px);
+      min-height: 380px;
     }
 
     .tx-table {
-      min-width: 1080px;
+      min-width: 1180px;
     }
 
     .tx-table th {
@@ -216,6 +260,14 @@
       cursor: not-allowed;
     }
 
+    .tx-row-reversed {
+      background: rgba(245, 158, 11, 0.06);
+    }
+
+    .tx-row-reversal {
+      background: rgba(4, 120, 87, 0.07);
+    }
+
     .tx-toast {
       position: fixed;
       right: 18px;
@@ -261,6 +313,11 @@
       .tx-health-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
+
+      .tx-mode-card {
+        align-items: flex-start;
+        flex-direction: column;
+      }
     }
 
     @media (max-width: 640px) {
@@ -280,7 +337,7 @@
           <div class="hero-kicker">Ledger</div>
           <h1 class="hero-title">Transactions</h1>
           <p class="hero-copy">
-            Read-only ledger with guarded reversal actions for correcting mistakes.
+            Active ledger by default. Turn on Audit Trail to see reversed originals and reversal proof rows.
           </p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
             <a class="btn btn-success" href="/add.html">Add Transaction</a>
@@ -327,6 +384,20 @@
         <div class="tx-health-value">Guarded</div>
         <div class="tx-health-sub">Reverse sends id + reason to backend</div>
       </div>
+    </section>
+
+    <section class="tx-mode-card">
+      <div>
+        <div class="tx-mode-title" id="ledgerModeTitle">Active Ledger</div>
+        <div class="tx-mode-copy" id="ledgerModeCopy">
+          Showing active transactions only. Reversed originals and reversal proof rows are hidden.
+        </div>
+      </div>
+
+      <label class="tx-switch" for="auditToggle">
+        <input type="checkbox" id="auditToggle" />
+        Show Audit Trail
+      </label>
     </section>
 
     <section class="tx-toolbar" aria-label="Transaction filters">
@@ -383,6 +454,7 @@
               <th>Account / Movement</th>
               <th>Category</th>
               <th>Notes</th>
+              <th>Status</th>
               <th class="text-right">Amount</th>
               <th>Action</th>
               <th id="txIdHeader">ID</th>
@@ -390,7 +462,7 @@
           </thead>
           <tbody id="transactionsBody">
             <tr>
-              <td colspan="8">
+              <td colspan="9">
                 <div class="tx-empty">Loading ledger…</div>
               </td>
             </tr>
@@ -409,7 +481,7 @@
     (function () {
       "use strict";
 
-      const VERSION = "transactions-reverse-ui-v1.1.0";
+      const VERSION = "transactions-audit-trail-v1.2.0";
       const TRANSACTIONS_ENDPOINT = "/api/transactions";
       const REVERSE_ENDPOINT = "/api/transactions/reverse";
       const BALANCES_ENDPOINT = "/api/balances?debug=1";
@@ -423,6 +495,7 @@
       let categoryMap = new Map();
       let filtered = [];
       let reversing = false;
+      let auditMode = false;
 
       const $ = id => document.getElementById(id);
 
@@ -605,6 +678,8 @@
           ""
         );
 
+        const notes = clean(row.notes || row.description || row.memo || row.narration || "", "");
+
         return {
           raw: row,
           id,
@@ -614,12 +689,38 @@
           account_id: accountId,
           transfer_to_account_id: toAccountId,
           category_id: categoryId,
-          notes: clean(row.notes || row.description || row.memo || row.narration || "", ""),
+          notes,
           status: clean(row.status || row.state || "active", "active"),
           reversed_by: clean(row.reversed_by, ""),
           reversed_at: clean(row.reversed_at, ""),
-          linked_txn_id: clean(row.linked_txn_id, "")
+          reversal_reason: clean(row.reversal_reason, ""),
+          linked_txn_id: clean(row.linked_txn_id, ""),
+          reversed_of: extractReversalOf(notes) || clean(row.reversed_of, "")
         };
+      }
+
+      function extractReversalOf(notes) {
+        const match = String(notes || "").match(/\[REVERSAL OF\s+([^\]\s]+)\]/i);
+        return match ? clean(match[1], "") : "";
+      }
+
+      function extractReason(notes) {
+        const match = String(notes || "").match(/Reason:\s*(.*)$/i);
+        return match ? clean(match[1], "") : "";
+      }
+
+      function isReversalRow(tx) {
+        return Boolean(tx && (tx.reversed_of || String(tx.notes || "").toUpperCase().includes("[REVERSAL OF ")));
+      }
+
+      function isReversedOriginal(tx) {
+        return Boolean(tx && (tx.reversed_by || tx.reversed_at));
+      }
+
+      function auditStatus(tx) {
+        if (isReversalRow(tx)) return "Audit Row";
+        if (isReversedOriginal(tx)) return "Reversed";
+        return "Active";
       }
 
       function accountName(id) {
@@ -655,14 +756,30 @@
         );
       }
 
-      function typeBadge(type) {
-        const t = clean(type, "expense").toLowerCase();
+      function typeBadge(tx) {
+        if (isReversalRow(tx)) {
+          return '<span class="badge badge-ready">Reversal</span>';
+        }
+
+        const t = clean(tx.type, "expense").toLowerCase();
 
         if (t === "income") return '<span class="badge badge-ready">Income</span>';
         if (t === "transfer") return '<span class="badge badge-info">Transfer</span>';
         if (t === "expense") return '<span class="badge badge-danger">Expense</span>';
 
         return '<span class="badge badge-unknown">' + escapeHtml(t || "Unknown") + '</span>';
+      }
+
+      function statusBadge(tx) {
+        if (isReversalRow(tx)) {
+          return '<span class="badge badge-ready">Audit Row</span>';
+        }
+
+        if (isReversedOriginal(tx)) {
+          return '<span class="badge badge-warning">Reversed</span>';
+        }
+
+        return '<span class="badge badge-info">Active</span>';
       }
 
       function accountMovement(tx) {
@@ -691,12 +808,36 @@
 
       function canReverse(tx) {
         if (!tx || !tx.id) return false;
-        if (tx.reversed_by || tx.reversed_at) return false;
-
-        const notes = String(tx.notes || "").toUpperCase();
-        if (notes.includes("[REVERSAL OF ")) return false;
-
+        if (isReversalRow(tx)) return false;
+        if (isReversedOriginal(tx)) return false;
         return true;
+      }
+
+      function displayNotes(tx) {
+        if (isReversalRow(tx)) {
+          const reason = extractReason(tx.notes) || tx.reversal_reason || "Correction";
+          return (
+            '<div class="tx-main">' +
+            '<div class="tx-primary">Reversal of ' + escapeHtml(tx.reversed_of || "original transaction") + '</div>' +
+            '<div class="tx-secondary">' + escapeHtml(reason) + '</div>' +
+            '</div>'
+          );
+        }
+
+        if (isReversedOriginal(tx)) {
+          return (
+            '<div class="tx-main">' +
+            '<div class="tx-primary">' + escapeHtml(tx.notes || "—") + '</div>' +
+            '<div class="tx-secondary">Reversed by ' + escapeHtml(tx.reversed_by || "reversal row") + '</div>' +
+            '</div>'
+          );
+        }
+
+        return (
+          '<div class="tx-main">' +
+          '<div class="tx-primary">' + escapeHtml(tx.notes || "—") + '</div>' +
+          '</div>'
+        );
       }
 
       function renderFilters() {
@@ -752,6 +893,11 @@
               categoryName(tx.category_id),
               tx.notes,
               tx.status,
+              tx.reversed_by,
+              tx.reversed_at,
+              tx.reversal_reason,
+              tx.reversed_of,
+              auditStatus(tx),
               String(tx.amount)
             ].join(" ").toLowerCase();
 
@@ -769,14 +915,31 @@
         const visible = filtered.length;
         const total = transactions.length;
         const net = filtered.reduce((sum, tx) => sum + signedAmount(tx), 0);
+        const reversalRows = transactions.filter(isReversalRow).length;
+        const reversedOriginals = transactions.filter(isReversedOriginal).length;
 
         if ($("visibleCount")) $("visibleCount").textContent = String(visible);
         if ($("visibleSub")) $("visibleSub").textContent = total ? "Filtered from " + total + " loaded rows" : "No rows loaded";
         if ($("netShown")) $("netShown").textContent = money(net);
-        if ($("ledgerSubtitle")) $("ledgerSubtitle").textContent = visible + " visible of " + total + " loaded transactions";
+        if ($("ledgerSubtitle")) {
+          $("ledgerSubtitle").textContent = auditMode
+            ? visible + " visible of " + total + " loaded rows · " + reversedOriginals + " reversed originals · " + reversalRows + " reversal rows"
+            : visible + " visible of " + total + " active transactions";
+        }
+
         if ($("ledgerBadge")) {
-          $("ledgerBadge").textContent = total ? "Live" : "Empty";
-          $("ledgerBadge").className = total ? "badge badge-ready" : "badge badge-warning";
+          $("ledgerBadge").textContent = auditMode ? "Audit Trail" : (total ? "Active" : "Empty");
+          $("ledgerBadge").className = auditMode ? "badge badge-warning" : (total ? "badge badge-ready" : "badge badge-warning");
+        }
+
+        if ($("ledgerModeTitle")) {
+          $("ledgerModeTitle").textContent = auditMode ? "Audit Trail" : "Active Ledger";
+        }
+
+        if ($("ledgerModeCopy")) {
+          $("ledgerModeCopy").textContent = auditMode
+            ? "Showing active rows, reversed originals, and reversal proof rows."
+            : "Showing active transactions only. Reversed originals and reversal proof rows are hidden.";
         }
       }
 
@@ -786,7 +949,7 @@
 
         if (!filtered.length) {
           body.innerHTML = (
-            '<tr><td colspan="' + (DEBUG ? '8' : '7') + '">' +
+            '<tr><td colspan="' + (DEBUG ? '9' : '8') + '">' +
             '<div class="tx-empty">No transactions match the current filter.</div>' +
             '</td></tr>'
           );
@@ -801,18 +964,20 @@
               ? "+ " + money(tx.amount)
               : "- " + money(tx.amount);
 
+          const rowClass = isReversalRow(tx)
+            ? "tx-row-reversal"
+            : isReversedOriginal(tx)
+              ? "tx-row-reversed"
+              : "";
+
           return (
-            '<tr data-tx-id="' + escapeHtml(tx.id) + '">' +
+            '<tr class="' + rowClass + '" data-tx-id="' + escapeHtml(tx.id) + '">' +
             "<td>" + escapeHtml(prettyDate(tx.date)) + "</td>" +
-            "<td>" + typeBadge(tx.type) + "</td>" +
+            "<td>" + typeBadge(tx) + "</td>" +
             "<td>" + accountMovement(tx) + "</td>" +
             "<td>" + escapeHtml(tx.type === "transfer" ? "—" : categoryName(tx.category_id)) + "</td>" +
-            "<td>" +
-              '<div class="tx-main">' +
-              '<div class="tx-primary">' + escapeHtml(tx.notes || "—") + '</div>' +
-              (DEBUG ? '<div class="tx-secondary">' + escapeHtml(tx.status || "active") + '</div>' : '') +
-              "</div>" +
-            "</td>" +
+            "<td>" + displayNotes(tx) + "</td>" +
+            "<td>" + statusBadge(tx) + "</td>" +
             '<td class="tx-amount ' + amountClass + '">' + escapeHtml(amountText) + "</td>" +
             "<td>" + reverseActionHtml(tx) + "</td>" +
             (DEBUG ? "<td><code>" + escapeHtml(tx.id) + "</code></td>" : "") +
@@ -882,8 +1047,13 @@
 
       async function loadTransactions() {
         try {
-          const data = await fetchJson(TRANSACTIONS_ENDPOINT);
+          const endpoint = auditMode
+            ? TRANSACTIONS_ENDPOINT + "?include_reversed=1"
+            : TRANSACTIONS_ENDPOINT;
+
+          const data = await fetchJson(endpoint);
           const rawRows = normalizeArrayResponse(data, ["transactions", "items"]);
+
           transactions = rawRows
             .map(normalizeTransaction)
             .filter(tx => tx && tx.id)
@@ -893,7 +1063,13 @@
               return clean(b.id, "").localeCompare(clean(a.id, ""));
             });
 
-          setApiStatus("transactions", true, "Loaded " + transactions.length + " active rows");
+          setApiStatus(
+            "transactions",
+            true,
+            auditMode
+              ? "Loaded " + transactions.length + " audit rows"
+              : "Loaded " + transactions.length + " active rows"
+          );
         } catch (err) {
           console.error("[transactions] ledger failed:", err);
           transactions = [];
@@ -974,17 +1150,19 @@
 
         try {
           const before = await fetchJson(BALANCES_ENDPOINT);
+
           const result = await postJson(REVERSE_ENDPOINT, {
             id,
             reason: reason.trim(),
             created_by: "web-ledger"
           });
+
           const after = await fetchJson(BALANCES_ENDPOINT);
 
           showToast(
-            result.paired
-              ? "Transfer pair reversed and ledger refreshed."
-              : "Transaction reversed and ledger refreshed.",
+            result.mode === "linked_transfer"
+              ? "Transfer pair reversed. Audit trail refreshed."
+              : "Transaction reversed. Audit trail refreshed.",
             "success"
           );
 
@@ -994,6 +1172,10 @@
             before_balances: before,
             after_balances: after
           });
+
+          auditMode = true;
+          const toggle = $("auditToggle");
+          if (toggle) toggle.checked = true;
 
           await refreshAll();
         } catch (err) {
@@ -1041,6 +1223,14 @@
         if ($("refreshBtn")) $("refreshBtn").addEventListener("click", refreshAll);
         if ($("clearFiltersBtn")) $("clearFiltersBtn").addEventListener("click", clearFilters);
 
+        const auditToggle = $("auditToggle");
+        if (auditToggle) {
+          auditToggle.addEventListener("change", async () => {
+            auditMode = auditToggle.checked;
+            await refreshAll();
+          });
+        }
+
         document.addEventListener("click", event => {
           const button = event.target.closest("[data-reverse-id]");
           if (!button) return;
@@ -1072,6 +1262,15 @@
           version: VERSION,
           refresh: refreshAll,
           reverseTransaction,
+          setAuditMode: async function (value) {
+            auditMode = Boolean(value);
+            const toggle = $("auditToggle");
+            if (toggle) toggle.checked = auditMode;
+            await refreshAll();
+          },
+          getAuditMode: function () {
+            return auditMode;
+          },
           rows: function () {
             return transactions.slice();
           },
@@ -1089,7 +1288,8 @@
         console.log("[transactions " + VERSION + "] ready", {
           transactions: transactions.length,
           accounts: accounts.length,
-          categories: categories.length
+          categories: categories.length,
+          auditMode
         });
       }
 
