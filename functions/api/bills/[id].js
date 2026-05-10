@@ -1,4 +1,4 @@
-const VERSION = "v0.5.0-bills-ledger-atomic-item";
+const VERSION = "v0.5.1-bills-ledger-atomic-item";
 
 export async function onRequestGet({ env, params }) {
   try {
@@ -8,12 +8,13 @@ export async function onRequestGet({ env, params }) {
     const bill = await getBill(db, params.id);
     if (!bill) return json({ ok: false, version: VERSION, error: "Bill not found." }, 404);
 
-    const payments = await getBillPaymentsForMonth(db, currentMonth());
+    const month = currentMonth();
+    const payments = await getBillPaymentsForMonth(db, month);
 
     return json({
       ok: true,
       version: VERSION,
-      bill: normalizeBill(bill, payments, currentMonth())
+      bill: normalizeBill(bill, payments, month)
     });
   } catch (err) {
     return json({ ok: false, version: VERSION, error: err.message }, 500);
@@ -37,7 +38,7 @@ async function handleWrite(env, id, request) {
     const body = await request.json();
     const action = String(body.action || "update").toLowerCase();
 
-    if (["pay", "clear", "paid"].includes(action)) {
+    if (["pay", "paid"].includes(action)) {
       const result = await payBill(db, id, body);
       return json({ ok: true, version: VERSION, ...result });
     }
@@ -76,6 +77,7 @@ async function updateBill(db, id, body) {
   const category = cleanText(body.category_id || body.category) || existing.category_id || existing.category || "bills";
   const dueDay = optionalInteger(body.due_day ?? body.dueDay) ?? existing.due_day ?? null;
   const dueDate = cleanText(body.due_date || body.next_due_date) || existing.due_date || existing.next_due_date || null;
+  const frequency = cleanText(body.frequency) || existing.frequency || "monthly";
 
   const update = buildUpdate("bills", columns, {
     name,
@@ -92,8 +94,8 @@ async function updateBill(db, id, body) {
     due_day: dueDay,
     due_date: dueDate,
     next_due_date: dueDate,
-    updated_at: new Date().toISOString(),
-    frequency: cleanText(body.frequency) || existing.frequency || "monthly"
+    frequency,
+    updated_at: new Date().toISOString()
   }, "id", id);
 
   await db.prepare(update.sql).bind(...update.values).run();
@@ -362,8 +364,7 @@ function optionalNumber(value) {
 function optionalInteger(value) {
   if (value === undefined || value === null || value === "") return null;
   const n = Number(value);
-  if (!Number.isInteger(n)) return null;
-  return n;
+  return Number.isInteger(n) ? n : null;
 }
 
 function round2(value) {
