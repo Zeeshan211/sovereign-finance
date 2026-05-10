@@ -25,7 +25,8 @@
 }
 
 .recon-actions,
-.recon-status-strip {
+.recon-status-strip,
+.recon-card-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -87,27 +88,69 @@
   font-weight: 760;
 }
 
-.recon-panel {
+.recon-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.65fr);
   gap: 16px;
   align-items: start;
 }
 
-.recon-form-card,
-.recon-table-wrap {
+.recon-account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.recon-account-card {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  padding: 16px;
   border-radius: var(--r-xl);
   border: 1px solid var(--border);
   background: var(--surface-1);
   box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.recon-account-card.active {
+  border-color: rgba(37, 99, 235, 0.45);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12), var(--shadow-md);
+}
+
+.recon-account-name {
+  color: var(--text-strong);
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.recon-account-meta {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.recon-account-balance {
+  margin-top: 14px;
+  color: var(--text-strong);
+  font-size: 24px;
+  font-weight: 950;
+  letter-spacing: -0.05em;
+}
+
+.recon-account-balance.negative {
+  color: var(--danger);
 }
 
 .recon-form-card {
+  position: sticky;
+  top: 18px;
   padding: 18px;
-}
-
-.recon-table-wrap {
-  overflow: auto;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-md);
 }
 
 .recon-form-grid {
@@ -115,61 +158,35 @@
   gap: 14px;
 }
 
-.recon-table {
-  width: 100%;
-  min-width: 760px;
-  border-collapse: collapse;
+.recon-delta-card {
+  padding: 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
 }
 
-.recon-table th {
-  padding: 12px;
+.recon-delta-label {
   color: var(--text-muted);
-  background: var(--surface-2);
   font-size: 11px;
   font-weight: 950;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
 }
 
-.recon-table td {
-  padding: 13px 12px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text);
-  font-size: 13px;
-  vertical-align: top;
-}
-
-.recon-table tr:last-child td {
-  border-bottom: 0;
-}
-
-.recon-account {
+.recon-delta-value {
+  margin-top: 6px;
   color: var(--text-strong);
-  font-size: 14px;
+  font-size: 28px;
+  line-height: 1;
   font-weight: 950;
+  letter-spacing: -0.06em;
 }
 
-.recon-id {
-  margin-top: 3px;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-family: var(--font-mono);
-}
-
-.recon-amount {
-  color: var(--text-strong);
-  font-size: 15px;
-  font-weight: 950;
-  white-space: nowrap;
-}
-
-.recon-amount.positive {
+.recon-delta-value.positive {
   color: var(--success);
 }
 
-.recon-amount.negative {
+.recon-delta-value.negative {
   color: var(--danger);
 }
 
@@ -198,6 +215,39 @@
   color: var(--danger);
 }
 
+.recon-review {
+  display: none;
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: var(--r-lg);
+  border: 1px solid rgba(37, 99, 235, 0.22);
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.recon-review.on {
+  display: block;
+}
+
+.recon-review-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.recon-review-row:last-child {
+  border-bottom: 0;
+}
+
+.recon-review-row strong {
+  color: var(--text-strong);
+  text-align: right;
+}
+
 .recon-debug {
   display: none;
   margin-top: 18px;
@@ -224,14 +274,29 @@
   white-space: pre-wrap;
 }
 
+.recon-empty {
+  padding: 28px;
+  border-radius: var(--r-xl);
+  border: 1px dashed var(--border);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 820;
+  text-align: center;
+}
+
 .recon-page-meta {
   display: none !important;
 }
 
 @media (max-width: 1180px) {
   .recon-hero-grid,
-  .recon-panel {
+  .recon-layout {
     grid-template-columns: 1fr;
+  }
+
+  .recon-form-card {
+    position: static;
   }
 
   .recon-kpi-grid {
@@ -239,8 +304,9 @@
   }
 }
 
-@media (max-width: 720px) {
-  .recon-kpi-grid {
+@media (max-width: 760px) {
+  .recon-kpi-grid,
+  .recon-account-grid {
     grid-template-columns: 1fr;
   }
 
@@ -269,9 +335,9 @@
 <section class="recon-hero-grid">
 <div class="page-hero">
 <div class="hero-kicker">Balance control</div>
-<h1 class="hero-title">Declare real account balances.</h1>
+<h1 class="hero-title">Keep app balances aligned with real accounts.</h1>
 <p class="hero-copy">
-Compare app balances with bank/app balances and record a clean adjustment only when the real-world balance is different.
+Select an account, enter the real bank/app balance, review the difference, and declare it. Safety checks run quietly in the background.
 </p>
 
 <div id="debugBadges" class="recon-status-strip" hidden>
@@ -290,9 +356,9 @@ Compare app balances with bank/app balances and record a clean adjustment only w
 </div>
 
 <div class="recon-card">
-<div class="recon-card-title">How this works</div>
+<div class="recon-card-title">Clean declaration flow</div>
 <div class="recon-card-copy">
-Enter the actual balance from your bank/app. If it differs from the app balance, Sovereign creates one adjustment transaction.
+A declaration creates one adjustment transaction only if the real balance differs from the app balance.
 </div>
 </div>
 </aside>
@@ -302,7 +368,7 @@ Enter the actual balance from your bank/app. If it differs from the app balance,
 <div class="kpi-card">
 <div class="kpi-label">Accounts</div>
 <div id="accountCount" class="kpi-value">-</div>
-<div class="kpi-sub">Active accounts loaded</div>
+<div class="kpi-sub">Loaded accounts</div>
 </div>
 
 <div class="kpi-card">
@@ -328,7 +394,7 @@ Enter the actual balance from your bank/app. If it differs from the app balance,
 <div class="recon-section-head">
 <div>
 <div class="recon-section-title">Declare balance</div>
-<div class="recon-section-copy">Choose an account and enter the balance shown in the real bank/app.</div>
+<div id="reconSummary" class="recon-section-copy">Loading accounts...</div>
 </div>
 
 <div class="recon-actions">
@@ -342,13 +408,18 @@ Enter the actual balance from your bank/app. If it differs from the app balance,
 
 <div style="height:14px"></div>
 
-<div class="recon-panel">
-<div class="recon-form-card">
-<form id="reconForm" class="recon-form-grid">
-<div class="field">
-<label for="accountInput">Account</label>
-<select id="accountInput" class="select" required></select>
+<div class="recon-layout">
+<div>
+<div id="accountsGrid" class="recon-account-grid"></div>
+<div id="accountsEmpty" class="recon-empty" hidden>No accounts found.</div>
 </div>
+
+<aside class="recon-form-card">
+<div class="recon-card-title">Selected account</div>
+<div id="selectedAccountCopy" class="recon-card-copy">Choose an account to begin.</div>
+
+<form id="reconForm" class="recon-form-grid" style="margin-top:16px">
+<input id="accountInput" type="hidden" />
 
 <div class="field">
 <label for="currentBalanceInput">Current App Balance</label>
@@ -360,9 +431,9 @@ Enter the actual balance from your bank/app. If it differs from the app balance,
 <input id="declaredBalanceInput" class="input" type="number" step="0.01" placeholder="0.00" required />
 </div>
 
-<div class="field">
-<label for="deltaInput">Difference</label>
-<input id="deltaInput" class="input" type="text" readonly />
+<div class="recon-delta-card">
+<div class="recon-delta-label">Difference</div>
+<div id="deltaValue" class="recon-delta-value">Rs 0</div>
 </div>
 
 <div class="field">
@@ -372,26 +443,25 @@ Enter the actual balance from your bank/app. If it differs from the app balance,
 
 <div class="field">
 <label for="notesInput">Notes</label>
-<textarea id="notesInput" class="textarea" placeholder="Optional"></textarea>
+<textarea id="notesInput" class="textarea" placeholder="Optional note"></textarea>
 </div>
 
-<button id="declareBtn" class="btn btn-success" type="submit">Declare Balance</button>
+<button id="reviewBtn" class="btn btn-success" type="submit">Review Declaration</button>
 </form>
-</div>
 
-<div class="recon-table-wrap">
-<table class="recon-table">
-<thead>
-<tr>
-<th>Account</th>
-<th>Type</th>
-<th>Status</th>
-<th>App Balance</th>
-</tr>
-</thead>
-<tbody id="accountsBody"></tbody>
-</table>
+<div id="reviewBox" class="recon-review">
+<div class="recon-card-title">Review before saving</div>
+<div class="recon-review-row"><span>Account</span><strong id="reviewAccount">-</strong></div>
+<div class="recon-review-row"><span>Current app balance</span><strong id="reviewCurrent">-</strong></div>
+<div class="recon-review-row"><span>Actual balance</span><strong id="reviewDeclared">-</strong></div>
+<div class="recon-review-row"><span>Difference</span><strong id="reviewDelta">-</strong></div>
+
+<div class="recon-card-actions" style="margin-top:12px">
+<button id="confirmDeclareBtn" class="btn btn-success" type="button">Confirm Declaration</button>
+<button id="cancelReviewBtn" class="btn btn-secondary" type="button">Cancel</button>
 </div>
+</div>
+</aside>
 </div>
 
 <div id="debugPanel" class="recon-debug">
@@ -402,7 +472,7 @@ Enter the actual balance from your bank/app. If it differs from the app balance,
 </section>
 
 <footer class="recon-page-meta" aria-hidden="true">
-Reconciliation UI v1.0.0
+Reconciliation UI v1.1.0
 </footer>
 </main>
 
@@ -416,13 +486,15 @@ Reconciliation UI v1.0.0
 (function () {
   "use strict";
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.0";
   const DEBUG = new URL(location.href).searchParams.get("debug") === "1";
 
   let accounts = [];
+  let selectedId = "";
   let authority = { declare: false };
   let command = null;
   let lastProof = null;
+  let pendingPayload = null;
 
   const $ = id => document.getElementById(id);
 
@@ -494,6 +566,27 @@ Reconciliation UI v1.0.0
     return data;
   }
 
+  function selectedAccount() {
+    return accounts.find(account => account.id === selectedId) || null;
+  }
+
+  function accountBalance(account) {
+    const n = Number(account && account.balance);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function deltaValue() {
+    const account = selectedAccount();
+    const current = accountBalance(account);
+    const declared = Number($("declaredBalanceInput").value);
+    return Number.isFinite(declared) ? declared - current : 0;
+  }
+
+  function actionAllowed(actions, name) {
+    const found = actions.find(action => action.action === name);
+    return Boolean(found && found.allowed);
+  }
+
   function updateDebug() {
     if (!DEBUG) return;
 
@@ -503,7 +596,9 @@ Reconciliation UI v1.0.0
       version: VERSION,
       authority,
       command_version: command && command.version,
+      selected_id: selectedId,
       account_count: accounts.length,
+      pending_payload: pendingPayload,
       last_proof: lastProof
     }, null, 2);
   }
@@ -515,8 +610,7 @@ Reconciliation UI v1.0.0
         ? command.enforcement.actions
         : [];
 
-      const declare = actions.find(action => action.action === "reconciliation.declare");
-      authority.declare = Boolean(declare && declare.allowed);
+      authority.declare = actionAllowed(actions, "reconciliation.declare");
 
       if (DEBUG) {
         setBadge("reconAuthorityBadge", authority.declare ? "declare allowed" : "declare blocked", authority.declare ? "badge-ready" : "badge-blocked");
@@ -525,13 +619,13 @@ Reconciliation UI v1.0.0
       setBadge("reconStatusBadge", authority.declare ? "Ready" : "View only", authority.declare ? "badge-ready" : "badge-preflight");
       setText("authorityState", authority.declare ? "Ready" : "View only");
       setText("reconStatusCopy", authority.declare ? "Balance declaration is available." : "Balances are visible. Declaration is temporarily unavailable.");
-      $("declareBtn").disabled = !authority.declare;
+      $("reviewBtn").disabled = !authority.declare;
     } catch (err) {
       authority.declare = false;
       setBadge("reconStatusBadge", "Unavailable", "badge-blocked");
       setText("authorityState", "Unavailable");
       setText("reconStatusCopy", "Command Centre could not be reached. Declaration is disabled.");
-      $("declareBtn").disabled = true;
+      $("reviewBtn").disabled = true;
     }
 
     updateDebug();
@@ -545,61 +639,79 @@ Reconciliation UI v1.0.0
       setBadge("reconApiBadge", "API " + (data.version || "live"), "badge-ready");
     }
 
+    if (!selectedId && accounts.length) selectedId = accounts[0].id;
+
     setText("accountCount", String(accounts.length));
     setText("totalBalance", money(data.summary && data.summary.total_balance || 0));
+    setText("reconSummary", accounts.length + " account(s) loaded for reconciliation.");
 
     renderAccounts();
-    fillAccountSelect();
     updateSelectedAccount();
     updateDebug();
   }
 
   function renderAccounts() {
-    const body = $("accountsBody");
+    const grid = $("accountsGrid");
+    const empty = $("accountsEmpty");
 
-    body.innerHTML = accounts.map(account => `
-      <tr>
-        <td>
-          <div class="recon-account">${escapeHtml(account.name || account.id)}</div>
-          <div class="recon-id">${escapeHtml(account.id)}</div>
-        </td>
-        <td>${escapeHtml(account.kind || account.type || "")}</td>
-        <td><span class="${account.status === "active" ? "badge badge-ready" : "badge badge-preflight"}">${escapeHtml(account.status || "active")}</span></td>
-        <td><div class="recon-amount ${Number(account.balance) < 0 ? "negative" : "positive"}">${escapeHtml(money(account.balance || 0))}</div></td>
-      </tr>
-    `).join("");
-  }
-
-  function fillAccountSelect() {
-    const select = $("accountInput");
-    const current = select.value;
-
-    select.innerHTML = accounts.map(account => `
-      <option value="${escapeHtml(account.id)}">${escapeHtml(account.name || account.id)} · ${escapeHtml(money(account.balance || 0))}</option>
-    `).join("");
-
-    if (current && accounts.some(account => account.id === current)) {
-      select.value = current;
+    if (!accounts.length) {
+      grid.innerHTML = "";
+      empty.hidden = false;
+      return;
     }
-  }
 
-  function selectedAccount() {
-    return accounts.find(account => account.id === $("accountInput").value) || null;
+    empty.hidden = true;
+
+    grid.innerHTML = accounts.map(account => {
+      const balance = accountBalance(account);
+      const active = account.id === selectedId;
+
+      return `
+        <button class="recon-account-card ${active ? "active" : ""}" type="button" data-account-id="${escapeHtml(account.id)}">
+          <div class="recon-account-name">${escapeHtml(account.name || account.id)}</div>
+          <div class="recon-account-meta">${escapeHtml(account.id)} · ${escapeHtml(account.kind || account.type || "account")}</div>
+          <div class="recon-account-balance ${balance < 0 ? "negative" : ""}">${escapeHtml(money(balance))}</div>
+        </button>
+      `;
+    }).join("");
+
+    grid.querySelectorAll("[data-account-id]").forEach(button => {
+      button.addEventListener("click", () => {
+        selectedId = button.dataset.accountId;
+        hideReview();
+        renderAccounts();
+        updateSelectedAccount();
+        updateDebug();
+      });
+    });
   }
 
   function updateSelectedAccount() {
     const account = selectedAccount();
-    const currentBalance = account ? Number(account.balance || 0) : 0;
-    const declared = Number($("declaredBalanceInput").value);
-    const delta = Number.isFinite(declared) ? declared - currentBalance : 0;
+    const currentBalance = accountBalance(account);
+    const delta = deltaValue();
 
+    $("accountInput").value = account ? account.id : "";
     $("currentBalanceInput").value = money(currentBalance);
-    $("deltaInput").value = money(delta);
+
+    setText("selectedAccountCopy", account ? (account.name || account.id) + " · " + money(currentBalance) : "Choose an account to begin.");
+    setText("deltaValue", money(delta));
+
+    const deltaEl = $("deltaValue");
+    deltaEl.classList.remove("positive", "negative");
+    if (delta > 0) deltaEl.classList.add("positive");
+    if (delta < 0) deltaEl.classList.add("negative");
   }
 
-  async function submitDeclaration(event) {
+  function hideReview() {
+    pendingPayload = null;
+    $("reviewBox").classList.remove("on");
+  }
+
+  async function reviewDeclaration(event) {
     event.preventDefault();
     clearNotice();
+    hideReview();
 
     if (!authority.declare) {
       showNotice("Balance declaration is temporarily unavailable.", "fail");
@@ -633,16 +745,28 @@ Reconciliation UI v1.0.0
     });
 
     lastProof = dryRun;
+    pendingPayload = payload;
 
-    const delta = dryRun.normalized_payload ? Number(dryRun.normalized_payload.delta || 0) : 0;
-    const confirmed = window.confirm("Declare " + (account.name || account.id) + " as " + money(declaredBalance) + "? Difference: " + money(delta));
+    const normalized = dryRun.normalized_payload || {};
+    setText("reviewAccount", account.name || account.id);
+    setText("reviewCurrent", money(normalized.current_balance));
+    setText("reviewDeclared", money(normalized.declared_balance));
+    setText("reviewDelta", money(normalized.delta));
 
-    if (!confirmed) return;
+    $("reviewBox").classList.add("on");
+    updateDebug();
+  }
+
+  async function confirmDeclaration() {
+    if (!pendingPayload) {
+      showNotice("Nothing to confirm.", "fail");
+      return;
+    }
 
     const result = await fetchJSON("/api/reconciliation?cb=" + Date.now(), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(pendingPayload)
     });
 
     setText("lastResult", result.writes_performed ? "Adjusted" : "No change");
@@ -650,28 +774,34 @@ Reconciliation UI v1.0.0
 
     $("declaredBalanceInput").value = "";
     $("notesInput").value = "";
+    hideReview();
 
     await refresh();
   }
 
   async function refresh() {
-    console.log("[reconciliation-ui v1.0.0] refresh");
+    console.log("[reconciliation-ui v1.1.0] refresh");
     await loadCommandCentre();
     await loadReconciliation();
-    console.log("[reconciliation-ui v1.0.0] ready", {
+    console.log("[reconciliation-ui v1.1.0] ready", {
       accounts: accounts.length,
       authority
     });
   }
 
   function init() {
-    console.log("[reconciliation-ui v1.0.0] init");
+    console.log("[reconciliation-ui v1.1.0] init");
 
     $("declaredDateInput").value = todayISO();
     $("refreshBtn").addEventListener("click", refresh);
-    $("accountInput").addEventListener("change", updateSelectedAccount);
-    $("declaredBalanceInput").addEventListener("input", updateSelectedAccount);
-    $("reconForm").addEventListener("submit", submitDeclaration);
+    $("declaredBalanceInput").addEventListener("input", () => {
+      hideReview();
+      updateSelectedAccount();
+    });
+    $("notesInput").addEventListener("input", hideReview);
+    $("reconForm").addEventListener("submit", reviewDeclaration);
+    $("confirmDeclareBtn").addEventListener("click", confirmDeclaration);
+    $("cancelReviewBtn").addEventListener("click", hideReview);
 
     refresh();
   }
@@ -681,6 +811,7 @@ Reconciliation UI v1.0.0
     refresh,
     accounts: () => accounts.slice(),
     authority: () => ({ ...authority }),
+    selectedAccount: () => selectedAccount(),
     lastProof: () => lastProof
   };
 
