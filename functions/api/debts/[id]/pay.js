@@ -1,459 +1,238 @@
-/* Sovereign Finance Debt Pay Route v0.3.2-pay
-   POST /api/debts/:id/pay
+const VERSION = "v0.4.0-ledger-atomic-pay";
 
-   Stable contract:
-   - dry_run validates and performs no write.
-   - real debt.pay asks Command Centre before writing.
-   - if Command Centre blocks, returns 423.
-   - if Command Centre allows, writes transaction + debt paid_amount update.
-   - category_id is intentionally NULL to avoid category FK crashes.
-   - paid-off debts remain visible through active status; UI derives paid_off from remaining_amount = 0.
-   - No audit writes here.
-   - No version bump.
-*/
-
-const VERSION = 'v0.3.2-pay';
-
-export async function onRequestPost(context) {
+export async function onRequestPost({ env, params, request }) {
   try {
-    const db = context.env.DB;
-    const debtId = safeText(context.params.id, '', 180);
-    const body = await readJSON(context.request);
-    const dryRun = isDryRunRequest(context, body);
+    const db = requireDb(env);
+    const id = requireText(params.id, "id");
+    const body = await request.json();
 
-    if (!debtId) {
-      return jsonResponse({ ok: false, version: VERSION, error: 'Debt id required' }, 400);
-    }
+    const result = await recordDebtMovement(db, id, body);
 
-    const amount = Number(body.amount);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return jsonResponse({ ok: false, version: VERSION, error: 'Amount must be > 0' }, 400);
-    }
-
-    const accountInput = safeText(body.account_id, '', 180);
-    if (!accountInput) {
-      return jsonResponse({ ok: false, version: VERSION, error: 'account_id required' }, 400);
-    }
-
-    const debt = await db.prepare(
-      `SELECT *
-       FROM debts
-       WHERE id = ?
-       LIMIT 1`
-    ).bind(debtId).first();
-
-    if (!debt) {
-      return jsonResponse({ ok: false, version: VERSION, error: 'Debt not found' }, 404);
-    }
-
-    const normalizedDebt = normalizeDebt(debt);
-
-    if (normalizedDebt.status !== 'active') {
-      return jsonResponse({
-        ok: false,
-        version: VERSION,
-        error: 'Only active debts can be paid',
-        debt_id: debtId,
-        status: normalizedDebt.status
-      }, 409);
-    }
-
-    if (!['owe', 'owed'].includes(normalizedDebt.kind)) {
-      return jsonResponse({
-        ok: false,
-        version: VERSION,
-        error: 'Debt kind must be owe or owed',
-        debt_id: debtId,
-        kind: normalizedDebt.kind
-      }, 409);
-    }
-
-    if (normalizedDebt.remaining_amount <= 0) {
-      return jsonResponse({
-        ok: false,
-        version: VERSION,
-        error: 'Debt is already fully paid',
-        debt_id: debtId,
-        remaining_amount: normalizedDebt.remaining_amount
-      }, 409);
-    }
-
-    if (amount > normalizedDebt.remaining_amount + 0.01) {
-      return jsonResponse({
-        ok: false,
-        version: VERSION,
-        error: 'Amount cannot exceed remaining debt amount',
-        debt_id: debtId,
-        requested_amount: round2(amount),
-        remaining_amount: normalizedDebt.remaining_amount
-      }, 400);
-    }
-
-    const accountResult = await resolvePaymentAccount(db, accountInput);
-
-    if (!accountResult.ok) {
-      return jsonResponse({
-        ok: false,
-        version: VERSION,
-        error: accountResult.error,
-        account_input: accountInput
-      }, accountResult.status || 409);
-    }
-
-    const account = accountResult.account;
-    const date = normalizeDate(body.paid_date || body.date || body.payment_date) || todayISO();
-    const txType = normalizedDebt.kind === 'owe' ? 'expense' : 'income';
-    const txId = 'tx_pay_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-    const newPaid = round2(normalizedDebt.paid_amount + amount);
-    const remaining = round2(Math.max(0, normalizedDebt.original_amount - newPaid));
-    const nextStatus = 'active';
-
-    const notes = safeText(
-      body.notes,
-      (normalizedDebt.kind === 'owe' ? 'Paid ' : 'Received from ') + normalizedDebt.name,
-      240
-    );
-
-    const proof = buildDebtPayProof({
-      debt: normalizedDebt,
-      amount,
-      account,
-      accountInput,
-      date,
-      txId,
-      txType,
-      newPaid,
-      remaining,
-      nextStatus
-    });
-
-    if (dryRun) {
-      return jsonResponse({
-        ok: true,
-        version: VERSION,
-        dry_run: true,
-        action: 'debt.pay',
-        writes_performed: false,
-        audit_performed: false,
-        proof,
-        normalized_payload: {
-          debt_id: debtId,
-          tx_id: txId,
-          tx_type: txType,
-          amount: round2(amount),
-          account_id: account.id,
-          account_name: account.name || account.id,
-          account_resolved_from: accountInput,
-          date,
-          before: normalizedDebt,
-          after: {
-            paid_amount: newPaid,
-            remaining_amount: remaining,
-            status: nextStatus
-          }
-        }
-      });
-    }
-
-    const allowed = await commandAllowsDebtAction(context, 'debt.pay');
-
-    if (!allowed) {
-      return jsonResponse({
-        ok: false,
-        version: VERSION,
-        error: 'Command Centre blocked real debt writes',
-        action: 'debt.pay',
-        dry_run: false,
-        writes_performed: false,
-        audit_performed: false,
-        enforcement: {
-          action: 'debt.pay',
-          allowed: false,
-          status: 'blocked',
-          reason: 'debt.pay real write blocked by Command Centre.',
-          source: 'coverage.write_safety.debts.debt_pay_allowed',
-          backend_enforced: true
-        },
-        proof
-      }, 423);
-    }
-
-    try {
-      await db.batch([
-        db.prepare(
-          `INSERT INTO transactions
-           (id, date, type, amount, account_id, category_id, notes)
-           VALUES (?, ?, ?, ?, ?, NULL, ?)`
-        ).bind(
-          txId,
-          date,
-          txType,
-          round2(amount),
-          account.id,
-          notes
-        ),
-        db.prepare(
-          `UPDATE debts
-           SET paid_amount = ?,
-               status = ?,
-               last_paid_date = ?
-           WHERE id = ?`
-        ).bind(
-          newPaid,
-          nextStatus,
-          date,
-          debtId
-        )
-      ]);
-    } catch (err) {
-      return jsonResponse({
-        ok: false,
-        version: VERSION,
-        error: err.message || String(err),
-        action: 'debt.pay',
-        writes_performed: false,
-        audit_performed: false,
-        d1_guard: {
-          account_id: account.id,
-          category_id: null,
-          note: 'category_id is intentionally NULL to avoid category FK crash.'
-        }
-      }, 500);
-    }
-
-    const afterDebt = await db.prepare(
-      `SELECT *
-       FROM debts
-       WHERE id = ?
-       LIMIT 1`
-    ).bind(debtId).first();
-
-    return jsonResponse({
+    return json({
       ok: true,
       version: VERSION,
-      action: 'debt.pay',
-      debt_id: debtId,
-      tx_id: txId,
-      amount: round2(amount),
-      account_id: account.id,
-      account_name: account.name || account.id,
-      account_resolved_from: accountInput,
-      new_paid_amount: newPaid,
-      remaining,
-      status: nextStatus,
-      writes_performed: true,
-      audit_performed: false,
-      debt: afterDebt ? normalizeDebt(afterDebt) : null,
-      proof
+      ...result
     });
   } catch (err) {
-    return jsonResponse({
-      ok: false,
-      version: VERSION,
-      error: err.message || String(err)
-    }, 500);
+    return json({ ok: false, version: VERSION, error: err.message }, 500);
   }
 }
 
-async function resolvePaymentAccount(db, input) {
-  const raw = safeText(input, '', 180);
+async function recordDebtMovement(db, id, body) {
+  const existing = await getDebt(db, id);
+  if (!existing) throw new Error("Debt not found.");
 
-  const exact = await db.prepare(
-    `SELECT id, name, kind, type, status
-     FROM accounts
-     WHERE id = ?
-     LIMIT 1`
-  ).bind(raw).first();
-
-  if (exact && isActiveAccount(exact)) {
-    return { ok: true, account: exact };
+  if (isClosed(existing.status)) {
+    throw new Error("Settled or archived debts can only be edited.");
   }
 
-  const accountsResult = await db.prepare(
-    `SELECT id, name, kind, type, status
-     FROM accounts
-     ORDER BY name`
-  ).all();
+  const action = normalizeAction(body.action || body.type, existing.kind);
+  const kind = normalizeKind(existing.kind);
 
-  const accounts = accountsResult.results || [];
-  const wanted = accountToken(raw);
-
-  const matched = accounts.find(account => {
-    if (!isActiveAccount(account)) return false;
-
-    return wanted === accountToken(account.id)
-      || wanted === accountToken(account.name)
-      || raw.toLowerCase() === String(account.name || '').trim().toLowerCase();
-  });
-
-  if (matched) {
-    return { ok: true, account: matched };
+  if (kind === "owe" && action !== "payment") {
+    throw new Error("This debt is money you owe. Use payment only.");
   }
+
+  if (kind === "owed" && action !== "received") {
+    throw new Error("This debt is owed to you. Use received only.");
+  }
+
+  const amount = requirePositiveNumber(body.amount, "amount");
+  const accountId = requireText(body.account_id, "account_id");
+  const date = requireText(body.date, "date");
+  const now = new Date().toISOString();
+
+  const original = Number(existing.original_amount);
+  const paidBefore = Number(existing.paid_amount || 0);
+  const remainingBefore = original - paidBefore;
+
+  if (amount > remainingBefore + 0.00001) {
+    throw new Error(`Amount exceeds outstanding debt. Outstanding is ${remainingBefore}.`);
+  }
+
+  const paidAfter = round2(paidBefore + amount);
+  const remainingAfter = round2(original - paidAfter);
+  const settled = remainingAfter <= 0.00001;
+
+  const nextDueDate = settled ? null : cleanText(body.next_due_date || body.due_date || existing.due_date);
+  const status = settled ? "closed" : "active";
+
+  const txType = action === "payment" ? "debt_out" : "debt_in";
+  const txId = makeId(`tx_${txType}`);
+
+  const newNotes = appendNote(
+    existing.notes,
+    body.notes,
+    action === "payment" ? `Payment ${amount} on ${date}` : `Received ${amount} on ${date}`
+  );
+
+  const txNotes = [
+    action === "payment" ? `Debt payment: ${existing.name}` : `Debt received: ${existing.name}`,
+    `debt_id=${id}`,
+    `kind=${kind}`,
+    cleanText(body.notes) ? `notes=${cleanText(body.notes)}` : null
+  ].filter(Boolean).join(" | ");
+
+  const debtUpdate = db.prepare(`
+    UPDATE debts
+    SET
+      paid_amount = ?,
+      status = ?,
+      due_date = ?,
+      last_paid_date = ?,
+      notes = ?
+    WHERE id = ?
+  `).bind(paidAfter, status, nextDueDate, date, newNotes, id);
+
+  const transactionInsert = db.prepare(`
+    INSERT INTO transactions (
+      id,
+      date,
+      type,
+      amount,
+      account_id,
+      transfer_to_account_id,
+      category_id,
+      merchant_id,
+      notes,
+      fee_amount,
+      pra_amount,
+      is_pending_reversal,
+      reversal_due_date,
+      created_at,
+      reversed_by,
+      reversed_at,
+      linked_txn_id
+    )
+    VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, ?, 0, 0, 0, NULL, ?, NULL, NULL, NULL)
+  `).bind(txId, date, txType, amount, accountId, txNotes, now);
+
+  await db.batch([debtUpdate, transactionInsert]);
 
   return {
-    ok: false,
-    status: 409,
-    error: 'Payment account not found or inactive. Refresh accounts and retry.'
+    action,
+    debt: normalizeDebtRow(await getDebt(db, id)),
+    ledger_transaction: {
+      id: txId,
+      type: txType,
+      date,
+      amount,
+      account_id: accountId,
+      effect: txType === "debt_in" ? "increase_account" : "decrease_account"
+    }
   };
 }
 
-async function commandAllowsDebtAction(context, action) {
-  try {
-    const origin = new URL(context.request.url).origin;
-    const res = await fetch(origin + '/api/finance-command-center?gate=' + encodeURIComponent(action) + '&cb=' + Date.now(), {
-      method: 'GET',
-      headers: {
-        accept: 'application/json',
-        'x-sovereign-debt-gate': action
-      }
-    });
-
-    const data = await res.json().catch(() => null);
-    const found = data && data.enforcement && Array.isArray(data.enforcement.actions)
-      ? data.enforcement.actions.find(item => item.action === action)
-      : null;
-
-    return Boolean(found && found.allowed);
-  } catch (err) {
-    return false;
-  }
+async function getDebt(db, id) {
+  return await db.prepare(`
+    SELECT
+      id,
+      name,
+      kind,
+      original_amount,
+      paid_amount,
+      snowball_order,
+      due_date,
+      status,
+      notes,
+      created_at,
+      due_day,
+      installment_amount,
+      frequency,
+      last_paid_date
+    FROM debts
+    WHERE id = ?
+  `).bind(id).first();
 }
 
-function buildDebtPayProof(input) {
-  return {
-    action: 'debt.pay',
-    version: VERSION,
-    writes_performed: false,
-    audit_performed: false,
-    validation_status: 'pass',
-    write_model: 'debt_payment_command_centre_gated',
-    expected_debt_rows: 1,
-    expected_transaction_rows: 1,
-    expected_ledger_rows: 0,
-    expected_audit_rows: 0,
-    normalized_summary: {
-      debt_id: input.debt.id,
-      debt_name: input.debt.name,
-      debt_kind: input.debt.kind,
-      txn_type: input.txType,
-      payment_amount: round2(input.amount),
-      previous_paid_amount: input.debt.paid_amount,
-      previous_remaining_amount: input.debt.remaining_amount,
-      next_paid_amount: input.newPaid,
-      next_remaining_amount: input.remaining,
-      next_status: input.nextStatus,
-      account_id: input.account.id,
-      date: input.date
-    },
-    checks: [
-      proofCheck('debt_exists', 'pass', 'debts.id', 'Debt id resolved.'),
-      proofCheck('debt_active', 'pass', 'debts.status', 'Debt is active.'),
-      proofCheck('kind_valid', 'pass', 'debts.kind', 'Debt kind is owe or owed.'),
-      proofCheck('remaining_amount_valid', 'pass', 'debts.remaining_amount', 'Debt has remaining amount greater than zero.'),
-      proofCheck('payment_amount_valid', 'pass', 'request.amount', 'Payment amount is greater than zero and does not exceed remaining amount.'),
-      proofCheck('account_valid', 'pass', 'accounts.id', 'Payment account resolves to canonical active account id.'),
-      proofCheck('date_valid', 'pass', 'request.date', 'Payment date normalized.'),
-      proofCheck('transaction_model_valid', 'pass', 'computed.txn_type', 'owe becomes expense, owed becomes income.'),
-      proofCheck('fk_guard', 'pass', 'accounts.id/category_id', 'Account is checked before transaction insert. category_id is NULL.'),
-      proofCheck('command_gate_required', 'pass', 'finance-command-center', 'Real write asks Command Centre before transaction insert.'),
-      proofCheck('dry_run_no_write', 'pass', 'api.contract', 'Dry-run returns before transaction insert or debt update.')
-    ]
-  };
-}
+function normalizeDebtRow(row) {
+  if (!row) return null;
 
-function proofCheck(check, status, source, detail) {
-  return { check, status, source, detail };
-}
-
-function normalizeDebt(row) {
   const original = Number(row.original_amount || 0);
   const paid = Number(row.paid_amount || 0);
-  const remaining = Math.max(0, original - paid);
+  const remaining = round2(original - paid);
 
   return {
-    id: safeText(row.id, '', 180),
-    name: safeText(row.name, '', 180),
-    kind: normalizeKind(row.kind),
-    original_amount: round2(original),
-    paid_amount: round2(paid),
-    remaining_amount: round2(remaining),
-    status: safeText(row.status, 'active', 40).toLowerCase(),
-    due_date: row.due_date || null,
-    due_day: row.due_day == null ? null : Number(row.due_day),
-    installment_amount: row.installment_amount == null ? null : Number(row.installment_amount),
-    frequency: row.frequency || 'custom',
-    last_paid_date: row.last_paid_date || null,
-    notes: row.notes || ''
+    ...row,
+    direction: normalizeKind(row.kind) === "owed" ? "owed_to_me" : "i_owe",
+    type: normalizeKind(row.kind) === "owed" ? "owed_to_me" : "i_owe",
+    original_amount: original,
+    amount: original,
+    paid_amount: paid,
+    outstanding: remaining,
+    outstanding_amount: remaining,
+    remaining_amount: remaining,
+    next_due_date: row.due_date || null,
+    settled: remaining <= 0.00001 || isClosed(row.status)
   };
+}
+
+function normalizeAction(value, kind) {
+  const action = String(value || "").toLowerCase();
+
+  if (["payment", "pay", "paid"].includes(action)) return "payment";
+  if (["received", "receive", "receipt"].includes(action)) return "received";
+
+  return normalizeKind(kind) === "owed" ? "received" : "payment";
 }
 
 function normalizeKind(value) {
-  const text = String(value || '').trim().toLowerCase();
+  const v = String(value || "").toLowerCase();
 
-  if (['owe', 'i_owe', 'payable', 'debt', 'debt_out'].includes(text)) return 'owe';
-  if (['owed', 'owed_me', 'receivable', 'to_me', 'debt_in'].includes(text)) return 'owed';
+  if (["owed", "owed_to_me", "receivable", "to_me", "they_owe_me", "received"].includes(v)) return "owed";
+  if (["owe", "i_owe", "payable", "i owe", "debt"].includes(v)) return "owe";
 
+  throw new Error("kind/direction must be either owe or owed.");
+}
+
+function isClosed(status) {
+  return ["closed", "settled", "archived", "deleted"].includes(String(status || "").toLowerCase());
+}
+
+function requireDb(env) {
+  if (!env || !env.DB) throw new Error("D1 binding DB is missing.");
+  return env.DB;
+}
+
+function requireText(value, field) {
+  const text = cleanText(value);
+  if (!text) throw new Error(`${field} is required.`);
   return text;
 }
 
-function isActiveAccount(account) {
-  const status = String(account.status || 'active').trim().toLowerCase();
-  return status === '' || status === 'active';
+function cleanText(value) {
+  if (value === undefined || value === null) return "";
+  return String(value).trim();
 }
 
-function normalizeDate(value) {
-  const raw = safeText(value, '', 40);
-  if (!raw) return null;
-  if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
-  return raw.slice(0, 10);
-}
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function isDryRunRequest(context, body) {
-  const url = new URL(context.request.url);
-
-  return url.searchParams.get('dry_run') === '1'
-    || url.searchParams.get('dry_run') === 'true'
-    || body.dry_run === true
-    || body.dry_run === '1'
-    || body.dry_run === 'true';
-}
-
-function accountToken(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
-
-function safeText(value, fallback, maxLen) {
-  const raw = value == null ? fallback : value;
-  return String(raw == null ? '' : raw).trim().slice(0, maxLen || 500);
+function requirePositiveNumber(value, field) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) throw new Error(`${field} must be greater than zero.`);
+  return round2(n);
 }
 
 function round2(value) {
-  return Math.round((Number(value) || 0) * 100) / 100;
+  return Math.round(Number(value) * 100) / 100;
 }
 
-async function readJSON(request) {
-  try {
-    return await request.json();
-  } catch (err) {
-    return {};
-  }
+function makeId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function jsonResponse(obj, status) {
-  return new Response(JSON.stringify(obj), {
-    status: status || 200,
+function appendNote(existing, incoming, systemNote) {
+  return [
+    cleanText(existing),
+    systemNote ? `[${new Date().toISOString()}] ${systemNote}` : "",
+    cleanText(incoming)
+  ].filter(Boolean).join(" | ");
+}
+
+function json(payload, status = 200) {
+  return new Response(JSON.stringify(payload, null, 2), {
+    status,
     headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache'
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
     }
   });
 }
