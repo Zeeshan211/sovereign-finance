@@ -130,31 +130,60 @@ export async function onRequestPut(context) {
       });
     }
 
-    return jsonResponse({
-      ok: false,
-      version: VERSION,
-      error: 'Command Centre blocked real debt writes',
+    const allowed = await commandAllowsDebtAction(context, 'debt.save');
+
+if (!allowed) {
+  return jsonResponse({
+    ok: false,
+    version: VERSION,
+    error: 'Command Centre blocked real debt writes',
+    action: 'debt.save',
+    dry_run: false,
+    writes_performed: false,
+    audit_performed: false,
+    enforcement: {
       action: 'debt.save',
-      dry_run: false,
-      writes_performed: false,
-      audit_performed: false,
-      enforcement: {
-        action: 'debt.save',
+      allowed: false,
+      status: 'blocked',
+      level: 3,
+      reason: 'debt.save real write blocked by Command Centre.',
+      source: 'coverage.write_safety.debts.debt_save_allowed',
+      required_fix: 'Run Command Centre audit and confirm debt.save is allowed.',
+      backend_enforced: true,
+      frontend_enforced: true,
+      override: {
         allowed: false,
-        status: 'blocked',
-        level: 3,
-        reason: 'debt.save real writes remain blocked until debt dry-run proof, Debts page preflight, backend gate, and Command Centre lift are complete.',
-        source: 'coverage.write_safety.debt_save',
-        required_fix: 'Make Command Centre recognize debt.save proof, wire Debts page preflight, then explicitly lift debt.save.',
-        backend_enforced: true,
-        frontend_enforced: true,
-        override: {
-          allowed: false,
-          reason_required: true
-        }
-      },
-      proof
-    }, 423);
+        reason_required: true
+      }
+    },
+    proof
+  }, 423);
+}
+
+const setSql = patch.fields.map(field => `${field} = ?`).join(', ');
+const bindValues = patch.values.concat([id]).map(cleanBind);
+
+await db.prepare(
+  `UPDATE debts SET ${setSql} WHERE id = ?`
+).bind(...bindValues).run();
+
+const afterWrittenRaw = await db.prepare(
+  `SELECT ${DEBT_COLUMNS}
+   FROM debts
+   WHERE id = ?
+   LIMIT 1`
+).bind(id).first();
+
+return jsonResponse({
+  ok: true,
+  version: VERSION,
+  action: 'debt.save',
+  id,
+  writes_performed: true,
+  audit_performed: false,
+  debt: normalizeDebt(afterWrittenRaw),
+  proof
+});
   } catch (err) {
     return jsonResponse({
       ok: false,
@@ -661,7 +690,27 @@ function isDryRunRequest(context, body) {
     || body.dry_run === '1'
     || body.dry_run === 'true';
 }
+async function commandAllowsDebtAction(context, action) {
+  try {
+    const origin = new URL(context.request.url).origin;
+    const res = await fetch(origin + '/api/finance-command-center?gate=' + encodeURIComponent(action) + '&cb=' + Date.now(), {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        'x-sovereign-debt-gate': action
+      }
+    });
 
+    const data = await res.json().catch(() => null);
+    const found = data && data.enforcement && Array.isArray(data.enforcement.actions)
+      ? data.enforcement.actions.find(item => item.action === action)
+      : null;
+
+    return Boolean(found && found.allowed);
+  } catch (err) {
+    return false;
+  }
+}
 function jsonResponse(obj, status) {
   return new Response(JSON.stringify(obj), {
     status: status || 200,
