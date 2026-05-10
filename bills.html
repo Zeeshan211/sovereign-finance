@@ -1,691 +1,819 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Bills - Sovereign Finance</title>
-  <meta name="description" content="Manage recurring obligations in Sovereign Finance." />
-
-  <style>
-    :root {
-      --bg: #070b12;
-      --panel: #0d1422;
-      --panel-2: #111b2d;
-      --text: #eef4ff;
-      --muted: #93a4bd;
-      --line: rgba(255,255,255,.09);
-      --accent: #65d6ad;
-      --accent-2: #7aa7ff;
-      --danger: #ff6b7a;
-      --warn: #ffd166;
-      --shadow: 0 20px 70px rgba(0,0,0,.38);
-      --radius: 20px;
-      --radius-sm: 14px;
-      --max: 1180px;
-      --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      background:
-        radial-gradient(circle at top left, rgba(101,214,173,.12), transparent 32rem),
-        radial-gradient(circle at top right, rgba(122,167,255,.13), transparent 34rem),
-        var(--bg);
-      color: var(--text);
-      font-family: var(--font);
-      min-height: 100vh;
-    }
-
-    a { color: inherit; text-decoration: none; }
-
-    button, input, select, textarea {
-      font: inherit;
-    }
-
-    .shell {
-      width: min(var(--max), calc(100vw - 32px));
-      margin: 0 auto;
-      padding: 28px 0 60px;
-    }
-
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 18px;
-      margin-bottom: 26px;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .brand-mark {
-      width: 34px;
-      height: 34px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
-      box-shadow: 0 12px 30px rgba(101,214,173,.18);
-    }
-
-    .nav {
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .nav a,
-    .ghost-btn,
-    .primary-btn,
-    .danger-btn {
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.04);
-      color: var(--text);
-      border-radius: 999px;
-      padding: 10px 14px;
-      cursor: pointer;
-      transition: transform .14s ease, border-color .14s ease, background .14s ease;
-    }
-
-    .nav a:hover,
-    .ghost-btn:hover,
-    .primary-btn:hover,
-    .danger-btn:hover {
-      transform: translateY(-1px);
-      border-color: rgba(255,255,255,.18);
-      background: rgba(255,255,255,.07);
-    }
-
-    .primary-btn {
-      background: linear-gradient(135deg, rgba(101,214,173,.96), rgba(122,167,255,.92));
-      color: #071018;
-      border: 0;
-      font-weight: 800;
-    }
-
-    .danger-btn {
-      background: rgba(255,107,122,.12);
-      border-color: rgba(255,107,122,.25);
-      color: #ffd8dd;
-    }
-
-    .hero {
-      display: grid;
-      grid-template-columns: 1.2fr .8fr;
-      gap: 18px;
-      margin-bottom: 18px;
-    }
-
-    .card {
-      background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025));
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 22px;
-    }
-
-    .hero h1 {
-      margin: 0 0 10px;
-      font-size: clamp(34px, 5vw, 58px);
-      letter-spacing: -.055em;
-      line-height: .95;
-    }
-
-    .hero p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 16px;
-      line-height: 1.6;
-      max-width: 720px;
-    }
-
-    .actions {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-top: 20px;
-    }
-
-    .status-card {
-      display: grid;
-      align-content: space-between;
-      gap: 16px;
-    }
-
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      width: fit-content;
-      padding: 8px 12px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      color: var(--muted);
-      background: rgba(0,0,0,.16);
-      font-size: 13px;
-    }
-
-    .dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 99px;
-      background: var(--warn);
-      box-shadow: 0 0 0 4px rgba(255,209,102,.12);
-    }
-
-    .dot.ready {
-      background: var(--accent);
-      box-shadow: 0 0 0 4px rgba(101,214,173,.12);
-    }
-
-    .dot.bad {
-      background: var(--danger);
-      box-shadow: 0 0 0 4px rgba(255,107,122,.12);
-    }
-
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-      margin-bottom: 18px;
-    }
-
-    .stat {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      padding: 18px;
-    }
-
-    .stat .label {
-      color: var(--muted);
-      font-size: 13px;
-      margin-bottom: 8px;
-    }
-
-    .stat .value {
-      font-size: 26px;
-      font-weight: 850;
-      letter-spacing: -.035em;
-    }
-
-    .toolbar {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      align-items: center;
-      margin: 20px 0 14px;
-    }
-
-    .filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .input,
-    .select,
-    .textarea {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: rgba(0,0,0,.2);
-      color: var(--text);
-      padding: 12px 13px;
-      outline: none;
-    }
-
-    .input:focus,
-    .select:focus,
-    .textarea:focus {
-      border-color: rgba(101,214,173,.58);
-      box-shadow: 0 0 0 4px rgba(101,214,173,.08);
-    }
-
-    .filters .input {
-      min-width: 260px;
-    }
-
-    .filters .select {
-      min-width: 170px;
-    }
-
-    .table-card {
-      overflow: hidden;
-      padding: 0;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    th, td {
-      padding: 15px 16px;
-      border-bottom: 1px solid var(--line);
-      text-align: left;
-      vertical-align: middle;
-      font-size: 14px;
-    }
-
-    th {
-      color: var(--muted);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      background: rgba(0,0,0,.15);
-    }
-
-    tr:last-child td { border-bottom: 0; }
-
-    .bill-name {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .bill-name strong { font-size: 15px; }
-
-    .sub {
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      border-radius: 999px;
-      padding: 6px 10px;
-      border: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 12px;
-      background: rgba(255,255,255,.035);
-      white-space: nowrap;
-    }
-
-    .badge.ok {
-      color: #bdf8dd;
-      border-color: rgba(101,214,173,.25);
-      background: rgba(101,214,173,.08);
-    }
-
-    .badge.warn {
-      color: #ffe4a3;
-      border-color: rgba(255,209,102,.28);
-      background: rgba(255,209,102,.08);
-    }
-
-    .row-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .small-btn {
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.045);
-      color: var(--text);
-      border-radius: 12px;
-      padding: 8px 10px;
-      cursor: pointer;
-    }
-
-    .small-btn:hover {
-      background: rgba(255,255,255,.075);
-    }
-
-    .empty {
-      padding: 34px;
-      text-align: center;
-      color: var(--muted);
-    }
-
-    .debug {
-      display: none;
-      margin-top: 18px;
-      white-space: pre-wrap;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 12px;
-      color: #b8c7df;
-      background: rgba(0,0,0,.28);
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
-      padding: 16px;
-      overflow: auto;
-      max-height: 360px;
-    }
-
-    body.debug .debug { display: block; }
-
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,.62);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 18px;
-      z-index: 100;
-    }
-
-    .modal-backdrop.open { display: flex; }
-
-    .modal {
-      width: min(640px, 100%);
-      background: #0b1220;
-      border: 1px solid var(--line);
-      border-radius: 24px;
-      box-shadow: var(--shadow);
-      padding: 22px;
-    }
-
-    .modal-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: flex-start;
-      margin-bottom: 18px;
-    }
-
-    .modal h2 {
-      margin: 0 0 6px;
-      font-size: 24px;
-      letter-spacing: -.03em;
-    }
-
-    .modal p {
-      margin: 0;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .field {
-      display: grid;
-      gap: 7px;
-    }
-
-    .field.full { grid-column: 1 / -1; }
-
-    .field label {
-      color: var(--muted);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-    }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 18px;
-    }
-
-    .toast {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      width: min(420px, calc(100vw - 36px));
-      background: #0b1220;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 14px 16px;
-      box-shadow: var(--shadow);
-      color: var(--text);
-      display: none;
-      z-index: 200;
-    }
-
-    .toast.show { display: block; }
-
-    .toast .muted {
-      color: var(--muted);
-      margin-top: 4px;
-      font-size: 13px;
-    }
-
-    @media (max-width: 860px) {
-      .hero,
-      .stats {
-        grid-template-columns: 1fr;
-      }
-
-      table, thead, tbody, tr, th, td {
-        display: block;
-      }
-
-      thead { display: none; }
-
-      tr {
-        border-bottom: 1px solid var(--line);
-        padding: 12px;
-      }
-
-      td {
-        border: 0;
-        padding: 8px 0;
-      }
-
-      td[data-label]::before {
-        content: attr(data-label);
-        display: block;
-        color: var(--muted);
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        margin-bottom: 4px;
-      }
-
-      .row-actions {
-        justify-content: flex-start;
-      }
-
-      .form-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+  <title>Bills · Sovereign Finance</title>
+  <meta name="description" content="Manage recurring bills and monthly obligations in Sovereign Finance." />
+
+  <link rel="stylesheet" href="/css/app.css?v=ui-token-lock-2-1" />
+  <link rel="stylesheet" href="/css/nav.css" />
+  <link rel="stylesheet" href="/css/icons.css" />
 </head>
 
 <body>
-  <main class="shell">
-    <header class="topbar">
-      <a class="brand" href="/index.html" aria-label="Open Sovereign Finance hub">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span>Sovereign Finance</span>
+  <aside class="sf-sidebar" aria-label="Sovereign Finance navigation">
+    <div class="sf-sidebar-brand">
+      <a class="sf-brand-home" href="/index.html">
+        <span class="sf-brand-mark">SF</span>
+        <span class="sf-brand-copy">
+          <span class="sf-brand-title">Sovereign Finance</span>
+          <span class="sf-brand-subtitle">Personal finance system</span>
+        </span>
       </a>
 
-      <nav class="nav" aria-label="Main navigation">
-        <a href="/index.html">Hub</a>
-        <a href="/add.html">Add Transaction</a>
-        <a href="/transactions.html">Ledger</a>
-        <a href="/monthly-close.html">Command Centre</a>
-      </nav>
-    </header>
+      <button class="sf-sidebar-fold" type="button" id="sidebarFold" aria-label="Collapse sidebar">
+        <span class="sf-nav-icon">‹</span>
+      </button>
+    </div>
 
-    <section class="hero">
-      <div class="card">
-        <h1>Bills</h1>
-        <p>Track recurring obligations, due dates, monthly totals, and clearing status from one clean register.</p>
-        <div class="actions">
-          <button class="primary-btn" type="button" id="addBillBtn">Add Bill</button>
-          <button class="ghost-btn" type="button" id="refreshBtn">Refresh</button>
-          <a class="ghost-btn" href="/add.html">Add Transaction</a>
-        </div>
+    <nav class="sf-nav-scroll" aria-label="Main navigation">
+      <a class="sf-nav-link" href="/index.html"><span class="sf-nav-icon">⌂</span><span class="sf-nav-label">Hub</span></a>
+      <a class="sf-nav-link" href="/add.html"><span class="sf-nav-icon">＋</span><span class="sf-nav-label">Add</span></a>
+      <a class="sf-nav-link" href="/transactions.html"><span class="sf-nav-icon">≡</span><span class="sf-nav-label">Ledger</span></a>
+      <a class="sf-nav-link active" href="/bills.html" aria-current="page"><span class="sf-nav-icon">◷</span><span class="sf-nav-label">Bills</span></a>
+      <a class="sf-nav-link" href="/debts.html"><span class="sf-nav-icon">↔</span><span class="sf-nav-label">Debts</span></a>
+      <a class="sf-nav-link" href="/salary.html"><span class="sf-nav-icon">₨</span><span class="sf-nav-label">Salary</span></a>
+      <a class="sf-nav-link" href="/forecast.html"><span class="sf-nav-icon">⌁</span><span class="sf-nav-label">Forecast</span></a>
+      <a class="sf-nav-link" href="/reconciliation.html"><span class="sf-nav-icon">✓</span><span class="sf-nav-label">Reconcile</span></a>
+      <a class="sf-nav-link" href="/accounts.html"><span class="sf-nav-icon">◫</span><span class="sf-nav-label">Accounts</span></a>
+      <a class="sf-nav-link" href="/cc.html"><span class="sf-nav-icon">▣</span><span class="sf-nav-label">Credit Card</span></a>
+      <a class="sf-nav-link" href="/monthly-close.html"><span class="sf-nav-icon">⚙</span><span class="sf-nav-label">Command Centre</span></a>
+    </nav>
+
+    <div class="sf-sidebar-footer">
+      <div class="sf-sidebar-footer-title">Flat navigation</div>
+      <div class="sf-sidebar-footer-copy">No submenus. No nested routes.</div>
+    </div>
+  </aside>
+
+  <div class="sf-overlay" id="navOverlay"></div>
+
+  <header class="sf-topbar">
+    <div class="sf-topbar-left">
+      <button class="sf-mobile-menu" type="button" id="mobileMenu" aria-label="Open navigation">☰</button>
+      <div>
+        <div class="sf-page-eyebrow">Sovereign Finance</div>
+        <div class="sf-page-title">Bills</div>
+      </div>
+    </div>
+
+    <div class="sf-topbar-right">
+      <button class="sf-theme-toggle" type="button" id="themeToggle" aria-label="Toggle theme">◐</button>
+    </div>
+  </header>
+
+  <main class="app-page">
+    <section class="finance-hero">
+      <div class="hero-kicker">Recurring obligations</div>
+      <h1 class="hero-title">Bills, clean and current.</h1>
+      <p class="hero-copy">
+        Track monthly bills, due dates, clearing status, and upcoming obligations without audit clutter.
+      </p>
+
+      <div class="stack-sm" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;">
+        <button class="btn btn-success" type="button" id="addBillBtn">Add Bill</button>
+        <button class="btn btn-secondary" type="button" id="refreshBtn">Refresh</button>
+        <a class="btn btn-secondary" href="/add.html">Add Transaction</a>
+      </div>
+    </section>
+
+    <section class="grid-4">
+      <article class="kpi-card">
+        <div class="kpi-label">Active bills</div>
+        <div class="kpi-value" id="activeBills">—</div>
+        <div class="kpi-sub" id="activeBillsNote">Loading bills</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-label">Monthly total</div>
+        <div class="kpi-value" id="monthlyTotal">—</div>
+        <div class="kpi-sub">Active obligations</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-label">Due this month</div>
+        <div class="kpi-value" id="dueThisMonth">—</div>
+        <div class="kpi-sub">Pending active bills</div>
+      </article>
+
+      <article class="kpi-card">
+        <div class="kpi-label">Cleared</div>
+        <div class="kpi-value" id="clearedCount">—</div>
+        <div class="kpi-sub">Marked cleared</div>
+      </article>
+    </section>
+
+    <section class="dashboard-grid">
+      <div class="stack">
+        <article class="card card-padded">
+          <div class="section-kicker">Bills register</div>
+          <h2 class="authority-title" style="margin-top:12px;">Monthly obligations</h2>
+          <p class="authority-copy">Add, edit, and clear bills from one working register.</p>
+
+          <div class="grid-2" style="margin-top:16px;align-items:end;">
+            <div class="field">
+              <label for="searchInput">Search</label>
+              <input id="searchInput" type="search" placeholder="Search bills..." />
+            </div>
+
+            <div class="field">
+              <label for="statusFilter">View</label>
+              <select id="statusFilter">
+                <option value="active">Active</option>
+                <option value="pending">Pending</option>
+                <option value="cleared">Cleared</option>
+                <option value="all">All</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="table-wrap" style="margin-top:16px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Bill</th>
+                  <th>Amount</th>
+                  <th>Due</th>
+                  <th>Status</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="billsTableBody">
+                <tr>
+                  <td colspan="5" class="muted text-center">Loading bills...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
       </div>
 
-      <aside class="card status-card">
-        <div>
-          <span class="status-pill"><span id="statusDot" class="dot"></span><span id="statusText">Loading bills</span></span>
-        </div>
-        <p id="statusDetail">Fetching your current obligations.</p>
+      <aside class="stack">
+        <article class="card card-padded">
+          <div class="section-kicker">Quick actions</div>
+          <div class="stack-sm" style="margin-top:16px;">
+            <button class="btn btn-success" type="button" id="sideAddBillBtn">Add Bill</button>
+            <button class="btn btn-secondary" type="button" id="sideRefreshBtn">Refresh Bills</button>
+            <a class="btn btn-secondary" href="/add.html">Add Transaction</a>
+          </div>
+        </article>
+
+        <article class="card card-padded">
+          <div class="section-kicker">Upcoming due</div>
+          <h2 class="authority-title" style="margin-top:12px;">Next bills</h2>
+          <p class="authority-copy">Pending active bills ordered by due day.</p>
+
+          <div class="stack-sm" id="upcomingList" style="margin-top:16px;">
+            <div class="card card-compact muted">Loading upcoming bills...</div>
+          </div>
+        </article>
+
+        <article class="card card-padded">
+          <div class="section-kicker">Page status</div>
+          <h2 class="authority-title" style="margin-top:12px;" id="pageStatus">Loading</h2>
+          <p class="authority-copy" id="pageStatusDetail">Fetching bills.</p>
+          <p class="authority-copy">Last refreshed: <span id="lastRefreshed">—</span></p>
+        </article>
       </aside>
     </section>
 
-    <section class="stats" aria-label="Bills summary">
-      <article class="stat">
-        <div class="label">Active bills</div>
-        <div class="value" id="activeCount">—</div>
-      </article>
-      <article class="stat">
-        <div class="label">Monthly total</div>
-        <div class="value" id="monthlyTotal">—</div>
-      </article>
-      <article class="stat">
-        <div class="label">Due this month</div>
-        <div class="value" id="dueCount">—</div>
-      </article>
-    </section>
-
-    <section class="toolbar" aria-label="Bills controls">
-      <div class="filters">
-        <input class="input" id="searchInput" type="search" placeholder="Search bills..." autocomplete="off" />
-        <select class="select" id="statusFilter">
-          <option value="active">Active</option>
-          <option value="all">All</option>
-          <option value="cleared">Cleared</option>
-          <option value="pending">Pending</option>
-        </select>
-      </div>
-    </section>
-
-    <section class="card table-card" aria-label="Bills register">
-      <table>
-        <thead>
-          <tr>
-            <th>Bill</th>
-            <th>Amount</th>
-            <th>Due</th>
-            <th>Status</th>
-            <th style="text-align:right;">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="billsBody">
-          <tr>
-            <td colspan="5" class="empty">Loading bills...</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <pre class="debug" id="debugPanel"></pre>
+    <pre id="debugPanel" hidden></pre>
   </main>
 
-  <section class="modal-backdrop" id="billModal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="billModalTitle">
-      <div class="modal-head">
+  <section id="billModal" hidden>
+    <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
+    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,620px);max-height:90vh;overflow:auto;">
+      <div class="grid-2" style="align-items:start;">
         <div>
-          <h2 id="billModalTitle">Add Bill</h2>
-          <p>Save the obligation details you want tracked every month.</p>
+          <div class="section-kicker" id="billModalKicker">Bill</div>
+          <h2 class="authority-title" style="margin-top:12px;" id="billModalTitle">Add Bill</h2>
+          <p class="authority-copy">Save the recurring obligation details.</p>
         </div>
-        <button class="small-btn" type="button" data-close-modal>Close</button>
+        <div class="text-right">
+          <button class="btn btn-secondary" type="button" id="closeBillModal">Close</button>
+        </div>
       </div>
 
-      <form id="billForm">
+      <form id="billForm" class="stack" style="margin-top:18px;">
         <input type="hidden" id="billId" />
 
-        <div class="form-grid">
-          <div class="field full">
-            <label for="billName">Name</label>
-            <input class="input" id="billName" required placeholder="e.g. Internet, Rent, School fee" />
-          </div>
+        <div class="field">
+          <label for="billName">Name</label>
+          <input id="billName" required placeholder="e.g. Internet, Rent, School fee" />
+        </div>
 
+        <div class="grid-2">
           <div class="field">
             <label for="billAmount">Amount</label>
-            <input class="input" id="billAmount" required type="number" min="0" step="0.01" placeholder="0.00" />
+            <input id="billAmount" required type="number" min="0" step="0.01" placeholder="0.00" />
           </div>
 
           <div class="field">
             <label for="billDueDay">Due day</label>
-            <input class="input" id="billDueDay" type="number" min="1" max="31" step="1" placeholder="1-31" />
+            <input id="billDueDay" type="number" min="1" max="31" step="1" placeholder="1-31" />
           </div>
+        </div>
 
+        <div class="grid-2">
           <div class="field">
             <label for="billCategory">Category</label>
-            <input class="input" id="billCategory" placeholder="bills" />
+            <input id="billCategory" placeholder="bills" />
           </div>
 
           <div class="field">
             <label for="billStatus">Status</label>
-            <select class="select" id="billStatus">
+            <select id="billStatus">
               <option value="active">Active</option>
               <option value="archived">Archived</option>
-              <option value="deleted">Deleted</option>
             </select>
           </div>
-
-          <div class="field full">
-            <label for="billNotes">Notes</label>
-            <textarea class="textarea" id="billNotes" rows="3" placeholder="Optional"></textarea>
-          </div>
         </div>
 
-        <div class="modal-actions">
-          <button class="ghost-btn" type="button" data-close-modal>Cancel</button>
-          <button class="primary-btn" type="submit">Save Bill</button>
+        <div class="field">
+          <label for="billNotes">Notes</label>
+          <textarea id="billNotes" placeholder="Optional"></textarea>
         </div>
+
+        <button class="primary-submit" type="submit">Save Bill</button>
       </form>
     </div>
   </section>
 
-  <section class="modal-backdrop" id="clearModal" aria-hidden="true">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="clearModalTitle">
-      <div class="modal-head">
+  <section id="clearModal" hidden>
+    <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
+    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,560px);max-height:90vh;overflow:auto;">
+      <div class="grid-2" style="align-items:start;">
         <div>
-          <h2 id="clearModalTitle">Clear Bill</h2>
-          <p id="clearModalText">Mark this bill as cleared for the selected month.</p>
+          <div class="section-kicker">Clear bill</div>
+          <h2 class="authority-title" style="margin-top:12px;" id="clearModalTitle">Mark as cleared</h2>
+          <p class="authority-copy" id="clearModalCopy">Mark this bill as cleared for the selected month.</p>
         </div>
-        <button class="small-btn" type="button" data-close-clear>Close</button>
+        <div class="text-right">
+          <button class="btn btn-secondary" type="button" id="closeClearModal">Close</button>
+        </div>
       </div>
 
-      <form id="clearForm">
+      <form id="clearForm" class="stack" style="margin-top:18px;">
         <input type="hidden" id="clearBillId" />
 
-        <div class="form-grid">
+        <div class="grid-2">
           <div class="field">
             <label for="clearMonth">Month</label>
-            <input class="input" id="clearMonth" type="month" required />
+            <input id="clearMonth" type="month" required />
           </div>
 
           <div class="field">
             <label for="clearAmount">Amount paid</label>
-            <input class="input" id="clearAmount" type="number" min="0" step="0.01" required />
-          </div>
-
-          <div class="field full">
-            <label for="clearNotes">Notes</label>
-            <textarea class="textarea" id="clearNotes" rows="3" placeholder="Optional"></textarea>
+            <input id="clearAmount" type="number" min="0" step="0.01" required />
           </div>
         </div>
 
-        <div class="modal-actions">
-          <button class="ghost-btn" type="button" data-close-clear>Cancel</button>
-          <button class="primary-btn" type="submit">Mark Cleared</button>
+        <div class="field">
+          <label for="clearNotes">Notes</label>
+          <textarea id="clearNotes" placeholder="Optional"></textarea>
         </div>
+
+        <button class="primary-submit" type="submit">Mark Cleared</button>
       </form>
     </div>
   </section>
 
-  <div class="toast" id="toast">
-    <strong id="toastTitle">Saved</strong>
-    <div class="muted" id="toastBody"></div>
-  </div>
+  <div class="toast" id="toast"></div>
 
-  <script src="/js/bills.js?v=0.4.1" defer></script>
+  <script src="/js/theme.js?v=1.0.0"></script>
+  <script src="/js/nav.js?v=2.0.0"></script>
+  <script src="/js/enforcement.js?v=0.2.0"></script>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const VERSION = "ui4-bills-1";
+      const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+
+      const state = {
+        bills: [],
+        raw: null,
+        error: null,
+        search: "",
+        filter: "active"
+      };
+
+      const $ = id => document.getElementById(id);
+
+      const els = {
+        activeBills: $("activeBills"),
+        activeBillsNote: $("activeBillsNote"),
+        monthlyTotal: $("monthlyTotal"),
+        dueThisMonth: $("dueThisMonth"),
+        clearedCount: $("clearedCount"),
+        searchInput: $("searchInput"),
+        statusFilter: $("statusFilter"),
+        billsTableBody: $("billsTableBody"),
+        upcomingList: $("upcomingList"),
+        pageStatus: $("pageStatus"),
+        pageStatusDetail: $("pageStatusDetail"),
+        lastRefreshed: $("lastRefreshed"),
+        addBillBtn: $("addBillBtn"),
+        sideAddBillBtn: $("sideAddBillBtn"),
+        refreshBtn: $("refreshBtn"),
+        sideRefreshBtn: $("sideRefreshBtn"),
+        billModal: $("billModal"),
+        closeBillModal: $("closeBillModal"),
+        billForm: $("billForm"),
+        billModalTitle: $("billModalTitle"),
+        billId: $("billId"),
+        billName: $("billName"),
+        billAmount: $("billAmount"),
+        billDueDay: $("billDueDay"),
+        billCategory: $("billCategory"),
+        billStatus: $("billStatus"),
+        billNotes: $("billNotes"),
+        clearModal: $("clearModal"),
+        closeClearModal: $("closeClearModal"),
+        clearForm: $("clearForm"),
+        clearBillId: $("clearBillId"),
+        clearMonth: $("clearMonth"),
+        clearAmount: $("clearAmount"),
+        clearNotes: $("clearNotes"),
+        clearModalTitle: $("clearModalTitle"),
+        clearModalCopy: $("clearModalCopy"),
+        toast: $("toast"),
+        debugPanel: $("debugPanel")
+      };
+
+      window.SovereignBills = {
+        version: VERSION,
+        refresh,
+        getState: () => JSON.parse(JSON.stringify(state))
+      };
+
+      function money(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "—";
+        return new Intl.NumberFormat("en-PK", {
+          style: "currency",
+          currency: "PKR",
+          maximumFractionDigits: 0
+        }).format(n);
+      }
+
+      function num(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      function currentMonth() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      }
+
+      function todayDay() {
+        return new Date().getDate();
+      }
+
+      async function readJson(path, options = {}) {
+        const res = await fetch(path, {
+          ...options,
+          headers: {
+            "content-type": "application/json",
+            ...(options.headers || {})
+          }
+        });
+
+        const text = await res.text();
+
+        let json;
+        try {
+          json = text ? JSON.parse(text) : {};
+        } catch {
+          throw new Error(`${path} returned non-JSON`);
+        }
+
+        if (!res.ok) {
+          throw new Error(json?.error || json?.message || `${path} HTTP ${res.status}`);
+        }
+
+        return json;
+      }
+
+      function asArray(payload) {
+        if (!payload) return [];
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload.bills)) return payload.bills;
+        if (Array.isArray(payload.items)) return payload.items;
+        if (Array.isArray(payload.data)) return payload.data;
+        if (Array.isArray(payload.rows)) return payload.rows;
+        return [];
+      }
+
+      function normalizeBill(raw) {
+        const id = raw.id ?? raw.bill_id ?? raw.uuid ?? raw.name;
+        const name = raw.name ?? raw.title ?? raw.bill_name ?? "Unnamed bill";
+        const amount = num(raw.amount ?? raw.monthly_amount ?? raw.expected_amount ?? raw.value);
+        const dueDay = raw.due_day ?? raw.dueDay ?? raw.day ?? raw.due_date_day ?? raw.due_date ?? null;
+        const status = String(raw.status ?? "active").toLowerCase();
+        const cleared =
+          raw.cleared === true ||
+          raw.is_cleared === true ||
+          raw.current_month_cleared === true ||
+          String(raw.clear_status ?? "").toLowerCase() === "cleared";
+        const category = raw.category ?? raw.category_id ?? raw.type ?? "bills";
+        const notes = raw.notes ?? raw.description ?? "";
+
+        return {
+          ...raw,
+          id,
+          name,
+          amount,
+          dueDay,
+          status,
+          cleared,
+          category,
+          notes
+        };
+      }
+
+      async function refresh() {
+        state.error = null;
+        renderLoading();
+
+        try {
+          const payload = await readJson(`/api/bills?cb=${Date.now()}`);
+          state.raw = payload;
+          state.bills = asArray(payload).map(normalizeBill);
+          state.error = null;
+        } catch (err) {
+          state.raw = null;
+          state.bills = [];
+          state.error = err?.message || "Unable to load bills.";
+        }
+
+        render();
+      }
+
+      function filteredBills() {
+        const q = state.search.trim().toLowerCase();
+
+        return state.bills.filter(bill => {
+          const matchesSearch = !q || [bill.name, bill.category, bill.notes]
+            .filter(Boolean)
+            .some(v => String(v).toLowerCase().includes(q));
+
+          let matchesFilter = true;
+
+          if (state.filter === "active") matchesFilter = bill.status === "active";
+          if (state.filter === "pending") matchesFilter = bill.status === "active" && !bill.cleared;
+          if (state.filter === "cleared") matchesFilter = bill.cleared === true;
+
+          return matchesSearch && matchesFilter;
+        });
+      }
+
+      function renderLoading() {
+        els.pageStatus.textContent = "Loading";
+        els.pageStatusDetail.textContent = "Fetching bills.";
+        els.billsTableBody.innerHTML = `<tr><td colspan="5" class="muted text-center">Loading bills...</td></tr>`;
+        els.upcomingList.innerHTML = `<div class="card card-compact muted">Loading upcoming bills...</div>`;
+      }
+
+      function render() {
+        renderStatus();
+        renderStats();
+        renderTable();
+        renderUpcoming();
+        renderDebug();
+      }
+
+      function renderStatus() {
+        els.lastRefreshed.textContent = new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+
+        if (state.error) {
+          els.pageStatus.textContent = "Unavailable";
+          els.pageStatusDetail.textContent = state.error;
+          return;
+        }
+
+        els.pageStatus.textContent = "Ready";
+        els.pageStatusDetail.textContent = "Bills are loaded.";
+      }
+
+      function renderStats() {
+        const active = state.bills.filter(b => b.status === "active");
+        const monthly = active.map(b => b.amount).filter(v => v !== null).reduce((sum, v) => sum + v, 0);
+        const due = active.filter(b => {
+          const d = Number.parseInt(String(b.dueDay ?? ""), 10);
+          return Number.isFinite(d) && d >= todayDay() && !b.cleared;
+        });
+        const cleared = state.bills.filter(b => b.cleared);
+
+        els.activeBills.textContent = state.error ? "—" : String(active.length);
+        els.activeBillsNote.textContent = state.error ? "Bills unavailable" : `${state.bills.length} total record${state.bills.length === 1 ? "" : "s"}`;
+        els.monthlyTotal.textContent = active.length ? money(monthly) : "—";
+        els.dueThisMonth.textContent = state.error ? "—" : String(due.length);
+        els.clearedCount.textContent = state.error ? "—" : String(cleared.length);
+      }
+
+      function renderTable() {
+        if (state.error) {
+          els.billsTableBody.innerHTML = `<tr><td colspan="5" class="text-center">${escapeHtml(state.error)}</td></tr>`;
+          return;
+        }
+
+        const bills = filteredBills();
+
+        if (!bills.length) {
+          els.billsTableBody.innerHTML = `<tr><td colspan="5" class="muted text-center">No bills found.</td></tr>`;
+          return;
+        }
+
+        els.billsTableBody.innerHTML = bills.map(bill => {
+          const due = bill.dueDay ? `Day ${escapeHtml(bill.dueDay)}` : "—";
+          const badge = bill.cleared
+            ? `<span class="badge badge-pass">Cleared</span>`
+            : `<span class="badge badge-warning">Pending</span>`;
+
+          return `
+            <tr>
+              <td>
+                <div class="strong">${escapeHtml(bill.name)}</div>
+                <div class="muted">${escapeHtml(bill.category || "bills")}${bill.notes ? ` · ${escapeHtml(bill.notes)}` : ""}</div>
+              </td>
+              <td>${money(bill.amount)}</td>
+              <td>${due}</td>
+              <td>${badge}</td>
+              <td class="text-right">
+                <button class="btn btn-secondary" type="button" data-edit="${escapeHtml(bill.id)}">Edit</button>
+                <button class="btn btn-success" type="button" data-clear="${escapeHtml(bill.id)}">Clear</button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      function renderUpcoming() {
+        if (state.error) {
+          els.upcomingList.innerHTML = `<div class="authority-panel blocked">${escapeHtml(state.error)}</div>`;
+          return;
+        }
+
+        const upcoming = state.bills
+          .filter(b => b.status === "active" && !b.cleared)
+          .slice()
+          .sort((a, b) => Number(a.dueDay || 99) - Number(b.dueDay || 99))
+          .slice(0, 5);
+
+        if (!upcoming.length) {
+          els.upcomingList.innerHTML = `<div class="card card-compact muted">No pending active bills.</div>`;
+          return;
+        }
+
+        els.upcomingList.innerHTML = upcoming.map(bill => `
+          <div class="card card-compact">
+            <div class="grid-2" style="align-items:center;">
+              <div>
+                <div class="strong">${escapeHtml(bill.name)}</div>
+                <div class="muted">Due ${bill.dueDay ? `day ${escapeHtml(bill.dueDay)}` : "—"}</div>
+              </div>
+              <div class="text-right strong">${money(bill.amount)}</div>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      function renderDebug() {
+        if (!DEBUG || !els.debugPanel) return;
+
+        els.debugPanel.hidden = false;
+        els.debugPanel.textContent = JSON.stringify({
+          ui_version: VERSION,
+          mode: "debug",
+          error: state.error,
+          count: state.bills.length,
+          filter: state.filter,
+          search: state.search,
+          raw_payload: state.raw
+        }, null, 2);
+      }
+
+      function billById(id) {
+        return state.bills.find(b => String(b.id) === String(id));
+      }
+
+      function openBillModal(bill = null) {
+        els.billModal.hidden = false;
+        els.billModalTitle.textContent = bill ? "Edit Bill" : "Add Bill";
+        els.billId.value = bill?.id ?? "";
+        els.billName.value = bill?.name ?? "";
+        els.billAmount.value = bill?.amount ?? "";
+        els.billDueDay.value = bill?.dueDay ?? "";
+        els.billCategory.value = bill?.category ?? "bills";
+        els.billStatus.value = bill?.status ?? "active";
+        els.billNotes.value = bill?.notes ?? "";
+        setTimeout(() => els.billName.focus(), 30);
+      }
+
+      function closeBillModal() {
+        els.billModal.hidden = true;
+        els.billForm.reset();
+        els.billId.value = "";
+      }
+
+      function openClearModal(bill) {
+        els.clearModal.hidden = false;
+        els.clearBillId.value = bill.id;
+        els.clearAmount.value = bill.amount ?? "";
+        els.clearMonth.value = currentMonth();
+        els.clearNotes.value = "";
+        els.clearModalTitle.textContent = `Clear ${bill.name}`;
+        els.clearModalCopy.textContent = `Mark ${bill.name} as cleared for the selected month.`;
+        setTimeout(() => els.clearAmount.focus(), 30);
+      }
+
+      function closeClearModal() {
+        els.clearModal.hidden = true;
+        els.clearForm.reset();
+        els.clearBillId.value = "";
+      }
+
+      function toast(message, type = "") {
+        els.toast.textContent = message;
+        els.toast.className = `toast show ${type}`;
+        clearTimeout(toast.timer);
+        toast.timer = setTimeout(() => {
+          els.toast.className = "toast";
+        }, 2800);
+      }
+
+      async function tryMutation(candidates, fallbackBody) {
+        let lastError = null;
+
+        for (const candidate of candidates) {
+          try {
+            return await readJson(candidate.url, {
+              method: candidate.method,
+              body: JSON.stringify(candidate.body || fallbackBody)
+            });
+          } catch (err) {
+            lastError = err;
+          }
+        }
+
+        throw lastError || new Error("Unable to save changes.");
+      }
+
+      function billPayloadFromForm() {
+        const id = els.billId.value.trim();
+
+        const payload = {
+          name: els.billName.value.trim(),
+          amount: Number(els.billAmount.value),
+          due_day: els.billDueDay.value ? Number.parseInt(els.billDueDay.value, 10) : null,
+          category: els.billCategory.value.trim() || "bills",
+          status: els.billStatus.value,
+          notes: els.billNotes.value.trim()
+        };
+
+        if (id) payload.id = id;
+        return payload;
+      }
+
+      async function saveBill(payload) {
+        const isEdit = Boolean(payload.id);
+
+        const candidates = isEdit
+          ? [
+              { url: `/api/bills/${encodeURIComponent(payload.id)}`, method: "PUT", body: payload },
+              { url: `/api/bills/${encodeURIComponent(payload.id)}`, method: "POST", body: payload },
+              { url: "/api/bills", method: "POST", body: { ...payload, action: "update" } }
+            ]
+          : [
+              { url: "/api/bills", method: "POST", body: payload }
+            ];
+
+        return tryMutation(candidates, payload);
+      }
+
+      async function clearBill(payload) {
+        const id = payload.id;
+
+        const candidates = [
+          { url: `/api/bills/${encodeURIComponent(id)}/clear`, method: "POST", body: payload },
+          { url: `/api/bills/${encodeURIComponent(id)}`, method: "POST", body: { ...payload, action: "clear" } },
+          { url: "/api/bills", method: "POST", body: { ...payload, bill_id: id, action: "clear" } }
+        ];
+
+        return tryMutation(candidates, payload);
+      }
+
+      function bindEvents() {
+        els.addBillBtn.addEventListener("click", () => openBillModal());
+        els.sideAddBillBtn.addEventListener("click", () => openBillModal());
+        els.refreshBtn.addEventListener("click", refresh);
+        els.sideRefreshBtn.addEventListener("click", refresh);
+
+        els.closeBillModal.addEventListener("click", closeBillModal);
+        els.closeClearModal.addEventListener("click", closeClearModal);
+
+        els.searchInput.addEventListener("input", event => {
+          state.search = event.target.value;
+          render();
+        });
+
+        els.statusFilter.addEventListener("change", event => {
+          state.filter = event.target.value;
+          render();
+        });
+
+        document.addEventListener("click", event => {
+          const editId = event.target?.getAttribute?.("data-edit");
+          const clearId = event.target?.getAttribute?.("data-clear");
+
+          if (editId) {
+            const bill = billById(editId);
+            if (bill) openBillModal(bill);
+          }
+
+          if (clearId) {
+            const bill = billById(clearId);
+            if (bill) openClearModal(bill);
+          }
+        });
+
+        document.addEventListener("keydown", event => {
+          if (event.key === "Escape") {
+            closeBillModal();
+            closeClearModal();
+          }
+        });
+
+        els.billForm.addEventListener("submit", async event => {
+          event.preventDefault();
+
+          const payload = billPayloadFromForm();
+
+          if (!payload.name) {
+            toast("Bill name is required.", "toast-warning");
+            return;
+          }
+
+          if (!Number.isFinite(payload.amount)) {
+            toast("Bill amount is required.", "toast-warning");
+            return;
+          }
+
+          try {
+            await saveBill(payload);
+            closeBillModal();
+            toast("Bill saved.", "toast-success");
+            await refresh();
+          } catch (err) {
+            toast(err?.message || "Unable to save bill.", "toast-error");
+          }
+        });
+
+        els.clearForm.addEventListener("submit", async event => {
+          event.preventDefault();
+
+          const payload = {
+            id: els.clearBillId.value,
+            month: els.clearMonth.value,
+            amount: Number(els.clearAmount.value),
+            notes: els.clearNotes.value.trim()
+          };
+
+          if (!payload.id || !payload.month || !Number.isFinite(payload.amount)) {
+            toast("Month and amount are required.", "toast-warning");
+            return;
+          }
+
+          try {
+            await clearBill(payload);
+            closeClearModal();
+            toast("Bill cleared.", "toast-success");
+            await refresh();
+          } catch (err) {
+            toast(err?.message || "Unable to clear bill.", "toast-error");
+          }
+        });
+      }
+
+      bindEvents();
+      refresh();
+    })();
+  </script>
 </body>
 </html>
