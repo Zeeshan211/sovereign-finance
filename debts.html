@@ -1,1194 +1,883 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="light">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
-<title>Debts - Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=2.0.2" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Debts · Sovereign Finance</title>
+  <meta name="description" content="Manage debts, payments, and receivables in Sovereign Finance." />
 
-<style>
-.debts-page {
-  max-width: 1480px;
-}
-
-.debts-hero-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
-  gap: 18px;
-  align-items: stretch;
-}
-
-.debts-side {
-  display: grid;
-  gap: 14px;
-}
-
-.debts-actions,
-.debt-row-actions,
-.debts-status-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.debts-status-strip {
-  margin-top: 18px;
-}
-
-.debts-card {
-  padding: 18px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-md);
-}
-
-.debts-card-title {
-  color: var(--text-strong);
-  font-size: 17px;
-  font-weight: 950;
-  letter-spacing: -0.035em;
-}
-
-.debts-card-copy {
-  margin-top: 8px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 760;
-}
-
-.debts-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 18px;
-}
-
-.debts-section-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 26px 0 14px;
-}
-
-.debts-section-title {
-  color: var(--text-strong);
-  font-size: 22px;
-  font-weight: 950;
-  letter-spacing: -0.045em;
-}
-
-.debts-section-copy {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 760;
-}
-
-.debts-table-wrap {
-  overflow: auto;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
-}
-
-.debts-table {
-  width: 100%;
-  min-width: 1040px;
-  border-collapse: collapse;
-}
-
-.debts-table th {
-  padding: 12px;
-  color: var(--text-muted);
-  background: var(--surface-2);
-  font-size: 11px;
-  font-weight: 950;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-}
-
-.debts-table td {
-  padding: 13px 12px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text);
-  font-size: 13px;
-  vertical-align: top;
-}
-
-.debts-table tr:last-child td {
-  border-bottom: 0;
-}
-
-.debt-name {
-  color: var(--text-strong);
-  font-size: 14px;
-  font-weight: 950;
-}
-
-.debt-id {
-  margin-top: 3px;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-family: var(--font-mono);
-}
-
-.debt-amount {
-  color: var(--text-strong);
-  font-size: 15px;
-  font-weight: 950;
-  white-space: nowrap;
-}
-
-.debt-amount.owe {
-  color: var(--warn);
-}
-
-.debt-amount.owed {
-  color: var(--success);
-}
-
-.debt-action-button {
-  appearance: none;
-  min-height: 38px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  padding: 8px 10px;
-  background: var(--surface-3);
-  color: var(--text-strong);
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.debt-action-button.primary {
-  background: var(--brand);
-  color: #fff;
-  border-color: transparent;
-}
-
-.debt-action-button.success {
-  background: var(--success);
-  color: #fff;
-  border-color: transparent;
-}
-
-.debt-action-button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.debts-empty {
-  padding: 28px;
-  border-radius: var(--r-xl);
-  border: 1px dashed var(--border);
-  background: var(--surface-1);
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 820;
-  text-align: center;
-}
-
-.debt-notice {
-  margin-top: 14px;
-  padding: 14px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 780;
-  box-shadow: var(--shadow-xs);
-}
-
-.debt-notice.success {
-  border-color: rgba(4, 120, 87, 0.24);
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.debt-notice.fail {
-  border-color: rgba(185, 28, 28, 0.22);
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.debt-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-  background: rgba(15, 23, 42, 0.58);
-  backdrop-filter: blur(10px);
-}
-
-.debt-modal-backdrop.on {
-  display: flex;
-}
-
-.debt-modal {
-  width: min(720px, 100%);
-  max-height: min(760px, 92vh);
-  overflow: auto;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-xl);
-}
-
-.debt-modal-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 20px 20px 14px;
-  border-bottom: 1px solid var(--border);
-}
-
-.debt-modal-title {
-  color: var(--text-strong);
-  font-size: 22px;
-  font-weight: 950;
-  letter-spacing: -0.045em;
-}
-
-.debt-modal-copy {
-  margin-top: 5px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.45;
-  font-weight: 760;
-}
-
-.debt-modal-body {
-  padding: 18px 20px 20px;
-}
-
-.debt-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.debt-form-grid .full {
-  grid-column: 1 / -1;
-}
-
-.debt-modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 18px;
-}
-
-.debt-close-button {
-  appearance: none;
-  border: 0;
-  background: var(--surface-2);
-  color: var(--text-strong);
-  border-radius: 999px;
-  width: 38px;
-  height: 38px;
-  font-size: 18px;
-  font-weight: 950;
-  cursor: pointer;
-}
-
-.debt-debug {
-  display: none;
-  margin-top: 18px;
-  padding: 16px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
-}
-
-.debt-debug.on {
-  display: block;
-}
-
-.debt-debug pre {
-  max-height: 360px;
-  overflow: auto;
-  padding: 12px;
-  border-radius: var(--r-lg);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 11px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-}
-
-.debts-page-meta {
-  display: none !important;
-}
-
-@media (max-width: 1180px) {
-  .debts-hero-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .debts-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 720px) {
-  .debts-kpi-grid,
-  .debt-form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .debt-form-grid .full {
-    grid-column: auto;
-  }
-
-  .debts-section-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .debts-actions,
-  .debts-actions .btn {
-    width: 100%;
-  }
-
-  .debt-modal-actions .btn {
-    width: 100%;
-  }
-}
-</style>
+  <link rel="stylesheet" href="/css/app.css?v=ui-token-lock-2-1" />
+  <link rel="stylesheet" href="/css/nav.css" />
+  <link rel="stylesheet" href="/css/icons.css" />
 </head>
 
 <body>
-<header>
-<div>
-<div class="brand">Sovereign Finance</div>
-<div class="title">Debts</div>
-</div>
-</header>
+  <aside class="sf-sidebar" aria-label="Sovereign Finance navigation">
+    <div class="sf-sidebar-brand">
+      <a class="sf-brand-home" href="/index.html">
+        <span class="sf-brand-mark">SF</span>
+        <span class="sf-brand-copy">
+          <span class="sf-brand-title">Sovereign Finance</span>
+          <span class="sf-brand-subtitle">Personal finance system</span>
+        </span>
+      </a>
 
-<main class="app-page debts-page">
-<section class="debts-hero-grid">
-<div class="page-hero">
-<div class="hero-kicker">Debt control</div>
-<h1 class="hero-title">Track what I owe and what is owed to me.</h1>
-<p class="hero-copy">
-Use this page for normal debt work: add debts, edit details, record payments, and mark received money. Safety checks run quietly in the background.
-</p>
+      <button class="sf-sidebar-fold" type="button" id="sidebarFold" aria-label="Collapse sidebar">
+        <span class="sf-nav-icon">‹</span>
+      </button>
+    </div>
 
-<div id="debugBadges" class="debts-status-strip" hidden>
-<span id="debtsApiBadge" class="badge badge-unknown">API loading</span>
-<span id="debtsGovernorBadge" class="badge badge-unknown">Authority loading</span>
-<span id="debtsSaveBadge" class="badge badge-unknown">save checking</span>
-<span id="debtsPayBadge" class="badge badge-unknown">pay checking</span>
-</div>
-</div>
+    <nav class="sf-nav-scroll" aria-label="Main navigation">
+      <a class="sf-nav-link" href="/index.html"><span class="sf-nav-icon">⌂</span><span class="sf-nav-label">Hub</span></a>
+      <a class="sf-nav-link" href="/add.html"><span class="sf-nav-icon">＋</span><span class="sf-nav-label">Add</span></a>
+      <a class="sf-nav-link" href="/transactions.html"><span class="sf-nav-icon">≡</span><span class="sf-nav-label">Ledger</span></a>
+      <a class="sf-nav-link" href="/bills.html"><span class="sf-nav-icon">◷</span><span class="sf-nav-label">Bills</span></a>
+      <a class="sf-nav-link active" href="/debts.html" aria-current="page"><span class="sf-nav-icon">↔</span><span class="sf-nav-label">Debts</span></a>
+      <a class="sf-nav-link" href="/salary.html"><span class="sf-nav-icon">₨</span><span class="sf-nav-label">Salary</span></a>
+      <a class="sf-nav-link" href="/forecast.html"><span class="sf-nav-icon">⌁</span><span class="sf-nav-label">Forecast</span></a>
+      <a class="sf-nav-link" href="/reconciliation.html"><span class="sf-nav-icon">✓</span><span class="sf-nav-label">Reconcile</span></a>
+      <a class="sf-nav-link" href="/accounts.html"><span class="sf-nav-icon">◫</span><span class="sf-nav-label">Accounts</span></a>
+      <a class="sf-nav-link" href="/cc.html"><span class="sf-nav-icon">▣</span><span class="sf-nav-label">Credit Card</span></a>
+      <a class="sf-nav-link" href="/monthly-close.html"><span class="sf-nav-icon">⚙</span><span class="sf-nav-label">Command Centre</span></a>
+    </nav>
 
-<aside class="debts-side">
-<div class="debts-card">
-<div class="debts-card-title">Current position</div>
-<div id="debtPositionCopy" class="debts-card-copy">Loading debt position...</div>
-</div>
+    <div class="sf-sidebar-footer">
+      <div class="sf-sidebar-footer-title">Flat navigation</div>
+      <div class="sf-sidebar-footer-copy">No submenus. No nested routes.</div>
+    </div>
+  </aside>
 
-<div class="debts-card">
-<div class="debts-card-title">Page status</div>
-<div id="debtPageStatusCopy" class="debts-card-copy">Loading...</div>
-<div style="margin-top:12px">
-<span id="debtPageStatusBadge" class="badge badge-unknown">Loading</span>
-</div>
-</div>
-</aside>
-</section>
+  <div class="sf-overlay" id="navOverlay"></div>
 
-<section class="debts-kpi-grid">
-<div class="kpi-card">
-<div class="kpi-label">I owe</div>
-<div id="totalOwe" class="kpi-value">-</div>
-<div class="kpi-sub">Active payable debts</div>
-</div>
+  <header class="sf-topbar">
+    <div class="sf-topbar-left">
+      <button class="sf-mobile-menu" type="button" id="mobileMenu" aria-label="Open navigation">☰</button>
+      <div>
+        <div class="sf-page-eyebrow">Sovereign Finance</div>
+        <div class="sf-page-title">Debts</div>
+      </div>
+    </div>
 
-<div class="kpi-card">
-<div class="kpi-label">Owed to me</div>
-<div id="totalOwed" class="kpi-value">-</div>
-<div class="kpi-sub">Active receivables</div>
-</div>
+    <div class="sf-topbar-right">
+      <button class="sf-theme-toggle" type="button" id="themeToggle" aria-label="Toggle theme">◐</button>
+    </div>
+  </header>
 
-<div class="kpi-card">
-<div class="kpi-label">Net position</div>
-<div id="netPosition" class="kpi-value">-</div>
-<div class="kpi-sub">Owed to me minus I owe</div>
-</div>
+  <main class="app-page">
+    <section class="finance-hero">
+      <div class="hero-kicker">Debt register</div>
+      <h1 class="hero-title">Debts, payments, and receivables.</h1>
+      <p class="hero-copy">
+        Track what you owe, what is owed to you, and every payment or received amount from one clean register.
+      </p>
 
-<div class="kpi-card">
-<div class="kpi-label">Active rows</div>
-<div id="debtCount" class="kpi-value">-</div>
-<div class="kpi-sub">Debt records</div>
-</div>
-</section>
+      <div class="stack-sm" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;">
+        <button class="btn btn-success" type="button" id="addDebtBtn">Add Debt</button>
+        <button class="btn btn-secondary" type="button" id="refreshBtn">Refresh</button>
+        <a class="btn btn-secondary" href="/add.html">Add Transaction</a>
+      </div>
+    </section>
 
-<section>
-<div class="debts-section-head">
-<div>
-<div class="debts-section-title">Debt register</div>
-<div id="debtsSummary" class="debts-section-copy">Loading debts...</div>
-</div>
+    <section class="grid-4">
+      <article class="kpi-card">
+        <div class="kpi-label">I owe</div>
+        <div class="kpi-value" id="iOweTotal">—</div>
+        <div class="kpi-sub">Outstanding payable</div>
+      </article>
 
-<div class="debts-actions">
-<button id="refreshDebtsBtn" class="btn btn-secondary" type="button">Refresh</button>
-<button id="addDebtBtn" class="btn btn-success" type="button">Add Debt</button>
-<a class="btn btn-secondary" href="/transactions.html">Transactions</a>
-<a class="btn btn-secondary" href="/monthly-close.html">Command Centre</a>
-</div>
-</div>
+      <article class="kpi-card">
+        <div class="kpi-label">Owed to me</div>
+        <div class="kpi-value" id="owedToMeTotal">—</div>
+        <div class="kpi-sub">Outstanding receivable</div>
+      </article>
 
-<div id="debtNotice" class="debt-notice" hidden></div>
+      <article class="kpi-card">
+        <div class="kpi-label">Active debts</div>
+        <div class="kpi-value" id="activeDebtCount">—</div>
+        <div class="kpi-sub" id="activeDebtNote">Loading debts</div>
+      </article>
 
-<div style="height:14px"></div>
+      <article class="kpi-card">
+        <div class="kpi-label">Settled</div>
+        <div class="kpi-value" id="settledDebtCount">—</div>
+        <div class="kpi-sub">Closed records</div>
+      </article>
+    </section>
 
-<div id="debtsTableWrap" class="debts-table-wrap">
-<table class="debts-table">
-<thead>
-<tr>
-<th>Name</th>
-<th>Type</th>
-<th>Status</th>
-<th>Original</th>
-<th>Paid</th>
-<th>Remaining</th>
-<th>Due</th>
-<th>Actions</th>
-</tr>
-</thead>
-<tbody id="debtsTableBody"></tbody>
-</table>
-</div>
+    <section class="dashboard-grid">
+      <div class="stack">
+        <article class="card card-padded">
+          <div class="section-kicker">Debt register</div>
+          <h2 class="authority-title" style="margin-top:12px;">Active and settled records</h2>
+          <p class="authority-copy">Add, edit, record payment, or record received amount.</p>
 
-<div id="debtsEmpty" class="debts-empty" hidden>No debts found.</div>
+          <div class="grid-2" style="margin-top:16px;align-items:end;">
+            <div class="field">
+              <label for="searchInput">Search</label>
+              <input id="searchInput" type="search" placeholder="Search debts..." />
+            </div>
 
-<div id="debugPanel" class="debt-debug">
-<div class="debts-card-title">Debug mode</div>
-<div class="debts-card-copy">
-Internal proof and Command Centre details are visible because this page was opened with <code>?debug=1</code>.
-</div>
-<pre id="debugOutput">{}</pre>
-</div>
-</section>
+            <div class="field">
+              <label for="statusFilter">View</label>
+              <select id="statusFilter">
+                <option value="active">Active</option>
+                <option value="i_owe">I owe</option>
+                <option value="owed_to_me">Owed to me</option>
+                <option value="settled">Settled</option>
+                <option value="all">All</option>
+              </select>
+            </div>
+          </div>
 
-<footer class="debts-page-meta" aria-hidden="true">
-Debts clean UI v2.4.0
-</footer>
-</main>
+          <div class="table-wrap" style="margin-top:16px;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Debt</th>
+                  <th>Direction</th>
+                  <th>Original</th>
+                  <th>Outstanding</th>
+                  <th>Status</th>
+                  <th class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="debtsTableBody">
+                <tr>
+                  <td colspan="6" class="muted text-center">Loading debts...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
 
-<div id="debtModalBackdrop" class="debt-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="debtModalTitle">
-<div class="debt-modal">
-<div class="debt-modal-head">
-<div>
-<div id="debtModalTitle" class="debt-modal-title">Add Debt</div>
-<div id="debtModalCopy" class="debt-modal-copy">Enter debt details below.</div>
-</div>
-<button id="debtModalCloseBtn" class="debt-close-button" type="button" aria-label="Close">×</button>
-</div>
+      <aside class="stack">
+        <article class="card card-padded">
+          <div class="section-kicker">Quick actions</div>
+          <div class="stack-sm" style="margin-top:16px;">
+            <button class="btn btn-success" type="button" id="sideAddDebtBtn">Add Debt</button>
+            <button class="btn btn-secondary" type="button" id="sideRefreshBtn">Refresh Debts</button>
+            <a class="btn btn-secondary" href="/add.html">Add Transaction</a>
+          </div>
+        </article>
 
-<div class="debt-modal-body">
-<form id="debtForm">
-<input id="debtFormMode" type="hidden" value="create" />
-<input id="debtFormId" type="hidden" value="" />
+        <article class="card card-padded">
+          <div class="section-kicker">Priority</div>
+          <h2 class="authority-title" style="margin-top:12px;">Largest outstanding</h2>
+          <p class="authority-copy">Active debts ordered by outstanding amount.</p>
 
-<div class="debt-form-grid">
-<div class="field full">
-<label for="debtNameInput">Name</label>
-<input id="debtNameInput" class="input" type="text" placeholder="Example: Imran Bhai" required />
-</div>
+          <div class="stack-sm" id="priorityList" style="margin-top:16px;">
+            <div class="card card-compact muted">Loading debts...</div>
+          </div>
+        </article>
 
-<div class="field">
-<label for="debtKindInput">Type</label>
-<select id="debtKindInput" class="select" required>
-<option value="owe">I owe</option>
-<option value="owed">Owed to me</option>
-</select>
-</div>
+        <article class="card card-padded">
+          <div class="section-kicker">Page status</div>
+          <h2 class="authority-title" style="margin-top:12px;" id="pageStatus">Loading</h2>
+          <p class="authority-copy" id="pageStatusDetail">Fetching debts.</p>
+          <p class="authority-copy">Last refreshed: <span id="lastRefreshed">—</span></p>
+        </article>
+      </aside>
+    </section>
 
-<div class="field">
-<label for="debtAmountInput">Original Amount</label>
-<input id="debtAmountInput" class="input" type="number" min="0" step="0.01" placeholder="0" required />
-</div>
+    <pre id="debugPanel" hidden></pre>
+  </main>
 
-<div class="field">
-<label for="debtPaidInput">Already Paid / Received</label>
-<input id="debtPaidInput" class="input" type="number" min="0" step="0.01" placeholder="0" />
-</div>
+  <section id="debtModal" hidden>
+    <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
+    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,640px);max-height:90vh;overflow:auto;">
+      <div class="grid-2" style="align-items:start;">
+        <div>
+          <div class="section-kicker">Debt</div>
+          <h2 class="authority-title" style="margin-top:12px;" id="debtModalTitle">Add Debt</h2>
+          <p class="authority-copy">Save the debt or receivable details.</p>
+        </div>
+        <div class="text-right">
+          <button class="btn btn-secondary" type="button" id="closeDebtModal">Close</button>
+        </div>
+      </div>
 
-<div class="field">
-<label for="debtDueDateInput">Due Date</label>
-<input id="debtDueDateInput" class="input" type="date" />
-</div>
+      <form id="debtForm" class="stack" style="margin-top:18px;">
+        <input type="hidden" id="debtId" />
 
-<div class="field">
-<label for="debtFrequencyInput">Frequency</label>
-<select id="debtFrequencyInput" class="select">
-<option value="custom">Custom</option>
-<option value="monthly">Monthly</option>
-<option value="weekly">Weekly</option>
-<option value="yearly">Yearly</option>
-</select>
-</div>
+        <div class="field">
+          <label for="debtName">Name / code</label>
+          <input id="debtName" required placeholder="Use existing code or short label" />
+        </div>
 
-<div class="field full">
-<label for="debtNotesInput">Notes</label>
-<textarea id="debtNotesInput" class="textarea" placeholder="Optional notes"></textarea>
-</div>
-</div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="debtDirection">Direction</label>
+            <select id="debtDirection">
+              <option value="i_owe">I owe</option>
+              <option value="owed_to_me">Owed to me</option>
+            </select>
+          </div>
 
-<div class="debt-modal-actions">
-<button id="debtCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
-<button id="debtSubmitBtn" class="btn btn-success" type="submit">Save Debt</button>
-</div>
-</form>
-</div>
-</div>
-</div>
+          <div class="field">
+            <label for="debtStatus">Status</label>
+            <select id="debtStatus">
+              <option value="active">Active</option>
+              <option value="settled">Settled</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+        </div>
 
-<div id="paymentModalBackdrop" class="debt-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
-<div class="debt-modal">
-<div class="debt-modal-head">
-<div>
-<div id="paymentModalTitle" class="debt-modal-title">Record Payment</div>
-<div id="paymentModalCopy" class="debt-modal-copy">Enter payment details below.</div>
-</div>
-<button id="paymentModalCloseBtn" class="debt-close-button" type="button" aria-label="Close">×</button>
-</div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="debtOriginalAmount">Original amount</label>
+            <input id="debtOriginalAmount" required type="number" min="0" step="0.01" placeholder="0.00" />
+          </div>
 
-<div class="debt-modal-body">
-<form id="paymentForm">
-<input id="paymentDebtId" type="hidden" value="" />
+          <div class="field">
+            <label for="debtOutstandingAmount">Outstanding amount</label>
+            <input id="debtOutstandingAmount" type="number" min="0" step="0.01" placeholder="Leave blank if same" />
+          </div>
+        </div>
 
-<div class="debt-form-grid">
-<div class="field">
-<label for="paymentAmountInput">Amount</label>
-<input id="paymentAmountInput" class="input" type="number" min="0" step="0.01" required />
-</div>
+        <div class="field">
+          <label for="debtNotes">Notes</label>
+          <textarea id="debtNotes" placeholder="Optional"></textarea>
+        </div>
 
-<div class="field">
-<label for="paymentAccountInput">Account</label>
-<input id="paymentAccountInput" class="input" type="text" value="meezan" required />
-</div>
+        <button class="primary-submit" type="submit">Save Debt</button>
+      </form>
+    </div>
+  </section>
 
-<div class="field">
-<label for="paymentDateInput">Date</label>
-<input id="paymentDateInput" class="input" type="date" required />
-</div>
+  <section id="movementModal" hidden>
+    <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
+    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,560px);max-height:90vh;overflow:auto;">
+      <div class="grid-2" style="align-items:start;">
+        <div>
+          <div class="section-kicker" id="movementKicker">Payment</div>
+          <h2 class="authority-title" style="margin-top:12px;" id="movementTitle">Record Payment</h2>
+          <p class="authority-copy" id="movementCopy">Record movement against this debt.</p>
+        </div>
+        <div class="text-right">
+          <button class="btn btn-secondary" type="button" id="closeMovementModal">Close</button>
+        </div>
+      </div>
 
-<div class="field full">
-<label for="paymentNotesInput">Notes</label>
-<textarea id="paymentNotesInput" class="textarea" placeholder="Optional notes"></textarea>
-</div>
-</div>
+      <form id="movementForm" class="stack" style="margin-top:18px;">
+        <input type="hidden" id="movementDebtId" />
+        <input type="hidden" id="movementType" />
 
-<div class="debt-modal-actions">
-<button id="paymentCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
-<button id="paymentSubmitBtn" class="btn btn-success" type="submit">Save Payment</button>
-</div>
-</form>
-</div>
-</div>
-</div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="movementDate">Date</label>
+            <input id="movementDate" type="date" required />
+          </div>
 
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
+          <div class="field">
+            <label for="movementAmount">Amount</label>
+            <input id="movementAmount" type="number" min="0" step="0.01" required />
+          </div>
+        </div>
 
-<script src="/js/theme.js?v=1.0.0"></script>
-<script src="/js/nav.js?v=2.0.3"></script>
-<script src="/js/enforcement.js?v=0.3.0"></script>
+        <div class="field">
+          <label for="movementNotes">Notes</label>
+          <textarea id="movementNotes" placeholder="Optional"></textarea>
+        </div>
 
-<script>
-(function () {
-  "use strict";
+        <button class="primary-submit" type="submit" id="movementSubmit">Record</button>
+      </form>
+    </div>
+  </section>
 
-  const VERSION = "2.4.0";
-  const DEFAULT_ACCOUNT = "meezan";
-  const DEBUG = new URL(location.href).searchParams.get("debug") === "1";
+  <div class="toast" id="toast"></div>
 
-  let debts = [];
-  let command = null;
-  let authority = { save: false, pay: false, preflight: false };
-  let lastProof = null;
+  <script src="/js/theme.js?v=1.0.0"></script>
+  <script src="/js/nav.js?v=2.0.0"></script>
 
-  const $ = id => document.getElementById(id);
+  <script>
+    (() => {
+      "use strict";
 
-  function setText(id, value) {
-    const el = $(id);
-    if (el) el.textContent = value;
-  }
+      const VERSION = "ui5-debts-1";
+      const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
-  function setBadge(id, text, cls) {
-    const el = $(id);
-    if (!el) return;
-    el.textContent = text;
-    el.className = "badge " + cls;
-  }
-
-  function showNotice(message, type) {
-    const el = $("debtNotice");
-    if (!el) return;
-    el.hidden = false;
-    el.className = "debt-notice " + (type || "");
-    el.textContent = message;
-  }
-
-  function clearNotice() {
-    const el = $("debtNotice");
-    if (!el) return;
-    el.hidden = true;
-    el.textContent = "";
-  }
-
-  function escapeHtml(value) {
-    return String(value == null ? "" : value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
-  function money(value) {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return "Rs 0";
-    return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
-  }
-
-  function signedMoney(value) {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return "Rs 0";
-    const prefix = n < 0 ? "-" : "";
-    return prefix + money(Math.abs(n));
-  }
-
-  function todayISO() {
-    return new Date().toISOString().slice(0, 10);
-  }
-
-  function debtRemaining(debt) {
-    const candidates = [debt.remaining_amount, debt.balance, debt.outstanding, debt.amount];
-    for (const value of candidates) {
-      const n = Number(value);
-      if (Number.isFinite(n)) return n;
-    }
-    return 0;
-  }
-
-  function debtOriginal(debt) {
-    const n = Number(debt.original_amount);
-    return Number.isFinite(n) ? n : 0;
-  }
-
-  function debtPaid(debt) {
-    const n = Number(debt.paid_amount);
-    return Number.isFinite(n) ? n : 0;
-  }
-
-  function debtKind(debt) {
-    const text = String(debt.kind || debt.direction || debt.type || "").toLowerCase().trim();
-    if (["owe", "payable", "debt_out"].includes(text)) return "owe";
-    if (["owed", "receivable", "debt_in"].includes(text)) return "owed";
-    return text || "unknown";
-  }
-
-  function debtStatus(debt) {
-    if (debtRemaining(debt) <= 0) return "paid_off";
-    return String(debt.status || "active").toLowerCase().trim();
-  }
-
-  function debtDue(debt) {
-    return debt.next_due_date || debt.due_date || (debt.due_day ? "day " + debt.due_day : "N/A");
-  }
-
-  async function fetchJSON(url, options) {
-    const res = await fetch(url, { cache: "no-store", ...(options || {}) });
-    const text = await res.text();
-    let data = null;
-
-    try {
-      data = JSON.parse(text);
-    } catch (err) {
-      throw new Error("Non-JSON response from " + url);
-    }
-
-    if (!res.ok || data.ok === false) {
-      const error = new Error(data.error || ("HTTP " + res.status));
-      error.status = res.status;
-      error.data = data;
-      throw error;
-    }
-
-    return data;
-  }
-
-  function actionAllowed(actions, name) {
-    const found = actions.find(action => action.action === name);
-    return Boolean(found && found.allowed);
-  }
-
-  function updateDebug() {
-    if (!DEBUG) return;
-    const panel = $("debugPanel");
-    const output = $("debugOutput");
-    const badges = $("debugBadges");
-
-    if (panel) panel.classList.add("on");
-    if (badges) badges.hidden = false;
-
-    if (output) {
-      output.textContent = JSON.stringify({
-        version: VERSION,
-        authority,
-        command_version: command && command.version,
-        last_proof: lastProof,
-        debts_count: debts.length
-      }, null, 2);
-    }
-  }
-
-  async function loadCommandCentre() {
-    try {
-      command = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
-      const actions = command.enforcement && Array.isArray(command.enforcement.actions)
-        ? command.enforcement.actions
-        : [];
-
-      authority = {
-        preflight: actionAllowed(actions, "debt.preflight"),
-        save: actionAllowed(actions, "debt.save"),
-        pay: actionAllowed(actions, "debt.pay")
+      const state = {
+        debts: [],
+        raw: null,
+        error: null,
+        search: "",
+        filter: "active"
       };
 
-      if (DEBUG) {
-        setBadge("debtsGovernorBadge", authority.save || authority.pay ? "Writes allowed" : authority.preflight ? "Preflight ready" : "Gated", authority.save || authority.pay ? "badge-ready" : authority.preflight ? "badge-preflight" : "badge-blocked");
-        setBadge("debtsSaveBadge", authority.save ? "save allowed" : "save blocked", authority.save ? "badge-ready" : "badge-blocked");
-        setBadge("debtsPayBadge", authority.pay ? "pay allowed" : "pay blocked", authority.pay ? "badge-ready" : "badge-blocked");
+      const $ = id => document.getElementById(id);
+
+      const els = {
+        iOweTotal: $("iOweTotal"),
+        owedToMeTotal: $("owedToMeTotal"),
+        activeDebtCount: $("activeDebtCount"),
+        activeDebtNote: $("activeDebtNote"),
+        settledDebtCount: $("settledDebtCount"),
+        searchInput: $("searchInput"),
+        statusFilter: $("statusFilter"),
+        debtsTableBody: $("debtsTableBody"),
+        priorityList: $("priorityList"),
+        pageStatus: $("pageStatus"),
+        pageStatusDetail: $("pageStatusDetail"),
+        lastRefreshed: $("lastRefreshed"),
+        addDebtBtn: $("addDebtBtn"),
+        sideAddDebtBtn: $("sideAddDebtBtn"),
+        refreshBtn: $("refreshBtn"),
+        sideRefreshBtn: $("sideRefreshBtn"),
+        debtModal: $("debtModal"),
+        closeDebtModal: $("closeDebtModal"),
+        debtForm: $("debtForm"),
+        debtModalTitle: $("debtModalTitle"),
+        debtId: $("debtId"),
+        debtName: $("debtName"),
+        debtDirection: $("debtDirection"),
+        debtStatus: $("debtStatus"),
+        debtOriginalAmount: $("debtOriginalAmount"),
+        debtOutstandingAmount: $("debtOutstandingAmount"),
+        debtNotes: $("debtNotes"),
+        movementModal: $("movementModal"),
+        closeMovementModal: $("closeMovementModal"),
+        movementForm: $("movementForm"),
+        movementDebtId: $("movementDebtId"),
+        movementType: $("movementType"),
+        movementKicker: $("movementKicker"),
+        movementTitle: $("movementTitle"),
+        movementCopy: $("movementCopy"),
+        movementDate: $("movementDate"),
+        movementAmount: $("movementAmount"),
+        movementNotes: $("movementNotes"),
+        movementSubmit: $("movementSubmit"),
+        toast: $("toast"),
+        debugPanel: $("debugPanel")
+      };
+
+      window.SovereignDebts = {
+        version: VERSION,
+        refresh,
+        getState: () => JSON.parse(JSON.stringify(state))
+      };
+
+      function money(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "—";
+        return new Intl.NumberFormat("en-PK", {
+          style: "currency",
+          currency: "PKR",
+          maximumFractionDigits: 0
+        }).format(n);
       }
 
-      const pageReady = authority.save || authority.pay;
+      function num(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
+      }
 
-      setBadge("debtPageStatusBadge", pageReady ? "Ready" : "View only", pageReady ? "badge-ready" : "badge-preflight");
-      setText("debtPageStatusCopy", pageReady ? "Actions are available. Safety checks still run before each real update." : "Debt records are visible. Actions are temporarily unavailable until Command Centre allows them.");
-    } catch (err) {
-      command = null;
-      authority = { save: false, pay: false, preflight: false };
-      setBadge("debtPageStatusBadge", "Unavailable", "badge-blocked");
-      setText("debtPageStatusCopy", "Command Centre could not be reached. Debt actions are disabled.");
-    }
+      function todayIso() {
+        return new Date().toISOString().slice(0, 10);
+      }
 
-    updateDebug();
-  }
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
 
-  async function loadDebts() {
-    const data = await fetchJSON("/api/debts?cb=" + Date.now());
-    debts = Array.isArray(data.debts) ? data.debts : [];
+      async function readJson(path, options = {}) {
+        const res = await fetch(path, {
+          ...options,
+          headers: {
+            "content-type": "application/json",
+            ...(options.headers || {})
+          }
+        });
 
-    const totalOwe = Number(data.total_owe || 0);
-    const totalOwed = Number(data.total_owed || 0);
-    const net = totalOwed - totalOwe;
+        const text = await res.text();
 
-    if (DEBUG) setBadge("debtsApiBadge", "Debts API " + (data.version || "live"), "badge-ready");
+        let json;
+        try {
+          json = text ? JSON.parse(text) : {};
+        } catch {
+          throw new Error(`${path} returned non-JSON`);
+        }
 
-    setText("totalOwe", money(totalOwe));
-    setText("totalOwed", money(totalOwed));
-    setText("netPosition", signedMoney(net));
-    setText("debtCount", String(debts.length));
+        if (!res.ok) {
+          throw new Error(json?.error || json?.message || `${path} HTTP ${res.status}`);
+        }
 
-    setText("debtPositionCopy", totalOwe > totalOwed ? "I currently owe more than is owed to me." : totalOwed > totalOwe ? "More money is owed to me than I owe out." : "Debt position is balanced.");
-    setText("debtsSummary", debts.length + " debt record(s) · I owe " + money(totalOwe) + " · Owed to me " + money(totalOwed));
+        return json;
+      }
 
-    renderDebts();
-    updateDebug();
-  }
+      function asArray(payload) {
+        if (!payload) return [];
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload.debts)) return payload.debts;
+        if (Array.isArray(payload.items)) return payload.items;
+        if (Array.isArray(payload.data)) return payload.data;
+        if (Array.isArray(payload.rows)) return payload.rows;
+        return [];
+      }
 
-  function renderDebts() {
-    const tbody = $("debtsTableBody");
-    const wrap = $("debtsTableWrap");
-    const empty = $("debtsEmpty");
+      function normalizeDirection(value) {
+        const v = String(value ?? "").toLowerCase();
 
-    if (!tbody || !wrap || !empty) return;
+        if (["owed_to_me", "owed", "receivable", "to_me", "they_owe_me", "receive"].includes(v)) {
+          return "owed_to_me";
+        }
 
-    if (!debts.length) {
-      wrap.hidden = true;
-      empty.hidden = false;
-      return;
-    }
+        return "i_owe";
+      }
 
-    wrap.hidden = false;
-    empty.hidden = true;
+      function normalizeStatus(value, outstanding) {
+        const v = String(value ?? "").toLowerCase();
+        if (["settled", "closed", "paid", "complete", "completed"].includes(v)) return "settled";
+        if (["archived", "deleted"].includes(v)) return "archived";
+        if (Number(outstanding) === 0) return "settled";
+        return "active";
+      }
 
-    tbody.innerHTML = debts.map(debt => {
-      const id = debt.id || "";
-      const kind = debtKind(debt);
-      const remaining = debtRemaining(debt);
-      const paidOff = remaining <= 0;
-      const actionLabel = kind === "owed" ? "Record Received" : "Record Payment";
+      function normalizeDebt(raw) {
+        const id = raw.id ?? raw.debt_id ?? raw.uuid ?? raw.name ?? raw.code;
+        const name = raw.name ?? raw.title ?? raw.debt_name ?? raw.code ?? "Unnamed debt";
+        const direction = normalizeDirection(raw.direction ?? raw.type ?? raw.debt_type ?? raw.kind);
+        const original = num(raw.original_amount ?? raw.principal ?? raw.total_amount ?? raw.amount ?? raw.value);
+        const outstanding = num(
+          raw.outstanding ??
+          raw.outstanding_amount ??
+          raw.remaining ??
+          raw.remaining_amount ??
+          raw.balance ??
+          raw.current_balance ??
+          raw.amount
+        );
+        const paid = num(raw.paid_amount ?? raw.paid ?? raw.amount_paid);
+        const status = normalizeStatus(raw.status, outstanding);
+        const notes = raw.notes ?? raw.description ?? "";
 
-      return `
-        <tr data-debt-id="${escapeHtml(id)}">
-          <td>
-            <div class="debt-name">${escapeHtml(debt.name || id || "Debt")}</div>
-            <div class="debt-id">${escapeHtml(id)}</div>
-          </td>
-          <td><span class="${kind === "owed" ? "badge badge-ready" : "badge badge-preflight"}">${escapeHtml(kind === "owed" ? "Owed to me" : "I owe")}</span></td>
-          <td><span class="${paidOff ? "badge badge-ready" : "badge badge-info"}">${escapeHtml(debtStatus(debt))}</span></td>
-          <td><div class="debt-amount">${escapeHtml(money(debtOriginal(debt)))}</div></td>
-          <td><div class="debt-amount">${escapeHtml(money(debtPaid(debt)))}</div></td>
-          <td><div class="debt-amount ${escapeHtml(kind)}">${escapeHtml(money(remaining))}</div></td>
-          <td>
-            <div>${escapeHtml(debtDue(debt))}</div>
-            <div class="debt-id">${escapeHtml(debt.due_status || "")}</div>
-          </td>
-          <td>
-            <div class="debt-row-actions">
-              <button class="debt-action-button" type="button" data-action="edit" data-id="${escapeHtml(id)}" ${authority.save ? "" : "disabled"}>Edit</button>
-              <button class="debt-action-button primary" type="button" data-action="pay" data-id="${escapeHtml(id)}" ${authority.pay && !paidOff ? "" : "disabled"}>${escapeHtml(actionLabel)}</button>
-              ${DEBUG ? `
-                <button class="debt-action-button" type="button" data-action="debug-save" data-id="${escapeHtml(id)}">Dry Save</button>
-                <button class="debt-action-button" type="button" data-action="debug-pay" data-id="${escapeHtml(id)}" ${paidOff ? "disabled" : ""}>Dry Pay</button>
-              ` : ""}
+        return {
+          ...raw,
+          id,
+          name,
+          direction,
+          original,
+          outstanding,
+          paid,
+          status,
+          notes
+        };
+      }
+
+      async function refresh() {
+        state.error = null;
+        renderLoading();
+
+        try {
+          const payload = await readJson(`/api/debts?cb=${Date.now()}`);
+          state.raw = payload;
+          state.debts = asArray(payload).map(normalizeDebt);
+          state.error = null;
+        } catch (err) {
+          state.raw = null;
+          state.debts = [];
+          state.error = err?.message || "Unable to load debts.";
+        }
+
+        render();
+      }
+
+      function filteredDebts() {
+        const q = state.search.trim().toLowerCase();
+
+        return state.debts.filter(debt => {
+          const matchesSearch = !q || [debt.name, debt.notes, debt.direction, debt.status]
+            .filter(Boolean)
+            .some(v => String(v).toLowerCase().includes(q));
+
+          let matchesFilter = true;
+
+          if (state.filter === "active") matchesFilter = debt.status === "active";
+          if (state.filter === "i_owe") matchesFilter = debt.direction === "i_owe";
+          if (state.filter === "owed_to_me") matchesFilter = debt.direction === "owed_to_me";
+          if (state.filter === "settled") matchesFilter = debt.status === "settled";
+
+          return matchesSearch && matchesFilter;
+        });
+      }
+
+      function renderLoading() {
+        els.pageStatus.textContent = "Loading";
+        els.pageStatusDetail.textContent = "Fetching debts.";
+        els.debtsTableBody.innerHTML = `<tr><td colspan="6" class="muted text-center">Loading debts...</td></tr>`;
+        els.priorityList.innerHTML = `<div class="card card-compact muted">Loading debts...</div>`;
+      }
+
+      function render() {
+        renderStatus();
+        renderStats();
+        renderTable();
+        renderPriority();
+        renderDebug();
+      }
+
+      function renderStatus() {
+        els.lastRefreshed.textContent = new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+
+        if (state.error) {
+          els.pageStatus.textContent = "Unavailable";
+          els.pageStatusDetail.textContent = state.error;
+          return;
+        }
+
+        els.pageStatus.textContent = "Ready";
+        els.pageStatusDetail.textContent = "Debts are loaded.";
+      }
+
+      function renderStats() {
+        const active = state.debts.filter(d => d.status === "active");
+        const settled = state.debts.filter(d => d.status === "settled");
+
+        const iOwe = active
+          .filter(d => d.direction === "i_owe")
+          .map(d => d.outstanding)
+          .filter(v => v !== null)
+          .reduce((sum, v) => sum + v, 0);
+
+        const owedToMe = active
+          .filter(d => d.direction === "owed_to_me")
+          .map(d => d.outstanding)
+          .filter(v => v !== null)
+          .reduce((sum, v) => sum + v, 0);
+
+        els.iOweTotal.textContent = state.error ? "—" : money(iOwe);
+        els.owedToMeTotal.textContent = state.error ? "—" : money(owedToMe);
+        els.activeDebtCount.textContent = state.error ? "—" : String(active.length);
+        els.activeDebtNote.textContent = state.error ? "Debts unavailable" : `${state.debts.length} total record${state.debts.length === 1 ? "" : "s"}`;
+        els.settledDebtCount.textContent = state.error ? "—" : String(settled.length);
+      }
+
+      function renderTable() {
+        if (state.error) {
+          els.debtsTableBody.innerHTML = `<tr><td colspan="6" class="text-center">${escapeHtml(state.error)}</td></tr>`;
+          return;
+        }
+
+        const debts = filteredDebts();
+
+        if (!debts.length) {
+          els.debtsTableBody.innerHTML = `<tr><td colspan="6" class="muted text-center">No debts found.</td></tr>`;
+          return;
+        }
+
+        els.debtsTableBody.innerHTML = debts.map(debt => {
+          const directionLabel = debt.direction === "owed_to_me" ? "Owed to me" : "I owe";
+          const badgeClass = debt.status === "settled" ? "badge-pass" : debt.status === "archived" ? "badge-unknown" : "badge-warning";
+
+          return `
+            <tr>
+              <td>
+                <div class="strong">${escapeHtml(debt.name)}</div>
+                <div class="muted">${debt.notes ? escapeHtml(debt.notes) : "—"}</div>
+              </td>
+              <td>${escapeHtml(directionLabel)}</td>
+              <td>${money(debt.original)}</td>
+              <td>${money(debt.outstanding)}</td>
+              <td><span class="badge ${badgeClass}">${escapeHtml(debt.status)}</span></td>
+              <td class="text-right">
+                <button class="btn btn-secondary" type="button" data-edit="${escapeHtml(debt.id)}">Edit</button>
+                <button class="btn btn-success" type="button" data-pay="${escapeHtml(debt.id)}">Payment</button>
+                <button class="btn btn-secondary" type="button" data-receive="${escapeHtml(debt.id)}">Received</button>
+              </td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      function renderPriority() {
+        if (state.error) {
+          els.priorityList.innerHTML = `<div class="authority-panel blocked">${escapeHtml(state.error)}</div>`;
+          return;
+        }
+
+        const priority = state.debts
+          .filter(d => d.status === "active")
+          .slice()
+          .sort((a, b) => Number(b.outstanding || 0) - Number(a.outstanding || 0))
+          .slice(0, 5);
+
+        if (!priority.length) {
+          els.priorityList.innerHTML = `<div class="card card-compact muted">No active debts.</div>`;
+          return;
+        }
+
+        els.priorityList.innerHTML = priority.map(debt => {
+          const directionLabel = debt.direction === "owed_to_me" ? "Owed to me" : "I owe";
+
+          return `
+            <div class="card card-compact">
+              <div class="grid-2" style="align-items:center;">
+                <div>
+                  <div class="strong">${escapeHtml(debt.name)}</div>
+                  <div class="muted">${escapeHtml(directionLabel)}</div>
+                </div>
+                <div class="text-right strong">${money(debt.outstanding)}</div>
+              </div>
             </div>
-          </td>
-        </tr>
-      `;
-    }).join("");
+          `;
+        }).join("");
+      }
 
-    tbody.querySelectorAll("[data-action]").forEach(button => {
-      button.addEventListener("click", onDebtAction);
-    });
-  }
+      function renderDebug() {
+        if (!DEBUG || !els.debugPanel) return;
 
-  async function onDebtAction(event) {
-    const button = event.currentTarget;
-    const id = button.dataset.id;
-    const action = button.dataset.action;
-    const debt = debts.find(row => row.id === id);
+        els.debugPanel.hidden = false;
+        els.debugPanel.textContent = JSON.stringify({
+          ui_version: VERSION,
+          mode: "debug",
+          error: state.error,
+          count: state.debts.length,
+          filter: state.filter,
+          search: state.search,
+          raw_payload: state.raw
+        }, null, 2);
+      }
 
-    if (!debt) return;
+      function debtById(id) {
+        return state.debts.find(d => String(d.id) === String(id));
+      }
 
-    clearNotice();
+      function openDebtModal(debt = null) {
+        els.debtModal.hidden = false;
+        els.debtModalTitle.textContent = debt ? "Edit Debt" : "Add Debt";
+        els.debtId.value = debt?.id ?? "";
+        els.debtName.value = debt?.name ?? "";
+        els.debtDirection.value = debt?.direction ?? "i_owe";
+        els.debtStatus.value = debt?.status ?? "active";
+        els.debtOriginalAmount.value = debt?.original ?? "";
+        els.debtOutstandingAmount.value = debt?.outstanding ?? "";
+        els.debtNotes.value = debt?.notes ?? "";
+        setTimeout(() => els.debtName.focus(), 30);
+      }
 
-    try {
-      if (action === "edit") openDebtModal("edit", debt);
-      if (action === "pay") openPaymentModal(debt);
-      if (action === "debug-save") await runDebtSavePreflight(debt);
-      if (action === "debug-pay") await runDebtPayPreflight(debt);
-    } catch (err) {
-      showNotice(err.message || "Debt action failed.", "fail");
-    }
-  }
+      function closeDebtModal() {
+        els.debtModal.hidden = true;
+        els.debtForm.reset();
+        els.debtId.value = "";
+      }
 
-  function openDebtModal(mode, debt) {
-    if (!authority.save) {
-      showNotice("Debt saving is temporarily unavailable.", "fail");
-      return;
-    }
+      function openMovementModal(debt, type) {
+        const isReceived = type === "received";
 
-    $("debtFormMode").value = mode;
-    $("debtFormId").value = debt ? debt.id : "";
-    $("debtModalTitle").textContent = mode === "edit" ? "Edit Debt" : "Add Debt";
-    $("debtModalCopy").textContent = mode === "edit" ? "Update debt details below." : "Create a new debt record.";
+        els.movementModal.hidden = false;
+        els.movementDebtId.value = debt.id;
+        els.movementType.value = type;
+        els.movementDate.value = todayIso();
+        els.movementAmount.value = "";
+        els.movementNotes.value = "";
+        els.movementKicker.textContent = isReceived ? "Received" : "Payment";
+        els.movementTitle.textContent = isReceived ? "Record Received" : "Record Payment";
+        els.movementCopy.textContent = isReceived
+          ? `Record amount received for ${debt.name}.`
+          : `Record payment made for ${debt.name}.`;
+        els.movementSubmit.textContent = isReceived ? "Record Received" : "Record Payment";
+        setTimeout(() => els.movementAmount.focus(), 30);
+      }
 
-    $("debtNameInput").value = debt ? debt.name || "" : "";
-    $("debtKindInput").value = debt ? debtKind(debt) : "owe";
-    $("debtAmountInput").value = debt ? String(debtOriginal(debt)) : "";
-    $("debtPaidInput").value = debt ? String(debtPaid(debt)) : "0";
-    $("debtDueDateInput").value = debt ? debt.due_date || "" : "";
-    $("debtFrequencyInput").value = debt ? debt.frequency || "custom" : "custom";
-    $("debtNotesInput").value = debt ? debt.notes || "" : "";
+      function closeMovementModal() {
+        els.movementModal.hidden = true;
+        els.movementForm.reset();
+        els.movementDebtId.value = "";
+        els.movementType.value = "";
+      }
 
-    $("debtModalBackdrop").classList.add("on");
-    $("debtNameInput").focus();
-  }
+      function toast(message, type = "") {
+        els.toast.textContent = message;
+        els.toast.className = `toast show ${type}`;
+        clearTimeout(toast.timer);
+        toast.timer = setTimeout(() => {
+          els.toast.className = "toast";
+        }, 2800);
+      }
 
-  function closeDebtModal() {
-    $("debtModalBackdrop").classList.remove("on");
-    $("debtForm").reset();
-  }
+      async function tryMutation(candidates, fallbackBody) {
+        let lastError = null;
 
-  function openPaymentModal(debt) {
-    if (!authority.pay) {
-      showNotice("Debt payments are temporarily unavailable.", "fail");
-      return;
-    }
+        for (const candidate of candidates) {
+          try {
+            return await readJson(candidate.url, {
+              method: candidate.method,
+              body: JSON.stringify(candidate.body || fallbackBody)
+            });
+          } catch (err) {
+            lastError = err;
+          }
+        }
 
-    const remaining = debtRemaining(debt);
-    if (remaining <= 0) {
-      showNotice("This debt is already paid off.", "fail");
-      return;
-    }
+        throw lastError || new Error("Unable to save changes.");
+      }
 
-    $("paymentDebtId").value = debt.id;
-    $("paymentModalTitle").textContent = debtKind(debt) === "owed" ? "Record Received" : "Record Payment";
-    $("paymentModalCopy").textContent = (debt.name || debt.id) + " · remaining " + money(remaining);
-    $("paymentAmountInput").value = String(Math.min(1000, remaining));
-    $("paymentAccountInput").value = DEFAULT_ACCOUNT;
-    $("paymentDateInput").value = todayISO();
-    $("paymentNotesInput").value = "";
+      function debtPayloadFromForm() {
+        const id = els.debtId.value.trim();
+        const original = Number(els.debtOriginalAmount.value);
+        const outstandingInput = els.debtOutstandingAmount.value.trim();
+        const outstanding = outstandingInput ? Number(outstandingInput) : original;
 
-    $("paymentModalBackdrop").classList.add("on");
-    $("paymentAmountInput").focus();
-  }
+        const payload = {
+          name: els.debtName.value.trim(),
+          direction: els.debtDirection.value,
+          type: els.debtDirection.value,
+          original_amount: original,
+          amount: original,
+          outstanding_amount: outstanding,
+          outstanding,
+          status: els.debtStatus.value,
+          notes: els.debtNotes.value.trim()
+        };
 
-  function closePaymentModal() {
-    $("paymentModalBackdrop").classList.remove("on");
-    $("paymentForm").reset();
-  }
+        if (id) payload.id = id;
+        return payload;
+      }
 
-  function formDebtPayload(dryRun) {
-    return {
-      dry_run: Boolean(dryRun),
-      name: $("debtNameInput").value.trim(),
-      kind: $("debtKindInput").value,
-      original_amount: Number($("debtAmountInput").value),
-      paid_amount: Number($("debtPaidInput").value || 0),
-      due_date: $("debtDueDateInput").value || null,
-      frequency: $("debtFrequencyInput").value || "custom",
-      notes: $("debtNotesInput").value || ""
-    };
-  }
+      async function saveDebt(payload) {
+        const isEdit = Boolean(payload.id);
 
-  function debtSavePayload(debt, dryRun, overrides) {
-    return {
-      dry_run: Boolean(dryRun),
-      name: overrides && overrides.name !== undefined ? overrides.name : debt.name,
-      kind: overrides && overrides.kind !== undefined ? overrides.kind : debt.kind,
-      original_amount: overrides && overrides.original_amount !== undefined ? overrides.original_amount : debt.original_amount,
-      paid_amount: overrides && overrides.paid_amount !== undefined ? overrides.paid_amount : debt.paid_amount,
-      due_date: overrides && overrides.due_date !== undefined ? overrides.due_date : debt.due_date,
-      due_day: overrides && overrides.due_day !== undefined ? overrides.due_day : debt.due_day,
-      installment_amount: overrides && overrides.installment_amount !== undefined ? overrides.installment_amount : debt.installment_amount,
-      frequency: overrides && overrides.frequency !== undefined ? overrides.frequency : debt.frequency,
-      notes: overrides && overrides.notes !== undefined ? overrides.notes : (debt.notes || "")
-    };
-  }
+        const candidates = isEdit
+          ? [
+              { url: `/api/debts/${encodeURIComponent(payload.id)}`, method: "PUT", body: payload },
+              { url: `/api/debts/${encodeURIComponent(payload.id)}`, method: "POST", body: payload },
+              { url: "/api/debts", method: "POST", body: { ...payload, action: "update" } }
+            ]
+          : [
+              { url: "/api/debts", method: "POST", body: payload }
+            ];
 
-  async function submitDebtForm(event) {
-    event.preventDefault();
+        return tryMutation(candidates, payload);
+      }
 
-    if (!authority.save) {
-      showNotice("Debt saving is temporarily unavailable.", "fail");
-      return;
-    }
+      async function recordMovement(payload) {
+        const id = payload.id;
+        const action = payload.type === "received" ? "received" : "payment";
 
-    const mode = $("debtFormMode").value;
-    const id = $("debtFormId").value;
-    const payload = formDebtPayload(false);
+        const candidates = [
+          { url: `/api/debts/${encodeURIComponent(id)}/pay`, method: "POST", body: { ...payload, action } },
+          { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body: { ...payload, action } },
+          { url: "/api/debts", method: "POST", body: { ...payload, debt_id: id, action } }
+        ];
 
-    if (!payload.name) {
-      showNotice("Name is required.", "fail");
-      return;
-    }
+        return tryMutation(candidates, payload);
+      }
 
-    if (!Number.isFinite(payload.original_amount) || payload.original_amount <= 0) {
-      showNotice("Original amount must be greater than zero.", "fail");
-      return;
-    }
+      function bindEvents() {
+        els.addDebtBtn.addEventListener("click", () => openDebtModal());
+        els.sideAddDebtBtn.addEventListener("click", () => openDebtModal());
+        els.refreshBtn.addEventListener("click", refresh);
+        els.sideRefreshBtn.addEventListener("click", refresh);
+        els.closeDebtModal.addEventListener("click", closeDebtModal);
+        els.closeMovementModal.addEventListener("click", closeMovementModal);
 
-    if (payload.paid_amount > payload.original_amount) {
-      showNotice("Paid amount cannot exceed original amount.", "fail");
-      return;
-    }
+        els.searchInput.addEventListener("input", event => {
+          state.search = event.target.value;
+          render();
+        });
 
-    if (mode === "create") {
-      const dryRun = await fetchJSON("/api/debts?dry_run=1&cb=" + Date.now(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, dry_run: true })
-      });
+        els.statusFilter.addEventListener("change", event => {
+          state.filter = event.target.value;
+          render();
+        });
 
-      lastProof = dryRun;
+        document.addEventListener("click", event => {
+          const editId = event.target?.getAttribute?.("data-edit");
+          const payId = event.target?.getAttribute?.("data-pay");
+          const receiveId = event.target?.getAttribute?.("data-receive");
 
-      await fetchJSON("/api/debts?cb=" + Date.now(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+          if (editId) {
+            const debt = debtById(editId);
+            if (debt) openDebtModal(debt);
+          }
 
-      showNotice("Debt added.", "success");
-    }
+          if (payId) {
+            const debt = debtById(payId);
+            if (debt) openMovementModal(debt, "payment");
+          }
 
-    if (mode === "edit") {
-      const debt = debts.find(row => row.id === id);
-      if (!debt) throw new Error("Debt not found.");
+          if (receiveId) {
+            const debt = debtById(receiveId);
+            if (debt) openMovementModal(debt, "received");
+          }
+        });
 
-      const dryRun = await runDebtSavePreflight(debt, payload);
-      lastProof = dryRun;
+        document.addEventListener("keydown", event => {
+          if (event.key === "Escape") {
+            closeDebtModal();
+            closeMovementModal();
+          }
+        });
 
-      await fetchJSON("/api/debts/" + encodeURIComponent(id) + "?cb=" + Date.now(), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
+        els.debtForm.addEventListener("submit", async event => {
+          event.preventDefault();
 
-      showNotice("Debt updated.", "success");
-    }
+          const payload = debtPayloadFromForm();
 
-    closeDebtModal();
-    await refresh();
-  }
+          if (!payload.name) {
+            toast("Debt name or code is required.", "toast-warning");
+            return;
+          }
 
-  async function submitPaymentForm(event) {
-    event.preventDefault();
+          if (!Number.isFinite(payload.original_amount)) {
+            toast("Original amount is required.", "toast-warning");
+            return;
+          }
 
-    if (!authority.pay) {
-      showNotice("Debt payments are temporarily unavailable.", "fail");
-      return;
-    }
+          if (!Number.isFinite(payload.outstanding_amount)) {
+            toast("Outstanding amount is invalid.", "toast-warning");
+            return;
+          }
 
-    const id = $("paymentDebtId").value;
-    const debt = debts.find(row => row.id === id);
-    if (!debt) throw new Error("Debt not found.");
+          try {
+            await saveDebt(payload);
+            closeDebtModal();
+            toast("Debt saved.", "toast-success");
+            await refresh();
+          } catch (err) {
+            toast(err?.message || "Unable to save debt.", "toast-error");
+          }
+        });
 
-    const amount = Number($("paymentAmountInput").value);
-    const accountId = $("paymentAccountInput").value.trim();
-    const paidDate = $("paymentDateInput").value || todayISO();
-    const notes = $("paymentNotesInput").value || "";
+        els.movementForm.addEventListener("submit", async event => {
+          event.preventDefault();
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      showNotice("Payment amount must be greater than zero.", "fail");
-      return;
-    }
+          const payload = {
+            id: els.movementDebtId.value,
+            type: els.movementType.value,
+            date: els.movementDate.value,
+            amount: Number(els.movementAmount.value),
+            notes: els.movementNotes.value.trim()
+          };
 
-    if (amount > debtRemaining(debt) + 0.01) {
-      showNotice("Payment cannot exceed remaining amount.", "fail");
-      return;
-    }
+          if (!payload.id || !payload.date || !Number.isFinite(payload.amount)) {
+            toast("Date and amount are required.", "toast-warning");
+            return;
+          }
 
-    const dryRun = await runDebtPayPreflight(debt, amount, accountId, paidDate, notes);
-    lastProof = dryRun;
+          try {
+            await recordMovement(payload);
+            closeMovementModal();
+            toast(payload.type === "received" ? "Received amount recorded." : "Payment recorded.", "toast-success");
+            await refresh();
+          } catch (err) {
+            toast(err?.message || "Unable to record movement.", "toast-error");
+          }
+        });
+      }
 
-    await fetchJSON("/api/debts/" + encodeURIComponent(id) + "/pay?cb=" + Date.now(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        amount,
-        account_id: accountId,
-        paid_date: paidDate,
-        notes
-      })
-    });
-
-    closePaymentModal();
-    showNotice("Debt payment recorded.", "success");
-    await refresh();
-  }
-
-  async function runDebtSavePreflight(debt, overrides) {
-    const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "?dry_run=1&cb=" + Date.now(), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(debtSavePayload(debt, true, overrides))
-    });
-
-    lastProof = data;
-    if (DEBUG) showNotice("Dry save passed. No real write was made.", "success");
-    return data;
-  }
-
-  async function runDebtPayPreflight(debt, amount, accountId, paidDate, notes) {
-    const remaining = debtRemaining(debt);
-    const testAmount = Number(amount || Math.min(1000, remaining));
-
-    if (!Number.isFinite(testAmount) || testAmount <= 0) {
-      throw new Error("Invalid payment amount.");
-    }
-
-    const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "/pay?dry_run=1&cb=" + Date.now(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dry_run: true,
-        amount: testAmount,
-        account_id: accountId || DEFAULT_ACCOUNT,
-        paid_date: paidDate || todayISO(),
-        notes: notes || ""
-      })
-    });
-
-    lastProof = data;
-    if (DEBUG) showNotice("Dry payment passed. No real write was made.", "success");
-    return data;
-  }
-
-  async function refresh() {
-    console.log("[debts-ui v2.4.0] refresh");
-    await loadCommandCentre();
-    await loadDebts();
-    console.log("[debts-ui v2.4.0] ready", {
-      debts: debts.length,
-      authority,
-      total_remaining: debts.reduce((sum, debt) => sum + debtRemaining(debt), 0)
-    });
-  }
-
-  function wireEvents() {
-    $("refreshDebtsBtn")?.addEventListener("click", refresh);
-    $("addDebtBtn")?.addEventListener("click", () => openDebtModal("create", null));
-
-    $("debtModalCloseBtn")?.addEventListener("click", closeDebtModal);
-    $("debtCancelBtn")?.addEventListener("click", closeDebtModal);
-    $("debtForm")?.addEventListener("submit", submitDebtForm);
-
-    $("paymentModalCloseBtn")?.addEventListener("click", closePaymentModal);
-    $("paymentCancelBtn")?.addEventListener("click", closePaymentModal);
-    $("paymentForm")?.addEventListener("submit", submitPaymentForm);
-
-    $("debtModalBackdrop")?.addEventListener("click", event => {
-      if (event.target.id === "debtModalBackdrop") closeDebtModal();
-    });
-
-    $("paymentModalBackdrop")?.addEventListener("click", event => {
-      if (event.target.id === "paymentModalBackdrop") closePaymentModal();
-    });
-  }
-
-  function init() {
-    console.log("[debts-ui v2.4.0] init");
-    wireEvents();
-    refresh();
-  }
-
-  window.SovereignDebtsUI = {
-    version: VERSION,
-    refresh,
-    debts: () => debts.slice(),
-    authority: () => ({ ...authority }),
-    lastProof: () => lastProof,
-    openAdd: () => openDebtModal("create", null),
-    preflightSave: id => {
-      const debt = debts.find(row => row.id === id);
-      if (!debt) throw new Error("Debt not found: " + id);
-      return runDebtSavePreflight(debt);
-    },
-    preflightPay: id => {
-      const debt = debts.find(row => row.id === id);
-      if (!debt) throw new Error("Debt not found: " + id);
-      return runDebtPayPreflight(debt);
-    }
-  };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-})();
-</script>
+      bindEvents();
+      refresh();
+    })();
+  </script>
 </body>
 </html>
