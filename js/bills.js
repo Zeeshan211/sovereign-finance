@@ -1,449 +1,543 @@
-/* Sovereign Finance Bills UI v0.4.0
-Phase 7H: Bills page dry-run preflight wiring.
-
-Contract:
-- Loads Bills API v0.3.0+.
-- Runs bill.clear dry-run before any real clear path.
-- Runs bill.save dry-run helper for future save flows.
-- If Command Centre keeps bill.clear/bill.save blocked, stops after preflight.
-- No silent offline queue.
-- No fake ledger smoke test.
-*/
-
-(function () {
+(() => {
   "use strict";
 
-  const VERSION = "v0.4.0";
-  const REQUIRED_BILLS_API_VERSION = "0.3.0";
+  const VERSION = "0.4.1";
+  const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
 
-  let bills = [];
-  let enforcementSnapshot = null;
-  let lastProofByBill = {};
+  if (DEBUG) document.body.classList.add("debug");
 
-  const $ = id => document.getElementById(id);
+  const state = {
+    bills: [],
+    command: null,
+    loading: true,
+    error: null,
+    search: "",
+    filter: "active",
+    lastPayload: null
+  };
 
-  function toast(message, kind) {
-    const old = document.querySelector(".toast");
-    if (old) old.remove();
+  const $ = (id) => document.getElementById(id);
 
-    const el = document.createElement("div");
-    el.className = "toast toast-" + (kind || "info");
-    el.textContent = message;
-    document.body.appendChild(el);
+  const els = {
+    statusDot: $("statusDot"),
+    statusText: $("statusText"),
+    statusDetail: $("statusDetail"),
+    activeCount: $("activeCount"),
+    monthlyTotal: $("monthlyTotal"),
+    dueCount: $("dueCount"),
+    billsBody: $("billsBody"),
+    searchInput: $("searchInput"),
+    statusFilter: $("statusFilter"),
+    addBillBtn: $("addBillBtn"),
+    refreshBtn: $("refreshBtn"),
+    debugPanel: $("debugPanel"),
+    billModal: $("billModal"),
+    billForm: $("billForm"),
+    billModalTitle: $("billModalTitle"),
+    billId: $("billId"),
+    billName: $("billName"),
+    billAmount: $("billAmount"),
+    billDueDay: $("billDueDay"),
+    billCategory: $("billCategory"),
+    billStatus: $("billStatus"),
+    billNotes: $("billNotes"),
+    clearModal: $("clearModal"),
+    clearForm: $("clearForm"),
+    clearBillId: $("clearBillId"),
+    clearModalText: $("clearModalText"),
+    clearMonth: $("clearMonth"),
+    clearAmount: $("clearAmount"),
+    clearNotes: $("clearNotes"),
+    toast: $("toast"),
+    toastTitle: $("toastTitle"),
+    toastBody: $("toastBody")
+  };
 
-    setTimeout(() => el.classList.add("show"), 20);
-    setTimeout(() => {
-      el.classList.remove("show");
-      setTimeout(() => el.remove(), 250);
-    }, 3200);
-  }
+  window.SovereignBillsUI = {
+    version: VERSION,
+    mode: DEBUG ? "debug" : "normal",
+    refresh,
+    getState: () => JSON.parse(JSON.stringify(state))
+  };
 
   function money(value) {
-    const n = Number(value || 0);
-    return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "—";
+    return new Intl.NumberFormat("en-PK", {
+      style: "currency",
+      currency: "PKR",
+      maximumFractionDigits: 0
+    }).format(n);
   }
 
-  function todayISO() {
-    return new Date().toISOString().slice(0, 10);
-  }
-
-  function versionAtLeast(actual, required) {
-    const a = parseVersion(actual);
-    const r = parseVersion(required);
-    for (let i = 0; i < Math.max(a.length, r.length); i += 1) {
-      const av = a[i] || 0;
-      const rv = r[i] || 0;
-      if (av > rv) return true;
-      if (av < rv) return false;
-    }
-    return true;
-  }
-
-  function parseVersion(value) {
-    return String(value || "")
-      .replace(/^v/i, "")
-      .split(".")
-      .map(part => Number(part))
-      .map(number => Number.isFinite(number) ? number : 0);
-  }
-
-  async function fetchJSON(url, options) {
-    const res = await fetch(url, {
-      cache: "no-store",
-      ...(options || {})
-    });
-
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok || !data || data.ok === false) {
-      const err = new Error((data && data.error) || ("HTTP " + res.status));
-      err.data = data;
-      err.status = res.status;
-      throw err;
-    }
-
-    return data;
-  }
-
-  async function refreshEnforcement() {
-    if (window.SovereignEnforcement && typeof window.SovereignEnforcement.refresh === "function") {
-      enforcementSnapshot = await window.SovereignEnforcement.refresh();
-      renderEnforcement();
-      return enforcementSnapshot;
-    }
-
-    enforcementSnapshot = {
-      loaded: false,
-      error: "window.SovereignEnforcement unavailable",
-      enforcement: null
-    };
-
-    renderEnforcement();
-    return enforcementSnapshot;
-  }
-
-  function findAction(actionName) {
-    const actions = enforcementSnapshot &&
-      enforcementSnapshot.enforcement &&
-      Array.isArray(enforcementSnapshot.enforcement.actions)
-      ? enforcementSnapshot.enforcement.actions
-      : [];
-
-    return actions.find(action => action.action === actionName) || null;
-  }
-
-  function actionAllowed(actionName) {
-    const action = findAction(actionName);
-    return Boolean(action && action.allowed === true);
-  }
-
-  function billAuthoritySummary() {
-    const preflight = findAction("bill.preflight");
-    const save = findAction("bill.save");
-    const clear = findAction("bill.clear");
-
-    return {
-      preflight_allowed: Boolean(preflight && preflight.allowed),
-      bill_save_allowed: Boolean(save && save.allowed),
-      bill_clear_allowed: Boolean(clear && clear.allowed),
-      save,
-      clear,
-      preflight
-    };
-  }
-
-  function renderEnforcement() {
-    const panel = $("billsEnforcement");
-    const status = $("billAuthorityStatus");
-    if (!panel) return;
-
-    const summary = billAuthoritySummary();
-
-    panel.classList.remove("pass", "blocked");
-
-    if (!enforcementSnapshot || !enforcementSnapshot.loaded) {
-      panel.classList.add("blocked");
-      panel.textContent = "Command Centre policy is not loaded. Bills actions stay blocked.";
-      if (status) status.textContent = "Blocked";
-      return;
-    }
-
-    if (summary.bill_save_allowed || summary.bill_clear_allowed) {
-      panel.classList.add("pass");
-      panel.textContent = "Command Centre allows proven Bills actions. Page still runs dry-run preflight before real write.";
-      if (status) status.textContent = "Allowed";
-      return;
-    }
-
-    if (summary.preflight_allowed) {
-      panel.textContent = "Bills preflight is allowed. Real bill save/clear remains blocked until Command Centre lift.";
-      if (status) status.textContent = "Preflight";
-      return;
-    }
-
-    panel.classList.add("blocked");
-    panel.textContent = "Bills are viewable, but bill actions are blocked until dry-run proof and page preflight are recognized.";
-    if (status) status.textContent = "Blocked";
-  }
-
-  async function loadBills() {
-    const data = await fetchJSON("/api/bills?cb=" + Date.now());
-    if (!versionAtLeast(data.version, REQUIRED_BILLS_API_VERSION)) {
-      throw new Error("Bills API must be v0.3.0+ for dry-run proof. Current: " + data.version);
-    }
-    bills = Array.isArray(data.bills) ? data.bills : [];
-    renderBills();
-  }
-
-  function renderStats() {
-    const active = bills.filter(bill => String(bill.status || "active").toLowerCase() === "active");
-    const monthlyAmount = active.reduce((sum, bill) => sum + Number(bill.amount || 0), 0);
-
-    if ($("billCount")) $("billCount").textContent = String(bills.length);
-    if ($("activeBillCount")) $("activeBillCount").textContent = String(active.length);
-    if ($("monthlyBillAmount")) $("monthlyBillAmount").textContent = money(monthlyAmount);
-  }
-
-  function renderBills() {
-    renderStats();
-    renderEnforcement();
-
-    const list = $("billsList");
-    if (!list) return;
-
-    if (!bills.length) {
-      list.innerHTML = '<div class="bills-empty">No bills returned from /api/bills.</div>';
-      return;
-    }
-
-    list.innerHTML = bills.map(renderBillCard).join("");
-
-    list.querySelectorAll("[data-bill-action]").forEach(button => {
-      button.addEventListener("click", onBillActionClick);
-    });
-  }
-
-  function renderBillCard(bill) {
-    const id = escapeHtml(bill.id || "");
-    const proof = lastProofByBill[bill.id];
-    const proofHtml = proof
-      ? `<div class="bill-proof ${proof.ok ? "" : "fail"}">${escapeHtml(proof.message)}</div>`
-      : "";
-
-    return `
-      <article class="bill-card" data-bill-id="${id}">
-        <div class="bill-card-header">
-          <div>
-            <div class="bill-name">${escapeHtml(bill.name || bill.id || "Bill")}</div>
-            <div class="bill-status">${escapeHtml(bill.status || "active")}</div>
-          </div>
-          <div class="bill-status">${escapeHtml(bill.frequency || "monthly")}</div>
-        </div>
-
-        <div class="bill-meta">
-          <div class="bill-meta-item">
-            <div class="bill-meta-label">Amount</div>
-            <div class="bill-meta-value">${escapeHtml(money(bill.amount))}</div>
-          </div>
-          <div class="bill-meta-item">
-            <div class="bill-meta-label">Due day</div>
-            <div class="bill-meta-value">${escapeHtml(bill.due_day == null ? "N/A" : String(bill.due_day))}</div>
-          </div>
-          <div class="bill-meta-item">
-            <div class="bill-meta-label">Last paid</div>
-            <div class="bill-meta-value">${escapeHtml(bill.last_paid_date || "N/A")}</div>
-          </div>
-          <div class="bill-meta-item">
-            <div class="bill-meta-label">Account</div>
-            <div class="bill-meta-value">${escapeHtml(bill.default_account_id || bill.last_paid_account_id || "N/A")}</div>
-          </div>
-        </div>
-
-        <div class="bill-actions">
-          <button class="primary" type="button" data-bill-action="clear" data-bill-id="${id}">
-            Run Clear Preflight
-          </button>
-          <button class="secondary" type="button" data-bill-action="save" data-bill-id="${id}">
-            Run Save Preflight
-          </button>
-        </div>
-
-        ${proofHtml}
-      </article>
-    `;
-  }
-
-  async function onBillActionClick(event) {
-    const button = event.currentTarget;
-    const billId = button.dataset.billId;
-    const action = button.dataset.billAction;
-    const bill = bills.find(item => item.id === billId);
-
-    if (!bill) {
-      toast("Bill not found on page.", "error");
-      return;
-    }
-
-    button.disabled = true;
-    button.classList.add("disabled");
-
-    try {
-      await refreshEnforcement();
-
-      if (action === "clear") {
-        await handleBillClear(bill);
-      } else {
-        await handleBillSave(bill);
-      }
-    } catch (err) {
-      lastProofByBill[billId] = {
-        ok: false,
-        message: err.message || String(err)
-      };
-      toast(err.message || "Bills preflight failed", "error");
-      renderBills();
-    } finally {
-      button.disabled = false;
-      button.classList.remove("disabled");
-    }
-  }
-
-  async function handleBillClear(bill) {
-    const result = await runClearPreflight(bill);
-
-    lastProofByBill[bill.id] = {
-      ok: true,
-      message: "bill.clear preflight passed. No bill, ledger, or audit rows were written."
-    };
-
-    renderBills();
-    toast("bill.clear preflight passed.", "success");
-
-    if (!actionAllowed("bill.clear")) {
-      return;
-    }
-
-    await runRealBillClear(bill);
-  }
-
-  async function handleBillSave(bill) {
-    const result = await runSavePreflight(bill);
-
-    lastProofByBill[bill.id] = {
-      ok: true,
-      message: "bill.save preflight passed. No bill, ledger, or audit rows were written."
-    };
-
-    renderBills();
-    toast("bill.save preflight passed.", "success");
-
-    if (!actionAllowed("bill.save")) {
-      return;
-    }
-
-    await runRealBillSave(bill);
-  }
-
-  async function runClearPreflight(bill) {
-    return fetchJSON("/api/bills/" + encodeURIComponent(bill.id) + "/pay?dry_run=1&cb=" + Date.now(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dry_run: true,
-        account_id: bill.last_paid_account_id || bill.default_account_id || "cash",
-        paid_date: todayISO()
-      })
-    });
-  }
-
-  async function runSavePreflight(bill) {
-    return fetchJSON("/api/bills/" + encodeURIComponent(bill.id) + "?dry_run=1&cb=" + Date.now(), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dry_run: true,
-        amount: Number(bill.amount || 0),
-        due_day: bill.due_day,
-        frequency: bill.frequency || "monthly",
-        category_id: bill.category_id || null,
-        default_account_id: bill.default_account_id || bill.last_paid_account_id || null,
-        status: bill.status || "active"
-      })
-    });
-  }
-
-  async function runRealBillClear(bill) {
-    const result = await fetchJSON("/api/bills/" + encodeURIComponent(bill.id) + "/pay?cb=" + Date.now(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        account_id: bill.last_paid_account_id || bill.default_account_id || "cash",
-        paid_date: todayISO()
-      })
-    });
-
-    toast("Bill cleared.", "success");
-    await loadBills();
-    return result;
-  }
-
-  async function runRealBillSave(bill) {
-    const result = await fetchJSON("/api/bills/" + encodeURIComponent(bill.id) + "?cb=" + Date.now(), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        amount: Number(bill.amount || 0),
-        due_day: bill.due_day,
-        frequency: bill.frequency || "monthly",
-        category_id: bill.category_id || null,
-        default_account_id: bill.default_account_id || bill.last_paid_account_id || null,
-        status: bill.status || "active"
-      })
-    });
-
-    toast("Bill saved.", "success");
-    await loadBills();
-    return result;
+  function plainNumber(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
   }
 
   function escapeHtml(value) {
-    return String(value == null ? "" : value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
   }
 
-  async function init() {
-    console.log("[bills v0.4.0] init");
+  function monthValue(date = new Date()) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function todayDay() {
+    return new Date().getDate();
+  }
+
+  function normalizeBill(raw) {
+    const id = raw.id ?? raw.bill_id ?? raw.uuid ?? raw.name;
+    const name = raw.name ?? raw.title ?? raw.bill_name ?? "Unnamed bill";
+    const amount = raw.amount ?? raw.monthly_amount ?? raw.expected_amount ?? raw.value ?? 0;
+    const dueDay = raw.due_day ?? raw.dueDay ?? raw.day ?? raw.due_date_day ?? raw.due_date ?? null;
+    const status = String(raw.status ?? "active").toLowerCase();
+    const cleared =
+      raw.cleared === true ||
+      raw.is_cleared === true ||
+      raw.current_month_cleared === true ||
+      String(raw.clear_status ?? "").toLowerCase() === "cleared";
+    const category = raw.category ?? raw.category_id ?? raw.type ?? "bills";
+    const notes = raw.notes ?? raw.description ?? "";
+
+    return {
+      ...raw,
+      id,
+      name,
+      amount: plainNumber(amount),
+      dueDay,
+      status,
+      cleared,
+      category,
+      notes
+    };
+  }
+
+  function extractBills(payload) {
+    if (Array.isArray(payload)) return payload.map(normalizeBill);
+    if (Array.isArray(payload?.bills)) return payload.bills.map(normalizeBill);
+    if (Array.isArray(payload?.items)) return payload.items.map(normalizeBill);
+    if (Array.isArray(payload?.data)) return payload.data.map(normalizeBill);
+    if (Array.isArray(payload?.rows)) return payload.rows.map(normalizeBill);
+    return [];
+  }
+
+  async function readJson(url, options = {}) {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        "content-type": "application/json",
+        ...(options.headers || {})
+      }
+    });
+
+    const text = await res.text();
+    let json = null;
 
     try {
-      await refreshEnforcement();
-      await loadBills();
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = { ok: false, error: text || "Non-JSON response" };
+    }
 
-      console.log("[bills v0.4.0] ready", {
-        bills: bills.length,
-        enforcement: billAuthoritySummary()
-      });
+    if (!res.ok) {
+      const message = json?.error || json?.message || `HTTP ${res.status}`;
+      throw new Error(message);
+    }
+
+    return json;
+  }
+
+  async function refresh() {
+    state.loading = true;
+    state.error = null;
+    render();
+
+    try {
+      const [billsPayload, commandPayload] = await Promise.allSettled([
+        readJson(`/api/bills?cb=${Date.now()}`),
+        readJson(`/api/finance-command-center?cb=${Date.now()}`)
+      ]);
+
+      if (billsPayload.status === "rejected") throw billsPayload.reason;
+
+      state.lastPayload = billsPayload.value;
+      state.bills = extractBills(billsPayload.value);
+      state.command = commandPayload.status === "fulfilled" ? commandPayload.value : null;
+      state.loading = false;
+      state.error = null;
     } catch (err) {
-      console.error("[bills v0.4.0] init failed", err);
-      toast(err.message || "Bills failed to load", "error");
+      state.loading = false;
+      state.error = err?.message || "Unable to load bills.";
+    }
 
-      const list = $("billsList");
-      if (list) {
-        list.innerHTML = '<div class="bills-empty">Bills failed to load: ' + escapeHtml(err.message || String(err)) + '</div>';
+    render();
+  }
+
+  function commandActionAllowed(actionName) {
+    const actions = state.command?.enforcement?.actions || state.command?.actions || [];
+    const action = actions.find((x) => x.action === actionName || x.name === actionName);
+    if (!action) return true;
+    return action.allowed !== false && action.status !== "blocked";
+  }
+
+  function filteredBills() {
+    const q = state.search.trim().toLowerCase();
+
+    return state.bills.filter((bill) => {
+      const matchesSearch = !q || [bill.name, bill.category, bill.notes]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q));
+
+      let matchesFilter = true;
+
+      if (state.filter === "active") matchesFilter = bill.status === "active";
+      if (state.filter === "cleared") matchesFilter = bill.cleared === true;
+      if (state.filter === "pending") matchesFilter = bill.cleared !== true && bill.status === "active";
+
+      return matchesSearch && matchesFilter;
+    });
+  }
+
+  function render() {
+    renderStatus();
+    renderStats();
+    renderTable();
+    renderDebug();
+  }
+
+  function renderStatus() {
+    if (state.loading) {
+      els.statusDot.className = "dot";
+      els.statusText.textContent = "Loading bills";
+      els.statusDetail.textContent = "Fetching your current obligations.";
+      return;
+    }
+
+    if (state.error) {
+      els.statusDot.className = "dot bad";
+      els.statusText.textContent = "Needs attention";
+      els.statusDetail.textContent = state.error;
+      return;
+    }
+
+    const saveAllowed = commandActionAllowed("bill.save");
+    const clearAllowed = commandActionAllowed("bill.clear");
+
+    if (saveAllowed && clearAllowed) {
+      els.statusDot.className = "dot ready";
+      els.statusText.textContent = "Ready";
+      els.statusDetail.textContent = "Bills are loaded and available.";
+      return;
+    }
+
+    els.statusDot.className = "dot";
+    els.statusText.textContent = "Limited";
+    els.statusDetail.textContent = "Some bill actions are not available right now.";
+  }
+
+  function renderStats() {
+    const active = state.bills.filter((b) => b.status === "active");
+    const total = active.reduce((sum, b) => sum + plainNumber(b.amount), 0);
+    const due = active.filter((b) => {
+      const dueDay = Number.parseInt(String(b.dueDay ?? ""), 10);
+      return Number.isFinite(dueDay) && dueDay >= todayDay() && !b.cleared;
+    });
+
+    els.activeCount.textContent = state.loading ? "—" : String(active.length);
+    els.monthlyTotal.textContent = state.loading ? "—" : money(total);
+    els.dueCount.textContent = state.loading ? "—" : String(due.length);
+  }
+
+  function renderTable() {
+    if (state.loading) {
+      els.billsBody.innerHTML = `<tr><td colspan="5" class="empty">Loading bills...</td></tr>`;
+      return;
+    }
+
+    if (state.error) {
+      els.billsBody.innerHTML = `<tr><td colspan="5" class="empty">${escapeHtml(state.error)}</td></tr>`;
+      return;
+    }
+
+    const bills = filteredBills();
+
+    if (!bills.length) {
+      els.billsBody.innerHTML = `<tr><td colspan="5" class="empty">No bills found.</td></tr>`;
+      return;
+    }
+
+    els.billsBody.innerHTML = bills.map((bill) => {
+      const due = bill.dueDay ? `Day ${escapeHtml(bill.dueDay)}` : "—";
+      const statusBadge = bill.cleared
+        ? `<span class="badge ok">Cleared</span>`
+        : `<span class="badge warn">Pending</span>`;
+
+      const archived = bill.status !== "active"
+        ? `<span class="badge">${escapeHtml(bill.status)}</span>`
+        : "";
+
+      return `
+        <tr>
+          <td data-label="Bill">
+            <div class="bill-name">
+              <strong>${escapeHtml(bill.name)}</strong>
+              <span class="sub">${escapeHtml(bill.category || "bills")}${bill.notes ? ` · ${escapeHtml(bill.notes)}` : ""}</span>
+            </div>
+          </td>
+          <td data-label="Amount">${money(bill.amount)}</td>
+          <td data-label="Due">${due}</td>
+          <td data-label="Status">${statusBadge} ${archived}</td>
+          <td data-label="Actions">
+            <div class="row-actions">
+              <button class="small-btn" type="button" data-edit="${escapeHtml(bill.id)}">Edit</button>
+              <button class="small-btn" type="button" data-clear="${escapeHtml(bill.id)}">Clear</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  function renderDebug() {
+    if (!DEBUG || !els.debugPanel) return;
+
+    els.debugPanel.textContent = JSON.stringify({
+      ui_version: VERSION,
+      mode: "debug",
+      bills_count: state.bills.length,
+      filter: state.filter,
+      search: state.search,
+      error: state.error,
+      command_version: state.command?.version,
+      bill_save_allowed: commandActionAllowed("bill.save"),
+      bill_clear_allowed: commandActionAllowed("bill.clear"),
+      raw_bills_payload: state.lastPayload
+    }, null, 2);
+  }
+
+  function showToast(title, body = "") {
+    els.toastTitle.textContent = title;
+    els.toastBody.textContent = body;
+    els.toast.classList.add("show");
+    window.clearTimeout(showToast.timer);
+    showToast.timer = window.setTimeout(() => els.toast.classList.remove("show"), 3200);
+  }
+
+  function openBillModal(bill = null) {
+    els.billModal.classList.add("open");
+    els.billModal.setAttribute("aria-hidden", "false");
+
+    els.billModalTitle.textContent = bill ? "Edit Bill" : "Add Bill";
+    els.billId.value = bill?.id ?? "";
+    els.billName.value = bill?.name ?? "";
+    els.billAmount.value = bill?.amount ?? "";
+    els.billDueDay.value = bill?.dueDay ?? "";
+    els.billCategory.value = bill?.category ?? "bills";
+    els.billStatus.value = bill?.status ?? "active";
+    els.billNotes.value = bill?.notes ?? "";
+    setTimeout(() => els.billName.focus(), 30);
+  }
+
+  function closeBillModal() {
+    els.billModal.classList.remove("open");
+    els.billModal.setAttribute("aria-hidden", "true");
+    els.billForm.reset();
+    els.billId.value = "";
+  }
+
+  function openClearModal(bill) {
+    els.clearModal.classList.add("open");
+    els.clearModal.setAttribute("aria-hidden", "false");
+
+    els.clearBillId.value = bill.id;
+    els.clearAmount.value = bill.amount || "";
+    els.clearMonth.value = monthValue();
+    els.clearNotes.value = "";
+    els.clearModalText.textContent = `Mark ${bill.name} as cleared for the selected month.`;
+    setTimeout(() => els.clearAmount.focus(), 30);
+  }
+
+  function closeClearModal() {
+    els.clearModal.classList.remove("open");
+    els.clearModal.setAttribute("aria-hidden", "true");
+    els.clearForm.reset();
+    els.clearBillId.value = "";
+  }
+
+  function billById(id) {
+    return state.bills.find((bill) => String(bill.id) === String(id));
+  }
+
+  function billPayloadFromForm() {
+    const id = els.billId.value.trim();
+
+    const payload = {
+      name: els.billName.value.trim(),
+      amount: plainNumber(els.billAmount.value),
+      due_day: els.billDueDay.value ? Number.parseInt(els.billDueDay.value, 10) : null,
+      category: els.billCategory.value.trim() || "bills",
+      status: els.billStatus.value,
+      notes: els.billNotes.value.trim()
+    };
+
+    if (id) payload.id = id;
+    return payload;
+  }
+
+  async function saveBill(payload) {
+    const isEdit = Boolean(payload.id);
+
+    const endpoints = isEdit
+      ? [
+          { url: `/api/bills/${encodeURIComponent(payload.id)}`, method: "PUT" },
+          { url: `/api/bills/${encodeURIComponent(payload.id)}`, method: "POST" },
+          { url: `/api/bills`, method: "POST", body: { ...payload, action: "update" } }
+        ]
+      : [
+          { url: `/api/bills`, method: "POST", body: payload }
+        ];
+
+    return tryMutation(endpoints, payload);
+  }
+
+  async function clearBill(payload) {
+    const id = payload.id;
+
+    const endpoints = [
+      { url: `/api/bills/${encodeURIComponent(id)}/clear`, method: "POST", body: payload },
+      { url: `/api/bills/${encodeURIComponent(id)}`, method: "POST", body: { ...payload, action: "clear" } },
+      { url: `/api/bills`, method: "POST", body: { ...payload, bill_id: id, action: "clear" } }
+    ];
+
+    return tryMutation(endpoints, payload);
+  }
+
+  async function tryMutation(candidates, fallbackBody) {
+    let lastError = null;
+
+    for (const candidate of candidates) {
+      try {
+        return await readJson(candidate.url, {
+          method: candidate.method,
+          body: JSON.stringify(candidate.body || fallbackBody)
+        });
+      } catch (err) {
+        lastError = err;
+        if (DEBUG) console.warn("Bills mutation candidate failed", candidate, err);
       }
     }
+
+    throw lastError || new Error("Unable to save changes.");
   }
 
-  window.SovereignBills = {
-    version: VERSION,
-    bills: () => bills.slice(),
-    enforcement: () => billAuthoritySummary(),
-    refresh: async () => {
-      await refreshEnforcement();
-      await loadBills();
-      return {
-        bills: bills.slice(),
-        enforcement: billAuthoritySummary()
+  function bindEvents() {
+    els.refreshBtn.addEventListener("click", refresh);
+    els.addBillBtn.addEventListener("click", () => openBillModal());
+
+    els.searchInput.addEventListener("input", (event) => {
+      state.search = event.target.value;
+      render();
+    });
+
+    els.statusFilter.addEventListener("change", (event) => {
+      state.filter = event.target.value;
+      render();
+    });
+
+    document.addEventListener("click", (event) => {
+      const editId = event.target?.getAttribute?.("data-edit");
+      const clearId = event.target?.getAttribute?.("data-clear");
+
+      if (editId) {
+        const bill = billById(editId);
+        if (bill) openBillModal(bill);
+      }
+
+      if (clearId) {
+        const bill = billById(clearId);
+        if (bill) openClearModal(bill);
+      }
+
+      if (event.target?.hasAttribute?.("data-close-modal")) closeBillModal();
+      if (event.target?.hasAttribute?.("data-close-clear")) closeClearModal();
+    });
+
+    els.billModal.addEventListener("click", (event) => {
+      if (event.target === els.billModal) closeBillModal();
+    });
+
+    els.clearModal.addEventListener("click", (event) => {
+      if (event.target === els.clearModal) closeClearModal();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeBillModal();
+        closeClearModal();
+      }
+    });
+
+    els.billForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      if (!commandActionAllowed("bill.save")) {
+        showToast("Bill save is unavailable", "Try again after the system is ready.");
+        return;
+      }
+
+      const payload = billPayloadFromForm();
+
+      if (!payload.name) {
+        showToast("Name required", "Add a bill name before saving.");
+        return;
+      }
+
+      try {
+        await saveBill(payload);
+        closeBillModal();
+        showToast("Bill saved", payload.name);
+        await refresh();
+      } catch (err) {
+        showToast("Save failed", err?.message || "Unable to save bill.");
+      }
+    });
+
+    els.clearForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      if (!commandActionAllowed("bill.clear")) {
+        showToast("Bill clear is unavailable", "Try again after the system is ready.");
+        return;
+      }
+
+      const id = els.clearBillId.value;
+      const bill = billById(id);
+
+      const payload = {
+        id,
+        amount: plainNumber(els.clearAmount.value),
+        month: els.clearMonth.value,
+        notes: els.clearNotes.value.trim()
       };
-    },
-    preflightClear: async billId => {
-      const bill = bills.find(item => item.id === billId);
-      if (!bill) throw new Error("Bill not found: " + billId);
-      return runClearPreflight(bill);
-    },
-    preflightSave: async billId => {
-      const bill = bills.find(item => item.id === billId);
-      if (!bill) throw new Error("Bill not found: " + billId);
-      return runSavePreflight(bill);
-    }
-  };
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
+      try {
+        await clearBill(payload);
+        closeClearModal();
+        showToast("Bill cleared", bill?.name || "Bill");
+        await refresh();
+      } catch (err) {
+        showToast("Clear failed", err?.message || "Unable to clear bill.");
+      }
+    });
   }
+
+  bindEvents();
+  refresh();
 })();
