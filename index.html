@@ -1,712 +1,537 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <meta name="color-scheme" content="light" />
-  <title>Sovereign Finance · Hub</title>
-
-  <link rel="stylesheet" href="/css/app.css?v=2.0.3" />
-
-  <style>
-    .hub-hero-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
-      gap: 18px;
-      align-items: stretch;
-    }
-
-    .hub-hero-side {
-      display: grid;
-      gap: 12px;
-    }
-
-    .hub-glass-card {
-      padding: 18px;
-      border-radius: 24px;
-      background: rgba(255,255,255,0.10);
-      border: 1px solid rgba(255,255,255,0.14);
-      color: #fff;
-    }
-
-    .hub-glass-label {
-      color: #cbd5e1;
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-
-    .hub-glass-value {
-      margin-top: 8px;
-      font-size: 30px;
-      line-height: 1;
-      font-weight: 950;
-      letter-spacing: -.06em;
-    }
-
-    .hub-glass-sub {
-      margin-top: 7px;
-      color: #cbd5e1;
-      font-size: 12px;
-      font-weight: 760;
-    }
-
-    .hub-health-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .hub-module-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-    }
-
-    .hub-module-card {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      padding: 18px;
-      border-radius: 26px;
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow-sm);
-      text-decoration: none;
-    }
-
-    .hub-module-card:hover {
-      transform: translateY(-1px);
-    }
-
-    .hub-module-kicker {
-      width: fit-content;
-      padding: 6px 9px;
-      border-radius: 999px;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      font-size: 10px;
-      font-weight: 950;
-      letter-spacing: .07em;
-      text-transform: uppercase;
-    }
-
-    .hub-module-title {
-      color: var(--text-strong);
-      font-size: 18px;
-      font-weight: 950;
-      letter-spacing: -.04em;
-    }
-
-    .hub-module-copy {
-      color: var(--text-muted);
-      font-size: 13px;
-      line-height: 1.5;
-      font-weight: 740;
-    }
-
-    .hub-panel-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(300px, 430px);
-      gap: 18px;
-      align-items: start;
-    }
-
-    .hub-panel {
-      overflow: hidden;
-      border-radius: 28px;
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow-sm);
-    }
-
-    .hub-panel-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 18px 20px;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface-2);
-    }
-
-    .hub-panel-title {
-      color: var(--text-strong);
-      font-size: 17px;
-      font-weight: 950;
-      letter-spacing: -.03em;
-    }
-
-    .hub-panel-sub {
-      margin-top: 3px;
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 760;
-    }
-
-    .hub-list {
-      display: grid;
-    }
-
-    .hub-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 14px;
-      padding: 14px 18px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .hub-row:last-child {
-      border-bottom: 0;
-    }
-
-    .hub-row-main {
-      min-width: 0;
-    }
-
-    .hub-row-title {
-      color: var(--text-strong);
-      font-size: 13px;
-      font-weight: 920;
-      overflow-wrap: anywhere;
-    }
-
-    .hub-row-sub {
-      margin-top: 3px;
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 740;
-      overflow-wrap: anywhere;
-    }
-
-    .hub-row-amount {
-      color: var(--text-strong);
-      font-family: var(--font-mono);
-      font-size: 13px;
-      font-weight: 950;
-      white-space: nowrap;
-      text-align: right;
-    }
-
-    .hub-row-amount.income {
-      color: var(--success);
-    }
-
-    .hub-row-amount.expense {
-      color: var(--danger);
-    }
-
-    .hub-row-amount.transfer {
-      color: var(--info);
-    }
-
-    .hub-empty {
-      padding: 34px 18px;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 760;
-    }
-
-    @media (max-width: 1180px) {
-      .hub-hero-grid,
-      .hub-panel-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .hub-health-grid,
-      .hub-module-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 680px) {
-      .hub-health-grid,
-      .hub-module-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+  <title>Sovereign Finance</title>
+  <meta name="description" content="Private finance dashboard for accounts, bills, debts, salary, forecast, and reconciliation." />
+  <link rel="stylesheet" href="/css/sovereign-app.css?v=2A.1" />
 </head>
 
 <body>
-  <main class="app-page">
-    <section class="finance-hero">
-      <div class="hub-hero-grid">
-        <div>
-          <div class="hero-kicker">Finance Hub</div>
-          <h1 class="hero-title">Sovereign Finance</h1>
-          <p class="hero-copy">
-            Read-only command view for your money system. The Hub shows live balances, recent ledger activity, and page status without blocking normal finance use.
-          </p>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/index.html" aria-label="Sovereign Finance home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>Sovereign Finance</span>
+      </a>
 
-          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
-            <a class="btn btn-success" href="/add.html">Add Transaction</a>
-            <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
-            <button class="btn btn-secondary" type="button" id="refreshHubBtn">Refresh</button>
-          </div>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="/add.html">Add</a>
+        <a href="/transactions.html">Ledger</a>
+        <a href="/bills.html">Bills</a>
+        <a href="/debts.html">Debts</a>
+        <a href="/salary.html">Salary</a>
+        <a href="/forecast.html">Forecast</a>
+        <a href="/reconciliation.html">Reconcile</a>
+        <a href="/monthly-close.html">Command Centre</a>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div class="card hero-main">
+        <div class="eyebrow">Private finance dashboard</div>
+        <h1>Your money position, clean and current.</h1>
+        <p>View balances, obligations, debt pressure, and near-term forecast from one fast daily dashboard.</p>
+
+        <div class="hero-actions">
+          <a class="btn primary" href="/add.html">Add Transaction</a>
+          <a class="btn ghost" href="/bills.html">Manage Bills</a>
+          <a class="btn ghost" href="/forecast.html">Open Forecast</a>
         </div>
+      </div>
 
-        <div class="hub-hero-side">
-          <div class="hub-glass-card">
-            <div class="hub-glass-label">Cash / Asset Balance</div>
-            <div class="hub-glass-value" id="assetBalance">—</div>
-            <div class="hub-glass-sub" id="assetBalanceSub">Loading balances</div>
-          </div>
-
-          <div class="hub-glass-card">
-            <div class="hub-glass-label">Ledger Rows</div>
-            <div class="hub-glass-value" id="ledgerRows">—</div>
-            <div class="hub-glass-sub">Loaded from transactions API</div>
-          </div>
+      <aside class="card side-panel">
+        <div class="signal">
+          <label>Dashboard status</label>
+          <strong id="dashboardStatus">Loading</strong>
         </div>
-      </div>
+        <div class="signal">
+          <label>Last refreshed</label>
+          <strong id="lastRefreshed">—</strong>
+        </div>
+        <div class="signal">
+          <label>Next action</label>
+          <strong id="nextAction">Review</strong>
+        </div>
+      </aside>
     </section>
 
-    <section class="hub-health-grid">
-      <div class="kpi-card">
-        <div class="kpi-label">Balances API</div>
-        <div class="kpi-value" id="balancesStatus">Loading</div>
-        <div class="kpi-sub" id="balancesSub">/api/balances?debug=1</div>
-      </div>
+    <section class="grid summary-grid" aria-label="Finance summary">
+      <article class="card stat">
+        <div class="label">Accounts balance</div>
+        <div class="value" id="accountsTotal">—</div>
+        <div class="note" id="accountsNote">Loading accounts</div>
+      </article>
 
-      <div class="kpi-card">
-        <div class="kpi-label">Transactions API</div>
-        <div class="kpi-value" id="transactionsStatus">Loading</div>
-        <div class="kpi-sub" id="transactionsSub">/api/transactions</div>
-      </div>
+      <article class="card stat">
+        <div class="label">Monthly bills</div>
+        <div class="value" id="billsTotal">—</div>
+        <div class="note" id="billsNote">Loading bills</div>
+      </article>
 
-      <div class="kpi-card">
-        <div class="kpi-label">Credit Card Outstanding</div>
-        <div class="kpi-value" id="ccOutstanding">—</div>
-        <div class="kpi-sub">Reported by balances API</div>
-      </div>
+      <article class="card stat">
+        <div class="label">Debt outstanding</div>
+        <div class="value" id="debtsTotal">—</div>
+        <div class="note" id="debtsNote">Loading debts</div>
+      </article>
 
-      <div class="kpi-card">
-        <div class="kpi-label">Debt / Liability</div>
-        <div class="kpi-value" id="debtOutstanding">—</div>
-        <div class="kpi-sub">Reported by balances API</div>
-      </div>
+      <article class="card stat">
+        <div class="label">Forecast ending</div>
+        <div class="value" id="forecastEnding">—</div>
+        <div class="note" id="forecastNote">Loading forecast</div>
+      </article>
     </section>
 
-    <section class="hub-module-grid">
-      <a class="hub-module-card" href="/add.html">
-        <div class="hub-module-kicker">Write gated</div>
-        <div class="hub-module-title">Add Transaction</div>
-        <div class="hub-module-copy">Expense, income, and transfer entry. Real save stays protected by transaction.save law.</div>
-      </a>
-
-      <a class="hub-module-card" href="/transactions.html">
-        <div class="hub-module-kicker">Read-only</div>
-        <div class="hub-module-title">Transactions</div>
-        <div class="hub-module-copy">Normal ledger reader with filters, account names, and recent rows.</div>
-      </a>
-
-      <a class="hub-module-card" href="/accounts.html">
-        <div class="hub-module-kicker">Read-only</div>
-        <div class="hub-module-title">Accounts</div>
-        <div class="hub-module-copy">Account balances and cash position from the live balances API.</div>
-      </a>
-
-      <a class="hub-module-card" href="/bills.html">
-        <div class="hub-module-kicker">Write gated</div>
-        <div class="hub-module-title">Bills</div>
-        <div class="hub-module-copy">Bill save and clear actions obey bill.preflight, bill.save, and bill.clear.</div>
-      </a>
-
-      <a class="hub-module-card" href="/monthly-close.html">
-        <div class="hub-module-kicker">Audit only</div>
-        <div class="hub-module-title">Command Centre</div>
-        <div class="hub-module-copy">Truth reader for API health, action gates, and finance proof status.</div>
-      </a>
-
-      <a class="hub-module-card" href="/reconciliation.html">
-        <div class="hub-module-kicker">Proof required</div>
-        <div class="hub-module-title">Reconciliation</div>
-        <div class="hub-module-copy">Bank reality checks stay blocked until reconciliation proof is restored.</div>
-      </a>
-    </section>
-
-    <section class="hub-panel-grid">
-      <div class="hub-panel">
-        <div class="hub-panel-head">
+    <section class="grid main-grid">
+      <article class="card section">
+        <div class="section-head">
           <div>
-            <div class="hub-panel-title">Recent Ledger</div>
-            <div class="hub-panel-sub" id="recentLedgerSub">Loading recent transactions</div>
+            <h2>Accounts</h2>
+            <p>Current account view from source balances.</p>
           </div>
-          <a class="btn btn-secondary" href="/transactions.html">View All</a>
+          <a class="badge" href="/accounts.html">Open</a>
         </div>
-        <div class="hub-list" id="recentLedgerList">
-          <div class="hub-empty">Loading ledger…</div>
-        </div>
-      </div>
 
-      <div class="hub-panel">
-        <div class="hub-panel-head">
+        <div class="list" id="accountsList">
+          <div class="loading">Loading accounts...</div>
+        </div>
+      </article>
+
+      <article class="card section">
+        <div class="section-head">
           <div>
-            <div class="hub-panel-title">Accounts Snapshot</div>
-            <div class="hub-panel-sub" id="accountsSub">Loading accounts</div>
+            <h2>Quick actions</h2>
+            <p>Jump straight into the work.</p>
           </div>
-          <a class="btn btn-secondary" href="/accounts.html">Accounts</a>
         </div>
-        <div class="hub-list" id="accountsList">
-          <div class="hub-empty">Loading accounts…</div>
+
+        <div class="quick-grid">
+          <a class="quick" href="/add.html">
+            <strong>Add Transaction</strong>
+            <span>Record income, expense, transfer, or adjustment.</span>
+          </a>
+
+          <a class="quick" href="/bills.html">
+            <strong>Clear Bills</strong>
+            <span>Review monthly obligations and mark paid items.</span>
+          </a>
+
+          <a class="quick" href="/debts.html">
+            <strong>Record Debt Payment</strong>
+            <span>Update what you owe or what was received.</span>
+          </a>
+
+          <a class="quick" href="/reconciliation.html">
+            <strong>Declare Balance</strong>
+            <span>Compare app balance against real account balance.</span>
+          </a>
+
+          <a class="quick" href="/salary.html">
+            <strong>Update Salary</strong>
+            <span>Manage guaranteed and confirmed variable income.</span>
+          </a>
+
+          <a class="quick" href="/forecast.html">
+            <strong>Generate Forecast</strong>
+            <span>See the next cash position using known inputs.</span>
+          </a>
         </div>
-      </div>
+      </article>
+
+      <article class="card section">
+        <div class="section-head">
+          <div>
+            <h2>Bills due</h2>
+            <p>Upcoming active obligations.</p>
+          </div>
+          <a class="badge" href="/bills.html">Manage</a>
+        </div>
+
+        <div class="list" id="billsList">
+          <div class="loading">Loading bills...</div>
+        </div>
+      </article>
+
+      <article class="card section">
+        <div class="section-head">
+          <div>
+            <h2>Debt pressure</h2>
+            <p>Outstanding debt and receivable snapshot.</p>
+          </div>
+          <a class="badge" href="/debts.html">Open</a>
+        </div>
+
+        <div class="list" id="debtsList">
+          <div class="loading">Loading debts...</div>
+        </div>
+      </article>
     </section>
+
+    <pre class="debug-panel" id="debugPanel"></pre>
   </main>
 
-  <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=2.0.3"></script>
+  <script src="/js/command-firewall.js?v=1.5A.1" defer></script>
 
   <script>
-    (function () {
+    (() => {
       "use strict";
 
-      const VERSION = "hub-recovery-v1.0.0";
-      const BALANCES_ENDPOINT = "/api/balances?debug=1";
-      const TRANSACTIONS_ENDPOINT = "/api/transactions";
+      const VERSION = "2A.1";
+      const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
-      let accounts = [];
-      let transactions = [];
+      if (DEBUG) document.body.classList.add("debug");
+
+      const state = {
+        accounts: null,
+        bills: null,
+        debts: null,
+        salary: null,
+        forecast: null,
+        errors: {}
+      };
 
       const $ = id => document.getElementById(id);
 
-      function clean(value, fallback) {
-        const raw = value == null ? fallback : value;
-        return String(raw == null ? "" : raw).trim();
-      }
+      const els = {
+        dashboardStatus: $("dashboardStatus"),
+        lastRefreshed: $("lastRefreshed"),
+        nextAction: $("nextAction"),
+        accountsTotal: $("accountsTotal"),
+        accountsNote: $("accountsNote"),
+        billsTotal: $("billsTotal"),
+        billsNote: $("billsNote"),
+        debtsTotal: $("debtsTotal"),
+        debtsNote: $("debtsNote"),
+        forecastEnding: $("forecastEnding"),
+        forecastNote: $("forecastNote"),
+        accountsList: $("accountsList"),
+        billsList: $("billsList"),
+        debtsList: $("debtsList"),
+        debugPanel: $("debugPanel")
+      };
 
-      function num(value) {
-        const n = Number(value);
-        return Number.isFinite(n) ? n : 0;
-      }
+      window.SovereignHub = {
+        version: VERSION,
+        refresh,
+        getState: () => JSON.parse(JSON.stringify(state))
+      };
 
       function money(value) {
-        return "Rs " + num(value).toLocaleString("en-PK", {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "—";
+
+        return new Intl.NumberFormat("en-PK", {
+          style: "currency",
+          currency: "PKR",
           maximumFractionDigits: 0
-        });
+        }).format(n);
+      }
+
+      function number(value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : null;
       }
 
       function escapeHtml(value) {
-        return clean(value, "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
       }
 
-      function dateOnly(value) {
-        const raw = clean(value, "");
-        return raw ? raw.slice(0, 10) : "";
-      }
+      async function readJson(path) {
+        const res = await fetch(`${path}${path.includes("?") ? "&" : "?"}cb=${Date.now()}`);
+        const text = await res.text();
 
-      function prettyDate(value) {
-        const raw = dateOnly(value);
-        if (!raw) return "—";
-
-        const d = new Date(raw + "T00:00:00");
-        if (Number.isNaN(d.getTime())) return raw;
-
-        return d.toLocaleDateString("en-PK", {
-          month: "short",
-          day: "2-digit",
-          year: "numeric"
-        });
-      }
-
-      async function fetchJson(url) {
-        const response = await fetch(url + (url.includes("?") ? "&" : "?") + "cb=" + Date.now(), {
-          cache: "no-store",
-          headers: {
-            accept: "application/json",
-            "x-sovereign-page": VERSION
-          }
-        });
-
-        const data = await response.json().catch(() => null);
-
-        if (!response.ok || !data) {
-          throw new Error((data && data.error) || "HTTP " + response.status);
+        let json;
+        try {
+          json = text ? JSON.parse(text) : {};
+        } catch {
+          throw new Error(`${path} returned non-JSON`);
         }
 
-        if (data.ok === false) {
-          throw new Error(data.error || "Request failed");
+        if (!res.ok) {
+          throw new Error(json?.error || json?.message || `${path} HTTP ${res.status}`);
         }
 
-        return data;
+        return json;
       }
 
-      function normalizeArrayResponse(data, keys) {
-        if (Array.isArray(data)) return data;
-
-        for (const key of keys) {
-          if (data && Array.isArray(data[key])) return data[key];
+      async function safeLoad(key, path) {
+        try {
+          const payload = await readJson(path);
+          state[key] = payload;
+          delete state.errors[key];
+        } catch (err) {
+          state[key] = null;
+          state.errors[key] = err?.message || "Load failed";
         }
+      }
 
-        if (data && data.data && Array.isArray(data.data)) return data.data;
-        if (data && data.rows && Array.isArray(data.rows)) return data.rows;
-        if (data && data.result && Array.isArray(data.result)) return data.result;
+      async function refresh() {
+        renderLoading();
 
+        await Promise.allSettled([
+          safeLoad("accounts", "/api/accounts"),
+          safeLoad("bills", "/api/bills"),
+          safeLoad("debts", "/api/debts"),
+          safeLoad("salary", "/api/salary"),
+          safeLoad("forecast", "/api/forecast")
+        ]);
+
+        render();
+      }
+
+      function getAccounts() {
+        const p = state.accounts;
+        if (!p) return [];
+        if (Array.isArray(p)) return p;
+        if (Array.isArray(p.accounts)) return p.accounts;
+        if (Array.isArray(p.data)) return p.data;
+        if (Array.isArray(p.rows)) return p.rows;
         return [];
       }
 
-      function normalizeAccounts(data) {
-        let raw = normalizeArrayResponse(data, ["accounts", "balances"]);
+      function getBills() {
+        const p = state.bills;
+        if (!p) return [];
+        if (Array.isArray(p)) return p;
+        if (Array.isArray(p.bills)) return p.bills;
+        if (Array.isArray(p.items)) return p.items;
+        if (Array.isArray(p.data)) return p.data;
+        if (Array.isArray(p.rows)) return p.rows;
+        return [];
+      }
 
-        if (!raw.length && data && data.accounts && typeof data.accounts === "object") {
-          raw = Object.keys(data.accounts).map(id => ({ id, ...data.accounts[id] }));
+      function getDebts() {
+        const p = state.debts;
+        if (!p) return [];
+        if (Array.isArray(p)) return p;
+        if (Array.isArray(p.debts)) return p.debts;
+        if (Array.isArray(p.items)) return p.items;
+        if (Array.isArray(p.data)) return p.data;
+        if (Array.isArray(p.rows)) return p.rows;
+        return [];
+      }
+
+      function accountBalance(account) {
+        return number(account.balance ?? account.current_balance ?? account.amount ?? account.value);
+      }
+
+      function billAmount(bill) {
+        return number(bill.amount ?? bill.monthly_amount ?? bill.expected_amount ?? bill.value);
+      }
+
+      function debtOutstanding(debt) {
+        return number(
+          debt.outstanding ??
+          debt.remaining ??
+          debt.remaining_amount ??
+          debt.balance ??
+          debt.current_balance ??
+          debt.amount
+        );
+      }
+
+      function nameOf(row, fallback) {
+        return row.name || row.title || row.label || row.account_name || row.bill_name || row.debt_name || fallback;
+      }
+
+      function renderLoading() {
+        els.dashboardStatus.textContent = "Loading";
+        els.accountsList.innerHTML = `<div class="loading">Loading accounts...</div>`;
+        els.billsList.innerHTML = `<div class="loading">Loading bills...</div>`;
+        els.debtsList.innerHTML = `<div class="loading">Loading debts...</div>`;
+      }
+
+      function render() {
+        renderStatus();
+        renderAccounts();
+        renderBills();
+        renderDebts();
+        renderForecast();
+        renderDebug();
+      }
+
+      function renderStatus() {
+        const errorCount = Object.keys(state.errors).length;
+
+        els.dashboardStatus.textContent = errorCount ? "Partial" : "Ready";
+        els.lastRefreshed.textContent = new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+
+        if (state.errors.bills) {
+          els.nextAction.textContent = "Check bills";
+        } else if (state.errors.accounts) {
+          els.nextAction.textContent = "Check accounts";
+        } else if (state.errors.forecast) {
+          els.nextAction.textContent = "Run forecast";
+        } else {
+          els.nextAction.textContent = "Review";
         }
-
-        if (!raw.length && data && data.balances && typeof data.balances === "object") {
-          raw = Object.keys(data.balances).map(id => ({ id, ...data.balances[id] }));
-        }
-
-        return raw.map(item => ({
-          ...item,
-          id: clean(item.id || item.account_id || item.key, ""),
-          name: clean(item.name || item.label || item.account_name || item.display_name || item.id, ""),
-          type: clean(item.type || item.kind || item.account_type, ""),
-          balance: num(item.balance ?? item.current_balance ?? item.amount ?? item.value)
-        })).filter(item => item.id);
-      }
-
-      function normalizeTransaction(row, index) {
-        const type = clean(row.type || row.txn_type || row.transaction_type || row.kind, "expense").toLowerCase();
-
-        return {
-          id: clean(row.id || row.txn_id || row.transaction_id || "row_" + index, ""),
-          date: dateOnly(row.date || row.txn_date || row.transaction_date || row.created_at),
-          type: ["expense", "income", "transfer"].includes(type) ? type : type || "expense",
-          amount: Math.abs(num(row.amount ?? row.value ?? row.transaction_amount)),
-          account_id: clean(row.account_id || row.from_account_id || row.account || "", ""),
-          transfer_to_account_id: clean(row.transfer_to_account_id || row.to_account_id || row.destination_account_id || "", ""),
-          category_id: clean(row.category_id || row.category || "", ""),
-          notes: clean(row.notes || row.description || row.memo || row.narration || "", "")
-        };
-      }
-
-      function accountName(id) {
-        const key = clean(id, "");
-        const found = accounts.find(item => item.id === key);
-        return found ? clean(found.name || found.id, key) : key || "—";
-      }
-
-      function setStatus(which, ok, message) {
-        const value = which === "balances" ? $("balancesStatus") : $("transactionsStatus");
-        const sub = which === "balances" ? $("balancesSub") : $("transactionsSub");
-
-        if (value) {
-          value.textContent = ok ? "Live" : "Error";
-          value.style.color = ok ? "var(--success)" : "var(--danger)";
-        }
-
-        if (sub) sub.textContent = message;
-      }
-
-      function extractMetric(data, names) {
-        for (const name of names) {
-          if (data && data[name] != null) return num(data[name]);
-          if (data && data.summary && data.summary[name] != null) return num(data.summary[name]);
-          if (data && data.debug && data.debug[name] != null) return num(data.debug[name]);
-        }
-        return 0;
-      }
-
-      async function loadBalances() {
-        try {
-          const data = await fetchJson(BALANCES_ENDPOINT);
-          accounts = normalizeAccounts(data);
-
-          const assetBalance =
-            extractMetric(data, ["asset_balance", "cash_balance", "total_cash", "total_assets"]) ||
-            accounts
-              .filter(account => !/debt|loan|credit|cc|liability/i.test(account.type + " " + account.name + " " + account.id))
-              .reduce((sum, account) => sum + account.balance, 0);
-
-          const ccOutstanding = extractMetric(data, ["cc_outstanding", "credit_card_outstanding", "creditCardOutstanding"]);
-          const debtOutstanding = extractMetric(data, ["debt_outstanding", "total_debt", "liability_total", "liabilities"]);
-
-          if ($("assetBalance")) $("assetBalance").textContent = money(assetBalance);
-          if ($("assetBalanceSub")) $("assetBalanceSub").textContent = accounts.length + " accounts loaded";
-          if ($("ccOutstanding")) $("ccOutstanding").textContent = money(ccOutstanding);
-          if ($("debtOutstanding")) $("debtOutstanding").textContent = money(debtOutstanding);
-
-          setStatus("balances", true, "Loaded " + accounts.length + " accounts");
-        } catch (err) {
-          console.error("[hub] balances failed:", err);
-          accounts = [];
-          setStatus("balances", false, err.message || String(err));
-        }
-      }
-
-      async function loadTransactions() {
-        try {
-          const data = await fetchJson(TRANSACTIONS_ENDPOINT);
-          const rows = normalizeArrayResponse(data, ["transactions", "items"]);
-
-          transactions = rows
-            .map(normalizeTransaction)
-            .filter(tx => tx.id)
-            .sort((a, b) => {
-              const dateCompare = clean(b.date, "").localeCompare(clean(a.date, ""));
-              if (dateCompare) return dateCompare;
-              return clean(b.id, "").localeCompare(clean(a.id, ""));
-            });
-
-          if ($("ledgerRows")) $("ledgerRows").textContent = String(transactions.length);
-
-          setStatus("transactions", true, "Loaded " + transactions.length + " active rows");
-        } catch (err) {
-          console.error("[hub] transactions failed:", err);
-          transactions = [];
-          if ($("ledgerRows")) $("ledgerRows").textContent = "0";
-          setStatus("transactions", false, err.message || String(err));
-        }
-      }
-
-      function amountClass(type) {
-        if (type === "income") return "income";
-        if (type === "transfer") return "transfer";
-        return "expense";
-      }
-
-      function amountText(tx) {
-        if (tx.type === "income") return "+ " + money(tx.amount);
-        if (tx.type === "expense") return "- " + money(tx.amount);
-        return money(tx.amount);
-      }
-
-      function movementText(tx) {
-        if (tx.type === "transfer") {
-          return accountName(tx.account_id) + " → " + accountName(tx.transfer_to_account_id);
-        }
-
-        return accountName(tx.account_id);
-      }
-
-      function renderRecentLedger() {
-        const list = $("recentLedgerList");
-        if (!list) return;
-
-        const rows = transactions.slice(0, 8);
-
-        if ($("recentLedgerSub")) {
-          $("recentLedgerSub").textContent = rows.length
-            ? "Showing latest " + rows.length + " of " + transactions.length
-            : "No transactions loaded";
-        }
-
-        if (!rows.length) {
-          list.innerHTML = '<div class="hub-empty">No transactions loaded.</div>';
-          return;
-        }
-
-        list.innerHTML = rows.map(tx => {
-          return (
-            '<div class="hub-row">' +
-              '<div class="hub-row-main">' +
-                '<div class="hub-row-title">' + escapeHtml(tx.notes || movementText(tx)) + '</div>' +
-                '<div class="hub-row-sub">' + escapeHtml(prettyDate(tx.date) + " · " + tx.type + " · " + movementText(tx)) + '</div>' +
-              '</div>' +
-              '<div class="hub-row-amount ' + amountClass(tx.type) + '">' + escapeHtml(amountText(tx)) + '</div>' +
-            '</div>'
-          );
-        }).join("");
       }
 
       function renderAccounts() {
-        const list = $("accountsList");
-        if (!list) return;
+        const accounts = getAccounts();
+        const balances = accounts.map(accountBalance).filter(v => v !== null);
+        const total = balances.reduce((sum, v) => sum + v, 0);
 
-        const rows = accounts
-          .slice()
-          .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))
-          .slice(0, 8);
+        els.accountsTotal.textContent = balances.length ? money(total) : "—";
+        els.accountsNote.textContent = state.errors.accounts
+          ? "Accounts unavailable"
+          : `${accounts.length} account${accounts.length === 1 ? "" : "s"}`;
 
-        if ($("accountsSub")) {
-          $("accountsSub").textContent = rows.length
-            ? "Showing " + rows.length + " of " + accounts.length + " accounts"
-            : "No accounts loaded";
-        }
-
-        if (!rows.length) {
-          list.innerHTML = '<div class="hub-empty">No accounts loaded.</div>';
+        if (state.errors.accounts) {
+          els.accountsList.innerHTML = `<div class="error">${escapeHtml(state.errors.accounts)}</div>`;
           return;
         }
 
-        list.innerHTML = rows.map(account => {
-          return (
-            '<div class="hub-row">' +
-              '<div class="hub-row-main">' +
-                '<div class="hub-row-title">' + escapeHtml(account.name || account.id) + '</div>' +
-                '<div class="hub-row-sub">' + escapeHtml([account.type || "account", account.id].filter(Boolean).join(" · ")) + '</div>' +
-              '</div>' +
-              '<div class="hub-row-amount">' + escapeHtml(money(account.balance)) + '</div>' +
-            '</div>'
-          );
+        if (!accounts.length) {
+          els.accountsList.innerHTML = `<div class="empty">No accounts found.</div>`;
+          return;
+        }
+
+        els.accountsList.innerHTML = accounts.slice(0, 6).map(account => {
+          const balance = accountBalance(account);
+          const type = account.type || account.account_type || account.kind || "account";
+
+          return `
+            <div class="item">
+              <div>
+                <strong>${escapeHtml(nameOf(account, "Account"))}</strong>
+                <span>${escapeHtml(type)}</span>
+              </div>
+              <div class="amount">${money(balance)}</div>
+            </div>
+          `;
         }).join("");
       }
 
-      async function refreshHub() {
-        const button = $("refreshHubBtn");
+      function renderBills() {
+        const bills = getBills();
+        const active = bills.filter(b => String(b.status ?? "active").toLowerCase() === "active");
+        const amounts = active.map(billAmount).filter(v => v !== null);
+        const total = amounts.reduce((sum, v) => sum + v, 0);
 
-        if (button) {
-          button.disabled = true;
-          button.textContent = "Refreshing...";
+        els.billsTotal.textContent = amounts.length ? money(total) : "—";
+        els.billsNote.textContent = state.errors.bills
+          ? "Bills unavailable"
+          : `${active.length} active bill${active.length === 1 ? "" : "s"}`;
+
+        if (state.errors.bills) {
+          els.billsList.innerHTML = `<div class="error">${escapeHtml(state.errors.bills)}</div>`;
+          return;
         }
 
-        await Promise.all([
-          loadBalances(),
-          loadTransactions()
-        ]);
+        if (!active.length) {
+          els.billsList.innerHTML = `<div class="empty">No active bills found.</div>`;
+          return;
+        }
 
-        renderRecentLedger();
-        renderAccounts();
+        els.billsList.innerHTML = active.slice(0, 5).map(bill => {
+          const due = bill.due_day || bill.dueDay || bill.day || bill.due_date || "—";
+          const cleared = bill.cleared || bill.is_cleared || String(bill.clear_status || "").toLowerCase() === "cleared";
 
-        if (button) {
-          button.disabled = false;
-          button.textContent = "Refresh";
+          return `
+            <div class="item">
+              <div>
+                <strong>${escapeHtml(nameOf(bill, "Bill"))}</strong>
+                <span>Due ${escapeHtml(due)}</span>
+              </div>
+              <div>
+                <div class="amount">${money(billAmount(bill))}</div>
+                <span class="badge ${cleared ? "good" : "warn"}">${cleared ? "Cleared" : "Pending"}</span>
+              </div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function renderDebts() {
+        const debts = getDebts();
+        const active = debts.filter(d => String(d.status ?? "active").toLowerCase() !== "closed");
+        const amounts = active.map(debtOutstanding).filter(v => v !== null);
+        const total = amounts.reduce((sum, v) => sum + v, 0);
+
+        els.debtsTotal.textContent = amounts.length ? money(total) : "—";
+        els.debtsNote.textContent = state.errors.debts
+          ? "Debts unavailable"
+          : `${active.length} active record${active.length === 1 ? "" : "s"}`;
+
+        if (state.errors.debts) {
+          els.debtsList.innerHTML = `<div class="error">${escapeHtml(state.errors.debts)}</div>`;
+          return;
+        }
+
+        if (!active.length) {
+          els.debtsList.innerHTML = `<div class="empty">No active debt records found.</div>`;
+          return;
+        }
+
+        els.debtsList.innerHTML = active.slice(0, 5).map(debt => {
+          const direction = debt.direction || debt.type || debt.kind || "debt";
+          const status = debt.status || "active";
+
+          return `
+            <div class="item">
+              <div>
+                <strong>${escapeHtml(nameOf(debt, "Debt"))}</strong>
+                <span>${escapeHtml(direction)} · ${escapeHtml(status)}</span>
+              </div>
+              <div class="amount">${money(debtOutstanding(debt))}</div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function renderForecast() {
+        const p = state.forecast || {};
+        const ending = number(
+          p.projected_ending_cash ??
+          p.ending_cash ??
+          p.forecast_ending ??
+          p.ending_balance ??
+          p.summary?.projected_ending_cash ??
+          p.summary?.ending_cash
+        );
+
+        els.forecastEnding.textContent = ending === null ? "—" : money(ending);
+
+        if (state.errors.forecast) {
+          els.forecastNote.textContent = "Forecast unavailable";
+        } else if (ending === null) {
+          els.forecastNote.textContent = "No forecast output yet";
+        } else {
+          els.forecastNote.textContent = p.credit_card?.included === false
+            ? "Partial forecast"
+            : "Latest forecast";
         }
       }
 
-      function wireEvents() {
-        if ($("refreshHubBtn")) {
-          $("refreshHubBtn").addEventListener("click", refreshHub);
-        }
+      function renderDebug() {
+        if (!DEBUG || !els.debugPanel) return;
+
+        els.debugPanel.textContent = JSON.stringify({
+          ui_version: VERSION,
+          mode: "debug",
+          errors: state.errors,
+          accounts_count: getAccounts().length,
+          bills_count: getBills().length,
+          debts_count: getDebts().length,
+          accounts_payload: state.accounts,
+          bills_payload: state.bills,
+          debts_payload: state.debts,
+          salary_payload: state.salary,
+          forecast_payload: state.forecast
+        }, null, 2);
       }
 
-      async function init() {
-        console.log("[hub " + VERSION + "] init");
-
-        wireEvents();
-        await refreshHub();
-
-        window.SovereignHub = {
-          version: VERSION,
-          refresh: refreshHub,
-          accounts: function () {
-            return accounts.slice();
-          },
-          transactions: function () {
-            return transactions.slice();
-          }
-        };
-
-        console.log("[hub " + VERSION + "] ready", {
-          accounts: accounts.length,
-          transactions: transactions.length
-        });
-      }
-
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", init);
-      } else {
-        init();
-      }
+      refresh();
     })();
   </script>
 </body>
