@@ -1,4 +1,4 @@
-// v0.8.0 Finance Command Centre final governor with emergency override policy
+// v0.8.1 Finance Command Centre debt preflight recognition
 //
 // Contract:
 // - Command Centre remains read-only.
@@ -13,8 +13,8 @@
 // - Overrides are not silent and do not bypass backend APIs from Command Centre.
 // - Any future override application must be implemented in the owning mutating API with reason, expiry, and audit.
 
-const VERSION = "0.8.0";
-const ENFORCEMENT_VERSION = "0.8.0";
+const VERSION = "0.8.1";
+const ENFORCEMENT_VERSION = "0.8.1";
 
 const MODULES = [
   ["hub", "Hub", "/index.html"],
@@ -211,11 +211,53 @@ async function auditApis(origin) {
 
 async function auditPageProofs(origin) {
   return [
-    await pageScriptProof(origin, "/add.html", "/js/add.js", "0.4.5", "add_page_preflight"),
-    await pageScriptProof(origin, "/bills.html", "/js/bills.js", "0.4.0", "bills_page_preflight")
-  ];
+  await pageScriptProof(origin, "/add.html", "/js/add.js", "0.4.5", "add_page_preflight"),
+  await pageScriptProof(origin, "/bills.html", "/js/bills.js", "0.4.0", "bills_page_preflight"),
+  await inlinePageProof(origin, "/debts.html", "SovereignDebtsUI", "2.2.0", "debts_page_preflight")
+];
 }
+async function inlinePageProof(origin, pagePath, globalName, requiredVersion, key) {
+  const started = Date.now();
 
+  try {
+    const res = await fetch(origin + pagePath + "?cc=" + Date.now(), {
+      method: "GET",
+      headers: {
+        accept: "text/html",
+        "x-finance-command-center-page-proof": VERSION
+      }
+    });
+
+    const html = await res.text();
+    const detectedVersion = extractInlineGlobalVersion(html, globalName);
+    const pass = res.ok && versionAtLeast(detectedVersion, requiredVersion);
+
+    return {
+      key,
+      path: pagePath,
+      script: "inline:" + globalName,
+      required_version: requiredVersion,
+      detected_version: detectedVersion,
+      status: pass ? "pass" : "unknown",
+      ok: res.ok,
+      http_status: res.status,
+      elapsed_ms: Date.now() - started,
+      page_preflight_wired: pass
+    };
+  } catch (err) {
+    return {
+      key,
+      path: pagePath,
+      script: "inline:" + globalName,
+      required_version: requiredVersion,
+      status: "unknown",
+      ok: false,
+      error: err.message || String(err),
+      elapsed_ms: Date.now() - started,
+      page_preflight_wired: false
+    };
+  }
+}
 async function pageScriptProof(origin, pagePath, scriptPath, requiredVersion, key) {
   const started = Date.now();
 
@@ -287,8 +329,11 @@ async function auditD1(database) {
 function buildCoverage(apis, pageProofs, d1) {
   const transactionsApi = apis.find(api => api.key === "transactions");
   const billsApi = apis.find(api => api.key === "bills");
+  const debtsApi = apis.find(api => api.key === "debts");
+
   const addProof = pageProofs.find(proof => proof.key === "add_page_preflight");
   const billsProof = pageProofs.find(proof => proof.key === "bills_page_preflight");
+  const debtsProof = pageProofs.find(proof => proof.key === "debts_page_preflight");
 
   const transactionDryRun = transactionsApi && transactionsApi.status === "pass" && versionAtLeast(transactionsApi.version, "0.3.0");
   const addPreflight = addProof && addProof.status === "pass";
@@ -303,19 +348,48 @@ function buildCoverage(apis, pageProofs, d1) {
 
   const billsPreflight = billsProof && billsProof.status === "pass";
 
+  const debtsDryRun =
+    debtsApi &&
+    debtsApi.status === "pass" &&
+    versionAtLeast(debtsApi.version, "0.3.2");
+
+  const debtsPreflight =
+    debtsProof &&
+    debtsProof.status === "pass";
+
   const transactionReady = transactionDryRun && addPreflight;
   const billsReady = billsDryRun && billsPreflight;
+  const debtsPreflightReady = debtsDryRun && debtsPreflight;
 
   return {
     d1,
     write_safety: {
-      status: transactionReady && billsReady ? "command_centre_governor_complete" : billsPreflight ? "bills_preflight_ready" : transactionReady ? "transaction_save_ready" : "unknown",
-      score: transactionReady && billsReady ? 95 : billsPreflight ? 88 : transactionReady ? 80 : 0,
+      status: transactionReady && billsReady && debtsPreflightReady
+        ? "debt_preflight_ready"
+        : transactionReady && billsReady
+          ? "command_centre_governor_complete"
+          : billsPreflight
+            ? "bills_preflight_ready"
+            : transactionReady
+              ? "transaction_save_ready"
+              : "unknown",
+
+      score: transactionReady && billsReady && debtsPreflightReady
+        ? 96
+        : transactionReady && billsReady
+          ? 95
+          : billsPreflight
+            ? 88
+            : transactionReady
+              ? 80
+              : 0,
+
       transaction_save: {
         dry_run_available: transactionDryRun,
         page_preflight_wired: addPreflight,
         real_writes_allowed: transactionReady
       },
+
       bills: {
         dry_run_available: billsDryRun,
         page_preflight_wired: billsPreflight,
@@ -324,15 +398,51 @@ function buildCoverage(apis, pageProofs, d1) {
         bill_save_allowed: billsReady,
         bill_clear_allowed: billsReady
       },
+
+      debts: {
+        dry_run_available: debtsDryRun,
+        page_preflight_wired: debtsPreflight,
+        preflight_allowed: debtsPreflightReady,
+        real_writes_allowed: false,
+        debt_save_allowed: false,
+        debt_pay_allowed: false
+      },
+
       real_write_scope: [
         ...(transactionReady ? ["transaction.save"] : []),
         ...(billsReady ? ["bill.save", "bill.clear"] : [])
       ],
-      debt_save: { allowed: false, reason: "debt.save dry-run proof does not exist yet." },
-      reconciliation_declare: { allowed: false, reason: "reconciliation.declare dry-run proof does not exist yet." },
-      salary_save: { allowed: false, reason: "salary.save dry-run proof does not exist yet." },
-      forecast_generate: { allowed: false, reason: "forecast source precision is not complete." }
+
+      debt_save: {
+        allowed: false,
+        reason: debtsPreflightReady
+          ? "debt.save preflight is ready but real write remains blocked until explicit lift."
+          : "debt.save dry-run proof does not exist yet."
+      },
+
+      debt_pay: {
+        allowed: false,
+        reason: debtsPreflightReady
+          ? "debt.pay preflight is ready but real write remains blocked until explicit lift."
+          : "debt.pay dry-run proof does not exist yet."
+      },
+
+      reconciliation_declare: {
+        allowed: false,
+        reason: "reconciliation.declare dry-run proof does not exist yet."
+      },
+
+      salary_save: {
+        allowed: false,
+        reason: "salary.save dry-run proof does not exist yet."
+      },
+
+      forecast_generate: {
+        allowed: false,
+        reason: "forecast source precision is not complete."
+      }
     },
+
     override_governance: {
       status: "policy_complete",
       score: 100,
@@ -343,6 +453,7 @@ function buildCoverage(apis, pageProofs, d1) {
       expiry_required: true,
       audit_required: true
     },
+
     runtime: {
       status: "unknown",
       score: 0,
@@ -353,8 +464,9 @@ function buildCoverage(apis, pageProofs, d1) {
 
 function buildEnforcement(computedAt, coverage) {
   const txReady = Boolean(coverage.write_safety.transaction_save.real_writes_allowed);
-  const billsReady = Boolean(coverage.write_safety.bills.real_writes_allowed);
-  const overridePolicy = buildOverridePolicy();
+const billsReady = Boolean(coverage.write_safety.bills.real_writes_allowed);
+const debtsPreflightReady = Boolean(coverage.write_safety.debts && coverage.write_safety.debts.preflight_allowed);
+const overridePolicy = buildOverridePolicy();
 
   const actions = [
     actionGate("transaction.preflight", "add", !txReady, txReady ? "Add preflight is available." : "Add preflight is not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete Add proof.", true, true),
@@ -363,7 +475,9 @@ function buildEnforcement(computedAt, coverage) {
     actionGate("bill.save", "bills", !billsReady, billsReady ? "bill.save is allowed after Bills preflight." : "bill.save is not ready.", "coverage.write_safety.bills.bill_save_allowed", billsReady ? "None." : "Complete Bills proof.", true, true),
     actionGate("bill.clear", "bills", !billsReady, billsReady ? "bill.clear is allowed after Bills preflight." : "bill.clear is not ready.", "coverage.write_safety.bills.bill_clear_allowed", billsReady ? "None." : "Complete Bills proof.", true, true),
 
-    actionGate("debt.save", "debts", true, "debt.save remains blocked until debt dry-run exists.", "coverage.write_safety.debt_save", "Add debt.save dry-run proof.", false, true),
+    actionGate("debt.preflight", "debts", !debtsPreflightReady, debtsPreflightReady ? "Debt preflight is available." : "Debt preflight is not ready.", "coverage.write_safety.debts", debtsPreflightReady ? "None." : "Deploy Debts API v0.3.2 and Debts page v2.2.0.", true, true),
+actionGate("debt.save", "debts", true, "debt.save remains blocked until Command Centre lift.", "coverage.write_safety.debts.debt_save_allowed", "Phase 4 explicit lift after debt preflight recognition.", true, true),
+actionGate("debt.pay", "debts", true, "debt.pay remains blocked until Command Centre lift.", "coverage.write_safety.debts.debt_pay_allowed", "Phase 4 explicit lift after debt preflight recognition.", true, true),
     actionGate("reconciliation.declare", "reconciliation", true, "reconciliation.declare remains blocked until reconciliation dry-run exists.", "coverage.write_safety.reconciliation", "Add reconciliation dry-run proof.", false, true),
     actionGate("salary.save", "salary", true, "salary.save remains blocked until salary dry-run exists.", "coverage.write_safety.salary", "Add salary dry-run proof.", false, true),
     actionGate("forecast.generate", "forecast", true, "forecast.generate remains blocked until source precision is proven.", "business_rules.forecast_precision", "Complete forecast source verification.", false, true),
@@ -380,7 +494,7 @@ function buildEnforcement(computedAt, coverage) {
     routeGate("/index.html", "hub", "pass", true, true, "Hub is viewable.", "enforcement.registry.hub", "None."),
     routeGate("/add.html", "add", txReady ? "pass" : "soft_block", true, txReady, txReady ? "Add Transaction is governed and allowed." : "Add Transaction not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete transaction proof."),
     routeGate("/bills.html", "bills", billsReady ? "pass" : "soft_block", true, billsReady, billsReady ? "Bills are governed and allowed." : "Bills proof not ready.", "coverage.write_safety.bills", billsReady ? "None." : "Complete Bills proof."),
-    routeGate("/debts.html", "debts", "preflight_required", true, false, "Debts viewable but writes blocked.", "coverage.write_safety.debt_save", "Add debt proof."),
+    routeGate("/debts.html", "debts", debtsPreflightReady ? "preflight_only" : "preflight_required", true, false, debtsPreflightReady ? "Debts page may run preflight. Real writes remain blocked." : "Debts viewable but writes blocked.", "coverage.write_safety.debts", debtsPreflightReady ? "Phase 4 to lift debt.save/debt.pay." : "Add debt proof."),
     routeGate("/reconciliation.html", "reconciliation", "preflight_required", true, false, "Reconciliation viewable but declarations blocked.", "coverage.write_safety.reconciliation", "Add reconciliation proof."),
     routeGate("/salary.html", "salary", "preflight_required", true, false, "Salary viewable but writes blocked.", "coverage.write_safety.salary", "Add salary proof."),
     routeGate("/forecast.html", "forecast", "soft_block", true, false, "Forecast decisions blocked.", "business_rules.forecast_precision", "Prove forecast precision."),
@@ -441,11 +555,17 @@ function buildEnforcement(computedAt, coverage) {
         lift_rule: "Only lift in the owning mutating API with reason, expiry, audit, and visible Command Centre warning."
       },
       {
-        action: "debt.save",
-        current_status: "blocked",
-        can_lift_now: false,
-        lift_rule: "Add debt-specific dry-run proof first."
-      },
+  action: "debt.save",
+  current_status: "blocked",
+  can_lift_now: false,
+  lift_rule: debtsPreflightReady ? "Debt preflight is recognized. Phase 4 must add backend Command Centre allow check before lift." : "Add debt-specific dry-run proof first."
+},
+{
+  action: "debt.pay",
+  current_status: "blocked",
+  can_lift_now: false,
+  lift_rule: debtsPreflightReady ? "Debt pay preflight is recognized. Phase 4 must add backend Command Centre allow check before lift." : "Add debt.pay dry-run proof first."
+},
       {
         action: "reconciliation.declare",
         current_status: "blocked",
@@ -454,12 +574,15 @@ function buildEnforcement(computedAt, coverage) {
       }
     ],
     action_proof_status: {
-      "transaction.save": { status: txReady ? "pass" : "blocked" },
-      "bill.save": { status: billsReady ? "pass" : "blocked" },
-      "bill.clear": { status: billsReady ? "pass" : "blocked" },
-      "override.request": { status: "pass" },
-      "override.apply": { status: "blocked" }
-    },
+  "transaction.save": { status: txReady ? "pass" : "blocked" },
+  "bill.save": { status: billsReady ? "pass" : "blocked" },
+  "bill.clear": { status: billsReady ? "pass" : "blocked" },
+  "debt.preflight": { status: debtsPreflightReady ? "pass" : "blocked" },
+  "debt.save": { status: "blocked" },
+  "debt.pay": { status: "blocked" },
+  "override.request": { status: "pass" },
+  "override.apply": { status: "blocked" }
+},
     block_explanations: actions.filter(action => !action.allowed).map(action => ({
       blocked_item: action.action,
       block_type: "action_block",
@@ -637,6 +760,19 @@ function buildSourceProofs(coverage, apis, pageProofs) {
       source: "/bills.html script tag /js/bills.js?v=0.4.0+",
       details: pageProofs.find(proof => proof.key === "bills_page_preflight") || null
     },
+{
+  key: "debts_api_dry_run",
+  status: coverage.write_safety.debts && coverage.write_safety.debts.dry_run_available ? "pass" : "unknown",
+  source: "/api/debts version >= v0.3.2",
+  details: apis.find(api => api.key === "debts") || null
+},
+{
+  key: "debts_page_preflight",
+  status: coverage.write_safety.debts && coverage.write_safety.debts.page_preflight_wired ? "pass" : "unknown",
+  source: "/debts.html inline SovereignDebtsUI v2.2.0+",
+  details: pageProofs.find(proof => proof.key === "debts_page_preflight") || null
+},
+    
     {
       key: "override_policy",
       status: "pass",
@@ -735,7 +871,15 @@ function warning(key, message) {
 function unknown(key, message) {
   return { key, message, severity: "unknown" };
 }
+function extractInlineGlobalVersion(html, globalName) {
+  const text = String(html || "");
+  const globalEscaped = globalName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+  if (!new RegExp(globalEscaped).test(text)) return null;
+
+  const versionMatch = text.match(/const\s+VERSION\s*=\s*["']([0-9]+(?:\.[0-9]+){1,3})["']/);
+  return versionMatch ? versionMatch[1] : null;
+}
 function extractScriptVersion(html, scriptPath) {
   const text = String(html || "");
   const escaped = scriptPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
