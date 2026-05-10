@@ -921,6 +921,7 @@
         if ($("visibleCount")) $("visibleCount").textContent = String(visible);
         if ($("visibleSub")) $("visibleSub").textContent = total ? "Filtered from " + total + " loaded rows" : "No rows loaded";
         if ($("netShown")) $("netShown").textContent = money(net);
+
         if ($("ledgerSubtitle")) {
           $("ledgerSubtitle").textContent = auditMode
             ? visible + " visible of " + total + " loaded rows · " + reversedOriginals + " reversed originals · " + reversalRows + " reversal rows"
@@ -1140,6 +1141,7 @@
         if (!confirmed) return;
 
         const reason = window.prompt("Reason for reversal? Required for audit trail.", "Correction");
+
         if (!reason || !reason.trim()) {
           showToast("Reverse cancelled. Reason is required.", "error");
           return;
@@ -1224,6 +1226,7 @@
         if ($("clearFiltersBtn")) $("clearFiltersBtn").addEventListener("click", clearFilters);
 
         const auditToggle = $("auditToggle");
+
         if (auditToggle) {
           auditToggle.addEventListener("change", async () => {
             auditMode = auditToggle.checked;
@@ -1244,6 +1247,7 @@
         if (!saved) return;
 
         const badge = $("ledgerBadge");
+
         if (badge) {
           badge.textContent = "Saved";
           badge.className = "badge badge-ready";
