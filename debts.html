@@ -98,7 +98,7 @@
 
 .debts-table {
   width: 100%;
-  min-width: 1060px;
+  min-width: 1040px;
   border-collapse: collapse;
 }
 
@@ -220,6 +220,91 @@
   color: var(--danger);
 }
 
+.debt-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(10px);
+}
+
+.debt-modal-backdrop.on {
+  display: flex;
+}
+
+.debt-modal {
+  width: min(720px, 100%);
+  max-height: min(760px, 92vh);
+  overflow: auto;
+  border-radius: var(--r-xl);
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  box-shadow: var(--shadow-xl);
+}
+
+.debt-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 20px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.debt-modal-title {
+  color: var(--text-strong);
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -0.045em;
+}
+
+.debt-modal-copy {
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 760;
+}
+
+.debt-modal-body {
+  padding: 18px 20px 20px;
+}
+
+.debt-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.debt-form-grid .full {
+  grid-column: 1 / -1;
+}
+
+.debt-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.debt-close-button {
+  appearance: none;
+  border: 0;
+  background: var(--surface-2);
+  color: var(--text-strong);
+  border-radius: 999px;
+  width: 38px;
+  height: 38px;
+  font-size: 18px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
 .debt-debug {
   display: none;
   margin-top: 18px;
@@ -261,8 +346,13 @@
 }
 
 @media (max-width: 720px) {
-  .debts-kpi-grid {
+  .debts-kpi-grid,
+  .debt-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .debt-form-grid .full {
+    grid-column: auto;
   }
 
   .debts-section-head {
@@ -272,6 +362,10 @@
 
   .debts-actions,
   .debts-actions .btn {
+    width: 100%;
+  }
+
+  .debt-modal-actions .btn {
     width: 100%;
   }
 }
@@ -306,16 +400,12 @@ Use this page for normal debt work: add debts, edit details, record payments, an
 <aside class="debts-side">
 <div class="debts-card">
 <div class="debts-card-title">Current position</div>
-<div id="debtPositionCopy" class="debts-card-copy">
-Loading debt position...
-</div>
+<div id="debtPositionCopy" class="debts-card-copy">Loading debt position...</div>
 </div>
 
 <div class="debts-card">
 <div class="debts-card-title">Page status</div>
-<div id="debtPageStatusCopy" class="debts-card-copy">
-Loading...
-</div>
+<div id="debtPageStatusCopy" class="debts-card-copy">Loading...</div>
 <div style="margin-top:12px">
 <span id="debtPageStatusBadge" class="badge badge-unknown">Loading</span>
 </div>
@@ -398,9 +488,123 @@ Internal proof and Command Centre details are visible because this page was open
 </section>
 
 <footer class="debts-page-meta" aria-hidden="true">
-Debts clean UI v2.3.0
+Debts clean UI v2.4.0
 </footer>
 </main>
+
+<div id="debtModalBackdrop" class="debt-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="debtModalTitle">
+<div class="debt-modal">
+<div class="debt-modal-head">
+<div>
+<div id="debtModalTitle" class="debt-modal-title">Add Debt</div>
+<div id="debtModalCopy" class="debt-modal-copy">Enter debt details below.</div>
+</div>
+<button id="debtModalCloseBtn" class="debt-close-button" type="button" aria-label="Close">×</button>
+</div>
+
+<div class="debt-modal-body">
+<form id="debtForm">
+<input id="debtFormMode" type="hidden" value="create" />
+<input id="debtFormId" type="hidden" value="" />
+
+<div class="debt-form-grid">
+<div class="field full">
+<label for="debtNameInput">Name</label>
+<input id="debtNameInput" class="input" type="text" placeholder="Example: Imran Bhai" required />
+</div>
+
+<div class="field">
+<label for="debtKindInput">Type</label>
+<select id="debtKindInput" class="select" required>
+<option value="owe">I owe</option>
+<option value="owed">Owed to me</option>
+</select>
+</div>
+
+<div class="field">
+<label for="debtAmountInput">Original Amount</label>
+<input id="debtAmountInput" class="input" type="number" min="0" step="0.01" placeholder="0" required />
+</div>
+
+<div class="field">
+<label for="debtPaidInput">Already Paid / Received</label>
+<input id="debtPaidInput" class="input" type="number" min="0" step="0.01" placeholder="0" />
+</div>
+
+<div class="field">
+<label for="debtDueDateInput">Due Date</label>
+<input id="debtDueDateInput" class="input" type="date" />
+</div>
+
+<div class="field">
+<label for="debtFrequencyInput">Frequency</label>
+<select id="debtFrequencyInput" class="select">
+<option value="custom">Custom</option>
+<option value="monthly">Monthly</option>
+<option value="weekly">Weekly</option>
+<option value="yearly">Yearly</option>
+</select>
+</div>
+
+<div class="field full">
+<label for="debtNotesInput">Notes</label>
+<textarea id="debtNotesInput" class="textarea" placeholder="Optional notes"></textarea>
+</div>
+</div>
+
+<div class="debt-modal-actions">
+<button id="debtCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
+<button id="debtSubmitBtn" class="btn btn-success" type="submit">Save Debt</button>
+</div>
+</form>
+</div>
+</div>
+</div>
+
+<div id="paymentModalBackdrop" class="debt-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
+<div class="debt-modal">
+<div class="debt-modal-head">
+<div>
+<div id="paymentModalTitle" class="debt-modal-title">Record Payment</div>
+<div id="paymentModalCopy" class="debt-modal-copy">Enter payment details below.</div>
+</div>
+<button id="paymentModalCloseBtn" class="debt-close-button" type="button" aria-label="Close">×</button>
+</div>
+
+<div class="debt-modal-body">
+<form id="paymentForm">
+<input id="paymentDebtId" type="hidden" value="" />
+
+<div class="debt-form-grid">
+<div class="field">
+<label for="paymentAmountInput">Amount</label>
+<input id="paymentAmountInput" class="input" type="number" min="0" step="0.01" required />
+</div>
+
+<div class="field">
+<label for="paymentAccountInput">Account</label>
+<input id="paymentAccountInput" class="input" type="text" value="meezan" required />
+</div>
+
+<div class="field">
+<label for="paymentDateInput">Date</label>
+<input id="paymentDateInput" class="input" type="date" required />
+</div>
+
+<div class="field full">
+<label for="paymentNotesInput">Notes</label>
+<textarea id="paymentNotesInput" class="textarea" placeholder="Optional notes"></textarea>
+</div>
+</div>
+
+<div class="debt-modal-actions">
+<button id="paymentCancelBtn" class="btn btn-secondary" type="button">Cancel</button>
+<button id="paymentSubmitBtn" class="btn btn-success" type="submit">Save Payment</button>
+</div>
+</form>
+</div>
+</div>
+</div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
@@ -412,7 +616,7 @@ Debts clean UI v2.3.0
 (function () {
   "use strict";
 
-  const VERSION = "2.3.0";
+  const VERSION = "2.4.0";
   const DEFAULT_ACCOUNT = "meezan";
   const DEBUG = new URL(location.href).searchParams.get("debug") === "1";
 
@@ -470,6 +674,10 @@ Debts clean UI v2.3.0
     if (!Number.isFinite(n)) return "Rs 0";
     const prefix = n < 0 ? "-" : "";
     return prefix + money(Math.abs(n));
+  }
+
+  function todayISO() {
+    return new Date().toISOString().slice(0, 10);
   }
 
   function debtRemaining(debt) {
@@ -574,22 +782,11 @@ Debts clean UI v2.3.0
 
       const pageReady = authority.save || authority.pay;
 
-      setBadge(
-        "debtPageStatusBadge",
-        pageReady ? "Ready" : "View only",
-        pageReady ? "badge-ready" : "badge-preflight"
-      );
-
-      setText(
-        "debtPageStatusCopy",
-        pageReady
-          ? "Actions are available. Safety checks still run before each real update."
-          : "Debt records are visible. Actions are temporarily unavailable until Command Centre allows them."
-      );
+      setBadge("debtPageStatusBadge", pageReady ? "Ready" : "View only", pageReady ? "badge-ready" : "badge-preflight");
+      setText("debtPageStatusCopy", pageReady ? "Actions are available. Safety checks still run before each real update." : "Debt records are visible. Actions are temporarily unavailable until Command Centre allows them.");
     } catch (err) {
       command = null;
       authority = { save: false, pay: false, preflight: false };
-
       setBadge("debtPageStatusBadge", "Unavailable", "badge-blocked");
       setText("debtPageStatusCopy", "Command Centre could not be reached. Debt actions are disabled.");
     }
@@ -605,28 +802,15 @@ Debts clean UI v2.3.0
     const totalOwed = Number(data.total_owed || 0);
     const net = totalOwed - totalOwe;
 
-    if (DEBUG) {
-      setBadge("debtsApiBadge", "Debts API " + (data.version || "live"), "badge-ready");
-    }
+    if (DEBUG) setBadge("debtsApiBadge", "Debts API " + (data.version || "live"), "badge-ready");
 
     setText("totalOwe", money(totalOwe));
     setText("totalOwed", money(totalOwed));
     setText("netPosition", signedMoney(net));
     setText("debtCount", String(debts.length));
 
-    setText(
-      "debtPositionCopy",
-      totalOwe > totalOwed
-        ? "I currently owe more than is owed to me."
-        : totalOwed > totalOwe
-          ? "More money is owed to me than I owe out."
-          : "Debt position is balanced."
-    );
-
-    setText(
-      "debtsSummary",
-      debts.length + " debt record(s) · I owe " + money(totalOwe) + " · Owed to me " + money(totalOwed)
-    );
+    setText("debtPositionCopy", totalOwe > totalOwed ? "I currently owe more than is owed to me." : totalOwed > totalOwe ? "More money is owed to me than I owe out." : "Debt position is balanced.");
+    setText("debtsSummary", debts.length + " debt record(s) · I owe " + money(totalOwe) + " · Owed to me " + money(totalOwed));
 
     renderDebts();
     updateDebug();
@@ -672,12 +856,8 @@ Debts clean UI v2.3.0
           </td>
           <td>
             <div class="debt-row-actions">
-              <button class="debt-action-button" type="button" data-action="edit" data-id="${escapeHtml(id)}" ${authority.save ? "" : "disabled"}>
-                Edit
-              </button>
-              <button class="debt-action-button primary" type="button" data-action="pay" data-id="${escapeHtml(id)}" ${authority.pay && !paidOff ? "" : "disabled"}>
-                ${escapeHtml(actionLabel)}
-              </button>
+              <button class="debt-action-button" type="button" data-action="edit" data-id="${escapeHtml(id)}" ${authority.save ? "" : "disabled"}>Edit</button>
+              <button class="debt-action-button primary" type="button" data-action="pay" data-id="${escapeHtml(id)}" ${authority.pay && !paidOff ? "" : "disabled"}>${escapeHtml(actionLabel)}</button>
               ${DEBUG ? `
                 <button class="debt-action-button" type="button" data-action="debug-save" data-id="${escapeHtml(id)}">Dry Save</button>
                 <button class="debt-action-button" type="button" data-action="debug-pay" data-id="${escapeHtml(id)}" ${paidOff ? "disabled" : ""}>Dry Pay</button>
@@ -701,21 +881,86 @@ Debts clean UI v2.3.0
 
     if (!debt) return;
 
-    button.disabled = true;
     clearNotice();
 
     try {
-      if (action === "edit") await editDebt(debt);
-      if (action === "pay") await recordDebtPayment(debt);
+      if (action === "edit") openDebtModal("edit", debt);
+      if (action === "pay") openPaymentModal(debt);
       if (action === "debug-save") await runDebtSavePreflight(debt);
       if (action === "debug-pay") await runDebtPayPreflight(debt);
     } catch (err) {
       showNotice(err.message || "Debt action failed.", "fail");
-    } finally {
-      button.disabled = false;
-      renderDebts();
-      updateDebug();
     }
+  }
+
+  function openDebtModal(mode, debt) {
+    if (!authority.save) {
+      showNotice("Debt saving is temporarily unavailable.", "fail");
+      return;
+    }
+
+    $("debtFormMode").value = mode;
+    $("debtFormId").value = debt ? debt.id : "";
+    $("debtModalTitle").textContent = mode === "edit" ? "Edit Debt" : "Add Debt";
+    $("debtModalCopy").textContent = mode === "edit" ? "Update debt details below." : "Create a new debt record.";
+
+    $("debtNameInput").value = debt ? debt.name || "" : "";
+    $("debtKindInput").value = debt ? debtKind(debt) : "owe";
+    $("debtAmountInput").value = debt ? String(debtOriginal(debt)) : "";
+    $("debtPaidInput").value = debt ? String(debtPaid(debt)) : "0";
+    $("debtDueDateInput").value = debt ? debt.due_date || "" : "";
+    $("debtFrequencyInput").value = debt ? debt.frequency || "custom" : "custom";
+    $("debtNotesInput").value = debt ? debt.notes || "" : "";
+
+    $("debtModalBackdrop").classList.add("on");
+    $("debtNameInput").focus();
+  }
+
+  function closeDebtModal() {
+    $("debtModalBackdrop").classList.remove("on");
+    $("debtForm").reset();
+  }
+
+  function openPaymentModal(debt) {
+    if (!authority.pay) {
+      showNotice("Debt payments are temporarily unavailable.", "fail");
+      return;
+    }
+
+    const remaining = debtRemaining(debt);
+    if (remaining <= 0) {
+      showNotice("This debt is already paid off.", "fail");
+      return;
+    }
+
+    $("paymentDebtId").value = debt.id;
+    $("paymentModalTitle").textContent = debtKind(debt) === "owed" ? "Record Received" : "Record Payment";
+    $("paymentModalCopy").textContent = (debt.name || debt.id) + " · remaining " + money(remaining);
+    $("paymentAmountInput").value = String(Math.min(1000, remaining));
+    $("paymentAccountInput").value = DEFAULT_ACCOUNT;
+    $("paymentDateInput").value = todayISO();
+    $("paymentNotesInput").value = "";
+
+    $("paymentModalBackdrop").classList.add("on");
+    $("paymentAmountInput").focus();
+  }
+
+  function closePaymentModal() {
+    $("paymentModalBackdrop").classList.remove("on");
+    $("paymentForm").reset();
+  }
+
+  function formDebtPayload(dryRun) {
+    return {
+      dry_run: Boolean(dryRun),
+      name: $("debtNameInput").value.trim(),
+      kind: $("debtKindInput").value,
+      original_amount: Number($("debtAmountInput").value),
+      paid_amount: Number($("debtPaidInput").value || 0),
+      due_date: $("debtDueDateInput").value || null,
+      frequency: $("debtFrequencyInput").value || "custom",
+      notes: $("debtNotesInput").value || ""
+    };
   }
 
   function debtSavePayload(debt, dryRun, overrides) {
@@ -733,6 +978,117 @@ Debts clean UI v2.3.0
     };
   }
 
+  async function submitDebtForm(event) {
+    event.preventDefault();
+
+    if (!authority.save) {
+      showNotice("Debt saving is temporarily unavailable.", "fail");
+      return;
+    }
+
+    const mode = $("debtFormMode").value;
+    const id = $("debtFormId").value;
+    const payload = formDebtPayload(false);
+
+    if (!payload.name) {
+      showNotice("Name is required.", "fail");
+      return;
+    }
+
+    if (!Number.isFinite(payload.original_amount) || payload.original_amount <= 0) {
+      showNotice("Original amount must be greater than zero.", "fail");
+      return;
+    }
+
+    if (payload.paid_amount > payload.original_amount) {
+      showNotice("Paid amount cannot exceed original amount.", "fail");
+      return;
+    }
+
+    if (mode === "create") {
+      const dryRun = await fetchJSON("/api/debts?dry_run=1&cb=" + Date.now(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, dry_run: true })
+      });
+
+      lastProof = dryRun;
+
+      await fetchJSON("/api/debts?cb=" + Date.now(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      showNotice("Debt added.", "success");
+    }
+
+    if (mode === "edit") {
+      const debt = debts.find(row => row.id === id);
+      if (!debt) throw new Error("Debt not found.");
+
+      const dryRun = await runDebtSavePreflight(debt, payload);
+      lastProof = dryRun;
+
+      await fetchJSON("/api/debts/" + encodeURIComponent(id) + "?cb=" + Date.now(), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      showNotice("Debt updated.", "success");
+    }
+
+    closeDebtModal();
+    await refresh();
+  }
+
+  async function submitPaymentForm(event) {
+    event.preventDefault();
+
+    if (!authority.pay) {
+      showNotice("Debt payments are temporarily unavailable.", "fail");
+      return;
+    }
+
+    const id = $("paymentDebtId").value;
+    const debt = debts.find(row => row.id === id);
+    if (!debt) throw new Error("Debt not found.");
+
+    const amount = Number($("paymentAmountInput").value);
+    const accountId = $("paymentAccountInput").value.trim();
+    const paidDate = $("paymentDateInput").value || todayISO();
+    const notes = $("paymentNotesInput").value || "";
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showNotice("Payment amount must be greater than zero.", "fail");
+      return;
+    }
+
+    if (amount > debtRemaining(debt) + 0.01) {
+      showNotice("Payment cannot exceed remaining amount.", "fail");
+      return;
+    }
+
+    const dryRun = await runDebtPayPreflight(debt, amount, accountId, paidDate, notes);
+    lastProof = dryRun;
+
+    await fetchJSON("/api/debts/" + encodeURIComponent(id) + "/pay?cb=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount,
+        account_id: accountId,
+        paid_date: paidDate,
+        notes
+      })
+    });
+
+    closePaymentModal();
+    showNotice("Debt payment recorded.", "success");
+    await refresh();
+  }
+
   async function runDebtSavePreflight(debt, overrides) {
     const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "?dry_run=1&cb=" + Date.now(), {
       method: "PUT",
@@ -745,7 +1101,7 @@ Debts clean UI v2.3.0
     return data;
   }
 
-  async function runDebtPayPreflight(debt, amount, accountId) {
+  async function runDebtPayPreflight(debt, amount, accountId, paidDate, notes) {
     const remaining = debtRemaining(debt);
     const testAmount = Number(amount || Math.min(1000, remaining));
 
@@ -760,7 +1116,8 @@ Debts clean UI v2.3.0
         dry_run: true,
         amount: testAmount,
         account_id: accountId || DEFAULT_ACCOUNT,
-        paid_date: new Date().toISOString().slice(0, 10)
+        paid_date: paidDate || todayISO(),
+        notes: notes || ""
       })
     });
 
@@ -769,168 +1126,41 @@ Debts clean UI v2.3.0
     return data;
   }
 
-  async function addDebt() {
-    if (!authority.save) {
-      showNotice("Adding debt is temporarily unavailable.", "fail");
-      return;
-    }
-
-    const name = prompt("Debt name:");
-    if (!name) return;
-
-    const amountRaw = prompt("Original amount:");
-    if (!amountRaw) return;
-
-    const amount = Number(amountRaw);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      showNotice("Invalid amount.", "fail");
-      return;
-    }
-
-    const kindRaw = prompt("Type: owe or owed", "owe");
-    if (!kindRaw) return;
-
-    const kind = String(kindRaw).toLowerCase().trim();
-    if (!["owe", "owed"].includes(kind)) {
-      showNotice("Type must be owe or owed.", "fail");
-      return;
-    }
-
-    const dueDate = prompt("Due date YYYY-MM-DD, optional:", "");
-    const notes = prompt("Notes, optional:", "") || "";
-
-    const payload = {
-      name,
-      kind,
-      original_amount: amount,
-      paid_amount: 0,
-      due_date: dueDate || null,
-      frequency: dueDate ? "custom" : "monthly",
-      notes
-    };
-
-    const dryRun = await fetchJSON("/api/debts?dry_run=1&cb=" + Date.now(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...payload, dry_run: true })
-    });
-
-    lastProof = dryRun;
-
-    const confirmed = confirm("Add " + name + " for " + money(amount) + "?");
-    if (!confirmed) return;
-
-    const data = await fetchJSON("/api/debts?cb=" + Date.now(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    showNotice("Debt added.", "success");
-    await refresh();
-    return data;
-  }
-
-  async function editDebt(debt) {
-    if (!authority.save) {
-      throw new Error("Editing is temporarily unavailable.");
-    }
-
-    const name = prompt("Debt name:", debt.name || "");
-    if (name === null) return;
-
-    const originalRaw = prompt("Original amount:", String(debtOriginal(debt)));
-    if (originalRaw === null) return;
-
-    const notes = prompt("Notes:", debt.notes || "");
-    if (notes === null) return;
-
-    const originalAmount = Number(originalRaw);
-    if (!Number.isFinite(originalAmount) || originalAmount < 0) {
-      throw new Error("Invalid amount.");
-    }
-
-    const overrides = {
-      name,
-      original_amount: originalAmount,
-      notes
-    };
-
-    await runDebtSavePreflight(debt, overrides);
-
-    const confirmed = confirm("Save changes to " + (debt.name || debt.id) + "?");
-    if (!confirmed) return;
-
-    const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "?cb=" + Date.now(), {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(debtSavePayload(debt, false, overrides))
-    });
-
-    showNotice("Debt updated.", "success");
-    await refresh();
-    return data;
-  }
-
-  async function recordDebtPayment(debt) {
-    if (!authority.pay) {
-      throw new Error("Payments are temporarily unavailable.");
-    }
-
-    const remaining = debtRemaining(debt);
-    const kind = debtKind(debt);
-    const label = kind === "owed" ? "received" : "paid";
-
-    const amountRaw = prompt("Amount " + label + " for " + (debt.name || debt.id) + " (remaining " + money(remaining) + "):", String(Math.min(1000, remaining)));
-    if (amountRaw === null) return;
-
-    const amount = Number(amountRaw);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      throw new Error("Invalid payment amount.");
-    }
-
-    if (amount > remaining + 0.01) {
-      throw new Error("Amount cannot exceed remaining balance.");
-    }
-
-    const accountId = prompt("Account id:", DEFAULT_ACCOUNT);
-    if (!accountId) return;
-
-    await runDebtPayPreflight(debt, amount, accountId);
-
-    const confirmed = confirm("This will record " + money(amount) + " as " + label + " for " + (debt.name || debt.id) + ". Continue?");
-    if (!confirmed) return;
-
-    const data = await fetchJSON("/api/debts/" + encodeURIComponent(debt.id) + "/pay?cb=" + Date.now(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        amount,
-        account_id: accountId,
-        paid_date: new Date().toISOString().slice(0, 10)
-      })
-    });
-
-    showNotice("Debt payment recorded.", "success");
-    await refresh();
-    return data;
-  }
-
   async function refresh() {
-    console.log("[debts-ui v2.3.0] refresh");
+    console.log("[debts-ui v2.4.0] refresh");
     await loadCommandCentre();
     await loadDebts();
-    console.log("[debts-ui v2.3.0] ready", {
+    console.log("[debts-ui v2.4.0] ready", {
       debts: debts.length,
       authority,
       total_remaining: debts.reduce((sum, debt) => sum + debtRemaining(debt), 0)
     });
   }
 
-  function init() {
-    console.log("[debts-ui v2.3.0] init");
+  function wireEvents() {
     $("refreshDebtsBtn")?.addEventListener("click", refresh);
-    $("addDebtBtn")?.addEventListener("click", addDebt);
+    $("addDebtBtn")?.addEventListener("click", () => openDebtModal("create", null));
+
+    $("debtModalCloseBtn")?.addEventListener("click", closeDebtModal);
+    $("debtCancelBtn")?.addEventListener("click", closeDebtModal);
+    $("debtForm")?.addEventListener("submit", submitDebtForm);
+
+    $("paymentModalCloseBtn")?.addEventListener("click", closePaymentModal);
+    $("paymentCancelBtn")?.addEventListener("click", closePaymentModal);
+    $("paymentForm")?.addEventListener("submit", submitPaymentForm);
+
+    $("debtModalBackdrop")?.addEventListener("click", event => {
+      if (event.target.id === "debtModalBackdrop") closeDebtModal();
+    });
+
+    $("paymentModalBackdrop")?.addEventListener("click", event => {
+      if (event.target.id === "paymentModalBackdrop") closePaymentModal();
+    });
+  }
+
+  function init() {
+    console.log("[debts-ui v2.4.0] init");
+    wireEvents();
     refresh();
   }
 
@@ -940,6 +1170,7 @@ Debts clean UI v2.3.0
     debts: () => debts.slice(),
     authority: () => ({ ...authority }),
     lastProof: () => lastProof,
+    openAdd: () => openDebtModal("create", null),
     preflightSave: id => {
       const debt = debts.find(row => row.id === id);
       if (!debt) throw new Error("Debt not found: " + id);
