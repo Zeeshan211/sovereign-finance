@@ -1,30 +1,31 @@
-/* Sovereign Finance Reconciliation API v0.1.0
+/* Sovereign Finance Reconciliation API v0.1.2
    /api/reconciliation
 
-   Contract:
-   - GET returns account balances and reconciliation status.
-   - POST dry_run validates a balance declaration and performs no write.
+   Source rule:
+   - /api/accounts is the only current balance truth source.
+   - Reconciliation must not recompute visible balances differently from Accounts.
+   - GET returns accounts from /api/accounts.
+   - POST dry_run validates declaration and performs no write.
    - POST real declare asks Command Centre before writing.
-   - Real declare creates one adjustment transaction only when declared balance differs.
-   - No fake smoke entries.
-   - No /api/money-contracts.
+   - Real declare creates one adjustment transaction only when actual balance differs.
 */
 
-const VERSION = 'v0.1.0';
+const VERSION = 'v0.1.2';
 
 export async function onRequestGet(context) {
   try {
-    const db = context.env.DB;
-    const accounts = await listAccounts(db);
+    const accounts = await loadAccountsFromAccountsApi(context);
 
     return jsonResponse({
       ok: true,
       version: VERSION,
+      source: '/api/accounts',
+      source_rule: 'Reconciliation displays the exact same balances as Accounts.',
       accounts,
       summary: {
         account_count: accounts.length,
-        active_account_count: accounts.filter(a => a.status === 'active').length,
-        total_balance: round2(accounts.reduce((sum, account) => sum + Number(account.balance || 0), 0))
+        active_account_count: accounts.filter(a => isActiveAccount(a)).length,
+        total_balance: round2(accounts.reduce((sum, account) => sum + toNumber(account.balance, 0), 0))
       }
     });
   } catch (err) {
@@ -43,7 +44,7 @@ export async function onRequestPost(context) {
     const dryRun = isDryRunRequest(context, body);
 
     const accountId = safeText(body.account_id, '', 160);
-    const declaredBalance = Number(body.declared_balance);
+    const declaredBalance = toNumber(body.declared_balance, NaN);
     const declaredAt = normalizeDate(body.declared_at || body.date) || todayISO();
     const notes = safeText(body.notes, '', 500);
 
@@ -55,10 +56,16 @@ export async function onRequestPost(context) {
       return jsonResponse({ ok: false, version: VERSION, error: 'declared_balance must be numeric' }, 400);
     }
 
-    const account = await readAccount(db, accountId);
+    const accounts = await loadAccountsFromAccountsApi(context);
+    const account = accounts.find(item => item.id === accountId);
 
     if (!account) {
-      return jsonResponse({ ok: false, version: VERSION, error: 'Account not found' }, 404);
+      return jsonResponse({
+        ok: false,
+        version: VERSION,
+        error: 'Account not found in /api/accounts',
+        account_id: accountId
+      }, 404);
     }
 
     if (!isActiveAccount(account)) {
@@ -71,9 +78,8 @@ export async function onRequestPost(context) {
       }, 409);
     }
 
-    const currentBalance = await computeAccountBalance(db, accountId);
+    const currentBalance = round2(toNumber(account.balance, 0));
     const delta = round2(declaredBalance - currentBalance);
-    const absDelta = Math.abs(delta);
     const action = 'reconciliation.declare';
 
     const proof = buildReconciliationProof({
@@ -101,7 +107,8 @@ export async function onRequestPost(context) {
           declared_balance: round2(declaredBalance),
           delta,
           declared_at: declaredAt,
-          notes
+          notes,
+          current_balance_source: '/api/accounts'
         }
       });
     }
@@ -122,14 +129,14 @@ export async function onRequestPost(context) {
           allowed: false,
           status: 'blocked',
           reason: 'reconciliation.declare real write blocked by Command Centre.',
-          source: 'coverage.write_safety.reconciliation_declare',
+          source: 'coverage.write_safety.reconciliation',
           backend_enforced: true
         },
         proof
       }, 423);
     }
 
-    if (absDelta < 0.01) {
+    if (Math.abs(delta) < 0.01) {
       return jsonResponse({
         ok: true,
         version: VERSION,
@@ -138,6 +145,7 @@ export async function onRequestPost(context) {
         audit_performed: false,
         no_adjustment_needed: true,
         account_id: account.id,
+        account_name: account.name || account.id,
         current_balance: currentBalance,
         declared_balance: round2(declaredBalance),
         delta,
@@ -149,25 +157,23 @@ export async function onRequestPost(context) {
     const txType = delta >= 0 ? 'income' : 'expense';
     const amount = round2(Math.abs(delta));
     const txNotes = safeText(
-      notes || ('Balance declaration for ' + (account.name || account.id) + ': declared ' + declaredBalance + ', app ' + currentBalance),
+      notes || ('Balance declaration for ' + (account.name || account.id) + ': actual ' + round2(declaredBalance) + ', app ' + currentBalance),
       '',
       500
     );
 
-    await db.prepare(
-      `INSERT INTO transactions
-       (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount)
-       VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, 0, 0)`
-    ).bind(
-      txId,
-      declaredAt,
-      txType,
+    await insertAdjustmentTransaction(db, {
+      id: txId,
+      date: declaredAt,
+      type: txType,
       amount,
-      account.id,
-      txNotes
-    ).run();
+      account_id: account.id,
+      notes: txNotes
+    });
 
-    const finalBalance = await computeAccountBalance(db, accountId);
+    const refreshedAccounts = await loadAccountsFromAccountsApi(context);
+    const refreshedAccount = refreshedAccounts.find(item => item.id === accountId);
+    const finalBalance = refreshedAccount ? round2(toNumber(refreshedAccount.balance, 0)) : null;
 
     return jsonResponse({
       ok: true,
@@ -193,76 +199,91 @@ export async function onRequestPost(context) {
   }
 }
 
-async function listAccounts(db) {
-  const res = await db.prepare(
-    `SELECT id, name, kind, type, status
-     FROM accounts
-     WHERE (deleted_at IS NULL OR deleted_at = '')
-     ORDER BY name`
-  ).all();
+async function loadAccountsFromAccountsApi(context) {
+  const origin = new URL(context.request.url).origin;
 
-  const rows = res.results || [];
+  const res = await fetch(origin + '/api/accounts?cb=' + Date.now(), {
+    method: 'GET',
+    headers: {
+      accept: 'application/json',
+      'x-sovereign-reconciliation-source': VERSION
+    }
+  });
 
-  const accounts = [];
+  const data = await res.json().catch(() => null);
 
-  for (const row of rows) {
-    const balance = await computeAccountBalance(db, row.id);
-    accounts.push({
-      id: safeText(row.id, '', 160),
-      name: safeText(row.name, row.id, 160),
-      kind: safeText(row.kind || row.type, '', 80),
-      type: safeText(row.type || row.kind, '', 80),
-      status: safeText(row.status, 'active', 40).toLowerCase() || 'active',
-      balance
-    });
+  if (!res.ok || !data) {
+    throw new Error('/api/accounts unavailable for reconciliation source');
   }
 
-  return accounts;
+  const rawAccounts = Array.isArray(data.accounts)
+    ? data.accounts
+    : Array.isArray(data)
+      ? data
+      : [];
+
+  return rawAccounts
+    .map(normalizeAccountFromAccountsApi)
+    .filter(account => account.id);
 }
 
-async function readAccount(db, id) {
-  return db.prepare(
-    `SELECT id, name, kind, type, status
-     FROM accounts
-     WHERE id = ?
-     LIMIT 1`
-  ).bind(id).first();
+function normalizeAccountFromAccountsApi(row) {
+  const id = safeText(row.id || row.account_id, '', 160);
+  const name = safeText(row.name || row.label || id, id, 160);
+  const kind = safeText(row.kind || row.type || row.account_type, '', 80);
+  const status = safeText(row.status, 'active', 40).toLowerCase() || 'active';
+
+  const balance = firstNumber([
+    row.balance,
+    row.current_balance,
+    row.available_balance,
+    row.account_balance,
+    row.computed_balance,
+    row.amount,
+    row.total
+  ], 0);
+
+  return {
+    id,
+    name,
+    kind,
+    type: kind,
+    status,
+    balance: round2(balance),
+    source: '/api/accounts'
+  };
 }
 
-async function computeAccountBalance(db, accountId) {
-  const income = await db.prepare(
-    `SELECT COALESCE(SUM(amount), 0) AS total
-     FROM transactions
-     WHERE account_id = ?
-     AND type = 'income'`
-  ).bind(accountId).first();
+async function insertAdjustmentTransaction(db, tx) {
+  try {
+    await db.prepare(
+      `INSERT INTO transactions
+       (id, date, type, amount, account_id, transfer_to_account_id, category_id, notes, fee_amount, pra_amount)
+       VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, 0, 0)`
+    ).bind(
+      tx.id,
+      tx.date,
+      tx.type,
+      tx.amount,
+      tx.account_id,
+      tx.notes
+    ).run();
 
-  const expense = await db.prepare(
-    `SELECT COALESCE(SUM(amount), 0) AS total
-     FROM transactions
-     WHERE account_id = ?
-     AND type = 'expense'`
-  ).bind(accountId).first();
-
-  const transferIn = await db.prepare(
-    `SELECT COALESCE(SUM(amount), 0) AS total
-     FROM transactions
-     WHERE transfer_to_account_id = ?`
-  ).bind(accountId).first();
-
-  const transferOut = await db.prepare(
-    `SELECT COALESCE(SUM(amount), 0) AS total
-     FROM transactions
-     WHERE account_id = ?
-     AND type = 'transfer'`
-  ).bind(accountId).first();
-
-  return round2(
-    Number(income && income.total || 0)
-    - Number(expense && expense.total || 0)
-    + Number(transferIn && transferIn.total || 0)
-    - Number(transferOut && transferOut.total || 0)
-  );
+    return;
+  } catch (err) {
+    await db.prepare(
+      `INSERT INTO transactions
+       (id, date, type, amount, account_id, category_id, notes)
+       VALUES (?, ?, ?, ?, ?, NULL, ?)`
+    ).bind(
+      tx.id,
+      tx.date,
+      tx.type,
+      tx.amount,
+      tx.account_id,
+      tx.notes
+    ).run();
+  }
 }
 
 function buildReconciliationProof(input) {
@@ -272,6 +293,7 @@ function buildReconciliationProof(input) {
     writes_performed: false,
     audit_performed: false,
     validation_status: 'pass',
+    source_rule: 'current_balance comes from /api/accounts',
     write_model: 'balance_declaration_command_centre_gated',
     expected_transaction_rows: Math.abs(input.delta) < 0.01 ? 0 : 1,
     expected_ledger_rows: 0,
@@ -282,13 +304,15 @@ function buildReconciliationProof(input) {
       current_balance: input.currentBalance,
       declared_balance: round2(input.declaredBalance),
       delta: input.delta,
-      declared_at: input.declaredAt
+      declared_at: input.declaredAt,
+      current_balance_source: '/api/accounts'
     },
     checks: [
-      proofCheck('account_exists', 'pass', 'accounts.id', 'Account exists.'),
+      proofCheck('account_exists', 'pass', '/api/accounts', 'Account exists in Accounts API.'),
       proofCheck('account_active', isActiveAccount(input.account) ? 'pass' : 'blocked', 'accounts.status', 'Account is active.'),
+      proofCheck('current_balance_source', 'pass', '/api/accounts', 'Current app balance is sourced from Accounts API.'),
       proofCheck('declared_balance_valid', Number.isFinite(Number(input.declaredBalance)) ? 'pass' : 'blocked', 'request.declared_balance', 'Declared balance is numeric.'),
-      proofCheck('delta_computed', 'pass', 'computed.delta', 'Delta is computed from declared balance minus current app balance.'),
+      proofCheck('delta_computed', 'pass', 'computed.delta', 'Delta is declared balance minus Accounts API balance.'),
       proofCheck('command_gate_required', 'pass', 'finance-command-center', 'Real declaration asks Command Centre before writing.'),
       proofCheck('dry_run_no_write', 'pass', 'api.contract', 'Dry-run returns before transaction insert.')
     ]
@@ -298,6 +322,7 @@ function buildReconciliationProof(input) {
 async function commandAllowsAction(context, action) {
   try {
     const origin = new URL(context.request.url).origin;
+
     const res = await fetch(origin + '/api/finance-command-center?gate=' + encodeURIComponent(action) + '&cb=' + Date.now(), {
       method: 'GET',
       headers: {
@@ -315,6 +340,31 @@ async function commandAllowsAction(context, action) {
   } catch (err) {
     return false;
   }
+}
+
+function firstNumber(values, fallback) {
+  for (const value of values) {
+    const n = toNumber(value, NaN);
+    if (Number.isFinite(n)) return n;
+  }
+
+  return fallback;
+}
+
+function toNumber(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : fallback;
+  }
+
+  const cleaned = String(value)
+    .replace(/rs/ig, '')
+    .replace(/,/g, '')
+    .trim();
+
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : fallback;
 }
 
 function isActiveAccount(account) {
