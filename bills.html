@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Bills · Sovereign Finance</title>
-  <meta name="description" content="Manage recurring bills and monthly obligations in Sovereign Finance." />
+  <meta name="description" content="Manage recurring bills, payments, due dates, and account-linked ledger movements." />
 
   <link rel="stylesheet" href="/css/app.css?v=ui-token-lock-2-1" />
   <link rel="stylesheet" href="/css/nav.css" />
@@ -21,7 +21,6 @@
           <span class="sf-brand-subtitle">Personal finance system</span>
         </span>
       </a>
-
       <button class="sf-sidebar-fold" type="button" id="sidebarFold" aria-label="Collapse sidebar">
         <span class="sf-nav-icon">‹</span>
       </button>
@@ -57,7 +56,6 @@
         <div class="sf-page-title">Bills</div>
       </div>
     </div>
-
     <div class="sf-topbar-right">
       <button class="sf-theme-toggle" type="button" id="themeToggle" aria-label="Toggle theme">◐</button>
     </div>
@@ -66,15 +64,14 @@
   <main class="app-page">
     <section class="finance-hero">
       <div class="hero-kicker">Recurring obligations</div>
-      <h1 class="hero-title">Bills, clean and current.</h1>
+      <h1 class="hero-title">Bills, paid through the ledger.</h1>
       <p class="hero-copy">
-        Track monthly bills, due dates, clearing status, and upcoming obligations without audit clutter.
+        Create recurring obligations, pay from the correct account, track partial payments, and defer due dates without changing balances.
       </p>
-
       <div class="stack-sm" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;">
         <button class="btn btn-success" type="button" id="addBillBtn">Add Bill</button>
         <button class="btn btn-secondary" type="button" id="refreshBtn">Refresh</button>
-        <a class="btn btn-secondary" href="/add.html">Add Transaction</a>
+        <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
       </div>
     </section>
 
@@ -82,25 +79,22 @@
       <article class="kpi-card">
         <div class="kpi-label">Active bills</div>
         <div class="kpi-value" id="activeBills">—</div>
-        <div class="kpi-sub" id="activeBillsNote">Loading bills</div>
+        <div class="kpi-sub" id="activeBillsNote">Loading</div>
       </article>
-
       <article class="kpi-card">
         <div class="kpi-label">Monthly total</div>
         <div class="kpi-value" id="monthlyTotal">—</div>
         <div class="kpi-sub">Active obligations</div>
       </article>
-
       <article class="kpi-card">
-        <div class="kpi-label">Due this month</div>
-        <div class="kpi-value" id="dueThisMonth">—</div>
-        <div class="kpi-sub">Pending active bills</div>
+        <div class="kpi-label">Paid this month</div>
+        <div class="kpi-value" id="paidThisMonth">—</div>
+        <div class="kpi-sub">Ledger-linked payments</div>
       </article>
-
       <article class="kpi-card">
-        <div class="kpi-label">Cleared</div>
-        <div class="kpi-value" id="clearedCount">—</div>
-        <div class="kpi-sub">Marked cleared</div>
+        <div class="kpi-label">Remaining</div>
+        <div class="kpi-value" id="remainingThisMonth">—</div>
+        <div class="kpi-sub">Current cycle</div>
       </article>
     </section>
 
@@ -108,21 +102,22 @@
       <div class="stack">
         <article class="card card-padded">
           <div class="section-kicker">Bills register</div>
-          <h2 class="authority-title" style="margin-top:12px;">Monthly obligations</h2>
-          <p class="authority-copy">Add, edit, and clear bills from one working register.</p>
+          <h2 class="authority-title" style="margin-top:12px;">Active and archived bills</h2>
+          <p class="authority-copy">Paying a bill creates an expense transaction and a linked bill payment record.</p>
 
           <div class="grid-2" style="margin-top:16px;align-items:end;">
             <div class="field">
               <label for="searchInput">Search</label>
               <input id="searchInput" type="search" placeholder="Search bills..." />
             </div>
-
             <div class="field">
               <label for="statusFilter">View</label>
               <select id="statusFilter">
                 <option value="active">Active</option>
                 <option value="pending">Pending</option>
-                <option value="cleared">Cleared</option>
+                <option value="partial">Partial</option>
+                <option value="paid">Paid</option>
+                <option value="archived">Archived</option>
                 <option value="all">All</option>
               </select>
             </div>
@@ -134,15 +129,15 @@
                 <tr>
                   <th>Bill</th>
                   <th>Amount</th>
+                  <th>Paid</th>
+                  <th>Remaining</th>
                   <th>Due</th>
                   <th>Status</th>
                   <th class="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody id="billsTableBody">
-                <tr>
-                  <td colspan="5" class="muted text-center">Loading bills...</td>
-                </tr>
+                <tr><td colspan="7" class="muted text-center">Loading bills...</td></tr>
               </tbody>
             </table>
           </div>
@@ -155,24 +150,23 @@
           <div class="stack-sm" style="margin-top:16px;">
             <button class="btn btn-success" type="button" id="sideAddBillBtn">Add Bill</button>
             <button class="btn btn-secondary" type="button" id="sideRefreshBtn">Refresh Bills</button>
-            <a class="btn btn-secondary" href="/add.html">Add Transaction</a>
+            <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
           </div>
         </article>
 
         <article class="card card-padded">
-          <div class="section-kicker">Upcoming due</div>
-          <h2 class="authority-title" style="margin-top:12px;">Next bills</h2>
-          <p class="authority-copy">Pending active bills ordered by due day.</p>
-
+          <div class="section-kicker">Upcoming</div>
+          <h2 class="authority-title" style="margin-top:12px;">Due next</h2>
+          <p class="authority-copy">Active unpaid or partially paid bills.</p>
           <div class="stack-sm" id="upcomingList" style="margin-top:16px;">
-            <div class="card card-compact muted">Loading upcoming bills...</div>
+            <div class="card card-compact muted">Loading bills...</div>
           </div>
         </article>
 
         <article class="card card-padded">
           <div class="section-kicker">Page status</div>
           <h2 class="authority-title" style="margin-top:12px;" id="pageStatus">Loading</h2>
-          <p class="authority-copy" id="pageStatusDetail">Fetching bills.</p>
+          <p class="authority-copy" id="pageStatusDetail">Fetching bills and accounts.</p>
           <p class="authority-copy">Last refreshed: <span id="lastRefreshed">—</span></p>
         </article>
       </aside>
@@ -183,12 +177,12 @@
 
   <section id="billModal" hidden>
     <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
-    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,620px);max-height:90vh;overflow:auto;">
+    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,660px);max-height:90vh;overflow:auto;">
       <div class="grid-2" style="align-items:start;">
         <div>
-          <div class="section-kicker" id="billModalKicker">Bill</div>
+          <div class="section-kicker">Bill</div>
           <h2 class="authority-title" style="margin-top:12px;" id="billModalTitle">Add Bill</h2>
-          <p class="authority-copy">Save the recurring obligation details.</p>
+          <p class="authority-copy">Create or edit the recurring obligation. No money moves until you pay it.</p>
         </div>
         <div class="text-right">
           <button class="btn btn-secondary" type="button" id="closeBillModal">Close</button>
@@ -200,7 +194,7 @@
 
         <div class="field">
           <label for="billName">Name</label>
-          <input id="billName" required placeholder="e.g. Internet, Rent, School fee" />
+          <input id="billName" required placeholder="e.g. Internet, Rent, Family Contribution" />
         </div>
 
         <div class="grid-2">
@@ -208,7 +202,6 @@
             <label for="billAmount">Amount</label>
             <input id="billAmount" required type="number" min="0" step="0.01" placeholder="0.00" />
           </div>
-
           <div class="field">
             <label for="billDueDay">Due day</label>
             <input id="billDueDay" type="number" min="1" max="31" step="1" placeholder="1-31" />
@@ -220,7 +213,6 @@
             <label for="billCategory">Category</label>
             <input id="billCategory" placeholder="bills" />
           </div>
-
           <div class="field">
             <label for="billStatus">Status</label>
             <select id="billStatus">
@@ -240,41 +232,95 @@
     </div>
   </section>
 
-  <section id="clearModal" hidden>
+  <section id="payModal" hidden>
     <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
-    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,560px);max-height:90vh;overflow:auto;">
+    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,620px);max-height:90vh;overflow:auto;">
       <div class="grid-2" style="align-items:start;">
         <div>
-          <div class="section-kicker">Clear bill</div>
-          <h2 class="authority-title" style="margin-top:12px;" id="clearModalTitle">Mark as cleared</h2>
-          <p class="authority-copy" id="clearModalCopy">Mark this bill as cleared for the selected month.</p>
+          <div class="section-kicker">Pay bill</div>
+          <h2 class="authority-title" style="margin-top:12px;" id="payTitle">Pay Bill</h2>
+          <p class="authority-copy">Payment creates an expense transaction and updates this month’s bill status.</p>
         </div>
         <div class="text-right">
-          <button class="btn btn-secondary" type="button" id="closeClearModal">Close</button>
+          <button class="btn btn-secondary" type="button" id="closePayModal">Close</button>
         </div>
       </div>
 
-      <form id="clearForm" class="stack" style="margin-top:18px;">
-        <input type="hidden" id="clearBillId" />
+      <div class="card card-compact" style="margin-top:14px;">
+        <div class="grid-2" style="align-items:center;">
+          <div>
+            <div class="muted">Selected bill</div>
+            <div class="strong" id="payBillName">—</div>
+          </div>
+          <div class="text-right">
+            <div class="muted">Remaining</div>
+            <div class="strong" id="payBillRemaining">—</div>
+          </div>
+        </div>
+      </div>
+
+      <form id="payForm" class="stack" style="margin-top:18px;">
+        <input type="hidden" id="payBillId" />
 
         <div class="grid-2">
           <div class="field">
-            <label for="clearMonth">Month</label>
-            <input id="clearMonth" type="month" required />
+            <label for="payAmount">Amount paid</label>
+            <input id="payAmount" type="number" min="0" step="0.01" required />
           </div>
-
           <div class="field">
-            <label for="clearAmount">Amount paid</label>
-            <input id="clearAmount" type="number" min="0" step="0.01" required />
+            <label for="payDate">Payment date</label>
+            <input id="payDate" type="date" required />
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="payAccount">Paid from account</label>
+            <select id="payAccount" required>
+              <option value="">Select account</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="payMonth">Bill month</label>
+            <input id="payMonth" type="month" required />
           </div>
         </div>
 
         <div class="field">
-          <label for="clearNotes">Notes</label>
-          <textarea id="clearNotes" placeholder="Optional"></textarea>
+          <label for="payNotes">Notes</label>
+          <textarea id="payNotes" placeholder="Optional"></textarea>
         </div>
 
-        <button class="primary-submit" type="submit">Mark Cleared</button>
+        <button class="primary-submit" type="submit">Pay Bill</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="deferModal" hidden>
+    <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
+    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,560px);max-height:90vh;overflow:auto;">
+      <div class="grid-2" style="align-items:start;">
+        <div>
+          <div class="section-kicker">Defer</div>
+          <h2 class="authority-title" style="margin-top:12px;" id="deferTitle">Defer Bill</h2>
+          <p class="authority-copy">Move the due date. No transaction is created.</p>
+        </div>
+        <div class="text-right">
+          <button class="btn btn-secondary" type="button" id="closeDeferModal">Close</button>
+        </div>
+      </div>
+
+      <form id="deferForm" class="stack" style="margin-top:18px;">
+        <input type="hidden" id="deferBillId" />
+        <div class="field">
+          <label for="deferNextDate">New due date</label>
+          <input id="deferNextDate" type="date" required />
+        </div>
+        <div class="field">
+          <label for="deferNotes">Reason / notes</label>
+          <textarea id="deferNotes" placeholder="Optional"></textarea>
+        </div>
+        <button class="primary-submit" type="submit">Defer Bill</button>
       </form>
     </div>
   </section>
@@ -284,17 +330,18 @@
   <script src="/js/theme.js?v=1.0.0"></script>
   <script src="/js/nav.js?v=2.0.0"></script>
 
-
   <script>
     (() => {
       "use strict";
 
-      const VERSION = "ui4-bills-1";
+      const VERSION = "ui7-bills-2";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
       const state = {
         bills: [],
+        accounts: [],
         raw: null,
+        accountsRaw: null,
         error: null,
         search: "",
         filter: "active"
@@ -306,8 +353,8 @@
         activeBills: $("activeBills"),
         activeBillsNote: $("activeBillsNote"),
         monthlyTotal: $("monthlyTotal"),
-        dueThisMonth: $("dueThisMonth"),
-        clearedCount: $("clearedCount"),
+        paidThisMonth: $("paidThisMonth"),
+        remainingThisMonth: $("remainingThisMonth"),
         searchInput: $("searchInput"),
         statusFilter: $("statusFilter"),
         billsTableBody: $("billsTableBody"),
@@ -319,6 +366,7 @@
         sideAddBillBtn: $("sideAddBillBtn"),
         refreshBtn: $("refreshBtn"),
         sideRefreshBtn: $("sideRefreshBtn"),
+
         billModal: $("billModal"),
         closeBillModal: $("closeBillModal"),
         billForm: $("billForm"),
@@ -330,15 +378,28 @@
         billCategory: $("billCategory"),
         billStatus: $("billStatus"),
         billNotes: $("billNotes"),
-        clearModal: $("clearModal"),
-        closeClearModal: $("closeClearModal"),
-        clearForm: $("clearForm"),
-        clearBillId: $("clearBillId"),
-        clearMonth: $("clearMonth"),
-        clearAmount: $("clearAmount"),
-        clearNotes: $("clearNotes"),
-        clearModalTitle: $("clearModalTitle"),
-        clearModalCopy: $("clearModalCopy"),
+
+        payModal: $("payModal"),
+        closePayModal: $("closePayModal"),
+        payForm: $("payForm"),
+        payTitle: $("payTitle"),
+        payBillId: $("payBillId"),
+        payBillName: $("payBillName"),
+        payBillRemaining: $("payBillRemaining"),
+        payAmount: $("payAmount"),
+        payDate: $("payDate"),
+        payAccount: $("payAccount"),
+        payMonth: $("payMonth"),
+        payNotes: $("payNotes"),
+
+        deferModal: $("deferModal"),
+        closeDeferModal: $("closeDeferModal"),
+        deferForm: $("deferForm"),
+        deferTitle: $("deferTitle"),
+        deferBillId: $("deferBillId"),
+        deferNextDate: $("deferNextDate"),
+        deferNotes: $("deferNotes"),
+
         toast: $("toast"),
         debugPanel: $("debugPanel")
       };
@@ -348,6 +409,15 @@
         refresh,
         getState: () => JSON.parse(JSON.stringify(state))
       };
+
+      function todayIso() {
+        return new Date().toISOString().slice(0, 10);
+      }
+
+      function currentMonth() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      }
 
       function money(value) {
         const n = Number(value);
@@ -359,11 +429,6 @@
         }).format(n);
       }
 
-      function num(value) {
-        const n = Number(value);
-        return Number.isFinite(n) ? n : null;
-      }
-
       function escapeHtml(value) {
         return String(value ?? "")
           .replaceAll("&", "&amp;")
@@ -371,15 +436,6 @@
           .replaceAll(">", "&gt;")
           .replaceAll('"', "&quot;")
           .replaceAll("'", "&#039;");
-      }
-
-      function currentMonth() {
-        const d = new Date();
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      }
-
-      function todayDay() {
-        return new Date().getDate();
       }
 
       async function readJson(path, options = {}) {
@@ -392,8 +448,8 @@
         });
 
         const text = await res.text();
-
         let json;
+
         try {
           json = text ? JSON.parse(text) : {};
         } catch {
@@ -407,41 +463,22 @@
         return json;
       }
 
-      function asArray(payload) {
+      function asArray(payload, key) {
         if (!payload) return [];
         if (Array.isArray(payload)) return payload;
-        if (Array.isArray(payload.bills)) return payload.bills;
+        if (Array.isArray(payload[key])) return payload[key];
         if (Array.isArray(payload.items)) return payload.items;
         if (Array.isArray(payload.data)) return payload.data;
         if (Array.isArray(payload.rows)) return payload.rows;
         return [];
       }
 
-      function normalizeBill(raw) {
-        const id = raw.id ?? raw.bill_id ?? raw.uuid ?? raw.name;
-        const name = raw.name ?? raw.title ?? raw.bill_name ?? "Unnamed bill";
-        const amount = num(raw.amount ?? raw.monthly_amount ?? raw.expected_amount ?? raw.value);
-        const dueDay = raw.due_day ?? raw.dueDay ?? raw.day ?? raw.due_date_day ?? raw.due_date ?? null;
-        const status = String(raw.status ?? "active").toLowerCase();
-        const cleared =
-          raw.cleared === true ||
-          raw.is_cleared === true ||
-          raw.current_month_cleared === true ||
-          String(raw.clear_status ?? "").toLowerCase() === "cleared";
-        const category = raw.category ?? raw.category_id ?? raw.type ?? "bills";
-        const notes = raw.notes ?? raw.description ?? "";
+      function accountId(account) {
+        return account.id || account.account_id || account.name;
+      }
 
-        return {
-          ...raw,
-          id,
-          name,
-          amount,
-          dueDay,
-          status,
-          cleared,
-          category,
-          notes
-        };
+      function accountName(account) {
+        return account.name || account.account_name || account.label || account.id || account.account_id || "Account";
       }
 
       async function refresh() {
@@ -449,13 +486,16 @@
         renderLoading();
 
         try {
-          const payload = await readJson(`/api/bills?cb=${Date.now()}`);
-          state.raw = payload;
-          state.bills = asArray(payload).map(normalizeBill);
-          state.error = null;
+          const [billsPayload, accountsPayload] = await Promise.all([
+            readJson(`/api/bills?cb=${Date.now()}`),
+            readJson(`/api/accounts?cb=${Date.now()}`)
+          ]);
+
+          state.raw = billsPayload;
+          state.accountsRaw = accountsPayload;
+          state.bills = asArray(billsPayload, "bills");
+          state.accounts = asArray(accountsPayload, "accounts");
         } catch (err) {
-          state.raw = null;
-          state.bills = [];
           state.error = err?.message || "Unable to load bills.";
         }
 
@@ -466,25 +506,27 @@
         const q = state.search.trim().toLowerCase();
 
         return state.bills.filter(bill => {
+          const status = String(bill.status || "active").toLowerCase();
+          const clear = String(bill.clear_status || "").toLowerCase();
           const matchesSearch = !q || [bill.name, bill.category, bill.notes]
             .filter(Boolean)
             .some(v => String(v).toLowerCase().includes(q));
 
-          let matchesFilter = true;
-
-          if (state.filter === "active") matchesFilter = bill.status === "active";
-          if (state.filter === "pending") matchesFilter = bill.status === "active" && !bill.cleared;
-          if (state.filter === "cleared") matchesFilter = bill.cleared === true;
-
-          return matchesSearch && matchesFilter;
+          if (!matchesSearch) return false;
+          if (state.filter === "active") return status === "active";
+          if (state.filter === "pending") return status === "active" && clear === "pending";
+          if (state.filter === "partial") return status === "active" && clear === "partial";
+          if (state.filter === "paid") return status === "active" && clear === "cleared";
+          if (state.filter === "archived") return status === "archived";
+          return true;
         });
       }
 
       function renderLoading() {
         els.pageStatus.textContent = "Loading";
-        els.pageStatusDetail.textContent = "Fetching bills.";
-        els.billsTableBody.innerHTML = `<tr><td colspan="5" class="muted text-center">Loading bills...</td></tr>`;
-        els.upcomingList.innerHTML = `<div class="card card-compact muted">Loading upcoming bills...</div>`;
+        els.pageStatusDetail.textContent = "Fetching bills and accounts.";
+        els.billsTableBody.innerHTML = `<tr><td colspan="7" class="muted text-center">Loading bills...</td></tr>`;
+        els.upcomingList.innerHTML = `<div class="card card-compact muted">Loading bills...</div>`;
       }
 
       function render() {
@@ -508,43 +550,58 @@
         }
 
         els.pageStatus.textContent = "Ready";
-        els.pageStatusDetail.textContent = "Bills are loaded.";
+        els.pageStatusDetail.textContent = "Bills and accounts are loaded.";
       }
 
       function renderStats() {
-        const active = state.bills.filter(b => b.status === "active");
-        const monthly = active.map(b => b.amount).filter(v => v !== null).reduce((sum, v) => sum + v, 0);
-        const due = active.filter(b => {
-          const d = Number.parseInt(String(b.dueDay ?? ""), 10);
-          return Number.isFinite(d) && d >= todayDay() && !b.cleared;
-        });
-        const cleared = state.bills.filter(b => b.cleared);
+        const active = state.bills.filter(b => String(b.status || "active").toLowerCase() === "active");
+        const total = active.reduce((sum, b) => sum + Number(b.amount || 0), 0);
+        const paid = active.reduce((sum, b) => sum + Number(b.paid_this_month || 0), 0);
+        const remaining = active.reduce((sum, b) => sum + Number(b.remaining_this_month || 0), 0);
 
         els.activeBills.textContent = state.error ? "—" : String(active.length);
         els.activeBillsNote.textContent = state.error ? "Bills unavailable" : `${state.bills.length} total record${state.bills.length === 1 ? "" : "s"}`;
-        els.monthlyTotal.textContent = active.length ? money(monthly) : "—";
-        els.dueThisMonth.textContent = state.error ? "—" : String(due.length);
-        els.clearedCount.textContent = state.error ? "—" : String(cleared.length);
+        els.monthlyTotal.textContent = money(total);
+        els.paidThisMonth.textContent = money(paid);
+        els.remainingThisMonth.textContent = money(remaining);
+      }
+
+      function renderActions(bill) {
+        const id = escapeHtml(bill.id);
+        const status = String(bill.status || "active").toLowerCase();
+        const clear = String(bill.clear_status || "pending").toLowerCase();
+
+        if (status === "archived" || status === "deleted") {
+          return `
+            <button class="btn btn-secondary" type="button" data-edit="${id}">Edit</button>
+            <button class="btn btn-success" type="button" data-reactivate="${id}">Reactivate</button>
+          `;
+        }
+
+        return `
+          <button class="btn btn-secondary" type="button" data-edit="${id}">Edit</button>
+          ${clear === "cleared" ? `<span class="badge badge-pass">Paid</span>` : `<button class="btn btn-success" type="button" data-pay="${id}">Pay</button>`}
+          <button class="btn btn-secondary" type="button" data-defer="${id}">Defer</button>
+          <button class="btn btn-secondary" type="button" data-archive="${id}">Archive</button>
+        `;
       }
 
       function renderTable() {
         if (state.error) {
-          els.billsTableBody.innerHTML = `<tr><td colspan="5" class="text-center">${escapeHtml(state.error)}</td></tr>`;
+          els.billsTableBody.innerHTML = `<tr><td colspan="7" class="text-center">${escapeHtml(state.error)}</td></tr>`;
           return;
         }
 
         const bills = filteredBills();
 
         if (!bills.length) {
-          els.billsTableBody.innerHTML = `<tr><td colspan="5" class="muted text-center">No bills found.</td></tr>`;
+          els.billsTableBody.innerHTML = `<tr><td colspan="7" class="muted text-center">No bills found.</td></tr>`;
           return;
         }
 
         els.billsTableBody.innerHTML = bills.map(bill => {
-          const due = bill.dueDay ? `Day ${escapeHtml(bill.dueDay)}` : "—";
-          const badge = bill.cleared
-            ? `<span class="badge badge-pass">Cleared</span>`
-            : `<span class="badge badge-warning">Pending</span>`;
+          const clear = String(bill.clear_status || "pending").toLowerCase();
+          const badgeClass = clear === "cleared" ? "badge-pass" : clear === "partial" ? "badge-warning" : "badge-unknown";
 
           return `
             <tr>
@@ -553,12 +610,11 @@
                 <div class="muted">${escapeHtml(bill.category || "bills")}${bill.notes ? ` · ${escapeHtml(bill.notes)}` : ""}</div>
               </td>
               <td>${money(bill.amount)}</td>
-              <td>${due}</td>
-              <td>${badge}</td>
-              <td class="text-right">
-                <button class="btn btn-secondary" type="button" data-edit="${escapeHtml(bill.id)}">Edit</button>
-                <button class="btn btn-success" type="button" data-clear="${escapeHtml(bill.id)}">Clear</button>
-              </td>
+              <td>${money(bill.paid_this_month)}</td>
+              <td>${money(bill.remaining_this_month)}</td>
+              <td>${bill.due_date || bill.next_due_date || bill.due_day ? escapeHtml(bill.due_date || bill.next_due_date || `Day ${bill.due_day}`) : "—"}</td>
+              <td><span class="badge ${badgeClass}">${escapeHtml(clear)}</span></td>
+              <td class="text-right">${renderActions(bill)}</td>
             </tr>
           `;
         }).join("");
@@ -571,13 +627,12 @@
         }
 
         const upcoming = state.bills
-          .filter(b => b.status === "active" && !b.cleared)
-          .slice()
-          .sort((a, b) => Number(a.dueDay || 99) - Number(b.dueDay || 99))
+          .filter(b => String(b.status || "active").toLowerCase() === "active")
+          .filter(b => String(b.clear_status || "pending").toLowerCase() !== "cleared")
           .slice(0, 5);
 
         if (!upcoming.length) {
-          els.upcomingList.innerHTML = `<div class="card card-compact muted">No pending active bills.</div>`;
+          els.upcomingList.innerHTML = `<div class="card card-compact muted">No pending bills.</div>`;
           return;
         }
 
@@ -586,9 +641,9 @@
             <div class="grid-2" style="align-items:center;">
               <div>
                 <div class="strong">${escapeHtml(bill.name)}</div>
-                <div class="muted">Due ${bill.dueDay ? `day ${escapeHtml(bill.dueDay)}` : "—"}</div>
+                <div class="muted">${escapeHtml(bill.clear_status || "pending")}</div>
               </div>
-              <div class="text-right strong">${money(bill.amount)}</div>
+              <div class="text-right strong">${money(bill.remaining_this_month ?? bill.amount)}</div>
             </div>
           </div>
         `).join("");
@@ -600,17 +655,29 @@
         els.debugPanel.hidden = false;
         els.debugPanel.textContent = JSON.stringify({
           ui_version: VERSION,
-          mode: "debug",
           error: state.error,
-          count: state.bills.length,
-          filter: state.filter,
-          search: state.search,
-          raw_payload: state.raw
+          bill_count: state.bills.length,
+          account_count: state.accounts.length,
+          raw_payload: state.raw,
+          accounts_payload: state.accountsRaw
         }, null, 2);
       }
 
       function billById(id) {
         return state.bills.find(b => String(b.id) === String(id));
+      }
+
+      function accountOptions(selected = "") {
+        return `
+          <option value="">Select account</option>
+          ${state.accounts.map(account => {
+            const id = accountId(account);
+            const name = accountName(account);
+            const balance = account.balance ?? account.current_balance;
+            const label = Number.isFinite(Number(balance)) ? `${name} · ${money(balance)}` : name;
+            return `<option value="${escapeHtml(id)}"${String(id) === String(selected) ? " selected" : ""}>${escapeHtml(label)}</option>`;
+          }).join("")}
+        `;
       }
 
       function openBillModal(bill = null) {
@@ -619,10 +686,10 @@
         els.billId.value = bill?.id ?? "";
         els.billName.value = bill?.name ?? "";
         els.billAmount.value = bill?.amount ?? "";
-        els.billDueDay.value = bill?.dueDay ?? "";
-        els.billCategory.value = bill?.category ?? "bills";
-        els.billStatus.value = bill?.status ?? "active";
-        els.billNotes.value = bill?.notes ?? "";
+        els.billDueDay.value = bill?.due_day ?? "";
+        els.billCategory.value = bill?.category_id || bill?.category || "bills";
+        els.billStatus.value = bill?.status || "active";
+        els.billNotes.value = bill?.notes || "";
         setTimeout(() => els.billName.focus(), 30);
       }
 
@@ -632,21 +699,37 @@
         els.billId.value = "";
       }
 
-      function openClearModal(bill) {
-        els.clearModal.hidden = false;
-        els.clearBillId.value = bill.id;
-        els.clearAmount.value = bill.amount ?? "";
-        els.clearMonth.value = currentMonth();
-        els.clearNotes.value = "";
-        els.clearModalTitle.textContent = `Clear ${bill.name}`;
-        els.clearModalCopy.textContent = `Mark ${bill.name} as cleared for the selected month.`;
-        setTimeout(() => els.clearAmount.focus(), 30);
+      function openPayModal(bill) {
+        els.payModal.hidden = false;
+        els.payBillId.value = bill.id;
+        els.payTitle.textContent = `Pay ${bill.name}`;
+        els.payBillName.textContent = bill.name;
+        els.payBillRemaining.textContent = money(bill.remaining_this_month ?? bill.amount);
+        els.payAmount.value = bill.remaining_this_month || bill.amount || "";
+        els.payDate.value = todayIso();
+        els.payMonth.value = currentMonth();
+        els.payAccount.innerHTML = accountOptions();
+        els.payNotes.value = "";
+        setTimeout(() => els.payAmount.focus(), 30);
       }
 
-      function closeClearModal() {
-        els.clearModal.hidden = true;
-        els.clearForm.reset();
-        els.clearBillId.value = "";
+      function closePayModal() {
+        els.payModal.hidden = true;
+        els.payForm.reset();
+      }
+
+      function openDeferModal(bill) {
+        els.deferModal.hidden = false;
+        els.deferBillId.value = bill.id;
+        els.deferTitle.textContent = `Defer ${bill.name}`;
+        els.deferNextDate.value = bill.due_date || bill.next_due_date || "";
+        els.deferNotes.value = "";
+        setTimeout(() => els.deferNextDate.focus(), 30);
+      }
+
+      function closeDeferModal() {
+        els.deferModal.hidden = true;
+        els.deferForm.reset();
       }
 
       function toast(message, type = "") {
@@ -675,48 +758,37 @@
         throw lastError || new Error("Unable to save changes.");
       }
 
-      function billPayloadFromForm() {
-        const id = els.billId.value.trim();
-
-        const payload = {
-          name: els.billName.value.trim(),
-          amount: Number(els.billAmount.value),
-          due_day: els.billDueDay.value ? Number.parseInt(els.billDueDay.value, 10) : null,
-          category: els.billCategory.value.trim() || "bills",
-          status: els.billStatus.value,
-          notes: els.billNotes.value.trim()
-        };
-
-        if (id) payload.id = id;
-        return payload;
-      }
-
       async function saveBill(payload) {
-        const isEdit = Boolean(payload.id);
+        if (payload.id) {
+          return tryMutation([
+            { url: `/api/bills/${encodeURIComponent(payload.id)}`, method: "PUT", body: payload },
+            { url: `/api/bills/${encodeURIComponent(payload.id)}`, method: "POST", body: { ...payload, action: "update" } }
+          ], payload);
+        }
 
-        const candidates = isEdit
-          ? [
-              { url: `/api/bills/${encodeURIComponent(payload.id)}`, method: "PUT", body: payload },
-              { url: `/api/bills/${encodeURIComponent(payload.id)}`, method: "POST", body: payload },
-              { url: "/api/bills", method: "POST", body: { ...payload, action: "update" } }
-            ]
-          : [
-              { url: "/api/bills", method: "POST", body: payload }
-            ];
-
-        return tryMutation(candidates, payload);
+        return tryMutation([{ url: "/api/bills", method: "POST", body: { ...payload, action: "create" } }], payload);
       }
 
-      async function clearBill(payload) {
-        const id = payload.id;
+      async function payBill(payload) {
+        return tryMutation([
+          { url: `/api/bills/${encodeURIComponent(payload.id)}/pay`, method: "POST", body: payload },
+          { url: `/api/bills/${encodeURIComponent(payload.id)}`, method: "POST", body: { ...payload, action: "pay" } },
+          { url: "/api/bills", method: "POST", body: { ...payload, bill_id: payload.id, action: "pay" } }
+        ], payload);
+      }
 
-        const candidates = [
-          { url: `/api/bills/${encodeURIComponent(id)}/clear`, method: "POST", body: payload },
-          { url: `/api/bills/${encodeURIComponent(id)}`, method: "POST", body: { ...payload, action: "clear" } },
-          { url: "/api/bills", method: "POST", body: { ...payload, bill_id: id, action: "clear" } }
-        ];
+      async function deferBill(payload) {
+        return tryMutation([
+          { url: `/api/bills/${encodeURIComponent(payload.id)}`, method: "POST", body: { ...payload, action: "defer" } },
+          { url: "/api/bills", method: "POST", body: { ...payload, bill_id: payload.id, action: "defer" } }
+        ], payload);
+      }
 
-        return tryMutation(candidates, payload);
+      async function statusBill(id, action) {
+        return tryMutation([
+          { url: `/api/bills/${encodeURIComponent(id)}`, method: "POST", body: { id, action } },
+          { url: "/api/bills", method: "POST", body: { id, bill_id: id, action } }
+        ], { id, action });
       }
 
       function bindEvents() {
@@ -724,56 +796,87 @@
         els.sideAddBillBtn.addEventListener("click", () => openBillModal());
         els.refreshBtn.addEventListener("click", refresh);
         els.sideRefreshBtn.addEventListener("click", refresh);
-
         els.closeBillModal.addEventListener("click", closeBillModal);
-        els.closeClearModal.addEventListener("click", closeClearModal);
+        els.closePayModal.addEventListener("click", closePayModal);
+        els.closeDeferModal.addEventListener("click", closeDeferModal);
 
-        els.searchInput.addEventListener("input", event => {
-          state.search = event.target.value;
+        els.searchInput.addEventListener("input", e => {
+          state.search = e.target.value;
           render();
         });
 
-        els.statusFilter.addEventListener("change", event => {
-          state.filter = event.target.value;
+        els.statusFilter.addEventListener("change", e => {
+          state.filter = e.target.value;
           render();
         });
 
-        document.addEventListener("click", event => {
+        document.addEventListener("click", async event => {
           const editId = event.target?.getAttribute?.("data-edit");
-          const clearId = event.target?.getAttribute?.("data-clear");
+          const payId = event.target?.getAttribute?.("data-pay");
+          const deferId = event.target?.getAttribute?.("data-defer");
+          const archiveId = event.target?.getAttribute?.("data-archive");
+          const reactivateId = event.target?.getAttribute?.("data-reactivate");
 
           if (editId) {
             const bill = billById(editId);
             if (bill) openBillModal(bill);
           }
 
-          if (clearId) {
-            const bill = billById(clearId);
-            if (bill) openClearModal(bill);
+          if (payId) {
+            const bill = billById(payId);
+            if (bill) openPayModal(bill);
+          }
+
+          if (deferId) {
+            const bill = billById(deferId);
+            if (bill) openDeferModal(bill);
+          }
+
+          if (archiveId) {
+            try {
+              await statusBill(archiveId, "archive");
+              toast("Bill archived.", "toast-success");
+              await refresh();
+            } catch (err) {
+              toast(err?.message || "Unable to archive bill.", "toast-error");
+            }
+          }
+
+          if (reactivateId) {
+            try {
+              await statusBill(reactivateId, "reactivate");
+              toast("Bill reactivated.", "toast-success");
+              await refresh();
+            } catch (err) {
+              toast(err?.message || "Unable to reactivate bill.", "toast-error");
+            }
           }
         });
 
         document.addEventListener("keydown", event => {
           if (event.key === "Escape") {
             closeBillModal();
-            closeClearModal();
+            closePayModal();
+            closeDeferModal();
           }
         });
 
         els.billForm.addEventListener("submit", async event => {
           event.preventDefault();
 
-          const payload = billPayloadFromForm();
+          const payload = {
+            id: els.billId.value || undefined,
+            name: els.billName.value.trim(),
+            amount: Number(els.billAmount.value),
+            due_day: els.billDueDay.value ? Number(els.billDueDay.value) : null,
+            category_id: els.billCategory.value.trim() || "bills",
+            category: els.billCategory.value.trim() || "bills",
+            status: els.billStatus.value,
+            notes: els.billNotes.value.trim()
+          };
 
-          if (!payload.name) {
-            toast("Bill name is required.", "toast-warning");
-            return;
-          }
-
-          if (!Number.isFinite(payload.amount)) {
-            toast("Bill amount is required.", "toast-warning");
-            return;
-          }
+          if (!payload.name) return toast("Bill name is required.", "toast-warning");
+          if (!Number.isFinite(payload.amount) || payload.amount <= 0) return toast("Amount must be greater than zero.", "toast-warning");
 
           try {
             await saveBill(payload);
@@ -785,28 +888,56 @@
           }
         });
 
-        els.clearForm.addEventListener("submit", async event => {
+        els.payForm.addEventListener("submit", async event => {
           event.preventDefault();
 
           const payload = {
-            id: els.clearBillId.value,
-            month: els.clearMonth.value,
-            amount: Number(els.clearAmount.value),
-            notes: els.clearNotes.value.trim()
+            id: els.payBillId.value,
+            bill_id: els.payBillId.value,
+            action: "pay",
+            amount: Number(els.payAmount.value),
+            account_id: els.payAccount.value,
+            date: els.payDate.value,
+            payment_date: els.payDate.value,
+            month: els.payMonth.value,
+            notes: els.payNotes.value.trim()
           };
 
-          if (!payload.id || !payload.month || !Number.isFinite(payload.amount)) {
-            toast("Month and amount are required.", "toast-warning");
-            return;
+          if (!payload.id || !Number.isFinite(payload.amount) || payload.amount <= 0 || !payload.account_id || !payload.date || !payload.month) {
+            return toast("Amount, account, date, and month are required.", "toast-warning");
           }
 
           try {
-            await clearBill(payload);
-            closeClearModal();
-            toast("Bill cleared.", "toast-success");
+            await payBill(payload);
+            closePayModal();
+            toast("Bill paid.", "toast-success");
             await refresh();
           } catch (err) {
-            toast(err?.message || "Unable to clear bill.", "toast-error");
+            toast(err?.message || "Unable to pay bill.", "toast-error");
+          }
+        });
+
+        els.deferForm.addEventListener("submit", async event => {
+          event.preventDefault();
+
+          const payload = {
+            id: els.deferBillId.value,
+            bill_id: els.deferBillId.value,
+            action: "defer",
+            next_due_date: els.deferNextDate.value,
+            due_date: els.deferNextDate.value,
+            notes: els.deferNotes.value.trim()
+          };
+
+          if (!payload.id || !payload.next_due_date) return toast("New due date is required.", "toast-warning");
+
+          try {
+            await deferBill(payload);
+            closeDeferModal();
+            toast("Bill deferred.", "toast-success");
+            await refresh();
+          } catch (err) {
+            toast(err?.message || "Unable to defer bill.", "toast-error");
           }
         });
       }
