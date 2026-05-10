@@ -5,18 +5,22 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Sovereign Finance</title>
   <meta name="description" content="Private finance dashboard for accounts, bills, debts, salary, forecast, and reconciliation." />
-  <link rel="stylesheet" href="/css/sovereign-app.css?v=2A.1" />
+
+  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="stylesheet" href="/css/nav.css" />
+  <link rel="stylesheet" href="/css/icons.css" />
+  <link rel="stylesheet" href="/css/rebuild.css?v=2A-safe-1" />
 </head>
 
 <body>
-  <main class="shell">
-    <header class="topbar">
-      <a class="brand" href="/index.html" aria-label="Sovereign Finance home">
-        <span class="brand-mark" aria-hidden="true"></span>
+  <main class="sf-hub" id="sfHub">
+    <header class="sf-shell-top">
+      <a class="sf-brand" href="/index.html" aria-label="Sovereign Finance home">
+        <span class="sf-brand-mark" aria-hidden="true"></span>
         <span>Sovereign Finance</span>
       </a>
 
-      <nav class="nav" aria-label="Main navigation">
+      <nav class="sf-nav" aria-label="Main navigation">
         <a href="/add.html">Add</a>
         <a href="/transactions.html">Ledger</a>
         <a href="/bills.html">Bills</a>
@@ -28,159 +32,160 @@
       </nav>
     </header>
 
-    <section class="hero">
-      <div class="card hero-main">
-        <div class="eyebrow">Private finance dashboard</div>
-        <h1>Your money position, clean and current.</h1>
-        <p>View balances, obligations, debt pressure, and near-term forecast from one fast daily dashboard.</p>
+    <section class="sf-hero">
+      <div class="sf-card sf-hero-main">
+        <div class="sf-eyebrow">Private finance dashboard</div>
+        <h1 class="sf-title">Your money position, clean and current.</h1>
+        <p class="sf-subtitle">View balances, obligations, debt pressure, and near-term forecast from one fast daily dashboard.</p>
 
-        <div class="hero-actions">
-          <a class="btn primary" href="/add.html">Add Transaction</a>
-          <a class="btn ghost" href="/bills.html">Manage Bills</a>
-          <a class="btn ghost" href="/forecast.html">Open Forecast</a>
+        <div class="sf-actions">
+          <a class="sf-btn sf-btn-primary" href="/add.html">Add Transaction</a>
+          <a class="sf-btn" href="/bills.html">Manage Bills</a>
+          <a class="sf-btn" href="/forecast.html">Open Forecast</a>
         </div>
       </div>
 
-      <aside class="card side-panel">
-        <div class="signal">
-          <label>Dashboard status</label>
-          <strong id="dashboardStatus">Loading</strong>
+      <aside class="sf-card sf-side">
+        <div class="sf-signal">
+          <span class="sf-signal-label">Dashboard status</span>
+          <strong class="sf-signal-value" id="dashboardStatus">Loading</strong>
         </div>
-        <div class="signal">
-          <label>Last refreshed</label>
-          <strong id="lastRefreshed">—</strong>
+
+        <div class="sf-signal">
+          <span class="sf-signal-label">Last refreshed</span>
+          <strong class="sf-signal-value" id="lastRefreshed">—</strong>
         </div>
-        <div class="signal">
-          <label>Next action</label>
-          <strong id="nextAction">Review</strong>
+
+        <div class="sf-signal">
+          <span class="sf-signal-label">Next action</span>
+          <strong class="sf-signal-value" id="nextAction">Review</strong>
         </div>
       </aside>
     </section>
 
-    <section class="grid summary-grid" aria-label="Finance summary">
-      <article class="card stat">
-        <div class="label">Accounts balance</div>
-        <div class="value" id="accountsTotal">—</div>
-        <div class="note" id="accountsNote">Loading accounts</div>
+    <section class="sf-grid sf-summary-grid" aria-label="Finance summary">
+      <article class="sf-card sf-stat">
+        <div class="sf-stat-label">Accounts balance</div>
+        <div class="sf-stat-value" id="accountsTotal">—</div>
+        <div class="sf-stat-note" id="accountsNote">Loading accounts</div>
       </article>
 
-      <article class="card stat">
-        <div class="label">Monthly bills</div>
-        <div class="value" id="billsTotal">—</div>
-        <div class="note" id="billsNote">Loading bills</div>
+      <article class="sf-card sf-stat">
+        <div class="sf-stat-label">Monthly bills</div>
+        <div class="sf-stat-value" id="billsTotal">—</div>
+        <div class="sf-stat-note" id="billsNote">Loading bills</div>
       </article>
 
-      <article class="card stat">
-        <div class="label">Debt outstanding</div>
-        <div class="value" id="debtsTotal">—</div>
-        <div class="note" id="debtsNote">Loading debts</div>
+      <article class="sf-card sf-stat">
+        <div class="sf-stat-label">Debt outstanding</div>
+        <div class="sf-stat-value" id="debtsTotal">—</div>
+        <div class="sf-stat-note" id="debtsNote">Loading debts</div>
       </article>
 
-      <article class="card stat">
-        <div class="label">Forecast ending</div>
-        <div class="value" id="forecastEnding">—</div>
-        <div class="note" id="forecastNote">Loading forecast</div>
-      </article>
-    </section>
-
-    <section class="grid main-grid">
-      <article class="card section">
-        <div class="section-head">
-          <div>
-            <h2>Accounts</h2>
-            <p>Current account view from source balances.</p>
-          </div>
-          <a class="badge" href="/accounts.html">Open</a>
-        </div>
-
-        <div class="list" id="accountsList">
-          <div class="loading">Loading accounts...</div>
-        </div>
-      </article>
-
-      <article class="card section">
-        <div class="section-head">
-          <div>
-            <h2>Quick actions</h2>
-            <p>Jump straight into the work.</p>
-          </div>
-        </div>
-
-        <div class="quick-grid">
-          <a class="quick" href="/add.html">
-            <strong>Add Transaction</strong>
-            <span>Record income, expense, transfer, or adjustment.</span>
-          </a>
-
-          <a class="quick" href="/bills.html">
-            <strong>Clear Bills</strong>
-            <span>Review monthly obligations and mark paid items.</span>
-          </a>
-
-          <a class="quick" href="/debts.html">
-            <strong>Record Debt Payment</strong>
-            <span>Update what you owe or what was received.</span>
-          </a>
-
-          <a class="quick" href="/reconciliation.html">
-            <strong>Declare Balance</strong>
-            <span>Compare app balance against real account balance.</span>
-          </a>
-
-          <a class="quick" href="/salary.html">
-            <strong>Update Salary</strong>
-            <span>Manage guaranteed and confirmed variable income.</span>
-          </a>
-
-          <a class="quick" href="/forecast.html">
-            <strong>Generate Forecast</strong>
-            <span>See the next cash position using known inputs.</span>
-          </a>
-        </div>
-      </article>
-
-      <article class="card section">
-        <div class="section-head">
-          <div>
-            <h2>Bills due</h2>
-            <p>Upcoming active obligations.</p>
-          </div>
-          <a class="badge" href="/bills.html">Manage</a>
-        </div>
-
-        <div class="list" id="billsList">
-          <div class="loading">Loading bills...</div>
-        </div>
-      </article>
-
-      <article class="card section">
-        <div class="section-head">
-          <div>
-            <h2>Debt pressure</h2>
-            <p>Outstanding debt and receivable snapshot.</p>
-          </div>
-          <a class="badge" href="/debts.html">Open</a>
-        </div>
-
-        <div class="list" id="debtsList">
-          <div class="loading">Loading debts...</div>
-        </div>
+      <article class="sf-card sf-stat">
+        <div class="sf-stat-label">Forecast ending</div>
+        <div class="sf-stat-value" id="forecastEnding">—</div>
+        <div class="sf-stat-note" id="forecastNote">Loading forecast</div>
       </article>
     </section>
 
-    <pre class="debug-panel" id="debugPanel"></pre>
+    <section class="sf-grid sf-main-grid">
+      <article class="sf-card sf-section">
+        <div class="sf-section-head">
+          <div>
+            <h2 class="sf-section-title">Accounts</h2>
+            <p class="sf-section-copy">Current account view from source balances.</p>
+          </div>
+          <a class="sf-badge" href="/accounts.html">Open</a>
+        </div>
+
+        <div class="sf-list" id="accountsList">
+          <div class="sf-state">Loading accounts...</div>
+        </div>
+      </article>
+
+      <article class="sf-card sf-section">
+        <div class="sf-section-head">
+          <div>
+            <h2 class="sf-section-title">Quick actions</h2>
+            <p class="sf-section-copy">Jump straight into the work.</p>
+          </div>
+        </div>
+
+        <div class="sf-quick-grid">
+          <a class="sf-quick" href="/add.html">
+            <strong class="sf-quick-title">Add Transaction</strong>
+            <span class="sf-quick-copy">Record income, expense, transfer, or adjustment.</span>
+          </a>
+
+          <a class="sf-quick" href="/bills.html">
+            <strong class="sf-quick-title">Clear Bills</strong>
+            <span class="sf-quick-copy">Review monthly obligations and mark paid items.</span>
+          </a>
+
+          <a class="sf-quick" href="/debts.html">
+            <strong class="sf-quick-title">Record Debt Payment</strong>
+            <span class="sf-quick-copy">Update what you owe or what was received.</span>
+          </a>
+
+          <a class="sf-quick" href="/reconciliation.html">
+            <strong class="sf-quick-title">Declare Balance</strong>
+            <span class="sf-quick-copy">Compare app balance against real account balance.</span>
+          </a>
+
+          <a class="sf-quick" href="/salary.html">
+            <strong class="sf-quick-title">Update Salary</strong>
+            <span class="sf-quick-copy">Manage guaranteed and confirmed variable income.</span>
+          </a>
+
+          <a class="sf-quick" href="/forecast.html">
+            <strong class="sf-quick-title">Generate Forecast</strong>
+            <span class="sf-quick-copy">See the next cash position using known inputs.</span>
+          </a>
+        </div>
+      </article>
+
+      <article class="sf-card sf-section">
+        <div class="sf-section-head">
+          <div>
+            <h2 class="sf-section-title">Bills due</h2>
+            <p class="sf-section-copy">Upcoming active obligations.</p>
+          </div>
+          <a class="sf-badge" href="/bills.html">Manage</a>
+        </div>
+
+        <div class="sf-list" id="billsList">
+          <div class="sf-state">Loading bills...</div>
+        </div>
+      </article>
+
+      <article class="sf-card sf-section">
+        <div class="sf-section-head">
+          <div>
+            <h2 class="sf-section-title">Debt pressure</h2>
+            <p class="sf-section-copy">Outstanding debt and receivable snapshot.</p>
+          </div>
+          <a class="sf-badge" href="/debts.html">Open</a>
+        </div>
+
+        <div class="sf-list" id="debtsList">
+          <div class="sf-state">Loading debts...</div>
+        </div>
+      </article>
+    </section>
+
+    <pre class="sf-debug" id="debugPanel"></pre>
   </main>
-
-  <script src="/js/command-firewall.js?v=1.5A.1" defer></script>
 
   <script>
     (() => {
       "use strict";
 
-      const VERSION = "2A.1";
+      const VERSION = "2A-safe-1";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+      const hub = document.getElementById("sfHub");
 
-      if (DEBUG) document.body.classList.add("debug");
+      if (DEBUG) hub.classList.add("sf-debug-on");
 
       const state = {
         accounts: null,
@@ -228,7 +233,7 @@
         }).format(n);
       }
 
-      function number(value) {
+      function num(value) {
         const n = Number(value);
         return Number.isFinite(n) ? n : null;
       }
@@ -285,48 +290,39 @@
         render();
       }
 
-      function getAccounts() {
-        const p = state.accounts;
-        if (!p) return [];
-        if (Array.isArray(p)) return p;
-        if (Array.isArray(p.accounts)) return p.accounts;
-        if (Array.isArray(p.data)) return p.data;
-        if (Array.isArray(p.rows)) return p.rows;
+      function asArray(payload, keys) {
+        if (!payload) return [];
+        if (Array.isArray(payload)) return payload;
+
+        for (const key of keys) {
+          if (Array.isArray(payload[key])) return payload[key];
+        }
+
         return [];
+      }
+
+      function getAccounts() {
+        return asArray(state.accounts, ["accounts", "data", "rows", "items"]);
       }
 
       function getBills() {
-        const p = state.bills;
-        if (!p) return [];
-        if (Array.isArray(p)) return p;
-        if (Array.isArray(p.bills)) return p.bills;
-        if (Array.isArray(p.items)) return p.items;
-        if (Array.isArray(p.data)) return p.data;
-        if (Array.isArray(p.rows)) return p.rows;
-        return [];
+        return asArray(state.bills, ["bills", "data", "rows", "items"]);
       }
 
       function getDebts() {
-        const p = state.debts;
-        if (!p) return [];
-        if (Array.isArray(p)) return p;
-        if (Array.isArray(p.debts)) return p.debts;
-        if (Array.isArray(p.items)) return p.items;
-        if (Array.isArray(p.data)) return p.data;
-        if (Array.isArray(p.rows)) return p.rows;
-        return [];
+        return asArray(state.debts, ["debts", "data", "rows", "items"]);
       }
 
       function accountBalance(account) {
-        return number(account.balance ?? account.current_balance ?? account.amount ?? account.value);
+        return num(account.balance ?? account.current_balance ?? account.amount ?? account.value);
       }
 
       function billAmount(bill) {
-        return number(bill.amount ?? bill.monthly_amount ?? bill.expected_amount ?? bill.value);
+        return num(bill.amount ?? bill.monthly_amount ?? bill.expected_amount ?? bill.value);
       }
 
       function debtOutstanding(debt) {
-        return number(
+        return num(
           debt.outstanding ??
           debt.remaining ??
           debt.remaining_amount ??
@@ -336,15 +332,15 @@
         );
       }
 
-      function nameOf(row, fallback) {
+      function rowName(row, fallback) {
         return row.name || row.title || row.label || row.account_name || row.bill_name || row.debt_name || fallback;
       }
 
       function renderLoading() {
         els.dashboardStatus.textContent = "Loading";
-        els.accountsList.innerHTML = `<div class="loading">Loading accounts...</div>`;
-        els.billsList.innerHTML = `<div class="loading">Loading bills...</div>`;
-        els.debtsList.innerHTML = `<div class="loading">Loading debts...</div>`;
+        els.accountsList.innerHTML = `<div class="sf-state">Loading accounts...</div>`;
+        els.billsList.innerHTML = `<div class="sf-state">Loading bills...</div>`;
+        els.debtsList.innerHTML = `<div class="sf-state">Loading debts...</div>`;
       }
 
       function render() {
@@ -365,10 +361,10 @@
           minute: "2-digit"
         });
 
-        if (state.errors.bills) {
-          els.nextAction.textContent = "Check bills";
-        } else if (state.errors.accounts) {
+        if (state.errors.accounts) {
           els.nextAction.textContent = "Check accounts";
+        } else if (state.errors.bills) {
+          els.nextAction.textContent = "Check bills";
         } else if (state.errors.forecast) {
           els.nextAction.textContent = "Run forecast";
         } else {
@@ -387,12 +383,12 @@
           : `${accounts.length} account${accounts.length === 1 ? "" : "s"}`;
 
         if (state.errors.accounts) {
-          els.accountsList.innerHTML = `<div class="error">${escapeHtml(state.errors.accounts)}</div>`;
+          els.accountsList.innerHTML = `<div class="sf-state sf-state-error">${escapeHtml(state.errors.accounts)}</div>`;
           return;
         }
 
         if (!accounts.length) {
-          els.accountsList.innerHTML = `<div class="empty">No accounts found.</div>`;
+          els.accountsList.innerHTML = `<div class="sf-state">No accounts found.</div>`;
           return;
         }
 
@@ -401,12 +397,12 @@
           const type = account.type || account.account_type || account.kind || "account";
 
           return `
-            <div class="item">
+            <div class="sf-item">
               <div>
-                <strong>${escapeHtml(nameOf(account, "Account"))}</strong>
-                <span>${escapeHtml(type)}</span>
+                <strong class="sf-item-title">${escapeHtml(rowName(account, "Account"))}</strong>
+                <span class="sf-item-sub">${escapeHtml(type)}</span>
               </div>
-              <div class="amount">${money(balance)}</div>
+              <div class="sf-amount">${money(balance)}</div>
             </div>
           `;
         }).join("");
@@ -424,12 +420,12 @@
           : `${active.length} active bill${active.length === 1 ? "" : "s"}`;
 
         if (state.errors.bills) {
-          els.billsList.innerHTML = `<div class="error">${escapeHtml(state.errors.bills)}</div>`;
+          els.billsList.innerHTML = `<div class="sf-state sf-state-error">${escapeHtml(state.errors.bills)}</div>`;
           return;
         }
 
         if (!active.length) {
-          els.billsList.innerHTML = `<div class="empty">No active bills found.</div>`;
+          els.billsList.innerHTML = `<div class="sf-state">No active bills found.</div>`;
           return;
         }
 
@@ -438,14 +434,14 @@
           const cleared = bill.cleared || bill.is_cleared || String(bill.clear_status || "").toLowerCase() === "cleared";
 
           return `
-            <div class="item">
+            <div class="sf-item">
               <div>
-                <strong>${escapeHtml(nameOf(bill, "Bill"))}</strong>
-                <span>Due ${escapeHtml(due)}</span>
+                <strong class="sf-item-title">${escapeHtml(rowName(bill, "Bill"))}</strong>
+                <span class="sf-item-sub">Due ${escapeHtml(due)}</span>
               </div>
               <div>
-                <div class="amount">${money(billAmount(bill))}</div>
-                <span class="badge ${cleared ? "good" : "warn"}">${cleared ? "Cleared" : "Pending"}</span>
+                <div class="sf-amount">${money(billAmount(bill))}</div>
+                <span class="sf-badge ${cleared ? "sf-badge-good" : "sf-badge-warn"}">${cleared ? "Cleared" : "Pending"}</span>
               </div>
             </div>
           `;
@@ -464,12 +460,12 @@
           : `${active.length} active record${active.length === 1 ? "" : "s"}`;
 
         if (state.errors.debts) {
-          els.debtsList.innerHTML = `<div class="error">${escapeHtml(state.errors.debts)}</div>`;
+          els.debtsList.innerHTML = `<div class="sf-state sf-state-error">${escapeHtml(state.errors.debts)}</div>`;
           return;
         }
 
         if (!active.length) {
-          els.debtsList.innerHTML = `<div class="empty">No active debt records found.</div>`;
+          els.debtsList.innerHTML = `<div class="sf-state">No active debt records found.</div>`;
           return;
         }
 
@@ -478,12 +474,12 @@
           const status = debt.status || "active";
 
           return `
-            <div class="item">
+            <div class="sf-item">
               <div>
-                <strong>${escapeHtml(nameOf(debt, "Debt"))}</strong>
-                <span>${escapeHtml(direction)} · ${escapeHtml(status)}</span>
+                <strong class="sf-item-title">${escapeHtml(rowName(debt, "Debt"))}</strong>
+                <span class="sf-item-sub">${escapeHtml(direction)} · ${escapeHtml(status)}</span>
               </div>
-              <div class="amount">${money(debtOutstanding(debt))}</div>
+              <div class="sf-amount">${money(debtOutstanding(debt))}</div>
             </div>
           `;
         }).join("");
@@ -491,7 +487,7 @@
 
       function renderForecast() {
         const p = state.forecast || {};
-        const ending = number(
+        const ending = num(
           p.projected_ending_cash ??
           p.ending_cash ??
           p.forecast_ending ??
