@@ -1472,3 +1472,334 @@ html[data-theme] textarea {
   color: var(--text-strong);
   border-color: var(--border);
 }
+
+
+
+/* =========================================================
+   SOVEREIGN FINANCE UI TOKEN LOCK v2.1
+   Purpose: one design language across all pages.
+   Scope: tokens only. Do not put page layout here.
+   Rule: app.css remains the master UI control board.
+========================================================= */
+
+:root {
+  /* Typography */
+  --sf-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --sf-font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+  /* Spacing scale */
+  --sf-space-1: 4px;
+  --sf-space-2: 8px;
+  --sf-space-3: 12px;
+  --sf-space-4: 16px;
+  --sf-space-5: 20px;
+  --sf-space-6: 24px;
+  --sf-space-7: 32px;
+  --sf-space-8: 40px;
+
+  /* Radius scale */
+  --sf-radius-xs: 8px;
+  --sf-radius-sm: 12px;
+  --sf-radius-md: 16px;
+  --sf-radius-lg: 22px;
+  --sf-radius-xl: 28px;
+  --sf-radius-2xl: 34px;
+  --sf-radius-pill: 999px;
+
+  /* Shadow scale */
+  --sf-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --sf-shadow-sm: 0 8px 24px rgba(15, 23, 42, 0.07);
+  --sf-shadow-md: 0 18px 44px rgba(15, 23, 42, 0.10);
+  --sf-shadow-lg: 0 28px 80px rgba(15, 23, 42, 0.16);
+
+  /* Component sizing */
+  --sf-topbar-height: 68px;
+  --sf-sidebar-width: 292px;
+  --sf-sidebar-folded-width: 84px;
+  --sf-content-max: 1480px;
+
+  --sf-button-height: 46px;
+  --sf-button-radius: 14px;
+  --sf-button-pad-x: 15px;
+
+  --sf-input-height: 46px;
+  --sf-input-radius: 14px;
+  --sf-input-pad-x: 13px;
+
+  --sf-card-padding-sm: 16px;
+  --sf-card-padding-md: 20px;
+  --sf-card-padding-lg: 22px;
+
+  --sf-table-cell-y: 13px;
+  --sf-table-cell-x: 14px;
+
+  --sf-badge-height: 28px;
+  --sf-badge-pad-x: 10px;
+
+  /* Motion */
+  --sf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --sf-transition-fast: 150ms var(--sf-ease);
+  --sf-transition-med: 220ms var(--sf-ease);
+
+  /* Light theme semantic colors */
+  --sf-bg: #f5f7fb;
+  --sf-surface-1: #ffffff;
+  --sf-surface-2: #f8fafc;
+  --sf-surface-3: #eef2f7;
+
+  --sf-text: #172033;
+  --sf-text-strong: #0f172a;
+  --sf-text-muted: #64748b;
+  --sf-text-soft: #94a3b8;
+  --sf-text-inverse: #f8fafc;
+
+  --sf-border: rgba(15, 23, 42, 0.10);
+  --sf-border-strong: rgba(15, 23, 42, 0.18);
+
+  --sf-nav-bg: #07111f;
+  --sf-nav-bg-2: #0b1220;
+  --sf-nav-border: rgba(255, 255, 255, 0.09);
+  --sf-nav-text: #cbd5e1;
+  --sf-nav-muted: #94a3b8;
+  --sf-nav-active: #ffffff;
+
+  --sf-brand: #0f172a;
+  --sf-accent: #047857;
+  --sf-accent-strong: #065f46;
+  --sf-accent-soft: #d1fae5;
+
+  --sf-info: #1d4ed8;
+  --sf-info-soft: #dbeafe;
+  --sf-warn: #b45309;
+  --sf-warn-soft: #fef3c7;
+  --sf-danger: #b91c1c;
+  --sf-danger-soft: #fee2e2;
+  --sf-success: #047857;
+  --sf-success-soft: #d1fae5;
+  --sf-unknown: #475569;
+  --sf-unknown-soft: #e2e8f0;
+
+  /* Bridge old app.css tokens to locked UI tokens */
+  --font-sans: var(--sf-font-sans);
+  --font-mono: var(--sf-font-mono);
+
+  --bg: var(--sf-bg);
+  --surface-1: var(--sf-surface-1);
+  --surface-2: var(--sf-surface-2);
+  --surface-3: var(--sf-surface-3);
+
+  --text: var(--sf-text);
+  --text-strong: var(--sf-text-strong);
+  --text-muted: var(--sf-text-muted);
+  --text-soft: var(--sf-text-soft);
+  --text-inverse: var(--sf-text-inverse);
+
+  --border: var(--sf-border);
+  --border-strong: var(--sf-border-strong);
+
+  --nav-bg: var(--sf-nav-bg);
+  --nav-bg-2: var(--sf-nav-bg-2);
+  --nav-border: var(--sf-nav-border);
+  --nav-text: var(--sf-nav-text);
+  --nav-muted: var(--sf-nav-muted);
+  --nav-active: var(--sf-nav-active);
+
+  --brand: var(--sf-brand);
+  --accent: var(--sf-accent);
+  --accent-strong: var(--sf-accent-strong);
+  --accent-soft: var(--sf-accent-soft);
+
+  --info: var(--sf-info);
+  --info-soft: var(--sf-info-soft);
+  --warn: var(--sf-warn);
+  --warn-soft: var(--sf-warn-soft);
+  --danger: var(--sf-danger);
+  --danger-soft: var(--sf-danger-soft);
+  --success: var(--sf-success);
+  --success-soft: var(--sf-success-soft);
+  --unknown: var(--sf-unknown);
+  --unknown-soft: var(--sf-unknown-soft);
+
+  --shadow-xs: var(--sf-shadow-xs);
+  --shadow-sm: var(--sf-shadow-sm);
+  --shadow-md: var(--sf-shadow-md);
+  --shadow-lg: var(--sf-shadow-lg);
+
+  --r-xs: var(--sf-radius-xs);
+  --r-sm: var(--sf-radius-sm);
+  --r-md: var(--sf-radius-md);
+  --r-lg: var(--sf-radius-lg);
+  --r-xl: var(--sf-radius-xl);
+  --r-2xl: var(--sf-radius-2xl);
+  --r-pill: var(--sf-radius-pill);
+
+  --sidebar-w: var(--sf-sidebar-width);
+  --sidebar-folded-w: var(--sf-sidebar-folded-width);
+  --topbar-h: var(--sf-topbar-height);
+  --content-max: var(--sf-content-max);
+
+  --ease: var(--sf-ease);
+}
+
+html[data-theme="dark"],
+body[data-theme="dark"] {
+  --sf-bg: #070b12;
+  --sf-surface-1: #0d1524;
+  --sf-surface-2: #111c2e;
+  --sf-surface-3: #172033;
+
+  --sf-text: #dbe4f0;
+  --sf-text-strong: #f8fafc;
+  --sf-text-muted: #94a3b8;
+  --sf-text-soft: #64748b;
+  --sf-text-inverse: #0f172a;
+
+  --sf-border: rgba(255, 255, 255, 0.09);
+  --sf-border-strong: rgba(255, 255, 255, 0.15);
+
+  --sf-nav-bg: #050812;
+  --sf-nav-bg-2: #0b1220;
+  --sf-nav-border: rgba(255, 255, 255, 0.09);
+  --sf-nav-text: #cbd5e1;
+  --sf-nav-muted: #94a3b8;
+  --sf-nav-active: #ffffff;
+
+  --sf-accent-soft: rgba(16, 185, 129, 0.16);
+  --sf-info-soft: rgba(59, 130, 246, 0.15);
+  --sf-warn-soft: rgba(245, 158, 11, 0.15);
+  --sf-danger-soft: rgba(239, 68, 68, 0.14);
+  --sf-success-soft: rgba(16, 185, 129, 0.16);
+  --sf-unknown-soft: rgba(148, 163, 184, 0.14);
+
+  --sf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --sf-shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.30);
+  --sf-shadow-md: 0 18px 44px rgba(0, 0, 0, 0.34);
+  --sf-shadow-lg: 0 28px 80px rgba(0, 0, 0, 0.42);
+
+  /* Re-bridge old tokens in dark mode */
+  --bg: var(--sf-bg);
+  --surface-1: var(--sf-surface-1);
+  --surface-2: var(--sf-surface-2);
+  --surface-3: var(--sf-surface-3);
+
+  --text: var(--sf-text);
+  --text-strong: var(--sf-text-strong);
+  --text-muted: var(--sf-text-muted);
+  --text-soft: var(--sf-text-soft);
+  --text-inverse: var(--sf-text-inverse);
+
+  --border: var(--sf-border);
+  --border-strong: var(--sf-border-strong);
+
+  --nav-bg: var(--sf-nav-bg);
+  --nav-bg-2: var(--sf-nav-bg-2);
+  --nav-border: var(--sf-nav-border);
+  --nav-text: var(--sf-nav-text);
+  --nav-muted: var(--sf-nav-muted);
+  --nav-active: var(--sf-nav-active);
+
+  --accent-soft: var(--sf-accent-soft);
+  --info-soft: var(--sf-info-soft);
+  --warn-soft: var(--sf-warn-soft);
+  --danger-soft: var(--sf-danger-soft);
+  --success-soft: var(--sf-success-soft);
+  --unknown-soft: var(--sf-unknown-soft);
+
+  --shadow-xs: var(--sf-shadow-xs);
+  --shadow-sm: var(--sf-shadow-sm);
+  --shadow-md: var(--sf-shadow-md);
+  --shadow-lg: var(--sf-shadow-lg);
+}
+
+/* Token-only component normalization.
+   These use existing classes and only consume locked tokens.
+   Do not add page-specific layout here.
+*/
+
+.card,
+.panel,
+.sf-card,
+.surface-card,
+.authority-panel,
+.enforcement-panel,
+.command-panel,
+.kpi-card,
+.stat-card,
+.metric-card {
+  border-radius: var(--r-xl);
+  border-color: var(--border);
+  background: var(--surface-1);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-compact {
+  padding: var(--sf-card-padding-sm);
+  border-radius: var(--r-lg);
+}
+
+.card-padded,
+.panel-padded,
+.authority-panel,
+.enforcement-panel,
+.command-panel {
+  padding: var(--sf-card-padding-lg);
+}
+
+.btn,
+.primary-submit,
+.action-btn {
+  min-height: var(--sf-button-height);
+  padding: 11px var(--sf-button-pad-x);
+  border-radius: var(--sf-button-radius);
+}
+
+.input,
+.select,
+.textarea,
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+select,
+textarea {
+  min-height: var(--sf-input-height);
+  padding-left: var(--sf-input-pad-x);
+  padding-right: var(--sf-input-pad-x);
+  border-radius: var(--sf-input-radius);
+}
+
+th {
+  padding: 12px var(--sf-table-cell-x);
+}
+
+td {
+  padding: var(--sf-table-cell-y) var(--sf-table-cell-x);
+}
+
+.badge,
+.status-badge,
+.pill {
+  min-height: var(--sf-badge-height);
+  padding-left: var(--sf-badge-pad-x);
+  padding-right: var(--sf-badge-pad-x);
+  border-radius: var(--r-pill);
+}
+
+.toast {
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Mobile token guard only */
+
+@media (max-width: 860px) {
+  :root {
+    --sf-card-padding-lg: 16px;
+    --sf-card-padding-md: 16px;
+    --sf-button-height: 48px;
+    --sf-input-height: 48px;
+  }
+}
