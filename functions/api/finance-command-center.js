@@ -1,4 +1,4 @@
-// v0.8.1 Finance Command Centre debt preflight recognition
+// v0.8.2 Finance Command Centre debt preflight recognition
 //
 // Contract:
 // - Command Centre remains read-only.
@@ -13,8 +13,8 @@
 // - Overrides are not silent and do not bypass backend APIs from Command Centre.
 // - Any future override application must be implemented in the owning mutating API with reason, expiry, and audit.
 
-const VERSION = "0.8.1";
-const ENFORCEMENT_VERSION = "0.8.1";
+const VERSION = "0.8.2";
+const ENFORCEMENT_VERSION = "0.8.2";
 
 const MODULES = [
   ["hub", "Hub", "/index.html"],
@@ -403,25 +403,26 @@ function buildCoverage(apis, pageProofs, d1) {
         dry_run_available: debtsDryRun,
         page_preflight_wired: debtsPreflight,
         preflight_allowed: debtsPreflightReady,
-        real_writes_allowed: false,
-        debt_save_allowed: false,
-        debt_pay_allowed: false
+        real_writes_allowed: debtsPreflightReady,
+debt_save_allowed: debtsPreflightReady,
+debt_pay_allowed: debtsPreflightReady
       },
 
       real_write_scope: [
-        ...(transactionReady ? ["transaction.save"] : []),
-        ...(billsReady ? ["bill.save", "bill.clear"] : [])
-      ],
+  ...(transactionReady ? ["transaction.save"] : []),
+  ...(billsReady ? ["bill.save", "bill.clear"] : []),
+  ...(debtsPreflightReady ? ["debt.save", "debt.pay"] : [])
+],
 
       debt_save: {
-        allowed: false,
+  allowed: debtsPreflightReady,
         reason: debtsPreflightReady
           ? "debt.save preflight is ready but real write remains blocked until explicit lift."
           : "debt.save dry-run proof does not exist yet."
       },
 
       debt_pay: {
-        allowed: false,
+  allowed: debtsPreflightReady,
         reason: debtsPreflightReady
           ? "debt.pay preflight is ready but real write remains blocked until explicit lift."
           : "debt.pay dry-run proof does not exist yet."
@@ -466,6 +467,7 @@ function buildEnforcement(computedAt, coverage) {
   const txReady = Boolean(coverage.write_safety.transaction_save.real_writes_allowed);
 const billsReady = Boolean(coverage.write_safety.bills.real_writes_allowed);
 const debtsPreflightReady = Boolean(coverage.write_safety.debts && coverage.write_safety.debts.preflight_allowed);
+const debtsReady = Boolean(coverage.write_safety.debts && coverage.write_safety.debts.real_writes_allowed);
 const overridePolicy = buildOverridePolicy();
 
   const actions = [
@@ -475,9 +477,9 @@ const overridePolicy = buildOverridePolicy();
     actionGate("bill.save", "bills", !billsReady, billsReady ? "bill.save is allowed after Bills preflight." : "bill.save is not ready.", "coverage.write_safety.bills.bill_save_allowed", billsReady ? "None." : "Complete Bills proof.", true, true),
     actionGate("bill.clear", "bills", !billsReady, billsReady ? "bill.clear is allowed after Bills preflight." : "bill.clear is not ready.", "coverage.write_safety.bills.bill_clear_allowed", billsReady ? "None." : "Complete Bills proof.", true, true),
 
-    actionGate("debt.preflight", "debts", !debtsPreflightReady, debtsPreflightReady ? "Debt preflight is available." : "Debt preflight is not ready.", "coverage.write_safety.debts", debtsPreflightReady ? "None." : "Deploy Debts API v0.3.2 and Debts page v2.2.0.", true, true),
-actionGate("debt.save", "debts", true, "debt.save remains blocked until Command Centre lift.", "coverage.write_safety.debts.debt_save_allowed", "Phase 4 explicit lift after debt preflight recognition.", true, true),
-actionGate("debt.pay", "debts", true, "debt.pay remains blocked until Command Centre lift.", "coverage.write_safety.debts.debt_pay_allowed", "Phase 4 explicit lift after debt preflight recognition.", true, true),
+   actionGate("debt.preflight", "debts", !debtsPreflightReady, debtsPreflightReady ? "Debt preflight is available." : "Debt preflight is not ready.", "coverage.write_safety.debts", debtsPreflightReady ? "None." : "Deploy Debts API v0.3.2 and Debts page v2.2.0.", true, true),
+actionGate("debt.save", "debts", !debtsReady, debtsReady ? "debt.save is allowed after debt preflight recognition." : "debt.save remains blocked until Command Centre lift.", "coverage.write_safety.debts.debt_save_allowed", debtsReady ? "None." : "Phase 4 explicit lift after debt preflight recognition.", true, true),
+actionGate("debt.pay", "debts", !debtsReady, debtsReady ? "debt.pay is allowed after debt preflight recognition." : "debt.pay remains blocked until Command Centre lift.", "coverage.write_safety.debts.debt_pay_allowed", debtsReady ? "None." : "Phase 4 explicit lift after debt preflight recognition.", true, true),
     actionGate("reconciliation.declare", "reconciliation", true, "reconciliation.declare remains blocked until reconciliation dry-run exists.", "coverage.write_safety.reconciliation", "Add reconciliation dry-run proof.", false, true),
     actionGate("salary.save", "salary", true, "salary.save remains blocked until salary dry-run exists.", "coverage.write_safety.salary", "Add salary dry-run proof.", false, true),
     actionGate("forecast.generate", "forecast", true, "forecast.generate remains blocked until source precision is proven.", "business_rules.forecast_precision", "Complete forecast source verification.", false, true),
@@ -494,7 +496,7 @@ actionGate("debt.pay", "debts", true, "debt.pay remains blocked until Command Ce
     routeGate("/index.html", "hub", "pass", true, true, "Hub is viewable.", "enforcement.registry.hub", "None."),
     routeGate("/add.html", "add", txReady ? "pass" : "soft_block", true, txReady, txReady ? "Add Transaction is governed and allowed." : "Add Transaction not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete transaction proof."),
     routeGate("/bills.html", "bills", billsReady ? "pass" : "soft_block", true, billsReady, billsReady ? "Bills are governed and allowed." : "Bills proof not ready.", "coverage.write_safety.bills", billsReady ? "None." : "Complete Bills proof."),
-    routeGate("/debts.html", "debts", debtsPreflightReady ? "preflight_only" : "preflight_required", true, false, debtsPreflightReady ? "Debts page may run preflight. Real writes remain blocked." : "Debts viewable but writes blocked.", "coverage.write_safety.debts", debtsPreflightReady ? "Phase 4 to lift debt.save/debt.pay." : "Add debt proof."),
+    routeGate("/debts.html", "debts", debtsPreflightReady ? "preflight_only" : "preflight_required", true, false, debtsPreflightReady ? "Debts page may run preflight. Real writes remarouteGate("/debts.html", "debts", debtsReady ? "pass" : debtsPreflightReady ? "preflight_only" : "preflight_required", true, debtsReady, debtsReady ? "Debts are governed and allowed." : debtsPreflightReady ? "Debts page may run preflight. Real writes remain blocked." : "Debts viewable but writes blocked.", "coverage.write_safety.debts", debtsReady ? "None." : debtsPreflightReady ? "Phase 4 to lift debt.save/debt.pay." : "Add debt proof."),
     routeGate("/reconciliation.html", "reconciliation", "preflight_required", true, false, "Reconciliation viewable but declarations blocked.", "coverage.write_safety.reconciliation", "Add reconciliation proof."),
     routeGate("/salary.html", "salary", "preflight_required", true, false, "Salary viewable but writes blocked.", "coverage.write_safety.salary", "Add salary proof."),
     routeGate("/forecast.html", "forecast", "soft_block", true, false, "Forecast decisions blocked.", "business_rules.forecast_precision", "Prove forecast precision."),
@@ -518,6 +520,8 @@ actionGate("debt.pay", "debts", true, "debt.pay remains blocked until Command Ce
       transaction_save_real_write_lifted: txReady,
       bill_save_real_write_lifted: billsReady,
       bill_clear_real_write_lifted: billsReady,
+      debt_save_real_write_lifted: debtsReady,
+debt_pay_real_write_lifted: debtsReady,
       remaining_mutations_blocked: true,
       emergency_override_policy_complete: true,
       command_centre_applies_overrides: false,
@@ -578,8 +582,8 @@ actionGate("debt.pay", "debts", true, "debt.pay remains blocked until Command Ce
   "bill.save": { status: billsReady ? "pass" : "blocked" },
   "bill.clear": { status: billsReady ? "pass" : "blocked" },
   "debt.preflight": { status: debtsPreflightReady ? "pass" : "blocked" },
-  "debt.save": { status: "blocked" },
-  "debt.pay": { status: "blocked" },
+  "debt.save": { status: debtsReady ? "pass" : "blocked" },
+"debt.pay": { status: debtsReady ? "pass" : "blocked" },
   "override.request": { status: "pass" },
   "override.apply": { status: "blocked" }
 },
