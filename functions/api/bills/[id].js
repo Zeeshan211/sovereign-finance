@@ -1,47 +1,118 @@
 const VERSION = "v0.6.0-bills-money-truth-item";
+const BILL_CATEGORY = "bills_utilities";
 
-export async function onRequestGet({ env, params }) {
+export async function onRequestGet({ env, params, request }) {
   try {
     const db = requireDb(env);
     await ensureBillPayments(db);
+
     const id = requireText(params.id, "id");
-    const month = currentMonth();
-    const bill = await db.prepare(`SELECT * FROM bills WHERE id = ?`).bind(id).first();
+    const url = new URL(request.url);
+    const month = url.searchParams.get("month") || currentMonth();
+
+    const bill = await getBill(db, id);
     if (!bill) return json({ ok: false, version: VERSION, error: "Bill not found." }, 404);
+
     const payments = await getBillPaymentsForMonth(db, month);
-    return json({ ok: true, version: VERSION, bill: normalizeBill(bill, payments, month) });
+
+    return json({
+      ok: true,
+      version: VERSION,
+      month,
+      bill: normalizeBill(bill, payments, month)
+    });
   } catch (err) {
-    return json({ ok: false, version: VERSION, error: err.message }, 500);
+    return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
   }
 }
 
-export async function onRequestPut({ env, params, request }) {
-  return onRequestPost({ env, params, request });
+export async function onRequestPut(context) {
+  return onRequestPost(context);
 }
 
 export async function onRequestPost({ env, params, request }) {
   try {
     const db = requireDb(env);
     await ensureBillPayments(db);
+
     const id = requireText(params.id, "id");
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const action = String(body.action || "update").toLowerCase();
 
-    if (["pay", "paid"].includes(action)) return json({ ok: true, version: VERSION, ...(await payBill(db, id, body)) });
-    if (action === "defer") return json({ ok: true, version: VERSION, ...(await deferBill(db, id, body)) });
+    if (["pay", "paid"].includes(action)) {
+      return json({ ok: true, version: VERSION, ...(await payBill(db, id, body)) });
+    }
 
-    return json({ ok: false, version: VERSION, error: "Use /api/bills for create/update/archive/reactivate in Shipment 4." }, 400);
+    if (action === "defer") {
+      return json({ ok: true, version: VERSION, ...(await deferBill(db, id, body)) });
+    }
+
+    if (action === "archive") {
+      return json({ ok: true, version: VERSION, ...(await setBillStatus(db, id, "archived", body.notes)) });
+    }
+
+    if (action === "reactivate") {
+      return json({ ok: true, version: VERSION, ...(await setBillStatus(db, id, "active", body.notes)) });
+    }
+
+    return json({ ok: true, version: VERSION, ...(await updateBill(db, id, body)) });
   } catch (err) {
-    return json({ ok: false, version: VERSION, error: err.message }, 500);
+    return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
   }
 }
 
-const BILL_CATEGORY = "bills_utilities";
+async function updateBill(db, id, body) {
+  const columns = await getColumns(db, "bills");
+  const existing = await getBill(db, id);
+  if (!existing) throw new Error("Bill not found.");
+
+  const name = cleanText(body.name || body.title || body.bill_name) || existing.name || existing.title || existing.bill_name;
+  const amount = optionalNumber(body.amount ?? body.monthly_amount ?? body.expected_amount) ?? readBillAmount(existing);
+  const status = cleanText(body.status) || existing.status || "active";
+  const notes = body.notes === undefined ? (existing.notes || existing.description || "") : cleanText(body.notes);
+  const category = canonicalBillCategory(body.category_id || body.category || existing.category_id || existing.category);
+  const dueDay = optionalInteger(body.due_day ?? body.dueDay) ?? existing.due_day ?? null;
+  const dueDate = cleanText(body.due_date || body.next_due_date) || existing.due_date || existing.next_due_date || null;
+  const frequency = cleanText(body.frequency) || existing.frequency || "monthly";
+
+  const update = buildUpdate("bills", columns, {
+    name,
+    title: name,
+    bill_name: name,
+    amount,
+    monthly_amount: amount,
+    expected_amount: amount,
+    status,
+    notes,
+    description: notes,
+    category_id: category,
+    category,
+    due_day: dueDay,
+    due_date: dueDate,
+    next_due_date: dueDate,
+    frequency,
+    updated_at: new Date().toISOString()
+  }, "id", id);
+
+  await db.prepare(update.sql).bind(...update.values).run();
+
+  const payments = await getBillPaymentsForMonth(db, currentMonth());
+
+  return {
+    action: "update",
+    bill: normalizeBill(await getBill(db, id), payments, currentMonth()),
+    ledger_transaction: null
+  };
+}
 
 async function payBill(db, id, body) {
-  const bill = await db.prepare(`SELECT * FROM bills WHERE id = ?`).bind(id).first();
+  const bill = await getBill(db, id);
   if (!bill) throw new Error("Bill not found.");
-  if (["archived", "deleted"].includes(String(bill.status || "active").toLowerCase())) throw new Error("Archived or deleted bills cannot be paid.");
+
+  const status = String(bill.status || "active").toLowerCase();
+  if (["archived", "deleted"].includes(status)) {
+    throw new Error("Archived or deleted bills cannot be paid.");
+  }
 
   const amount = requirePositiveNumber(body.amount, "amount");
   const accountId = requireText(body.account_id, "account_id");
@@ -55,7 +126,10 @@ async function payBill(db, id, body) {
 
   const paymentsBefore = await getBillPaymentsForMonth(db, month);
   const billBefore = normalizeBill(bill, paymentsBefore, month);
-  if (amount > billBefore.remaining_this_month) throw new Error(`Payment exceeds remaining amount. Remaining is ${billBefore.remaining_this_month}.`);
+
+  if (amount > billBefore.remaining_this_month) {
+    throw new Error(`Payment exceeds remaining amount. Remaining is ${billBefore.remaining_this_month}.`);
+  }
 
   const txId = makeId("tx_bill_expense");
   const paymentId = makeId("billpay");
@@ -69,6 +143,7 @@ async function payBill(db, id, body) {
   ].filter(Boolean).join(" | ");
 
   const txColumns = await getColumns(db, "transactions");
+
   const txInsert = buildInsert("transactions", txColumns, {
     id: txId,
     date: paymentDate,
@@ -95,16 +170,34 @@ async function payBill(db, id, body) {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(paymentId, id, txId, accountId, amount, paymentDate, month, notes || null, now);
 
-  await db.batch([db.prepare(txInsert.sql).bind(...txInsert.values), paymentInsert]);
+  await db.batch([
+    db.prepare(txInsert.sql).bind(...txInsert.values),
+    paymentInsert
+  ]);
 
   const paymentsAfter = await getBillPaymentsForMonth(db, month);
-  const billAfter = normalizeBill(await db.prepare(`SELECT * FROM bills WHERE id = ?`).bind(id).first(), paymentsAfter, month);
+  const billAfter = normalizeBill(await getBill(db, id), paymentsAfter, month);
 
   return {
     action: "pay",
     bill: billAfter,
-    bill_payment: { id: paymentId, bill_id: id, transaction_id: txId, account_id: accountId, amount, payment_date: paymentDate, month },
-    ledger_transaction: { id: txId, type: "expense", amount, account_id: accountId, category_id: BILL_CATEGORY, effect: "decrease_account" },
+    bill_payment: {
+      id: paymentId,
+      bill_id: id,
+      transaction_id: txId,
+      account_id: accountId,
+      amount,
+      payment_date: paymentDate,
+      month
+    },
+    ledger_transaction: {
+      id: txId,
+      type: "expense",
+      amount,
+      account_id: accountId,
+      category_id: BILL_CATEGORY,
+      effect: "decrease_account"
+    },
     proof: {
       account_effect: "decrease_selected_account",
       linked_transaction_id: txId,
@@ -118,15 +211,19 @@ async function payBill(db, id, body) {
 }
 
 async function deferBill(db, id, body) {
-  const bill = await db.prepare(`SELECT * FROM bills WHERE id = ?`).bind(id).first();
+  const bill = await getBill(db, id);
   if (!bill) throw new Error("Bill not found.");
 
   const columns = await getColumns(db, "bills");
   const nextDate = requireText(body.next_due_date || body.due_date, "next_due_date");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) throw new Error("next_due_date must be YYYY-MM-DD.");
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(nextDate)) {
+    throw new Error("next_due_date must be YYYY-MM-DD.");
+  }
 
   const day = Number(nextDate.slice(-2));
   const notes = appendNote(bill.notes || bill.description, body.notes, `Deferred to ${nextDate}`);
+
   const update = buildUpdate("bills", columns, {
     due_date: nextDate,
     next_due_date: nextDate,
@@ -140,10 +237,40 @@ async function deferBill(db, id, body) {
 
   return {
     action: "defer",
-    bill: normalizeBill(await db.prepare(`SELECT * FROM bills WHERE id = ?`).bind(id).first(), [], currentMonth()),
+    bill: normalizeBill(await getBill(db, id), [], currentMonth()),
     ledger_transaction: null,
-    proof: { ledger_transaction_created: false, account_effect: "none" }
+    proof: {
+      ledger_transaction_created: false,
+      account_effect: "none"
+    }
   };
+}
+
+async function setBillStatus(db, id, status, note) {
+  const bill = await getBill(db, id);
+  if (!bill) throw new Error("Bill not found.");
+
+  const columns = await getColumns(db, "bills");
+  const notes = appendNote(bill.notes || bill.description, note, `Status changed to ${status}`);
+
+  const update = buildUpdate("bills", columns, {
+    status,
+    notes,
+    description: notes,
+    updated_at: new Date().toISOString()
+  }, "id", id);
+
+  await db.prepare(update.sql).bind(...update.values).run();
+
+  return {
+    action: status,
+    bill: normalizeBill(await getBill(db, id), [], currentMonth()),
+    ledger_transaction: null
+  };
+}
+
+async function getBill(db, id) {
+  return await db.prepare(`SELECT * FROM bills WHERE id = ?`).bind(id).first();
 }
 
 async function ensureBillPayments(db) {
@@ -168,11 +295,16 @@ async function getBillPaymentsForMonth(db, month) {
 }
 
 function normalizeBill(row, payments, month) {
+  if (!row) return null;
+
   const amount = readBillAmount(row);
-  const paidThisMonth = payments.filter(p => String(p.bill_id) === String(row.id)).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const paidThisMonth = payments
+    .filter(p => String(p.bill_id) === String(row.id))
+    .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+
   const remainingThisMonth = Math.max(0, round2(amount - paidThisMonth));
   const cleared = amount > 0 && paidThisMonth >= amount;
-  const latest = payments.filter(p => String(p.bill_id) === String(row.id)).sort((a, b) => String(b.payment_date || "").localeCompare(String(a.payment_date || "")))[0] || null;
+  const latest = latestPayment(payments, row.id);
 
   return {
     ...row,
@@ -180,8 +312,8 @@ function normalizeBill(row, payments, month) {
     name: row.name || row.title || row.bill_name || "Unnamed bill",
     amount,
     monthly_amount: amount,
-    category: BILL_CATEGORY,
-    category_id: BILL_CATEGORY,
+    category: canonicalBillCategory(row.category_id || row.category),
+    category_id: canonicalBillCategory(row.category_id || row.category),
     month,
     paid_this_month: round2(paidThisMonth),
     remaining_this_month: remainingThisMonth,
@@ -193,6 +325,15 @@ function normalizeBill(row, payments, month) {
     last_paid_account_id: latest?.account_id || null,
     last_paid_date: latest?.payment_date || null
   };
+}
+
+function latestPayment(payments, billId) {
+  return payments
+    .filter(p => String(p.bill_id) === String(billId))
+    .sort((a, b) =>
+      String(b.payment_date || "").localeCompare(String(a.payment_date || "")) ||
+      String(b.created_at || "").localeCompare(String(a.created_at || ""))
+    )[0] || null;
 }
 
 async function requireActiveAccount(db, id) {
@@ -221,21 +362,96 @@ async function getColumns(db, table) {
 
 function buildInsert(table, columns, valuesByColumn) {
   const keys = Object.keys(valuesByColumn).filter(k => columns.has(k));
-  return { sql: `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${keys.map(() => "?").join(", ")})`, values: keys.map(k => valuesByColumn[k]) };
+  if (!keys.length) throw new Error(`No insertable columns found for ${table}.`);
+
+  return {
+    sql: `INSERT INTO ${table} (${keys.join(", ")}) VALUES (${keys.map(() => "?").join(", ")})`,
+    values: keys.map(k => valuesByColumn[k])
+  };
 }
 
 function buildUpdate(table, columns, valuesByColumn, whereColumn, whereValue) {
   const keys = Object.keys(valuesByColumn).filter(k => columns.has(k));
-  return { sql: `UPDATE ${table} SET ${keys.map(k => `${k} = ?`).join(", ")} WHERE ${whereColumn} = ?`, values: [...keys.map(k => valuesByColumn[k]), whereValue] };
+  if (!keys.length) throw new Error(`No updatable columns found for ${table}.`);
+
+  return {
+    sql: `UPDATE ${table} SET ${keys.map(k => `${k} = ?`).join(", ")} WHERE ${whereColumn} = ?`,
+    values: [...keys.map(k => valuesByColumn[k]), whereValue]
+  };
 }
 
-function readBillAmount(row) { return Number(row.amount ?? row.monthly_amount ?? row.expected_amount ?? row.value ?? 0); }
-function currentMonth() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
-function requireDb(env) { if (!env || !env.DB) throw new Error("D1 binding DB is missing."); return env.DB; }
-function requireText(value, field) { const text = cleanText(value); if (!text) throw new Error(`${field} is required.`); return text; }
-function cleanText(value) { if (value === undefined || value === null) return ""; return String(value).trim(); }
-function requirePositiveNumber(value, field) { const n = Number(value); if (!Number.isFinite(n) || n <= 0) throw new Error(`${field} must be greater than zero.`); return round2(n); }
-function round2(value) { return Math.round(Number(value) * 100) / 100; }
-function makeId(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
-function appendNote(existing, incoming, systemNote) { return [cleanText(existing), systemNote ? `[${new Date().toISOString()}] ${systemNote}` : "", cleanText(incoming)].filter(Boolean).join(" | "); }
-function json(payload, status = 200) { return new Response(JSON.stringify(payload, null, 2), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } }); }
+function canonicalBillCategory(value) {
+  const raw = cleanText(value).toLowerCase();
+  if (!raw || raw === "bills" || raw === "bill" || raw === "utilities" || raw === "utility") return BILL_CATEGORY;
+  return raw;
+}
+
+function readBillAmount(row) {
+  return Number(row.amount ?? row.monthly_amount ?? row.expected_amount ?? row.value ?? 0);
+}
+
+function currentMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function requireDb(env) {
+  if (!env || !env.DB) throw new Error("D1 binding DB is missing.");
+  return env.DB;
+}
+
+function requireText(value, field) {
+  const text = cleanText(value);
+  if (!text) throw new Error(`${field} is required.`);
+  return text;
+}
+
+function cleanText(value) {
+  if (value === undefined || value === null) return "";
+  return String(value).trim();
+}
+
+function requirePositiveNumber(value, field) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) throw new Error(`${field} must be greater than zero.`);
+  return round2(n);
+}
+
+function optionalNumber(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) throw new Error("Invalid number.");
+  return round2(n);
+}
+
+function optionalInteger(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  return Number.isInteger(n) ? n : null;
+}
+
+function round2(value) {
+  return Math.round(Number(value) * 100) / 100;
+}
+
+function makeId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function appendNote(existing, incoming, systemNote) {
+  return [
+    cleanText(existing),
+    systemNote ? `[${new Date().toISOString()}] ${systemNote}` : "",
+    cleanText(incoming)
+  ].filter(Boolean).join(" | ");
+}
+
+function json(payload, status = 200) {
+  return new Response(JSON.stringify(payload, null, 2), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store"
+    }
+  });
+}
