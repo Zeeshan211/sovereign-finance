@@ -65,8 +65,20 @@
   font-weight: 760;
 }
 
-.command-kpi-grid,
+.command-alert-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
 .command-score-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+.command-kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
@@ -346,6 +358,12 @@
   display: none !important;
 }
 
+@media (max-width: 1320px) {
+  .command-score-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1180px) {
   .command-grid,
   .command-two-col,
@@ -354,13 +372,14 @@
   }
 
   .command-kpi-grid,
-  .command-score-grid {
+  .command-alert-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 720px) {
   .command-kpi-grid,
+  .command-alert-grid,
   .command-score-grid {
     grid-template-columns: 1fr;
   }
@@ -394,7 +413,7 @@
 <div class="hero-kicker">Live authority audit</div>
 <h1 class="hero-title">Command Centre audits the whole finance system.</h1>
 <p class="hero-copy">
-Run a manual audit, refresh live authority, measure progress, and inspect every route, action, proof, checklist, blocker, override policy, and next build layer.
+Run a manual audit, refresh live authority, measure progress, and inspect every route, action, proof, checklist, blocker, override policy, emergency playbook, and next build layer.
 </p>
 
 <div class="command-status-strip">
@@ -439,18 +458,32 @@ Loading audit and override policy...
 <div class="command-section-head">
 <div>
 <div class="command-section-title">Live progress scoreboard</div>
-<div class="command-section-copy">Top-level operational audit cards restored from the Command Centre model.</div>
+<div class="command-section-copy">Old-style audit parity restored: separate blockers, warnings, unknowns, and progress dimensions.</div>
 </div>
 <span id="cmdComputedAt" class="badge badge-info">Loading</span>
 </div>
 
-<div class="command-score-grid">
-<div id="scoreOverallCard" class="command-score-card">
-<div class="command-score-label">Overall command score</div>
-<div id="scoreOverall" class="command-score-value">-</div>
-<div id="scoreOverallSub" class="command-score-sub">Loading</div>
+<div class="command-alert-grid">
+<div id="scoreHardCard" class="command-score-card">
+<div class="command-score-label">Hard Blockers</div>
+<div id="scoreHard" class="command-score-value">-</div>
+<div id="scoreHardSub" class="command-score-sub">Loading</div>
 </div>
 
+<div id="scoreWarningsCard" class="command-score-card">
+<div class="command-score-label">Warnings</div>
+<div id="scoreWarnings" class="command-score-value">-</div>
+<div id="scoreWarningsSub" class="command-score-sub">Loading</div>
+</div>
+
+<div id="scoreUnknownsCard" class="command-score-card">
+<div class="command-score-label">Unknowns</div>
+<div id="scoreUnknowns" class="command-score-value">-</div>
+<div id="scoreUnknownsSub" class="command-score-sub">Loading</div>
+</div>
+</div>
+
+<div class="command-score-grid">
 <div id="scoreApiCard" class="command-score-card">
 <div class="command-score-label">API Health</div>
 <div id="scoreApi" class="command-score-value">-</div>
@@ -487,10 +520,10 @@ Loading audit and override policy...
 <div id="scoreSafetySub" class="command-score-sub">Loading</div>
 </div>
 
-<div id="scoreUnknownsCard" class="command-score-card">
-<div class="command-score-label">Unknowns / blockers</div>
-<div id="scoreUnknowns" class="command-score-value">-</div>
-<div id="scoreUnknownsSub" class="command-score-sub">Loading</div>
+<div id="scoreOverallCard" class="command-score-card">
+<div class="command-score-label">Overall Command Score</div>
+<div id="scoreOverall" class="command-score-value">-</div>
+<div id="scoreOverallSub" class="command-score-sub">Loading</div>
 </div>
 </div>
 </section>
@@ -556,7 +589,7 @@ Loading audit and override policy...
 <div class="command-section-head">
 <div>
 <div class="command-section-title">Routes and pages</div>
-<div class="command-section-copy">Every governed page and whether actions are allowed, preflight-only, or blocked.</div>
+<div class="command-section-copy">Informational page status only. No visual overlays are restored here; API/backend enforcement remains source of truth.</div>
 </div>
 </div>
 <div id="cmdRoutes" class="command-three-col"></div>
@@ -646,7 +679,7 @@ Loading audit and override policy...
 </section>
 
 <footer class="command-page-meta" aria-hidden="true">
-Operational Command Centre UI v2.2.0
+Operational Command Centre UI v2.3.0
 </footer>
 </main>
 
@@ -660,7 +693,7 @@ Operational Command Centre UI v2.2.0
 (function () {
   "use strict";
 
-  const VERSION = "2.2.0";
+  const VERSION = "2.3.0";
   const LAST_AUDIT_KEY = "sovereign_command_centre_last_audit";
 
   let commandData = null;
@@ -785,13 +818,8 @@ Operational Command Centre UI v2.2.0
   function broadcastAudit(data) {
     window.SovereignCommandAudit = data;
 
-    window.dispatchEvent(new CustomEvent("sovereign:command-centre-audited", {
-      detail: data
-    }));
-
-    window.dispatchEvent(new CustomEvent("sovereign:authority-updated", {
-      detail: data
-    }));
+    window.dispatchEvent(new CustomEvent("sovereign:command-centre-audited", { detail: data }));
+    window.dispatchEvent(new CustomEvent("sovereign:authority-updated", { detail: data }));
 
     setText("cmdBroadcastStatus", "Sent");
 
@@ -827,7 +855,7 @@ Operational Command Centre UI v2.2.0
         badge.textContent = mode === "manual" ? "Manual audit complete" : "Refresh complete";
       }
 
-      console.log("[command-ui v2.2.0] audit complete", {
+      console.log("[command-ui v2.3.0] audit complete", {
         mode,
         version: data.version,
         actions: data.enforcement?.actions?.length,
@@ -835,7 +863,7 @@ Operational Command Centre UI v2.2.0
         checklists: data.enforcement?.action_checklists?.length
       });
     } catch (err) {
-      console.error("[command-ui v2.2.0] audit failed", err);
+      console.error("[command-ui v2.3.0] audit failed", err);
       renderError(err);
 
       if (badge) {
@@ -927,6 +955,19 @@ Operational Command Centre UI v2.2.0
     setText(subId, scoreLabel(score) + " · " + sub);
   }
 
+  function setCountCard(cardId, valueId, subId, count, goodWhenZero, sub) {
+    const card = $(cardId);
+    if (card) {
+      card.classList.remove("ready", "warning", "blocked");
+      if (goodWhenZero && count === 0) card.classList.add("ready");
+      else if (count > 0) card.classList.add(cardId === "scoreHardCard" ? "blocked" : "warning");
+      else card.classList.add("ready");
+    }
+
+    setText(valueId, String(count));
+    setText(subId, sub);
+  }
+
   function renderScoreboard(data) {
     const scores = data.scores || {};
     const hard = Array.isArray(data.hard_blockers) ? data.hard_blockers.length : 0;
@@ -936,35 +977,38 @@ Operational Command Centre UI v2.2.0
     const routes = data.enforcement && Array.isArray(data.enforcement.routes) ? data.enforcement.routes : [];
     const proofs = Array.isArray(data.source_proofs) ? data.source_proofs : [];
 
+    const apiHealth = Number(scores.api_health || 0);
+    const financeTruth = Number.isFinite(Number(scores.finance_truth))
+      ? Number(scores.finance_truth)
+      : avg([scores.d1_core, scores.business_rules]);
+
     const pageProofScore = pageProofs.length ? pageProofs.filter(p => p.status === "pass").length / pageProofs.length * 100 : 0;
     const routeScore = routes.length ? routes.filter(r => r.view_allowed).length / routes.length * 100 : 0;
     const proofScore = proofs.length ? proofs.filter(p => p.status === "pass" || p.status === "banned").length / proofs.length * 100 : 0;
 
-    const apiHealth = Number(scores.api_health || 0);
-    const financeTruth = avg([scores.d1_core, scores.business_rules]);
-    const wiring = avg([pageProofScore, routeScore, proofScore]);
-    const logic = Number(scores.business_rules || 0);
-    const uiCleanliness = pageProofScore || 80;
-    const impactSafety = Number(scores.write_safety || 0);
-    const overall = Number.isFinite(Number(data.score)) ? Number(data.score) : avg([apiHealth, financeTruth, wiring, logic, uiCleanliness, impactSafety]);
+    const wiring = Number.isFinite(Number(scores.wiring)) ? Number(scores.wiring) : avg([pageProofScore, routeScore, proofScore]);
+    const logic = Number(scores.business_rules || scores.logic || 0);
 
-    setScoreCard("scoreOverallCard", "scoreOverall", "scoreOverallSub", overall, "overall governor score");
+    const uiCleanliness = Number.isFinite(Number(scores.ui_cleanliness))
+      ? Number(scores.ui_cleanliness)
+      : pageProofScore || 0;
+
+    const impactSafety = Number(scores.write_safety || scores.impact_safety || 0);
+    const overall = Number.isFinite(Number(data.score))
+      ? Number(data.score)
+      : avg([apiHealth, financeTruth, wiring, logic, uiCleanliness, impactSafety]);
+
+    setCountCard("scoreHardCard", "scoreHard", "scoreHardSub", hard, true, hard === 0 ? "No hard blockers" : "Hard blocker(s) require action");
+    setCountCard("scoreWarningsCard", "scoreWarnings", "scoreWarningsSub", warnings, true, warnings === 0 ? "No warnings" : "Warning(s) remain");
+    setCountCard("scoreUnknownsCard", "scoreUnknowns", "scoreUnknownsSub", unknowns, true, unknowns === 0 ? "No unknowns" : "Unknown(s) remain");
+
     setScoreCard("scoreApiCard", "scoreApi", "scoreApiSub", apiHealth, "required APIs");
-    setScoreCard("scoreTruthCard", "scoreTruth", "scoreTruthSub", financeTruth, "D1 + business rules");
+    setScoreCard("scoreTruthCard", "scoreTruth", "scoreTruthSub", financeTruth, "D1 + finance truth");
     setScoreCard("scoreWiringCard", "scoreWiring", "scoreWiringSub", wiring, "routes + proofs + page wiring");
     setScoreCard("scoreLogicCard", "scoreLogic", "scoreLogicSub", logic, "business rule score");
     setScoreCard("scoreUiCard", "scoreUi", "scoreUiSub", uiCleanliness, "page proof / UI wiring");
     setScoreCard("scoreSafetyCard", "scoreSafety", "scoreSafetySub", impactSafety, "write safety score");
-
-    const unknownScore = hard ? 0 : warnings || unknowns ? 70 : 100;
-    const unknownCard = $("scoreUnknownsCard");
-    if (unknownCard) {
-      unknownCard.classList.remove("ready", "warning", "blocked");
-      unknownCard.classList.add(scoreClass(unknownScore));
-    }
-
-    setText("scoreUnknowns", String(hard + warnings + unknowns));
-    setText("scoreUnknownsSub", hard + " hard · " + warnings + " warnings · " + unknowns + " unknowns");
+    setScoreCard("scoreOverallCard", "scoreOverall", "scoreOverallSub", overall, "overall governor score");
   }
 
   function renderOverview(data) {
@@ -1347,7 +1391,7 @@ Operational Command Centre UI v2.2.0
   }
 
   function init() {
-    console.log("[command-ui v2.2.0] init");
+    console.log("[command-ui v2.3.0] init");
     wireEvents();
     restoreLastAudit();
     runAudit("initial");
