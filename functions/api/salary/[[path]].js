@@ -1,54 +1,48 @@
-/* ─── /api/salary/[[path]] · v0.2.2 · Layer 2 salary data contract ─── */
-/*
- * Handles:
- *   GET  /api/salary
- *   GET  /api/salary?month=YYYY-MM
- *   GET  /api/salary/detect?month=YYYY-MM
- *   POST /api/salary/recategorize
- *
- * Layer 2 contract:
- *   - Salary API must not depend only on category_id='salary'.
- *   - Migrated salary rows may be category_id NULL but identifiable by notes.
- *   - Active rows exclude D1 reversals and Sheet-imported reversal markers.
- *   - Response includes stable summary fields so UI does not render NaN/zero components.
- *   - Recategorize snapshots before mutation.
- *   - Audit failure does not break successful recategorization.
- */
+/* Sovereign Finance Salary API v0.1.0
+   /api/salary
 
-import { json, audit, snapshot } from '../_lib.js';
+   Contract:
+   - GET returns current salary profile.
+   - POST dry_run validates salary profile and performs no write.
+   - POST real save asks Command Centre before writing.
+   - Salary separates guaranteed income from variable income.
+   - Forecast should use guaranteed income unless variable income is explicitly confirmed.
+   - No fake entries.
+   - No /api/money-contracts.
+*/
 
-const VERSION = 'v0.2.2';
+const VERSION = 'v0.1.0';
 
-const SOURCE_ACCOUNT = 'meezan';
-const FORECAST_NET = 154750;
-const TOLERANCE_PCT = 30;
+const DEFAULT_PROFILE = {
+  id: 'salary_profile_main',
+  currency: 'PKR',
+  pay_frequency: 'monthly',
+  guaranteed_base_salary: 111333.34,
+  guaranteed_wfh_allowance: 0,
+  variable_mbo: 0,
+  variable_overtime: 0,
+  variable_bonus: 0,
+  variable_other: 0,
+  variable_confirmed: false,
+  next_pay_date: null,
+  notes: '',
+  updated_at: null
+};
 
-export async function onRequest(context) {
-  const { request, env, params } = context;
-  const path = params.path;
-  const segments = !path ? [] : (Array.isArray(path) ? path : [path]);
-  const method = request.method.toUpperCase();
-
+export async function onRequestGet(context) {
   try {
-    if (segments.length === 0 && method === 'GET') {
-      return listSalaryContract(env, request);
-    }
+    const db = context.env.DB;
+    const profile = await readSalaryProfile(db);
 
-    if (segments.length === 1 && segments[0] === 'detect' && method === 'GET') {
-      return detectSalaryCandidates(env, request);
-    }
-
-    if (segments.length === 1 && segments[0] === 'recategorize' && method === 'POST') {
-      return recategorizeSalary(env, request);
-    }
-
-    return json({
-      ok: false,
+    return jsonResponse({
+      ok: true,
       version: VERSION,
-      error: 'Not found. Available: GET /api/salary, GET /api/salary/detect, POST /api/salary/recategorize'
-    }, 404);
+      salary: profile,
+      summary: summarizeSalary(profile),
+      source_rule: 'Forecast may use guaranteed income only unless variable income is explicitly confirmed.'
+    });
   } catch (err) {
-    return json({
+    return jsonResponse({
       ok: false,
       version: VERSION,
       error: err.message || String(err)
@@ -56,362 +50,388 @@ export async function onRequest(context) {
   }
 }
 
-async function listSalaryContract(env, request) {
-  const db = env.DB;
-  const url = new URL(request.url);
-  const month = (url.searchParams.get('month') || nowMonthYM()).slice(0, 7);
-  const { start, end } = monthRange(month);
+export async function onRequestPost(context) {
+  try {
+    const db = context.env.DB;
+    const body = await readJSON(context.request);
+    const dryRun = isDryRunRequest(context, body);
 
-  const rowsResult = await db.prepare(
-    `SELECT id, date, amount, account_id, category_id, notes,
-            reversed_by, reversed_at, linked_txn_id, created_at
-     FROM transactions
-     WHERE type = 'income'
-       AND account_id = ?
-       AND date BETWEEN ? AND ?
-     ORDER BY date DESC, datetime(created_at) DESC, id DESC`
-  ).bind(SOURCE_ACCOUNT, start, end).all();
+    const validation = buildSalaryPayload(body);
 
-  const allIncomeRows = rowsResult.results || [];
-  const activeIncomeRows = allIncomeRows.filter(t => !isReversalRow(t));
-  const salaryRows = activeIncomeRows.filter(isSalaryLikeRow);
-
-  const salaries = salaryRows.map(row => normalizeSalaryRow(row));
-  const totalSalary = round2(salaries.reduce((sum, row) => sum + (Number(row.amount) || 0), 0));
-
-  const primary = salaries.length
-    ? salaries.slice().sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))[0]
-    : null;
-
-  const diffAmt = primary ? round2(Math.abs((Number(primary.amount) || 0) - FORECAST_NET)) : null;
-  const diffPct = primary ? round1((diffAmt / FORECAST_NET) * 100) : null;
-
-  return json({
-    ok: true,
-    version: VERSION,
-    month,
-    source_account: SOURCE_ACCOUNT,
-
-    forecast_net: FORECAST_NET,
-    tolerance_pct: TOLERANCE_PCT,
-
-    count: salaries.length,
-    component_count: salaries.length,
-    total_salary: totalSalary,
-    total_detected: totalSalary,
-
-    primary_salary: primary,
-    diff_amount: diffAmt,
-    diff_pct: diffPct,
-    confidence: primary ? classifyConfidence(diffPct) : 'none',
-
-    components: salaries,
-    salaries,
-
-    fields: buildFieldSummary(primary, totalSalary, salaries.length),
-
-    debug: {
-      income_rows_in_month: allIncomeRows.length,
-      active_income_rows_in_month: activeIncomeRows.length,
-      hidden_reversal_rows_in_month: allIncomeRows.length - activeIncomeRows.length,
-      salary_like_rows: salaries.length,
-      detection_rule: 'category_id salary OR notes contains salary/payslip/forecast net',
-      reversal_bridge: 'reversed_by/reversed_at columns plus Sheet notes markers'
+    if (!validation.ok) {
+      return jsonResponse({
+        ok: false,
+        version: VERSION,
+        dry_run: dryRun,
+        action: 'salary.save',
+        error: validation.error
+      }, 400);
     }
-  });
-}
 
-async function detectSalaryCandidates(env, request) {
-  const db = env.DB;
-  const url = new URL(request.url);
-  const month = (url.searchParams.get('month') || nowMonthYM()).slice(0, 7);
-  const { start, end } = monthRange(month);
+    const payload = validation.payload;
+    const proof = buildSalaryProof(payload);
 
-  const minAmt = FORECAST_NET * (1 - TOLERANCE_PCT / 100);
-  const maxAmt = FORECAST_NET * (1 + TOLERANCE_PCT / 100);
+    if (dryRun) {
+      return jsonResponse({
+        ok: true,
+        version: VERSION,
+        dry_run: true,
+        action: 'salary.save',
+        writes_performed: false,
+        audit_performed: false,
+        proof,
+        normalized_payload: payload,
+        summary: summarizeSalary(payload)
+      });
+    }
 
-  const result = await db.prepare(
-    `SELECT id, date, amount, account_id, category_id, notes,
-            reversed_by, reversed_at, linked_txn_id, created_at
-     FROM transactions
-     WHERE type = 'income'
-       AND account_id = ?
-       AND amount BETWEEN ? AND ?
-       AND date BETWEEN ? AND ?
-     ORDER BY date DESC, amount DESC, datetime(created_at) DESC`
-  ).bind(SOURCE_ACCOUNT, minAmt, maxAmt, start, end).all();
+    const allowed = await commandAllowsAction(context, 'salary.save');
 
-  const rows = (result.results || []).filter(t => !isReversalRow(t));
+    if (!allowed) {
+      return jsonResponse({
+        ok: false,
+        version: VERSION,
+        error: 'Command Centre blocked salary save',
+        action: 'salary.save',
+        dry_run: false,
+        writes_performed: false,
+        audit_performed: false,
+        enforcement: {
+          action: 'salary.save',
+          allowed: false,
+          status: 'blocked',
+          reason: 'salary.save real write blocked by Command Centre.',
+          source: 'coverage.write_safety.salary',
+          backend_enforced: true
+        },
+        proof
+      }, 423);
+    }
 
-  const candidates = rows.map(t => {
-    const diffAmt = Math.abs((Number(t.amount) || 0) - FORECAST_NET);
-    const diffPct = (diffAmt / FORECAST_NET) * 100;
+    await ensureSalaryTable(db);
+    await saveSalaryProfile(db, payload);
 
-    return {
-      ...normalizeSalaryRow(t),
-      diff_amount: round2(diffAmt),
-      diff_pct: round1(diffPct),
-      confidence: classifyConfidence(diffPct),
-      is_already_salary: String(t.category_id || '').toLowerCase() === 'salary' || isSalaryLikeRow(t)
-    };
-  });
+    const saved = await readSalaryProfile(db);
 
-  return json({
-    ok: true,
-    version: VERSION,
-    month,
-    source_account: SOURCE_ACCOUNT,
-    forecast_net: FORECAST_NET,
-    tolerance_pct: TOLERANCE_PCT,
-    range: {
-      min: Math.round(minAmt),
-      max: Math.round(maxAmt)
-    },
-    candidates,
-    count: candidates.length
-  });
-}
-
-async function recategorizeSalary(env, request) {
-  const db = env.DB;
-  const body = await request.json().catch(() => ({}));
-  const month = (body.month || nowMonthYM()).slice(0, 7);
-  const txnIds = Array.isArray(body.txn_ids) ? body.txn_ids : [];
-  const createdBy = body.created_by || 'web-salary-recat';
-
-  if (txnIds.length === 0) {
-    return json({
+    return jsonResponse({
+      ok: true,
+      version: VERSION,
+      action: 'salary.save',
+      writes_performed: true,
+      audit_performed: false,
+      salary: saved,
+      summary: summarizeSalary(saved),
+      proof
+    });
+  } catch (err) {
+    return jsonResponse({
       ok: false,
       version: VERSION,
-      error: 'txn_ids array required (non-empty)'
-    }, 400);
-  }
-
-  const snap = await safeSnapshot(env, 'pre-salary-recat-' + month + '-' + Date.now(), createdBy);
-  if (!snap.ok) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'Snapshot failed: ' + snap.error
+      error: err.message || String(err)
     }, 500);
   }
+}
 
-  const updates = [];
-  const failures = [];
+async function readSalaryProfile(db) {
+  try {
+    const row = await db.prepare(
+      `SELECT
+         id,
+         currency,
+         pay_frequency,
+         guaranteed_base_salary,
+         guaranteed_wfh_allowance,
+         variable_mbo,
+         variable_overtime,
+         variable_bonus,
+         variable_other,
+         variable_confirmed,
+         next_pay_date,
+         notes,
+         updated_at
+       FROM salary_profile
+       WHERE id = ?
+       LIMIT 1`
+    ).bind(DEFAULT_PROFILE.id).first();
 
-  for (const id of txnIds) {
-    try {
-      const before = await db.prepare(
-        `SELECT id, type, account_id, category_id, notes, amount, reversed_by, reversed_at
-         FROM transactions
-         WHERE id = ?`
-      ).bind(id).first();
+    if (!row) return { ...DEFAULT_PROFILE };
 
-      if (!before) {
-        failures.push({ id, error: 'Not found' });
-        continue;
-      }
+    return normalizeSalaryProfile(row);
+  } catch (err) {
+    return { ...DEFAULT_PROFILE };
+  }
+}
 
-      if (isReversalRow(before)) {
-        failures.push({ id, error: 'Cannot recategorize reversal row' });
-        continue;
-      }
+async function ensureSalaryTable(db) {
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS salary_profile (
+       id TEXT PRIMARY KEY,
+       currency TEXT,
+       pay_frequency TEXT,
+       guaranteed_base_salary REAL,
+       guaranteed_wfh_allowance REAL,
+       variable_mbo REAL,
+       variable_overtime REAL,
+       variable_bonus REAL,
+       variable_other REAL,
+       variable_confirmed INTEGER,
+       next_pay_date TEXT,
+       notes TEXT,
+       updated_at TEXT
+     )`
+  ).run();
+}
 
-      if (String(before.type || '').toLowerCase() !== 'income') {
-        failures.push({ id, error: 'Only income transactions can be salary' });
-        continue;
-      }
+async function saveSalaryProfile(db, payload) {
+  await db.prepare(
+    `INSERT INTO salary_profile
+     (id, currency, pay_frequency, guaranteed_base_salary, guaranteed_wfh_allowance, variable_mbo, variable_overtime, variable_bonus, variable_other, variable_confirmed, next_pay_date, notes, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(id) DO UPDATE SET
+       currency = excluded.currency,
+       pay_frequency = excluded.pay_frequency,
+       guaranteed_base_salary = excluded.guaranteed_base_salary,
+       guaranteed_wfh_allowance = excluded.guaranteed_wfh_allowance,
+       variable_mbo = excluded.variable_mbo,
+       variable_overtime = excluded.variable_overtime,
+       variable_bonus = excluded.variable_bonus,
+       variable_other = excluded.variable_other,
+       variable_confirmed = excluded.variable_confirmed,
+       next_pay_date = excluded.next_pay_date,
+       notes = excluded.notes,
+       updated_at = datetime('now')`
+  ).bind(
+    payload.id,
+    payload.currency,
+    payload.pay_frequency,
+    payload.guaranteed_base_salary,
+    payload.guaranteed_wfh_allowance,
+    payload.variable_mbo,
+    payload.variable_overtime,
+    payload.variable_bonus,
+    payload.variable_other,
+    payload.variable_confirmed ? 1 : 0,
+    payload.next_pay_date,
+    payload.notes
+  ).run();
+}
 
-      if (before.account_id !== SOURCE_ACCOUNT) {
-        failures.push({ id, error: 'Salary source account must be ' + SOURCE_ACCOUNT });
-        continue;
-      }
+function buildSalaryPayload(body) {
+  const currency = safeText(body.currency, 'PKR', 12).toUpperCase();
+  const payFrequency = safeText(body.pay_frequency, 'monthly', 40).toLowerCase();
 
-      const newNotes = buildSalaryNotes(before.notes, month);
+  const guaranteedBaseSalary = toNumber(body.guaranteed_base_salary ?? body.base_salary, DEFAULT_PROFILE.guaranteed_base_salary);
+  const guaranteedWfhAllowance = toNumber(body.guaranteed_wfh_allowance ?? body.wfh_allowance, 0);
+  const variableMbo = toNumber(body.variable_mbo ?? body.mbo, 0);
+  const variableOvertime = toNumber(body.variable_overtime ?? body.overtime, 0);
+  const variableBonus = toNumber(body.variable_bonus ?? body.bonus, 0);
+  const variableOther = toNumber(body.variable_other ?? body.other_variable, 0);
+  const variableConfirmed = body.variable_confirmed === true || body.variable_confirmed === 'true' || body.variable_confirmed === '1';
+  const nextPayDate = normalizeDate(body.next_pay_date || body.pay_date);
+  const notes = safeText(body.notes, '', 1000);
 
-      await db.prepare(
-        `UPDATE transactions
-         SET category_id = 'salary',
-             notes = ?
-         WHERE id = ?`
-      ).bind(newNotes, id).run();
-
-      updates.push({
-        id,
-        before_category: before.category_id,
-        after_category: 'salary',
-        amount: Number(before.amount) || 0
-      });
-    } catch (err) {
-      failures.push({ id, error: err.message });
-    }
+  if (!['monthly', 'weekly', 'biweekly', 'yearly', 'custom'].includes(payFrequency)) {
+    return { ok: false, error: 'Invalid pay_frequency' };
   }
 
-  const auditResult = await safeAudit(env, {
-    action: 'SALARY_RECATEGORIZE',
-    entity: 'salary',
-    entity_id: month,
-    kind: 'mutation',
-    detail: {
-      month,
-      snapshot_id: snap.snapshot_id || null,
-      requested_count: txnIds.length,
-      updated_count: updates.length,
-      failed_count: failures.length,
-      updates,
-      failures
-    },
-    created_by: createdBy
-  });
+  const values = [
+    guaranteedBaseSalary,
+    guaranteedWfhAllowance,
+    variableMbo,
+    variableOvertime,
+    variableBonus,
+    variableOther
+  ];
 
-  return json({
+  if (values.some(value => !Number.isFinite(value) || value < 0)) {
+    return { ok: false, error: 'Salary amounts must be 0 or greater' };
+  }
+
+  if (guaranteedBaseSalary <= 0) {
+    return { ok: false, error: 'Guaranteed base salary must be greater than 0' };
+  }
+
+  return {
     ok: true,
+    payload: {
+      id: DEFAULT_PROFILE.id,
+      currency,
+      pay_frequency: payFrequency,
+      guaranteed_base_salary: round2(guaranteedBaseSalary),
+      guaranteed_wfh_allowance: round2(guaranteedWfhAllowance),
+      variable_mbo: round2(variableMbo),
+      variable_overtime: round2(variableOvertime),
+      variable_bonus: round2(variableBonus),
+      variable_other: round2(variableOther),
+      variable_confirmed: variableConfirmed,
+      next_pay_date: nextPayDate,
+      notes,
+      updated_at: null
+    }
+  };
+}
+
+function normalizeSalaryProfile(row) {
+  return {
+    id: safeText(row.id, DEFAULT_PROFILE.id, 160),
+    currency: safeText(row.currency, 'PKR', 12).toUpperCase(),
+    pay_frequency: safeText(row.pay_frequency, 'monthly', 40).toLowerCase(),
+    guaranteed_base_salary: round2(toNumber(row.guaranteed_base_salary, DEFAULT_PROFILE.guaranteed_base_salary)),
+    guaranteed_wfh_allowance: round2(toNumber(row.guaranteed_wfh_allowance, 0)),
+    variable_mbo: round2(toNumber(row.variable_mbo, 0)),
+    variable_overtime: round2(toNumber(row.variable_overtime, 0)),
+    variable_bonus: round2(toNumber(row.variable_bonus, 0)),
+    variable_other: round2(toNumber(row.variable_other, 0)),
+    variable_confirmed: row.variable_confirmed === 1 || row.variable_confirmed === true || row.variable_confirmed === 'true',
+    next_pay_date: normalizeDate(row.next_pay_date),
+    notes: safeText(row.notes, '', 1000),
+    updated_at: row.updated_at || null
+  };
+}
+
+function summarizeSalary(profile) {
+  const guaranteed_monthly = round2(
+    toNumber(profile.guaranteed_base_salary, 0)
+    + toNumber(profile.guaranteed_wfh_allowance, 0)
+  );
+
+  const variable_monthly = round2(
+    toNumber(profile.variable_mbo, 0)
+    + toNumber(profile.variable_overtime, 0)
+    + toNumber(profile.variable_bonus, 0)
+    + toNumber(profile.variable_other, 0)
+  );
+
+  const forecast_eligible_monthly = profile.variable_confirmed
+    ? round2(guaranteed_monthly + variable_monthly)
+    : guaranteed_monthly;
+
+  return {
+    currency: profile.currency || 'PKR',
+    pay_frequency: profile.pay_frequency || 'monthly',
+    guaranteed_monthly,
+    variable_monthly,
+    variable_confirmed: Boolean(profile.variable_confirmed),
+    forecast_eligible_monthly,
+    forecast_rule: profile.variable_confirmed
+      ? 'Forecast may include guaranteed + confirmed variable income.'
+      : 'Forecast may include guaranteed income only.'
+  };
+}
+
+function buildSalaryProof(profile) {
+  const summary = summarizeSalary(profile);
+
+  return {
+    action: 'salary.save',
     version: VERSION,
-    month,
-    snapshot_id: snap.snapshot_id || null,
-    requested_count: txnIds.length,
-    updated_count: updates.length,
-    failed_count: failures.length,
-    updates,
-    failures,
-    audited: auditResult.ok,
-    audit_error: auditResult.error || null
-  });
-}
-
-function normalizeSalaryRow(row) {
-  const amount = Number(row.amount) || 0;
-  const diffAmt = Math.abs(amount - FORECAST_NET);
-  const diffPct = (diffAmt / FORECAST_NET) * 100;
-
-  return {
-    id: row.id,
-    date: row.date,
-    amount,
-    account_id: row.account_id,
-    category_id: row.category_id || null,
-    notes: row.notes || '',
-    created_at: row.created_at || null,
-    diff_amount: round2(diffAmt),
-    diff_pct: round1(diffPct),
-    confidence: classifyConfidence(diffPct)
+    writes_performed: false,
+    audit_performed: false,
+    validation_status: 'pass',
+    write_model: 'salary_profile_command_centre_gated',
+    expected_salary_rows: 1,
+    expected_transaction_rows: 0,
+    expected_ledger_rows: 0,
+    expected_audit_rows: 0,
+    normalized_summary: {
+      guaranteed_monthly: summary.guaranteed_monthly,
+      variable_monthly: summary.variable_monthly,
+      variable_confirmed: summary.variable_confirmed,
+      forecast_eligible_monthly: summary.forecast_eligible_monthly
+    },
+    checks: [
+      proofCheck('base_salary_valid', 'pass', 'request.guaranteed_base_salary', 'Guaranteed base salary is greater than 0.'),
+      proofCheck('amounts_valid', 'pass', 'request.amounts', 'All salary amounts are 0 or greater.'),
+      proofCheck('forecast_rule_valid', 'pass', 'computed.forecast_rule', summary.forecast_rule),
+      proofCheck('command_gate_required', 'pass', 'finance-command-center', 'Real salary save asks Command Centre before writing.'),
+      proofCheck('dry_run_no_write', 'pass', 'api.contract', 'Dry-run returns before saving salary profile.')
+    ]
   };
 }
 
-function buildFieldSummary(primary, totalSalary, count) {
-  return {
-    month_total: totalSalary,
-    component_count: count,
-    primary_amount: primary ? Number(primary.amount) || 0 : 0,
-    primary_date: primary ? primary.date : null,
-    forecast_net: FORECAST_NET,
-    status: count > 0 ? 'detected' : 'missing'
-  };
-}
-
-function isSalaryLikeRow(row) {
-  const category = String(row.category_id || '').toLowerCase();
-  const notes = String(row.notes || '').toLowerCase();
-
-  if (category === 'salary') return true;
-  if (notes.includes('salary')) return true;
-  if (notes.includes('payslip')) return true;
-  if (notes.includes('forecast net')) return true;
-  if (notes.includes('auto-detected payslip credit')) return true;
-
-  return false;
-}
-
-function isReversalRow(row) {
-  if (!row) return false;
-
-  if (row.reversed_by || row.reversed_at) return true;
-
-  const notes = String(row.notes || '').toUpperCase();
-
-  return notes.includes('[REVERSED BY ') || notes.includes('[REVERSAL OF ');
-}
-
-function buildSalaryNotes(notes, month) {
-  const current = String(notes || '').trim();
-
-  if (current.toLowerCase().includes('salary')) return current.slice(0, 200);
-
-  return (`Salary ${month}` + (current ? ' · ' + current : '')).slice(0, 200);
-}
-
-function classifyConfidence(diffPct) {
-  const n = Number(diffPct);
-
-  if (!Number.isFinite(n)) return 'none';
-  if (n <= 5) return 'high';
-  if (n <= 15) return 'medium';
-
-  return 'low';
-}
-
-function nowMonthYM() {
-  const d = new Date();
-
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-}
-
-function monthRange(ym) {
-  const [yearRaw, monthRaw] = String(ym || nowMonthYM()).split('-').map(Number);
-  const year = Number.isFinite(yearRaw) ? yearRaw : new Date().getFullYear();
-  const month = Number.isFinite(monthRaw) ? monthRaw : (new Date().getMonth() + 1);
-
-  const mm = String(month).padStart(2, '0');
-  const start = year + '-' + mm + '-01';
-  const last = new Date(year, month, 0).getDate();
-  const end = year + '-' + mm + '-' + String(last).padStart(2, '0');
-
-  return { start, end };
-}
-
-async function safeSnapshot(env, label, createdBy) {
+async function commandAllowsAction(context, action) {
   try {
-    const result = await snapshot(env, label, createdBy);
+    const origin = new URL(context.request.url).origin;
 
-    return {
-      ok: !!(result && result.ok),
-      snapshot_id: result && result.snapshot_id ? result.snapshot_id : null,
-      error: result && result.error ? result.error : null
-    };
+    const res = await fetch(origin + '/api/finance-command-center?gate=' + encodeURIComponent(action) + '&cb=' + Date.now(), {
+      method: 'GET',
+      headers: {
+        accept: 'application/json',
+        'x-sovereign-salary-gate': action
+      }
+    });
+
+    const data = await res.json().catch(() => null);
+    const found = data && data.enforcement && Array.isArray(data.enforcement.actions)
+      ? data.enforcement.actions.find(item => item.action === action)
+      : null;
+
+    return Boolean(found && found.allowed);
   } catch (err) {
-    return {
-      ok: false,
-      snapshot_id: null,
-      error: err.message
-    };
+    return false;
   }
 }
 
-async function safeAudit(env, event) {
-  try {
-    const payload = {
-      ...event,
-      detail: typeof event.detail === 'string' ? event.detail : JSON.stringify(event.detail || {})
-    };
+function proofCheck(check, status, source, detail) {
+  return { check, status, source, detail };
+}
 
-    const result = await audit(env, payload);
+function normalizeDate(value) {
+  const raw = safeText(value, '', 40);
+  if (!raw) return null;
+  if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
+  return raw.slice(0, 10);
+}
 
-    return {
-      ok: !!(result && result.ok),
-      error: result && result.error ? result.error : null
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      error: err.message
-    };
+function toNumber(value, fallback) {
+  if (value === undefined || value === null || value === '') return fallback;
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : fallback;
   }
+
+  const cleaned = String(value)
+    .replace(/rs/ig, '')
+    .replace(/,/g, '')
+    .trim();
+
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function isDryRunRequest(context, body) {
+  const url = new URL(context.request.url);
+
+  return url.searchParams.get('dry_run') === '1'
+    || url.searchParams.get('dry_run') === 'true'
+    || body.dry_run === true
+    || body.dry_run === '1'
+    || body.dry_run === 'true';
+}
+
+function safeText(value, fallback, maxLen) {
+  const raw = value == null ? fallback : value;
+  return String(raw == null ? '' : raw).trim().slice(0, maxLen || 500);
 }
 
 function round2(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
 
-function round1(value) {
-  return Math.round((Number(value) || 0) * 10) / 10;
+async function readJSON(request) {
+  try {
+    return await request.json();
+  } catch (err) {
+    return {};
+  }
+}
+
+function jsonResponse(obj, status) {
+  return new Response(JSON.stringify(obj), {
+    status: status || 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache'
+    }
+  });
 }
