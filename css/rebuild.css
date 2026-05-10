@@ -414,4 +414,183 @@
   .sf-amount {
     text-align: left;
   }
+
+
+/* =========================================================
+   SHIPMENT 2A-FIX1 — HUB VISUAL CONTAINMENT PATCH
+   Purpose: stop legacy CSS from washing out the rebuilt Hub.
+   Scope: index.html / .sf-hub only.
+========================================================= */
+
+body:has(.sf-hub) {
+  background:
+    radial-gradient(circle at top left, rgba(98,221,163,.16), transparent 32rem),
+    radial-gradient(circle at top right, rgba(126,182,255,.15), transparent 34rem),
+    radial-gradient(circle at bottom, rgba(184,156,255,.09), transparent 34rem),
+    #070b12 !important;
+  color: #f4f7fb !important;
+}
+
+.sf-hub {
+  isolation: isolate;
+  min-height: 100vh;
+  color: var(--sf-text) !important;
+}
+
+/* Flat nav only. No submenus, dropdowns, nested menu panels. */
+.sf-hub .sf-nav,
+.sf-hub .sf-shell-top {
+  background: transparent !important;
+}
+
+.sf-hub .sf-nav {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 9px !important;
+  align-items: center !important;
+}
+
+.sf-hub .sf-nav ul,
+.sf-hub .sf-nav li,
+.sf-hub .sf-nav .dropdown,
+.sf-hub .sf-nav .submenu,
+.sf-hub .sf-nav .menu,
+.sf-hub .sf-nav [class*="dropdown"],
+.sf-hub .sf-nav [class*="submenu"] {
+  display: none !important;
+}
+
+.sf-hub .sf-nav a {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 38px !important;
+  padding: 10px 14px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  background: rgba(255,255,255,.055) !important;
+  color: #f4f7fb !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+}
+
+.sf-hub .sf-nav a:hover {
+  background: rgba(255,255,255,.105) !important;
+  border-color: rgba(255,255,255,.24) !important;
+  color: #ffffff !important;
+}
+
+/* Keep rebuilt cards dark and readable even if legacy card styles exist. */
+.sf-hub .sf-card {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.105), rgba(255,255,255,.055)) !important;
+  border: 1px solid rgba(255,255,255,.13) !important;
+  color: #f4f7fb !important;
+  box-shadow: 0 24px 80px rgba(0,0,0,.38) !important;
+}
+
+.sf-hub .sf-hero-main,
+.sf-hub .sf-side,
+.sf-hub .sf-section,
+.sf-hub .sf-stat {
+  background-color: transparent !important;
+}
+
+.sf-hub .sf-title,
+.sf-hub .sf-section-title,
+.sf-hub .sf-stat-value,
+.sf-hub .sf-signal-value,
+.sf-hub .sf-item-title,
+.sf-hub .sf-quick-title,
+.sf-hub .sf-amount {
+  color: #f4f7fb !important;
+}
+
+.sf-hub .sf-subtitle,
+.sf-hub .sf-section-copy,
+.sf-hub .sf-stat-label,
+.sf-hub .sf-stat-note,
+.sf-hub .sf-signal-label,
+.sf-hub .sf-item-sub,
+.sf-hub .sf-quick-copy {
+  color: #94a3b8 !important;
+}
+
+.sf-hub .sf-signal,
+.sf-hub .sf-item,
+.sf-hub .sf-quick,
+.sf-hub .sf-state {
+  background: rgba(0,0,0,.22) !important;
+  border: 1px solid rgba(255,255,255,.09) !important;
+  color: #f4f7fb !important;
+}
+
+/* Buttons must stay readable. */
+.sf-hub .sf-btn {
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  color: #f4f7fb !important;
+  text-decoration: none !important;
+}
+
+.sf-hub .sf-btn-primary {
+  background: linear-gradient(135deg, #62dda3, #7eb6ff) !important;
+  color: #061018 !important;
+  border: 0 !important;
+}
+
+/* Badge containment. */
+.sf-hub .sf-badge {
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  color: #cbd5e1 !important;
+  text-decoration: none !important;
+}
+
+.sf-hub .sf-badge-good {
+  color: #bff7dc !important;
+  border-color: rgba(98,221,163,.28) !important;
+  background: rgba(98,221,163,.1) !important;
+}
+
+.sf-hub .sf-badge-warn {
+  color: #ffe4a3 !important;
+  border-color: rgba(255,209,102,.28) !important;
+  background: rgba(255,209,102,.1) !important;
+}
+
+.sf-hub .sf-badge-bad {
+  color: #ffd4da !important;
+  border-color: rgba(255,107,122,.28) !important;
+  background: rgba(255,107,122,.1) !important;
+}
+
+/* Prevent old global image/icon/nav rules from stretching Hub visuals. */
+.sf-hub img,
+.sf-hub svg {
+  max-width: 100%;
+}
+
+.sf-hub .sf-brand-mark {
+  flex: 0 0 auto !important;
+}
+
+/* Mobile keeps same flat nav, just wrapped. */
+@media (max-width: 720px) {
+  .sf-hub .sf-shell-top {
+    align-items: flex-start !important;
+  }
+
+  .sf-hub .sf-nav {
+    justify-content: flex-start !important;
+  }
+
+  .sf-hub .sf-nav a {
+    font-size: 13px !important;
+    padding: 9px 12px !important;
+  }
+}
+
+   
 }
