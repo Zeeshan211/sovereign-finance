@@ -1,4 +1,4 @@
-// v0.8.1 Finance Command Centre governor with Salary recovery
+// v0.8.1 Finance Command Centre governor with Forecast recovery
 //
 // Contract:
 // - Command Centre remains read-only.
@@ -10,10 +10,9 @@
 // - bill.save and bill.clear are allowed when Bills proof exists.
 // - debt.save and debt.pay are allowed when Debts proof exists.
 // - reconciliation.declare is allowed when Reconciliation proof exists.
-// - salary.save is allowed when Salary API + page proof exists.
-// - forecast.generate remains blocked until its own proof exists.
+// - salary.save is allowed when Salary proof exists.
+// - forecast.generate is allowed when Forecast API + page proof exists.
 // - Overrides are not silent and do not bypass backend APIs from Command Centre.
-// - Any future override application must be implemented in the owning mutating API with reason, expiry, and audit.
 
 const VERSION = "0.8.1";
 const ENFORCEMENT_VERSION = "0.8.1";
@@ -54,7 +53,7 @@ const READ_ONLY_GUARDS = [
   "debt.save and debt.pay allowed only when Debts proof exists",
   "reconciliation.declare allowed only when Reconciliation proof exists",
   "salary.save allowed only when Salary proof exists",
-  "forecast.generate remains blocked until source precision is proven",
+  "forecast.generate allowed only when Forecast proof exists",
   "Overrides must be explicit, reasoned, time-bound, visible, and API-owned",
   "Command Centre exposes override policy but does not silently bypass backend gates"
 ];
@@ -102,7 +101,7 @@ export async function onRequest(context) {
         status: hardBlockers.length ? "blocked" : "governor_complete",
         ready_for_known_page_trial: hardBlockers.length === 0,
         ready_for_full_system_certification: false,
-        reason: "Command Centre governs recovered domains when proof exists; unproven domains remain blocked."
+        reason: "Command Centre governs recovered domains when proof exists."
       },
       enforcement,
       summary: {
@@ -138,9 +137,8 @@ export async function onRequest(context) {
       override_policy: buildOverridePolicy(),
       emergency_playbooks: buildEmergencyPlaybooks(),
       next_actions: [
-        "Salary is governed when /api/salary and /salary.html proof are detected.",
-        "Verify salary.save backend asks Command Centre before real writes.",
-        "Keep Forecast and Credit Card decision paths blocked until their own proofs exist.",
+        "Forecast is governed when /api/forecast and /forecast.html proof are detected.",
+        "Credit Card source should be restored next for higher forecast accuracy.",
         "Do not implement silent overrides."
       ]
     });
@@ -216,7 +214,8 @@ async function auditPageProofs(origin) {
     await pageScriptProof(origin, "/bills.html", "/js/bills.js", "0.4.0", "bills_page_preflight"),
     await inlinePageProof(origin, "/debts.html", "SovereignDebtsUI", "2.2.0", "debts_page_preflight"),
     await inlinePageProof(origin, "/reconciliation.html", "SovereignReconciliationUI", "1.0.0", "reconciliation_page"),
-    await inlinePageProof(origin, "/salary.html", "SovereignSalaryUI", "1.0.0", "salary_page")
+    await inlinePageProof(origin, "/salary.html", "SovereignSalaryUI", "1.0.0", "salary_page"),
+    await inlinePageProof(origin, "/forecast.html", "SovereignForecastUI", "1.0.0", "forecast_page")
   ];
 }
 
@@ -337,32 +336,36 @@ function buildCoverage(apis, pageProofs, d1) {
   const debtsApi = apis.find(api => api.key === "debts");
   const reconciliationApi = apis.find(api => api.key === "reconciliation");
   const salaryApi = apis.find(api => api.key === "salary");
+  const forecastApi = apis.find(api => api.key === "forecast");
 
   const addProof = pageProofs.find(proof => proof.key === "add_page_preflight");
   const billsProof = pageProofs.find(proof => proof.key === "bills_page_preflight");
   const debtsProof = pageProofs.find(proof => proof.key === "debts_page_preflight");
   const reconciliationProof = pageProofs.find(proof => proof.key === "reconciliation_page");
   const salaryProof = pageProofs.find(proof => proof.key === "salary_page");
+  const forecastProof = pageProofs.find(proof => proof.key === "forecast_page");
 
-  const transactionDryRun = transactionsApi && transactionsApi.status === "pass" && versionAtLeast(transactionsApi.version, "0.3.0");
-  const addPreflight = addProof && addProof.status === "pass";
+  const transactionReady =
+    transactionsApi &&
+    transactionsApi.status === "pass" &&
+    versionAtLeast(transactionsApi.version, "0.3.0") &&
+    addProof &&
+    addProof.status === "pass";
 
-  const billsDryRun =
+  const billsReady =
     billsApi &&
     billsApi.status === "pass" &&
     (
       versionAtLeast(billsApi.version, "0.4.0") ||
       versionAtLeast(billsApi.version, "0.3.0")
-    );
+    ) &&
+    billsProof &&
+    billsProof.status === "pass";
 
-  const billsPreflight = billsProof && billsProof.status === "pass";
-
-  const debtsDryRun =
+  const debtsReady =
     debtsApi &&
     debtsApi.status === "pass" &&
-    versionAtLeast(debtsApi.version, "0.3.2");
-
-  const debtsPreflight =
+    versionAtLeast(debtsApi.version, "0.3.2") &&
     debtsProof &&
     debtsProof.status === "pass";
 
@@ -380,113 +383,85 @@ function buildCoverage(apis, pageProofs, d1) {
     salaryProof &&
     salaryProof.status === "pass";
 
-  const transactionReady = transactionDryRun && addPreflight;
-  const billsReady = billsDryRun && billsPreflight;
-  const debtsReady = debtsDryRun && debtsPreflight;
+  const forecastReady =
+    forecastApi &&
+    forecastApi.status === "pass" &&
+    versionAtLeast(forecastApi.version, "1.0.0") &&
+    forecastProof &&
+    forecastProof.status === "pass";
+
+  const score = forecastReady ? 100 : salaryReady ? 100 : reconciliationReady ? 99 : debtsReady ? 98 : billsReady ? 95 : transactionReady ? 80 : 0;
 
   return {
     d1,
     write_safety: {
-      status: transactionReady && billsReady && debtsReady && reconciliationReady && salaryReady
-        ? "salary_ready"
-        : transactionReady && billsReady && debtsReady && reconciliationReady
-          ? "reconciliation_ready"
-          : transactionReady && billsReady && debtsReady
-            ? "debt_writes_ready"
-            : transactionReady && billsReady
-              ? "command_centre_governor_complete"
-              : billsPreflight
-                ? "bills_preflight_ready"
+      status: forecastReady
+        ? "forecast_ready"
+        : salaryReady
+          ? "salary_ready"
+          : reconciliationReady
+            ? "reconciliation_ready"
+            : debtsReady
+              ? "debt_writes_ready"
+              : billsReady
+                ? "command_centre_governor_complete"
                 : transactionReady
                   ? "transaction_save_ready"
                   : "unknown",
-
-      score: transactionReady && billsReady && debtsReady && reconciliationReady && salaryReady
-        ? 100
-        : transactionReady && billsReady && debtsReady && reconciliationReady
-          ? 99
-          : transactionReady && billsReady && debtsReady
-            ? 98
-            : transactionReady && billsReady
-              ? 95
-              : billsPreflight
-                ? 88
-                : transactionReady
-                  ? 80
-                  : 0,
-
+      score,
       transaction_save: {
-        dry_run_available: transactionDryRun,
-        page_preflight_wired: addPreflight,
-        real_writes_allowed: transactionReady
+        dry_run_available: Boolean(transactionsApi && transactionsApi.status === "pass"),
+        page_preflight_wired: Boolean(addProof && addProof.status === "pass"),
+        real_writes_allowed: Boolean(transactionReady)
       },
-
       bills: {
-        dry_run_available: billsDryRun,
-        page_preflight_wired: billsPreflight,
-        preflight_allowed: billsReady,
-        real_writes_allowed: billsReady,
-        bill_save_allowed: billsReady,
-        bill_clear_allowed: billsReady
+        dry_run_available: Boolean(billsApi && billsApi.status === "pass"),
+        page_preflight_wired: Boolean(billsProof && billsProof.status === "pass"),
+        preflight_allowed: Boolean(billsReady),
+        real_writes_allowed: Boolean(billsReady),
+        bill_save_allowed: Boolean(billsReady),
+        bill_clear_allowed: Boolean(billsReady)
       },
-
       debts: {
-        dry_run_available: debtsDryRun,
-        page_preflight_wired: debtsPreflight,
-        preflight_allowed: debtsReady,
-        real_writes_allowed: debtsReady,
-        debt_save_allowed: debtsReady,
-        debt_pay_allowed: debtsReady
+        dry_run_available: Boolean(debtsApi && debtsApi.status === "pass"),
+        page_preflight_wired: Boolean(debtsProof && debtsProof.status === "pass"),
+        preflight_allowed: Boolean(debtsReady),
+        real_writes_allowed: Boolean(debtsReady),
+        debt_save_allowed: Boolean(debtsReady),
+        debt_pay_allowed: Boolean(debtsReady)
       },
-
       reconciliation: {
-        dry_run_available: Boolean(reconciliationApi && reconciliationApi.status === "pass" && versionAtLeast(reconciliationApi.version, "0.1.0")),
+        dry_run_available: Boolean(reconciliationApi && reconciliationApi.status === "pass"),
         page_wired: Boolean(reconciliationProof && reconciliationProof.status === "pass"),
         real_writes_allowed: Boolean(reconciliationReady),
         reconciliation_declare_allowed: Boolean(reconciliationReady)
       },
-
       salary: {
-        dry_run_available: Boolean(salaryApi && salaryApi.status === "pass" && versionAtLeast(salaryApi.version, "0.1.0")),
+        dry_run_available: Boolean(salaryApi && salaryApi.status === "pass"),
         page_wired: Boolean(salaryProof && salaryProof.status === "pass"),
         real_writes_allowed: Boolean(salaryReady),
         salary_save_allowed: Boolean(salaryReady)
       },
-
+      forecast: {
+        generate_available: Boolean(forecastApi && forecastApi.status === "pass"),
+        page_wired: Boolean(forecastProof && forecastProof.status === "pass"),
+        forecast_generate_allowed: Boolean(forecastReady),
+        real_writes_allowed: Boolean(forecastReady)
+      },
       real_write_scope: [
         ...(transactionReady ? ["transaction.save"] : []),
         ...(billsReady ? ["bill.save", "bill.clear"] : []),
         ...(debtsReady ? ["debt.save", "debt.pay"] : []),
         ...(reconciliationReady ? ["reconciliation.declare"] : []),
-        ...(salaryReady ? ["salary.save"] : [])
+        ...(salaryReady ? ["salary.save"] : []),
+        ...(forecastReady ? ["forecast.generate"] : [])
       ],
-
-      debt_save: {
-        allowed: debtsReady,
-        reason: debtsReady ? "debt.save is allowed after Debts API and Debts page proof." : "debt.save dry-run proof does not exist yet."
-      },
-
-      debt_pay: {
-        allowed: debtsReady,
-        reason: debtsReady ? "debt.pay is allowed after Debts API and Debts page proof." : "debt.pay dry-run proof does not exist yet."
-      },
-
-      reconciliation_declare: {
-        allowed: Boolean(reconciliationReady),
-        reason: reconciliationReady ? "reconciliation.declare is allowed after Reconciliation API and page proof." : "reconciliation.declare dry-run proof does not exist yet."
-      },
-
-      salary_save: {
-        allowed: Boolean(salaryReady),
-        reason: salaryReady ? "salary.save is allowed after Salary API and page proof." : "salary.save dry-run proof does not exist yet."
-      },
-
-      forecast_generate: {
-        allowed: false,
-        reason: "forecast source precision is not complete."
-      }
+      debt_save: { allowed: Boolean(debtsReady), reason: debtsReady ? "debt.save is allowed." : "debt.save proof missing." },
+      debt_pay: { allowed: Boolean(debtsReady), reason: debtsReady ? "debt.pay is allowed." : "debt.pay proof missing." },
+      reconciliation_declare: { allowed: Boolean(reconciliationReady), reason: reconciliationReady ? "reconciliation.declare is allowed." : "reconciliation proof missing." },
+      salary_save: { allowed: Boolean(salaryReady), reason: salaryReady ? "salary.save is allowed." : "salary proof missing." },
+      forecast_generate: { allowed: Boolean(forecastReady), reason: forecastReady ? "forecast.generate is allowed." : "forecast proof missing." }
     },
-
     override_governance: {
       status: "policy_complete",
       score: 100,
@@ -497,7 +472,6 @@ function buildCoverage(apis, pageProofs, d1) {
       expiry_required: true,
       audit_required: true
     },
-
     runtime: {
       status: "unknown",
       score: 0,
@@ -513,6 +487,7 @@ function buildEnforcement(computedAt, coverage) {
   const debtsReady = Boolean(coverage.write_safety.debts && coverage.write_safety.debts.real_writes_allowed);
   const reconciliationReady = Boolean(coverage.write_safety.reconciliation && coverage.write_safety.reconciliation.real_writes_allowed);
   const salaryReady = Boolean(coverage.write_safety.salary && coverage.write_safety.salary.real_writes_allowed);
+  const forecastReady = Boolean(coverage.write_safety.forecast && coverage.write_safety.forecast.forecast_generate_allowed);
   const overridePolicy = buildOverridePolicy();
 
   const actions = [
@@ -528,15 +503,12 @@ function buildEnforcement(computedAt, coverage) {
     actionGate("debt.pay", "debts", !debtsReady, debtsReady ? "debt.pay is allowed after Debts proof." : "debt.pay is blocked until Debts proof exists.", "coverage.write_safety.debts.debt_pay_allowed", debtsReady ? "None." : "Complete Debts proof.", true, true),
 
     actionGate("reconciliation.declare", "reconciliation", !reconciliationReady, reconciliationReady ? "reconciliation.declare is allowed after Reconciliation proof." : "reconciliation.declare remains blocked until reconciliation dry-run exists.", "coverage.write_safety.reconciliation", reconciliationReady ? "None." : "Add reconciliation dry-run proof.", true, true),
-
     actionGate("salary.save", "salary", !salaryReady, salaryReady ? "salary.save is allowed after Salary proof." : "salary.save remains blocked until salary dry-run exists.", "coverage.write_safety.salary", salaryReady ? "None." : "Add salary dry-run proof.", true, true),
-
-    actionGate("forecast.generate", "forecast", true, "forecast.generate remains blocked until source precision is proven.", "business_rules.forecast_precision", "Complete forecast source verification.", false, true),
+    actionGate("forecast.generate", "forecast", !forecastReady, forecastReady ? "forecast.generate is allowed after Forecast proof." : "forecast.generate remains blocked until forecast proof exists.", "coverage.write_safety.forecast", forecastReady ? "None." : "Add forecast proof.", true, true),
 
     actionGate("override.request", "command_centre", false, "Override request templates are available for emergencies.", "override_policy.request_schema", "None.", false, true),
     actionGate("override.apply", "system", true, "Command Centre does not directly apply overrides. Owning API must implement override enforcement with audit.", "override_policy.api_owned_application", "Implement API-owned override path only if truly required.", false, true),
     actionGate("override.silent_bypass", "system", true, "Silent bypass is permanently blocked.", "override_policy.silent_bypass_forbidden", "Never lift.", true, true),
-
     actionGate("money_contracts.use_as_truth_source", "system", true, "/api/money-contracts is banned as a finance truth source.", "source_proofs.money_contracts", "Never lift.", true, true)
   ];
 
@@ -548,8 +520,8 @@ function buildEnforcement(computedAt, coverage) {
     routeGate("/debts.html", "debts", debtsReady ? "pass" : debtsPreflightReady ? "preflight_only" : "preflight_required", true, debtsReady, debtsReady ? "Debts are governed and allowed." : debtsPreflightReady ? "Debts page may run preflight. Real writes remain blocked." : "Debts viewable but writes blocked.", "coverage.write_safety.debts", debtsReady ? "None." : debtsPreflightReady ? "Backend lift pending." : "Add debt proof."),
     routeGate("/reconciliation.html", "reconciliation", reconciliationReady ? "pass" : "preflight_required", true, reconciliationReady, reconciliationReady ? "Reconciliation is governed and allowed." : "Reconciliation viewable but declarations blocked.", "coverage.write_safety.reconciliation", reconciliationReady ? "None." : "Add reconciliation proof."),
     routeGate("/salary.html", "salary", salaryReady ? "pass" : "preflight_required", true, salaryReady, salaryReady ? "Salary is governed and allowed." : "Salary viewable but saving blocked.", "coverage.write_safety.salary", salaryReady ? "None." : "Add salary proof."),
-    routeGate("/forecast.html", "forecast", "soft_block", true, false, "Forecast decisions blocked.", "business_rules.forecast_precision", "Prove forecast precision."),
-    routeGate("/cc.html", "credit_card", "soft_block", true, false, "Credit Card decision source guarded.", "business_rules.cc_outstanding_source", "Prove CC source."),
+    routeGate("/forecast.html", "forecast", forecastReady ? "pass" : "soft_block", true, forecastReady, forecastReady ? "Forecast is governed and allowed." : "Forecast generation blocked until proof exists.", "coverage.write_safety.forecast", forecastReady ? "None." : "Add forecast proof."),
+    routeGate("/cc.html", "credit_card", "warn", true, false, "Credit Card viewable; source should be verified next.", "business_rules.cc_outstanding_source", "Restore CC proof."),
     routeGate("/transactions.html", "transactions", "warn", true, false, "Transactions viewable; only Add transaction.save is allowed.", "coverage.write_safety.transaction_save", "Add separate proof for other mutations."),
     routeGate("/accounts.html", "accounts", "warn", true, false, "Accounts viewable; mutations blocked.", "coverage.write_safety.account_mutations", "Add account proof.")
   ];
@@ -573,6 +545,7 @@ function buildEnforcement(computedAt, coverage) {
       debt_pay_real_write_lifted: debtsReady,
       reconciliation_declare_real_write_lifted: reconciliationReady,
       salary_save_real_write_lifted: salaryReady,
+      forecast_generate_lifted: forecastReady,
       remaining_mutations_blocked: true,
       emergency_override_policy_complete: true,
       command_centre_applies_overrides: false,
@@ -608,12 +581,6 @@ function buildEnforcement(computedAt, coverage) {
         current_status: "blocked",
         can_lift_now: false,
         lift_rule: "Only lift in the owning mutating API with reason, expiry, audit, and visible Command Centre warning."
-      },
-      {
-        action: "forecast.generate",
-        current_status: "blocked",
-        can_lift_now: false,
-        lift_rule: "Complete forecast source verification first."
       }
     ],
     action_proof_status: {
@@ -625,6 +592,7 @@ function buildEnforcement(computedAt, coverage) {
       "debt.pay": { status: debtsReady ? "pass" : "blocked" },
       "reconciliation.declare": { status: reconciliationReady ? "pass" : "blocked" },
       "salary.save": { status: salaryReady ? "pass" : "blocked" },
+      "forecast.generate": { status: forecastReady ? "pass" : "blocked" },
       "override.request": { status: "pass" },
       "override.apply": { status: "blocked" }
     },
@@ -641,11 +609,9 @@ function buildEnforcement(computedAt, coverage) {
     reasons: actions.filter(action => !action.allowed).map(action => action.reason),
     overrides: overridePolicy,
     emergency_playbooks: buildEmergencyPlaybooks(),
-    enforcement_status_note: salaryReady
-      ? "Command Centre governor is complete: Add Transaction, Bills, Debts, Reconciliation, and Salary are governed; Forecast remains blocked."
-      : reconciliationReady
-        ? "Command Centre governor is complete: Add Transaction, Bills, Debts, and Reconciliation are governed; Salary awaits proof."
-        : "Command Centre governor is active; unproven domains remain blocked."
+    enforcement_status_note: forecastReady
+      ? "Command Centre governor is complete for recovered finance pages: Add, Bills, Debts, Reconciliation, Salary, and Forecast."
+      : "Command Centre governor is active; Forecast awaits proof."
   };
 }
 
@@ -656,10 +622,10 @@ function buildBusinessRules(coverage) {
     rule("debts_write_path", coverage.write_safety.debts.real_writes_allowed ? "pass" : "blocked", "Debts write path", "Debts governed when proof exists."),
     rule("reconciliation_write_path", coverage.write_safety.reconciliation.real_writes_allowed ? "pass" : "blocked", "Reconciliation write path", "Reconciliation governed when proof exists."),
     rule("salary_write_path", coverage.write_safety.salary.real_writes_allowed ? "pass" : "blocked", "Salary write path", "Salary governed when proof exists."),
-    rule("remaining_mutations_blocked", "pass", "Remaining mutations blocked", "Forecast remains blocked."),
+    rule("forecast_generate_path", coverage.write_safety.forecast.forecast_generate_allowed ? "pass" : "blocked", "Forecast generate path", "Forecast governed when proof exists."),
     rule("override_policy", "pass", "Emergency override policy", "Override policy is visible and does not silently bypass APIs."),
     rule("money_contracts_banned", "pass", "Money contracts banned", "/api/money-contracts is not used."),
-    rule("forecast_precision", "unknown", "Forecast precision", "Forecast source precision not complete.")
+    rule("cc_outstanding_source", "warn", "Credit Card source", "Credit Card source should be verified next.")
   ];
 }
 
@@ -759,23 +725,15 @@ function buildEmergencyPlaybooks() {
   ];
 }
 
-function buildWarnings(coverage) {
-  const warnings = [];
-
-  if (!coverage.write_safety.salary.real_writes_allowed) {
-    warnings.push(warning("salary_not_lifted", "Salary proof is not fully lifted yet."));
-  }
-
-  warnings.push(warning("governor_complete_not_full_finance_complete", "Command Centre governor is complete, but forecast remains intentionally blocked."));
-  warnings.push(warning("override_application_not_enabled", "Override policy is complete, but Command Centre does not directly apply overrides. This prevents silent bypass."));
-
-  return warnings;
+function buildWarnings() {
+  return [
+    warning("cc_source_should_be_verified", "Credit Card source should be verified next for full forecast confidence."),
+    warning("override_application_not_enabled", "Override policy is complete, but Command Centre does not directly apply overrides. This prevents silent bypass.")
+  ];
 }
 
 function buildUnknowns() {
-  return [
-    unknown("forecast_precision_unknown", "Forecast precision remains unknown.")
-  ];
+  return [];
 }
 
 function buildHardBlockers(apis, d1) {
@@ -804,6 +762,8 @@ function buildSourceProofs(coverage, apis, pageProofs) {
     sourceProof("reconciliation_page", coverage.write_safety.reconciliation.page_wired, "/reconciliation.html inline SovereignReconciliationUI v1.0.0+", pageProofs.find(proof => proof.key === "reconciliation_page") || null),
     sourceProof("salary_api", coverage.write_safety.salary.dry_run_available, "/api/salary version >= v0.1.0", apis.find(api => api.key === "salary") || null),
     sourceProof("salary_page", coverage.write_safety.salary.page_wired, "/salary.html inline SovereignSalaryUI v1.0.0+", pageProofs.find(proof => proof.key === "salary_page") || null),
+    sourceProof("forecast_api", coverage.write_safety.forecast.generate_available, "/api/forecast version >= v1.0.0", apis.find(api => api.key === "forecast") || null),
+    sourceProof("forecast_page", coverage.write_safety.forecast.page_wired, "/forecast.html inline SovereignForecastUI v1.0.0+", pageProofs.find(proof => proof.key === "forecast_page") || null),
     {
       key: "override_policy",
       status: "pass",
@@ -906,10 +866,6 @@ function blocker(key, message, nextAction) {
 
 function warning(key, message) {
   return { key, message, severity: "warning" };
-}
-
-function unknown(key, message) {
-  return { key, message, severity: "unknown" };
 }
 
 function extractInlineGlobalVersion(html, globalName) {
