@@ -98,7 +98,7 @@
 
 .debts-table {
   width: 100%;
-  min-width: 1040px;
+  min-width: 1060px;
   border-collapse: collapse;
 }
 
@@ -292,7 +292,7 @@
 <div class="hero-kicker">Debt control</div>
 <h1 class="hero-title">Track what I owe and what is owed to me.</h1>
 <p class="hero-copy">
-Use this page for normal debt work: edit details, record payments, and mark received money. Safety checks run quietly in the background.
+Use this page for normal debt work: add debts, edit details, record payments, and mark received money. Safety checks run quietly in the background.
 </p>
 
 <div id="debugBadges" class="debts-status-strip" hidden>
@@ -358,6 +358,7 @@ Loading...
 
 <div class="debts-actions">
 <button id="refreshDebtsBtn" class="btn btn-secondary" type="button">Refresh</button>
+<button id="addDebtBtn" class="btn btn-success" type="button">Add Debt</button>
 <a class="btn btn-secondary" href="/transactions.html">Transactions</a>
 <a class="btn btn-secondary" href="/monthly-close.html">Command Centre</a>
 </div>
@@ -768,6 +769,68 @@ Debts clean UI v2.3.0
     return data;
   }
 
+  async function addDebt() {
+    if (!authority.save) {
+      showNotice("Adding debt is temporarily unavailable.", "fail");
+      return;
+    }
+
+    const name = prompt("Debt name:");
+    if (!name) return;
+
+    const amountRaw = prompt("Original amount:");
+    if (!amountRaw) return;
+
+    const amount = Number(amountRaw);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showNotice("Invalid amount.", "fail");
+      return;
+    }
+
+    const kindRaw = prompt("Type: owe or owed", "owe");
+    if (!kindRaw) return;
+
+    const kind = String(kindRaw).toLowerCase().trim();
+    if (!["owe", "owed"].includes(kind)) {
+      showNotice("Type must be owe or owed.", "fail");
+      return;
+    }
+
+    const dueDate = prompt("Due date YYYY-MM-DD, optional:", "");
+    const notes = prompt("Notes, optional:", "") || "";
+
+    const payload = {
+      name,
+      kind,
+      original_amount: amount,
+      paid_amount: 0,
+      due_date: dueDate || null,
+      frequency: dueDate ? "custom" : "monthly",
+      notes
+    };
+
+    const dryRun = await fetchJSON("/api/debts?dry_run=1&cb=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...payload, dry_run: true })
+    });
+
+    lastProof = dryRun;
+
+    const confirmed = confirm("Add " + name + " for " + money(amount) + "?");
+    if (!confirmed) return;
+
+    const data = await fetchJSON("/api/debts?cb=" + Date.now(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    showNotice("Debt added.", "success");
+    await refresh();
+    return data;
+  }
+
   async function editDebt(debt) {
     if (!authority.save) {
       throw new Error("Editing is temporarily unavailable.");
@@ -867,6 +930,7 @@ Debts clean UI v2.3.0
   function init() {
     console.log("[debts-ui v2.3.0] init");
     $("refreshDebtsBtn")?.addEventListener("click", refresh);
+    $("addDebtBtn")?.addEventListener("click", addDebt);
     refresh();
   }
 
