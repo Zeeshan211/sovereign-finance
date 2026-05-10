@@ -1,4 +1,4 @@
-// v0.8.1 Finance Command Centre governor with Forecast recovery
+// v0.8.2 Finance Command Centre governor with rebuilt Bills/Debts proof recognition
 //
 // Contract:
 // - Command Centre remains read-only.
@@ -7,15 +7,15 @@
 // - No /api/money-contracts.
 // - Unknown remains Unknown.
 // - transaction.save is allowed when Add proof exists.
-// - bill.save and bill.clear are allowed when Bills proof exists.
-// - debt.save and debt.pay are allowed when Debts proof exists.
+// - bill.save and bill.clear are allowed when Bills API + clean rebuilt Bills page proof exist.
+// - debt.save and debt.pay are allowed when Debts API + clean rebuilt Debts page proof exist.
 // - reconciliation.declare is allowed when Reconciliation proof exists.
 // - salary.save is allowed when Salary proof exists.
 // - forecast.generate is allowed when Forecast API + page proof exists.
 // - Overrides are not silent and do not bypass backend APIs from Command Centre.
 
-const VERSION = "0.8.1";
-const ENFORCEMENT_VERSION = "0.8.1";
+const VERSION = "0.8.2";
+const ENFORCEMENT_VERSION = "0.8.2";
 
 const MODULES = [
   ["hub", "Hub", "/index.html"],
@@ -122,11 +122,17 @@ export async function onRequest(context) {
       hard_blockers: hardBlockers,
       warnings,
       unknowns,
-      modules: MODULES.map(([key, label, route]) => ({ key, label, route, status: "registered" })),
+      modules: MODULES.map(([key, label, route]) => ({
+        key,
+        label,
+        route,
+        status: "registered"
+      })),
       pages: MODULES.map(([key, label, route]) => ({
         page: route.replace("/", ""),
         route,
         module: key,
+        label,
         status: "registered",
         runtime_status: "unknown"
       })),
@@ -137,7 +143,8 @@ export async function onRequest(context) {
       override_policy: buildOverridePolicy(),
       emergency_playbooks: buildEmergencyPlaybooks(),
       next_actions: [
-        "Forecast is governed when /api/forecast and /forecast.html proof are detected.",
+        "Debt direction-aware UI still needs business-logic repair: I owe = Payment + Defer, Owed to me = Received + Defer.",
+        "Debt payment/received flows should require account selection before ledger-linked movement is trusted.",
         "Credit Card source should be restored next for higher forecast accuracy.",
         "Do not implement silent overrides."
       ]
@@ -211,12 +218,70 @@ async function auditApis(origin) {
 async function auditPageProofs(origin) {
   return [
     await pageScriptProof(origin, "/add.html", "/js/add.js", "0.4.5", "add_page_preflight"),
-    await pageScriptProof(origin, "/bills.html", "/js/bills.js", "0.4.0", "bills_page_preflight"),
-    await inlinePageProof(origin, "/debts.html", "SovereignDebtsUI", "2.2.0", "debts_page_preflight"),
+
+    await customPageProof(
+      origin,
+      "/bills.html",
+      "bills_page_preflight",
+      detectBillsPageProof
+    ),
+
+    await customPageProof(
+      origin,
+      "/debts.html",
+      "debts_page_preflight",
+      detectDebtsPageProof
+    ),
+
     await inlinePageProof(origin, "/reconciliation.html", "SovereignReconciliationUI", "1.0.0", "reconciliation_page"),
     await inlinePageProof(origin, "/salary.html", "SovereignSalaryUI", "1.0.0", "salary_page"),
     await inlinePageProof(origin, "/forecast.html", "SovereignForecastUI", "1.0.0", "forecast_page")
   ];
+}
+
+async function customPageProof(origin, pagePath, key, detector) {
+  const started = Date.now();
+
+  try {
+    const res = await fetch(origin + pagePath + "?cc=" + Date.now(), {
+      method: "GET",
+      headers: {
+        accept: "text/html",
+        "x-finance-command-center-page-proof": VERSION
+      }
+    });
+
+    const html = await res.text();
+    const detected = detector(html);
+
+    return {
+      key,
+      path: pagePath,
+      script: detected.proof_marker,
+      required_version: detected.required_version,
+      detected_version: detected.detected_version,
+      status: res.ok && detected.page_preflight_wired ? "pass" : "unknown",
+      ok: res.ok,
+      http_status: res.status,
+      elapsed_ms: Date.now() - started,
+      page_preflight_wired: Boolean(res.ok && detected.page_preflight_wired),
+      proof_marker: detected.proof_marker,
+      source: detected.source
+    };
+  } catch (err) {
+    return {
+      key,
+      path: pagePath,
+      script: null,
+      required_version: null,
+      detected_version: null,
+      status: "unknown",
+      ok: false,
+      error: err.message || String(err),
+      elapsed_ms: Date.now() - started,
+      page_preflight_wired: false
+    };
+  }
 }
 
 async function inlinePageProof(origin, pagePath, globalName, requiredVersion, key) {
@@ -305,6 +370,90 @@ async function pageScriptProof(origin, pagePath, scriptPath, requiredVersion, ke
   }
 }
 
+function detectBillsPageProof(html) {
+  const text = String(html || "");
+
+  const newVersion =
+    extractNamedWindowVersion(text, "SovereignBills") ||
+    extractConstVersionNear(text, "SovereignBills") ||
+    extractTokenVersion(text, /ui4-bills-\d+/i);
+
+  if (/SovereignBills/i.test(text) && /^ui4-bills-\d+$/i.test(String(newVersion || ""))) {
+    return {
+      status: "pass",
+      detected_version: newVersion,
+      page_preflight_wired: true,
+      proof_marker: "inline:SovereignBills",
+      required_version: "ui4-bills-1",
+      source: "rebuilt_clean_bills_page"
+    };
+  }
+
+  const oldVersion = extractScriptVersion(text, "/js/bills.js");
+
+  if (oldVersion && versionAtLeast(oldVersion, "0.4.0")) {
+    return {
+      status: "pass",
+      detected_version: oldVersion,
+      page_preflight_wired: true,
+      proof_marker: "/js/bills.js",
+      required_version: "0.4.0",
+      source: "legacy_bills_controller"
+    };
+  }
+
+  return {
+    status: "unknown",
+    detected_version: newVersion || oldVersion || null,
+    page_preflight_wired: false,
+    proof_marker: "inline:SovereignBills",
+    required_version: "ui4-bills-1 or /js/bills.js?v=0.4.0+",
+    source: "bills_page_unrecognized"
+  };
+}
+
+function detectDebtsPageProof(html) {
+  const text = String(html || "");
+
+  const newVersion =
+    extractNamedWindowVersion(text, "SovereignDebts") ||
+    extractConstVersionNear(text, "SovereignDebts") ||
+    extractTokenVersion(text, /ui5-debts-\d+/i);
+
+  if (/SovereignDebts/i.test(text) && /^ui5-debts-\d+$/i.test(String(newVersion || ""))) {
+    return {
+      status: "pass",
+      detected_version: newVersion,
+      page_preflight_wired: true,
+      proof_marker: "inline:SovereignDebts",
+      required_version: "ui5-debts-1",
+      source: "rebuilt_clean_debts_page"
+    };
+  }
+
+  const oldVersion = extractInlineGlobalVersion(text, "SovereignDebtsUI");
+
+  if (oldVersion && versionAtLeast(oldVersion, "2.2.0")) {
+    return {
+      status: "pass",
+      detected_version: oldVersion,
+      page_preflight_wired: true,
+      proof_marker: "inline:SovereignDebtsUI",
+      required_version: "2.2.0",
+      source: "legacy_debts_inline_ui"
+    };
+  }
+
+  return {
+    status: "unknown",
+    detected_version: newVersion || oldVersion || null,
+    page_preflight_wired: false,
+    proof_marker: "inline:SovereignDebts",
+    required_version: "ui5-debts-1 or SovereignDebtsUI v2.2.0+",
+    source: "debts_page_unrecognized"
+  };
+}
+
 async function auditD1(database) {
   if (!database) {
     return {
@@ -352,22 +501,29 @@ function buildCoverage(apis, pageProofs, d1) {
     addProof &&
     addProof.status === "pass";
 
-  const billsReady =
+  const billsApiReady =
     billsApi &&
     billsApi.status === "pass" &&
-    (
-      versionAtLeast(billsApi.version, "0.4.0") ||
-      versionAtLeast(billsApi.version, "0.3.0")
-    ) &&
-    billsProof &&
-    billsProof.status === "pass";
+    (versionAtLeast(billsApi.version, "0.4.0") || versionAtLeast(billsApi.version, "0.3.0"));
 
-  const debtsReady =
+  const billsPageReady =
+    billsProof &&
+    billsProof.status === "pass" &&
+    billsProof.page_preflight_wired === true;
+
+  const billsReady = Boolean(billsApiReady && billsPageReady);
+
+  const debtsApiReady =
     debtsApi &&
     debtsApi.status === "pass" &&
-    versionAtLeast(debtsApi.version, "0.3.2") &&
+    versionAtLeast(debtsApi.version, "0.3.2");
+
+  const debtsPageReady =
     debtsProof &&
-    debtsProof.status === "pass";
+    debtsProof.status === "pass" &&
+    debtsProof.page_preflight_wired === true;
+
+  const debtsReady = Boolean(debtsApiReady && debtsPageReady);
 
   const reconciliationReady =
     reconciliationApi &&
@@ -390,7 +546,19 @@ function buildCoverage(apis, pageProofs, d1) {
     forecastProof &&
     forecastProof.status === "pass";
 
-  const score = forecastReady ? 100 : salaryReady ? 100 : reconciliationReady ? 99 : debtsReady ? 98 : billsReady ? 95 : transactionReady ? 80 : 0;
+  const score = forecastReady
+    ? 100
+    : salaryReady
+      ? 100
+      : reconciliationReady
+        ? 99
+        : debtsReady
+          ? 98
+          : billsReady
+            ? 95
+            : transactionReady
+              ? 80
+              : 0;
 
   return {
     d1,
@@ -409,45 +577,52 @@ function buildCoverage(apis, pageProofs, d1) {
                   ? "transaction_save_ready"
                   : "unknown",
       score,
+
       transaction_save: {
         dry_run_available: Boolean(transactionsApi && transactionsApi.status === "pass"),
         page_preflight_wired: Boolean(addProof && addProof.status === "pass"),
         real_writes_allowed: Boolean(transactionReady)
       },
+
       bills: {
-        dry_run_available: Boolean(billsApi && billsApi.status === "pass"),
-        page_preflight_wired: Boolean(billsProof && billsProof.status === "pass"),
+        dry_run_available: Boolean(billsApiReady),
+        page_preflight_wired: Boolean(billsPageReady),
         preflight_allowed: Boolean(billsReady),
         real_writes_allowed: Boolean(billsReady),
         bill_save_allowed: Boolean(billsReady),
         bill_clear_allowed: Boolean(billsReady)
       },
+
       debts: {
-        dry_run_available: Boolean(debtsApi && debtsApi.status === "pass"),
-        page_preflight_wired: Boolean(debtsProof && debtsProof.status === "pass"),
+        dry_run_available: Boolean(debtsApiReady),
+        page_preflight_wired: Boolean(debtsPageReady),
         preflight_allowed: Boolean(debtsReady),
         real_writes_allowed: Boolean(debtsReady),
         debt_save_allowed: Boolean(debtsReady),
         debt_pay_allowed: Boolean(debtsReady)
       },
+
       reconciliation: {
         dry_run_available: Boolean(reconciliationApi && reconciliationApi.status === "pass"),
         page_wired: Boolean(reconciliationProof && reconciliationProof.status === "pass"),
         real_writes_allowed: Boolean(reconciliationReady),
         reconciliation_declare_allowed: Boolean(reconciliationReady)
       },
+
       salary: {
         dry_run_available: Boolean(salaryApi && salaryApi.status === "pass"),
         page_wired: Boolean(salaryProof && salaryProof.status === "pass"),
         real_writes_allowed: Boolean(salaryReady),
         salary_save_allowed: Boolean(salaryReady)
       },
+
       forecast: {
         generate_available: Boolean(forecastApi && forecastApi.status === "pass"),
         page_wired: Boolean(forecastProof && forecastProof.status === "pass"),
         forecast_generate_allowed: Boolean(forecastReady),
         real_writes_allowed: Boolean(forecastReady)
       },
+
       real_write_scope: [
         ...(transactionReady ? ["transaction.save"] : []),
         ...(billsReady ? ["bill.save", "bill.clear"] : []),
@@ -456,12 +631,33 @@ function buildCoverage(apis, pageProofs, d1) {
         ...(salaryReady ? ["salary.save"] : []),
         ...(forecastReady ? ["forecast.generate"] : [])
       ],
-      debt_save: { allowed: Boolean(debtsReady), reason: debtsReady ? "debt.save is allowed." : "debt.save proof missing." },
-      debt_pay: { allowed: Boolean(debtsReady), reason: debtsReady ? "debt.pay is allowed." : "debt.pay proof missing." },
-      reconciliation_declare: { allowed: Boolean(reconciliationReady), reason: reconciliationReady ? "reconciliation.declare is allowed." : "reconciliation proof missing." },
-      salary_save: { allowed: Boolean(salaryReady), reason: salaryReady ? "salary.save is allowed." : "salary proof missing." },
-      forecast_generate: { allowed: Boolean(forecastReady), reason: forecastReady ? "forecast.generate is allowed." : "forecast proof missing." }
+
+      debt_save: {
+        allowed: Boolean(debtsReady),
+        reason: debtsReady ? "debt.save is allowed." : "debt.save proof missing."
+      },
+
+      debt_pay: {
+        allowed: Boolean(debtsReady),
+        reason: debtsReady ? "debt.pay is allowed." : "debt.pay proof missing."
+      },
+
+      reconciliation_declare: {
+        allowed: Boolean(reconciliationReady),
+        reason: reconciliationReady ? "reconciliation.declare is allowed." : "reconciliation proof missing."
+      },
+
+      salary_save: {
+        allowed: Boolean(salaryReady),
+        reason: salaryReady ? "salary.save is allowed." : "salary proof missing."
+      },
+
+      forecast_generate: {
+        allowed: Boolean(forecastReady),
+        reason: forecastReady ? "forecast.generate is allowed." : "forecast proof missing."
+      }
     },
+
     override_governance: {
       status: "policy_complete",
       score: 100,
@@ -472,6 +668,7 @@ function buildCoverage(apis, pageProofs, d1) {
       expiry_required: true,
       audit_required: true
     },
+
     runtime: {
       status: "unknown",
       score: 0,
@@ -494,11 +691,11 @@ function buildEnforcement(computedAt, coverage) {
     actionGate("transaction.preflight", "add", !txReady, txReady ? "Add preflight is available." : "Add preflight is not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete Add proof.", true, true),
     actionGate("transaction.save", "add", !txReady, txReady ? "transaction.save is allowed after Add preflight." : "transaction.save is not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete Add proof.", true, true),
 
-    actionGate("bill.preflight", "bills", !billsReady, billsReady ? "Bills preflight is available." : "Bills preflight is not ready.", "coverage.write_safety.bills", billsReady ? "None." : "Complete Bills proof.", true, true),
-    actionGate("bill.save", "bills", !billsReady, billsReady ? "bill.save is allowed after Bills preflight." : "bill.save is not ready.", "coverage.write_safety.bills.bill_save_allowed", billsReady ? "None." : "Complete Bills proof.", true, true),
-    actionGate("bill.clear", "bills", !billsReady, billsReady ? "bill.clear is allowed after Bills preflight." : "bill.clear is not ready.", "coverage.write_safety.bills.bill_clear_allowed", billsReady ? "None." : "Complete Bills proof.", true, true),
+    actionGate("bill.preflight", "bills", !billsReady, billsReady ? "Bills proof is available." : "Bills proof is not ready.", "coverage.write_safety.bills", billsReady ? "None." : "Complete Bills proof.", true, true),
+    actionGate("bill.save", "bills", !billsReady, billsReady ? "bill.save is allowed after Bills proof." : "bill.save is not ready.", "coverage.write_safety.bills.bill_save_allowed", billsReady ? "None." : "Complete Bills proof.", true, true),
+    actionGate("bill.clear", "bills", !billsReady, billsReady ? "bill.clear is allowed after Bills proof." : "bill.clear is not ready.", "coverage.write_safety.bills.bill_clear_allowed", billsReady ? "None." : "Complete Bills proof.", true, true),
 
-    actionGate("debt.preflight", "debts", !debtsPreflightReady, debtsPreflightReady ? "Debt preflight is available." : "Debt preflight is not ready.", "coverage.write_safety.debts", debtsPreflightReady ? "None." : "Deploy Debts API v0.3.2 and Debts page v2.2.0.", true, true),
+    actionGate("debt.preflight", "debts", !debtsPreflightReady, debtsPreflightReady ? "Debt proof is available." : "Debt proof is not ready.", "coverage.write_safety.debts", debtsPreflightReady ? "None." : "Deploy Debts API v0.3.2 and rebuilt Debts page proof.", true, true),
     actionGate("debt.save", "debts", !debtsReady, debtsReady ? "debt.save is allowed after Debts proof." : "debt.save is blocked until Debts proof exists.", "coverage.write_safety.debts.debt_save_allowed", debtsReady ? "None." : "Complete Debts proof.", true, true),
     actionGate("debt.pay", "debts", !debtsReady, debtsReady ? "debt.pay is allowed after Debts proof." : "debt.pay is blocked until Debts proof exists.", "coverage.write_safety.debts.debt_pay_allowed", debtsReady ? "None." : "Complete Debts proof.", true, true),
 
@@ -517,7 +714,7 @@ function buildEnforcement(computedAt, coverage) {
     routeGate("/index.html", "hub", "pass", true, true, "Hub is viewable.", "enforcement.registry.hub", "None."),
     routeGate("/add.html", "add", txReady ? "pass" : "soft_block", true, txReady, txReady ? "Add Transaction is governed and allowed." : "Add Transaction not ready.", "coverage.write_safety.transaction_save", txReady ? "None." : "Complete transaction proof."),
     routeGate("/bills.html", "bills", billsReady ? "pass" : "soft_block", true, billsReady, billsReady ? "Bills are governed and allowed." : "Bills proof not ready.", "coverage.write_safety.bills", billsReady ? "None." : "Complete Bills proof."),
-    routeGate("/debts.html", "debts", debtsReady ? "pass" : debtsPreflightReady ? "preflight_only" : "preflight_required", true, debtsReady, debtsReady ? "Debts are governed and allowed." : debtsPreflightReady ? "Debts page may run preflight. Real writes remain blocked." : "Debts viewable but writes blocked.", "coverage.write_safety.debts", debtsReady ? "None." : debtsPreflightReady ? "Backend lift pending." : "Add debt proof."),
+    routeGate("/debts.html", "debts", debtsReady ? "pass" : debtsPreflightReady ? "preflight_only" : "preflight_required", true, debtsReady, debtsReady ? "Debts are governed and allowed." : debtsPreflightReady ? "Debts page proof exists. Real writes remain blocked." : "Debts viewable but writes blocked.", "coverage.write_safety.debts", debtsReady ? "None." : debtsPreflightReady ? "Backend lift pending." : "Add debt proof."),
     routeGate("/reconciliation.html", "reconciliation", reconciliationReady ? "pass" : "preflight_required", true, reconciliationReady, reconciliationReady ? "Reconciliation is governed and allowed." : "Reconciliation viewable but declarations blocked.", "coverage.write_safety.reconciliation", reconciliationReady ? "None." : "Add reconciliation proof."),
     routeGate("/salary.html", "salary", salaryReady ? "pass" : "preflight_required", true, salaryReady, salaryReady ? "Salary is governed and allowed." : "Salary viewable but saving blocked.", "coverage.write_safety.salary", salaryReady ? "None." : "Add salary proof."),
     routeGate("/forecast.html", "forecast", forecastReady ? "pass" : "soft_block", true, forecastReady, forecastReady ? "Forecast is governed and allowed." : "Forecast generation blocked until proof exists.", "coverage.write_safety.forecast", forecastReady ? "None." : "Add forecast proof."),
@@ -536,6 +733,7 @@ function buildEnforcement(computedAt, coverage) {
     global_level: 1,
     ready_for_known_page_trial: true,
     ready_for_full_system_certification: false,
+
     policy: {
       unknown_blocks_ready: true,
       transaction_save_real_write_lifted: txReady,
@@ -553,11 +751,13 @@ function buildEnforcement(computedAt, coverage) {
       silent_bypass_forbidden: true,
       command_centre_never_hides_truth: true
     },
+
     routes,
     actions,
     blocked_routes: routes.filter(route => !route.view_allowed).map(route => route.route),
     view_only_routes: routes.filter(route => route.view_allowed && !route.actions_allowed).map(route => route.route),
     blocked_actions: actions.filter(action => !action.allowed).map(action => action.action),
+
     action_checklists: actions.map(action => ({
       action: action.action,
       module: action.module,
@@ -575,6 +775,7 @@ function buildEnforcement(computedAt, coverage) {
         required_fix: action.required_fix
       }]
     })),
+
     lift_criteria: [
       {
         action: "override.apply",
@@ -583,6 +784,7 @@ function buildEnforcement(computedAt, coverage) {
         lift_rule: "Only lift in the owning mutating API with reason, expiry, audit, and visible Command Centre warning."
       }
     ],
+
     action_proof_status: {
       "transaction.save": { status: txReady ? "pass" : "blocked" },
       "bill.save": { status: billsReady ? "pass" : "blocked" },
@@ -596,6 +798,7 @@ function buildEnforcement(computedAt, coverage) {
       "override.request": { status: "pass" },
       "override.apply": { status: "blocked" }
     },
+
     block_explanations: actions.filter(action => !action.allowed).map(action => ({
       blocked_item: action.action,
       block_type: "action_block",
@@ -606,6 +809,7 @@ function buildEnforcement(computedAt, coverage) {
       backend_enforced: action.backend_enforced,
       frontend_enforced: action.frontend_enforced
     })),
+
     reasons: actions.filter(action => !action.allowed).map(action => action.reason),
     overrides: overridePolicy,
     emergency_playbooks: buildEmergencyPlaybooks(),
@@ -620,6 +824,7 @@ function buildBusinessRules(coverage) {
     rule("add_write_path", coverage.write_safety.transaction_save.real_writes_allowed ? "pass" : "blocked", "Add write path", "transaction.save governed."),
     rule("bills_write_path", coverage.write_safety.bills.real_writes_allowed ? "pass" : "blocked", "Bills write path", "Bills governed."),
     rule("debts_write_path", coverage.write_safety.debts.real_writes_allowed ? "pass" : "blocked", "Debts write path", "Debts governed when proof exists."),
+    rule("debt_direction_actions_pending", "warn", "Debt direction-aware actions", "UI/business logic still needs direction-specific movement buttons and account-required payment/received flow."),
     rule("reconciliation_write_path", coverage.write_safety.reconciliation.real_writes_allowed ? "pass" : "blocked", "Reconciliation write path", "Reconciliation governed when proof exists."),
     rule("salary_write_path", coverage.write_safety.salary.real_writes_allowed ? "pass" : "blocked", "Salary write path", "Salary governed when proof exists."),
     rule("forecast_generate_path", coverage.write_safety.forecast.forecast_generate_allowed ? "pass" : "blocked", "Forecast generate path", "Forecast governed when proof exists."),
@@ -725,11 +930,17 @@ function buildEmergencyPlaybooks() {
   ];
 }
 
-function buildWarnings() {
-  return [
+function buildWarnings(coverage) {
+  const warnings = [
     warning("cc_source_should_be_verified", "Credit Card source should be verified next for full forecast confidence."),
     warning("override_application_not_enabled", "Override policy is complete, but Command Centre does not directly apply overrides. This prevents silent bypass.")
   ];
+
+  if (coverage.write_safety.debts.real_writes_allowed) {
+    warnings.push(warning("debt_direction_logic_pending", "Debts page proof is recognized, but direction-aware movement logic/account selection still needs separate verification."));
+  }
+
+  return warnings;
 }
 
 function buildUnknowns() {
@@ -754,16 +965,20 @@ function buildSourceProofs(coverage, apis, pageProofs) {
   return [
     sourceProof("transaction_save_dry_run", coverage.write_safety.transaction_save.dry_run_available, "/api/transactions version >= v0.3.0", coverage.write_safety.transaction_save),
     sourceProof("add_page_preflight", coverage.write_safety.transaction_save.page_preflight_wired, "/add.html script tag /js/add.js?v=0.4.5+", pageProofs.find(proof => proof.key === "add_page_preflight") || null),
+
     sourceProof("bills_api_dry_run", coverage.write_safety.bills.dry_run_available, "/api/bills version >= v0.3.0", apis.find(api => api.key === "bills") || null),
-    sourceProof("bills_page_preflight", coverage.write_safety.bills.page_preflight_wired, "/bills.html script tag /js/bills.js?v=0.4.0+", pageProofs.find(proof => proof.key === "bills_page_preflight") || null),
+    sourceProof("bills_page_preflight", coverage.write_safety.bills.page_preflight_wired, "/bills.html inline SovereignBills ui4-bills-1 or /js/bills.js?v=0.4.0+", pageProofs.find(proof => proof.key === "bills_page_preflight") || null),
+
     sourceProof("debts_api_dry_run", coverage.write_safety.debts.dry_run_available, "/api/debts version >= v0.3.2", apis.find(api => api.key === "debts") || null),
-    sourceProof("debts_page_preflight", coverage.write_safety.debts.page_preflight_wired, "/debts.html inline SovereignDebtsUI v2.2.0+", pageProofs.find(proof => proof.key === "debts_page_preflight") || null),
+    sourceProof("debts_page_preflight", coverage.write_safety.debts.page_preflight_wired, "/debts.html inline SovereignDebts ui5-debts-1 or SovereignDebtsUI v2.2.0+", pageProofs.find(proof => proof.key === "debts_page_preflight") || null),
+
     sourceProof("reconciliation_api", coverage.write_safety.reconciliation.dry_run_available, "/api/reconciliation version >= v0.1.0", apis.find(api => api.key === "reconciliation") || null),
     sourceProof("reconciliation_page", coverage.write_safety.reconciliation.page_wired, "/reconciliation.html inline SovereignReconciliationUI v1.0.0+", pageProofs.find(proof => proof.key === "reconciliation_page") || null),
     sourceProof("salary_api", coverage.write_safety.salary.dry_run_available, "/api/salary version >= v0.1.0", apis.find(api => api.key === "salary") || null),
     sourceProof("salary_page", coverage.write_safety.salary.page_wired, "/salary.html inline SovereignSalaryUI v1.0.0+", pageProofs.find(proof => proof.key === "salary_page") || null),
     sourceProof("forecast_api", coverage.write_safety.forecast.generate_available, "/api/forecast version >= v1.0.0", apis.find(api => api.key === "forecast") || null),
     sourceProof("forecast_page", coverage.write_safety.forecast.page_wired, "/forecast.html inline SovereignForecastUI v1.0.0+", pageProofs.find(proof => proof.key === "forecast_page") || null),
+
     {
       key: "override_policy",
       status: "pass",
@@ -774,7 +989,10 @@ function buildSourceProofs(coverage, apis, pageProofs) {
       key: "money_contracts",
       status: "banned",
       source: "/api/money-contracts",
-      details: { called: false, allowed_as_truth_source: false }
+      details: {
+        called: false,
+        allowed_as_truth_source: false
+      }
     }
   ];
 }
@@ -833,7 +1051,10 @@ function routeGate(route, module, status, viewAllowed, actionsAllowed, reason, s
     reason,
     source,
     required_fix: requiredFix,
-    override: { allowed: false, reason_required: true }
+    override: {
+      allowed: false,
+      reason_required: true
+    }
   };
 }
 
@@ -861,34 +1082,90 @@ function rule(key, status, label, message) {
 }
 
 function blocker(key, message, nextAction) {
-  return { key, message, next_action: nextAction, severity: "hard_blocker" };
+  return {
+    key,
+    message,
+    next_action: nextAction,
+    severity: "hard_blocker"
+  };
 }
 
 function warning(key, message) {
-  return { key, message, severity: "warning" };
+  return {
+    key,
+    message,
+    severity: "warning"
+  };
 }
 
 function extractInlineGlobalVersion(html, globalName) {
   const text = String(html || "");
-  const globalEscaped = globalName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
+  const globalEscaped = escapeRegExp(globalName);
   if (!new RegExp(globalEscaped).test(text)) return null;
 
-  const versionMatch = text.match(/const\s+VERSION\s*=\s*["']([0-9]+(?:\.[0-9]+){1,3})["']/);
-  return versionMatch ? versionMatch[1] : null;
+  const objectVersion = extractNamedWindowVersion(text, globalName);
+  if (objectVersion) return objectVersion;
+
+  const constVersion = extractConstVersionNear(text, globalName);
+  if (constVersion) return constVersion;
+
+  const numericVersionMatch = text.match(/const\s+VERSION\s*=\s*["']([0-9]+(?:\.[0-9]+){1,3})["']/);
+  return numericVersionMatch ? numericVersionMatch[1] : null;
 }
 
 function extractScriptVersion(html, scriptPath) {
   const text = String(html || "");
-  const escaped = scriptPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(escaped + "\\?v=([0-9]+(?:\\.[0-9]+){1,3})", "i");
+  const escaped = escapeRegExp(scriptPath);
+  const re = new RegExp(escaped + "\\?v=([^\"'\\s>]+)", "i");
   const match = text.match(re);
   return match ? match[1] : null;
 }
 
+function extractNamedWindowVersion(html, globalName) {
+  const text = String(html || "");
+  const escaped = escapeRegExp(globalName);
+
+  const direct = text.match(new RegExp("window\\." + escaped + "\\s*=\\s*\\{[\\s\\S]{0,800}?version\\s*:\\s*VERSION", "i"));
+  if (direct) {
+    const constMatch = text.match(/const\s+VERSION\s*=\s*["']([^"']+)["']/);
+    if (constMatch) return constMatch[1];
+  }
+
+  const inline = text.match(new RegExp(escaped + "[\\s\\S]{0,800}?version\\s*:\\s*[\"']([^\"']+)[\"']", "i"));
+  return inline ? inline[1] : null;
+}
+
+function extractConstVersionNear(html, marker) {
+  const text = String(html || "");
+  const index = text.search(new RegExp(escapeRegExp(marker), "i"));
+  if (index < 0) return null;
+
+  const start = Math.max(0, index - 1200);
+  const end = Math.min(text.length, index + 1200);
+  const windowText = text.slice(start, end);
+  const match = windowText.match(/const\s+VERSION\s*=\s*["']([^"']+)["']/);
+
+  return match ? match[1] : null;
+}
+
+function extractTokenVersion(html, pattern) {
+  const text = String(html || "");
+  const match = text.match(pattern);
+  return match ? match[0] : null;
+}
+
 function versionAtLeast(actual, required) {
-  const a = parseVersion(actual);
-  const r = parseVersion(required);
+  if (!actual || !required) return false;
+
+  const actualText = String(actual);
+  const requiredText = String(required);
+
+  if (/^ui\d+-/i.test(requiredText)) {
+    return actualText.toLowerCase() === requiredText.toLowerCase();
+  }
+
+  const a = parseVersion(actualText);
+  const r = parseVersion(requiredText);
 
   for (let i = 0; i < Math.max(a.length, r.length); i += 1) {
     const av = a[i] || 0;
@@ -901,11 +1178,17 @@ function versionAtLeast(actual, required) {
 }
 
 function parseVersion(value) {
-  return String(value || "")
+  const parts = String(value || "")
     .replace(/^v/i, "")
-    .split(".")
-    .map(part => Number(part))
-    .map(number => Number.isFinite(number) ? number : 0);
+    .match(/\d+/g);
+
+  if (!parts) return [0];
+
+  return parts.map(part => Number(part)).map(number => Number.isFinite(number) ? number : 0);
+}
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function send(payload, status = 200) {
