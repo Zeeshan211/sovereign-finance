@@ -519,13 +519,13 @@
 </head>
 
 <body>
-  <main class="sal-shell" data-page="salary" data-version="salary-payslip-engine-v1.0.1-extras">
+  <main class="sal-shell" data-page="salary" data-version="salary-payslip-engine-v1.0.2-wfh-fx">
     <section class="sal-topbar">
       <div>
         <div class="sal-kicker">Sovereign Finance</div>
         <h1 class="sal-title">Salary</h1>
       </div>
-      <div class="sal-version">salary-payslip-engine-v1.0.1-extras</div>
+      <div class="sal-version">salary-payslip-engine-v1.0.2-wfh-fx</div>
     </section>
 
     <section id="salStatus" class="sal-status">
@@ -621,7 +621,7 @@
             </label>
 
             <div class="sal-empty">
-              Only MBO is adjustable here. Other payslip extras stay out of forecast unless you explicitly rebuild them later.
+              MBO is the only auto-recurring forecast variable. Other extras are handled separately as confirmed one-off income for this month only.
             </div>
           </div>
         </section>
@@ -654,8 +654,20 @@
               </div>
 
               <div class="sal-field">
-                <label for="wfhAllowance">WFH allowance</label>
-                <input id="wfhAllowance" type="number" value="0" step="0.01" inputmode="decimal" />
+                <label for="wfhUsd">WFH USD amount</label>
+                <input id="wfhUsd" type="number" value="30" step="0.01" inputmode="decimal" />
+              </div>
+
+              <div class="sal-field">
+                <label for="wfhFxRate">Salary-day USD/PKR rate</label>
+                <input id="wfhFxRate" type="number" value="278.8667" step="0.0001" inputmode="decimal" />
+              </div>
+            </div>
+
+            <div class="sal-two">
+              <div class="sal-field">
+                <label for="wfhAllowance">WFH allowance calculated</label>
+                <input id="wfhAllowance" type="number" value="8366" step="0.01" inputmode="decimal" readonly />
               </div>
 
               <div class="sal-field">
@@ -756,7 +768,7 @@
     (function () {
       "use strict";
 
-      const PAGE_VERSION = "salary-payslip-engine-v1.0.1-extras";
+      const PAGE_VERSION = "salary-payslip-engine-v1.0.2-wfh-fx";
       const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
 
       const PAYSLIP = {
@@ -773,6 +785,10 @@
         payslipAnnualTaxable: 1589316,
         payslipTaxLiability: 48825,
         payslipMboYtd: 126903,
+
+        wfhUsdAmount: 30,
+        latestWfhAllowancePkr: 8366,
+        latestWfhFxRate: 278.8667,
 
         defaultMboAmount: 35000,
         mboPayoutMonths: [0, 3, 6, 9],
@@ -880,7 +896,14 @@
         const overtimeEid = asNumber($("overtimeEid")?.value, 0);
         const referralBonus = asNumber($("referralBonus")?.value, 0);
         const spotBonus = asNumber($("spotBonus")?.value, 0);
-        const wfhAllowance = asNumber($("wfhAllowance")?.value, 0);
+                const wfhUsd = asNumber($("wfhUsd")?.value, PAYSLIP.wfhUsdAmount);
+        const wfhFxRate = asNumber($("wfhFxRate")?.value, PAYSLIP.latestWfhFxRate);
+        const wfhAllowance = round2(wfhUsd * wfhFxRate);
+
+        if ($("wfhAllowance")) {
+          $("wfhAllowance").value = String(wfhAllowance);
+        }
+
         const otherExtra = asNumber($("otherExtra")?.value, 0);
         const includeOtherExtras = Boolean($("includeOtherExtras")?.checked);
 
@@ -948,6 +971,8 @@
           overtimeEid,
           referralBonus,
           spotBonus,
+          wfhUsd,
+          wfhFxRate,
           wfhAllowance,
           otherExtra,
           otherExtrasGross,
@@ -999,7 +1024,10 @@
           ["MBO tax", money(calc.mboTax)],
           ["MBO net", money(calc.mboNet)],
 
-          ["One-off extras included", calc.includeOtherExtras ? "Yes" : "No"],
+         ["One-off extras included", calc.includeOtherExtras ? "Yes" : "No"],
+          ["WFH USD", `$${calc.wfhUsd.toFixed(2)}`],
+          ["WFH FX rate", calc.wfhFxRate.toFixed(4)],
+          ["WFH allowance", money(calc.wfhAllowance)],
           ["One-off extras gross", money(calc.otherExtrasGross)],
           ["One-off extras tax", money(calc.otherExtrasTax)],
           ["One-off extras net", money(calc.otherExtrasNet)],
@@ -1026,26 +1054,51 @@
         ]);
       }
 
-      function renderChart(calc) {
-        const total = Math.max(1, calc.baseNet + calc.mboTax + calc.mboNet);
+            function renderChart(calc) {
+        const total = Math.max(
+          1,
+          calc.baseNet +
+          calc.mboNet +
+          calc.mboTax +
+          calc.otherExtrasNet +
+          calc.otherExtrasTax
+        );
+
         const baseDeg = (calc.baseNet / total) * 360;
-        const mboTaxDeg = (calc.mboTax / total) * 360;
         const mboNetDeg = (calc.mboNet / total) * 360;
+        const mboTaxDeg = (calc.mboTax / total) * 360;
+        const extrasNetDeg = (calc.otherExtrasNet / total) * 360;
+        const extrasTaxDeg = (calc.otherExtrasTax / total) * 360;
+
+        const a = baseDeg;
+        const b = a + mboNetDeg;
+        const c = b + mboTaxDeg;
+        const d = c + extrasNetDeg;
+        const e = d + extrasTaxDeg;
 
         $("salaryDonut").style.background = `
           conic-gradient(
-            var(--sf-green) 0deg ${baseDeg}deg,
-            var(--sf-yellow) ${baseDeg}deg ${baseDeg + mboTaxDeg}deg,
-            var(--sf-blue) ${baseDeg + mboTaxDeg}deg ${baseDeg + mboTaxDeg + mboNetDeg}deg,
-            #e6ecdf ${baseDeg + mboTaxDeg + mboNetDeg}deg 360deg
+            var(--sf-green) 0deg ${a}deg,
+            var(--sf-blue) ${a}deg ${b}deg,
+            var(--sf-yellow) ${b}deg ${c}deg,
+            #7aa382 ${c}deg ${d}deg,
+            var(--sf-red) ${d}deg ${e}deg,
+            #e6ecdf ${e}deg 360deg
           )
         `;
 
         $("donutLabel").innerHTML = `${money(calc.forecastEligible)}<br />forecast`;
 
-        const max = Math.max(calc.baseNet, calc.mboGross, calc.mboTax, calc.mboNet, 1);
+        const max = Math.max(
+          calc.baseNet,
+          calc.mboNet,
+          calc.mboTax,
+          calc.otherExtrasNet,
+          calc.otherExtrasTax,
+          1
+        );
 
-                $("chartLegend").innerHTML = [
+        $("chartLegend").innerHTML = [
           ["Base net", calc.baseNet],
           ["MBO net", calc.mboNet],
           ["MBO tax", calc.mboTax],
@@ -1150,7 +1203,7 @@
             net_monthly: round2(calc.baseNet),
 
             guaranteed_monthly: round2(calc.baseNet),
-                        variable_confirmed: Boolean(calc.includeMbo || calc.includeOtherExtras),
+            variable_confirmed: Boolean(calc.includeMbo || calc.includeOtherExtras),
             variable_monthly: round2(calc.mboNet + calc.otherExtrasNet),
             forecast_eligible_monthly: round2(calc.forecastEligible),
 
@@ -1163,6 +1216,9 @@
             other_extras_gross: round2(calc.otherExtrasGross),
             other_extras_tax: round2(calc.otherExtrasTax),
             other_extras_net: round2(calc.otherExtrasNet),
+            wfh_usd: round2(calc.wfhUsd),
+            wfh_fx_rate: round2(calc.wfhFxRate),
+            wfh_allowance: round2(calc.wfhAllowance),
 
             annual_taxable_income: round2(calc.projectedAnnualTaxable),
             annual_tax_liability: round2(calc.projectedAnnualTax),
@@ -1180,12 +1236,14 @@
               tax_slabs_source: "April 2026 payslip"
             },
 
-                        variable_breakdown: {
+            variable_breakdown: {
               mbo: round2(calc.mboGross),
               overtime_general: round2(calc.overtimeGeneral),
               overtime_eid: round2(calc.overtimeEid),
               referral_bonus: round2(calc.referralBonus),
               spot_bonus: round2(calc.spotBonus),
+              wfh_usd: round2(calc.wfhUsd),
+              wfh_fx_rate: round2(calc.wfhFxRate),
               wfh_allowance: round2(calc.wfhAllowance),
               other_extra: round2(calc.otherExtra),
 
@@ -1246,6 +1304,8 @@
           $("annualTaxableWithoutMbo").value = String(PAYSLIP.annualTaxableWithoutMbo);
           $("actualPayslipTaxable").value = String(PAYSLIP.payslipAnnualTaxable);
           $("actualPayslipTax").value = String(PAYSLIP.payslipTaxLiability);
+          $("wfhUsd").value = String(PAYSLIP.wfhUsdAmount);
+          $("wfhFxRate").value = String(PAYSLIP.latestWfhFxRate);
           applyMonthRule();
 
           try {
