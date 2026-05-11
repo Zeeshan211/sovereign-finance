@@ -50,7 +50,7 @@
     `;
   }
 
-    function metricCard(opts) {
+      function metricCard(opts) {
     const o = opts || {};
     const valueMarkup = o.valueHtml != null ? o.valueHtml : escapeHtml(o.value || "—");
     const subtitleMarkup = o.subtitleHtml != null
