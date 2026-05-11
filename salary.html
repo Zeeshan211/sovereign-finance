@@ -519,13 +519,13 @@
 </head>
 
 <body>
-  <main class="sal-shell" data-page="salary" data-version="salary-payslip-engine-v1.0.0">
+  <main class="sal-shell" data-page="salary" data-version="salary-payslip-engine-v1.0.1-extras">
     <section class="sal-topbar">
       <div>
         <div class="sal-kicker">Sovereign Finance</div>
         <h1 class="sal-title">Salary</h1>
       </div>
-      <div class="sal-version">salary-payslip-engine-v1.0.0</div>
+      <div class="sal-version">salary-payslip-engine-v1.0.1-extras</div>
     </section>
 
     <section id="salStatus" class="sal-status">
@@ -626,6 +626,50 @@
           </div>
         </section>
 
+
+                <section class="sal-panel">
+          <h2>Confirmed one-off extras</h2>
+          <div class="sal-form">
+            <div class="sal-three">
+              <div class="sal-field">
+                <label for="overtimeGeneral">Overtime general</label>
+                <input id="overtimeGeneral" type="number" value="0" step="0.01" inputmode="decimal" />
+              </div>
+
+              <div class="sal-field">
+                <label for="overtimeEid">Overtime Eid</label>
+                <input id="overtimeEid" type="number" value="0" step="0.01" inputmode="decimal" />
+              </div>
+
+              <div class="sal-field">
+                <label for="referralBonus">Referral bonus</label>
+                <input id="referralBonus" type="number" value="0" step="0.01" inputmode="decimal" />
+              </div>
+            </div>
+
+            <div class="sal-three">
+              <div class="sal-field">
+                <label for="spotBonus">Spot bonus</label>
+                <input id="spotBonus" type="number" value="0" step="0.01" inputmode="decimal" />
+              </div>
+
+              <div class="sal-field">
+                <label for="wfhAllowance">WFH allowance</label>
+                <input id="wfhAllowance" type="number" value="0" step="0.01" inputmode="decimal" />
+              </div>
+
+              <div class="sal-field">
+                <label for="otherExtra">Other confirmed extra</label>
+                <input id="otherExtra" type="number" value="0" step="0.01" inputmode="decimal" />
+              </div>
+            </div>
+
+            <label class="sal-check">
+              <input id="includeOtherExtras" type="checkbox" />
+              <span>Include these extras in this forecast month only. These are never auto-recurring and never use the MBO quarter rule.</span>
+            </label>
+          </div>
+        </section>
         <section class="sal-panel">
           <h2>Tax engine from payslip</h2>
           <div class="sal-form">
@@ -712,7 +756,7 @@
     (function () {
       "use strict";
 
-      const PAGE_VERSION = "salary-payslip-engine-v1.0.0";
+      const PAGE_VERSION = "salary-payslip-engine-v1.0.1-extras";
       const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
 
       const PAYSLIP = {
@@ -827,29 +871,50 @@
         return 0.35;
       }
 
-      function readCalc() {
+            function readCalc() {
         const mboAmount = asNumber($("mboAmount").value, PAYSLIP.defaultMboAmount);
         const includeMbo = $("includeMbo").checked;
         const normalDeduction = asNumber($("normalDeduction").value, 0);
 
+        const overtimeGeneral = asNumber($("overtimeGeneral")?.value, 0);
+        const overtimeEid = asNumber($("overtimeEid")?.value, 0);
+        const referralBonus = asNumber($("referralBonus")?.value, 0);
+        const spotBonus = asNumber($("spotBonus")?.value, 0);
+        const wfhAllowance = asNumber($("wfhAllowance")?.value, 0);
+        const otherExtra = asNumber($("otherExtra")?.value, 0);
+        const includeOtherExtras = Boolean($("includeOtherExtras")?.checked);
+
+        const otherExtrasGross = includeOtherExtras
+          ? overtimeGeneral + overtimeEid + referralBonus + spotBonus + wfhAllowance + otherExtra
+          : 0;
+
         const baseGross = PAYSLIP.grossBaseMonthly;
         const annualTaxableWithoutMbo = PAYSLIP.annualTaxableWithoutMbo;
         const annualMboProjection = mboAmount * PAYSLIP.mboPayoutsPerYear;
-        const projectedAnnualTaxable = annualTaxableWithoutMbo + annualMboProjection;
+
+        const annualTaxableBeforeThisMonthExtras = annualTaxableWithoutMbo + annualMboProjection;
+        const projectedAnnualTaxable = annualTaxableBeforeThisMonthExtras + otherExtrasGross;
         const projectedAnnualTax = calculateTax(projectedAnnualTaxable);
 
         const baseAnnualTax = calculateTax(PAYSLIP.taxableBaseAnnual);
         const baseMonthlyTax = baseAnnualTax / 12;
 
-        const taxBeforeThisMbo = calculateTax(projectedAnnualTaxable - (includeMbo ? mboAmount : 0));
-        const taxAfterThisMbo = calculateTax(projectedAnnualTaxable);
+        const taxBeforeThisMbo = calculateTax(annualTaxableWithoutMbo + annualMboProjection - (includeMbo ? mboAmount : 0));
+        const taxAfterThisMbo = calculateTax(annualTaxableWithoutMbo + annualMboProjection);
         const mboTax = includeMbo ? Math.max(0, taxAfterThisMbo - taxBeforeThisMbo) : 0;
+
+        const taxBeforeOtherExtras = calculateTax(annualTaxableBeforeThisMonthExtras);
+        const taxAfterOtherExtras = calculateTax(projectedAnnualTaxable);
+        const otherExtrasTax = includeOtherExtras ? Math.max(0, taxAfterOtherExtras - taxBeforeOtherExtras) : 0;
 
         const mboGross = includeMbo ? mboAmount : 0;
         const mboNet = Math.max(0, mboGross - mboTax);
 
+        const otherExtrasNet = Math.max(0, otherExtrasGross - otherExtrasTax);
+
         const baseNet = Math.max(0, baseGross - baseMonthlyTax - normalDeduction);
-        const forecastEligible = baseNet + mboNet;
+        const forecastEligible = baseNet + mboNet + otherExtrasNet;
+
         const effectiveTaxRate = projectedAnnualTaxable > 0 ? (projectedAnnualTax / projectedAnnualTaxable) * 100 : 0;
         const currentMarginalRate = marginalTaxRate(projectedAnnualTaxable) * 100;
 
@@ -877,6 +942,17 @@
           mboGross,
           mboTax,
           mboNet,
+
+          includeOtherExtras,
+          overtimeGeneral,
+          overtimeEid,
+          referralBonus,
+          spotBonus,
+          wfhAllowance,
+          otherExtra,
+          otherExtrasGross,
+          otherExtrasTax,
+          otherExtrasNet,
 
           annualTaxableWithoutMbo,
           annualMboProjection,
@@ -912,7 +988,26 @@
       }
 
       function renderCalculation(calc) {
+
+
+
         $("calculationPanel").innerHTML = renderRows([
+          ["Base gross", money(calc.baseGross)],
+          ["Base monthly tax", money(calc.baseMonthlyTax)],
+          ["Other monthly deduction", money(calc.normalDeduction)],
+          ["Base net", money(calc.baseNet)],
+          ["MBO included", calc.includeMbo ? "Yes" : "No"],
+          ["MBO gross", money(calc.mboGross)],
+          ["MBO tax", money(calc.mboTax)],
+          ["MBO net", money(calc.mboNet)],
+          ["One-off extras included", calc.includeOtherExtras ? "Yes" : "No"],
+          ["One-off extras gross", money(calc.otherExtrasGross)],
+          ["One-off extras tax", money(calc.otherExtrasTax)],
+          ["One-off extras net", money(calc.otherExtrasNet)],
+          ["Forecast salary", money(calc.forecastEligible)]
+        ]);
+
+        
           ["Base gross", money(calc.baseGross)],
           ["Base monthly tax", money(calc.baseMonthlyTax)],
           ["Other monthly deduction", money(calc.normalDeduction)],
@@ -962,11 +1057,12 @@
 
         const max = Math.max(calc.baseNet, calc.mboGross, calc.mboTax, calc.mboNet, 1);
 
-        $("chartLegend").innerHTML = [
+                $("chartLegend").innerHTML = [
           ["Base net", calc.baseNet],
-          ["MBO gross", calc.mboGross],
+          ["MBO net", calc.mboNet],
           ["MBO tax", calc.mboTax],
-          ["MBO net", calc.mboNet]
+          ["Extras net", calc.otherExtrasNet],
+          ["Extras tax", calc.otherExtrasTax]
         ].map(([label, value]) => `
           <div>
             ${row(label, money(value))}
@@ -1066,14 +1162,19 @@
             net_monthly: round2(calc.baseNet),
 
             guaranteed_monthly: round2(calc.baseNet),
-            variable_confirmed: Boolean(calc.includeMbo),
-            variable_monthly: round2(calc.mboNet),
+                        variable_confirmed: Boolean(calc.includeMbo || calc.includeOtherExtras),
+            variable_monthly: round2(calc.mboNet + calc.otherExtrasNet),
             forecast_eligible_monthly: round2(calc.forecastEligible),
 
             mbo_amount: round2(calc.mboAmount),
             mbo_included: Boolean(calc.includeMbo),
             mbo_tax: round2(calc.mboTax),
             mbo_net: round2(calc.mboNet),
+
+            other_extras_included: Boolean(calc.includeOtherExtras),
+            other_extras_gross: round2(calc.otherExtrasGross),
+            other_extras_tax: round2(calc.otherExtrasTax),
+            other_extras_net: round2(calc.otherExtrasNet),
 
             annual_taxable_income: round2(calc.projectedAnnualTaxable),
             annual_tax_liability: round2(calc.projectedAnnualTax),
@@ -1091,12 +1192,17 @@
               tax_slabs_source: "April 2026 payslip"
             },
 
-            variable_breakdown: {
+                        variable_breakdown: {
               mbo: round2(calc.mboGross),
+              overtime_general: round2(calc.overtimeGeneral),
+              overtime_eid: round2(calc.overtimeEid),
+              referral_bonus: round2(calc.referralBonus),
+              spot_bonus: round2(calc.spotBonus),
+              wfh_allowance: round2(calc.wfhAllowance),
+              other_extra: round2(calc.otherExtra),
+
               kitty_cash: 0,
-              referral_bonus: 0,
-              spot_bonus: 0,
-              overtime: 0
+              overtime: round2(calc.overtimeGeneral + calc.overtimeEid)
             }
           };
 
