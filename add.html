@@ -99,7 +99,8 @@
     }
 
     .impact-card,
-    .intel-card {
+    .intel-card,
+    .guard-card {
       border: 1px solid var(--border);
       border-radius: var(--r-xl);
       background: var(--surface-1);
@@ -108,19 +109,22 @@
     }
 
     .impact-card.good,
-    .intel-card.good {
+    .intel-card.good,
+    .guard-card.good {
       border-color: rgba(4, 120, 87, .28);
       background: linear-gradient(135deg, var(--success-soft), transparent 70%), var(--surface-1);
     }
 
     .impact-card.warn,
-    .intel-card.warn {
+    .intel-card.warn,
+    .guard-card.warn {
       border-color: rgba(180, 83, 9, .28);
       background: linear-gradient(135deg, var(--warn-soft), transparent 70%), var(--surface-1);
     }
 
     .impact-card.danger,
-    .intel-card.danger {
+    .intel-card.danger,
+    .guard-card.danger {
       border-color: rgba(185, 28, 28, .28);
       background: linear-gradient(135deg, var(--danger-soft), transparent 70%), var(--surface-1);
     }
@@ -146,6 +150,7 @@
       color: var(--text-strong);
       font-weight: 950;
       text-align: right;
+      overflow-wrap: anywhere;
     }
 
     .intl-box {
@@ -182,7 +187,8 @@
       line-height: 1.5;
     }
 
-    .intel-actions {
+    .intel-actions,
+    .guard-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
@@ -209,7 +215,8 @@
 
       .add-actions .btn,
       .add-mode,
-      .intel-actions .btn {
+      .intel-actions .btn,
+      .guard-actions .btn {
         width: 100%;
       }
     }
@@ -217,25 +224,26 @@
 </head>
 
 <body>
-  <main class="app-page" data-page="add" data-version="add-intel-v1.6.0">
+  <main class="app-page" data-page="add" data-version="add-guarded-routing-v1.7.0">
     <div class="add-os">
       <section class="add-command">
         <div>
           <div class="section-kicker">Sovereign Entry</div>
           <h1 class="add-title">Add Transaction</h1>
-          <p class="add-copy">Review account impact, detect salary, surface merchant hints, dry-run the backend contract, then confirm save.</p>
+          <p class="add-copy">Safe entry with live impact, salary detection, merchant hints, dry-run review, and guarded routing for debt, bills, and credit card actions.</p>
         </div>
         <div class="add-actions">
           <a class="btn btn-secondary" href="/transactions.html">Ledger</a>
           <a class="btn btn-secondary" href="/bills.html">Bills</a>
           <a class="btn btn-secondary" href="/debts.html">Debts</a>
+          <a class="btn btn-secondary" href="/cc.html">Credit Card</a>
           <a class="btn btn-secondary" href="/">Hub</a>
         </div>
       </section>
 
       <section id="statusPanel" class="panel card-padded">
         <div class="strong">Loading Add Transaction…</div>
-        <div class="muted">Reading accounts, categories, balances, salary, and recent transaction history.</div>
+        <div class="muted">Reading accounts, categories, balances, salary, and transaction history.</div>
       </section>
 
       <section class="add-workspace">
@@ -246,6 +254,9 @@
               <button class="add-mode is-active" type="button" data-mode="expense">Expense</button>
               <button class="add-mode" type="button" data-mode="income">Income</button>
               <button class="add-mode" type="button" data-mode="transfer">Transfer</button>
+              <button class="add-mode" type="button" data-mode="debt_given">Debt Given</button>
+              <button class="add-mode" type="button" data-mode="debt_received">Debt Received</button>
+              <button class="add-mode" type="button" data-mode="credit_card">Credit Card</button>
             </div>
           </section>
 
@@ -282,8 +293,8 @@
                 </div>
 
                 <div class="form-field">
-                  <label for="merchantSource">Merchant / source</label>
-                  <input id="merchantSource" type="text" placeholder="e.g. Foodpanda, Motive, Netflix" />
+                  <label for="merchantSource">Merchant / source / person</label>
+                  <input id="merchantSource" type="text" placeholder="e.g. Foodpanda, Motive, Netflix, person name" />
                 </div>
 
                 <div class="form-field">
@@ -370,6 +381,11 @@
           </section>
 
           <section class="panel card-padded">
+            <div class="section-kicker">Guarded routing</div>
+            <div id="guardPanel" class="guard-card" style="margin-top:12px;"></div>
+          </section>
+
+          <section class="panel card-padded">
             <div class="section-kicker">Salary detector</div>
             <div id="salaryPanel" class="intel-card" style="margin-top:12px;"></div>
           </section>
@@ -401,7 +417,7 @@
     (function () {
       "use strict";
 
-      const VERSION = "add-intel-v1.6.0";
+      const VERSION = "add-guarded-routing-v1.7.0";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
       const $ = (id) => document.getElementById(id);
 
@@ -412,7 +428,8 @@
         { match: /foodpanda|careem|indrive|indriver|uber/i, label: "Local app/service", suggestedCategory: "transport", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" },
         { match: /jazz|zong|ufone|telenor|nayatel|internet/i, label: "Telecom / internet", suggestedCategory: "bills_utilities", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" },
         { match: /family contribution|maid|cloth washing/i, label: "Household bill", suggestedCategory: "bills_utilities", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" },
-        { match: /atm|ubl atm|abl atm/i, label: "ATM related", suggestedCategory: "atm_fee", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" }
+        { match: /atm|ubl atm|abl atm/i, label: "ATM related", suggestedCategory: "atm_fee", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" },
+        { match: /credit card payment|cc payment|alfalah cc|card payment/i, label: "Credit card payment", suggestedCategory: "credit_card", suggestedType: "transfer", international: false, pra: false, fx: false, source: "guard" }
       ];
 
       const state = {
@@ -429,6 +446,7 @@
         appliedMerchantSuggestion: false,
         currentMerchantSuggestion: null,
         currentSalarySuggestion: null,
+        currentGuard: null,
         writeEndpointsCalledOnLoad: 0,
         finalWriteCalls: 0
       };
@@ -558,14 +576,18 @@
           button.classList.toggle("is-active", button.dataset.mode === mode);
         });
 
-        $("transferToWrap").hidden = mode !== "transfer";
-        $("categoryId").disabled = mode === "transfer";
+        const isTransfer = mode === "transfer";
+        const isGuardedMode = ["debt_given", "debt_received", "credit_card"].includes(mode);
+
+        $("transferToWrap").hidden = !isTransfer && mode !== "credit_card";
+        $("categoryId").disabled = isTransfer || isGuardedMode;
 
         if (mode !== "expense") {
           $("isInternational").checked = false;
         }
 
         $("internationalToggleWrap").hidden = mode !== "expense";
+
         syncInternational();
         updateIntelligence();
         renderImpact();
@@ -617,7 +639,7 @@
       }
 
       function selectedImpact() {
-        const type = $("txType").value;
+        const mode = $("txType").value;
         const amount = asNumber($("txAmount").value, 0);
         const accountId = $("accountId").value;
         const transferTo = $("transferToAccountId").value;
@@ -626,12 +648,12 @@
         const toBefore = accountBalance(transferTo);
 
         let delta = 0;
-        if (type === "income") delta = amount;
-        if (type === "expense") delta = -amount;
-        if (type === "transfer") delta = -amount;
+        if (mode === "income" || mode === "debt_received") delta = amount;
+        if (mode === "expense" || mode === "debt_given" || mode === "credit_card") delta = -amount;
+        if (mode === "transfer") delta = -amount;
 
         const after = round2(before + delta);
-        const toAfter = type === "transfer" ? round2(toBefore + amount) : null;
+        const toAfter = (mode === "transfer" || mode === "credit_card") ? round2(toBefore + amount) : null;
 
         let status = "good";
         let message = "Safe based on selected account balance.";
@@ -642,39 +664,39 @@
         } else if (!amount || amount <= 0) {
           status = "warn";
           message = "Enter an amount.";
-        } else if (type !== "income" && after < 0) {
+        } else if (mode !== "income" && mode !== "debt_received" && after < 0) {
           status = "danger";
           message = "Projected account balance goes below zero.";
         }
 
-        if (type === "transfer" && accountId === transferTo) {
+        if ((mode === "transfer" || mode === "credit_card") && accountId === transferTo) {
           status = "danger";
-          message = "Transfer source and destination cannot be the same.";
+          message = "Source and destination cannot be the same.";
         }
 
-        return { type, amount, accountId, transferTo, before, after, toBefore, toAfter, status, message };
+        return { mode, amount, accountId, transferTo, before, after, toBefore, toAfter, status, message };
       }
 
       function renderImpact() {
         const i = selectedImpact();
         const cardClass = `impact-card ${i.status}`;
 
-        if (i.type === "transfer") {
+        if (i.mode === "transfer" || i.mode === "credit_card") {
           $("impactPanel").className = cardClass;
           $("impactPanel").innerHTML = `
             <div class="impact-row"><span>Status</span><span>${escapeHtml(i.message)}</span></div>
             <div class="impact-row"><span>From account</span><span>${escapeHtml(accountName(i.accountId))}</span></div>
             <div class="impact-row"><span>Before</span><span>${money(i.before)}</span></div>
-            <div class="impact-row"><span>Transfer out</span><span>- ${money(i.amount)}</span></div>
+            <div class="impact-row"><span>Outgoing impact</span><span>- ${money(i.amount)}</span></div>
             <div class="impact-row"><span>After</span><span>${money(i.after)}</span></div>
-            <div class="impact-row"><span>To account</span><span>${escapeHtml(accountName(i.transferTo))}</span></div>
+            <div class="impact-row"><span>Destination</span><span>${escapeHtml(accountName(i.transferTo))}</span></div>
             <div class="impact-row"><span>Destination after</span><span>${i.transferTo ? money(i.toAfter) : "Select destination"}</span></div>
             <div class="impact-row"><span>Net worth impact</span><span>${money(0)}</span></div>
           `;
           return;
         }
 
-        const direction = i.type === "income" ? "+" : "-";
+        const direction = (i.mode === "income" || i.mode === "debt_received") ? "+" : "-";
 
         $("impactPanel").className = cardClass;
         $("impactPanel").innerHTML = `
@@ -692,6 +714,93 @@
           $("referenceText").value,
           $("notesText").value
         ].join(" ").trim();
+      }
+
+      function detectGuard() {
+        const mode = $("txType").value;
+        const category = $("categoryId").value;
+        const text = merchantSearchText();
+        const all = `${mode} ${category} ${text}`.toLowerCase();
+
+        if (mode === "debt_given") {
+          return {
+            blocked: true,
+            type: "debt_given",
+            title: "Debt Given is managed in Debts",
+            copy: "This should decrease the selected account, create an owed-to-me debt, and link the ledger movement to the debt record. Generic Add is blocked to avoid double-counting.",
+            route: "/debts.html",
+            routeLabel: "Open Debts"
+          };
+        }
+
+        if (mode === "debt_received") {
+          return {
+            blocked: true,
+            type: "debt_received",
+            title: "Debt Received is managed in Debts",
+            copy: "This should increase the destination account and reduce an existing receivable. Generic income is blocked because it would not reduce the debt balance.",
+            route: "/debts.html",
+            routeLabel: "Open Debts"
+          };
+        }
+
+        if (mode === "credit_card") {
+          return {
+            blocked: true,
+            type: "credit_card",
+            title: "Credit Card actions are managed in Credit Card",
+            copy: "Credit-card payments and spends need liability-aware handling. Generic Add is blocked to avoid wrong outstanding balance or net-worth impact.",
+            route: "/cc.html",
+            routeLabel: "Open Credit Card"
+          };
+        }
+
+        if (mode === "expense" && (/bill|internet|maid|family contribution|bills_utilities/i.test(all))) {
+          return {
+            blocked: true,
+            type: "bill",
+            title: "Bill payment is managed in Bills",
+            copy: "Bills must create an expense transaction and a linked bill_payments row. Generic Add is blocked so the bill register does not drift.",
+            route: "/bills.html",
+            routeLabel: "Open Bills"
+          };
+        }
+
+        if (/cc payment|credit card payment|alfalah cc|card payment/i.test(all)) {
+          return {
+            blocked: true,
+            type: "cc_payment",
+            title: "Credit-card payment is not a normal expense",
+            copy: "A credit-card payment should decrease the bank account and reduce CC liability. Use the Credit Card module or a verified CC flow.",
+            route: "/cc.html",
+            routeLabel: "Open Credit Card"
+          };
+        }
+
+        return {
+          blocked: false,
+          type: "safe",
+          title: "Safe for Add Transaction",
+          copy: "This entry can use the standard Add Transaction review and dry-run flow.",
+          route: null,
+          routeLabel: null
+        };
+      }
+
+      function renderGuardPanel() {
+        const guard = detectGuard();
+        state.currentGuard = guard;
+
+        $("guardPanel").className = `guard-card ${guard.blocked ? "warn" : "good"}`;
+        $("guardPanel").innerHTML = `
+          <div class="strong">${escapeHtml(guard.title)}</div>
+          <div class="muted" style="margin-top:8px;">${escapeHtml(guard.copy)}</div>
+          ${guard.route ? `
+            <div class="guard-actions">
+              <a class="btn btn-success" href="${escapeHtml(guard.route)}">${escapeHtml(guard.routeLabel)}</a>
+            </div>
+          ` : ""}
+        `;
       }
 
       function extractMerchantFromNote(note) {
@@ -858,7 +967,7 @@
           $("merchantPanel").className = "intel-card";
           $("merchantPanel").innerHTML = `
             <div class="muted">No merchant intelligence match yet.</div>
-            <div class="muted" style="margin-top:8px;">This entry can still be saved normally. No fake suggestions are shown.</div>
+            <div class="muted" style="margin-top:8px;">This entry can still be saved normally if not blocked by guarded routing.</div>
           `;
           return;
         }
@@ -917,6 +1026,7 @@
       }
 
       function updateIntelligence() {
+        renderGuardPanel();
         renderSalaryPanel();
         renderMerchantPanel();
         renderDebug();
@@ -965,98 +1075,35 @@
       }
 
       function buildPayload() {
-        const type = $("txType").value;
+        const mode = $("txType").value;
+        const apiType = mode === "debt_received" ? "income" :
+          mode === "debt_given" || mode === "credit_card" ? "expense" :
+          mode;
+
         const amount = round2($("txAmount").value);
         const payload = {
-          type,
+          type: apiType,
           date: $("txDate").value,
           amount,
           account_id: $("accountId").value,
           notes: buildNotes()
         };
 
-        if (type !== "transfer" && $("categoryId").value) {
+        if (apiType !== "transfer" && $("categoryId").value) {
           payload.category_id = $("categoryId").value;
         }
 
-        if (type === "transfer") {
+        if (apiType === "transfer") {
           payload.transfer_to_account_id = $("transferToAccountId").value;
         }
 
         return payload;
       }
 
-      function selectedImpact() {
-        const type = $("txType").value;
-        const amount = asNumber($("txAmount").value, 0);
-        const accountId = $("accountId").value;
-        const transferTo = $("transferToAccountId").value;
-
-        const before = accountBalance(accountId);
-        const toBefore = accountBalance(transferTo);
-
-        let delta = 0;
-        if (type === "income") delta = amount;
-        if (type === "expense") delta = -amount;
-        if (type === "transfer") delta = -amount;
-
-        const after = round2(before + delta);
-        const toAfter = type === "transfer" ? round2(toBefore + amount) : null;
-
-        let status = "good";
-        let message = "Safe based on selected account balance.";
-
-        if (!accountId) {
-          status = "warn";
-          message = "Select an account.";
-        } else if (!amount || amount <= 0) {
-          status = "warn";
-          message = "Enter an amount.";
-        } else if (type !== "income" && after < 0) {
-          status = "danger";
-          message = "Projected account balance goes below zero.";
-        }
-
-        if (type === "transfer" && accountId === transferTo) {
-          status = "danger";
-          message = "Transfer source and destination cannot be the same.";
-        }
-
-        return { type, amount, accountId, transferTo, before, after, toBefore, toAfter, status, message };
-      }
-
-      function renderImpact() {
-        const i = selectedImpact();
-        const cardClass = `impact-card ${i.status}`;
-
-        if (i.type === "transfer") {
-          $("impactPanel").className = cardClass;
-          $("impactPanel").innerHTML = `
-            <div class="impact-row"><span>Status</span><span>${escapeHtml(i.message)}</span></div>
-            <div class="impact-row"><span>From account</span><span>${escapeHtml(accountName(i.accountId))}</span></div>
-            <div class="impact-row"><span>Before</span><span>${money(i.before)}</span></div>
-            <div class="impact-row"><span>Transfer out</span><span>- ${money(i.amount)}</span></div>
-            <div class="impact-row"><span>After</span><span>${money(i.after)}</span></div>
-            <div class="impact-row"><span>To account</span><span>${escapeHtml(accountName(i.transferTo))}</span></div>
-            <div class="impact-row"><span>Destination after</span><span>${i.transferTo ? money(i.toAfter) : "Select destination"}</span></div>
-            <div class="impact-row"><span>Net worth impact</span><span>${money(0)}</span></div>
-          `;
-          return;
-        }
-
-        const direction = i.type === "income" ? "+" : "-";
-
-        $("impactPanel").className = cardClass;
-        $("impactPanel").innerHTML = `
-          <div class="impact-row"><span>Status</span><span>${escapeHtml(i.message)}</span></div>
-          <div class="impact-row"><span>Account</span><span>${escapeHtml(accountName(i.accountId))}</span></div>
-          <div class="impact-row"><span>Before</span><span>${money(i.before)}</span></div>
-          <div class="impact-row"><span>Impact</span><span>${direction} ${money(i.amount)}</span></div>
-          <div class="impact-row"><span>After</span><span>${money(i.after)}</span></div>
-        `;
-      }
-
       function validatePayload(payload) {
+        const guard = detectGuard();
+
+        if (guard.blocked) return guard.title;
         if (!payload.type) return "Type is required.";
         if (!payload.date) return "Date is required.";
         if (!payload.amount || payload.amount <= 0) return "Amount must be greater than zero.";
@@ -1086,8 +1133,23 @@
         const error = validatePayload(payload);
 
         if (error) {
+          const guard = detectGuard();
           $("reviewPanel").hidden = false;
           $("reviewPanel").className = "panel card-padded";
+
+          if (guard.blocked) {
+            $("reviewPanel").innerHTML = `
+              <div class="error-box">
+                <div class="strong">${escapeHtml(guard.title)}</div>
+                <div class="muted" style="margin-top:8px;">${escapeHtml(guard.copy)}</div>
+                <div style="margin-top:14px;">
+                  <a class="btn btn-success" href="${escapeHtml(guard.route)}">${escapeHtml(guard.routeLabel)}</a>
+                </div>
+              </div>
+            `;
+            return;
+          }
+
           $("reviewPanel").innerHTML = `<div class="error-box"><div class="strong">Cannot review transaction.</div><div class="muted">${escapeHtml(error)}</div></div>`;
           return;
         }
@@ -1281,6 +1343,12 @@
           transactionsLoadedForMerchantIntel: state.transactions.length,
           currentMode: $("txType")?.value || null,
           currentImpact: $("accountId") ? selectedImpact() : null,
+          guardedModesPresent: true,
+          currentGuard: state.currentGuard,
+          debtGivenBlockedFromGenericSave: $("txType")?.value === "debt_given" ? state.currentGuard?.blocked === true : "not_current_mode",
+          debtReceivedBlockedFromGenericSave: $("txType")?.value === "debt_received" ? state.currentGuard?.blocked === true : "not_current_mode",
+          billPaymentBlockedFromGenericSave: state.currentGuard?.type === "bill" ? state.currentGuard?.blocked === true : "not_current_guard",
+          ccPaymentBlockedFromExpense: state.currentGuard?.type === "cc_payment" || state.currentGuard?.type === "credit_card" ? state.currentGuard?.blocked === true : "not_current_guard",
           salarySuggestion: state.currentSalarySuggestion,
           merchantSuggestion: state.currentMerchantSuggestion,
           appliedSalarySuggestion: state.appliedSalarySuggestion,
@@ -1340,7 +1408,7 @@
 
           $("statusPanel").innerHTML = `
             <div class="strong">Add Transaction ready · ${escapeHtml(VERSION)}</div>
-            <div class="muted">Salary detection and merchant intelligence are display/apply-only. No salary or merchant source records are written.</div>
+            <div class="muted">Debt, bill, and credit-card source-truth actions are guarded and routed to their modules.</div>
           `;
         } catch (error) {
           console.error(error);
