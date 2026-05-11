@@ -1,594 +1,202 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="light">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
-<title>Forecast - Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=2.0.2" />
-
-<style>
-.forecast-page {
-  max-width: 1480px;
-}
-
-.forecast-hero-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
-  gap: 18px;
-  align-items: stretch;
-}
-
-.forecast-side {
-  display: grid;
-  gap: 14px;
-}
-
-.forecast-actions,
-.forecast-status-strip,
-.forecast-source-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.forecast-status-strip {
-  margin-top: 18px;
-}
-
-.forecast-card {
-  padding: 18px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-md);
-}
-
-.forecast-card-title {
-  color: var(--text-strong);
-  font-size: 17px;
-  font-weight: 950;
-  letter-spacing: -0.035em;
-}
-
-.forecast-card-copy {
-  margin-top: 8px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 760;
-}
-
-.forecast-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 18px;
-}
-
-.forecast-section-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 26px 0 14px;
-}
-
-.forecast-section-title {
-  color: var(--text-strong);
-  font-size: 22px;
-  font-weight: 950;
-  letter-spacing: -0.045em;
-}
-
-.forecast-section-copy {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 760;
-}
-
-.forecast-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 0.55fr);
-  gap: 16px;
-  align-items: start;
-}
-
-.forecast-result-card,
-.forecast-sources-card {
-  padding: 18px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
-}
-
-.forecast-projection {
-  margin-top: 14px;
-  color: var(--text-strong);
-  font-size: clamp(36px, 7vw, 76px);
-  line-height: 0.95;
-  font-weight: 950;
-  letter-spacing: -0.08em;
-}
-
-.forecast-projection.positive {
-  color: var(--success);
-}
-
-.forecast-projection.negative {
-  color: var(--danger);
-}
-
-.forecast-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 820;
-}
-
-.forecast-row:last-child {
-  border-bottom: 0;
-}
-
-.forecast-row strong {
-  color: var(--text-strong);
-  text-align: right;
-}
-
-.forecast-source {
-  width: 100%;
-  padding: 12px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-}
-
-.forecast-source-name {
-  color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 950;
-}
-
-.forecast-source-status {
-  margin-top: 5px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.forecast-notice {
-  margin-top: 14px;
-  padding: 14px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 780;
-  box-shadow: var(--shadow-xs);
-}
-
-.forecast-notice.success {
-  border-color: rgba(4, 120, 87, 0.24);
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.forecast-notice.fail {
-  border-color: rgba(185, 28, 28, 0.22);
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.forecast-debug {
-  display: none;
-  margin-top: 18px;
-  padding: 16px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
-}
-
-.forecast-debug.on {
-  display: block;
-}
-
-.forecast-debug pre {
-  max-height: 360px;
-  overflow: auto;
-  padding: 12px;
-  border-radius: var(--r-lg);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 11px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-}
-
-.forecast-page-meta {
-  display: none !important;
-}
-
-@media (max-width: 1180px) {
-  .forecast-hero-grid,
-  .forecast-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .forecast-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 760px) {
-  .forecast-kpi-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .forecast-section-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .forecast-actions,
-  .forecast-actions .btn {
-    width: 100%;
-  }
-}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Forecast · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css?v=2.0.3" />
 </head>
 
 <body>
-<header>
-<div>
-<div class="brand">Sovereign Finance</div>
-<div class="title">Forecast</div>
-</div>
-</header>
+  <main class="app-page">
+    <section class="finance-hero">
+      <div class="hero-kicker">Forecast</div>
+      <h1 class="hero-title">Cash forecast from real money sources.</h1>
+      <p class="hero-copy">
+        Uses balances, bills, debts, and verified credit-card outstanding. Unknowns stay visible instead of becoming fake zeros.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+        <button class="btn btn-success" id="refreshBtn" type="button">Refresh Forecast</button>
+        <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
+      </div>
+    </section>
 
-<main class="app-page forecast-page">
-<section class="forecast-hero-grid">
-<div class="page-hero">
-<div class="hero-kicker">Forward control</div>
-<h1 class="hero-title">Generate a clean 30-day finance forecast.</h1>
-<p class="hero-copy">
-Forecast uses recovered source APIs: accounts, salary, bills, debts, and credit card. Unknown values stay visible instead of silently becoming zero.
-</p>
+    <section class="dashboard-grid">
+      <article class="card card-padded">
+        <div class="section-kicker">Decision number</div>
+        <h2 class="authority-title" id="projectedCash">—</h2>
+        <p class="authority-copy" id="projectedCashCopy">Loading forecast.</p>
+      </article>
 
-<div id="debugBadges" class="forecast-status-strip" hidden>
-<span id="forecastApiBadge" class="badge badge-unknown">API loading</span>
-<span id="forecastAuthorityBadge" class="badge badge-unknown">Authority loading</span>
-</div>
-</div>
+      <article class="card card-padded">
+        <div class="section-kicker">Optional receivables view</div>
+        <h2 class="authority-title" id="projectedWithReceivables">—</h2>
+        <p class="authority-copy">Includes money owed to you. Treat this as optional until received.</p>
+      </article>
+    </section>
 
-<aside class="forecast-side">
-<div class="forecast-card">
-<div class="forecast-card-title">Page status</div>
-<div id="forecastStatusCopy" class="forecast-card-copy">Loading forecast status...</div>
-<div style="margin-top:12px">
-<span id="forecastStatusBadge" class="badge badge-unknown">Loading</span>
-</div>
-</div>
+    <section class="dashboard-grid">
+      <article class="card card-padded">
+        <div class="section-kicker">Inputs</div>
+        <div class="stack-sm" id="inputsList" style="margin-top:16px;"></div>
+      </article>
 
-<div class="forecast-card">
-<div class="forecast-card-title">Forecast rule</div>
-<div class="forecast-card-copy">
-Salary uses guaranteed baseline unless variable income is confirmed. Credit card remains a liability source, not income.
-</div>
-</div>
-</aside>
-</section>
+      <article class="card card-padded">
+        <div class="section-kicker">Source health</div>
+        <div class="stack-sm" id="sourceList" style="margin-top:16px;"></div>
+      </article>
+    </section>
 
-<section class="forecast-kpi-grid">
-<div class="kpi-card">
-<div class="kpi-label">Projected Position</div>
-<div id="projectedKpi" class="kpi-value">-</div>
-<div class="kpi-sub">30-day view</div>
-</div>
+    <section class="card card-padded">
+      <div class="section-kicker">Proof</div>
+      <h2 class="authority-title" style="margin-top:12px;" id="proofTitle">Loading</h2>
+      <p class="authority-copy" id="proofCopy">Checking source truth.</p>
+      <pre id="debugBox" style="display:none;white-space:pre-wrap;margin-top:14px;"></pre>
+    </section>
+  </main>
 
-<div class="kpi-card">
-<div class="kpi-label">Known Inflow</div>
-<div id="inflowKpi" class="kpi-value">-</div>
-<div class="kpi-sub">Salary + receivables</div>
-</div>
+  <script src="/js/theme.js?v=1.0.0"></script>
+  <script src="/js/nav.js?v=2.0.3"></script>
 
-<div class="kpi-card">
-<div class="kpi-label">Known Outflow</div>
-<div id="outflowKpi" class="kpi-value">-</div>
-<div class="kpi-sub">Bills + debts + CC</div>
-</div>
+  <script>
+    (() => {
+      "use strict";
 
-<div class="kpi-card">
-<div class="kpi-label">Status</div>
-<div id="forecastStatusKpi" class="kpi-value">-</div>
-<div class="kpi-sub">Ready or partial</div>
-</div>
-</section>
+      const VERSION = "forecast-truth-v1.0.0";
+      const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
-<section>
-<div class="forecast-section-head">
-<div>
-<div class="forecast-section-title">Forecast result</div>
-<div id="forecastSummary" class="forecast-section-copy">Load or generate forecast.</div>
-</div>
+      const els = {
+        refreshBtn: document.getElementById("refreshBtn"),
+        projectedCash: document.getElementById("projectedCash"),
+        projectedCashCopy: document.getElementById("projectedCashCopy"),
+        projectedWithReceivables: document.getElementById("projectedWithReceivables"),
+        inputsList: document.getElementById("inputsList"),
+        sourceList: document.getElementById("sourceList"),
+        proofTitle: document.getElementById("proofTitle"),
+        proofCopy: document.getElementById("proofCopy"),
+        debugBox: document.getElementById("debugBox")
+      };
 
-<div class="forecast-actions">
-<button id="refreshBtn" class="btn btn-secondary" type="button">Refresh</button>
-<button id="generateBtn" class="btn btn-success" type="button">Generate Forecast</button>
-<a class="btn btn-secondary" href="/salary.html">Salary</a>
-<a class="btn btn-secondary" href="/monthly-close.html">Command Centre</a>
-</div>
-</div>
+      window.SovereignForecast = {
+        version: VERSION,
+        refresh
+      };
 
-<div id="forecastNotice" class="forecast-notice" hidden></div>
-
-<div style="height:14px"></div>
-
-<div class="forecast-layout">
-<div class="forecast-result-card">
-<div class="forecast-card-title">30-day projection</div>
-<div id="projectionValue" class="forecast-projection">-</div>
-<div id="projectionCopy" class="forecast-card-copy">No forecast generated yet.</div>
-
-<div style="margin-top:18px">
-<div class="forecast-row"><span>Liquid balance</span><strong id="liquidRow">-</strong></div>
-<div class="forecast-row"><span>Salary forecast input</span><strong id="salaryRow">-</strong></div>
-<div class="forecast-row"><span>Bills</span><strong id="billsRow">-</strong></div>
-<div class="forecast-row"><span>Debt payable</span><strong id="debtOweRow">-</strong></div>
-<div class="forecast-row"><span>Debt receivable</span><strong id="debtOwedRow">-</strong></div>
-<div class="forecast-row"><span>Credit card outstanding</span><strong id="ccRow">-</strong></div>
-</div>
-</div>
-
-<aside class="forecast-sources-card">
-<div class="forecast-card-title">Sources</div>
-<div class="forecast-card-copy">Forecast reads recovered APIs only.</div>
-<div id="sourceGrid" class="forecast-source-grid" style="margin-top:14px"></div>
-</aside>
-</div>
-
-<div id="debugPanel" class="forecast-debug">
-<div class="forecast-card-title">Debug mode</div>
-<div class="forecast-card-copy">Internal proof and source details are visible because this page was opened with <code>?debug=1</code>.</div>
-<pre id="debugOutput">{}</pre>
-</div>
-</section>
-
-<footer class="forecast-page-meta" aria-hidden="true">
-Forecast UI v1.0.0
-</footer>
-</main>
-
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-<script src="/js/theme.js?v=1.0.0"></script>
-<script src="/js/nav.js?v=2.0.3"></script>
-<script src="/js/enforcement.js?v=0.3.0"></script>
-
-<script>
-(function () {
-  "use strict";
-
-  const VERSION = "1.0.0";
-  const DEBUG = new URL(location.href).searchParams.get("debug") === "1";
-
-  let forecast = null;
-  let sourceStatus = {};
-  let authority = { generate: false };
-  let command = null;
-  let lastProof = null;
-
-  const $ = id => document.getElementById(id);
-
-  function setText(id, value) {
-    const el = $(id);
-    if (el) el.textContent = value;
-  }
-
-  function setBadge(id, text, cls) {
-    const el = $(id);
-    if (!el) return;
-    el.textContent = text;
-    el.className = "badge " + cls;
-  }
-
-  function showNotice(message, type) {
-    const el = $("forecastNotice");
-    if (!el) return;
-    el.hidden = false;
-    el.className = "forecast-notice " + (type || "");
-    el.textContent = message;
-  }
-
-  function money(value) {
-    if (value === null || value === undefined || Number.isNaN(Number(value))) return "Unknown";
-    const n = Number(value);
-    const prefix = n < 0 ? "-" : "";
-    return prefix + "Rs " + Math.abs(n).toLocaleString("en-PK", { maximumFractionDigits: 0 });
-  }
-
-  async function fetchJSON(url, options) {
-    const res = await fetch(url, { cache: "no-store", ...(options || {}) });
-    const text = await res.text();
-    let data = null;
-
-    try {
-      data = JSON.parse(text);
-    } catch (err) {
-      throw new Error("Non-JSON response from " + url);
-    }
-
-    if (!res.ok || data.ok === false) {
-      const error = new Error(data.error || ("HTTP " + res.status));
-      error.status = res.status;
-      error.data = data;
-      throw error;
-    }
-
-    return data;
-  }
-
-  function actionAllowed(actions, name) {
-    const found = actions.find(action => action.action === name);
-    return Boolean(found && found.allowed);
-  }
-
-  function updateDebug() {
-    if (!DEBUG) return;
-
-    $("debugBadges").hidden = false;
-    $("debugPanel").classList.add("on");
-    $("debugOutput").textContent = JSON.stringify({
-      version: VERSION,
-      authority,
-      command_version: command && command.version,
-      forecast,
-      source_status: sourceStatus,
-      last_proof: lastProof
-    }, null, 2);
-  }
-
-  async function loadCommandCentre() {
-    try {
-      command = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
-      const actions = command.enforcement && Array.isArray(command.enforcement.actions)
-        ? command.enforcement.actions
-        : [];
-
-      authority.generate = actionAllowed(actions, "forecast.generate");
-
-      if (DEBUG) {
-        setBadge("forecastAuthorityBadge", authority.generate ? "forecast.generate allowed" : "forecast.generate blocked", authority.generate ? "badge-ready" : "badge-blocked");
+      function money(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "Unknown";
+        return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
       }
 
-      setBadge("forecastStatusBadge", authority.generate ? "Ready" : "View only", authority.generate ? "badge-ready" : "badge-preflight");
-      setText("forecastStatusCopy", authority.generate ? "Forecast generation is available." : "Forecast can be viewed. Generation is temporarily unavailable.");
-      $("generateBtn").disabled = !authority.generate;
-    } catch (err) {
-      authority.generate = false;
-      setBadge("forecastStatusBadge", "Unavailable", "badge-blocked");
-      setText("forecastStatusCopy", "Command Centre could not be reached. Forecast generation is disabled.");
-      $("generateBtn").disabled = true;
-    }
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
 
-    updateDebug();
-  }
+      async function readJson(url) {
+        const res = await fetch(url + (url.includes("?") ? "&" : "?") + "cb=" + Date.now(), {
+          cache: "no-store",
+          headers: { accept: "application/json" }
+        });
 
-  async function loadForecast() {
-    const data = await fetchJSON("/api/forecast?cb=" + Date.now());
-    forecast = data.forecast || null;
-    sourceStatus = data.source_status || {};
+        const body = await res.json();
 
-    if (DEBUG) {
-      setBadge("forecastApiBadge", "API " + (data.version || "live"), "badge-ready");
-    }
+        if (!res.ok || body.ok === false) {
+          throw new Error(body.error || "Forecast request failed.");
+        }
 
-    renderForecast();
-    updateDebug();
-  }
+        return body;
+      }
 
-  function renderForecast() {
-    const inputs = forecast && forecast.inputs ? forecast.inputs : {};
-    const outputs = forecast && forecast.outputs ? forecast.outputs : {};
+      function row(label, value, sub) {
+        return (
+          '<div class="card card-compact">' +
+            '<div class="grid-2" style="align-items:center;">' +
+              '<div>' +
+                '<div class="strong">' + escapeHtml(label) + '</div>' +
+                '<div class="muted">' + escapeHtml(sub || "") + '</div>' +
+              '</div>' +
+              '<div class="text-right strong">' + escapeHtml(value) + '</div>' +
+            '</div>' +
+          '</div>'
+        );
+      }
 
-    setText("projectedKpi", money(outputs.projected_30_day_position));
-    setText("inflowKpi", money(outputs.known_monthly_inflow));
-    setText("outflowKpi", money(outputs.known_monthly_outflow));
-    setText("forecastStatusKpi", forecast ? forecast.status : "-");
+      function sourceRow(name, source) {
+        const ok = Boolean(source && source.ok);
+        return (
+          '<div class="card card-compact">' +
+            '<div class="grid-2" style="align-items:center;">' +
+              '<div>' +
+                '<div class="strong">' + escapeHtml(name) + '</div>' +
+                '<div class="muted">' + escapeHtml(source?.version || source?.source || source?.reason || source?.error || "—") + '</div>' +
+              '</div>' +
+              '<div class="text-right strong">' + (ok ? "Pass" : "Check") + '</div>' +
+            '</div>' +
+          '</div>'
+        );
+      }
 
-    setText("projectionValue", money(outputs.projected_30_day_position));
-    const projection = $("projectionValue");
-    projection.classList.remove("positive", "negative");
-    if (Number(outputs.projected_30_day_position) >= 0) projection.classList.add("positive");
-    if (Number(outputs.projected_30_day_position) < 0) projection.classList.add("negative");
+      async function refresh() {
+        els.refreshBtn.disabled = true;
+        els.refreshBtn.textContent = "Refreshing...";
 
-    setText("projectionCopy", forecast ? (forecast.complete ? "Forecast is complete from recovered sources." : "Forecast is partial. Some sources are unknown.") : "No forecast loaded.");
-    setText("forecastSummary", forecast ? "30-day forecast · " + (forecast.complete ? "complete" : "partial") : "Load or generate forecast.");
+        try {
+          const data = await readJson("/api/forecast");
 
-    setText("liquidRow", money(inputs.liquid_balance));
-    setText("salaryRow", money(inputs.salary_forecast_eligible));
-    setText("billsRow", money(inputs.monthly_bills));
-    setText("debtOweRow", money(inputs.debt_payable_remaining));
-    setText("debtOwedRow", money(inputs.debt_receivable_remaining));
-    setText("ccRow", money(inputs.credit_card_outstanding));
+          const inputs = data.inputs || {};
+          const forecast = data.forecast || {};
+          const sources = data.sources || {};
 
-    renderSources();
-  }
+          els.projectedCash.textContent = money(forecast.projected_cash_after_obligations);
+          els.projectedCashCopy.textContent = "Liquid + guaranteed salary - bills - payable debts - verified credit-card outstanding.";
 
-  function renderSources() {
-    const grid = $("sourceGrid");
-    const keys = ["accounts", "balances", "salary", "bills", "debts", "credit_card", "money_contracts"];
+          els.projectedWithReceivables.textContent = money(forecast.projected_cash_if_receivables_collected);
 
-    grid.innerHTML = keys.map(key => {
-      const source = sourceStatus[key] || {};
-      const ok = source.status === "pass" || source.status === "banned";
+          els.inputsList.innerHTML = [
+            row("Total liquid", money(inputs.total_liquid), "/api/balances"),
+            row("Guaranteed salary", money(inputs.guaranteed_salary), "Environment/config value; zero if not configured"),
+            row("Bills remaining", money(inputs.bills_remaining_this_month), "/api/bills"),
+            row("Debt payable remaining", money(inputs.debt_payable_remaining), "/api/debts"),
+            row("Debt receivable remaining", money(inputs.debt_receivable_remaining), "/api/debts"),
+            row("Credit-card outstanding", inputs.credit_card_outstanding === null ? "Unknown" : money(inputs.credit_card_outstanding), "Verified CC source only")
+          ].join("");
 
-      return `
-        <div class="forecast-source">
-          <div class="forecast-source-name">${key.replace(/_/g, " ")}</div>
-          <div class="forecast-source-status">${ok ? "OK" : "Unknown"}${source.version ? " · " + source.version : ""}</div>
-        </div>
-      `;
-    }).join("");
-  }
+          els.sourceList.innerHTML = [
+            sourceRow("Balances", sources.balances),
+            sourceRow("Bills", sources.bills),
+            sourceRow("Debts", sources.debts),
+            sourceRow("Credit Card", sources.credit_card)
+          ].join("");
 
-  async function generateForecast() {
-    const data = await fetchJSON("/api/forecast?cb=" + Date.now(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({})
-    });
+          const blockers = data.blockers || [];
+          els.proofTitle.textContent = blockers.length ? "Degraded" : "Ready";
+          els.proofCopy.textContent = blockers.length
+            ? blockers.join(" | ")
+            : "Forecast is using live balances, bills, debts, and verified credit-card truth.";
 
-    forecast = data.forecast || forecast;
-    sourceStatus = data.source_status || sourceStatus;
-    lastProof = data.proof || null;
+          if (DEBUG) {
+            els.debugBox.style.display = "block";
+            els.debugBox.textContent = JSON.stringify(data, null, 2);
+          }
+        } catch (err) {
+          els.projectedCash.textContent = "Unavailable";
+          els.projectedCashCopy.textContent = err.message || "Forecast failed.";
+          els.proofTitle.textContent = "Error";
+          els.proofCopy.textContent = err.message || "Forecast failed.";
+        } finally {
+          els.refreshBtn.disabled = false;
+          els.refreshBtn.textContent = "Refresh Forecast";
+        }
+      }
 
-    renderForecast();
-    updateDebug();
-    showNotice("Forecast generated.", "success");
-  }
-
-  async function refresh() {
-    console.log("[forecast-ui v1.0.0] refresh");
-    await loadCommandCentre();
-    await loadForecast();
-    console.log("[forecast-ui v1.0.0] ready", {
-      authority,
-      forecast_status: forecast && forecast.status
-    });
-  }
-
-  function init() {
-    console.log("[forecast-ui v1.0.0] init");
-    $("refreshBtn").addEventListener("click", refresh);
-    $("generateBtn").addEventListener("click", generateForecast);
-    refresh();
-  }
-
-  window.SovereignForecastUI = {
-    version: VERSION,
-    refresh,
-    generate: generateForecast,
-    forecast: () => forecast,
-    authority: () => ({ ...authority }),
-    sourceStatus: () => ({ ...sourceStatus }),
-    lastProof: () => lastProof
-  };
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-})();
-</script>
+      els.refreshBtn.addEventListener("click", refresh);
+      refresh();
+    })();
+  </script>
 </body>
 </html>
