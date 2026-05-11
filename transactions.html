@@ -4,24 +4,24 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="light" />
-  <title>Transactions · Sovereign Finance</title>
+  <title>Ledger · Sovereign Finance</title>
 
   <link rel="stylesheet" href="/css/app.css?v=2.0.3" />
 
   <style>
-    .tx-hero-grid {
+    .ledger-hero-grid {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
       gap: 18px;
       align-items: stretch;
     }
 
-    .tx-hero-side {
+    .ledger-side {
       display: grid;
       gap: 12px;
     }
 
-    .tx-status-card {
+    .ledger-stat-card {
       padding: 18px;
       border-radius: 24px;
       background: rgba(255, 255, 255, 0.10);
@@ -29,7 +29,7 @@
       color: #fff;
     }
 
-    .tx-status-label {
+    .ledger-stat-label {
       font-size: 11px;
       font-weight: 950;
       letter-spacing: 0.08em;
@@ -37,22 +37,22 @@
       color: #cbd5e1;
     }
 
-    .tx-status-value {
+    .ledger-stat-value {
       margin-top: 8px;
-      font-size: 26px;
+      font-size: 28px;
       line-height: 1;
       font-weight: 950;
       letter-spacing: -0.05em;
     }
 
-    .tx-status-sub {
+    .ledger-stat-sub {
       margin-top: 7px;
       font-size: 12px;
       font-weight: 750;
       color: #cbd5e1;
     }
 
-    .tx-toolbar {
+    .ledger-toolbar {
       display: grid;
       grid-template-columns: minmax(220px, 1.2fr) repeat(4, minmax(120px, 0.7fr)) auto;
       gap: 10px;
@@ -64,11 +64,11 @@
       box-shadow: var(--shadow-sm);
     }
 
-    .tx-mode-card {
+    .ledger-mode-card {
       display: flex;
-      align-items: center;
       justify-content: space-between;
       gap: 14px;
+      align-items: center;
       padding: 16px 18px;
       border-radius: 26px;
       background: var(--surface-1);
@@ -76,21 +76,21 @@
       box-shadow: var(--shadow-sm);
     }
 
-    .tx-mode-title {
+    .ledger-mode-title {
       color: var(--text-strong);
       font-size: 14px;
       font-weight: 950;
       letter-spacing: -0.02em;
     }
 
-    .tx-mode-copy {
+    .ledger-mode-copy {
       margin-top: 3px;
       color: var(--text-muted);
       font-size: 12px;
       font-weight: 740;
     }
 
-    .tx-switch {
+    .ledger-switch {
       display: inline-flex;
       align-items: center;
       gap: 10px;
@@ -102,13 +102,13 @@
       white-space: nowrap;
     }
 
-    .tx-switch input {
+    .ledger-switch input {
       width: 18px;
       height: 18px;
       accent-color: var(--sf-accent, #047857);
     }
 
-    .tx-table-card {
+    .ledger-table-card {
       overflow: hidden;
       border-radius: 28px;
       background: var(--surface-1);
@@ -116,7 +116,7 @@
       box-shadow: var(--shadow-sm);
     }
 
-    .tx-table-head {
+    .ledger-table-head {
       display: flex;
       justify-content: space-between;
       gap: 12px;
@@ -126,119 +126,97 @@
       background: var(--surface-2);
     }
 
-    .tx-table-title {
+    .ledger-title {
       color: var(--text-strong);
       font-size: 17px;
       font-weight: 950;
       letter-spacing: -0.03em;
     }
 
-    .tx-table-sub {
+    .ledger-subtitle {
       margin-top: 3px;
       color: var(--text-muted);
       font-size: 12px;
       font-weight: 760;
     }
 
-    .tx-table-wrap {
+    .ledger-table-wrap {
       overflow: auto;
       max-height: calc(100vh - 350px);
-      min-height: 380px;
+      min-height: 430px;
     }
 
-    .tx-table {
+    .ledger-table {
       min-width: 1180px;
+      width: 100%;
+      border-collapse: collapse;
     }
 
-    .tx-table th {
+    .ledger-table th {
       position: sticky;
       top: 0;
       z-index: 1;
+      background: var(--surface-2);
     }
 
-    .tx-main {
+    .ledger-main {
       display: flex;
       flex-direction: column;
       gap: 3px;
     }
 
-    .tx-primary {
+    .ledger-primary {
       color: var(--text-strong);
       font-size: 13px;
       font-weight: 920;
     }
 
-    .tx-secondary {
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 740;
-    }
-
-    .tx-amount {
-      font-family: var(--font-mono);
-      font-weight: 950;
-      white-space: nowrap;
-      text-align: right;
-    }
-
-    .tx-amount.expense {
-      color: var(--danger);
-    }
-
-    .tx-amount.income {
-      color: var(--success);
-    }
-
-    .tx-amount.transfer {
-      color: var(--info);
-    }
-
-    .tx-empty {
-      padding: 44px 20px;
-      text-align: center;
-      color: var(--text-muted);
-      font-weight: 760;
-    }
-
-    .tx-health-row {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .tx-health-card {
-      padding: 16px;
-      border-radius: 22px;
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      box-shadow: var(--shadow-xs);
-    }
-
-    .tx-health-title {
-      color: var(--text-muted);
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-    }
-
-    .tx-health-value {
-      margin-top: 7px;
-      color: var(--text-strong);
-      font-size: 18px;
-      font-weight: 950;
-      letter-spacing: -0.04em;
-    }
-
-    .tx-health-sub {
-      margin-top: 5px;
+    .ledger-secondary {
       color: var(--text-muted);
       font-size: 12px;
       font-weight: 740;
       overflow-wrap: anywhere;
     }
 
-    .tx-action-btn {
+    .ledger-amount {
+      font-family: var(--font-mono);
+      font-weight: 950;
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    .ledger-amount.money-out {
+      color: var(--danger);
+    }
+
+    .ledger-amount.money-in {
+      color: var(--success);
+    }
+
+    .ledger-amount.neutral {
+      color: var(--info);
+    }
+
+    .ledger-row-reversed {
+      background: rgba(245, 158, 11, 0.06);
+    }
+
+    .ledger-row-reversal {
+      background: rgba(4, 120, 87, 0.07);
+    }
+
+    .ledger-row-system {
+      background: rgba(59, 130, 246, 0.04);
+    }
+
+    .ledger-empty {
+      padding: 44px 20px;
+      text-align: center;
+      color: var(--text-muted);
+      font-weight: 760;
+    }
+
+    .ledger-action-btn {
       border: 1px solid var(--border);
       background: var(--surface-2);
       color: var(--text-strong);
@@ -250,25 +228,17 @@
       white-space: nowrap;
     }
 
-    .tx-action-btn:hover {
+    .ledger-action-btn:hover {
       border-color: var(--danger);
       color: var(--danger);
     }
 
-    .tx-action-btn:disabled {
+    .ledger-action-btn:disabled {
       opacity: 0.55;
       cursor: not-allowed;
     }
 
-    .tx-row-reversed {
-      background: rgba(245, 158, 11, 0.06);
-    }
-
-    .tx-row-reversal {
-      background: rgba(4, 120, 87, 0.07);
-    }
-
-    .tx-toast {
+    .ledger-toast {
       position: fixed;
       right: 18px;
       bottom: 18px;
@@ -285,44 +255,39 @@
       display: none;
     }
 
-    .tx-toast.show {
+    .ledger-toast.show {
       display: block;
     }
 
-    .tx-toast.success {
+    .ledger-toast.success {
       border-color: rgba(4, 120, 87, 0.35);
     }
 
-    .tx-toast.error {
+    .ledger-toast.error {
       border-color: rgba(220, 38, 38, 0.35);
     }
 
     @media (max-width: 1180px) {
-      .tx-hero-grid {
+      .ledger-hero-grid {
         grid-template-columns: 1fr;
       }
 
-      .tx-toolbar {
+      .ledger-toolbar {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .tx-toolbar .btn {
+      .ledger-toolbar .btn {
         grid-column: 1 / -1;
       }
 
-      .tx-health-row {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .tx-mode-card {
+      .ledger-mode-card {
         align-items: flex-start;
         flex-direction: column;
       }
     }
 
     @media (max-width: 640px) {
-      .tx-toolbar,
-      .tx-health-row {
+      .ledger-toolbar {
         grid-template-columns: 1fr;
       }
     }
@@ -332,12 +297,12 @@
 <body>
   <main class="app-page">
     <section class="finance-hero">
-      <div class="tx-hero-grid">
+      <div class="ledger-hero-grid">
         <div>
           <div class="hero-kicker">Ledger</div>
           <h1 class="hero-title">Transactions</h1>
           <p class="hero-copy">
-            Active ledger by default. Turn on Audit Trail to see reversed originals and reversal proof rows.
+            Clean finance ledger built from raw transaction rows. Active mode shows usable money records; Audit Trail shows reversed originals and correction rows.
           </p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
             <a class="btn btn-success" href="/add.html">Add Transaction</a>
@@ -345,62 +310,37 @@
           </div>
         </div>
 
-        <div class="tx-hero-side">
-          <div class="tx-status-card">
-            <div class="tx-status-label">Visible Rows</div>
-            <div class="tx-status-value" id="visibleCount">—</div>
-            <div class="tx-status-sub" id="visibleSub">Waiting for ledger</div>
+        <div class="ledger-side">
+          <div class="ledger-stat-card">
+            <div class="ledger-stat-label">Visible Rows</div>
+            <div class="ledger-stat-value" id="visibleCount">—</div>
+            <div class="ledger-stat-sub" id="visibleSub">Waiting for ledger</div>
           </div>
-          <div class="tx-status-card">
-            <div class="tx-status-label">Net Shown</div>
-            <div class="tx-status-value" id="netShown">—</div>
-            <div class="tx-status-sub">Income minus expense for current filter</div>
+
+          <div class="ledger-stat-card">
+            <div class="ledger-stat-label">Net Shown</div>
+            <div class="ledger-stat-value" id="netShown">—</div>
+            <div class="ledger-stat-sub">Money in minus money out for current filter</div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="tx-health-row">
-      <div class="tx-health-card">
-        <div class="tx-health-title">Transactions API</div>
-        <div class="tx-health-value" id="transactionsApiStatus">Loading</div>
-        <div class="tx-health-sub" id="transactionsApiSub">/api/transactions</div>
-      </div>
-
-      <div class="tx-health-card">
-        <div class="tx-health-title">Balances API</div>
-        <div class="tx-health-value" id="balancesApiStatus">Loading</div>
-        <div class="tx-health-sub" id="balancesApiSub">/api/balances?debug=1</div>
-      </div>
-
-      <div class="tx-health-card">
-        <div class="tx-health-title">Accounts Loaded</div>
-        <div class="tx-health-value" id="accountCount">—</div>
-        <div class="tx-health-sub">Used for readable account names</div>
-      </div>
-
-      <div class="tx-health-card">
-        <div class="tx-health-title">Correction Mode</div>
-        <div class="tx-health-value">Guarded</div>
-        <div class="tx-health-sub">Reverse sends id + reason to backend</div>
-      </div>
-    </section>
-
-    <section class="tx-mode-card">
+    <section class="ledger-mode-card">
       <div>
-        <div class="tx-mode-title" id="ledgerModeTitle">Active Ledger</div>
-        <div class="tx-mode-copy" id="ledgerModeCopy">
-          Showing active transactions only. Reversed originals and reversal proof rows are hidden.
+        <div class="ledger-mode-title" id="ledgerModeTitle">Active Ledger</div>
+        <div class="ledger-mode-copy" id="ledgerModeCopy">
+          Showing active finance records only. Reversed originals and reversal proof rows are hidden.
         </div>
       </div>
 
-      <label class="tx-switch" for="auditToggle">
+      <label class="ledger-switch" for="auditToggle">
         <input type="checkbox" id="auditToggle" />
         Show Audit Trail
       </label>
     </section>
 
-    <section class="tx-toolbar" aria-label="Transaction filters">
+    <section class="ledger-toolbar" aria-label="Ledger filters">
       <div class="field">
         <label for="searchInput">Search</label>
         <input id="searchInput" type="search" placeholder="Search notes, account, category, ID..." />
@@ -413,6 +353,11 @@
           <option value="expense">Expense</option>
           <option value="income">Income</option>
           <option value="transfer">Transfer</option>
+          <option value="bill">Bill</option>
+          <option value="debt">Debt</option>
+          <option value="credit_card">Credit Card</option>
+          <option value="reversal">Reversal</option>
+          <option value="system">System</option>
         </select>
       </div>
 
@@ -436,24 +381,24 @@
       <button class="btn btn-secondary" type="button" id="clearFiltersBtn">Clear</button>
     </section>
 
-    <section class="tx-table-card">
-      <div class="tx-table-head">
+    <section class="ledger-table-card">
+      <div class="ledger-table-head">
         <div>
-          <div class="tx-table-title">Ledger</div>
-          <div class="tx-table-sub" id="ledgerSubtitle">Loading transactions…</div>
+          <div class="ledger-title">Ledger</div>
+          <div class="ledger-subtitle" id="ledgerSubtitle">Loading transactions…</div>
         </div>
         <span class="badge badge-info" id="ledgerBadge">Loading</span>
       </div>
 
-      <div class="tx-table-wrap">
-        <table class="tx-table">
+      <div class="ledger-table-wrap">
+        <table class="ledger-table">
           <thead>
             <tr>
               <th>Date</th>
-              <th>Type</th>
-              <th>Account / Movement</th>
+              <th>Record</th>
+              <th>Movement</th>
               <th>Category</th>
-              <th>Notes</th>
+              <th>Description</th>
               <th>Status</th>
               <th class="text-right">Amount</th>
               <th>Action</th>
@@ -462,9 +407,7 @@
           </thead>
           <tbody id="transactionsBody">
             <tr>
-              <td colspan="9">
-                <div class="tx-empty">Loading ledger…</div>
-              </td>
+              <td colspan="9"><div class="ledger-empty">Loading ledger…</div></td>
             </tr>
           </tbody>
         </table>
@@ -472,52 +415,90 @@
     </section>
   </main>
 
-  <div class="tx-toast" id="txToast"></div>
+  <div class="ledger-toast" id="ledgerToast"></div>
 
   <script src="/js/theme.js?v=1.0.0"></script>
   <script src="/js/nav.js?v=2.0.3"></script>
 
   <script>
-    (function () {
+    (() => {
       "use strict";
 
-      const VERSION = "transactions-audit-trail-v1.2.0";
+      const VERSION = "ledger-read-model-v1.0.0";
       const TRANSACTIONS_ENDPOINT = "/api/transactions";
       const REVERSE_ENDPOINT = "/api/transactions/reverse";
       const BALANCES_ENDPOINT = "/api/balances?debug=1";
       const CATEGORIES_ENDPOINT = "/api/categories";
-      const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
+      const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
-      let transactions = [];
+      let rawTransactions = [];
+      let displayRows = [];
+      let filteredRows = [];
       let accounts = [];
       let categories = [];
       let accountMap = new Map();
       let categoryMap = new Map();
-      let filtered = [];
-      let reversing = false;
       let auditMode = false;
+      let reversing = false;
 
       const $ = id => document.getElementById(id);
 
-      function clean(value, fallback) {
+      const els = {
+        refreshBtn: $("refreshBtn"),
+        auditToggle: $("auditToggle"),
+        visibleCount: $("visibleCount"),
+        visibleSub: $("visibleSub"),
+        netShown: $("netShown"),
+        ledgerModeTitle: $("ledgerModeTitle"),
+        ledgerModeCopy: $("ledgerModeCopy"),
+        searchInput: $("searchInput"),
+        typeFilter: $("typeFilter"),
+        accountFilter: $("accountFilter"),
+        fromDate: $("fromDate"),
+        toDate: $("toDate"),
+        clearFiltersBtn: $("clearFiltersBtn"),
+        ledgerSubtitle: $("ledgerSubtitle"),
+        ledgerBadge: $("ledgerBadge"),
+        txIdHeader: $("txIdHeader"),
+        transactionsBody: $("transactionsBody"),
+        toast: $("ledgerToast")
+      };
+
+      window.SovereignTransactionsPage = {
+        version: VERSION,
+        refresh: refreshAll,
+        reverseTransaction,
+        setAuditMode: async value => {
+          auditMode = Boolean(value);
+          els.auditToggle.checked = auditMode;
+          await refreshAll();
+        },
+        getAuditMode: () => auditMode,
+        rows: () => displayRows.slice(),
+        rawRows: () => rawTransactions.slice(),
+        filtered: () => filteredRows.slice(),
+        accounts: () => accounts.slice(),
+        categories: () => categories.slice()
+      };
+
+      function clean(value, fallback = "") {
         const raw = value == null ? fallback : value;
         return String(raw == null ? "" : raw).trim();
       }
 
-      function num(value) {
+      function number(value) {
         const n = Number(value);
         return Number.isFinite(n) ? n : 0;
       }
 
       function money(value) {
-        const n = num(value);
-        return "Rs " + n.toLocaleString("en-PK", {
-          maximumFractionDigits: 0
-        });
+        const n = number(value);
+        const sign = n < 0 ? "- " : "";
+        return sign + "Rs " + Math.abs(n).toLocaleString("en-PK", { maximumFractionDigits: 0 });
       }
 
       function dateOnly(value) {
-        const raw = clean(value, "");
+        const raw = clean(value);
         if (!raw) return "";
         return raw.slice(0, 10);
       }
@@ -537,12 +518,12 @@
       }
 
       function escapeHtml(value) {
-        return clean(value, "")
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
+        return clean(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#39;");
       }
 
       async function fetchJson(url) {
@@ -556,12 +537,8 @@
 
         const data = await response.json().catch(() => null);
 
-        if (!response.ok || !data) {
+        if (!response.ok || !data || data.ok === false) {
           throw new Error((data && data.error) || "HTTP " + response.status);
-        }
-
-        if (data.ok === false) {
-          throw new Error(data.error || "Request failed");
         }
 
         return data;
@@ -608,17 +585,11 @@
         if (raw.length) return raw;
 
         if (data && data.accounts && typeof data.accounts === "object") {
-          return Object.keys(data.accounts).map(id => ({
-            id,
-            ...data.accounts[id]
-          }));
+          return Object.keys(data.accounts).map(id => ({ id, ...data.accounts[id] }));
         }
 
         if (data && data.balances && typeof data.balances === "object") {
-          return Object.keys(data.balances).map(id => ({
-            id,
-            ...data.balances[id]
-          }));
+          return Object.keys(data.balances).map(id => ({ id, ...data.balances[id] }));
         }
 
         return [];
@@ -626,87 +597,72 @@
 
       function normalizeCategories(data) {
         return normalizeArrayResponse(data, ["categories"]).map(item => ({
-          id: clean(item.id || item.category_id || item.name, ""),
-          name: clean(item.name || item.label || item.category_name || item.id, "")
+          id: clean(item.id || item.category_id || item.name),
+          name: clean(item.name || item.label || item.category_name || item.id)
         })).filter(item => item.id);
       }
 
-      function normalizeTransaction(row, index) {
+      function normalizeRawTransaction(row, index) {
         const id = clean(
           row.id ||
           row.txn_id ||
           row.transaction_id ||
           row.TransactionID ||
           row.uuid ||
-          "row_" + index,
-          ""
+          "row_" + index
         );
 
         const type = clean(row.type || row.txn_type || row.transaction_type || row.kind, "expense").toLowerCase();
-
-        const amount = Math.abs(num(
-          row.amount ??
-          row.value ??
-          row.transaction_amount ??
-          row.Amount
-        ));
-
-        const accountId = clean(
-          row.account_id ||
-          row.accountId ||
-          row.from_account_id ||
-          row.fromAccountId ||
-          row.account ||
-          row.source_account_id,
-          ""
-        );
-
-        const toAccountId = clean(
-          row.transfer_to_account_id ||
-          row.to_account_id ||
-          row.toAccountId ||
-          row.destination_account_id ||
-          row.target_account_id,
-          ""
-        );
-
-        const categoryId = clean(
-          row.category_id ||
-          row.categoryId ||
-          row.category ||
-          "",
-          ""
-        );
-
-        const notes = clean(row.notes || row.description || row.memo || row.narration || "", "");
+        const amount = Math.abs(number(row.amount ?? row.value ?? row.transaction_amount ?? row.Amount));
+        const notes = sanitizeText(row.notes || row.description || row.memo || row.narration || "");
 
         return {
           raw: row,
           id,
           date: dateOnly(row.date || row.txn_date || row.transaction_date || row.created_at || row.createdAt),
-          type: ["income", "expense", "transfer"].includes(type) ? type : type || "expense",
+          type,
           amount,
-          account_id: accountId,
-          transfer_to_account_id: toAccountId,
-          category_id: categoryId,
+          account_id: clean(row.account_id || row.accountId || row.from_account_id || row.fromAccountId || row.account || row.source_account_id),
+          transfer_to_account_id: clean(row.transfer_to_account_id || row.to_account_id || row.toAccountId || row.destination_account_id || row.target_account_id),
+          category_id: clean(row.category_id || row.categoryId || row.category),
           notes,
           status: clean(row.status || row.state || "active", "active"),
-          reversed_by: clean(row.reversed_by, ""),
-          reversed_at: clean(row.reversed_at, ""),
-          reversal_reason: clean(row.reversal_reason, ""),
-          linked_txn_id: clean(row.linked_txn_id, ""),
-          reversed_of: extractReversalOf(notes) || clean(row.reversed_of, "")
+          reversed_by: clean(row.reversed_by),
+          reversed_at: clean(row.reversed_at),
+          reversal_reason: clean(row.reversal_reason),
+          linked_txn_id: clean(row.linked_txn_id) || extractLinkedId(notes),
+          reversed_of: extractReversalOf(notes) || clean(row.reversed_of)
         };
+      }
+
+      function sanitizeText(value) {
+        return clean(value)
+          .replaceAll("鈫�", "→")
+          .replaceAll("馃挸", "")
+          .replaceAll("路", "·")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function extractLinkedId(notes) {
+        const match = String(notes || "").match(/\[linked:\s*([^\]\s]+)\]/i);
+        return match ? clean(match[1]) : "";
       }
 
       function extractReversalOf(notes) {
         const match = String(notes || "").match(/\[REVERSAL OF\s+([^\]\s]+)\]/i);
-        return match ? clean(match[1], "") : "";
+        return match ? clean(match[1]) : "";
       }
 
       function extractReason(notes) {
         const match = String(notes || "").match(/Reason:\s*(.*)$/i);
-        return match ? clean(match[1], "") : "";
+        return match ? clean(match[1]) : "";
+      }
+
+      function extractKey(notes, key) {
+        const re = new RegExp(key + "=([^|\\s]+)", "i");
+        const match = String(notes || "").match(re);
+        return match ? clean(match[1]) : "";
       }
 
       function isReversalRow(tx) {
@@ -717,14 +673,8 @@
         return Boolean(tx && (tx.reversed_by || tx.reversed_at));
       }
 
-      function auditStatus(tx) {
-        if (isReversalRow(tx)) return "Audit Row";
-        if (isReversedOriginal(tx)) return "Reversed";
-        return "Active";
-      }
-
       function accountName(id) {
-        const key = clean(id, "");
+        const key = clean(id);
         if (!key) return "—";
 
         const account = accountMap.get(key);
@@ -740,70 +690,177 @@
         );
       }
 
-      function categoryName(id) {
-        const key = clean(id, "");
-        if (!key) return "—";
+      function categoryName(id, fallback) {
+        const key = clean(id);
+        if (!key) return fallback || "—";
 
         const category = categoryMap.get(key);
-        if (!category) return key;
+        if (!category) return humanizeId(key);
 
         return clean(
           category.name ||
           category.label ||
           category.category_name ||
           category.id,
-          key
+          humanizeId(key)
         );
       }
 
-      function typeBadge(tx) {
-        if (isReversalRow(tx)) {
-          return '<span class="badge badge-ready">Reversal</span>';
-        }
-
-        const t = clean(tx.type, "expense").toLowerCase();
-
-        if (t === "income") return '<span class="badge badge-ready">Income</span>';
-        if (t === "transfer") return '<span class="badge badge-info">Transfer</span>';
-        if (t === "expense") return '<span class="badge badge-danger">Expense</span>';
-
-        return '<span class="badge badge-unknown">' + escapeHtml(t || "Unknown") + '</span>';
+      function humanizeId(value) {
+        return clean(value)
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, letter => letter.toUpperCase());
       }
 
-      function statusBadge(tx) {
-        if (isReversalRow(tx)) {
-          return '<span class="badge badge-ready">Audit Row</span>';
+      function buildDisplayRows(rawRows) {
+        const rows = rawRows.map(buildDisplayRow);
+
+        return rows.sort((a, b) => {
+          const dateCompare = clean(b.date).localeCompare(clean(a.date));
+          if (dateCompare) return dateCompare;
+          return clean(b.id).localeCompare(clean(a.id));
+        });
+      }
+
+      function buildDisplayRow(tx) {
+        const sourceModule = sourceModuleFor(tx);
+        const auditStatus = auditStatusFor(tx);
+        const displayType = displayTypeFor(tx, sourceModule);
+        const signed = signedAmount(tx);
+        const effect = signed > 0 ? "money-in" : signed < 0 ? "money-out" : "neutral";
+
+        return {
+          ...tx,
+          source_module: sourceModule,
+          display_type: displayType,
+          display_category: displayCategoryFor(tx, sourceModule),
+          display_movement: displayMovementFor(tx, sourceModule),
+          display_description: displayDescriptionFor(tx, sourceModule),
+          display_status: auditStatus,
+          display_amount: signed,
+          amount_effect: effect,
+          row_kind: rowKindFor(tx, sourceModule),
+          linked_entity: linkedEntityFor(tx, sourceModule),
+          can_reverse: canReverse(tx)
+        };
+      }
+
+      function sourceModuleFor(tx) {
+        if (isReversalRow(tx)) return "reversal";
+
+        const notes = tx.notes || "";
+        const type = tx.type;
+
+        if (/bill_id=|bill_payment_id=|bill payment:/i.test(notes)) return "bill";
+        if (/debt_id=|debt payment:|debt received:|debt created:/i.test(notes) || ["debt_in", "debt_out", "borrow", "repay"].includes(type)) return "debt";
+        if (["cc_payment", "cc_spend"].includes(type) || tx.category_id === "credit_card") return "credit_card";
+        if (type === "atm" || tx.category_id === "atm_fee" || /atm/i.test(notes)) return "atm";
+        if (type === "salary" || tx.category_id === "salary_income") return "salary";
+        if (type === "opening") return "system";
+        if (type === "transfer" || tx.linked_txn_id && /transfer|to:|from:/i.test(notes)) return "transfer";
+
+        return "transaction";
+      }
+
+      function displayTypeFor(tx, sourceModule) {
+        if (sourceModule === "reversal") return "Reversal";
+        if (sourceModule === "bill") return "Bill Payment";
+        if (sourceModule === "debt") {
+          if (tx.type === "income") return "Debt Received";
+          if (tx.type === "expense") return "Debt Outflow";
+          return "Debt Movement";
+        }
+        if (sourceModule === "credit_card") return tx.type === "cc_payment" ? "CC Payment" : "Credit Card";
+        if (sourceModule === "atm") return "ATM / Fee";
+        if (sourceModule === "salary") return "Salary";
+        if (sourceModule === "system") return "System";
+        if (sourceModule === "transfer") return "Transfer";
+        if (tx.type === "income") return "Income";
+        if (tx.type === "expense") return "Expense";
+
+        return humanizeId(tx.type || "Transaction");
+      }
+
+      function displayCategoryFor(tx, sourceModule) {
+        if (sourceModule === "reversal") return "Audit";
+        if (sourceModule === "bill") return "Bills";
+        if (sourceModule === "debt") return "Debt";
+        if (sourceModule === "credit_card") return "Credit Card";
+        if (sourceModule === "transfer") return "Transfer";
+        if (sourceModule === "atm") return "Bank Fee";
+        if (sourceModule === "salary") return "Salary";
+        if (sourceModule === "system") return "System";
+
+        return categoryName(tx.category_id, "Uncategorized");
+      }
+
+      function displayMovementFor(tx, sourceModule) {
+        if (sourceModule === "transfer") {
+          const linkedText = tx.linked_txn_id ? " · pair " + tx.linked_txn_id : "";
+          return accountName(tx.account_id) + " → linked account" + linkedText;
+        }
+
+        if (sourceModule === "reversal") {
+          return accountName(tx.account_id) + " · correction";
+        }
+
+        return accountName(tx.account_id);
+      }
+
+      function displayDescriptionFor(tx, sourceModule) {
+        if (sourceModule === "reversal") {
+          const reason = extractReason(tx.notes) || tx.reversal_reason || "Correction";
+          return "Reversal of " + (tx.reversed_of || "original transaction") + " · " + reason;
         }
 
         if (isReversedOriginal(tx)) {
-          return '<span class="badge badge-warning">Reversed</span>';
+          return clean(tx.notes || "Original transaction") + " · reversed by " + (tx.reversed_by || "reversal row");
         }
 
-        return '<span class="badge badge-info">Active</span>';
+        if (sourceModule === "bill") {
+          return clean(tx.notes).replace(/bill_id=[^|\s]+/gi, "").replace(/bill_payment_id=[^|\s]+/gi, "").replace(/\s+\|\s+/g, " · ").trim() || "Bill payment";
+        }
+
+        if (sourceModule === "debt") {
+          return clean(tx.notes).replace(/debt_id=[^|\s]+/gi, "").replace(/\s+\|\s+/g, " · ").trim() || "Debt movement";
+        }
+
+        return tx.notes || "—";
       }
 
-      function accountMovement(tx) {
-        if (tx.type === "transfer") {
-          return (
-            '<div class="tx-main">' +
-            '<div class="tx-primary">' + escapeHtml(accountName(tx.account_id)) + " → " + escapeHtml(accountName(tx.transfer_to_account_id)) + '</div>' +
-            '<div class="tx-secondary">Transfer movement</div>' +
-            '</div>'
-          );
-        }
+      function auditStatusFor(tx) {
+        if (isReversalRow(tx)) return "Audit Row";
+        if (isReversedOriginal(tx)) return "Reversed";
+        return "Active";
+      }
 
-        return (
-          '<div class="tx-main">' +
-          '<div class="tx-primary">' + escapeHtml(accountName(tx.account_id)) + '</div>' +
-          (DEBUG ? '<div class="tx-secondary">' + escapeHtml(tx.account_id || "No account ID") + '</div>' : '') +
-          '</div>'
-        );
+      function rowKindFor(tx, sourceModule) {
+        if (isReversalRow(tx)) return "ledger-row-reversal";
+        if (isReversedOriginal(tx)) return "ledger-row-reversed";
+        if (["system", "atm", "credit_card"].includes(sourceModule)) return "ledger-row-system";
+        return "";
+      }
+
+      function linkedEntityFor(tx, sourceModule) {
+        if (sourceModule === "bill") return extractKey(tx.notes, "bill_id");
+        if (sourceModule === "debt") return extractKey(tx.notes, "debt_id");
+        if (sourceModule === "reversal") return tx.reversed_of;
+        return tx.linked_txn_id || "";
       }
 
       function signedAmount(tx) {
         if (tx.type === "expense") return -Math.abs(tx.amount);
         if (tx.type === "income") return Math.abs(tx.amount);
-        return 0;
+
+        if (tx.type === "cc_spend") return -Math.abs(tx.amount);
+        if (tx.type === "cc_payment") return -Math.abs(tx.amount);
+
+        if (tx.type === "transfer") return -Math.abs(tx.amount);
+
+        if (tx.type === "salary") return Math.abs(tx.amount);
+        if (tx.type === "opening") return Math.abs(tx.amount);
+
+        return tx.amount;
       }
 
       function canReverse(tx) {
@@ -813,92 +870,76 @@
         return true;
       }
 
-      function displayNotes(tx) {
-        if (isReversalRow(tx)) {
-          const reason = extractReason(tx.notes) || tx.reversal_reason || "Correction";
-          return (
-            '<div class="tx-main">' +
-            '<div class="tx-primary">Reversal of ' + escapeHtml(tx.reversed_of || "original transaction") + '</div>' +
-            '<div class="tx-secondary">' + escapeHtml(reason) + '</div>' +
-            '</div>'
-          );
-        }
+      function typeBadge(row) {
+        if (row.source_module === "reversal") return '<span class="badge badge-ready">Reversal</span>';
+        if (row.source_module === "bill") return '<span class="badge badge-info">Bill</span>';
+        if (row.source_module === "debt") return '<span class="badge badge-warning">Debt</span>';
+        if (row.source_module === "transfer") return '<span class="badge badge-info">Transfer</span>';
+        if (row.source_module === "credit_card") return '<span class="badge badge-danger">Card</span>';
+        if (row.type === "income") return '<span class="badge badge-ready">Income</span>';
+        if (row.type === "expense") return '<span class="badge badge-danger">Expense</span>';
+        return '<span class="badge badge-unknown">' + escapeHtml(row.display_type) + '</span>';
+      }
 
-        if (isReversedOriginal(tx)) {
-          return (
-            '<div class="tx-main">' +
-            '<div class="tx-primary">' + escapeHtml(tx.notes || "—") + '</div>' +
-            '<div class="tx-secondary">Reversed by ' + escapeHtml(tx.reversed_by || "reversal row") + '</div>' +
-            '</div>'
-          );
-        }
-
-        return (
-          '<div class="tx-main">' +
-          '<div class="tx-primary">' + escapeHtml(tx.notes || "—") + '</div>' +
-          '</div>'
-        );
+      function statusBadge(row) {
+        if (row.display_status === "Audit Row") return '<span class="badge badge-ready">Audit Row</span>';
+        if (row.display_status === "Reversed") return '<span class="badge badge-warning">Reversed</span>';
+        return '<span class="badge badge-info">Active</span>';
       }
 
       function renderFilters() {
-        const accountFilter = $("accountFilter");
-        if (!accountFilter) return;
-
-        const current = accountFilter.value;
-        accountFilter.innerHTML = '<option value="">All accounts</option>';
+        const current = els.accountFilter.value;
+        els.accountFilter.innerHTML = '<option value="">All accounts</option>';
 
         accounts.forEach(account => {
-          const id = clean(account.id || account.account_id, "");
+          const id = clean(account.id || account.account_id);
           if (!id) return;
 
           const option = document.createElement("option");
           option.value = id;
           option.textContent = accountName(id);
-          accountFilter.appendChild(option);
+          els.accountFilter.appendChild(option);
         });
 
-        if (current && Array.from(accountFilter.options).some(option => option.value === current)) {
-          accountFilter.value = current;
+        if (current && Array.from(els.accountFilter.options).some(option => option.value === current)) {
+          els.accountFilter.value = current;
         }
       }
 
       function applyFilters() {
-        const search = clean($("searchInput") && $("searchInput").value, "").toLowerCase();
-        const type = clean($("typeFilter") && $("typeFilter").value, "").toLowerCase();
-        const account = clean($("accountFilter") && $("accountFilter").value, "");
-        const from = clean($("fromDate") && $("fromDate").value, "");
-        const to = clean($("toDate") && $("toDate").value, "");
+        const search = clean(els.searchInput.value).toLowerCase();
+        const type = clean(els.typeFilter.value).toLowerCase();
+        const account = clean(els.accountFilter.value);
+        const from = clean(els.fromDate.value);
+        const to = clean(els.toDate.value);
 
-        filtered = transactions.filter(tx => {
-          if (type && tx.type !== type) return false;
+        filteredRows = displayRows.filter(row => {
+          if (type && row.source_module !== type && row.type !== type) return false;
 
           if (account) {
-            const touchesAccount = tx.account_id === account || tx.transfer_to_account_id === account;
-            if (!touchesAccount) return false;
+            const touches = row.account_id === account || row.transfer_to_account_id === account;
+            if (!touches) return false;
           }
 
-          if (from && tx.date && tx.date < from) return false;
-          if (to && tx.date && tx.date > to) return false;
+          if (from && row.date && row.date < from) return false;
+          if (to && row.date && row.date > to) return false;
 
           if (search) {
             const haystack = [
-              tx.id,
-              tx.date,
-              tx.type,
-              tx.account_id,
-              tx.transfer_to_account_id,
-              accountName(tx.account_id),
-              accountName(tx.transfer_to_account_id),
-              tx.category_id,
-              categoryName(tx.category_id),
-              tx.notes,
-              tx.status,
-              tx.reversed_by,
-              tx.reversed_at,
-              tx.reversal_reason,
-              tx.reversed_of,
-              auditStatus(tx),
-              String(tx.amount)
+              row.id,
+              row.date,
+              row.type,
+              row.display_type,
+              row.display_category,
+              row.display_movement,
+              row.display_description,
+              row.display_status,
+              row.account_id,
+              row.transfer_to_account_id,
+              accountName(row.account_id),
+              categoryName(row.category_id),
+              row.linked_entity,
+              String(row.amount)
             ].join(" ").toLowerCase();
 
             if (!haystack.includes(search)) return false;
@@ -912,127 +953,83 @@
       }
 
       function renderSummary() {
-        const visible = filtered.length;
-        const total = transactions.length;
-        const net = filtered.reduce((sum, tx) => sum + signedAmount(tx), 0);
-        const reversalRows = transactions.filter(isReversalRow).length;
-        const reversedOriginals = transactions.filter(isReversedOriginal).length;
+        const visible = filteredRows.length;
+        const total = displayRows.length;
+        const net = filteredRows.reduce((sum, row) => sum + number(row.display_amount), 0);
+        const reversalRows = displayRows.filter(row => row.source_module === "reversal").length;
+        const reversedOriginals = displayRows.filter(row => row.display_status === "Reversed").length;
 
-        if ($("visibleCount")) $("visibleCount").textContent = String(visible);
-        if ($("visibleSub")) $("visibleSub").textContent = total ? "Filtered from " + total + " loaded rows" : "No rows loaded";
-        if ($("netShown")) $("netShown").textContent = money(net);
+        els.visibleCount.textContent = String(visible);
+        els.visibleSub.textContent = total ? "Filtered from " + total + " loaded rows" : "No rows loaded";
+        els.netShown.textContent = money(net);
 
-        if ($("ledgerSubtitle")) {
-          $("ledgerSubtitle").textContent = auditMode
-            ? visible + " visible of " + total + " loaded rows · " + reversedOriginals + " reversed originals · " + reversalRows + " reversal rows"
-            : visible + " visible of " + total + " active transactions";
-        }
+        els.ledgerSubtitle.textContent = auditMode
+          ? visible + " visible of " + total + " loaded rows · " + reversedOriginals + " reversed originals · " + reversalRows + " reversal rows"
+          : visible + " visible of " + total + " active finance rows";
 
-        if ($("ledgerBadge")) {
-          $("ledgerBadge").textContent = auditMode ? "Audit Trail" : (total ? "Active" : "Empty");
-          $("ledgerBadge").className = auditMode ? "badge badge-warning" : (total ? "badge badge-ready" : "badge badge-warning");
-        }
+        els.ledgerBadge.textContent = auditMode ? "Audit Trail" : (total ? "Active" : "Empty");
+        els.ledgerBadge.className = auditMode ? "badge badge-warning" : (total ? "badge badge-ready" : "badge badge-warning");
 
-        if ($("ledgerModeTitle")) {
-          $("ledgerModeTitle").textContent = auditMode ? "Audit Trail" : "Active Ledger";
-        }
-
-        if ($("ledgerModeCopy")) {
-          $("ledgerModeCopy").textContent = auditMode
-            ? "Showing active rows, reversed originals, and reversal proof rows."
-            : "Showing active transactions only. Reversed originals and reversal proof rows are hidden.";
-        }
+        els.ledgerModeTitle.textContent = auditMode ? "Audit Trail" : "Active Ledger";
+        els.ledgerModeCopy.textContent = auditMode
+          ? "Showing active rows, reversed originals, and reversal proof rows."
+          : "Showing active finance records only. Reversed originals and reversal proof rows are hidden.";
       }
 
       function renderTable() {
-        const body = $("transactionsBody");
-        if (!body) return;
-
-        if (!filtered.length) {
-          body.innerHTML = (
+        if (!filteredRows.length) {
+          els.transactionsBody.innerHTML = (
             '<tr><td colspan="' + (DEBUG ? '9' : '8') + '">' +
-            '<div class="tx-empty">No transactions match the current filter.</div>' +
+            '<div class="ledger-empty">No transactions match the current filter.</div>' +
             '</td></tr>'
           );
           return;
         }
 
-        body.innerHTML = filtered.map(tx => {
-          const amountClass = tx.type === "income" ? "income" : tx.type === "transfer" ? "transfer" : "expense";
-          const amountText = tx.type === "transfer"
-            ? money(tx.amount)
-            : tx.type === "income"
-              ? "+ " + money(tx.amount)
-              : "- " + money(tx.amount);
-
-          const rowClass = isReversalRow(tx)
-            ? "tx-row-reversal"
-            : isReversedOriginal(tx)
-              ? "tx-row-reversed"
-              : "";
-
+        els.transactionsBody.innerHTML = filteredRows.map(row => {
           return (
-            '<tr class="' + rowClass + '" data-tx-id="' + escapeHtml(tx.id) + '">' +
-            "<td>" + escapeHtml(prettyDate(tx.date)) + "</td>" +
-            "<td>" + typeBadge(tx) + "</td>" +
-            "<td>" + accountMovement(tx) + "</td>" +
-            "<td>" + escapeHtml(tx.type === "transfer" ? "—" : categoryName(tx.category_id)) + "</td>" +
-            "<td>" + displayNotes(tx) + "</td>" +
-            "<td>" + statusBadge(tx) + "</td>" +
-            '<td class="tx-amount ' + amountClass + '">' + escapeHtml(amountText) + "</td>" +
-            "<td>" + reverseActionHtml(tx) + "</td>" +
-            (DEBUG ? "<td><code>" + escapeHtml(tx.id) + "</code></td>" : "") +
-            "</tr>"
+            '<tr class="' + escapeHtml(row.row_kind) + '" data-tx-id="' + escapeHtml(row.id) + '">' +
+              '<td>' + escapeHtml(prettyDate(row.date)) + '</td>' +
+              '<td>' +
+                '<div class="ledger-main">' +
+                  '<div>' + typeBadge(row) + '</div>' +
+                  '<div class="ledger-secondary">' + escapeHtml(row.display_type) + '</div>' +
+                '</div>' +
+              '</td>' +
+              '<td>' +
+                '<div class="ledger-main">' +
+                  '<div class="ledger-primary">' + escapeHtml(row.display_movement) + '</div>' +
+                  (row.linked_entity ? '<div class="ledger-secondary">Linked: ' + escapeHtml(row.linked_entity) + '</div>' : '') +
+                '</div>' +
+              '</td>' +
+              '<td>' + escapeHtml(row.display_category) + '</td>' +
+              '<td>' +
+                '<div class="ledger-main">' +
+                  '<div class="ledger-primary">' + escapeHtml(row.display_description) + '</div>' +
+                  (DEBUG ? '<div class="ledger-secondary">raw: ' + escapeHtml(row.notes) + '</div>' : '') +
+                '</div>' +
+              '</td>' +
+              '<td>' + statusBadge(row) + '</td>' +
+              '<td class="ledger-amount ' + escapeHtml(row.amount_effect) + '">' + escapeHtml(money(row.display_amount)) + '</td>' +
+              '<td>' + reverseActionHtml(row) + '</td>' +
+              (DEBUG ? '<td><code>' + escapeHtml(row.id) + '</code></td>' : '') +
+            '</tr>'
           );
         }).join("");
       }
 
-      function reverseActionHtml(tx) {
-        if (!canReverse(tx)) {
-          return '<span class="tx-secondary">Locked</span>';
-        }
-
-        return '<button class="tx-action-btn" type="button" data-reverse-id="' + escapeHtml(tx.id) + '">Reverse</button>';
-      }
-
-      function setApiStatus(kind, ok, message) {
-        const value = kind === "transactions" ? $("transactionsApiStatus") : $("balancesApiStatus");
-        const sub = kind === "transactions" ? $("transactionsApiSub") : $("balancesApiSub");
-
-        if (value) {
-          value.textContent = ok ? "Live" : "Error";
-          value.style.color = ok ? "var(--success)" : "var(--danger)";
-        }
-
-        if (sub) sub.textContent = message;
-      }
-
-      function buildMaps() {
-        accountMap = new Map();
-        categoryMap = new Map();
-
-        accounts.forEach(account => {
-          const id = clean(account.id || account.account_id, "");
-          if (id) accountMap.set(id, { ...account, id });
-        });
-
-        categories.forEach(category => {
-          const id = clean(category.id || category.category_id, "");
-          if (id) categoryMap.set(id, { ...category, id });
-        });
-
-        if ($("accountCount")) $("accountCount").textContent = String(accountMap.size);
+      function reverseActionHtml(row) {
+        if (!row.can_reverse) return '<span class="ledger-secondary">Locked</span>';
+        return '<button class="ledger-action-btn" type="button" data-reverse-id="' + escapeHtml(row.id) + '">Reverse</button>';
       }
 
       async function loadBalances() {
         try {
           const data = await fetchJson(BALANCES_ENDPOINT);
           accounts = normalizeAccounts(data);
-          setApiStatus("balances", true, "Loaded " + accounts.length + " accounts");
         } catch (err) {
-          console.warn("[transactions] balances failed:", err);
+          console.warn("[ledger] balances failed", err);
           accounts = [];
-          setApiStatus("balances", false, err.message || String(err));
         }
       }
 
@@ -1041,107 +1038,78 @@
           const data = await fetchJson(CATEGORIES_ENDPOINT);
           categories = normalizeCategories(data);
         } catch (err) {
-          console.warn("[transactions] categories unavailable:", err);
+          console.warn("[ledger] categories failed", err);
           categories = [];
         }
       }
 
       async function loadTransactions() {
-        try {
-          const endpoint = auditMode
-            ? TRANSACTIONS_ENDPOINT + "?include_reversed=1"
-            : TRANSACTIONS_ENDPOINT;
+        const endpoint = auditMode
+          ? TRANSACTIONS_ENDPOINT + "?include_reversed=1"
+          : TRANSACTIONS_ENDPOINT;
 
-          const data = await fetchJson(endpoint);
-          const rawRows = normalizeArrayResponse(data, ["transactions", "items"]);
+        const data = await fetchJson(endpoint);
+        const rows = normalizeArrayResponse(data, ["transactions", "items"]);
 
-          transactions = rawRows
-            .map(normalizeTransaction)
-            .filter(tx => tx && tx.id)
-            .sort((a, b) => {
-              const dateCompare = clean(b.date, "").localeCompare(clean(a.date, ""));
-              if (dateCompare) return dateCompare;
-              return clean(b.id, "").localeCompare(clean(a.id, ""));
-            });
+        rawTransactions = rows.map(normalizeRawTransaction).filter(row => row.id);
+      }
 
-          setApiStatus(
-            "transactions",
-            true,
-            auditMode
-              ? "Loaded " + transactions.length + " audit rows"
-              : "Loaded " + transactions.length + " active rows"
-          );
-        } catch (err) {
-          console.error("[transactions] ledger failed:", err);
-          transactions = [];
-          setApiStatus("transactions", false, err.message || String(err));
-        }
+      function buildMaps() {
+        accountMap = new Map();
+        categoryMap = new Map();
+
+        accounts.forEach(account => {
+          const id = clean(account.id || account.account_id);
+          if (id) accountMap.set(id, { ...account, id });
+        });
+
+        categories.forEach(category => {
+          const id = clean(category.id || category.category_id);
+          if (id) categoryMap.set(id, { ...category, id });
+        });
       }
 
       async function refreshAll() {
-        const button = $("refreshBtn");
-        if (button) {
-          button.disabled = true;
-          button.textContent = "Refreshing...";
+        els.refreshBtn.disabled = true;
+        els.refreshBtn.textContent = "Refreshing...";
+        els.ledgerBadge.textContent = "Loading";
+        els.ledgerBadge.className = "badge badge-info";
+
+        try {
+          await Promise.all([loadBalances(), loadCategories(), loadTransactions()]);
+          buildMaps();
+          displayRows = buildDisplayRows(rawTransactions);
+          renderFilters();
+          applyFilters();
+        } catch (err) {
+          console.error("[ledger] refresh failed", err);
+          els.transactionsBody.innerHTML = '<tr><td colspan="8"><div class="ledger-empty">' + escapeHtml(err.message || "Ledger failed.") + '</div></td></tr>';
+          els.ledgerBadge.textContent = "Error";
+          els.ledgerBadge.className = "badge badge-danger";
+        } finally {
+          els.refreshBtn.disabled = false;
+          els.refreshBtn.textContent = "Refresh Ledger";
         }
-
-        if ($("ledgerBadge")) {
-          $("ledgerBadge").textContent = "Loading";
-          $("ledgerBadge").className = "badge badge-info";
-        }
-
-        await Promise.all([
-          loadBalances(),
-          loadCategories(),
-          loadTransactions()
-        ]);
-
-        buildMaps();
-        renderFilters();
-        applyFilters();
-
-        if (button) {
-          button.disabled = false;
-          button.textContent = "Refresh Ledger";
-        }
-      }
-
-      function clearFilters() {
-        ["searchInput", "typeFilter", "accountFilter", "fromDate", "toDate"].forEach(id => {
-          const el = $(id);
-          if (el) el.value = "";
-        });
-
-        applyFilters();
       }
 
       async function reverseTransaction(id) {
         if (reversing) return;
 
-        const tx = transactions.find(item => item.id === id);
-        if (!tx) {
+        const row = displayRows.find(item => item.id === id);
+        if (!row) {
           showToast("Transaction not found on page.", "error");
           return;
         }
 
-        const summary = [
-          prettyDate(tx.date),
-          tx.type.toUpperCase(),
-          accountName(tx.account_id),
-          money(tx.amount),
-          tx.notes || tx.id
-        ].join(" · ");
-
         const confirmed = window.confirm(
           "Reverse this transaction?\n\n" +
-          summary + "\n\n" +
-          "This correction is handled by the backend against the original account linkage."
+          row.display_type + " · " + row.display_movement + " · " + money(row.display_amount) + "\n\n" +
+          "Backend will reverse against the original account linkage."
         );
 
         if (!confirmed) return;
 
         const reason = window.prompt("Reason for reversal? Required for audit trail.", "Correction");
-
         if (!reason || !reason.trim()) {
           showToast("Reverse cancelled. Reason is required.", "error");
           return;
@@ -1151,37 +1119,21 @@
         setReverseButtonsDisabled(true);
 
         try {
-          const before = await fetchJson(BALANCES_ENDPOINT);
-
           const result = await postJson(REVERSE_ENDPOINT, {
             id,
             reason: reason.trim(),
             created_by: "web-ledger"
           });
 
-          const after = await fetchJson(BALANCES_ENDPOINT);
+          showToast("Transaction reversed. Audit trail refreshed.", "success");
 
-          showToast(
-            result.mode === "linked_transfer"
-              ? "Transfer pair reversed. Audit trail refreshed."
-              : "Transaction reversed. Audit trail refreshed.",
-            "success"
-          );
-
-          console.log("[transactions reverse proof]", {
-            request_id: id,
-            result,
-            before_balances: before,
-            after_balances: after
-          });
+          console.log("[ledger reverse proof]", result);
 
           auditMode = true;
-          const toggle = $("auditToggle");
-          if (toggle) toggle.checked = true;
-
+          els.auditToggle.checked = true;
           await refreshAll();
         } catch (err) {
-          console.error("[transactions reverse failed]", err);
+          console.error("[ledger reverse failed]", err);
           showToast(err.message || "Unable to reverse transaction.", "error");
         } finally {
           reversing = false;
@@ -1196,43 +1148,38 @@
       }
 
       function showToast(message, type) {
-        const toast = $("txToast");
-        if (!toast) return;
+        els.toast.textContent = message;
+        els.toast.className = "ledger-toast show " + (type || "");
 
-        toast.textContent = message;
-        toast.className = "tx-toast show " + (type || "");
-
-        window.clearTimeout(showToast.timer);
-        showToast.timer = window.setTimeout(() => {
-          toast.className = "tx-toast";
-          toast.textContent = "";
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(() => {
+          els.toast.className = "ledger-toast";
+          els.toast.textContent = "";
         }, 3600);
       }
 
-      function renderDebugMode() {
-        const idHeader = $("txIdHeader");
-        if (idHeader) idHeader.hidden = !DEBUG;
+      function clearFilters() {
+        els.searchInput.value = "";
+        els.typeFilter.value = "";
+        els.accountFilter.value = "";
+        els.fromDate.value = "";
+        els.toDate.value = "";
+        applyFilters();
       }
 
       function wireEvents() {
-        ["searchInput", "typeFilter", "accountFilter", "fromDate", "toDate"].forEach(id => {
-          const el = $(id);
-          if (!el) return;
+        [els.searchInput, els.typeFilter, els.accountFilter, els.fromDate, els.toDate].forEach(el => {
           el.addEventListener("input", applyFilters);
           el.addEventListener("change", applyFilters);
         });
 
-        if ($("refreshBtn")) $("refreshBtn").addEventListener("click", refreshAll);
-        if ($("clearFiltersBtn")) $("clearFiltersBtn").addEventListener("click", clearFilters);
+        els.refreshBtn.addEventListener("click", refreshAll);
+        els.clearFiltersBtn.addEventListener("click", clearFilters);
 
-        const auditToggle = $("auditToggle");
-
-        if (auditToggle) {
-          auditToggle.addEventListener("change", async () => {
-            auditMode = auditToggle.checked;
-            await refreshAll();
-          });
-        }
+        els.auditToggle.addEventListener("change", async () => {
+          auditMode = els.auditToggle.checked;
+          await refreshAll();
+        });
 
         document.addEventListener("click", event => {
           const button = event.target.closest("[data-reverse-id]");
@@ -1241,58 +1188,19 @@
         });
       }
 
-      function initSavedNotice() {
-        const params = new URLSearchParams(window.location.search || "");
-        const saved = clean(params.get("saved"), "");
-        if (!saved) return;
-
-        const badge = $("ledgerBadge");
-
-        if (badge) {
-          badge.textContent = "Saved";
-          badge.className = "badge badge-ready";
-        }
+      function renderDebugMode() {
+        if (els.txIdHeader) els.txIdHeader.hidden = !DEBUG;
       }
 
       async function init() {
-        console.log("[transactions " + VERSION + "] init");
-
+        console.log("[ledger " + VERSION + "] init");
         renderDebugMode();
         wireEvents();
-        initSavedNotice();
         await refreshAll();
 
-        window.SovereignTransactionsPage = {
-          version: VERSION,
-          refresh: refreshAll,
-          reverseTransaction,
-          setAuditMode: async function (value) {
-            auditMode = Boolean(value);
-            const toggle = $("auditToggle");
-            if (toggle) toggle.checked = auditMode;
-            await refreshAll();
-          },
-          getAuditMode: function () {
-            return auditMode;
-          },
-          rows: function () {
-            return transactions.slice();
-          },
-          filtered: function () {
-            return filtered.slice();
-          },
-          accounts: function () {
-            return accounts.slice();
-          },
-          categories: function () {
-            return categories.slice();
-          }
-        };
-
-        console.log("[transactions " + VERSION + "] ready", {
-          transactions: transactions.length,
-          accounts: accounts.length,
-          categories: categories.length,
+        console.log("[ledger " + VERSION + "] ready", {
+          raw: rawTransactions.length,
+          display: displayRows.length,
           auditMode
         });
       }
