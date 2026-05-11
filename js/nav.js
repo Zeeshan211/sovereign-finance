@@ -12,9 +12,37 @@
     { href: "/salary.html", label: "Salary", icon: "₨", keys: ["/salary.html", "/salary"] },
     { href: "/forecast.html", label: "Forecast", icon: "⌁", keys: ["/forecast.html", "/forecast"] },
     { href: "/reconciliation.html", label: "Reconcile", icon: "✓", keys: ["/reconciliation.html", "/reconciliation", "/reconcile.html", "/reconcile"] },
-    { href: "/accounts.html", label: "Accounts", icon: "◫", keys: ["/accounts.html", "/accounts"] },
-    { href: "/cc.html", label: "Credit Card", icon: "▣", keys: ["/cc.html", "/cc", "/credit-card.html", "/credit-card"] }
-  ];
+      {
+    href: "/accounts.html",
+    label: "Accounts",
+    icon: "◫",
+    keys: ["/accounts.html", "/accounts"]
+  },
+  {
+    href: "/cc.html",
+    label: "Credit Card",
+    icon: "▣",
+    keys: ["/cc.html", "/cc", "/credit-card.html", "/credit-card"]
+  },
+  {
+    href: "/insights.html",
+    label: "Insights",
+    icon: "◉",
+    keys: ["/insights.html", "/insights"]
+  },
+  {
+    href: "/charts.html",
+    label: "Charts",
+    icon: "◌",
+    keys: ["/charts.html", "/charts"]
+  },
+  {
+    href: "/snapshots.html",
+    label: "Snapshots",
+    icon: "▤",
+    keys: ["/snapshots.html", "/snapshots"]
+  }
+];
 
   const INTERNAL_REPORT_ROUTE = {
     href: "/monthly-close.html",
