@@ -10,117 +10,229 @@
     :root {
       --sf-bg: #f3f6ef;
       --sf-surface: #ffffff;
-      --sf-ink: #18211b;
-      --sf-muted: #667064;
-      --sf-faint: #8b9589;
+      --sf-ink: #06111f;
+      --sf-muted: #5f6f82;
       --sf-line: #dfe6da;
-      --sf-hero: #111c17;
-      --sf-hero-2: #1b2b23;
-      --sf-green: #2f7d4f;
-      --sf-green-soft: #e7f3eb;
+      --sf-hero: #101826;
+      --sf-hero-2: #123c3a;
+      --sf-green: #087a54;
+      --sf-green-2: #0aaa76;
+      --sf-green-soft: #e6f4ec;
       --sf-yellow: #b7791f;
       --sf-yellow-soft: #fff6dd;
       --sf-red: #c2413a;
       --sf-red-soft: #fdebea;
       --sf-blue: #2f5f9f;
       --sf-blue-soft: #e8effb;
-      --sf-radius: 22px;
-      --sf-shadow: 0 18px 50px rgba(28, 42, 31, 0.10);
+      --sf-shadow: 0 18px 50px rgba(28, 42, 31, .12);
+      --sf-radius: 26px;
+    }
+
+    html,
+    body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
     }
 
     body {
-      min-height: 100vh;
       margin: 0;
-      background: var(--sf-bg);
+      background:
+        radial-gradient(circle at top right, rgba(47, 95, 159, .08), transparent 32rem),
+        var(--sf-bg);
       color: var(--sf-ink);
     }
 
     .fc-shell {
-      width: min(1180px, calc(100% - 32px));
+      width: min(1728px, calc(100% - 64px));
       margin: 0 auto;
-      padding: 24px 0 48px;
+      padding: 22px 0 56px;
     }
 
-    .fc-topbar {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 18px;
-      margin-bottom: 22px;
-      padding: 30px;
-      border-radius: 30px;
-      background:
-        radial-gradient(circle at top right, rgba(84, 168, 116, 0.28), transparent 28rem),
-        linear-gradient(135deg, var(--sf-hero), var(--sf-hero-2));
-      color: #fff;
-      box-shadow: var(--sf-shadow);
+    .fc-page-head {
+      margin: 0 0 18px;
+      padding: 0 2px;
     }
 
     .fc-kicker {
-      color: rgba(255,255,255,.68);
-      font-size: 12px;
+      color: var(--sf-muted);
+      font-size: 13px;
+      font-weight: 900;
       letter-spacing: .12em;
       text-transform: uppercase;
-      margin-bottom: 6px;
     }
 
-    .fc-title {
+    .fc-page-title {
+      margin: 2px 0 0;
+      color: var(--sf-ink);
+      font-size: 24px;
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: -.04em;
+    }
+
+    .fc-hero {
+      min-height: 360px;
+      border-radius: 40px;
+      padding: clamp(28px, 4vw, 58px);
+      color: #fff;
+      background:
+        radial-gradient(circle at 76% 8%, rgba(5, 150, 105, .35), transparent 30rem),
+        radial-gradient(circle at 100% 100%, rgba(148, 163, 184, .24), transparent 34rem),
+        linear-gradient(135deg, var(--sf-hero), #162033 48%, var(--sf-hero-2));
+      box-shadow: var(--sf-shadow);
+      display: grid;
+      align-content: center;
+      margin-bottom: 30px;
+    }
+
+    .fc-hero-pill {
+      width: fit-content;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid rgba(16, 185, 129, .42);
+      background: rgba(8, 122, 84, .32);
+      color: #eafff7;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 950;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 26px;
+    }
+
+    .fc-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--sf-green-2);
+      box-shadow: 0 0 0 8px rgba(16, 185, 129, .12);
+      flex: 0 0 auto;
+    }
+
+    .fc-hero-title {
+      max-width: 1000px;
       margin: 0;
-      font-size: clamp(32px, 5vw, 56px);
-      line-height: .95;
-      letter-spacing: -.055em;
+      font-size: clamp(48px, 7vw, 88px);
+      line-height: .92;
+      font-weight: 1000;
+      letter-spacing: -.075em;
     }
 
-    .fc-version {
-      color: rgba(255,255,255,.58);
-      font-size: 12px;
-      text-align: right;
-      white-space: nowrap;
+    .fc-hero-copy {
+      max-width: 760px;
+      margin: 22px 0 0;
+      color: rgba(255, 255, 255, .82);
+      font-size: clamp(18px, 2vw, 23px);
+      line-height: 1.45;
+      font-weight: 800;
+    }
+
+    .fc-hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .fc-btn {
+      border: 1px solid transparent;
+      border-radius: 16px;
+      padding: 14px 20px;
+      font: inherit;
+      font-weight: 950;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--sf-ink);
+      background: #eef4f8;
+      min-height: 56px;
+    }
+
+    .fc-btn.primary {
+      color: #fff;
+      background: var(--sf-green);
+      border-color: rgba(255, 255, 255, .08);
+    }
+
+    .fc-btn:hover {
+      transform: translateY(-1px);
     }
 
     .fc-status {
       border: 1px solid var(--sf-line);
       background: var(--sf-surface);
-      border-radius: 18px;
-      padding: 14px 16px;
+      border-radius: 22px;
+      padding: 16px 20px;
       color: var(--sf-muted);
-      margin-bottom: 18px;
+      margin-bottom: 22px;
       box-shadow: var(--sf-shadow);
+      font-size: 16px;
     }
 
     .fc-status strong {
       color: var(--sf-ink);
+      font-weight: 950;
     }
 
-    .fc-summary {
+    .fc-status.danger {
+      color: var(--sf-red);
+      background: var(--sf-red-soft);
+      border-color: #f3b8b5;
+    }
+
+    .fc-metrics {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-      margin-bottom: 18px;
+      gap: 22px;
+      margin-bottom: 28px;
     }
 
     .fc-card,
     .fc-panel {
-      border: 1px solid var(--sf-line);
       background: var(--sf-surface);
+      border: 1px solid var(--sf-line);
       border-radius: var(--sf-radius);
       box-shadow: var(--sf-shadow);
+      min-width: 0;
     }
 
     .fc-card {
-      padding: 18px;
-      min-height: 122px;
-      overflow: hidden;
       position: relative;
+      overflow: hidden;
+      padding: 26px;
+      min-height: 158px;
+      border-top: 4px solid transparent;
+    }
+
+    .fc-card.good {
+      border-top-color: var(--sf-green);
+    }
+
+    .fc-card.warn {
+      border-top-color: var(--sf-yellow);
+    }
+
+    .fc-card.danger {
+      border-top-color: var(--sf-red);
     }
 
     .fc-card::after {
       content: "";
       position: absolute;
-      right: -38px;
-      bottom: -52px;
-      width: 120px;
-      height: 120px;
+      right: -42px;
+      bottom: -58px;
+      width: 142px;
+      height: 142px;
       border-radius: 999px;
       background: var(--sf-green-soft);
       pointer-events: none;
@@ -129,62 +241,92 @@
     .fc-label {
       color: var(--sf-muted);
       font-size: 13px;
-      margin-bottom: 8px;
+      font-weight: 950;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
     }
 
     .fc-value {
       color: var(--sf-ink);
-      font-size: clamp(22px, 3vw, 34px);
-      line-height: 1.05;
-      font-weight: 760;
-      letter-spacing: -.045em;
-      word-break: break-word;
+      font-size: clamp(28px, 3.5vw, 44px);
+      line-height: 1;
+      font-weight: 1000;
+      letter-spacing: -.065em;
+      overflow-wrap: anywhere;
+      position: relative;
+      z-index: 1;
     }
 
     .fc-sub {
-      color: var(--sf-faint);
-      font-size: 12px;
-      margin-top: 8px;
-      line-height: 1.4;
+      color: var(--sf-muted);
+      font-size: 15px;
+      font-weight: 750;
+      line-height: 1.35;
+      margin-top: 12px;
+      position: relative;
+      z-index: 1;
     }
 
     .fc-grid {
       display: grid;
-      grid-template-columns: 1.15fr .85fr;
-      gap: 18px;
+      grid-template-columns: minmax(0, 1.55fr) minmax(320px, .85fr);
+      gap: 22px;
       align-items: start;
     }
 
     .fc-panel {
-      padding: 18px;
+      padding: 26px;
+      margin-bottom: 22px;
+    }
+
+    .fc-section-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--sf-green);
+      font-size: 13px;
+      font-weight: 1000;
+      letter-spacing: .08em;
+      text-transform: uppercase;
       margin-bottom: 18px;
+    }
+
+    .fc-section-kicker::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: var(--sf-green);
+      box-shadow: 0 0 0 7px var(--sf-green-soft);
     }
 
     .fc-panel h2,
     .fc-panel h3 {
-      margin: 0 0 14px;
+      margin: 0 0 12px;
       color: var(--sf-ink);
-      letter-spacing: -.03em;
+      font-weight: 1000;
+      letter-spacing: -.04em;
     }
 
     .fc-panel h2 {
-      font-size: 22px;
+      font-size: 25px;
     }
 
     .fc-panel h3 {
-      font-size: 17px;
+      font-size: 20px;
     }
 
     .fc-row-list {
       display: grid;
-      gap: 12px;
+      gap: 0;
     }
 
     .fc-row {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
-      padding: 11px 0;
+      gap: 18px;
+      padding: 15px 0;
       border-bottom: 1px solid var(--sf-line);
     }
 
@@ -194,147 +336,204 @@
 
     .fc-row span:first-child {
       color: var(--sf-muted);
+      font-weight: 750;
     }
 
     .fc-row span:last-child {
+      color: var(--sf-ink);
+      font-weight: 950;
       text-align: right;
-      font-weight: 700;
-      color: var(--sf-ink);
+      overflow-wrap: anywhere;
     }
 
-    .fc-check {
-      border: 1px solid var(--sf-line);
-      background: #fbfdf8;
-      border-radius: 18px;
-      padding: 14px;
+    .fc-controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
     }
 
-    .fc-check-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 10px;
+    .fc-field {
+      display: grid;
+      gap: 8px;
     }
 
-    .fc-check-title {
-      color: var(--sf-ink);
-      font-weight: 750;
-      font-size: 16px;
-      letter-spacing: -.02em;
-    }
-
-    .fc-check-body {
+    .fc-field label {
       color: var(--sf-muted);
       font-size: 13px;
-      line-height: 1.45;
+      font-weight: 900;
+    }
+
+    .fc-field input,
+    .fc-field select {
+      width: 100%;
+      min-height: 52px;
+      border: 1px solid var(--sf-line);
+      border-radius: 14px;
+      background: #fbfdf8;
+      color: var(--sf-ink);
+      padding: 12px 14px;
+      font: inherit;
+      font-weight: 800;
+      outline: none;
+    }
+
+    .fc-field input:focus,
+    .fc-field select:focus {
+      border-color: #89b894;
+      box-shadow: 0 0 0 3px rgba(47, 125, 79, .12);
     }
 
     .fc-pill {
       display: inline-flex;
+      width: fit-content;
       align-items: center;
       justify-content: center;
       border-radius: 999px;
+      padding: 7px 11px;
       border: 1px solid var(--sf-line);
-      padding: 7px 10px;
       font-size: 12px;
-      color: var(--sf-muted);
-      background: #f8faf5;
+      font-weight: 1000;
       white-space: nowrap;
     }
 
+    .fc-pill.safe,
     .fc-pill.good {
       color: var(--sf-green);
-      border-color: #b8dac4;
       background: var(--sf-green-soft);
+      border-color: #b8dac4;
     }
 
+    .fc-pill.watch,
     .fc-pill.warn {
       color: var(--sf-yellow);
-      border-color: #eed58e;
       background: var(--sf-yellow-soft);
+      border-color: #eed58e;
     }
 
+    .fc-pill.crisis,
     .fc-pill.danger {
       color: var(--sf-red);
-      border-color: #f3b8b5;
       background: var(--sf-red-soft);
+      border-color: #f3b8b5;
     }
 
-    .fc-pill.info {
-      color: var(--sf-blue);
-      border-color: #bacbeb;
-      background: var(--sf-blue-soft);
-    }
-
-    .fc-projection-list {
+    .fc-waterfall {
       display: grid;
-      gap: 10px;
+      gap: 14px;
+      margin-top: 16px;
     }
 
-    .fc-day {
+    .fc-bar-row {
       display: grid;
-      grid-template-columns: 90px 1fr auto;
-      gap: 12px;
+      grid-template-columns: 170px minmax(0, 1fr) 140px;
       align-items: center;
-      border: 1px solid var(--sf-line);
-      background: #fbfdf8;
-      border-radius: 16px;
-      padding: 12px;
+      gap: 14px;
     }
 
-    .fc-day-date {
-      font-weight: 750;
-      color: var(--sf-ink);
-      font-size: 13px;
-    }
-
-    .fc-day-text {
+    .fc-bar-label {
       color: var(--sf-muted);
-      font-size: 13px;
-      line-height: 1.4;
+      font-weight: 900;
+    }
+
+    .fc-bar-value {
+      color: var(--sf-ink);
+      text-align: right;
+      font-weight: 1000;
     }
 
     .fc-bar {
-      height: 11px;
+      height: 16px;
+      overflow: hidden;
       border-radius: 999px;
       background: #e6ecdf;
-      overflow: hidden;
-      margin-top: 8px;
     }
 
     .fc-bar span {
       display: block;
       height: 100%;
       width: 0%;
+      min-width: 4px;
       max-width: 100%;
       border-radius: inherit;
-      background: linear-gradient(90deg, #c2413a, #b7791f, #2f7d4f);
-      transition: width 300ms ease;
+      background: linear-gradient(90deg, var(--sf-green), var(--sf-blue));
     }
 
-    .fc-button-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 4px;
+    .fc-bar.out span {
+      background: linear-gradient(90deg, var(--sf-yellow), var(--sf-red));
     }
 
-    .fc-button {
-      border: 1px solid #246540;
-      background: var(--sf-green);
-      color: #fff;
-      border-radius: 999px;
-      padding: 11px 16px;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
+    .fc-timeline {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
     }
 
-    .fc-button.secondary {
-      border-color: var(--sf-line);
+    .fc-day {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr) 150px;
+      gap: 16px;
+      align-items: start;
+      border: 1px solid var(--sf-line);
       background: #fbfdf8;
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .fc-day-date {
+      font-weight: 1000;
       color: var(--sf-ink);
+    }
+
+    .fc-day-events {
+      color: var(--sf-muted);
+      font-weight: 750;
+      line-height: 1.45;
+    }
+
+    .fc-day-balance {
+      text-align: right;
+      font-weight: 1000;
+      color: var(--sf-ink);
+    }
+
+    .fc-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      margin-top: 12px;
+    }
+
+    .fc-table {
+      width: 100%;
+      min-width: 920px;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .fc-table th,
+    .fc-table td {
+      text-align: left;
+      padding: 13px 10px;
+      border-bottom: 1px solid var(--sf-line);
+      white-space: nowrap;
+    }
+
+    .fc-table th {
+      color: var(--sf-muted);
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-weight: 1000;
+    }
+
+    .fc-table td {
+      color: var(--sf-ink);
+      font-weight: 850;
+    }
+
+    .fc-table td:last-child,
+    .fc-table th:last-child {
+      text-align: right;
     }
 
     .fc-empty {
@@ -344,17 +543,14 @@
       padding: 18px;
       background: #fbfdf8;
       line-height: 1.45;
-    }
-
-    .fc-error {
-      color: var(--sf-red);
+      font-weight: 750;
     }
 
     .fc-debug {
       display: none;
       white-space: pre-wrap;
       overflow-x: auto;
-      max-height: 360px;
+      max-height: 380px;
       font-size: 12px;
       line-height: 1.5;
       color: var(--sf-muted);
@@ -367,349 +563,217 @@
       display: block;
     }
 
-    @media (max-width: 980px) {
+    @media (max-width: 1180px) {
+      .fc-shell {
+        width: min(100% - 28px, 1728px);
+      }
+
+      .fc-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
       .fc-grid {
         grid-template-columns: 1fr;
       }
-
-      .fc-summary {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
     }
 
-    @media (max-width: 620px) {
+    @media (max-width: 760px) {
       .fc-shell {
-        width: min(100% - 22px, 1180px);
-        padding-top: 14px;
+        width: min(100% - 20px, 1728px);
       }
 
-      .fc-topbar,
-      .fc-check-head {
+      .fc-hero {
+        border-radius: 28px;
+        min-height: 300px;
+      }
+
+      .fc-hero-title {
+        font-size: 46px;
+      }
+
+      .fc-metrics,
+      .fc-controls {
+        grid-template-columns: 1fr;
+      }
+
+      .fc-card,
+      .fc-panel {
+        border-radius: 20px;
+      }
+
+      .fc-row {
         flex-direction: column;
-        align-items: stretch;
+        gap: 4px;
       }
 
-      .fc-topbar {
-        padding: 24px;
-        border-radius: 24px;
-      }
-
-      .fc-version {
+      .fc-row span:last-child {
         text-align: left;
       }
 
-      .fc-summary {
-        grid-template-columns: 1fr;
-      }
-
+      .fc-bar-row,
       .fc-day {
         grid-template-columns: 1fr;
       }
+
+      .fc-day-balance {
+        text-align: left;
+      }
     }
-  /* Shipment 14: shared chart, side-panel, and mobile hardening */
-  html,
-  body {
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
-
-  .cc-shell,
-  .rec-shell,
-  .sal-shell,
-  .fc-shell {
-    max-width: 1180px;
-  }
-
-  .cc-card,
-  .rec-card,
-  .sal-card,
-  .fc-card,
-  .cc-panel,
-  .rec-panel,
-  .sal-panel,
-  .fc-panel,
-  .cc-account,
-  .rec-check,
-  .sal-check,
-  .fc-check,
-  .fc-day {
-    min-width: 0;
-  }
-
-  .cc-value,
-  .rec-value,
-  .sal-value,
-  .fc-value,
-  .cc-side-row span,
-  .rec-side-row span,
-  .sal-row span,
-  .fc-row span {
-    overflow-wrap: anywhere;
-  }
-
-  .cc-progress,
-  .fc-bar {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .cc-progress > span,
-  .fc-bar span {
-    min-width: 4px;
-  }
-
-  .cc-plan,
-  .fc-day {
-    min-width: 0;
-  }
-
-  .cc-plan strong,
-  .cc-plan span,
-  .fc-day-date,
-  .fc-day-text {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .rec-table {
-    max-width: 100%;
-  }
-
-  .rec-table th,
-  .rec-table td {
-    white-space: normal;
-  }
-
-  .cc-empty,
-  .rec-empty,
-  .sal-empty,
-  .fc-empty {
-    color: var(--sf-muted);
-  }
-
-  @media (max-width: 760px) {
-    .cc-shell,
-    .rec-shell,
-    .sal-shell,
-    .fc-shell {
-      width: min(100% - 20px, 1180px);
-      padding-bottom: 36px;
-    }
-
-    .cc-topbar,
-    .rec-topbar,
-    .sal-topbar,
-    .fc-topbar {
-      margin-bottom: 16px;
-    }
-
-    .cc-summary,
-    .rec-summary,
-    .sal-summary,
-    .fc-summary,
-    .cc-account-metrics,
-    .sal-two,
-    .sal-three {
-      grid-template-columns: 1fr !important;
-    }
-
-    .cc-grid,
-    .rec-grid,
-    .sal-grid,
-    .fc-grid {
-      grid-template-columns: 1fr !important;
-      gap: 14px;
-    }
-
-    .cc-panel,
-    .rec-panel,
-    .sal-panel,
-    .fc-panel,
-    .cc-card,
-    .rec-card,
-    .sal-card,
-    .fc-card {
-      border-radius: 18px;
-    }
-
-    .cc-account-head,
-    .rec-check-head,
-    .fc-check-head {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .cc-pill,
-    .rec-pill,
-    .sal-pill,
-    .fc-pill {
-      width: fit-content;
-      max-width: 100%;
-      white-space: normal;
-      text-align: left;
-    }
-
-    .cc-side-row,
-    .rec-side-row,
-    .sal-row,
-    .fc-row {
-      align-items: flex-start;
-    }
-
-    .cc-side-row span:last-child,
-    .rec-side-row span:last-child,
-    .sal-row span:last-child,
-    .fc-row span:last-child {
-      max-width: 54%;
-    }
-
-    .cc-plan {
-      grid-template-columns: 1fr !important;
-    }
-
-    .fc-day {
-      grid-template-columns: 1fr !important;
-    }
-  }
-
-  @media (max-width: 420px) {
-    .cc-title,
-    .rec-title,
-    .sal-title,
-    .fc-title {
-      font-size: 34px;
-    }
-
-    .cc-value,
-    .rec-value,
-    .sal-value,
-    .fc-value {
-      font-size: 24px;
-    }
-
-    .cc-side-row,
-    .rec-side-row,
-    .sal-row,
-    .fc-row {
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .cc-side-row span:last-child,
-    .rec-side-row span:last-child,
-    .sal-row span:last-child,
-    .fc-row span:last-child {
-      max-width: 100%;
-      text-align: left;
-    }
-  }
-</style>
+  </style>
 </head>
 
 <body>
-  <main class="fc-shell" data-page="forecast" data-version="forecast-rich-v1.0.1-hardened">
-    <section class="fc-topbar">
-      <div>
-        <div class="fc-kicker">Sovereign Finance</div>
-        <h1 class="fc-title">Forecast</h1>
+  <main class="fc-shell" data-page="forecast" data-version="forecast-brain-ui-v1.0.0">
+    <header class="fc-page-head">
+      <div class="fc-kicker">Sovereign Finance</div>
+      <h1 class="fc-page-title">Forecast</h1>
+    </header>
+
+    <section class="fc-hero">
+      <div class="fc-hero-pill"><span class="fc-dot"></span> Forecast Brain</div>
+      <h2 class="fc-hero-title">Cash, debt, crisis floor.</h2>
+      <p class="fc-hero-copy">
+        Future cash projection from salary, WFH, bills, debts, receivables, credit card pressure, and account balances.
+      </p>
+      <div class="fc-hero-actions">
+        <button id="refreshBtn" class="fc-btn primary" type="button">Refresh Forecast</button>
+        <a class="fc-btn" href="/salary.html">Open Salary</a>
+        <a class="fc-btn" href="/debts.html">Open Debts</a>
       </div>
-      <div class="fc-version">forecast-rich-v1.0.1-hardened</div>
     </section>
 
     <section id="fcStatus" class="fc-status">
-      <strong>Loading forecast truth…</strong>
-      <span>Reading current sources.</span>
+      <strong>Loading forecast brain…</strong>
+      <span>Reading current finance sources.</span>
     </section>
 
-    <section class="fc-summary" aria-label="Forecast summary">
-      <article class="fc-card">
-        <div class="fc-label">Liquid Now</div>
-        <div id="liquidNow" class="fc-value">—</div>
-        <div class="fc-sub">Current usable cash.</div>
+    <section class="fc-metrics">
+      <article id="statusCard" class="fc-card">
+        <div class="fc-label">Status</div>
+        <div id="statusValue" class="fc-value">—</div>
+        <div id="statusSub" class="fc-sub">Crisis floor analysis.</div>
+      </article>
+
+      <article class="fc-card good">
+        <div class="fc-label">Next Salary</div>
+        <div id="salaryValue" class="fc-value">—</div>
+        <div id="salarySub" class="fc-sub">From salary source.</div>
+      </article>
+
+      <article id="lowestCard" class="fc-card">
+        <div class="fc-label">Lowest Liquid</div>
+        <div id="lowestValue" class="fc-value">—</div>
+        <div id="lowestSub" class="fc-sub">Lowest projected cash date.</div>
       </article>
 
       <article class="fc-card">
-        <div class="fc-label">After Obligations</div>
-        <div id="afterObligations" class="fc-value">—</div>
-        <div class="fc-sub">Cash after known pressure.</div>
-      </article>
-
-      <article class="fc-card">
-        <div class="fc-label">With Receivables</div>
-        <div id="withReceivables" class="fc-value">—</div>
-        <div class="fc-sub">Optional incoming money view.</div>
-      </article>
-
-      <article class="fc-card">
-        <div class="fc-label">Net Worth Pressure</div>
-        <div id="netWorthPressure" class="fc-value">—</div>
-        <div class="fc-sub">Liquid minus liabilities.</div>
+        <div class="fc-label">Debt-Free Estimate</div>
+        <div id="debtFreeValue" class="fc-value">—</div>
+        <div id="debtFreeSub" class="fc-sub">Surplus after crisis floor.</div>
       </article>
     </section>
 
     <section class="fc-grid">
       <div>
         <section class="fc-panel">
-          <h2>Forecast inputs</h2>
-          <div id="inputPanel" class="fc-row-list">
-            <div class="fc-empty">Loading inputs…</div>
+          <div class="fc-section-kicker">Control Panel</div>
+          <h2>Forecast parameters</h2>
+          <div class="fc-controls">
+            <div class="fc-field">
+              <label for="crisisFloor">Crisis floor</label>
+              <input id="crisisFloor" type="number" value="5000" step="100" inputmode="decimal" />
+            </div>
+
+            <div class="fc-field">
+              <label for="forecastDays">Days</label>
+              <input id="forecastDays" type="number" value="90" min="30" max="365" step="1" />
+            </div>
+
+            <div class="fc-field">
+              <label for="forecastMonths">Months</label>
+              <input id="forecastMonths" type="number" value="6" min="3" max="24" step="1" />
+            </div>
           </div>
         </section>
 
         <section class="fc-panel">
-          <h2>30-day liquidity view</h2>
-          <div id="projectionPanel" class="fc-projection-list">
-            <div class="fc-empty">Loading projection…</div>
+          <div class="fc-section-kicker">Waterfall</div>
+          <h2>This month cash pressure</h2>
+          <div id="waterfallPanel" class="fc-waterfall">
+            <div class="fc-empty">Loading waterfall…</div>
           </div>
         </section>
 
         <section class="fc-panel">
-          <h2>Source proof</h2>
-          <div id="proofPanel" class="fc-row-list">
-            <div class="fc-empty">Loading source proof…</div>
+          <div class="fc-section-kicker">Timeline</div>
+          <h2>Daily low-point projection</h2>
+          <div id="timelinePanel" class="fc-timeline">
+            <div class="fc-empty">Loading timeline…</div>
+          </div>
+        </section>
+
+        <section class="fc-panel">
+          <div class="fc-section-kicker">Savings</div>
+          <h2>Monthly debt-free projection</h2>
+          <div class="fc-table-wrap">
+            <table class="fc-table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Opening</th>
+                  <th>Salary</th>
+                  <th>Bills</th>
+                  <th>CC Min</th>
+                  <th>Debt Paid</th>
+                  <th>Closing</th>
+                  <th>Saved</th>
+                  <th>Debt Left</th>
+                </tr>
+              </thead>
+              <tbody id="monthlyRows">
+                <tr><td colspan="9">Loading monthly projection…</td></tr>
+              </tbody>
+            </table>
           </div>
         </section>
       </div>
 
       <aside>
         <section class="fc-panel">
-          <h3>Month-end survival</h3>
-          <div id="survivalPanel" class="fc-row-list">
-            <div class="fc-empty">Loading survival view…</div>
+          <div class="fc-section-kicker">Position</div>
+          <h3>Current position</h3>
+          <div id="positionPanel" class="fc-row-list">
+            <div class="fc-empty">Loading position…</div>
           </div>
         </section>
 
         <section class="fc-panel">
-          <h3>Debt-free signal</h3>
-          <div id="debtFreePanel" class="fc-row-list">
-            <div class="fc-empty">Loading debt-free view…</div>
+          <div class="fc-section-kicker">Salary</div>
+          <h3>Salary bridge</h3>
+          <div id="salaryPanel" class="fc-row-list">
+            <div class="fc-empty">Loading salary…</div>
           </div>
         </section>
 
         <section class="fc-panel">
+          <div class="fc-section-kicker">Obligations</div>
+          <h3>Bills, debts, CC</h3>
+          <div id="obligationPanel" class="fc-row-list">
+            <div class="fc-empty">Loading obligations…</div>
+          </div>
+        </section>
+
+        <section class="fc-panel">
+          <div class="fc-section-kicker">Sources</div>
           <h3>Source status</h3>
           <div id="sourcePanel" class="fc-row-list">
             <div class="fc-empty">Loading sources…</div>
           </div>
         </section>
 
-        <section class="fc-panel">
-          <h3>Refresh</h3>
-          <div class="fc-empty">This page is read-only. It refreshes sources but does not create, update, or block money records.</div>
-          <div class="fc-button-row">
-            <button id="refreshBtn" class="fc-button" type="button">Refresh forecast</button>
-            <a class="fc-button secondary" href="/transactions.html">Open ledger</a>
-          </div>
-        </section>
-
         <section id="debugPanel" class="fc-panel" hidden>
-          <h3>Debug</h3>
+          <div class="fc-section-kicker">Debug</div>
+          <h3>Raw forecast</h3>
           <pre id="debugOutput" class="fc-debug"></pre>
         </section>
       </aside>
@@ -723,20 +787,14 @@
     (function () {
       "use strict";
 
-      const PAGE_VERSION = "forecast-rich-v1.0.1-hardened";
+      const PAGE_VERSION = "forecast-brain-ui-v1.0.0";
       const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
 
-      const state = {
-        forecast: null,
-        balances: null,
-        salary: null,
-        bills: null,
-        debts: null,
-        cc: null,
-        sources: []
-      };
-
       const $ = (id) => document.getElementById(id);
+
+      let state = {
+        forecast: null
+      };
 
       function asNumber(value, fallback = 0) {
         if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -745,10 +803,6 @@
           if (Number.isFinite(parsed)) return parsed;
         }
         return fallback;
-      }
-
-      function round2(value) {
-        return Math.round(asNumber(value, 0) * 100) / 100;
       }
 
       function money(value) {
@@ -765,11 +819,12 @@
         return String(value);
       }
 
-      function firstDefined() {
-        for (const value of arguments) {
-          if (value !== undefined && value !== null && value !== "") return value;
-        }
-        return undefined;
+      function statusClass(status) {
+        const s = String(status || "").toLowerCase();
+        if (s === "safe") return "good";
+        if (s === "watch") return "warn";
+        if (s === "danger" || s === "crisis") return "danger";
+        return "";
       }
 
       function escapeHtml(value) {
@@ -781,268 +836,6 @@
           .replaceAll("'", "&#039;");
       }
 
-      function setStatus(kind, html) {
-        const node = $("fcStatus");
-        node.className = "fc-status";
-        if (kind === "error") node.classList.add("fc-error");
-        node.innerHTML = html;
-      }
-
-      async function readJson(path, required) {
-        try {
-          const response = await fetch(path, {
-            headers: { "Accept": "application/json" },
-            cache: "no-store"
-          });
-
-          const payload = await response.json().catch(() => null);
-
-          if (!response.ok || payload?.ok === false) {
-            throw new Error(payload?.error || payload?.message || `${path} HTTP ${response.status}`);
-          }
-
-          state.sources.push({
-            path,
-            ok: true,
-            status: response.status,
-            version: payload?.version || payload?.forecast_meta?.active_payslip_source || null
-          });
-
-          return payload;
-        } catch (error) {
-          state.sources.push({
-            path,
-            ok: false,
-            error: error.message
-          });
-
-          if (required) throw error;
-          return null;
-        }
-      }
-
-      function arrayFrom(payload, keys) {
-        for (const key of keys) {
-          if (Array.isArray(payload?.[key])) return payload[key];
-        }
-        return [];
-      }
-
-      function salaryRoot() {
-        if (!state.salary) return {};
-        return state.salary.salary || state.salary.data || state.salary.current || state.salary;
-      }
-
-      function normalize() {
-        const f = state.forecast || {};
-        const inputs = f.inputs || {};
-        const forecast = f.forecast || {};
-        const salary = f.salary || {};
-        const position = f.current_position || {};
-        const obligations = f.obligations_before_salary || {};
-        const baseline = f.baseline_forecast || {};
-        const projectionSummary = f.cash_projection_summary || {};
-        const debtFree = f.debt_free_forecast || {};
-        const scenarios = f.scenarios || {};
-        const salaryApi = salaryRoot();
-
-        const liquidNow = asNumber(firstDefined(
-          state.balances?.total_liquid,
-          state.balances?.cash,
-          state.balances?.total_liquid_assets,
-          position.total_liquid,
-          inputs.total_liquid
-        ), 0);
-
-        const ccOutstanding = asNumber(firstDefined(
-          state.balances?.cc_outstanding,
-          state.balances?.cc,
-          position.cc_outstanding,
-          inputs.credit_card_outstanding,
-          totalCcFromApi()
-        ), 0);
-
-        const payableDebt = asNumber(firstDefined(
-          state.balances?.payable_debt_remaining,
-          state.balances?.total_owed,
-          state.balances?.total_debts,
-          inputs.debt_payable_remaining,
-          debtFree.total_debt_remaining
-        ), 0);
-
-        const receivables = asNumber(firstDefined(
-          state.balances?.total_receivables,
-          state.balances?.receivables_from_debts,
-          inputs.debt_receivable_remaining,
-          obligations.total_receivables_expected_before_salary
-        ), 0);
-
-        const billsRemaining = asNumber(firstDefined(
-          inputs.bills_remaining_this_month,
-          obligations.total_bills_due_before_salary,
-          billsRemainingFromApi()
-        ), 0);
-
-        const guaranteedSalary = asNumber(firstDefined(
-          inputs.guaranteed_salary,
-          salary.baseline_net_without_manual_variables_pkr,
-          scenarios.conservative_baseline?.forecast_net_salary,
-          salaryApi.forecast_eligible_monthly,
-          salaryApi.net_monthly,
-          salaryApi.guaranteed_salary
-        ), 0);
-
-        const salaryVariableConfirmed = Boolean(firstDefined(
-          salaryApi.variable_confirmed,
-          salaryApi.is_variable_confirmed,
-          false
-        ));
-
-        const confirmedVariable = salaryVariableConfirmed
-          ? asNumber(firstDefined(
-              salaryApi.variable_net_confirmed,
-              salaryApi.confirmed_variable_net,
-              salaryApi.variable_gross,
-              salaryApi.variable_income,
-              0
-            ), 0)
-          : 0;
-
-        const scenarioVariable = asNumber(firstDefined(
-          salary.manual_variable_total_pkr,
-          scenarios.confirmed_variable?.amount,
-          0
-        ), 0);
-
-        const afterObligations = asNumber(firstDefined(
-          forecast.projected_cash_after_obligations,
-          baseline.projected_cash_after_salary_conservative,
-          projectionSummary.cash_after_salary_and_obligations,
-          liquidNow + guaranteedSalary + confirmedVariable - billsRemaining - payableDebt - ccOutstanding
-        ), 0);
-
-        const withReceivables = asNumber(firstDefined(
-          forecast.projected_cash_if_receivables_collected,
-          afterObligations + receivables
-        ), 0);
-
-        const netWorthAfterDebtPressure = asNumber(firstDefined(
-          state.balances?.true_burden,
-          liquidNow - ccOutstanding - payableDebt + receivables
-        ), 0);
-
-        const ending30 = firstDefined(
-          projectionSummary.ending_balance_30d,
-          afterObligations
-        );
-
-        const ending30WithVariable = firstDefined(
-          projectionSummary.ending_balance_30d_with_manual_variables,
-          projectionSummary.cash_after_salary_and_obligations_with_manual_variables
-        );
-
-        const lowestProjected = firstDefined(
-          projectionSummary.lowest_projected_balance,
-          null
-        );
-
-        const firstUnsafeDate = firstDefined(
-          projectionSummary.first_unsafe_date,
-          baseline.first_unsafe_date,
-          null
-        );
-
-        const firstWatchDate = firstDefined(
-          projectionSummary.first_watch_date,
-          null
-        );
-
-        const runwayStatus = text(firstDefined(
-          projectionSummary.runway_status,
-          baseline.runway_status,
-          "unknown"
-        ));
-
-        return {
-          liquidNow,
-          ccOutstanding,
-          payableDebt,
-          receivables,
-          billsRemaining,
-          guaranteedSalary,
-          confirmedVariable,
-          scenarioVariable,
-          salaryVariableConfirmed,
-          afterObligations,
-          withReceivables,
-          netWorthAfterDebtPressure,
-          ending30,
-          ending30WithVariable,
-          lowestProjected,
-          firstUnsafeDate,
-          firstWatchDate,
-          runwayStatus,
-          salaryDate: firstDefined(
-            salary.next_salary_date,
-            projectionSummary.salary_date,
-            null
-          ),
-          daysUntilSalary: firstDefined(
-            salary.days_until_salary,
-            null
-          ),
-          debtFree,
-          projection: arrayFrom(f, ["daily_cash_projection_30d"]),
-          health: f.health || f.sources || {},
-          forecastVersion: f.version || "unknown"
-        };
-      }
-
-      function totalCcFromApi() {
-        if (!state.cc) return undefined;
-
-        const direct = firstDefined(
-          state.cc.total_outstanding,
-          state.cc.totalOutstanding,
-          state.cc.summary?.total_outstanding,
-          state.cc.summary?.outstanding,
-          state.cc.totals?.outstanding
-        );
-
-        if (direct !== undefined) return direct;
-
-        return arrayFrom(state.cc, ["accounts", "cards", "credit_cards", "creditCards", "data"])
-          .reduce((sum, card) => {
-            const balance = asNumber(firstDefined(card.balance, card.current_balance), 0);
-            const outstanding = firstDefined(
-              card.outstanding,
-              card.cc_outstanding,
-              card.current_outstanding,
-              balance < 0 ? Math.abs(balance) : undefined
-            );
-            return sum + asNumber(outstanding, 0);
-          }, 0);
-      }
-
-      function billsRemainingFromApi() {
-        if (!state.bills) return undefined;
-
-        const direct = firstDefined(
-          state.bills.remaining_this_month,
-          state.bills.total_remaining,
-          state.bills.summary?.remaining_this_month,
-          state.bills.summary?.total_remaining
-        );
-
-        if (direct !== undefined) return direct;
-
-        return arrayFrom(state.bills, ["bills", "data", "results"]).reduce((sum, bill) => {
-          const cleared = String(firstDefined(bill.current_month_cleared, bill.status, "")).toLowerCase();
-          const isPaid = cleared === "true" || cleared === "paid" || cleared === "cleared";
-          return isPaid ? sum : sum + asNumber(firstDefined(bill.amount, bill.expected_amount, bill.monthly_amount), 0);
-        }, 0);
-      }
-
       function row(label, value) {
         return `
           <div class="fc-row">
@@ -1052,192 +845,245 @@
         `;
       }
 
-      function renderSummary(n) {
-        $("liquidNow").textContent = money(n.liquidNow);
-        $("afterObligations").textContent = money(n.afterObligations);
-        $("withReceivables").textContent = money(n.withReceivables);
-        $("netWorthPressure").textContent = money(n.netWorthAfterDebtPressure);
+      function rows(items) {
+        return items.map(([label, value]) => row(label, value)).join("");
       }
 
-      function renderInputs(n) {
-        $("inputPanel").innerHTML = [
-          row("Liquid now", money(n.liquidNow)),
-          row("Guaranteed salary", money(n.guaranteedSalary)),
-          row("Confirmed variable salary", money(n.confirmedVariable)),
-          row("Bills remaining", money(n.billsRemaining)),
-          row("Debt payable", money(n.payableDebt)),
-          row("Debt receivable", money(n.receivables)),
-          row("Credit-card outstanding", money(n.ccOutstanding)),
-          row("Scenario/manual variable", money(n.scenarioVariable))
-        ].join("");
+      function setStatus(kind, html) {
+        const node = $("fcStatus");
+        node.className = "fc-status";
+        if (kind === "danger") node.classList.add("danger");
+        node.innerHTML = html;
       }
 
-      function renderSurvival(n) {
-        const status = n.runwayStatus;
-        const pillClass = status.includes("unsafe") ? "danger" : status.includes("watch") ? "warn" : "good";
+      async function readForecast() {
+        const crisisFloor = asNumber($("crisisFloor").value, 5000);
+        const days = asNumber($("forecastDays").value, 90);
+        const months = asNumber($("forecastMonths").value, 6);
 
-        $("survivalPanel").innerHTML = `
-          <div class="fc-check">
-            <div class="fc-check-head">
-              <div class="fc-check-title">Liquidity status</div>
-              <span class="fc-pill ${pillClass}">${escapeHtml(status)}</span>
+        const url = `/api/forecast?crisis_floor=${encodeURIComponent(crisisFloor)}&days=${encodeURIComponent(days)}&months=${encodeURIComponent(months)}`;
+        const response = await fetch(url, {
+          headers: { "accept": "application/json" },
+          cache: "no-store"
+        });
+
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok || !payload || payload.ok === false) {
+          throw new Error(payload?.error || `Forecast API HTTP ${response.status}`);
+        }
+
+        return payload;
+      }
+
+      function renderCards(f) {
+        const insights = f.insights || {};
+        const salary = f.salary || {};
+        const status = insights.status || "unknown";
+        const cls = statusClass(status);
+
+        $("statusCard").className = `fc-card ${cls}`;
+        $("statusValue").textContent = String(status).toUpperCase();
+        $("statusSub").textContent = insights.first_crisis_breach_date
+          ? `First breach: ${insights.first_crisis_breach_date}`
+          : "No breach in forecast range.";
+
+        $("salaryValue").textContent = money(salary.forecast_eligible_monthly);
+        $("salarySub").textContent = `Guaranteed ${money(salary.guaranteed_monthly)} · Variable ${money(salary.variable_monthly)}`;
+
+        $("lowestCard").className = `fc-card ${cls}`;
+        $("lowestValue").textContent = money(insights.lowest_liquid_amount);
+        $("lowestSub").textContent = insights.lowest_liquid_date
+          ? `${insights.lowest_liquid_date} · gap ${money(insights.lowest_liquid_gap_to_floor)}`
+          : "Lowest date unavailable.";
+
+        $("debtFreeValue").textContent = insights.debt_free_date || "Not yet";
+        $("debtFreeSub").textContent = insights.months_to_debt_free
+          ? `${insights.months_to_debt_free} month(s) at current surplus mode.`
+          : "No debt-free month in current horizon.";
+      }
+
+      function renderPosition(f) {
+        const p = f.current_position || {};
+        $("positionPanel").innerHTML = rows([
+          ["Liquid now", money(p.liquid_now)],
+          ["Net worth", money(p.net_worth)],
+          ["True burden", money(p.true_burden)],
+          ["Credit-card outstanding", money(p.cc_outstanding)],
+          ["Payable debt", money(p.payable_debt_remaining)],
+          ["Receivables", money(p.total_receivables)]
+        ]);
+      }
+
+      function renderSalary(f) {
+        const s = f.salary || {};
+        $("salaryPanel").innerHTML = rows([
+          ["Forecast salary", money(s.forecast_eligible_monthly)],
+          ["Guaranteed", money(s.guaranteed_monthly)],
+          ["Variable", money(s.variable_monthly)],
+          ["Salary date", text(s.forecast_date)],
+          ["WFH allowance", money(s.wfh_allowance)],
+          ["WFH FX", s.wfh_fx_rate ? String(s.wfh_fx_rate) : "Unknown"],
+          ["MBO included", s.mbo_included ? "Yes" : "No"],
+          ["MBO net", money(s.mbo_net)]
+        ]);
+      }
+
+      function renderObligations(f) {
+        const o = f.obligations_this_month || {};
+        $("obligationPanel").innerHTML = rows([
+          ["Bills remaining", money(o.bills_remaining)],
+          ["Debt payable", money(o.debt_payable_remaining)],
+          ["Receivables", money(o.debt_receivable_remaining)],
+          ["CC outstanding", money(o.cc_outstanding)],
+          ["CC minimum due", money(o.cc_minimum_due)]
+        ]);
+      }
+
+      function renderSources(f) {
+        const sources = Array.isArray(f.sources) ? f.sources : [];
+
+        $("sourcePanel").innerHTML = sources.length
+          ? sources.map((source) => row(source.path, `${source.ok ? "OK" : "Failed"} · ${source.version || source.status || ""}`)).join("")
+          : `<div class="fc-empty">No source status returned.</div>`;
+      }
+
+      function renderWaterfall(f) {
+        const p = f.current_position || {};
+        const s = f.salary || {};
+        const o = f.obligations_this_month || {};
+        const fc = f.forecast || {};
+
+        const items = [
+          ["Liquid now", p.liquid_now, "in"],
+          ["Salary", s.forecast_eligible_monthly, "in"],
+          ["Bills", o.bills_remaining, "out"],
+          ["CC minimum", o.cc_minimum_due, "out"],
+          ["Debt payable", o.debt_payable_remaining, "out"],
+          ["After debt pressure", fc.projected_cash_after_debt_pressure, "in"],
+          ["With receivables", fc.projected_cash_if_receivables_collected, "in"]
+        ];
+
+        const max = Math.max(...items.map((item) => Math.abs(asNumber(item[1], 0))), 1);
+
+        $("waterfallPanel").innerHTML = items.map(([label, value, type]) => `
+          <div class="fc-bar-row ${type === "out" ? "out" : ""}">
+            <div class="fc-bar-label">${escapeHtml(label)}</div>
+            <div class="fc-bar ${type === "out" ? "out" : ""}">
+              <span style="width:${Math.max(4, Math.min(100, Math.abs(asNumber(value, 0)) / max * 100))}%"></span>
             </div>
-            <div class="fc-check-body">
-              Salary date: ${escapeHtml(text(n.salaryDate))}. Days until salary: ${escapeHtml(text(n.daysUntilSalary))}.
-            </div>
+            <div class="fc-bar-value">${money(value)}</div>
           </div>
-          ${row("30-day ending balance", money(n.ending30))}
-          ${row("30-day with scenario variables", n.ending30WithVariable === undefined ? "Unknown" : money(n.ending30WithVariable))}
-          ${row("Lowest projected balance", n.lowestProjected === null ? "Unknown" : money(n.lowestProjected))}
-          ${row("First watch date", text(n.firstWatchDate))}
-          ${row("First unsafe date", text(n.firstUnsafeDate))}
-        `;
+        `).join("");
       }
 
-      function renderDebtFree(n) {
-        const d = n.debtFree || {};
-        $("debtFreePanel").innerHTML = [
-          row("Payable debt remaining", money(firstDefined(d.total_debt_remaining, n.payableDebt))),
-          row("Debt count", text(d.debt_count, "Unknown")),
-          row("Conservative free cash", d.conservative_monthly_free_cash_after_obligations === undefined ? "Unknown" : money(d.conservative_monthly_free_cash_after_obligations)),
-          row("Months to debt-free", text(d.months_to_debt_free_conservative, "Unknown")),
-          row("Estimated debt-free date", text(d.estimated_debt_free_date_conservative, "Unknown"))
-        ].join("");
-      }
+      function renderTimeline(f) {
+        const days = Array.isArray(f.daily_projection) ? f.daily_projection : [];
+        const meaningful = days.filter((day, index) => {
+          return index === 0 ||
+            day.events?.length ||
+            day.below_crisis_floor ||
+            day.date === f.insights?.lowest_liquid_date;
+        }).slice(0, 18);
 
-      function renderProjection(n) {
-        const days = Array.isArray(n.projection) ? n.projection : [];
-
-        if (!days.length) {
-          $("projectionPanel").innerHTML = `<div class="fc-empty">Daily projection unavailable from current forecast API. Summary cards still use current sources.</div>`;
+        if (!meaningful.length) {
+          $("timelinePanel").innerHTML = `<div class="fc-empty">No dated forecast events available.</div>`;
           return;
         }
 
-        const maxAbs = Math.max(...days.slice(0, 14).map((day) => Math.abs(asNumber(day.closing_balance, 0))), 1);
+        $("timelinePanel").innerHTML = meaningful.map((day) => {
+          const events = Array.isArray(day.events) && day.events.length
+            ? day.events.map((event) => `${event.direction === "outflow" ? "-" : "+"} ${money(event.amount)} ${event.label}`).join("<br>")
+            : "No scheduled movement";
 
-        $("projectionPanel").innerHTML = days.slice(0, 14).map((day) => {
-          const closing = asNumber(day.closing_balance, 0);
-          const width = Math.max(4, Math.min(100, Math.abs(closing) / maxAbs * 100));
-          const status = text(day.status, closing < 0 ? "danger" : "safe");
-          const pillClass = status.includes("unsafe") ? "danger" : status.includes("watch") ? "warn" : "good";
-          const events = [];
-
-          if (asNumber(day.salary_inflow, 0)) events.push(`salary ${money(day.salary_inflow)}`);
-          if (asNumber(day.bills_outflow, 0)) events.push(`bills ${money(day.bills_outflow)}`);
-          if (asNumber(day.debt_outflow, 0)) events.push(`debt ${money(day.debt_outflow)}`);
-          if (asNumber(day.receivable_inflow, 0)) events.push(`receivable ${money(day.receivable_inflow)}`);
+          const cls = statusClass(day.status);
 
           return `
             <article class="fc-day">
-              <div class="fc-day-date">${escapeHtml(text(day.date))}</div>
-              <div>
-                <div class="fc-day-text">${escapeHtml(events.length ? events.join(" · ") : "No scheduled movement")}</div>
-                <div class="fc-bar"><span style="width:${width}%"></span></div>
-              </div>
-              <div>
-                <span class="fc-pill ${pillClass}">${escapeHtml(status)}</span>
-                <div class="fc-sub" style="text-align:right;">${money(closing)}</div>
+              <div class="fc-day-date">${escapeHtml(day.date)}</div>
+              <div class="fc-day-events">${events}</div>
+              <div class="fc-day-balance">
+                ${money(day.closing_liquid)}
+                <br>
+                <span class="fc-pill ${cls}">${escapeHtml(day.status || "unknown")}</span>
               </div>
             </article>
           `;
         }).join("");
       }
 
-      function renderProof(n) {
-        const items = [
-          ["Forecast API", state.forecast ? `Loaded ${n.forecastVersion}` : "Unavailable"],
-          ["Balances", state.balances ? "Loaded" : "Unavailable"],
-          ["Salary", state.salary ? "Loaded" : "Unavailable"],
-          ["Bills", state.bills ? "Loaded/degraded" : "Unavailable"],
-          ["Debts", state.debts ? "Loaded/degraded" : "Unavailable"],
-          ["Credit Card", state.cc ? "Loaded/degraded" : "Unavailable"]
-        ];
+      function renderMonthly(f) {
+        const rowsData = Array.isArray(f.monthly_projection) ? f.monthly_projection : [];
 
-        $("proofPanel").innerHTML = items.map(([title, body]) => `
-          <div class="fc-check">
-            <div class="fc-check-head">
-              <div class="fc-check-title">${escapeHtml(title)}</div>
-              <span class="fc-pill ${String(body).includes("Unavailable") ? "warn" : "good"}">${String(body).includes("Unavailable") ? "Check" : "OK"}</span>
-            </div>
-            <div class="fc-check-body">${escapeHtml(body)}</div>
-          </div>
+        if (!rowsData.length) {
+          $("monthlyRows").innerHTML = `<tr><td colspan="9">No monthly projection returned.</td></tr>`;
+          return;
+        }
+
+        $("monthlyRows").innerHTML = rowsData.map((month) => `
+          <tr>
+            <td>${escapeHtml(month.label || month.month)}</td>
+            <td>${money(month.opening_liquid)}</td>
+            <td>${money(month.salary)}</td>
+            <td>${money(month.bills)}</td>
+            <td>${money(month.cc_minimum)}</td>
+            <td>${money(month.debt_payment_applied_from_surplus)}</td>
+            <td>${money(month.closing_liquid)}</td>
+            <td>${money(month.saved_above_crisis_floor)}</td>
+            <td>${money(month.debt_remaining)}</td>
+          </tr>
         `).join("");
       }
 
-      function renderSources() {
-        $("sourcePanel").innerHTML = state.sources.map((source) => `
-          <div class="fc-row">
-            <span>${escapeHtml(source.path)}</span>
-            <span>${escapeHtml(source.ok ? "OK" : "Failed")}</span>
-          </div>
-        `).join("");
-      }
-
-      function renderDebug(n) {
+      function renderDebug(f) {
         if (!DEBUG) return;
 
         $("debugPanel").hidden = false;
         $("debugOutput").classList.add("is-visible");
-        $("debugOutput").textContent = JSON.stringify({
-          version: PAGE_VERSION,
-          normalized: n,
-          sources: state.sources,
-          forecast: state.forecast,
-          balances: state.balances,
-          salary: state.salary,
-          bills: state.bills,
-          debts: state.debts,
-          cc: state.cc
-        }, null, 2);
+        $("debugOutput").textContent = JSON.stringify(f, null, 2);
+      }
+
+      function render(f) {
+        state.forecast = f;
+
+        renderCards(f);
+        renderPosition(f);
+        renderSalary(f);
+        renderObligations(f);
+        renderSources(f);
+        renderWaterfall(f);
+        renderTimeline(f);
+        renderMonthly(f);
+        renderDebug(f);
+
+        const status = f.insights?.status || "unknown";
+        const salary = f.salary?.forecast_eligible_monthly;
+        const lowest = f.insights?.lowest_liquid_amount;
+
+        setStatus(statusClass(status) === "danger" ? "danger" : "ready",
+          `<strong>Forecast ready.</strong> <span>Salary ${money(salary)} · Lowest liquid ${money(lowest)} · Status ${escapeHtml(String(status).toUpperCase())}.</span>`
+        );
+
+        console.log("forecast:", PAGE_VERSION);
+        console.log("forecast brain:", f);
       }
 
       async function boot() {
         window.SovereignForecast = {
           version: PAGE_VERSION,
-          reload: boot
+          reload: boot,
+          data: () => state.forecast
         };
 
         $("refreshBtn").disabled = true;
-        state.sources = [];
 
         try {
-          setStatus("loading", `<strong>Loading forecast truth…</strong> <span>Reading current sources.</span>`);
-
-          const results = await Promise.allSettled([
-            readJson("/api/forecast", true),
-            readJson("/api/balances", false),
-            readJson("/api/salary", false),
-            readJson("/api/bills", false),
-            readJson("/api/debts", false),
-            readJson("/api/cc", false)
-          ]);
-
-          state.forecast = results[0].status === "fulfilled" ? results[0].value : null;
-          state.balances = results[1].status === "fulfilled" ? results[1].value : null;
-          state.salary = results[2].status === "fulfilled" ? results[2].value : null;
-          state.bills = results[3].status === "fulfilled" ? results[3].value : null;
-          state.debts = results[4].status === "fulfilled" ? results[4].value : null;
-          state.cc = results[5].status === "fulfilled" ? results[5].value : null;
-
-          const normalized = normalize();
-
-          renderSummary(normalized);
-          renderInputs(normalized);
-          renderProjection(normalized);
-          renderSurvival(normalized);
-          renderDebtFree(normalized);
-          renderProof(normalized);
-          renderSources();
-          renderDebug(normalized);
-
-          setStatus("ready", `<strong>Forecast ready.</strong> <span>Read-only rich view loaded from current sources.</span>`);
-
-          console.log("forecast:", PAGE_VERSION);
-          console.log("forecast normalized:", normalized);
+          setStatus("loading", `<strong>Loading forecast brain…</strong> <span>Reading /api/forecast.</span>`);
+          const forecast = await readForecast();
+          render(forecast);
         } catch (error) {
           console.error(error);
-          setStatus("error", `<strong>Forecast failed.</strong> <span>${escapeHtml(error.message)}</span>`);
-          $("inputPanel").innerHTML = `<div class="fc-empty fc-error">Could not load required forecast source.</div>`;
+          setStatus("danger", `<strong>Forecast failed.</strong> <span>${escapeHtml(error.message)}</span>`);
         } finally {
           $("refreshBtn").disabled = false;
         }
@@ -1245,6 +1091,9 @@
 
       document.addEventListener("DOMContentLoaded", () => {
         $("refreshBtn").addEventListener("click", boot);
+        $("crisisFloor").addEventListener("change", boot);
+        $("forecastDays").addEventListener("change", boot);
+        $("forecastMonths").addEventListener("change", boot);
         boot();
       });
     })();
