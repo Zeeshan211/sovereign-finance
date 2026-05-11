@@ -987,35 +987,23 @@
         $("annualTaxCard").textContent = money(calc.projectedAnnualTax);
       }
 
-      function renderCalculation(calc) {
-
-
-
+            function renderCalculation(calc) {
         $("calculationPanel").innerHTML = renderRows([
           ["Base gross", money(calc.baseGross)],
           ["Base monthly tax", money(calc.baseMonthlyTax)],
           ["Other monthly deduction", money(calc.normalDeduction)],
           ["Base net", money(calc.baseNet)],
+
           ["MBO included", calc.includeMbo ? "Yes" : "No"],
           ["MBO gross", money(calc.mboGross)],
           ["MBO tax", money(calc.mboTax)],
           ["MBO net", money(calc.mboNet)],
+
           ["One-off extras included", calc.includeOtherExtras ? "Yes" : "No"],
           ["One-off extras gross", money(calc.otherExtrasGross)],
           ["One-off extras tax", money(calc.otherExtrasTax)],
           ["One-off extras net", money(calc.otherExtrasNet)],
-          ["Forecast salary", money(calc.forecastEligible)]
-        ]);
 
-        
-          ["Base gross", money(calc.baseGross)],
-          ["Base monthly tax", money(calc.baseMonthlyTax)],
-          ["Other monthly deduction", money(calc.normalDeduction)],
-          ["Base net", money(calc.baseNet)],
-          ["MBO included", calc.includeMbo ? "Yes" : "No"],
-          ["MBO gross", money(calc.mboGross)],
-          ["MBO tax", money(calc.mboTax)],
-          ["MBO net", money(calc.mboNet)],
           ["Forecast salary", money(calc.forecastEligible)]
         ]);
       }
