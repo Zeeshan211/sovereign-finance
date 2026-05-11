@@ -194,6 +194,43 @@
       gap: 10px;
       margin-top: 14px;
     }
+        .mode-guide {
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      background:
+        linear-gradient(135deg, rgba(4, 120, 87, .08), transparent 70%),
+        var(--surface-2);
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .mode-guide-title {
+      color: var(--text-strong);
+      font-weight: 950;
+      letter-spacing: -.02em;
+    }
+
+    .mode-guide-copy {
+      margin-top: 6px;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 760;
+      line-height: 1.45;
+    }
+
+    .mode-guide.warn {
+      border-color: rgba(180, 83, 9, .28);
+      background:
+        linear-gradient(135deg, var(--warn-soft), transparent 70%),
+        var(--surface-1);
+    }
+
+    .mode-guide.danger {
+      border-color: rgba(185, 28, 28, .28);
+      background:
+        linear-gradient(135deg, var(--danger-soft), transparent 70%),
+        var(--surface-1);
+    }
 
     @media (max-width: 1180px) {
       .add-workspace,
@@ -224,7 +261,7 @@
 </head>
 
 <body>
-  <main class="app-page" data-page="add" data-version="add-guarded-routing-v1.7.0">
+  <main class="app-page" data-page="add" data-version="add-guarded-routing-v1.7.1-polished">
     <div class="add-os">
       <section class="add-command">
         <div>
@@ -264,7 +301,12 @@
             <div class="section-kicker">Transaction details</div>
 
             <form id="txForm" style="margin-top:14px;">
-              <input type="hidden" id="txType" value="expense" />
+            <input type="hidden" id="txType" value="expense" />
+
+              <div id="modeGuide" class="mode-guide">
+                <div class="mode-guide-title">Expense mode</div>
+                <div class="mode-guide-copy">Use this for normal spending. Add will show account impact, merchant hints, optional international calculator, dry-run proof, then Confirm Save.</div>
+              </div>
 
               <div class="add-grid">
                 <div class="form-field">
@@ -417,7 +459,7 @@
     (function () {
       "use strict";
 
-      const VERSION = "add-guarded-routing-v1.7.0";
+      const VERSION = "add-guarded-routing-v1.7.1-polished";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
       const $ = (id) => document.getElementById(id);
 
@@ -569,6 +611,76 @@
         );
       }
 
+            function modeMeta(mode) {
+        const map = {
+          expense: {
+            title: "Expense mode",
+            copy: "Use this for normal spending. Add will show account impact, merchant hints, optional international calculator, dry-run proof, then Confirm Save.",
+            review: "Review Expense",
+            merchantPlaceholder: "e.g. Foodpanda, Netflix, Internet, groceries",
+            notesPlaceholder: "optional expense notes",
+            className: ""
+          },
+          income: {
+            title: "Income mode",
+            copy: "Use this for normal income. Salary detection will appear when amount/source matches the salary forecast.",
+            review: "Review Income",
+            merchantPlaceholder: "e.g. Motive salary, refund, reimbursement",
+            notesPlaceholder: "optional income notes",
+            className: ""
+          },
+          transfer: {
+            title: "Transfer mode",
+            copy: "Use this when money moves between your own accounts. Add will preview both balances and net-worth impact as zero.",
+            review: "Review Transfer",
+            merchantPlaceholder: "e.g. IBFT, cash move, prepaid top-up",
+            notesPlaceholder: "optional transfer notes",
+            className: ""
+          },
+          debt_given: {
+            title: "Debt Given is guarded",
+            copy: "Debt Given must be created in Debts so the receivable and linked ledger movement stay in sync. Generic Add save is blocked by design.",
+            review: "Show Safe Route",
+            merchantPlaceholder: "person / counterparty name",
+            notesPlaceholder: "why money was given / follow-up context",
+            className: "warn"
+          },
+          debt_received: {
+            title: "Debt Received is guarded",
+            copy: "Debt Received must be recorded in Debts so the receivable reduces correctly. Generic income is blocked to prevent double-counting.",
+            review: "Show Safe Route",
+            merchantPlaceholder: "person / counterparty name",
+            notesPlaceholder: "repayment details",
+            className: "warn"
+          },
+          credit_card: {
+            title: "Credit Card is guarded",
+            copy: "Credit-card spends/payments need liability-aware handling. Generic Add save is blocked until the CC flow owns the write.",
+            review: "Show Safe Route",
+            merchantPlaceholder: "merchant or card payment reference",
+            notesPlaceholder: "credit-card context",
+            className: "warn"
+          }
+        };
+
+        return map[mode] || map.expense;
+      }
+
+      function renderModeGuide(mode) {
+        const meta = modeMeta(mode);
+        const guide = $("modeGuide");
+
+        guide.className = `mode-guide ${meta.className || ""}`;
+        guide.innerHTML = `
+          <div class="mode-guide-title">${escapeHtml(meta.title)}</div>
+          <div class="mode-guide-copy">${escapeHtml(meta.copy)}</div>
+        `;
+
+        $("reviewBtn").textContent = meta.review;
+        $("merchantSource").placeholder = meta.merchantPlaceholder;
+        $("notesText").placeholder = meta.notesPlaceholder;
+      }
+
       function setMode(mode) {
         $("txType").value = mode;
 
@@ -588,6 +700,7 @@
 
         $("internationalToggleWrap").hidden = mode !== "expense";
 
+        renderModeGuide(mode);
         syncInternational();
         updateIntelligence();
         renderImpact();
@@ -787,14 +900,31 @@
         };
       }
 
-      function renderGuardPanel() {
+         function renderGuardPanel() {
         const guard = detectGuard();
         state.currentGuard = guard;
 
         $("guardPanel").className = `guard-card ${guard.blocked ? "warn" : "good"}`;
+
+        if (!guard.blocked) {
+          $("guardPanel").innerHTML = `
+            <div class="strong">${escapeHtml(guard.title)}</div>
+            <div class="muted" style="margin-top:8px;">${escapeHtml(guard.copy)}</div>
+            <div class="impact-row"><span>Generic Add save</span><span>Allowed after review</span></div>
+            <div class="impact-row"><span>Dry-run required</span><span>Yes</span></div>
+            <div class="impact-row"><span>Final save</span><span>Only after Confirm Save</span></div>
+          `;
+          return;
+        }
+
         $("guardPanel").innerHTML = `
           <div class="strong">${escapeHtml(guard.title)}</div>
           <div class="muted" style="margin-top:8px;">${escapeHtml(guard.copy)}</div>
+
+          <div class="impact-row"><span>Generic Add save</span><span>Blocked</span></div>
+          <div class="impact-row"><span>Reason</span><span>Source-truth protection</span></div>
+          <div class="impact-row"><span>Correct module</span><span>${escapeHtml(guard.routeLabel || "Required")}</span></div>
+
           ${guard.route ? `
             <div class="guard-actions">
               <a class="btn btn-success" href="${escapeHtml(guard.route)}">${escapeHtml(guard.routeLabel)}</a>
@@ -1137,11 +1267,19 @@
           $("reviewPanel").hidden = false;
           $("reviewPanel").className = "panel card-padded";
 
-          if (guard.blocked) {
+                    if (guard.blocked) {
             $("reviewPanel").innerHTML = `
               <div class="error-box">
-                <div class="strong">${escapeHtml(guard.title)}</div>
+                <div class="section-kicker">Guarded route</div>
+                <h2 class="authority-title" style="font-size:24px;margin-top:12px;">${escapeHtml(guard.title)}</h2>
                 <div class="muted" style="margin-top:8px;">${escapeHtml(guard.copy)}</div>
+
+                <div class="impact-card warn" style="margin-top:14px;">
+                  <div class="impact-row"><span>Generic Add save</span><span>Blocked</span></div>
+                  <div class="impact-row"><span>Reason</span><span>Prevents source drift / double-counting</span></div>
+                  <div class="impact-row"><span>Correct destination</span><span>${escapeHtml(guard.routeLabel)}</span></div>
+                </div>
+
                 <div style="margin-top:14px;">
                   <a class="btn btn-success" href="${escapeHtml(guard.route)}">${escapeHtml(guard.routeLabel)}</a>
                 </div>
@@ -1336,6 +1474,8 @@
         $("debugPanel").hidden = false;
         $("debugOutput").textContent = JSON.stringify({
           version: VERSION,
+          uxPolishShipment: "20F-mode-specific-layout-polish",
+          modeGuideActive: Boolean(document.getElementById("modeGuide")),
           accountsLoaded: Object.keys(state.accounts).length,
           categoriesLoaded: Object.keys(state.categories).length,
           balancesLoaded: Boolean(state.balances?.accounts),
