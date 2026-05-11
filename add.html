@@ -98,7 +98,8 @@
       box-shadow: var(--shadow-sm);
     }
 
-    .impact-card {
+    .impact-card,
+    .intel-card {
       border: 1px solid var(--border);
       border-radius: var(--r-xl);
       background: var(--surface-1);
@@ -106,17 +107,20 @@
       padding: 16px;
     }
 
-    .impact-card.good {
+    .impact-card.good,
+    .intel-card.good {
       border-color: rgba(4, 120, 87, .28);
       background: linear-gradient(135deg, var(--success-soft), transparent 70%), var(--surface-1);
     }
 
-    .impact-card.warn {
+    .impact-card.warn,
+    .intel-card.warn {
       border-color: rgba(180, 83, 9, .28);
       background: linear-gradient(135deg, var(--warn-soft), transparent 70%), var(--surface-1);
     }
 
-    .impact-card.danger {
+    .impact-card.danger,
+    .intel-card.danger {
       border-color: rgba(185, 28, 28, .28);
       background: linear-gradient(135deg, var(--danger-soft), transparent 70%), var(--surface-1);
     }
@@ -178,6 +182,13 @@
       line-height: 1.5;
     }
 
+    .intel-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
     @media (max-width: 1180px) {
       .add-workspace,
       .add-command {
@@ -197,7 +208,8 @@
       }
 
       .add-actions .btn,
-      .add-mode {
+      .add-mode,
+      .intel-actions .btn {
         width: 100%;
       }
     }
@@ -205,13 +217,13 @@
 </head>
 
 <body>
-  <main class="app-page" data-page="add" data-version="add-review-v1.5.0">
+  <main class="app-page" data-page="add" data-version="add-intel-v1.6.0">
     <div class="add-os">
       <section class="add-command">
         <div>
           <div class="section-kicker">Sovereign Entry</div>
           <h1 class="add-title">Add Transaction</h1>
-          <p class="add-copy">Enter the movement, review impact, dry-run the backend contract, then confirm save. No blind writes.</p>
+          <p class="add-copy">Review account impact, detect salary, surface merchant hints, dry-run the backend contract, then confirm save.</p>
         </div>
         <div class="add-actions">
           <a class="btn btn-secondary" href="/transactions.html">Ledger</a>
@@ -223,7 +235,7 @@
 
       <section id="statusPanel" class="panel card-padded">
         <div class="strong">Loading Add Transaction…</div>
-        <div class="muted">Reading accounts, categories, and balances.</div>
+        <div class="muted">Reading accounts, categories, balances, salary, and recent transaction history.</div>
       </section>
 
       <section class="add-workspace">
@@ -358,6 +370,16 @@
           </section>
 
           <section class="panel card-padded">
+            <div class="section-kicker">Salary detector</div>
+            <div id="salaryPanel" class="intel-card" style="margin-top:12px;"></div>
+          </section>
+
+          <section class="panel card-padded">
+            <div class="section-kicker">Merchant intelligence</div>
+            <div id="merchantPanel" class="intel-card" style="margin-top:12px;"></div>
+          </section>
+
+          <section class="panel card-padded">
             <div class="section-kicker">Accounts</div>
             <div id="accountsPanel" class="stack-sm" style="margin-top:12px;"></div>
           </section>
@@ -379,17 +401,34 @@
     (function () {
       "use strict";
 
-      const VERSION = "add-review-v1.5.0";
+      const VERSION = "add-intel-v1.6.0";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
       const $ = (id) => document.getElementById(id);
+
+      const MERCHANT_RULES = [
+        { match: /motive|salary|payroll/i, label: "Motive / Salary", suggestedCategory: "salary_income", suggestedType: "income", international: false, pra: false, fx: false, source: "rule" },
+        { match: /netflix|spotify|openai|chatgpt/i, label: "Digital subscription", suggestedCategory: "subscriptions", suggestedType: "expense", international: true, pra: true, fx: true, praRate: 5, source: "rule" },
+        { match: /google|aws|amazon web services|github|apple/i, label: "International digital merchant", suggestedCategory: "software_tools", suggestedType: "expense", international: true, pra: false, fx: true, praRate: 0, source: "rule" },
+        { match: /foodpanda|careem|indrive|indriver|uber/i, label: "Local app/service", suggestedCategory: "transport", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" },
+        { match: /jazz|zong|ufone|telenor|nayatel|internet/i, label: "Telecom / internet", suggestedCategory: "bills_utilities", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" },
+        { match: /family contribution|maid|cloth washing/i, label: "Household bill", suggestedCategory: "bills_utilities", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" },
+        { match: /atm|ubl atm|abl atm/i, label: "ATM related", suggestedCategory: "atm_fee", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" }
+      ];
 
       const state = {
         accounts: {},
         categories: {},
         balances: {},
+        salary: null,
+        transactions: [],
         pendingPayload: null,
         dryRunResult: null,
         saveResult: null,
+        salarySuggestionIgnored: false,
+        appliedSalarySuggestion: false,
+        appliedMerchantSuggestion: false,
+        currentMerchantSuggestion: null,
+        currentSalarySuggestion: null,
         writeEndpointsCalledOnLoad: 0,
         finalWriteCalls: 0
       };
@@ -472,6 +511,10 @@
         return [];
       }
 
+      function txArray(payload) {
+        return payload?.transactions || payload?.data || payload?.results || [];
+      }
+
       function accountBalance(id) {
         const fromBalances = state.balances?.accounts?.[id]?.balance;
         if (fromBalances !== undefined) return asNumber(fromBalances, 0);
@@ -484,6 +527,28 @@
 
       function accountName(id) {
         return state.accounts?.[id]?.name || id || "Unknown account";
+      }
+
+      function categoryExists(id) {
+        return Boolean(state.categories[id]);
+      }
+
+      function chooseExistingCategory(candidates) {
+        for (const id of candidates) {
+          if (categoryExists(id)) return id;
+        }
+        return "";
+      }
+
+      function salaryForecastAmount() {
+        return asNumber(
+          state.salary?.forecast_eligible_monthly ??
+          state.salary?.salary?.forecast_eligible_monthly ??
+          state.salary?.guaranteed_monthly ??
+          state.salary?.salary?.guaranteed_monthly ??
+          0,
+          0
+        );
       }
 
       function setMode(mode) {
@@ -502,6 +567,7 @@
 
         $("internationalToggleWrap").hidden = mode !== "expense";
         syncInternational();
+        updateIntelligence();
         renderImpact();
         hideReview();
       }
@@ -620,6 +686,242 @@
         `;
       }
 
+      function merchantSearchText() {
+        return [
+          $("merchantSource").value,
+          $("referenceText").value,
+          $("notesText").value
+        ].join(" ").trim();
+      }
+
+      function extractMerchantFromNote(note) {
+        const text = String(note || "");
+        const merchant = text.match(/merchant=([^|]+)/i);
+        if (merchant) return merchant[1].trim();
+        const source = text.match(/source=([^|]+)/i);
+        if (source) return source[1].trim();
+        return text.split("|")[0].split("·")[0].trim();
+      }
+
+      function merchantHistorySuggestion(query) {
+        const q = String(query || "").trim().toLowerCase();
+        if (!q) return null;
+
+        const matches = state.transactions
+          .filter((tx) => {
+            const haystack = [
+              tx.merchant,
+              tx.merchant_id,
+              tx.source,
+              tx.reference,
+              tx.notes,
+              tx.category_id,
+              tx.account_id
+            ].filter(Boolean).join(" ").toLowerCase();
+            return haystack.includes(q);
+          })
+          .slice(0, 20);
+
+        if (!matches.length) return null;
+
+        const categoryCounts = {};
+        const accountCounts = {};
+        let last = matches[0];
+
+        for (const tx of matches) {
+          if (tx.category_id) categoryCounts[tx.category_id] = (categoryCounts[tx.category_id] || 0) + 1;
+          if (tx.account_id) accountCounts[tx.account_id] = (accountCounts[tx.account_id] || 0) + 1;
+          const txTime = new Date(tx.created_at || `${tx.date}T00:00:00`).getTime();
+          const lastTime = new Date(last.created_at || `${last.date}T00:00:00`).getTime();
+          if (txTime > lastTime) last = tx;
+        }
+
+        const topCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+        const topAccount = Object.entries(accountCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+
+        return {
+          label: extractMerchantFromNote(last.notes) || q,
+          suggestedCategory: topCategory,
+          suggestedAccount: topAccount,
+          lastAmount: asNumber(last.amount, 0),
+          lastDate: last.date || "",
+          matchCount: matches.length,
+          international: matches.some((tx) => /international=true|foreign|fx|usd|eur|gbp|aed/i.test(String(tx.notes || ""))),
+          pra: matches.some((tx) => /pra/i.test(String(tx.notes || ""))),
+          fx: matches.some((tx) => /fx/i.test(String(tx.notes || ""))),
+          source: "history"
+        };
+      }
+
+      function merchantRuleSuggestion(query) {
+        const q = String(query || "").trim();
+        if (!q) return null;
+        return MERCHANT_RULES.find((rule) => rule.match.test(q)) || null;
+      }
+
+      function merchantSuggestion() {
+        const q = merchantSearchText();
+        const rule = merchantRuleSuggestion(q);
+        const history = merchantHistorySuggestion(q);
+
+        if (history && rule) {
+          return {
+            ...rule,
+            ...history,
+            suggestedCategory: history.suggestedCategory || rule.suggestedCategory,
+            suggestedType: rule.suggestedType || $("txType").value,
+            source: `history + ${rule.source}`,
+            ruleLabel: rule.label
+          };
+        }
+
+        return history || rule || null;
+      }
+
+      function salarySuggestion() {
+        const type = $("txType").value;
+        const amount = asNumber($("txAmount").value, 0);
+        const expected = salaryForecastAmount();
+        const text = merchantSearchText();
+
+        if (type !== "income" || !amount || !expected) return null;
+
+        const diff = round2(amount - expected);
+        const pct = expected ? Math.abs(diff / expected) * 100 : 999;
+        const textLooksSalary = /salary|payroll|motive|employer|payslip/i.test(text);
+        const amountLooksSalary = pct <= 10;
+
+        if (!textLooksSalary && !amountLooksSalary) return null;
+
+        return {
+          expected,
+          entered: amount,
+          diff,
+          pct,
+          confidence: textLooksSalary && amountLooksSalary ? "high" : amountLooksSalary ? "medium" : "low",
+          reason: textLooksSalary
+            ? "merchant/source text looks like salary"
+            : "amount is close to salary forecast"
+        };
+      }
+
+      function renderSalaryPanel() {
+        const suggestion = salarySuggestion();
+        state.currentSalarySuggestion = suggestion;
+
+        if (!suggestion) {
+          $("salaryPanel").className = "intel-card";
+          $("salaryPanel").innerHTML = `
+            <div class="muted">No salary pattern detected for the current entry.</div>
+            <div class="impact-row"><span>Forecast salary</span><span>${money(salaryForecastAmount())}</span></div>
+          `;
+          return;
+        }
+
+        $("salaryPanel").className = `intel-card ${suggestion.confidence === "high" ? "good" : "warn"}`;
+        $("salaryPanel").innerHTML = `
+          <div class="strong">This looks like salary.</div>
+          <div class="muted" style="margin-top:6px;">Reason: ${escapeHtml(suggestion.reason)} · Confidence: ${escapeHtml(suggestion.confidence)}</div>
+          <div class="impact-row"><span>Expected salary</span><span>${money(suggestion.expected)}</span></div>
+          <div class="impact-row"><span>Entered amount</span><span>${money(suggestion.entered)}</span></div>
+          <div class="impact-row"><span>Difference</span><span>${money(suggestion.diff)}</span></div>
+          <div class="impact-row"><span>Difference %</span><span>${suggestion.pct.toFixed(2)}%</span></div>
+          <div class="intel-actions">
+            <button id="applySalaryBtn" class="btn btn-success" type="button">Apply Salary Category</button>
+            <button id="ignoreSalaryBtn" class="btn btn-secondary" type="button">Treat Normal</button>
+          </div>
+        `;
+
+        $("applySalaryBtn").addEventListener("click", applySalarySuggestion);
+        $("ignoreSalaryBtn").addEventListener("click", () => {
+          state.salarySuggestionIgnored = true;
+          $("salaryPanel").className = "intel-card";
+          $("salaryPanel").innerHTML = `<div class="muted">Salary suggestion ignored for this entry.</div>`;
+          renderDebug();
+        });
+      }
+
+      function applySalarySuggestion() {
+        const salaryCategory = chooseExistingCategory(["salary_income", "income_salary", "salary"]);
+        if (salaryCategory) $("categoryId").value = salaryCategory;
+        if (!$("merchantSource").value.trim()) $("merchantSource").value = "Motive Salary";
+        state.appliedSalarySuggestion = true;
+        hideReview();
+        updateIntelligence();
+      }
+
+      function renderMerchantPanel() {
+        const suggestion = merchantSuggestion();
+        state.currentMerchantSuggestion = suggestion;
+
+        if (!suggestion) {
+          $("merchantPanel").className = "intel-card";
+          $("merchantPanel").innerHTML = `
+            <div class="muted">No merchant intelligence match yet.</div>
+            <div class="muted" style="margin-top:8px;">This entry can still be saved normally. No fake suggestions are shown.</div>
+          `;
+          return;
+        }
+
+        const category = suggestion.suggestedCategory || "";
+        const account = suggestion.suggestedAccount || "";
+        const categoryLabel = category ? category : "No category suggestion";
+        const accountLabel = account ? accountName(account) : "No account suggestion";
+
+        $("merchantPanel").className = `intel-card ${suggestion.international ? "warn" : "good"}`;
+        $("merchantPanel").innerHTML = `
+          <div class="strong">${escapeHtml(suggestion.label || "Merchant match")}</div>
+          <div class="muted" style="margin-top:6px;">Source: ${escapeHtml(suggestion.source || "unknown")}</div>
+          <div class="impact-row"><span>Suggested category</span><span>${escapeHtml(categoryLabel)}</span></div>
+          <div class="impact-row"><span>Suggested account</span><span>${escapeHtml(accountLabel)}</span></div>
+          <div class="impact-row"><span>International</span><span>${suggestion.international ? "Yes" : "No"}</span></div>
+          <div class="impact-row"><span>FX fee flag</span><span>${suggestion.fx ? "Yes" : "No"}</span></div>
+          <div class="impact-row"><span>PRA flag</span><span>${suggestion.pra ? "Yes" : "No"}</span></div>
+          ${suggestion.matchCount ? `<div class="impact-row"><span>History matches</span><span>${suggestion.matchCount}</span></div>` : ""}
+          ${suggestion.lastAmount ? `<div class="impact-row"><span>Last amount</span><span>${money(suggestion.lastAmount)}</span></div>` : ""}
+          ${suggestion.lastDate ? `<div class="impact-row"><span>Last date</span><span>${escapeHtml(suggestion.lastDate)}</span></div>` : ""}
+          <div class="intel-actions">
+            <button id="applyMerchantBtn" class="btn btn-success" type="button">Apply Suggestion</button>
+          </div>
+        `;
+
+        $("applyMerchantBtn").addEventListener("click", applyMerchantSuggestion);
+      }
+
+      function applyMerchantSuggestion() {
+        const suggestion = state.currentMerchantSuggestion;
+        if (!suggestion) return;
+
+        if (suggestion.suggestedType && ["expense", "income", "transfer"].includes(suggestion.suggestedType)) {
+          setMode(suggestion.suggestedType);
+        }
+
+        if (suggestion.suggestedAccount && state.accounts[suggestion.suggestedAccount]) {
+          $("accountId").value = suggestion.suggestedAccount;
+        }
+
+        if (suggestion.suggestedCategory && categoryExists(suggestion.suggestedCategory)) {
+          $("categoryId").value = suggestion.suggestedCategory;
+        }
+
+        if (suggestion.international && $("txType").value === "expense") {
+          $("isInternational").checked = true;
+          if (suggestion.praRate !== undefined) $("praRate").value = String(suggestion.praRate);
+          syncInternational();
+        }
+
+        state.appliedMerchantSuggestion = true;
+        hideReview();
+        updateIntelligence();
+        renderImpact();
+      }
+
+      function updateIntelligence() {
+        renderSalaryPanel();
+        renderMerchantPanel();
+        renderDebug();
+      }
+
       function buildNotes() {
         const parts = [];
 
@@ -629,6 +931,17 @@
 
         if (merchant) parts.push(`merchant=${merchant}`);
         if (reference) parts.push(`reference=${reference}`);
+
+        if (state.appliedSalarySuggestion) {
+          const s = state.currentSalarySuggestion;
+          parts.push(`salary_detected=true`);
+          if (s) parts.push(`salary_expected=${s.expected} | salary_entered=${s.entered} | salary_difference=${s.diff}`);
+        }
+
+        if (state.appliedMerchantSuggestion && state.currentMerchantSuggestion) {
+          parts.push(`merchant_intel_source=${state.currentMerchantSuggestion.source || "unknown"}`);
+        }
+
         if (notes) parts.push(notes);
 
         if ($("isInternational").checked && $("txType").value === "expense") {
@@ -671,6 +984,76 @@
         }
 
         return payload;
+      }
+
+      function selectedImpact() {
+        const type = $("txType").value;
+        const amount = asNumber($("txAmount").value, 0);
+        const accountId = $("accountId").value;
+        const transferTo = $("transferToAccountId").value;
+
+        const before = accountBalance(accountId);
+        const toBefore = accountBalance(transferTo);
+
+        let delta = 0;
+        if (type === "income") delta = amount;
+        if (type === "expense") delta = -amount;
+        if (type === "transfer") delta = -amount;
+
+        const after = round2(before + delta);
+        const toAfter = type === "transfer" ? round2(toBefore + amount) : null;
+
+        let status = "good";
+        let message = "Safe based on selected account balance.";
+
+        if (!accountId) {
+          status = "warn";
+          message = "Select an account.";
+        } else if (!amount || amount <= 0) {
+          status = "warn";
+          message = "Enter an amount.";
+        } else if (type !== "income" && after < 0) {
+          status = "danger";
+          message = "Projected account balance goes below zero.";
+        }
+
+        if (type === "transfer" && accountId === transferTo) {
+          status = "danger";
+          message = "Transfer source and destination cannot be the same.";
+        }
+
+        return { type, amount, accountId, transferTo, before, after, toBefore, toAfter, status, message };
+      }
+
+      function renderImpact() {
+        const i = selectedImpact();
+        const cardClass = `impact-card ${i.status}`;
+
+        if (i.type === "transfer") {
+          $("impactPanel").className = cardClass;
+          $("impactPanel").innerHTML = `
+            <div class="impact-row"><span>Status</span><span>${escapeHtml(i.message)}</span></div>
+            <div class="impact-row"><span>From account</span><span>${escapeHtml(accountName(i.accountId))}</span></div>
+            <div class="impact-row"><span>Before</span><span>${money(i.before)}</span></div>
+            <div class="impact-row"><span>Transfer out</span><span>- ${money(i.amount)}</span></div>
+            <div class="impact-row"><span>After</span><span>${money(i.after)}</span></div>
+            <div class="impact-row"><span>To account</span><span>${escapeHtml(accountName(i.transferTo))}</span></div>
+            <div class="impact-row"><span>Destination after</span><span>${i.transferTo ? money(i.toAfter) : "Select destination"}</span></div>
+            <div class="impact-row"><span>Net worth impact</span><span>${money(0)}</span></div>
+          `;
+          return;
+        }
+
+        const direction = i.type === "income" ? "+" : "-";
+
+        $("impactPanel").className = cardClass;
+        $("impactPanel").innerHTML = `
+          <div class="impact-row"><span>Status</span><span>${escapeHtml(i.message)}</span></div>
+          <div class="impact-row"><span>Account</span><span>${escapeHtml(accountName(i.accountId))}</span></div>
+          <div class="impact-row"><span>Before</span><span>${money(i.before)}</span></div>
+          <div class="impact-row"><span>Impact</span><span>${direction} ${money(i.amount)}</span></div>
+          <div class="impact-row"><span>After</span><span>${money(i.after)}</span></div>
+        `;
       }
 
       function validatePayload(payload) {
@@ -721,6 +1104,13 @@
           state.dryRunResult = dryRun;
 
           const impact = selectedImpact();
+          const salaryNote = state.currentSalarySuggestion && !state.salarySuggestionIgnored
+            ? `<div class="impact-row"><span>Salary detector</span><span>${state.appliedSalarySuggestion ? "Applied" : "Detected, not applied"}</span></div>`
+            : "";
+
+          const merchantNote = state.currentMerchantSuggestion
+            ? `<div class="impact-row"><span>Merchant intelligence</span><span>${state.appliedMerchantSuggestion ? "Applied" : "Detected, not applied"}</span></div>`
+            : "";
 
           $("reviewPanel").innerHTML = `
             <div class="section-kicker">Review transaction</div>
@@ -733,6 +1123,8 @@
               <div class="impact-row"><span>Account</span><span>${escapeHtml(accountName(payload.account_id))}</span></div>
               ${payload.transfer_to_account_id ? `<div class="impact-row"><span>Transfer to</span><span>${escapeHtml(accountName(payload.transfer_to_account_id))}</span></div>` : ""}
               ${payload.category_id ? `<div class="impact-row"><span>Category</span><span>${escapeHtml(payload.category_id)}</span></div>` : ""}
+              ${salaryNote}
+              ${merchantNote}
               <div class="impact-row"><span>Projected account after</span><span>${money(impact.after)}</span></div>
               <div class="impact-row"><span>Backend dry-run</span><span>Passed</span></div>
             </div>
@@ -808,10 +1200,58 @@
       function resetForm() {
         $("txForm").reset();
         $("txDate").value = todayIso();
+        state.appliedSalarySuggestion = false;
+        state.appliedMerchantSuggestion = false;
+        state.salarySuggestionIgnored = false;
         setMode("expense");
         $("resultPanel").hidden = true;
         $("resultPanel").innerHTML = "";
         hideReview();
+        updateIntelligence();
+        renderImpact();
+      }
+
+      function renderInternationalBreakdown() {
+        if ($("internationalPanel").hidden) return;
+
+        const t = internationalTotals();
+
+        $("internationalBreakdown").innerHTML = `
+          <div class="impact-row"><span>Base PKR</span><span>${money(t.base)}</span></div>
+          <div class="impact-row"><span>FX fee</span><span>${money(t.fxFee)}</span></div>
+          <div class="impact-row"><span>Excise/FED</span><span>${money(t.excise)}</span></div>
+          <div class="impact-row"><span>Advance tax</span><span>${money(t.advanceTax)}</span></div>
+          <div class="impact-row"><span>PRA / other tax</span><span>${money(t.pra)}</span></div>
+          <div class="impact-row"><span>1-Biller / bank charge</span><span>${money(t.biller)}</span></div>
+          <div class="impact-row"><span>Total committed PKR</span><span>${money(t.total)}</span></div>
+        `;
+      }
+
+      function internationalTotals() {
+        const foreignAmount = asNumber($("foreignAmount").value, 0);
+        const fxRate = asNumber($("fxRate").value, 0);
+        const base = round2(foreignAmount * fxRate);
+        const fxFee = round2(base * asNumber($("fxFeeRate").value, 0) / 100);
+        const excise = round2(fxFee * asNumber($("exciseRate").value, 0) / 100);
+        const advanceTax = round2(base * asNumber($("advanceTaxRate").value, 0) / 100);
+        const pra = round2(base * asNumber($("praRate").value, 0) / 100);
+        const biller = round2($("billerCharge").value);
+        const total = round2(base + fxFee + excise + advanceTax + pra + biller);
+
+        return { foreignAmount, fxRate, base, fxFee, excise, advanceTax, pra, biller, total };
+      }
+
+      function syncInternational() {
+        const enabled = $("isInternational").checked && $("txType").value === "expense";
+        $("internationalPanel").hidden = !enabled;
+        $("txAmount").readOnly = enabled;
+
+        if (enabled) {
+          const total = internationalTotals().total;
+          $("txAmount").value = total ? String(total) : "";
+        }
+
+        renderInternationalBreakdown();
         renderImpact();
       }
 
@@ -837,8 +1277,14 @@
           accountsLoaded: Object.keys(state.accounts).length,
           categoriesLoaded: Object.keys(state.categories).length,
           balancesLoaded: Boolean(state.balances?.accounts),
+          salaryLoaded: Boolean(state.salary),
+          transactionsLoadedForMerchantIntel: state.transactions.length,
           currentMode: $("txType")?.value || null,
           currentImpact: $("accountId") ? selectedImpact() : null,
+          salarySuggestion: state.currentSalarySuggestion,
+          merchantSuggestion: state.currentMerchantSuggestion,
+          appliedSalarySuggestion: state.appliedSalarySuggestion,
+          appliedMerchantSuggestion: state.appliedMerchantSuggestion,
           pendingPayload: state.pendingPayload,
           dryRunResult: state.dryRunResult,
           saveResult: state.saveResult,
@@ -856,14 +1302,18 @@
         };
 
         try {
-          const [accountsPayload, categoriesPayload, balancesPayload] = await Promise.all([
+          const [accountsPayload, categoriesPayload, balancesPayload, salaryPayload, transactionsPayload] = await Promise.all([
             readJson("/api/accounts"),
             readJson("/api/categories"),
-            readJson("/api/balances")
+            readJson("/api/balances"),
+            readJson("/api/salary"),
+            readJson("/api/transactions")
           ]);
 
           state.accounts = accountsPayload.accounts || {};
           state.balances = balancesPayload || {};
+          state.salary = salaryPayload || {};
+          state.transactions = txArray(transactionsPayload);
 
           const cats = categoryArray(categoriesPayload);
           state.categories = Object.fromEntries(cats.map((cat) => [cat.id || cat.key, cat]));
@@ -885,11 +1335,12 @@
 
           renderAccounts();
           setMode("expense");
+          updateIntelligence();
           renderDebug();
 
           $("statusPanel").innerHTML = `
             <div class="strong">Add Transaction ready · ${escapeHtml(VERSION)}</div>
-            <div class="muted">Live impact and dry-run review are active. No write endpoint is called until Confirm Save.</div>
+            <div class="muted">Salary detection and merchant intelligence are display/apply-only. No salary or merchant source records are written.</div>
           `;
         } catch (error) {
           console.error(error);
@@ -933,13 +1384,13 @@
                 renderImpact();
               }
               hideReview();
-              renderDebug();
+              updateIntelligence();
             });
 
             el.addEventListener("change", () => {
               renderImpact();
               hideReview();
-              renderDebug();
+              updateIntelligence();
             });
           }
         });
@@ -947,7 +1398,7 @@
         $("isInternational").addEventListener("change", () => {
           syncInternational();
           hideReview();
-          renderDebug();
+          updateIntelligence();
         });
 
         $("txForm").addEventListener("submit", reviewTransaction);
