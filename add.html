@@ -88,37 +88,59 @@
             <div class="section-kicker">International cost preview</div>
             <h2 class="authority-title" style="margin-top:12px;">FX snapshot before save</h2>
             <p class="authority-copy">
-              Foreign amount is context only. Final PKR total is what gets committed to the ledger.
+              Final PKR total is what gets committed to the ledger.
             </p>
 
             <div class="grid-2" style="margin-top:16px;">
-              <div class="field">
-                <label for="intlForeignAmount">Foreign amount</label>
-                <input id="intlForeignAmount" type="number" min="0.01" step="0.01" placeholder="10.00" />
-              </div>
+              <label class="card card-compact" style="padding:12px;cursor:pointer;">
+                <input id="intlModeForeign" type="radio" name="intlMode" value="foreign" checked />
+                <span class="strong"> Foreign currency (USD, EUR, etc.)</span>
+                <span class="muted" style="display:block;margin-top:4px;">You know the foreign amount and FX rate.</span>
+              </label>
 
-              <div class="field">
-                <label for="intlCurrency">Currency</label>
-                <input id="intlCurrency" maxlength="8" placeholder="USD" value="USD" />
-              </div>
+              <label class="card card-compact" style="padding:12px;cursor:pointer;">
+                <input id="intlModePkr" type="radio" name="intlMode" value="pkr" />
+                <span class="strong"> PKR-priced (subscriptions, digital)</span>
+                <span class="muted" style="display:block;margin-top:4px;">Card shows PKR only, like Google One.</span>
+              </label>
             </div>
 
-            <div class="grid-2">
+            <div id="intlForeignFields">
+              <div class="grid-2" style="margin-top:14px;">
+                <div class="field">
+                  <label for="intlForeignAmount">Foreign amount</label>
+                  <input id="intlForeignAmount" type="number" min="0.01" step="0.01" placeholder="10.00" />
+                </div>
+
+                <div class="field">
+                  <label for="intlCurrency">Currency</label>
+                  <input id="intlCurrency" maxlength="8" placeholder="USD" value="USD" />
+                </div>
+              </div>
+
               <div class="field">
                 <label for="intlFxRate">FX rate to PKR</label>
                 <input id="intlFxRate" type="number" min="0.0001" step="0.0001" placeholder="278.8667" />
               </div>
+            </div>
 
-              <div class="field">
-                <label for="intlOneBillerCharge">1-Biller charge</label>
-                <input id="intlOneBillerCharge" type="number" min="0" step="0.01" value="31.25" />
+            <div id="intlPkrFields" hidden>
+              <div class="field" style="margin-top:14px;">
+                <label for="intlBasePkr">Base PKR charge</label>
+                <input id="intlBasePkr" type="number" min="0.01" step="0.01" placeholder="419.00" />
+                <div class="muted" style="margin-top:6px;font-size:12px;">Amount shown on card/bank statement before fees/taxes.</div>
               </div>
+            </div>
+
+            <div class="field" style="margin-top:14px;">
+              <label for="intlOneBillerCharge">1-Biller charge</label>
+              <input id="intlOneBillerCharge" type="number" min="0" step="0.01" value="31.25" />
             </div>
 
             <div class="grid-2">
               <label class="card card-compact" style="padding:12px;cursor:pointer;">
                 <input id="intlFxFeeEnabled" type="checkbox" checked />
-                <span class="strong"> FX fee 4.5%</span>
+                <span class="strong"> FX/cross-border fee 4.5%</span>
                 <span class="muted" style="display:block;margin-top:4px;">Excise duty is calculated from this fee.</span>
               </label>
 
@@ -144,7 +166,7 @@
             </div>
 
             <div class="authority-panel" id="intlPreview" style="margin-top:14px;">
-              Enter foreign amount and FX rate to preview committed PKR.
+              Select international mode and enter amounts to preview committed PKR.
             </div>
           </div>
 
@@ -208,7 +230,7 @@
     (() => {
       "use strict";
 
-      const VERSION = "add-intl-preview-v1.4.0";
+      const VERSION = "add-intl-preview-v1.4.1";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
 
       const INTL_DEFAULTS = {
@@ -225,7 +247,8 @@
         categoriesContract: null,
         saving: false,
         error: null,
-        intlPreview: null
+        intlPreview: null,
+        intlMode: "foreign"
       };
 
       const FRONTEND_TYPES = ["expense", "income", "transfer"];
@@ -248,9 +271,14 @@
         internationalToggleCard: $("internationalToggleCard"),
         internationalEnabled: $("internationalEnabled"),
         internationalPanel: $("internationalPanel"),
+        intlModeForeign: $("intlModeForeign"),
+        intlModePkr: $("intlModePkr"),
+        intlForeignFields: $("intlForeignFields"),
+        intlPkrFields: $("intlPkrFields"),
         intlForeignAmount: $("intlForeignAmount"),
         intlCurrency: $("intlCurrency"),
         intlFxRate: $("intlFxRate"),
+        intlBasePkr: $("intlBasePkr"),
         intlFxFeeEnabled: $("intlFxFeeEnabled"),
         intlAdvanceTaxEnabled: $("intlAdvanceTaxEnabled"),
         intlPraEnabled: $("intlPraEnabled"),
@@ -571,6 +599,11 @@
         els.amount.readOnly = enabled;
 
         if (enabled) {
+          state.intlMode = els.intlModeForeign.checked ? "foreign" : "pkr";
+
+          els.intlForeignFields.hidden = state.intlMode !== "foreign";
+          els.intlPkrFields.hidden = state.intlMode !== "pkr";
+
           els.amountLabel.textContent = "Committed PKR amount";
           els.amountHint.textContent = "Auto-calculated from international preview. This is the ledger amount.";
         } else {
@@ -585,22 +618,49 @@
       function calculateInternationalPreview() {
         if (!internationalAllowed() || !els.internationalEnabled.checked) return null;
 
-        const foreignAmount = Number(els.intlForeignAmount.value);
-        const fxRate = Number(els.intlFxRate.value);
-        const currency = String(els.intlCurrency.value || "").trim().toUpperCase();
+        const mode = els.intlModeForeign.checked ? "foreign" : "pkr";
         const oneBillerInput = Number(els.intlOneBillerCharge.value);
 
-        if (!Number.isFinite(foreignAmount) || foreignAmount <= 0 || !Number.isFinite(fxRate) || fxRate <= 0 || !currency) {
-          return {
-            valid: false,
-            currency,
-            foreignAmount,
-            fxRate,
-            message: "Enter foreign amount, currency, and FX rate to preview committed PKR."
-          };
+        let basePkr;
+        let foreignAmount = null;
+        let fxRate = null;
+        let currency = null;
+        let formula = null;
+
+        if (mode === "foreign") {
+          foreignAmount = Number(els.intlForeignAmount.value);
+          fxRate = Number(els.intlFxRate.value);
+          currency = String(els.intlCurrency.value || "").trim().toUpperCase();
+
+          if (!Number.isFinite(foreignAmount) || foreignAmount <= 0 || !Number.isFinite(fxRate) || fxRate <= 0 || !currency) {
+            return {
+              valid: false,
+              mode,
+              currency,
+              foreignAmount,
+              fxRate,
+              message: "Enter foreign amount, currency, and FX rate to preview committed PKR."
+            };
+          }
+
+          basePkr = roundMoney(foreignAmount * fxRate);
+          formula = currency + " " + numberText(foreignAmount) + " × " + fxRate + " = " + money(basePkr);
+        } else {
+          basePkr = Number(els.intlBasePkr.value);
+
+          if (!Number.isFinite(basePkr) || basePkr <= 0) {
+            return {
+              valid: false,
+              mode,
+              basePkr,
+              message: "Enter base PKR charge to preview committed PKR."
+            };
+          }
+
+          basePkr = roundMoney(basePkr);
+          formula = "Base charge " + money(basePkr);
         }
 
-        const basePkr = roundMoney(foreignAmount * fxRate);
         const fxFee = els.intlFxFeeEnabled.checked ? roundMoney(basePkr * INTL_DEFAULTS.fxFeeRate) : 0;
         const exciseDuty = els.intlFxFeeEnabled.checked ? roundMoney(fxFee * INTL_DEFAULTS.exciseRate) : 0;
         const advanceTax236Y = els.intlAdvanceTaxEnabled.checked ? roundMoney(basePkr * INTL_DEFAULTS.advanceTaxRate) : 0;
@@ -610,8 +670,9 @@
 
         return {
           valid: true,
+          mode,
           currency,
-          foreignAmount: roundMoney(foreignAmount),
+          foreignAmount: foreignAmount ? roundMoney(foreignAmount) : null,
           fxRate,
           basePkr,
           fxFee,
@@ -620,7 +681,7 @@
           praItTax,
           oneBillerCharge,
           totalPkr,
-          formula: currency + " " + numberText(foreignAmount) + " × " + fxRate + " = " + money(basePkr)
+          formula
         };
       }
 
@@ -629,13 +690,13 @@
         state.intlPreview = preview;
 
         if (!els.internationalEnabled.checked || !internationalAllowed()) {
-          els.intlPreview.textContent = "Enter foreign amount and FX rate to preview committed PKR.";
+          els.intlPreview.textContent = "Select international mode and enter amounts to preview committed PKR.";
           return;
         }
 
         if (!preview || !preview.valid) {
           els.amount.value = "";
-          els.intlPreview.innerHTML = '<div class="muted">' + escapeHtml(preview?.message || "Enter foreign amount and FX rate to preview committed PKR.") + '</div>';
+          els.intlPreview.innerHTML = '<div class="muted">' + escapeHtml(preview?.message || "Select international mode and enter amounts to preview committed PKR.") + '</div>';
           return;
         }
 
@@ -652,8 +713,8 @@
             '</div>' +
             '<div class="card card-compact">' +
               '<div class="grid-2"><span>Base PKR</span><span class="text-right strong">' + money(preview.basePkr) + '</span></div>' +
-              '<div class="grid-2"><span>FX fee 4.5%</span><span class="text-right strong">' + money(preview.fxFee) + '</span></div>' +
-              '<div class="grid-2"><span>Excise duty 16% of FX fee</span><span class="text-right strong">' + money(preview.exciseDuty) + '</span></div>' +
+              '<div class="grid-2"><span>FX/cross-border fee 4.5%</span><span class="text-right strong">' + money(preview.fxFee) + '</span></div>' +
+              '<div class="grid-2"><span>Excise duty 16% of fee</span><span class="text-right strong">' + money(preview.exciseDuty) + '</span></div>' +
               '<div class="grid-2"><span>Advance Tax 236Y 5%</span><span class="text-right strong">' + money(preview.advanceTax236Y) + '</span></div>' +
               '<div class="grid-2"><span>PRA IT Tax 5%</span><span class="text-right strong">' + money(preview.praItTax) + '</span></div>' +
               '<div class="grid-2"><span>1-Biller charge</span><span class="text-right strong">' + money(preview.oneBillerCharge) + '</span></div>' +
@@ -665,17 +726,29 @@
       function buildInternationalNote(preview) {
         if (!preview || !preview.valid) return "";
 
-        const parts = [
-          "International transaction",
-          preview.currency + " " + numberText(preview.foreignAmount) + " @ " + preview.fxRate,
-          "base " + money(preview.basePkr),
+        const parts = [];
+
+        if (preview.mode === "foreign") {
+          parts.push(
+            "International transaction",
+            preview.currency + " " + numberText(preview.foreignAmount) + " @ " + preview.fxRate,
+            "base " + money(preview.basePkr)
+          );
+        } else {
+          parts.push(
+            "PKR-priced international charge",
+            "base " + money(preview.basePkr)
+          );
+        }
+
+        parts.push(
           "FX fee " + money(preview.fxFee),
           "excise " + money(preview.exciseDuty),
           "advance tax 236Y " + money(preview.advanceTax236Y),
           "PRA " + money(preview.praItTax),
           "1-Biller " + money(preview.oneBillerCharge),
           "total " + money(preview.totalPkr)
-        ];
+        );
 
         return parts.join(" · ");
       }
@@ -733,7 +806,7 @@
           const preview = state.intlPreview;
 
           if (payload.type !== "expense") return "International mode is only available for expense transactions.";
-          if (!preview || !preview.valid) return "Complete international FX preview before saving.";
+          if (!preview || !preview.valid) return "Complete international preview before saving.";
           if (roundMoney(payload.amount) !== roundMoney(preview.totalPkr)) return "Committed PKR does not match international preview.";
         }
 
@@ -759,6 +832,8 @@
         els.form.reset();
         els.date.value = todayIso();
         els.type.value = "expense";
+        els.intlModeForeign.checked = true;
+        els.intlModePkr.checked = false;
         els.intlCurrency.value = "USD";
         els.intlOneBillerCharge.value = String(INTL_DEFAULTS.oneBillerCharge);
         els.intlFxFeeEnabled.checked = true;
@@ -781,10 +856,15 @@
 
         els.internationalEnabled.addEventListener("change", renderInternationalMode);
 
+        [els.intlModeForeign, els.intlModePkr].forEach(el => {
+          el.addEventListener("change", renderInternationalMode);
+        });
+
         [
           els.intlForeignAmount,
           els.intlCurrency,
           els.intlFxRate,
+          els.intlBasePkr,
           els.intlFxFeeEnabled,
           els.intlAdvanceTaxEnabled,
           els.intlPraEnabled,
