@@ -1009,6 +1009,15 @@
           forecastEligible
         };
       }
+            
+    function row(label, value) {
+        return `
+          <div class="sal-row">
+            <span>${escapeHtml(label)}</span>
+            <span>${escapeHtml(value)}</span>
+          </div>
+        `;
+      }
       function renderRows(items) {
         return items.map(([label, value]) => row(label, value)).join("");
       }
