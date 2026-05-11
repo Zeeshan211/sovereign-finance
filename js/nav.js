@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const VERSION = "nav-internal-report-v2.1.0";
+  const VERSION = "nav-mobile-final-v2.2.0";
 
   const ROUTES = [
     { href: "/index.html", label: "Hub", icon: "⌂", keys: ["/", "/index.html", "/home.html"] },
@@ -30,15 +30,9 @@
 
   function normalizePath(path) {
     let value = String(path || "/").trim();
-
     if (!value.startsWith("/")) value = "/" + value;
     if (value.length > 1 && value.endsWith("/")) value = value.slice(0, -1);
-
     return value || "/";
-  }
-
-  function isCurrent(route) {
-    return route.keys.some(key => normalizePath(key) === pathname);
   }
 
   function shouldShowInternalReport() {
@@ -47,12 +41,12 @@
 
   function routeList() {
     const list = ROUTES.slice();
-
-    if (shouldShowInternalReport()) {
-      list.push(INTERNAL_REPORT_ROUTE);
-    }
-
+    if (shouldShowInternalReport()) list.push(INTERNAL_REPORT_ROUTE);
     return list;
+  }
+
+  function isCurrent(route) {
+    return route.keys.some(key => normalizePath(key) === pathname);
   }
 
   function escapeHtml(value) {
@@ -70,7 +64,7 @@
     const current = active ? ' aria-current="page"' : "";
 
     return (
-      '<a class="' + cls + '" href="' + escapeHtml(route.href) + '"' + current + ">" +
+      '<a class="' + cls + '" href="' + escapeHtml(route.href) + '" aria-label="' + escapeHtml(route.label) + '"' + current + ">" +
         '<span class="sf-nav-icon">' + escapeHtml(route.icon) + "</span>" +
         '<span class="sf-nav-label">' + escapeHtml(route.label) + "</span>" +
       "</a>"
@@ -105,10 +99,6 @@
     );
   }
 
-  function buildOverlayHtml() {
-    return '<div class="sf-overlay" id="navOverlay"></div>';
-  }
-
   function ensureSidebar() {
     let sidebar = document.querySelector(".sf-sidebar");
 
@@ -125,17 +115,39 @@
 
     if (!overlay) {
       const sidebar = document.querySelector(".sf-sidebar");
+      const html = '<div class="sf-overlay" id="navOverlay"></div>';
 
-      if (sidebar) {
-        sidebar.insertAdjacentHTML("afterend", buildOverlayHtml());
-      } else {
-        document.body.insertAdjacentHTML("afterbegin", buildOverlayHtml());
-      }
+      if (sidebar) sidebar.insertAdjacentHTML("afterend", html);
+      else document.body.insertAdjacentHTML("afterbegin", html);
 
       overlay = document.getElementById("navOverlay");
     }
 
     return overlay;
+  }
+
+  function ensureMobileMenuButton() {
+    let button = document.getElementById("mobileMenu");
+
+    if (button) return button;
+
+    const topbar = document.querySelector(".sf-topbar, header.sf-topbar");
+
+    if (topbar) {
+      topbar.insertAdjacentHTML(
+        "afterbegin",
+        '<button class="sf-mobile-menu" type="button" id="mobileMenu" aria-label="Open navigation">☰</button>'
+      );
+
+      return document.getElementById("mobileMenu");
+    }
+
+    document.body.insertAdjacentHTML(
+      "afterbegin",
+      '<button class="sf-mobile-menu sf-floating-mobile-menu" type="button" id="mobileMenu" aria-label="Open navigation">☰</button>'
+    );
+
+    return document.getElementById("mobileMenu");
   }
 
   function rebuildNav() {
@@ -146,11 +158,10 @@
       nav.innerHTML = routeList().map(linkHtml).join("");
     }
 
-    scrubCommandCentreLinks();
-    scrubCommandCentreText();
+    scrubInternalLinks();
   }
 
-  function scrubCommandCentreLinks() {
+  function scrubInternalLinks() {
     const links = Array.from(document.querySelectorAll('a[href*="monthly-close"], a[href*="finance-command-center"]'));
 
     links.forEach(link => {
@@ -159,103 +170,17 @@
       if (insideAllowedInternalContext) {
         link.setAttribute("href", "/monthly-close.html");
         link.classList.add("sf-nav-link");
+        link.setAttribute("aria-label", "Internal Report");
 
         const label = link.querySelector(".sf-nav-label");
-        if (label) {
-          label.textContent = "Internal Report";
-        } else {
-          link.textContent = "Internal Report";
-        }
+        if (label) label.textContent = "Internal Report";
+        else link.textContent = "Internal Report";
 
         return;
       }
 
       link.remove();
     });
-  }
-
-  function scrubCommandCentreText() {
-    if (internalPage) return;
-
-    const walker = document.createTreeWalker(
-      document.body,
-      NodeFilter.SHOW_TEXT,
-      {
-        acceptNode(node) {
-          const text = node.nodeValue || "";
-
-          if (/Command Centre|preflight|dry-run|governor|proof-first|write safety|Command Centre decides/i.test(text)) {
-            const parent = node.parentElement;
-
-            if (parent && parent.closest("script, style, noscript")) {
-              return NodeFilter.FILTER_REJECT;
-            }
-
-            return NodeFilter.FILTER_ACCEPT;
-          }
-
-          return NodeFilter.FILTER_REJECT;
-        }
-      }
-    );
-
-    const nodes = [];
-
-    while (walker.nextNode()) {
-      nodes.push(walker.currentNode);
-    }
-
-    nodes.forEach(node => {
-      node.nodeValue = node.nodeValue
-        .replace(/Command Centre decides/gi, "System validates")
-        .replace(/Command Centre/gi, "Internal Report")
-        .replace(/proof-first/gi, "verified")
-        .replace(/preflight/gi, "check")
-        .replace(/dry-run/gi, "preview")
-        .replace(/governor/gi, "guard")
-        .replace(/write safety/gi, "safe write");
-    });
-
-    scrubRemainingVisibleInternalReportLabels();
-  }
-
-  function scrubRemainingVisibleInternalReportLabels() {
-    if (internalPage || debugMode) return;
-
-    Array.from(document.querySelectorAll(".sf-sidebar, .sf-topbar, nav, header")).forEach(area => {
-      if (!area) return;
-
-      Array.from(area.querySelectorAll("*")).forEach(el => {
-        const text = el.textContent || "";
-
-        if (/Internal Report|Command Centre/i.test(text)) {
-          const link = el.closest("a");
-
-          if (link && /monthly-close|finance-command-center/i.test(link.getAttribute("href") || "")) {
-            link.remove();
-          }
-        }
-      });
-    });
-  }
-
-  function ensureTopbarMenuButton() {
-    let button = document.getElementById("mobileMenu");
-
-    if (!button) {
-      const topbar = document.querySelector(".sf-topbar, header");
-
-      if (topbar) {
-        topbar.insertAdjacentHTML(
-          "afterbegin",
-          '<button class="sf-mobile-menu" type="button" id="mobileMenu" aria-label="Open navigation">☰</button>'
-        );
-
-        button = document.getElementById("mobileMenu");
-      }
-    }
-
-    return button;
   }
 
   function setCollapsed(collapsed) {
@@ -278,7 +203,7 @@
   function bindControls() {
     const fold = document.getElementById("sidebarFold");
     const overlay = ensureOverlay();
-    const mobile = ensureTopbarMenuButton();
+    const mobile = ensureMobileMenuButton();
 
     if (fold && !fold.dataset.sfBound) {
       fold.dataset.sfBound = "1";
@@ -318,33 +243,25 @@
       })),
       internalPage,
       debugMode,
-      refresh: init
+      refresh: init,
+      open: openMobileNav,
+      close: closeMobileNav
     };
-  }
-
-  function verifyNormalSurface() {
-    if (internalPage) return;
-
-    const normalForbidden = Array.from(
-      document.body.innerText.matchAll(/Command Centre|preflight|dry-run|governor|proof-first|write safety|Command Centre decides/gi)
-    ).map(match => match[0]);
-
-    if (normalForbidden.length) {
-      console.warn("[nav " + VERSION + "] normal-surface forbidden text remains", normalForbidden);
-    }
   }
 
   function init() {
     document.body.classList.toggle("sf-sidebar-collapsed", getCollapsed());
 
     rebuildNav();
+    ensureOverlay();
+    ensureMobileMenuButton();
     bindControls();
     exposeDebug();
-    verifyNormalSurface();
 
     console.log("[nav " + VERSION + "] ready", {
       internalPage,
       debugMode,
+      hasMobileMenu: Boolean(document.getElementById("mobileMenu")),
       routes: routeList().map(route => route.label)
     });
   }
