@@ -391,7 +391,212 @@
         grid-template-columns: 1fr;
       }
     }
-  </style>
+
+    
+  /* Shipment 14: shared chart, side-panel, and mobile hardening */
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  .cc-shell,
+  .rec-shell,
+  .sal-shell,
+  .fc-shell {
+    max-width: 1180px;
+  }
+
+  .cc-card,
+  .rec-card,
+  .sal-card,
+  .fc-card,
+  .cc-panel,
+  .rec-panel,
+  .sal-panel,
+  .fc-panel,
+  .cc-account,
+  .rec-check,
+  .sal-check,
+  .fc-check,
+  .fc-day {
+    min-width: 0;
+  }
+
+  .cc-value,
+  .rec-value,
+  .sal-value,
+  .fc-value,
+  .cc-side-row span,
+  .rec-side-row span,
+  .sal-row span,
+  .fc-row span {
+    overflow-wrap: anywhere;
+  }
+
+  .cc-progress,
+  .fc-bar {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .cc-progress > span,
+  .fc-bar span {
+    min-width: 4px;
+  }
+
+  .cc-plan,
+  .fc-day {
+    min-width: 0;
+  }
+
+  .cc-plan strong,
+  .cc-plan span,
+  .fc-day-date,
+  .fc-day-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .rec-table {
+    max-width: 100%;
+  }
+
+  .rec-table th,
+  .rec-table td {
+    white-space: normal;
+  }
+
+  .cc-empty,
+  .rec-empty,
+  .sal-empty,
+  .fc-empty {
+    color: var(--sf-muted);
+  }
+
+  @media (max-width: 760px) {
+    .cc-shell,
+    .rec-shell,
+    .sal-shell,
+    .fc-shell {
+      width: min(100% - 20px, 1180px);
+      padding-bottom: 36px;
+    }
+
+    .cc-topbar,
+    .rec-topbar,
+    .sal-topbar,
+    .fc-topbar {
+      margin-bottom: 16px;
+    }
+
+    .cc-summary,
+    .rec-summary,
+    .sal-summary,
+    .fc-summary,
+    .cc-account-metrics,
+    .sal-two,
+    .sal-three {
+      grid-template-columns: 1fr !important;
+    }
+
+    .cc-grid,
+    .rec-grid,
+    .sal-grid,
+    .fc-grid {
+      grid-template-columns: 1fr !important;
+      gap: 14px;
+    }
+
+    .cc-panel,
+    .rec-panel,
+    .sal-panel,
+    .fc-panel,
+    .cc-card,
+    .rec-card,
+    .sal-card,
+    .fc-card {
+      border-radius: 18px;
+    }
+
+    .cc-account-head,
+    .rec-check-head,
+    .fc-check-head {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .cc-pill,
+    .rec-pill,
+    .sal-pill,
+    .fc-pill {
+      width: fit-content;
+      max-width: 100%;
+      white-space: normal;
+      text-align: left;
+    }
+
+    .cc-side-row,
+    .rec-side-row,
+    .sal-row,
+    .fc-row {
+      align-items: flex-start;
+    }
+
+    .cc-side-row span:last-child,
+    .rec-side-row span:last-child,
+    .sal-row span:last-child,
+    .fc-row span:last-child {
+      max-width: 54%;
+    }
+
+    .cc-plan {
+      grid-template-columns: 1fr !important;
+    }
+
+    .fc-day {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  @media (max-width: 420px) {
+    .cc-title,
+    .rec-title,
+    .sal-title,
+    .fc-title {
+      font-size: 34px;
+    }
+
+    .cc-value,
+    .rec-value,
+    .sal-value,
+    .fc-value {
+      font-size: 24px;
+    }
+
+    .cc-side-row,
+    .rec-side-row,
+    .sal-row,
+    .fc-row {
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .cc-side-row span:last-child,
+    .rec-side-row span:last-child,
+    .sal-row span:last-child,
+    .fc-row span:last-child {
+      max-width: 100%;
+      text-align: left;
+    }
+  }
+</style>
 </head>
 
 <body>
