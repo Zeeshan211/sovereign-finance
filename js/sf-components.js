@@ -50,15 +50,23 @@
     `;
   }
 
-  function metricCard(opts) {
+    function metricCard(opts) {
     const o = opts || {};
+    const valueMarkup = o.valueHtml != null ? o.valueHtml : escapeHtml(o.value || "—");
+    const subtitleMarkup = o.subtitleHtml != null
+      ? o.subtitleHtml
+      : (o.subtitle ? escapeHtml(o.subtitle) : "");
+    const footMarkup = o.footHtml != null
+      ? o.footHtml
+      : (o.foot ? escapeHtml(o.foot) : "");
+
     return `
       <section class="${classNames("sf-metric-card", o.accent && "sf-metric-card--accent", o.className)}">
         ${o.kicker ? `<p class="sf-card-kicker">${escapeHtml(o.kicker)}</p>` : ""}
         ${o.title ? `<h3 class="sf-card-title">${escapeHtml(o.title)}</h3>` : ""}
-        <div class="sf-metric-value">${escapeHtml(o.value || "—")}</div>
-        ${o.subtitle ? `<p class="sf-card-subtitle">${escapeHtml(o.subtitle)}</p>` : ""}
-        ${o.foot ? `<div class="sf-metric-foot ${toneClass(o.tone)}">${escapeHtml(o.foot)}</div>` : ""}
+        <div class="sf-metric-value">${valueMarkup}</div>
+        ${subtitleMarkup ? `<p class="sf-card-subtitle">${subtitleMarkup}</p>` : ""}
+        ${footMarkup ? `<div class="sf-metric-foot ${toneClass(o.tone)}">${footMarkup}</div>` : ""}
       </section>
     `;
   }
