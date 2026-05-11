@@ -1,15 +1,16 @@
 /* /api/forecast — GET */
-/* Sovereign Finance v0.6.0-forecast-cc-truth
+/* Sovereign Finance v0.7.0-forecast-salary-truth
  *
- * Shipment 6:
- * - Forecast reads real production sources.
+ * Shipment 7:
+ * - Forecast reads salary from /api/salary.
+ * - Guaranteed salary is included.
+ * - Variable salary is included only when /api/salary says variable_confirmed=true.
  * - No Command Centre gate.
  * - No fake debt zero.
  * - No fake credit-card null when balances/accounts expose CC truth.
- * - Uses /api/balances, /api/bills, and /api/debts as source APIs.
  */
 
-const VERSION = "v0.6.0-forecast-cc-truth";
+const VERSION = "v0.7.0-forecast-salary-truth";
 
 export async function onRequestGet(context) {
   try {
@@ -17,23 +18,26 @@ export async function onRequestGet(context) {
     const origin = requestUrl.origin;
     const month = requestUrl.searchParams.get("month") || currentMonth();
 
-    const [balancesResult, billsResult, debtsResult] = await Promise.allSettled([
+    const [balancesResult, billsResult, debtsResult, salaryResult] = await Promise.allSettled([
       readJson(`${origin}/api/balances?debug=1&cb=${Date.now()}`),
       readJson(`${origin}/api/bills?month=${encodeURIComponent(month)}&cb=${Date.now()}`),
-      readJson(`${origin}/api/debts?include_inactive=1&cb=${Date.now()}`)
+      readJson(`${origin}/api/debts?include_inactive=1&cb=${Date.now()}`),
+      readJson(`${origin}/api/salary?cb=${Date.now()}`)
     ]);
 
     const balances = unwrap(balancesResult, "balances");
     const bills = unwrap(billsResult, "bills");
     const debts = unwrap(debtsResult, "debts");
+    const salary = unwrap(salaryResult, "salary");
 
     const balanceTruth = normalizeBalances(balances.data);
     const billTruth = normalizeBills(bills.data, month);
     const debtTruth = normalizeDebts(debts.data);
     const ccTruth = normalizeCreditCard(balances.data);
+    const salaryTruth = normalizeSalary(salary.data);
 
-    const guaranteedSalary = readGuaranteedSalary(context.env);
     const liquidStart = number(balanceTruth.total_liquid);
+    const guaranteedSalary = number(salaryTruth.forecast_eligible_monthly);
     const billsRemaining = number(billTruth.remaining_this_month);
     const debtPayable = number(debtTruth.payable_remaining);
     const debtReceivable = number(debtTruth.receivable_remaining);
@@ -49,6 +53,7 @@ export async function onRequestGet(context) {
     if (!balances.ok) blockers.push(`balances:${balances.error}`);
     if (!bills.ok) blockers.push(`bills:${bills.error}`);
     if (!debts.ok) blockers.push(`debts:${debts.error}`);
+    if (!salary.ok) blockers.push(`salary:${salary.error}`);
     if (!ccTruth.verified) blockers.push("credit_card:verified source unavailable");
 
     return json({
@@ -61,6 +66,12 @@ export async function onRequestGet(context) {
         balances: sourceStatus(balances),
         bills: sourceStatus(bills),
         debts: sourceStatus(debts),
+        salary: {
+          ok: salary.ok,
+          version: salary.data?.version || null,
+          error: salary.error || null,
+          rule: "forecast_eligible_monthly from /api/salary"
+        },
         credit_card: {
           ok: ccTruth.verified,
           source: ccTruth.source,
@@ -71,6 +82,9 @@ export async function onRequestGet(context) {
       inputs: {
         total_liquid: liquidStart,
         guaranteed_salary: guaranteedSalary,
+        salary_guaranteed_monthly: salaryTruth.guaranteed_monthly,
+        salary_variable_monthly: salaryTruth.variable_monthly,
+        salary_variable_confirmed: salaryTruth.variable_confirmed,
         bills_remaining_this_month: billsRemaining,
         debt_payable_remaining: debtPayable,
         debt_receivable_remaining: debtReceivable,
@@ -79,9 +93,11 @@ export async function onRequestGet(context) {
       forecast: {
         projected_cash_after_obligations: projectedBeforeReceivables,
         projected_cash_if_receivables_collected: projectedWithReceivables,
-        formula: "total_liquid + guaranteed_salary - bills_remaining - debt_payable - credit_card_outstanding + receivables_optional"
+        formula: "total_liquid + salary_forecast_eligible - bills_remaining - debt_payable - credit_card_outstanding + receivables_optional"
       },
       proof: {
+        salary_source: "/api/salary.forecast_eligible_monthly",
+        salary_variable_included: salaryTruth.variable_confirmed,
         no_fake_debt_zero: debtTruth.source_count > 0 || debtPayable > 0 || debtReceivable > 0,
         cc_truth_verified: ccTruth.verified,
         command_centre_used: false
@@ -89,7 +105,8 @@ export async function onRequestGet(context) {
       raw_summary: {
         balances_version: balances.data?.version || null,
         bills_version: bills.data?.version || null,
-        debts_version: debts.data?.version || null
+        debts_version: debts.data?.version || null,
+        salary_version: salary.data?.version || null
       }
     });
   } catch (err) {
@@ -211,6 +228,20 @@ function normalizeDebts(payload) {
   };
 }
 
+function normalizeSalary(payload) {
+  const guaranteed = number(payload?.forecast_eligible_monthly ?? payload?.guaranteed_monthly ?? payload?.salary?.forecast_eligible_monthly ?? payload?.salary?.guaranteed_monthly);
+  const guaranteedMonthly = number(payload?.guaranteed_monthly ?? payload?.salary?.guaranteed_monthly ?? guaranteed);
+  const variableMonthly = number(payload?.variable_monthly ?? payload?.salary?.variable_monthly);
+  const variableConfirmed = Boolean(payload?.variable_confirmed ?? payload?.salary?.variable_confirmed);
+
+  return {
+    forecast_eligible_monthly: round2(guaranteed),
+    guaranteed_monthly: round2(guaranteedMonthly),
+    variable_monthly: round2(variableMonthly),
+    variable_confirmed: variableConfirmed
+  };
+}
+
 function normalizeCreditCard(payload) {
   if (!payload) {
     return { verified: false, outstanding: null, source: null, reason: "balances unavailable" };
@@ -274,11 +305,6 @@ function normalizeCreditCard(payload) {
     source: null,
     reason: "No credit-card account/source found in balances payload"
   };
-}
-
-function readGuaranteedSalary(env) {
-  const raw = env?.GUARANTEED_SALARY || env?.SF_GUARANTEED_SALARY || "0";
-  return round2(number(raw));
 }
 
 function currentMonth() {
