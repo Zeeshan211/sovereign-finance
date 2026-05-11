@@ -41,6 +41,16 @@ body.sf-shell-body {
   min-width: 0;
 }
 
+.sf-page-content {
+  display: grid;
+  gap: var(--sf-space-6);
+  min-width: 0;
+}
+
+.sf-chart-slot {
+  min-width: 0;
+}
+
 .sf-page-hero {
   display: flex;
   flex-wrap: wrap;
