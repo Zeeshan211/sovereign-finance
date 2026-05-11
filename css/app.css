@@ -3230,3 +3230,56 @@ body[data-theme="dark"] {
     width: 100%;
   }
 }
+/* =========================================================
+   Theme Toggle — Light/Dark Floating Control
+   Additive only. Safe for pages with/without topbar.
+========================================================= */
+
+.sf-floating-theme-toggle {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 121;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.06), transparent),
+    var(--surface-1);
+  color: var(--text-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.sf-floating-theme-toggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(4, 120, 87, 0.42);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.sf-theme-toggle,
+.sf-floating-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sf-theme-toggle[data-theme-state="light"]::before,
+.sf-floating-theme-toggle[data-theme-state="light"]::before {
+  content: "☀";
+  font-size: 18px;
+}
+
+.sf-theme-toggle[data-theme-state="dark"]::before,
+.sf-floating-theme-toggle[data-theme-state="dark"]::before {
+  content: "☾";
+  font-size: 18px;
+}
+
+@media (max-width: 860px) {
+  .sf-floating-theme-toggle {
+    top: 14px;
+    right: 14px;
+  }
+}
