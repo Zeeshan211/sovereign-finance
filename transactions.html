@@ -137,7 +137,7 @@
     (function () {
       "use strict";
 
-      const PAGE_VERSION = "ledger-product-v1.0.0";
+      const PAGE_VERSION = "ledger-product-v1.0.1-reverse-action";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
       const NOISE = /SF_SHIPMENT|DIRECT_WRITE_TEST|RS1_TEST|CREATE_RECEIVABLE|RECEIVE_RS1/i;
 
@@ -195,7 +195,24 @@
         if (!r.ok || !j) throw new Error(`${path} HTTP ${r.status}`);
         return j;
       }
+async function postJson(path, body) {
+  const r = await fetch(path, {
+    method: "POST",
+    headers: {
+      "accept": "application/json",
+      "content-type": "application/json"
+    },
+    cache: "no-store",
+    body: JSON.stringify(body || {})
+  });
 
+  const j = await r.json().catch(() => null);
+  if (!r.ok || !j || j.ok === false) {
+    throw new Error(j?.error || j?.message || `${path} HTTP ${r.status}`);
+  }
+
+  return j;
+}
       function accountName(id) {
         const accounts = state.accounts?.accounts || {};
         return accounts[id]?.name || id || "Unknown account";
@@ -478,7 +495,44 @@
           </div>
         `).join("");
       }
+function reversalMarker(tx) {
+  const note = String(tx.notes || "");
+  return Boolean(
+    tx.reversed_by ||
+    tx.reversed_at ||
+    /\[REVERSED BY/i.test(note) ||
+    /\[REVERSAL OF/i.test(note) ||
+    /Reversal of\s+[A-Za-z0-9_-]+/i.test(note)
+  );
+}
 
+function reversibleTx(group) {
+  if (!group || !Array.isArray(group.rows)) return null;
+  if (group.rows.length !== 1) return null;
+  if (group.kind === "transfer" || group.kind === "atm_transfer") return null;
+  if (group.hasReversal) return null;
+
+  const tx = group.rows[0];
+  if (!tx?.id) return null;
+  if (isNoise(tx)) return null;
+  if (reversalMarker(tx)) return null;
+
+  return tx;
+}
+
+async function reverseTransaction(id) {
+  if (!id) return;
+
+  const ok = window.confirm("Reverse this transaction? This will create a linked reversal and restore the net balance impact.");
+  if (!ok) return;
+
+  await postJson("/api/transactions/reverse", {
+    id,
+    created_by: "ledger-ui"
+  });
+
+  await boot();
+}
       function renderActivity() {
         const groups = state.filtered.slice(0, 80);
 
@@ -521,8 +575,9 @@
               </div>
 
               <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
-                <button class="btn btn-secondary" type="button" data-audit="${index}">Show audit</button>
-              </div>
+  <button class="btn btn-secondary" type="button" data-audit="${index}">Show audit</button>
+  ${reversibleTx(group) ? `<button class="btn btn-secondary" type="button" data-reverse="${escapeHtml(reversibleTx(group).id)}">Reverse</button>` : ""}
+</div>
 
               <div id="audit-${index}" class="surface-card card-padded" style="display:none;margin-top:12px;background:var(--surface-2);"></div>
             </article>
@@ -583,28 +638,44 @@
         $("typeFilter").addEventListener("change", filterGroups);
         $("viewMode").addEventListener("change", filterGroups);
 
-        document.addEventListener("click", (event) => {
-          const button = event.target.closest("[data-audit]");
-          if (!button) return;
+        document.addEventListener("click", async (event) => {
+  const reverseButton = event.target.closest("[data-reverse]");
+  if (reverseButton) {
+    reverseButton.disabled = true;
+    reverseButton.textContent = "Reversing...";
 
-          const index = Number(button.getAttribute("data-audit"));
-          const panel = $(`audit-${index}`);
-          const group = state.filtered[index];
+    try {
+      await reverseTransaction(reverseButton.getAttribute("data-reverse"));
+    } catch (error) {
+      console.error(error);
+      window.alert(error.message || "Unable to reverse transaction.");
+      reverseButton.disabled = false;
+      reverseButton.textContent = "Reverse";
+    }
 
-          if (!panel || !group) return;
+    return;
+  }
 
-          const isOpen = panel.style.display !== "none";
-          if (isOpen) {
-            panel.style.display = "none";
-            button.textContent = "Show audit";
-            return;
-          }
+  const button = event.target.closest("[data-audit]");
+  if (!button) return;
 
-          panel.innerHTML = auditHtml(group);
-          panel.style.display = "block";
-          button.textContent = "Hide audit";
-        });
-      }
+  const index = Number(button.getAttribute("data-audit"));
+  const panel = $(`audit-${index}`);
+  const group = state.filtered[index];
+
+  if (!panel || !group) return;
+
+  const isOpen = panel.style.display !== "none";
+  if (isOpen) {
+    panel.style.display = "none";
+    button.textContent = "Show audit";
+    return;
+  }
+
+  panel.innerHTML = auditHtml(group);
+  panel.style.display = "block";
+  button.textContent = "Hide audit";
+});
 
       function populateFilters() {
         const accounts = state.accounts?.accounts || {};
