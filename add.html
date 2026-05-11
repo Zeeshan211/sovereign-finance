@@ -2,335 +2,397 @@
 <html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Add Transaction · Sovereign Finance</title>
-  <meta name="description" content="Add expense, income, transfer, and international transactions." />
-  <link rel="stylesheet" href="/css/app.css?v=2.0.3" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sovereign Finance — Add Transaction</title>
+  <link rel="stylesheet" href="/css/app.css" />
+
+  <style>
+    .add-os {
+      width: min(100%, var(--content-max));
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .add-command {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      background: var(--surface-1);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .add-title {
+      margin: 0;
+      color: var(--text-strong);
+      font-size: clamp(28px, 4vw, 48px);
+      line-height: .95;
+      font-weight: 950;
+      letter-spacing: -.07em;
+    }
+
+    .add-copy {
+      margin: 8px 0 0;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 760;
+      line-height: 1.45;
+    }
+
+    .add-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .add-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .add-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .add-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .add-full {
+      grid-column: 1 / -1;
+    }
+
+    .add-mode-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .add-mode {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: var(--surface-2);
+      padding: 13px;
+      color: var(--text-strong);
+      font-weight: 950;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .add-mode.is-active {
+      border-color: rgba(4, 120, 87, .38);
+      background: var(--accent-soft);
+      color: var(--accent);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .impact-card {
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      background: var(--surface-1);
+      box-shadow: var(--shadow-sm);
+      padding: 16px;
+    }
+
+    .impact-card.good {
+      border-color: rgba(4, 120, 87, .28);
+      background: linear-gradient(135deg, var(--success-soft), transparent 70%), var(--surface-1);
+    }
+
+    .impact-card.warn {
+      border-color: rgba(180, 83, 9, .28);
+      background: linear-gradient(135deg, var(--warn-soft), transparent 70%), var(--surface-1);
+    }
+
+    .impact-card.danger {
+      border-color: rgba(185, 28, 28, .28);
+      background: linear-gradient(135deg, var(--danger-soft), transparent 70%), var(--surface-1);
+    }
+
+    .impact-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .impact-row:last-child {
+      border-bottom: 0;
+    }
+
+    .impact-row span:first-child {
+      color: var(--text-muted);
+      font-weight: 760;
+    }
+
+    .impact-row span:last-child {
+      color: var(--text-strong);
+      font-weight: 950;
+      text-align: right;
+    }
+
+    .intl-box {
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      background: var(--surface-2);
+      padding: 16px;
+      margin-top: 14px;
+    }
+
+    .review-box {
+      border: 1px solid rgba(4, 120, 87, .26);
+      border-radius: var(--r-xl);
+      background: linear-gradient(135deg, var(--success-soft), transparent 70%), var(--surface-1);
+      padding: 16px;
+    }
+
+    .error-box {
+      border: 1px solid rgba(185, 28, 28, .26);
+      border-radius: var(--r-xl);
+      background: linear-gradient(135deg, var(--danger-soft), transparent 70%), var(--surface-1);
+      padding: 16px;
+    }
+
+    .debug-pre {
+      white-space: pre-wrap;
+      overflow: auto;
+      max-height: 420px;
+      padding: 12px;
+      border-radius: 14px;
+      background: var(--surface-2);
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1180px) {
+      .add-workspace,
+      .add-command {
+        grid-template-columns: 1fr;
+      }
+
+      .add-actions {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .add-grid,
+      .add-grid-3,
+      .add-mode-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .add-actions .btn,
+      .add-mode {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 
 <body>
-  <main class="app-page">
-    <section class="finance-hero">
-      <div class="hero-kicker">Money entry</div>
-      <h1 class="hero-title">Add Transaction</h1>
-      <p class="hero-copy">
-        Record expense, income, or transfer against the correct account.
-      </p>
-    </section>
+  <main class="app-page" data-page="add" data-version="add-review-v1.5.0">
+    <div class="add-os">
+      <section class="add-command">
+        <div>
+          <div class="section-kicker">Sovereign Entry</div>
+          <h1 class="add-title">Add Transaction</h1>
+          <p class="add-copy">Enter the movement, review impact, dry-run the backend contract, then confirm save. No blind writes.</p>
+        </div>
+        <div class="add-actions">
+          <a class="btn btn-secondary" href="/transactions.html">Ledger</a>
+          <a class="btn btn-secondary" href="/bills.html">Bills</a>
+          <a class="btn btn-secondary" href="/debts.html">Debts</a>
+          <a class="btn btn-secondary" href="/">Hub</a>
+        </div>
+      </section>
 
-    <section class="dashboard-grid">
-      <article class="card card-padded">
-        <div class="section-kicker">Transaction form</div>
-        <h2 class="authority-title" style="margin-top:12px;">New transaction</h2>
-        <p class="authority-copy">Types and categories are locked to the backend contract. PKR remains ledger truth.</p>
+      <section id="statusPanel" class="panel card-padded">
+        <div class="strong">Loading Add Transaction…</div>
+        <div class="muted">Reading accounts, categories, and balances.</div>
+      </section>
 
-        <form id="transactionForm" class="stack" style="margin-top:18px;">
-          <div class="grid-2">
-            <div class="field">
-              <label for="transactionType">Type</label>
-              <select id="transactionType" required>
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
-                <option value="transfer">Transfer</option>
-              </select>
+      <section class="add-workspace">
+        <div>
+          <section class="panel card-padded">
+            <div class="section-kicker">Mode</div>
+            <div class="add-mode-strip">
+              <button class="add-mode is-active" type="button" data-mode="expense">Expense</button>
+              <button class="add-mode" type="button" data-mode="income">Income</button>
+              <button class="add-mode" type="button" data-mode="transfer">Transfer</button>
             </div>
+          </section>
 
-            <div class="field">
-              <label for="transactionDate">Date</label>
-              <input id="transactionDate" type="date" required />
-            </div>
-          </div>
+          <section class="panel card-padded">
+            <div class="section-kicker">Transaction details</div>
 
-          <div class="grid-2">
-            <div class="field">
-              <label for="amount" id="amountLabel">Amount</label>
-              <input id="amount" type="number" min="0.01" step="0.01" required placeholder="0.00" />
-              <div class="muted" id="amountHint" style="margin-top:6px;font-size:12px;">PKR amount committed to ledger.</div>
-            </div>
+            <form id="txForm" style="margin-top:14px;">
+              <input type="hidden" id="txType" value="expense" />
 
-            <div class="field" id="categoryField">
-              <label for="category">Category</label>
-              <select id="category" required>
-                <option value="">Loading categories...</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid-2">
-            <div class="field">
-              <label for="accountId" id="accountLabel">Account</label>
-              <select id="accountId" required>
-                <option value="">Loading accounts...</option>
-              </select>
-            </div>
-
-            <div class="field" id="toAccountField" hidden>
-              <label for="toAccountId">Transfer to account</label>
-              <select id="toAccountId">
-                <option value="">Loading accounts...</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="card card-compact" id="internationalToggleCard" style="padding:14px;">
-            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;">
-              <input id="internationalEnabled" type="checkbox" style="margin-top:3px;" />
-              <span>
-                <span class="strong">International transaction</span>
-                <span class="muted" style="display:block;margin-top:4px;">
-                  Calculate committed PKR using FX, bank fee, excise, advance tax, and optional PRA / 1-Biller charges.
-                </span>
-              </span>
-            </label>
-          </div>
-
-          <div class="card card-padded" id="internationalPanel" hidden>
-            <div class="section-kicker">International cost preview</div>
-            <h2 class="authority-title" style="margin-top:12px;">FX snapshot before save</h2>
-            <p class="authority-copy">
-              Final PKR total is what gets committed to the ledger.
-            </p>
-
-            <div class="grid-2" style="margin-top:16px;">
-              <label class="card card-compact" style="padding:12px;cursor:pointer;">
-                <input id="intlModeForeign" type="radio" name="intlMode" value="foreign" checked />
-                <span class="strong"> Foreign currency (USD, EUR, etc.)</span>
-                <span class="muted" style="display:block;margin-top:4px;">You know the foreign amount and FX rate.</span>
-              </label>
-
-              <label class="card card-compact" style="padding:12px;cursor:pointer;">
-                <input id="intlModePkr" type="radio" name="intlMode" value="pkr" />
-                <span class="strong"> PKR-priced (subscriptions, digital)</span>
-                <span class="muted" style="display:block;margin-top:4px;">Card shows PKR only, like Google One.</span>
-              </label>
-            </div>
-
-            <div id="intlForeignFields">
-              <div class="grid-2" style="margin-top:14px;">
-                <div class="field">
-                  <label for="intlForeignAmount">Foreign amount</label>
-                  <input id="intlForeignAmount" type="number" min="0.01" step="0.01" placeholder="10.00" />
+              <div class="add-grid">
+                <div class="form-field">
+                  <label for="txDate">Date</label>
+                  <input id="txDate" type="date" required />
                 </div>
 
-                <div class="field">
-                  <label for="intlCurrency">Currency</label>
-                  <input id="intlCurrency" maxlength="8" placeholder="USD" value="USD" />
+                <div class="form-field">
+                  <label for="txAmount">Amount / committed PKR</label>
+                  <input id="txAmount" type="number" min="0" step="0.01" required />
+                </div>
+
+                <div class="form-field">
+                  <label for="accountId">Account</label>
+                  <select id="accountId" required></select>
+                </div>
+
+                <div class="form-field" id="transferToWrap" hidden>
+                  <label for="transferToAccountId">Transfer to account</label>
+                  <select id="transferToAccountId"></select>
+                </div>
+
+                <div class="form-field">
+                  <label for="categoryId">Category</label>
+                  <select id="categoryId"></select>
+                </div>
+
+                <div class="form-field">
+                  <label for="merchantSource">Merchant / source</label>
+                  <input id="merchantSource" type="text" placeholder="e.g. Foodpanda, Motive, Netflix" />
+                </div>
+
+                <div class="form-field">
+                  <label for="referenceText">Reference</label>
+                  <input id="referenceText" type="text" placeholder="optional reference" />
+                </div>
+
+                <div class="form-field add-full">
+                  <label for="notesText">Notes</label>
+                  <textarea id="notesText" placeholder="optional notes"></textarea>
                 </div>
               </div>
 
-              <div class="field">
-                <label for="intlFxRate">FX rate to PKR</label>
-                <input id="intlFxRate" type="number" min="0.0001" step="0.0001" placeholder="278.8667" />
+              <div id="internationalToggleWrap" style="margin-top:14px;">
+                <label style="display:flex;gap:10px;align-items:center;">
+                  <input id="isInternational" type="checkbox" />
+                  International transaction calculator
+                </label>
               </div>
-            </div>
 
-            <div id="intlPkrFields" hidden>
-              <div class="field" style="margin-top:14px;">
-                <label for="intlBasePkr">Base PKR charge</label>
-                <input id="intlBasePkr" type="number" min="0.01" step="0.01" placeholder="419.00" />
-                <div class="muted" style="margin-top:6px;font-size:12px;">Amount shown on card/bank statement before fees/taxes.</div>
+              <div id="internationalPanel" class="intl-box" hidden>
+                <div class="section-kicker">International package preview</div>
+
+                <div class="add-grid-3" style="margin-top:14px;">
+                  <div class="form-field">
+                    <label for="foreignAmount">Foreign amount</label>
+                    <input id="foreignAmount" type="number" min="0" step="0.01" />
+                  </div>
+
+                  <div class="form-field">
+                    <label for="currencyCode">Currency</label>
+                    <input id="currencyCode" type="text" value="USD" />
+                  </div>
+
+                  <div class="form-field">
+                    <label for="fxRate">FX rate</label>
+                    <input id="fxRate" type="number" min="0" step="0.0001" />
+                  </div>
+
+                  <div class="form-field">
+                    <label for="fxFeeRate">FX fee %</label>
+                    <input id="fxFeeRate" type="number" min="0" step="0.01" value="4.5" />
+                  </div>
+
+                  <div class="form-field">
+                    <label for="advanceTaxRate">Advance tax %</label>
+                    <input id="advanceTaxRate" type="number" min="0" step="0.01" value="5" />
+                  </div>
+
+                  <div class="form-field">
+                    <label for="praRate">PRA / other tax %</label>
+                    <input id="praRate" type="number" min="0" step="0.01" value="0" />
+                  </div>
+
+                  <div class="form-field">
+                    <label for="billerCharge">1-Biller / bank charge</label>
+                    <input id="billerCharge" type="number" min="0" step="0.01" value="0" />
+                  </div>
+
+                  <div class="form-field">
+                    <label for="exciseRate">Excise/FED on FX fee %</label>
+                    <input id="exciseRate" type="number" min="0" step="0.01" value="16" />
+                  </div>
+                </div>
+
+                <div id="internationalBreakdown" class="impact-card" style="margin-top:14px;"></div>
               </div>
-            </div>
 
-            <div class="field" style="margin-top:14px;">
-              <label for="intlOneBillerCharge">1-Biller charge</label>
-              <input id="intlOneBillerCharge" type="number" min="0" step="0.01" value="31.25" />
-            </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+                <button id="reviewBtn" class="btn btn-success" type="submit">Review Transaction</button>
+                <button id="resetBtn" class="btn btn-secondary" type="button">Reset</button>
+              </div>
+            </form>
+          </section>
 
-            <div class="grid-2">
-              <label class="card card-compact" style="padding:12px;cursor:pointer;">
-                <input id="intlFxFeeEnabled" type="checkbox" checked />
-                <span class="strong"> FX/cross-border fee 4.5%</span>
-                <span class="muted" style="display:block;margin-top:4px;">Excise duty is calculated from this fee.</span>
-              </label>
+          <section id="reviewPanel" class="panel card-padded" hidden></section>
+          <section id="resultPanel" class="panel card-padded" hidden></section>
+        </div>
 
-              <label class="card card-compact" style="padding:12px;cursor:pointer;">
-                <input id="intlAdvanceTaxEnabled" type="checkbox" checked />
-                <span class="strong"> Advance Tax 236Y 5%</span>
-                <span class="muted" style="display:block;margin-top:4px;">Calculated on base PKR.</span>
-              </label>
-            </div>
+        <aside>
+          <section class="panel card-padded">
+            <div class="section-kicker">Live impact</div>
+            <div id="impactPanel" class="impact-card" style="margin-top:12px;"></div>
+          </section>
 
-            <div class="grid-2">
-              <label class="card card-compact" style="padding:12px;cursor:pointer;">
-                <input id="intlPraEnabled" type="checkbox" />
-                <span class="strong"> PRA IT Tax 5%</span>
-                <span class="muted" style="display:block;margin-top:4px;">Use only when applicable.</span>
-              </label>
+          <section class="panel card-padded">
+            <div class="section-kicker">Accounts</div>
+            <div id="accountsPanel" class="stack-sm" style="margin-top:12px;"></div>
+          </section>
 
-              <label class="card card-compact" style="padding:12px;cursor:pointer;">
-                <input id="intlOneBillerEnabled" type="checkbox" />
-                <span class="strong"> Add 1-Biller charge</span>
-                <span class="muted" style="display:block;margin-top:4px;">For non-Alfalah CC bill payments.</span>
-              </label>
-            </div>
-
-            <div class="authority-panel" id="intlPreview" style="margin-top:14px;">
-              Select international mode and enter amounts to preview committed PKR.
-            </div>
-          </div>
-
-          <div class="grid-2">
-            <div class="field">
-              <label for="merchant">Merchant / source</label>
-              <input id="merchant" placeholder="Optional" />
-            </div>
-
-            <div class="field">
-              <label for="reference">Reference</label>
-              <input id="reference" placeholder="Optional" />
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="notes">Notes</label>
-            <textarea id="notes" placeholder="Optional"></textarea>
-          </div>
-
-          <button class="primary-submit" type="submit" id="saveButton">Save Transaction</button>
-        </form>
-      </article>
-
-      <aside class="stack">
-        <article class="card card-padded">
-          <div class="section-kicker">Quick links</div>
-          <div class="stack-sm" style="margin-top:16px;">
-            <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
-            <a class="btn btn-secondary" href="/bills.html">Bills</a>
-            <a class="btn btn-secondary" href="/debts.html">Debts</a>
-            <a class="btn btn-secondary" href="/reconciliation.html">Reconcile</a>
-          </div>
-        </article>
-
-        <article class="card card-padded">
-          <div class="section-kicker">Accounts</div>
-          <h2 class="authority-title" style="margin-top:12px;">Available accounts</h2>
-          <p class="authority-copy">Accounts are loaded from the account API.</p>
-          <div class="stack-sm" id="accountsList" style="margin-top:16px;">
-            <div class="card card-compact muted">Loading accounts...</div>
-          </div>
-        </article>
-
-        <article class="card card-padded">
-          <div class="section-kicker">Page status</div>
-          <h2 class="authority-title" style="margin-top:12px;" id="pageStatus">Loading</h2>
-          <p class="authority-copy" id="pageStatusDetail">Fetching accounts and categories.</p>
-          <p class="authority-copy">Last refreshed: <span id="lastRefreshed">—</span></p>
-        </article>
-      </aside>
-    </section>
+          <section id="debugPanel" class="panel card-padded" hidden>
+            <div class="section-kicker">Verification</div>
+            <pre id="debugOutput" class="debug-pre"></pre>
+          </section>
+        </aside>
+      </section>
+    </div>
   </main>
 
-  <div class="toast" id="toast"></div>
-
-  <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=2.0.3"></script>
+  <script src="/js/theme.js" defer></script>
+  <script src="/js/nav.js" defer></script>
+  <script src="/js/sf-icons.js?v=1.0.0" defer></script>
 
   <script>
-    (() => {
+    (function () {
       "use strict";
 
-      const VERSION = "add-intl-preview-v1.4.1";
+      const VERSION = "add-review-v1.5.0";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
-
-      const INTL_DEFAULTS = {
-        fxFeeRate: 0.045,
-        exciseRate: 0.16,
-        advanceTaxRate: 0.05,
-        praRate: 0.05,
-        oneBillerCharge: 31.25
-      };
+      const $ = (id) => document.getElementById(id);
 
       const state = {
-        accounts: [],
-        categories: [],
-        categoriesContract: null,
-        saving: false,
-        error: null,
-        intlPreview: null,
-        intlMode: "foreign"
+        accounts: {},
+        categories: {},
+        balances: {},
+        pendingPayload: null,
+        dryRunResult: null,
+        saveResult: null,
+        writeEndpointsCalledOnLoad: 0,
+        finalWriteCalls: 0
       };
-
-      const FRONTEND_TYPES = ["expense", "income", "transfer"];
-
-      const $ = id => document.getElementById(id);
-
-      const els = {
-        form: $("transactionForm"),
-        type: $("transactionType"),
-        date: $("transactionDate"),
-        amount: $("amount"),
-        amountLabel: $("amountLabel"),
-        amountHint: $("amountHint"),
-        category: $("category"),
-        categoryField: $("categoryField"),
-        account: $("accountId"),
-        accountLabel: $("accountLabel"),
-        toAccountField: $("toAccountField"),
-        toAccount: $("toAccountId"),
-        internationalToggleCard: $("internationalToggleCard"),
-        internationalEnabled: $("internationalEnabled"),
-        internationalPanel: $("internationalPanel"),
-        intlModeForeign: $("intlModeForeign"),
-        intlModePkr: $("intlModePkr"),
-        intlForeignFields: $("intlForeignFields"),
-        intlPkrFields: $("intlPkrFields"),
-        intlForeignAmount: $("intlForeignAmount"),
-        intlCurrency: $("intlCurrency"),
-        intlFxRate: $("intlFxRate"),
-        intlBasePkr: $("intlBasePkr"),
-        intlFxFeeEnabled: $("intlFxFeeEnabled"),
-        intlAdvanceTaxEnabled: $("intlAdvanceTaxEnabled"),
-        intlPraEnabled: $("intlPraEnabled"),
-        intlOneBillerEnabled: $("intlOneBillerEnabled"),
-        intlOneBillerCharge: $("intlOneBillerCharge"),
-        intlPreview: $("intlPreview"),
-        merchant: $("merchant"),
-        reference: $("reference"),
-        notes: $("notes"),
-        saveButton: $("saveButton"),
-        accountsList: $("accountsList"),
-        pageStatus: $("pageStatus"),
-        pageStatusDetail: $("pageStatusDetail"),
-        lastRefreshed: $("lastRefreshed"),
-        toast: $("toast")
-      };
-
-      window.SovereignAdd = {
-        version: VERSION,
-        refresh,
-        getState: () => JSON.parse(JSON.stringify(state)),
-        calculateInternationalPreview
-      };
-
-      function todayIso() {
-        return new Date().toISOString().slice(0, 10);
-      }
-
-      function roundMoney(value) {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return 0;
-        return Math.round((n + Number.EPSILON) * 100) / 100;
-      }
-
-      function money(value) {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return "—";
-
-        return "Rs " + n.toLocaleString("en-PK", {
-          minimumFractionDigits: n % 1 ? 2 : 0,
-          maximumFractionDigits: 2
-        });
-      }
-
-      function numberText(value, digits = 2) {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return "—";
-        return n.toLocaleString("en-PK", {
-          minimumFractionDigits: digits,
-          maximumFractionDigits: digits
-        });
-      }
 
       function escapeHtml(value) {
         return String(value ?? "")
@@ -341,581 +403,561 @@
           .replaceAll("'", "&#039;");
       }
 
-      async function readJson(path, options = {}) {
-        const res = await fetch(path, {
-          ...options,
-          cache: "no-store",
-          headers: {
-            accept: "application/json",
-            "content-type": "application/json",
-            ...(options.headers || {})
-          }
-        });
-
-        const text = await res.text();
-        let json;
-
-        try {
-          json = text ? JSON.parse(text) : {};
-        } catch {
-          throw new Error(path + " returned non-JSON");
+      function asNumber(value, fallback = 0) {
+        if (typeof value === "number" && Number.isFinite(value)) return value;
+        if (typeof value === "string") {
+          const parsed = Number(value.replace(/[^\d.-]/g, ""));
+          if (Number.isFinite(parsed)) return parsed;
         }
-
-        if (!res.ok || json.ok === false) {
-          throw new Error(json.error || json.message || path + " HTTP " + res.status);
-        }
-
-        return json;
+        return fallback;
       }
 
-      function arrayFromPayload(payload, key) {
-        if (Array.isArray(payload)) return payload;
-        if (Array.isArray(payload?.[key])) return payload[key];
-        if (Array.isArray(payload?.items)) return payload.items;
+      function round2(value) {
+        return Math.round(asNumber(value, 0) * 100) / 100;
+      }
+
+      function money(value) {
+        return new Intl.NumberFormat("en-PK", {
+          style: "currency",
+          currency: "PKR",
+          maximumFractionDigits: 2
+        }).format(asNumber(value, 0));
+      }
+
+      async function readJson(path) {
+        const response = await fetch(path, {
+          headers: { "accept": "application/json" },
+          cache: "no-store"
+        });
+
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok || !payload) {
+          throw new Error(`${path} HTTP ${response.status}`);
+        }
+
+        return payload;
+      }
+
+      async function postJson(path, body) {
+        const response = await fetch(path, {
+          method: "POST",
+          headers: {
+            "accept": "application/json",
+            "content-type": "application/json"
+          },
+          body: JSON.stringify(body)
+        });
+
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok || payload?.ok === false) {
+          throw new Error(payload?.error || payload?.message || `${path} HTTP ${response.status}`);
+        }
+
+        return payload;
+      }
+
+      function todayIso() {
+        return new Date().toISOString().slice(0, 10);
+      }
+
+      function categoryArray(payload) {
+        if (Array.isArray(payload?.categories)) return payload.categories;
         if (Array.isArray(payload?.data)) return payload.data;
-        if (Array.isArray(payload?.rows)) return payload.rows;
+        if (Array.isArray(payload?.results)) return payload.results;
+        if (payload?.categories && typeof payload.categories === "object") {
+          return Object.entries(payload.categories).map(([id, value]) => ({ id, ...(value || {}) }));
+        }
         return [];
       }
 
-      function accountId(account) {
-        return account.id || account.account_id || account.name;
+      function accountBalance(id) {
+        const fromBalances = state.balances?.accounts?.[id]?.balance;
+        if (fromBalances !== undefined) return asNumber(fromBalances, 0);
+
+        const fromAccounts = state.accounts?.[id]?.balance;
+        if (fromAccounts !== undefined) return asNumber(fromAccounts, 0);
+
+        return 0;
       }
 
-      function accountName(account) {
-        return account.name || account.account_name || account.label || account.id || account.account_id || "Account";
+      function accountName(id) {
+        return state.accounts?.[id]?.name || id || "Unknown account";
       }
 
-      function categoryId(category) {
-        return category.id || category.category_id || category.name || category.slug;
-      }
+      function setMode(mode) {
+        $("txType").value = mode;
 
-      function categoryName(category) {
-        return category.name || category.label || category.title || category.id || "Category";
-      }
-
-      function categoryType(category) {
-        return String(category.type || category.kind || "").toLowerCase();
-      }
-
-      async function refresh() {
-        state.error = null;
-        renderLoading();
-
-        try {
-          const [accountsPayload, categoriesPayload] = await Promise.all([
-            readJson("/api/accounts?cb=" + Date.now()),
-            readJson("/api/categories?cb=" + Date.now())
-          ]);
-
-          state.accounts = arrayFromPayload(accountsPayload, "accounts");
-          state.categories = arrayFromPayload(categoriesPayload, "categories");
-          state.categoriesContract = categoriesPayload.contract || null;
-        } catch (err) {
-          state.error = err.message || "Unable to load Add page inputs.";
-          state.accounts = [];
-          state.categories = [];
-          state.categoriesContract = null;
-        }
-
-        render();
-      }
-
-      function renderLoading() {
-        els.pageStatus.textContent = "Loading";
-        els.pageStatusDetail.textContent = "Fetching accounts and categories.";
-        els.accountsList.innerHTML = '<div class="card card-compact muted">Loading accounts...</div>';
-      }
-
-      function render() {
-        renderStatus();
-        renderAccounts();
-        renderAccountOptions();
-        renderCategoryOptions();
-        renderTypeMode();
-        renderInternationalMode();
-      }
-
-      function renderStatus() {
-        els.lastRefreshed.textContent = new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit"
+        document.querySelectorAll(".add-mode").forEach((button) => {
+          button.classList.toggle("is-active", button.dataset.mode === mode);
         });
 
-        if (state.error) {
-          els.pageStatus.textContent = "Unavailable";
-          els.pageStatusDetail.textContent = state.error;
-          return;
+        $("transferToWrap").hidden = mode !== "transfer";
+        $("categoryId").disabled = mode === "transfer";
+
+        if (mode !== "expense") {
+          $("isInternational").checked = false;
         }
 
-        els.pageStatus.textContent = "Ready";
-        els.pageStatusDetail.textContent = "Using backend account/category contract.";
+        $("internationalToggleWrap").hidden = mode !== "expense";
+        syncInternational();
+        renderImpact();
+        hideReview();
       }
 
-      function renderAccounts() {
-        if (state.error) {
-          els.accountsList.innerHTML = '<div class="authority-panel blocked">' + escapeHtml(state.error) + '</div>';
-          return;
-        }
-
-        if (!state.accounts.length) {
-          els.accountsList.innerHTML = '<div class="card card-compact muted">No accounts found.</div>';
-          return;
-        }
-
-        els.accountsList.innerHTML = state.accounts.slice(0, 8).map(account => {
-          const id = accountId(account);
-          const name = accountName(account);
-          const type = account.type || account.kind || "account";
-          const balance = account.balance ?? account.current_balance;
-
-          return (
-            '<div class="card card-compact">' +
-              '<div class="grid-2" style="align-items:center;">' +
-                '<div>' +
-                  '<div class="strong">' + escapeHtml(name) + '</div>' +
-                  '<div class="muted">' + escapeHtml(type) + '</div>' +
-                '</div>' +
-                '<div class="text-right strong">' + money(balance) + '</div>' +
-              '</div>' +
-            '</div>'
-          );
-        }).join("");
-      }
-
-      function renderAccountOptions() {
-        const oldAccount = els.account.value;
-        const oldToAccount = els.toAccount.value;
-
-        const html = [
-          '<option value="">Select account</option>',
-          ...state.accounts.map(account => {
-            const id = accountId(account);
-            const name = accountName(account);
-            const balance = account.balance ?? account.current_balance;
-            const label = Number.isFinite(Number(balance)) ? name + " · " + money(balance) : name;
-            return '<option value="' + escapeHtml(id) + '">' + escapeHtml(label) + '</option>';
-          })
-        ].join("");
-
-        els.account.innerHTML = html;
-        els.toAccount.innerHTML = html;
-
-        if (oldAccount) els.account.value = oldAccount;
-        if (oldToAccount) els.toAccount.value = oldToAccount;
-      }
-
-      function categoriesForCurrentType() {
-        const type = els.type.value;
-
-        if (type === "transfer") {
-          return state.categories.filter(category => categoryId(category) === "transfer");
-        }
-
-        if (type === "income") {
-          const incomeCategories = state.categories.filter(category => categoryType(category) === "income");
-          return incomeCategories.length ? incomeCategories : state.categories.filter(category => categoryId(category) === "manual_income");
-        }
-
-        return state.categories.filter(category => {
-          const id = categoryId(category);
-          const type = categoryType(category);
-
-          return type === "expense" || ["misc", "debt_payment", "credit_card", "bills_utilities"].includes(id);
-        });
-      }
-
-      function defaultCategoryForType() {
-        const type = els.type.value;
-
-        if (type === "income") return "manual_income";
-        if (type === "expense") return "misc";
-
-        return "";
-      }
-
-      function renderCategoryOptions() {
-        const old = els.category.value;
-        const options = categoriesForCurrentType();
-
-        if (!state.categories.length) {
-          els.category.innerHTML = '<option value="">Categories unavailable</option>';
-          return;
-        }
-
-        els.category.innerHTML = [
-          '<option value="">Select category</option>',
-          ...options.map(category => {
-            const id = categoryId(category);
-            const name = categoryName(category);
-            return '<option value="' + escapeHtml(id) + '">' + escapeHtml(name) + '</option>';
-          })
-        ].join("");
-
-        if (old && options.some(category => categoryId(category) === old)) {
-          els.category.value = old;
-        } else {
-          const fallback = defaultCategoryForType();
-          if (fallback && options.some(category => categoryId(category) === fallback)) {
-            els.category.value = fallback;
-          }
-        }
-      }
-
-      function renderTypeMode() {
-        const type = els.type.value;
-        const isTransfer = type === "transfer";
-
-        els.toAccountField.hidden = !isTransfer;
-        els.toAccount.required = isTransfer;
-
-        if (isTransfer) {
-          els.accountLabel.textContent = "Transfer from account";
-          els.categoryField.hidden = true;
-          els.category.required = false;
-          els.category.value = "";
-        } else {
-          els.accountLabel.textContent = "Account";
-          els.categoryField.hidden = false;
-          els.category.required = true;
-        }
-      }
-
-      function internationalAllowed() {
-        return els.type.value === "expense";
-      }
-
-      function renderInternationalMode() {
-        const allowed = internationalAllowed();
-
-        els.internationalToggleCard.hidden = !allowed;
-
-        if (!allowed) {
-          els.internationalEnabled.checked = false;
-        }
-
-        const enabled = allowed && els.internationalEnabled.checked;
-
-        els.internationalPanel.hidden = !enabled;
-        els.amount.readOnly = enabled;
+      function syncInternational() {
+        const enabled = $("isInternational").checked && $("txType").value === "expense";
+        $("internationalPanel").hidden = !enabled;
+        $("txAmount").readOnly = enabled;
 
         if (enabled) {
-          state.intlMode = els.intlModeForeign.checked ? "foreign" : "pkr";
-
-          els.intlForeignFields.hidden = state.intlMode !== "foreign";
-          els.intlPkrFields.hidden = state.intlMode !== "pkr";
-
-          els.amountLabel.textContent = "Committed PKR amount";
-          els.amountHint.textContent = "Auto-calculated from international preview. This is the ledger amount.";
-        } else {
-          els.amountLabel.textContent = "Amount";
-          els.amountHint.textContent = "PKR amount committed to ledger.";
-          state.intlPreview = null;
+          const total = internationalTotals().total;
+          $("txAmount").value = total ? String(total) : "";
         }
 
-        updateInternationalPreview();
+        renderInternationalBreakdown();
+        renderImpact();
       }
 
-      function calculateInternationalPreview() {
-        if (!internationalAllowed() || !els.internationalEnabled.checked) return null;
+      function internationalTotals() {
+        const foreignAmount = asNumber($("foreignAmount").value, 0);
+        const fxRate = asNumber($("fxRate").value, 0);
+        const base = round2(foreignAmount * fxRate);
+        const fxFee = round2(base * asNumber($("fxFeeRate").value, 0) / 100);
+        const excise = round2(fxFee * asNumber($("exciseRate").value, 0) / 100);
+        const advanceTax = round2(base * asNumber($("advanceTaxRate").value, 0) / 100);
+        const pra = round2(base * asNumber($("praRate").value, 0) / 100);
+        const biller = round2($("billerCharge").value);
+        const total = round2(base + fxFee + excise + advanceTax + pra + biller);
 
-        const mode = els.intlModeForeign.checked ? "foreign" : "pkr";
-        const oneBillerInput = Number(els.intlOneBillerCharge.value);
+        return { foreignAmount, fxRate, base, fxFee, excise, advanceTax, pra, biller, total };
+      }
 
-        let basePkr;
-        let foreignAmount = null;
-        let fxRate = null;
-        let currency = null;
-        let formula = null;
+      function renderInternationalBreakdown() {
+        if ($("internationalPanel").hidden) return;
 
-        if (mode === "foreign") {
-          foreignAmount = Number(els.intlForeignAmount.value);
-          fxRate = Number(els.intlFxRate.value);
-          currency = String(els.intlCurrency.value || "").trim().toUpperCase();
+        const t = internationalTotals();
 
-          if (!Number.isFinite(foreignAmount) || foreignAmount <= 0 || !Number.isFinite(fxRate) || fxRate <= 0 || !currency) {
-            return {
-              valid: false,
-              mode,
-              currency,
-              foreignAmount,
-              fxRate,
-              message: "Enter foreign amount, currency, and FX rate to preview committed PKR."
-            };
-          }
+        $("internationalBreakdown").innerHTML = `
+          <div class="impact-row"><span>Base PKR</span><span>${money(t.base)}</span></div>
+          <div class="impact-row"><span>FX fee</span><span>${money(t.fxFee)}</span></div>
+          <div class="impact-row"><span>Excise/FED</span><span>${money(t.excise)}</span></div>
+          <div class="impact-row"><span>Advance tax</span><span>${money(t.advanceTax)}</span></div>
+          <div class="impact-row"><span>PRA / other tax</span><span>${money(t.pra)}</span></div>
+          <div class="impact-row"><span>1-Biller / bank charge</span><span>${money(t.biller)}</span></div>
+          <div class="impact-row"><span>Total committed PKR</span><span>${money(t.total)}</span></div>
+        `;
+      }
 
-          basePkr = roundMoney(foreignAmount * fxRate);
-          formula = currency + " " + numberText(foreignAmount) + " × " + fxRate + " = " + money(basePkr);
-        } else {
-          basePkr = Number(els.intlBasePkr.value);
+      function selectedImpact() {
+        const type = $("txType").value;
+        const amount = asNumber($("txAmount").value, 0);
+        const accountId = $("accountId").value;
+        const transferTo = $("transferToAccountId").value;
 
-          if (!Number.isFinite(basePkr) || basePkr <= 0) {
-            return {
-              valid: false,
-              mode,
-              basePkr,
-              message: "Enter base PKR charge to preview committed PKR."
-            };
-          }
+        const before = accountBalance(accountId);
+        const toBefore = accountBalance(transferTo);
 
-          basePkr = roundMoney(basePkr);
-          formula = "Base charge " + money(basePkr);
+        let delta = 0;
+        if (type === "income") delta = amount;
+        if (type === "expense") delta = -amount;
+        if (type === "transfer") delta = -amount;
+
+        const after = round2(before + delta);
+        const toAfter = type === "transfer" ? round2(toBefore + amount) : null;
+
+        let status = "good";
+        let message = "Safe based on selected account balance.";
+
+        if (!accountId) {
+          status = "warn";
+          message = "Select an account.";
+        } else if (!amount || amount <= 0) {
+          status = "warn";
+          message = "Enter an amount.";
+        } else if (type !== "income" && after < 0) {
+          status = "danger";
+          message = "Projected account balance goes below zero.";
         }
 
-        const fxFee = els.intlFxFeeEnabled.checked ? roundMoney(basePkr * INTL_DEFAULTS.fxFeeRate) : 0;
-        const exciseDuty = els.intlFxFeeEnabled.checked ? roundMoney(fxFee * INTL_DEFAULTS.exciseRate) : 0;
-        const advanceTax236Y = els.intlAdvanceTaxEnabled.checked ? roundMoney(basePkr * INTL_DEFAULTS.advanceTaxRate) : 0;
-        const praItTax = els.intlPraEnabled.checked ? roundMoney(basePkr * INTL_DEFAULTS.praRate) : 0;
-        const oneBillerCharge = els.intlOneBillerEnabled.checked ? roundMoney(Number.isFinite(oneBillerInput) ? oneBillerInput : INTL_DEFAULTS.oneBillerCharge) : 0;
-        const totalPkr = roundMoney(basePkr + fxFee + exciseDuty + advanceTax236Y + praItTax + oneBillerCharge);
+        if (type === "transfer" && accountId === transferTo) {
+          status = "danger";
+          message = "Transfer source and destination cannot be the same.";
+        }
 
-        return {
-          valid: true,
-          mode,
-          currency,
-          foreignAmount: foreignAmount ? roundMoney(foreignAmount) : null,
-          fxRate,
-          basePkr,
-          fxFee,
-          exciseDuty,
-          advanceTax236Y,
-          praItTax,
-          oneBillerCharge,
-          totalPkr,
-          formula
-        };
+        return { type, amount, accountId, transferTo, before, after, toBefore, toAfter, status, message };
       }
 
-      function updateInternationalPreview() {
-        const preview = calculateInternationalPreview();
-        state.intlPreview = preview;
+      function renderImpact() {
+        const i = selectedImpact();
+        const cardClass = `impact-card ${i.status}`;
 
-        if (!els.internationalEnabled.checked || !internationalAllowed()) {
-          els.intlPreview.textContent = "Select international mode and enter amounts to preview committed PKR.";
+        if (i.type === "transfer") {
+          $("impactPanel").className = cardClass;
+          $("impactPanel").innerHTML = `
+            <div class="impact-row"><span>Status</span><span>${escapeHtml(i.message)}</span></div>
+            <div class="impact-row"><span>From account</span><span>${escapeHtml(accountName(i.accountId))}</span></div>
+            <div class="impact-row"><span>Before</span><span>${money(i.before)}</span></div>
+            <div class="impact-row"><span>Transfer out</span><span>- ${money(i.amount)}</span></div>
+            <div class="impact-row"><span>After</span><span>${money(i.after)}</span></div>
+            <div class="impact-row"><span>To account</span><span>${escapeHtml(accountName(i.transferTo))}</span></div>
+            <div class="impact-row"><span>Destination after</span><span>${i.transferTo ? money(i.toAfter) : "Select destination"}</span></div>
+            <div class="impact-row"><span>Net worth impact</span><span>${money(0)}</span></div>
+          `;
           return;
         }
 
-        if (!preview || !preview.valid) {
-          els.amount.value = "";
-          els.intlPreview.innerHTML = '<div class="muted">' + escapeHtml(preview?.message || "Select international mode and enter amounts to preview committed PKR.") + '</div>';
-          return;
-        }
+        const direction = i.type === "income" ? "+" : "-";
 
-        els.amount.value = preview.totalPkr.toFixed(2);
-
-        els.intlPreview.innerHTML = (
-          '<div class="stack-sm">' +
-            '<div class="grid-2" style="align-items:center;">' +
-              '<div>' +
-                '<div class="strong">Final committed PKR</div>' +
-                '<div class="muted">' + escapeHtml(preview.formula) + '</div>' +
-              '</div>' +
-              '<div class="text-right strong">' + money(preview.totalPkr) + '</div>' +
-            '</div>' +
-            '<div class="card card-compact">' +
-              '<div class="grid-2"><span>Base PKR</span><span class="text-right strong">' + money(preview.basePkr) + '</span></div>' +
-              '<div class="grid-2"><span>FX/cross-border fee 4.5%</span><span class="text-right strong">' + money(preview.fxFee) + '</span></div>' +
-              '<div class="grid-2"><span>Excise duty 16% of fee</span><span class="text-right strong">' + money(preview.exciseDuty) + '</span></div>' +
-              '<div class="grid-2"><span>Advance Tax 236Y 5%</span><span class="text-right strong">' + money(preview.advanceTax236Y) + '</span></div>' +
-              '<div class="grid-2"><span>PRA IT Tax 5%</span><span class="text-right strong">' + money(preview.praItTax) + '</span></div>' +
-              '<div class="grid-2"><span>1-Biller charge</span><span class="text-right strong">' + money(preview.oneBillerCharge) + '</span></div>' +
-            '</div>' +
-          '</div>'
-        );
+        $("impactPanel").className = cardClass;
+        $("impactPanel").innerHTML = `
+          <div class="impact-row"><span>Status</span><span>${escapeHtml(i.message)}</span></div>
+          <div class="impact-row"><span>Account</span><span>${escapeHtml(accountName(i.accountId))}</span></div>
+          <div class="impact-row"><span>Before</span><span>${money(i.before)}</span></div>
+          <div class="impact-row"><span>Impact</span><span>${direction} ${money(i.amount)}</span></div>
+          <div class="impact-row"><span>After</span><span>${money(i.after)}</span></div>
+        `;
       }
 
-      function buildInternationalNote(preview) {
-        if (!preview || !preview.valid) return "";
-
+      function buildNotes() {
         const parts = [];
 
-        if (preview.mode === "foreign") {
-          parts.push(
-            "International transaction",
-            preview.currency + " " + numberText(preview.foreignAmount) + " @ " + preview.fxRate,
-            "base " + money(preview.basePkr)
-          );
-        } else {
-          parts.push(
-            "PKR-priced international charge",
-            "base " + money(preview.basePkr)
-          );
+        const merchant = $("merchantSource").value.trim();
+        const reference = $("referenceText").value.trim();
+        const notes = $("notesText").value.trim();
+
+        if (merchant) parts.push(`merchant=${merchant}`);
+        if (reference) parts.push(`reference=${reference}`);
+        if (notes) parts.push(notes);
+
+        if ($("isInternational").checked && $("txType").value === "expense") {
+          const t = internationalTotals();
+          parts.push([
+            "international=true",
+            `currency=${$("currencyCode").value.trim() || "UNKNOWN"}`,
+            `foreign_amount=${t.foreignAmount}`,
+            `fx_rate=${t.fxRate}`,
+            `base_pkr=${t.base}`,
+            `fx_fee=${t.fxFee}`,
+            `excise_fed=${t.excise}`,
+            `advance_tax_236y=${t.advanceTax}`,
+            `pra_other_tax=${t.pra}`,
+            `biller_charge=${t.biller}`,
+            `total_pkr=${t.total}`
+          ].join(" | "));
         }
 
-        parts.push(
-          "FX fee " + money(preview.fxFee),
-          "excise " + money(preview.exciseDuty),
-          "advance tax 236Y " + money(preview.advanceTax236Y),
-          "PRA " + money(preview.praItTax),
-          "1-Biller " + money(preview.oneBillerCharge),
-          "total " + money(preview.totalPkr)
-        );
-
-        return parts.join(" · ");
-      }
-
-      function toast(message, type = "") {
-        els.toast.textContent = message;
-        els.toast.className = "toast show " + type;
-
-        clearTimeout(toast.timer);
-        toast.timer = setTimeout(() => {
-          els.toast.className = "toast";
-        }, 2800);
+        return parts.join(" | ");
       }
 
       function buildPayload() {
-        updateInternationalPreview();
-
-        const type = els.type.value;
-        const intl = state.intlPreview?.valid ? state.intlPreview : null;
-        const manualNotes = els.notes.value.trim();
-        const intlNote = els.internationalEnabled.checked && intl ? buildInternationalNote(intl) : "";
-
-        const combinedNotes = [manualNotes, intlNote].filter(Boolean).join("\n");
-
+        const type = $("txType").value;
+        const amount = round2($("txAmount").value);
         const payload = {
           type,
-          transaction_type: type,
-          date: els.date.value,
-          amount: Number(els.amount.value),
-          account_id: els.account.value,
-          category_id: type === "transfer" ? null : els.category.value,
-          category: type === "transfer" ? null : els.category.value,
-          merchant: els.merchant.value.trim() || null,
-          reference: els.reference.value.trim() || null,
-          notes: combinedNotes || null
+          date: $("txDate").value,
+          amount,
+          account_id: $("accountId").value,
+          notes: buildNotes()
         };
 
+        if (type !== "transfer" && $("categoryId").value) {
+          payload.category_id = $("categoryId").value;
+        }
+
         if (type === "transfer") {
-          payload.from_account_id = els.account.value;
-          payload.transfer_to_account_id = els.toAccount.value;
-          payload.to_account_id = els.toAccount.value;
-          payload.destination_account_id = els.toAccount.value;
+          payload.transfer_to_account_id = $("transferToAccountId").value;
         }
 
         return payload;
       }
 
       function validatePayload(payload) {
-        if (!FRONTEND_TYPES.includes(payload.type)) return "Unsupported transaction type.";
+        if (!payload.type) return "Type is required.";
         if (!payload.date) return "Date is required.";
-        if (!Number.isFinite(payload.amount) || payload.amount <= 0) return "Amount must be greater than zero.";
+        if (!payload.amount || payload.amount <= 0) return "Amount must be greater than zero.";
         if (!payload.account_id) return "Account is required.";
-
-        if (els.internationalEnabled.checked) {
-          const preview = state.intlPreview;
-
-          if (payload.type !== "expense") return "International mode is only available for expense transactions.";
-          if (!preview || !preview.valid) return "Complete international preview before saving.";
-          if (roundMoney(payload.amount) !== roundMoney(preview.totalPkr)) return "Committed PKR does not match international preview.";
-        }
-
-        if (payload.type === "transfer") {
-          if (!payload.transfer_to_account_id) return "Destination account is required.";
-          if (payload.transfer_to_account_id === payload.account_id) return "Transfer accounts must be different.";
-          return null;
-        }
-
-        if (!payload.category_id) return "Category is required.";
-
+        if (payload.type === "transfer" && !payload.transfer_to_account_id) return "Transfer destination is required.";
+        if (payload.type === "transfer" && payload.account_id === payload.transfer_to_account_id) return "Transfer source and destination cannot be the same.";
+        if (selectedImpact().status === "danger") return selectedImpact().message;
         return null;
       }
 
-      async function saveTransaction(payload) {
-        return readJson("/api/transactions", {
-          method: "POST",
-          body: JSON.stringify(payload)
-        });
+      function hideReview() {
+        state.pendingPayload = null;
+        state.dryRunResult = null;
+        $("reviewPanel").hidden = true;
+        $("reviewPanel").innerHTML = "";
+        $("resultPanel").hidden = true;
+        $("resultPanel").innerHTML = "";
+      }
+
+      async function reviewTransaction(event) {
+        event.preventDefault();
+
+        $("resultPanel").hidden = true;
+        $("resultPanel").innerHTML = "";
+
+        const payload = buildPayload();
+        const error = validatePayload(payload);
+
+        if (error) {
+          $("reviewPanel").hidden = false;
+          $("reviewPanel").className = "panel card-padded";
+          $("reviewPanel").innerHTML = `<div class="error-box"><div class="strong">Cannot review transaction.</div><div class="muted">${escapeHtml(error)}</div></div>`;
+          return;
+        }
+
+        $("reviewPanel").hidden = false;
+        $("reviewPanel").innerHTML = `
+          <div class="section-kicker">Review</div>
+          <div class="muted" style="margin-top:10px;">Running backend dry-run proof…</div>
+        `;
+
+        try {
+          const dryRun = await postJson("/api/transactions?dry_run=1", payload);
+          state.pendingPayload = payload;
+          state.dryRunResult = dryRun;
+
+          const impact = selectedImpact();
+
+          $("reviewPanel").innerHTML = `
+            <div class="section-kicker">Review transaction</div>
+            <h2 class="authority-title" style="font-size:24px;margin-top:12px;">Confirm this transaction?</h2>
+
+            <div class="review-box" style="margin-top:14px;">
+              <div class="impact-row"><span>Type</span><span>${escapeHtml(payload.type)}</span></div>
+              <div class="impact-row"><span>Date</span><span>${escapeHtml(payload.date)}</span></div>
+              <div class="impact-row"><span>Amount</span><span>${money(payload.amount)}</span></div>
+              <div class="impact-row"><span>Account</span><span>${escapeHtml(accountName(payload.account_id))}</span></div>
+              ${payload.transfer_to_account_id ? `<div class="impact-row"><span>Transfer to</span><span>${escapeHtml(accountName(payload.transfer_to_account_id))}</span></div>` : ""}
+              ${payload.category_id ? `<div class="impact-row"><span>Category</span><span>${escapeHtml(payload.category_id)}</span></div>` : ""}
+              <div class="impact-row"><span>Projected account after</span><span>${money(impact.after)}</span></div>
+              <div class="impact-row"><span>Backend dry-run</span><span>Passed</span></div>
+            </div>
+
+            <div class="muted" style="margin-top:12px;">
+              Dry-run completed before write. No database write has been performed yet.
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+              <button id="cancelReviewBtn" class="btn btn-secondary" type="button">Cancel</button>
+              <button id="confirmSaveBtn" class="btn btn-success" type="button">Confirm Save</button>
+            </div>
+          `;
+
+          $("cancelReviewBtn").addEventListener("click", hideReview);
+          $("confirmSaveBtn").addEventListener("click", confirmSave);
+        } catch (error) {
+          $("reviewPanel").innerHTML = `
+            <div class="error-box">
+              <div class="strong">Dry-run failed.</div>
+              <div class="muted">${escapeHtml(error.message)}</div>
+            </div>
+          `;
+        } finally {
+          renderDebug();
+        }
+      }
+
+      async function confirmSave() {
+        if (!state.pendingPayload) return;
+
+        const button = $("confirmSaveBtn");
+        if (button) button.disabled = true;
+
+        $("resultPanel").hidden = false;
+        $("resultPanel").innerHTML = `<div class="muted">Saving transaction…</div>`;
+
+        try {
+          state.finalWriteCalls += 1;
+          const result = await postJson("/api/transactions", state.pendingPayload);
+          state.saveResult = result;
+
+          $("resultPanel").innerHTML = `
+            <div class="review-box">
+              <div class="section-kicker">Saved</div>
+              <h2 class="authority-title" style="font-size:24px;margin-top:12px;">Transaction saved.</h2>
+              <div class="muted" style="margin-top:8px;">The backend accepted the write. Open Ledger to review the posted movement and audit trail.</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+                <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
+                <button id="newTxBtn" class="btn btn-success" type="button">Add another</button>
+              </div>
+            </div>
+          `;
+
+          $("newTxBtn").addEventListener("click", resetForm);
+          state.pendingPayload = null;
+          state.dryRunResult = null;
+          $("reviewPanel").hidden = true;
+          $("reviewPanel").innerHTML = "";
+        } catch (error) {
+          $("resultPanel").innerHTML = `
+            <div class="error-box">
+              <div class="strong">Save failed.</div>
+              <div class="muted">${escapeHtml(error.message)}</div>
+            </div>
+          `;
+        } finally {
+          if (button) button.disabled = false;
+          renderDebug();
+        }
       }
 
       function resetForm() {
-        els.form.reset();
-        els.date.value = todayIso();
-        els.type.value = "expense";
-        els.intlModeForeign.checked = true;
-        els.intlModePkr.checked = false;
-        els.intlCurrency.value = "USD";
-        els.intlOneBillerCharge.value = String(INTL_DEFAULTS.oneBillerCharge);
-        els.intlFxFeeEnabled.checked = true;
-        els.intlAdvanceTaxEnabled.checked = true;
-        els.intlPraEnabled.checked = false;
-        els.intlOneBillerEnabled.checked = false;
-        renderCategoryOptions();
-        renderTypeMode();
-        renderInternationalMode();
+        $("txForm").reset();
+        $("txDate").value = todayIso();
+        setMode("expense");
+        $("resultPanel").hidden = true;
+        $("resultPanel").innerHTML = "";
+        hideReview();
+        renderImpact();
+      }
+
+      function renderAccounts() {
+        const rows = Object.entries(state.accounts).map(([id, account]) => {
+          return `
+            <div class="impact-row">
+              <span>${escapeHtml(account.name || id)}</span>
+              <span>${money(accountBalance(id))}</span>
+            </div>
+          `;
+        }).join("");
+
+        $("accountsPanel").innerHTML = rows || `<div class="muted">No accounts loaded.</div>`;
+      }
+
+      function renderDebug() {
+        if (!DEBUG) return;
+
+        $("debugPanel").hidden = false;
+        $("debugOutput").textContent = JSON.stringify({
+          version: VERSION,
+          accountsLoaded: Object.keys(state.accounts).length,
+          categoriesLoaded: Object.keys(state.categories).length,
+          balancesLoaded: Boolean(state.balances?.accounts),
+          currentMode: $("txType")?.value || null,
+          currentImpact: $("accountId") ? selectedImpact() : null,
+          pendingPayload: state.pendingPayload,
+          dryRunResult: state.dryRunResult,
+          saveResult: state.saveResult,
+          writeEndpointsCalledOnLoad: state.writeEndpointsCalledOnLoad,
+          finalWriteCalls: state.finalWriteCalls,
+          browserPopupUsage: false
+        }, null, 2);
+      }
+
+      async function boot() {
+        window.SovereignAdd = {
+          version: VERSION,
+          reload: boot,
+          data: () => ({ ...state })
+        };
+
+        try {
+          const [accountsPayload, categoriesPayload, balancesPayload] = await Promise.all([
+            readJson("/api/accounts"),
+            readJson("/api/categories"),
+            readJson("/api/balances")
+          ]);
+
+          state.accounts = accountsPayload.accounts || {};
+          state.balances = balancesPayload || {};
+
+          const cats = categoryArray(categoriesPayload);
+          state.categories = Object.fromEntries(cats.map((cat) => [cat.id || cat.key, cat]));
+
+          $("accountId").innerHTML = `<option value="">Select account</option>` + Object.entries(state.accounts).map(([id, account]) => {
+            return `<option value="${escapeHtml(id)}">${escapeHtml(account.name || id)}</option>`;
+          }).join("");
+
+          $("transferToAccountId").innerHTML = `<option value="">Select destination</option>` + Object.entries(state.accounts).map(([id, account]) => {
+            return `<option value="${escapeHtml(id)}">${escapeHtml(account.name || id)}</option>`;
+          }).join("");
+
+          $("categoryId").innerHTML = `<option value="">Uncategorized</option>` + cats.map((cat) => {
+            const id = cat.id || cat.key;
+            return `<option value="${escapeHtml(id)}">${escapeHtml(cat.name || cat.label || id)}</option>`;
+          }).join("");
+
+          $("txDate").value = todayIso();
+
+          renderAccounts();
+          setMode("expense");
+          renderDebug();
+
+          $("statusPanel").innerHTML = `
+            <div class="strong">Add Transaction ready · ${escapeHtml(VERSION)}</div>
+            <div class="muted">Live impact and dry-run review are active. No write endpoint is called until Confirm Save.</div>
+          `;
+        } catch (error) {
+          console.error(error);
+          $("statusPanel").innerHTML = `
+            <div class="strong">Add Transaction failed.</div>
+            <div class="muted">${escapeHtml(error.message)}</div>
+          `;
+        }
       }
 
       function bindEvents() {
-        els.date.value = todayIso();
-
-        els.type.addEventListener("change", () => {
-          renderCategoryOptions();
-          renderTypeMode();
-          renderInternationalMode();
-        });
-
-        els.internationalEnabled.addEventListener("change", renderInternationalMode);
-
-        [els.intlModeForeign, els.intlModePkr].forEach(el => {
-          el.addEventListener("change", renderInternationalMode);
+        document.querySelectorAll(".add-mode").forEach((button) => {
+          button.addEventListener("click", () => {
+            setMode(button.dataset.mode);
+          });
         });
 
         [
-          els.intlForeignAmount,
-          els.intlCurrency,
-          els.intlFxRate,
-          els.intlBasePkr,
-          els.intlFxFeeEnabled,
-          els.intlAdvanceTaxEnabled,
-          els.intlPraEnabled,
-          els.intlOneBillerEnabled,
-          els.intlOneBillerCharge
-        ].forEach(el => {
-          el.addEventListener("input", updateInternationalPreview);
-          el.addEventListener("change", updateInternationalPreview);
-        });
+          "txAmount",
+          "accountId",
+          "transferToAccountId",
+          "categoryId",
+          "merchantSource",
+          "referenceText",
+          "notesText",
+          "foreignAmount",
+          "currencyCode",
+          "fxRate",
+          "fxFeeRate",
+          "advanceTaxRate",
+          "praRate",
+          "billerCharge",
+          "exciseRate"
+        ].forEach((id) => {
+          const el = $(id);
+          if (el) {
+            el.addEventListener("input", () => {
+              if (id.startsWith("foreign") || id.includes("Rate") || id === "billerCharge" || id === "currencyCode") {
+                syncInternational();
+              } else {
+                renderImpact();
+              }
+              hideReview();
+              renderDebug();
+            });
 
-        els.form.addEventListener("submit", async event => {
-          event.preventDefault();
-
-          if (state.saving) return;
-
-          const payload = buildPayload();
-          const error = validatePayload(payload);
-
-          if (error) {
-            toast(error, "toast-warning");
-            return;
-          }
-
-          state.saving = true;
-          els.saveButton.disabled = true;
-          els.saveButton.textContent = "Saving...";
-
-          try {
-            const result = await saveTransaction(payload);
-            toast("Transaction saved.", "toast-success");
-
-            if (DEBUG) {
-              console.log("[add save payload]", payload);
-              console.log("[add save result]", result);
-            }
-
-            resetForm();
-            await refresh();
-          } catch (err) {
-            toast(err.message || "Unable to save transaction.", "toast-error");
-            console.error("[add save failed]", err);
-          } finally {
-            state.saving = false;
-            els.saveButton.disabled = false;
-            els.saveButton.textContent = "Save Transaction";
+            el.addEventListener("change", () => {
+              renderImpact();
+              hideReview();
+              renderDebug();
+            });
           }
         });
+
+        $("isInternational").addEventListener("change", () => {
+          syncInternational();
+          hideReview();
+          renderDebug();
+        });
+
+        $("txForm").addEventListener("submit", reviewTransaction);
+        $("resetBtn").addEventListener("click", resetForm);
       }
 
-      bindEvents();
-      refresh();
+      document.addEventListener("DOMContentLoaded", () => {
+        bindEvents();
+        boot();
+      });
     })();
   </script>
 </body>
