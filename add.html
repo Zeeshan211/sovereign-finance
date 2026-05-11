@@ -574,6 +574,46 @@
       function txArray(payload) {
         return payload?.transactions || payload?.data || payload?.results || [];
       }
+            function normalizeAccounts(payload) {
+        const raw =
+          payload?.accounts ||
+          payload?.data ||
+          payload?.results ||
+          [];
+
+        if (Array.isArray(raw)) {
+          return Object.fromEntries(
+            raw
+              .filter((account) => {
+                const status = String(account.status || "").toLowerCase();
+                return account.id &&
+                  !account.deleted_at &&
+                  account.active !== false &&
+                  status !== "inactive" &&
+                  status !== "archived" &&
+                  status !== "deleted";
+              })
+              .map((account) => [account.id, account])
+          );
+        }
+
+        if (raw && typeof raw === "object") {
+          return Object.fromEntries(
+            Object.entries(raw).filter(([id, account]) => {
+              const status = String(account?.status || "").toLowerCase();
+              return id &&
+                account &&
+                !account.deleted_at &&
+                account.active !== false &&
+                status !== "inactive" &&
+                status !== "archived" &&
+                status !== "deleted";
+            })
+          );
+        }
+
+        return {};
+      }
 
       function accountBalance(id) {
         const fromBalances = state.balances?.accounts?.[id]?.balance;
@@ -1518,7 +1558,7 @@
             readJson("/api/transactions")
           ]);
 
-          state.accounts = accountsPayload.accounts || {};
+          state.accounts = normalizeAccounts(accountsPayload);
           state.balances = balancesPayload || {};
           state.salary = salaryPayload || {};
           state.transactions = txArray(transactionsPayload);
