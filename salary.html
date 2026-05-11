@@ -28,6 +28,18 @@
       --sf-shadow: 0 18px 50px rgba(28, 42, 31, 0.10);
     }
 
+    html,
+    body {
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
     body {
       min-height: 100vh;
       margin: 0;
@@ -37,6 +49,7 @@
 
     .sal-shell {
       width: min(1180px, calc(100% - 32px));
+      max-width: 1180px;
       margin: 0 auto;
       padding: 24px 0 48px;
     }
@@ -105,6 +118,7 @@
       background: var(--sf-surface);
       border-radius: var(--sf-radius);
       box-shadow: var(--sf-shadow);
+      min-width: 0;
     }
 
     .sal-card {
@@ -139,6 +153,7 @@
       font-weight: 760;
       letter-spacing: -.045em;
       word-break: break-word;
+      overflow-wrap: anywhere;
     }
 
     .sal-sub {
@@ -195,6 +210,7 @@
     .sal-field {
       display: grid;
       gap: 7px;
+      min-width: 0;
     }
 
     .sal-field label {
@@ -202,8 +218,7 @@
       font-size: 13px;
     }
 
-    .sal-field input,
-    .sal-field select {
+    .sal-field input {
       width: 100%;
       border: 1px solid var(--sf-line);
       border-radius: 14px;
@@ -212,13 +227,16 @@
       padding: 12px 13px;
       font: inherit;
       outline: none;
-      box-sizing: border-box;
     }
 
-    .sal-field input:focus,
-    .sal-field select:focus {
+    .sal-field input:focus {
       border-color: #89b894;
       box-shadow: 0 0 0 3px rgba(47, 125, 79, .12);
+    }
+
+    .sal-field input[readonly] {
+      color: var(--sf-muted);
+      background: #f7faf4;
     }
 
     .sal-check {
@@ -232,6 +250,7 @@
       color: var(--sf-muted);
       font-size: 13px;
       line-height: 1.45;
+      min-width: 0;
     }
 
     .sal-check input {
@@ -239,6 +258,7 @@
       width: 18px;
       height: 18px;
       accent-color: var(--sf-green);
+      flex: 0 0 auto;
     }
 
     .sal-row-list {
@@ -252,10 +272,15 @@
       gap: 12px;
       padding: 11px 0;
       border-bottom: 1px solid var(--sf-line);
+      min-width: 0;
     }
 
     .sal-row:last-child {
       border-bottom: 0;
+    }
+
+    .sal-row span {
+      overflow-wrap: anywhere;
     }
 
     .sal-row span:first-child {
@@ -297,6 +322,62 @@
       color: var(--sf-blue);
       border-color: #bacbeb;
       background: var(--sf-blue-soft);
+    }
+
+    .sal-chart-grid {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .sal-donut {
+      width: 160px;
+      height: 160px;
+      border-radius: 999px;
+      background: conic-gradient(var(--sf-green) 0deg, var(--sf-green) 240deg, var(--sf-yellow) 240deg, var(--sf-yellow) 285deg, var(--sf-blue) 285deg, var(--sf-blue) 360deg);
+      position: relative;
+      box-shadow: inset 0 0 0 1px var(--sf-line);
+    }
+
+    .sal-donut::after {
+      content: "";
+      position: absolute;
+      inset: 34px;
+      border-radius: 999px;
+      background: var(--sf-surface);
+      box-shadow: inset 0 0 0 1px var(--sf-line);
+    }
+
+    .sal-donut-label {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 1;
+      text-align: center;
+      padding: 44px;
+      font-size: 12px;
+      color: var(--sf-muted);
+      line-height: 1.25;
+    }
+
+    .sal-bar {
+      height: 11px;
+      border-radius: 999px;
+      background: #e6ecdf;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .sal-bar span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      min-width: 4px;
+      max-width: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #2f7d4f, #b7791f, #2f5f9f);
     }
 
     .sal-button-row {
@@ -368,12 +449,43 @@
       }
     }
 
-    @media (max-width: 620px) {
+    @media (max-width: 760px) {
       .sal-shell {
-        width: min(100% - 22px, 1180px);
-        padding-top: 14px;
+        width: min(100% - 20px, 1180px);
+        padding-bottom: 36px;
       }
 
+      .sal-topbar {
+        margin-bottom: 16px;
+      }
+
+      .sal-summary,
+      .sal-two,
+      .sal-three,
+      .sal-grid,
+      .sal-chart-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      .sal-panel,
+      .sal-card {
+        border-radius: 18px;
+      }
+
+      .sal-row {
+        align-items: flex-start;
+      }
+
+      .sal-row span:last-child {
+        max-width: 54%;
+      }
+
+      .sal-donut {
+        margin: 0 auto;
+      }
+    }
+
+    @media (max-width: 420px) {
       .sal-topbar {
         flex-direction: column;
         align-items: stretch;
@@ -385,367 +497,203 @@
         text-align: left;
       }
 
-      .sal-summary,
-      .sal-two,
-      .sal-three {
-        grid-template-columns: 1fr;
+      .sal-title {
+        font-size: 34px;
+      }
+
+      .sal-value {
+        font-size: 24px;
+      }
+
+      .sal-row {
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .sal-row span:last-child {
+        max-width: 100%;
+        text-align: left;
       }
     }
-
-    
-  /* Shipment 14: shared chart, side-panel, and mobile hardening */
-  html,
-  body {
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
-
-  .cc-shell,
-  .rec-shell,
-  .sal-shell,
-  .fc-shell {
-    max-width: 1180px;
-  }
-
-  .cc-card,
-  .rec-card,
-  .sal-card,
-  .fc-card,
-  .cc-panel,
-  .rec-panel,
-  .sal-panel,
-  .fc-panel,
-  .cc-account,
-  .rec-check,
-  .sal-check,
-  .fc-check,
-  .fc-day {
-    min-width: 0;
-  }
-
-  .cc-value,
-  .rec-value,
-  .sal-value,
-  .fc-value,
-  .cc-side-row span,
-  .rec-side-row span,
-  .sal-row span,
-  .fc-row span {
-    overflow-wrap: anywhere;
-  }
-
-  .cc-progress,
-  .fc-bar {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .cc-progress > span,
-  .fc-bar span {
-    min-width: 4px;
-  }
-
-  .cc-plan,
-  .fc-day {
-    min-width: 0;
-  }
-
-  .cc-plan strong,
-  .cc-plan span,
-  .fc-day-date,
-  .fc-day-text {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .rec-table {
-    max-width: 100%;
-  }
-
-  .rec-table th,
-  .rec-table td {
-    white-space: normal;
-  }
-
-  .cc-empty,
-  .rec-empty,
-  .sal-empty,
-  .fc-empty {
-    color: var(--sf-muted);
-  }
-
-  @media (max-width: 760px) {
-    .cc-shell,
-    .rec-shell,
-    .sal-shell,
-    .fc-shell {
-      width: min(100% - 20px, 1180px);
-      padding-bottom: 36px;
-    }
-
-    .cc-topbar,
-    .rec-topbar,
-    .sal-topbar,
-    .fc-topbar {
-      margin-bottom: 16px;
-    }
-
-    .cc-summary,
-    .rec-summary,
-    .sal-summary,
-    .fc-summary,
-    .cc-account-metrics,
-    .sal-two,
-    .sal-three {
-      grid-template-columns: 1fr !important;
-    }
-
-    .cc-grid,
-    .rec-grid,
-    .sal-grid,
-    .fc-grid {
-      grid-template-columns: 1fr !important;
-      gap: 14px;
-    }
-
-    .cc-panel,
-    .rec-panel,
-    .sal-panel,
-    .fc-panel,
-    .cc-card,
-    .rec-card,
-    .sal-card,
-    .fc-card {
-      border-radius: 18px;
-    }
-
-    .cc-account-head,
-    .rec-check-head,
-    .fc-check-head {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .cc-pill,
-    .rec-pill,
-    .sal-pill,
-    .fc-pill {
-      width: fit-content;
-      max-width: 100%;
-      white-space: normal;
-      text-align: left;
-    }
-
-    .cc-side-row,
-    .rec-side-row,
-    .sal-row,
-    .fc-row {
-      align-items: flex-start;
-    }
-
-    .cc-side-row span:last-child,
-    .rec-side-row span:last-child,
-    .sal-row span:last-child,
-    .fc-row span:last-child {
-      max-width: 54%;
-    }
-
-    .cc-plan {
-      grid-template-columns: 1fr !important;
-    }
-
-    .fc-day {
-      grid-template-columns: 1fr !important;
-    }
-  }
-
-  @media (max-width: 420px) {
-    .cc-title,
-    .rec-title,
-    .sal-title,
-    .fc-title {
-      font-size: 34px;
-    }
-
-    .cc-value,
-    .rec-value,
-    .sal-value,
-    .fc-value {
-      font-size: 24px;
-    }
-
-    .cc-side-row,
-    .rec-side-row,
-    .sal-row,
-    .fc-row {
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .cc-side-row span:last-child,
-    .rec-side-row span:last-child,
-    .sal-row span:last-child,
-    .fc-row span:last-child {
-      max-width: 100%;
-      text-align: left;
-    }
-  }
-</style>
+  </style>
 </head>
 
 <body>
-  <main class="sal-shell" data-page="salary" data-version="salary-advanced-v1.0.1-hardened">
+  <main class="sal-shell" data-page="salary" data-version="salary-payslip-engine-v1.0.0">
     <section class="sal-topbar">
       <div>
         <div class="sal-kicker">Sovereign Finance</div>
         <h1 class="sal-title">Salary</h1>
       </div>
-      <div class="sal-version">salary-advanced-v1.0.1-hardened</div>
+      <div class="sal-version">salary-payslip-engine-v1.0.0</div>
     </section>
 
     <section id="salStatus" class="sal-status">
-      <strong>Loading salary truth…</strong>
-      <span>Reading current salary source.</span>
+      <strong>Loading salary engine…</strong>
+      <span>Using payslip-backed tax and MBO rules.</span>
     </section>
 
-    <section class="sal-summary" aria-label="Salary summary">
+    <section class="sal-summary">
       <article class="sal-card">
-        <div class="sal-label">Guaranteed Forecast</div>
-        <div id="guaranteedForecast" class="sal-value">—</div>
-        <div class="sal-sub">Guaranteed salary only.</div>
+        <div class="sal-label">Base Net</div>
+        <div id="baseNetCard" class="sal-value">—</div>
+        <div class="sal-sub">Base salary after normal tax.</div>
       </article>
 
       <article class="sal-card">
-        <div class="sal-label">Confirmed Variable</div>
-        <div id="confirmedVariable" class="sal-value">—</div>
-        <div class="sal-sub">Included only when confirmed.</div>
+        <div class="sal-label">MBO Net</div>
+        <div id="mboNetCard" class="sal-value">—</div>
+        <div class="sal-sub">Only included in payout month.</div>
       </article>
 
       <article class="sal-card">
-        <div class="sal-label">Tax Rate</div>
-        <div id="effectiveTaxRate" class="sal-value">—</div>
-        <div class="sal-sub">Auto-calculated from gross and tax.</div>
+        <div class="sal-label">Forecast Salary</div>
+        <div id="forecastSalaryCard" class="sal-value">—</div>
+        <div class="sal-sub">Amount exported to forecast.</div>
       </article>
 
       <article class="sal-card">
-        <div class="sal-label">Net Salary</div>
-        <div id="netSalary" class="sal-value">—</div>
-        <div class="sal-sub">Monthly net after tax.</div>
+        <div class="sal-label">Annual Tax</div>
+        <div id="annualTaxCard" class="sal-value">—</div>
+        <div class="sal-sub">Slab calculation from payslip.</div>
       </article>
     </section>
 
     <section class="sal-grid">
       <div>
         <section class="sal-panel">
-          <h2>Guaranteed salary</h2>
+          <h2>Payslip salary base</h2>
           <div class="sal-form">
             <div class="sal-three">
               <div class="sal-field">
-                <label for="grossSalary">Gross monthly salary</label>
-                <input id="grossSalary" type="number" step="0.01" inputmode="decimal" />
+                <label for="basicSalary">Basic salary</label>
+                <input id="basicSalary" type="number" value="74226" readonly />
               </div>
 
               <div class="sal-field">
-                <label for="taxAmount">Monthly tax deduction</label>
-                <input id="taxAmount" type="number" step="0.01" inputmode="decimal" />
+                <label for="houseRent">House rent allowance</label>
+                <input id="houseRent" type="number" value="25979" readonly />
               </div>
 
               <div class="sal-field">
-                <label for="otherDeductions">Other deductions</label>
-                <input id="otherDeductions" type="number" step="0.01" inputmode="decimal" />
+                <label for="medicalAllowance">Medical allowance</label>
+                <input id="medicalAllowance" type="number" value="7423" readonly />
               </div>
             </div>
 
-            <div class="sal-two">
+            <div class="sal-three">
               <div class="sal-field">
-                <label for="salaryMonth">Salary month</label>
-                <input id="salaryMonth" type="month" />
+                <label for="utilityAllowance">Utility allowance</label>
+                <input id="utilityAllowance" type="number" value="3705" readonly />
               </div>
 
               <div class="sal-field">
-                <label for="salaryAccount">Deposit account</label>
-                <input id="salaryAccount" type="text" placeholder="Optional account note" />
+                <label for="normalDeduction">Normal monthly deduction</label>
+                <input id="normalDeduction" type="number" value="0" step="0.01" />
+              </div>
+
+              <div class="sal-field">
+                <label for="forecastMonth">Forecast month</label>
+                <input id="forecastMonth" type="month" />
               </div>
             </div>
           </div>
         </section>
 
         <section class="sal-panel">
-          <h2>Variable income calculator</h2>
+          <h2>MBO forecast control</h2>
           <div class="sal-form">
-            <div class="sal-three">
-              <div class="sal-field">
-                <label for="mboIncome">MBO</label>
-                <input id="mboIncome" type="number" step="0.01" inputmode="decimal" />
-              </div>
-
-              <div class="sal-field">
-                <label for="kittyCash">Kitty cash</label>
-                <input id="kittyCash" type="number" step="0.01" inputmode="decimal" />
-              </div>
-
-              <div class="sal-field">
-                <label for="referralBonus">Referral bonus</label>
-                <input id="referralBonus" type="number" step="0.01" inputmode="decimal" />
-              </div>
-            </div>
-
             <div class="sal-two">
               <div class="sal-field">
-                <label for="spotBonus">Spot bonus</label>
-                <input id="spotBonus" type="number" step="0.01" inputmode="decimal" />
+                <label for="mboAmount">MBO amount</label>
+                <input id="mboAmount" type="number" value="35000" step="0.01" inputmode="decimal" />
               </div>
 
               <div class="sal-field">
-                <label for="overtimeIncome">Overtime</label>
-                <input id="overtimeIncome" type="number" step="0.01" inputmode="decimal" />
+                <label for="mboPayoutsPerYear">MBO payouts per tax year</label>
+                <input id="mboPayoutsPerYear" type="number" value="4" min="0" max="12" step="1" readonly />
               </div>
             </div>
 
             <label class="sal-check">
-              <input id="variableConfirmed" type="checkbox" />
-              <span>Variable income is confirmed. If unchecked, variable income remains calculator-only and does not enter forecast eligibility.</span>
+              <input id="includeMbo" type="checkbox" />
+              <span>MBO included for this forecast month. Auto rule includes MBO only in January, April, July, and October.</span>
             </label>
+
+            <div class="sal-empty">
+              Only MBO is adjustable here. Other payslip extras stay out of forecast unless you explicitly rebuild them later.
+            </div>
           </div>
         </section>
 
         <section class="sal-panel">
-          <h2>Save</h2>
-          <div class="sal-empty">
-            Save uses the existing salary endpoint only. If the endpoint rejects variable breakdown fields, the page keeps calculations local and does not change money logic.
+          <h2>Tax engine from payslip</h2>
+          <div class="sal-form">
+            <div class="sal-three">
+              <div class="sal-field">
+                <label for="annualTaxableWithoutMbo">Annual taxable without MBO</label>
+                <input id="annualTaxableWithoutMbo" type="number" value="1462413" step="0.01" readonly />
+              </div>
+
+              <div class="sal-field">
+                <label for="actualPayslipTaxable">Payslip annual taxable</label>
+                <input id="actualPayslipTaxable" type="number" value="1589316" step="0.01" readonly />
+              </div>
+
+              <div class="sal-field">
+                <label for="actualPayslipTax">Payslip tax liability</label>
+                <input id="actualPayslipTax" type="number" value="48825" step="0.01" readonly />
+              </div>
+            </div>
+
+            <div class="sal-empty">
+              Slab used: 0 up to 600,000; 1% from 600,001 to 1,200,000; 6,000 + 11% over 1,200,000; 116,000 + 23% over 2,200,000; 346,000 + 30% over 3,200,000; 616,000 + 35% over 4,100,000.
+            </div>
           </div>
+        </section>
+
+        <section class="sal-panel">
+          <h2>Save to salary source</h2>
+          <div class="sal-empty">
+            Save exports the computed forecast salary to the existing salary endpoint. Forecast should consume this salary source in the next shipment.
+          </div>
+
           <div class="sal-button-row">
-            <button id="saveSalary" class="sal-button" type="button">Save salary</button>
-            <button id="resetCalculator" class="sal-button secondary" type="button">Reload from API</button>
+            <button id="saveSalary" class="sal-button" type="button">Save salary forecast</button>
+            <button id="resetAutoMonth" class="sal-button secondary" type="button">Apply month MBO rule</button>
           </div>
         </section>
       </div>
 
       <aside>
         <section class="sal-panel">
-          <h3>Calculation</h3>
+          <h3>Salary calculation</h3>
           <div id="calculationPanel" class="sal-row-list">
-            <div class="sal-empty">Waiting for salary data…</div>
+            <div class="sal-empty">Calculating…</div>
           </div>
         </section>
 
         <section class="sal-panel">
-          <h3>Forecast discipline</h3>
+          <h3>Tax proof</h3>
+          <div id="taxPanel" class="sal-row-list">
+            <div class="sal-empty">Calculating tax…</div>
+          </div>
+        </section>
+
+        <section class="sal-panel">
+          <h3>Visual split</h3>
+          <div class="sal-chart-grid">
+            <div class="sal-donut" id="salaryDonut">
+              <div class="sal-donut-label" id="donutLabel">Salary<br />split</div>
+            </div>
+            <div id="chartLegend" class="sal-row-list"></div>
+          </div>
+        </section>
+
+        <section class="sal-panel">
+          <h3>Forecast bridge</h3>
           <div id="forecastPanel" class="sal-row-list">
-            <div class="sal-empty">Loading forecast comparison…</div>
-          </div>
-        </section>
-
-        <section class="sal-panel">
-          <h3>Variable breakdown</h3>
-          <div id="variablePanel" class="sal-row-list">
-            <div class="sal-empty">No variable income entered.</div>
+            <div class="sal-empty">Loading forecast bridge…</div>
           </div>
         </section>
 
@@ -764,13 +712,34 @@
     (function () {
       "use strict";
 
-      const PAGE_VERSION = "salary-advanced-v1.0.1-hardened";
+      const PAGE_VERSION = "salary-payslip-engine-v1.0.0";
       const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
+
+      const PAYSLIP = {
+        basicSalary: 74226,
+        houseRentAllowance: 25979,
+        medicalAllowance: 7423,
+        utilityAllowance: 3705,
+
+        grossBaseMonthly: 111333,
+        taxableBaseMonthly: 103910,
+        taxableBaseAnnual: 1246920,
+
+        annualTaxableWithoutMbo: 1462413,
+        payslipAnnualTaxable: 1589316,
+        payslipTaxLiability: 48825,
+        payslipMboYtd: 126903,
+
+        defaultMboAmount: 35000,
+        mboPayoutMonths: [0, 3, 6, 9],
+        mboPayoutsPerYear: 4
+      };
 
       const state = {
         salary: null,
         forecast: null,
-        loaded: false
+        loaded: false,
+        monthManuallyTouched: false
       };
 
       const $ = (id) => document.getElementById(id);
@@ -800,13 +769,6 @@
         return `${asNumber(value, 0).toFixed(2)}%`;
       }
 
-      function firstDefined() {
-        for (const value of arguments) {
-          if (value !== undefined && value !== null && value !== "") return value;
-        }
-        return undefined;
-      }
-
       function escapeHtml(value) {
         return String(value)
           .replaceAll("&", "&amp;")
@@ -821,6 +783,253 @@
         node.className = "sal-status";
         if (kind === "error") node.classList.add("sal-error");
         node.innerHTML = html;
+      }
+
+      function setCurrentMonth() {
+        const now = new Date();
+        $("forecastMonth").value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      }
+
+      function monthIndexFromInput() {
+        const value = $("forecastMonth").value;
+        if (!value || !value.includes("-")) return new Date().getMonth();
+        return Number(value.split("-")[1]) - 1;
+      }
+
+      function isMboPayoutMonth(monthIndex) {
+        return PAYSLIP.mboPayoutMonths.includes(monthIndex);
+      }
+
+      function applyMonthRule() {
+        $("includeMbo").checked = isMboPayoutMonth(monthIndexFromInput());
+        render();
+      }
+
+      function calculateTax(annualTaxable) {
+        const income = Math.max(0, asNumber(annualTaxable, 0));
+
+        if (income <= 600000) return 0;
+        if (income <= 1200000) return (income - 600000) * 0.01;
+        if (income <= 2200000) return 6000 + ((income - 1200000) * 0.11);
+        if (income <= 3200000) return 116000 + ((income - 2200000) * 0.23);
+        if (income <= 4100000) return 346000 + ((income - 3200000) * 0.30);
+        return 616000 + ((income - 4100000) * 0.35);
+      }
+
+      function marginalTaxRate(annualTaxable) {
+        const income = Math.max(0, asNumber(annualTaxable, 0));
+
+        if (income <= 600000) return 0;
+        if (income <= 1200000) return 0.01;
+        if (income <= 2200000) return 0.11;
+        if (income <= 3200000) return 0.23;
+        if (income <= 4100000) return 0.30;
+        return 0.35;
+      }
+
+      function readCalc() {
+        const mboAmount = asNumber($("mboAmount").value, PAYSLIP.defaultMboAmount);
+        const includeMbo = $("includeMbo").checked;
+        const normalDeduction = asNumber($("normalDeduction").value, 0);
+
+        const baseGross = PAYSLIP.grossBaseMonthly;
+        const annualTaxableWithoutMbo = PAYSLIP.annualTaxableWithoutMbo;
+        const annualMboProjection = mboAmount * PAYSLIP.mboPayoutsPerYear;
+        const projectedAnnualTaxable = annualTaxableWithoutMbo + annualMboProjection;
+        const projectedAnnualTax = calculateTax(projectedAnnualTaxable);
+
+        const baseAnnualTax = calculateTax(PAYSLIP.taxableBaseAnnual);
+        const baseMonthlyTax = baseAnnualTax / 12;
+
+        const taxBeforeThisMbo = calculateTax(projectedAnnualTaxable - (includeMbo ? mboAmount : 0));
+        const taxAfterThisMbo = calculateTax(projectedAnnualTaxable);
+        const mboTax = includeMbo ? Math.max(0, taxAfterThisMbo - taxBeforeThisMbo) : 0;
+
+        const mboGross = includeMbo ? mboAmount : 0;
+        const mboNet = Math.max(0, mboGross - mboTax);
+
+        const baseNet = Math.max(0, baseGross - baseMonthlyTax - normalDeduction);
+        const forecastEligible = baseNet + mboNet;
+        const effectiveTaxRate = projectedAnnualTaxable > 0 ? (projectedAnnualTax / projectedAnnualTaxable) * 100 : 0;
+        const currentMarginalRate = marginalTaxRate(projectedAnnualTaxable) * 100;
+
+        return {
+          forecastMonth: $("forecastMonth").value,
+          monthIndex: monthIndexFromInput(),
+          monthRuleIncludesMbo: isMboPayoutMonth(monthIndexFromInput()),
+
+          basicSalary: PAYSLIP.basicSalary,
+          houseRentAllowance: PAYSLIP.houseRentAllowance,
+          medicalAllowance: PAYSLIP.medicalAllowance,
+          utilityAllowance: PAYSLIP.utilityAllowance,
+
+          baseGross,
+          taxableBaseMonthly: PAYSLIP.taxableBaseMonthly,
+          taxableBaseAnnual: PAYSLIP.taxableBaseAnnual,
+
+          baseAnnualTax,
+          baseMonthlyTax,
+          normalDeduction,
+          baseNet,
+
+          mboAmount,
+          includeMbo,
+          mboGross,
+          mboTax,
+          mboNet,
+
+          annualTaxableWithoutMbo,
+          annualMboProjection,
+          projectedAnnualTaxable,
+          projectedAnnualTax,
+          payslipAnnualTaxable: PAYSLIP.payslipAnnualTaxable,
+          payslipTaxLiability: PAYSLIP.payslipTaxLiability,
+
+          effectiveTaxRate,
+          currentMarginalRate,
+          forecastEligible
+        };
+      }
+
+      function row(label, value) {
+        return `
+          <div class="sal-row">
+            <span>${escapeHtml(label)}</span>
+            <span>${escapeHtml(value)}</span>
+          </div>
+        `;
+      }
+
+      function renderRows(items) {
+        return items.map(([label, value]) => row(label, value)).join("");
+      }
+
+      function renderCards(calc) {
+        $("baseNetCard").textContent = money(calc.baseNet);
+        $("mboNetCard").textContent = money(calc.mboNet);
+        $("forecastSalaryCard").textContent = money(calc.forecastEligible);
+        $("annualTaxCard").textContent = money(calc.projectedAnnualTax);
+      }
+
+      function renderCalculation(calc) {
+        $("calculationPanel").innerHTML = renderRows([
+          ["Base gross", money(calc.baseGross)],
+          ["Base monthly tax", money(calc.baseMonthlyTax)],
+          ["Other monthly deduction", money(calc.normalDeduction)],
+          ["Base net", money(calc.baseNet)],
+          ["MBO included", calc.includeMbo ? "Yes" : "No"],
+          ["MBO gross", money(calc.mboGross)],
+          ["MBO tax", money(calc.mboTax)],
+          ["MBO net", money(calc.mboNet)],
+          ["Forecast salary", money(calc.forecastEligible)]
+        ]);
+      }
+
+      function renderTax(calc) {
+        const deltaVsPayslipTaxable = calc.projectedAnnualTaxable - calc.payslipAnnualTaxable;
+        const deltaVsPayslipTax = calc.projectedAnnualTax - calc.payslipTaxLiability;
+
+        $("taxPanel").innerHTML = renderRows([
+          ["Annual taxable without MBO", money(calc.annualTaxableWithoutMbo)],
+          ["Annual MBO projection", money(calc.annualMboProjection)],
+          ["Projected annual taxable", money(calc.projectedAnnualTaxable)],
+          ["Projected annual tax", money(calc.projectedAnnualTax)],
+          ["Payslip annual taxable", money(calc.payslipAnnualTaxable)],
+          ["Payslip tax liability", money(calc.payslipTaxLiability)],
+          ["Taxable delta vs payslip", money(deltaVsPayslipTaxable)],
+          ["Tax delta vs payslip", money(deltaVsPayslipTax)],
+          ["Effective tax rate", percent(calc.effectiveTaxRate)],
+          ["Current marginal rate", percent(calc.currentMarginalRate)]
+        ]);
+      }
+
+      function renderChart(calc) {
+        const total = Math.max(1, calc.baseNet + calc.mboTax + calc.mboNet);
+        const baseDeg = (calc.baseNet / total) * 360;
+        const mboTaxDeg = (calc.mboTax / total) * 360;
+        const mboNetDeg = (calc.mboNet / total) * 360;
+
+        $("salaryDonut").style.background = `
+          conic-gradient(
+            var(--sf-green) 0deg ${baseDeg}deg,
+            var(--sf-yellow) ${baseDeg}deg ${baseDeg + mboTaxDeg}deg,
+            var(--sf-blue) ${baseDeg + mboTaxDeg}deg ${baseDeg + mboTaxDeg + mboNetDeg}deg,
+            #e6ecdf ${baseDeg + mboTaxDeg + mboNetDeg}deg 360deg
+          )
+        `;
+
+        $("donutLabel").innerHTML = `${money(calc.forecastEligible)}<br />forecast`;
+
+        const max = Math.max(calc.baseNet, calc.mboGross, calc.mboTax, calc.mboNet, 1);
+
+        $("chartLegend").innerHTML = [
+          ["Base net", calc.baseNet],
+          ["MBO gross", calc.mboGross],
+          ["MBO tax", calc.mboTax],
+          ["MBO net", calc.mboNet]
+        ].map(([label, value]) => `
+          <div>
+            ${row(label, money(value))}
+            <div class="sal-bar"><span style="width:${Math.max(4, Math.min(100, (value / max) * 100))}%"></span></div>
+          </div>
+        `).join("");
+      }
+
+      function renderForecastBridge(calc) {
+        const salaryRoot = state.salary?.salary || state.salary?.data || state.salary?.current || state.salary || {};
+        const currentApiEligible = Number(
+          salaryRoot.forecast_eligible_monthly ??
+          state.salary?.forecast_eligible_monthly ??
+          state.salary?.guaranteed_monthly ??
+          0
+        );
+
+        const forecastSalary = Number(
+          state.forecast?.inputs?.guaranteed_salary ??
+          state.forecast?.salary?.forecast_eligible_monthly ??
+          state.forecast?.salary?.guaranteed_salary ??
+          state.forecast?.guaranteed_salary ??
+          0
+        );
+
+        $("forecastPanel").innerHTML = renderRows([
+          ["This page forecast", money(calc.forecastEligible)],
+          ["Current salary API", money(currentApiEligible)],
+          ["Current forecast API", money(forecastSalary)],
+          ["MBO rule", calc.monthRuleIncludesMbo ? "Month qualifies" : "Month does not qualify"],
+          ["Save state", "Use Save salary forecast to export"]
+        ]);
+      }
+
+      function renderDebug(calc) {
+        if (!DEBUG) return;
+
+        $("debugPanel").hidden = false;
+        $("debugOutput").classList.add("is-visible");
+        $("debugOutput").textContent = JSON.stringify({
+          version: PAGE_VERSION,
+          payslip_constants: PAYSLIP,
+          calculation: calc,
+          salary_api: state.salary,
+          forecast_api: state.forecast
+        }, null, 2);
+      }
+
+      function render() {
+        const calc = readCalc();
+        renderCards(calc);
+        renderCalculation(calc);
+        renderTax(calc);
+        renderChart(calc);
+        renderForecastBridge(calc);
+        renderDebug(calc);
+
+        const monthName = new Date(`${calc.forecastMonth || "2026-01"}-01T00:00:00`).toLocaleString("en-US", { month: "long" });
+        const status = calc.includeMbo
+          ? `MBO included for ${monthName}.`
+          : `MBO excluded for ${monthName}.`;
+
+        setStatus("ready", `<strong>Salary engine ready.</strong> <span>${status} Payslip tax formula active.</span>`);
       }
 
       async function readJson(path) {
@@ -838,273 +1047,89 @@
         return payload;
       }
 
-      async function writeJson(path, body) {
-        const response = await fetch(path, {
-          method: "POST",
-          headers: {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(body)
-        });
-
-        const payload = await response.json().catch(() => null);
-
-        if (!response.ok) {
-          throw new Error(payload?.error || payload?.message || `${path} HTTP ${response.status}`);
-        }
-
-        return payload;
-      }
-
-      function setInput(id, value) {
-        const node = $(id);
-        if (!node) return;
-        node.value = value === undefined || value === null ? "" : String(value);
-      }
-
-      function readInput(id) {
-        return asNumber($(id)?.value, 0);
-      }
-
-      function getSalaryRoot(payload) {
-        if (!payload) return {};
-        return payload.salary || payload.data || payload.current || payload;
-      }
-
-      function getVariableRoot(root) {
-        return root.variable_breakdown || root.variables || root.variable || {};
-      }
-
-      function hydrateForm() {
-        const root = getSalaryRoot(state.salary);
-        const variable = getVariableRoot(root);
-
-        const gross = firstDefined(
-          root.gross_monthly,
-          root.gross_salary,
-          root.monthly_gross,
-          root.base_salary,
-          root.salary_gross,
-          root.gross,
-          root.monthly_salary
-        );
-
-        const tax = firstDefined(
-          root.monthly_tax,
-          root.tax_amount,
-          root.tax_deduction,
-          root.salary_tax,
-          root.tax
-        );
-
-        const deductions = firstDefined(
-          root.other_deductions,
-          root.deductions,
-          root.monthly_deductions
-        );
-
-        const net = firstDefined(
-          root.net_monthly,
-          root.net_salary,
-          root.salary_net,
-          root.forecast_eligible_monthly
-        );
-
-        setInput("grossSalary", gross !== undefined ? gross : net);
-        setInput("taxAmount", tax !== undefined ? tax : 0);
-        setInput("otherDeductions", deductions !== undefined ? deductions : 0);
-        setInput("salaryAccount", firstDefined(root.deposit_account, root.account_note, root.account_id, ""));
-        setInput("mboIncome", firstDefined(variable.mbo, root.mbo, 0));
-        setInput("kittyCash", firstDefined(variable.kitty_cash, variable.kittyCash, root.kitty_cash, 0));
-        setInput("referralBonus", firstDefined(variable.referral_bonus, variable.referralBonus, root.referral_bonus, 0));
-        setInput("spotBonus", firstDefined(variable.spot_bonus, variable.spotBonus, root.spot_bonus, 0));
-        setInput("overtimeIncome", firstDefined(variable.overtime, root.overtime, 0));
-
-        $("variableConfirmed").checked = Boolean(firstDefined(
-          root.variable_confirmed,
-          root.is_variable_confirmed,
-          root.confirmed_variable,
-          false
-        ));
-
-        const now = new Date();
-        const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, "0");
-        setInput("salaryMonth", firstDefined(root.salary_month, root.month, `${yyyy}-${mm}`));
-      }
-
-      function calculate() {
-        const gross = readInput("grossSalary");
-        const tax = readInput("taxAmount");
-        const deductions = readInput("otherDeductions");
-
-        const mbo = readInput("mboIncome");
-        const kitty = readInput("kittyCash");
-        const referral = readInput("referralBonus");
-        const spot = readInput("spotBonus");
-        const overtime = readInput("overtimeIncome");
-
-        const variableGross = round2(mbo + kitty + referral + spot + overtime);
-        const variableConfirmed = $("variableConfirmed").checked;
-
-        const effectiveTaxRate = gross > 0 ? (tax / gross) * 100 : 0;
-        const netGuaranteed = Math.max(0, round2(gross - tax - deductions));
-
-        const variableTax = variableConfirmed ? round2(variableGross * (effectiveTaxRate / 100)) : 0;
-        const variableNet = variableConfirmed ? Math.max(0, round2(variableGross - variableTax)) : 0;
-
-        const forecastEligible = round2(netGuaranteed + variableNet);
-        const displayNet = round2(netGuaranteed + variableNet);
-
-        return {
-          gross,
-          tax,
-          deductions,
-          mbo,
-          kitty,
-          referral,
-          spot,
-          overtime,
-          variableGross,
-          variableConfirmed,
-          effectiveTaxRate,
-          netGuaranteed,
-          variableTax,
-          variableNet,
-          forecastEligible,
-          displayNet
-        };
-      }
-
-      function render() {
-        const calc = calculate();
-
-        $("guaranteedForecast").textContent = money(calc.netGuaranteed);
-        $("confirmedVariable").textContent = calc.variableConfirmed ? money(calc.variableNet) : money(0);
-        $("effectiveTaxRate").textContent = percent(calc.effectiveTaxRate);
-        $("netSalary").textContent = money(calc.displayNet);
-
-        $("calculationPanel").innerHTML = rows([
-          ["Gross monthly", money(calc.gross)],
-          ["Tax deduction", money(calc.tax)],
-          ["Other deductions", money(calc.deductions)],
-          ["Guaranteed net", money(calc.netGuaranteed)],
-          ["Variable gross", money(calc.variableGross)],
-          ["Variable tax estimate", money(calc.variableTax)],
-          ["Forecast eligible", money(calc.forecastEligible)]
-        ]);
-
-        $("variablePanel").innerHTML = rows([
-          ["MBO", money(calc.mbo)],
-          ["Kitty cash", money(calc.kitty)],
-          ["Referral bonus", money(calc.referral)],
-          ["Spot bonus", money(calc.spot)],
-          ["Overtime", money(calc.overtime)],
-          ["Status", calc.variableConfirmed ? "Confirmed" : "Unconfirmed"]
-        ]);
-
-        renderForecast(calc);
-        renderDebug(calc);
-      }
-
-      function rows(items) {
-        return items.map(([label, value]) => `
-          <div class="sal-row">
-            <span>${escapeHtml(label)}</span>
-            <span>${escapeHtml(value)}</span>
-          </div>
-        `).join("");
-      }
-
-      function renderForecast(calc) {
-        const forecastSalary = firstDefined(
-          state.forecast?.guaranteed_salary,
-          state.forecast?.salary?.guaranteed_salary,
-          state.forecast?.salary?.forecast_eligible_monthly,
-          state.forecast?.forecast_eligible_monthly
-        );
-
-        const apiSalaryEligible = firstDefined(
-          getSalaryRoot(state.salary).forecast_eligible_monthly,
-          getSalaryRoot(state.salary).guaranteed_salary,
-          getSalaryRoot(state.salary).net_monthly
-        );
-
-        const compareValue = forecastSalary !== undefined ? asNumber(forecastSalary, 0) : asNumber(apiSalaryEligible, 0);
-        const delta = round2(compareValue - calc.forecastEligible);
-
-        $("forecastPanel").innerHTML = rows([
-          ["This calculator", money(calc.forecastEligible)],
-          ["Current API forecast", forecastSalary !== undefined ? money(compareValue) : "Unavailable"],
-          ["Salary API eligible", apiSalaryEligible !== undefined ? money(apiSalaryEligible) : "Unavailable"],
-          ["Difference", forecastSalary !== undefined || apiSalaryEligible !== undefined ? money(delta) : "Unavailable"],
-          ["Rule", calc.variableConfirmed ? "Guaranteed + confirmed variable" : "Guaranteed only"]
-        ]);
-      }
-
-      function renderDebug(calc) {
-        if (!DEBUG) return;
-
-        $("debugPanel").hidden = false;
-        $("debugOutput").classList.add("is-visible");
-        $("debugOutput").textContent = JSON.stringify({
-          version: PAGE_VERSION,
-          calculation: calc,
-          salary_api: state.salary,
-          forecast_api: state.forecast
-        }, null, 2);
-      }
-
-      function payloadFromForm() {
-        const calc = calculate();
-
-        return {
-          salary_month: $("salaryMonth").value || null,
-          deposit_account: $("salaryAccount").value || null,
-
-          gross_monthly: calc.gross,
-          monthly_tax: calc.tax,
-          other_deductions: calc.deductions,
-          net_monthly: calc.netGuaranteed,
-
-          variable_confirmed: calc.variableConfirmed,
-          variable_gross: calc.variableGross,
-          variable_tax_estimate: calc.variableTax,
-          variable_net_confirmed: calc.variableNet,
-          forecast_eligible_monthly: calc.forecastEligible,
-
-          variable_breakdown: {
-            mbo: calc.mbo,
-            kitty_cash: calc.kitty,
-            referral_bonus: calc.referral,
-            spot_bonus: calc.spot,
-            overtime: calc.overtime
-          },
-
-          source: PAGE_VERSION
-        };
-      }
-
       async function saveSalary() {
         const button = $("saveSalary");
+        const calc = readCalc();
+
         button.disabled = true;
 
         try {
-          setStatus("saving", `<strong>Saving salary…</strong> <span>Posting to current salary endpoint.</span>`);
+          setStatus("saving", `<strong>Saving salary forecast…</strong> <span>Exporting payslip-engine result.</span>`);
 
-          const payload = payloadFromForm();
-          state.salary = await writeJson("/api/salary", payload);
+          const payload = {
+            salary_month: calc.forecastMonth,
+            source: PAGE_VERSION,
+
+            gross_monthly: calc.baseGross,
+            monthly_tax: round2(calc.baseMonthlyTax),
+            other_deductions: calc.normalDeduction,
+            net_monthly: round2(calc.baseNet),
+
+            guaranteed_monthly: round2(calc.baseNet),
+            variable_confirmed: Boolean(calc.includeMbo),
+            variable_monthly: round2(calc.mboNet),
+            forecast_eligible_monthly: round2(calc.forecastEligible),
+
+            mbo_amount: round2(calc.mboAmount),
+            mbo_included: Boolean(calc.includeMbo),
+            mbo_tax: round2(calc.mboTax),
+            mbo_net: round2(calc.mboNet),
+
+            annual_taxable_income: round2(calc.projectedAnnualTaxable),
+            annual_tax_liability: round2(calc.projectedAnnualTax),
+            effective_tax_rate: round2(calc.effectiveTaxRate),
+            marginal_tax_rate: round2(calc.currentMarginalRate),
+
+            salary_engine: {
+              version: PAGE_VERSION,
+              base_gross_monthly: round2(calc.baseGross),
+              base_taxable_monthly: round2(calc.taxableBaseMonthly),
+              base_taxable_annual: round2(calc.taxableBaseAnnual),
+              annual_taxable_without_mbo: round2(calc.annualTaxableWithoutMbo),
+              mbo_payout_months: ["January", "April", "July", "October"],
+              mbo_default_amount: PAYSLIP.defaultMboAmount,
+              tax_slabs_source: "April 2026 payslip"
+            },
+
+            variable_breakdown: {
+              mbo: round2(calc.mboGross),
+              kitty_cash: 0,
+              referral_bonus: 0,
+              spot_bonus: 0,
+              overtime: 0
+            }
+          };
+
+          const response = await fetch("/api/salary", {
+            method: "POST",
+            headers: {
+              "Accept": "application/json",
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+          });
+
+          const saved = await response.json().catch(() => null);
+
+          if (!response.ok) {
+            throw new Error(saved?.error || saved?.message || `/api/salary HTTP ${response.status}`);
+          }
+
+          state.salary = saved;
 
           try {
             state.forecast = await readJson("/api/forecast");
-          } catch (error) {
+          } catch {
             state.forecast = null;
           }
 
           render();
-          setStatus("ready", `<strong>Salary saved.</strong> <span>Calculator refreshed from current source.</span>`);
-          console.log("salary save:", PAGE_VERSION, payload);
+
+          console.log("salary page:", PAGE_VERSION);
+          console.log("salary save payload:", payload);
+          console.log("salary save response:", saved);
+
+          setStatus("ready", `<strong>Salary forecast saved.</strong> <span>Saved computed forecast salary ${money(calc.forecastEligible)}.</span>`);
         } catch (error) {
           console.error(error);
           setStatus("error", `<strong>Salary save failed.</strong> <span>${escapeHtml(error.message)}</span>`);
@@ -1116,39 +1141,49 @@
       async function boot() {
         window.SovereignSalary = {
           version: PAGE_VERSION,
-          reload: boot
+          reload: boot,
+          calculate: () => readCalc()
         };
 
         try {
-          setStatus("loading", `<strong>Loading salary truth…</strong> <span>Reading /api/salary.</span>`);
+          setCurrentMonth();
+          $("mboAmount").value = String(PAYSLIP.defaultMboAmount);
+          $("mboPayoutsPerYear").value = String(PAYSLIP.mboPayoutsPerYear);
+          $("annualTaxableWithoutMbo").value = String(PAYSLIP.annualTaxableWithoutMbo);
+          $("actualPayslipTaxable").value = String(PAYSLIP.payslipAnnualTaxable);
+          $("actualPayslipTax").value = String(PAYSLIP.payslipTaxLiability);
+          applyMonthRule();
 
-          state.salary = await readJson("/api/salary");
+          try {
+            state.salary = await readJson("/api/salary");
+          } catch {
+            state.salary = null;
+          }
 
           try {
             state.forecast = await readJson("/api/forecast");
-          } catch (error) {
+          } catch {
             state.forecast = null;
           }
 
-          hydrateForm();
-          render();
-
           if (!state.loaded) {
-            document.querySelectorAll("input, select").forEach((node) => {
+            document.querySelectorAll("input").forEach((node) => {
               node.addEventListener("input", render);
               node.addEventListener("change", render);
             });
 
+            $("forecastMonth").addEventListener("change", applyMonthRule);
+            $("resetAutoMonth").addEventListener("click", applyMonthRule);
             $("saveSalary").addEventListener("click", saveSalary);
-            $("resetCalculator").addEventListener("click", boot);
+
             state.loaded = true;
           }
 
-          setStatus("ready", `<strong>Salary ready.</strong> <span>Guaranteed salary is forecast-eligible; variable income is gated by confirmation.</span>`);
+          render();
           console.log("salary page:", PAGE_VERSION);
         } catch (error) {
           console.error(error);
-          setStatus("error", `<strong>Salary failed.</strong> <span>${escapeHtml(error.message)}</span>`);
+          setStatus("error", `<strong>Salary engine failed.</strong> <span>${escapeHtml(error.message)}</span>`);
         }
       }
 
