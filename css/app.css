@@ -1745,3 +1745,90 @@ tr:hover td {
     box-shadow: none !important;
   }
 }
+
+
+
+
+
+/* =========================================================
+   Surface-aware kicker contrast fix
+   Purpose:
+   - Hero badges stay light on dark hero.
+   - Card/section labels become readable on white surfaces.
+   - No pale mint/yellow text on white.
+========================================================= */
+
+.section-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+.section-kicker::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px rgba(4, 120, 87, 0.10);
+}
+
+.finance-hero .hero-kicker,
+.finance-hero .section-kicker,
+.command-hero .hero-kicker,
+.command-hero .section-kicker,
+.page-hero .hero-kicker,
+.page-hero .section-kicker {
+  padding: 7px 11px;
+  border-radius: var(--r-pill);
+  color: #bbf7d0;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.24);
+}
+
+.finance-hero .hero-kicker::before,
+.finance-hero .section-kicker::before,
+.command-hero .hero-kicker::before,
+.command-hero .section-kicker::before,
+.page-hero .hero-kicker::before,
+.page-hero .section-kicker::before {
+  background: #10b981;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.80);
+}
+
+html[data-theme="dark"] .section-kicker,
+body[data-theme="dark"] .section-kicker {
+  color: #86efac;
+}
+
+html[data-theme="dark"] .section-kicker::before,
+body[data-theme="dark"] .section-kicker::before {
+  background: #34d399;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.12);
+}
+
+html[data-theme="dark"] .finance-hero .hero-kicker,
+html[data-theme="dark"] .finance-hero .section-kicker,
+html[data-theme="dark"] .command-hero .hero-kicker,
+html[data-theme="dark"] .command-hero .section-kicker,
+html[data-theme="dark"] .page-hero .hero-kicker,
+html[data-theme="dark"] .page-hero .section-kicker,
+body[data-theme="dark"] .finance-hero .hero-kicker,
+body[data-theme="dark"] .finance-hero .section-kicker,
+body[data-theme="dark"] .command-hero .hero-kicker,
+body[data-theme="dark"] .command-hero .section-kicker,
+body[data-theme="dark"] .page-hero .hero-kicker,
+body[data-theme="dark"] .page-hero .section-kicker {
+  color: #bbf7d0;
+}
