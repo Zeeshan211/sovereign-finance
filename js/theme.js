@@ -162,3 +162,90 @@
     init();
   }
 })();
+
+
+(function () {
+  "use strict";
+
+  if (window.__SOVEREIGN_THEME_TOGGLE_V2__) return;
+  window.__SOVEREIGN_THEME_TOGGLE_V2__ = true;
+
+  const STORAGE_KEY = "sovereign-theme";
+
+  function getStoredTheme() {
+    try {
+      return localStorage.getItem(STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  }
+
+  function setStoredTheme(theme) {
+    try {
+      localStorage.setItem(STORAGE_KEY, theme);
+    } catch {}
+  }
+
+  function getSystemTheme() {
+    return window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
+
+  function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") ||
+      document.body?.getAttribute("data-theme") ||
+      getStoredTheme() ||
+      getSystemTheme();
+  }
+
+  function applyTheme(theme) {
+    const safeTheme = theme === "dark" ? "dark" : "light";
+
+    document.documentElement.setAttribute("data-theme", safeTheme);
+    if (document.body) document.body.setAttribute("data-theme", safeTheme);
+
+    setStoredTheme(safeTheme);
+
+    document.querySelectorAll(".sf-theme-toggle, .sf-floating-theme-toggle").forEach((button) => {
+      button.setAttribute("data-theme-state", safeTheme);
+      button.setAttribute("aria-label", safeTheme === "dark" ? "Switch to light mode" : "Switch to dark mode");
+      button.setAttribute("title", safeTheme === "dark" ? "Switch to light mode" : "Switch to dark mode");
+    });
+  }
+
+  function toggleTheme() {
+    applyTheme(currentTheme() === "dark" ? "light" : "dark");
+  }
+
+  function ensureFloatingToggle() {
+    if (document.querySelector(".sf-theme-toggle, .sf-floating-theme-toggle")) return;
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sf-theme-toggle sf-floating-theme-toggle";
+    button.addEventListener("click", toggleTheme);
+
+    document.body.appendChild(button);
+  }
+
+  function initThemeToggle() {
+    applyTheme(getStoredTheme() || currentTheme());
+    ensureFloatingToggle();
+
+    document.querySelectorAll(".sf-theme-toggle, .sf-floating-theme-toggle").forEach((button) => {
+      if (button.dataset.themeBound === "1") return;
+      button.dataset.themeBound = "1";
+      button.addEventListener("click", toggleTheme);
+    });
+
+    applyTheme(currentTheme());
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initThemeToggle);
+  } else {
+    initThemeToggle();
+  }
+})();
