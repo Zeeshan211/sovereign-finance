@@ -519,13 +519,13 @@
 </head>
 
 <body>
-  <main class="sal-shell" data-page="salary" data-version="salary-payslip-engine-v1.0.2-wfh-fx">
+  <main class="sal-shell" data-page="salary" data-version="salary-payslip-engine-v1.0.3-wfh-base-fix">
     <section class="sal-topbar">
       <div>
         <div class="sal-kicker">Sovereign Finance</div>
         <h1 class="sal-title">Salary</h1>
       </div>
-      <div class="sal-version">salary-payslip-engine-v1.0.2-wfh-fx</div>
+      <div class="sal-version">salary-payslip-engine-v1.0.3-wfh-base-fix</div>
     </section>
 
     <section id="salStatus" class="sal-status">
@@ -768,7 +768,7 @@
     (function () {
       "use strict";
 
-      const PAGE_VERSION = "salary-payslip-engine-v1.0.2-wfh-fx";
+      const PAGE_VERSION = "salary-payslip-engine-v1.0.3-wfh-base-fix";
       const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
 
       const PAYSLIP = {
@@ -887,16 +887,24 @@
         return 0.35;
       }
 
-            function readCalc() {
+              function readCalc() {
+        const monthIndex = monthIndexFromInput();
+
         const mboAmount = asNumber($("mboAmount").value, PAYSLIP.defaultMboAmount);
-        const includeMbo = $("includeMbo").checked;
+        const includeMbo = isMboPayoutMonth(monthIndex);
+
+        if ($("includeMbo")) {
+          $("includeMbo").checked = includeMbo;
+        }
+
         const normalDeduction = asNumber($("normalDeduction").value, 0);
 
         const overtimeGeneral = asNumber($("overtimeGeneral")?.value, 0);
         const overtimeEid = asNumber($("overtimeEid")?.value, 0);
         const referralBonus = asNumber($("referralBonus")?.value, 0);
         const spotBonus = asNumber($("spotBonus")?.value, 0);
-                const wfhUsd = asNumber($("wfhUsd")?.value, PAYSLIP.wfhUsdAmount);
+
+        const wfhUsd = asNumber($("wfhUsd")?.value, PAYSLIP.wfhUsdAmount);
         const wfhFxRate = asNumber($("wfhFxRate")?.value, PAYSLIP.latestWfhFxRate);
         const wfhAllowance = round2(wfhUsd * wfhFxRate);
 
@@ -908,7 +916,7 @@
         const includeOtherExtras = Boolean($("includeOtherExtras")?.checked);
 
         const otherExtrasGross = includeOtherExtras
-          ? overtimeGeneral + overtimeEid + referralBonus + spotBonus + wfhAllowance + otherExtra
+          ? overtimeGeneral + overtimeEid + referralBonus + spotBonus + otherExtra
           : 0;
 
         const baseGross = PAYSLIP.grossBaseMonthly;
@@ -935,16 +943,20 @@
 
         const otherExtrasNet = Math.max(0, otherExtrasGross - otherExtrasTax);
 
-        const baseNet = Math.max(0, baseGross - baseMonthlyTax - normalDeduction);
-        const forecastEligible = baseNet + mboNet + otherExtrasNet;
+        const baseNet = Math.max(0, baseGross - normalDeduction);
+        const wfhNet = wfhAllowance;
+
+        const guaranteedMonthly = baseNet + wfhNet;
+        const variableMonthly = mboNet + otherExtrasNet;
+        const forecastEligible = guaranteedMonthly + variableMonthly;
 
         const effectiveTaxRate = projectedAnnualTaxable > 0 ? (projectedAnnualTax / projectedAnnualTaxable) * 100 : 0;
         const currentMarginalRate = marginalTaxRate(projectedAnnualTaxable) * 100;
 
         return {
           forecastMonth: $("forecastMonth").value,
-          monthIndex: monthIndexFromInput(),
-          monthRuleIncludesMbo: isMboPayoutMonth(monthIndexFromInput()),
+          monthIndex,
+          monthRuleIncludesMbo: includeMbo,
 
           basicSalary: PAYSLIP.basicSalary,
           houseRentAllowance: PAYSLIP.houseRentAllowance,
@@ -960,6 +972,13 @@
           normalDeduction,
           baseNet,
 
+          wfhUsd,
+          wfhFxRate,
+          wfhAllowance,
+          wfhNet,
+
+          guaranteedMonthly,
+
           mboAmount,
           includeMbo,
           mboGross,
@@ -971,13 +990,12 @@
           overtimeEid,
           referralBonus,
           spotBonus,
-          wfhUsd,
-          wfhFxRate,
-          wfhAllowance,
           otherExtra,
           otherExtrasGross,
           otherExtrasTax,
           otherExtrasNet,
+
+          variableMonthly,
 
           annualTaxableWithoutMbo,
           annualMboProjection,
@@ -991,16 +1009,6 @@
           forecastEligible
         };
       }
-
-      function row(label, value) {
-        return `
-          <div class="sal-row">
-            <span>${escapeHtml(label)}</span>
-            <span>${escapeHtml(value)}</span>
-          </div>
-        `;
-      }
-
       function renderRows(items) {
         return items.map(([label, value]) => row(label, value)).join("");
       }
@@ -1012,22 +1020,24 @@
         $("annualTaxCard").textContent = money(calc.projectedAnnualTax);
       }
 
-            function renderCalculation(calc) {
+                  function renderCalculation(calc) {
         $("calculationPanel").innerHTML = renderRows([
-          ["Base gross", money(calc.baseGross)],
-          ["Base monthly tax", money(calc.baseMonthlyTax)],
-          ["Other monthly deduction", money(calc.normalDeduction)],
-          ["Base net", money(calc.baseNet)],
+          ["Base salary", money(calc.baseGross)],
+          ["Normal monthly deduction", money(calc.normalDeduction)],
+          ["Base forecast", money(calc.baseNet)],
+
+          ["WFH USD", `$${calc.wfhUsd.toFixed(2)}`],
+          ["WFH FX rate", calc.wfhFxRate.toFixed(4)],
+          ["WFH allowance", money(calc.wfhAllowance)],
+
+          ["Guaranteed monthly", money(calc.guaranteedMonthly)],
 
           ["MBO included", calc.includeMbo ? "Yes" : "No"],
           ["MBO gross", money(calc.mboGross)],
           ["MBO tax", money(calc.mboTax)],
           ["MBO net", money(calc.mboNet)],
 
-         ["One-off extras included", calc.includeOtherExtras ? "Yes" : "No"],
-          ["WFH USD", `$${calc.wfhUsd.toFixed(2)}`],
-          ["WFH FX rate", calc.wfhFxRate.toFixed(4)],
-          ["WFH allowance", money(calc.wfhAllowance)],
+          ["One-off extras included", calc.includeOtherExtras ? "Yes" : "No"],
           ["One-off extras gross", money(calc.otherExtrasGross)],
           ["One-off extras tax", money(calc.otherExtrasTax)],
           ["One-off extras net", money(calc.otherExtrasNet)],
@@ -1035,7 +1045,6 @@
           ["Forecast salary", money(calc.forecastEligible)]
         ]);
       }
-
       function renderTax(calc) {
         const deltaVsPayslipTaxable = calc.projectedAnnualTaxable - calc.payslipAnnualTaxable;
         const deltaVsPayslipTax = calc.projectedAnnualTax - calc.payslipTaxLiability;
@@ -1197,14 +1206,14 @@
             salary_month: calc.forecastMonth,
             source: PAGE_VERSION,
 
-            gross_monthly: calc.baseGross,
+            gross_monthly: round2(calc.baseGross),
             monthly_tax: round2(calc.baseMonthlyTax),
-            other_deductions: calc.normalDeduction,
-            net_monthly: round2(calc.baseNet),
+            other_deductions: round2(calc.normalDeduction),
+            net_monthly: round2(calc.guaranteedMonthly),
 
-            guaranteed_monthly: round2(calc.baseNet),
+            guaranteed_monthly: round2(calc.guaranteedMonthly),
             variable_confirmed: Boolean(calc.includeMbo || calc.includeOtherExtras),
-            variable_monthly: round2(calc.mboNet + calc.otherExtrasNet),
+            variable_monthly: round2(calc.variableMonthly),
             forecast_eligible_monthly: round2(calc.forecastEligible),
 
             mbo_amount: round2(calc.mboAmount),
