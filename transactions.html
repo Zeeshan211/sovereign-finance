@@ -73,7 +73,7 @@
     }
 
     .ledger-insight p {
-      max-width: 760px;
+      max-width: 780px;
       margin: 14px 0 0;
       color: #cbd5e1;
       font-size: 15px;
@@ -89,14 +89,14 @@
 
     .ledger-workspace {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
       gap: 16px;
       align-items: start;
     }
 
     .ledger-filter-grid {
       display: grid;
-      grid-template-columns: 1.4fr repeat(3, minmax(150px, .7fr));
+      grid-template-columns: 1.3fr repeat(4, minmax(130px, .7fr));
       gap: 12px;
       margin-top: 14px;
     }
@@ -175,6 +175,35 @@
       line-height: 1.5;
     }
 
+    .ledger-mini-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .ledger-mini {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface-2);
+      padding: 12px;
+    }
+
+    .ledger-mini-label {
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .ledger-mini-value {
+      margin-top: 5px;
+      color: var(--text-strong);
+      font-weight: 950;
+      overflow-wrap: anywhere;
+    }
+
     @media (max-width: 1180px) {
       .ledger-workspace,
       .ledger-command,
@@ -205,13 +234,13 @@
 </head>
 
 <body>
-  <main class="app-page" data-page="transactions" data-version="ledger-product-v1.1.0">
+  <main class="app-page" data-page="transactions" data-version="ledger-product-v1.2.0">
     <div class="ledger-os">
       <section class="ledger-command">
         <div>
           <div class="section-kicker">Sovereign Ledger</div>
           <h1 class="ledger-title">Ledger</h1>
-          <p class="ledger-copy">Readable money movement with safe reverse controls and audit detail on demand.</p>
+          <p class="ledger-copy">Readable money movement, safe reverse, grouped audit packages, and international transaction visibility from existing Add Transaction data.</p>
         </div>
         <div class="ledger-actions">
           <a class="btn btn-success" href="/add.html">Add Transaction</a>
@@ -224,12 +253,12 @@
       <section class="ledger-insight">
         <div class="hero-kicker">Ledger OS</div>
         <h2>Every movement has context.</h2>
-        <p>Transfers, ATM withdrawals, reversals, bills, debts, and normal income/expense rows are grouped where possible. Reverse is available only when it is safe for ledger-only reversal.</p>
+        <p>Transfers, ATM withdrawals, reversals, bills, debts, merchant activity, and international packages are grouped where existing data supports it. Raw audit is available on demand, not forced into normal view.</p>
       </section>
 
       <section id="ledgerStatus" class="panel card-padded">
         <div class="strong">Loading ledger…</div>
-        <div class="muted">Reading transactions including reversal audit rows.</div>
+        <div class="muted">Reading transactions with reversal rows and building audit groups.</div>
       </section>
 
       <section id="reversePanel" class="panel card-padded ledger-confirm" hidden></section>
@@ -262,7 +291,7 @@
         <div class="ledger-filter-grid">
           <div class="form-field">
             <label for="searchInput">Search</label>
-            <input id="searchInput" type="search" placeholder="Search transaction, account, category, notes" />
+            <input id="searchInput" type="search" placeholder="Search transaction, account, category, merchant, notes" />
           </div>
           <div class="form-field">
             <label for="accountFilter">Account</label>
@@ -278,6 +307,17 @@
               <option value="atm">ATM</option>
               <option value="bill">Bill</option>
               <option value="debt">Debt</option>
+              <option value="international">International</option>
+              <option value="reversed">Reversed</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="statusFilter">Status</label>
+            <select id="statusFilter">
+              <option value="">All status</option>
+              <option value="eligible">Reverse eligible</option>
+              <option value="blocked">Reverse blocked</option>
+              <option value="grouped">Grouped</option>
               <option value="reversed">Reversed</option>
             </select>
           </div>
@@ -303,7 +343,7 @@
         <aside>
           <section class="panel card-padded">
             <div class="section-kicker">Selected item</div>
-            <div id="detailPanel" class="muted" style="margin-top:12px;">Select a ledger row to inspect details.</div>
+            <div id="detailPanel" class="muted" style="margin-top:12px;">Select a ledger row to inspect grouped audit detail.</div>
           </section>
 
           <section class="panel card-padded">
@@ -328,10 +368,11 @@
     (function () {
       "use strict";
 
-      const VERSION = "ledger-product-v1.1.0";
+      const VERSION = "ledger-product-v1.2.0";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
       const NOISE = /SF_SHIPMENT|DIRECT_WRITE_TEST|RS1_TEST|CREATE_RECEIVABLE|RECEIVE_RS1/i;
       const RAW_IDS = /bill_id=|debt_id=|bill_payment_id=/i;
+      const INTL = /international|intl|foreign|fx|forex|currency|usd|eur|gbp|aed|excise|fed|advance tax|236y|pra|withholding|1-biller|1 biller|biller charge|fx fee/i;
 
       const $ = (id) => document.getElementById(id);
 
@@ -409,6 +450,26 @@
         return -amount;
       }
 
+      function fieldText(tx) {
+        return [
+          tx.id,
+          tx.type,
+          tx.account_id,
+          tx.transfer_to_account_id,
+          tx.category_id,
+          tx.merchant_id,
+          tx.merchant,
+          tx.source,
+          tx.reference,
+          tx.notes,
+          tx.currency,
+          tx.fx_rate,
+          tx.foreign_amount,
+          tx.international,
+          tx.is_international
+        ].filter(Boolean).join(" ");
+      }
+
       function isNoise(tx) {
         return NOISE.test(String(tx.notes || ""));
       }
@@ -434,6 +495,11 @@
           /credit card|cc payment|alfalah cc/i.test(String(tx.notes || ""));
       }
 
+      function isInternational(tx) {
+        if (tx.is_international === true || tx.international === true) return true;
+        return INTL.test(fieldText(tx));
+      }
+
       function isReversalRow(tx) {
         return Boolean(tx.reversed_by || tx.reversed_at) ||
           /REVERSAL|Reversal of|REVERSED_BY/i.test(String(tx.notes || ""));
@@ -441,13 +507,39 @@
 
       function linkedId(tx) {
         if (tx.linked_txn_id) return tx.linked_txn_id;
+
         const text = String(tx.notes || "");
         const linked = text.match(/\[linked:\s*([^\]]+)\]/i);
         if (linked) return linked[1].trim();
+
         const reversedBy = text.match(/\[ATM_FEE_REVERSED_BY:\s*([^\]]+)\]/i);
         if (reversedBy) return reversedBy[1].trim();
+
         const reversalOf = text.match(/Reversal of\s+([A-Za-z0-9_-]+)/i);
         if (reversalOf) return reversalOf[1].trim();
+
+        return null;
+      }
+
+      function packageKey(tx) {
+        const text = fieldText(tx);
+
+        const patterns = [
+          /package_id[=:]\s*([A-Za-z0-9_-]+)/i,
+          /intl_package_id[=:]\s*([A-Za-z0-9_-]+)/i,
+          /international_package_id[=:]\s*([A-Za-z0-9_-]+)/i,
+          /parent_id[=:]\s*([A-Za-z0-9_-]+)/i,
+          /parent_txn_id[=:]\s*([A-Za-z0-9_-]+)/i,
+          /intl_parent[=:]\s*([A-Za-z0-9_-]+)/i,
+          /group_id[=:]\s*([A-Za-z0-9_-]+)/i
+        ];
+
+        for (const pattern of patterns) {
+          const match = text.match(pattern);
+          if (match) return match[1].trim();
+        }
+
+        if (isInternational(tx) && linkedId(tx)) return linkedId(tx);
         return null;
       }
 
@@ -483,9 +575,51 @@
         return "Debt movement";
       }
 
-      function inferKind(rows) {
-        const text = rows.map((tx) => `${tx.type || ""} ${tx.category_id || ""} ${tx.notes || ""}`).join(" ");
+      function merchantName(rows) {
+        for (const tx of rows) {
+          const explicit = tx.merchant || tx.merchant_name || tx.merchant_id || tx.source || tx.reference;
+          if (explicit) return String(explicit);
+        }
 
+        const note = cleanNote(rows[0]?.notes || "");
+        if (note) return note.split(" · ")[0].split("|")[0].trim();
+
+        return "Unknown merchant";
+      }
+
+      function taxBreakdown(rows) {
+        const parts = {
+          base: 0,
+          fxFee: 0,
+          exciseFed: 0,
+          advanceTax: 0,
+          pra: 0,
+          biller: 0,
+          otherTax: 0,
+          other: 0
+        };
+
+        for (const tx of rows) {
+          const text = fieldText(tx);
+          const amount = asNumber(tx.amount, 0);
+
+          if (/base|principal|purchase/i.test(text) && !/fee|tax|excise|fed|pra|236y/i.test(text)) parts.base += amount;
+          else if (/fx fee|forex fee|foreign exchange fee|conversion fee/i.test(text)) parts.fxFee += amount;
+          else if (/excise|fed/i.test(text)) parts.exciseFed += amount;
+          else if (/advance tax|236y|withholding/i.test(text)) parts.advanceTax += amount;
+          else if (/pra/i.test(text)) parts.pra += amount;
+          else if (/1-biller|1 biller|biller charge/i.test(text)) parts.biller += amount;
+          else if (/tax/i.test(text)) parts.otherTax += amount;
+          else parts.other += amount;
+        }
+
+        return parts;
+      }
+
+      function inferKind(rows) {
+        const text = rows.map((tx) => fieldText(tx)).join(" ");
+
+        if (rows.some(isInternational)) return "international";
         if (/Bill payment|bill_id=|bill_payment_id=/i.test(text)) return "bill";
         if (/Debt given|Debt received|Debt created|debt_id=|Received - debt/i.test(text)) return "debt";
         if (/ATM_WITHDRAW/i.test(text)) return "atm";
@@ -497,6 +631,8 @@
 
       function titleFor(rows, kind) {
         const first = rows[0];
+
+        if (kind === "international") return `International transaction — ${merchantName(rows)}`;
 
         if (kind === "transfer") {
           const out = rows.find((tx) => String(tx.type).toLowerCase() === "transfer") || first;
@@ -533,6 +669,7 @@
       function reverseEligibility(rows, kind, hasNoise, hasReversal) {
         if (hasNoise) return { allowed: false, reason: "Test record", targetId: null };
         if (hasReversal) return { allowed: false, reason: "Already reversed", targetId: null };
+        if (kind === "international" || rows.some(isInternational)) return { allowed: false, reason: "Managed as international package", targetId: null };
         if (rows.some(isBill)) return { allowed: false, reason: "Managed in Bills", targetId: null };
         if (rows.some(isDebt)) return { allowed: false, reason: "Managed in Debts", targetId: null };
         if (rows.some(isSalary)) return { allowed: false, reason: "Managed in Salary", targetId: null };
@@ -553,6 +690,7 @@
       function buildGroups(rows) {
         const byId = new Map(rows.map((tx) => [tx.id, tx]));
         const graph = new Map();
+        const packages = new Map();
 
         function ensure(id) {
           if (!graph.has(id)) graph.set(id, new Set());
@@ -568,11 +706,28 @@
 
         for (const tx of rows) {
           ensure(tx.id);
+
           connect(tx.id, linkedId(tx));
           connect(tx.id, tx.reversed_by);
 
+          const pkg = packageKey(tx);
+          if (pkg) {
+            if (!packages.has(pkg)) packages.set(pkg, []);
+            packages.get(pkg).push(tx.id);
+          }
+        }
+
+        for (const tx of rows) {
           for (const other of rows) {
             if (other.reversed_by === tx.id) connect(tx.id, other.id);
+          }
+        }
+
+        for (const ids of packages.values()) {
+          for (let i = 0; i < ids.length; i += 1) {
+            for (let j = i + 1; j < ids.length; j += 1) {
+              connect(ids[i], ids[j]);
+            }
           }
         }
 
@@ -602,6 +757,7 @@
           const kind = inferKind(component);
           const hasNoise = component.some(isNoise);
           const hasReversal = component.some(isReversalRow);
+          const hasInternational = component.some(isInternational);
           const dateSort = component
             .map((row) => new Date(row.created_at || `${row.date}T00:00:00`).getTime())
             .filter(Number.isFinite)
@@ -614,6 +770,7 @@
 
           const accounts = [...new Set(component.map((row) => accountName(row.account_id)).filter(Boolean))];
           const categories = [...new Set(component.map((row) => categoryName(row.category_id)).filter(Boolean))];
+          const breakdown = kind === "international" ? taxBreakdown(component) : null;
 
           groups.push({
             id: component.map((row) => row.id).join("__"),
@@ -624,12 +781,16 @@
             displayAmount,
             accounts,
             categories,
+            merchant: merchantName(component),
+            taxBreakdown: breakdown,
             date: component[0]?.date || "",
             created_at: component[0]?.created_at || "",
             dateSort,
             isGrouped: component.length > 1,
             hasNoise,
             hasReversal,
+            hasInternational,
+            hasMerchant: component.some((row) => row.merchant_id || row.merchant || row.source || row.reference),
             hasRawIds: component.some((row) => RAW_IDS.test(String(row.notes || ""))),
             reverse: reverseEligibility(component, kind, hasNoise, hasReversal)
           });
@@ -660,6 +821,7 @@
         const q = $("searchInput").value.trim().toLowerCase();
         const account = $("accountFilter").value;
         const type = $("typeFilter").value;
+        const status = $("statusFilter").value;
         const mode = $("viewMode").value;
 
         const source = mode === "raw"
@@ -672,6 +834,7 @@
           const haystack = [
             group.title,
             group.kind,
+            group.merchant,
             group.accounts.join(" "),
             group.categories.join(" "),
             group.rows.map((row) => row.notes || "").join(" ")
@@ -681,7 +844,13 @@
           const accountOk = !account || group.rows.some((row) => row.account_id === account);
           const typeOk = !type || group.kind === type || group.rows.some((row) => String(row.type).toLowerCase() === type);
 
-          return qOk && accountOk && typeOk;
+          let statusOk = true;
+          if (status === "eligible") statusOk = group.reverse.allowed;
+          if (status === "blocked") statusOk = !group.reverse.allowed;
+          if (status === "grouped") statusOk = group.isGrouped;
+          if (status === "reversed") statusOk = group.hasReversal;
+
+          return qOk && accountOk && typeOk && statusOk;
         });
 
         render();
@@ -696,6 +865,8 @@
 
           for (const tx of group.rows) {
             if (!DEBUG && isNoise(tx)) continue;
+            if (isReversalRow(tx) && !DEBUG) continue;
+
             const value = signed(tx);
             if (value > 0) income += value;
             if (value < 0) expense += Math.abs(value);
@@ -717,6 +888,8 @@
           ["Hidden test groups", String(state.groups.filter((g) => g.hasNoise).length)],
           ["Transfer / ATM groups", String(state.groups.filter((g) => g.kind === "transfer" || g.kind === "atm").length)],
           ["Reversal groups", String(state.groups.filter((g) => g.hasReversal).length)],
+          ["International groups", String(state.groups.filter((g) => g.kind === "international").length)],
+          ["Merchant groups", String(state.groups.filter((g) => g.hasMerchant).length)],
           ["Reverse eligible", String(state.groups.filter((g) => g.reverse.allowed).length)]
         ];
 
@@ -728,8 +901,34 @@
         `).join("");
       }
 
+      function renderInternationalMini(group) {
+        if (group.kind !== "international") return "";
+
+        const b = group.taxBreakdown || {};
+        const items = [
+          ["Merchant", group.merchant || "Unknown"],
+          ["Base / purchase", b.base ? money(b.base) : "Not separated"],
+          ["FX fee", b.fxFee ? money(b.fxFee) : "Not present"],
+          ["Excise / FED", b.exciseFed ? money(b.exciseFed) : "Not present"],
+          ["Advance tax", b.advanceTax ? money(b.advanceTax) : "Not present"],
+          ["PRA / other", b.pra ? money(b.pra) : "Not present"],
+          ["1-Biller", b.biller ? money(b.biller) : "Not present"]
+        ];
+
+        return `
+          <div class="ledger-mini-grid">
+            ${items.map(([label, value]) => `
+              <div class="ledger-mini">
+                <div class="ledger-mini-label">${escapeHtml(label)}</div>
+                <div class="ledger-mini-value">${escapeHtml(value)}</div>
+              </div>
+            `).join("")}
+          </div>
+        `;
+      }
+
       function renderActivity() {
-        const groups = state.filtered.slice(0, 120);
+        const groups = state.filtered.slice(0, 140);
 
         if (!groups.length) {
           $("activityList").innerHTML = `<div class="muted">No ledger activity matches the selected filters.</div>`;
@@ -749,6 +948,9 @@
               ? pill("Grouped", "badge-ready")
               : pill("Single", "badge-unknown");
 
+          const intl = group.kind === "international" ? pill("International package", "badge-info") : "";
+          const merchant = group.hasMerchant ? pill("Merchant", "badge-info") : "";
+
           const reverseButton = group.reverse.allowed
             ? `<button class="btn btn-danger" type="button" data-reverse="${index}">Reverse</button>`
             : `<button class="btn btn-secondary" type="button" disabled>${escapeHtml(group.reverse.reason)}</button>`;
@@ -758,8 +960,11 @@
               <div>
                 ${pill(group.kind, "badge-info")}
                 ${status}
+                ${intl}
+                ${merchant}
                 <div class="ledger-row-title">${escapeHtml(group.title)}</div>
                 <div class="ledger-row-meta">${escapeHtml(subtitle)}</div>
+                ${renderInternationalMini(group)}
                 <div class="ledger-row-actions">
                   <button class="btn btn-secondary" type="button" data-detail="${index}">Details</button>
                   ${reverseButton}
@@ -779,9 +984,12 @@
             <div class="strong">${escapeHtml(tx.type)} · ${money(tx.amount)} · ${escapeHtml(accountName(tx.account_id))}</div>
             <div class="muted">Date: ${escapeHtml(tx.date || "")} · Created: ${escapeHtml(tx.created_at || "")}</div>
             <div class="muted">Category: ${escapeHtml(categoryName(tx.category_id))}</div>
+            <div class="muted">Merchant/source: ${escapeHtml(tx.merchant || tx.merchant_id || tx.source || tx.reference || "None")}</div>
             <div class="muted">Transaction ID: ${escapeHtml(tx.id)}</div>
             <div class="muted">Linked: ${escapeHtml(tx.linked_txn_id || linkedId(tx) || "None")}</div>
+            <div class="muted">Package key: ${escapeHtml(packageKey(tx) || "None")}</div>
             <div class="muted">Reversed by: ${escapeHtml(tx.reversed_by || "None")} · Reversed at: ${escapeHtml(tx.reversed_at || "None")}</div>
+            <div class="muted">International markers: ${escapeHtml(isInternational(tx) ? "Yes" : "No")}</div>
             <div class="muted" style="margin-top:6px;">Raw notes: ${escapeHtml(tx.notes || "")}</div>
           </div>
         `).join("");
@@ -789,8 +997,12 @@
         return `
           <div class="authority-title">${escapeHtml(group.title)}</div>
           <div class="authority-copy" style="margin-top:6px;">${escapeHtml(group.kind)} · ${escapeHtml(group.accounts.join(" → "))} · ${escapeHtml(group.date)}</div>
-          <div style="margin-top:12px;">${pill(group.reverse.allowed ? "Eligible for reverse" : group.reverse.reason, group.reverse.allowed ? "badge-ready" : "badge-warning")}</div>
-          <div class="authority-copy" style="margin-top:12px;">Raw IDs and backend notes are intentionally shown only in this audit detail.</div>
+          <div style="margin-top:12px;">
+            ${pill(group.reverse.allowed ? "Eligible for reverse" : group.reverse.reason, group.reverse.allowed ? "badge-ready" : "badge-warning")}
+            ${group.kind === "international" ? pill("International display/audit only", "badge-info") : ""}
+          </div>
+          ${renderInternationalMini(group)}
+          <div class="authority-copy" style="margin-top:12px;">Raw IDs, package links, merchant/source, and backend notes are intentionally shown only in this audit detail.</div>
           <div style="margin-top:12px;">${rows}</div>
         `;
       }
@@ -817,10 +1029,10 @@
 
           <div class="surface-card card-padded" style="margin-top:14px;background:var(--surface-2);">
             <div class="strong">This will:</div>
-            <div class="muted">Create a reversal transaction, mark the original reversed, and restore the ledger balance effect through `/api/transactions/reverse`.</div>
+            <div class="muted">Create a reversal transaction, mark the original reversed, and restore the ledger balance effect through /api/transactions/reverse.</div>
 
             <div class="strong" style="margin-top:12px;">This will not:</div>
-            <div class="muted">Edit bill, debt, salary, credit-card, or forecast source records. Those are managed in their own modules.</div>
+            <div class="muted">Edit bill, debt, salary, credit-card, forecast, or international package source records. Those stay managed by their own modules.</div>
 
             <div class="strong" style="margin-top:12px;">Reverse target:</div>
             <div class="muted">${escapeHtml(target.id)} · ${escapeHtml(target.type)} · ${money(target.amount)} · ${escapeHtml(accountName(target.account_id))}</div>
@@ -913,6 +1125,9 @@
           reversalGroups: state.groups.filter((g) => g.hasReversal).length,
           billLinkedGroups: state.groups.filter((g) => g.kind === "bill").length,
           debtLinkedGroups: state.groups.filter((g) => g.kind === "debt").length,
+          internationalGroups: state.groups.filter((g) => g.kind === "international").length,
+          merchantGroups: state.groups.filter((g) => g.hasMerchant).length,
+          rawIdGroups: state.groups.filter((g) => g.hasRawIds).length,
           reverseEligibleGroups: state.groups.filter((g) => g.reverse.allowed).length,
           writeEndpointsCalledOnLoad: state.writeEndpointsCalledOnLoad,
           overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -931,10 +1146,8 @@
 
         $("ledgerStatus").innerHTML = `
           <div class="strong">Ledger ready · ${escapeHtml(VERSION)}</div>
-          <div class="muted">Reverse is available only for safe ledger-only rows. Bill/debt/salary/credit-card movements stay managed in their own modules.</div>
+          <div class="muted">Reverse is available only for safe ledger-only rows. Bill, debt, salary, credit-card, and international packages stay protected from direct partial reversal.</div>
         `;
-
-        console.log("ledger:", VERSION);
       }
 
       function populateFilters() {
@@ -947,6 +1160,7 @@
         $("searchInput").addEventListener("input", filterGroups);
         $("accountFilter").addEventListener("change", filterGroups);
         $("typeFilter").addEventListener("change", filterGroups);
+        $("statusFilter").addEventListener("change", filterGroups);
         $("viewMode").addEventListener("change", filterGroups);
 
         document.addEventListener("click", (event) => {
