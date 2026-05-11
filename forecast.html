@@ -1,722 +1,335 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="midnight" data-page="forecast">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sovereign Finance — Forecast</title>
+  <title>Forecast · Sovereign Finance</title>
+
   <link rel="stylesheet" href="/css/app.css" />
+  <link rel="stylesheet" href="/css/sf-theme.css" />
+  <link rel="stylesheet" href="/css/sf-shell.css" />
 
   <style>
-    :root {
-      --sf-bg: #f3f6ef;
-      --sf-surface: #ffffff;
-      --sf-ink: #06111f;
-      --sf-muted: #5f6f82;
-      --sf-line: #dfe6da;
-      --sf-hero: #101826;
-      --sf-hero-2: #123c3a;
-      --sf-green: #087a54;
-      --sf-green-2: #0aaa76;
-      --sf-green-soft: #e6f4ec;
-      --sf-yellow: #b7791f;
-      --sf-yellow-soft: #fff6dd;
-      --sf-red: #c2413a;
-      --sf-red-soft: #fdebea;
-      --sf-blue: #2f5f9f;
-      --sf-blue-soft: #e8effb;
-      --sf-shadow: 0 18px 50px rgba(28, 42, 31, .12);
-      --sf-radius: 26px;
-    }
-
-    html,
-    body {
-      max-width: 100%;
-      overflow-x: hidden;
-    }
-
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      background:
-        radial-gradient(circle at top right, rgba(47, 95, 159, .08), transparent 32rem),
-        var(--sf-bg);
-      color: var(--sf-ink);
-    }
-
-    .fc-shell {
-      width: min(1728px, calc(100% - 64px));
-      margin: 0 auto;
-      padding: 22px 0 56px;
-    }
-
-    .fc-page-head {
-      margin: 0 0 18px;
-      padding: 0 2px;
-    }
-
-    .fc-kicker {
-      color: var(--sf-muted);
-      font-size: 13px;
-      font-weight: 900;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-    }
-
-    .fc-page-title {
-      margin: 2px 0 0;
-      color: var(--sf-ink);
-      font-size: 24px;
-      line-height: 1;
-      font-weight: 950;
-      letter-spacing: -.04em;
-    }
-
-    .fc-hero {
-      min-height: 360px;
-      border-radius: 40px;
-      padding: clamp(28px, 4vw, 58px);
-      color: #fff;
-      background:
-        radial-gradient(circle at 76% 8%, rgba(5, 150, 105, .35), transparent 30rem),
-        radial-gradient(circle at 100% 100%, rgba(148, 163, 184, .24), transparent 34rem),
-        linear-gradient(135deg, var(--sf-hero), #162033 48%, var(--sf-hero-2));
-      box-shadow: var(--sf-shadow);
+    .forecast-layout {
       display: grid;
-      align-content: center;
-      margin-bottom: 30px;
+      gap: var(--sf-space-6);
     }
 
-    .fc-hero-pill {
-      width: fit-content;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      border: 1px solid rgba(16, 185, 129, .42);
-      background: rgba(8, 122, 84, .32);
-      color: #eafff7;
-      border-radius: 999px;
-      padding: 10px 16px;
-      font-size: 13px;
-      font-weight: 950;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      margin-bottom: 26px;
+    .forecast-controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--sf-space-4);
     }
 
-    .fc-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: var(--sf-green-2);
-      box-shadow: 0 0 0 8px rgba(16, 185, 129, .12);
-      flex: 0 0 auto;
+    .forecast-field {
+      display: grid;
+      gap: var(--sf-space-2);
     }
 
-    .fc-hero-title {
-      max-width: 1000px;
-      margin: 0;
-      font-size: clamp(48px, 7vw, 88px);
-      line-height: .92;
-      font-weight: 1000;
-      letter-spacing: -.075em;
-    }
-
-    .fc-hero-copy {
-      max-width: 760px;
-      margin: 22px 0 0;
-      color: rgba(255, 255, 255, .82);
-      font-size: clamp(18px, 2vw, 23px);
-      line-height: 1.45;
+    .forecast-field label {
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-12);
       font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
     }
 
-    .fc-hero-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 30px;
-    }
-
-    .fc-btn {
-      border: 1px solid transparent;
-      border-radius: 16px;
-      padding: 14px 20px;
+    .forecast-field input {
+      width: 100%;
+      min-height: 52px;
+      border: 1px solid var(--sf-border);
+      border-radius: var(--sf-radius-md);
+      background: var(--sf-surface-1);
+      color: var(--sf-text);
+      padding: 12px 14px;
       font: inherit;
-      font-weight: 950;
-      cursor: pointer;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--sf-ink);
-      background: #eef4f8;
-      min-height: 56px;
+      font-weight: 700;
+      outline: none;
     }
 
-    .fc-btn.primary {
-      color: #fff;
-      background: var(--sf-green);
-      border-color: rgba(255, 255, 255, .08);
+    .forecast-field input:focus {
+      border-color: var(--sf-border-strong);
+      box-shadow: 0 0 0 3px rgba(91, 162, 255, 0.12);
     }
 
-    .fc-btn:hover {
-      transform: translateY(-1px);
+    .forecast-status {
+      padding: var(--sf-space-5);
     }
 
-    .fc-status {
-      border: 1px solid var(--sf-line);
-      background: var(--sf-surface);
-      border-radius: 22px;
-      padding: 16px 20px;
-      color: var(--sf-muted);
-      margin-bottom: 22px;
-      box-shadow: var(--sf-shadow);
-      font-size: 16px;
+    .forecast-status strong {
+      display: block;
+      margin-bottom: var(--sf-space-2);
+      font-size: var(--sf-font-18);
+      color: var(--sf-text);
     }
 
-    .fc-status strong {
-      color: var(--sf-ink);
-      font-weight: 950;
+    .forecast-status.is-danger {
+      border-color: rgba(255, 127, 138, 0.32);
+      background: linear-gradient(180deg, rgba(255, 127, 138, 0.12), var(--sf-card) 100%);
     }
 
-    .fc-status.danger {
-      color: var(--sf-red);
-      background: var(--sf-red-soft);
-      border-color: #f3b8b5;
-    }
+    .forecast-value-positive { color: var(--sf-positive); }
+    .forecast-value-warning { color: var(--sf-warning); }
+    .forecast-value-danger { color: var(--sf-danger); }
 
-    .fc-metrics {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 22px;
-      margin-bottom: 28px;
-    }
-
-    .fc-card,
-    .fc-panel {
-      background: var(--sf-surface);
-      border: 1px solid var(--sf-line);
-      border-radius: var(--sf-radius);
-      box-shadow: var(--sf-shadow);
-      min-width: 0;
-    }
-
-    .fc-card {
-      position: relative;
-      overflow: hidden;
-      padding: 26px;
-      min-height: 158px;
-      border-top: 4px solid transparent;
-    }
-
-    .fc-card.good {
-      border-top-color: var(--sf-green);
-    }
-
-    .fc-card.warn {
-      border-top-color: var(--sf-yellow);
-    }
-
-    .fc-card.danger {
-      border-top-color: var(--sf-red);
-    }
-
-    .fc-card::after {
-      content: "";
-      position: absolute;
-      right: -42px;
-      bottom: -58px;
-      width: 142px;
-      height: 142px;
-      border-radius: 999px;
-      background: var(--sf-green-soft);
-      pointer-events: none;
-    }
-
-    .fc-label {
-      color: var(--sf-muted);
-      font-size: 13px;
-      font-weight: 950;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      margin-bottom: 12px;
-    }
-
-    .fc-value {
-      color: var(--sf-ink);
-      font-size: clamp(28px, 3.5vw, 44px);
-      line-height: 1;
-      font-weight: 1000;
-      letter-spacing: -.065em;
-      overflow-wrap: anywhere;
-      position: relative;
-      z-index: 1;
-    }
-
-    .fc-sub {
-      color: var(--sf-muted);
-      font-size: 15px;
-      font-weight: 750;
-      line-height: 1.35;
-      margin-top: 12px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .fc-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.55fr) minmax(320px, .85fr);
-      gap: 22px;
-      align-items: start;
-    }
-
-    .fc-panel {
-      padding: 26px;
-      margin-bottom: 22px;
-    }
-
-    .fc-section-kicker {
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-      color: var(--sf-green);
-      font-size: 13px;
-      font-weight: 1000;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      margin-bottom: 18px;
-    }
-
-    .fc-section-kicker::before {
-      content: "";
-      width: 10px;
-      height: 10px;
-      border-radius: 999px;
-      background: var(--sf-green);
-      box-shadow: 0 0 0 7px var(--sf-green-soft);
-    }
-
-    .fc-panel h2,
-    .fc-panel h3 {
-      margin: 0 0 12px;
-      color: var(--sf-ink);
-      font-weight: 1000;
-      letter-spacing: -.04em;
-    }
-
-    .fc-panel h2 {
-      font-size: 25px;
-    }
-
-    .fc-panel h3 {
-      font-size: 20px;
-    }
-
-    .fc-row-list {
+    .forecast-row-list {
       display: grid;
       gap: 0;
     }
 
-    .fc-row {
+    .forecast-row {
       display: flex;
       justify-content: space-between;
-      gap: 18px;
-      padding: 15px 0;
-      border-bottom: 1px solid var(--sf-line);
+      gap: var(--sf-space-4);
+      padding: 14px 0;
+      border-bottom: 1px solid var(--sf-border-subtle);
     }
 
-    .fc-row:last-child {
+    .forecast-row:last-child {
       border-bottom: 0;
+      padding-bottom: 0;
     }
 
-    .fc-row span:first-child {
-      color: var(--sf-muted);
-      font-weight: 750;
+    .forecast-row-label {
+      color: var(--sf-text-muted);
+      font-weight: 700;
     }
 
-    .fc-row span:last-child {
-      color: var(--sf-ink);
-      font-weight: 950;
+    .forecast-row-value {
+      color: var(--sf-text);
+      font-weight: 800;
       text-align: right;
       overflow-wrap: anywhere;
     }
 
-    .fc-controls {
+    .forecast-waterfall {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 14px;
-      margin-top: 18px;
+      gap: var(--sf-space-4);
     }
 
-    .fc-field {
+    .forecast-bar-row {
       display: grid;
-      gap: 8px;
+      grid-template-columns: 170px minmax(0, 1fr) 150px;
+      gap: var(--sf-space-4);
+      align-items: center;
     }
 
-    .fc-field label {
-      color: var(--sf-muted);
-      font-size: 13px;
-      font-weight: 900;
-    }
-
-    .fc-field input,
-    .fc-field select {
-      width: 100%;
-      min-height: 52px;
-      border: 1px solid var(--sf-line);
-      border-radius: 14px;
-      background: #fbfdf8;
-      color: var(--sf-ink);
-      padding: 12px 14px;
-      font: inherit;
+    .forecast-bar-label {
+      color: var(--sf-text-soft);
       font-weight: 800;
-      outline: none;
     }
 
-    .fc-field input:focus,
-    .fc-field select:focus {
-      border-color: #89b894;
-      box-shadow: 0 0 0 3px rgba(47, 125, 79, .12);
-    }
-
-    .fc-pill {
-      display: inline-flex;
-      width: fit-content;
-      align-items: center;
-      justify-content: center;
-      border-radius: 999px;
-      padding: 7px 11px;
-      border: 1px solid var(--sf-line);
-      font-size: 12px;
-      font-weight: 1000;
-      white-space: nowrap;
-    }
-
-    .fc-pill.safe,
-    .fc-pill.good {
-      color: var(--sf-green);
-      background: var(--sf-green-soft);
-      border-color: #b8dac4;
-    }
-
-    .fc-pill.watch,
-    .fc-pill.warn {
-      color: var(--sf-yellow);
-      background: var(--sf-yellow-soft);
-      border-color: #eed58e;
-    }
-
-    .fc-pill.crisis,
-    .fc-pill.danger {
-      color: var(--sf-red);
-      background: var(--sf-red-soft);
-      border-color: #f3b8b5;
-    }
-
-    .fc-waterfall {
-      display: grid;
-      gap: 14px;
-      margin-top: 16px;
-    }
-
-    .fc-bar-row {
-      display: grid;
-      grid-template-columns: 170px minmax(0, 1fr) 140px;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .fc-bar-label {
-      color: var(--sf-muted);
-      font-weight: 900;
-    }
-
-    .fc-bar-value {
-      color: var(--sf-ink);
-      text-align: right;
-      font-weight: 1000;
-    }
-
-    .fc-bar {
-      height: 16px;
+    .forecast-bar-track {
+      height: 14px;
+      background: var(--sf-surface-3);
+      border-radius: var(--sf-radius-pill);
       overflow: hidden;
-      border-radius: 999px;
-      background: #e6ecdf;
     }
 
-    .fc-bar span {
+    .forecast-bar-fill {
       display: block;
       height: 100%;
       width: 0%;
       min-width: 4px;
       max-width: 100%;
       border-radius: inherit;
-      background: linear-gradient(90deg, var(--sf-green), var(--sf-blue));
+      background: linear-gradient(90deg, var(--sf-positive), var(--sf-accent));
     }
 
-    .fc-bar.out span {
-      background: linear-gradient(90deg, var(--sf-yellow), var(--sf-red));
+    .forecast-bar-row.is-out .forecast-bar-fill {
+      background: linear-gradient(90deg, var(--sf-warning), var(--sf-danger));
     }
 
-    .fc-timeline {
-      display: grid;
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .fc-day {
-      display: grid;
-      grid-template-columns: 112px minmax(0, 1fr) 150px;
-      gap: 16px;
-      align-items: start;
-      border: 1px solid var(--sf-line);
-      background: #fbfdf8;
-      border-radius: 18px;
-      padding: 16px;
-    }
-
-    .fc-day-date {
-      font-weight: 1000;
-      color: var(--sf-ink);
-    }
-
-    .fc-day-events {
-      color: var(--sf-muted);
-      font-weight: 750;
-      line-height: 1.45;
-    }
-
-    .fc-day-balance {
+    .forecast-bar-value {
+      color: var(--sf-text);
+      font-weight: 900;
       text-align: right;
-      font-weight: 1000;
-      color: var(--sf-ink);
+      font-variant-numeric: tabular-nums;
     }
 
-    .fc-table-wrap {
+    .forecast-timeline {
+      display: grid;
+      gap: var(--sf-space-3);
+    }
+
+    .forecast-day {
+      display: grid;
+      grid-template-columns: 120px minmax(0, 1fr) 160px;
+      gap: var(--sf-space-4);
+      align-items: start;
+      border: 1px solid var(--sf-border-subtle);
+      background: var(--sf-surface-1);
+      border-radius: var(--sf-radius-md);
+      padding: var(--sf-space-4);
+    }
+
+    .forecast-day-date {
+      font-weight: 900;
+      color: var(--sf-text);
+    }
+
+    .forecast-day-events {
+      color: var(--sf-text-muted);
+      line-height: 1.5;
+      font-weight: 700;
+    }
+
+    .forecast-day-balance {
+      text-align: right;
+      color: var(--sf-text);
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .forecast-table-wrap {
       width: 100%;
       overflow-x: auto;
-      margin-top: 12px;
     }
 
-    .fc-table {
+    .forecast-table {
       width: 100%;
       min-width: 920px;
       border-collapse: collapse;
-      font-size: 14px;
+      font-size: var(--sf-font-13);
     }
 
-    .fc-table th,
-    .fc-table td {
+    .forecast-table th,
+    .forecast-table td {
       text-align: left;
       padding: 13px 10px;
-      border-bottom: 1px solid var(--sf-line);
+      border-bottom: 1px solid var(--sf-border-subtle);
       white-space: nowrap;
     }
 
-    .fc-table th {
-      color: var(--sf-muted);
-      font-size: 12px;
-      letter-spacing: .08em;
+    .forecast-table th {
+      color: var(--sf-text-faint);
+      font-size: var(--sf-font-11);
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      font-weight: 1000;
+      font-weight: 900;
     }
 
-    .fc-table td {
-      color: var(--sf-ink);
-      font-weight: 850;
+    .forecast-table td {
+      color: var(--sf-text);
+      font-weight: 800;
     }
 
-    .fc-table td:last-child,
-    .fc-table th:last-child {
+    .forecast-table td:last-child,
+    .forecast-table th:last-child {
       text-align: right;
     }
 
-    .fc-empty {
-      border: 1px dashed #cbd6c5;
-      color: var(--sf-muted);
-      border-radius: 18px;
-      padding: 18px;
-      background: #fbfdf8;
-      line-height: 1.45;
-      font-weight: 750;
+    .forecast-empty {
+      border: 1px dashed var(--sf-border);
+      color: var(--sf-text-muted);
+      border-radius: var(--sf-radius-md);
+      padding: var(--sf-space-5);
+      background: var(--sf-surface-1);
+      line-height: 1.5;
+      font-weight: 700;
     }
 
-    .fc-debug {
-      display: none;
+    .forecast-debug-pre {
       white-space: pre-wrap;
       overflow-x: auto;
-      max-height: 380px;
+      max-height: 420px;
       font-size: 12px;
       line-height: 1.5;
-      color: var(--sf-muted);
-      background: #f8faf5;
-      border-radius: 14px;
-      padding: 14px;
+      color: var(--sf-text-muted);
+      background: var(--sf-surface-1);
+      border-radius: var(--sf-radius-md);
+      padding: var(--sf-space-4);
+      border: 1px solid var(--sf-border-subtle);
     }
 
-    .fc-debug.is-visible {
-      display: block;
-    }
-
-    @media (max-width: 1180px) {
-      .fc-shell {
-        width: min(100% - 28px, 1728px);
-      }
-
-      .fc-metrics {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .fc-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 760px) {
-      .fc-shell {
-        width: min(100% - 20px, 1728px);
-      }
-
-      .fc-hero {
-        border-radius: 28px;
-        min-height: 300px;
-      }
-
-      .fc-hero-title {
-        font-size: 46px;
-      }
-
-      .fc-metrics,
-      .fc-controls {
+    @media (max-width: 1100px) {
+      .forecast-controls {
         grid-template-columns: 1fr;
       }
 
-      .fc-card,
-      .fc-panel {
-        border-radius: 20px;
-      }
-
-      .fc-row {
-        flex-direction: column;
-        gap: 4px;
-      }
-
-      .fc-row span:last-child {
-        text-align: left;
-      }
-
-      .fc-bar-row,
-      .fc-day {
+      .forecast-bar-row,
+      .forecast-day {
         grid-template-columns: 1fr;
       }
 
-      .fc-day-balance {
+      .forecast-day-balance {
         text-align: left;
       }
     }
   </style>
 </head>
-
 <body>
-  <main class="fc-shell" data-page="forecast" data-version="forecast-brain-ui-v1.0.0">
-    <header class="fc-page-head">
-      <div class="fc-kicker">Sovereign Finance</div>
-      <h1 class="fc-page-title">Forecast</h1>
-    </header>
-
-    <section class="fc-hero">
-      <div class="fc-hero-pill"><span class="fc-dot"></span> Forecast Brain</div>
-      <h2 class="fc-hero-title">Cash, debt, crisis floor.</h2>
-      <p class="fc-hero-copy">
-        Future cash projection from salary, WFH, bills, debts, receivables, credit card pressure, and account balances.
-      </p>
-      <div class="fc-hero-actions">
-        <button id="refreshBtn" class="fc-btn primary" type="button">Refresh Forecast</button>
-        <a class="fc-btn" href="/salary.html">Open Salary</a>
-        <a class="fc-btn" href="/debts.html">Open Debts</a>
-      </div>
-    </section>
-
-    <section id="fcStatus" class="fc-status">
-      <strong>Loading forecast brain…</strong>
+  <div class="forecast-layout">
+    <section id="fcStatus" class="sf-panel forecast-status">
+      <strong>Loading forecast brain</strong>
       <span>Reading current finance sources.</span>
     </section>
 
-    <section class="fc-metrics">
-      <article id="statusCard" class="fc-card">
-        <div class="fc-label">Status</div>
-        <div id="statusValue" class="fc-value">—</div>
-        <div id="statusSub" class="fc-sub">Crisis floor analysis.</div>
-      </article>
+    <main class="sf-panel-grid">
+      <div class="sf-span-8" style="display:grid;gap:var(--sf-space-6);">
+        <section class="sf-panel sf-panel--accent">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Control panel</p>
+              <h2 class="sf-section-title">Forecast parameters</h2>
+              <p class="sf-section-subtitle">Current forecast read scope. No money logic changes.</p>
+            </div>
+            <div class="sf-page-actions">
+              <button id="refreshBtn" class="sf-button sf-button--primary" type="button">Refresh Forecast</button>
+              <a class="sf-button" href="/salary.html">Open Salary</a>
+              <a class="sf-button" href="/debts.html">Open Debts</a>
+            </div>
+          </div>
 
-      <article class="fc-card good">
-        <div class="fc-label">Next Salary</div>
-        <div id="salaryValue" class="fc-value">—</div>
-        <div id="salarySub" class="fc-sub">From salary source.</div>
-      </article>
-
-      <article id="lowestCard" class="fc-card">
-        <div class="fc-label">Lowest Liquid</div>
-        <div id="lowestValue" class="fc-value">—</div>
-        <div id="lowestSub" class="fc-sub">Lowest projected cash date.</div>
-      </article>
-
-      <article class="fc-card">
-        <div class="fc-label">Debt-Free Estimate</div>
-        <div id="debtFreeValue" class="fc-value">—</div>
-        <div id="debtFreeSub" class="fc-sub">Surplus after crisis floor.</div>
-      </article>
-    </section>
-
-    <section class="fc-grid">
-      <div>
-        <section class="fc-panel">
-          <div class="fc-section-kicker">Control Panel</div>
-          <h2>Forecast parameters</h2>
-          <div class="fc-controls">
-            <div class="fc-field">
+          <div class="forecast-controls">
+            <div class="forecast-field">
               <label for="crisisFloor">Crisis floor</label>
               <input id="crisisFloor" type="number" value="5000" step="100" inputmode="decimal" />
             </div>
-
-            <div class="fc-field">
+            <div class="forecast-field">
               <label for="forecastDays">Days</label>
               <input id="forecastDays" type="number" value="90" min="30" max="365" step="1" />
             </div>
-
-            <div class="fc-field">
+            <div class="forecast-field">
               <label for="forecastMonths">Months</label>
               <input id="forecastMonths" type="number" value="6" min="3" max="24" step="1" />
             </div>
           </div>
         </section>
 
-        <section class="fc-panel">
-          <div class="fc-section-kicker">Waterfall</div>
-          <h2>This month cash pressure</h2>
-          <div id="waterfallPanel" class="fc-waterfall">
-            <div class="fc-empty">Loading waterfall…</div>
+        <section class="sf-chart-card sf-span-12">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Waterfall</p>
+              <h2 class="sf-section-title">This month cash pressure</h2>
+            </div>
+          </div>
+          <div id="waterfallPanel" class="forecast-waterfall">
+            <div class="forecast-empty">Loading waterfall</div>
           </div>
         </section>
 
-        <section class="fc-panel">
-          <div class="fc-section-kicker">Timeline</div>
-          <h2>Daily low-point projection</h2>
-          <div id="timelinePanel" class="fc-timeline">
-            <div class="fc-empty">Loading timeline…</div>
+        <section class="sf-chart-card sf-span-12">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Timeline</p>
+              <h2 class="sf-section-title">Daily low-point projection</h2>
+            </div>
+          </div>
+          <div id="timelinePanel" class="forecast-timeline">
+            <div class="forecast-empty">Loading timeline</div>
           </div>
         </section>
 
-        <section class="fc-panel">
-          <div class="fc-section-kicker">Savings</div>
-          <h2>Monthly debt-free projection</h2>
-          <div class="fc-table-wrap">
-            <table class="fc-table">
+        <section class="sf-chart-card sf-span-12">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Savings</p>
+              <h2 class="sf-section-title">Monthly debt-free projection</h2>
+            </div>
+          </div>
+          <div class="forecast-table-wrap">
+            <table class="forecast-table">
               <thead>
                 <tr>
                   <th>Month</th>
@@ -731,68 +344,127 @@
                 </tr>
               </thead>
               <tbody id="monthlyRows">
-                <tr><td colspan="9">Loading monthly projection…</td></tr>
+                <tr><td colspan="9">Loading monthly projection</td></tr>
               </tbody>
             </table>
           </div>
         </section>
       </div>
 
-      <aside>
-        <section class="fc-panel">
-          <div class="fc-section-kicker">Position</div>
-          <h3>Current position</h3>
-          <div id="positionPanel" class="fc-row-list">
-            <div class="fc-empty">Loading position…</div>
+      <aside class="sf-span-4" style="display:grid;gap:var(--sf-space-6);">
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Position</p>
+              <h2 class="sf-section-title">Current position</h2>
+            </div>
+          </div>
+          <div id="positionPanel" class="forecast-row-list">
+            <div class="forecast-empty">Loading position</div>
           </div>
         </section>
 
-        <section class="fc-panel">
-          <div class="fc-section-kicker">Salary</div>
-          <h3>Salary bridge</h3>
-          <div id="salaryPanel" class="fc-row-list">
-            <div class="fc-empty">Loading salary…</div>
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Salary</p>
+              <h2 class="sf-section-title">Salary bridge</h2>
+            </div>
+          </div>
+          <div id="salaryPanel" class="forecast-row-list">
+            <div class="forecast-empty">Loading salary</div>
           </div>
         </section>
 
-        <section class="fc-panel">
-          <div class="fc-section-kicker">Obligations</div>
-          <h3>Bills, debts, CC</h3>
-          <div id="obligationPanel" class="fc-row-list">
-            <div class="fc-empty">Loading obligations…</div>
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Obligations</p>
+              <h2 class="sf-section-title">Bills, debts, CC</h2>
+            </div>
+          </div>
+          <div id="obligationPanel" class="forecast-row-list">
+            <div class="forecast-empty">Loading obligations</div>
           </div>
         </section>
 
-        <section class="fc-panel">
-          <div class="fc-section-kicker">Sources</div>
-          <h3>Source status</h3>
-          <div id="sourcePanel" class="fc-row-list">
-            <div class="fc-empty">Loading sources…</div>
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Sources</p>
+              <h2 class="sf-section-title">Source status</h2>
+            </div>
+          </div>
+          <div id="sourcePanel" class="forecast-row-list">
+            <div class="forecast-empty">Loading sources</div>
           </div>
         </section>
 
-        <section id="debugPanel" class="fc-panel" hidden>
-          <div class="fc-section-kicker">Debug</div>
-          <h3>Raw forecast</h3>
-          <pre id="debugOutput" class="fc-debug"></pre>
+        <section id="debugPanel" class="sf-debug-panel sf-debug-only" hidden>
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Debug</p>
+              <h2 class="sf-section-title">Raw forecast</h2>
+            </div>
+          </div>
+          <pre id="debugOutput" class="forecast-debug-pre"></pre>
         </section>
       </aside>
-    </section>
-  </main>
+    </main>
+  </div>
+
+  <script>
+    window.SF_PAGE = {
+      title: "Forecast",
+      eyebrow: "Forecast brain",
+      subtitle: "Future cash projection from salary, WFH, bills, debts, receivables, credit card pressure, and account balances.",
+      kpis: [
+        {
+          kicker: "Status",
+          title: "Forecast state",
+          valueHtml: "<span id=\"statusValue\">—</span>",
+          subtitleHtml: "<span id=\"statusSub\">Crisis floor analysis.</span>",
+          foot: "Crisis floor analysis"
+        },
+        {
+          kicker: "Salary",
+          title: "Next Salary",
+          valueHtml: "<span id=\"salaryValue\">—</span>",
+          subtitleHtml: "<span id=\"salarySub\">From salary source.</span>",
+          tone: "positive"
+        },
+        {
+          kicker: "Low point",
+          title: "Lowest Liquid",
+          valueHtml: "<span id=\"lowestValue\">—</span>",
+          subtitleHtml: "<span id=\"lowestSub\">Lowest projected cash date.</span>",
+          tone: "warning"
+        },
+        {
+          kicker: "Debt-free estimate",
+          title: "Debt-Free",
+          valueHtml: "<span id=\"debtFreeValue\">—</span>",
+          subtitleHtml: "<span id=\"debtFreeSub\">Surplus after crisis floor.</span>"
+        }
+      ]
+    };
+  </script>
 
   <script src="/js/theme.js" defer></script>
   <script src="/js/nav.js" defer></script>
+  <script src="/js/sf-components.js"></script>
+  <script src="/js/sf-shell.js"></script>
+  <script src="/js/sf-charts-system.js"></script>
 
   <script>
     (function () {
       "use strict";
 
-      const PAGE_VERSION = "forecast-brain-ui-v1.0.0";
+      const PAGE_VERSION = "forecast-shell-v3a";
       const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
-
       const $ = (id) => document.getElementById(id);
 
-      let state = {
+      const state = {
         forecast: null
       };
 
@@ -811,24 +483,24 @@
           style: "currency",
           currency: "PKR",
           maximumFractionDigits: 2
-        }).format(asNumber(value, 0));
+        }).format(asNumber(value, 0)).replace(/^PKR\s?/, "Rs ");
       }
 
-      function text(value, fallback = "—") {
+      function text(value, fallback = "") {
         if (value === null || value === undefined || value === "") return fallback;
         return String(value);
       }
 
       function statusClass(status) {
         const s = String(status || "").toLowerCase();
-        if (s === "safe") return "good";
-        if (s === "watch") return "warn";
+        if (s === "safe") return "positive";
+        if (s === "watch") return "warning";
         if (s === "danger" || s === "crisis") return "danger";
         return "";
       }
 
       function escapeHtml(value) {
-        return String(value)
+        return String(value ?? "")
           .replaceAll("&", "&amp;")
           .replaceAll("<", "&lt;")
           .replaceAll(">", "&gt;")
@@ -838,9 +510,9 @@
 
       function row(label, value) {
         return `
-          <div class="fc-row">
-            <span>${escapeHtml(label)}</span>
-            <span>${escapeHtml(value)}</span>
+          <div class="forecast-row">
+            <span class="forecast-row-label">${escapeHtml(label)}</span>
+            <span class="forecast-row-value">${escapeHtml(value)}</span>
           </div>
         `;
       }
@@ -851,8 +523,8 @@
 
       function setStatus(kind, html) {
         const node = $("fcStatus");
-        node.className = "fc-status";
-        if (kind === "danger") node.classList.add("danger");
+        node.className = "sf-panel forecast-status";
+        if (kind === "danger") node.classList.add("is-danger");
         node.innerHTML = html;
       }
 
@@ -866,7 +538,6 @@
           headers: { "accept": "application/json" },
           cache: "no-store"
         });
-
         const payload = await response.json().catch(() => null);
 
         if (!response.ok || !payload || payload.ok === false) {
@@ -876,26 +547,34 @@
         return payload;
       }
 
+      function applyMetricTone(id, tone) {
+        const el = $(id);
+        if (!el) return;
+        el.classList.remove("forecast-value-positive", "forecast-value-warning", "forecast-value-danger");
+        if (tone) el.classList.add(`forecast-value-${tone}`);
+      }
+
       function renderCards(f) {
         const insights = f.insights || {};
         const salary = f.salary || {};
         const status = insights.status || "unknown";
-        const cls = statusClass(status);
+        const tone = statusClass(status);
 
-        $("statusCard").className = `fc-card ${cls}`;
         $("statusValue").textContent = String(status).toUpperCase();
         $("statusSub").textContent = insights.first_crisis_breach_date
           ? `First breach: ${insights.first_crisis_breach_date}`
           : "No breach in forecast range.";
+        applyMetricTone("statusValue", tone);
 
         $("salaryValue").textContent = money(salary.forecast_eligible_monthly);
         $("salarySub").textContent = `Guaranteed ${money(salary.guaranteed_monthly)} · Variable ${money(salary.variable_monthly)}`;
+        applyMetricTone("salaryValue", "positive");
 
-        $("lowestCard").className = `fc-card ${cls}`;
         $("lowestValue").textContent = money(insights.lowest_liquid_amount);
         $("lowestSub").textContent = insights.lowest_liquid_date
           ? `${insights.lowest_liquid_date} · gap ${money(insights.lowest_liquid_gap_to_floor)}`
           : "Lowest date unavailable.";
+        applyMetricTone("lowestValue", tone === "danger" ? "danger" : "warning");
 
         $("debtFreeValue").textContent = insights.debt_free_date || "Not yet";
         $("debtFreeSub").textContent = insights.months_to_debt_free
@@ -921,7 +600,7 @@
           ["Forecast salary", money(s.forecast_eligible_monthly)],
           ["Guaranteed", money(s.guaranteed_monthly)],
           ["Variable", money(s.variable_monthly)],
-          ["Salary date", text(s.forecast_date)],
+          ["Salary date", text(s.forecast_date, "Unknown")],
           ["WFH allowance", money(s.wfh_allowance)],
           ["WFH FX", s.wfh_fx_rate ? String(s.wfh_fx_rate) : "Unknown"],
           ["MBO included", s.mbo_included ? "Yes" : "No"],
@@ -942,10 +621,9 @@
 
       function renderSources(f) {
         const sources = Array.isArray(f.sources) ? f.sources : [];
-
         $("sourcePanel").innerHTML = sources.length
           ? sources.map((source) => row(source.path, `${source.ok ? "OK" : "Failed"} · ${source.version || source.status || ""}`)).join("")
-          : `<div class="fc-empty">No source status returned.</div>`;
+          : `<div class="forecast-empty">No source status returned.</div>`;
       }
 
       function renderWaterfall(f) {
@@ -967,12 +645,12 @@
         const max = Math.max(...items.map((item) => Math.abs(asNumber(item[1], 0))), 1);
 
         $("waterfallPanel").innerHTML = items.map(([label, value, type]) => `
-          <div class="fc-bar-row ${type === "out" ? "out" : ""}">
-            <div class="fc-bar-label">${escapeHtml(label)}</div>
-            <div class="fc-bar ${type === "out" ? "out" : ""}">
-              <span style="width:${Math.max(4, Math.min(100, Math.abs(asNumber(value, 0)) / max * 100))}%"></span>
+          <div class="forecast-bar-row ${type === "out" ? "is-out" : ""}">
+            <div class="forecast-bar-label">${escapeHtml(label)}</div>
+            <div class="forecast-bar-track">
+              <span class="forecast-bar-fill" style="width:${Math.max(4, Math.min(100, Math.abs(asNumber(value, 0)) / max * 100))}%"></span>
             </div>
-            <div class="fc-bar-value">${money(value)}</div>
+            <div class="forecast-bar-value">${money(value)}</div>
           </div>
         `).join("");
       }
@@ -981,13 +659,13 @@
         const days = Array.isArray(f.daily_projection) ? f.daily_projection : [];
         const meaningful = days.filter((day, index) => {
           return index === 0 ||
-            day.events?.length ||
+            (Array.isArray(day.events) && day.events.length) ||
             day.below_crisis_floor ||
             day.date === f.insights?.lowest_liquid_date;
         }).slice(0, 18);
 
         if (!meaningful.length) {
-          $("timelinePanel").innerHTML = `<div class="fc-empty">No dated forecast events available.</div>`;
+          $("timelinePanel").innerHTML = `<div class="forecast-empty">No dated forecast events available.</div>`;
           return;
         }
 
@@ -996,56 +674,63 @@
             ? day.events.map((event) => `${event.direction === "outflow" ? "-" : "+"} ${money(event.amount)} ${event.label}`).join("<br>")
             : "No scheduled movement";
 
-          const cls = statusClass(day.status);
-
           return `
-            <article class="fc-day">
-              <div class="fc-day-date">${escapeHtml(day.date)}</div>
-              <div class="fc-day-events">${events}</div>
-              <div class="fc-day-balance">
-                ${money(day.closing_liquid)}
-                <br>
-                <span class="fc-pill ${cls}">${escapeHtml(day.status || "unknown")}</span>
-              </div>
+            <article class="forecast-day">
+              <div class="forecast-day-date">${escapeHtml(day.date || "Unknown")}</div>
+              <div class="forecast-day-events">${events}</div>
+              <div class="forecast-day-balance">${money(day.liquid)}</div>
             </article>
           `;
         }).join("");
       }
 
       function renderMonthly(f) {
-        const rowsData = Array.isArray(f.monthly_projection) ? f.monthly_projection : [];
-
-        if (!rowsData.length) {
+        const months = Array.isArray(f.monthly_projection) ? f.monthly_projection : [];
+        if (!months.length) {
           $("monthlyRows").innerHTML = `<tr><td colspan="9">No monthly projection returned.</td></tr>`;
           return;
         }
 
-        $("monthlyRows").innerHTML = rowsData.map((month) => `
+        $("monthlyRows").innerHTML = months.map((month) => `
           <tr>
-            <td>${escapeHtml(month.label || month.month)}</td>
-            <td>${money(month.opening_liquid)}</td>
-            <td>${money(month.salary)}</td>
-            <td>${money(month.bills)}</td>
-            <td>${money(month.cc_minimum)}</td>
-            <td>${money(month.debt_payment_applied_from_surplus)}</td>
-            <td>${money(month.closing_liquid)}</td>
-            <td>${money(month.saved_above_crisis_floor)}</td>
-            <td>${money(month.debt_remaining)}</td>
+            <td>${escapeHtml(month.month || "")}</td>
+            <td>${escapeHtml(money(month.opening_liquid))}</td>
+            <td>${escapeHtml(money(month.salary))}</td>
+            <td>${escapeHtml(money(month.bills))}</td>
+            <td>${escapeHtml(money(month.cc_minimum_due))}</td>
+            <td>${escapeHtml(money(month.debt_paid))}</td>
+            <td>${escapeHtml(money(month.closing_liquid))}</td>
+            <td>${escapeHtml(money(month.saved_this_month))}</td>
+            <td>${escapeHtml(money(month.debt_left))}</td>
           </tr>
         `).join("");
       }
 
       function renderDebug(f) {
         if (!DEBUG) return;
-
         $("debugPanel").hidden = false;
-        $("debugOutput").classList.add("is-visible");
-        $("debugOutput").textContent = JSON.stringify(f, null, 2);
+        $("debugOutput").textContent = JSON.stringify({
+          version: PAGE_VERSION,
+          forecast: f
+        }, null, 2);
+      }
+
+      function renderStatus(f) {
+        const insights = f.insights || {};
+        const status = String(insights.status || "unknown").toUpperCase();
+        const kind = /DANGER|CRISIS/.test(status) ? "danger" : "normal";
+
+        setStatus(kind, `
+          <strong>Forecast ready · ${escapeHtml(status)}</strong>
+          <span>
+            Lowest liquid ${escapeHtml(money(insights.lowest_liquid_amount))} ·
+            Lowest date ${escapeHtml(text(insights.lowest_liquid_date, "Unknown"))}
+          </span>
+        `);
       }
 
       function render(f) {
-        state.forecast = f;
-
+        renderStatus(f);
         renderCards(f);
         renderPosition(f);
         renderSalary(f);
@@ -1055,37 +740,25 @@
         renderTimeline(f);
         renderMonthly(f);
         renderDebug(f);
-
-        const status = f.insights?.status || "unknown";
-        const salary = f.salary?.forecast_eligible_monthly;
-        const lowest = f.insights?.lowest_liquid_amount;
-
-        setStatus(statusClass(status) === "danger" ? "danger" : "ready",
-          `<strong>Forecast ready.</strong> <span>Salary ${money(salary)} · Lowest liquid ${money(lowest)} · Status ${escapeHtml(String(status).toUpperCase())}.</span>`
-        );
-
-        console.log("forecast:", PAGE_VERSION);
-        console.log("forecast brain:", f);
       }
 
       async function boot() {
-        window.SovereignForecast = {
-          version: PAGE_VERSION,
-          reload: boot,
-          data: () => state.forecast
-        };
-
-        $("refreshBtn").disabled = true;
-
         try {
-          setStatus("loading", `<strong>Loading forecast brain…</strong> <span>Reading /api/forecast.</span>`);
-          const forecast = await readForecast();
-          render(forecast);
+          state.forecast = await readForecast();
+          render(state.forecast);
         } catch (error) {
-          console.error(error);
-          setStatus("danger", `<strong>Forecast failed.</strong> <span>${escapeHtml(error.message)}</span>`);
-        } finally {
-          $("refreshBtn").disabled = false;
+          setStatus("danger", `
+            <strong>Forecast failed</strong>
+            <span>${escapeHtml(error.message)}</span>
+          `);
+
+          $("waterfallPanel").innerHTML = `<div class="forecast-empty">No fake waterfall data shown.</div>`;
+          $("timelinePanel").innerHTML = `<div class="forecast-empty">No fake timeline data shown.</div>`;
+          $("monthlyRows").innerHTML = `<tr><td colspan="9">Load failed.</td></tr>`;
+          $("positionPanel").innerHTML = `<div class="forecast-empty">Load failed.</div>`;
+          $("salaryPanel").innerHTML = `<div class="forecast-empty">Load failed.</div>`;
+          $("obligationPanel").innerHTML = `<div class="forecast-empty">Load failed.</div>`;
+          $("sourcePanel").innerHTML = `<div class="forecast-empty">Load failed.</div>`;
         }
       }
 
