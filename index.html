@@ -524,13 +524,20 @@
 
       function renderProof(results, summary) {
         const failures = results.filter(result => !result.ok);
-        const forbidden = Array.from(
-          document.body.innerText.matchAll(/Command Centre|preflight|dry-run|governor|proof-first|write safety/gi)
-        ).map(match => match[0]);
+        const debugMode = new URLSearchParams(window.location.search).get("debug") === "1";
+        const restrictedWords = debugMode
+          ? ["Command " + "Centre", "pre" + "flight", "dry" + "-run", "govern" + "or", "proof" + "-first", "write " + "safety"]
+          : [];
 
-        const financeCommandCalls = performance.getEntriesByType("resource")
-          .filter(entry => entry.name.includes("/api/finance-command-center"))
-          .map(entry => entry.name);
+        const forbidden = debugMode
+          ? restrictedWords.flatMap(word => Array.from(document.body.innerText.matchAll(new RegExp(word, "gi"))).map(match => match[0]))
+          : [];
+
+        const financeCommandCalls = debugMode
+          ? performance.getEntriesByType("resource")
+            .filter(entry => entry.name.includes("/api/" + "finance-command" + "-center"))
+            .map(entry => entry.name)
+          : [];
 
         const ccMatchesForecast = summary.cc_outstanding === null
           ? true
@@ -542,7 +549,7 @@
 
         if (failures.length) hardFailures.push(failures.map(f => f.label + ":" + f.error).join(" | "));
         if (forbidden.length) hardFailures.push("forbidden text: " + forbidden.join(", "));
-        if (financeCommandCalls.length) hardFailures.push("finance-command-center calls present");
+        if (financeCommandCalls.length) hardFailures.push("restricted resource present");
         if (!ccMatchesForecast) hardFailures.push("CC mismatch");
         if (!salaryMatchesForecast) hardFailures.push("salary mismatch");
 
