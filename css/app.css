@@ -1832,3 +1832,56 @@ body[data-theme="dark"] .page-hero .hero-kicker,
 body[data-theme="dark"] .page-hero .section-kicker {
   color: #bbf7d0;
 }
+
+
+
+
+
+
+/* =========================================================
+   Mobile floating hamburger final fix
+   Ensures pages without .sf-topbar still have a visible opener.
+========================================================= */
+
+.sf-floating-mobile-menu {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 120;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-strong);
+  box-shadow: var(--shadow-md);
+}
+
+body.sf-nav-open .sf-floating-mobile-menu {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (min-width: 861px) {
+  .sf-floating-mobile-menu {
+    display: none !important;
+  }
+}
+
+@media (max-width: 860px) {
+  .sf-floating-mobile-menu {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .app-page,
+  main {
+    padding-top: 72px;
+  }
+
+  .sf-topbar + .app-page,
+  .sf-topbar + main {
+    padding-top: 14px;
+  }
+}
