@@ -1,716 +1,230 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="light">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
-<title>Credit Card - Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=2.0.0" />
-
-<style>
-.cc-page {
-  max-width: 1480px;
-}
-
-.cc-hero-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
-  gap: 18px;
-  align-items: stretch;
-}
-
-.cc-side {
-  display: grid;
-  gap: 14px;
-}
-
-.cc-card {
-  padding: 18px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-md);
-}
-
-.cc-card-title {
-  color: var(--text-strong);
-  font-size: 17px;
-  font-weight: 950;
-  letter-spacing: -0.035em;
-}
-
-.cc-card-copy {
-  margin-top: 8px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 760;
-}
-
-.cc-status-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 18px;
-}
-
-.cc-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 18px;
-}
-
-.cc-section-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 26px 0 14px;
-}
-
-.cc-section-title {
-  color: var(--text-strong);
-  font-size: 22px;
-  font-weight: 950;
-  letter-spacing: -0.045em;
-}
-
-.cc-section-copy {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 760;
-}
-
-.cc-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.cc-enforcement {
-  padding: 16px;
-  border-radius: var(--r-xl);
-  border: 1px solid rgba(180, 83, 9, 0.24);
-  background: linear-gradient(135deg, var(--warn-soft), var(--surface-1));
-  color: var(--warn);
-  box-shadow: var(--shadow-sm);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 790;
-}
-
-.cc-enforcement.pass {
-  border-color: rgba(4, 120, 87, 0.24);
-  background: linear-gradient(135deg, var(--success-soft), var(--surface-1));
-  color: var(--success);
-}
-
-.cc-enforcement.blocked {
-  border-color: rgba(185, 28, 28, 0.22);
-  background: linear-gradient(135deg, var(--danger-soft), var(--surface-1));
-  color: var(--danger);
-}
-
-.cc-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr);
-  gap: 14px;
-  align-items: start;
-}
-
-.cc-lane {
-  display: grid;
-  gap: 12px;
-}
-
-.cc-row {
-  position: relative;
-  overflow: hidden;
-  padding: 16px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
-}
-
-.cc-row::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  background: linear-gradient(90deg, var(--info), transparent);
-}
-
-.cc-row.verified::before {
-  background: linear-gradient(90deg, var(--accent), transparent);
-}
-
-.cc-row.warning::before {
-  background: linear-gradient(90deg, var(--warn), transparent);
-}
-
-.cc-row.blocked::before {
-  background: linear-gradient(90deg, var(--danger), transparent);
-}
-
-.cc-row-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  align-items: flex-start;
-}
-
-.cc-row-title {
-  color: var(--text-strong);
-  font-size: 17px;
-  font-weight: 950;
-  letter-spacing: -0.035em;
-}
-
-.cc-row-sub {
-  margin-top: 5px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 760;
-}
-
-.cc-row-value {
-  margin-top: 14px;
-  color: var(--text-strong);
-  font-size: clamp(24px, 3vw, 34px);
-  line-height: 1;
-  font-weight: 950;
-  letter-spacing: -0.06em;
-}
-
-.cc-row-meta {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 9px;
-  margin-top: 16px;
-}
-
-.cc-meta-item {
-  padding: 11px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-}
-
-.cc-meta-label {
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.cc-meta-value {
-  margin-top: 4px;
-  color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 900;
-}
-
-.cc-proof {
-  margin-top: 12px;
-  padding: 11px;
-  border-radius: var(--r-md);
-  border: 1px solid rgba(180, 83, 9, 0.24);
-  background: var(--warn-soft);
-  color: var(--warn);
-  font-size: 12px;
-  font-weight: 820;
-  line-height: 1.42;
-}
-
-.cc-panel-list {
-  display: grid;
-  gap: 10px;
-}
-
-.cc-panel-row {
-  padding: 13px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-}
-
-.cc-panel-title {
-  color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 920;
-}
-
-.cc-panel-copy {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.4;
-  font-weight: 740;
-}
-
-.cc-empty {
-  padding: 28px;
-  border-radius: var(--r-xl);
-  border: 1px dashed var(--border);
-  background: var(--surface-1);
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 820;
-  text-align: center;
-}
-
-.cc-page-meta {
-  display: none !important;
-}
-
-@media (max-width: 1180px) {
-  .cc-hero-grid,
-  .cc-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .cc-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 720px) {
-  .cc-kpi-grid,
-  .cc-row-meta {
-    grid-template-columns: 1fr;
-  }
-
-  .cc-section-head,
-  .cc-row-top {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .cc-actions,
-  .cc-actions .btn {
-    width: 100%;
-  }
-}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Credit Card · Sovereign Finance</title>
+  <link rel="stylesheet" href="/css/app.css?v=2.0.3" />
 </head>
 
 <body>
-<header>
-<div>
-<div class="brand">Sovereign Finance</div>
-<div class="title">Credit Card</div>
-</div>
-</header>
+  <main class="app-page">
+    <section class="finance-hero">
+      <div class="hero-kicker">Credit Card</div>
+      <h1 class="hero-title">Verified credit-card balance.</h1>
+      <p class="hero-copy">
+        Reads the credit-card liability from balances/accounts. No estimated outstanding is used.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+        <button class="btn btn-success" id="refreshBtn" type="button">Refresh Card</button>
+        <a class="btn btn-secondary" href="/forecast.html">Open Forecast</a>
+      </div>
+    </section>
 
-<main class="app-page cc-page">
-<section class="cc-hero-grid">
-<div class="page-hero">
-<div class="hero-kicker">Credit card planner</div>
-<h1 class="hero-title">Credit card decisions need verified balance truth.</h1>
-<p class="hero-copy">
-Credit card planning tracks statement date, interest-free window, due-date logic, and minimum-payment readiness. Outstanding balance must come from a verified account/source, never lifetime spend.
-</p>
-
-<div class="cc-status-strip">
-<span id="ccApiBadge" class="badge badge-unknown">Account source loading</span>
-<span id="ccGovernorBadge" class="badge badge-unknown">Governor loading</span>
-<span id="ccWriteBadge" class="badge badge-blocked">CC decision guarded</span>
-</div>
-</div>
-
-<aside class="cc-side">
-<div class="cc-card">
-<div class="cc-card-title">CC safety posture</div>
-<div class="cc-card-copy">
-Credit-card decisions stay guarded until the outstanding balance source is verified. Liability values must not be invented or inferred from lifetime spend.
-</div>
-<div style="margin-top:12px">
-<span class="badge badge-preflight">Source proof required</span>
-<span class="badge badge-blocked">No fake balance</span>
-</div>
-</div>
-
-<div class="cc-card">
-<div class="cc-card-title">Known CC rule</div>
-<div class="cc-card-copy">
-Statement date is the 12th. Interest-free period is 55 days. Planner must include due date and minimum-required-payment logic before being used for decisions.
-</div>
-</div>
-</aside>
-</section>
-
-<section class="cc-kpi-grid">
-<div class="kpi-card">
-<div class="kpi-label">Outstanding source</div>
-<div id="ccSourceStatus" class="kpi-value">-</div>
-<div class="kpi-sub">Verified account only</div>
-</div>
-
-<div class="kpi-card">
-<div class="kpi-label">Visible balance</div>
-<div id="ccBalanceValue" class="kpi-value">-</div>
-<div class="kpi-sub">Unknown if not verified</div>
-</div>
-
-<div class="kpi-card">
-<div class="kpi-label">Statement date</div>
-<div id="ccStatementDate" class="kpi-value">12th</div>
-<div class="kpi-sub">Every month</div>
-</div>
-
-<div class="kpi-card">
-<div class="kpi-label">Authority</div>
-<div id="ccAuthorityStatus" class="kpi-value">Guarded</div>
-<div class="kpi-sub">Until CC proof</div>
-</div>
-</section>
-
-<section>
-<div class="cc-section-head">
-<div>
-<div class="cc-section-title">Credit card workspace</div>
-<div id="ccSummary" class="cc-section-copy">Loading credit card source...</div>
-</div>
-
-<div class="cc-actions">
-<a class="btn btn-secondary" href="/monthly-close.html">Open Command Centre</a>
-<a class="btn btn-secondary" href="/forecast.html">Open Forecast</a>
-</div>
-</div>
-
-<div id="ccEnforcement" class="cc-enforcement">
-Checking Command Centre credit-card authority...
-</div>
-
-<div style="height:14px"></div>
-
-<div class="cc-grid">
-<section>
-<div class="cc-section-title" style="font-size:18px;margin-bottom:10px">Planner inputs</div>
-<div id="ccSources" class="cc-lane"></div>
-</section>
-
-<aside class="cc-card">
-<div class="cc-card-title">What remains before unlock</div>
-<div class="cc-panel-list" style="margin-top:12px">
-<div class="cc-panel-row">
-<div class="cc-panel-title">1. Outstanding source proof</div>
-<div class="cc-panel-copy">Prove which account/source represents current CC liability.</div>
-</div>
-<div class="cc-panel-row">
-<div class="cc-panel-title">2. Due-date logic</div>
-<div class="cc-panel-copy">Statement date 12th + 55-day interest-free window must be rendered clearly.</div>
-</div>
-<div class="cc-panel-row">
-<div class="cc-panel-title">3. Minimum payment</div>
-<div class="cc-panel-copy">Minimum-required-payment formula must be explicit and verified before decisions.</div>
-</div>
-<div class="cc-panel-row">
-<div class="cc-panel-title">4. Command Centre lift</div>
-<div class="cc-panel-copy">Only then can CC values influence forecast or decisions.</div>
-</div>
-</div>
-</aside>
-</div>
-</section>
-
-<footer class="cc-page-meta" aria-hidden="true">
-Credit Card premium UI v2.0.0
-</footer>
-</main>
-
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-<script src="/js/theme.js?v=1.0.0"></script>
-<script src="/js/nav.js?v=2.0.0"></script>
-<script src="/js/enforcement.js?v=0.2.0"></script>
-
-<script>
-(function () {
-  "use strict";
-
-  const VERSION = "2.0.0";
-  const STATEMENT_DAY = 12;
-  const INTEREST_FREE_DAYS = 55;
-
-  let accounts = [];
-  let ccAccount = null;
-  let rows = [];
-
-  const $ = id => document.getElementById(id);
-
-  function setText(id, value) {
-    const el = $(id);
-    if (el) el.textContent = value;
-  }
-
-  function setBadge(id, text, cls) {
-    const el = $(id);
-    if (!el) return;
-    el.textContent = text;
-    el.className = "badge " + cls;
-  }
-
-  function escapeHtml(value) {
-    return String(value == null ? "" : value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
-  function money(value) {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return "Unknown";
-    return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
-  }
-
-  function normalizeAccounts(raw) {
-    if (Array.isArray(raw)) return raw;
-    if (raw && Array.isArray(raw.accounts)) return raw.accounts;
-    if (raw && typeof raw === "object") return Object.keys(raw).map(id => ({ id, ...raw[id] }));
-    return [];
-  }
-
-  function accountName(account) {
-    return account.name || account.label || account.account_name || account.id || "Account";
-  }
-
-  function accountKind(account) {
-    return String(account.kind || account.type || account.account_type || "").toLowerCase().trim();
-  }
-
-  function accountBalance(account) {
-    const candidates = [account.balance, account.current_balance, account.available_balance, account.amount, account.current_amount];
-    for (const value of candidates) {
-      const n = Number(value);
-      if (Number.isFinite(n)) return n;
-    }
-    return null;
-  }
-
-  function findCreditCardAccount(rows) {
-    return rows.find(account => {
-      const id = String(account.id || "").toLowerCase();
-      const name = accountName(account).toLowerCase();
-      const kind = accountKind(account);
-
-      return (
-        id === "cc" ||
-        id.includes("credit") ||
-        kind === "cc" ||
-        kind === "credit" ||
-        kind === "credit_card" ||
-        kind === "liability" ||
-        name.includes("credit") ||
-        name.includes("alfalah")
-      );
-    }) || null;
-  }
-
-  function nextStatementDate() {
-    const now = new Date();
-    const date = new Date(now.getFullYear(), now.getMonth(), STATEMENT_DAY);
-    if (date < now) date.setMonth(date.getMonth() + 1);
-    return date;
-  }
-
-  function dueDateFromStatement(statement) {
-    const due = new Date(statement);
-    due.setDate(due.getDate() + INTEREST_FREE_DAYS);
-    return due;
-  }
-
-  function fmtDate(date) {
-    return date.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric"
-    });
-  }
-
-  async function fetchJSON(url) {
-    const res = await fetch(url, { cache: "no-store" });
-    const data = await res.json().catch(() => null);
-    if (!res.ok || !data) throw new Error("Failed to read " + url);
-    return data;
-  }
-
-  async function loadCommandCentre() {
-    try {
-      const cmd = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
-      const actions = cmd.enforcement && Array.isArray(cmd.enforcement.actions) ? cmd.enforcement.actions : [];
-      const ccDecision = actions.find(action => action.action === "cc.use_for_decision");
-      const ccForecast = actions.find(action => action.action === "cc.use_for_forecast");
-      const allowed = Boolean((ccDecision && ccDecision.allowed) || (ccForecast && ccForecast.allowed));
-
-      if (allowed) {
-        setBadge("ccGovernorBadge", "CC decision allowed", "badge-ready");
-        setBadge("ccWriteBadge", "CC decision scope", "badge-ready");
-        setText("ccAuthorityStatus", "Allowed");
-
-        const panel = $("ccEnforcement");
-        if (panel) {
-          panel.className = "cc-enforcement pass";
-          panel.textContent = "Command Centre allows credit-card decision usage.";
-        }
-      } else {
-        setBadge("ccGovernorBadge", "CC decision guarded", "badge-preflight");
-        setBadge("ccWriteBadge", "Proof required", "badge-blocked");
-        setText("ccAuthorityStatus", "Guarded");
-
-        const panel = $("ccEnforcement");
-        if (panel) {
-          panel.className = "cc-enforcement";
-          panel.textContent = ccDecision && ccDecision.reason
-            ? ccDecision.reason
-            : "Credit-card decision usage remains guarded until realtime outstanding source is proven.";
-        }
-      }
-    } catch (err) {
-      setBadge("ccGovernorBadge", "Governor unknown", "badge-unknown");
-      setBadge("ccWriteBadge", "Scope unknown", "badge-unknown");
-
-      const panel = $("ccEnforcement");
-      if (panel) panel.textContent = "Command Centre could not be loaded. CC decisions stay guarded.";
-    }
-  }
-
-  async function loadAccounts() {
-    try {
-      const data = await fetchJSON("/api/accounts?debug=1&cb=" + Date.now());
-      accounts = normalizeAccounts(data.accounts || data).filter(account => account && account.id);
-      ccAccount = findCreditCardAccount(accounts);
-
-      setBadge("ccApiBadge", "Accounts API " + (data.version ? "v" + data.version : "live"), "badge-ready");
-      buildRows();
-    } catch (err) {
-      accounts = [];
-      ccAccount = null;
-      setBadge("ccApiBadge", "Account source unavailable", "badge-unknown");
-      buildRows();
-    }
-  }
-
-  function buildRows() {
-    const statement = nextStatementDate();
-    const due = dueDateFromStatement(statement);
-    const balance = ccAccount ? accountBalance(ccAccount) : null;
-    const sourceStatus = ccAccount && balance !== null ? "Found" : "Unknown";
-
-    setText("ccSourceStatus", sourceStatus);
-    setText("ccBalanceValue", balance === null ? "Unknown" : money(balance));
-    setText("ccSummary", ccAccount ? "Credit-card-like account found: " + accountName(ccAccount) + "." : "No verified credit card account source found. Outstanding remains Unknown.");
-
-    rows = [
-      {
-        title: "Outstanding balance",
-        type: ccAccount && balance !== null ? "verified" : "warning",
-        value: balance === null ? "Unknown" : money(balance),
-        badge: ccAccount && balance !== null ? "Source found" : "Unknown",
-        badgeClass: ccAccount && balance !== null ? "badge-ready" : "badge-unknown",
-        source: ccAccount ? accountName(ccAccount) : "No verified account",
-        meaning: "Must come from realtime account/source, not lifetime spend."
-      },
-      {
-        title: "Next statement date",
-        type: "verified",
-        value: fmtDate(statement),
-        badge: "Rule",
-        badgeClass: "badge-info",
-        source: "Statement day = 12th",
-        meaning: "Used for planning only."
-      },
-      {
-        title: "Estimated due date",
-        type: "verified",
-        value: fmtDate(due),
-        badge: "55 days",
-        badgeClass: "badge-info",
-        source: "Interest-free period",
-        meaning: "Statement date plus 55 days."
-      },
-      {
-        title: "Minimum payment",
-        type: "blocked",
-        value: "Formula pending",
-        badge: "Blocked",
-        badgeClass: "badge-blocked",
-        source: "CC planner proof",
-        meaning: "Do not use until formula is explicitly implemented and verified."
-      }
-    ];
-
-    renderRows();
-  }
-
-  function renderRows() {
-    const container = $("ccSources");
-    if (!container) return;
-
-    if (!rows.length) {
-      container.innerHTML = '<div class="cc-empty">No credit card planner rows available.</div>';
-      return;
-    }
-
-    container.innerHTML = rows.map(row => `
-      <article class="cc-row ${escapeHtml(row.type)}">
-        <div class="cc-row-top">
-          <div>
-            <div class="cc-row-title">${escapeHtml(row.title)}</div>
-            <div class="cc-row-sub">${escapeHtml(row.source)}</div>
-          </div>
-          <span class="badge ${escapeHtml(row.badgeClass)}">${escapeHtml(row.badge)}</span>
-        </div>
-
-        <div class="cc-row-value">${escapeHtml(row.value)}</div>
-
-        <div class="cc-row-meta">
-          <div class="cc-meta-item">
-            <div class="cc-meta-label">Source</div>
-            <div class="cc-meta-value">${escapeHtml(row.source)}</div>
-          </div>
-          <div class="cc-meta-item">
-            <div class="cc-meta-label">Status</div>
-            <div class="cc-meta-value">${escapeHtml(row.badge)}</div>
-          </div>
-          <div class="cc-meta-item">
-            <div class="cc-meta-label">Meaning</div>
-            <div class="cc-meta-value">${escapeHtml(row.meaning)}</div>
-          </div>
-        </div>
-
-        <div class="cc-proof">
-          Credit-card values are visible for planning only until source proof, minimum-payment logic, and Command Centre lift are complete.
-        </div>
+    <section class="dashboard-grid">
+      <article class="card card-padded">
+        <div class="section-kicker">Outstanding</div>
+        <h2 class="authority-title" id="outstanding">—</h2>
+        <p class="authority-copy" id="outstandingCopy">Loading verified source.</p>
       </article>
-    `).join("");
-  }
 
-  async function init() {
-    console.log("[cc-ui v2.0.0] init");
-    await Promise.allSettled([loadCommandCentre(), loadAccounts()]);
-    console.log("[cc-ui v2.0.0] ready", { accounts: accounts.length, ccAccount: ccAccount ? ccAccount.id : null });
-  }
+      <article class="card card-padded">
+        <div class="section-kicker">Payment rule</div>
+        <h2 class="authority-title" id="paymentStatus">Source first</h2>
+        <p class="authority-copy">Payment decisions require verified outstanding from the CC account/balances source.</p>
+      </article>
+    </section>
 
-  window.SovereignCreditCardUI = {
-    version: VERSION,
-    refresh: init,
-    account: () => ccAccount,
-    rows: () => rows.slice()
-  };
+    <section class="dashboard-grid">
+      <article class="card card-padded">
+        <div class="section-kicker">Source</div>
+        <div class="stack-sm" id="sourceList" style="margin-top:16px;"></div>
+      </article>
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-})();
-</script>
+      <article class="card card-padded">
+        <div class="section-kicker">Forecast link</div>
+        <div class="stack-sm" id="forecastList" style="margin-top:16px;"></div>
+      </article>
+    </section>
+
+    <section class="card card-padded">
+      <div class="section-kicker">Proof</div>
+      <h2 class="authority-title" style="margin-top:12px;" id="proofTitle">Loading</h2>
+      <p class="authority-copy" id="proofCopy">Checking CC source.</p>
+      <pre id="debugBox" style="display:none;white-space:pre-wrap;margin-top:14px;"></pre>
+    </section>
+  </main>
+
+  <script src="/js/theme.js?v=1.0.0"></script>
+  <script src="/js/nav.js?v=2.0.3"></script>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const VERSION = "cc-truth-v1.0.0";
+      const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+
+      const els = {
+        refreshBtn: document.getElementById("refreshBtn"),
+        outstanding: document.getElementById("outstanding"),
+        outstandingCopy: document.getElementById("outstandingCopy"),
+        paymentStatus: document.getElementById("paymentStatus"),
+        sourceList: document.getElementById("sourceList"),
+        forecastList: document.getElementById("forecastList"),
+        proofTitle: document.getElementById("proofTitle"),
+        proofCopy: document.getElementById("proofCopy"),
+        debugBox: document.getElementById("debugBox")
+      };
+
+      window.SovereignCC = { version: VERSION, refresh };
+
+      function money(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return "Unknown";
+        return "Rs " + Math.abs(n).toLocaleString("en-PK", { maximumFractionDigits: 0 });
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
+
+      async function readJson(url) {
+        const res = await fetch(url + (url.includes("?") ? "&" : "?") + "cb=" + Date.now(), {
+          cache: "no-store",
+          headers: { accept: "application/json" }
+        });
+
+        const body = await res.json();
+
+        if (!res.ok || body.ok === false) {
+          throw new Error(body.error || url + " failed");
+        }
+
+        return body;
+      }
+
+      function row(label, value, sub) {
+        return (
+          '<div class="card card-compact">' +
+            '<div class="grid-2" style="align-items:center;">' +
+              '<div>' +
+                '<div class="strong">' + escapeHtml(label) + '</div>' +
+                '<div class="muted">' + escapeHtml(sub || "") + '</div>' +
+              '</div>' +
+              '<div class="text-right strong">' + escapeHtml(value) + '</div>' +
+            '</div>' +
+          '</div>'
+        );
+      }
+
+      function normalizeCCFromBalances(payload) {
+        const accounts = payload.accounts || {};
+        const list = Array.isArray(accounts)
+          ? accounts
+          : Object.entries(accounts).map(([id, value]) => ({ id, ...(value || {}) }));
+
+        const found = list.find(account => {
+          const id = String(account.id || "").toLowerCase();
+          const name = String(account.name || "").toLowerCase();
+          const type = String(account.type || "").toLowerCase();
+          const kind = String(account.kind || "").toLowerCase();
+
+          return id === "cc" || id.includes("credit") || name.includes("credit card") || type === "credit" || kind === "credit";
+        });
+
+        if (!found) {
+          return {
+            verified: false,
+            outstanding: null,
+            reason: "No CC account found in balances payload"
+          };
+        }
+
+        const raw = Number(found.balance ?? found.current_balance ?? found.amount);
+
+        if (!Number.isFinite(raw)) {
+          return {
+            verified: false,
+            outstanding: null,
+            account: found,
+            reason: "CC account exists but balance is not numeric"
+          };
+        }
+
+        return {
+          verified: true,
+          outstanding: Math.abs(raw),
+          raw_balance: raw,
+          account: found,
+          source: "/api/balances.accounts"
+        };
+      }
+
+      async function refresh() {
+        els.refreshBtn.disabled = true;
+        els.refreshBtn.textContent = "Refreshing...";
+
+        try {
+          const [balances, forecast] = await Promise.all([
+            readJson("/api/balances?debug=1"),
+            readJson("/api/forecast")
+          ]);
+
+          const cc = normalizeCCFromBalances(balances);
+          const forecastCC = forecast.inputs?.credit_card_outstanding;
+
+          if (cc.verified) {
+            els.outstanding.textContent = money(cc.outstanding);
+            els.outstandingCopy.textContent = "Verified from " + cc.source + " using account " + (cc.account.id || "cc") + ".";
+            els.paymentStatus.textContent = "Verified";
+            els.proofTitle.textContent = "Ready";
+            els.proofCopy.textContent = "Credit-card outstanding is using the same source as Forecast.";
+          } else {
+            els.outstanding.textContent = "Unknown";
+            els.outstandingCopy.textContent = cc.reason || "Verified CC source unavailable.";
+            els.paymentStatus.textContent = "Blocked";
+            els.proofTitle.textContent = "Check source";
+            els.proofCopy.textContent = "CC decisions stay blocked until balances exposes a numeric CC account.";
+          }
+
+          els.sourceList.innerHTML = [
+            row("Verified", cc.verified ? "Yes" : "No", cc.reason || cc.source || "—"),
+            row("Account", cc.account?.name || cc.account?.id || "Unknown", cc.account?.id || "No account id"),
+            row("Raw balance", cc.raw_balance === undefined ? "Unknown" : String(cc.raw_balance), "Liability may be stored as negative"),
+            row("Outstanding", cc.verified ? money(cc.outstanding) : "Unknown", "Absolute liability used for decisions")
+          ].join("");
+
+          els.forecastList.innerHTML = [
+            row("Forecast version", forecast.version || "Unknown", "/api/forecast"),
+            row("Forecast CC outstanding", forecastCC === null || forecastCC === undefined ? "Unknown" : money(forecastCC), "Must match CC page"),
+            row("Forecast status", forecast.status || "Unknown", (forecast.blockers || []).join(" | "))
+          ].join("");
+
+          if (DEBUG) {
+            els.debugBox.style.display = "block";
+            els.debugBox.textContent = JSON.stringify({ balances, forecast, cc }, null, 2);
+          }
+        } catch (err) {
+          els.outstanding.textContent = "Unavailable";
+          els.outstandingCopy.textContent = err.message || "Unable to load credit-card source.";
+          els.paymentStatus.textContent = "Error";
+          els.proofTitle.textContent = "Error";
+          els.proofCopy.textContent = err.message || "Unable to load credit-card source.";
+        } finally {
+          els.refreshBtn.disabled = false;
+          els.refreshBtn.textContent = "Refresh Card";
+        }
+      }
+
+      els.refreshBtn.addEventListener("click", refresh);
+      refresh();
+    })();
+  </script>
 </body>
 </html>
