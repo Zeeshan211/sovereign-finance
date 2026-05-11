@@ -1,859 +1,1156 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<meta name="theme-color" content="#0f172a" />
-<title>Reconciliation - Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=2.0.2" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sovereign Finance — Reconciliation</title>
+  <link rel="stylesheet" href="/css/app.css" />
 
-<style>
-.recon-page { max-width: 1480px; }
+  <style>
+    :root {
+      --rec-bg: #070b12;
+      --rec-panel: rgba(255,255,255,.065);
+      --rec-panel-strong: rgba(255,255,255,.095);
+      --rec-border: rgba(255,255,255,.12);
+      --rec-text: #f7fafc;
+      --rec-muted: rgba(247,250,252,.68);
+      --rec-faint: rgba(247,250,252,.46);
+      --rec-green: #4ade80;
+      --rec-yellow: #facc15;
+      --rec-red: #f87171;
+      --rec-blue: #60a5fa;
+      --rec-purple: #c084fc;
+      --rec-radius: 22px;
+      --rec-shadow: 0 24px 80px rgba(0,0,0,.34);
+    }
 
-.recon-hero-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
-  gap: 18px;
-  align-items: stretch;
-}
+    body {
+      min-height: 100vh;
+      color: var(--rec-text);
+      background:
+        radial-gradient(circle at top left, rgba(96,165,250,.16), transparent 32rem),
+        radial-gradient(circle at top right, rgba(192,132,252,.13), transparent 30rem),
+        linear-gradient(135deg, #05070d 0%, #09111f 48%, #05070d 100%);
+    }
 
-.recon-side { display: grid; gap: 14px; }
+    .rec-shell {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
 
-.recon-actions,
-.recon-status-strip,
-.recon-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+    .rec-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
 
-.recon-status-strip { margin-top: 18px; }
+    .rec-kicker {
+      color: var(--rec-muted);
+      font-size: 13px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
 
-.recon-card {
-  padding: 18px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-md);
-}
+    .rec-title {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1;
+      letter-spacing: -.045em;
+    }
 
-.recon-card-title {
-  color: var(--text-strong);
-  font-size: 17px;
-  font-weight: 950;
-  letter-spacing: -0.035em;
-}
+    .rec-version {
+      color: var(--rec-faint);
+      font-size: 12px;
+      text-align: right;
+      white-space: nowrap;
+    }
 
-.recon-card-copy {
-  margin-top: 8px;
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 760;
-}
+    .rec-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 18px 0 28px;
+    }
 
-.recon-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: 18px;
-}
+    .rec-nav a {
+      color: var(--rec-text);
+      text-decoration: none;
+      border: 1px solid var(--rec-border);
+      background: rgba(255,255,255,.055);
+      padding: 10px 13px;
+      border-radius: 999px;
+      font-size: 14px;
+      line-height: 1;
+      transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
+    }
 
-.recon-section-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin: 26px 0 14px;
-}
+    .rec-nav a:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,.1);
+      border-color: rgba(255,255,255,.22);
+    }
 
-.recon-section-title {
-  color: var(--text-strong);
-  font-size: 22px;
-  font-weight: 950;
-  letter-spacing: -0.045em;
-}
+    .rec-nav a[aria-current="page"] {
+      background: rgba(96,165,250,.18);
+      border-color: rgba(96,165,250,.45);
+    }
 
-.recon-section-copy {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 760;
-}
+    .rec-status {
+      border: 1px solid var(--rec-border);
+      background: var(--rec-panel);
+      border-radius: 18px;
+      padding: 14px 16px;
+      color: var(--rec-muted);
+      margin-bottom: 18px;
+      box-shadow: var(--rec-shadow);
+    }
 
-.recon-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.65fr);
-  gap: 16px;
-  align-items: start;
-}
+    .rec-status strong {
+      color: var(--rec-text);
+    }
 
-.recon-account-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
+    .rec-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
 
-.recon-account-card {
-  appearance: none;
-  width: 100%;
-  text-align: left;
-  padding: 16px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
-  cursor: pointer;
-}
+    .rec-card,
+    .rec-panel {
+      border: 1px solid var(--rec-border);
+      background: linear-gradient(180deg, var(--rec-panel-strong), var(--rec-panel));
+      border-radius: var(--rec-radius);
+      box-shadow: var(--rec-shadow);
+    }
 
-.recon-account-card.active {
-  border-color: rgba(37, 99, 235, 0.45);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12), var(--shadow-md);
-}
+    .rec-card {
+      padding: 18px;
+      min-height: 122px;
+      overflow: hidden;
+      position: relative;
+    }
 
-.recon-account-name {
-  color: var(--text-strong);
-  font-size: 15px;
-  font-weight: 950;
-}
+    .rec-label {
+      color: var(--rec-muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
 
-.recon-account-meta {
-  margin-top: 5px;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-family: var(--font-mono);
-}
+    .rec-value {
+      font-size: clamp(22px, 3vw, 34px);
+      line-height: 1.05;
+      font-weight: 760;
+      letter-spacing: -.045em;
+      word-break: break-word;
+    }
 
-.recon-account-balance {
-  margin-top: 14px;
-  color: var(--text-strong);
-  font-size: 24px;
-  font-weight: 950;
-  letter-spacing: -0.05em;
-}
+    .rec-sub {
+      color: var(--rec-faint);
+      font-size: 12px;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
 
-.recon-account-balance.negative { color: var(--danger); }
+    .rec-grid {
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 18px;
+      align-items: start;
+    }
 
-.recon-form-card {
-  position: sticky;
-  top: 18px;
-  padding: 18px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-md);
-}
+    .rec-panel {
+      padding: 18px;
+      margin-bottom: 18px;
+    }
 
-.recon-form-grid { display: grid; gap: 14px; }
+    .rec-panel h2,
+    .rec-panel h3 {
+      margin: 0 0 14px;
+      letter-spacing: -.03em;
+    }
 
-.recon-delta-card {
-  padding: 14px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-}
+    .rec-panel h2 {
+      font-size: 22px;
+    }
 
-.recon-delta-label {
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 950;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
+    .rec-panel h3 {
+      font-size: 17px;
+    }
 
-.recon-delta-value {
-  margin-top: 6px;
-  color: var(--text-strong);
-  font-size: 28px;
-  line-height: 1;
-  font-weight: 950;
-  letter-spacing: -0.06em;
-}
+    .rec-check-list {
+      display: grid;
+      gap: 12px;
+    }
 
-.recon-delta-value.positive { color: var(--success); }
-.recon-delta-value.negative { color: var(--danger); }
+    .rec-check {
+      border: 1px solid rgba(255,255,255,.09);
+      background: rgba(255,255,255,.045);
+      border-radius: 18px;
+      padding: 14px;
+    }
 
-.recon-notice {
-  margin-top: 14px;
-  padding: 14px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  color: var(--text-muted);
-  font-size: 13px;
-  line-height: 1.5;
-  font-weight: 780;
-  box-shadow: var(--shadow-xs);
-}
+    .rec-check-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
 
-.recon-notice.success {
-  border-color: rgba(4, 120, 87, 0.24);
-  background: var(--success-soft);
-  color: var(--success);
-}
+    .rec-check-title {
+      font-weight: 750;
+      font-size: 16px;
+      letter-spacing: -.02em;
+    }
 
-.recon-notice.fail {
-  border-color: rgba(185, 28, 28, 0.22);
-  background: var(--danger-soft);
-  color: var(--danger);
-}
+    .rec-check-body {
+      color: var(--rec-muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
 
-.recon-review {
-  display: none;
-  margin-top: 14px;
-  padding: 14px;
-  border-radius: var(--r-lg);
-  border: 1px solid rgba(37, 99, 235, 0.22);
-  background: rgba(37, 99, 235, 0.08);
-}
+    .rec-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: 1px solid var(--rec-border);
+      padding: 7px 10px;
+      font-size: 12px;
+      color: var(--rec-muted);
+      background: rgba(255,255,255,.055);
+      white-space: nowrap;
+    }
 
-.recon-review.on { display: block; }
+    .rec-pill.good {
+      color: var(--rec-green);
+      border-color: rgba(74,222,128,.34);
+      background: rgba(74,222,128,.08);
+    }
 
-.recon-review-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 800;
-}
+    .rec-pill.warn {
+      color: var(--rec-yellow);
+      border-color: rgba(250,204,21,.34);
+      background: rgba(250,204,21,.08);
+    }
 
-.recon-review-row:last-child { border-bottom: 0; }
+    .rec-pill.danger {
+      color: var(--rec-red);
+      border-color: rgba(248,113,113,.34);
+      background: rgba(248,113,113,.08);
+    }
 
-.recon-review-row strong {
-  color: var(--text-strong);
-  text-align: right;
-}
+    .rec-pill.info {
+      color: var(--rec-blue);
+      border-color: rgba(96,165,250,.34);
+      background: rgba(96,165,250,.08);
+    }
 
-.recon-debug {
-  display: none;
-  margin-top: 18px;
-  padding: 16px;
-  border-radius: var(--r-xl);
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  box-shadow: var(--shadow-sm);
-}
+    .rec-side-list {
+      display: grid;
+      gap: 12px;
+    }
 
-.recon-debug.on { display: block; }
+    .rec-side-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 0;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
 
-.recon-debug pre {
-  max-height: 360px;
-  overflow: auto;
-  padding: 12px;
-  border-radius: var(--r-lg);
-  background: var(--surface-2);
-  color: var(--text);
-  font-size: 11px;
-  line-height: 1.45;
-  white-space: pre-wrap;
-}
+    .rec-side-row:last-child {
+      border-bottom: 0;
+    }
 
-.recon-empty {
-  padding: 28px;
-  border-radius: var(--r-xl);
-  border: 1px dashed var(--border);
-  background: var(--surface-1);
-  color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 820;
-  text-align: center;
-}
+    .rec-side-row span:first-child {
+      color: var(--rec-muted);
+    }
 
-.recon-page-meta { display: none !important; }
+    .rec-side-row span:last-child {
+      text-align: right;
+      font-weight: 700;
+    }
 
-@media (max-width: 1180px) {
-  .recon-hero-grid,
-  .recon-layout { grid-template-columns: 1fr; }
+    .rec-form {
+      display: grid;
+      gap: 12px;
+    }
 
-  .recon-form-card { position: static; }
+    .rec-field {
+      display: grid;
+      gap: 7px;
+    }
 
-  .recon-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
+    .rec-field label {
+      color: var(--rec-muted);
+      font-size: 13px;
+    }
 
-@media (max-width: 760px) {
-  .recon-kpi-grid,
-  .recon-account-grid { grid-template-columns: 1fr; }
+    .rec-field select,
+    .rec-field input {
+      width: 100%;
+      border: 1px solid var(--rec-border);
+      border-radius: 14px;
+      background: rgba(0,0,0,.2);
+      color: var(--rec-text);
+      padding: 12px 13px;
+      font: inherit;
+      outline: none;
+      box-sizing: border-box;
+    }
 
-  .recon-section-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+    .rec-field select:focus,
+    .rec-field input:focus {
+      border-color: rgba(96,165,250,.5);
+      box-shadow: 0 0 0 3px rgba(96,165,250,.12);
+    }
 
-  .recon-actions,
-  .recon-actions .btn { width: 100%; }
-}
-</style>
+    .rec-result {
+      border: 1px solid rgba(255,255,255,.09);
+      background: rgba(0,0,0,.18);
+      border-radius: 18px;
+      padding: 14px;
+      margin-top: 4px;
+    }
+
+    .rec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .rec-table th,
+    .rec-table td {
+      text-align: left;
+      padding: 10px 8px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      vertical-align: top;
+    }
+
+    .rec-table th {
+      color: var(--rec-muted);
+      font-weight: 650;
+    }
+
+    .rec-table td:last-child,
+    .rec-table th:last-child {
+      text-align: right;
+    }
+
+    .rec-empty {
+      border: 1px dashed rgba(255,255,255,.18);
+      color: var(--rec-muted);
+      border-radius: 18px;
+      padding: 18px;
+      background: rgba(255,255,255,.035);
+      line-height: 1.45;
+    }
+
+    .rec-error {
+      color: var(--rec-red);
+    }
+
+    .rec-debug {
+      display: none;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      max-height: 360px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: rgba(247,250,252,.72);
+      background: rgba(0,0,0,.26);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .rec-debug.is-visible {
+      display: block;
+    }
+
+    @media (max-width: 980px) {
+      .rec-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .rec-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .rec-shell {
+        width: min(100% - 22px, 1180px);
+        padding-top: 14px;
+      }
+
+      .rec-topbar,
+      .rec-check-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .rec-version {
+        text-align: left;
+      }
+
+      .rec-summary {
+        grid-template-columns: 1fr;
+      }
+
+      .rec-nav {
+        gap: 8px;
+      }
+
+      .rec-nav a {
+        font-size: 13px;
+        padding: 9px 11px;
+      }
+
+      .rec-table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+      }
+    }
+  </style>
 </head>
 
 <body>
-<header>
-<div>
-<div class="brand">Sovereign Finance</div>
-<div class="title">Reconciliation</div>
-</div>
-</header>
-
-<main class="app-page recon-page">
-<section class="recon-hero-grid">
-<div class="page-hero">
-<div class="hero-kicker">Balance control</div>
-<h1 class="hero-title">Keep app balances aligned with real accounts.</h1>
-<p class="hero-copy">
-Select an account, enter the actual bank/app balance, review the difference, and declare it. Displayed app balances come directly from Accounts.
-</p>
-
-<div id="debugBadges" class="recon-status-strip" hidden>
-<span id="accountsApiBadge" class="badge badge-unknown">Accounts loading</span>
-<span id="reconApiBadge" class="badge badge-unknown">Reconciliation loading</span>
-<span id="reconAuthorityBadge" class="badge badge-unknown">Authority loading</span>
-</div>
-</div>
-
-<aside class="recon-side">
-<div class="recon-card">
-<div class="recon-card-title">Page status</div>
-<div id="reconStatusCopy" class="recon-card-copy">Loading reconciliation status...</div>
-<div style="margin-top:12px">
-<span id="reconStatusBadge" class="badge badge-unknown">Loading</span>
-</div>
-</div>
-
-<div class="recon-card">
-<div class="recon-card-title">Source rule</div>
-<div class="recon-card-copy">
-Current app balances on this page are loaded from Accounts. Reconciliation only handles declarations.
-</div>
-</div>
-</aside>
-</section>
-
-<section class="recon-kpi-grid">
-<div class="kpi-card">
-<div class="kpi-label">Accounts</div>
-<div id="accountCount" class="kpi-value">-</div>
-<div class="kpi-sub">Loaded from Accounts</div>
-</div>
-
-<div class="kpi-card">
-<div class="kpi-label">Total App Balance</div>
-<div id="totalBalance" class="kpi-value">-</div>
-<div class="kpi-sub">Accounts source</div>
-</div>
-
-<div class="kpi-card">
-<div class="kpi-label">Authority</div>
-<div id="authorityState" class="kpi-value">-</div>
-<div class="kpi-sub">Command Centre state</div>
-</div>
-
-<div class="kpi-card">
-<div class="kpi-label">Last Result</div>
-<div id="lastResult" class="kpi-value">-</div>
-<div class="kpi-sub">Latest declaration</div>
-</div>
-</section>
-
-<section>
-<div class="recon-section-head">
-<div>
-<div class="recon-section-title">Declare balance</div>
-<div id="reconSummary" class="recon-section-copy">Loading accounts...</div>
-</div>
-
-<div class="recon-actions">
-<button id="refreshBtn" class="btn btn-secondary" type="button">Refresh</button>
-<a class="btn btn-secondary" href="/accounts.html">Accounts</a>
-<a class="btn btn-secondary" href="/monthly-close.html">Command Centre</a>
-</div>
-</div>
-
-<div id="reconNotice" class="recon-notice" hidden></div>
-
-<div style="height:14px"></div>
-
-<div class="recon-layout">
-<div>
-<div id="accountsGrid" class="recon-account-grid"></div>
-<div id="accountsEmpty" class="recon-empty" hidden>No accounts found.</div>
-</div>
-
-<aside class="recon-form-card">
-<div class="recon-card-title">Selected account</div>
-<div id="selectedAccountCopy" class="recon-card-copy">Choose an account to begin.</div>
-
-<form id="reconForm" class="recon-form-grid" style="margin-top:16px">
-<input id="accountInput" type="hidden" />
-
-<div class="field">
-<label for="currentBalanceInput">Current App Balance</label>
-<input id="currentBalanceInput" class="input" type="text" readonly />
-</div>
-
-<div class="field">
-<label for="declaredBalanceInput">Actual Bank/App Balance</label>
-<input id="declaredBalanceInput" class="input" type="number" step="0.01" placeholder="0.00" required />
-</div>
-
-<div class="recon-delta-card">
-<div class="recon-delta-label">Difference</div>
-<div id="deltaValue" class="recon-delta-value">Rs 0</div>
-</div>
-
-<div class="field">
-<label for="declaredDateInput">Date</label>
-<input id="declaredDateInput" class="input" type="date" required />
-</div>
-
-<div class="field">
-<label for="notesInput">Notes</label>
-<textarea id="notesInput" class="textarea" placeholder="Optional note"></textarea>
-</div>
-
-<button id="reviewBtn" class="btn btn-success" type="submit">Review Declaration</button>
-</form>
-
-<div id="reviewBox" class="recon-review">
-<div class="recon-card-title">Review before saving</div>
-<div class="recon-review-row"><span>Account</span><strong id="reviewAccount">-</strong></div>
-<div class="recon-review-row"><span>Current app balance</span><strong id="reviewCurrent">-</strong></div>
-<div class="recon-review-row"><span>Actual balance</span><strong id="reviewDeclared">-</strong></div>
-<div class="recon-review-row"><span>Difference</span><strong id="reviewDelta">-</strong></div>
-
-<div class="recon-card-actions" style="margin-top:12px">
-<button id="confirmDeclareBtn" class="btn btn-success" type="button">Confirm Declaration</button>
-<button id="cancelReviewBtn" class="btn btn-secondary" type="button">Cancel</button>
-</div>
-</div>
-</aside>
-</div>
-
-<div id="debugPanel" class="recon-debug">
-<div class="recon-card-title">Debug mode</div>
-<div class="recon-card-copy">Internal proof and source details are visible because this page was opened with <code>?debug=1</code>.</div>
-<pre id="debugOutput">{}</pre>
-</div>
-</section>
-
-<footer class="recon-page-meta" aria-hidden="true">
-Reconciliation UI v1.2.0
-</footer>
-</main>
-
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-<script src="/js/theme.js?v=1.0.0"></script>
-<script src="/js/nav.js?v=2.0.3"></script>
-<script src="/js/enforcement.js?v=0.3.0"></script>
-
-<script>
-(function () {
-  "use strict";
-
-  const VERSION = "1.2.0";
-  const DEBUG = new URL(location.href).searchParams.get("debug") === "1";
-
-  let accounts = [];
-  let selectedId = "";
-  let authority = { declare: false };
-  let command = null;
-  let lastProof = null;
-  let pendingPayload = null;
-  let reconciliationSource = null;
-
-  const $ = id => document.getElementById(id);
-
-  function setText(id, value) {
-    const el = $(id);
-    if (el) el.textContent = value;
-  }
-
-  function setBadge(id, text, cls) {
-    const el = $(id);
-    if (!el) return;
-    el.textContent = text;
-    el.className = "badge " + cls;
-  }
-
-  function showNotice(message, type) {
-    const el = $("reconNotice");
-    if (!el) return;
-    el.hidden = false;
-    el.className = "recon-notice " + (type || "");
-    el.textContent = message;
-  }
-
-  function clearNotice() {
-    const el = $("reconNotice");
-    if (!el) return;
-    el.hidden = true;
-    el.textContent = "";
-  }
-
-  function toNumber(value, fallback) {
-    if (value === undefined || value === null || value === "") return fallback;
-    if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
-
-    const cleaned = String(value).replace(/rs/ig, "").replace(/,/g, "").trim();
-    const n = Number(cleaned);
-    return Number.isFinite(n) ? n : fallback;
-  }
-
-  function money(value) {
-    const n = toNumber(value, 0);
-    const prefix = n < 0 ? "-" : "";
-    return prefix + "Rs " + Math.abs(n).toLocaleString("en-PK", { maximumFractionDigits: 2 });
-  }
-
-  function escapeHtml(value) {
-    return String(value == null ? "" : value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
-  function todayISO() {
-    return new Date().toISOString().slice(0, 10);
-  }
-
-  async function fetchJSON(url, options) {
-    const res = await fetch(url, { cache: "no-store", ...(options || {}) });
-    const text = await res.text();
-    let data = null;
-
-    try {
-      data = JSON.parse(text);
-    } catch (err) {
-      throw new Error("Non-JSON response from " + url);
-    }
-
-    if (!res.ok || data.ok === false) {
-      const error = new Error(data.error || ("HTTP " + res.status));
-      error.status = res.status;
-      error.data = data;
-      throw error;
-    }
-
-    return data;
-  }
-
-  function normalizeAccount(row) {
-    const id = String(row.id || row.account_id || "").trim();
-    const name = String(row.name || row.label || id).trim();
-    const kind = String(row.kind || row.type || row.account_type || "").trim();
-    const status = String(row.status || "active").trim().toLowerCase();
-
-    const balance = firstNumber([
-      row.balance,
-      row.current_balance,
-      row.available_balance,
-      row.account_balance,
-      row.computed_balance,
-      row.amount,
-      row.total
-    ], 0);
-
-    return { id, name, kind, type: kind, status, balance, source: "/api/accounts" };
-  }
-
-  function firstNumber(values, fallback) {
-    for (const value of values) {
-      const n = toNumber(value, NaN);
-      if (Number.isFinite(n)) return n;
-    }
-    return fallback;
-  }
-
-  function selectedAccount() {
-    return accounts.find(account => account.id === selectedId) || null;
-  }
-
-  function accountBalance(account) {
-    return account ? toNumber(account.balance, 0) : 0;
-  }
-
-  function deltaValue() {
-    const account = selectedAccount();
-    const current = accountBalance(account);
-    const declared = toNumber($("declaredBalanceInput").value, NaN);
-    return Number.isFinite(declared) ? declared - current : 0;
-  }
-
-  function actionAllowed(actions, name) {
-    const found = actions.find(action => action.action === name);
-    return Boolean(found && found.allowed);
-  }
-
-  function updateDebug() {
-    if (!DEBUG) return;
-
-    $("debugBadges").hidden = false;
-    $("debugPanel").classList.add("on");
-    $("debugOutput").textContent = JSON.stringify({
-      version: VERSION,
-      source_rule: "visible balances loaded from /api/accounts",
-      authority,
-      command_version: command && command.version,
-      selected_id: selectedId,
-      account_count: accounts.length,
-      reconciliation_api_source: reconciliationSource,
-      pending_payload: pendingPayload,
-      last_proof: lastProof
-    }, null, 2);
-  }
-
-  async function loadCommandCentre() {
-    try {
-      command = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
-      const actions = command.enforcement && Array.isArray(command.enforcement.actions)
-        ? command.enforcement.actions
-        : [];
-
-      authority.declare = actionAllowed(actions, "reconciliation.declare");
-
-      if (DEBUG) {
-        setBadge("reconAuthorityBadge", authority.declare ? "declare allowed" : "declare blocked", authority.declare ? "badge-ready" : "badge-blocked");
-      }
-
-      setBadge("reconStatusBadge", authority.declare ? "Ready" : "View only", authority.declare ? "badge-ready" : "badge-preflight");
-      setText("authorityState", authority.declare ? "Ready" : "View only");
-      setText("reconStatusCopy", authority.declare ? "Balance declaration is available." : "Balances are visible. Declaration is temporarily unavailable.");
-      $("reviewBtn").disabled = !authority.declare;
-    } catch (err) {
-      authority.declare = false;
-      setBadge("reconStatusBadge", "Unavailable", "badge-blocked");
-      setText("authorityState", "Unavailable");
-      setText("reconStatusCopy", "Command Centre could not be reached. Declaration is disabled.");
-      $("reviewBtn").disabled = true;
-    }
-
-    updateDebug();
-  }
-
-  async function loadAccountsTruth() {
-    const data = await fetchJSON("/api/accounts?cb=" + Date.now());
-    const raw = Array.isArray(data.accounts) ? data.accounts : Array.isArray(data) ? data : [];
-
-    accounts = raw.map(normalizeAccount).filter(account => account.id);
-
-    if (DEBUG) {
-      setBadge("accountsApiBadge", "Accounts API " + (data.version || "live"), "badge-ready");
-    }
-
-    if (!selectedId && accounts.length) selectedId = accounts[0].id;
-
-    const total = accounts.reduce((sum, account) => sum + accountBalance(account), 0);
-
-    setText("accountCount", String(accounts.length));
-    setText("totalBalance", money(total));
-    setText("reconSummary", accounts.length + " account(s) loaded directly from Accounts.");
-
-    renderAccounts();
-    updateSelectedAccount();
-    updateDebug();
-  }
-
-  async function loadReconciliationMetadata() {
-    try {
-      const data = await fetchJSON("/api/reconciliation?cb=" + Date.now());
-      reconciliationSource = {
-        version: data.version,
-        source: data.source,
-        source_rule: data.source_rule,
-        count: Array.isArray(data.accounts) ? data.accounts.length : 0
+  <main class="rec-shell" data-page="reconciliation" data-version="reconciliation-readonly-v1.0.0">
+    <section class="rec-topbar">
+      <div>
+        <div class="rec-kicker">Sovereign Finance</div>
+        <h1 class="rec-title">Reconciliation</h1>
+      </div>
+      <div class="rec-version">reconciliation-readonly-v1.0.0</div>
+    </section>
+
+    <nav class="rec-nav" aria-label="Primary">
+      <a href="/index.html">Hub</a>
+      <a href="/add.html">Add</a>
+      <a href="/transactions.html">Ledger</a>
+      <a href="/bills.html">Bills</a>
+      <a href="/debts.html">Debts</a>
+      <a href="/salary.html">Salary</a>
+      <a href="/forecast.html">Forecast</a>
+      <a href="/cc.html">Credit Card</a>
+      <a href="/reconciliation.html" aria-current="page">Reconciliation</a>
+    </nav>
+
+    <section id="recStatus" class="rec-status">
+      <strong>Loading reconciliation checks…</strong>
+      <span>Reading current finance sources.</span>
+    </section>
+
+    <section class="rec-summary" aria-label="Reconciliation summary">
+      <article class="rec-card">
+        <div class="rec-label">Liquid Balance</div>
+        <div id="totalLiquid" class="rec-value">—</div>
+        <div class="rec-sub">From balance source.</div>
+      </article>
+
+      <article class="rec-card">
+        <div class="rec-label">Credit Card</div>
+        <div id="ccOutstanding" class="rec-value">—</div>
+        <div class="rec-sub">Outstanding liability.</div>
+      </article>
+
+      <article class="rec-card">
+        <div class="rec-label">Payable Debt</div>
+        <div id="payableDebt" class="rec-value">—</div>
+        <div class="rec-sub">Active amount owed.</div>
+      </article>
+
+      <article class="rec-card">
+        <div class="rec-label">Receivables</div>
+        <div id="receivables" class="rec-value">—</div>
+        <div class="rec-sub">Expected incoming repayments.</div>
+      </article>
+    </section>
+
+    <section class="rec-grid">
+      <div>
+        <section class="rec-panel">
+          <h2>Read-only checks</h2>
+          <div id="checkList" class="rec-check-list">
+            <div class="rec-empty">Loading checks…</div>
+          </div>
+        </section>
+
+        <section class="rec-panel">
+          <h2>Manual statement compare</h2>
+          <div class="rec-form">
+            <div class="rec-field">
+              <label for="accountSelect">Account</label>
+              <select id="accountSelect">
+                <option value="">Loading accounts…</option>
+              </select>
+            </div>
+
+            <div class="rec-field">
+              <label for="actualBalance">Actual bank/app balance</label>
+              <input id="actualBalance" type="number" step="0.01" inputmode="decimal" placeholder="Enter statement balance" />
+            </div>
+
+            <div id="manualResult" class="rec-result">
+              <div class="rec-empty">Choose an account and enter actual balance. This calculates difference only.</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="rec-panel">
+          <h2>Account balances</h2>
+          <div id="accountTableWrap">
+            <div class="rec-empty">Loading account table…</div>
+          </div>
+        </section>
+      </div>
+
+      <aside>
+        <section class="rec-panel">
+          <h3>Source status</h3>
+          <div id="sourcePanel" class="rec-side-list">
+            <div class="rec-empty">Loading sources…</div>
+          </div>
+        </section>
+
+        <section class="rec-panel">
+          <h3>Mismatch priority</h3>
+          <div id="priorityPanel" class="rec-side-list">
+            <div class="rec-empty">Loading priorities…</div>
+          </div>
+        </section>
+
+        <section class="rec-panel">
+          <h3>Mode</h3>
+          <div class="rec-side-list">
+            <div class="rec-side-row">
+              <span>Page mode</span>
+              <span>Read-only</span>
+            </div>
+            <div class="rec-side-row">
+              <span>Balance source</span>
+              <span>/api/balances</span>
+            </div>
+            <div class="rec-side-row">
+              <span>Manual compare</span>
+              <span>Local only</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="debugPanel" class="rec-panel" hidden>
+          <h3>Debug</h3>
+          <pre id="debugOutput" class="rec-debug"></pre>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script src="/js/theme.js" defer></script>
+  <script src="/js/nav.js" defer></script>
+
+  <script>
+    (function () {
+      "use strict";
+
+      const PAGE_VERSION = "reconciliation-readonly-v1.0.0";
+      const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
+
+      const state = {
+        accounts: null,
+        balances: null,
+        transactions: null,
+        bills: null,
+        debts: null,
+        cc: null,
+        accountRows: [],
+        checks: [],
+        sourceStatus: []
       };
 
-      if (DEBUG) {
-        setBadge("reconApiBadge", "Recon API " + (data.version || "live"), "badge-ready");
+      const $ = (id) => document.getElementById(id);
+
+      function asNumber(value, fallback = 0) {
+        if (typeof value === "number" && Number.isFinite(value)) return value;
+        if (typeof value === "string") {
+          const parsed = Number(value.replace(/[^\d.-]/g, ""));
+          if (Number.isFinite(parsed)) return parsed;
+        }
+        return fallback;
       }
-    } catch (err) {
-      reconciliationSource = { error: err.message || String(err) };
 
-      if (DEBUG) {
-        setBadge("reconApiBadge", "Recon API error", "badge-blocked");
+      function money(value) {
+        return new Intl.NumberFormat("en-PK", {
+          style: "currency",
+          currency: "PKR",
+          maximumFractionDigits: 2
+        }).format(asNumber(value, 0));
       }
-    }
 
-    updateDebug();
-  }
+      function pct(value) {
+        return `${asNumber(value, 0).toFixed(1)}%`;
+      }
 
-  function renderAccounts() {
-    const grid = $("accountsGrid");
-    const empty = $("accountsEmpty");
+      function text(value, fallback = "—") {
+        if (value === null || value === undefined || value === "") return fallback;
+        return String(value);
+      }
 
-    if (!accounts.length) {
-      grid.innerHTML = "";
-      empty.hidden = false;
-      return;
-    }
+      function round2(value) {
+        return Math.round(asNumber(value, 0) * 100) / 100;
+      }
 
-    empty.hidden = true;
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      }
 
-    grid.innerHTML = accounts.map(account => {
-      const balance = accountBalance(account);
-      const active = account.id === selectedId;
+      function firstDefined() {
+        for (const value of arguments) {
+          if (value !== undefined && value !== null && value !== "") return value;
+        }
+        return undefined;
+      }
 
-      return `
-        <button class="recon-account-card ${active ? "active" : ""}" type="button" data-account-id="${escapeHtml(account.id)}">
-          <div class="recon-account-name">${escapeHtml(account.name || account.id)}</div>
-          <div class="recon-account-meta">${escapeHtml(account.id)} · ${escapeHtml(account.kind || account.type || "account")}</div>
-          <div class="recon-account-balance ${balance < 0 ? "negative" : ""}">${escapeHtml(money(balance))}</div>
-        </button>
-      `;
-    }).join("");
+      function setStatus(kind, html) {
+        const node = $("recStatus");
+        node.className = "rec-status";
+        if (kind === "error") node.classList.add("rec-error");
+        node.innerHTML = html;
+      }
 
-    grid.querySelectorAll("[data-account-id]").forEach(button => {
-      button.addEventListener("click", () => {
-        selectedId = button.dataset.accountId;
-        hideReview();
-        renderAccounts();
-        updateSelectedAccount();
-        updateDebug();
-      });
-    });
-  }
+      async function readJson(path, required) {
+        try {
+          const response = await fetch(path, {
+            headers: { "Accept": "application/json" },
+            cache: "no-store"
+          });
 
-  function updateSelectedAccount() {
-    const account = selectedAccount();
-    const currentBalance = accountBalance(account);
-    const delta = deltaValue();
+          const payload = await response.json().catch(() => null);
 
-    $("accountInput").value = account ? account.id : "";
-    $("currentBalanceInput").value = money(currentBalance);
+          if (!response.ok) {
+            throw new Error(`${path} HTTP ${response.status}`);
+          }
 
-    setText("selectedAccountCopy", account ? (account.name || account.id) + " · " + money(currentBalance) : "Choose an account to begin.");
-    setText("deltaValue", money(delta));
+          state.sourceStatus.push({ path, ok: true, status: response.status });
+          return payload;
+        } catch (error) {
+          state.sourceStatus.push({ path, ok: false, error: error.message });
+          if (required) throw error;
+          return null;
+        }
+      }
 
-    const deltaEl = $("deltaValue");
-    deltaEl.classList.remove("positive", "negative");
-    if (delta > 0) deltaEl.classList.add("positive");
-    if (delta < 0) deltaEl.classList.add("negative");
-  }
+      function arrayFrom(payload, keys) {
+        for (const key of keys) {
+          if (Array.isArray(payload?.[key])) return payload[key];
+        }
+        return [];
+      }
 
-  function hideReview() {
-    pendingPayload = null;
-    $("reviewBox").classList.remove("on");
-  }
+      function normalizeAccounts() {
+        const balanceAccounts = state.balances?.accounts || {};
+        const fromBalances = Object.entries(balanceAccounts).map(([id, row]) => ({
+          id,
+          name: text(firstDefined(row.name, id), id),
+          kind: text(firstDefined(row.kind, row.type), ""),
+          type: text(row.type, ""),
+          opening_balance: asNumber(row.opening_balance, 0),
+          balance: round2(firstDefined(row.balance, row.current_balance, 0)),
+          credit_limit: firstDefined(row.credit_limit, row.creditLimit)
+        }));
 
-  async function reviewDeclaration(event) {
-    event.preventDefault();
-    clearNotice();
-    hideReview();
+        const fromAccounts = arrayFrom(state.accounts, ["accounts", "data", "results"]).map((row) => ({
+          id: text(firstDefined(row.id, row.account_id, row.key, row.slug, row.name)),
+          name: text(firstDefined(row.name, row.label, row.account_name, row.id)),
+          kind: text(firstDefined(row.kind, row.type), ""),
+          type: text(row.type, ""),
+          opening_balance: asNumber(row.opening_balance, 0),
+          balance: null,
+          credit_limit: firstDefined(row.credit_limit, row.creditLimit)
+        }));
 
-    if (!authority.declare) {
-      showNotice("Balance declaration is temporarily unavailable.", "fail");
-      return;
-    }
+        const map = new Map();
 
-    const account = selectedAccount();
-    if (!account) {
-      showNotice("Choose an account.", "fail");
-      return;
-    }
+        for (const row of fromAccounts) {
+          if (row.id) map.set(row.id, row);
+        }
 
-    const declaredBalance = toNumber($("declaredBalanceInput").value, NaN);
+        for (const row of fromBalances) {
+          const existing = map.get(row.id) || {};
+          map.set(row.id, {
+            ...existing,
+            ...row,
+            name: row.name || existing.name || row.id,
+            opening_balance: firstDefined(existing.opening_balance, row.opening_balance, 0),
+            credit_limit: firstDefined(row.credit_limit, existing.credit_limit)
+          });
+        }
 
-    if (!Number.isFinite(declaredBalance)) {
-      showNotice("Enter a valid actual balance.", "fail");
-      return;
-    }
+        state.accountRows = [...map.values()].sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      }
 
-    const payload = {
-      account_id: account.id,
-      declared_balance: declaredBalance,
-      declared_at: $("declaredDateInput").value || todayISO(),
-      notes: $("notesInput").value || ""
-    };
+      function isCcAccount(account) {
+        const value = `${account.kind || ""} ${account.type || ""}`.toLowerCase();
+        return value.includes("cc") || value.includes("credit");
+      }
 
-    const dryRun = await fetchJSON("/api/reconciliation?dry_run=1&cb=" + Date.now(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...payload, dry_run: true })
-    });
+      function activeTransactions() {
+        return arrayFrom(state.transactions, ["transactions", "data", "results"]).filter((txn) => {
+          if (txn.reversed_by || txn.reversed_at) return false;
+          const notes = String(txn.notes || "").toUpperCase();
+          return !notes.includes("[REVERSED BY ") && !notes.includes("[REVERSAL OF ");
+        });
+      }
 
-    lastProof = dryRun;
-    pendingPayload = payload;
+      function transactionImpactFor(accountId) {
+        const plus = new Set(["income", "salary", "debt_in", "borrow", "opening"]);
+        const minus = new Set(["expense", "cc_spend", "atm", "debt_out", "repay", "transfer"]);
+        let impact = 0;
 
-    const normalized = dryRun.normalized_payload || {};
-    setText("reviewAccount", account.name || account.id);
-    setText("reviewCurrent", money(normalized.current_balance));
-    setText("reviewDeclared", money(normalized.declared_balance));
-    setText("reviewDelta", money(normalized.delta));
+        for (const txn of activeTransactions()) {
+          const amount = asNumber(txn.amount, 0);
+          const fee = asNumber(txn.fee_amount, 0);
+          const pra = asNumber(txn.pra_amount, 0);
+          const type = String(txn.type || "").toLowerCase();
+          const source = text(txn.account_id, "");
+          const target = text(txn.transfer_to_account_id, "");
 
-    $("reviewBox").classList.add("on");
-    updateDebug();
-  }
+          if ((type === "transfer" || type === "cc_payment") && source === accountId && target) {
+            impact -= amount + fee + pra;
+            continue;
+          }
 
-  async function confirmDeclaration() {
-    if (!pendingPayload) {
-      showNotice("Nothing to confirm.", "fail");
-      return;
-    }
+          if ((type === "transfer" || type === "cc_payment") && target === accountId && source) {
+            impact += amount;
+            continue;
+          }
 
-    const result = await fetchJSON("/api/reconciliation?cb=" + Date.now(), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(pendingPayload)
-    });
+          if (source !== accountId) continue;
 
-    setText("lastResult", result.writes_performed ? "Adjusted" : "No change");
-    showNotice(result.writes_performed ? "Balance declared and adjustment recorded." : "Balance already matched. No adjustment needed.", "success");
+          if (plus.has(type)) impact += amount;
+          else if (minus.has(type)) impact -= amount + fee + pra;
+        }
 
-    $("declaredBalanceInput").value = "";
-    $("notesInput").value = "";
-    hideReview();
+        return round2(impact);
+      }
 
-    await refresh();
-  }
+      function buildChecks() {
+        const checks = [];
 
-  async function refresh() {
-    console.log("[reconciliation-ui v1.2.0] refresh");
-    await loadCommandCentre();
-    await loadAccountsTruth();
-    await loadReconciliationMetadata();
-    console.log("[reconciliation-ui v1.2.0] ready", {
-      accounts: accounts.length,
-      authority,
-      source: "/api/accounts"
-    });
-  }
+        const totalLiquid = asNumber(firstDefined(
+          state.balances?.total_liquid,
+          state.balances?.cash,
+          state.balances?.total_liquid_assets
+        ), 0);
 
-  function init() {
-    console.log("[reconciliation-ui v1.2.0] init");
+        const accountLiquid = state.accountRows
+          .filter((account) => !isCcAccount(account))
+          .reduce((sum, account) => sum + asNumber(account.balance, 0), 0);
 
-    $("declaredDateInput").value = todayISO();
-    $("refreshBtn").addEventListener("click", refresh);
-    $("declaredBalanceInput").addEventListener("input", () => {
-      hideReview();
-      updateSelectedAccount();
-    });
-    $("notesInput").addEventListener("input", hideReview);
-    $("reconForm").addEventListener("submit", reviewDeclaration);
-    $("confirmDeclareBtn").addEventListener("click", confirmDeclaration);
-    $("cancelReviewBtn").addEventListener("click", hideReview);
+        const liquidDelta = round2(accountLiquid - totalLiquid);
 
-    refresh();
-  }
+        checks.push({
+          title: "Account balance rollup",
+          status: Math.abs(liquidDelta) <= 0.5 ? "good" : "warn",
+          badge: Math.abs(liquidDelta) <= 0.5 ? "Aligned" : "Mismatch",
+          body: `Non-card account balances total ${money(accountLiquid)}. Reported liquid balance is ${money(totalLiquid)}. Difference: ${money(liquidDelta)}.`
+        });
 
-  window.SovereignReconciliationUI = {
-    version: VERSION,
-    refresh,
-    accounts: () => accounts.slice(),
-    authority: () => ({ ...authority }),
-    selectedAccount: () => selectedAccount(),
-    lastProof: () => lastProof
-  };
+        const ledgerCheckable = state.accountRows.filter((account) => Number.isFinite(asNumber(account.opening_balance, NaN)) && account.balance !== null);
+        const ledgerMismatches = [];
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
-    init();
-  }
-})();
-</script>
+        for (const account of ledgerCheckable) {
+          const expected = round2(asNumber(account.opening_balance, 0) + transactionImpactFor(account.id));
+          const actual = round2(account.balance);
+          const delta = round2(actual - expected);
+          if (Math.abs(delta) > 0.5) {
+            ledgerMismatches.push({ account, expected, actual, delta });
+          }
+        }
+
+        checks.push({
+          title: "Ledger vs account balance",
+          status: ledgerMismatches.length ? "warn" : "good",
+          badge: ledgerMismatches.length ? `${ledgerMismatches.length} mismatch` : "No mismatch",
+          body: ledgerCheckable.length
+            ? `${ledgerCheckable.length} accounts checked from opening balance plus active ledger impact. ${ledgerMismatches.length ? "Review mismatch priority." : "No material difference found."}`
+            : "Opening balances unavailable, so ledger reconstruction is not checkable here.",
+          details: ledgerMismatches
+        });
+
+        const billsSummary = summarizeBills();
+        checks.push({
+          title: "Bills payment state",
+          status: billsSummary.status,
+          badge: billsSummary.badge,
+          body: billsSummary.body
+        });
+
+        const debtSummary = summarizeDebts();
+        checks.push({
+          title: "Debt movement state",
+          status: debtSummary.status,
+          badge: debtSummary.badge,
+          body: debtSummary.body
+        });
+
+        const ccSummary = summarizeCc();
+        checks.push({
+          title: "Credit card outstanding",
+          status: ccSummary.status,
+          badge: ccSummary.badge,
+          body: ccSummary.body
+        });
+
+        state.checks = checks;
+      }
+
+      function summarizeBills() {
+        if (!state.bills) {
+          return {
+            status: "info",
+            badge: "Unavailable",
+            body: "Bills source did not load. No bill mismatch calculated."
+          };
+        }
+
+        const bills = arrayFrom(state.bills, ["bills", "data", "results"]);
+        const remaining = firstDefined(
+          state.bills.remaining_this_month,
+          state.bills.total_remaining,
+          state.bills.summary?.remaining_this_month,
+          state.bills.summary?.total_remaining
+        );
+        const paid = firstDefined(
+          state.bills.paid_this_month,
+          state.bills.summary?.paid_this_month
+        );
+
+        if (remaining !== undefined || paid !== undefined) {
+          return {
+            status: "good",
+            badge: "Loaded",
+            body: `Bills loaded. Remaining this month: ${money(remaining || 0)}. Paid this month: ${money(paid || 0)}.`
+          };
+        }
+
+        const openAmount = bills.reduce((sum, bill) => {
+          const status = String(bill.status || bill.current_month_cleared || "").toLowerCase();
+          const cleared = status === "paid" || status === "cleared" || status === "true";
+          return cleared ? sum : sum + asNumber(firstDefined(bill.amount, bill.expected_amount, bill.monthly_amount), 0);
+        }, 0);
+
+        return {
+          status: "good",
+          badge: `${bills.length} bills`,
+          body: `Bills loaded. Estimated open bill amount from returned rows: ${money(openAmount)}.`
+        };
+      }
+
+      function summarizeDebts() {
+        const balancePayable = asNumber(firstDefined(
+          state.balances?.payable_debt_remaining,
+          state.balances?.total_owed,
+          state.balances?.total_debts
+        ), 0);
+
+        const balanceReceivable = asNumber(firstDefined(
+          state.balances?.total_receivables,
+          state.balances?.receivables_from_debts
+        ), 0);
+
+        if (!state.debts) {
+          return {
+            status: "info",
+            badge: "From balances",
+            body: `Debt endpoint unavailable. Balance source shows payable debt ${money(balancePayable)} and receivables ${money(balanceReceivable)}.`
+          };
+        }
+
+        const debts = arrayFrom(state.debts, ["debts", "data", "results"]);
+        let payable = 0;
+        let receivable = 0;
+
+        for (const debt of debts) {
+          const status = String(debt.status || "").toLowerCase();
+          if (status && status !== "active" && status !== "open") continue;
+
+          const original = asNumber(firstDefined(debt.original_amount, debt.amount, debt.total_amount), 0);
+          const paid = asNumber(firstDefined(debt.paid_amount, debt.received_amount, debt.settled_amount), 0);
+          const remaining = Math.max(0, original - paid);
+          const kind = String(firstDefined(debt.kind, debt.type, "")).toLowerCase();
+
+          if (["owe", "i_owe", "payable", "debt"].includes(kind)) payable += remaining;
+          else if (["owed", "owed_me", "receivable", "to_me"].includes(kind)) receivable += remaining;
+        }
+
+        const payableDelta = round2(payable - balancePayable);
+        const receivableDelta = round2(receivable - balanceReceivable);
+        const mismatch = Math.abs(payableDelta) > 0.5 || Math.abs(receivableDelta) > 0.5;
+
+        return {
+          status: mismatch ? "warn" : "good",
+          badge: mismatch ? "Review" : "Aligned",
+          body: `Debt rows imply payable ${money(payable)} and receivable ${money(receivable)}. Balance source says payable ${money(balancePayable)} and receivable ${money(balanceReceivable)}.`
+        };
+      }
+
+      function summarizeCc() {
+        const balanceCc = asNumber(firstDefined(
+          state.balances?.cc_outstanding,
+          state.balances?.cc
+        ), 0);
+
+        if (!state.cc) {
+          return {
+            status: "info",
+            badge: "From balances",
+            body: `Card endpoint unavailable. Balance source shows card outstanding ${money(balanceCc)}.`
+          };
+        }
+
+        const cards = arrayFrom(state.cc, ["accounts", "cards", "credit_cards", "creditCards", "data"]);
+        let ccTotal = asNumber(firstDefined(
+          state.cc.total_outstanding,
+          state.cc.totalOutstanding,
+          state.cc.summary?.total_outstanding,
+          state.cc.summary?.outstanding,
+          state.cc.totals?.outstanding
+        ), NaN);
+
+        if (!Number.isFinite(ccTotal)) {
+          ccTotal = cards.reduce((sum, card) => {
+            const balance = asNumber(firstDefined(card.balance, card.current_balance), 0);
+            const outstanding = firstDefined(
+              card.outstanding,
+              card.cc_outstanding,
+              card.current_outstanding,
+              balance < 0 ? Math.abs(balance) : undefined
+            );
+            return sum + asNumber(outstanding, 0);
+          }, 0);
+        }
+
+        const delta = round2(ccTotal - balanceCc);
+
+        return {
+          status: Math.abs(delta) <= 0.5 ? "good" : "warn",
+          badge: Math.abs(delta) <= 0.5 ? "Aligned" : "Mismatch",
+          body: `Card source shows ${money(ccTotal)} outstanding. Balance source shows ${money(balanceCc)}. Difference: ${money(delta)}.`
+        };
+      }
+
+      function renderSummary() {
+        $("totalLiquid").textContent = money(firstDefined(state.balances?.total_liquid, state.balances?.cash, 0));
+        $("ccOutstanding").textContent = money(firstDefined(state.balances?.cc_outstanding, state.balances?.cc, 0));
+        $("payableDebt").textContent = money(firstDefined(state.balances?.payable_debt_remaining, state.balances?.total_owed, state.balances?.total_debts, 0));
+        $("receivables").textContent = money(firstDefined(state.balances?.total_receivables, state.balances?.receivables_from_debts, 0));
+      }
+
+      function renderChecks() {
+        $("checkList").innerHTML = state.checks.map((check) => `
+          <article class="rec-check">
+            <div class="rec-check-head">
+              <div class="rec-check-title">${escapeHtml(check.title)}</div>
+              <span class="rec-pill ${escapeHtml(check.status)}">${escapeHtml(check.badge)}</span>
+            </div>
+            <div class="rec-check-body">${escapeHtml(check.body)}</div>
+          </article>
+        `).join("");
+      }
+
+      function renderSources() {
+        $("sourcePanel").innerHTML = state.sourceStatus.map((source) => `
+          <div class="rec-side-row">
+            <span>${escapeHtml(source.path)}</span>
+            <span>${source.ok ? "OK" : "Failed"}</span>
+          </div>
+        `).join("");
+      }
+
+      function renderPriority() {
+        const warnings = [];
+
+        for (const check of state.checks) {
+          if (check.status === "warn" || check.status === "danger") {
+            warnings.push(`${check.title}: ${check.badge}`);
+          }
+        }
+
+        if (!warnings.length) {
+          $("priorityPanel").innerHTML = `
+            <div class="rec-side-row">
+              <span>Status</span>
+              <span>No material mismatch</span>
+            </div>
+          `;
+          return;
+        }
+
+        $("priorityPanel").innerHTML = warnings.map((warning) => `
+          <div class="rec-side-row">
+            <span>Review</span>
+            <span>${escapeHtml(warning)}</span>
+          </div>
+        `).join("");
+      }
+
+      function renderAccounts() {
+        const select = $("accountSelect");
+
+        if (!state.accountRows.length) {
+          select.innerHTML = `<option value="">No accounts found</option>`;
+          $("accountTableWrap").innerHTML = `<div class="rec-empty">No accounts returned by sources.</div>`;
+          return;
+        }
+
+        select.innerHTML = [
+          `<option value="">Choose account</option>`,
+          ...state.accountRows.map((account) => `
+            <option value="${escapeHtml(account.id)}">${escapeHtml(account.name)} — ${money(account.balance)}</option>
+          `)
+        ].join("");
+
+        $("accountTableWrap").innerHTML = `
+          <table class="rec-table">
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Kind</th>
+                <th>Opening</th>
+                <th>Current</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${state.accountRows.map((account) => `
+                <tr>
+                  <td>${escapeHtml(account.name)}</td>
+                  <td>${escapeHtml(text(firstDefined(account.kind, account.type)))}</td>
+                  <td>${money(account.opening_balance)}</td>
+                  <td>${money(account.balance)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        `;
+      }
+
+      function renderManualCompare() {
+        const accountId = $("accountSelect").value;
+        const actual = asNumber($("actualBalance").value, NaN);
+        const account = state.accountRows.find((item) => item.id === accountId);
+
+        if (!account || !Number.isFinite(actual)) {
+          $("manualResult").innerHTML = `<div class="rec-empty">Choose an account and enter actual balance. This calculates difference only.</div>`;
+          return;
+        }
+
+        const appBalance = asNumber(account.balance, 0);
+        const delta = round2(actual - appBalance);
+        const status = Math.abs(delta) <= 0.5 ? "good" : "warn";
+
+        $("manualResult").innerHTML = `
+          <div class="rec-check">
+            <div class="rec-check-head">
+              <div class="rec-check-title">${escapeHtml(account.name)}</div>
+              <span class="rec-pill ${status}">${Math.abs(delta) <= 0.5 ? "Aligned" : "Difference"}</span>
+            </div>
+            <div class="rec-side-list">
+              <div class="rec-side-row">
+                <span>App balance</span>
+                <span>${money(appBalance)}</span>
+              </div>
+              <div class="rec-side-row">
+                <span>Actual balance</span>
+                <span>${money(actual)}</span>
+              </div>
+              <div class="rec-side-row">
+                <span>Difference</span>
+                <span>${money(delta)}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderDebug() {
+        if (!DEBUG) return;
+
+        $("debugPanel").hidden = false;
+        $("debugOutput").classList.add("is-visible");
+        $("debugOutput").textContent = JSON.stringify({
+          version: PAGE_VERSION,
+          sources: state.sourceStatus,
+          checks: state.checks,
+          account_count: state.accountRows.length,
+          active_transaction_count: activeTransactions().length
+        }, null, 2);
+      }
+
+      async function boot() {
+        window.SovereignReconciliation = {
+          version: PAGE_VERSION,
+          reload: boot
+        };
+
+        try {
+          setStatus("loading", `<strong>Loading reconciliation checks…</strong> <span>Reading safe sources.</span>`);
+
+          const results = await Promise.allSettled([
+            readJson("/api/balances", true),
+            readJson("/api/accounts", false),
+            readJson("/api/transactions", false),
+            readJson("/api/bills", false),
+            readJson("/api/debts", false),
+            readJson("/api/cc", false)
+          ]);
+
+          state.balances = results[0].status === "fulfilled" ? results[0].value : null;
+          state.accounts = results[1].status === "fulfilled" ? results[1].value : null;
+          state.transactions = results[2].status === "fulfilled" ? results[2].value : null;
+          state.bills = results[3].status === "fulfilled" ? results[3].value : null;
+          state.debts = results[4].status === "fulfilled" ? results[4].value : null;
+          state.cc = results[5].status === "fulfilled" ? results[5].value : null;
+
+          normalizeAccounts();
+          buildChecks();
+
+          renderSummary();
+          renderChecks();
+          renderSources();
+          renderPriority();
+          renderAccounts();
+          renderManualCompare();
+          renderDebug();
+
+          $("accountSelect").addEventListener("change", renderManualCompare);
+          $("actualBalance").addEventListener("input", renderManualCompare);
+
+          setStatus("ready", `<strong>Reconciliation ready.</strong> <span>Read-only checks loaded from current sources.</span>`);
+
+          console.log("reconciliation page:", PAGE_VERSION);
+          console.log("reconciliation sources:", state.sourceStatus);
+        } catch (error) {
+          console.error(error);
+          setStatus("error", `<strong>Reconciliation failed.</strong> <span>${escapeHtml(error.message)}</span>`);
+          $("checkList").innerHTML = `<div class="rec-empty rec-error">Could not load required balance source.</div>`;
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", boot);
+    })();
+  </script>
 </body>
 </html>
