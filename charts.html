@@ -6,809 +6,759 @@
   <meta name="theme-color" content="#050816" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-
   <title>Charts · Sovereign Finance</title>
 
   <link rel="stylesheet" href="/css/app.css?v=1.0.0" />
+  <link rel="stylesheet" href="/css/sf-theme.css" />
+  <link rel="stylesheet" href="/css/sf-shell.css" />
 
   <style>
-    body {
-      background:
-        radial-gradient(circle at 10% 0%, rgba(34, 197, 94, 0.18), transparent 34rem),
-        radial-gradient(circle at 90% 10%, rgba(59, 130, 246, 0.18), transparent 36rem),
-        radial-gradient(circle at 55% 90%, rgba(168, 85, 247, 0.12), transparent 34rem),
-        #eef4ff;
+    .sf-metric-value > span {
+      display: inline-block;
     }
 
-    .charts-wrap {
-      max-width: 1320px;
-      margin: 0 auto;
-    }
+    .charts-metric-positive { color: var(--sf-positive); }
+    .charts-metric-negative { color: var(--sf-danger); }
+    .charts-metric-warning { color: var(--sf-warning); }
 
-    .cinema-hero {
-      position: relative;
-      overflow: hidden;
-      min-height: 260px;
-      border-radius: 30px;
-      padding: 28px;
-      margin-bottom: 18px;
-      background:
-        linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92)),
-        radial-gradient(circle at 20% 20%, rgba(34, 197, 94, 0.35), transparent 26rem);
-      border: 1px solid rgba(148, 163, 184, 0.22);
-      color: #f8fafc;
-      box-shadow: 0 26px 80px rgba(15, 23, 42, 0.28);
-      transform-style: preserve-3d;
-    }
-
-    .cinema-hero::before,
-    .cinema-hero::after {
-      content: "";
-      position: absolute;
-      border-radius: 999px;
-      filter: blur(2px);
-      opacity: 0.8;
-      pointer-events: none;
-      animation: floatOrb 9s ease-in-out infinite;
-    }
-
-    .cinema-hero::before {
-      width: 260px;
-      height: 260px;
-      right: -80px;
-      top: -70px;
-      background: radial-gradient(circle, rgba(34, 197, 94, 0.42), transparent 70%);
-    }
-
-    .cinema-hero::after {
-      width: 220px;
-      height: 220px;
-      left: 42%;
-      bottom: -110px;
-      background: radial-gradient(circle, rgba(59, 130, 246, 0.32), transparent 70%);
-      animation-delay: -3s;
-    }
-
-    @keyframes floatOrb {
-      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-      50% { transform: translate3d(14px, -16px, 18px) scale(1.08); }
-    }
-
-    .hero-content {
-      position: relative;
-      z-index: 2;
-      max-width: 820px;
-    }
-
-    .charts-kicker {
-      display: inline-flex;
-      padding: 7px 11px;
-      border-radius: 999px;
-      background: rgba(34, 197, 94, 0.14);
-      color: #86efac;
-      border: 1px solid rgba(34, 197, 94, 0.24);
-      font-size: 12px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.09em;
-      margin-bottom: 14px;
-    }
-
-    .charts-heading {
-      margin: 0;
-      font-size: clamp(38px, 6vw, 76px);
-      line-height: 0.95;
-      letter-spacing: -0.07em;
-      font-weight: 950;
-      color: #ffffff;
-    }
-
-    .charts-copy {
-      margin-top: 14px;
-      max-width: 760px;
-      color: #cbd5e1;
-      font-size: 15px;
-      line-height: 1.6;
-      font-weight: 750;
-    }
-
-    .range-tabs {
-      position: relative;
-      z-index: 3;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 22px;
-    }
-
-    .range-btn {
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      background: rgba(255, 255, 255, 0.08);
-      color: #e2e8f0;
-      border-radius: 999px;
-      padding: 11px 15px;
-      font-size: 13px;
-      font-weight: 950;
-      backdrop-filter: blur(12px);
-    }
-
-    .range-btn.active {
-      background: #86efac;
-      color: #052e16;
-      border-color: rgba(134, 239, 172, 0.6);
-      box-shadow: 0 14px 32px rgba(34, 197, 94, 0.24);
-    }
-
-    .metric-grid {
+    .charts-layout {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-      margin-bottom: 18px;
+      gap: var(--sf-space-6);
     }
 
-    .metric-card {
-      position: relative;
-      overflow: hidden;
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(15, 23, 42, 0.1);
-      border-radius: 24px;
-      box-shadow: 0 18px 46px rgba(15, 23, 42, 0.12);
-      padding: 18px;
-      transform: translateZ(0);
-    }
-
-    .metric-card::after {
-      content: "";
-      position: absolute;
-      inset: auto -40px -70px auto;
-      width: 130px;
-      height: 130px;
-      border-radius: 999px;
-      background: rgba(34, 197, 94, 0.12);
-      pointer-events: none;
-    }
-
-    .metric-label {
-      color: #64748b;
-      font-size: 11px;
-      font-weight: 950;
-      text-transform: uppercase;
-      letter-spacing: 0.09em;
-    }
-
-    .metric-value {
-      margin-top: 8px;
-      color: #0f172a;
-      font-size: 24px;
-      font-weight: 950;
-      letter-spacing: -0.04em;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-
-    .metric-value.positive { color: #15803d; }
-    .metric-value.negative { color: #dc2626; }
-    .metric-value.warn { color: #d97706; }
-
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.05fr) minmax(390px, 0.95fr);
-      gap: 18px;
-    }
-
-    .viz-panel {
-      position: relative;
-      overflow: hidden;
-      background: rgba(255, 255, 255, 0.94);
-      border: 1px solid rgba(15, 23, 42, 0.1);
-      border-radius: 28px;
-      box-shadow: 0 20px 52px rgba(15, 23, 42, 0.13);
-      padding: 18px;
-      min-width: 0;
-    }
-
-    .viz-panel.wide {
-      grid-column: 1 / -1;
-    }
-
-    .panel-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: start;
-      margin-bottom: 16px;
-    }
-
-    .panel-title {
-      color: #0f172a;
-      font-size: 19px;
-      font-weight: 950;
-      letter-spacing: -0.02em;
-    }
-
-    .panel-sub {
-      color: #64748b;
-      font-size: 12px;
-      font-weight: 850;
-      margin-top: 3px;
-    }
-
-    .depth-stage {
+    .charts-depth-stage {
       position: relative;
       min-height: 360px;
       perspective: 1100px;
-      border-radius: 24px;
-      background:
-        radial-gradient(circle at 50% 36%, rgba(34, 197, 94, 0.13), transparent 18rem),
-        linear-gradient(180deg, #f8fafc, #eef4ff);
-      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: var(--sf-radius-lg);
       overflow: hidden;
+      border: 1px solid var(--sf-border-subtle);
+      background:
+        radial-gradient(circle at 50% 32%, rgba(91, 162, 255, 0.14), transparent 18rem),
+        linear-gradient(180deg, var(--sf-surface-2), var(--sf-surface-0));
     }
 
-    .orbit {
+    .charts-orbit {
       position: absolute;
       inset: 34px;
       border-radius: 50%;
-      border: 1px dashed rgba(15, 23, 42, 0.12);
+      border: 1px dashed var(--sf-border);
       transform: rotateX(62deg) rotateZ(-8deg);
-      animation: slowSpin 28s linear infinite;
+      animation: chartsSpin 28s linear infinite;
     }
 
-    .orbit.two {
+    .charts-orbit.two {
       inset: 72px;
+      opacity: 0.72;
       animation-duration: 22s;
       animation-direction: reverse;
-      opacity: 0.72;
     }
 
-    @keyframes slowSpin {
+    @keyframes chartsSpin {
       from { transform: rotateX(62deg) rotateZ(0deg); }
       to { transform: rotateX(62deg) rotateZ(360deg); }
     }
 
-    .core-number {
+    .charts-core {
       position: absolute;
       inset: 0;
       display: grid;
       place-items: center;
-      text-align: center;
       z-index: 3;
+      text-align: center;
+      padding: var(--sf-space-5);
     }
 
-    .core-number-inner {
+    .charts-core-inner {
       width: min(280px, 72%);
       aspect-ratio: 1;
       border-radius: 50%;
       display: grid;
       place-items: center;
       background:
-        radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.95), rgba(226, 232, 240, 0.96)),
-        linear-gradient(135deg, rgba(34, 197, 94, 0.22), rgba(59, 130, 246, 0.18));
-      border: 1px solid rgba(15, 23, 42, 0.08);
-      box-shadow:
-        0 26px 60px rgba(15, 23, 42, 0.18),
-        inset 0 1px 0 rgba(255, 255, 255, 0.9);
-      transform: rotateX(8deg);
+        radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)),
+        linear-gradient(135deg, rgba(91, 162, 255, 0.18), rgba(83, 215, 167, 0.12));
+      border: 1px solid var(--sf-border);
+      box-shadow: var(--sf-shadow-md);
     }
 
-    .core-label {
-      color: #64748b;
-      font-size: 11px;
-      font-weight: 950;
+    .charts-core-label {
+      color: var(--sf-text-faint);
+      font-size: var(--sf-font-11);
+      font-weight: 800;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      margin-bottom: 8px;
+      margin-bottom: var(--sf-space-2);
     }
 
-    .core-value {
-      color: #dc2626;
+    .charts-core-value {
+      color: var(--sf-danger);
       font-size: clamp(28px, 4vw, 42px);
       line-height: 1;
-      font-weight: 950;
-      letter-spacing: -0.055em;
+      font-weight: 800;
+      letter-spacing: -0.05em;
       font-variant-numeric: tabular-nums;
     }
 
-    .satellite {
+    .charts-satellite {
       position: absolute;
       z-index: 4;
       width: 132px;
-      border-radius: 18px;
-      padding: 12px;
-      background: rgba(255, 255, 255, 0.92);
-      border: 1px solid rgba(15, 23, 42, 0.1);
-      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.14);
+      border-radius: var(--sf-radius-md);
+      padding: var(--sf-space-4);
+      background: var(--sf-surface-1);
+      border: 1px solid var(--sf-border);
+      box-shadow: var(--sf-shadow-sm);
       backdrop-filter: blur(14px);
     }
 
-    .satellite.a { top: 34px; left: 46px; }
-    .satellite.b { top: 58px; right: 42px; }
-    .satellite.c { bottom: 42px; left: 54px; }
-    .satellite.d { bottom: 48px; right: 52px; }
+    .charts-satellite.a { top: 34px; left: 46px; }
+    .charts-satellite.b { top: 58px; right: 42px; }
+    .charts-satellite.c { bottom: 42px; left: 54px; }
+    .charts-satellite.d { bottom: 48px; right: 52px; }
 
-    .sat-label {
-      color: #64748b;
-      font-size: 10px;
-      font-weight: 950;
-      text-transform: uppercase;
+    .charts-sat-label {
+      color: var(--sf-text-faint);
+      font-size: var(--sf-font-11);
+      font-weight: 800;
       letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
-    .sat-value {
-      margin-top: 5px;
-      color: #0f172a;
-      font-size: 14px;
-      font-weight: 950;
+    .charts-sat-value {
+      margin-top: var(--sf-space-2);
+      color: var(--sf-text);
+      font-size: var(--sf-font-14);
+      font-weight: 800;
       font-variant-numeric: tabular-nums;
     }
 
-    .bar-list {
+    .charts-bar-list {
       display: flex;
       flex-direction: column;
-      gap: 11px;
+      gap: var(--sf-space-3);
     }
 
-    .bar-row {
+    .charts-bar-row {
       display: grid;
-      grid-template-columns: minmax(150px, 0.9fr) minmax(130px, 1fr) auto;
-      gap: 12px;
+      grid-template-columns: minmax(140px, 0.9fr) minmax(120px, 1fr) auto;
+      gap: var(--sf-space-3);
       align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      padding: var(--sf-space-3) 0;
+      border-bottom: 1px solid var(--sf-border-subtle);
     }
 
-    .bar-row:last-child { border-bottom: 0; }
+    .charts-bar-row:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
 
-    .bar-label {
+    .charts-bar-label {
       display: flex;
       align-items: center;
-      gap: 9px;
+      gap: var(--sf-space-3);
       min-width: 0;
     }
 
-    .bar-icon {
+    .charts-bar-icon {
       width: 34px;
       height: 34px;
-      border-radius: 13px;
+      border-radius: 12px;
       display: grid;
       place-items: center;
-      background: #f8fafc;
-      border: 1px solid rgba(15, 23, 42, 0.08);
+      background: var(--sf-surface-2);
+      border: 1px solid var(--sf-border-subtle);
       flex: 0 0 34px;
     }
 
-    .bar-name {
-      color: #0f172a;
-      font-size: 14px;
-      font-weight: 950;
+    .charts-bar-name {
+      color: var(--sf-text);
+      font-size: var(--sf-font-14);
+      font-weight: 800;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
 
-    .bar-count {
-      color: #64748b;
-      font-size: 11px;
-      font-weight: 800;
+    .charts-bar-count {
+      color: var(--sf-text-faint);
+      font-size: var(--sf-font-11);
+      font-weight: 700;
       margin-top: 2px;
     }
 
-    .bar-track {
+    .charts-bar-track {
       height: 13px;
-      background: #e2e8f0;
-      border-radius: 999px;
+      background: var(--sf-surface-3);
+      border-radius: var(--sf-radius-pill);
       overflow: hidden;
     }
 
-    .bar-fill {
+    .charts-bar-fill {
       height: 100%;
       width: 0%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #22c55e, #16a34a);
-      box-shadow: 0 0 18px rgba(34, 197, 94, 0.32);
-      transition: width 0.6s ease;
+      border-radius: var(--sf-radius-pill);
+      background: linear-gradient(90deg, var(--sf-positive), #16a34a);
+      box-shadow: 0 0 18px rgba(83, 215, 167, 0.24);
+      transition: width var(--sf-duration-slow) var(--sf-ease);
     }
 
-    .bar-fill.blue {
-      background: linear-gradient(90deg, #60a5fa, #2563eb);
-      box-shadow: 0 0 18px rgba(37, 99, 235, 0.28);
+    .charts-bar-fill.blue {
+      background: linear-gradient(90deg, var(--sf-accent-strong), var(--sf-accent));
+      box-shadow: 0 0 18px rgba(91, 162, 255, 0.24);
     }
 
-    .bar-amount {
-      color: #0f172a;
-      font-size: 13px;
-      font-weight: 950;
+    .charts-bar-amount {
+      color: var(--sf-text);
+      font-size: var(--sf-font-13);
+      font-weight: 800;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
       text-align: right;
     }
 
-    .trend-stage {
+    .charts-trend-stage {
       height: 320px;
       display: flex;
       align-items: flex-end;
       gap: 6px;
       padding: 18px 6px 0;
       overflow-x: auto;
-      border-radius: 24px;
+      border-radius: var(--sf-radius-lg);
       background:
-        linear-gradient(180deg, rgba(37, 99, 235, 0.06), transparent),
-        #f8fafc;
-      border: 1px solid rgba(15, 23, 42, 0.08);
+        linear-gradient(180deg, rgba(91, 162, 255, 0.08), transparent),
+        var(--sf-surface-1);
+      border: 1px solid var(--sf-border-subtle);
     }
 
-    .trend-col {
+    .charts-trend-col {
       min-width: 20px;
       flex: 1;
       height: 100%;
       display: flex;
       align-items: flex-end;
-      transform-style: preserve-3d;
     }
 
-    .trend-bar {
+    .charts-trend-bar {
       width: 100%;
       min-height: 3px;
       border-radius: 8px 8px 0 0;
-      background: linear-gradient(180deg, #60a5fa, #2563eb);
-      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+      background: linear-gradient(180deg, var(--sf-accent-strong), var(--sf-accent));
+      box-shadow: 0 12px 24px rgba(91, 162, 255, 0.18);
       position: relative;
       transform-origin: bottom;
-      animation: growUp 0.7s ease both;
+      animation: chartsGrowUp 0.7s ease both;
     }
 
-    @keyframes growUp {
+    @keyframes chartsGrowUp {
       from { transform: scaleY(0.18); opacity: 0.45; }
       to { transform: scaleY(1); opacity: 1; }
     }
 
-    .trend-bar:hover::after {
+    .charts-trend-bar:hover::after {
       content: attr(data-tip);
       position: absolute;
       left: 50%;
       bottom: calc(100% + 8px);
       transform: translateX(-50%);
-      background: #0f172a;
-      color: #f8fafc;
+      background: rgba(9, 20, 39, 0.94);
+      color: var(--sf-text);
       border-radius: 10px;
       padding: 6px 8px;
-      font-size: 11px;
-      font-weight: 850;
+      font-size: var(--sf-font-11);
+      font-weight: 700;
       white-space: nowrap;
       z-index: 5;
+      border: 1px solid var(--sf-border);
     }
 
-    .empty-panel {
-      background: #f8fafc;
-      border: 1px dashed rgba(15, 23, 42, 0.2);
-      border-radius: 18px;
-      padding: 24px;
+    .charts-empty {
+      display: grid;
+      place-items: center;
+      min-height: 180px;
       text-align: center;
-      color: #64748b;
-      font-weight: 850;
+      color: var(--sf-text-muted);
+      border: 1px dashed var(--sf-border);
+      border-radius: var(--sf-radius-md);
+      background: var(--sf-surface-1);
+      padding: var(--sf-space-6);
+    }
+
+    .charts-panel-meta {
+      margin-top: var(--sf-space-2);
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-13);
+    }
+
+    .charts-debug-grid {
+      display: grid;
+      gap: var(--sf-space-4);
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    .charts-debug-item {
+      padding: var(--sf-space-4);
+      border-radius: var(--sf-radius-md);
+      border: 1px solid var(--sf-border-subtle);
+      background: var(--sf-surface-1);
+    }
+
+    .charts-debug-label {
+      color: var(--sf-text-faint);
+      font-size: var(--sf-font-11);
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: var(--sf-space-2);
+    }
+
+    .charts-debug-value {
+      color: var(--sf-text);
+      font-size: var(--sf-font-14);
+      font-weight: 700;
+      word-break: break-word;
+    }
+
+    .charts-footer {
+      color: var(--sf-text-faint);
+      font-size: var(--sf-font-12);
+      padding: 0 var(--sf-space-2);
     }
 
     @media (max-width: 1000px) {
-      .metric-grid,
-      .dashboard-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .satellite {
+      .charts-satellite {
         position: static;
         width: auto;
         margin: 8px;
       }
 
-      .depth-stage {
+      .charts-depth-stage {
         display: grid;
         gap: 8px;
         padding: 12px;
       }
 
-      .core-number {
+      .charts-core {
         position: static;
         min-height: 260px;
       }
 
-      .orbit {
+      .charts-orbit {
         display: none;
       }
     }
 
     @media (max-width: 640px) {
-      .bar-row {
+      .charts-bar-row {
         grid-template-columns: 1fr;
       }
 
-      .bar-amount {
+      .charts-bar-amount {
         text-align: left;
       }
     }
   </style>
 </head>
-
 <body>
-  <header>
-    <div>
-      <div class="brand">Sovereign Finance</div>
-      <div class="title">Charts</div>
-    </div>
-  </header>
-
-  <main class="charts-wrap">
-    <section class="cinema-hero">
-      <div class="hero-content">
-        <div class="charts-kicker">Layer 4 visual cockpit</div>
-        <h1 class="charts-heading">Finance in motion</h1>
-        <p class="charts-copy">
-          Same trusted Layer 2 data. Richer Layer 4 presentation: depth, motion, time trend, risk orbit, and interactive scan.
-        </p>
-
-        <div class="range-tabs">
-          <button class="range-btn" type="button" data-days="7">7 days</button>
-          <button class="range-btn active" type="button" data-days="30">30 days</button>
-          <button class="range-btn" type="button" data-days="90">90 days</button>
+  <main class="sf-panel-grid charts-layout">
+    <section class="sf-chart-card sf-span-7 sf-chart-card--accent">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Burden view</p>
+          <h2 class="sf-section-title">True Burden Orbit</h2>
+          <p class="sf-section-subtitle">Liquid, CC, debts, burden in one depth view</p>
         </div>
       </div>
-    </section>
 
-    <section class="metric-grid">
-      <div class="metric-card">
-        <div class="metric-label">Net Flow</div>
-        <div id="netFlow" class="metric-value">—</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Income</div>
-        <div id="incomeTotal" class="metric-value positive">—</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Expense</div>
-        <div id="expenseTotal" class="metric-value negative">—</div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">CC Utilization</div>
-        <div id="ccUtil" class="metric-value warn">—</div>
-      </div>
-    </section>
+      <div class="charts-depth-stage">
+        <div class="charts-orbit"></div>
+        <div class="charts-orbit two"></div>
 
-    <section class="dashboard-grid">
-      <div class="viz-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">True Burden Orbit</div>
-            <div class="panel-sub">Liquid, CC, debts, burden in one depth view</div>
-          </div>
-        </div>
-
-        <div class="depth-stage">
-          <div class="orbit"></div>
-          <div class="orbit two"></div>
-
-          <div class="core-number">
-            <div class="core-number-inner">
-              <div>
-                <div class="core-label">True Burden</div>
-                <div id="burdenVal" class="core-value">—</div>
-              </div>
+        <div class="charts-core">
+          <div class="charts-core-inner">
+            <div>
+              <div class="charts-core-label">True Burden</div>
+              <div id="burdenVal" class="charts-core-value">—</div>
             </div>
           </div>
+        </div>
 
-          <div class="satellite a">
-            <div class="sat-label">Liquid</div>
-            <div id="liquidVal" class="sat-value">—</div>
-          </div>
-          <div class="satellite b">
-            <div class="sat-label">CC</div>
-            <div id="ccVal" class="sat-value">—</div>
-          </div>
-          <div class="satellite c">
-            <div class="sat-label">Owed</div>
-            <div id="owedVal" class="sat-value">—</div>
-          </div>
-          <div class="satellite d">
-            <div class="sat-label">Available CC</div>
-            <div id="availableVal" class="sat-value">—</div>
-          </div>
+        <div class="charts-satellite a">
+          <div class="charts-sat-label">Liquid</div>
+          <div id="liquidVal" class="charts-sat-value">—</div>
         </div>
-      </div>
 
-      <div class="viz-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Spend by Account</div>
-            <div id="accountSub" class="panel-sub">Loading…</div>
-          </div>
+        <div class="charts-satellite b">
+          <div class="charts-sat-label">CC</div>
+          <div id="ccVal" class="charts-sat-value">—</div>
         </div>
-        <div id="accountChart" class="bar-list">
-          <div class="empty-panel">Loading account chart…</div>
-        </div>
-      </div>
 
-      <div class="viz-panel">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Spend by Category</div>
-            <div id="categorySub" class="panel-sub">Loading…</div>
-          </div>
+        <div class="charts-satellite c">
+          <div class="charts-sat-label">Owed</div>
+          <div id="owedVal" class="charts-sat-value">—</div>
         </div>
-        <div id="categoryChart" class="bar-list">
-          <div class="empty-panel">Loading category chart…</div>
-        </div>
-      </div>
 
-      <div class="viz-panel wide">
-        <div class="panel-head">
-          <div>
-            <div class="panel-title">Time Dimension</div>
-            <div id="trendSub" class="panel-sub">Loading…</div>
-          </div>
-        </div>
-        <div id="trendChart" class="trend-stage">
-          <div class="empty-panel">Loading trend…</div>
+        <div class="charts-satellite d">
+          <div class="charts-sat-label">Available CC</div>
+          <div id="availableVal" class="charts-sat-value">—</div>
         </div>
       </div>
     </section>
 
-    <footer class="page-footer">
-      <span class="v">v0.3.0 · layer 4 premium charts · api insights v0.2.0</span>
+    <section class="sf-chart-card sf-span-5">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Spend composition</p>
+          <h2 class="sf-section-title">Spend by Account</h2>
+          <p id="accountSub" class="charts-panel-meta">Loading</p>
+        </div>
+      </div>
+
+      <div id="accountChart" class="charts-bar-list">
+        <div class="charts-empty">Loading account chart</div>
+      </div>
+    </section>
+
+    <section class="sf-chart-card sf-span-5">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Spend composition</p>
+          <h2 class="sf-section-title">Spend by Category</h2>
+          <p id="categorySub" class="charts-panel-meta">Loading</p>
+        </div>
+      </div>
+
+      <div id="categoryChart" class="charts-bar-list">
+        <div class="charts-empty">Loading category chart</div>
+      </div>
+    </section>
+
+    <section class="sf-chart-card sf-span-7">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Trend</p>
+          <h2 class="sf-section-title">Time Dimension</h2>
+          <p id="trendSub" class="charts-panel-meta">Loading</p>
+        </div>
+      </div>
+
+      <div id="trendChart" class="charts-trend-stage">
+        <div class="charts-empty">Loading trend</div>
+      </div>
+    </section>
+
+    <section class="sf-debug-panel sf-debug-only sf-span-12">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Debug</p>
+          <h2 class="sf-section-title">Charts verification</h2>
+          <p class="sf-section-subtitle">Visible only on ?debug=1</p>
+        </div>
+      </div>
+
+      <div id="chartsDebug" class="charts-debug-grid">
+        <div class="charts-debug-item">
+          <div class="charts-debug-label">State</div>
+          <div class="charts-debug-value">Waiting for load</div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="charts-footer sf-span-12">
+      Charts · central shell reference · insights + balances
     </footer>
   </main>
 
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script>
+    window.SF_PAGE = {
+      title: "Charts",
+      eyebrow: "Layer 4 visual cockpit",
+      subtitle: "Same trusted Layer 2 data. Richer Layer 4 presentation: depth, motion, time trend, risk orbit, and interactive scan.",
+      controls: [
+        { label: "7 days", dataset: { days: "7" } },
+        { label: "30 days", dataset: { days: "30" }, active: true },
+        { label: "90 days", dataset: { days: "90" } }
+      ],
+      kpis: [
+        {
+          kicker: "Overview",
+          title: "Net Flow",
+          valueHtml: "<span id=\"netFlow\">—</span>",
+          foot: "Insights window",
+          accent: true
+        },
+        {
+          kicker: "Inflow",
+          title: "Income",
+          valueHtml: "<span id=\"incomeTotal\">—</span>",
+          foot: "Tracked receipts",
+          tone: "positive"
+        },
+        {
+          kicker: "Outflow",
+          title: "Expense",
+          valueHtml: "<span id=\"expenseTotal\">—</span>",
+          foot: "Tracked spending",
+          tone: "danger"
+        },
+        {
+          kicker: "Credit card",
+          title: "CC Utilization",
+          valueHtml: "<span id=\"ccUtil\">—</span>",
+          foot: "Outstanding / limit",
+          tone: "warning"
+        }
+      ]
+    };
+  </script>
 
   <script src="/js/theme.js?v=0.7.5"></script>
   <script src="/js/nav.js?v=1.0.1"></script>
+  <script src="/js/sf-components.js"></script>
+  <script src="/js/sf-shell.js"></script>
+  <script src="/js/sf-charts-system.js"></script>
 
   <script>
-    let currentDays = 30;
+    (function () {
+      let currentDays = 30;
 
-    const $ = id => document.getElementById(id);
+      const $ = (id) => document.getElementById(id);
 
-    function money(value) {
-      const n = Number(value) || 0;
-      const sign = n < 0 ? '-' : '';
-      return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', { maximumFractionDigits: 2 });
-    }
-
-    function esc(value) {
-      return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
-
-    async function fetchJSON(url) {
-      const res = await fetch(url, { cache: 'no-store' });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data || data.ok === false) {
-        throw new Error((data && data.error) || ('HTTP ' + res.status));
-      }
-      return data;
-    }
-
-    function renderStats(insights, balances) {
-      const net = Number(insights.net) || 0;
-      const income = Number(insights.totals && insights.totals.income) || 0;
-      const expense = Number(insights.totals && insights.totals.expense) || 0;
-
-      $('netFlow').textContent = money(net);
-      $('netFlow').className = 'metric-value ' + (net >= 0 ? 'positive' : 'negative');
-      $('incomeTotal').textContent = money(income);
-      $('expenseTotal').textContent = money(expense);
-
-      const ccOutstanding = Number(balances.cc_outstanding || balances.cc || 0);
-      const ccAccount = balances.accounts && balances.accounts.cc ? balances.accounts.cc : {};
-      const limit = Number(ccAccount.credit_limit || 100000);
-      const pct = limit > 0 ? (ccOutstanding / limit) * 100 : 0;
-      const available = Math.max(0, limit - ccOutstanding);
-
-      $('ccUtil').textContent = pct.toFixed(1) + '%';
-      $('liquidVal').textContent = money(balances.total_liquid || balances.cash || 0);
-      $('ccVal').textContent = money(ccOutstanding);
-      $('owedVal').textContent = money(balances.total_owed || balances.total_owe || 0);
-      $('burdenVal').textContent = money(balances.true_burden || 0);
-      $('availableVal').textContent = money(available);
-    }
-
-    function renderBars(targetId, subId, rows, label, colorClass) {
-      const target = $(targetId);
-      const sub = $(subId);
-
-      if (!rows || !rows.length) {
-        target.innerHTML = '<div class="empty-panel">No data for this range.</div>';
-        sub.textContent = '0 rows';
-        return;
+      function esc(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
       }
 
-      const max = Math.max(...rows.map(row => Number(row.total) || 0), 1);
-      const total = rows.reduce((sum, row) => sum + (Number(row.total) || 0), 0);
+      function money(value) {
+        return window.SFChartsSystem.money(value).replace(/^PKR\s?/, "Rs ");
+      }
 
-      sub.textContent = rows.length + ' ' + label + ' · ' + money(total);
+      async function fetchJSON(url) {
+        const res = await fetch(url, { cache: "no-store" });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data || data.ok === false) {
+          throw new Error((data && data.error) || ("HTTP " + res.status));
+        }
+        return data;
+      }
 
-      target.innerHTML = rows.map(row => {
-        const pct = Math.max(3, ((Number(row.total) || 0) / max) * 100);
+      function setActiveRange(days) {
+        document.querySelectorAll(".sf-control-row [data-days]").forEach((btn) => {
+          btn.classList.toggle("is-active", Number(btn.dataset.days) === days);
+        });
+      }
 
-        return `
-          <div class="bar-row">
-            <div class="bar-label">
-              <div class="bar-icon">${esc(row.icon || '📌')}</div>
-              <div style="min-width:0">
-                <div class="bar-name" title="${esc(row.name || row.id)}">${esc(row.name || row.id || 'Unknown')}</div>
-                <div class="bar-count">${esc(row.count || 0)} row${Number(row.count) === 1 ? '' : 's'}</div>
+      function setMetricTone(id, tone) {
+        const el = $(id);
+        if (!el) return;
+        el.className = tone ? "charts-metric-" + tone : "";
+      }
+
+      function renderStats(insights, balances) {
+        const net = Number(insights.net) || 0;
+        const income = Number(insights.totals && insights.totals.income) || 0;
+        const expense = Number(insights.totals && insights.totals.expense) || 0;
+
+        $("netFlow").textContent = money(net);
+        $("incomeTotal").textContent = money(income);
+        $("expenseTotal").textContent = money(expense);
+
+        setMetricTone("netFlow", net >= 0 ? "positive" : "negative");
+        setMetricTone("incomeTotal", "positive");
+        setMetricTone("expenseTotal", "negative");
+
+        const ccOutstanding = Number(balances.cc_outstanding || balances.cc || 0);
+        const ccAccount = balances.accounts && balances.accounts.cc ? balances.accounts.cc : {};
+        const limit = Number(ccAccount.credit_limit || 100000);
+        const pct = limit > 0 ? (ccOutstanding / limit) * 100 : 0;
+        const available = Math.max(0, limit - ccOutstanding);
+
+        $("ccUtil").textContent = pct.toFixed(1) + "%";
+        setMetricTone("ccUtil", "warning");
+
+        $("liquidVal").textContent = money(balances.total_liquid || balances.cash || 0);
+        $("ccVal").textContent = money(ccOutstanding);
+        $("owedVal").textContent = money(balances.total_owed || balances.total_owe || 0);
+        $("burdenVal").textContent = money(balances.true_burden || 0);
+        $("availableVal").textContent = money(available);
+      }
+
+      function renderBars(targetId, subId, rows, label, colorClass) {
+        const target = $(targetId);
+        const sub = $(subId);
+
+        if (!rows || !rows.length) {
+          target.innerHTML = '<div class="charts-empty">No data for this range.</div>';
+          sub.textContent = "0 rows";
+          return;
+        }
+
+        const max = Math.max(...rows.map((row) => Number(row.total) || 0), 1);
+        const total = rows.reduce((sum, row) => sum + (Number(row.total) || 0), 0);
+
+        sub.textContent = rows.length + " " + label + " · " + money(total);
+
+        target.innerHTML = rows.map((row) => {
+          const pct = Math.max(3, ((Number(row.total) || 0) / max) * 100);
+          const count = Number(row.count) || 0;
+
+          return `
+            <div class="charts-bar-row">
+              <div class="charts-bar-label">
+                <div class="charts-bar-icon">${esc(row.icon || "")}</div>
+                <div style="min-width:0">
+                  <div class="charts-bar-name" title="${esc(row.name || row.id)}">${esc(row.name || row.id || "Unknown")}</div>
+                  <div class="charts-bar-count">${count} row${count === 1 ? "" : "s"}</div>
+                </div>
               </div>
+              <div class="charts-bar-track">
+                <div class="charts-bar-fill ${colorClass || ""}" style="width:${pct}%"></div>
+              </div>
+              <div class="charts-bar-amount">${money(row.total)}</div>
             </div>
-            <div class="bar-track">
-              <div class="bar-fill ${colorClass || ''}" style="width:${pct}%"></div>
-            </div>
-            <div class="bar-amount">${money(row.total)}</div>
-          </div>
-        `;
-      }).join('');
-    }
-
-    function renderTrend(rows) {
-      const target = $('trendChart');
-
-      if (!rows || !rows.length) {
-        target.innerHTML = '<div class="empty-panel">No trend data.</div>';
-        $('trendSub').textContent = '0 days';
-        return;
+          `;
+        }).join("");
       }
 
-      const max = Math.max(...rows.map(row => Number(row.total) || 0), 1);
-      const active = rows.filter(row => Number(row.total) > 0).length;
+      function renderTrend(rows) {
+        const target = $("trendChart");
 
-      $('trendSub').textContent = rows.length + ' days · ' + active + ' active spending days';
+        if (!rows || !rows.length) {
+          target.innerHTML = '<div class="charts-empty">No trend data.</div>';
+          $("trendSub").textContent = "0 days";
+          return;
+        }
 
-      target.innerHTML = rows.map((row, idx) => {
-        const total = Number(row.total) || 0;
-        const height = total <= 0 ? 2 : Math.max(3, (total / max) * 100);
-        const tip = row.date + ' · ' + money(total);
+        const max = Math.max(...rows.map((row) => Number(row.total) || 0), 1);
+        const active = rows.filter((row) => Number(row.total) > 0).length;
 
-        return `
-          <div class="trend-col">
-            <div class="trend-bar" style="height:${height}%; animation-delay:${idx * 18}ms" data-tip="${esc(tip)}"></div>
+        $("trendSub").textContent = rows.length + " days · " + active + " active spending days";
+
+        target.innerHTML = rows.map((row, idx) => {
+          const total = Number(row.total) || 0;
+          const height = total <= 0 ? 2 : Math.max(3, (total / max) * 100);
+          const tip = row.date + " · " + money(total);
+
+          return `
+            <div class="charts-trend-col">
+              <div
+                class="charts-trend-bar"
+                style="height:${height}%; animation-delay:${idx * 18}ms"
+                data-tip="${esc(tip)}"></div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function renderDebug(payload) {
+        const debug = $("chartsDebug");
+        if (!debug) return;
+
+        debug.innerHTML = `
+          <div class="charts-debug-item">
+            <div class="charts-debug-label">Days</div>
+            <div class="charts-debug-value">${esc(payload.days)}</div>
+          </div>
+          <div class="charts-debug-item">
+            <div class="charts-debug-label">Category rows</div>
+            <div class="charts-debug-value">${esc(payload.categoryRows)}</div>
+          </div>
+          <div class="charts-debug-item">
+            <div class="charts-debug-label">Account rows</div>
+            <div class="charts-debug-value">${esc(payload.accountRows)}</div>
+          </div>
+          <div class="charts-debug-item">
+            <div class="charts-debug-label">Trend rows</div>
+            <div class="charts-debug-value">${esc(payload.trendRows)}</div>
+          </div>
+          <div class="charts-debug-item">
+            <div class="charts-debug-label">Insights source</div>
+            <div class="charts-debug-value">/api/insights?days=${esc(payload.days)}&debug=1</div>
+          </div>
+          <div class="charts-debug-item">
+            <div class="charts-debug-label">Balances source</div>
+            <div class="charts-debug-value">/api/balances?debug=1</div>
+          </div>
+          <div class="charts-debug-item">
+            <div class="charts-debug-label">Status</div>
+            <div class="charts-debug-value">${esc(payload.status)}</div>
+          </div>
+          <div class="charts-debug-item">
+            <div class="charts-debug-label">Error</div>
+            <div class="charts-debug-value">${esc(payload.error || "None")}</div>
           </div>
         `;
-      }).join('');
-    }
-
-    async function loadCharts(days) {
-      currentDays = days;
-
-      document.querySelectorAll('.range-btn').forEach(btn => {
-        btn.classList.toggle('active', Number(btn.dataset.days) === days);
-      });
-
-      $('categoryChart').innerHTML = '<div class="empty-panel">Loading category chart…</div>';
-      $('accountChart').innerHTML = '<div class="empty-panel">Loading account chart…</div>';
-      $('trendChart').innerHTML = '<div class="empty-panel">Loading trend…</div>';
-
-      try {
-        const [insights, balances] = await Promise.all([
-          fetchJSON('/api/insights?days=' + encodeURIComponent(days) + '&debug=1'),
-          fetchJSON('/api/balances?debug=1')
-        ]);
-
-        renderStats(insights, balances);
-        renderBars('categoryChart', 'categorySub', insights.by_category || [], 'categories', '');
-        renderBars('accountChart', 'accountSub', insights.by_account || [], 'accounts', 'blue');
-        renderTrend(insights.daily_trend || []);
-      } catch (err) {
-        $('categoryChart').innerHTML = '<div class="empty-panel">Charts failed: ' + esc(err.message) + '</div>';
-        $('accountChart').innerHTML = '<div class="empty-panel">No account chart.</div>';
-        $('trendChart').innerHTML = '<div class="empty-panel">No trend chart.</div>';
       }
-    }
 
-    document.querySelectorAll('.range-btn').forEach(btn => {
-      btn.addEventListener('click', () => loadCharts(Number(btn.dataset.days) || 30));
-    });
+      async function loadCharts(days) {
+        currentDays = days;
+        setActiveRange(days);
 
-    loadCharts(currentDays);
+        $("accountChart").innerHTML = '<div class="charts-empty">Loading account chart</div>';
+        $("categoryChart").innerHTML = '<div class="charts-empty">Loading category chart</div>';
+        $("trendChart").innerHTML = '<div class="charts-empty">Loading trend</div>';
+
+        try {
+          const [insights, balances] = await Promise.all([
+            fetchJSON("/api/insights?days=" + encodeURIComponent(days) + "&debug=1"),
+            fetchJSON("/api/balances?debug=1")
+          ]);
+
+          renderStats(insights, balances);
+          renderBars("categoryChart", "categorySub", insights.by_category || [], "categories", "");
+          renderBars("accountChart", "accountSub", insights.by_account || [], "accounts", "blue");
+          renderTrend(insights.daily_trend || []);
+
+          renderDebug({
+            days,
+            categoryRows: (insights.by_category || []).length,
+            accountRows: (insights.by_account || []).length,
+            trendRows: (insights.daily_trend || []).length,
+            status: "OK",
+            error: ""
+          });
+        } catch (err) {
+          $("categoryChart").innerHTML = '<div class="charts-empty">Charts failed: ' + esc(err.message) + "</div>";
+          $("accountChart").innerHTML = '<div class="charts-empty">No account chart.</div>';
+          $("trendChart").innerHTML = '<div class="charts-empty">No trend chart.</div>';
+          $("categorySub").textContent = "Load failed";
+          $("accountSub").textContent = "Load failed";
+          $("trendSub").textContent = "Load failed";
+
+          renderDebug({
+            days,
+            categoryRows: 0,
+            accountRows: 0,
+            trendRows: 0,
+            status: "FAILED",
+            error: err.message
+          });
+        }
+      }
+
+      function bindControls() {
+        document.querySelectorAll(".sf-control-row [data-days]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            loadCharts(Number(btn.dataset.days) || 30);
+          });
+        });
+      }
+
+      function boot() {
+        bindControls();
+        loadCharts(currentDays);
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", boot, { once: true });
+      } else {
+        boot();
+      }
+    })();
   </script>
 </body>
 </html>
