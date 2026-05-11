@@ -104,26 +104,37 @@ function firstDefined(...values) {
 
 async function readInternal(request, path) {
   const url = new URL(path, request.url);
+
   const response = await fetch(url.toString(), {
     headers: {
-      accept: "application/json"
+      "accept": "application/json"
     },
     cache: "no-store"
   });
 
+  const contentType = response.headers.get("content-type") || "";
+  const text = await response.text();
+
   let payload = null;
+  let parseError = null;
+
   try {
-    payload = await response.json();
-  } catch {
-    payload = null;
+    payload = text ? JSON.parse(text) : null;
+  } catch (error) {
+    parseError = error.message;
   }
 
   return {
     path,
-    ok: response.ok && payload !== null,
+    ok: response.ok && payload !== null && typeof payload === "object",
     status: response.status,
+    content_type: contentType,
     version: payload?.version || payload?.api_version || payload?.meta?.version || null,
-    payload
+    payload,
+    debug: {
+      parse_error: parseError,
+      text_preview: text.slice(0, 500)
+    }
   };
 }
 
@@ -688,7 +699,7 @@ export async function onRequest(context) {
     readInternal(request, "/api/cc")
   ]);
 
-  const sourceStatus = [
+    const sourceStatus = [
     balancesResult,
     salaryResult,
     billsResult,
@@ -698,10 +709,13 @@ export async function onRequest(context) {
     path: source.path,
     ok: source.ok,
     status: source.status,
-    version: source.version
+    content_type: source.content_type,
+    version: source.version,
+    parse_error: source.debug?.parse_error || null,
+    preview: source.debug?.text_preview || null
   }));
 
-    if (!balancesResult.ok) {
+      if (!balancesResult.ok) {
     return json({
       ok: false,
       version: VERSION,
@@ -719,7 +733,6 @@ export async function onRequest(context) {
       },
       sources: sourceStatus
     }, 200);
-  }
   }
 
   const balances = normalizeBalanceSource(balancesResult.payload || {});
@@ -831,7 +844,6 @@ export async function onRequest(context) {
       projected_cash_after_debt_pressure: projectedCashAfterDebtPressure,
       projected_cash_if_receivables_collected: projectedCashIfReceivablesCollected,
       projected_cash_after_obligations: projectedCashAfterDebtPressure,
-      projected_cash_if_receivables_collected: projectedCashIfReceivablesCollected
     },
 
     daily_projection: dailyProjection,
