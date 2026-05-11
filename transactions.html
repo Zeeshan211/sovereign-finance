@@ -8,12 +8,12 @@
 </head>
 
 <body>
-  <main class="app-page" data-page="transactions" data-version="ledger-product-v1.0.1-reverse-action">
+  <main class="app-page" data-page="transactions" data-version="ledger-product-v1.0.2-inpage-reversal">
     <section class="finance-hero">
       <div class="hero-kicker">Ledger + Audit Trail</div>
       <h1 class="hero-title">Money movement, grouped.</h1>
       <p class="hero-copy">
-        Transfers, reversals, bills, debts, ATM fees, and account movements are shown as readable activity with audit detail on demand.
+        Review activity, inspect audit detail, and reverse eligible transactions from the page without browser popups.
       </p>
 
       <div class="grid-4" style="margin-top:20px;">
@@ -28,6 +28,8 @@
       <div class="strong">Loading ledger…</div>
       <div class="muted">Reading transactions, accounts, categories, bills, and debts.</div>
     </section>
+
+    <section id="pageNotice" class="panel card-padded" hidden></section>
 
     <section class="grid-4">
       <article class="metric-card">
@@ -57,6 +59,7 @@
 
     <section class="panel card-padded">
       <div class="section-kicker">Filters</div>
+
       <div class="grid-4" style="margin-top:14px;">
         <div class="form-field">
           <label for="searchBox">Search</label>
@@ -99,6 +102,7 @@
         <section class="panel card-padded">
           <div class="section-kicker">Activity timeline</div>
           <h2 class="authority-title" style="font-size:24px;margin-top:12px;">Latest active movements</h2>
+
           <div id="activityList" class="stack" style="margin-top:16px;">
             <div class="muted">Loading activity…</div>
           </div>
@@ -137,7 +141,7 @@
     (function () {
       "use strict";
 
-      const PAGE_VERSION = "ledger-product-v1.0.1-reverse-action";
+      const PAGE_VERSION = "ledger-product-v1.0.2-inpage-reversal";
       const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
       const NOISE = /SF_SHIPMENT|DIRECT_WRITE_TEST|RS1_TEST|CREATE_RECEIVABLE|RECEIVE_RS1/i;
 
@@ -150,7 +154,9 @@
         bills: null,
         debts: null,
         groups: [],
-        filtered: []
+        filtered: [],
+        reversalOpenFor: null,
+        reversing: false
       };
 
       function asNumber(value, fallback = 0) {
@@ -187,18 +193,19 @@
       }
 
       async function readJson(path) {
-        const r = await fetch(path, {
+        const response = await fetch(path, {
           headers: { "accept": "application/json" },
           cache: "no-store"
         });
 
-        const j = await r.json().catch(() => null);
-        if (!r.ok || !j) throw new Error(`${path} HTTP ${r.status}`);
-        return j;
+        const json = await response.json().catch(() => null);
+        if (!response.ok || !json) throw new Error(`${path} HTTP ${response.status}`);
+
+        return json;
       }
 
       async function postJson(path, body) {
-        const r = await fetch(path, {
+        const response = await fetch(path, {
           method: "POST",
           headers: {
             "accept": "application/json",
@@ -208,12 +215,36 @@
           body: JSON.stringify(body || {})
         });
 
-        const j = await r.json().catch(() => null);
-        if (!r.ok || !j || j.ok === false) {
-          throw new Error(j?.error || j?.message || `${path} HTTP ${r.status}`);
+        const json = await response.json().catch(() => null);
+
+        if (!response.ok || !json || json.ok === false) {
+          throw new Error(json?.error || json?.message || `${path} HTTP ${response.status}`);
         }
 
-        return j;
+        return json;
+      }
+
+      function showNotice(message, tone = "info") {
+        const notice = $("pageNotice");
+        notice.hidden = false;
+
+        const cls = tone === "error"
+          ? "blocked"
+          : tone === "success"
+            ? "ready"
+            : "";
+
+        notice.innerHTML = `
+          <div class="authority-panel ${cls}">
+            <div class="strong">${escapeHtml(message)}</div>
+          </div>
+        `;
+
+        clearTimeout(showNotice.timer);
+        showNotice.timer = setTimeout(() => {
+          notice.hidden = true;
+          notice.innerHTML = "";
+        }, 4000);
       }
 
       function accountName(id) {
@@ -293,8 +324,8 @@
 
       function extractBillName(tx) {
         const note = String(tx.notes || "");
-        const m = note.match(/Bill payment:\s*([^|]+)/i);
-        return m ? m[1].trim() : "Bill payment";
+        const match = note.match(/Bill payment:\s*([^|]+)/i);
+        return match ? match[1].trim() : "Bill payment";
       }
 
       function extractDebtName(tx) {
@@ -314,6 +345,18 @@
         return "Debt movement";
       }
 
+      function reversalMarker(tx) {
+        const note = String(tx.notes || "");
+
+        return Boolean(
+          tx.reversed_by ||
+          tx.reversed_at ||
+          /\[REVERSED BY/i.test(note) ||
+          /\[REVERSAL OF/i.test(note) ||
+          /Reversal of\s+[A-Za-z0-9_-]+/i.test(note)
+        );
+      }
+
       function inferKind(rows) {
         const text = rows.map(t => `${t.type || ""} ${t.notes || ""} ${t.category_id || ""}`).join(" ");
 
@@ -322,7 +365,7 @@
         if (rows.some(t => String(t.type).toLowerCase() === "transfer")) return "transfer";
         if (/Bill payment|bill_id=|bill_payment_id=/i.test(text)) return "bill";
         if (/Debt given|Debt received|Debt created|debt_id=|Received - debt/i.test(text)) return "debt";
-        if (rows.some(t => t.reversed_by || t.reversed_at || /\[REVERSAL OF/i.test(String(t.notes || "")))) return "reversed";
+        if (rows.some(reversalMarker)) return "reversed";
 
         return String(rows[0]?.type || "transaction").toLowerCase();
       }
@@ -363,18 +406,6 @@
         if (first.type === "cc_spend") return "Credit card spend";
 
         return "Transaction recorded";
-      }
-
-      function reversalMarker(tx) {
-        const note = String(tx.notes || "");
-
-        return Boolean(
-          tx.reversed_by ||
-          tx.reversed_at ||
-          /\[REVERSED BY/i.test(note) ||
-          /\[REVERSAL OF/i.test(note) ||
-          /Reversal of\s+[A-Za-z0-9_-]+/i.test(note)
-        );
       }
 
       function buildGroups(rows) {
@@ -477,16 +508,6 @@
         return tx;
       }
 
-      async function reverseTransaction(id) {
-        if (!id) return;
-
-        const ok = window.confirm("Reverse this transaction? This will create a linked reversal and restore the net balance impact.");
-        if (!ok) return;
-
-        await postJson("/api/transactions/reverse", { id });
-        await boot();
-      }
-
       function filterGroups() {
         const query = $("searchBox").value.trim().toLowerCase();
         const account = $("accountFilter").value;
@@ -554,10 +575,10 @@
           ["Debug mode", DEBUG ? "On" : "Off"]
         ];
 
-        $("healthRows").innerHTML = rows.map(([a, b]) => `
+        $("healthRows").innerHTML = rows.map(([label, value]) => `
           <div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
-            <span class="muted">${escapeHtml(a)}</span>
-            <span class="strong text-right">${escapeHtml(b)}</span>
+            <span class="muted">${escapeHtml(label)}</span>
+            <span class="strong text-right">${escapeHtml(value)}</span>
           </div>
         `).join("");
       }
@@ -584,6 +605,41 @@
         `;
       }
 
+      function reversalFormHtml(group, tx) {
+        const amount = Math.abs(signed(tx)) || asNumber(tx.amount, 0);
+        const title = group.title || "Transaction";
+
+        return `
+          <div class="surface-card card-padded" style="margin-top:12px;background:var(--surface-2);" data-reversal-form="${escapeHtml(tx.id)}">
+            <div class="section-kicker">Reverse transaction</div>
+
+            <h3 class="authority-title" style="font-size:18px;margin-top:10px;">${escapeHtml(title)}</h3>
+
+            <div class="authority-copy" style="margin-top:8px;">
+              This will create a linked reversal for ${money(amount)} and restore the net balance impact through the existing reversal endpoint.
+            </div>
+
+            <div class="form-field" style="margin-top:14px;">
+              <label for="reverseReason-${escapeHtml(tx.id)}">Reason for reversal</label>
+              <textarea
+                id="reverseReason-${escapeHtml(tx.id)}"
+                data-reversal-reason="${escapeHtml(tx.id)}"
+                rows="4"
+                placeholder="Example: Test transaction, duplicate entry, wrong account, wrong amount"
+                required
+              ></textarea>
+            </div>
+
+            <div data-reversal-error="${escapeHtml(tx.id)}" class="authority-panel blocked" style="display:none;margin-top:12px;"></div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+              <button class="btn btn-danger" type="button" data-confirm-reverse="${escapeHtml(tx.id)}">Submit reversal</button>
+              <button class="btn btn-secondary" type="button" data-cancel-reverse="${escapeHtml(tx.id)}">Cancel</button>
+            </div>
+          </div>
+        `;
+      }
+
       function renderActivity() {
         const groups = state.filtered.slice(0, 80);
 
@@ -598,6 +654,7 @@
           const sign = neutral ? "↔" : group.amount >= 0 ? "+" : "-";
           const displayValue = neutral ? group.displayAmount : Math.abs(group.amount);
           const reversible = reversibleTx(group);
+          const reversalOpen = reversible && state.reversalOpenFor === reversible.id;
 
           const subtitle = [
             group.date,
@@ -617,6 +674,7 @@
                 <div style="min-width:0;">
                   <span class="pill pill-info">${escapeHtml(group.kind)}</span>
                   <span class="pill ${group.hasReversal ? "pill-warning" : group.isGrouped ? "pill-ready" : "pill-unknown"}">${escapeHtml(status)}</span>
+
                   <div class="authority-title" style="margin-top:10px;">${escapeHtml(group.title)}</div>
                   <div class="authority-copy">${escapeHtml(subtitle)}</div>
                 </div>
@@ -628,8 +686,10 @@
 
               <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
                 <button class="btn btn-secondary" type="button" data-audit="${index}">Show audit</button>
-                ${reversible ? `<button class="btn btn-secondary" type="button" data-reverse="${escapeHtml(reversible.id)}">Reverse</button>` : ""}
+                ${reversible ? `<button class="btn btn-secondary" type="button" data-open-reverse="${escapeHtml(reversible.id)}">Reverse</button>` : ""}
               </div>
+
+              ${reversalOpen ? reversalFormHtml(group, reversible) : ""}
 
               <div id="audit-${index}" class="surface-card card-padded" style="display:none;margin-top:12px;background:var(--surface-2);"></div>
             </article>
@@ -644,7 +704,8 @@
         $("debugOutput").textContent = JSON.stringify({
           version: PAGE_VERSION,
           txs: state.txs,
-          groups: state.groups
+          groups: state.groups,
+          filtered: state.filtered
         }, null, 2);
       }
 
@@ -656,7 +717,7 @@
 
         $("ledgerStatus").innerHTML = `
           <div class="strong">Ledger ready · ${escapeHtml(PAGE_VERSION)}</div>
-          <div class="muted">Normal view hides shipment/test noise and keeps raw IDs inside audit details.</div>
+          <div class="muted">Normal view hides raw IDs. Audit detail and reversal forms open inside the page.</div>
         `;
       }
 
@@ -668,6 +729,58 @@
         }).join("");
       }
 
+      async function submitReversal(id) {
+        if (state.reversing) return;
+
+        const reasonEl = document.querySelector(`[data-reversal-reason="${CSS.escape(id)}"]`);
+        const errorEl = document.querySelector(`[data-reversal-error="${CSS.escape(id)}"]`);
+        const button = document.querySelector(`[data-confirm-reverse="${CSS.escape(id)}"]`);
+        const reason = String(reasonEl?.value || "").trim();
+
+        if (!reason) {
+          if (errorEl) {
+            errorEl.style.display = "block";
+            errorEl.textContent = "Reason is required before reversal.";
+          }
+          reasonEl?.focus();
+          return;
+        }
+
+        state.reversing = true;
+
+        if (button) {
+          button.disabled = true;
+          button.textContent = "Reversing...";
+        }
+
+        try {
+          await postJson("/api/transactions/reverse", {
+            id,
+            reason,
+            notes: `Reversal reason: ${reason}`,
+            created_by: "ledger-ui"
+          });
+
+          state.reversalOpenFor = null;
+          showNotice("Transaction reversed. Ledger reloaded.", "success");
+          await boot();
+        } catch (error) {
+          console.error(error);
+
+          if (errorEl) {
+            errorEl.style.display = "block";
+            errorEl.textContent = error.message || "Unable to reverse transaction.";
+          }
+
+          if (button) {
+            button.disabled = false;
+            button.textContent = "Submit reversal";
+          }
+        } finally {
+          state.reversing = false;
+        }
+      }
+
       function bindEvents() {
         $("searchBox").addEventListener("input", filterGroups);
         $("accountFilter").addEventListener("change", filterGroups);
@@ -675,28 +788,30 @@
         $("viewMode").addEventListener("change", filterGroups);
 
         document.addEventListener("click", async (event) => {
-          const reverseButton = event.target.closest("[data-reverse]");
-
-          if (reverseButton) {
-            reverseButton.disabled = true;
-            reverseButton.textContent = "Reversing...";
-
-            try {
-              await reverseTransaction(reverseButton.getAttribute("data-reverse"));
-            } catch (error) {
-              console.error(error);
-              window.alert(error.message || "Unable to reverse transaction.");
-              reverseButton.disabled = false;
-              reverseButton.textContent = "Reverse";
-            }
-
+          const openReverseButton = event.target.closest("[data-open-reverse]");
+          if (openReverseButton) {
+            state.reversalOpenFor = openReverseButton.getAttribute("data-open-reverse");
+            render();
             return;
           }
 
-          const button = event.target.closest("[data-audit]");
-          if (!button) return;
+          const cancelReverseButton = event.target.closest("[data-cancel-reverse]");
+          if (cancelReverseButton) {
+            state.reversalOpenFor = null;
+            render();
+            return;
+          }
 
-          const index = Number(button.getAttribute("data-audit"));
+          const confirmReverseButton = event.target.closest("[data-confirm-reverse]");
+          if (confirmReverseButton) {
+            await submitReversal(confirmReverseButton.getAttribute("data-confirm-reverse"));
+            return;
+          }
+
+          const auditButton = event.target.closest("[data-audit]");
+          if (!auditButton) return;
+
+          const index = Number(auditButton.getAttribute("data-audit"));
           const panel = $(`audit-${index}`);
           const group = state.filtered[index];
 
@@ -706,13 +821,13 @@
 
           if (isOpen) {
             panel.style.display = "none";
-            button.textContent = "Show audit";
+            auditButton.textContent = "Show audit";
             return;
           }
 
           panel.innerHTML = auditHtml(group);
           panel.style.display = "block";
-          button.textContent = "Hide audit";
+          auditButton.textContent = "Hide audit";
         });
       }
 
