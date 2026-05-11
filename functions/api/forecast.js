@@ -1,4 +1,4 @@
-const VERSION = "v0.8.0-forecast-brain";
+const VERSION = "v0.8.1-forecast-brain-auth-forward";
 
 const DEFAULT_CRISIS_FLOOR = 5000;
 const DEFAULT_FORECAST_DAYS = 90;
@@ -105,10 +105,20 @@ function firstDefined(...values) {
 async function readInternal(request, path) {
   const url = new URL(path, request.url);
 
+  const headers = new Headers();
+  headers.set("accept", "application/json");
+
+  const cookie = request.headers.get("cookie");
+  if (cookie) headers.set("cookie", cookie);
+
+  const authorization = request.headers.get("authorization");
+  if (authorization) headers.set("authorization", authorization);
+
+  const cfAccessJwt = request.headers.get("cf-access-jwt-assertion");
+  if (cfAccessJwt) headers.set("cf-access-jwt-assertion", cfAccessJwt);
+
   const response = await fetch(url.toString(), {
-    headers: {
-      "accept": "application/json"
-    },
+    headers,
     cache: "no-store"
   });
 
