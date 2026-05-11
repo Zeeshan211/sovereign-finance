@@ -1885,3 +1885,36 @@ body.sf-nav-open .sf-floating-mobile-menu {
     padding-top: 14px;
   }
 }
+
+
+/* =========================================================
+   Sovereign Icons UI Polish
+   Account/category icon prefixes without touching money logic.
+========================================================= */
+
+.sf-icon-prefix {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35em;
+  min-width: 1.35em;
+  margin-right: 0.35em;
+  font-size: 1.05em;
+  line-height: 1;
+  vertical-align: -0.08em;
+}
+
+select option {
+  font-weight: 760;
+}
+
+.ledger-table .sf-icon-prefix,
+.tx-table .sf-icon-prefix {
+  margin-right: 0.45em;
+}
+
+.card .sf-icon-prefix,
+.hub-row-title .sf-icon-prefix,
+.strong .sf-icon-prefix {
+  margin-right: 0.38em;
+}
