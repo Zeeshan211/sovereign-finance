@@ -15,11 +15,63 @@
       gap: var(--sf-space-6);
     }
 
-    .forecast-controls {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: var(--sf-space-4);
-    }
+    .forecast-toolbar {
+  display: grid;
+  gap: var(--sf-space-5);
+}
+
+.forecast-toolbar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--sf-space-5);
+  flex-wrap: wrap;
+}
+
+.forecast-toolbar-copy {
+  flex: 1 1 320px;
+  min-width: 280px;
+}
+
+.forecast-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sf-space-3);
+  justify-content: flex-start;
+}
+
+.forecast-toolbar-actions .sf-button {
+  min-height: 46px;
+}
+
+    .forecast-toolbar {
+  display: grid;
+  gap: var(--sf-space-5);
+}
+
+.forecast-toolbar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--sf-space-5);
+  flex-wrap: wrap;
+}
+
+.forecast-toolbar-copy {
+  flex: 1 1 320px;
+  min-width: 280px;
+}
+
+.forecast-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sf-space-3);
+  justify-content: flex-start;
+}
+
+.forecast-toolbar-actions .sf-button {
+  min-height: 46px;
+}
 
     .forecast-field {
       display: grid;
@@ -243,19 +295,23 @@
     }
 
     @media (max-width: 1100px) {
-      .forecast-controls {
-        grid-template-columns: 1fr;
-      }
+  .forecast-toolbar-head {
+    flex-direction: column;
+  }
 
-      .forecast-bar-row,
-      .forecast-day {
-        grid-template-columns: 1fr;
-      }
+  .forecast-controls {
+    grid-template-columns: 1fr;
+  }
 
-      .forecast-day-balance {
-        text-align: left;
-      }
-    }
+  .forecast-bar-row,
+  .forecast-day {
+    grid-template-columns: 1fr;
+  }
+
+  .forecast-day-balance {
+    text-align: left;
+  }
+}
   </style>
 </head>
 <body>
@@ -268,18 +324,19 @@
     <main class="sf-panel-grid">
       <div class="sf-span-8" style="display:grid;gap:var(--sf-space-6);">
         <section class="sf-panel sf-panel--accent">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Control panel</p>
-              <h2 class="sf-section-title">Forecast parameters</h2>
-              <p class="sf-section-subtitle">Current forecast read scope. No money logic changes.</p>
-            </div>
-            <div class="sf-page-actions">
-              <button id="refreshBtn" class="sf-button sf-button--primary" type="button">Refresh Forecast</button>
-              <a class="sf-button" href="/salary.html">Open Salary</a>
-              <a class="sf-button" href="/debts.html">Open Debts</a>
-            </div>
-          </div>
+  <div class="forecast-toolbar">
+    <div class="forecast-toolbar-head">
+      <div class="forecast-toolbar-copy">
+        <p class="sf-section-kicker">Control panel</p>
+        <h2 class="sf-section-title">Forecast parameters</h2>
+        <p class="sf-section-subtitle">Current forecast read scope. No money logic changes.</p>
+      </div>
+      <div class="forecast-toolbar-actions">
+        <button id="refreshBtn" class="sf-button sf-button--primary" type="button">Refresh Forecast</button>
+        <a class="sf-button" href="/salary.html">Open Salary</a>
+        <a class="sf-button" href="/debts.html">Open Debts</a>
+      </div>
+    </div>
 
           <div class="forecast-controls">
             <div class="forecast-field">
@@ -477,14 +534,24 @@
         return fallback;
       }
 
-      function money(value) {
-        if (value === null || value === undefined || value === "") return "Unknown";
-        return new Intl.NumberFormat("en-PK", {
-          style: "currency",
-          currency: "PKR",
-          maximumFractionDigits: 2
-        }).format(asNumber(value, 0)).replace(/^PKR\s?/, "Rs ");
-      }
+      function pickNumber() {
+  for (const value of arguments) {
+    if (value === null || value === undefined || value === "") continue;
+    const parsed = asNumber(value, NaN);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function money(value) {
+  const numeric = pickNumber(value);
+  if (numeric === null) return "—";
+  return new Intl.NumberFormat("en-PK", {
+    style: "currency",
+    currency: "PKR",
+    maximumFractionDigits: 2
+  }).format(numeric).replace(/^PKR\s?/, "Rs ");
+}
 
       function text(value, fallback = "") {
         if (value === null || value === undefined || value === "") return fallback;
@@ -670,18 +737,27 @@
         }
 
         $("timelinePanel").innerHTML = meaningful.map((day) => {
-          const events = Array.isArray(day.events) && day.events.length
-            ? day.events.map((event) => `${event.direction === "outflow" ? "-" : "+"} ${money(event.amount)} ${event.label}`).join("<br>")
-            : "No scheduled movement";
+  const events = Array.isArray(day.events) && day.events.length
+    ? day.events.map((event) => `${event.direction === "outflow" ? "-" : "+"} ${money(event.amount)} ${event.label}`).join("<br>")
+    : "No scheduled movement";
 
-          return `
-            <article class="forecast-day">
-              <div class="forecast-day-date">${escapeHtml(day.date || "Unknown")}</div>
-              <div class="forecast-day-events">${events}</div>
-              <div class="forecast-day-balance">${money(day.liquid)}</div>
-            </article>
-          `;
-        }).join("");
+  const dayBalance = pickNumber(
+    day.liquid,
+    day.projected_liquid,
+    day.running_liquid,
+    day.closing_liquid,
+    day.balance,
+    day.end_liquid
+  );
+
+  return `
+    <article class="forecast-day">
+      <div class="forecast-day-date">${escapeHtml(day.date || "Unknown")}</div>
+      <div class="forecast-day-events">${events}</div>
+      <div class="forecast-day-balance">${money(dayBalance)}</div>
+    </article>
+  `;
+}).join("");
       }
 
       function renderMonthly(f) {
@@ -691,19 +767,37 @@
           return;
         }
 
-        $("monthlyRows").innerHTML = months.map((month) => `
-          <tr>
-            <td>${escapeHtml(month.month || "")}</td>
-            <td>${escapeHtml(money(month.opening_liquid))}</td>
-            <td>${escapeHtml(money(month.salary))}</td>
-            <td>${escapeHtml(money(month.bills))}</td>
-            <td>${escapeHtml(money(month.cc_minimum_due))}</td>
-            <td>${escapeHtml(money(month.debt_paid))}</td>
-            <td>${escapeHtml(money(month.closing_liquid))}</td>
-            <td>${escapeHtml(money(month.saved_this_month))}</td>
-            <td>${escapeHtml(money(month.debt_left))}</td>
-          </tr>
-        `).join("");
+        $("monthlyRows").innerHTML = months.map((month) => {
+  const ccMin = pickNumber(
+    month.cc_minimum_due,
+    month.cc_min_due,
+    month.minimum_cc_due,
+    month.cc_minimum,
+    month.cc_due
+  );
+
+  const debtPaid = pickNumber(
+    month.debt_paid,
+    month.debt_payment,
+    month.debt_payable_paid,
+    month.debt_paid_this_month,
+    month.debt_outflow
+  );
+
+  return `
+    <tr>
+      <td>${escapeHtml(month.month || "")}</td>
+      <td>${escapeHtml(money(month.opening_liquid))}</td>
+      <td>${escapeHtml(money(month.salary))}</td>
+      <td>${escapeHtml(money(month.bills))}</td>
+      <td>${escapeHtml(money(ccMin))}</td>
+      <td>${escapeHtml(money(debtPaid))}</td>
+      <td>${escapeHtml(money(month.closing_liquid))}</td>
+      <td>${escapeHtml(money(month.saved_this_month))}</td>
+      <td>${escapeHtml(money(month.debt_left))}</td>
+    </tr>
+  `;
+}).join("");
       }
 
       function renderDebug(f) {
