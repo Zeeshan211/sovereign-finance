@@ -18,15 +18,27 @@
     document.body.classList.add("sf-shell-body");
   }
 
+    function shouldWrapNode(node) {
+    if (!node) return false;
+    if (node.nodeType === Node.TEXT_NODE) return Boolean(node.textContent && node.textContent.trim());
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    if (node.classList && node.classList.contains("sf-app-shell")) return false;
+    return !["SCRIPT", "NOSCRIPT"].includes(node.tagName);
+  }
+
   function ensureAppShell() {
     let shell = q(".sf-app-shell");
     if (!shell) {
       shell = document.createElement("main");
       shell.className = "sf-app-shell";
-      while (document.body.firstChild) {
-        shell.appendChild(document.body.firstChild);
+
+      const nodes = Array.from(document.body.childNodes).filter(shouldWrapNode);
+      if (nodes.length) {
+        document.body.insertBefore(shell, nodes[0]);
+        nodes.forEach((node) => shell.appendChild(node));
+      } else {
+        document.body.appendChild(shell);
       }
-      document.body.appendChild(shell);
     }
     return shell;
   }
