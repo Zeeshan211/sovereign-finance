@@ -1,92 +1,1139 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Credit Card · Sovereign Finance</title>
-  <link rel="stylesheet" href="/css/app.css?v=2.0.3" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sovereign Finance — Credit Card</title>
+  <link rel="stylesheet" href="/css/app.css" />
+
+  <style>
+    :root {
+      --cc-bg: #070b12;
+      --cc-panel: rgba(255, 255, 255, 0.065);
+      --cc-panel-strong: rgba(255, 255, 255, 0.095);
+      --cc-border: rgba(255, 255, 255, 0.12);
+      --cc-text: #f7fafc;
+      --cc-muted: rgba(247, 250, 252, 0.68);
+      --cc-faint: rgba(247, 250, 252, 0.45);
+      --cc-green: #4ade80;
+      --cc-yellow: #facc15;
+      --cc-orange: #fb923c;
+      --cc-red: #f87171;
+      --cc-blue: #60a5fa;
+      --cc-purple: #c084fc;
+      --cc-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+      --cc-radius: 22px;
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(96, 165, 250, 0.16), transparent 32rem),
+        radial-gradient(circle at top right, rgba(192, 132, 252, 0.13), transparent 30rem),
+        linear-gradient(135deg, #05070d 0%, #09111f 48%, #05070d 100%);
+      color: var(--cc-text);
+    }
+
+    .cc-shell {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
+
+    .cc-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .cc-brand {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .cc-kicker {
+      color: var(--cc-muted);
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .cc-title {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1;
+      letter-spacing: -0.045em;
+    }
+
+    .cc-version {
+      color: var(--cc-faint);
+      font-size: 12px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .cc-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 18px 0 28px;
+    }
+
+    .cc-nav a {
+      color: var(--cc-text);
+      text-decoration: none;
+      border: 1px solid var(--cc-border);
+      background: rgba(255, 255, 255, 0.055);
+      padding: 10px 13px;
+      border-radius: 999px;
+      font-size: 14px;
+      line-height: 1;
+      transition: transform 150ms ease, background 150ms ease, border-color 150ms ease;
+    }
+
+    .cc-nav a:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+
+    .cc-nav a[aria-current="page"] {
+      background: rgba(96, 165, 250, 0.18);
+      border-color: rgba(96, 165, 250, 0.45);
+    }
+
+    .cc-status {
+      border: 1px solid var(--cc-border);
+      background: var(--cc-panel);
+      border-radius: 18px;
+      padding: 14px 16px;
+      color: var(--cc-muted);
+      margin-bottom: 18px;
+      box-shadow: var(--cc-shadow);
+    }
+
+    .cc-status strong {
+      color: var(--cc-text);
+    }
+
+    .cc-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .cc-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .cc-card,
+    .cc-panel {
+      border: 1px solid var(--cc-border);
+      background: linear-gradient(180deg, var(--cc-panel-strong), var(--cc-panel));
+      border-radius: var(--cc-radius);
+      box-shadow: var(--cc-shadow);
+    }
+
+    .cc-card {
+      padding: 18px;
+      min-height: 124px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .cc-card::after {
+      content: "";
+      position: absolute;
+      inset: auto -30px -46px auto;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: rgba(96, 165, 250, 0.1);
+      pointer-events: none;
+    }
+
+    .cc-label {
+      color: var(--cc-muted);
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .cc-value {
+      font-size: clamp(22px, 3vw, 34px);
+      line-height: 1.05;
+      font-weight: 760;
+      letter-spacing: -0.045em;
+      word-break: break-word;
+    }
+
+    .cc-sub {
+      color: var(--cc-faint);
+      font-size: 12px;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+
+    .cc-panel {
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .cc-panel h2,
+    .cc-panel h3 {
+      margin: 0 0 14px;
+      letter-spacing: -0.03em;
+    }
+
+    .cc-panel h2 {
+      font-size: 22px;
+    }
+
+    .cc-panel h3 {
+      font-size: 17px;
+    }
+
+    .cc-account-list {
+      display: grid;
+      gap: 16px;
+    }
+
+    .cc-account {
+      border: 1px solid var(--cc-border);
+      background:
+        radial-gradient(circle at top right, rgba(96, 165, 250, 0.12), transparent 18rem),
+        rgba(255, 255, 255, 0.045);
+      border-radius: 22px;
+      padding: 18px;
+    }
+
+    .cc-account-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .cc-account-name {
+      font-size: 21px;
+      font-weight: 760;
+      letter-spacing: -0.035em;
+      margin: 0;
+    }
+
+    .cc-account-meta {
+      color: var(--cc-muted);
+      font-size: 13px;
+      margin-top: 5px;
+    }
+
+    .cc-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      border: 1px solid var(--cc-border);
+      padding: 7px 10px;
+      font-size: 12px;
+      color: var(--cc-muted);
+      background: rgba(255, 255, 255, 0.055);
+      white-space: nowrap;
+    }
+
+    .cc-pill.good {
+      color: var(--cc-green);
+      border-color: rgba(74, 222, 128, 0.34);
+      background: rgba(74, 222, 128, 0.08);
+    }
+
+    .cc-pill.warn {
+      color: var(--cc-yellow);
+      border-color: rgba(250, 204, 21, 0.34);
+      background: rgba(250, 204, 21, 0.08);
+    }
+
+    .cc-pill.danger {
+      color: var(--cc-red);
+      border-color: rgba(248, 113, 113, 0.34);
+      background: rgba(248, 113, 113, 0.08);
+    }
+
+    .cc-account-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .cc-metric {
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(255, 255, 255, 0.045);
+      border-radius: 16px;
+      padding: 13px;
+      min-width: 0;
+    }
+
+    .cc-metric .cc-label {
+      margin-bottom: 6px;
+    }
+
+    .cc-metric .cc-value {
+      font-size: 18px;
+      letter-spacing: -0.025em;
+    }
+
+    .cc-progress {
+      height: 11px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.09);
+      overflow: hidden;
+      margin: 10px 0 8px;
+    }
+
+    .cc-progress > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      max-width: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cc-green), var(--cc-yellow), var(--cc-red));
+      transition: width 300ms ease;
+    }
+
+    .cc-two {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .cc-plan-box {
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(0, 0, 0, 0.16);
+      border-radius: 18px;
+      padding: 14px;
+      margin-top: 14px;
+    }
+
+    .cc-plan-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .cc-plan {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr 0.8fr;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .cc-plan strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .cc-plan span {
+      color: var(--cc-muted);
+      font-size: 12px;
+    }
+
+    .cc-side-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .cc-side-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .cc-side-row:last-child {
+      border-bottom: 0;
+    }
+
+    .cc-side-row span:first-child {
+      color: var(--cc-muted);
+    }
+
+    .cc-side-row span:last-child {
+      text-align: right;
+      font-weight: 700;
+    }
+
+    .cc-empty {
+      border: 1px dashed rgba(255, 255, 255, 0.18);
+      color: var(--cc-muted);
+      border-radius: 18px;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.035);
+    }
+
+    .cc-error {
+      color: var(--cc-red);
+    }
+
+    .cc-debug {
+      display: none;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      max-height: 360px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: rgba(247, 250, 252, 0.72);
+      background: rgba(0, 0, 0, 0.26);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .cc-debug.is-visible {
+      display: block;
+    }
+
+    @media (max-width: 980px) {
+      .cc-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .cc-summary,
+      .cc-account-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .cc-shell {
+        width: min(100% - 22px, 1180px);
+        padding-top: 14px;
+      }
+
+      .cc-topbar,
+      .cc-account-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .cc-version {
+        text-align: left;
+      }
+
+      .cc-summary,
+      .cc-account-metrics,
+      .cc-two,
+      .cc-plan {
+        grid-template-columns: 1fr;
+      }
+
+      .cc-nav {
+        gap: 8px;
+      }
+
+      .cc-nav a {
+        font-size: 13px;
+        padding: 9px 11px;
+      }
+    }
+  </style>
 </head>
 
 <body>
-  <main class="app-page">
-    <section class="finance-hero">
-      <div class="hero-kicker">Credit Card</div>
-      <h1 class="hero-title">Verified credit-card balance.</h1>
-      <p class="hero-copy">
-        Reads the credit-card liability from balances/accounts. No estimated outstanding is used.
-      </p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
-        <button class="btn btn-success" id="refreshBtn" type="button">Refresh Card</button>
-        <a class="btn btn-secondary" href="/forecast.html">Open Forecast</a>
+  <main class="cc-shell" data-page="credit-card" data-version="cc-richness-v1.0.0">
+    <section class="cc-topbar">
+      <div class="cc-brand">
+        <div class="cc-kicker">Sovereign Finance</div>
+        <h1 class="cc-title">Credit Card</h1>
       </div>
+      <div class="cc-version">cc-richness-v1.0.0</div>
     </section>
 
-    <section class="dashboard-grid">
-      <article class="card card-padded">
-        <div class="section-kicker">Outstanding</div>
-        <h2 class="authority-title" id="outstanding">—</h2>
-        <p class="authority-copy" id="outstandingCopy">Loading verified source.</p>
+    <nav class="cc-nav" aria-label="Primary">
+      <a href="/index.html">Hub</a>
+      <a href="/add.html">Add</a>
+      <a href="/transactions.html">Ledger</a>
+      <a href="/bills.html">Bills</a>
+      <a href="/debts.html">Debts</a>
+      <a href="/salary.html">Salary</a>
+      <a href="/forecast.html">Forecast</a>
+      <a href="/cc.html" aria-current="page">Credit Card</a>
+      <a href="/reconciliation.html">Reconciliation</a>
+    </nav>
+
+    <section id="ccStatus" class="cc-status">
+      <strong>Loading credit card truth…</strong>
+      <span>Reading current card data.</span>
+    </section>
+
+    <section class="cc-summary" aria-label="Credit card summary">
+      <article class="cc-card">
+        <div class="cc-label">Outstanding</div>
+        <div id="totalOutstanding" class="cc-value">—</div>
+        <div class="cc-sub">Verified from card API.</div>
       </article>
 
-      <article class="card card-padded">
-        <div class="section-kicker">Payment rule</div>
-        <h2 class="authority-title" id="paymentStatus">Source first</h2>
-        <p class="authority-copy">Payment decisions require verified outstanding from the CC account/balances source.</p>
+      <article class="cc-card">
+        <div class="cc-label">Minimum Due</div>
+        <div id="totalMinimumDue" class="cc-value">—</div>
+        <div id="minimumDueSource" class="cc-sub">Configured amount or 5% estimate.</div>
+      </article>
+
+      <article class="cc-card">
+        <div class="cc-label">Credit Limit</div>
+        <div id="totalCreditLimit" class="cc-value">—</div>
+        <div class="cc-sub">Only shown when account limit exists.</div>
+      </article>
+
+      <article class="cc-card">
+        <div class="cc-label">Available Credit</div>
+        <div id="totalAvailableCredit" class="cc-value">—</div>
+        <div class="cc-sub">Limit minus outstanding.</div>
       </article>
     </section>
 
-    <section class="dashboard-grid">
-      <article class="card card-padded">
-        <div class="section-kicker">Source</div>
-        <div class="stack-sm" id="sourceList" style="margin-top:16px;"></div>
-      </article>
+    <section class="cc-grid">
+      <div>
+        <section class="cc-panel">
+          <h2>Cards</h2>
+          <div id="accountList" class="cc-account-list">
+            <div class="cc-empty">Loading cards…</div>
+          </div>
+        </section>
+      </div>
 
-      <article class="card card-padded">
-        <div class="section-kicker">Forecast link</div>
-        <div class="stack-sm" id="forecastList" style="margin-top:16px;"></div>
-      </article>
-    </section>
+      <aside>
+        <section class="cc-panel">
+          <h3>Payment Pressure</h3>
+          <div id="pressurePanel" class="cc-side-list">
+            <div class="cc-empty">Loading pressure view…</div>
+          </div>
+        </section>
 
-    <section class="card card-padded">
-      <div class="section-kicker">Proof</div>
-      <h2 class="authority-title" style="margin-top:12px;" id="proofTitle">Loading</h2>
-      <p class="authority-copy" id="proofCopy">Checking CC source.</p>
-      <pre id="debugBox" style="display:none;white-space:pre-wrap;margin-top:14px;"></pre>
+        <section class="cc-panel">
+          <h3>Utilization</h3>
+          <div class="cc-progress" aria-label="Total utilization">
+            <span id="totalUtilizationBar"></span>
+          </div>
+          <div id="totalUtilizationText" class="cc-sub">Waiting for card limit.</div>
+        </section>
+
+        <section class="cc-panel">
+          <h3>Read Sources</h3>
+          <div class="cc-side-list">
+            <div class="cc-side-row">
+              <span>Primary</span>
+              <span>/api/cc</span>
+            </div>
+            <div class="cc-side-row">
+              <span>Planner</span>
+              <span>/api/cc/{id}/payoff-plan</span>
+            </div>
+            <div class="cc-side-row">
+              <span>Debug cross-check</span>
+              <span>?debug=1</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="debugPanel" class="cc-panel" hidden>
+          <h3>Debug</h3>
+          <pre id="debugOutput" class="cc-debug"></pre>
+        </section>
+      </aside>
     </section>
   </main>
 
-  <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=2.0.3"></script>
+  <script src="/js/theme.js" defer></script>
+  <script src="/js/nav.js" defer></script>
 
   <script>
-    (() => {
+    (function () {
       "use strict";
 
-      const VERSION = "cc-truth-v1.0.0";
-      const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
+      const PAGE_VERSION = "cc-richness-v1.0.0";
+      const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
 
-      const els = {
-        refreshBtn: document.getElementById("refreshBtn"),
-        outstanding: document.getElementById("outstanding"),
-        outstandingCopy: document.getElementById("outstandingCopy"),
-        paymentStatus: document.getElementById("paymentStatus"),
-        sourceList: document.getElementById("sourceList"),
-        forecastList: document.getElementById("forecastList"),
-        proofTitle: document.getElementById("proofTitle"),
-        proofCopy: document.getElementById("proofCopy"),
-        debugBox: document.getElementById("debugBox")
+      const state = {
+        cc: null,
+        balances: null,
+        accounts: [],
+        payoffPlans: new Map()
       };
 
-      window.SovereignCC = { version: VERSION, refresh };
+      const $ = (id) => document.getElementById(id);
+
+      function asNumber(value, fallback = 0) {
+        if (typeof value === "number" && Number.isFinite(value)) return value;
+        if (typeof value === "string") {
+          const cleaned = value.replace(/[^\d.-]/g, "");
+          const parsed = Number(cleaned);
+          if (Number.isFinite(parsed)) return parsed;
+        }
+        return fallback;
+      }
+
+      function isRealNumber(value) {
+        return typeof value === "number" && Number.isFinite(value);
+      }
 
       function money(value) {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return "Unknown";
-        return "Rs " + Math.abs(n).toLocaleString("en-PK", { maximumFractionDigits: 0 });
+        const amount = asNumber(value, 0);
+        return new Intl.NumberFormat("en-PK", {
+          style: "currency",
+          currency: "PKR",
+          maximumFractionDigits: 2
+        }).format(amount);
+      }
+
+      function pct(value) {
+        const amount = asNumber(value, 0);
+        return `${amount.toFixed(1)}%`;
+      }
+
+      function text(value, fallback = "—") {
+        if (value === null || value === undefined || value === "") return fallback;
+        return String(value);
+      }
+
+      function dateText(value) {
+        if (!value) return "—";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleDateString("en-PK", {
+          year: "numeric",
+          month: "short",
+          day: "numeric"
+        });
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      async function readJson(path) {
+        const response = await fetch(path, {
+          headers: { "Accept": "application/json" },
+          cache: "no-store"
+        });
+
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          const message = payload?.error || payload?.message || `${path} failed with HTTP ${response.status}`;
+          throw new Error(message);
+        }
+
+        return payload;
+      }
+
+      function firstDefined(...values) {
+        for (const value of values) {
+          if (value !== undefined && value !== null && value !== "") return value;
+        }
+        return undefined;
+      }
+
+      function getArray(payload, keys) {
+        for (const key of keys) {
+          const value = payload?.[key];
+          if (Array.isArray(value)) return value;
+        }
+        return [];
+      }
+
+      function normalizeAccount(raw, index) {
+        const id = text(firstDefined(
+          raw.id,
+          raw.account_id,
+          raw.accountId,
+          raw.key,
+          raw.slug,
+          raw.code,
+          raw.name
+        ), `cc_${index + 1}`);
+
+        const name = text(firstDefined(raw.name, raw.label, raw.account_name, raw.display_name), `Credit Card ${index + 1}`);
+
+        const outstanding = Math.max(0, asNumber(firstDefined(
+          raw.outstanding,
+          raw.cc_outstanding,
+          raw.current_outstanding,
+          raw.balance_outstanding,
+          raw.balance < 0 ? Math.abs(raw.balance) : undefined,
+          raw.current_balance < 0 ? Math.abs(raw.current_balance) : undefined
+        ), 0));
+
+        const creditLimit = Math.max(0, asNumber(firstDefined(
+          raw.credit_limit,
+          raw.creditLimit,
+          raw.limit,
+          raw.card_limit
+        ), 0));
+
+        const availableCredit = firstDefined(
+          raw.available_credit,
+          raw.availableCredit,
+          creditLimit > 0 ? Math.max(0, creditLimit - outstanding) : undefined
+        );
+
+        const utilizationPct = firstDefined(
+          raw.utilization_pct,
+          raw.utilizationPct,
+          raw.utilization_percent,
+          creditLimit > 0 ? (outstanding / creditLimit) * 100 : undefined
+        );
+
+        const minimumDue = Math.max(0, asNumber(firstDefined(
+          raw.minimum_due,
+          raw.minimumDue,
+          raw.min_due,
+          raw.min_payment_due,
+          raw.minimum_payment_due,
+          raw.minimum_payment,
+          raw.min_payment_amount,
+          raw.minimum_payment_amount
+        ), outstanding * 0.05));
+
+        const minimumSource = text(firstDefined(
+          raw.minimum_due_source,
+          raw.minimumDueSource,
+          raw.minimum_payment_source,
+          raw.min_payment_source,
+          raw.min_source,
+          isRealNumber(raw.minimum_due) ||
+          isRealNumber(raw.min_payment_due) ||
+          isRealNumber(raw.minimum_payment_amount) ||
+          isRealNumber(raw.min_payment_amount)
+            ? "configured"
+            : "estimated 5%"
+        ));
+
+        const statementDay = firstDefined(
+          raw.statement_day,
+          raw.statementDay,
+          raw.statement_date_day
+        );
+
+        const paymentDueDay = firstDefined(
+          raw.payment_due_day,
+          raw.paymentDueDay,
+          raw.due_day
+        );
+
+        const paymentDueDate = firstDefined(
+          raw.payment_due_date,
+          raw.paymentDueDate,
+          raw.due_date,
+          raw.next_due_date
+        );
+
+        const latestStatementDate = firstDefined(
+          raw.latest_statement_date,
+          raw.latestStatementDate,
+          raw.statement_date
+        );
+
+        const nextStatementDate = firstDefined(
+          raw.next_statement_date,
+          raw.nextStatementDate
+        );
+
+        const daysUntilDue = firstDefined(
+          raw.days_until_payment_due,
+          raw.daysUntilPaymentDue,
+          raw.days_until_due,
+          raw.due_in_days
+        );
+
+        const dueHeadline = text(firstDefined(
+          raw.due_headline,
+          raw.dueHeadline,
+          raw.payment_due_headline,
+          raw.status_headline
+        ), dueLabel(daysUntilDue));
+
+        return {
+          raw,
+          id,
+          name,
+          outstanding,
+          creditLimit,
+          availableCredit: asNumber(availableCredit, 0),
+          utilizationPct: asNumber(utilizationPct, 0),
+          minimumDue,
+          minimumSource,
+          statementDay,
+          paymentDueDay,
+          paymentDueDate,
+          latestStatementDate,
+          nextStatementDate,
+          daysUntilDue: daysUntilDue === undefined ? null : asNumber(daysUntilDue, 0),
+          dueHeadline
+        };
+      }
+
+      function normalizeAccounts(payload) {
+        const direct = getArray(payload, ["accounts", "cards", "credit_cards", "creditCards", "data"]);
+        if (direct.length) return direct.map(normalizeAccount);
+
+        if (payload?.account && typeof payload.account === "object") {
+          return [normalizeAccount(payload.account, 0)];
+        }
+
+        if (payload?.card && typeof payload.card === "object") {
+          return [normalizeAccount(payload.card, 0)];
+        }
+
+        return [];
+      }
+
+      function summarize(accounts, payload) {
+        const sum = (field) => accounts.reduce((total, account) => total + asNumber(account[field], 0), 0);
+
+        const outstanding = asNumber(firstDefined(
+          payload?.total_outstanding,
+          payload?.totalOutstanding,
+          payload?.summary?.total_outstanding,
+          payload?.summary?.outstanding,
+          payload?.totals?.total_outstanding,
+          payload?.totals?.outstanding
+        ), sum("outstanding"));
+
+        const minimumDue = asNumber(firstDefined(
+          payload?.total_minimum_due,
+          payload?.totalMinimumDue,
+          payload?.summary?.total_minimum_due,
+          payload?.summary?.minimum_due,
+          payload?.totals?.minimum_due
+        ), sum("minimumDue"));
+
+        const creditLimit = asNumber(firstDefined(
+          payload?.total_credit_limit,
+          payload?.totalCreditLimit,
+          payload?.summary?.total_credit_limit,
+          payload?.totals?.credit_limit
+        ), sum("creditLimit"));
+
+        const availableCredit = asNumber(firstDefined(
+          payload?.total_available_credit,
+          payload?.totalAvailableCredit,
+          payload?.summary?.total_available_credit,
+          payload?.totals?.available_credit
+        ), sum("availableCredit"));
+
+        const utilizationPct = creditLimit > 0 ? (outstanding / creditLimit) * 100 : 0;
+
+        return {
+          outstanding,
+          minimumDue,
+          creditLimit,
+          availableCredit,
+          utilizationPct
+        };
+      }
+
+      function dueClass(days) {
+        if (days === null || days === undefined) return "";
+        if (days < 0) return "danger";
+        if (days <= 3) return "danger";
+        if (days <= 7) return "warn";
+        return "good";
+      }
+
+      function dueLabel(days) {
+        if (days === null || days === undefined || Number.isNaN(Number(days))) return "Due date unavailable";
+        const value = Number(days);
+        if (value < 0) return `${Math.abs(value)} day${Math.abs(value) === 1 ? "" : "s"} overdue`;
+        if (value === 0) return "Due today";
+        return `${value} day${value === 1 ? "" : "s"} until due`;
+      }
+
+      function minSourceLabel(source) {
+        const value = String(source || "").replace(/_/g, " ").trim();
+        if (!value) return "source unavailable";
+        return value;
+      }
+
+      function setStatus(kind, html) {
+        const node = $("ccStatus");
+        node.className = "cc-status";
+        if (kind === "error") node.classList.add("cc-error");
+        node.innerHTML = html;
+      }
+
+      function renderSummary(summary, accounts) {
+        $("totalOutstanding").textContent = money(summary.outstanding);
+        $("totalMinimumDue").textContent = money(summary.minimumDue);
+        $("totalCreditLimit").textContent = summary.creditLimit > 0 ? money(summary.creditLimit) : "—";
+        $("totalAvailableCredit").textContent = summary.creditLimit > 0 ? money(summary.availableCredit) : "—";
+
+        const estimatedCount = accounts.filter((account) => String(account.minimumSource).toLowerCase().includes("estimate")).length;
+        $("minimumDueSource").textContent = estimatedCount
+          ? `${estimatedCount} card${estimatedCount === 1 ? "" : "s"} using 5% estimate.`
+          : "Using configured minimum where available.";
+
+        const utilization = clamp(summary.utilizationPct, 0, 100);
+        $("totalUtilizationBar").style.width = `${utilization}%`;
+        $("totalUtilizationText").textContent = summary.creditLimit > 0
+          ? `${pct(summary.utilizationPct)} used across available card limit.`
+          : "Credit limit unavailable.";
+      }
+
+      function renderPressure(accounts, summary) {
+        const dueSorted = [...accounts]
+          .filter((account) => account.outstanding > 0)
+          .sort((a, b) => {
+            const av = a.daysUntilDue === null ? 9999 : a.daysUntilDue;
+            const bv = b.daysUntilDue === null ? 9999 : b.daysUntilDue;
+            return av - bv;
+          });
+
+        const nextDue = dueSorted[0];
+
+        const rows = [
+          ["Outstanding", money(summary.outstanding)],
+          ["Minimum due", money(summary.minimumDue)],
+          ["Cards with balance", String(accounts.filter((account) => account.outstanding > 0).length)],
+          ["Nearest due", nextDue ? `${nextDue.name}: ${dueLabel(nextDue.daysUntilDue)}` : "No active due pressure"]
+        ];
+
+        $("pressurePanel").innerHTML = rows.map(([label, value]) => `
+          <div class="cc-side-row">
+            <span>${escapeHtml(label)}</span>
+            <span>${escapeHtml(value)}</span>
+          </div>
+        `).join("");
+      }
+
+      function renderAccounts(accounts) {
+        const list = $("accountList");
+
+        if (!accounts.length) {
+          list.innerHTML = `<div class="cc-empty">No credit card accounts returned by the card API.</div>`;
+          return;
+        }
+
+        list.innerHTML = accounts.map((account) => {
+          const utilization = clamp(account.utilizationPct, 0, 100);
+          const planHtml = renderPlan(account);
+
+          return `
+            <article class="cc-account" data-account-id="${escapeAttr(account.id)}">
+              <div class="cc-account-head">
+                <div>
+                  <h2 class="cc-account-name">${escapeHtml(account.name)}</h2>
+                  <div class="cc-account-meta">
+                    Statement day: ${escapeHtml(text(account.statementDay))} · Payment day: ${escapeHtml(text(account.paymentDueDay))}
+                  </div>
+                </div>
+                <span class="cc-pill ${dueClass(account.daysUntilDue)}">${escapeHtml(account.dueHeadline)}</span>
+              </div>
+
+              <div class="cc-account-metrics">
+                <div class="cc-metric">
+                  <div class="cc-label">Outstanding</div>
+                  <div class="cc-value">${money(account.outstanding)}</div>
+                </div>
+                <div class="cc-metric">
+                  <div class="cc-label">Minimum due</div>
+                  <div class="cc-value">${money(account.minimumDue)}</div>
+                  <div class="cc-sub">${escapeHtml(minSourceLabel(account.minimumSource))}</div>
+                </div>
+                <div class="cc-metric">
+                  <div class="cc-label">Due date</div>
+                  <div class="cc-value">${escapeHtml(dateText(account.paymentDueDate))}</div>
+                  <div class="cc-sub">${escapeHtml(dueLabel(account.daysUntilDue))}</div>
+                </div>
+                <div class="cc-metric">
+                  <div class="cc-label">Available</div>
+                  <div class="cc-value">${account.creditLimit > 0 ? money(account.availableCredit) : "—"}</div>
+                  <div class="cc-sub">Limit: ${account.creditLimit > 0 ? money(account.creditLimit) : "unavailable"}</div>
+                </div>
+              </div>
+
+              <div class="cc-two">
+                <div class="cc-metric">
+                  <div class="cc-label">Utilization</div>
+                  <div class="cc-progress"><span style="width:${utilization}%"></span></div>
+                  <div class="cc-sub">${account.creditLimit > 0 ? pct(account.utilizationPct) : "Credit limit unavailable"}</div>
+                </div>
+                <div class="cc-metric">
+                  <div class="cc-label">Statement cycle</div>
+                  <div class="cc-sub">Latest: ${escapeHtml(dateText(account.latestStatementDate))}</div>
+                  <div class="cc-sub">Next: ${escapeHtml(dateText(account.nextStatementDate))}</div>
+                </div>
+              </div>
+
+              ${planHtml}
+            </article>
+          `;
+        }).join("");
+      }
+
+      function renderPlan(account) {
+        const plan = state.payoffPlans.get(account.id);
+
+        if (!plan) {
+          return `
+            <div class="cc-plan-box">
+              <h3>Payment planner</h3>
+              <div class="cc-empty">Planner unavailable for this card.</div>
+            </div>
+          `;
+        }
+
+        const scenarios = normalizeScenarios(plan);
+
+        if (!scenarios.length) {
+          return `
+            <div class="cc-plan-box">
+              <h3>Payment planner</h3>
+              <div class="cc-empty">No planner scenarios returned.</div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="cc-plan-box">
+            <h3>Payment planner</h3>
+            <div class="cc-plan-list">
+              ${scenarios.slice(0, 4).map((scenario) => `
+                <div class="cc-plan">
+                  <div>
+                    <strong>${escapeHtml(scenario.label)}</strong>
+                    <span>${escapeHtml(scenario.note)}</span>
+                  </div>
+                  <div>
+                    <strong>${money(scenario.payment)}</strong>
+                    <span>payment</span>
+                  </div>
+                  <div>
+                    <strong>${escapeHtml(scenario.months)}</strong>
+                    <span>timeline</span>
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      function normalizeScenarios(plan) {
+        const rawScenarios = getArray(plan, ["scenarios", "plans", "payoff_scenarios", "payoffScenarios", "data"]);
+
+        return rawScenarios.map((raw, index) => {
+          const payment = asNumber(firstDefined(
+            raw.monthly_payment,
+            raw.monthlyPayment,
+            raw.payment,
+            raw.amount,
+            raw.minimum_due,
+            raw.minimumDue
+          ), 0);
+
+          const monthsValue = firstDefined(
+            raw.months_to_payoff,
+            raw.monthsToPayoff,
+            raw.months,
+            raw.timeline_months,
+            raw.duration_months
+          );
+
+          const totalInterest = firstDefined(
+            raw.total_interest,
+            raw.totalInterest,
+            raw.interest
+          );
+
+          const label = text(firstDefined(
+            raw.label,
+            raw.name,
+            raw.title,
+            index === 0 ? "Minimum path" : `Scenario ${index + 1}`
+          ));
+
+          const noteParts = [];
+          if (totalInterest !== undefined) noteParts.push(`interest ${money(totalInterest)}`);
+          if (raw.description || raw.note) noteParts.push(text(firstDefined(raw.description, raw.note)));
+
+          return {
+            label,
+            payment,
+            months: monthsValue === undefined ? "—" : `${text(monthsValue)} mo`,
+            note: noteParts.length ? noteParts.join(" · ") : "Read-only scenario"
+          };
+        });
+      }
+
+      async function loadPayoffPlans(accounts) {
+        const jobs = accounts
+          .filter((account) => account.id && account.outstanding > 0)
+          .map(async (account) => {
+            try {
+              const plan = await readJson(`/api/cc/${encodeURIComponent(account.id)}/payoff-plan`);
+              state.payoffPlans.set(account.id, plan);
+            } catch (error) {
+              state.payoffPlans.set(account.id, null);
+              if (DEBUG) console.warn("Planner unavailable", account.id, error);
+            }
+          });
+
+        await Promise.allSettled(jobs);
+      }
+
+      function renderDebug(summary) {
+        const panel = $("debugPanel");
+        const output = $("debugOutput");
+
+        if (!DEBUG) return;
+
+        panel.hidden = false;
+        output.classList.add("is-visible");
+
+        const balancesCcOutstanding = firstDefined(
+          state.balances?.cc_outstanding,
+          state.balances?.summary?.cc_outstanding,
+          state.balances?.totals?.cc_outstanding
+        );
+
+        const debug = {
+          version: PAGE_VERSION,
+          cc_accounts: state.accounts.map((account) => ({
+            id: account.id,
+            name: account.name,
+            outstanding: account.outstanding,
+            minimumDue: account.minimumDue,
+            dueDate: account.paymentDueDate,
+            daysUntilDue: account.daysUntilDue,
+            utilizationPct: account.utilizationPct
+          })),
+          summary,
+          balances_cross_check: {
+            loaded: Boolean(state.balances),
+            cc_outstanding: balancesCcOutstanding ?? null,
+            delta_vs_card_api: balancesCcOutstanding === undefined
+              ? null
+              : Number((asNumber(balancesCcOutstanding, 0) - summary.outstanding).toFixed(2))
+          },
+          payoff_plan_accounts: [...state.payoffPlans.keys()]
+        };
+
+        output.textContent = JSON.stringify(debug, null, 2);
       }
 
       function escapeHtml(value) {
-        return String(value ?? "")
+        return String(value)
           .replaceAll("&", "&amp;")
           .replaceAll("<", "&lt;")
           .replaceAll(">", "&gt;")
@@ -94,136 +1141,53 @@
           .replaceAll("'", "&#039;");
       }
 
-      async function readJson(url) {
-        const res = await fetch(url + (url.includes("?") ? "&" : "?") + "cb=" + Date.now(), {
-          cache: "no-store",
-          headers: { accept: "application/json" }
-        });
-
-        const body = await res.json();
-
-        if (!res.ok || body.ok === false) {
-          throw new Error(body.error || url + " failed");
-        }
-
-        return body;
+      function escapeAttr(value) {
+        return escapeHtml(value).replaceAll("`", "&#096;");
       }
 
-      function row(label, value, sub) {
-        return (
-          '<div class="card card-compact">' +
-            '<div class="grid-2" style="align-items:center;">' +
-              '<div>' +
-                '<div class="strong">' + escapeHtml(label) + '</div>' +
-                '<div class="muted">' + escapeHtml(sub || "") + '</div>' +
-              '</div>' +
-              '<div class="text-right strong">' + escapeHtml(value) + '</div>' +
-            '</div>' +
-          '</div>'
-        );
-      }
-
-      function normalizeCCFromBalances(payload) {
-        const accounts = payload.accounts || {};
-        const list = Array.isArray(accounts)
-          ? accounts
-          : Object.entries(accounts).map(([id, value]) => ({ id, ...(value || {}) }));
-
-        const found = list.find(account => {
-          const id = String(account.id || "").toLowerCase();
-          const name = String(account.name || "").toLowerCase();
-          const type = String(account.type || "").toLowerCase();
-          const kind = String(account.kind || "").toLowerCase();
-
-          return id === "cc" || id.includes("credit") || name.includes("credit card") || type === "credit" || kind === "credit";
-        });
-
-        if (!found) {
-          return {
-            verified: false,
-            outstanding: null,
-            reason: "No CC account found in balances payload"
-          };
-        }
-
-        const raw = Number(found.balance ?? found.current_balance ?? found.amount);
-
-        if (!Number.isFinite(raw)) {
-          return {
-            verified: false,
-            outstanding: null,
-            account: found,
-            reason: "CC account exists but balance is not numeric"
-          };
-        }
-
-        return {
-          verified: true,
-          outstanding: Math.abs(raw),
-          raw_balance: raw,
-          account: found,
-          source: "/api/balances.accounts"
+      async function boot() {
+        window.SovereignCreditCard = {
+          version: PAGE_VERSION,
+          reload: boot
         };
-      }
-
-      async function refresh() {
-        els.refreshBtn.disabled = true;
-        els.refreshBtn.textContent = "Refreshing...";
 
         try {
-          const [balances, forecast] = await Promise.all([
-            readJson("/api/balances?debug=1"),
-            readJson("/api/forecast")
-          ]);
+          setStatus("loading", `<strong>Loading credit card truth…</strong> <span>Reading /api/cc.</span>`);
 
-          const cc = normalizeCCFromBalances(balances);
-          const forecastCC = forecast.inputs?.credit_card_outstanding;
+          state.cc = await readJson("/api/cc");
+          state.accounts = normalizeAccounts(state.cc);
 
-          if (cc.verified) {
-            els.outstanding.textContent = money(cc.outstanding);
-            els.outstandingCopy.textContent = "Verified from " + cc.source + " using account " + (cc.account.id || "cc") + ".";
-            els.paymentStatus.textContent = "Verified";
-            els.proofTitle.textContent = "Ready";
-            els.proofCopy.textContent = "Credit-card outstanding is using the same source as Forecast.";
-          } else {
-            els.outstanding.textContent = "Unknown";
-            els.outstandingCopy.textContent = cc.reason || "Verified CC source unavailable.";
-            els.paymentStatus.textContent = "Blocked";
-            els.proofTitle.textContent = "Check source";
-            els.proofCopy.textContent = "CC decisions stay blocked until balances exposes a numeric CC account.";
-          }
-
-          els.sourceList.innerHTML = [
-            row("Verified", cc.verified ? "Yes" : "No", cc.reason || cc.source || "—"),
-            row("Account", cc.account?.name || cc.account?.id || "Unknown", cc.account?.id || "No account id"),
-            row("Raw balance", cc.raw_balance === undefined ? "Unknown" : String(cc.raw_balance), "Liability may be stored as negative"),
-            row("Outstanding", cc.verified ? money(cc.outstanding) : "Unknown", "Absolute liability used for decisions")
-          ].join("");
-
-          els.forecastList.innerHTML = [
-            row("Forecast version", forecast.version || "Unknown", "/api/forecast"),
-            row("Forecast CC outstanding", forecastCC === null || forecastCC === undefined ? "Unknown" : money(forecastCC), "Must match CC page"),
-            row("Forecast status", forecast.status || "Unknown", (forecast.blockers || []).join(" | "))
-          ].join("");
+          await loadPayoffPlans(state.accounts);
 
           if (DEBUG) {
-            els.debugBox.style.display = "block";
-            els.debugBox.textContent = JSON.stringify({ balances, forecast, cc }, null, 2);
+            try {
+              state.balances = await readJson("/api/balances");
+            } catch (error) {
+              state.balances = { error: error.message };
+            }
           }
-        } catch (err) {
-          els.outstanding.textContent = "Unavailable";
-          els.outstandingCopy.textContent = err.message || "Unable to load credit-card source.";
-          els.paymentStatus.textContent = "Error";
-          els.proofTitle.textContent = "Error";
-          els.proofCopy.textContent = err.message || "Unable to load credit-card source.";
-        } finally {
-          els.refreshBtn.disabled = false;
-          els.refreshBtn.textContent = "Refresh Card";
+
+          const summary = summarize(state.accounts, state.cc);
+
+          renderSummary(summary, state.accounts);
+          renderPressure(state.accounts, summary);
+          renderAccounts(state.accounts);
+          renderDebug(summary);
+
+          const activeCards = state.accounts.filter((account) => account.outstanding > 0).length;
+          setStatus("ready", `<strong>Credit card view ready.</strong> <span>${activeCards} card${activeCards === 1 ? "" : "s"} with outstanding balance. Primary source: /api/cc.</span>`);
+
+          console.log("cc page:", PAGE_VERSION);
+          console.log("cc outstanding:", summary.outstanding);
+        } catch (error) {
+          console.error(error);
+          setStatus("error", `<strong>Credit card view failed.</strong> <span>${escapeHtml(error.message)}</span>`);
+          $("accountList").innerHTML = `<div class="cc-empty cc-error">Could not load /api/cc.</div>`;
+          $("pressurePanel").innerHTML = `<div class="cc-empty cc-error">No pressure view available.</div>`;
         }
       }
 
-      els.refreshBtn.addEventListener("click", refresh);
-      refresh();
+      document.addEventListener("DOMContentLoaded", boot);
     })();
   </script>
 </body>
