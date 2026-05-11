@@ -119,6 +119,60 @@
       box-shadow: var(--shadow-xs);
       transition: transform var(--fast), border-color var(--fast), box-shadow var(--fast), background var(--fast);
     }
+    .ledger-row {
+  cursor: pointer;
+}
+
+.ledger-row.is-open {
+  border-color: rgba(4, 120, 87, 0.34);
+  background:
+    linear-gradient(135deg, rgba(4, 120, 87, 0.075), transparent 58%),
+    var(--surface-1);
+  box-shadow: var(--shadow-md);
+}
+
+.ledger-row-main {
+  min-width: 0;
+}
+
+.ledger-row-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+}
+
+.ledger-row-folded-meta {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 760;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ledger-row-expanded {
+  display: none;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.ledger-row.is-open .ledger-row-expanded {
+  display: block;
+}
+
+.ledger-row-hint {
+  margin-top: 8px;
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ledger-row.is-open .ledger-row-hint {
+  display: none;
+}
 
     .ledger-row:hover {
       transform: translateY(-1px);
