@@ -701,13 +701,25 @@ export async function onRequest(context) {
     version: source.version
   }));
 
-  if (!balancesResult.ok) {
+    if (!balancesResult.ok) {
     return json({
       ok: false,
       version: VERSION,
+      status: "source_error",
       error: "balances_source_unavailable",
+      generated_at: new Date().toISOString(),
+      debug: {
+        request_url: request.url,
+        balances_status: balancesResult.status,
+        balances_version: balancesResult.version,
+        balances_payload_keys: balancesResult.payload && typeof balancesResult.payload === "object"
+          ? Object.keys(balancesResult.payload)
+          : [],
+        balances_payload_preview: balancesResult.payload
+      },
       sources: sourceStatus
-    }, 502);
+    }, 200);
+  }
   }
 
   const balances = normalizeBalanceSource(balancesResult.payload || {});
