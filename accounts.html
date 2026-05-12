@@ -1,341 +1,277 @@
-<!doctype html>
-<html lang="en" data-theme="midnight" data-page="accounts">
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="theme-color" content="#050816" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
   <title>Accounts · Sovereign Finance</title>
 
-  <link rel="stylesheet" href="/css/app.css" />
-  <link rel="stylesheet" href="/css/sf-theme.css" />
-  <link rel="stylesheet" href="/css/sf-shell.css" />
-
-  <style>
-    .accounts-layout {
-      display: grid;
-      gap: var(--sf-space-6);
-    }
-
-    .accounts-grid {
-      display: grid;
-      grid-template-columns: repeat(12, minmax(0, 1fr));
-      gap: var(--sf-space-6);
-    }
-
-    .accounts-main {
-      grid-column: span 8;
-      display: grid;
-      gap: var(--sf-space-6);
-      min-width: 0;
-    }
-
-    .accounts-side {
-      grid-column: span 4;
-      display: grid;
-      gap: var(--sf-space-6);
-      min-width: 0;
-    }
-
-    .accounts-list-host .mini-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: var(--sf-space-4);
-      align-items: center;
-      padding: 14px 0;
-      border-bottom: 1px solid var(--sf-border-subtle);
-    }
-
-    .accounts-list-host .mini-row:last-child {
-      border-bottom: 0;
-      padding-bottom: 0;
-    }
-
-    .accounts-list-host .mini-row-left {
-      display: flex;
-      gap: var(--sf-space-4);
-      align-items: center;
-      min-width: 0;
-    }
-
-    .accounts-list-host .mini-row-icon {
-      width: 42px;
-      height: 42px;
-      display: grid;
-      place-items: center;
-      border-radius: 14px;
-      background: var(--sf-surface-2);
-      border: 1px solid var(--sf-border-subtle);
-      flex: 0 0 42px;
-    }
-
-    .accounts-list-host .mini-row-name {
-      color: var(--sf-text);
-      font-weight: 900;
-      line-height: 1.2;
-      overflow-wrap: anywhere;
-    }
-
-    .accounts-list-host .mini-row-sub {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--sf-space-2);
-      margin-top: 4px;
-    }
-
-    .accounts-list-host .meta {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--sf-space-2);
-      padding: 6px 10px;
-      border-radius: var(--sf-radius-pill);
-      background: var(--sf-surface-2);
-      border: 1px solid var(--sf-border-subtle);
-      color: var(--sf-text-muted);
-      font-size: var(--sf-font-11);
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    .accounts-list-host .meta.accent {
-      color: var(--sf-accent-strong);
-    }
-
-    .accounts-list-host .meta.warn {
-      color: var(--sf-warning);
-    }
-
-    .accounts-list-host .meta.danger {
-      color: var(--sf-danger);
-    }
-
-    .accounts-list-host .mini-row-right {
-      text-align: right;
-    }
-
-    .accounts-list-host .mini-row-amount {
-      color: var(--sf-text);
-      font-weight: 900;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .accounts-list-host .mini-row-amount.danger,
-    .accounts-list-host .mini-row-amount.value.danger {
-      color: var(--sf-danger);
-    }
-
-    .accounts-summary {
-      display: grid;
-      gap: var(--sf-space-4);
-    }
-
-    .accounts-summary-row {
-      display: flex;
-      justify-content: space-between;
-      gap: var(--sf-space-4);
-      align-items: center;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--sf-border-subtle);
-    }
-
-    .accounts-summary-row:last-child {
-      border-bottom: 0;
-      padding-bottom: 0;
-    }
-
-    .accounts-summary-label {
-      color: var(--sf-text-muted);
-      font-weight: 700;
-    }
-
-    .accounts-summary-value {
-      color: var(--sf-text);
-      font-weight: 900;
-      font-variant-numeric: tabular-nums;
-      text-align: right;
-    }
-
-    .accounts-day-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--sf-space-3);
-      align-items: center;
-      margin-bottom: var(--sf-space-4);
-    }
-
-    .accounts-archived-head {
-      display: flex;
-      justify-content: space-between;
-      gap: var(--sf-space-4);
-      align-items: center;
-      cursor: pointer;
-    }
-
-    .accounts-empty {
-      display: grid;
-      place-items: center;
-      min-height: 120px;
-      text-align: center;
-      color: var(--sf-text-muted);
-      border: 1px dashed var(--sf-border);
-      border-radius: var(--sf-radius-md);
-      background: var(--sf-surface-1);
-      padding: var(--sf-space-5);
-    }
-
-    @media (max-width: 1100px) {
-      .accounts-main,
-      .accounts-side {
-        grid-column: span 12;
-      }
-    }
-
-    @media (max-width: 720px) {
-      .accounts-list-host .mini-row {
-        grid-template-columns: 1fr;
-      }
-
-      .accounts-list-host .mini-row-right,
-      .accounts-summary-value {
-        text-align: left;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="accounts-layout">
-    <main class="accounts-grid">
-      <section class="accounts-main">
-        <section class="sf-panel sf-panel--accent">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Assets</p>
-              <h2 class="sf-section-title">Live asset accounts</h2>
-              <p class="sf-section-subtitle">Active asset balances from current account source.</p>
-            </div>
-          </div>
-          <div id="acc-assets-list" class="accounts-list-host">
-            <div class="accounts-empty">Loading asset accounts</div>
-          </div>
-        </section>
-
-        <section class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Liabilities</p>
-              <h2 class="sf-section-title">Live liability accounts</h2>
-              <p class="sf-section-subtitle">Credit-card and liability balances from current account source.</p>
-            </div>
-          </div>
-          <div id="acc-liabilities-list" class="accounts-list-host">
-            <div class="accounts-empty">Loading liabilities</div>
-          </div>
-        </section>
-      </section>
-
-      <aside class="accounts-side">
-        <section class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Summary</p>
-              <h2 class="sf-section-title">Account totals</h2>
-              <p class="sf-section-subtitle">Net worth from balances. Asset and liability subtotals from account rows.</p>
-            </div>
-          </div>
-
-          <div class="accounts-day-row">
-            <span class="sf-pill"><span id="acc-day-count">—</span>&nbsp;Day <span id="dayNum">—</span> of 90</span>
-          </div>
-
-          <div class="accounts-summary">
-            <div class="accounts-summary-row">
-              <span class="accounts-summary-label">Net worth</span>
-              <span id="acc-net-worth" class="accounts-summary-value">Rs -</span>
-            </div>
-            <div class="accounts-summary-row">
-              <span class="accounts-summary-label">Active assets</span>
-              <span id="acc-assets-count" class="accounts-summary-value">0</span>
-            </div>
-            <div class="accounts-summary-row">
-              <span class="accounts-summary-label">Asset total</span>
-              <span id="acc-assets-total" class="accounts-summary-value">Rs -</span>
-            </div>
-            <div class="accounts-summary-row">
-              <span class="accounts-summary-label">Active liabilities</span>
-              <span id="acc-liabilities-count" class="accounts-summary-value">0</span>
-            </div>
-            <div class="accounts-summary-row">
-              <span class="accounts-summary-label">Liability total</span>
-              <span id="acc-liabilities-total" class="accounts-summary-value">Rs -</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="sf-panel">
-          <div id="acc-archived-header" class="accounts-archived-head">
-            <div>
-              <p class="sf-section-kicker">Archived</p>
-              <h2 class="sf-section-title">Archived accounts</h2>
-              <p class="sf-section-subtitle">Collapsed by default.</p>
-            </div>
-            <div class="sf-pill">
-              <span id="acc-archived-count">0</span>
-              <span id="acc-archived-toggle">&gt;</span>
-            </div>
-          </div>
-          <div id="acc-archived-list" class="accounts-list-host" style="display:none;">
-            <div class="accounts-empty">No archived accounts.</div>
-          </div>
-        </section>
-      </aside>
-    </main>
-  </div>
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
 
   <script>
     window.SF_PAGE = {
       title: "Accounts",
-      eyebrow: "Balance map",
-      subtitle: "Live asset and liability accounts from current sources. No command-centre path. No fake balances.",
+      eyebrow: "Sovereign Finance",
+      subtitle: "Read-only account truth. Account rows come from /api/accounts; net worth and top metrics come from /api/balances.",
       actions: [
         { label: "Hub", href: "/" },
-        { label: "Credit Card", href: "/cc.html" },
-        { label: "Accounts", href: "/accounts.html", primary: true }
+        { label: "Reconciliation", href: "/reconciliation.html", primary: true },
+        { label: "Audit Trail", href: "/audit.html" },
+        { label: "Forecast", href: "/forecast.html" }
       ],
       kpis: [
         {
-          kicker: "Net worth",
-          title: "Net worth",
-          valueHtml: "<span id=\"acc-net-worth-kpi\">Rs -</span>",
+          title: "Net Worth",
+          kicker: "Balances API",
+          value: "Loading",
           subtitle: "From /api/balances",
-          accent: true
+          foot: "No frontend fallback"
         },
         {
-          kicker: "Assets",
-          title: "Active assets",
-          valueHtml: "<span id=\"acc-assets-count-kpi\">0</span>",
-          subtitleHtml: "<span id=\"acc-assets-total-kpi\">Rs -</span>"
+          title: "Liquid Assets",
+          kicker: "Balances API",
+          value: "Loading",
+          subtitle: "Asset-side cash position",
+          foot: "Canonical top metric"
         },
         {
-          kicker: "Liabilities",
-          title: "Active liabilities",
-          valueHtml: "<span id=\"acc-liabilities-count-kpi\">0</span>",
-          subtitleHtml: "<span id=\"acc-liabilities-total-kpi\">Rs -</span>",
-          tone: "warning"
+          title: "CC Outstanding",
+          kicker: "Balances API",
+          value: "Loading",
+          subtitle: "Credit-card pressure",
+          foot: "Liability truth"
         },
         {
-          kicker: "Archived",
-          title: "Archived accounts",
-          valueHtml: "<span id=\"acc-archived-count-kpi\">0</span>",
-          subtitle: "Hidden by default"
+          title: "Active Accounts",
+          kicker: "Accounts API",
+          value: "Loading",
+          subtitle: "From /api/accounts",
+          foot: "Read-only inventory"
         }
       ]
     };
   </script>
 
-  <script src="/js/theme.js"></script>
-  <script src="/js/nav.js"></script>
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
+</head>
+
+<body>
+  <section class="sf-panel-grid" aria-label="Accounts workspace">
+    <section class="sf-panel sf-span-12" aria-labelledby="acc-source-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Source Status</p>
+          <h2 id="acc-source-title" class="sf-section-title">Read-Only Account Truth</h2>
+          <p class="sf-section-subtitle">
+            This page displays account state only. It does not create accounts, edit metadata, archive accounts, delete accounts, repair balances, or run dry-runs.
+          </p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="acc-source-status" class="sf-pill">Loading</span>
+          <span id="acc-readonly-status" class="sf-pill sf-pill--info">Read-only</span>
+        </div>
+      </div>
+
+      <div class="sf-secondary-grid">
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Accounts API</div>
+            <div class="sf-row-subtitle">Per-account rows, account metadata, and account balances</div>
+          </div>
+          <div id="acc-accounts-api-status" class="sf-row-right">Loading</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Balances API</div>
+            <div class="sf-row-subtitle">Net worth, liquid assets, and top-level balance truth</div>
+          </div>
+          <div id="acc-balances-api-status" class="sf-row-right">Loading</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Last Loaded</div>
+            <div class="sf-row-subtitle">In-app read timestamp</div>
+          </div>
+          <div id="acc-last-loaded" class="sf-row-right">—</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-4" aria-labelledby="acc-summary-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Balance Summary</p>
+          <h2 id="acc-summary-title" class="sf-section-title">Top Metrics</h2>
+          <p class="sf-section-subtitle">Displayed from /api/balances only.</p>
+        </div>
+      </div>
+
+      <div class="sf-dense-grid">
+        <div class="sf-dense-row">
+          <span>Net Worth</span>
+          <strong id="acc-net-worth">Loading</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>Liquid Assets</span>
+          <strong id="acc-liquid">Loading</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>CC Outstanding</span>
+          <strong id="acc-cc-outstanding">Loading</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>True Burden</span>
+          <strong id="acc-true-burden">Loading</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-8" aria-labelledby="acc-assets-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Assets</p>
+          <h2 id="acc-assets-title" class="sf-section-title">Asset Accounts</h2>
+          <p class="sf-section-subtitle">Cash, bank, wallet, and other positive-balance accounts from /api/accounts.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="acc-assets-count" class="sf-pill">0 accounts</span>
+          <span id="acc-assets-total" class="sf-pill">Rs 0</span>
+        </div>
+      </div>
+
+      <div id="acc-assets-list" class="sf-dense-grid">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">Loading assets</h3>
+            <p class="sf-card-subtitle">Reading account rows from /api/accounts.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-12" aria-labelledby="acc-liabilities-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Liabilities</p>
+          <h2 id="acc-liabilities-title" class="sf-section-title">Liability Accounts</h2>
+          <p class="sf-section-subtitle">Credit cards and liability accounts. CC metadata is displayed only when provided by /api/accounts.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="acc-liabilities-count" class="sf-pill">0 accounts</span>
+          <span id="acc-liabilities-total" class="sf-pill">Rs 0</span>
+        </div>
+      </div>
+
+      <div id="acc-liabilities-list" class="sf-dense-grid">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">Loading liabilities</h3>
+            <p class="sf-card-subtitle">Reading liability rows from /api/accounts.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="acc-archived-panel" class="sf-panel sf-span-12" aria-labelledby="acc-archived-title" hidden>
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Archived</p>
+          <h2 id="acc-archived-title" class="sf-section-title">Archived Accounts</h2>
+          <p class="sf-section-subtitle">Shown only when the API provides archived account rows. No restore action is exposed here.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="acc-archived-count" class="sf-pill">0 archived</span>
+          <button id="acc-archived-toggle" class="sf-chip" type="button" aria-expanded="false">Show archived</button>
+        </div>
+      </div>
+
+      <div id="acc-archived-list" class="sf-dense-grid" hidden></div>
+    </section>
+
+    <section class="sf-panel sf-span-12" aria-labelledby="acc-dependencies-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Dependency Map</p>
+          <h2 id="acc-dependencies-title" class="sf-section-title">What Accounts Owns</h2>
+          <p class="sf-section-subtitle">Accounts is a display surface. Corrections belong to Reconciliation, Audit Trail, and controlled repair paths.</p>
+        </div>
+      </div>
+
+      <div class="sf-secondary-grid">
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Reads</div>
+            <div class="sf-row-subtitle">Account rows and per-account balances</div>
+          </div>
+          <div class="sf-row-right">/api/accounts</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Reads</div>
+            <div class="sf-row-subtitle">Net worth, liquid assets, CC outstanding, true burden</div>
+          </div>
+          <div class="sf-row-right">/api/balances</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Balance Mismatch</div>
+            <div class="sf-row-subtitle">Compare declared balance against current source truth</div>
+          </div>
+          <div class="sf-row-right">
+            <a class="sf-button" href="/reconciliation.html">Open Reconciliation</a>
+          </div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Audit Review</div>
+            <div class="sf-row-subtitle">Investigate account or balance changes before repair</div>
+          </div>
+          <div class="sf-row-right">
+            <a class="sf-button" href="/audit.html">Open Audit</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="acc-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Debug</p>
+          <h2 class="sf-section-title">Accounts Debug</h2>
+          <p class="sf-section-subtitle">Visible only with ?debug=1.</p>
+        </div>
+      </div>
+
+      <div class="sf-dense-grid">
+        <div class="sf-dense-row">
+          <span>Accounts source</span>
+          <strong>/api/accounts</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>Balances source</span>
+          <strong>/api/balances</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>Page mode</span>
+          <strong>Read-only</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>Frontend fallback net worth</span>
+          <strong>Disabled</strong>
+        </div>
+      </div>
+
+      <pre id="acc-debug-output" class="sf-debug-text">Waiting for js/accounts.js.</pre>
+    </section>
+  </section>
+
   <script src="/js/accounts.js"></script>
 </body>
 </html>
