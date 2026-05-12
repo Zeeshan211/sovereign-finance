@@ -1,19 +1,17 @@
-/* js/transactions.js
+/* js/transactions-v084.js
  * Sovereign Finance · Ledger Console
- * v0.8.4-ledger-loader-transfer-fix
+ * v0.8.5-transfer-amount-source-fix
  *
- * Fixes:
- * - Confirms active JS version on-page.
- * - Robustly loads /api/transactions.
- * - Transfer linked pairs display one movement amount only.
- * - International packages sum component rows.
- * - Reversal/reversed rows are muted and blocked from reverse.
+ * Fix:
+ * - Transfer linked pairs display actual ledger row amount.
+ * - Uses row.amount first for transfer rows.
+ * - Does not touch backend/routes.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.8.4-ledger-loader-transfer-fix';
+  const VERSION = 'v0.8.5-transfer-amount-source-fix';
 
   const API_TRANSACTIONS = '/api/transactions?include_reversed=1&limit=500';
   const API_ACCOUNTS = '/api/add/context';
@@ -64,7 +62,13 @@
   }
 
   function amountOf(row) {
-    return Number(row.pkr_amount ?? row.display_amount ?? row.amount ?? 0);
+    const type = normalizeType(row.type);
+
+    if (type === 'transfer') {
+      return Number(row.amount ?? row.pkr_amount ?? row.display_amount ?? 0);
+    }
+
+    return Number(row.pkr_amount ?? row.amount ?? row.display_amount ?? 0);
   }
 
   function absAmount(row) {
@@ -76,6 +80,7 @@
     const amount = absAmount(row);
 
     if (['income', 'salary', 'opening', 'borrow', 'debt_in'].includes(type)) return amount;
+
     return -amount;
   }
 
@@ -845,7 +850,7 @@
       ...row,
       id: row.id || row.transaction_id,
       amount: Number(row.amount ?? row.display_amount ?? 0),
-      pkr_amount: Number(row.pkr_amount ?? row.display_amount ?? row.amount ?? 0)
+      pkr_amount: Number(row.pkr_amount ?? row.amount ?? row.display_amount ?? 0)
     })).filter(row => row.id);
 
     state.groups = buildGroups(state.rows);
@@ -919,246 +924,10 @@
     }, 3000);
   }
 
-  function injectStyles() {
-    if ($('ledger-console-style')) return;
-
-    const style = document.createElement('style');
-    style.id = 'ledger-console-style';
-    style.textContent = `
-      .ledger-row,
-      .ledger-group-card {
-        border: 1px solid var(--sf-border-subtle);
-        border-radius: 18px;
-        background: var(--sf-surface-1);
-        padding: 14px;
-        display: grid;
-        gap: 10px;
-      }
-
-      .ledger-row.is-voided,
-      .ledger-group-card.is-voided {
-        opacity: .62;
-        border-style: dashed;
-      }
-
-      .ledger-main-line {
-        display: grid;
-        grid-template-columns: 42px minmax(0, 1fr) auto;
-        gap: 12px;
-        align-items: center;
-      }
-
-      .ledger-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 14px;
-        display: grid;
-        place-items: center;
-        background: var(--sf-accent-soft);
-        color: var(--sf-accent-strong);
-        font-weight: 900;
-      }
-
-      .ledger-title {
-        color: var(--sf-text);
-        font-size: 14px;
-        font-weight: 900;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .ledger-sub {
-        margin-top: 4px;
-        color: var(--sf-text-muted);
-        font-size: 12px;
-        line-height: 1.35;
-      }
-
-      .ledger-amount {
-        color: var(--sf-text);
-        text-align: right;
-        font-size: 15px;
-        font-weight: 900;
-        font-variant-numeric: tabular-nums;
-        white-space: nowrap;
-      }
-
-      .ledger-amount.positive { color: var(--sf-positive); }
-      .ledger-amount.negative { color: var(--sf-danger); }
-      .ledger-amount.neutral { color: var(--sf-text-soft); }
-
-      .ledger-tags {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-
-      .ledger-tag {
-        border: 1px solid var(--sf-border-subtle);
-        border-radius: 999px;
-        background: var(--sf-surface-2);
-        color: var(--sf-text-muted);
-        padding: 4px 8px;
-        font-size: 11px;
-        font-weight: 800;
-      }
-
-      .ledger-tag.good {
-        background: var(--sf-positive-soft);
-        color: var(--sf-positive);
-        border-color: rgba(83, 215, 167, .28);
-      }
-
-      .ledger-tag.warn {
-        background: var(--sf-warning-soft);
-        color: var(--sf-warning);
-        border-color: rgba(241, 184, 87, .28);
-      }
-
-      .ledger-tag.danger {
-        background: var(--sf-danger-soft);
-        color: var(--sf-danger);
-        border-color: rgba(255, 127, 138, .28);
-      }
-
-      .ledger-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-
-      .ledger-action {
-        border: 1px solid var(--sf-border);
-        border-radius: 999px;
-        background: var(--sf-surface-2);
-        color: var(--sf-text-soft);
-        padding: 8px 12px;
-        font-size: 12px;
-        font-weight: 900;
-        cursor: pointer;
-      }
-
-      .ledger-action.reverse {
-        background: var(--sf-danger-soft);
-        color: var(--sf-danger);
-        border-color: rgba(255, 127, 138, .28);
-      }
-
-      .ledger-action:disabled {
-        opacity: .45;
-        cursor: not-allowed;
-      }
-
-      .ledger-children {
-        display: none;
-        border-top: 1px solid var(--sf-border-subtle);
-        padding-top: 10px;
-        gap: 8px;
-      }
-
-      .ledger-group-card.is-open .ledger-children {
-        display: grid;
-      }
-
-      .ledger-child-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 10px;
-        padding: 8px 10px;
-        border-radius: 12px;
-        background: var(--sf-surface-2);
-        color: var(--sf-text-muted);
-        font-size: 12px;
-      }
-
-      .ledger-reverse-panel {
-        display: grid;
-        gap: 14px;
-      }
-
-      .ledger-reverse-target {
-        border: 1px solid var(--sf-border-subtle);
-        border-radius: 16px;
-        background: var(--sf-surface-1);
-        padding: 14px;
-      }
-
-      .ledger-reverse-title {
-        color: var(--sf-text);
-        font-size: 16px;
-        font-weight: 950;
-      }
-
-      .ledger-reverse-meta {
-        margin-top: 6px;
-        color: var(--sf-text-muted);
-        font-size: 12px;
-        line-height: 1.45;
-      }
-
-      .ledger-reverse-textarea {
-        width: 100%;
-        min-height: 96px;
-        border: 1px solid var(--sf-border);
-        border-radius: 16px;
-        background: var(--sf-surface-1);
-        color: var(--sf-text);
-        padding: 12px 13px;
-        font: inherit;
-        resize: vertical;
-        outline: none;
-      }
-
-      .ledger-reverse-error {
-        color: var(--sf-danger);
-        font-size: 13px;
-        font-weight: 800;
-      }
-
-      .toast {
-        position: fixed;
-        right: 18px;
-        bottom: 18px;
-        z-index: 9999;
-        transform: translateY(18px);
-        opacity: 0;
-        pointer-events: none;
-        transition: .2s ease;
-        border: 1px solid var(--sf-border);
-        border-radius: 16px;
-        padding: 12px 14px;
-        background: var(--sf-card-strong);
-        color: var(--sf-text);
-        box-shadow: var(--sf-shadow-md);
-        font-weight: 800;
-      }
-
-      .toast.show {
-        transform: translateY(0);
-        opacity: 1;
-      }
-
-      .toast-error {
-        color: var(--sf-danger);
-        border-color: rgba(255, 127, 138, .35);
-      }
-
-      .toast-success {
-        color: var(--sf-positive);
-        border-color: rgba(83, 215, 167, .35);
-      }
-    `;
-
-    document.head.appendChild(style);
-  }
-
   function init() {
     setText('ledgerJsVersion', VERSION);
-    setText('ledgerFooterVersion', `v0.8.4 · transactions · ${VERSION}`);
+    setText('ledgerFooterVersion', `v0.8.5 · transactions · ${VERSION}`);
 
-    injectStyles();
     bindFilters();
     loadAll();
 
