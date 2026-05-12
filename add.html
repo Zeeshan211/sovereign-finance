@@ -124,33 +124,114 @@
             <div class="sf-section-head">
               <div>
                 <p class="sf-section-kicker">International Package</p>
-                <h3 class="sf-section-title">Fees and taxes</h3>
+                <h3 class="sf-section-title">Subtype and amount</h3>
                 <p class="sf-section-subtitle">
-                  Preview only for now. Direct multi-row package write comes after backend package writer is shipped.
+                  Pick how the bank charged you. Engine auto-computes FX fee, excise, advance tax, PRA, and bank charge from configured rates.
                 </p>
+              </div>
+              <div class="sf-section-meta">
+                <span id="add-intl-rates-pill" class="sf-pill sf-pill--info" title="Edit at /intl-rates.html">Rates · loading</span>
               </div>
             </div>
 
             <div class="sf-form-grid">
-              <div class="sf-field sf-span-3">
-                <label for="add-fx-fee">FX fee</label>
-                <input id="add-fx-fee" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+              <div class="sf-field sf-span-12">
+                <label class="sf-label">Subtype</label>
+                <div class="sf-chip-row" role="radiogroup" aria-label="International subtype">
+                  <button type="button" id="add-intl-subtype-foreign" class="sf-chip is-active" data-intl-subtype="foreign" role="radio" aria-checked="true">
+                    Foreign currency
+                  </button>
+                  <button type="button" id="add-intl-subtype-pkr" class="sf-chip" data-intl-subtype="pkr_base" role="radio" aria-checked="false">
+                    PKR-base international
+                  </button>
+                </div>
+                <p class="sf-field-help" id="add-intl-subtype-help">
+                  Foreign: bank charged you in USD/EUR/etc. and converted to PKR. Engine fetches FX rate.<br>
+                  PKR-base: bank charged you in PKR but it&rsquo;s an international transaction (e.g. Google subscription billed in PKR). No FX conversion.
+                </p>
               </div>
 
-              <div class="sf-field sf-span-3">
-                <label for="add-excise">Excise duty</label>
-                <input id="add-excise" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+              <div id="add-intl-foreign-fields" class="sf-span-12">
+                <div class="sf-form-grid">
+                  <div class="sf-field sf-span-4">
+                    <label for="add-intl-foreign-amount">Foreign amount</label>
+                    <input id="add-intl-foreign-amount" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+                    <p class="sf-field-help">Amount in foreign currency (e.g. 9.99).</p>
+                  </div>
+
+                  <div class="sf-field sf-span-3">
+                    <label for="add-intl-currency">Currency</label>
+                    <select id="add-intl-currency" class="sf-select">
+                      <option value="USD" selected>USD</option>
+                      <option value="EUR">EUR</option>
+                      <option value="GBP">GBP</option>
+                      <option value="AED">AED</option>
+                      <option value="SAR">SAR</option>
+                      <option value="JPY">JPY</option>
+                      <option value="CAD">CAD</option>
+                      <option value="AUD">AUD</option>
+                      <option value="CNY">CNY</option>
+                      <option value="INR">INR</option>
+                    </select>
+                  </div>
+
+                  <div class="sf-field sf-span-3">
+                    <label for="add-intl-fx-rate">FX rate (PKR per 1)</label>
+                    <input id="add-intl-fx-rate" class="sf-input" type="number" inputmode="decimal" min="0" step="0.0001" placeholder="auto">
+                    <p class="sf-field-help" id="add-intl-fx-rate-help">Leave blank to auto-fetch.</p>
+                  </div>
+
+                  <div class="sf-field sf-span-2">
+                    <label class="sf-label">&nbsp;</label>
+                    <button type="button" id="add-intl-fx-fetch" class="sf-button sf-button--primary" style="width:100%;">
+                      Auto-fetch
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div class="sf-field sf-span-3">
-                <label for="add-advance-tax">Advance tax</label>
-                <input id="add-advance-tax" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+              <div id="add-intl-pkr-fields" class="sf-span-12" hidden>
+                <div class="sf-form-grid">
+                  <div class="sf-field sf-span-6">
+                    <label for="add-intl-pkr-amount">PKR amount</label>
+                    <input id="add-intl-pkr-amount" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+                    <p class="sf-field-help">Amount the bank charged you in PKR. No FX conversion applied.</p>
+                  </div>
+                </div>
               </div>
 
-              <div class="sf-field sf-span-3">
-                <label for="add-pra">PRA / extra tax</label>
-                <input id="add-pra" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+              <div class="sf-field sf-span-6">
+                <label for="add-intl-bank-charge">Bank charge override (optional)</label>
+                <input id="add-intl-bank-charge" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="auto from rates">
+                <p class="sf-field-help">Leave blank to use configured default. Set to 0 to suppress, or override per transaction.</p>
               </div>
+            </div>
+          </div>
+
+          <div class="sf-panel sf-panel--accent" id="add-intl-package-preview" style="margin-top: var(--sf-space-4);" hidden>
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Package Preview</p>
+                <h3 class="sf-section-title">Computed breakdown</h3>
+                <p class="sf-section-subtitle">
+                  Each component will be written as a separate ledger row under one package id. Source account decreases by the total.
+                </p>
+              </div>
+              <div class="sf-section-meta">
+                <span id="add-intl-fx-source-pill" class="sf-pill" hidden></span>
+              </div>
+            </div>
+
+            <div class="sf-dense-grid" id="add-intl-package-rows">
+              <!-- rows rendered by js/add.js -->
+            </div>
+
+            <div class="sf-row" style="margin-top: var(--sf-space-4); border: 1px solid var(--sf-accent-border); background: var(--sf-accent-soft);">
+              <div class="sf-row-main">
+                <div class="sf-row-title">Total package</div>
+                <div class="sf-row-subtitle" id="add-intl-package-meta">—</div>
+              </div>
+              <div class="sf-row-value" id="add-intl-package-total" style="color: var(--sf-accent-strong); font-size: var(--sf-font-20);">—</div>
             </div>
           </div>
         </div>
