@@ -1,27 +1,27 @@
 /* js/transactions.js
  * Sovereign Finance · Ledger Console
- * v0.8.2-transfer-pair-display-fix
+ * v0.8.3-ledger-loader-transfer-display-fix
  *
- * Fix:
- * - Transfer linked pairs display the OUT/source amount only.
- * - No more double-counting transfer groups.
- * - Intl packages still sum all package components.
- * - Reversal/reversed rows remain visible but blocked from active reverse.
+ * RCA fixed:
+ * - Activity list failed with "HTTP 200" because loader/render path was brittle.
+ * - This version tolerates API shape differences and DOM ID differences.
+ * - Transfer linked pairs display one movement amount, not both legs summed.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.8.2-transfer-pair-display-fix';
+  const VERSION = 'v0.8.3-ledger-loader-transfer-display-fix';
 
-  const API_TXNS = '/api/transactions?include_reversed=1&limit=500';
+  const API_TRANSACTIONS = '/api/transactions?include_reversed=1&limit=500';
   const API_ACCOUNTS = '/api/add/context';
   const API_HEALTH = '/api/transactions/health';
 
   const state = {
-    txns: [],
+    rows: [],
     groups: [],
     accounts: new Map(),
+    health: null,
     filters: {
       search: '',
       account: '',
@@ -32,6 +32,24 @@
   };
 
   const $ = id => document.getElementById(id);
+
+  function firstEl(ids) {
+    for (const id of ids) {
+      const el = $(id);
+      if (el) return el;
+    }
+    return null;
+  }
+
+  function setTextAny(ids, value) {
+    const el = firstEl(ids);
+    if (el) el.textContent = value == null ? '' : String(value);
+  }
+
+  function setHTMLAny(ids, value) {
+    const el = firstEl(ids);
+    if (el) el.innerHTML = value == null ? '' : String(value);
+  }
 
   function esc(value) {
     return String(value == null ? '' : value)
@@ -52,6 +70,10 @@
     });
   }
 
+  function normalizeType(type) {
+    return String(type || '').trim().toLowerCase();
+  }
+
   function amountOf(row) {
     return Number(row.pkr_amount ?? row.display_amount ?? row.amount ?? 0);
   }
@@ -61,15 +83,21 @@
   }
 
   function signedAmount(row) {
-    const type = String(row.type || '').toLowerCase();
+    const type = normalizeType(row.type);
     const amount = absAmount(row);
 
     if (['income', 'salary', 'opening', 'borrow', 'debt_in'].includes(type)) return amount;
     return -amount;
   }
 
-  function normalizeType(type) {
-    return String(type || '').trim().toLowerCase();
+  function typeLabel(type) {
+    const raw = String(type || '').replace(/_/g, ' ');
+    return raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : 'Transaction';
+  }
+
+  function shortId(id) {
+    const value = String(id || '');
+    return value.length <= 14 ? value : value.slice(-12);
   }
 
   function accountLabel(id) {
@@ -80,14 +108,6 @@
     return `${account.icon || ''} ${account.name || account.id || id}`.trim();
   }
 
-  function shortId(id) {
-    const value = String(id || '');
-
-    if (value.length <= 14) return value;
-
-    return value.slice(-12);
-  }
-
   function parseLinkedId(notes) {
     const match = String(notes || '').match(/\[linked:\s*([^\]]+)\]/i);
     return match ? match[1].trim() : null;
@@ -95,14 +115,18 @@
 
   function isReversalRow(row) {
     const notes = String(row.notes || '').toUpperCase();
-    return !!(row.is_reversal || notes.includes('[REVERSAL OF '));
+
+    return !!(
+      row.is_reversal === true ||
+      notes.includes('[REVERSAL OF ')
+    );
   }
 
   function isReversedOriginal(row) {
     const notes = String(row.notes || '').toUpperCase();
 
     return !!(
-      row.is_reversed ||
+      row.is_reversed === true ||
       row.reversed_by ||
       row.reversed_at ||
       notes.includes('[REVERSED BY ')
@@ -124,9 +148,60 @@
     return typeLabel(row.type);
   }
 
-  function typeLabel(type) {
-    const raw = String(type || '').replace(/_/g, ' ');
-    return raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : 'Transaction';
+  async function fetchJSON(url) {
+    const response = await fetch(url, {
+      cache: 'no-store',
+      headers: {
+        accept: 'application/json'
+      }
+    });
+
+    const text = await response.text();
+
+    let payload = null;
+
+    try {
+      payload = text ? JSON.parse(text) : null;
+    } catch (err) {
+      throw new Error(`Non-JSON response from ${url}: HTTP ${response.status}`);
+    }
+
+    if (!response.ok) {
+      throw new Error((payload && payload.error) || `HTTP ${response.status}`);
+    }
+
+    if (!payload) {
+      throw new Error(`Empty JSON response from ${url}: HTTP ${response.status}`);
+    }
+
+    return payload;
+  }
+
+  function normalizeTransactionRows(payload) {
+    if (!payload) return [];
+
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload.transactions)) return payload.transactions;
+    if (Array.isArray(payload.rows)) return payload.rows;
+    if (Array.isArray(payload.data)) return payload.data;
+    if (payload.result && Array.isArray(payload.result)) return payload.result;
+
+    return [];
+  }
+
+  function normalizeAccounts(payload) {
+    if (!payload) return [];
+
+    if (Array.isArray(payload.accounts)) return payload.accounts;
+
+    if (payload.accounts && typeof payload.accounts === 'object') {
+      return Object.entries(payload.accounts).map(([id, row]) => ({
+        id,
+        ...(row || {})
+      }));
+    }
+
+    return [];
   }
 
   function groupKey(row) {
@@ -162,46 +237,48 @@
       map.get(key).rows.push(row);
     }
 
-    const groups = Array.from(map.values()).map(decorateGroup);
+    return Array.from(map.values())
+      .map(decorateGroup)
+      .sort((a, b) => {
+        const ad = String(a.date || '');
+        const bd = String(b.date || '');
+        if (ad !== bd) return bd.localeCompare(ad);
 
-    groups.sort((a, b) => {
-      const ad = String(a.date || '');
-      const bd = String(b.date || '');
-      if (ad !== bd) return bd.localeCompare(ad);
+        const ac = String(a.created_at || '');
+        const bc = String(b.created_at || '');
+        if (ac !== bc) return bc.localeCompare(ac);
 
-      const ac = String(a.created_at || '');
-      const bc = String(b.created_at || '');
-      return bc.localeCompare(ac);
-    });
-
-    return groups;
+        return String(b.key).localeCompare(String(a.key));
+      });
   }
 
   function decorateGroup(group) {
-    const rows = group.rows.slice();
-
-    rows.sort((a, b) => {
+    const rows = group.rows.slice().sort((a, b) => {
       const ac = String(a.created_at || '');
       const bc = String(b.created_at || '');
-      return bc.localeCompare(ac);
+      if (ac !== bc) return bc.localeCompare(ac);
+      return String(b.id).localeCompare(String(a.id));
     });
 
     const primary = choosePrimaryRow(group.type, rows);
     const amount = groupDisplayAmount(group.type, rows);
-    const inactive = rows.every(isInactive) || rows.some(isReversalRow);
-    const reversed = rows.some(isReversedOriginal) || rows.some(isReversalRow);
+    const inactive = rows.every(isInactive);
+    const hasReversal = rows.some(isReversalRow);
+    const hasReversedOriginal = rows.some(isReversedOriginal);
+    const reverseEligible = rows.some(row => row.reverse_eligible === true && !isInactive(row));
 
     return {
       ...group,
       rows,
       primary,
       amount,
-      date: primary.date,
-      created_at: primary.created_at,
+      date: primary.date || rows[0]?.date || '',
+      created_at: primary.created_at || rows[0]?.created_at || '',
       inactive,
-      reversed,
-      reverse_eligible: rows.some(row => row.reverse_eligible === true && !isInactive(row)),
-      reverse_block_reason: reversed ? 'reverse blocked' : null
+      has_reversal: hasReversal,
+      has_reversed_original: hasReversedOriginal,
+      reverse_eligible: reverseEligible && !hasReversal && !hasReversedOriginal,
+      reverse_block_reason: hasReversal || hasReversedOriginal ? 'reverse blocked' : null
     };
   }
 
@@ -223,7 +300,9 @@
 
   function groupDisplayAmount(groupType, rows) {
     if (groupType === 'intl_package') {
-      return rows.reduce((sum, row) => sum + absAmount(row), 0);
+      return rows
+        .filter(row => !isInactive(row))
+        .reduce((sum, row) => sum + absAmount(row), 0);
     }
 
     if (groupType === 'linked_pair') {
@@ -243,32 +322,29 @@
   }
 
   function groupTitle(group) {
-    const rows = group.rows;
-    const primary = group.primary;
-
-    if (group.type === 'intl_package') {
-      return 'International package';
-    }
+    if (group.type === 'intl_package') return 'International package';
 
     if (group.type === 'linked_pair') {
-      const transferOut = rows.find(row => normalizeType(row.type) === 'transfer') ||
-        rows.find(row => signedAmount(row) < 0);
-      const transferIn = rows.find(row => row.id !== transferOut?.id);
+      const out = group.rows.find(row => normalizeType(row.type) === 'transfer') ||
+        group.rows.find(row => signedAmount(row) < 0);
 
-      if (transferOut && transferIn) {
-        return `${accountLabel(transferOut.account_id)} → ${accountLabel(transferIn.account_id)}`;
+      const linkedId = out && (out.linked_txn_id || parseLinkedId(out.notes));
+      const inbound = group.rows.find(row => row.id !== out?.id && (!linkedId || row.id === linkedId)) ||
+        group.rows.find(row => row.id !== out?.id);
+
+      if (out && inbound) {
+        return `${accountLabel(out.account_id)} → ${accountLabel(inbound.account_id)}`;
       }
 
       return 'Linked ledger pair';
     }
 
-    return rowTitle(primary);
+    return rowTitle(group.primary);
   }
 
   function groupSubtitle(group) {
     if (group.type === 'single') {
       const row = group.primary;
-
       return `${row.date || '—'} · ${accountLabel(row.account_id)} · ${typeLabel(row.type)} · ${shortId(row.id)}`;
     }
 
@@ -289,6 +365,13 @@
     return '💸';
   }
 
+  function groupAmountText(group) {
+    if (group.type === 'linked_pair') return money(group.amount, true);
+    if (group.type === 'intl_package') return money(-group.amount);
+
+    return money(signedAmount(group.primary));
+  }
+
   function groupAmountClass(group) {
     if (group.type === 'linked_pair') return 'neutral';
     if (group.type === 'intl_package') return 'negative';
@@ -299,14 +382,6 @@
     if (signed < 0) return 'negative';
 
     return 'neutral';
-  }
-
-  function groupAmountText(group) {
-    if (group.type === 'linked_pair') return money(group.amount, true);
-
-    if (group.type === 'intl_package') return money(-group.amount);
-
-    return money(signedAmount(group.primary));
   }
 
   function tag(text, tone) {
@@ -323,7 +398,9 @@
       row.account_id,
       row.transfer_to_account_id,
       row.category_id,
-      row.notes
+      row.notes,
+      row.linked_txn_id,
+      row.intl_package_id
     ].join(' ').toLowerCase();
 
     if (q && !haystack.includes(q)) return false;
@@ -339,7 +416,6 @@
 
   function groupMatchesFilters(group) {
     if (state.filters.status === 'grouped' && group.type === 'single') return false;
-
     return group.rows.some(rowMatchesFilters);
   }
 
@@ -348,15 +424,15 @@
   }
 
   function filteredRows() {
-    return state.txns.filter(rowMatchesFilters);
+    return state.rows.filter(rowMatchesFilters);
   }
 
-  function renderMetrics(groups) {
+  function renderMetrics(items) {
     let moneyIn = 0;
     let moneyOut = 0;
     let reverseEligible = 0;
 
-    for (const group of groups) {
+    for (const group of items) {
       if (group.reverse_eligible) reverseEligible += 1;
 
       if (group.type === 'linked_pair') continue;
@@ -367,7 +443,6 @@
       }
 
       const row = group.primary;
-
       if (isInactive(row)) continue;
 
       const signed = signedAmount(row);
@@ -376,23 +451,26 @@
       if (signed < 0) moneyOut += Math.abs(signed);
     }
 
-    setText('t_count', groups.length);
-    setText('moneyIn', money(moneyIn, true));
-    setText('moneyOut', money(moneyOut, true));
-    setText('netMovement', money(moneyIn - moneyOut));
-    setText('reverseEligible', String(reverseEligible));
-    setText('t_reversed', String(state.txns.filter(isReversalRow).length));
+    setTextAny(['t_count', 'visibleCount', 'visibleItems'], String(items.length));
+    setTextAny(['moneyIn'], items.length ? money(moneyIn, true) : '—');
+    setTextAny(['moneyOut'], items.length ? money(moneyOut, true) : '—');
+    setTextAny(['netMovement'], items.length ? money(moneyIn - moneyOut) : '—');
+    setTextAny(['reverseEligible'], items.length ? String(reverseEligible) : '—');
+    setTextAny(['t_reversed'], `${state.rows.filter(isReversalRow).length} hidden reversal rows.`);
   }
 
   function renderList() {
-    const container = $('txn-list') || $('activityList');
+    const container = firstEl(['txn-list', 'activityList', 'ledger-list', 'transactionsList']);
+
     if (!container) return;
 
     const view = state.filters.view || 'grouped';
 
     if (view === 'raw') {
       const rows = filteredRows();
-      renderMetrics(buildGroups(rows));
+      const groupsForMetrics = buildGroups(rows);
+
+      renderMetrics(groupsForMetrics);
 
       container.innerHTML = rows.length
         ? rows.map(renderRawRow).join('')
@@ -403,6 +481,7 @@
     }
 
     const groups = filteredGroups();
+
     renderMetrics(groups);
 
     container.innerHTML = groups.length
@@ -415,13 +494,13 @@
   function renderGroupCard(group) {
     if (group.type === 'single') return renderRawRow(group.primary);
 
-    const tags = [];
+    const tags = [
+      tag(group.type === 'intl_package' ? 'intl package' : 'linked pair'),
+      tag(`${group.rows.length} rows`),
+      tag(group.date || '—')
+    ];
 
-    tags.push(tag(group.type === 'intl_package' ? 'intl package' : 'linked pair', ''));
-    tags.push(tag(`${group.rows.length} rows`, ''));
-    tags.push(tag(group.date || '—', ''));
-
-    if (group.inactive || group.reversed) {
+    if (group.has_reversal || group.has_reversed_original || group.inactive) {
       tags.push(tag('reversed / voided', 'warn'));
       tags.push(tag('reverse blocked', 'danger'));
     } else if (group.reverse_eligible) {
@@ -468,9 +547,9 @@
     const signed = signedAmount(row);
 
     const tags = [
-      tag(typeLabel(row.type), ''),
-      tag(row.account_id || 'no account', ''),
-      tag(row.category_id || 'no category', '')
+      tag(typeLabel(row.type)),
+      tag(row.account_id || 'no account'),
+      tag(row.category_id || 'no category')
     ];
 
     if (isReversalRow(row)) {
@@ -501,7 +580,11 @@
         <div class="ledger-tags">${tags.join('')}</div>
 
         <div class="ledger-actions">
-          <button class="ledger-action reverse" type="button" data-reverse-id="${esc(row.id)}" ${row.reverse_eligible && !inactive ? '' : 'disabled'}>
+          <button
+            class="ledger-action reverse"
+            type="button"
+            data-reverse-id="${esc(row.id)}"
+            ${row.reverse_eligible && !inactive ? '' : 'disabled'}>
             ↩ Reverse
           </button>
         </div>
@@ -529,7 +612,7 @@
     container.querySelectorAll('[data-toggle-group]').forEach(button => {
       button.addEventListener('click', () => {
         const key = button.getAttribute('data-toggle-group');
-        const card = container.querySelector(`[data-group-key="${CSS.escape(key)}"]`);
+        const card = container.querySelector(`[data-group-key="${cssEscape(key)}"]`);
         if (card) card.classList.toggle('is-open');
       });
     });
@@ -549,9 +632,14 @@
     });
   }
 
+  function cssEscape(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(value);
+    return String(value || '').replace(/"/g, '\\"');
+  }
+
   function showDetail(id) {
-    const row = state.txns.find(item => item.id === id);
-    const panel = $('detailPanel');
+    const row = state.rows.find(item => item.id === id);
+    const panel = firstEl(['detailPanel', 'selectedDetail', 'auditDetail']);
 
     if (!panel || !row) return;
 
@@ -559,11 +647,14 @@
   }
 
   function openReversePanel(id) {
-    const panel = $('reversePanel');
+    const panel = firstEl(['reversePanel', 'reverse-panel']);
 
-    if (!panel) return;
+    if (!panel) {
+      toast('Reverse panel missing on page.', 'error');
+      return;
+    }
 
-    const row = state.txns.find(item => item.id === id);
+    const row = state.rows.find(item => item.id === id);
 
     if (!row || isInactive(row) || row.reverse_eligible !== true) {
       toast('Reverse blocked for this row.', 'error');
@@ -613,8 +704,7 @@
   }
 
   function closeReversePanel() {
-    const panel = $('reversePanel');
-
+    const panel = firstEl(['reversePanel', 'reverse-panel']);
     if (!panel) return;
 
     panel.hidden = true;
@@ -679,7 +769,10 @@
       try {
         const response = await fetch(attempt.url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json'
+          },
           body: JSON.stringify(attempt.body)
         });
 
@@ -697,7 +790,7 @@
   }
 
   function renderAccountsFilter() {
-    const select = $('accountFilter');
+    const select = firstEl(['accountFilter', 'filter_account', 'account-filter']);
     if (!select) return;
 
     const current = select.value;
@@ -712,93 +805,95 @@
   }
 
   function bindFilters() {
-    $('searchInput')?.addEventListener('input', event => {
+    firstEl(['searchInput', 'filter_search', 'search'])?.addEventListener('input', event => {
       state.filters.search = event.target.value.trim();
       renderList();
     });
 
-    $('accountFilter')?.addEventListener('change', event => {
+    firstEl(['accountFilter', 'filter_account', 'account-filter'])?.addEventListener('change', event => {
       state.filters.account = event.target.value;
       renderList();
     });
 
-    $('typeFilter')?.addEventListener('change', event => {
+    firstEl(['typeFilter', 'filter_type', 'type-filter'])?.addEventListener('change', event => {
       state.filters.type = event.target.value;
       renderList();
     });
 
-    $('statusFilter')?.addEventListener('change', event => {
+    firstEl(['statusFilter', 'filter_status', 'status-filter'])?.addEventListener('change', event => {
       state.filters.status = event.target.value;
       renderList();
     });
 
-    $('filter_view')?.addEventListener('change', event => {
+    firstEl(['filter_view', 'viewFilter', 'view-filter'])?.addEventListener('change', event => {
       state.filters.view = event.target.value || 'grouped';
       renderList();
     });
 
-    $('refresh_btn')?.addEventListener('click', loadAll);
-
-    document.querySelector('[data-include-reversed="1"]')?.addEventListener('click', () => {
-      state.filters.status = 'reversed';
-      if ($('statusFilter')) $('statusFilter').value = 'reversed';
-      renderList();
-    });
+    firstEl(['refresh_btn', 'refreshBtn', 'refresh-ledger'])?.addEventListener('click', loadAll);
   }
 
   async function loadAccounts() {
     try {
-      const response = await fetch(API_ACCOUNTS, { cache: 'no-store' });
-      const payload = await response.json();
+      const payload = await fetchJSON(API_ACCOUNTS);
+      const accounts = normalizeAccounts(payload);
 
-      const accounts = Array.isArray(payload.accounts)
-        ? payload.accounts
-        : [];
-
-      state.accounts = new Map(accounts.map(account => [String(account.id || account.account_id), account]));
+      state.accounts = new Map(
+        accounts
+          .filter(account => account && (account.id || account.account_id))
+          .map(account => [String(account.id || account.account_id), {
+            ...account,
+            id: account.id || account.account_id
+          }])
+      );
     } catch {
       state.accounts = new Map();
     }
   }
 
   async function loadTransactions() {
-    const response = await fetch(API_TXNS, { cache: 'no-store' });
-    const payload = await response.json();
+    const payload = await fetchJSON(API_TRANSACTIONS);
+    const rows = normalizeTransactionRows(payload);
 
-    if (!response.ok || !payload || payload.ok === false) {
-      throw new Error((payload && payload.error) || ('HTTP ' + response.status));
-    }
+    state.rows = rows.map(row => ({
+      ...row,
+      id: row.id || row.transaction_id,
+      amount: Number(row.amount ?? row.display_amount ?? 0),
+      pkr_amount: Number(row.pkr_amount ?? row.display_amount ?? row.amount ?? 0)
+    })).filter(row => row.id);
 
-    state.txns = payload.transactions || [];
-    state.groups = buildGroups(state.txns);
+    state.groups = buildGroups(state.rows);
   }
 
   async function loadHealth() {
     try {
-      const response = await fetch(API_HEALTH, { cache: 'no-store' });
-      const payload = await response.json();
-
-      if (!payload || payload.ok === false) throw new Error(payload?.error || 'Health unavailable');
-
+      const payload = await fetchJSON(API_HEALTH);
       const health = payload.health || payload;
 
-      setText('ledgerHealth', `Health ${String(health.status || 'ok').toUpperCase()}`);
-      setText('healthDetail', `Ledger loaded · ${state.txns.length} rows`);
+      state.health = health;
 
-      const status = $('healthStatus');
-      if (status) status.textContent = String(health.status || 'ok').toUpperCase();
+      const status = String(health.status || 'ok').toUpperCase();
+      const detail = health.summary ||
+        `active ${health.active_count ?? health.active ?? '—'} · reversals ${health.reversal_count ?? health.reversals ?? '—'} · orphan links ${health.orphan_link_count ?? health.orphan_links ?? '—'}`;
+
+      setTextAny(['ledgerHealth', 'healthStatus'], `Health${status ? status : ''}`);
+      setTextAny(['healthDetail'], detail);
     } catch {
-      setText('ledgerHealth', 'Ledger loaded');
-      setText('healthDetail', `${state.txns.length} rows loaded. Health endpoint unavailable.`);
-      const status = $('healthStatus');
-      if (status) status.textContent = 'Unknown';
+      setTextAny(['ledgerHealth', 'healthStatus'], 'Ledger loaded');
+      setTextAny(['healthDetail'], `${state.rows.length} rows loaded. Health endpoint unavailable.`);
     }
   }
 
   async function loadAll() {
+    const container = firstEl(['txn-list', 'activityList', 'ledger-list', 'transactionsList']);
+
     try {
-      setText('ledgerHealth', 'Loading ledger…');
-      setText('healthDetail', 'Reading backend ledger rows.');
+      setTextAny(['ledgerHealth'], 'Loading ledger…');
+      setTextAny(['healthDetail'], 'Reading backend ledger rows.');
+
+      if (container) {
+        container.innerHTML = '<div class="ledger-empty">Loading ledger rows…</div>';
+      }
 
       await loadAccounts();
       renderAccountsFilter();
@@ -808,18 +903,18 @@
 
       renderList();
     } catch (err) {
-      const container = $('txn-list') || $('activityList');
       if (container) {
-        container.innerHTML = `<div class="ledger-empty">Ledger failed: ${esc(err.message)}</div>`;
+        container.innerHTML = `<div class="ledger-empty">Failed: ${esc(err.message)}</div>`;
       }
 
-      setText('ledgerHealth', 'Ledger failed');
-      setText('healthDetail', err.message);
+      setTextAny(['ledgerHealth'], 'Ledger failed');
+      setTextAny(['healthDetail'], err.message);
+      renderMetrics([]);
     }
   }
 
   function toast(message, kind) {
-    let el = document.getElementById('ledgerToast');
+    let el = $('ledgerToast');
 
     if (!el) {
       el = document.createElement('div');
@@ -835,12 +930,6 @@
     el._timer = setTimeout(() => {
       el.className = 'toast';
     }, 3000);
-  }
-
-  function setText(id, value) {
-    const el = $(id);
-
-    if (el) el.textContent = value == null ? '' : String(value);
   }
 
   function injectStyles() {
@@ -1019,6 +1108,16 @@
         background: var(--sf-surface-1);
       }
 
+      .ledger-detail-pre {
+        white-space: pre-wrap;
+        overflow: auto;
+        max-height: 480px;
+        border-radius: 16px;
+        padding: 14px;
+        background: var(--sf-surface-2);
+        color: var(--sf-text-muted);
+      }
+
       .ledger-reverse-panel {
         display: grid;
         gap: 14px;
@@ -1109,9 +1208,10 @@
       version: VERSION,
       reload: loadAll,
       state: () => JSON.parse(JSON.stringify({
-        txns: state.txns,
+        rows: state.rows,
         groups: state.groups,
-        filters: state.filters
+        filters: state.filters,
+        health: state.health
       }))
     };
   }
