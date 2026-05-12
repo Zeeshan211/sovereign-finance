@@ -1,177 +1,606 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ATM — Sovereign Finance</title>
-    <script src="/js/sf-theme-switcher.js"></script>
-    <link rel="stylesheet" href="/css/sf-theme.css">
-    <link rel="stylesheet" href="/css/sf-shell.css">
-    <style>
-      .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 12px 20px; border-radius: 12px; background: var(--sf-card-strong); border: 1px solid var(--sf-border); color: var(--sf-text); font-size: 13px; font-weight: 600; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 9999; box-shadow: var(--sf-shadow-md); }
-      .toast.show { opacity: 1; }
-      .toast.toast-error { border-color: var(--sf-danger); color: var(--sf-danger); }
-      .atm-row { display: grid; grid-template-columns: 42px minmax(0,1fr) auto; gap: 10px; align-items: center; padding: 12px; border-radius: var(--sf-radius-sm); background: var(--sf-surface-1); border: 1px solid var(--sf-border-subtle); margin-bottom: 8px; }
-      .atm-row.warn { background: var(--sf-warning-soft); border-color: rgba(241,184,87,.28); }
-      .atm-row-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--sf-surface-2); border: 1px solid var(--sf-border-subtle); }
-      .atm-row-title { color: var(--sf-text); font-size: 13px; font-weight: 700; }
-      .atm-row-sub { margin-top: 3px; color: var(--sf-text-muted); font-size: 12px; }
-      .atm-row-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-      .atm-row-amount { color: var(--sf-text); font-weight: 700; font-variant-numeric: tabular-nums; }
-      .atm-row-amount.warn { color: var(--sf-warning); }
-      .atm-row-action { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--sf-warning); background: var(--sf-warning-soft); color: var(--sf-warning); font-size: 12px; font-weight: 700; cursor: pointer; }
-      .empty-atm { padding: 24px; text-align: center; color: var(--sf-text-muted); border: 1px dashed var(--sf-border); border-radius: var(--sf-radius-md); font-size: 13px; }
-      .fee-box { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--sf-radius-sm); background: var(--sf-surface-1); border: 1px solid var(--sf-border); color: var(--sf-text-soft); font-size: 13px; cursor: pointer; height: 100%; }
-      .fee-box input { width: 18px; height: 18px; accent-color: var(--sf-accent); }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATM · Sovereign Finance</title>
+
+  <script src="/js/sf-theme-switcher.js"></script>
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
+
+  <style>
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 20px;
+      border-radius: 12px;
+      background: var(--sf-card-strong);
+      border: 1px solid var(--sf-border);
+      color: var(--sf-text);
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s;
+      z-index: 9999;
+      box-shadow: var(--sf-shadow-md);
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    .toast.toast-error {
+      border-color: var(--sf-danger);
+      color: var(--sf-danger);
+    }
+
+    .atm-row {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border-radius: var(--sf-radius-sm);
+      background: var(--sf-surface-1);
+      border: 1px solid var(--sf-border-subtle);
+      margin-bottom: 8px;
+    }
+
+    .atm-row.warn {
+      background: var(--sf-warning-soft);
+      border-color: rgba(241, 184, 87, .28);
+    }
+
+    .atm-row-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      background: var(--sf-surface-2);
+      border: 1px solid var(--sf-border-subtle);
+    }
+
+    .atm-row-title {
+      color: var(--sf-text);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .atm-row-sub {
+      margin-top: 3px;
+      color: var(--sf-text-muted);
+      font-size: 12px;
+    }
+
+    .atm-row-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .atm-row-amount {
+      color: var(--sf-text);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .atm-row-amount.warn {
+      color: var(--sf-warning);
+    }
+
+    .atm-row-action {
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--sf-warning);
+      background: var(--sf-warning-soft);
+      color: var(--sf-warning);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .empty-atm {
+      padding: 24px;
+      text-align: center;
+      color: var(--sf-text-muted);
+      border: 1px dashed var(--sf-border);
+      border-radius: var(--sf-radius-md);
+      font-size: 13px;
+    }
+
+    .fee-box {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: var(--sf-radius-sm);
+      background: var(--sf-surface-1);
+      border: 1px solid var(--sf-border);
+      color: var(--sf-text-soft);
+      font-size: 13px;
+      cursor: pointer;
+      height: 100%;
+    }
+
+    .fee-box input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--sf-accent);
+    }
+  </style>
 </head>
+
 <body class="sf-shell-body">
-    <div class="sf-app-shell sf-app-shell--with-nav">
-        <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
+  <div class="sf-app-shell sf-app-shell--with-nav">
+    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
 
-        <main class="sf-page-shell">
-            <section class="sf-page-content">
-                <div class="sf-page-hero">
-                    <div class="sf-page-title-group">
-                        <span class="sf-page-eyebrow">Modules</span>
-                        <h1 class="sf-page-title">ATM Control</h1>
-                        <p class="sf-page-subtitle">Bank out + cash/wallet in + optional pending fee. Real cash movement, never test rows.</p>
-                    </div>
-                    <div class="sf-page-actions">
-                        <span id="livePill" class="sf-pill sf-pill--info">Loading ATM API…</span>
-                    </div>
-                </div>
+    <main class="sf-page-shell">
+      <section class="sf-page-content">
+        <div class="sf-page-hero">
+          <div class="sf-page-title-group">
+            <span class="sf-page-eyebrow">Modules</span>
+            <h1 class="sf-page-title">ATM Control</h1>
+            <p class="sf-page-subtitle">
+              Bank out + cash/wallet in + optional pending fee. Real cash movement, never test rows.
+            </p>
+          </div>
 
-                <div class="sf-kpi-row">
-                    <div class="sf-metric-card">
-                        <p class="sf-card-kicker">Pending Fees</p>
-                        <div id="pendingCount" class="sf-metric-value">0</div>
-                    </div>
-                    <div class="sf-metric-card">
-                        <p class="sf-card-kicker">Pending Value</p>
-                        <div id="pendingTotal" class="sf-metric-value" style="color:var(--sf-warning);">Rs 0</div>
-                    </div>
-                    <div class="sf-metric-card">
-                        <p class="sf-card-kicker">30D Fee Net</p>
-                        <div id="feeNet" class="sf-metric-value">Rs 0</div>
-                    </div>
-                    <div class="sf-metric-card">
-                        <p class="sf-card-kicker">Reversal Window</p>
-                        <div id="windowDays" class="sf-metric-value">10 days</div>
-                    </div>
-                </div>
+          <div class="sf-page-actions">
+            <span id="livePill" class="sf-pill sf-pill--info">Loading ATM API</span>
+          </div>
+        </div>
 
-                <div class="sf-panel">
-                    <div class="sf-section-head">
-                        <div>
-                            <p class="sf-section-kicker">New</p>
-                            <h3 class="sf-section-title">ATM Withdrawal</h3>
-                            <p class="sf-section-subtitle">Linked transfer pair plus optional pending fee row.</p>
-                        </div>
-                        <div class="sf-section-meta">
-                            <button id="refreshBtn" class="sf-button" type="button">↻ Refresh</button>
-                        </div>
-                    </div>
+        <div class="sf-kpi-row">
+          <div class="sf-metric-card">
+            <p class="sf-card-kicker">Pending Fees</p>
+            <div id="pendingCount" class="sf-metric-value">0</div>
+          </div>
 
-                    <form id="atmForm" class="sf-form-grid">
-                        <div class="sf-field sf-span-12">
-                            <label for="amount">Cash Amount</label>
-                            <input id="amount" class="sf-input" type="number" min="0.01" step="0.01" placeholder="0" required>
-                        </div>
-                        <div class="sf-field sf-span-6">
-                            <label for="sourceAccount">From Bank</label>
-                            <select id="sourceAccount" class="sf-select" required></select>
-                        </div>
-                        <div class="sf-field sf-span-6">
-                            <label for="destAccount">To Cash / Wallet</label>
-                            <select id="destAccount" class="sf-select" required></select>
-                        </div>
-                        <div class="sf-field sf-span-6">
-                            <label for="atmName">ATM Name</label>
-                            <input id="atmName" class="sf-input" type="text" maxlength="80" value="UBL ATM">
-                        </div>
-                        <div class="sf-field sf-span-6">
-                            <label for="date">Date</label>
-                            <input id="date" class="sf-input" type="date" required>
-                        </div>
-                        <div class="sf-field sf-span-6">
-                            <label for="feeAmount">ATM Fee</label>
-                            <input id="feeAmount" class="sf-input" type="number" min="0" step="0.01" value="35">
-                        </div>
-                        <div class="sf-field sf-span-6">
-                            <label class="sf-label">Fee toggle</label>
-                            <label class="fee-box" for="noFee">
-                                <input id="noFee" type="checkbox">
-                                <span>No fee / own-bank ATM. Skip pending fee row.</span>
-                            </label>
-                        </div>
-                        <div class="sf-field sf-span-12">
-                            <label for="notes">Notes <span style="text-transform:none;color:var(--sf-text-faint);">optional</span></label>
-                            <textarea id="notes" class="sf-textarea" maxlength="160" placeholder="ATM withdrawal"></textarea>
-                        </div>
-                        <div class="sf-span-12" style="display:flex;justify-content:flex-end;">
-                            <button id="submitBtn" class="sf-button sf-button--primary" type="submit">Create ATM Transfer</button>
-                        </div>
-                    </form>
-                </div>
+          <div class="sf-metric-card">
+            <p class="sf-card-kicker">Pending Value</p>
+            <div id="pendingTotal" class="sf-metric-value" style="color:var(--sf-warning);">Rs 0</div>
+          </div>
 
-                <div class="sf-panel">
-                    <div class="sf-section-head">
-                        <div>
-                            <p class="sf-section-kicker">Reversals</p>
-                            <h3 class="sf-section-title">Pending Fee Reversals</h3>
-                            <p class="sf-section-subtitle">Fees waiting for bank reversal confirmation.</p>
-                        </div>
-                    </div>
-                    <div id="pendingFees">
-                        <div class="empty-atm">Loading pending ATM fees…</div>
-                    </div>
-                </div>
+          <div class="sf-metric-card">
+            <p class="sf-card-kicker">30D Fee Net</p>
+            <div id="feeNet" class="sf-metric-value">Rs 0</div>
+          </div>
 
-                <div class="sf-panel">
-                    <div class="sf-section-head">
-                        <div>
-                            <p class="sf-section-kicker">Ledger</p>
-                            <h3 class="sf-section-title">Recent ATM Rows</h3>
-                            <p class="sf-section-subtitle">Read-only view of ATM transfer, fee, and reversal rows.</p>
-                        </div>
-                        <div class="sf-section-meta">
-                            <a class="sf-button" href="/transactions.html">Transactions →</a>
-                        </div>
-                    </div>
-                    <div id="recentRows">
-                        <div class="empty-atm">Loading recent ATM rows…</div>
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
+          <div class="sf-metric-card">
+            <p class="sf-card-kicker">Reversal Window</p>
+            <div id="windowDays" class="sf-metric-value">10 days</div>
+          </div>
+        </div>
 
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+        <div class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">New</p>
+              <h3 class="sf-section-title">ATM Withdrawal</h3>
+              <p class="sf-section-subtitle">Linked transfer pair plus optional pending fee row.</p>
+            </div>
 
-    <script>
-      // ===== ATM page logic, preserved verbatim from previous atm.html =====
-      const state = { api: null, accountsById: {} };
-      const $ = id => document.getElementById(id);
-      function todayLocal() { const d=new Date(); return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-'); }
-      function esc(value) { return String(value==null?'':value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
-      function money(value) { const n=Number(value)||0; const sign=n<0?'-':''; return sign+'Rs '+Math.abs(n).toLocaleString('en-PK',{maximumFractionDigits:2}); }
-      function toast(message, kind='success') { const el=$('toast'); el.textContent=message; el.className='toast toast-'+kind+' show'; setTimeout(()=>{el.className='toast';},2800); }
-      async function fetchJSON(url, options) { const res=await fetch(url,{cache:'no-store',...(options||{})}); const data=await res.json().catch(()=>null); if(!res.ok||!data||data.ok===false){throw new Error((data&&data.error)||('HTTP '+res.status));} return data; }
-      function accountLabel(id) { const a=state.accountsById[id]; if(!a)return id||'Unknown account'; return ((a.icon||'')+' '+a.name).trim(); }
-      function fillAccountSelect(select, accounts, fallback) { select.innerHTML=''; accounts.forEach(a=>{const o=document.createElement('option'); o.value=a.id; o.textContent=((a.icon||'')+' '+a.name+' '+a.kind).trim(); select.appendChild(o);}); if(fallback&&accounts.some(a=>a.id===fallback)) select.value=fallback; }
-      function rowIcon(row) { const t=String((row.type||'')+' '+(row.notes||'')).toLowerCase(); if(t.includes('reversal'))return '↩'; if(t.includes('fee'))return '⚠'; if(row.type==='income')return '+'; if(row.type==='transfer')return '↔'; return '•'; }
-      function rowTitle(row) { if(String(row.notes||'').includes('[ATM_FEE_REVERSAL]'))return 'ATM fee reversed'; if(String(row.notes||'').includes('[ATM_FEE_PENDING]'))return 'Pending ATM fee'; if(row.type==='income')return 'Cash received'; if(row.type==='transfer')return 'Bank cash-out'; return String(row.type||'ATM row').replace(/_/g,' '); }
-      function renderMetrics(data) { $('pendingCount').textContent=String(data.pending_count||0); $('pendingTotal').textContent=money(data.total_pending_pkr||0); $('feeNet').textContent=money(data.fees_30d&&data.fees_30d.net); $('windowDays').textContent=String((data.defaults&&data.defaults.reversal_window_days)||10)+' days'; $('livePill').textContent='Live · ATM API '+data.version; }
-      function renderPendingFees(rows) { const box=$('pendingFees'); if(!rows||!rows.length){box.innerHTML='<div class="empty-atm">No pending ATM fee reversals.</div>'; return;} box.innerHTML=rows.map(row=>{const age=Number(row.age_days)||0; const overdue=state.api&&state.api.defaults&&age>Number(state.api.defaults.reversal_window_days||10); return `<article class="atm-row ${overdue?'warn':''}"><div class="atm-row-icon">⚠</div><div><div class="atm-row-title">${esc(accountLabel(row.account_id))} · pending fee</div><div class="atm-row-sub">${esc(row.date)} · age ${age}d · ${esc(row.notes||'')}</div></div><div class="atm-row-stack"><div class="atm-row-amount warn">${money(row.amount)}</div><button class="atm-row-action" type="button" data-reverse="${esc(row.id)}">Mark Reversed</button></div></article>`;}).join(''); box.querySelectorAll('[data-reverse]').forEach(btn=>{btn.addEventListener('click',()=>reverseFee(btn.dataset.reverse));}); }
-      function renderRecentRows(rows) { const box=$('recentRows'); if(!rows||!rows.length){box.innerHTML='<div class="empty-atm">No ATM ledger rows found.</div>'; return;} box.innerHTML=rows.map(row=>`<article class="atm-row"><div class="atm-row-icon">${rowIcon(row)}</div><div><div class="atm-row-title">${esc(rowTitle(row))}</div><div class="atm-row-sub">${esc(row.date||'')} · ${esc(accountLabel(row.account_id))} · ${esc(row.notes||'')}</div></div><div class="atm-row-amount">${money(row.amount)}</div></article>`).join(''); }
-      async function loadATM() { try { const data=await fetchJSON('/api/atm'); state.api=data; state.accountsById={}; (data.accounts||[]).forEach(a=>{state.accountsById[a.id]=a;}); fillAccountSelect($('sourceAccount'), data.source_accounts||[], data.defaults&&data.defaults.source_account_id); fillAccountSelect($('destAccount'), data.destination_accounts||[], data.defaults&&data.defaults.destination_account_id); $('feeAmount').value=data.defaults&&data.defaults.fee_pkr!=null?data.defaults.fee_pkr:35; renderMetrics(data); renderPendingFees(data.pending_fees||[]); renderRecentRows(data.recent_atm_rows||[]); } catch(err) { $('livePill').textContent='ATM API error'; $('pendingFees').innerHTML='<div class="empty-atm">ATM failed: '+esc(err.message)+'</div>'; $('recentRows').innerHTML='<div class="empty-atm">No recent rows loaded.</div>'; toast(err.message,'error'); } }
-      async function submitATM(event) { event.preventDefault(); const amount=Number($('amount').value); const source=$('sourceAccount').value; const dest=$('destAccount').value; const feeAmount=Number($('feeAmount').value||0); const noFee=$('noFee').checked; const date=$('date').value||todayLocal(); const atmName=$('atmName').value.trim()||'ATM'; const notes=$('notes').value.trim(); if(!(amount>0)){toast('Amount must be greater than 0.','error'); return;} if(!source||!dest){toast('Source and destination are required.','error'); return;} if(source===dest){toast('Source and destination cannot match.','error'); return;} if(!noFee&&feeAmount<0){toast('Fee cannot be negative.','error'); return;} const ok=confirm('Create ATM withdrawal?\n\nThis will write real ledger rows:\n- bank OUT transfer\n- cash/wallet IN row\n'+(noFee?'- no fee row\n':'- pending ATM fee row\n')+'\nNo test rows. Continue only for a real ATM withdrawal.'); if(!ok)return; const btn=$('submitBtn'); btn.disabled=true; btn.textContent='Creating…'; try { await fetchJSON('/api/atm/withdraw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount,source_account_id:source,destination_account_id:dest,atm_name:atmName,date,fee_amount:noFee?0:feeAmount,no_fee:noFee,notes,created_by:'web-atm-page'})}); toast('ATM transfer created.'); $('atmForm').reset(); $('date').value=todayLocal(); await loadATM(); } catch(err) { toast(err.message,'error'); } finally { btn.disabled=false; btn.textContent='Create ATM Transfer'; } }
-      async function reverseFee(id) { const row=(state.api&&state.api.pending_fees||[]).find(item=>item.id===id); if(!row){toast('Pending fee not found.','error'); return;} const ok=confirm('Mark ATM fee as reversed?\n\nThis will create a real income reversal row for '+money(row.amount)+'.\nContinue only if bank has actually reversed the fee.'); if(!ok)return; try { await fetchJSON('/api/atm/reverse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({fee_txn_id:id,created_by:'web-atm-page'})}); toast('ATM fee reversal recorded.'); await loadATM(); } catch(err) { toast(err.message,'error'); } }
-      $('date').value=todayLocal();
-      $('refreshBtn').addEventListener('click', loadATM);
-      $('atmForm').addEventListener('submit', submitATM);
-      loadATM();
-    </script>
+            <div class="sf-section-meta">
+              <button id="refreshBtn" class="sf-button" type="button">Refresh</button>
+            </div>
+          </div>
+
+          <form id="atmForm" class="sf-form-grid">
+            <div class="sf-field sf-span-12">
+              <label for="amount">Cash Amount</label>
+              <input id="amount" class="sf-input" type="number" min="0.01" step="0.01" placeholder="0" required>
+            </div>
+
+            <div class="sf-field sf-span-6">
+              <label for="sourceAccount">From Bank</label>
+              <select id="sourceAccount" class="sf-select" required></select>
+            </div>
+
+            <div class="sf-field sf-span-6">
+              <label for="destAccount">To Cash / Wallet</label>
+              <select id="destAccount" class="sf-select" required></select>
+            </div>
+
+            <div class="sf-field sf-span-6">
+              <label for="atmName">ATM Name</label>
+              <input id="atmName" class="sf-input" type="text" maxlength="80" value="UBL ATM">
+            </div>
+
+            <div class="sf-field sf-span-6">
+              <label for="date">Date</label>
+              <input id="date" class="sf-input" type="date" required>
+            </div>
+
+            <div class="sf-field sf-span-6">
+              <label for="feeAmount">ATM Fee</label>
+              <input id="feeAmount" class="sf-input" type="number" min="0" step="0.01" value="35">
+            </div>
+
+            <div class="sf-field sf-span-6">
+              <label class="sf-label">Fee toggle</label>
+              <label class="fee-box" for="noFee">
+                <input id="noFee" type="checkbox">
+                <span>No fee / own-bank ATM. Skip pending fee row.</span>
+              </label>
+            </div>
+
+            <div class="sf-field sf-span-12">
+              <label for="notes">
+                Notes <span style="text-transform:none;color:var(--sf-text-faint);">optional</span>
+              </label>
+              <textarea id="notes" class="sf-textarea" maxlength="160" placeholder="ATM withdrawal"></textarea>
+            </div>
+
+            <div class="sf-span-12" style="display:flex;justify-content:flex-end;">
+              <button id="submitBtn" class="sf-button sf-button--primary" type="submit">
+                Create ATM Transfer
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Reversals</p>
+              <h3 class="sf-section-title">Pending Fee Reversals</h3>
+              <p class="sf-section-subtitle">Fees waiting for bank reversal confirmation.</p>
+            </div>
+          </div>
+
+          <div id="pendingFees">
+            <div class="empty-atm">Loading pending ATM fees</div>
+          </div>
+        </div>
+
+        <div class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Ledger</p>
+              <h3 class="sf-section-title">Recent ATM Rows</h3>
+              <p class="sf-section-subtitle">Read-only view of ATM transfer, fee, and reversal rows.</p>
+            </div>
+
+            <div class="sf-section-meta">
+              <a class="sf-button" href="/transactions.html">Transactions</a>
+            </div>
+          </div>
+
+          <div id="recentRows">
+            <div class="empty-atm">Loading recent ATM rows</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const state = {
+      api: null,
+      accountsById: {}
+    };
+
+    const $ = id => document.getElementById(id);
+
+    function todayLocal() {
+      const d = new Date();
+
+      return [
+        d.getFullYear(),
+        String(d.getMonth() + 1).padStart(2, '0'),
+        String(d.getDate()).padStart(2, '0')
+      ].join('-');
+    }
+
+    function esc(value) {
+      return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function money(value) {
+      const n = Number(value) || 0;
+      const sign = n < 0 ? '-' : '';
+
+      return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
+        maximumFractionDigits: 2
+      });
+    }
+
+    function toast(message, kind = 'success') {
+      const el = $('toast');
+
+      el.textContent = message;
+      el.className = 'toast toast-' + kind + ' show';
+
+      setTimeout(() => {
+        el.className = 'toast';
+      }, 2800);
+    }
+
+    async function fetchJSON(url, options) {
+      const res = await fetch(url, {
+        cache: 'no-store',
+        ...(options || {})
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data || data.ok === false) {
+        throw new Error((data && data.error) || ('HTTP ' + res.status));
+      }
+
+      return data;
+    }
+
+    function accountLabel(id) {
+      const account = state.accountsById[id];
+
+      if (!account) {
+        return id || 'Unknown account';
+      }
+
+      return ((account.icon || '') + ' ' + account.name).trim();
+    }
+
+    function fillAccountSelect(select, accounts, fallback) {
+      select.innerHTML = '';
+
+      accounts.forEach(account => {
+        const option = document.createElement('option');
+
+        option.value = account.id;
+        option.textContent = ((account.icon || '') + ' ' + account.name + ' ' + account.kind).trim();
+
+        select.appendChild(option);
+      });
+
+      if (fallback && accounts.some(account => account.id === fallback)) {
+        select.value = fallback;
+      }
+    }
+
+    function rowIcon(row) {
+      const text = String((row.type || '') + ' ' + (row.notes || '')).toLowerCase();
+
+      if (text.includes('reversal')) return '↩';
+      if (text.includes('fee')) return '₨';
+      if (row.type === 'income') return '+';
+      if (row.type === 'transfer') return '⇄';
+
+      return '•';
+    }
+
+    function rowTitle(row) {
+      if (String(row.notes || '').includes('[ATM_FEE_REVERSAL]')) return 'ATM fee reversed';
+      if (String(row.notes || '').includes('[ATM_FEE_PENDING]')) return 'Pending ATM fee';
+      if (row.type === 'income') return 'Cash received';
+      if (row.type === 'transfer') return 'Bank cash-out';
+
+      return String(row.type || 'ATM row').replace(/_/g, ' ');
+    }
+
+    function renderMetrics(data) {
+      $('pendingCount').textContent = String(data.pending_count || 0);
+      $('pendingTotal').textContent = money(data.total_pending_pkr || 0);
+      $('feeNet').textContent = money(data.fees_30d && data.fees_30d.net);
+      $('windowDays').textContent = String((data.defaults && data.defaults.reversal_window_days) || 10) + ' days';
+      $('livePill').textContent = 'Live · ATM API ' + data.version;
+    }
+
+    function renderPendingFees(rows) {
+      const box = $('pendingFees');
+
+      if (!rows || !rows.length) {
+        box.innerHTML = '<div class="empty-atm">No pending ATM fee reversals.</div>';
+        return;
+      }
+
+      box.innerHTML = rows.map(row => {
+        const age = Number(row.age_days) || 0;
+        const overdue = state.api && state.api.defaults && age > Number(state.api.defaults.reversal_window_days || 10);
+
+        return `
+          <article class="atm-row ${overdue ? 'warn' : ''}">
+            <div class="atm-row-icon">₨</div>
+            <div>
+              <div class="atm-row-title">${esc(accountLabel(row.account_id))} · pending fee</div>
+              <div class="atm-row-sub">${esc(row.date)} · age ${age}d · ${esc(row.notes || '')}</div>
+            </div>
+            <div class="atm-row-stack">
+              <div class="atm-row-amount warn">${money(row.amount)}</div>
+              <button class="atm-row-action" type="button" data-reverse="${esc(row.id)}">Mark Reversed</button>
+            </div>
+          </article>
+        `;
+      }).join('');
+
+      box.querySelectorAll('[data-reverse]').forEach(btn => {
+        btn.addEventListener('click', () => reverseFee(btn.dataset.reverse));
+      });
+    }
+
+    function renderRecentRows(rows) {
+      const box = $('recentRows');
+
+      if (!rows || !rows.length) {
+        box.innerHTML = '<div class="empty-atm">No ATM ledger rows found.</div>';
+        return;
+      }
+
+      box.innerHTML = rows.map(row => `
+        <article class="atm-row">
+          <div class="atm-row-icon">${rowIcon(row)}</div>
+          <div>
+            <div class="atm-row-title">${esc(rowTitle(row))}</div>
+            <div class="atm-row-sub">${esc(row.date || '')} · ${esc(accountLabel(row.account_id))} · ${esc(row.notes || '')}</div>
+          </div>
+          <div class="atm-row-amount">${money(row.amount)}</div>
+        </article>
+      `).join('');
+    }
+
+    async function loadATM() {
+      try {
+        const data = await fetchJSON('/api/atm');
+
+        state.api = data;
+        state.accountsById = {};
+
+        (data.accounts || []).forEach(account => {
+          state.accountsById[account.id] = account;
+        });
+
+        fillAccountSelect($('sourceAccount'), data.source_accounts || [], data.defaults && data.defaults.source_account_id);
+        fillAccountSelect($('destAccount'), data.destination_accounts || [], data.defaults && data.defaults.destination_account_id);
+
+        $('feeAmount').value = data.defaults && data.defaults.fee_pkr != null ? data.defaults.fee_pkr : 35;
+
+        renderMetrics(data);
+        renderPendingFees(data.pending_fees || []);
+        renderRecentRows(data.recent_atm_rows || []);
+      } catch (err) {
+        $('livePill').textContent = 'ATM API error';
+        $('pendingFees').innerHTML = '<div class="empty-atm">ATM failed: ' + esc(err.message) + '</div>';
+        $('recentRows').innerHTML = '<div class="empty-atm">No recent rows loaded.</div>';
+
+        toast(err.message, 'error');
+      }
+    }
+
+    async function submitATM(event) {
+      event.preventDefault();
+
+      const amount = Number($('amount').value);
+      const source = $('sourceAccount').value;
+      const dest = $('destAccount').value;
+      const feeAmount = Number($('feeAmount').value || 0);
+      const noFee = $('noFee').checked;
+      const date = $('date').value || todayLocal();
+      const atmName = $('atmName').value.trim() || 'ATM';
+      const notes = $('notes').value.trim();
+
+      if (!(amount > 0)) {
+        toast('Amount must be greater than 0.', 'error');
+        return;
+      }
+
+      if (!source || !dest) {
+        toast('Source and destination are required.', 'error');
+        return;
+      }
+
+      if (source === dest) {
+        toast('Source and destination cannot match.', 'error');
+        return;
+      }
+
+      if (!noFee && feeAmount < 0) {
+        toast('Fee cannot be negative.', 'error');
+        return;
+      }
+
+      const ok = confirm(
+        'Create ATM withdrawal?\n\n' +
+        'This will write real ledger rows:\n' +
+        '- bank OUT transfer\n' +
+        '- cash/wallet IN row\n' +
+        (noFee ? '- no fee row\n' : '- pending ATM fee row\n') +
+        '\nNo test rows.\nContinue only for a real ATM withdrawal.'
+      );
+
+      if (!ok) return;
+
+      const btn = $('submitBtn');
+
+      btn.disabled = true;
+      btn.textContent = 'Creating';
+
+      try {
+        await fetchJSON('/api/atm/withdraw', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            amount,
+            source_account_id: source,
+            destination_account_id: dest,
+            atm_name: atmName,
+            date,
+            fee_amount: noFee ? 0 : feeAmount,
+            no_fee: noFee,
+            notes,
+            created_by: 'web-atm-page'
+          })
+        });
+
+        toast('ATM transfer created.');
+
+        $('atmForm').reset();
+        $('date').value = todayLocal();
+
+        await loadATM();
+      } catch (err) {
+        toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create ATM Transfer';
+      }
+    }
+
+    async function reverseFee(id) {
+      const row = (state.api && state.api.pending_fees || []).find(item => item.id === id);
+
+      if (!row) {
+        toast('Pending fee not found.', 'error');
+        return;
+      }
+
+      const ok = confirm(
+        'Mark ATM fee as reversed?\n\n' +
+        'This will create a real income reversal row for ' + money(row.amount) + '.\n' +
+        'Continue only if bank has actually reversed the fee.'
+      );
+
+      if (!ok) return;
+
+      try {
+        await fetchJSON('/api/atm/reverse', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            fee_txn_id: id,
+            created_by: 'web-atm-page'
+          })
+        });
+
+        toast('ATM fee reversal recorded.');
+
+        await loadATM();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    }
+
+    $('date').value = todayLocal();
+    $('refreshBtn').addEventListener('click', loadATM);
+    $('atmForm').addEventListener('submit', submitATM);
+
+    loadATM();
+  </script>
 </body>
 </html>
