@@ -1,5 +1,5 @@
 /* /api/transactions — banking-grade ledger engine
- * Sovereign Finance v0.5.0-ledger-engine-hardening
+ * Sovereign Finance v0.5.1-ledger-balance-reversal-fix
  *
  * Backend owns:
  * - dry-run proof + payload hash
@@ -11,14 +11,14 @@
  * - append-only writes
  * - transfer pair atomic write
  *
- * Companion files still required:
- * - functions/api/transactions/[id].js must block PUT/DELETE and host reverse/health
- * - functions/api/add/[[path]].js must forward dry_run_payload_hash into commit
+ * v0.5.1 fix:
+ * - Balance projection now excludes BOTH reversal rows and reversed original rows.
+ * - GET list over-fetches before hiding reversals so /api/transactions?limit=5 does not return empty just because latest rows are reversals.
  */
 
 import { audit } from './_lib.js';
 
-const VERSION = 'v0.5.0-ledger-engine-hardening';
+const VERSION = 'v0.5.1-ledger-balance-reversal-fix';
 
 const FRONTEND_ADD_TYPES = [
   'expense',
@@ -110,28 +110,34 @@ export async function onRequestGet(context) {
     const includeReversed = url.searchParams.get('include_reversed') === '1';
     const limit = clampInt(url.searchParams.get('limit'), 1, 500, 200);
     const txColumns = await getTableColumns(db, 'transactions');
-
     const selectCols = selectTransactionColumns(txColumns);
+
+    const fetchLimit = includeReversed
+      ? limit
+      : Math.min(500, Math.max(limit * 5, limit + 50));
 
     const result = await db.prepare(
       `SELECT ${selectCols.join(', ')}
        FROM transactions
        ORDER BY date DESC, datetime(created_at) DESC, id DESC
        LIMIT ?`
-    ).bind(limit).all();
+    ).bind(fetchLimit).all();
 
     const allRows = result.results || [];
     const decorated = allRows.map(row => decorateTransaction(row));
+
     const visibleRows = includeReversed
-      ? decorated
-      : decorated.filter(t => !t.is_reversal);
+      ? decorated.slice(0, limit)
+      : decorated.filter(t => !t.is_reversal).slice(0, limit);
+
+    const hiddenReversalCount = decorated.filter(t => t.is_reversal).length;
 
     return jsonResponse({
       ok: true,
       version: VERSION,
       include_reversed: includeReversed,
       count: visibleRows.length,
-      hidden_reversal_count: decorated.length - visibleRows.length,
+      hidden_reversal_count: includeReversed ? 0 : hiddenReversalCount,
       contract: {
         frontend_add_types: FRONTEND_ADD_TYPES,
         backend_system_types: SYSTEM_TYPES,
@@ -529,6 +535,7 @@ async function buildBalanceProof(db, payload, sourceAccount, transferToAccount) 
     current_balance: roundMoney(sourceBalance.balance),
     projected_balance: roundMoney(sourceProjection),
     transaction_count: sourceBalance.txn_count,
+    skipped_inactive_transaction_count: sourceBalance.skipped_inactive_count,
     requires_override: false,
     override_reason: null,
     blocked: false,
@@ -567,7 +574,9 @@ async function buildBalanceProof(db, payload, sourceAccount, transferToAccount) 
     proof.transfer_target = {
       account_id: payload.transfer_to_account_id,
       current_balance: roundMoney(targetBalance.balance),
-      projected_balance: roundMoney(targetProjection)
+      projected_balance: roundMoney(targetProjection),
+      transaction_count: targetBalance.txn_count,
+      skipped_inactive_transaction_count: targetBalance.skipped_inactive_count
     };
   }
 
@@ -576,7 +585,7 @@ async function buildBalanceProof(db, payload, sourceAccount, transferToAccount) 
 
 async function buildDuplicateProof(db, payload) {
   const rows = await db.prepare(
-    `SELECT id, date, type, amount, account_id, category_id, notes
+    `SELECT id, date, type, amount, account_id, category_id, notes, reversed_by, reversed_at
      FROM transactions
      WHERE date = ?
        AND type = ?
@@ -592,7 +601,7 @@ async function buildDuplicateProof(db, payload) {
   ).all();
 
   const matches = (rows.results || []).filter(row => {
-    if (isReversalRow(row)) return false;
+    if (isInactiveForBalance(row)) return false;
     if (payload.category_id && row.category_id && payload.category_id !== row.category_id) return false;
     return true;
   });
@@ -859,9 +868,13 @@ async function computeAccountBalance(db, accountId) {
 
   let balance = 0;
   let txnCount = 0;
+  let skippedInactiveCount = 0;
 
   for (const row of rows.results || []) {
-    if (isReversalRow(row)) continue;
+    if (isInactiveForBalance(row)) {
+      skippedInactiveCount++;
+      continue;
+    }
 
     const amount = Number(row.amount) || 0;
 
@@ -871,7 +884,8 @@ async function computeAccountBalance(db, accountId) {
 
   return {
     balance,
-    txn_count: txnCount
+    txn_count: txnCount,
+    skipped_inactive_count: skippedInactiveCount
   };
 }
 
@@ -1105,7 +1119,7 @@ function canonicalCategory(value) {
 function decorateTransaction(row) {
   const notes = String(row.notes || '');
   const isReversal = isReversalRow(row);
-  const isReversed = !!(row.reversed_by || row.reversed_at || notes.includes('[REVERSED BY '));
+  const isReversed = isReversedOriginal(row);
   const linkedFromNote = extractLinkedId(notes);
   const groupId = row.intl_package_id ||
     row.linked_txn_id ||
@@ -1128,13 +1142,28 @@ function decorateTransaction(row) {
   };
 }
 
-function isReversalRow(t) {
-  if (!t) return false;
-  if (t.reversed_by || t.reversed_at) return true;
+function isReversalRow(row) {
+  if (!row) return false;
 
-  const notes = String(t.notes || '').toUpperCase();
+  const notes = String(row.notes || '').toUpperCase();
 
   return notes.includes('[REVERSAL OF ');
+}
+
+function isReversedOriginal(row) {
+  if (!row) return false;
+
+  const notes = String(row.notes || '').toUpperCase();
+
+  return !!(
+    row.reversed_by ||
+    row.reversed_at ||
+    notes.includes('[REVERSED BY ')
+  );
+}
+
+function isInactiveForBalance(row) {
+  return isReversalRow(row) || isReversedOriginal(row);
 }
 
 function extractLinkedId(notes) {
