@@ -1,14 +1,14 @@
 /* /api/add/[[path]]
  * Sovereign Finance · Add Orchestrator
- * v1.2.3-add-context-direct-db-fix
+ * v1.2.4-add-context-balances-primary
  *
  * Fix:
- * - /api/add/context loads accounts/categories directly from D1, so dropdowns cannot go empty because of internal fetch failure.
- * - Keeps commit hash forwarding fix for /api/transactions.
- * - Keeps preview/dry-run/commit routes.
+ * - /api/add/context now uses /api/balances as the primary account source.
+ * - D1 accounts are fallback only.
+ * - Keeps commit hash forwarding for /api/transactions.
  */
 
-const VERSION = 'v1.2.3-add-context-direct-db-fix';
+const VERSION = 'v1.2.4-add-context-balances-primary';
 
 const CATEGORY_ALIASES = {
   grocery: 'groceries',
@@ -105,56 +105,117 @@ export async function onRequestPost(context) {
   }
 }
 
-/* Context */
+/* ─────────────────────────────
+ * Context
+ * ───────────────────────────── */
 
 async function getContext(context) {
   const db = context.env.DB;
 
-  const [accounts, categories, merchants, intlConfig, balancesPayload] = await Promise.all([
-    loadAccountsDirect(db),
-    loadCategoriesDirect(db),
-    loadMerchantsDirect(db),
-    getIntlConfig(db).catch(() => null),
-    internalGet(context, '/api/balances').catch(() => null)
+  const [balancesPayload, dbAccounts, categories, merchants, intlConfig] = await Promise.all([
+    internalGet(context, '/api/balances').catch(() => null),
+    loadAccountsDirect(db).catch(() => []),
+    loadCategoriesDirect(db).catch(() => []),
+    loadMerchantsDirect(db).catch(() => []),
+    getIntlConfig(db).catch(() => null)
   ]);
 
-  const balanceMap = balancesPayload && balancesPayload.accounts && typeof balancesPayload.accounts === 'object'
-    ? balancesPayload.accounts
-    : {};
-
-  const enrichedAccounts = accounts.map(account => {
-    const balanceRow = balanceMap[account.id] || {};
-    return {
-      ...account,
-      balance: Number.isFinite(Number(balanceRow.balance))
-        ? Number(balanceRow.balance)
-        : Number(account.balance || account.opening_balance || 0),
-      current_balance: Number.isFinite(Number(balanceRow.balance))
-        ? Number(balanceRow.balance)
-        : Number(account.balance || account.opening_balance || 0)
-    };
-  });
+  const accountsFromBalances = normalizeAccountsFromBalances(balancesPayload);
+  const accounts = accountsFromBalances.length
+    ? mergeAccountMetadata(accountsFromBalances, dbAccounts)
+    : dbAccounts;
 
   return json({
     ok: true,
     version: VERSION,
-    can_direct_write: enrichedAccounts.length > 0 && categories.length > 0,
+    can_direct_write: accounts.length > 0 && categories.length > 0,
     source_status: {
-      accounts: enrichedAccounts.length ? 'ok' : 'failed',
+      accounts: accounts.length ? 'ok' : 'failed',
       categories: categories.length ? 'ok' : 'failed',
       merchants: merchants.length ? 'ok' : 'optional',
       intl_rates: intlConfig ? 'ok' : 'optional'
     },
-    accounts: enrichedAccounts,
+    accounts,
     categories,
     merchants,
     intl_rate_config: intlConfig
   });
 }
 
+function normalizeAccountsFromBalances(payload) {
+  if (!payload || payload.ok === false || !payload.accounts) return [];
+
+  if (Array.isArray(payload.accounts)) {
+    return payload.accounts.map(row => ({
+      id: row.id || row.account_id,
+      name: row.name || row.label || row.id || row.account_id,
+      type: row.type || 'asset',
+      kind: row.kind || row.type || 'account',
+      currency: row.currency || 'PKR',
+      color: row.color || null,
+      icon: row.icon || '',
+      opening_balance: Number(row.opening_balance || 0),
+      credit_limit: row.credit_limit == null ? null : Number(row.credit_limit),
+      balance: Number(row.balance || row.current_balance || row.available_balance || 0),
+      current_balance: Number(row.balance || row.current_balance || row.available_balance || 0),
+      status: row.status || 'active',
+      display_order: row.display_order == null ? 999 : Number(row.display_order)
+    })).filter(row => row.id);
+  }
+
+  if (typeof payload.accounts === 'object') {
+    return Object.entries(payload.accounts).map(([id, row]) => ({
+      id,
+      name: row.name || id,
+      type: row.type || 'asset',
+      kind: row.kind || row.type || 'account',
+      currency: row.currency || 'PKR',
+      color: row.color || null,
+      icon: row.icon || '',
+      opening_balance: Number(row.opening_balance || 0),
+      credit_limit: row.credit_limit == null ? null : Number(row.credit_limit),
+      balance: Number(row.balance || row.current_balance || row.available_balance || 0),
+      current_balance: Number(row.balance || row.current_balance || row.available_balance || 0),
+      status: row.status || 'active',
+      display_order: row.display_order == null ? 999 : Number(row.display_order)
+    })).filter(row => row.id);
+  }
+
+  return [];
+}
+
+function mergeAccountMetadata(balanceAccounts, dbAccounts) {
+  const meta = new Map(dbAccounts.map(account => [account.id, account]));
+
+  return balanceAccounts.map(account => {
+    const db = meta.get(account.id) || {};
+
+    return {
+      ...db,
+      ...account,
+      name: account.name || db.name || account.id,
+      type: account.type || db.type || 'asset',
+      kind: account.kind || db.kind || account.type || 'account',
+      currency: account.currency || db.currency || 'PKR',
+      color: account.color || db.color || null,
+      icon: account.icon || db.icon || '',
+      opening_balance: Number(account.opening_balance ?? db.opening_balance ?? 0),
+      credit_limit: account.credit_limit ?? db.credit_limit ?? null,
+      balance: Number(account.balance ?? account.current_balance ?? 0),
+      current_balance: Number(account.current_balance ?? account.balance ?? 0),
+      status: account.status || db.status || 'active',
+      display_order: Number(account.display_order ?? db.display_order ?? 999)
+    };
+  }).sort((a, b) => {
+    const ao = Number(a.display_order ?? 999);
+    const bo = Number(b.display_order ?? 999);
+    if (ao !== bo) return ao - bo;
+    return String(a.name || a.id).localeCompare(String(b.name || b.id));
+  });
+}
+
 async function loadAccountsDirect(db) {
   const cols = await tableColumns(db, 'accounts');
-
   if (!cols.has('id')) return [];
 
   const wanted = [
@@ -171,9 +232,7 @@ async function loadAccountsDirect(db) {
     'display_order'
   ].filter(col => cols.has(col));
 
-  const order = cols.has('display_order')
-    ? 'display_order, name, id'
-    : 'name, id';
+  const order = cols.has('display_order') ? 'display_order, name, id' : 'name, id';
 
   const rows = await db.prepare(
     `SELECT ${wanted.join(', ')}
@@ -201,7 +260,6 @@ async function loadAccountsDirect(db) {
 
 async function loadCategoriesDirect(db) {
   const cols = await tableColumns(db, 'categories');
-
   if (!cols.has('id')) return [];
 
   const wanted = [
@@ -214,9 +272,7 @@ async function loadCategoriesDirect(db) {
     'display_order'
   ].filter(col => cols.has(col));
 
-  const order = cols.has('display_order')
-    ? 'display_order, name, id'
-    : 'name, id';
+  const order = cols.has('display_order') ? 'display_order, name, id' : 'name, id';
 
   const rows = await db.prepare(
     `SELECT ${wanted.join(', ')}
@@ -238,7 +294,6 @@ async function loadCategoriesDirect(db) {
 async function loadMerchantsDirect(db) {
   try {
     const cols = await tableColumns(db, 'merchants');
-
     if (!cols.has('id')) return [];
 
     const wanted = [
@@ -263,7 +318,9 @@ async function loadMerchantsDirect(db) {
   }
 }
 
-/* Preview / Dry-run / Commit */
+/* ─────────────────────────────
+ * Preview / Dry-run / Commit
+ * ───────────────────────────── */
 
 async function preview(context, body) {
   const normalized = normalizeAddPayload(body);
@@ -392,7 +449,9 @@ function normalizeWrittenResult(result) {
   };
 }
 
-/* Direct payload */
+/* ─────────────────────────────
+ * Payload
+ * ───────────────────────────── */
 
 function normalizeAddPayload(body) {
   const uiMode = cleanText(body.ui_mode || body.mode || body.type, 'expense', 60);
@@ -432,7 +491,6 @@ function normalizeMode(value) {
 
   if (raw === 'international' || raw === 'international_purchase') return 'international_purchase';
   if (raw === 'manual_income') return 'income';
-
   if (DIRECT_TYPES.has(raw)) return raw;
 
   return raw;
@@ -470,11 +528,12 @@ function buildDirectNotes(payload) {
   return parts.join(' | ').slice(0, 240);
 }
 
-/* International */
+/* ─────────────────────────────
+ * International
+ * ───────────────────────────── */
 
 async function buildIntlPreview(db, payload) {
   const cfg = await getIntlConfig(db);
-
   if (!cfg) throw new Error('intl rate config unavailable');
 
   const subtype = payload.subtype === 'pkr_base' ? 'pkr_base' : 'foreign';
@@ -592,7 +651,6 @@ async function commitInternational(context, payload, suppliedHash) {
   }
 
   const account = await getAccount(db, payload.account_id);
-
   if (!account) {
     return json({
       ok: false,
@@ -696,7 +754,9 @@ function intlComponentLabel(componentName) {
   return String(componentName || 'COMPONENT').toUpperCase();
 }
 
-/* DB helpers */
+/* ─────────────────────────────
+ * DB / internal helpers
+ * ───────────────────────────── */
 
 async function getIntlConfig(db) {
   const rows = await db.prepare(
@@ -707,7 +767,6 @@ async function getIntlConfig(db) {
   ).all();
 
   const cfg = (rows.results || [])[0];
-
   if (!cfg) return null;
 
   return {
@@ -771,8 +830,6 @@ function insertStatement(db, table, row) {
   ).bind(...keys.map(key => row[key]));
 }
 
-/* Internal fetch */
-
 async function internalGet(context, path) {
   const url = new URL(context.request.url);
   url.pathname = path;
@@ -821,7 +878,9 @@ async function internalPost(context, path, body) {
   return payload;
 }
 
-/* Utility */
+/* ─────────────────────────────
+ * Utility
+ * ───────────────────────────── */
 
 function pathParts(context) {
   const raw = context.params && context.params.path;
@@ -861,33 +920,26 @@ function normalizeDate(value) {
 
 function canonicalCategory(value) {
   const raw = cleanText(value, '', 160);
-
   if (!raw) return '';
 
   const key = token(raw);
-
   return CATEGORY_ALIASES[key] || raw;
 }
 
 function roundMoney(value) {
   const n = Number(value);
-
   if (!Number.isFinite(n)) return 0;
-
   return Math.round(n * 100) / 100;
 }
 
 function pct(value) {
   const n = Number(value);
-
   if (!Number.isFinite(n)) return 0;
-
   return n / 100;
 }
 
 function cleanText(value, fallback = '', max = 500) {
   const raw = value == null ? fallback : value;
-
   return String(raw == null ? '' : raw).trim().slice(0, max);
 }
 
