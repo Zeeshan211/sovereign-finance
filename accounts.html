@@ -1,491 +1,271 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Accounts - Sovereign Finance</title>
-    <script src="/js/sf-theme-switcher.js"></script>
-    <link rel="stylesheet" href="/css/sf-theme.css">
-    <link rel="stylesheet" href="/css/sf-shell.css">
-    <style>
-      /* Modal — page-local, no shared class exists yet */
-      .accounts-modal {
-        display: none;
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(0,0,0,0.7);
-        backdrop-filter: blur(8px);
-        z-index: 9000;
-        align-items: center;
-        justify-content: center;
-        padding: var(--sf-space-5);
-      }
-      .accounts-modal.is-open { display: flex; }
-      .accounts-modal-content {
-        background: linear-gradient(180deg, var(--sf-card-strong) 0%, var(--sf-card) 100%);
-        border: 1px solid var(--sf-border);
-        border-radius: var(--sf-radius-lg);
-        padding: var(--sf-space-6);
-        width: 100%;
-        max-width: 520px;
-        max-height: 88vh;
-        overflow: auto;
-        box-shadow: var(--sf-shadow-lg);
-      }
-      .accounts-modal-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: var(--sf-space-4);
-        margin-bottom: var(--sf-space-5);
-      }
-      .accounts-modal-close {
-        background: transparent;
-        border: 0;
-        color: var(--sf-text-muted);
-        font-size: 24px;
-        cursor: pointer;
-        padding: 4px 10px;
-        border-radius: 8px;
-      }
-      .accounts-modal-close:hover {
-        background: var(--sf-surface-2);
-        color: var(--sf-text);
-      }
-      .accounts-modal-actions {
-        display: flex;
-        gap: var(--sf-space-3);
-        justify-content: flex-end;
-        margin-top: var(--sf-space-5);
-      }
-      .accounts-modal-actions.with-delete {
-        justify-content: space-between;
-      }
-      .accounts-modal-actions.with-delete .right-group {
-        display: flex;
-        gap: var(--sf-space-3);
-      }
-      .accounts-checkbox-row {
-        display: flex;
-        gap: var(--sf-space-4);
-        align-items: center;
-      }
-      .accounts-checkbox-row label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-        font-size: var(--sf-font-13);
-        color: var(--sf-text-soft);
-        text-transform: none;
-        letter-spacing: 0;
-        font-weight: 600;
-      }
-      .accounts-checkbox-row input[type="checkbox"] {
-        width: 18px; height: 18px;
-        accent-color: var(--sf-accent);
-      }
-      .accounts-empty {
-        text-align: center;
-        padding: var(--sf-space-7) var(--sf-space-5);
-        color: var(--sf-text-muted);
-      }
-    </style>
-</head>
-<body class="sf-shell-body">
-    <div class="sf-app-shell sf-app-shell--with-nav">
-        <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
+  <meta charset="UTF-8">
 
-        <main class="sf-page-shell">
-            <section class="sf-page-content">
-                <div class="sf-page-hero">
-                    <div class="sf-page-title-group">
-                        <span class="sf-page-eyebrow">Accounts</span>
-                        <h1 class="sf-page-title">Accounts</h1>
-                        <p class="sf-page-subtitle">Net worth, asset breakdown, and per-account balances. Read-only view — money fixes happen via Reconciliation/Audit.</p>
-                    </div>
-                    <div class="sf-page-actions">
-                        <button class="sf-button sf-button--primary" id="addAccountBtn">+ Add Account</button>
-                    </div>
-                </div>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  >
 
-                <div class="sf-kpi-row">
-                    <div class="sf-metric-card">
-                        <p class="sf-card-kicker">Gross Assets</p>
-                        <div class="sf-metric-value" id="grossAssets" style="color: var(--sf-positive);">Rs 0</div>
-                    </div>
-                    <div class="sf-metric-card">
-                        <p class="sf-card-kicker">Total Debts</p>
-                        <div class="sf-metric-value" id="totalDebts" style="color: var(--sf-danger);">Rs 0</div>
-                    </div>
-                    <div class="sf-metric-card sf-metric-card--accent">
-                        <p class="sf-card-kicker">Net Worth</p>
-                        <div class="sf-metric-value" id="netWorth">Rs 0</div>
-                    </div>
-                </div>
+  <meta name="theme-color" content="#050816">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-                <div class="sf-panel">
-                    <div class="sf-section-head">
-                        <div>
-                            <p class="sf-section-kicker">Categories</p>
-                            <h3 class="sf-section-title">Filter</h3>
-                        </div>
-                    </div>
-                    <div class="sf-chip-row" id="accountTabs">
-                        <button class="sf-chip is-active" data-filter="all">All</button>
-                        <button class="sf-chip" data-filter="bank">Banks</button>
-                        <button class="sf-chip" data-filter="cash">Cash</button>
-                        <button class="sf-chip" data-filter="payment">Payment</button>
-                        <button class="sf-chip" data-filter="investment">Investments</button>
-                        <button class="sf-chip" data-filter="card">Cards/Debt</button>
-                    </div>
-                </div>
+  <title>Accounts · Sovereign Finance</title>
 
-                <div class="sf-panel">
-                    <div class="sf-section-head">
-                        <div>
-                            <p class="sf-section-kicker">Accounts</p>
-                            <h3 class="sf-section-title">Per-account balances</h3>
-                            <p class="sf-section-subtitle">Backend remains source of truth. Edit individual accounts via the row buttons.</p>
-                        </div>
-                    </div>
-                    <div id="accountsContainer">
-                        <div class="accounts-empty">Loading accounts…</div>
-                    </div>
-                </div>
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
 
-                <div class="sf-panel">
-                    <div class="sf-section-head">
-                        <div>
-                            <p class="sf-section-kicker">Composition</p>
-                            <h3 class="sf-section-title">Asset breakdown</h3>
-                        </div>
-                    </div>
-                    <div id="breakdownContainer">
-                        <div class="accounts-empty">Loading breakdown…</div>
-                    </div>
-                </div>
-            </section>
-        </main>
-    </div>
+  <script src="/js/sf-theme-switcher.js" defer></script>
+  <script src="/js/sf-components.js" defer></script>
+  <script src="/js/sf-shell.js" defer></script>
 
-    <!-- Add/Edit modal -->
-    <div class="accounts-modal" id="addAccountModal">
-        <div class="accounts-modal-content">
-            <div class="accounts-modal-head">
-                <div>
-                    <p class="sf-section-kicker">Account</p>
-                    <h3 class="sf-section-title" id="modalTitle">Add New Account</h3>
-                </div>
-                <button class="accounts-modal-close" id="closeModal" aria-label="Close">&times;</button>
-            </div>
+  <style>
+    .sf-app-shell--with-nav {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 24px;
+      width: min(100%, 1680px);
+      margin: 0 auto;
+      padding: 24px;
+    }
 
-            <form id="accountForm" class="sf-form-grid">
-                <input type="hidden" id="accountId">
+    .sf-finance-sidebar {
+      position: sticky;
+      top: 24px;
+      height: calc(100vh - 48px);
+      overflow: auto;
+      border: 1px solid var(--sf-border);
+      border-radius: 24px;
+      background: linear-gradient(180deg, var(--sf-card-strong), var(--sf-card));
+      padding: 18px;
+      box-shadow: var(--sf-shadow-sm);
+    }
 
-                <div class="sf-field sf-span-12">
-                    <label for="accountName">Name</label>
-                    <input id="accountName" class="sf-input" type="text" required placeholder="e.g. Mashreq Savings">
-                </div>
+    .sf-sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 18px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--sf-border-subtle);
+    }
 
-                <div class="sf-field sf-span-6">
-                    <label for="accountKind">Type</label>
-                    <select id="accountKind" class="sf-select" required>
-                        <option value="bank">Bank</option>
-                        <option value="cash">Cash</option>
-                        <option value="payment">Payment Wallet</option>
-                        <option value="investment">Investment</option>
-                        <option value="card">Card / Debt</option>
-                    </select>
-                </div>
+    .sf-sidebar-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--sf-accent), var(--sf-positive));
+      font-weight: 800;
+      color: #fff;
+    }
 
-                <div class="sf-field sf-span-6">
-                    <label for="accountBalance">Current Balance (PKR)</label>
-                    <input id="accountBalance" class="sf-input" type="number" step="0.01" required placeholder="0.00">
-                </div>
+    .sf-sidebar-title {
+      font-weight: 800;
+      color: var(--sf-text);
+    }
 
-                <div class="sf-field sf-span-12">
-                    <label for="accountTags">Tags (comma-separated)</label>
-                    <input id="accountTags" class="sf-input" type="text" placeholder="liquid, primary, salary">
-                </div>
+    .sf-sidebar-sub {
+      font-size: 12px;
+      color: var(--sf-text-muted);
+      margin-top: 2px;
+    }
 
-                <div class="sf-field sf-span-6">
-                    <label for="accountSlug">Slug (URL-safe id)</label>
-                    <input id="accountSlug" class="sf-input" type="text" placeholder="mashreq-savings">
-                </div>
+    .sf-nav-section {
+      margin: 18px 0;
+    }
 
-                <div class="sf-field sf-span-6">
-                    <label for="accountId_input">ID (override)</label>
-                    <input id="accountId_input" class="sf-input" type="text" placeholder="auto from slug">
-                </div>
+    .sf-nav-kicker {
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--sf-text-faint);
+      font-weight: 800;
+      margin: 0 0 8px;
+    }
 
-                <div class="sf-field sf-span-12">
-                    <label class="sf-label">Status</label>
-                    <div class="accounts-checkbox-row">
-                        <label><input type="checkbox" id="accountActive" checked> Active</label>
-                        <label><input type="checkbox" id="accountVisible" checked> Visible</label>
-                        <label><input type="checkbox" id="accountStatus"> Mark as paying</label>
-                    </div>
-                </div>
+    .sf-nav-list {
+      display: grid;
+      gap: 6px;
+    }
 
-                <div class="sf-span-12 accounts-modal-actions with-delete">
-                    <button type="button" class="sf-button" id="deleteAccountBtn" style="color: var(--sf-danger); border-color: var(--sf-danger); display: none;">Delete</button>
-                    <div class="right-group">
-                        <button type="button" class="sf-button" id="cancelBtn">Cancel</button>
-                        <button type="submit" class="sf-button sf-button--primary" id="saveBtn">Save Account</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
+    .sf-nav-link {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      color: var(--sf-text-soft);
+      text-decoration: none;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
 
-    <script>
-        // === ACCOUNTS PAGE LOGIC ===
-        // Preserved verbatim from previous accounts.html. No money logic changes.
+    .sf-nav-link:hover,
+    .sf-nav-link.is-active {
+      background: var(--sf-accent-soft);
+      border-color: var(--sf-border-strong);
+      color: var(--sf-accent-strong);
+    }
 
-        let accounts = [];
-        let currentFilter = 'all';
-        let editingAccountId = null;
+    .sf-page-shell {
+      min-width: 0;
+    }
 
-        const FILTER_MAP = {
-            all: () => true,
-            bank: a => a.kind === 'bank',
-            cash: a => a.kind === 'cash',
-            payment: a => a.kind === 'payment',
-            investment: a => a.kind === 'investment',
-            card: a => a.kind === 'card'
-        };
+    .sf-money-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
 
-        async function loadAccounts() {
-            try {
-                const res = await fetch('/api/accounts');
-                const data = await res.json();
+    .sf-row-stack {
+      display: grid;
+      gap: 10px;
+    }
 
-                if (data.ok && Array.isArray(data.accounts)) {
-                    accounts = data.accounts;
-                    renderAccounts();
-                    renderBalanceOverview();
-                    renderBreakdown();
-                } else {
-                    document.getElementById('accountsContainer').innerHTML =
-                        '<div class="accounts-empty">No accounts found.</div>';
-                }
-            } catch (e) {
-                document.getElementById('accountsContainer').innerHTML =
-                    '<div class="accounts-empty">Failed to load accounts: ' + e.message + '</div>';
-            }
-        }
+    .mini-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px;
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 16px;
+      background: var(--sf-surface-1);
+      margin-bottom: 10px;
+    }
 
-        function renderBalanceOverview() {
-            const assets = accounts
-                .filter(a => a.balance > 0 && a.kind !== 'card')
-                .reduce((sum, a) => sum + (a.balance || 0), 0);
-            const debts = accounts
-                .filter(a => a.balance < 0 || a.kind === 'card')
-                .reduce((sum, a) => sum + Math.abs(a.balance || 0), 0);
-            const net = assets - debts;
+    .mini-row-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
 
-            document.getElementById('grossAssets').textContent = fmtPKR(assets);
-            document.getElementById('totalDebts').textContent = fmtPKR(debts);
-            const nw = document.getElementById('netWorth');
-            nw.textContent = fmtPKR(net);
-            nw.style.color = net >= 0 ? 'var(--sf-positive)' : 'var(--sf-danger)';
-        }
+    .mini-row-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: var(--sf-accent-soft);
+      color: var(--sf-accent-strong);
+      font-weight: 800;
+      flex: 0 0 auto;
+    }
 
-        function renderAccounts() {
-            const container = document.getElementById('accountsContainer');
-            const filtered = accounts.filter(FILTER_MAP[currentFilter] || FILTER_MAP.all);
+    .mini-row-meta {
+      min-width: 0;
+    }
 
-            if (filtered.length === 0) {
-                container.innerHTML = '<div class="accounts-empty">No accounts in this category.</div>';
-                return;
-            }
+    .mini-row-name {
+      font-weight: 800;
+      color: var(--sf-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-            container.innerHTML = filtered.map(a => {
-                const tone = (a.balance || 0) >= 0 ? 'positive' : 'danger';
-                const id = a.id || '';
-                return `
-                    <div class="sf-finance-row" style="margin-bottom: var(--sf-space-3); cursor:pointer;" data-account-id="${escAttr(id)}">
-                        <div class="sf-row-left">
-                            <div class="sf-row-title">${esc(a.name || 'Untitled')}</div>
-                            <div class="sf-row-subtitle">${esc(a.kind || 'account')}${a.tags && a.tags.length ? ' · ' + esc(a.tags.join(', ')) : ''}${id ? ' · ' + esc(id) : ''}</div>
-                        </div>
-                        <div class="sf-row-right sf-tone-${tone}">${fmtPKR(a.balance || 0)}</div>
-                    </div>
-                `;
-            }).join('');
+    .mini-row-sub {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+      color: var(--sf-text-muted);
+      font-size: 12px;
+    }
 
-            container.querySelectorAll('[data-account-id]').forEach(el => {
-                el.addEventListener('click', () => openEditAccount(el.getAttribute('data-account-id')));
-            });
-        }
+    .mini-row-right {
+      text-align: right;
+      display: grid;
+      justify-items: end;
+      gap: 4px;
+      flex: 0 0 auto;
+    }
 
-        function renderBreakdown() {
-            const container = document.getElementById('breakdownContainer');
-            const byKind = {};
-            accounts.forEach(a => {
-                const k = a.kind || 'other';
-                if (!byKind[k]) byKind[k] = 0;
-                byKind[k] += a.balance || 0;
-            });
+    .mini-row-amount {
+      font-weight: 900;
+      color: var(--sf-text);
+      font-size: 16px;
+    }
 
-            const entries = Object.entries(byKind).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
-            if (entries.length === 0) {
-                container.innerHTML = '<div class="accounts-empty">No breakdown data.</div>';
-                return;
-            }
+    .mini-row-amount.danger,
+    .value.danger,
+    .liabilities {
+      color: var(--sf-danger);
+    }
 
-            container.innerHTML = entries.map(([kind, total]) => {
-                const tone = total >= 0 ? 'positive' : 'danger';
-                return `
-                    <div class="sf-dense-row">
-                        <div>${esc(kind)}</div>
-                        <div class="sf-tone-${tone}" style="font-weight:700;">${fmtPKR(total)}</div>
-                    </div>
-                `;
-            }).join('');
-        }
+    .assets,
+    .accent,
+    .positive {
+      color: var(--sf-positive);
+    }
 
-        function fmtPKR(n) {
-            const num = Number(n) || 0;
-            return 'Rs ' + Math.round(num).toLocaleString('en-PK');
-        }
+    .meta {
+      font-size: 12px;
+      color: var(--sf-text-muted);
+    }
 
-        function esc(s) {
-            return String(s == null ? '' : s)
-                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-        }
+    .meta.warn {
+      color: var(--sf-warning);
+    }
 
-        function escAttr(s) {
-            return esc(s);
-        }
+    .meta.danger {
+      color: var(--sf-danger);
+    }
 
-        // Tabs
-        document.querySelectorAll('#accountTabs .sf-chip').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('#accountTabs .sf-chip').forEach(t => t.classList.remove('is-active'));
-                tab.classList.add('is-active');
-                currentFilter = tab.getAttribute('data-filter');
-                renderAccounts();
-            });
-        });
+    .ghost-btn,
+    .primary-btn,
+    .danger-btn {
+      border: 1px solid var(--sf-border);
+      border-radius: 999px;
+      padding: 9px 13px;
+      background: var(--sf-surface-1);
+      color: var(--sf-text-soft);
+      font-weight: 800;
+      cursor: pointer;
+    }
 
-        // Modal
-        const modal = document.getElementById('addAccountModal');
-        const addBtn = document.getElementById('addAccountBtn');
-        const closeBtn = document.getElementById('closeModal');
-        const cancelBtn = document.getElementById('cancelBtn');
-        const form = document.getElementById('accountForm');
-        const deleteBtn = document.getElementById('deleteAccountBtn');
+    .primary-btn {
+      background: var(--sf-accent-soft);
+      color: var(--sf-accent-strong);
+      border-color: var(--sf-border-strong);
+    }
 
-        function openModal() {
-            modal.classList.add('is-open');
-        }
-        function closeModal() {
-            modal.classList.remove('is-open');
-            form.reset();
-            editingAccountId = null;
-            document.getElementById('modalTitle').textContent = 'Add New Account';
-            deleteBtn.style.display = 'none';
-            document.getElementById('accountActive').checked = true;
-            document.getElementById('accountVisible').checked = true;
-            document.getElementById('accountStatus').checked = false;
-        }
+    .danger-btn {
+      background: var(--sf-danger-soft);
+      color: var(--sf-danger);
+      border-color: rgba(255, 127, 138, 0.28);
+    }
 
-        addBtn.addEventListener('click', openModal);
-        closeBtn.addEventListener('click', closeModal);
-        cancelBtn.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeModal();
-        });
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.62);
+      z-index: 80;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
 
-        function openEditAccount(id) {
-            const a = accounts.find(x => x.id === id);
-            if (!a) return;
+    .modal {
+      width: min(560px, 100%);
+      max-height: 88vh;
+      overflow: auto;
+      border: 1px solid var(--sf-border);
+      border-radius: 24px;
+      background: var(--sf-card-strong);
+      padding: 22px;
+      box-shadow: var(--sf-shadow-lg);
+    }
 
-            editingAccountId = id;
-            document.getElementById('modalTitle').textContent = 'Edit Account';
-            document.getElementById('accountId').value = id;
-            document.getElementById('accountName').value = a.name || '';
-            document.getElementById('accountKind').value = a.kind || 'bank';
-            document.getElementById('accountBalance').value = a.balance ?? 0;
-            document.getElementById('accountTags').value = (a.tags || []).join(', ');
-            document.getElementById('accountSlug').value = a.slug || '';
-            document.getElementById('accountId_input').value = id;
-            document.getElementById('accountActive').checked = a.active !== false;
-            document.getElementById('accountVisible').checked = a.visible !== false;
-            document.getElementById('accountStatus').checked = a.status === 'paying';
-            deleteBtn.style.display = 'inline-flex';
-            openModal();
-        }
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const payload = {
-                name: document.getElementById('accountName').value.trim(),
-                kind: document.getElementById('accountKind').value,
-                balance: Number(document.getElementById('accountBalance').value) || 0,
-                tags: document.getElementById('accountTags').value
-                    .split(',').map(s => s.trim()).filter(Boolean),
-                slug: document.getElementById('accountSlug').value.trim(),
-                active: document.getElementById('accountActive').checked,
-                visible: document.getElementById('accountVisible').checked,
-                status: document.getElementById('accountStatus').checked ? 'paying' : null
-            };
-
-            const idOverride = document.getElementById('accountId_input').value.trim();
-            if (idOverride) payload.id = idOverride;
-
-            try {
-                const url = editingAccountId
-                    ? `/api/accounts/${encodeURIComponent(editingAccountId)}`
-                    : '/api/accounts';
-                const method = editingAccountId ? 'PUT' : 'POST';
-
-                const res = await fetch(url, {
-                    method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-
-                if (data.ok) {
-                    closeModal();
-                    await loadAccounts();
-                } else {
-                    alert('Save failed: ' + (data.error || 'unknown error'));
-                }
-            } catch (err) {
-                alert('Network error: ' + err.message);
-            }
-        });
-
-        deleteBtn.addEventListener('click', async () => {
-            if (!editingAccountId) return;
-            if (!confirm('Delete this account? This cannot be undone via the UI.')) return;
-
-            try {
-                const res = await fetch(`/api/accounts/${encodeURIComponent(editingAccountId)}`, {
-                    method: 'DELETE'
-                });
-                const data = await res.json();
-
-                if (data.ok) {
-                    closeModal();
-                    await loadAccounts();
-                } else {
-                    alert('Delete failed: ' + (data.error || 'unknown error'));
-                }
-            } catch (err) {
-                alert('Network error: ' + err.message);
-            }
-        });
-
-        // Init
-        loadAccounts();
-    </script>
-</body>
-</html>
+    .modal-title {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--sf-text);
+    }
