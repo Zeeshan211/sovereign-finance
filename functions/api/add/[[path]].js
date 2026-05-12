@@ -1,23 +1,14 @@
 /* /api/add/[[path]]
  * Sovereign Finance · Add Orchestrator
- * v1.2.2-add-commit-hash-forward-fix
- *
- * Owns:
- * - /api/add/context
- * - /api/add/preview
- * - /api/add/dry-run
- * - /api/add/commit
+ * v1.2.3-add-context-direct-db-fix
  *
  * Fix:
- * - Commit now forwards dry_run_payload_hash / payload_hash correctly to /api/transactions.
- * - Transfer commit supports linked pair response.
- * - Direct modes stay delegated to /api/transactions.
- * - International package writer stays backend-owned.
+ * - /api/add/context loads accounts/categories directly from D1, so dropdowns cannot go empty because of internal fetch failure.
+ * - Keeps commit hash forwarding fix for /api/transactions.
+ * - Keeps preview/dry-run/commit routes.
  */
 
-const VERSION = 'v1.2.2-add-commit-hash-forward-fix';
-
-const DEFAULT_CATEGORY_ID = 'misc';
+const VERSION = 'v1.2.3-add-context-direct-db-fix';
 
 const CATEGORY_ALIASES = {
   grocery: 'groceries',
@@ -42,6 +33,8 @@ const CATEGORY_ALIASES = {
   card: 'credit_card',
   credit: 'credit_card',
   credit_card: 'credit_card',
+  cc_payment: 'credit_card',
+  cc_spend: 'credit_card',
   debt: 'debt_payment',
   debt_payment: 'debt_payment',
   salary: 'salary_income',
@@ -62,6 +55,9 @@ const CATEGORY_ALIASES = {
 
 const DIRECT_TYPES = new Set(['expense', 'income', 'transfer']);
 const INTERNATIONAL_TYPES = new Set(['international', 'international_purchase']);
+
+const ACTIVE_ACCOUNT_WHERE =
+  "(deleted_at IS NULL OR deleted_at = '') AND (archived_at IS NULL OR archived_at = '') AND (status IS NULL OR status = '' OR status = 'active')";
 
 export async function onRequestGet(context) {
   try {
@@ -91,17 +87,9 @@ export async function onRequestPost(context) {
     const route = parts[0] || '';
     const body = await readJSON(context.request);
 
-    if (route === 'preview') {
-      return preview(context, body);
-    }
-
-    if (route === 'dry-run' || route === 'dry_run') {
-      return dryRun(context, body);
-    }
-
-    if (route === 'commit' || route === 'save') {
-      return commit(context, body);
-    }
+    if (route === 'preview') return preview(context, body);
+    if (route === 'dry-run' || route === 'dry_run') return dryRun(context, body);
+    if (route === 'commit' || route === 'save') return commit(context, body);
 
     return json({
       ok: false,
@@ -117,81 +105,165 @@ export async function onRequestPost(context) {
   }
 }
 
-/* ─────────────────────────────
- * Context
- * ───────────────────────────── */
+/* Context */
 
 async function getContext(context) {
   const db = context.env.DB;
 
-  const [accountsPayload, categoriesPayload, merchantsPayload, intlConfig] = await Promise.all([
-    internalGet(context, '/api/balances').catch(err => ({ ok: false, error: err.message })),
-    internalGet(context, '/api/categories').catch(err => ({ ok: false, error: err.message })),
-    getMerchants(db).catch(() => []),
-    getIntlConfig(db).catch(() => null)
+  const [accounts, categories, merchants, intlConfig, balancesPayload] = await Promise.all([
+    loadAccountsDirect(db),
+    loadCategoriesDirect(db),
+    loadMerchantsDirect(db),
+    getIntlConfig(db).catch(() => null),
+    internalGet(context, '/api/balances').catch(() => null)
   ]);
 
-  const accounts = normalizeAccounts(accountsPayload);
-  const categories = normalizeCategories(categoriesPayload);
+  const balanceMap = balancesPayload && balancesPayload.accounts && typeof balancesPayload.accounts === 'object'
+    ? balancesPayload.accounts
+    : {};
+
+  const enrichedAccounts = accounts.map(account => {
+    const balanceRow = balanceMap[account.id] || {};
+    return {
+      ...account,
+      balance: Number.isFinite(Number(balanceRow.balance))
+        ? Number(balanceRow.balance)
+        : Number(account.balance || account.opening_balance || 0),
+      current_balance: Number.isFinite(Number(balanceRow.balance))
+        ? Number(balanceRow.balance)
+        : Number(account.balance || account.opening_balance || 0)
+    };
+  });
 
   return json({
     ok: true,
     version: VERSION,
-    can_direct_write: accounts.length > 0 && categories.length > 0,
+    can_direct_write: enrichedAccounts.length > 0 && categories.length > 0,
     source_status: {
-      accounts: accounts.length ? 'ok' : 'failed',
+      accounts: enrichedAccounts.length ? 'ok' : 'failed',
       categories: categories.length ? 'ok' : 'failed',
-      merchants: merchantsPayload.length ? 'ok' : 'optional',
+      merchants: merchants.length ? 'ok' : 'optional',
       intl_rates: intlConfig ? 'ok' : 'optional'
     },
-    accounts,
+    accounts: enrichedAccounts,
     categories,
-    merchants: merchantsPayload,
+    merchants,
     intl_rate_config: intlConfig
   });
 }
 
-function normalizeAccounts(payload) {
-  if (!payload || payload.ok === false) return [];
+async function loadAccountsDirect(db) {
+  const cols = await tableColumns(db, 'accounts');
 
-  if (Array.isArray(payload.accounts)) {
-    return payload.accounts;
-  }
+  if (!cols.has('id')) return [];
 
-  if (payload.accounts && typeof payload.accounts === 'object') {
-    return Object.entries(payload.accounts).map(([id, account]) => ({
-      id,
-      ...(account || {})
-    }));
-  }
+  const wanted = [
+    'id',
+    'name',
+    'type',
+    'kind',
+    'currency',
+    'color',
+    'icon',
+    'opening_balance',
+    'credit_limit',
+    'status',
+    'display_order'
+  ].filter(col => cols.has(col));
 
-  return [];
+  const order = cols.has('display_order')
+    ? 'display_order, name, id'
+    : 'name, id';
+
+  const rows = await db.prepare(
+    `SELECT ${wanted.join(', ')}
+     FROM accounts
+     WHERE ${ACTIVE_ACCOUNT_WHERE}
+     ORDER BY ${order}`
+  ).all();
+
+  return (rows.results || []).map(row => ({
+    id: row.id,
+    name: row.name || row.id,
+    type: row.type || row.kind || 'asset',
+    kind: row.kind || row.type || 'account',
+    currency: row.currency || 'PKR',
+    color: row.color || null,
+    icon: row.icon || '',
+    opening_balance: Number(row.opening_balance || 0),
+    credit_limit: row.credit_limit == null ? null : Number(row.credit_limit),
+    balance: Number(row.opening_balance || 0),
+    current_balance: Number(row.opening_balance || 0),
+    status: row.status || 'active',
+    display_order: row.display_order == null ? 999 : Number(row.display_order)
+  }));
 }
 
-function normalizeCategories(payload) {
-  if (!payload || payload.ok === false) return [];
+async function loadCategoriesDirect(db) {
+  const cols = await tableColumns(db, 'categories');
 
-  if (Array.isArray(payload.categories)) {
-    return payload.categories;
-  }
+  if (!cols.has('id')) return [];
 
-  if (Array.isArray(payload.data)) {
-    return payload.data;
-  }
+  const wanted = [
+    'id',
+    'name',
+    'label',
+    'type',
+    'kind',
+    'status',
+    'display_order'
+  ].filter(col => cols.has(col));
 
-  if (payload.categories && typeof payload.categories === 'object') {
-    return Object.entries(payload.categories).map(([id, category]) => ({
-      id,
-      ...(category || {})
-    }));
-  }
+  const order = cols.has('display_order')
+    ? 'display_order, name, id'
+    : 'name, id';
 
-  return [];
+  const rows = await db.prepare(
+    `SELECT ${wanted.join(', ')}
+     FROM categories
+     ORDER BY ${order}`
+  ).all();
+
+  return (rows.results || []).map(row => ({
+    id: row.id,
+    name: row.name || row.label || row.id,
+    label: row.label || row.name || row.id,
+    type: row.type || row.kind || '',
+    kind: row.kind || row.type || '',
+    status: row.status || 'active',
+    display_order: row.display_order == null ? 999 : Number(row.display_order)
+  }));
 }
 
-/* ─────────────────────────────
- * Preview / Dry-run / Commit
- * ───────────────────────────── */
+async function loadMerchantsDirect(db) {
+  try {
+    const cols = await tableColumns(db, 'merchants');
+
+    if (!cols.has('id')) return [];
+
+    const wanted = [
+      'id',
+      'name',
+      'default_category_id',
+      'default_account_id',
+      'default_intl_pra',
+      'aliases'
+    ].filter(col => cols.has(col));
+
+    const rows = await db.prepare(
+      `SELECT ${wanted.join(', ')}
+       FROM merchants
+       ORDER BY name, id
+       LIMIT 500`
+    ).all();
+
+    return rows.results || [];
+  } catch {
+    return [];
+  }
+}
+
+/* Preview / Dry-run / Commit */
 
 async function preview(context, body) {
   const normalized = normalizeAddPayload(body);
@@ -252,9 +324,7 @@ async function dryRun(context, body) {
     });
   }
 
-  const txPayload = directTransactionPayload(normalized);
-
-  return internalPost(context, '/api/transactions?dry_run=1', txPayload);
+  return internalPost(context, '/api/transactions?dry_run=1', directTransactionPayload(normalized));
 }
 
 async function commit(context, body) {
@@ -277,16 +347,11 @@ async function commit(context, body) {
   }
 
   if (isInternationalMode(normalized)) {
-    return commitInternational(context, normalized, body, suppliedHash);
+    return commitInternational(context, normalized, suppliedHash);
   }
 
   const txPayload = {
     ...directTransactionPayload(normalized),
-
-    /* Critical v1.2.2 fix:
-     * Forward BOTH names because downstream transaction engine accepts either,
-     * while older add flows only sent one.
-     */
     dry_run_payload_hash: suppliedHash,
     payload_hash: suppliedHash
   };
@@ -307,9 +372,7 @@ async function commit(context, body) {
 }
 
 function normalizeWrittenResult(result) {
-  if (!result || typeof result !== 'object') {
-    return {};
-  }
+  if (!result || typeof result !== 'object') return {};
 
   if (Array.isArray(result.ids) && result.ids.length) {
     return {
@@ -329,15 +392,13 @@ function normalizeWrittenResult(result) {
   };
 }
 
-/* ─────────────────────────────
- * Direct transaction normalization
- * ───────────────────────────── */
+/* Direct payload */
 
 function normalizeAddPayload(body) {
   const uiMode = cleanText(body.ui_mode || body.mode || body.type, 'expense', 60);
   const type = normalizeMode(cleanText(body.mode || body.type || uiMode, 'expense', 60));
 
-  const payload = {
+  return {
     ui_mode: uiMode,
     type,
     date: normalizeDate(body.date),
@@ -364,8 +425,6 @@ function normalizeAddPayload(body) {
     bank_charge_override: body.bank_charge_override == null ? null : roundMoney(body.bank_charge_override),
     include_pra: body.include_pra === true || body.include_pra === 'true' || body.include_pra === '1'
   };
-
-  return payload;
 }
 
 function normalizeMode(value) {
@@ -411,16 +470,12 @@ function buildDirectNotes(payload) {
   return parts.join(' | ').slice(0, 240);
 }
 
-/* ─────────────────────────────
- * International package writer
- * ───────────────────────────── */
+/* International */
 
 async function buildIntlPreview(db, payload) {
   const cfg = await getIntlConfig(db);
 
-  if (!cfg) {
-    throw new Error('intl rate config unavailable');
-  }
+  if (!cfg) throw new Error('intl rate config unavailable');
 
   const subtype = payload.subtype === 'pkr_base' ? 'pkr_base' : 'foreign';
 
@@ -517,7 +572,7 @@ function compactPackageForHash(preview) {
   };
 }
 
-async function commitInternational(context, payload, body, suppliedHash) {
+async function commitInternational(context, payload, suppliedHash) {
   const db = context.env.DB;
   const preview = await buildIntlPreview(db, payload);
   const expectedHash = await hashPayload({
@@ -537,6 +592,7 @@ async function commitInternational(context, payload, body, suppliedHash) {
   }
 
   const account = await getAccount(db, payload.account_id);
+
   if (!account) {
     return json({
       ok: false,
@@ -640,9 +696,7 @@ function intlComponentLabel(componentName) {
   return String(componentName || 'COMPONENT').toUpperCase();
 }
 
-/* ─────────────────────────────
- * DB helpers
- * ───────────────────────────── */
+/* DB helpers */
 
 async function getIntlConfig(db) {
   const rows = await db.prepare(
@@ -669,35 +723,12 @@ async function getIntlConfig(db) {
   };
 }
 
-async function getMerchants(db) {
-  try {
-    const cols = await tableColumns(db, 'merchants');
-    if (!cols.has('id')) return [];
-
-    const wanted = ['id', 'name', 'default_category_id', 'default_account_id', 'default_intl_pra', 'aliases']
-      .filter(col => cols.has(col));
-
-    const rows = await db.prepare(
-      `SELECT ${wanted.join(', ')}
-       FROM merchants
-       ORDER BY name, id
-       LIMIT 500`
-    ).all();
-
-    return rows.results || [];
-  } catch {
-    return [];
-  }
-}
-
 async function getAccount(db, id) {
   return db.prepare(
     `SELECT *
      FROM accounts
      WHERE id = ?
-       AND (deleted_at IS NULL OR deleted_at = '')
-       AND (archived_at IS NULL OR archived_at = '')
-       AND (status IS NULL OR status = '' OR status = 'active')
+       AND ${ACTIVE_ACCOUNT_WHERE}
      LIMIT 1`
   ).bind(id).first();
 }
@@ -721,9 +752,7 @@ function filterColumns(columns, row) {
   const out = {};
 
   for (const [key, value] of Object.entries(row)) {
-    if (columns.has(key)) {
-      out[key] = value;
-    }
+    if (columns.has(key)) out[key] = value;
   }
 
   return out;
@@ -742,9 +771,7 @@ function insertStatement(db, table, row) {
   ).bind(...keys.map(key => row[key]));
 }
 
-/* ─────────────────────────────
- * Internal fetch helpers
- * ───────────────────────────── */
+/* Internal fetch */
 
 async function internalGet(context, path) {
   const url = new URL(context.request.url);
@@ -794,17 +821,12 @@ async function internalPost(context, path, body) {
   return payload;
 }
 
-/* ─────────────────────────────
- * Utility
- * ───────────────────────────── */
+/* Utility */
 
 function pathParts(context) {
   const raw = context.params && context.params.path;
 
-  if (Array.isArray(raw)) {
-    return raw.map(String).filter(Boolean);
-  }
-
+  if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
   if (!raw) return [];
 
   return String(raw).split('/').filter(Boolean);
@@ -897,9 +919,7 @@ async function hashPayload(value) {
 }
 
 function sortKeys(value) {
-  if (Array.isArray(value)) {
-    return value.map(sortKeys);
-  }
+  if (Array.isArray(value)) return value.map(sortKeys);
 
   if (value && typeof value === 'object') {
     return Object.keys(value).sort().reduce((acc, key) => {
