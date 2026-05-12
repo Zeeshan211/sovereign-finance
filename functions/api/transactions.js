@@ -1,17 +1,19 @@
 /* js/transactions.js
  * Sovereign Finance · Ledger Console
- * v0.8.3-ledger-loader-transfer-display-fix
+ * v0.8.4-ledger-loader-transfer-fix
  *
- * RCA fixed:
- * - Activity list failed with "HTTP 200" because loader/render path was brittle.
- * - This version tolerates API shape differences and DOM ID differences.
- * - Transfer linked pairs display one movement amount, not both legs summed.
+ * Fixes:
+ * - Confirms active JS version on-page.
+ * - Robustly loads /api/transactions.
+ * - Transfer linked pairs display one movement amount only.
+ * - International packages sum component rows.
+ * - Reversal/reversed rows are muted and blocked from reverse.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.8.3-ledger-loader-transfer-display-fix';
+  const VERSION = 'v0.8.4-ledger-loader-transfer-fix';
 
   const API_TRANSACTIONS = '/api/transactions?include_reversed=1&limit=500';
   const API_ACCOUNTS = '/api/add/context';
@@ -33,24 +35,6 @@
 
   const $ = id => document.getElementById(id);
 
-  function firstEl(ids) {
-    for (const id of ids) {
-      const el = $(id);
-      if (el) return el;
-    }
-    return null;
-  }
-
-  function setTextAny(ids, value) {
-    const el = firstEl(ids);
-    if (el) el.textContent = value == null ? '' : String(value);
-  }
-
-  function setHTMLAny(ids, value) {
-    const el = firstEl(ids);
-    if (el) el.innerHTML = value == null ? '' : String(value);
-  }
-
   function esc(value) {
     return String(value == null ? '' : value)
       .replace(/&/g, '&amp;')
@@ -60,7 +44,12 @@
       .replace(/'/g, '&#39;');
   }
 
-  function money(value, unsigned) {
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value == null ? '' : String(value);
+  }
+
+  function money(value, unsigned = false) {
     const n = Number(value || 0);
     const sign = !unsigned && n < 0 ? '-' : '';
 
@@ -142,10 +131,7 @@
     if (isReversedOriginal(row)) return 'Reversed original';
 
     const notes = String(row.notes || '').trim();
-
-    if (notes) return notes;
-
-    return typeLabel(row.type);
+    return notes || typeLabel(row.type);
   }
 
   async function fetchJSON(url) {
@@ -159,10 +145,9 @@
     const text = await response.text();
 
     let payload = null;
-
     try {
       payload = text ? JSON.parse(text) : null;
-    } catch (err) {
+    } catch {
       throw new Error(`Non-JSON response from ${url}: HTTP ${response.status}`);
     }
 
@@ -184,7 +169,7 @@
     if (Array.isArray(payload.transactions)) return payload.transactions;
     if (Array.isArray(payload.rows)) return payload.rows;
     if (Array.isArray(payload.data)) return payload.data;
-    if (payload.result && Array.isArray(payload.result)) return payload.result;
+    if (Array.isArray(payload.result)) return payload.result;
 
     return [];
   }
@@ -262,9 +247,9 @@
 
     const primary = choosePrimaryRow(group.type, rows);
     const amount = groupDisplayAmount(group.type, rows);
-    const inactive = rows.every(isInactive);
     const hasReversal = rows.some(isReversalRow);
     const hasReversedOriginal = rows.some(isReversedOriginal);
+    const inactive = rows.every(isInactive);
     const reverseEligible = rows.some(row => row.reverse_eligible === true && !isInactive(row));
 
     return {
@@ -451,17 +436,16 @@
       if (signed < 0) moneyOut += Math.abs(signed);
     }
 
-    setTextAny(['t_count', 'visibleCount', 'visibleItems'], String(items.length));
-    setTextAny(['moneyIn'], items.length ? money(moneyIn, true) : '—');
-    setTextAny(['moneyOut'], items.length ? money(moneyOut, true) : '—');
-    setTextAny(['netMovement'], items.length ? money(moneyIn - moneyOut) : '—');
-    setTextAny(['reverseEligible'], items.length ? String(reverseEligible) : '—');
-    setTextAny(['t_reversed'], `${state.rows.filter(isReversalRow).length} hidden reversal rows.`);
+    setText('visibleItems', String(items.length));
+    setText('moneyIn', items.length ? money(moneyIn, true) : '—');
+    setText('moneyOut', items.length ? money(moneyOut, true) : '—');
+    setText('netMovement', items.length ? money(moneyIn - moneyOut) : '—');
+    setText('reverseEligible', items.length ? String(reverseEligible) : '—');
+    setText('t_reversed', `${state.rows.filter(isReversalRow).length} hidden reversal rows.`);
   }
 
   function renderList() {
-    const container = firstEl(['txn-list', 'activityList', 'ledger-list', 'transactionsList']);
-
+    const container = $('txn-list');
     if (!container) return;
 
     const view = state.filters.view || 'grouped';
@@ -639,7 +623,7 @@
 
   function showDetail(id) {
     const row = state.rows.find(item => item.id === id);
-    const panel = firstEl(['detailPanel', 'selectedDetail', 'auditDetail']);
+    const panel = $('detailPanel');
 
     if (!panel || !row) return;
 
@@ -647,7 +631,7 @@
   }
 
   function openReversePanel(id) {
-    const panel = firstEl(['reversePanel', 'reverse-panel']);
+    const panel = $('reversePanel');
 
     if (!panel) {
       toast('Reverse panel missing on page.', 'error');
@@ -704,7 +688,7 @@
   }
 
   function closeReversePanel() {
-    const panel = firstEl(['reversePanel', 'reverse-panel']);
+    const panel = $('reversePanel');
     if (!panel) return;
 
     panel.hidden = true;
@@ -790,7 +774,7 @@
   }
 
   function renderAccountsFilter() {
-    const select = firstEl(['accountFilter', 'filter_account', 'account-filter']);
+    const select = $('accountFilter');
     if (!select) return;
 
     const current = select.value;
@@ -805,32 +789,32 @@
   }
 
   function bindFilters() {
-    firstEl(['searchInput', 'filter_search', 'search'])?.addEventListener('input', event => {
+    $('searchInput')?.addEventListener('input', event => {
       state.filters.search = event.target.value.trim();
       renderList();
     });
 
-    firstEl(['accountFilter', 'filter_account', 'account-filter'])?.addEventListener('change', event => {
+    $('accountFilter')?.addEventListener('change', event => {
       state.filters.account = event.target.value;
       renderList();
     });
 
-    firstEl(['typeFilter', 'filter_type', 'type-filter'])?.addEventListener('change', event => {
+    $('typeFilter')?.addEventListener('change', event => {
       state.filters.type = event.target.value;
       renderList();
     });
 
-    firstEl(['statusFilter', 'filter_status', 'status-filter'])?.addEventListener('change', event => {
+    $('statusFilter')?.addEventListener('change', event => {
       state.filters.status = event.target.value;
       renderList();
     });
 
-    firstEl(['filter_view', 'viewFilter', 'view-filter'])?.addEventListener('change', event => {
+    $('filter_view')?.addEventListener('change', event => {
       state.filters.view = event.target.value || 'grouped';
       renderList();
     });
 
-    firstEl(['refresh_btn', 'refreshBtn', 'refresh-ledger'])?.addEventListener('click', loadAll);
+    $('refresh_btn')?.addEventListener('click', loadAll);
   }
 
   async function loadAccounts() {
@@ -849,6 +833,8 @@
     } catch {
       state.accounts = new Map();
     }
+
+    renderAccountsFilter();
   }
 
   async function loadTransactions() {
@@ -876,28 +862,28 @@
       const detail = health.summary ||
         `active ${health.active_count ?? health.active ?? '—'} · reversals ${health.reversal_count ?? health.reversals ?? '—'} · orphan links ${health.orphan_link_count ?? health.orphan_links ?? '—'}`;
 
-      setTextAny(['ledgerHealth', 'healthStatus'], `Health${status ? status : ''}`);
-      setTextAny(['healthDetail'], detail);
+      setText('ledgerHealth', `Health ${status}`);
+      setText('healthStatus', status);
+      setText('healthDetail', detail);
     } catch {
-      setTextAny(['ledgerHealth', 'healthStatus'], 'Ledger loaded');
-      setTextAny(['healthDetail'], `${state.rows.length} rows loaded. Health endpoint unavailable.`);
+      setText('ledgerHealth', 'Ledger loaded');
+      setText('healthStatus', 'Unknown');
+      setText('healthDetail', `${state.rows.length} rows loaded. Health endpoint unavailable.`);
     }
   }
 
   async function loadAll() {
-    const container = firstEl(['txn-list', 'activityList', 'ledger-list', 'transactionsList']);
+    const container = $('txn-list');
 
     try {
-      setTextAny(['ledgerHealth'], 'Loading ledger…');
-      setTextAny(['healthDetail'], 'Reading backend ledger rows.');
+      setText('ledgerHealth', 'Loading ledger…');
+      setText('healthDetail', 'Reading backend ledger rows.');
 
       if (container) {
         container.innerHTML = '<div class="ledger-empty">Loading ledger rows…</div>';
       }
 
       await loadAccounts();
-      renderAccountsFilter();
-
       await loadTransactions();
       await loadHealth();
 
@@ -907,8 +893,9 @@
         container.innerHTML = `<div class="ledger-empty">Failed: ${esc(err.message)}</div>`;
       }
 
-      setTextAny(['ledgerHealth'], 'Ledger failed');
-      setTextAny(['healthDetail'], err.message);
+      setText('ledgerHealth', 'Ledger failed');
+      setText('healthStatus', 'Failed');
+      setText('healthDetail', err.message);
       renderMetrics([]);
     }
   }
@@ -938,11 +925,6 @@
     const style = document.createElement('style');
     style.id = 'ledger-console-style';
     style.textContent = `
-      .ledger-console-list {
-        display: grid;
-        gap: 12px;
-      }
-
       .ledger-row,
       .ledger-group-card {
         border: 1px solid var(--sf-border-subtle);
@@ -1002,17 +984,9 @@
         white-space: nowrap;
       }
 
-      .ledger-amount.positive {
-        color: var(--sf-positive);
-      }
-
-      .ledger-amount.negative {
-        color: var(--sf-danger);
-      }
-
-      .ledger-amount.neutral {
-        color: var(--sf-text-soft);
-      }
+      .ledger-amount.positive { color: var(--sf-positive); }
+      .ledger-amount.negative { color: var(--sf-danger); }
+      .ledger-amount.neutral { color: var(--sf-text-soft); }
 
       .ledger-tags {
         display: flex;
@@ -1099,25 +1073,6 @@
         font-size: 12px;
       }
 
-      .ledger-empty,
-      .empty-state-inline {
-        border: 1px dashed var(--sf-border);
-        border-radius: 18px;
-        padding: 20px;
-        color: var(--sf-text-muted);
-        background: var(--sf-surface-1);
-      }
-
-      .ledger-detail-pre {
-        white-space: pre-wrap;
-        overflow: auto;
-        max-height: 480px;
-        border-radius: 16px;
-        padding: 14px;
-        background: var(--sf-surface-2);
-        color: var(--sf-text-muted);
-      }
-
       .ledger-reverse-panel {
         display: grid;
         gap: 14px;
@@ -1200,6 +1155,9 @@
   }
 
   function init() {
+    setText('ledgerJsVersion', VERSION);
+    setText('ledgerFooterVersion', `v0.8.4 · transactions · ${VERSION}`);
+
     injectStyles();
     bindFilters();
     loadAll();
