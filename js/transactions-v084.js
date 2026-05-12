@@ -1,19 +1,19 @@
 /* js/transactions-v084.js
  * Sovereign Finance · Ledger Console
- * v0.8.7-card-title-class-isolation
+ * v0.8.8-ledger-renderer-style-restored
  *
- * Fix:
- * - Card titles no longer use .ledger-title.
- * - .ledger-title remains reserved for the page hero heading.
- * - Ledger cards now use .ledger-card-title with scoped renderer styling.
- * - Keeps transfer pair amount display as one leg only.
+ * Fixes:
+ * - Restores scoped ledger card/button styling.
+ * - Keeps card title isolated from page hero .ledger-title.
+ * - Keeps transfer pair amount as one leg only.
  * - Keeps shortened note titles.
+ * - Does not touch backend.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.8.7-card-title-class-isolation';
+  const VERSION = 'v0.8.8-ledger-renderer-style-restored';
 
   const API_TRANSACTIONS = '/api/transactions?include_reversed=1&limit=500';
   const API_ACCOUNTS = '/api/add/context';
@@ -105,6 +105,7 @@
   function accountLabel(id) {
     const account = state.accounts.get(String(id || ''));
     if (!account) return id || '—';
+
     return `${account.icon || ''} ${account.name || account.id || id}`.trim();
   }
 
@@ -163,9 +164,7 @@
   async function fetchJSON(url) {
     const response = await fetch(url, {
       cache: 'no-store',
-      headers: {
-        Accept: 'application/json'
-      }
+      headers: { Accept: 'application/json' }
     });
 
     const text = await response.text();
@@ -252,10 +251,12 @@
       .sort((a, b) => {
         const ad = String(a.date || '');
         const bd = String(b.date || '');
+
         if (ad !== bd) return bd.localeCompare(ad);
 
         const ac = String(a.created_at || '');
         const bc = String(b.created_at || '');
+
         if (ac !== bc) return bc.localeCompare(ac);
 
         return String(b.key).localeCompare(String(a.key));
@@ -266,7 +267,9 @@
     const rows = group.rows.slice().sort((a, b) => {
       const ac = String(a.created_at || '');
       const bc = String(b.created_at || '');
+
       if (ac !== bc) return bc.localeCompare(ac);
+
       return String(b.id).localeCompare(String(a.id));
     });
 
@@ -523,7 +526,7 @@
         <div class="ledger-main-line">
           <div class="ledger-icon">${groupIcon(group)}</div>
 
-          <div>
+          <div class="ledger-copy-block">
             <div class="ledger-card-title">${esc(groupTitle(group))}</div>
             <div class="ledger-sub">${esc(groupSubtitle(group))}</div>
           </div>
@@ -578,7 +581,7 @@
         <div class="ledger-main-line">
           <div class="ledger-icon">${groupIcon({ type: 'single', primary: row })}</div>
 
-          <div>
+          <div class="ledger-copy-block">
             <div class="ledger-card-title">${esc(rowTitle(row))}</div>
             <div class="ledger-sub">${esc(row.date || '—')} · ${esc(accountLabel(row.account_id))} · ${esc(typeLabel(row.type))} · ${esc(shortId(row.id))}</div>
           </div>
@@ -943,11 +946,49 @@
   }
 
   function injectStyles() {
-    if ($('ledger-card-title-style')) return;
+    if ($('ledger-renderer-style')) return;
 
     const style = document.createElement('style');
-    style.id = 'ledger-card-title-style';
+    style.id = 'ledger-renderer-style';
     style.textContent = `
+      .ledger-row,
+      .ledger-group-card {
+        border: 1px solid var(--sf-border-subtle);
+        border-radius: 18px;
+        background: var(--sf-surface-1);
+        padding: 14px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .ledger-row.is-voided,
+      .ledger-group-card.is-voided {
+        opacity: .62;
+        border-style: dashed;
+      }
+
+      .ledger-main-line {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .ledger-copy-block {
+        min-width: 0;
+      }
+
+      .ledger-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: var(--sf-accent-soft);
+        color: var(--sf-accent-strong);
+        font-weight: 900;
+      }
+
       .ledger-card-title {
         color: var(--sf-text);
         font-size: 14px;
@@ -958,6 +999,230 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+
+      .ledger-sub {
+        margin-top: 4px;
+        color: var(--sf-text-muted);
+        font-size: 12px;
+        line-height: 1.35;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .ledger-amount {
+        color: var(--sf-text);
+        text-align: right;
+        font-size: 15px;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .ledger-amount.positive {
+        color: var(--sf-positive);
+      }
+
+      .ledger-amount.negative {
+        color: var(--sf-danger);
+      }
+
+      .ledger-amount.neutral {
+        color: var(--sf-text-soft);
+      }
+
+      .ledger-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .ledger-tag {
+        border: 1px solid var(--sf-border-subtle);
+        border-radius: 999px;
+        background: var(--sf-surface-2);
+        color: var(--sf-text-muted);
+        padding: 4px 8px;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .ledger-tag.good {
+        background: var(--sf-positive-soft);
+        color: var(--sf-positive);
+        border-color: rgba(83, 215, 167, .28);
+      }
+
+      .ledger-tag.warn {
+        background: var(--sf-warning-soft);
+        color: var(--sf-warning);
+        border-color: rgba(241, 184, 87, .28);
+      }
+
+      .ledger-tag.danger {
+        background: var(--sf-danger-soft);
+        color: var(--sf-danger);
+        border-color: rgba(255, 127, 138, .28);
+      }
+
+      .ledger-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .ledger-action {
+        border: 1px solid var(--sf-border);
+        border-radius: 999px;
+        background: var(--sf-surface-2);
+        color: var(--sf-text-soft);
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .ledger-action.reverse {
+        background: var(--sf-danger-soft);
+        color: var(--sf-danger);
+        border-color: rgba(255, 127, 138, .28);
+      }
+
+      .ledger-action:disabled {
+        opacity: .45;
+        cursor: not-allowed;
+      }
+
+      .ledger-children {
+        display: none;
+        border-top: 1px solid var(--sf-border-subtle);
+        padding-top: 10px;
+        gap: 8px;
+      }
+
+      .ledger-group-card.is-open .ledger-children {
+        display: grid;
+      }
+
+      .ledger-child-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: var(--sf-surface-2);
+        color: var(--sf-text-muted);
+        font-size: 12px;
+      }
+
+      .ledger-detail-pre {
+        white-space: pre-wrap;
+        overflow: auto;
+        max-height: 480px;
+        border-radius: 16px;
+        padding: 14px;
+        background: var(--sf-surface-2);
+        color: var(--sf-text-muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .ledger-reverse-panel {
+        display: grid;
+        gap: 14px;
+      }
+
+      .ledger-reverse-target {
+        border: 1px solid var(--sf-border-subtle);
+        border-radius: 16px;
+        background: var(--sf-surface-1);
+        padding: 14px;
+      }
+
+      .ledger-reverse-title {
+        color: var(--sf-text);
+        font-size: 16px;
+        font-weight: 950;
+      }
+
+      .ledger-reverse-meta {
+        margin-top: 6px;
+        color: var(--sf-text-muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .ledger-reverse-textarea {
+        width: 100%;
+        min-height: 96px;
+        border: 1px solid var(--sf-border);
+        border-radius: 16px;
+        background: var(--sf-surface-1);
+        color: var(--sf-text);
+        padding: 12px 13px;
+        font: inherit;
+        resize: vertical;
+        outline: none;
+      }
+
+      .ledger-reverse-error {
+        color: var(--sf-danger);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .toast {
+        position: fixed;
+        right: 18px;
+        bottom: 18px;
+        z-index: 9999;
+        transform: translateY(18px);
+        opacity: 0;
+        pointer-events: none;
+        transition: .2s ease;
+        border: 1px solid var(--sf-border);
+        border-radius: 16px;
+        padding: 12px 14px;
+        background: var(--sf-card-strong);
+        color: var(--sf-text);
+        box-shadow: var(--sf-shadow-md);
+        font-weight: 800;
+      }
+
+      .toast.show {
+        transform: translateY(0);
+        opacity: 1;
+      }
+
+      .toast-error {
+        color: var(--sf-danger);
+        border-color: rgba(255, 127, 138, .35);
+      }
+
+      .toast-success {
+        color: var(--sf-positive);
+        border-color: rgba(83, 215, 167, .35);
+      }
+
+      @media (max-width: 760px) {
+        .ledger-main-line {
+          grid-template-columns: 38px minmax(0, 1fr);
+        }
+
+        .ledger-amount {
+          grid-column: 2;
+          text-align: left;
+        }
+
+        .ledger-actions {
+          justify-content: stretch;
+        }
+
+        .ledger-action {
+          flex: 1;
+        }
+      }
     `;
 
     document.head.appendChild(style);
@@ -967,7 +1232,7 @@
     injectStyles();
 
     setText('ledgerJsVersion', VERSION);
-    setText('ledgerFooterVersion', `v0.8.7 · transactions · ${VERSION}`);
+    setText('ledgerFooterVersion', `v0.8.8 · transactions · ${VERSION}`);
 
     bindFilters();
     loadAll();
