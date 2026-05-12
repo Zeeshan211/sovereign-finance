@@ -1,813 +1,359 @@
-<!doctype html>
-<html lang="en" data-theme="midnight" data-page="hub">
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Hub · Sovereign Finance</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-  <link rel="stylesheet" href="/css/app.css" />
-  <link rel="stylesheet" href="/css/sf-theme.css" />
-  <link rel="stylesheet" href="/css/sf-shell.css" />
+  <title>Finance Hub · Sovereign Finance</title>
 
-  <style>
-    .hub-layout {
-      display: grid;
-      gap: var(--sf-space-6);
-    }
-
-    .hub-grid {
-      display: grid;
-      grid-template-columns: repeat(12, minmax(0, 1fr));
-      gap: var(--sf-space-6);
-    }
-
-    .hub-col-main {
-      grid-column: span 8;
-      display: grid;
-      gap: var(--sf-space-6);
-      min-width: 0;
-    }
-
-    .hub-col-side {
-      grid-column: span 4;
-      display: grid;
-      gap: var(--sf-space-6);
-      min-width: 0;
-    }
-
-    .hub-action-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: var(--sf-space-4);
-    }
-
-    .hub-action-card {
-      display: grid;
-      gap: var(--sf-space-2);
-      min-height: 112px;
-      padding: var(--sf-space-5);
-      border-radius: var(--sf-radius-lg);
-      border: 1px solid var(--sf-border);
-      background: linear-gradient(180deg, var(--sf-surface-2), var(--sf-surface-1));
-      text-decoration: none;
-      color: inherit;
-      box-shadow: var(--sf-shadow-sm);
-      transition: transform var(--sf-duration-fast) var(--sf-ease), border-color var(--sf-duration-fast) var(--sf-ease);
-    }
-
-    .hub-action-card:hover,
-    .hub-action-card:focus-visible {
-      transform: translateY(-2px);
-      border-color: var(--sf-border-strong);
-      outline: none;
-    }
-
-    .hub-action-kicker {
-      color: var(--sf-text-faint);
-      font-size: var(--sf-font-11);
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .hub-action-title {
-      color: var(--sf-text);
-      font-size: var(--sf-font-16);
-      font-weight: 900;
-      line-height: 1.2;
-    }
-
-    .hub-action-subtitle {
-      color: var(--sf-text-muted);
-      font-size: var(--sf-font-13);
-      line-height: 1.45;
-    }
-
-    .hub-pressure-strip {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: var(--sf-space-4);
-    }
-
-    .hub-mini-card {
-      padding: var(--sf-space-4);
-      border-radius: var(--sf-radius-md);
-      border: 1px solid var(--sf-border-subtle);
-      background: var(--sf-surface-1);
-    }
-
-    .hub-mini-label {
-      color: var(--sf-text-faint);
-      font-size: var(--sf-font-11);
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: var(--sf-space-2);
-    }
-
-    .hub-mini-value {
-      color: var(--sf-text);
-      font-size: var(--sf-font-18);
-      font-weight: 900;
-      line-height: 1.1;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .hub-mini-value.positive { color: var(--sf-positive); }
-    .hub-mini-value.warning { color: var(--sf-warning); }
-    .hub-mini-value.danger { color: var(--sf-danger); }
-
-    .hub-list {
-      display: grid;
-      gap: 0;
-    }
-
-    .hub-list-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: var(--sf-space-4);
-      align-items: center;
-      padding: 14px 0;
-      border-bottom: 1px solid var(--sf-border-subtle);
-    }
-
-    .hub-list-row:last-child {
-      border-bottom: 0;
-      padding-bottom: 0;
-    }
-
-    .hub-list-title {
-      color: var(--sf-text);
-      font-weight: 900;
-      line-height: 1.25;
-      overflow-wrap: anywhere;
-    }
-
-    .hub-list-meta {
-      color: var(--sf-text-muted);
-      font-size: var(--sf-font-13);
-      margin-top: 4px;
-      line-height: 1.45;
-      overflow-wrap: anywhere;
-    }
-
-    .hub-list-value {
-      color: var(--sf-text);
-      font-weight: 900;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
-      overflow-wrap: anywhere;
-    }
-
-    .hub-balance-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: var(--sf-space-4);
-    }
-
-    .hub-balance-card {
-      padding: var(--sf-space-5);
-      border-radius: var(--sf-radius-md);
-      border: 1px solid var(--sf-border-subtle);
-      background: var(--sf-surface-1);
-    }
-
-    .hub-balance-name {
-      color: var(--sf-text);
-      font-size: var(--sf-font-14);
-      font-weight: 900;
-      line-height: 1.2;
-    }
-
-    .hub-balance-meta {
-      color: var(--sf-text-faint);
-      font-size: var(--sf-font-11);
-      margin-top: var(--sf-space-2);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      font-weight: 800;
-    }
-
-    .hub-balance-value {
-      margin-top: var(--sf-space-4);
-      color: var(--sf-text);
-      font-size: var(--sf-font-24);
-      font-weight: 900;
-      line-height: 1;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .hub-state-line {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--sf-space-3);
-      align-items: center;
-    }
-
-    .hub-empty {
-      display: grid;
-      place-items: center;
-      min-height: 140px;
-      text-align: center;
-      color: var(--sf-text-muted);
-      border: 1px dashed var(--sf-border);
-      border-radius: var(--sf-radius-md);
-      background: var(--sf-surface-1);
-      padding: var(--sf-space-5);
-    }
-
-    .hub-debug-pre {
-      white-space: pre-wrap;
-      overflow-x: auto;
-      max-height: 420px;
-      font-size: 12px;
-      line-height: 1.5;
-      color: var(--sf-text-muted);
-      background: var(--sf-surface-1);
-      border-radius: var(--sf-radius-md);
-      padding: var(--sf-space-4);
-      border: 1px solid var(--sf-border-subtle);
-    }
-
-    @media (max-width: 1100px) {
-      .hub-col-main,
-      .hub-col-side {
-        grid-column: span 12;
-      }
-
-      .hub-pressure-strip {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 720px) {
-      .hub-pressure-strip {
-        grid-template-columns: 1fr;
-      }
-
-      .hub-list-row {
-        grid-template-columns: 1fr;
-      }
-
-      .hub-list-value {
-        text-align: left;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="hub-layout">
-    <main class="hub-grid">
-      <section class="hub-col-main">
-        <section class="sf-panel sf-panel--accent">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Daily pressure</p>
-              <h2 class="sf-section-title">Money position</h2>
-              <p class="sf-section-subtitle">Fast read of current pressure, forecast, and immediate actions.</p>
-            </div>
-            <div class="hub-state-line">
-              <span id="hubStatePill" class="sf-pill">Loading</span>
-              <span id="hubRefreshed" class="sf-pill">Last refreshed: —</span>
-            </div>
-          </div>
-
-          <div class="hub-pressure-strip">
-            <div class="hub-mini-card">
-              <div class="hub-mini-label">Bills remaining</div>
-              <div id="miniBills" class="hub-mini-value">—</div>
-            </div>
-            <div class="hub-mini-card">
-              <div class="hub-mini-label">Debt payable</div>
-              <div id="miniDebt" class="hub-mini-value">—</div>
-            </div>
-            <div class="hub-mini-card">
-              <div class="hub-mini-label">Receivables</div>
-              <div id="miniReceivables" class="hub-mini-value">—</div>
-            </div>
-            <div class="hub-mini-card">
-              <div class="hub-mini-label">CC outstanding</div>
-              <div id="miniCc" class="hub-mini-value">—</div>
-            </div>
-          </div>
-        </section>
-
-        <section class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Accounts</p>
-              <h2 class="sf-section-title">Current balances</h2>
-              <p class="sf-section-subtitle">Source account balances shown for daily review.</p>
-            </div>
-          </div>
-          <div id="accountsGrid" class="hub-balance-grid">
-            <div class="hub-empty">Loading accounts</div>
-          </div>
-        </section>
-
-        <section class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Bills</p>
-              <h2 class="sf-section-title">Upcoming obligations</h2>
-              <p class="sf-section-subtitle">Active bills and monthly pressure.</p>
-            </div>
-          </div>
-          <div id="billsList" class="hub-list">
-            <div class="hub-empty">Loading bills</div>
-          </div>
-        </section>
-
-        <section class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Quick actions</p>
-              <h2 class="sf-section-title">Move fast</h2>
-              <p class="sf-section-subtitle">Core pages only. No submenu drift.</p>
-            </div>
-          </div>
-          <div class="hub-action-grid">
-            <a class="hub-action-card" href="/add.html">
-              <div class="hub-action-kicker">Write</div>
-              <div class="hub-action-title">Add Transaction</div>
-              <div class="hub-action-subtitle">Open the guarded transaction flow.</div>
-            </a>
-            <a class="hub-action-card" href="/bills.html">
-              <div class="hub-action-kicker">Bills</div>
-              <div class="hub-action-title">Manage Bills</div>
-              <div class="hub-action-subtitle">Review due items and payments.</div>
-            </a>
-            <a class="hub-action-card" href="/debts.html">
-              <div class="hub-action-kicker">Debts</div>
-              <div class="hub-action-title">Open Debts</div>
-              <div class="hub-action-subtitle">Track payable and receivable pressure.</div>
-            </a>
-            <a class="hub-action-card" href="/salary.html">
-              <div class="hub-action-kicker">Salary</div>
-              <div class="hub-action-title">Update Salary</div>
-              <div class="hub-action-subtitle">Review salary truth and forecast inputs.</div>
-            </a>
-            <a class="hub-action-card" href="/forecast.html">
-              <div class="hub-action-kicker">Forecast</div>
-              <div class="hub-action-title">Open Forecast</div>
-              <div class="hub-action-subtitle">Check projection, timeline, and debt-free path.</div>
-            </a>
-            <a class="hub-action-card" href="/cc.html">
-              <div class="hub-action-kicker">Credit card</div>
-              <div class="hub-action-title">Open Credit Card</div>
-              <div class="hub-action-subtitle">Review outstanding, due, and card state.</div>
-            </a>
-          </div>
-        </section>
-      </section>
-
-      <aside class="hub-col-side">
-        <section class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Debt pressure</p>
-              <h2 class="sf-section-title">Outstanding records</h2>
-              <p class="sf-section-subtitle">Active debt and receivable snapshot.</p>
-            </div>
-          </div>
-          <div id="debtsList" class="hub-list">
-            <div class="hub-empty">Loading debts</div>
-          </div>
-        </section>
-
-        <section class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Forecast</p>
-              <h2 class="sf-section-title">Ending position</h2>
-              <p class="sf-section-subtitle">Read-only snapshot from the forecast brain.</p>
-            </div>
-          </div>
-          <div id="forecastSummary" class="hub-list">
-            <div class="hub-empty">Loading forecast</div>
-          </div>
-        </section>
-
-        <section class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">System</p>
-              <h2 class="sf-section-title">Source status</h2>
-              <p class="sf-section-subtitle">Current source read state only.</p>
-            </div>
-          </div>
-          <div id="sourcesList" class="hub-list">
-            <div class="hub-empty">Loading system</div>
-          </div>
-        </section>
-
-        <section id="hubDebugPanel" class="sf-debug-panel sf-debug-only" hidden>
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Debug</p>
-              <h2 class="sf-section-title">Hub raw load</h2>
-            </div>
-          </div>
-          <pre id="hubDebugOutput" class="hub-debug-pre"></pre>
-        </section>
-      </aside>
-    </main>
-  </div>
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
 
   <script>
     window.SF_PAGE = {
-      title: "Hub",
-      eyebrow: "Daily cockpit",
-      subtitle: "Your money position, clean and current. View accounts, bills, debts, salary, and forecast from one fast daily dashboard.",
+      title: "Finance Hub",
+      eyebrow: "Sovereign Finance",
+      subtitle: "Read-only finance command surface. Top truth comes from /api/balances and forecast pressure comes from /api/forecast.",
       actions: [
-        { label: "Add Transaction", href: "/add.html", primary: true },
-        { label: "Manage Bills", href: "/bills.html" },
-        { label: "Open Forecast", href: "/forecast.html" }
+        { label: "Add", href: "/add.html", primary: true },
+        { label: "Reconciliation", href: "/reconciliation.html" },
+        { label: "Monthly Close", href: "/monthly-close.html" },
+        { label: "Forecast", href: "/forecast.html" }
       ],
       kpis: [
         {
-          kicker: "Liquid",
-          title: "Accounts balance",
-          valueHtml: "<span id=\"kpiLiquid\">—</span>",
-          subtitleHtml: "<span id=\"kpiLiquidSub\">Current liquid position.</span>",
-          accent: true
+          title: "Liquid",
+          kicker: "Balances API",
+          value: "Loading",
+          subtitle: "From /api/balances",
+          foot: "No frontend rebuild"
         },
         {
-          kicker: "Bills",
-          title: "Monthly bills",
-          valueHtml: "<span id=\"kpiBills\">—</span>",
-          subtitleHtml: "<span id=\"kpiBillsSub\">Remaining this month.</span>",
-          tone: "warning"
+          title: "Net Worth",
+          kicker: "Balances API",
+          value: "Loading",
+          subtitle: "Formula-layer truth",
+          foot: "No local fallback"
         },
         {
-          kicker: "Debt",
-          title: "Debt outstanding",
-          valueHtml: "<span id=\"kpiDebt\">—</span>",
-          subtitleHtml: "<span id=\"kpiDebtSub\">Payable side pressure.</span>",
-          tone: "danger"
+          title: "True Burden",
+          kicker: "Balances API",
+          value: "Loading",
+          subtitle: "Debt + receivable pressure",
+          foot: "Canonical top metric"
         },
         {
-          kicker: "Forecast",
-          title: "Forecast ending",
-          valueHtml: "<span id=\"kpiForecast\">—</span>",
-          subtitleHtml: "<span id=\"kpiForecastSub\">Projected ending liquid.</span>"
+          title: "Forecast",
+          kicker: "Forecast API",
+          value: "Loading",
+          subtitle: "Runway and safety view",
+          foot: "From /api/forecast"
         }
       ]
     };
   </script>
 
-  <script src="/js/theme.js"></script>
-  <script src="/js/nav.js"></script>
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
-  <script src="/js/sf-charts-system.js"></script>
+</head>
 
-  <script>
-    (function () {
-      "use strict";
+<body>
+  <section class="sf-panel-grid" aria-label="Finance hub workspace">
+    <section class="sf-panel sf-span-12" aria-labelledby="hub-source-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Source Status</p>
+          <h2 id="hub-source-title" class="sf-section-title">Finance Truth Sources</h2>
+          <p class="sf-section-subtitle">
+            Hub is read-only. It summarizes finance state from existing APIs and routes actions to owning pages.
+          </p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="hub-source-status" class="sf-pill">Loading</span>
+          <span class="sf-pill sf-pill--info">Read-only</span>
+        </div>
+      </div>
 
-      const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
-      const VERSION = "hub-shell-v3b";
-      const $ = (id) => document.getElementById(id);
-
-      function num(value) {
-        if (typeof value === "number" && Number.isFinite(value)) return value;
-        if (typeof value === "string") {
-          const parsed = Number(value.replace(/[^\d.-]/g, ""));
-          if (Number.isFinite(parsed)) return parsed;
-        }
-        return null;
-      }
-
-      function money(value) {
-        const parsed = num(value);
-        if (parsed === null) return "—";
-        return new Intl.NumberFormat("en-PK", {
-          style: "currency",
-          currency: "PKR",
-          maximumFractionDigits: 2
-        }).format(parsed).replace(/^PKR\s?/, "Rs ");
-      }
-
-      function text(value, fallback) {
-        if (value === null || value === undefined || value === "") return fallback || "—";
-        return String(value);
-      }
-
-      function escapeHtml(value) {
-        return String(value ?? "")
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#039;");
-      }
-
-      function firstNumber() {
-        for (const value of arguments) {
-          const parsed = num(value);
-          if (parsed !== null) return parsed;
-        }
-        return null;
-      }
-
-      function endpointRows(payload, keys) {
-        for (const key of keys) {
-          const value = payload && payload[key];
-          if (Array.isArray(value)) return value;
-        }
-        return [];
-      }
-
-      function endpointObject(payload, keys) {
-        for (const key of keys) {
-          const value = payload && payload[key];
-          if (value && typeof value === "object" && !Array.isArray(value)) return value;
-        }
-        return {};
-      }
-
-      async function fetchJSON(url) {
-        const res = await fetch(url, { cache: "no-store", headers: { accept: "application/json" } });
-        const payload = await res.json().catch(() => null);
-        if (!res.ok || !payload || payload.ok === false) {
-          throw new Error((payload && payload.error) || ("HTTP " + res.status));
-        }
-        return payload;
-      }
-
-      function rowHtml(title, meta, value) {
-        return `
-          <div class="hub-list-row">
-            <div>
-              <div class="hub-list-title">${escapeHtml(title)}</div>
-              <div class="hub-list-meta">${escapeHtml(meta)}</div>
-            </div>
-            <div class="hub-list-value">${escapeHtml(value)}</div>
+      <div class="sf-secondary-grid">
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Balances</div>
+            <div class="sf-row-subtitle">Liquid, net worth, true burden, CC outstanding</div>
           </div>
-        `;
-      }
+          <div id="hub-balances-status" class="sf-row-right">Loading</div>
+        </div>
 
-      function setPill(status) {
-        const pill = $("hubStatePill");
-        pill.className = "sf-pill";
-        const s = String(status || "").toLowerCase();
-        if (s === "safe") pill.classList.add("sf-pill--positive");
-        else if (s === "watch") pill.classList.add("sf-pill--warning");
-        else if (s === "danger" || s === "crisis") pill.classList.add("sf-pill--danger");
-        else pill.classList.add("sf-pill--info");
-        pill.textContent = text(status, "Unknown").toUpperCase();
-      }
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Forecast</div>
+            <div class="sf-row-subtitle">Runway, safety pressure, projected cash movement</div>
+          </div>
+          <div id="hub-forecast-status" class="sf-row-right">Loading</div>
+        </div>
 
-      function setMiniTone(id, value, kind) {
-        const el = $(id);
-        el.classList.remove("positive", "warning", "danger");
-        if (kind) el.classList.add(kind);
-        el.textContent = money(value);
-      }
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Ledger</div>
+            <div class="sf-row-subtitle">Recent non-reversed transactions</div>
+          </div>
+          <div id="hub-transactions-status" class="sf-row-right">Loading</div>
+        </div>
 
-      function renderAccounts(balancesPayload) {
-        const accountsObj = endpointObject(balancesPayload, ["accounts", "by_account", "account_balances"]);
-        const entries = Object.entries(accountsObj)
-          .map(([id, account]) => ({
-            id,
-            name: account && (account.name || account.label || account.account_name || id),
-            type: account && (account.type || account.category || "account"),
-            balance: firstNumber(account && (account.balance ?? account.current_balance ?? account.amount))
-          }))
-          .filter((item) => item.balance !== null)
-          .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Obligations</div>
+            <div class="sf-row-subtitle">Bills and debt pressure</div>
+          </div>
+          <div id="hub-obligations-status" class="sf-row-right">Loading</div>
+        </div>
 
-        if (!entries.length) {
-          $("accountsGrid").innerHTML = '<div class="hub-empty">No account balances returned.</div>';
-          return;
-        }
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Last Loaded</div>
+            <div class="sf-row-subtitle">In-app read timestamp</div>
+          </div>
+          <div id="hub-last-loaded" class="sf-row-right">—</div>
+        </div>
+      </div>
+    </section>
 
-        $("accountsGrid").innerHTML = entries.slice(0, 8).map((item) => `
-          <article class="hub-balance-card">
-            <div class="hub-balance-name">${escapeHtml(item.name)}</div>
-            <div class="hub-balance-meta">${escapeHtml(item.type)}</div>
-            <div class="hub-balance-value">${escapeHtml(money(item.balance))}</div>
-          </article>
-        `).join("");
-      }
+    <section class="sf-panel sf-span-4" aria-labelledby="hub-balance-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Balance Position</p>
+          <h2 id="hub-balance-title" class="sf-section-title">Current Position</h2>
+          <p class="sf-section-subtitle">Displayed from /api/balances only.</p>
+        </div>
+      </div>
 
-      function renderBills(billsPayload, forecastPayload) {
-        const bills = endpointRows(billsPayload, ["bills", "items", "data"]);
-        const active = bills
-          .map((bill) => {
-            const remaining = firstNumber(
-              bill.remaining,
-              bill.remaining_amount,
-              bill.balance_due,
-              bill.amount_remaining,
-              bill.this_month_remaining
-            );
-            const paid = firstNumber(bill.paid_this_month, bill.paid, bill.amount_paid);
-            const due = bill.due_day || bill.due_date || bill.next_due_date || "No due date";
-            const status = text(bill.status || bill.state, "active");
-            return {
-              title: text(bill.name || bill.title || bill.bill_name, "Untitled bill"),
-              remaining,
-              paid,
-              due,
-              status
-            };
-          })
-          .filter((bill) => bill.remaining === null || bill.remaining > 0)
-          .slice(0, 6);
+      <div class="sf-dense-grid">
+        <div class="sf-dense-row">
+          <span>Liquid</span>
+          <strong id="hub-liquid">Loading</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>Net Worth</span>
+          <strong id="hub-net-worth">Loading</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>True Burden</span>
+          <strong id="hub-true-burden">Loading</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>CC Outstanding</span>
+          <strong id="hub-cc-outstanding">Loading</strong>
+        </div>
+      </div>
+    </section>
 
-        if (!active.length) {
-          const billsRemaining = firstNumber(
-            forecastPayload?.obligations_this_month?.bills_remaining,
-            forecastPayload?.forecast?.bills_remaining
-          );
-          $("billsList").innerHTML = rowHtml(
-            "Bills remaining",
-            "No bill rows returned. Showing forecast summary only.",
-            money(billsRemaining)
-          );
-          return;
-        }
+    <section class="sf-panel sf-span-8" aria-labelledby="hub-forecast-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Forecast</p>
+          <h2 id="hub-forecast-title" class="sf-section-title">Runway Snapshot</h2>
+          <p class="sf-section-subtitle">Summary from /api/forecast. Hub does not rebuild forecast logic locally.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="hub-forecast-pill" class="sf-pill">Loading</span>
+        </div>
+      </div>
 
-        $("billsList").innerHTML = active.map((bill) => rowHtml(
-          bill.title,
-          `Due ${bill.due} · ${bill.status}${bill.paid !== null ? " · paid " + money(bill.paid) : ""}`,
-          money(bill.remaining)
-        )).join("");
-      }
+      <div id="hub-forecast-panel" class="sf-dense-grid">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">Loading forecast</h3>
+            <p class="sf-card-subtitle">Reading /api/forecast.</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
-      function renderDebts(debtsPayload, forecastPayload) {
-        const debts = endpointRows(debtsPayload, ["debts", "items", "data"]);
-        const active = debts
-          .map((debt) => {
-            const remaining = firstNumber(
-              debt.remaining,
-              debt.remaining_amount,
-              debt.balance_remaining,
-              debt.outstanding,
-              debt.amount_remaining
-            );
-            const direction = text(
-              debt.direction || debt.kind || debt.type || debt.side,
-              "debt"
-            );
-            const nextDate = debt.next_due_date || debt.follow_up_date || debt.due_date || "No follow-up";
-            return {
-              title: text(debt.name || debt.title || debt.counterparty || debt.code, "Debt"),
-              remaining,
-              direction,
-              nextDate,
-              status: text(debt.status || debt.state, "active")
-            };
-          })
-          .filter((item) => item.remaining === null || item.remaining > 0)
-          .slice(0, 6);
+    <section class="sf-panel sf-span-12" aria-labelledby="hub-obligations-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Obligations</p>
+          <h2 id="hub-obligations-title" class="sf-section-title">Immediate Pressure</h2>
+          <p class="sf-section-subtitle">Bills, debts, receivables, and credit-card pressure from finance APIs.</p>
+        </div>
+      </div>
 
-        if (!active.length) {
-          const payable = firstNumber(
-            forecastPayload?.obligations_this_month?.debt_payable_remaining,
-            forecastPayload?.current_position?.payable_debt_remaining
-          );
-          const receivables = firstNumber(
-            forecastPayload?.obligations_this_month?.debt_receivable_remaining,
-            forecastPayload?.current_position?.total_receivables
-          );
-          $("debtsList").innerHTML =
-            rowHtml("Payable debt", "Forecast summary fallback", money(payable)) +
-            rowHtml("Receivables", "Forecast summary fallback", money(receivables));
-          return;
-        }
+      <div id="hub-obligations-panel" class="sf-secondary-grid">
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Bills Remaining</div>
+            <div class="sf-row-subtitle">Current remaining bill pressure</div>
+          </div>
+          <div id="hub-bills-remaining" class="sf-row-right">Loading</div>
+        </div>
 
-        $("debtsList").innerHTML = active.map((item) => rowHtml(
-          item.title,
-          `${item.direction} · ${item.status} · ${item.nextDate}`,
-          money(item.remaining)
-        )).join("");
-      }
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Debt Payable</div>
+            <div class="sf-row-subtitle">Outstanding payable debt</div>
+          </div>
+          <div id="hub-debt-payable" class="sf-row-right">Loading</div>
+        </div>
 
-      function renderForecastSummary(forecastPayload) {
-        const f = forecastPayload || {};
-        const current = f.current_position || {};
-        const obligations = f.obligations_this_month || {};
-        const forecast = f.forecast || {};
-        const insights = f.insights || {};
-        const salary = f.salary || {};
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Receivables</div>
+            <div class="sf-row-subtitle">Expected incoming receivables</div>
+          </div>
+          <div id="hub-receivables" class="sf-row-right">Loading</div>
+        </div>
 
-        $("forecastSummary").innerHTML = [
-          rowHtml("Liquid now", "Current position", money(current.liquid_now)),
-          rowHtml("Next salary", "Forecast salary", money(salary.forecast_eligible_monthly)),
-          rowHtml("After debt pressure", "Forecast", money(firstNumber(
-            forecast.projected_cash_after_debt_pressure,
-            forecast.ending_liquid,
-            forecast.projected_ending_liquid
-          ))),
-          rowHtml("If receivables collected", "Forecast", money(firstNumber(
-            forecast.projected_cash_if_receivables_collected,
-            current.net_worth
-          ))),
-          rowHtml("Lowest liquid", text(insights.lowest_liquid_date, "Unknown date"), money(insights.lowest_liquid_amount)),
-          rowHtml("CC outstanding", "This month", money(obligations.cc_outstanding))
-        ].join("");
-      }
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Credit Card</div>
+            <div class="sf-row-subtitle">Outstanding liability pressure</div>
+          </div>
+          <div id="hub-cc-pressure" class="sf-row-right">Loading</div>
+        </div>
+      </div>
+    </section>
 
-      function renderSources(forecastPayload) {
-        const sources = Array.isArray(forecastPayload && forecastPayload.sources)
-          ? forecastPayload.sources
-          : [];
+    <section class="sf-panel sf-span-6" aria-labelledby="hub-ledger-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Ledger</p>
+          <h2 id="hub-ledger-title" class="sf-section-title">Recent Transactions</h2>
+          <p class="sf-section-subtitle">Latest non-reversed ledger rows from /api/transactions.</p>
+        </div>
+        <div class="sf-section-meta">
+          <a class="sf-button" href="/transactions.html">Open Ledger</a>
+        </div>
+      </div>
 
-        if (!sources.length) {
-          $("sourcesList").innerHTML = rowHtml("Source state", "No source rows returned.", "—");
-          return;
-        }
+      <div id="hub-recent-transactions" class="sf-dense-grid">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">Loading transactions</h3>
+            <p class="sf-card-subtitle">Reading /api/transactions.</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        $("sourcesList").innerHTML = sources.map((source) => rowHtml(
-          text(source.path, "Unknown source"),
-          text(source.version || source.status || source.reason, "No version"),
-          source.ok ? "OK" : "FAIL"
-        )).join("");
-      }
+    <section class="sf-panel sf-span-6" aria-labelledby="hub-due-bills-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Bills</p>
+          <h2 id="hub-due-bills-title" class="sf-section-title">Due Soon</h2>
+          <p class="sf-section-subtitle">Upcoming bill pressure from /api/bills.</p>
+        </div>
+        <div class="sf-section-meta">
+          <a class="sf-button" href="/bills.html">Open Bills</a>
+        </div>
+      </div>
 
-      function renderKpis(forecastPayload, balancesPayload) {
-        const current = forecastPayload.current_position || {};
-        const obligations = forecastPayload.obligations_this_month || {};
-        const forecast = forecastPayload.forecast || {};
-        const insights = forecastPayload.insights || {};
+      <div id="hub-due-bills" class="sf-dense-grid">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">Loading bills</h3>
+            <p class="sf-card-subtitle">Reading /api/bills.</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        const liquid = firstNumber(current.liquid_now, balancesPayload.total_liquid, balancesPayload.cash);
-        const bills = firstNumber(obligations.bills_remaining, forecastPayload.bills_remaining);
-        const debt = firstNumber(obligations.debt_payable_remaining, current.payable_debt_remaining);
-        const ending = firstNumber(
-          forecast.projected_cash_after_debt_pressure,
-          forecast.ending_liquid,
-          forecast.projected_ending_liquid
-        );
+    <section class="sf-panel sf-span-6" aria-labelledby="hub-debts-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Debts</p>
+          <h2 id="hub-debts-title" class="sf-section-title">Top Debt Pressure</h2>
+          <p class="sf-section-subtitle">Largest active obligations from /api/debts.</p>
+        </div>
+        <div class="sf-section-meta">
+          <a class="sf-button" href="/debts.html">Open Debts</a>
+        </div>
+      </div>
 
-        $("kpiLiquid").textContent = money(liquid);
-        $("kpiBills").textContent = money(bills);
-        $("kpiDebt").textContent = money(debt);
-        $("kpiForecast").textContent = money(ending);
+      <div id="hub-top-debts" class="sf-dense-grid">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">Loading debts</h3>
+            <p class="sf-card-subtitle">Reading /api/debts.</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        $("kpiLiquidSub").textContent = "Current liquid position.";
-        $("kpiBillsSub").textContent = "Remaining this month.";
-        $("kpiDebtSub").textContent = "Payable side pressure.";
-        $("kpiForecastSub").textContent = insights.lowest_liquid_date
-          ? `Lowest point ${insights.lowest_liquid_date}`
-          : "Projected ending liquid.";
+    <section class="sf-panel sf-span-6" aria-labelledby="hub-actions-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Actions</p>
+          <h2 id="hub-actions-title" class="sf-section-title">Route to Owner Pages</h2>
+          <p class="sf-section-subtitle">Hub routes work to the correct finance surface. It does not perform writes.</p>
+        </div>
+      </div>
 
-        setMiniTone("miniBills", bills, "warning");
-        setMiniTone("miniDebt", debt, "danger");
-        setMiniTone("miniReceivables", firstNumber(obligations.debt_receivable_remaining, current.total_receivables), "positive");
-        setMiniTone("miniCc", obligations.cc_outstanding, "warning");
+      <div class="sf-secondary-grid">
+        <a class="sf-finance-row" href="/add.html">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Add Transaction</div>
+            <div class="sf-row-subtitle">Expense, income, or transfer write flow</div>
+          </div>
+          <div class="sf-row-right">Open</div>
+        </a>
 
-        setPill(insights.status || "unknown");
-      }
+        <a class="sf-finance-row" href="/reconciliation.html">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Reconciliation</div>
+            <div class="sf-row-subtitle">Compare declared balance against current truth</div>
+          </div>
+          <div class="sf-row-right">Open</div>
+        </a>
 
-      function renderDebug(payload) {
-        if (!DEBUG) return;
-        $("hubDebugPanel").hidden = false;
-        $("hubDebugOutput").textContent = JSON.stringify(payload, null, 2);
-      }
+        <a class="sf-finance-row" href="/monthly-close.html">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Monthly Close</div>
+            <div class="sf-row-subtitle">Read-only QA audit for month readiness</div>
+          </div>
+          <div class="sf-row-right">Open</div>
+        </a>
 
-      async function boot() {
-        const refreshed = new Date().toLocaleString("en-PK");
-        $("hubRefreshed").textContent = "Last refreshed: " + refreshed;
+        <a class="sf-finance-row" href="/cc.html">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Credit Card</div>
+            <div class="sf-row-subtitle">Outstanding, utilization, due pressure</div>
+          </div>
+          <div class="sf-row-right">Open</div>
+        </a>
+      </div>
+    </section>
 
-        try {
-          const [balancesPayload, billsPayload, debtsPayload, forecastPayload] = await Promise.all([
-            fetchJSON("/api/balances?debug=1"),
-            fetchJSON("/api/bills?debug=1"),
-            fetchJSON("/api/debts?debug=1"),
-            fetchJSON("/api/forecast?debug=1")
-          ]);
+    <section id="hub-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Debug</p>
+          <h2 class="sf-section-title">Hub Debug</h2>
+          <p class="sf-section-subtitle">Visible only with ?debug=1.</p>
+        </div>
+      </div>
 
-          renderKpis(forecastPayload, balancesPayload);
-          renderAccounts(balancesPayload);
-          renderBills(billsPayload, forecastPayload);
-          renderDebts(debtsPayload, forecastPayload);
-          renderForecastSummary(forecastPayload);
-          renderSources(forecastPayload);
-          renderDebug({
-            version: VERSION,
-            balancesPayload,
-            billsPayload,
-            debtsPayload,
-            forecastPayload
-          });
-        } catch (error) {
-          setPill("danger");
-          $("hubRefreshed").textContent = "Last refreshed: failed";
-          $("accountsGrid").innerHTML = '<div class="hub-empty">Hub load failed.</div>';
-          $("billsList").innerHTML = rowHtml("Bills", "Load failed", "—");
-          $("debtsList").innerHTML = rowHtml("Debts", "Load failed", "—");
-          $("forecastSummary").innerHTML = rowHtml("Forecast", error.message, "—");
-          $("sourcesList").innerHTML = rowHtml("System", "Load failed", "—");
-          renderDebug({ version: VERSION, error: error.message });
-        }
-      }
+      <div class="sf-dense-grid">
+        <div class="sf-dense-row">
+          <span>Balances source</span>
+          <strong>/api/balances</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>Forecast source</span>
+          <strong>/api/forecast</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>Transactions source</span>
+          <strong>/api/transactions</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>Write behavior</span>
+          <strong>Read-only hub</strong>
+        </div>
+      </div>
 
-      document.addEventListener("DOMContentLoaded", boot);
-    })();
-  </script>
+      <pre id="hub-debug-output" class="sf-debug-text">Waiting for js/hub.js.</pre>
+    </section>
+  </section>
+
+  <script src="/js/hub.js"></script>
 </body>
 </html>
