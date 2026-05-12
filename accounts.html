@@ -1,38 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+<!doctype html>
+<html lang="en" data-theme="midnight" data-page="accounts">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0f172a" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<title>Accounts · Sovereign Finance</title>
-<link rel="stylesheet" href="/css/app.css?v=1.0.1" />
 <title>Accounts - Sovereign Finance</title>
 <link rel="stylesheet" href="/css/app.css?v=2.0.0" />
 <style>
-.accounts-wrap { max-width: 1180px; margin: 0 auto; }
-.accounts-hero {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-md);
-  padding: 24px;
-  margin-bottom: 18px;
 .accounts-page {
   max-width: 1480px;
 }
-.accounts-kicker {
-  display: inline-flex;
-  padding: 7px 11px;
-  border-radius: var(--r-pill);
-  background: var(--accent-soft);
-  color: var(--accent-deep);
-  font-size: 12px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  margin-bottom: 12px;
 
 .accounts-strip {
   display: flex;
@@ -48,125 +27,48 @@
   gap: 16px;
   margin: 26px 0 14px;
 }
-.accounts-heading {
-  color: var(--text);
-  font-size: clamp(32px, 5vw, 50px);
-  line-height: 1.02;
 
 .accounts-toolbar-title {
   color: var(--text-strong);
   font-size: 22px;
-font-weight: 950;
-  letter-spacing: -0.05em;
-  margin: 0;
+  font-weight: 950;
   letter-spacing: -0.045em;
 }
-.accounts-copy {
 
 .accounts-toolbar-copy {
   margin-top: 4px;
-color: var(--text-muted);
-  font-size: 15px;
-  line-height: 1.55;
-  font-weight: 750;
-  margin-top: 12px;
-  max-width: 820px;
+  color: var(--text-muted);
   font-size: 13px;
   font-weight: 760;
 }
-.accounts-actions {
 
 .accounts-filter-row {
-display: flex;
-flex-wrap: wrap;
-gap: 10px;
-  margin-top: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
-.accounts-primary,
-.accounts-secondary {
-  min-height: 46px;
-  border-radius: var(--r-md);
-  padding: 12px 16px;
-  font-size: 14px;
-  font-weight: 950;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.accounts-primary {
-  border: 0;
-  background: var(--grad-mint);
-  color: #052e16;
-  box-shadow: 0 12px 24px rgba(34, 197, 94, 0.18);
-}
-.accounts-secondary {
-  border: 1px solid var(--border-strong);
-  background: #ffffff;
-  color: var(--text);
-}
-.accounts-trust-panel {
-  margin-top: 16px;
-  padding: 13px 14px;
-  border-radius: var(--r-lg);
-  border: 1px solid rgba(37, 99, 235, 0.22);
-  background: var(--info-soft);
-  color: var(--info);
-  font-size: 13px;
-  font-weight: 850;
-  line-height: 1.45;
-}
-.accounts-trust-title {
-  font-size: 11px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 5px;
 
 .accounts-filter-row input,
 .accounts-filter-row select {
   width: auto;
   min-width: 180px;
 }
-.accounts-stats {
 
 .accounts-grid {
-display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 18px;
+  display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
-.accounts-stat {
-  background: var(--surface-1);
 
 .account-card {
   position: relative;
   overflow: hidden;
   padding: 18px;
   border-radius: var(--r-xl);
-border: 1px solid var(--border);
-  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
   background: var(--surface-1);
-box-shadow: var(--shadow-sm);
-  padding: 16px;
+  box-shadow: var(--shadow-sm);
 }
-.accounts-stat-label {
-  color: var(--text-dim);
-  font-size: 11px;
-  font-weight: 950;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.accounts-stat-value {
-  margin-top: 7px;
-  color: var(--text);
-  font-size: 23px;
-  font-weight: 950;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 
 .account-card::before {
   content: "";
@@ -175,70 +77,37 @@ box-shadow: var(--shadow-sm);
   height: 3px;
   background: linear-gradient(90deg, var(--accent), transparent);
 }
-.accounts-stat-value.positive { color: var(--accent-deep); }
-.accounts-stat-value.negative { color: var(--danger); }
-.accounts-stat-value.warn { color: var(--warn); }
-.accounts-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.85fr);
-  gap: 18px;
 
 .account-card.liability::before,
 .account-card.credit::before,
 .account-card.cc::before {
   background: linear-gradient(90deg, var(--warn), transparent);
 }
-.accounts-panel {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-sm);
-  padding: 16px;
-  min-width: 0;
 
 .account-card.inactive::before {
   background: linear-gradient(90deg, var(--unknown), transparent);
 }
-.accounts-panel-head {
 
 .account-top {
-display: flex;
-justify-content: space-between;
+  display: flex;
+  justify-content: space-between;
   align-items: flex-start;
-gap: 12px;
-  align-items: center;
-  margin-bottom: 14px;
+  gap: 12px;
 }
-.accounts-panel-title {
-  color: var(--text);
-  font-size: 18px;
 
 .account-name {
   color: var(--text-strong);
   font-size: 17px;
-font-weight: 950;
+  font-weight: 950;
   letter-spacing: -0.035em;
 }
-.accounts-panel-sub {
-  color: var(--text-dim);
 
 .account-kind {
   margin-top: 5px;
   color: var(--text-muted);
-font-size: 12px;
-  font-weight: 850;
+  font-size: 12px;
   font-weight: 820;
 }
-.account-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.account-card {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 13px;
 
 .account-balance {
   margin-top: 18px;
@@ -248,40 +117,16 @@ font-size: 12px;
   font-weight: 950;
   letter-spacing: -0.06em;
 }
-.account-main-row {
-  display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) minmax(150px, auto);
-  gap: 12px;
-  align-items: center;
 
 .account-balance.negative {
   color: var(--danger);
 }
-.account-icon-box {
-  width: 42px;
-  height: 42px;
-  border-radius: 15px;
 
 .account-meta {
-display: grid;
-  place-items: center;
-  background: #ffffff;
-  border: 1px solid var(--border);
-  font-size: 23px;
-}
-.account-title {
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 950;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: grid;
   gap: 8px;
   margin-top: 16px;
 }
-.account-sub {
-  margin-top: 3px;
-  color: var(--text-dim);
 
 .account-meta-row {
   display: flex;
@@ -290,220 +135,48 @@ display: grid;
   padding-top: 8px;
   border-top: 1px solid var(--border);
   color: var(--text-muted);
-font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 12px;
   font-weight: 820;
 }
-.account-side {
 
 .account-meta-row strong {
   color: var(--text-strong);
-text-align: right;
-  min-width: 150px;
-}
-.account-balance-main {
-  color: var(--text);
-  font-size: 16px;
-font-weight: 950;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.account-balance-main.positive { color: var(--accent-deep); }
-.account-balance-main.negative { color: var(--danger); }
-.account-balance-main.zero { color: var(--text-muted); }
-.account-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 5px;
-  border-radius: var(--r-pill);
-  padding: 4px 8px;
-  font-size: 10px;
+  text-align: right;
   font-weight: 950;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  background: var(--surface-3);
-  color: var(--text-muted);
 }
-.account-badge.cc {
-  background: var(--warn-soft);
-  color: var(--warn);
-}
-.account-badge.asset {
-  background: var(--accent-soft);
-  color: var(--accent-deep);
-}
-.account-trust-line {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-  padding-left: 54px;
-}
-.account-trust-chip {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 6px 9px;
-  border-radius: var(--r-pill);
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text-muted);
-  font-size: 10px;
-  font-weight: 950;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-.account-trust-chip.readonly {
-  border-color: rgba(37, 99, 235, 0.22);
-  background: var(--info-soft);
-  color: var(--info);
-}
-.account-trust-chip.metadata {
-  border-color: rgba(37, 99, 235, 0.22);
-  background: var(--info-soft);
-  color: var(--info);
-}
-.account-trust-chip.recon {
-  border-color: rgba(245, 158, 11, 0.24);
-  background: rgba(245, 158, 11, 0.10);
-  color: var(--warn);
-}
-.account-empty {
-  background: var(--surface-2);
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--r-lg);
-  padding: 24px;
-  text-align: center;
-  color: var(--text-muted);
-  font-weight: 850;
-  line-height: 1.5;
-}
-.account-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 2500;
-  display: none;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 16px;
-  background: rgba(15, 23, 42, 0.58);
-}
-.account-modal-backdrop.open {
-  display: flex;
-}
-.account-modal {
-  width: min(620px, 100%);
-  background: var(--surface-1);
-  border: 1px solid var(--border);
 
 .accounts-empty {
   padding: 26px;
-border-radius: var(--r-xl);
-  box-shadow: var(--shadow-xl);
-  padding: 22px;
-  max-height: calc(100vh - 32px);
-  overflow: auto;
-}
-.account-modal-title {
-  color: var(--text);
-  font-size: 24px;
-  font-weight: 950;
-  margin: 0 0 6px;
-}
-.account-modal-sub {
+  border-radius: var(--r-xl);
   border: 1px dashed var(--border);
   background: var(--surface-1);
-color: var(--text-muted);
-  font-size: 14px;
-  font-weight: 750;
-  line-height: 1.45;
-  margin-bottom: 14px;
-}
-.account-modal-trust {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 8px 10px;
-  margin-bottom: 14px;
-  border-radius: var(--r-pill);
-  border: 1px solid rgba(37, 99, 235, 0.22);
-  background: var(--info-soft);
-  color: var(--info);
-  font-size: 11px;
-  font-weight: 950;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-.account-opening-warning {
-  padding: 12px;
-  border-radius: var(--r-md);
-  border: 1px solid rgba(245, 158, 11, 0.24);
-  background: rgba(245, 158, 11, 0.10);
-  color: var(--warn);
-  font-size: 13px;
-  font-weight: 850;
-  line-height: 1.45;
-}
-.account-modal-grid {
-  display: grid;
-  gap: 12px;
-}
-.account-modal-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
+  color: var(--text-muted);
   font-weight: 820;
   text-align: center;
 }
-.account-modal-actions button { flex: 1; }
-@media (max-width: 980px) {
-  .accounts-stats {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 
 @media (max-width: 1180px) {
-.accounts-grid {
-    grid-template-columns: 1fr;
+  .accounts-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-}
-@media (max-width: 640px) {
-  .accounts-stats {
-    grid-template-columns: 1fr;
   }
-  .account-main-row {
-    grid-template-columns: 42px minmax(0, 1fr);
-  }
-  .account-side {
-    grid-column: 2;
-    text-align: left;
-    min-width: 0;
+}
 
 @media (max-width: 720px) {
   .accounts-toolbar {
     align-items: flex-start;
     flex-direction: column;
-}
-  .account-trust-line {
-    padding-left: 0;
+  }
 
   .accounts-filter-row,
   .accounts-filter-row input,
   .accounts-filter-row select,
   .accounts-grid {
     width: 100%;
-}
-  .account-modal-actions {
-    flex-direction: column;
+  }
 
   .accounts-grid {
     grid-template-columns: 1fr;
-}
+  }
 }
 </style>
 </head>
@@ -515,12 +188,6 @@ color: var(--text-muted);
 </div>
 </header>
 
-<main class="accounts-wrap">
-<section class="accounts-hero">
-<div class="accounts-kicker">Balance shelf</div>
-<h1 class="accounts-heading">Accounts</h1>
-<p class="accounts-copy">
-Live account balances from ledger formulas. This page displays where money sits; balance truth is declared through Reconciliation, not by editing opening balances.
 <main class="app-page accounts-page">
 <section class="page-hero">
 <div class="hero-kicker">Account truth</div>
@@ -528,33 +195,7 @@ Live account balances from ledger formulas. This page displays where money sits;
 <p class="hero-copy">
 Accounts are the foundation for transactions, bills, reconciliation, credit card planning, and forecast. This page is read-first and keeps account mutations guarded until their own proof exists.
 </p>
-<div class="accounts-actions">
-<button id="addAccountBtn" class="accounts-primary" type="button">+ Add Account</button>
-<button id="refreshBtn" class="accounts-secondary" type="button">Refresh</button>
-<a class="accounts-secondary" href="/reconciliation.html">Open Reconciliation</a>
-</div>
-<div class="accounts-trust-panel">
-<div class="accounts-trust-title">Action clarity</div>
-<div>Refresh is read-only. Add Account creates account metadata only. Opening balance is only for brand-new accounts with no transaction history. To correct real balances, use Reconciliation Declare Balance.</div>
-</div>
-</section>
 
-<section class="accounts-stats">
-<div class="accounts-stat">
-<div class="accounts-stat-label">Net Worth</div>
-<div id="netWorth" class="accounts-stat-value"></div>
-</div>
-<div class="accounts-stat">
-<div class="accounts-stat-label">Liquid</div>
-<div id="liquidTotal" class="accounts-stat-value positive"></div>
-</div>
-<div class="accounts-stat">
-<div class="accounts-stat-label">CC Outstanding</div>
-<div id="ccOutstanding" class="accounts-stat-value negative"></div>
-</div>
-<div class="accounts-stat">
-<div class="accounts-stat-label">Accounts</div>
-<div id="accountCount" class="accounts-stat-value"></div>
 <div class="accounts-strip">
 <span id="accountsApiBadge" class="badge badge-unknown">Accounts API loading</span>
 <span id="accountsAuthorityBadge" class="badge badge-info">Read-first account view</span>
@@ -562,14 +203,9 @@ Accounts are the foundation for transactions, bills, reconciliation, credit card
 </div>
 </section>
 
-<section class="accounts-grid">
-<div class="accounts-panel">
-<div class="accounts-panel-head">
 <section>
 <div class="accounts-toolbar">
 <div>
-<div class="accounts-panel-title">Assets</div>
-<div id="assetsSub" class="accounts-panel-sub">Loading</div>
 <div class="accounts-toolbar-title">Account portfolio</div>
 <div id="accountsSummary" class="accounts-toolbar-copy">Loading accounts...</div>
 </div>
@@ -585,8 +221,6 @@ Accounts are the foundation for transactions, bills, reconciliation, credit card
 <option value="liability">Liability</option>
 </select>
 </div>
-<div id="assetsList" class="account-list">
-<div class="account-empty">Loading assets</div>
 </div>
 
 <div class="grid-4">
@@ -596,11 +230,6 @@ Accounts are the foundation for transactions, bills, reconciliation, credit card
 <div class="kpi-sub">Visible accounts</div>
 </div>
 
-<div class="accounts-panel">
-<div class="accounts-panel-head">
-<div>
-<div class="accounts-panel-title">Liabilities</div>
-<div id="liabilitiesSub" class="accounts-panel-sub">Loading</div>
 <div class="kpi-card">
 <div class="kpi-label">Positive balances</div>
 <div id="accountsPositive" class="kpi-value">-</div>
@@ -612,8 +241,6 @@ Accounts are the foundation for transactions, bills, reconciliation, credit card
 <div id="accountsNegative" class="kpi-value">-</div>
 <div class="kpi-sub">Liabilities / owed position</div>
 </div>
-<div id="liabilitiesList" class="account-list">
-<div class="account-empty">Loading liabilities</div>
 
 <div class="kpi-card">
 <div class="kpi-label">Net visible</div>
@@ -626,175 +253,31 @@ Accounts are the foundation for transactions, bills, reconciliation, credit card
 <div id="accountsGrid" class="accounts-grid"></div>
 </section>
 
-<footer class="page-footer">
-<span class="v">v0.8.1 · Accounts trust clarity · balances api v0.2.6 · nav v1.0.16 · theme v0.7.2</span>
 <footer class="bills-page-meta" aria-hidden="true">
 Accounts dashboard UI v2.0.0
 </footer>
 </main>
 
-<div id="accountModal" class="account-modal-backdrop" aria-hidden="true">
-<div class="account-modal">
-<h2 class="account-modal-title">Add Account</h2>
-<p class="account-modal-sub">
-Add a new account shelf. This does not create a transaction and does not correct an existing account balance.
-</p>
-<div class="account-modal-trust">Metadata only · no transaction · no ledger row</div>
-<form id="accountForm" class="account-modal-grid">
-<div class="field">
-<label for="accountId">Account ID</label>
-<input id="accountId" class="input" type="text" placeholder="e.g. sadapay" required />
-</div>
-<div class="field">
-<label for="accountName">Name</label>
-<input id="accountName" class="input" type="text" maxlength="60" placeholder="e.g. Sadapay" required />
-</div>
-<div class="field">
-<label for="accountIcon">Icon</label>
-<input id="accountIcon" class="input" type="text" maxlength="4" placeholder="" />
-</div>
-<div class="field">
-<label for="accountKind">Kind</label>
-<select id="accountKind" class="select">
-<option value="bank">Bank</option>
-<option value="cash">Cash</option>
-<option value="wallet">Wallet</option>
-<option value="prepaid">Prepaid</option>
-<option value="cc">Credit Card</option>
-</select>
-</div>
-<div class="account-opening-warning">
-Opening balance sets the starting point for a brand-new account only. Do not use opening balance to fix drift on an existing account. Use Reconciliation instead.
-</div>
-<div class="field">
-<label for="openingBalance">Opening Balance</label>
-<input id="openingBalance" class="input" type="number" step="0.01" placeholder="0" />
-</div>
-<div class="field">
-<label for="displayOrder">Display Order</label>
-<input id="displayOrder" class="input" type="number" min="0" placeholder="99" />
-</div>
-<div class="account-modal-actions">
-<button id="cancelAccountBtn" class="ghost-btn" type="button">Cancel</button>
-<button id="submitAccountBtn" class="primary-submit" type="submit">Add Account</button>
-</div>
-</form>
-</div>
-</div>
-
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<script src="/js/theme.js?v=0.7.2"></script>
-<script src="/js/nav.js?v=1.0.16"></script>
 <script src="/js/theme.js?v=1.0.0"></script>
 <script src="/js/nav.js?v=2.0.0"></script>
 <script src="/js/enforcement.js?v=0.2.0"></script>
 <script>
-const state = {
-  accounts: [],
-  balances: null
-};
-
-const $ = id => document.getElementById(id);
-
-function esc(value) {
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
 (function () {
   "use strict";
 
-function money(value) {
-  const n = Number(value) || 0;
-  const sign = n < 0 ? '-' : '';
-  return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
-    maximumFractionDigits: 2
-  });
-}
   const VERSION = "2.0.0";
   let accounts = [];
   let filtered = [];
 
-function toast(message, kind = 'success') {
-  const el = $('toast');
-  el.textContent = message;
-  el.className = 'toast toast-' + kind + ' show';
-  setTimeout(() => {
-    el.className = 'toast';
-  }, 2600);
-}
   const $ = id => document.getElementById(id);
 
-async function fetchJSON(url, options) {
-  const res = await fetch(url, { cache: 'no-store', ...(options || {}) });
-  const data = await res.json().catch(() => null);
-  if (!res.ok || !data || data.ok === false) {
-    throw new Error((data && data.error) || ('HTTP ' + res.status));
   function setText(id, value) {
     const el = $(id);
     if (el) el.textContent = value;
-}
-  return data;
-}
+  }
 
-function balanceClass(value) {
-  const n = Number(value) || 0;
-  if (n > 0) return 'positive';
-  if (n < 0) return 'negative';
-  return 'zero';
-}
-
-function isLiability(account) {
-  const kind = String(account.kind || account.type || '').toLowerCase();
-  return kind === 'cc' || kind === 'credit' || kind === 'credit_card' || account.type === 'liability';
-}
-
-function renderStats() {
-  const b = state.balances || {};
-  const net = Number(b.net_worth) || 0;
-
-  $('netWorth').textContent = money(net);
-  $('netWorth').className = 'accounts-stat-value ' + (net >= 0 ? 'positive' : 'negative');
-  $('liquidTotal').textContent = money(b.total_liquid || b.total_liquid_assets || b.cash || 0);
-  $('ccOutstanding').textContent = money(b.cc_outstanding || b.cc || 0);
-  $('accountCount').textContent = String(state.accounts.length);
-}
-
-function renderAccountCard(account) {
-  const bal = Number(account.balance) || 0;
-  const liability = isLiability(account);
-  const badge = liability ? 'cc' : 'asset';
-  const label = account.kind_label || account.kind || account.type || 'account';
-  const balanceMeaning = liability
-    ? 'Balance display: liability formula'
-    : 'Balance display: ledger formula';
-
-  return `
-<article class="account-card">
-  <div class="account-main-row">
-    <div class="account-icon-box">${esc(account.icon || (liability ? 'CC' : ''))}</div>
-    <div>
-      <div class="account-title">${esc(account.name || account.id)}</div>
-      <div class="account-sub">${esc(label)} · ${esc(account.id)}</div>
-    </div>
-    <div class="account-side">
-      <div class="account-balance-main ${balanceClass(bal)}">${money(bal)}</div>
-      <div class="account-badge ${badge}">${liability ? 'Liability' : 'Asset'}</div>
-    </div>
-  </div>
-
-  <div class="account-trust-line">
-    <span class="account-trust-chip readonly">${esc(balanceMeaning)}</span>
-    <span class="account-trust-chip readonly">Viewing balance: read-only</span>
-    <span class="account-trust-chip recon">Correct truth in Reconciliation</span>
-  </div>
-</article>
-`;
-}
   function escapeHtml(value) {
     return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
@@ -804,58 +287,46 @@ function renderAccountCard(account) {
       .replace(/'/g, "&#39;");
   }
 
-function renderLists() {
-  const assets = state.accounts.filter(account => !isLiability(account));
-  const liabilities = state.accounts.filter(account => isLiability(account));
   function money(value) {
     const n = Number(value);
     if (!Number.isFinite(n)) return "Unknown";
     return "Rs " + n.toLocaleString("en-PK", { maximumFractionDigits: 0 });
   }
 
-  const assetsTotal = assets.reduce((sum, account) => sum + (Number(account.balance) || 0), 0);
-  const liabilitiesTotal = liabilities.reduce((sum, account) => sum + (Number(account.balance) || 0), 0);
   function normalizeAccounts(raw) {
     if (Array.isArray(raw)) return raw;
     if (raw && Array.isArray(raw.accounts)) return raw.accounts;
     if (raw && typeof raw === "object") {
       return Object.keys(raw).map(id => ({ id, ...raw[id] }));
-    }
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#050816" />
+  <title>Accounts · Sovereign Finance</title>
+
+  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="stylesheet" href="/css/sf-theme.css" />
+  <link rel="stylesheet" href="/css/sf-shell.css" />
+
+  <style>
+    .accounts-layout {
+      display: grid;
+      gap: var(--sf-space-6);
+}
     return [];
   }
 
-  $('assetsSub').textContent = assets.length + ' accounts · ' + money(assetsTotal);
-  $('liabilitiesSub').textContent = liabilities.length + ' accounts · ' + money(liabilitiesTotal);
   function accountName(account) {
     return account.name || account.label || account.account_name || account.id || "Account";
   }
 
-  $('assetsList').innerHTML = assets.length
-    ? assets.map(renderAccountCard).join('')
-    : '<div class="account-empty">No asset accounts.</div>';
   function accountKind(account) {
     return String(account.kind || account.type || account.account_type || "").toLowerCase().trim() || "account";
   }
 
-  $('liabilitiesList').innerHTML = liabilities.length
-    ? liabilities.map(renderAccountCard).join('')
-    : '<div class="account-empty">No liability data.</div>';
-}
   function accountStatus(account) {
     return String(account.status || "").toLowerCase().trim() || "active";
   }
 
-function openModal() {
-  $('accountId').value = '';
-  $('accountName').value = '';
-  $('accountIcon').value = '';
-  $('accountKind').value = 'bank';
-  $('openingBalance').value = '';
-  $('displayOrder').value = '';
-  $('accountModal').classList.add('open');
-  $('accountModal').setAttribute('aria-hidden', 'false');
-  setTimeout(() => $('accountId').focus(), 50);
-}
   function accountBalance(account) {
     const candidates = [
       account.balance,
@@ -868,15 +339,16 @@ function openModal() {
     for (const value of candidates) {
       const n = Number(value);
       if (Number.isFinite(n)) return n;
-    }
+
+    .accounts-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: var(--sf-space-6);
+}
 
     return 0;
   }
 
-function closeModal() {
-  $('accountModal').classList.remove('open');
-  $('accountModal').setAttribute('aria-hidden', 'true');
-}
   async function fetchJSON(url) {
     const res = await fetch(url, { cache: "no-store" });
     const data = await res.json().catch(() => null);
@@ -884,13 +356,6 @@ function closeModal() {
     return data;
   }
 
-function slugify(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
   async function loadCommandCentre() {
     try {
       const data = await fetchJSON("/api/finance-command-center?cb=" + Date.now());
@@ -903,6 +368,12 @@ function slugify(value) {
         badge.className = allowed ? "badge badge-ready" : "badge badge-blocked";
         badge.textContent = allowed ? "Account writes allowed" : "Account writes blocked";
       }
+    .accounts-main {
+      grid-column: span 8;
+      display: grid;
+      gap: var(--sf-space-6);
+      min-width: 0;
+    }
 
       const authority = $("accountsAuthorityBadge");
       if (authority && accountRoute) {
@@ -915,51 +386,97 @@ function slugify(value) {
         badge.className = "badge badge-unknown";
         badge.textContent = "Mutation status unknown";
       }
+    .accounts-side {
+      grid-column: span 4;
+      display: grid;
+      gap: var(--sf-space-6);
+      min-width: 0;
     }
+
+    .accounts-list-host .mini-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--sf-space-4);
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--sf-border-subtle);
+    }
+
+    .accounts-list-host .mini-row:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .accounts-list-host .mini-row-left {
+      display: flex;
+      gap: var(--sf-space-4);
+      align-items: center;
+      min-width: 0;
+    }
+
+    .accounts-list-host .mini-row-icon {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: var(--sf-surface-2);
+      border: 1px solid var(--sf-border-subtle);
+      flex: 0 0 42px;
+    }
+
+    .accounts-list-host .mini-row-name {
+      color: var(--sf-text);
+      font-weight: 900;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+
+    .accounts-list-host .mini-row-sub {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sf-space-2);
+      margin-top: 4px;
+}
   }
 
-async function submitAccount(event) {
-  event.preventDefault();
   async function loadAccounts() {
     const data = await fetchJSON("/api/accounts?debug=1&cb=" + Date.now());
     accounts = normalizeAccounts(data.accounts || data).filter(account => account && account.id);
+    .accounts-list-host .meta {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--sf-space-2);
+      padding: 6px 10px;
+      border-radius: var(--sf-radius-pill);
+      background: var(--sf-surface-2);
+      border: 1px solid var(--sf-border-subtle);
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-11);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
 
-  const id = slugify($('accountId').value || $('accountName').value);
-  const name = $('accountName').value.trim();
-  const kind = $('accountKind').value;
-  const opening = Number($('openingBalance').value || 0);
-  const order = Number($('displayOrder').value || 99);
+    .accounts-list-host .meta.accent {
+      color: var(--sf-accent-strong);
+    }
+
+    .accounts-list-host .meta.warn {
+      color: var(--sf-warning);
+    }
+
     const apiBadge = $("accountsApiBadge");
     if (apiBadge) {
       apiBadge.className = "badge badge-ready";
       apiBadge.textContent = "Accounts API " + (data.version ? "v" + data.version : "live");
-    }
-
-  if (!id || !name) {
-    toast('Account ID and name are required.', 'error');
-    return;
-    applyFilters();
+    .accounts-list-host .meta.danger {
+      color: var(--sf-danger);
 }
 
-  const type = kind === 'cc' ? 'liability' : 'asset';
-  const btn = $('submitAccountBtn');
-  btn.disabled = true;
-  btn.textContent = 'Adding...';
+    applyFilters();
+  }
 
-  try {
-    await fetchJSON('/api/accounts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id,
-        name,
-        icon: $('accountIcon').value.trim() || (kind === 'cc' ? 'CC' : ''),
-        kind,
-        type,
-        opening_balance: opening,
-        display_order: order,
-        created_by: 'web-accounts'
-      })
   function applyFilters() {
     const q = String($("accountSearch")?.value || "").toLowerCase().trim();
     const kind = String($("accountKindFilter")?.value || "").toLowerCase().trim();
@@ -976,33 +493,12 @@ async function submitAccount(event) {
       if (kind && akind !== kind) return false;
       if (q && !haystack.includes(q)) return false;
       return true;
-});
+    });
 
-    closeModal();
-    toast('Account added. Metadata only.');
-    await loadAccounts();
-  } catch (err) {
-    toast(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Add Account';
     renderStats();
     renderAccounts();
-}
-}
+  }
 
-async function loadAccounts() {
-  $('assetsList').innerHTML = '<div class="account-empty">Loading assets</div>';
-  $('liabilitiesList').innerHTML = '<div class="account-empty">Loading liabilities</div>';
-
-  try {
-    const [accountsData, balancesData] = await Promise.all([
-      fetchJSON('/api/accounts?debug=1'),
-      fetchJSON('/api/balances?debug=1')
-    ]);
-
-    state.accounts = accountsData.accounts || [];
-    state.balances = balancesData;
   function renderStats() {
     const balances = filtered.map(accountBalance);
     const positive = balances.filter(n => n > 0).reduce((sum, n) => sum + n, 0);
@@ -1016,11 +512,6 @@ async function loadAccounts() {
     setText("accountsSummary", filtered.length + " of " + accounts.length + " account(s) shown.");
   }
 
-    renderStats();
-    renderLists();
-  } catch (err) {
-    $('assetsList').innerHTML = `<div class="account-empty">Accounts failed: ${esc(err.message)}</div>`;
-    $('liabilitiesList').innerHTML = '<div class="account-empty">No liability data.</div>';
   function renderAccounts() {
     const grid = $("accountsGrid");
     if (!grid) return;
@@ -1028,61 +519,213 @@ async function loadAccounts() {
     if (!filtered.length) {
       grid.innerHTML = '<div class="accounts-empty">No accounts match the current filter.</div>';
       return;
-    }
+    .accounts-list-host .mini-row-right {
+      text-align: right;
+}
 
     grid.innerHTML = filtered.map(account => {
       const balance = accountBalance(account);
       const kind = accountKind(account);
       const status = accountStatus(account);
       const classes = ["account-card", kind, status !== "active" ? "inactive" : ""].join(" ");
+    .accounts-list-host .mini-row-amount {
+      color: var(--sf-text);
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .accounts-list-host .mini-row-amount.danger,
+    .accounts-list-host .mini-row-amount.value.danger {
+      color: var(--sf-danger);
+    }
+
+    .accounts-summary {
+      display: grid;
+      gap: var(--sf-space-4);
+    }
 
       return `
         <article class="${escapeHtml(classes)}">
           <div class="account-top">
-            <div>
+    .accounts-summary-row {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--sf-space-4);
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--sf-border-subtle);
+    }
+
+    .accounts-summary-row:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .accounts-summary-label {
+      color: var(--sf-text-muted);
+      font-weight: 700;
+    }
+
+    .accounts-summary-value {
+      color: var(--sf-text);
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    .accounts-day-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sf-space-3);
+      align-items: center;
+    }
+
+    .accounts-archived-head {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--sf-space-4);
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .accounts-empty {
+      display: grid;
+      place-items: center;
+      min-height: 120px;
+      text-align: center;
+      color: var(--sf-text-muted);
+      border: 1px dashed var(--sf-border);
+      border-radius: var(--sf-radius-md);
+      background: var(--sf-surface-1);
+      padding: var(--sf-space-5);
+    }
+
+    @media (max-width: 1100px) {
+      .accounts-main,
+      .accounts-side {
+        grid-column: span 12;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .accounts-list-host .mini-row {
+        grid-template-columns: 1fr;
+      }
+
+      .accounts-list-host .mini-row-right {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="accounts-layout">
+    <main class="accounts-grid">
+      <section class="accounts-main">
+        <section class="sf-panel sf-panel--accent">
+          <div class="sf-section-head">
+<div>
               <div class="account-name">${escapeHtml(accountName(account))}</div>
               <div class="account-kind">${escapeHtml(kind)} · ${escapeHtml(status)}</div>
-            </div>
+              <p class="sf-section-kicker">Assets</p>
+              <h2 class="sf-section-title">Live asset accounts</h2>
+              <p class="sf-section-subtitle">Active asset balances from current account source.</p>
+</div>
             <span class="${status === "active" ? "badge badge-ready" : "badge badge-unknown"}">${escapeHtml(status)}</span>
+</div>
+          <div id="acc-assets-list" class="accounts-list-host">
+            <div class="accounts-empty">Loading asset accounts</div>
           </div>
+        </section>
 
           <div class="account-balance ${balance < 0 ? "negative" : ""}">${escapeHtml(money(balance))}</div>
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Liabilities</p>
+              <h2 class="sf-section-title">Live liability accounts</h2>
+              <p class="sf-section-subtitle">Credit-card and liability balances from current account source.</p>
+            </div>
+          </div>
+          <div id="acc-liabilities-list" class="accounts-list-host">
+            <div class="accounts-empty">Loading liabilities</div>
+          </div>
+        </section>
+      </section>
 
           <div class="account-meta">
             <div class="account-meta-row">
               <span>ID</span>
               <strong>${escapeHtml(account.id)}</strong>
+      <aside class="accounts-side">
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Summary</p>
+              <h2 class="sf-section-title">Account totals</h2>
+              <p class="sf-section-subtitle">Net worth from balances. Asset and liability subtotals from account rows.</p>
             </div>
+          </div>
+
+          <div class="accounts-day-row">
+            <span class="sf-pill"><span id="acc-day-count">—</span>&nbsp;Day <span id="dayNum">—</span> of 90</span>
+          </div>
+
+          <div class="accounts-summary">
+            <div class="accounts-summary-row">
+              <span class="accounts-summary-label">Net worth</span>
+              <span id="acc-net-worth" class="accounts-summary-value">Rs -</span>
+            </div>
+            <div class="accounts-summary-row">
+              <span class="accounts-summary-label">Active assets</span>
+              <span id="acc-assets-count" class="accounts-summary-value">0</span>
+            </div>
+            <div class="accounts-summary-row">
+              <span class="accounts-summary-label">Asset total</span>
+              <span id="acc-assets-total" class="accounts-summary-value">Rs -</span>
+            </div>
+            <div class="accounts-summary-row">
+              <span class="accounts-summary-label">Active liabilities</span>
+              <span id="acc-liabilities-count" class="accounts-summary-value">0</span>
+</div>
             <div class="account-meta-row">
               <span>Kind</span>
               <strong>${escapeHtml(kind)}</strong>
-            </div>
+            <div class="accounts-summary-row">
+              <span class="accounts-summary-label">Liability total</span>
+              <span id="acc-liabilities-total" class="accounts-summary-value">Rs -</span>
+</div>
             <div class="account-meta-row">
               <span>Source</span>
               <strong>/api/accounts</strong>
+          </div>
+        </section>
+
+        <section class="sf-panel">
+          <div id="acc-archived-header" class="accounts-archived-head">
+            <div>
+              <p class="sf-section-kicker">Archived</p>
+              <h2 class="sf-section-title">Archived accounts</h2>
+              <p class="sf-section-subtitle">Collapsed by default.</p>
+</div>
+            <div class="sf-pill">
+              <span id="acc-archived-count">0</span>
+              <span id="acc-archived-toggle">&gt;</span>
             </div>
           </div>
+          <div id="acc-archived-list" class="accounts-list-host" style="display:none;">
+            <div class="accounts-empty">No archived accounts.</div>
+</div>
         </article>
       `;
     }).join("");
-}
-}
+  }
 
-$('addAccountBtn').addEventListener('click', openModal);
-$('refreshBtn').addEventListener('click', () => {
-  loadAccounts();
-  toast('Refreshed. Read-only action.');
-});
-$('cancelAccountBtn').addEventListener('click', closeModal);
-$('accountForm').addEventListener('submit', submitAccount);
   function wireEvents() {
     $("accountSearch")?.addEventListener("input", applyFilters);
     $("accountKindFilter")?.addEventListener("change", applyFilters);
   }
 
-$('accountModal').addEventListener('click', event => {
-  if (event.target === $('accountModal')) closeModal();
-});
   async function init() {
     console.log("[accounts-ui v2.0.0] init");
     wireEvents();
@@ -1097,26 +740,90 @@ $('accountModal').addEventListener('click', event => {
       if (apiBadge) {
         apiBadge.className = "badge badge-blocked";
         apiBadge.textContent = "Accounts unavailable";
-      }
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    window.SF_PAGE = {
+      title: "Accounts",
+      eyebrow: "Balance map",
+      subtitle: "Live asset and liability accounts from current sources. No command-centre path. No fake balances.",
+      actions: [
+        { label: "Hub", href: "/" },
+        { label: "Credit Card", href: "/cc.html" },
+        { label: "Accounts", href: "/accounts.html", primary: true }
+      ],
+      kpis: [
+        {
+          kicker: "Net worth",
+          title: "Net worth",
+          valueHtml: "<span id=\"acc-net-worth-kpi\">Rs -</span>",
+          subtitle: "From /api/balances",
+          accent: true
+        },
+        {
+          kicker: "Assets",
+          title: "Active assets",
+          valueHtml: "<span id=\"acc-assets-count-kpi\">0</span>",
+          subtitleHtml: "<span id=\"acc-assets-total-kpi\">Rs -</span>"
+        },
+        {
+          kicker: "Liabilities",
+          title: "Active liabilities",
+          valueHtml: "<span id=\"acc-liabilities-count-kpi\">0</span>",
+          subtitleHtml: "<span id=\"acc-liabilities-total-kpi\">Rs -</span>",
+          tone: "warning"
+        },
+        {
+          kicker: "Archived",
+          title: "Archived accounts",
+          valueHtml: "<span id=\"acc-archived-count-kpi\">0</span>",
+          subtitle: "Hidden by default"
+        }
+      ]
+    };
+  </script>
+
+  <script src="/js/theme.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/sf-components.js"></script>
+  <script src="/js/sf-shell.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/store.js"></script>
+  <script src="/js/numbers.js"></script>
+  <script src="/js/accounts.js"></script>
+  <script>
+    (function () {
+      function syncText(fromId, toId) {
+        var from = document.getElementById(fromId);
+        var to = document.getElementById(toId);
+        if (!from || !to) return;
+        to.textContent = from.textContent || "—";
+}
 
       const grid = $("accountsGrid");
       if (grid) {
         grid.innerHTML = '<div class="accounts-empty">Accounts failed to load: ' + escapeHtml(err.message || String(err)) + '</div>';
-      }
+      function runSync() {
+        syncText("acc-net-worth", "acc-net-worth-kpi");
+        syncText("acc-assets-count", "acc-assets-count-kpi");
+        syncText("acc-assets-total", "acc-assets-total-kpi");
+        syncText("acc-liabilities-count", "acc-liabilities-count-kpi");
+        syncText("acc-liabilities-total", "acc-liabilities-total-kpi");
+        syncText("acc-archived-count", "acc-archived-count-kpi");
+}
 
       setText("accountsSummary", "Accounts source unavailable.");
     }
   }
 
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && $('accountModal').classList.contains('open')) closeModal();
-});
   window.SovereignAccountsUI = {
     version: VERSION,
     refresh: init
   };
 
-loadAccounts();
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
@@ -1124,5 +831,29 @@ loadAccounts();
   }
 })();
 </script>
+      function watch(id) {
+        var node = document.getElementById(id);
+        if (!node || typeof MutationObserver === "undefined") return;
+        var observer = new MutationObserver(runSync);
+        observer.observe(node, { childList: true, subtree: true, characterData: true });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", function () {
+          runSync();
+          [
+            "acc-net-worth",
+            "acc-assets-count",
+            "acc-assets-total",
+            "acc-liabilities-count",
+            "acc-liabilities-total",
+            "acc-archived-count"
+          ].forEach(watch);
+        }, { once: true });
+      } else {
+        runSync();
+      }
+    })();
+  </script>
 </body>
 </html>
