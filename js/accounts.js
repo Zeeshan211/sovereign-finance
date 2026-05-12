@@ -1,276 +1,695 @@
-/* Sovereign Finance - Accounts Page v0.8.1 - Layer 2 contract restore */
 (function () {
-  'use strict';
+  "use strict";
 
-  var VERSION = 'v0.8.1-layer-2';
-  var allAccounts = [];
-  var archivedOpen = false;
+  if (window.SovereignAccounts && window.SovereignAccounts.initialized) return;
 
-  function $(id) {
-    return document.getElementById(id);
+  const VERSION = "v1.0.0-readonly-shared-ui";
+  const ACCOUNTS_ENDPOINT = "/api/accounts";
+  const BALANCES_ENDPOINT = "/api/balances";
+
+  let accountsPayload = null;
+  let balancesPayload = null;
+  let normalized = {
+    active: [],
+    assets: [],
+    liabilities: [],
+    archived: []
+  };
+
+  const $ = id => document.getElementById(id);
+
+  function components() {
+    return window.SFComponents || {};
   }
 
-  function escHtml(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+  function esc(value) {
+    const c = components();
+    if (typeof c.escapeHtml === "function") return c.escapeHtml(value);
+
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
-  function asNumber(value, fallback) {
-    var num = Number(value);
-    return Number.isFinite(num) ? num : (fallback == null ? 0 : fallback);
-  }
+  function money(value) {
+    const c = components();
+    if (typeof c.money === "function") {
+      return c.money(value, { maximumFractionDigits: 2 });
+    }
 
-  function fmtPKR(value) {
-    var num = Number(value);
-    if (!Number.isFinite(num)) return 'Rs —';
-    return 'Rs ' + num.toLocaleString('en-PK', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "—";
+    return "Rs " + n.toLocaleString("en-PK", {
+      maximumFractionDigits: 2,
+      minimumFractionDigits: n % 1 === 0 ? 0 : 2
     });
   }
 
-  function firstText() {
-    for (var i = 0; i < arguments.length; i += 1) {
-      var value = arguments[i];
-      if (value !== null && value !== undefined && value !== '') return String(value);
-    }
-    return '';
+  function percent(value) {
+    const c = components();
+    if (typeof c.percent === "function") return c.percent(value);
+
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "—";
+    return n.toFixed(n % 1 === 0 ? 0 : 1) + "%";
   }
 
-  function firstNumber() {
-    for (var i = 0; i < arguments.length; i += 1) {
-      var value = arguments[i];
-      var num = Number(value);
-      if (Number.isFinite(num)) return num;
-    }
-    return null;
+  function asNumber(value, fallback) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : (fallback || 0);
   }
 
-  function normalizeAccountsPayload(payload) {
-    var raw = payload && payload.accounts;
-    if (Array.isArray(raw)) {
-      return raw.map(function (row, index) {
-        var out = row || {};
-        if (!out.id) out.id = out.account_id || out.code || ('account_' + index);
-        return out;
-      });
+  function round2(value) {
+    return Math.round(asNumber(value, 0) * 100) / 100;
+  }
+
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value == null ? "" : String(value);
+  }
+
+  function setHTML(id, value) {
+    const el = $(id);
+    if (el) el.innerHTML = value == null ? "" : String(value);
+  }
+
+  function setHidden(id, hidden) {
+    const el = $(id);
+    if (el) el.hidden = !!hidden;
+  }
+
+  function setPill(id, label, tone) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = label == null ? "" : String(label);
+    el.className = "sf-pill" + (tone ? " sf-pill--" + tone : "");
+  }
+
+  async function fetchJSON(url) {
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+        "x-sovereign-accounts-page": VERSION
+      }
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok || !data) {
+      throw new Error((data && data.error) || "HTTP " + response.status);
     }
 
-    if (raw && typeof raw === 'object') {
-      return Object.keys(raw).map(function (id) {
-        var row = raw[id] || {};
-        if (!row.id) row.id = id;
-        return row;
-      });
+    if (data.ok === false) {
+      throw new Error(data.error || "Request failed");
+    }
+
+    return data;
+  }
+
+  function unwrapAccounts(payload) {
+    if (!payload) return [];
+
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload.accounts)) return payload.accounts;
+    if (Array.isArray(payload.data)) return payload.data;
+    if (Array.isArray(payload.items)) return payload.items;
+
+    if (payload.data && Array.isArray(payload.data.accounts)) {
+      return payload.data.accounts;
     }
 
     return [];
   }
 
-  function classifyAccount(acct) {
-    var explicit = firstText(acct.category, acct.kind, acct.account_kind, acct.side).toLowerCase();
-    var type = firstText(acct.type, acct.account_type, acct.subtype).toLowerCase();
-    var id = firstText(acct.id).toLowerCase();
-    var isCc = Boolean(acct.is_credit_card) || explicit === 'credit_card' || type.indexOf('credit') !== -1 || id.indexOf('cc') !== -1;
+  function unwrapArchived(payload, allAccounts) {
+    if (!payload) return [];
 
-    if (explicit === 'asset' || explicit === 'liability') return explicit;
-    if (isCc) return 'liability';
-    if (type.indexOf('loan') !== -1 || type.indexOf('liability') !== -1 || type.indexOf('payable') !== -1) return 'liability';
-    return 'asset';
+    const direct =
+      Array.isArray(payload.archived) ? payload.archived :
+      Array.isArray(payload.archived_accounts) ? payload.archived_accounts :
+      Array.isArray(payload.archivedAccounts) ? payload.archivedAccounts :
+      payload.data && Array.isArray(payload.data.archived) ? payload.data.archived :
+      payload.data && Array.isArray(payload.data.archived_accounts) ? payload.data.archived_accounts :
+      null;
+
+    if (direct) return direct;
+
+    return (allAccounts || []).filter(account => isArchived(account));
   }
 
-  function normalizeAccount(acct) {
-    var normalized = Object.assign({}, acct || {});
-    normalized.id = firstText(normalized.id, normalized.account_id, normalized.code);
-    normalized.name = firstText(normalized.name, normalized.label, normalized.account_name, normalized.title, normalized.id, 'Unknown account');
-    normalized.category = classifyAccount(normalized);
-    normalized.status = firstText(normalized.status, normalized.state, 'active').toLowerCase();
-    normalized.icon = firstText(normalized.icon, normalized.emoji, normalized.symbol, normalized.category === 'liability' ? '💳' : '💰');
-    normalized.balance = firstNumber(
-      normalized.balance,
-      normalized.current_balance,
-      normalized.amount,
-      normalized.available_balance,
-      normalized.statement_balance,
-      normalized.credit_used
+  function isArchived(account) {
+    const status = String(account.status || "").toLowerCase();
+    return Boolean(
+      status === "archived" ||
+      account.archived_at ||
+      account.deleted_at ||
+      account.is_archived === true ||
+      account.archived === true
     );
-    normalized.balance = normalized.balance === null ? 0 : normalized.balance;
-    normalized.creditLimit = firstNumber(normalized.credit_limit, normalized.limit, normalized.card_limit);
-    normalized.utilizationPct = firstNumber(normalized.utilization_pct, normalized.utilization, normalized.credit_utilization_pct);
-    normalized.daysToDue = firstNumber(normalized.days_to_payment_due, normalized.days_to_due, normalized.payment_due_in_days);
-    return normalized;
   }
 
-  function buildMetaTags(acct) {
-    var tags = [];
-    tags.push('<span class="meta">' + escHtml(acct.category) + '</span>');
+  function isLiability(account) {
+    const type = String(account.type || "").toLowerCase();
+    const kind = String(account.kind || "").toLowerCase();
+    return type === "liability" || kind === "cc" || kind === "credit_card";
+  }
 
-    if (acct.status && acct.status !== 'active') {
-      tags.push('<span class="meta warn">' + escHtml(acct.status) + '</span>');
+  function accountId(account) {
+    return account.id || account.account_id || "";
+  }
+
+  function accountName(account) {
+    return account.name || account.label || account.account_name || accountId(account) || "Account";
+  }
+
+  function accountKindLabel(account) {
+    const kind = String(account.kind || account.type || "account").replace(/_/g, " ");
+    return kind.replace(/\b\w/g, ch => ch.toUpperCase());
+  }
+
+  function accountBalance(account) {
+    if (account.balance != null) return asNumber(account.balance, 0);
+    if (account.current_balance != null) return asNumber(account.current_balance, 0);
+    if (account.amount != null) return asNumber(account.amount, 0);
+    return 0;
+  }
+
+  function liabilityOutstanding(account) {
+    if (account.cc_outstanding != null) return asNumber(account.cc_outstanding, 0);
+    if (account.outstanding != null) return asNumber(account.outstanding, 0);
+
+    const balance = accountBalance(account);
+    return Math.max(0, -balance);
+  }
+
+  function normalize(payload) {
+    const all = unwrapAccounts(payload);
+    const archived = unwrapArchived(payload, all);
+
+    const archivedIds = new Set(archived.map(accountId).filter(Boolean));
+
+    const active = all.filter(account => {
+      const id = accountId(account);
+      if (id && archivedIds.has(id)) return false;
+      return !isArchived(account);
+    });
+
+    const assets = active.filter(account => !isLiability(account));
+    const liabilities = active.filter(account => isLiability(account));
+
+    return {
+      all,
+      active,
+      assets,
+      liabilities,
+      archived
+    };
+  }
+
+  function sourceVersion(payload) {
+    return payload && (payload.version || payload.api_version || payload.contract_version || "unknown");
+  }
+
+  function balancesSummary(payload) {
+    const data = payload || {};
+
+    return {
+      netWorth:
+        data.net_worth ??
+        data.netWorth ??
+        data.summary?.net_worth ??
+        data.summary?.netWorth,
+
+      liquid:
+        data.total_liquid ??
+        data.totalLiquid ??
+        data.liquid_now ??
+        data.summary?.total_liquid ??
+        data.summary?.totalLiquid,
+
+      ccOutstanding:
+        data.cc_outstanding ??
+        data.ccOutstanding ??
+        data.credit_card_outstanding ??
+        data.summary?.cc_outstanding ??
+        data.summary?.ccOutstanding,
+
+      trueBurden:
+        data.true_burden ??
+        data.trueBurden ??
+        data.summary?.true_burden ??
+        data.summary?.trueBurden
+    };
+  }
+
+  function statusTextForAccount(account) {
+    const status = account.status || "active";
+    const type = account.type || "asset";
+    const kind = account.kind || "account";
+    const currency = account.currency || "PKR";
+
+    return `${accountKindLabel({ kind })} · ${String(type).replace(/_/g, " ")} · ${status} · ${currency}`;
+  }
+
+  function ccMeta(account) {
+    const items = [];
+
+    if (account.credit_limit != null) {
+      items.push("Limit " + money(account.credit_limit));
     }
 
-    if (acct.creditLimit !== null) {
-      tags.push('<span class="meta accent">limit ' + escHtml(fmtPKR(acct.creditLimit)) + '</span>');
+    if (account.available_credit != null) {
+      items.push("Available " + money(account.available_credit));
     }
 
-    if (acct.utilizationPct !== null) {
-      tags.push('<span class="meta ' + (acct.utilizationPct >= 80 ? 'danger' : 'accent') + '">' + escHtml(acct.utilizationPct.toFixed(1) + '% util') + '</span>');
+    const utilization =
+      account.cc_utilization_pct ??
+      account.utilization_pct ??
+      account.credit_utilization_pct;
+
+    if (utilization != null && Number.isFinite(Number(utilization))) {
+      items.push("Utilization " + percent(utilization));
     }
 
-    if (acct.daysToDue !== null) {
-      tags.push('<span class="meta ' + (acct.daysToDue <= 3 ? 'warn' : '') + '">' + escHtml(acct.daysToDue + 'd due') + '</span>');
+    const dueDays =
+      account.days_to_payment_due ??
+      account.days_until_payment_due ??
+      account.payment_due_days;
+
+    if (dueDays != null && Number.isFinite(Number(dueDays))) {
+      const n = Number(dueDays);
+      if (n < 0) items.push("Overdue " + Math.abs(n) + "d");
+      else if (n === 0) items.push("Due today");
+      else items.push("Due in " + n + "d");
     }
 
-    return tags;
-  }
-
-  function renderAccountRow(acct) {
-    var tags = buildMetaTags(acct);
-    var amountClass = acct.balance < 0 ? 'danger' : '';
-
-    return [
-      '<div class="mini-row">',
-      '  <div class="mini-row-left">',
-      '    <div class="mini-row-icon">' + escHtml(acct.icon) + '</div>',
-      '    <div>',
-      '      <div class="mini-row-name">' + escHtml(acct.name) + '</div>',
-      tags.length ? '      <div class="mini-row-sub">' + tags.join('') + '</div>' : '',
-      '    </div>',
-      '  </div>',
-      '  <div class="mini-row-right">',
-      '    <div class="mini-row-amount ' + amountClass + '">' + escHtml(fmtPKR(acct.balance)) + '</div>',
-      '  </div>',
-      '</div>'
-    ].join('');
-  }
-
-  function setText(id, value) {
-    var node = $(id);
-    if (node) node.textContent = value;
-  }
-
-  function renderList(id, items, emptyText) {
-    var node = $(id);
-    if (!node) return;
-    node.innerHTML = items.length
-      ? items.map(renderAccountRow).join('')
-      : '<div class="accounts-empty">' + escHtml(emptyText) + '</div>';
-  }
-
-  function renderSummary(assets, liabilities, archived, balancesData) {
-    var assetsTotal = assets.reduce(function (sum, acct) { return sum + asNumber(acct.balance, 0); }, 0);
-    var liabilitiesTotal = liabilities.reduce(function (sum, acct) { return sum + asNumber(acct.balance, 0); }, 0);
-
-    setText('acc-assets-count', String(assets.length));
-    setText('acc-assets-total', fmtPKR(assetsTotal));
-    setText('acc-liabilities-count', String(liabilities.length));
-    setText('acc-liabilities-total', fmtPKR(liabilitiesTotal));
-    setText('acc-archived-count', String(archived.length));
-
-    if (balancesData && balancesData.ok) {
-      setText('acc-net-worth', fmtPKR(firstNumber(balancesData.net_worth, balancesData.netWorth, 0)));
-    } else {
-      setText('acc-net-worth', fmtPKR(assetsTotal - Math.abs(liabilitiesTotal)));
+    if (account.cc_status_label) {
+      items.push(account.cc_status_label);
     }
+
+    return items;
   }
 
-  function syncShellKpis() {
-    var pairs = [
-      ['acc-net-worth', 'acc-net-worth-kpi'],
-      ['acc-assets-count', 'acc-assets-count-kpi'],
-      ['acc-assets-total', 'acc-assets-total-kpi'],
-      ['acc-liabilities-count', 'acc-liabilities-count-kpi'],
-      ['acc-liabilities-total', 'acc-liabilities-total-kpi'],
-      ['acc-archived-count', 'acc-archived-count-kpi']
+  function toneForBalance(value, liability) {
+    const n = asNumber(value, 0);
+
+    if (liability) {
+      return n > 0 ? "warning" : "positive";
+    }
+
+    if (n < 0) return "danger";
+    if (n === 0) return "info";
+    return "positive";
+  }
+
+  function rowHtml(account, options) {
+    const opts = options || {};
+    const liability = !!opts.liability;
+    const balance = liability ? liabilityOutstanding(account) : accountBalance(account);
+    const tone = toneForBalance(balance, liability);
+    const id = accountId(account);
+    const metaParts = liability ? ccMeta(account) : [];
+
+    return `
+      <div class="sf-finance-row" data-account-id="${esc(id)}">
+        <div class="sf-row-left">
+          <div class="sf-row-title">${esc(accountName(account))}</div>
+          <div class="sf-row-subtitle">${esc(statusTextForAccount(account))}</div>
+          ${
+            metaParts.length
+              ? `<div class="sf-row-subtitle">${metaParts.map(esc).join(" · ")}</div>`
+              : ""
+          }
+        </div>
+        <div class="sf-row-right">
+          <div class="sf-tone-${tone}">${money(balance)}</div>
+          <div class="sf-row-subtitle">${liability ? "outstanding" : "balance"}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function emptyState(title, subtitle, actionHtml) {
+    const c = components();
+    if (typeof c.emptyState === "function") {
+      return c.emptyState({ title, subtitle, actionHtml });
+    }
+
+    return `
+      <div class="sf-empty-state">
+        <div>
+          <h3 class="sf-card-title">${esc(title)}</h3>
+          <p class="sf-card-subtitle">${esc(subtitle || "")}</p>
+          ${actionHtml ? `<div class="sf-empty-action">${actionHtml}</div>` : ""}
+        </div>
+      </div>
+    `;
+  }
+
+  function loadingState(title, subtitle) {
+    const c = components();
+    if (typeof c.loadingState === "function") {
+      return c.loadingState({ title, subtitle });
+    }
+
+    return `
+      <div class="sf-loading-state">
+        <div>
+          <h3 class="sf-card-title">${esc(title)}</h3>
+          <p class="sf-card-subtitle">${esc(subtitle || "")}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  function errorState(title, message) {
+    const c = components();
+    if (typeof c.errorState === "function") {
+      return c.errorState({ title, message });
+    }
+
+    return `
+      <div class="sf-empty-state sf-tone-danger">
+        <div>
+          <h3 class="sf-card-title">${esc(title)}</h3>
+          <p class="sf-card-subtitle">${esc(message || "")}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderAccountLists() {
+    const assets = normalized.assets || [];
+    const liabilities = normalized.liabilities || [];
+
+    const assetTotal = round2(assets.reduce((sum, account) => sum + accountBalance(account), 0));
+    const liabilityTotal = round2(liabilities.reduce((sum, account) => sum + liabilityOutstanding(account), 0));
+
+    setPill("acc-assets-count", `${assets.length} account${assets.length === 1 ? "" : "s"}`, "info");
+    setPill("acc-assets-total", money(assetTotal), assetTotal > 0 ? "positive" : "info");
+
+    setPill("acc-liabilities-count", `${liabilities.length} account${liabilities.length === 1 ? "" : "s"}`, "info");
+    setPill("acc-liabilities-total", money(liabilityTotal), liabilityTotal > 0 ? "warning" : "positive");
+
+    setHTML(
+      "acc-assets-list",
+      assets.length
+        ? assets.map(account => rowHtml(account, { liability: false })).join("")
+        : emptyState("No asset accounts", "No active asset accounts were returned by /api/accounts.")
+    );
+
+    setHTML(
+      "acc-liabilities-list",
+      liabilities.length
+        ? liabilities.map(account => rowHtml(account, { liability: true })).join("")
+        : emptyState("No liabilities", "No active liability accounts were returned by /api/accounts.")
+    );
+  }
+
+  function renderArchived() {
+    const archived = normalized.archived || [];
+    const panel = $("acc-archived-panel");
+    const toggle = $("acc-archived-toggle");
+    const list = $("acc-archived-list");
+
+    if (!panel || !toggle || !list) return;
+
+    if (!archived.length) {
+      panel.hidden = true;
+      return;
+    }
+
+    panel.hidden = false;
+    setPill("acc-archived-count", `${archived.length} archived`, "info");
+
+    list.innerHTML = archived.map(account => {
+      const liability = isLiability(account);
+      return rowHtml(account, { liability });
+    }).join("");
+
+    list.hidden = true;
+    toggle.textContent = "Show archived";
+    toggle.setAttribute("aria-expanded", "false");
+
+    toggle.onclick = function () {
+      const nextHidden = !list.hidden;
+      list.hidden = nextHidden;
+      toggle.textContent = nextHidden ? "Show archived" : "Hide archived";
+      toggle.setAttribute("aria-expanded", String(!nextHidden));
+    };
+  }
+
+  function renderBalances() {
+    if (!balancesPayload) {
+      setText("acc-net-worth", "Unavailable");
+      setText("acc-liquid", "Unavailable");
+      setText("acc-cc-outstanding", "Unavailable");
+      setText("acc-true-burden", "Unavailable");
+      return;
+    }
+
+    const summary = balancesSummary(balancesPayload);
+
+    setText("acc-net-worth", summary.netWorth == null ? "Unavailable" : money(summary.netWorth));
+    setText("acc-liquid", summary.liquid == null ? "Unavailable" : money(summary.liquid));
+    setText("acc-cc-outstanding", summary.ccOutstanding == null ? "Unavailable" : money(summary.ccOutstanding));
+    setText("acc-true-burden", summary.trueBurden == null ? "Unavailable" : money(summary.trueBurden));
+  }
+
+  function updateShellKpis() {
+    const activeCount = normalized.active.length;
+    const summary = balancesSummary(balancesPayload);
+
+    const balancesOk = !!balancesPayload;
+    const accountsOk = !!accountsPayload;
+
+    const kpis = [
+      {
+        title: "Net Worth",
+        kicker: "Balances API",
+        valueHtml: balancesOk && summary.netWorth != null ? money(summary.netWorth) : "Unavailable",
+        subtitle: balancesOk ? "From /api/balances" : "Balances API failed",
+        foot: "No frontend fallback",
+        tone: balancesOk ? toneForBalance(summary.netWorth, false) : "danger"
+      },
+      {
+        title: "Liquid Assets",
+        kicker: "Balances API",
+        valueHtml: balancesOk && summary.liquid != null ? money(summary.liquid) : "Unavailable",
+        subtitle: "Asset-side cash position",
+        foot: "Canonical top metric",
+        tone: balancesOk ? toneForBalance(summary.liquid, false) : "danger"
+      },
+      {
+        title: "CC Outstanding",
+        kicker: "Balances API",
+        valueHtml: balancesOk && summary.ccOutstanding != null ? money(summary.ccOutstanding) : "Unavailable",
+        subtitle: "Credit-card pressure",
+        foot: "Liability truth",
+        tone: balancesOk && asNumber(summary.ccOutstanding, 0) > 0 ? "warning" : balancesOk ? "positive" : "danger"
+      },
+      {
+        title: "Active Accounts",
+        kicker: "Accounts API",
+        valueHtml: accountsOk ? String(activeCount) : "Unavailable",
+        subtitle: accountsOk ? "From /api/accounts" : "Accounts API failed",
+        foot: "Read-only inventory",
+        tone: accountsOk ? "info" : "danger"
+      }
     ];
 
-    pairs.forEach(function (pair) {
-      var from = $(pair[0]);
-      var to = $(pair[1]);
-      if (from && to) to.textContent = from.textContent || '—';
-    });
+    if (window.SFShell && typeof window.SFShell.setKpis === "function") {
+      window.SFShell.setKpis(kpis);
+    }
   }
 
-  function wireArchivedToggle() {
-    var header = $('acc-archived-header');
-    var list = $('acc-archived-list');
-    var toggle = $('acc-archived-toggle');
-    if (!header || !list || !toggle || header.__wired) return;
+  function renderSourceStatus(accountsOk, balancesOk, accountsError, balancesError) {
+    const now = new Date();
 
-    header.__wired = true;
-    header.addEventListener('click', function () {
-      archivedOpen = !archivedOpen;
-      list.style.display = archivedOpen ? 'grid' : 'none';
-      toggle.textContent = archivedOpen ? 'v' : '>';
-    });
+    setPill(
+      "acc-source-status",
+      accountsOk && balancesOk ? "Sources OK" : "Source issue",
+      accountsOk && balancesOk ? "positive" : "danger"
+    );
+
+    setText(
+      "acc-accounts-api-status",
+      accountsOk ? `OK · ${sourceVersion(accountsPayload)}` : `Failed · ${accountsError || "unknown"}`
+    );
+
+    setText(
+      "acc-balances-api-status",
+      balancesOk ? `OK · ${sourceVersion(balancesPayload)}` : `Failed · ${balancesError || "unknown"}`
+    );
+
+    const accStatus = $("acc-accounts-api-status");
+    if (accStatus) accStatus.className = "sf-row-right " + (accountsOk ? "sf-tone-positive" : "sf-tone-danger");
+
+    const balStatus = $("acc-balances-api-status");
+    if (balStatus) balStatus.className = "sf-row-right " + (balancesOk ? "sf-tone-positive" : "sf-tone-danger");
+
+    setText("acc-last-loaded", now.toLocaleString("en-PK", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    }));
   }
 
-  function updateDayCounter() {
-    var today = new Date();
-    var startOfYear = new Date(today.getFullYear(), 0, 1);
-    var dayOfYear = Math.ceil((today - startOfYear) / 86400000);
-    var cycleDay = dayOfYear % 90 || 90;
-    var remaining = 90 - cycleDay + 1;
+  function renderDebug() {
+    const debug = {
+      page_version: VERSION,
+      mode: "read-only",
+      endpoints: {
+        accounts: ACCOUNTS_ENDPOINT,
+        balances: BALANCES_ENDPOINT
+      },
+      contract: {
+        account_rows_source: "/api/accounts",
+        net_worth_source: "/api/balances",
+        frontend_net_worth_fallback: false,
+        writes_enabled: false,
+        dry_run_enabled: false,
+        correction_path: "Reconciliation + Audit Trail; D1 console only as last-resort repair outside this page"
+      },
+      normalized_counts: {
+        all: normalized.all ? normalized.all.length : 0,
+        active: normalized.active.length,
+        assets: normalized.assets.length,
+        liabilities: normalized.liabilities.length,
+        archived: normalized.archived.length
+      },
+      normalized_accounts: normalized,
+      accounts_payload: accountsPayload,
+      balances_payload: balancesPayload
+    };
 
-    setText('dayNum', String(cycleDay));
-    setText('acc-day-count', String(remaining) + ' days left');
+    setText("acc-debug-output", JSON.stringify(debug, null, 2));
+
+    if (window.SFShell && typeof window.SFShell.revealDebugIfNeeded === "function") {
+      window.SFShell.revealDebugIfNeeded();
+    }
   }
 
-  function loadAccounts() {
-    return Promise.all([
-      fetch('/api/accounts?debug=1', { cache: 'no-store', headers: { accept: 'application/json' } }).then(function (r) { return r.json(); }),
-      fetch('/api/balances?debug=1', { cache: 'no-store', headers: { accept: 'application/json' } }).then(function (r) { return r.json(); })
-    ]).then(function (results) {
-      var accountsData = results[0];
-      var balancesData = results[1];
+  function renderAccountsError(message) {
+    setHTML(
+      "acc-assets-list",
+      errorState("Accounts API failed", message || "Could not load /api/accounts.")
+    );
 
-      if (!accountsData || accountsData.ok === false) {
-        throw new Error((accountsData && accountsData.error) || 'Accounts load failed');
+    setHTML(
+      "acc-liabilities-list",
+      errorState("Accounts API failed", "Liability rows cannot render without /api/accounts.")
+    );
+
+    setPill("acc-assets-count", "Unavailable", "danger");
+    setPill("acc-assets-total", "Unavailable", "danger");
+    setPill("acc-liabilities-count", "Unavailable", "danger");
+    setPill("acc-liabilities-total", "Unavailable", "danger");
+    setHidden("acc-archived-panel", true);
+  }
+
+  function renderBalancesError(message) {
+    setText("acc-net-worth", "Unavailable");
+    setText("acc-liquid", "Unavailable");
+    setText("acc-cc-outstanding", "Unavailable");
+    setText("acc-true-burden", "Unavailable");
+
+    const summaryPanel = $("acc-summary-title");
+    if (summaryPanel) {
+      const parent = summaryPanel.closest(".sf-panel");
+      if (parent && !parent.querySelector(".acc-balances-error")) {
+        const div = document.createElement("div");
+        div.className = "acc-balances-error sf-empty-state sf-tone-danger";
+        div.innerHTML = `
+          <div>
+            <h3 class="sf-card-title">Balances source unavailable</h3>
+            <p class="sf-card-subtitle">${esc(message || "Could not load /api/balances.")}</p>
+            <p class="sf-card-subtitle">Net worth is not recalculated in the frontend.</p>
+          </div>
+        `;
+        parent.appendChild(div);
       }
-
-      allAccounts = normalizeAccountsPayload(accountsData).map(normalizeAccount);
-
-      var active = allAccounts.filter(function (a) { return a.status !== 'archived' && a.status !== 'deleted'; });
-      var archived = allAccounts.filter(function (a) { return a.status === 'archived'; });
-      var assets = active.filter(function (a) { return a.category === 'asset'; });
-      var liabilities = active.filter(function (a) { return a.category === 'liability'; });
-
-      renderList('acc-assets-list', assets, 'No active asset accounts.');
-      renderList('acc-liabilities-list', liabilities, 'No active liability accounts.');
-      renderList('acc-archived-list', archived, 'No archived accounts.');
-      renderSummary(assets, liabilities, archived, balancesData);
-      syncShellKpis();
-      wireArchivedToggle();
-
-      console.log('[accounts] version:', VERSION, 'active:', active.length, 'archived:', archived.length);
-    }).catch(function (err) {
-      console.error('[accounts] load failed:', err);
-      renderList('acc-assets-list', [], 'Load failed: ' + err.message);
-      renderList('acc-liabilities-list', [], 'Load failed: ' + err.message);
-      renderList('acc-archived-list', [], 'Load failed: ' + err.message);
-      setText('acc-net-worth', 'Rs —');
-      setText('acc-assets-count', '0');
-      setText('acc-assets-total', 'Rs —');
-      setText('acc-liabilities-count', '0');
-      setText('acc-liabilities-total', 'Rs —');
-      setText('acc-archived-count', '0');
-      syncShellKpis();
-    });
+    }
   }
 
-  function boot() {
-    updateDayCounter();
-    wireArchivedToggle();
-    loadAccounts();
+  async function loadAll() {
+    setPill("acc-source-status", "Loading", "info");
+    setText("acc-accounts-api-status", "Loading");
+    setText("acc-balances-api-status", "Loading");
+
+    setHTML("acc-assets-list", loadingState("Loading assets", "Reading /api/accounts."));
+    setHTML("acc-liabilities-list", loadingState("Loading liabilities", "Reading /api/accounts."));
+
+    let accountsOk = false;
+    let balancesOk = false;
+    let accountsError = "";
+    let balancesError = "";
+
+    const [accountsResult, balancesResult] = await Promise.allSettled([
+      fetchJSON(ACCOUNTS_ENDPOINT),
+      fetchJSON(BALANCES_ENDPOINT)
+    ]);
+
+    if (accountsResult.status === "fulfilled") {
+      accountsPayload = accountsResult.value;
+      normalized = normalize(accountsPayload);
+      accountsOk = true;
+      renderAccountLists();
+      renderArchived();
+    } else {
+      accountsPayload = null;
+      normalized = {
+        active: [],
+        assets: [],
+        liabilities: [],
+        archived: []
+      };
+      accountsError = accountsResult.reason && accountsResult.reason.message
+        ? accountsResult.reason.message
+        : "Unknown error";
+      renderAccountsError(accountsError);
+    }
+
+    if (balancesResult.status === "fulfilled") {
+      balancesPayload = balancesResult.value;
+      balancesOk = true;
+      renderBalances();
+    } else {
+      balancesPayload = null;
+      balancesError = balancesResult.reason && balancesResult.reason.message
+        ? balancesResult.reason.message
+        : "Unknown error";
+      renderBalancesError(balancesError);
+    }
+
+    renderSourceStatus(accountsOk, balancesOk, accountsError, balancesError);
+    updateShellKpis();
+    renderDebug();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
+  function init() {
+    window.SovereignAccounts = {
+      initialized: true,
+      version: VERSION,
+      reload: loadAll,
+      accountsPayload: () => accountsPayload,
+      balancesPayload: () => balancesPayload,
+      normalized: () => normalized
+    };
+
+    loadAll();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
   } else {
-    boot();
+    init();
   }
 })();
