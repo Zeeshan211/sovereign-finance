@@ -14,147 +14,58 @@
   <link rel="stylesheet" href="/css/sf-shell.css">
 
   <style>
-    .sf-app-shell--with-nav {
-      display: grid;
-      grid-template-columns: 280px minmax(0, 1fr);
-      gap: 24px;
-      width: min(100%, 1680px);
-      margin: 0 auto;
-      padding: 24px;
-    }
-
-    .sf-finance-sidebar {
-      position: sticky;
-      top: 24px;
-      height: calc(100vh - 48px);
-      overflow: auto;
-      border: 1px solid var(--sf-border);
-      border-radius: 24px;
-      background: linear-gradient(180deg, var(--sf-card-strong), var(--sf-card));
-      padding: 18px;
-      box-shadow: var(--sf-shadow-sm);
-    }
-
-    .sf-sidebar-brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding-bottom: 18px;
-      margin-bottom: 18px;
-      border-bottom: 1px solid var(--sf-border-subtle);
-    }
-
-    .sf-sidebar-logo {
-      width: 44px;
-      height: 44px;
-      border-radius: 16px;
-      display: grid;
-      place-items: center;
-      background: linear-gradient(135deg, var(--sf-accent), var(--sf-positive));
-      font-weight: 800;
-      color: #fff;
-    }
-
-    .sf-sidebar-title {
-      font-weight: 800;
-      color: var(--sf-text);
-    }
-
-    .sf-sidebar-sub {
-      font-size: 12px;
-      color: var(--sf-text-muted);
-      margin-top: 2px;
-    }
-
-    .sf-nav-section {
-      margin: 18px 0;
-    }
-
-    .sf-nav-kicker {
-      font-size: 11px;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: var(--sf-text-faint);
-      font-weight: 800;
-      margin: 0 0 8px;
-    }
-
-    .sf-nav-list {
-      display: grid;
-      gap: 6px;
-    }
-
-    .sf-nav-link {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      color: var(--sf-text-soft);
-      text-decoration: none;
-      font-weight: 700;
-      border: 1px solid transparent;
-    }
-
-    .sf-nav-link:hover,
-    .sf-nav-link.is-active {
-      background: var(--sf-accent-soft);
-      border-color: var(--sf-border-strong);
-      color: var(--sf-accent-strong);
-    }
-
     .nano-grid {
       display: grid;
-      grid-template-columns: minmax(380px, .9fr) minmax(0, 1.1fr);
-      gap: 20px;
+      grid-template-columns: minmax(360px, 0.92fr) minmax(0, 1.08fr);
+      gap: var(--sf-space-5);
+      align-items: start;
     }
 
     .nano-form {
       display: grid;
-      gap: 14px;
+      gap: var(--sf-space-4);
     }
 
     .field-row {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
+      gap: var(--sf-space-4);
     }
 
-    .field {
+    .sf-field {
       display: grid;
-      gap: 7px;
+      gap: var(--sf-space-2);
     }
 
-    .field label,
+    .sf-field label,
     .field-label {
       color: var(--sf-text-muted);
-      font-size: 12px;
+      font-size: var(--sf-font-12);
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: .08em;
+      letter-spacing: 0.08em;
     }
 
-    .field small {
+    .sf-field small {
       color: var(--sf-text-faint);
-      font-weight: 600;
       text-transform: none;
       letter-spacing: 0;
     }
 
-    .input,
-    .select,
-    .textarea {
+    .sf-input,
+    .sf-select,
+    .sf-textarea {
       width: 100%;
       border: 1px solid var(--sf-border);
-      border-radius: 14px;
+      border-radius: var(--sf-radius-sm);
       background: var(--sf-surface-1);
       color: var(--sf-text);
       padding: 12px 13px;
       font: inherit;
+      outline: none;
     }
 
-    .textarea {
+    .sf-textarea {
       min-height: 92px;
       resize: vertical;
     }
@@ -162,20 +73,20 @@
     .shape-toggle {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-      padding: 6px;
-      border-radius: 18px;
+      gap: var(--sf-space-2);
+      padding: var(--sf-space-2);
+      border-radius: var(--sf-radius-md);
       background: var(--sf-surface-1);
       border: 1px solid var(--sf-border-subtle);
     }
 
     .shape-btn {
       min-height: 46px;
-      border-radius: 14px;
+      border-radius: var(--sf-radius-sm);
       border: 1px solid var(--sf-border);
       background: var(--sf-surface-2);
       color: var(--sf-text-soft);
-      font-size: 13px;
+      font-size: var(--sf-font-13);
       font-weight: 900;
       cursor: pointer;
     }
@@ -183,74 +94,77 @@
     .shape-btn.active {
       background: var(--sf-warning-soft);
       color: var(--sf-warning);
-      border-color: rgba(241, 184, 87, .34);
+      border-color: rgba(241, 184, 87, 0.34);
     }
 
     .nano-submit-row {
       display: grid;
-      grid-template-columns: 1fr .7fr;
-      gap: 10px;
-      margin-top: 4px;
+      grid-template-columns: 1fr 0.7fr;
+      gap: var(--sf-space-3);
+      margin-top: var(--sf-space-2);
     }
 
     .nano-submit,
-    .nano-secondary {
-      min-height: 50px;
-      border-radius: 16px;
-      font-size: 14px;
+    .nano-secondary,
+    .loan-action {
+      min-height: 46px;
+      border-radius: var(--sf-radius-sm);
+      border: 1px solid var(--sf-border);
+      font-size: var(--sf-font-13);
       font-weight: 900;
       cursor: pointer;
     }
 
     .nano-submit {
-      border: 1px solid rgba(241, 184, 87, .34);
       background: var(--sf-warning-soft);
       color: var(--sf-warning);
+      border-color: rgba(241, 184, 87, 0.34);
     }
 
     .nano-secondary {
-      border: 1px solid var(--sf-border);
       background: var(--sf-surface-1);
       color: var(--sf-text-soft);
     }
 
     .nano-submit:disabled,
-    .nano-secondary:disabled {
-      opacity: .56;
+    .nano-secondary:disabled,
+    .loan-action:disabled {
+      opacity: 0.56;
       cursor: not-allowed;
     }
 
     .loan-list {
       display: grid;
-      gap: 12px;
+      gap: var(--sf-space-3);
     }
 
     .loan-card {
-      border-radius: 20px;
-      padding: 16px;
-      background: var(--sf-surface-1);
       border: 1px solid var(--sf-border-subtle);
+      border-radius: var(--sf-radius-lg);
+      background: var(--sf-surface-1);
+      padding: var(--sf-space-4);
+      overflow: hidden;
     }
 
     .loan-card.closed {
-      opacity: .72;
+      opacity: 0.72;
     }
 
     .loan-top {
       display: grid;
       grid-template-columns: 46px minmax(0, 1fr) auto;
-      gap: 12px;
+      gap: var(--sf-space-3);
       align-items: center;
     }
 
     .loan-icon {
       width: 44px;
       height: 44px;
-      border-radius: 16px;
+      border-radius: var(--sf-radius-sm);
       display: grid;
       place-items: center;
       background: var(--sf-warning-soft);
-      border: 1px solid rgba(241, 184, 87, .28);
+      border: 1px solid rgba(241, 184, 87, 0.28);
       color: var(--sf-warning);
       font-size: 20px;
       font-weight: 900;
@@ -258,7 +172,7 @@
 
     .loan-title {
       color: var(--sf-text);
-      font-size: 15px;
+      font-size: var(--sf-font-14);
       font-weight: 900;
       white-space: nowrap;
       overflow: hidden;
@@ -268,14 +182,13 @@
     .loan-sub {
       margin-top: 3px;
       color: var(--sf-text-muted);
-      font-size: 12px;
+      font-size: var(--sf-font-12);
       font-weight: 700;
-      line-height: 1.4;
     }
 
     .loan-amount {
       color: var(--sf-danger);
-      font-size: 16px;
+      font-size: var(--sf-font-16);
       font-weight: 900;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
@@ -283,23 +196,23 @@
     }
 
     .loan-progress {
-      margin-top: 14px;
+      margin-top: var(--sf-space-4);
     }
 
     .loan-progress-meta {
       display: flex;
       justify-content: space-between;
-      gap: 12px;
+      gap: var(--sf-space-3);
       color: var(--sf-text-muted);
-      font-size: 12px;
+      font-size: var(--sf-font-12);
       font-weight: 700;
-      margin-bottom: 7px;
+      margin-bottom: var(--sf-space-2);
     }
 
     .loan-progress-track {
       height: 12px;
       background: var(--sf-surface-2);
-      border-radius: 999px;
+      border-radius: var(--sf-radius-pill);
       overflow: hidden;
       border: 1px solid var(--sf-border-subtle);
     }
@@ -307,84 +220,66 @@
     .loan-progress-fill {
       height: 100%;
       width: 0%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, var(--sf-positive), var(--sf-accent));
+      border-radius: var(--sf-radius-pill);
+      background: linear-gradient(90deg, var(--sf-positive), #16a34a);
     }
 
     .loan-actions {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-      margin-top: 14px;
+      gap: var(--sf-space-2);
+      margin-top: var(--sf-space-4);
     }
 
     .loan-action {
-      min-height: 42px;
-      border-radius: 14px;
-      border: 1px solid var(--sf-border);
-      background: var(--sf-surface-2);
-      color: var(--sf-text-soft);
-      font-size: 12px;
-      font-weight: 900;
-      cursor: pointer;
-      text-decoration: none;
       display: grid;
       place-items: center;
+      text-decoration: none;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-soft);
+      text-align: center;
     }
 
     .loan-action.primary {
       background: var(--sf-positive-soft);
       color: var(--sf-positive);
-      border-color: rgba(83, 215, 167, .28);
+      border-color: rgba(83, 215, 167, 0.28);
     }
 
     .loan-action.warn {
       background: var(--sf-warning-soft);
       color: var(--sf-warning);
-      border-color: rgba(241, 184, 87, .28);
-    }
-
-    .loan-action:disabled {
-      opacity: .5;
-      cursor: not-allowed;
+      border-color: rgba(241, 184, 87, 0.28);
     }
 
     .empty-nano {
-      border-radius: 18px;
-      padding: 26px;
+      border-radius: var(--sf-radius-md);
+      padding: var(--sf-space-6);
       text-align: center;
       background: var(--sf-surface-1);
       border: 1px dashed var(--sf-border);
       color: var(--sf-text-muted);
-      font-size: 14px;
+      font-size: var(--sf-font-13);
       font-weight: 700;
       line-height: 1.45;
-    }
-
-    .negative {
-      color: var(--sf-danger);
-    }
-
-    .warn {
-      color: var(--sf-warning);
     }
 
     .toast {
       position: fixed;
       right: 18px;
       bottom: 18px;
-      z-index: 90;
+      z-index: 9999;
       transform: translateY(18px);
       opacity: 0;
-      transition: .2s ease;
+      pointer-events: none;
+      transition: 0.2s ease;
       border: 1px solid var(--sf-border);
-      border-radius: 16px;
+      border-radius: var(--sf-radius-md);
       padding: 12px 14px;
       background: var(--sf-card-strong);
       color: var(--sf-text);
       box-shadow: var(--sf-shadow-md);
       font-weight: 800;
-      pointer-events: none;
     }
 
     .toast.show {
@@ -393,27 +288,16 @@
     }
 
     .toast-error {
-      border-color: rgba(255, 127, 138, .35);
+      border-color: rgba(255, 127, 138, 0.35);
       color: var(--sf-danger);
     }
 
     .toast-success {
-      border-color: rgba(83, 215, 167, .35);
+      border-color: rgba(83, 215, 167, 0.35);
       color: var(--sf-positive);
     }
 
     @media (max-width: 1080px) {
-      .sf-app-shell--with-nav {
-        grid-template-columns: 1fr;
-        padding: 16px;
-      }
-
-      .sf-finance-sidebar {
-        position: relative;
-        top: 0;
-        height: auto;
-      }
-
       .nano-grid {
         grid-template-columns: 1fr;
       }
@@ -441,217 +325,159 @@
 
 <body class="sf-shell-body">
   <div class="sf-app-shell sf-app-shell--with-nav">
-    <aside aria-label="Finance navigation" class="sf-finance-sidebar">
-      <div class="sf-sidebar-brand">
-        <div class="sf-sidebar-logo">SF</div>
-        <div>
-          <div class="sf-sidebar-title">Sovereign Finance</div>
-          <div class="sf-sidebar-sub">Personal finance system</div>
-        </div>
-      </div>
-
-      <nav>
-        <div class="sf-nav-section">
-          <p class="sf-nav-kicker">Core</p>
-          <div class="sf-nav-list">
-            <a class="sf-nav-link" href="/index.html">Hub</a>
-            <a class="sf-nav-link" href="/add.html">Add</a>
-            <a class="sf-nav-link" href="/transactions.html">Ledger</a>
-            <a class="sf-nav-link" href="/accounts.html">Accounts</a>
-            <a class="sf-nav-link" href="/cc.html">Credit Card</a>
-          </div>
-        </div>
-
-        <div class="sf-nav-section">
-          <p class="sf-nav-kicker">Cashflow</p>
-          <div class="sf-nav-list">
-            <a class="sf-nav-link" href="/bills.html">Bills</a>
-            <a class="sf-nav-link" href="/debts.html">Debts</a>
-            <a class="sf-nav-link" href="/salary.html">Salary</a>
-            <a class="sf-nav-link" href="/forecast.html">Forecast</a>
-          </div>
-        </div>
-
-        <div class="sf-nav-section">
-          <p class="sf-nav-kicker">Control / QA</p>
-          <div class="sf-nav-list">
-            <a class="sf-nav-link" href="/reconciliation.html">Reconciliation</a>
-            <a class="sf-nav-link" href="/audit.html">Audit Trail</a>
-            <a class="sf-nav-link" href="/monthly-close.html">Monthly Close</a>
-          </div>
-        </div>
-
-        <div class="sf-nav-section">
-          <p class="sf-nav-kicker">Analysis</p>
-          <div class="sf-nav-list">
-            <a class="sf-nav-link" href="/insights.html">Insights</a>
-            <a class="sf-nav-link" href="/charts.html">Charts</a>
-            <a class="sf-nav-link" href="/snapshots.html">Snapshots</a>
-          </div>
-        </div>
-
-        <div class="sf-nav-section">
-          <p class="sf-nav-kicker">Tools</p>
-          <div class="sf-nav-list">
-            <a class="sf-nav-link" href="/atm.html">ATM</a>
-            <a class="sf-nav-link" href="/budgets.html">Budgets</a>
-            <a class="sf-nav-link" href="/goals.html">Goals</a>
-            <a class="sf-nav-link" href="/merchants.html">Merchants</a>
-            <a class="sf-nav-link is-active" href="/nano-loans.html">Nano Loans</a>
-          </div>
-        </div>
-      </nav>
-    </aside>
+    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
 
     <main class="sf-page-shell">
-      <header class="sf-page-hero">
-        <div class="sf-page-title-group">
-          <div class="sf-page-eyebrow">Layer 5C · Sheet logic port</div>
-          <h1 class="sf-page-title">Nano Loans</h1>
-          <p class="sf-page-subtitle">
-            Track short nano loans with their source account, shape, cool-off fee, repayment state,
-            and optional push-to-CC action without hiding the true burden.
-          </p>
-        </div>
+      <section class="sf-page-content">
+        <header class="sf-page-hero">
+          <div class="sf-page-title-group">
+            <span class="sf-page-eyebrow">Layer 5C · Sheet logic port</span>
+            <h1 class="sf-page-title">Nano Loans</h1>
+            <p class="sf-page-subtitle">
+              Track short nano loans with source account, shape, cool-off fee, repayment state,
+              and optional push-to-CC action without hiding the true burden.
+            </p>
+          </div>
 
-        <div class="sf-page-actions">
-          <span id="livePill" class="sf-pill sf-pill--info">Loading Nano API...</span>
-          <a class="sf-button" href="/transactions.html">Ledger</a>
-          <a class="sf-button" href="/cc.html">CC Planner</a>
-        </div>
-      </header>
+          <div class="sf-page-actions">
+            <span id="livePill" class="sf-pill sf-pill--info">Loading Nano API...</span>
+            <a class="sf-button" href="/transactions.html">Ledger</a>
+            <a class="sf-button" href="/cc.html">CC Planner</a>
+          </div>
+        </header>
 
-      <section class="sf-kpi-row">
-        <section class="sf-metric-card">
-          <p class="sf-card-kicker">Active Loans</p>
-          <div id="activeCount" class="sf-metric-value">0</div>
+        <section class="sf-kpi-row">
+          <div class="sf-metric-card">
+            <p class="sf-card-kicker">Active Loans</p>
+            <div id="activeCount" class="sf-metric-value">0</div>
+          </div>
+
+          <div class="sf-metric-card">
+            <p class="sf-card-kicker">Remaining</p>
+            <div id="remainingTotal" class="sf-metric-value sf-tone-danger">Rs 0</div>
+          </div>
+
+          <div class="sf-metric-card">
+            <p class="sf-card-kicker">Principal</p>
+            <div id="principalTotal" class="sf-metric-value">Rs 0</div>
+          </div>
+
+          <div class="sf-metric-card">
+            <p class="sf-card-kicker">Cool-Off Fees</p>
+            <div id="feeTotal" class="sf-metric-value sf-tone-warning">Rs 0</div>
+          </div>
+
+          <div class="sf-metric-card">
+            <p class="sf-card-kicker">Pushed To CC</p>
+            <div id="pushedCount" class="sf-metric-value">0</div>
+          </div>
         </section>
 
-        <section class="sf-metric-card">
-          <p class="sf-card-kicker">Remaining</p>
-          <div id="remainingTotal" class="sf-metric-value negative">Rs 0</div>
+        <section class="nano-grid">
+          <section class="sf-panel">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">New</p>
+                <h2 class="sf-section-title">New Nano Loan</h2>
+                <p class="sf-section-subtitle">Creates nano loan record plus borrow ledger row.</p>
+              </div>
+            </div>
+
+            <form id="nanoForm" class="nano-form">
+              <div class="sf-field">
+                <label for="appName">App / Lender</label>
+                <input id="appName" class="sf-input" type="text" maxlength="80" placeholder="EasyPaisa Nano / JazzCash / App name" required>
+              </div>
+
+              <div class="field-row">
+                <div class="sf-field">
+                  <label for="principalAmount">Principal Amount</label>
+                  <input id="principalAmount" class="sf-input" type="number" min="0.01" step="0.01" placeholder="0" required>
+                </div>
+
+                <div class="sf-field">
+                  <label for="coolOffFee">Cool-Off Fee</label>
+                  <input id="coolOffFee" class="sf-input" type="number" min="0" step="0.01" value="0">
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="sf-field">
+                  <label for="totalOwed">Total Owed</label>
+                  <input id="totalOwed" class="sf-input" type="number" min="0.01" step="0.01" placeholder="Auto if blank">
+                </div>
+
+                <div class="sf-field">
+                  <label for="sourceAccount">Source Account</label>
+                  <select id="sourceAccount" class="sf-select" required></select>
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="sf-field">
+                  <label for="loanDate">Date</label>
+                  <input id="loanDate" class="sf-input" type="date" required>
+                </div>
+
+                <div class="sf-field">
+                  <label for="coolOffDue">Cool-Off Due <small>optional</small></label>
+                  <input id="coolOffDue" class="sf-input" type="date">
+                </div>
+              </div>
+
+              <div>
+                <label class="field-label">Shape</label>
+                <div class="shape-toggle">
+                  <button class="shape-btn active" type="button" data-shape="A">Shape A</button>
+                  <button class="shape-btn" type="button" data-shape="B">Shape B</button>
+                </div>
+              </div>
+
+              <div class="sf-field">
+                <label for="notes">Notes <small>optional</small></label>
+                <textarea id="notes" class="sf-textarea" maxlength="220" placeholder="Why this nano loan exists, due context, repayment plan"></textarea>
+              </div>
+
+              <div class="nano-submit-row">
+                <button id="submitBtn" class="nano-submit" type="submit">Create Nano Loan</button>
+                <button id="refreshBtn" class="nano-secondary" type="button">Refresh</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="sf-panel">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Active</p>
+                <h2 class="sf-section-title">Active Nano Loans</h2>
+                <p class="sf-section-subtitle">Repay or push to CC only for real actions.</p>
+              </div>
+            </div>
+
+            <div id="activeLoans" class="loan-list">
+              <div class="empty-nano">Loading active nano loans...</div>
+            </div>
+          </section>
+
+          <section class="sf-panel">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Closed</p>
+                <h2 class="sf-section-title">Closed Loans</h2>
+                <p class="sf-section-subtitle">Historical nano loans closed through repayment.</p>
+              </div>
+            </div>
+
+            <div id="closedLoans" class="loan-list">
+              <div class="empty-nano">Loading closed nano loans...</div>
+            </div>
+          </section>
         </section>
 
-        <section class="sf-metric-card">
-          <p class="sf-card-kicker">Principal</p>
-          <div id="principalTotal" class="sf-metric-value">Rs 0</div>
-        </section>
-
-        <section class="sf-metric-card">
-          <p class="sf-card-kicker">Cool-Off Fees</p>
-          <div id="feeTotal" class="sf-metric-value warn">Rs 0</div>
-        </section>
-
-        <section class="sf-metric-card">
-          <p class="sf-card-kicker">Pushed To CC</p>
-          <div id="pushedCount" class="sf-metric-value">0</div>
-        </section>
+        <footer>
+          <span class="sf-meta-text">v0.1.0 · layer 5C Nano Loans page · shared shell migration</span>
+        </footer>
       </section>
-
-      <section class="nano-grid">
-        <section class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">New</p>
-              <h2 class="sf-section-title">New Nano Loan</h2>
-              <p class="sf-section-subtitle">Creates nano loan record plus borrow ledger row.</p>
-            </div>
-          </div>
-
-          <form id="nanoForm" class="nano-form">
-            <div class="field">
-              <label for="appName">App / Lender</label>
-              <input id="appName" class="input" type="text" maxlength="80" placeholder="EasyPaisa Nano / JazzCash / App name" required>
-            </div>
-
-            <div class="field-row">
-              <div class="field">
-                <label for="principalAmount">Principal Amount</label>
-                <input id="principalAmount" class="input amount-input" type="number" min="0.01" step="0.01" placeholder="0" required>
-              </div>
-
-              <div class="field">
-                <label for="coolOffFee">Cool-Off Fee</label>
-                <input id="coolOffFee" class="input" type="number" min="0" step="0.01" value="0">
-              </div>
-            </div>
-
-            <div class="field-row">
-              <div class="field">
-                <label for="totalOwed">Total Owed</label>
-                <input id="totalOwed" class="input" type="number" min="0.01" step="0.01" placeholder="Auto if blank">
-              </div>
-
-              <div class="field">
-                <label for="sourceAccount">Source Account</label>
-                <select id="sourceAccount" class="select" required></select>
-              </div>
-            </div>
-
-            <div class="field-row">
-              <div class="field">
-                <label for="loanDate">Date</label>
-                <input id="loanDate" class="input" type="date" required>
-              </div>
-
-              <div class="field">
-                <label for="coolOffDue">Cool-Off Due <small>optional</small></label>
-                <input id="coolOffDue" class="input" type="date">
-              </div>
-            </div>
-
-            <div>
-              <label class="field-label">Shape</label>
-              <div class="shape-toggle">
-                <button class="shape-btn active" type="button" data-shape="A">Shape A</button>
-                <button class="shape-btn" type="button" data-shape="B">Shape B</button>
-              </div>
-            </div>
-
-            <div class="field">
-              <label for="notes">Notes <small>optional</small></label>
-              <textarea id="notes" class="textarea" maxlength="220" placeholder="Why this nano loan exists, due context, repayment plan"></textarea>
-            </div>
-
-            <div class="nano-submit-row">
-              <button id="submitBtn" class="nano-submit" type="submit">Create Nano Loan</button>
-              <button id="refreshBtn" class="nano-secondary" type="button">Refresh</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Active</p>
-              <h2 class="sf-section-title">Active Nano Loans</h2>
-              <p class="sf-section-subtitle">Repay or push to CC only for real actions.</p>
-            </div>
-          </div>
-
-          <div id="activeLoans" class="loan-list">
-            <div class="empty-nano">Loading active nano loans...</div>
-          </div>
-        </section>
-
-        <section class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Closed</p>
-              <h2 class="sf-section-title">Closed Loans</h2>
-              <p class="sf-section-subtitle">Historical nano loans closed through repayment.</p>
-            </div>
-          </div>
-
-          <div id="closedLoans" class="loan-list">
-            <div class="empty-nano">Loading closed nano loans...</div>
-          </div>
-        </section>
-      </section>
-
-      <footer>
-        <span class="sf-meta-text">v0.1.0 · layer 5C Nano Loans page · shared shell migration</span>
-      </footer>
     </main>
   </div>
 
@@ -736,13 +562,332 @@
       select.innerHTML = '';
 
       (accounts || []).forEach(account => {
-        const option = document.createElement('option');
+        const opt = document.createElement('option');
 
-        option.value = account.id;
-        option.textContent = ((account.icon || '') + ' ' + account.name + ' · ' + account.kind).trim();
+        opt.value = account.id;
+        opt.textContent = ((account.icon || '') + ' ' + account.name + ' · ' + account.kind).trim();
 
-        select.appendChild(option);
+        select.appendChild(opt);
       });
     }
 
-    function ren
+    function renderMetrics(summary) {
+      $('activeCount').textContent = String(summary.active_count || 0);
+      $('remainingTotal').textContent = money(summary.remaining || 0);
+      $('principalTotal').textContent = money(summary.total_principal || 0);
+      $('feeTotal').textContent = money(summary.cool_off_fees || 0);
+      $('pushedCount').textContent = String(summary.pushed_count || 0);
+    }
+
+    function loanCard(loan, closed) {
+      const progress = Number(loan.progress_pct) || 0;
+      const remaining = Number(loan.remaining_amount) || 0;
+      const pushed = !!loan.pushed_at;
+
+      return `
+        <article class="loan-card ${closed ? 'closed' : ''}">
+          <div class="loan-top">
+            <div class="loan-icon">₨</div>
+            <div>
+              <div class="loan-title">${esc(loan.app_name)}</div>
+              <div class="loan-sub">
+                ${esc(loan.date)} · Shape ${esc(loan.shape)} · ${esc(accountLabel(loan.source_account_id))}
+              </div>
+            </div>
+            <div class="loan-amount">${money(remaining)}</div>
+          </div>
+
+          <div class="loan-progress">
+            <div class="loan-progress-meta">
+              <span>${progress.toFixed(1)}% repaid</span>
+              <span>Total ${money(loan.total_owed)} · Fee ${money(loan.cool_off_fee)}</span>
+            </div>
+            <div class="loan-progress-track">
+              <div class="loan-progress-fill" style="width:${Math.max(0, Math.min(100, progress))}%"></div>
+            </div>
+          </div>
+
+          <div class="loan-sub" style="margin-top:10px;">
+            Principal ${money(loan.principal_amount)} · Repaid ${money(loan.repaid_amount)}${pushed ? ' · Pushed to CC' : ''}
+          </div>
+
+          ${closed ? '' : `
+            <div class="loan-actions">
+              <button class="loan-action primary" type="button" data-repay="${esc(loan.id)}">Repay</button>
+              <button class="loan-action warn" type="button" data-push="${esc(loan.id)}" ${pushed ? 'disabled' : ''}>Push to CC</button>
+              <a class="loan-action" href="/transactions.html">Ledger</a>
+            </div>
+          `}
+        </article>
+      `;
+    }
+
+    function renderLoans(data) {
+      const activeBox = $('activeLoans');
+      const closedBox = $('closedLoans');
+
+      if (!data.active_loans || !data.active_loans.length) {
+        activeBox.innerHTML = '<div class="empty-nano">No active nano loans.</div>';
+      } else {
+        activeBox.innerHTML = data.active_loans.map(loan => loanCard(loan, false)).join('');
+      }
+
+      if (!data.closed_loans || !data.closed_loans.length) {
+        closedBox.innerHTML = '<div class="empty-nano">No closed nano loans yet.</div>';
+      } else {
+        closedBox.innerHTML = data.closed_loans.map(loan => loanCard(loan, true)).join('');
+      }
+
+      activeBox.querySelectorAll('[data-repay]').forEach(btn => {
+        btn.addEventListener('click', () => repayLoan(btn.dataset.repay));
+      });
+
+      activeBox.querySelectorAll('[data-push]').forEach(btn => {
+        btn.addEventListener('click', () => pushLoanToCC(btn.dataset.push));
+      });
+    }
+
+    async function loadNano() {
+      try {
+        const data = await fetchJSON('/api/nano-loans');
+
+        state.api = data;
+        state.accountsById = {};
+
+        (data.accounts || []).forEach(account => {
+          state.accountsById[account.id] = account;
+        });
+
+        fillAccounts(data.source_accounts || []);
+        renderMetrics(data.summary || {});
+        renderLoans(data);
+
+        $('livePill').textContent = 'Live · Nano API ' + data.version;
+      } catch (err) {
+        $('livePill').textContent = 'Nano API error';
+        $('activeLoans').innerHTML = '<div class="empty-nano">Nano failed: ' + esc(err.message) + '</div>';
+        $('closedLoans').innerHTML = '<div class="empty-nano">No closed loan data loaded.</div>';
+
+        toast(err.message, 'error');
+      }
+    }
+
+    function updateShapeButtons() {
+      document.querySelectorAll('[data-shape]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.shape === state.selectedShape);
+      });
+    }
+
+    function syncTotalOwed() {
+      const principal = Number($('principalAmount').value || 0);
+      const fee = Number($('coolOffFee').value || 0);
+
+      if (principal > 0 && !$('totalOwed').dataset.manual) {
+        $('totalOwed').value = (principal + Math.max(0, fee)).toFixed(2);
+      }
+    }
+
+    async function submitNano(event) {
+      event.preventDefault();
+
+      const appName = $('appName').value.trim();
+      const principal = Number($('principalAmount').value);
+      const fee = Number($('coolOffFee').value || 0);
+      const total = Number($('totalOwed').value || (principal + fee));
+      const source = $('sourceAccount').value;
+      const date = $('loanDate').value || todayLocal();
+      const coolOffDue = $('coolOffDue').value || '';
+      const notes = $('notes').value.trim();
+
+      if (!appName) {
+        toast('App / lender is required.', 'error');
+        return;
+      }
+
+      if (!(principal > 0)) {
+        toast('Principal amount must be greater than 0.', 'error');
+        return;
+      }
+
+      if (fee < 0) {
+        toast('Cool-off fee cannot be negative.', 'error');
+        return;
+      }
+
+      if (total < principal) {
+        toast('Total owed cannot be less than principal.', 'error');
+        return;
+      }
+
+      if (!source) {
+        toast('Source account is required.', 'error');
+        return;
+      }
+
+      const ok = confirm(
+        'Create nano loan?\n\n' +
+        'This will write real records:\n' +
+        '- nano_loans row\n' +
+        '- borrow transaction row\n\n' +
+        'No test rows.\nContinue only for a real nano loan.'
+      );
+
+      if (!ok) return;
+
+      const btn = $('submitBtn');
+
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+
+      try {
+        await fetchJSON('/api/nano-loans', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            app_name: appName,
+            shape: state.selectedShape,
+            principal_amount: principal,
+            cool_off_fee: fee,
+            total_owed: total,
+            source_account_id: source,
+            date,
+            cool_off_due: coolOffDue,
+            notes,
+            created_by: 'web-nano-page'
+          })
+        });
+
+        toast('Nano loan created.');
+
+        $('nanoForm').reset();
+        $('loanDate').value = todayLocal();
+
+        state.selectedShape = 'A';
+        updateShapeButtons();
+
+        delete $('totalOwed').dataset.manual;
+
+        await loadNano();
+      } catch (err) {
+        toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Create Nano Loan';
+      }
+    }
+
+    async function repayLoan(id) {
+      const loan = (state.api && state.api.active_loans || []).find(item => item.id === id);
+
+      if (!loan) {
+        toast('Loan not found.', 'error');
+        return;
+      }
+
+      const raw = prompt(
+        'Repay amount for ' + loan.app_name + '\n\nRemaining: ' + money(loan.remaining_amount) + '\nLeave blank for full repayment.'
+      );
+
+      if (raw === null) return;
+
+      const amount = raw.trim() ? Number(raw) : Number(loan.remaining_amount);
+
+      if (!(amount > 0)) {
+        toast('Repay amount must be greater than 0.', 'error');
+        return;
+      }
+
+      const ok = confirm(
+        'Record nano loan repayment?\n\n' +
+        'This will write a real repay transaction for ' + money(amount) + '.'
+      );
+
+      if (!ok) return;
+
+      try {
+        await fetchJSON('/api/nano-loans/' + encodeURIComponent(id) + '/repay', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            amount,
+            account_id: loan.source_account_id,
+            created_by: 'web-nano-page'
+          })
+        });
+
+        toast('Repayment recorded.');
+
+        await loadNano();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    }
+
+    async function pushLoanToCC(id) {
+      const loan = (state.api && state.api.active_loans || []).find(item => item.id === id);
+
+      if (!loan) {
+        toast('Loan not found.', 'error');
+        return;
+      }
+
+      const ok = confirm(
+        'Push this nano loan to CC?\n\n' +
+        loan.app_name + '\n' +
+        'Principal: ' + money(loan.principal_amount) + '\n' +
+        'Cool-off fee: ' + money(loan.cool_off_fee) + '\n\n' +
+        'This writes real CC/payment and fee transaction rows.'
+      );
+
+      if (!ok) return;
+
+      try {
+        await fetchJSON('/api/nano-loans/' + encodeURIComponent(id) + '/push-to-cc', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            source_account_id: loan.source_account_id,
+            cc_account_id: state.api.defaults && state.api.defaults.cc_account_id || 'cc',
+            include_cool_off_fee: true,
+            created_by: 'web-nano-page'
+          })
+        });
+
+        toast('Nano loan pushed to CC.');
+
+        await loadNano();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+    }
+
+    document.querySelectorAll('[data-shape]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.selectedShape = btn.dataset.shape;
+        updateShapeButtons();
+      });
+    });
+
+    $('principalAmount').addEventListener('input', syncTotalOwed);
+    $('coolOffFee').addEventListener('input', syncTotalOwed);
+
+    $('totalOwed').addEventListener('input', () => {
+      $('totalOwed').dataset.manual = '1';
+    });
+
+    $('loanDate').value = todayLocal();
+
+    $('refreshBtn').addEventListener('click', loadNano);
+    $('nanoForm').addEventListener('submit', submitNano);
+
+    updateShapeButtons();
+    loadNano();
+  </script>
+</body>
+</html>
