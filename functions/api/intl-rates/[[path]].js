@@ -320,11 +320,11 @@ async function handleGetFx(context, forceRefresh) {
 }
 
 async function fetchFxFromProvider(provider, from, to) {
-  if (provider !== 'frankfurter.app') {
-    return { ok: false, error: `Unsupported FX provider: ${provider}. Only frankfurter.app is supported in this shipment.` };
+  if (provider !== 'open.er-api.com') {
+    return { ok: false, error: `Unsupported FX provider: ${provider}. Only open.er-api.com is supported in this shipment.` };
   }
 
-  const url = `https://api.frankfurter.app/latest?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+  const url = `https://open.er-api.com/v6/latest/${encodeURIComponent(from)}`;
 
   try {
     const resp = await fetch(url, {
@@ -336,10 +336,15 @@ async function fetchFxFromProvider(provider, from, to) {
     }
 
     const data = await resp.json();
+
+    if (data?.result !== 'success') {
+      return { ok: false, error: `Provider returned error: ${JSON.stringify(data).slice(0, 400)}` };
+    }
+
     const rate = data?.rates?.[to];
 
     if (!Number.isFinite(rate) || rate <= 0) {
-      return { ok: false, error: `Provider returned invalid rate: ${JSON.stringify(data?.rates || data)}` };
+      return { ok: false, error: `Provider returned invalid rate for ${to}: ${JSON.stringify(data?.rates || data).slice(0, 400)}` };
     }
 
     return {
@@ -421,21 +426,18 @@ function cleanField(field, raw, validation) {
     return cur;
   }
 
-  if (field === 'fx_provider') {
+    if (field === 'fx_provider') {
     const prov = cleanText(raw, '', 80);
     if (!prov) {
       validation.push({ field, error: 'cannot be empty' });
       return undefined;
     }
-    if (prov !== 'frankfurter.app') {
-      validation.push({ field, error: 'only frankfurter.app is supported in this shipment' });
+    if (prov !== 'open.er-api.com') {
+      validation.push({ field, error: 'only open.er-api.com is supported in this shipment' });
       return undefined;
     }
     return prov;
   }
-
-  return cleanText(raw, '', 200);
-}
 
 function cleanCurrency(value) {
   const code = String(value || '').trim().toUpperCase();
