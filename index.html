@@ -1,157 +1,497 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="midnight" data-page="hub">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sovereign Finance — Hub</title>
+  <title>Hub · Sovereign Finance</title>
+
   <link rel="stylesheet" href="/css/app.css" />
+  <link rel="stylesheet" href="/css/sf-theme.css" />
+  <link rel="stylesheet" href="/css/sf-shell.css" />
+
+  <style>
+    .hub-layout {
+      display: grid;
+      gap: var(--sf-space-6);
+    }
+
+    .hub-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: var(--sf-space-6);
+    }
+
+    .hub-col-main {
+      grid-column: span 8;
+      display: grid;
+      gap: var(--sf-space-6);
+      min-width: 0;
+    }
+
+    .hub-col-side {
+      grid-column: span 4;
+      display: grid;
+      gap: var(--sf-space-6);
+      min-width: 0;
+    }
+
+    .hub-action-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: var(--sf-space-4);
+    }
+
+    .hub-action-card {
+      display: grid;
+      gap: var(--sf-space-2);
+      min-height: 112px;
+      padding: var(--sf-space-5);
+      border-radius: var(--sf-radius-lg);
+      border: 1px solid var(--sf-border);
+      background: linear-gradient(180deg, var(--sf-surface-2), var(--sf-surface-1));
+      text-decoration: none;
+      color: inherit;
+      box-shadow: var(--sf-shadow-sm);
+      transition: transform var(--sf-duration-fast) var(--sf-ease), border-color var(--sf-duration-fast) var(--sf-ease);
+    }
+
+    .hub-action-card:hover,
+    .hub-action-card:focus-visible {
+      transform: translateY(-2px);
+      border-color: var(--sf-border-strong);
+      outline: none;
+    }
+
+    .hub-action-kicker {
+      color: var(--sf-text-faint);
+      font-size: var(--sf-font-11);
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .hub-action-title {
+      color: var(--sf-text);
+      font-size: var(--sf-font-16);
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
+    .hub-action-subtitle {
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-13);
+      line-height: 1.45;
+    }
+
+    .hub-pressure-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--sf-space-4);
+    }
+
+    .hub-mini-card {
+      padding: var(--sf-space-4);
+      border-radius: var(--sf-radius-md);
+      border: 1px solid var(--sf-border-subtle);
+      background: var(--sf-surface-1);
+    }
+
+    .hub-mini-label {
+      color: var(--sf-text-faint);
+      font-size: var(--sf-font-11);
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: var(--sf-space-2);
+    }
+
+    .hub-mini-value {
+      color: var(--sf-text);
+      font-size: var(--sf-font-18);
+      font-weight: 900;
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hub-mini-value.positive { color: var(--sf-positive); }
+    .hub-mini-value.warning { color: var(--sf-warning); }
+    .hub-mini-value.danger { color: var(--sf-danger); }
+
+    .hub-list {
+      display: grid;
+      gap: 0;
+    }
+
+    .hub-list-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--sf-space-4);
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--sf-border-subtle);
+    }
+
+    .hub-list-row:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .hub-list-title {
+      color: var(--sf-text);
+      font-weight: 900;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .hub-list-meta {
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-13);
+      margin-top: 4px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .hub-list-value {
+      color: var(--sf-text);
+      font-weight: 900;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      overflow-wrap: anywhere;
+    }
+
+    .hub-balance-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: var(--sf-space-4);
+    }
+
+    .hub-balance-card {
+      padding: var(--sf-space-5);
+      border-radius: var(--sf-radius-md);
+      border: 1px solid var(--sf-border-subtle);
+      background: var(--sf-surface-1);
+    }
+
+    .hub-balance-name {
+      color: var(--sf-text);
+      font-size: var(--sf-font-14);
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
+    .hub-balance-meta {
+      color: var(--sf-text-faint);
+      font-size: var(--sf-font-11);
+      margin-top: var(--sf-space-2);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 800;
+    }
+
+    .hub-balance-value {
+      margin-top: var(--sf-space-4);
+      color: var(--sf-text);
+      font-size: var(--sf-font-24);
+      font-weight: 900;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hub-state-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sf-space-3);
+      align-items: center;
+    }
+
+    .hub-empty {
+      display: grid;
+      place-items: center;
+      min-height: 140px;
+      text-align: center;
+      color: var(--sf-text-muted);
+      border: 1px dashed var(--sf-border);
+      border-radius: var(--sf-radius-md);
+      background: var(--sf-surface-1);
+      padding: var(--sf-space-5);
+    }
+
+    .hub-debug-pre {
+      white-space: pre-wrap;
+      overflow-x: auto;
+      max-height: 420px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--sf-text-muted);
+      background: var(--sf-surface-1);
+      border-radius: var(--sf-radius-md);
+      padding: var(--sf-space-4);
+      border: 1px solid var(--sf-border-subtle);
+    }
+
+    @media (max-width: 1100px) {
+      .hub-col-main,
+      .hub-col-side {
+        grid-column: span 12;
+      }
+
+      .hub-pressure-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      .hub-pressure-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .hub-list-row {
+        grid-template-columns: 1fr;
+      }
+
+      .hub-list-value {
+        text-align: left;
+      }
+    }
+  </style>
 </head>
-
 <body>
-  <main class="app-page" data-page="hub" data-version="hub-product-v1.0.0">
-    <section class="finance-hero">
-      <div class="hero-kicker">Sovereign Hub</div>
-      <h1 class="hero-title" id="heroTitle">Loading finance state…</h1>
-      <p class="hero-copy" id="heroCopy">
-        Reading balances, forecast, bills, debts, credit card, salary, and ledger activity.
-      </p>
+  <div class="hub-layout">
+    <main class="hub-grid">
+      <section class="hub-col-main">
+        <section class="sf-panel sf-panel--accent">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Daily pressure</p>
+              <h2 class="sf-section-title">Money position</h2>
+              <p class="sf-section-subtitle">Fast read of current pressure, forecast, and immediate actions.</p>
+            </div>
+            <div class="hub-state-line">
+              <span id="hubStatePill" class="sf-pill">Loading</span>
+              <span id="hubRefreshed" class="sf-pill">Last refreshed: —</span>
+            </div>
+          </div>
 
-      <div class="stack" style="margin-top:20px;">
-        <div class="grid-4">
-          <a class="btn btn-success" href="/add.html">Add Transaction</a>
-          <a class="btn btn-secondary" href="/bills.html">Pay Bill</a>
-          <a class="btn btn-secondary" href="/debts.html">Record Debt</a>
-          <a class="btn btn-secondary" href="/forecast.html">Open Forecast</a>
-        </div>
-      </div>
-    </section>
-
-    <section id="hubStatus" class="panel card-padded">
-      <div class="strong">Loading Hub…</div>
-      <div class="muted">Building a clean daily view from current source APIs.</div>
-    </section>
-
-    <section class="grid-4">
-      <article class="metric-card">
-        <div class="metric-label">Liquid now</div>
-        <div class="metric-value" id="liquidNow">—</div>
-        <div class="metric-sub">Spendable asset balance.</div>
-      </article>
-
-      <article class="metric-card">
-        <div class="metric-label">Next salary</div>
-        <div class="metric-value" id="nextSalary">—</div>
-        <div class="metric-sub" id="nextSalarySub">From /api/forecast.</div>
-      </article>
-
-      <article class="metric-card">
-        <div class="metric-label">Bills left</div>
-        <div class="metric-value" id="billsLeft">—</div>
-        <div class="metric-sub">Remaining current-month bills.</div>
-      </article>
-
-      <article class="metric-card">
-        <div class="metric-label">Lowest liquid</div>
-        <div class="metric-value" id="lowestLiquid">—</div>
-        <div class="metric-sub" id="lowestLiquidSub">Forecast low point.</div>
-      </article>
-    </section>
-
-    <section class="dashboard-grid">
-      <div>
-        <section class="panel card-padded">
-          <div class="section-kicker">Attention center</div>
-          <h2 class="authority-title" style="font-size:24px;margin-top:12px;">What needs attention</h2>
-          <div id="attentionList" class="stack">
-            <div class="muted">Loading attention items…</div>
+          <div class="hub-pressure-strip">
+            <div class="hub-mini-card">
+              <div class="hub-mini-label">Bills remaining</div>
+              <div id="miniBills" class="hub-mini-value">—</div>
+            </div>
+            <div class="hub-mini-card">
+              <div class="hub-mini-label">Debt payable</div>
+              <div id="miniDebt" class="hub-mini-value">—</div>
+            </div>
+            <div class="hub-mini-card">
+              <div class="hub-mini-label">Receivables</div>
+              <div id="miniReceivables" class="hub-mini-value">—</div>
+            </div>
+            <div class="hub-mini-card">
+              <div class="hub-mini-label">CC outstanding</div>
+              <div id="miniCc" class="hub-mini-value">—</div>
+            </div>
           </div>
         </section>
 
-        <section class="panel card-padded">
-          <div class="section-kicker">Forecast snapshot</div>
-          <h2 class="authority-title" style="font-size:24px;margin-top:12px;">Cash path from here</h2>
-          <div id="forecastRows" class="stack-sm" style="margin-top:12px;"></div>
-        </section>
-
-        <section class="panel card-padded">
-          <div class="section-kicker">Recent activity</div>
-          <h2 class="authority-title" style="font-size:24px;margin-top:12px;">Clean ledger movement</h2>
-          <div id="activityList" class="stack">
-            <div class="muted">Loading recent activity…</div>
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Accounts</p>
+              <h2 class="sf-section-title">Current balances</h2>
+              <p class="sf-section-subtitle">Source account balances shown for daily review.</p>
+            </div>
           </div>
-        </section>
-      </div>
-
-      <aside>
-        <section class="panel card-padded">
-          <div class="section-kicker">Position</div>
-          <div id="positionRows" class="stack-sm" style="margin-top:12px;"></div>
-        </section>
-
-        <section class="panel card-padded">
-          <div class="section-kicker">Quick actions</div>
-          <div class="stack" style="margin-top:12px;">
-            <a class="btn btn-success" href="/add.html">Add Transaction</a>
-            <a class="btn btn-secondary" href="/transactions.html">Ledger + Audit Trail</a>
-            <a class="btn btn-secondary" href="/bills.html">Bills</a>
-            <a class="btn btn-secondary" href="/debts.html">Debts</a>
-            <a class="btn btn-secondary" href="/salary.html">Salary</a>
-            <a class="btn btn-secondary" href="/reconciliation.html">Reconcile</a>
+          <div id="accountsGrid" class="hub-balance-grid">
+            <div class="hub-empty">Loading accounts</div>
           </div>
         </section>
 
-        <section class="panel card-padded">
-          <div class="section-kicker">Accounts</div>
-          <div id="accountRows" class="stack-sm" style="margin-top:12px;"></div>
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Bills</p>
+              <h2 class="sf-section-title">Upcoming obligations</h2>
+              <p class="sf-section-subtitle">Active bills and monthly pressure.</p>
+            </div>
+          </div>
+          <div id="billsList" class="hub-list">
+            <div class="hub-empty">Loading bills</div>
+          </div>
         </section>
 
-        <section id="debugPanel" class="panel card-padded" hidden>
-          <div class="section-kicker">Diagnostics</div>
-          <pre id="debugOutput" style="white-space:pre-wrap;overflow:auto;max-height:420px;"></pre>
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Quick actions</p>
+              <h2 class="sf-section-title">Move fast</h2>
+              <p class="sf-section-subtitle">Core pages only. No submenu drift.</p>
+            </div>
+          </div>
+          <div class="hub-action-grid">
+            <a class="hub-action-card" href="/add.html">
+              <div class="hub-action-kicker">Write</div>
+              <div class="hub-action-title">Add Transaction</div>
+              <div class="hub-action-subtitle">Open the guarded transaction flow.</div>
+            </a>
+            <a class="hub-action-card" href="/bills.html">
+              <div class="hub-action-kicker">Bills</div>
+              <div class="hub-action-title">Manage Bills</div>
+              <div class="hub-action-subtitle">Review due items and payments.</div>
+            </a>
+            <a class="hub-action-card" href="/debts.html">
+              <div class="hub-action-kicker">Debts</div>
+              <div class="hub-action-title">Open Debts</div>
+              <div class="hub-action-subtitle">Track payable and receivable pressure.</div>
+            </a>
+            <a class="hub-action-card" href="/salary.html">
+              <div class="hub-action-kicker">Salary</div>
+              <div class="hub-action-title">Update Salary</div>
+              <div class="hub-action-subtitle">Review salary truth and forecast inputs.</div>
+            </a>
+            <a class="hub-action-card" href="/forecast.html">
+              <div class="hub-action-kicker">Forecast</div>
+              <div class="hub-action-title">Open Forecast</div>
+              <div class="hub-action-subtitle">Check projection, timeline, and debt-free path.</div>
+            </a>
+            <a class="hub-action-card" href="/cc.html">
+              <div class="hub-action-kicker">Credit card</div>
+              <div class="hub-action-title">Open Credit Card</div>
+              <div class="hub-action-subtitle">Review outstanding, due, and card state.</div>
+            </a>
+          </div>
+        </section>
+      </section>
+
+      <aside class="hub-col-side">
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Debt pressure</p>
+              <h2 class="sf-section-title">Outstanding records</h2>
+              <p class="sf-section-subtitle">Active debt and receivable snapshot.</p>
+            </div>
+          </div>
+          <div id="debtsList" class="hub-list">
+            <div class="hub-empty">Loading debts</div>
+          </div>
+        </section>
+
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Forecast</p>
+              <h2 class="sf-section-title">Ending position</h2>
+              <p class="sf-section-subtitle">Read-only snapshot from the forecast brain.</p>
+            </div>
+          </div>
+          <div id="forecastSummary" class="hub-list">
+            <div class="hub-empty">Loading forecast</div>
+          </div>
+        </section>
+
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">System</p>
+              <h2 class="sf-section-title">Source status</h2>
+              <p class="sf-section-subtitle">Current source read state only.</p>
+            </div>
+          </div>
+          <div id="sourcesList" class="hub-list">
+            <div class="hub-empty">Loading system</div>
+          </div>
+        </section>
+
+        <section id="hubDebugPanel" class="sf-debug-panel sf-debug-only" hidden>
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Debug</p>
+              <h2 class="sf-section-title">Hub raw load</h2>
+            </div>
+          </div>
+          <pre id="hubDebugOutput" class="hub-debug-pre"></pre>
         </section>
       </aside>
-    </section>
-  </main>
+    </main>
+  </div>
 
-  <script src="/js/theme.js" defer></script>
-  <script src="/js/nav.js" defer></script>
-  <script src="/js/sf-icons.js?v=1.0.0" defer></script>
+  <script>
+    window.SF_PAGE = {
+      title: "Hub",
+      eyebrow: "Daily cockpit",
+      subtitle: "Your money position, clean and current. View accounts, bills, debts, salary, and forecast from one fast daily dashboard.",
+      actions: [
+        { label: "Add Transaction", href: "/add.html", primary: true },
+        { label: "Manage Bills", href: "/bills.html" },
+        { label: "Open Forecast", href: "/forecast.html" }
+      ],
+      kpis: [
+        {
+          kicker: "Liquid",
+          title: "Accounts balance",
+          valueHtml: "<span id=\"kpiLiquid\">—</span>",
+          subtitleHtml: "<span id=\"kpiLiquidSub\">Current liquid position.</span>",
+          accent: true
+        },
+        {
+          kicker: "Bills",
+          title: "Monthly bills",
+          valueHtml: "<span id=\"kpiBills\">—</span>",
+          subtitleHtml: "<span id=\"kpiBillsSub\">Remaining this month.</span>",
+          tone: "warning"
+        },
+        {
+          kicker: "Debt",
+          title: "Debt outstanding",
+          valueHtml: "<span id=\"kpiDebt\">—</span>",
+          subtitleHtml: "<span id=\"kpiDebtSub\">Payable side pressure.</span>",
+          tone: "danger"
+        },
+        {
+          kicker: "Forecast",
+          title: "Forecast ending",
+          valueHtml: "<span id=\"kpiForecast\">—</span>",
+          subtitleHtml: "<span id=\"kpiForecastSub\">Projected ending liquid.</span>"
+        }
+      ]
+    };
+  </script>
+
+  <script src="/js/theme.js"></script>
+  <script src="/js/nav.js"></script>
+  <script src="/js/sf-components.js"></script>
+  <script src="/js/sf-shell.js"></script>
+  <script src="/js/sf-charts-system.js"></script>
 
   <script>
     (function () {
       "use strict";
 
-      const PAGE_VERSION = "hub-product-v1.0.0";
-      const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
-
+      const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
+      const VERSION = "hub-shell-v3b";
       const $ = (id) => document.getElementById(id);
 
-      const state = {
-        balances: null,
-        forecast: null,
-        bills: null,
-        debts: null,
-        cc: null,
-        salary: null,
-        transactions: null
-      };
-
-      function asNumber(value, fallback = 0) {
+      function num(value) {
         if (typeof value === "number" && Number.isFinite(value)) return value;
         if (typeof value === "string") {
           const parsed = Number(value.replace(/[^\d.-]/g, ""));
           if (Number.isFinite(parsed)) return parsed;
         }
-        return fallback;
+        return null;
       }
 
       function money(value) {
-        if (value === null || value === undefined || value === "") return "Unknown";
+        const parsed = num(value);
+        if (parsed === null) return "—";
         return new Intl.NumberFormat("en-PK", {
           style: "currency",
           currency: "PKR",
           maximumFractionDigits: 2
-        }).format(asNumber(value, 0));
+        }).format(parsed).replace(/^PKR\s?/, "Rs ");
+      }
+
+      function text(value, fallback) {
+        if (value === null || value === undefined || value === "") return fallback || "—";
+        return String(value);
       }
 
       function escapeHtml(value) {
@@ -163,359 +503,306 @@
           .replaceAll("'", "&#039;");
       }
 
-      function row(label, value) {
-        return `
-          <div class="sf-row" style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
-            <span class="muted">${escapeHtml(label)}</span>
-            <span class="strong text-right">${escapeHtml(value)}</span>
-          </div>
-        `;
-      }
-
-      function pill(label, kind = "info") {
-        return `<span class="pill pill-${kind}">${escapeHtml(label)}</span>`;
-      }
-
-      async function readJson(path) {
-        const response = await fetch(path, {
-          headers: { "accept": "application/json" },
-          cache: "no-store"
-        });
-
-        const payload = await response.json().catch(() => null);
-
-        if (!response.ok || !payload) {
-          throw new Error(`${path} HTTP ${response.status}`);
+      function firstNumber() {
+        for (const value of arguments) {
+          const parsed = num(value);
+          if (parsed !== null) return parsed;
         }
-
-        return payload;
+        return null;
       }
 
-      function getArray(payload, keys) {
+      function endpointRows(payload, keys) {
         for (const key of keys) {
-          if (Array.isArray(payload?.[key])) return payload[key];
+          const value = payload && payload[key];
+          if (Array.isArray(value)) return value;
         }
         return [];
       }
 
-      function sourceRows() {
-        if (!DEBUG) return "";
-
-        const sources = [
-          ["/api/balances", state.balances?.version],
-          ["/api/forecast", state.forecast?.version],
-          ["/api/bills", state.bills?.version],
-          ["/api/debts", state.debts?.version],
-          ["/api/cc", state.cc?.version],
-          ["/api/salary", state.salary?.version],
-          ["/api/transactions", state.transactions?.version]
-        ];
-
-        return sources.map(([name, version]) => row(name, version || "Unknown")).join("");
-      }
-
-      function cleanTxnTitle(tx) {
-        const raw = String(tx.notes || "").trim();
-
-        if (/SF_SHIPMENT|DIRECT_WRITE_TEST|RS1_TEST|CREATE_RECEIVABLE|RECEIVE_RS1/i.test(raw)) {
-          return null;
+      function endpointObject(payload, keys) {
+        for (const key of keys) {
+          const value = payload && payload[key];
+          if (value && typeof value === "object" && !Array.isArray(value)) return value;
         }
+        return {};
+      }
 
-        let title = raw
-          .replace(/\s*\|\s*bill_id=.*$/i, "")
-          .replace(/\s*\|\s*debt_id=.*$/i, "")
-          .replace(/\s*\|\s*notes=.*$/i, "")
-          .replace(/\[ATM_FEE_REVERSAL\]\s*/gi, "ATM fee reversal — ")
-          .replace(/\[ATM_FEE_PENDING\]\s*/gi, "")
-          .replace(/\[linked:[^\]]+\]/gi, "")
-          .replace(/\s+/g, " ")
-          .trim();
-
-        if (!title) {
-          if (tx.type === "income") title = "Income recorded";
-          else if (tx.type === "expense") title = "Expense recorded";
-          else if (tx.type === "transfer") title = "Transfer recorded";
-          else title = "Transaction recorded";
+      async function fetchJSON(url) {
+        const res = await fetch(url, { cache: "no-store", headers: { accept: "application/json" } });
+        const payload = await res.json().catch(() => null);
+        if (!res.ok || !payload || payload.ok === false) {
+          throw new Error((payload && payload.error) || ("HTTP " + res.status));
         }
-
-        return title;
+        return payload;
       }
 
-      function txDirection(tx) {
-        const type = String(tx.type || "").toLowerCase();
-        if (type === "income" || type === "borrow") return "+";
-        if (type === "transfer") return "↔";
-        return "-";
-      }
-
-      function renderHero() {
-        const insights = state.forecast?.insights || {};
-        const status = String(insights.status || "unknown").toLowerCase();
-        const lowest = insights.lowest_liquid_amount;
-        const salary = state.forecast?.salary?.forecast_eligible_monthly;
-        const firstBreach = insights.first_crisis_breach_date;
-
-        let title = "Finance state unknown.";
-        let copy = "One or more source APIs did not return enough data.";
-
-        if (status === "safe") {
-          title = "You are safe in this forecast window.";
-          copy = `Next salary is ${money(salary)}. Lowest projected liquid is ${money(lowest)}.`;
-        } else if (status === "watch") {
-          title = "Watch cash pressure before next salary.";
-          copy = `Lowest projected liquid is ${money(lowest)}. Keep crisis floor visible.`;
-        } else if (status === "danger" || status === "crisis") {
-          title = "Crisis floor breach detected.";
-          copy = firstBreach
-            ? `First projected breach is ${firstBreach}. Lowest projected liquid is ${money(lowest)}.`
-            : `Lowest projected liquid is ${money(lowest)}.`;
-        }
-
-        $("heroTitle").textContent = title;
-        $("heroCopy").textContent = copy;
-      }
-
-      function renderMetrics() {
-        const balances = state.balances || {};
-        const forecast = state.forecast || {};
-        const insights = forecast.insights || {};
-        const obligations = forecast.obligations_this_month || {};
-        const salary = forecast.salary || {};
-
-        $("liquidNow").textContent = money(balances.total_liquid ?? forecast.current_position?.liquid_now);
-        $("nextSalary").textContent = money(salary.forecast_eligible_monthly);
-        $("nextSalarySub").textContent = salary.forecast_date ? `Expected ${salary.forecast_date}` : "From salary source.";
-        $("billsLeft").textContent = money(obligations.bills_remaining);
-        $("lowestLiquid").textContent = money(insights.lowest_liquid_amount);
-        $("lowestLiquidSub").textContent = insights.lowest_liquid_date ? `On ${insights.lowest_liquid_date}` : "No low point returned.";
-      }
-
-      function renderStatus() {
-        const status = String(state.forecast?.insights?.status || "unknown").toUpperCase();
-        const salary = state.forecast?.salary?.forecast_eligible_monthly;
-        const bills = state.forecast?.obligations_this_month?.bills_remaining;
-        const debt = state.forecast?.obligations_this_month?.debt_payable_remaining;
-
-        $("hubStatus").innerHTML = `
-          <div class="strong">Hub ready · ${escapeHtml(status)}</div>
-          <div class="muted">Salary ${money(salary)} · Bills left ${money(bills)} · Payable debt ${money(debt)}</div>
+      function rowHtml(title, meta, value) {
+        return `
+          <div class="hub-list-row">
+            <div>
+              <div class="hub-list-title">${escapeHtml(title)}</div>
+              <div class="hub-list-meta">${escapeHtml(meta)}</div>
+            </div>
+            <div class="hub-list-value">${escapeHtml(value)}</div>
+          </div>
         `;
       }
 
-      function renderPosition() {
-        const p = state.forecast?.current_position || {};
-        const o = state.forecast?.obligations_this_month || {};
-        const fc = state.forecast?.forecast || {};
-
-        $("positionRows").innerHTML = [
-          ["Liquid now", money(p.liquid_now)],
-          ["CC outstanding", money(o.cc_outstanding)],
-          ["Debt payable", money(o.debt_payable_remaining)],
-          ["Receivables", money(o.debt_receivable_remaining)],
-          ["After obligations", money(fc.projected_cash_after_required_obligations)],
-          ["After debt pressure", money(fc.projected_cash_after_debt_pressure)]
-        ].map(([a, b]) => row(a, b)).join("");
+      function setPill(status) {
+        const pill = $("hubStatePill");
+        pill.className = "sf-pill";
+        const s = String(status || "").toLowerCase();
+        if (s === "safe") pill.classList.add("sf-pill--positive");
+        else if (s === "watch") pill.classList.add("sf-pill--warning");
+        else if (s === "danger" || s === "crisis") pill.classList.add("sf-pill--danger");
+        else pill.classList.add("sf-pill--info");
+        pill.textContent = text(status, "Unknown").toUpperCase();
       }
 
-      function renderAccounts() {
-        const accounts = Object.entries(state.balances?.accounts || {});
-        const visible = accounts
-          .filter(([id, account]) => id !== "cc" && String(account.type || "").toLowerCase() !== "liability")
-          .slice(0, 8);
-
-        $("accountRows").innerHTML = visible.length
-          ? visible.map(([id, account]) => row(account.name || id, money(account.balance))).join("")
-          : `<div class="muted">No asset accounts returned.</div>`;
+      function setMiniTone(id, value, kind) {
+        const el = $(id);
+        el.classList.remove("positive", "warning", "danger");
+        if (kind) el.classList.add(kind);
+        el.textContent = money(value);
       }
 
-      function renderAttention() {
-        const f = state.forecast || {};
-        const insights = f.insights || {};
-        const obligations = f.obligations_this_month || {};
-        const bills = Array.isArray(f.bills) ? f.bills : [];
-        const debts = f.debts || {};
-        const cc = f.credit_card || {};
+      function renderAccounts(balancesPayload) {
+        const accountsObj = endpointObject(balancesPayload, ["accounts", "by_account", "account_balances"]);
+        const entries = Object.entries(accountsObj)
+          .map(([id, account]) => ({
+            id,
+            name: account && (account.name || account.label || account.account_name || id),
+            type: account && (account.type || account.category || "account"),
+            balance: firstNumber(account && (account.balance ?? account.current_balance ?? account.amount))
+          }))
+          .filter((item) => item.balance !== null)
+          .sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance));
 
-        const items = [];
-
-        if (insights.first_crisis_breach_date) {
-          items.push({
-            kind: "danger",
-            title: "Crisis floor breach",
-            copy: `Projected breach on ${insights.first_crisis_breach_date}. Required recovery cash: ${money(insights.required_cash_to_avoid_crisis)}.`
-          });
+        if (!entries.length) {
+          $("accountsGrid").innerHTML = '<div class="hub-empty">No account balances returned.</div>';
+          return;
         }
 
-        const unpaidBills = bills.filter((bill) => asNumber(bill.remaining_amount, 0) > 0);
-        for (const bill of unpaidBills.slice(0, 3)) {
-          items.push({
-            kind: "warning",
-            title: `${bill.name} due`,
-            copy: `${money(bill.remaining_amount)} remaining · due ${bill.due_date || "unknown"}.`
-          });
-        }
-
-        if (cc.minimum_due > 0) {
-          items.push({
-            kind: "warning",
-            title: "Credit card minimum due",
-            copy: `${money(cc.minimum_due)} minimum · due ${cc.due_date || "unknown"}.`
-          });
-        }
-
-        const payable = Array.isArray(debts.payable) ? debts.payable : [];
-        for (const debt of payable.filter((d) => d.due_date).slice(0, 2)) {
-          items.push({
-            kind: "info",
-            title: `Debt follow-up: ${debt.name}`,
-            copy: `${money(debt.remaining_amount)} remaining · due ${debt.due_date}.`
-          });
-        }
-
-        if (!items.length) {
-          items.push({
-            kind: "success",
-            title: "No urgent attention item",
-            copy: "No bill, debt, or forecast crisis item is currently marked urgent."
-          });
-        }
-
-        $("attentionList").innerHTML = items.map((item) => `
-          <article class="surface-card card-padded">
-            ${pill(item.kind === "danger" ? "Critical" : item.kind === "warning" ? "Watch" : item.kind === "success" ? "Clear" : "Info", item.kind)}
-            <div class="authority-title" style="margin-top:10px;">${escapeHtml(item.title)}</div>
-            <div class="authority-copy">${escapeHtml(item.copy)}</div>
+        $("accountsGrid").innerHTML = entries.slice(0, 8).map((item) => `
+          <article class="hub-balance-card">
+            <div class="hub-balance-name">${escapeHtml(item.name)}</div>
+            <div class="hub-balance-meta">${escapeHtml(item.type)}</div>
+            <div class="hub-balance-value">${escapeHtml(money(item.balance))}</div>
           </article>
         `).join("");
       }
 
-      function renderForecast() {
-        const f = state.forecast || {};
-        const i = f.insights || {};
-        const m = Array.isArray(f.monthly_projection) ? f.monthly_projection[0] : null;
+      function renderBills(billsPayload, forecastPayload) {
+        const bills = endpointRows(billsPayload, ["bills", "items", "data"]);
+        const active = bills
+          .map((bill) => {
+            const remaining = firstNumber(
+              bill.remaining,
+              bill.remaining_amount,
+              bill.balance_due,
+              bill.amount_remaining,
+              bill.this_month_remaining
+            );
+            const paid = firstNumber(bill.paid_this_month, bill.paid, bill.amount_paid);
+            const due = bill.due_day || bill.due_date || bill.next_due_date || "No due date";
+            const status = text(bill.status || bill.state, "active");
+            return {
+              title: text(bill.name || bill.title || bill.bill_name, "Untitled bill"),
+              remaining,
+              paid,
+              due,
+              status
+            };
+          })
+          .filter((bill) => bill.remaining === null || bill.remaining > 0)
+          .slice(0, 6);
 
-        $("forecastRows").innerHTML = [
-          ["Status", String(i.status || "unknown").toUpperCase()],
-          ["Lowest date", i.lowest_liquid_date || "Unknown"],
-          ["Lowest liquid", money(i.lowest_liquid_amount)],
-          ["Saved this month", money(i.expected_saved_this_month)],
-          ["Debt-free estimate", i.debt_free_date || "Not in horizon"],
-          ["Month close", money(m?.closing_liquid)]
-        ].map(([a, b]) => row(a, b)).join("");
-      }
-
-      function renderActivity() {
-        const txRows = getArray(state.transactions, ["transactions", "data", "results"]);
-
-        const clean = txRows
-          .filter((tx) => !tx.reversed_by && !tx.reversed_at)
-          .map((tx) => ({ tx, title: cleanTxnTitle(tx) }))
-          .filter((item) => item.title)
-          .slice(0, 8);
-
-        if (!clean.length) {
-          $("activityList").innerHTML = `<div class="muted">No clean recent activity to show. Debug/test entries are hidden from Hub.</div>`;
+        if (!active.length) {
+          const billsRemaining = firstNumber(
+            forecastPayload?.obligations_this_month?.bills_remaining,
+            forecastPayload?.forecast?.bills_remaining
+          );
+          $("billsList").innerHTML = rowHtml(
+            "Bills remaining",
+            "No bill rows returned. Showing forecast summary only.",
+            money(billsRemaining)
+          );
           return;
         }
 
-        $("activityList").innerHTML = clean.map(({ tx, title }) => {
-          const dir = txDirection(tx);
-          const positive = dir === "+";
-          const neutral = dir === "↔";
-
-          return `
-            <article class="surface-card card-padded">
-              <div style="display:flex;justify-content:space-between;gap:14px;align-items:flex-start;">
-                <div>
-                  ${pill(String(tx.type || "transaction"), positive ? "success" : neutral ? "info" : "unknown")}
-                  <div class="authority-title" style="margin-top:10px;">${escapeHtml(title)}</div>
-                  <div class="authority-copy">${escapeHtml(tx.date || "")} · ${escapeHtml(tx.account_id || "")} · ${escapeHtml(tx.category_id || "uncategorized")}</div>
-                </div>
-                <div class="${positive ? "money-positive" : neutral ? "money-neutral" : "money-negative"} strong nowrap">
-                  ${dir} ${money(tx.amount)}
-                </div>
-              </div>
-            </article>
-          `;
-        }).join("");
+        $("billsList").innerHTML = active.map((bill) => rowHtml(
+          bill.title,
+          `Due ${bill.due} · ${bill.status}${bill.paid !== null ? " · paid " + money(bill.paid) : ""}`,
+          money(bill.remaining)
+        )).join("");
       }
 
-      function renderDebug() {
+      function renderDebts(debtsPayload, forecastPayload) {
+        const debts = endpointRows(debtsPayload, ["debts", "items", "data"]);
+        const active = debts
+          .map((debt) => {
+            const remaining = firstNumber(
+              debt.remaining,
+              debt.remaining_amount,
+              debt.balance_remaining,
+              debt.outstanding,
+              debt.amount_remaining
+            );
+            const direction = text(
+              debt.direction || debt.kind || debt.type || debt.side,
+              "debt"
+            );
+            const nextDate = debt.next_due_date || debt.follow_up_date || debt.due_date || "No follow-up";
+            return {
+              title: text(debt.name || debt.title || debt.counterparty || debt.code, "Debt"),
+              remaining,
+              direction,
+              nextDate,
+              status: text(debt.status || debt.state, "active")
+            };
+          })
+          .filter((item) => item.remaining === null || item.remaining > 0)
+          .slice(0, 6);
+
+        if (!active.length) {
+          const payable = firstNumber(
+            forecastPayload?.obligations_this_month?.debt_payable_remaining,
+            forecastPayload?.current_position?.payable_debt_remaining
+          );
+          const receivables = firstNumber(
+            forecastPayload?.obligations_this_month?.debt_receivable_remaining,
+            forecastPayload?.current_position?.total_receivables
+          );
+          $("debtsList").innerHTML =
+            rowHtml("Payable debt", "Forecast summary fallback", money(payable)) +
+            rowHtml("Receivables", "Forecast summary fallback", money(receivables));
+          return;
+        }
+
+        $("debtsList").innerHTML = active.map((item) => rowHtml(
+          item.title,
+          `${item.direction} · ${item.status} · ${item.nextDate}`,
+          money(item.remaining)
+        )).join("");
+      }
+
+      function renderForecastSummary(forecastPayload) {
+        const f = forecastPayload || {};
+        const current = f.current_position || {};
+        const obligations = f.obligations_this_month || {};
+        const forecast = f.forecast || {};
+        const insights = f.insights || {};
+        const salary = f.salary || {};
+
+        $("forecastSummary").innerHTML = [
+          rowHtml("Liquid now", "Current position", money(current.liquid_now)),
+          rowHtml("Next salary", "Forecast salary", money(salary.forecast_eligible_monthly)),
+          rowHtml("After debt pressure", "Forecast", money(firstNumber(
+            forecast.projected_cash_after_debt_pressure,
+            forecast.ending_liquid,
+            forecast.projected_ending_liquid
+          ))),
+          rowHtml("If receivables collected", "Forecast", money(firstNumber(
+            forecast.projected_cash_if_receivables_collected,
+            current.net_worth
+          ))),
+          rowHtml("Lowest liquid", text(insights.lowest_liquid_date, "Unknown date"), money(insights.lowest_liquid_amount)),
+          rowHtml("CC outstanding", "This month", money(obligations.cc_outstanding))
+        ].join("");
+      }
+
+      function renderSources(forecastPayload) {
+        const sources = Array.isArray(forecastPayload && forecastPayload.sources)
+          ? forecastPayload.sources
+          : [];
+
+        if (!sources.length) {
+          $("sourcesList").innerHTML = rowHtml("Source state", "No source rows returned.", "—");
+          return;
+        }
+
+        $("sourcesList").innerHTML = sources.map((source) => rowHtml(
+          text(source.path, "Unknown source"),
+          text(source.version || source.status || source.reason, "No version"),
+          source.ok ? "OK" : "FAIL"
+        )).join("");
+      }
+
+      function renderKpis(forecastPayload, balancesPayload) {
+        const current = forecastPayload.current_position || {};
+        const obligations = forecastPayload.obligations_this_month || {};
+        const forecast = forecastPayload.forecast || {};
+        const insights = forecastPayload.insights || {};
+
+        const liquid = firstNumber(current.liquid_now, balancesPayload.total_liquid, balancesPayload.cash);
+        const bills = firstNumber(obligations.bills_remaining, forecastPayload.bills_remaining);
+        const debt = firstNumber(obligations.debt_payable_remaining, current.payable_debt_remaining);
+        const ending = firstNumber(
+          forecast.projected_cash_after_debt_pressure,
+          forecast.ending_liquid,
+          forecast.projected_ending_liquid
+        );
+
+        $("kpiLiquid").textContent = money(liquid);
+        $("kpiBills").textContent = money(bills);
+        $("kpiDebt").textContent = money(debt);
+        $("kpiForecast").textContent = money(ending);
+
+        $("kpiLiquidSub").textContent = "Current liquid position.";
+        $("kpiBillsSub").textContent = "Remaining this month.";
+        $("kpiDebtSub").textContent = "Payable side pressure.";
+        $("kpiForecastSub").textContent = insights.lowest_liquid_date
+          ? `Lowest point ${insights.lowest_liquid_date}`
+          : "Projected ending liquid.";
+
+        setMiniTone("miniBills", bills, "warning");
+        setMiniTone("miniDebt", debt, "danger");
+        setMiniTone("miniReceivables", firstNumber(obligations.debt_receivable_remaining, current.total_receivables), "positive");
+        setMiniTone("miniCc", obligations.cc_outstanding, "warning");
+
+        setPill(insights.status || "unknown");
+      }
+
+      function renderDebug(payload) {
         if (!DEBUG) return;
-
-        $("debugPanel").hidden = false;
-        $("debugOutput").textContent = JSON.stringify({
-          version: PAGE_VERSION,
-          sources: {
-            balances: state.balances,
-            forecast: state.forecast,
-            bills: state.bills,
-            debts: state.debts,
-            cc: state.cc,
-            salary: state.salary,
-            transactions: state.transactions
-          },
-          sourceRows: sourceRows()
-        }, null, 2);
-      }
-
-      function render() {
-        renderHero();
-        renderMetrics();
-        renderStatus();
-        renderPosition();
-        renderAccounts();
-        renderAttention();
-        renderForecast();
-        renderActivity();
-        renderDebug();
-
-        console.log("hub:", PAGE_VERSION);
+        $("hubDebugPanel").hidden = false;
+        $("hubDebugOutput").textContent = JSON.stringify(payload, null, 2);
       }
 
       async function boot() {
-        window.SovereignHub = {
-          version: PAGE_VERSION,
-          reload: boot,
-          data: () => ({ ...state })
-        };
+        const refreshed = new Date().toLocaleString("en-PK");
+        $("hubRefreshed").textContent = "Last refreshed: " + refreshed;
 
         try {
-          const [
-            balances,
-            forecast,
-            bills,
-            debts,
-            cc,
-            salary,
-            transactions
-          ] = await Promise.all([
-            readJson("/api/balances"),
-            readJson("/api/forecast?crisis_floor=5000&days=90&months=6"),
-            readJson("/api/bills"),
-            readJson("/api/debts"),
-            readJson("/api/cc"),
-            readJson("/api/salary"),
-            readJson("/api/transactions")
+          const [balancesPayload, billsPayload, debtsPayload, forecastPayload] = await Promise.all([
+            fetchJSON("/api/balances?debug=1"),
+            fetchJSON("/api/bills?debug=1"),
+            fetchJSON("/api/debts?debug=1"),
+            fetchJSON("/api/forecast?debug=1")
           ]);
 
-          state.balances = balances;
-          state.forecast = forecast;
-          state.bills = bills;
-          state.debts = debts;
-          state.cc = cc;
-          state.salary = salary;
-          state.transactions = transactions;
-
-          render();
+          renderKpis(forecastPayload, balancesPayload);
+          renderAccounts(balancesPayload);
+          renderBills(billsPayload, forecastPayload);
+          renderDebts(debtsPayload, forecastPayload);
+          renderForecastSummary(forecastPayload);
+          renderSources(forecastPayload);
+          renderDebug({
+            version: VERSION,
+            balancesPayload,
+            billsPayload,
+            debtsPayload,
+            forecastPayload
+          });
         } catch (error) {
-          console.error(error);
-          $("hubStatus").innerHTML = `
-            <div class="strong">Hub failed.</div>
-            <div class="muted">${escapeHtml(error.message)}</div>
-          `;
-          $("heroTitle").textContent = "Hub source read failed.";
-          $("heroCopy").textContent = "One or more source APIs could not be read. No fake numbers shown.";
+          setPill("danger");
+          $("hubRefreshed").textContent = "Last refreshed: failed";
+          $("accountsGrid").innerHTML = '<div class="hub-empty">Hub load failed.</div>';
+          $("billsList").innerHTML = rowHtml("Bills", "Load failed", "—");
+          $("debtsList").innerHTML = rowHtml("Debts", "Load failed", "—");
+          $("forecastSummary").innerHTML = rowHtml("Forecast", error.message, "—");
+          $("sourcesList").innerHTML = rowHtml("System", "Load failed", "—");
+          renderDebug({ version: VERSION, error: error.message });
         }
       }
 
