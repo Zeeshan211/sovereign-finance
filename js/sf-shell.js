@@ -5,9 +5,54 @@
   const SHELL_CLASS = "sf-app-shell";
   const PAGE_CLASS = "sf-page-shell";
   const CONTENT_CLASS = "sf-page-content";
+  const SIDEBAR_CLASS = "sf-finance-sidebar";
+  const NAV_OPEN_CLASS = "sf-nav-open";
 
   let mounted = false;
   let currentConfig = {};
+
+  const FINANCE_NAV = [
+    {
+      group: "Core",
+      items: [
+        { label: "Hub", href: "/index.html", aliases: ["/", "/index.html"] },
+        { label: "Accounts", href: "/accounts.html" },
+        { label: "Credit Card", href: "/cc.html" },
+        { label: "Ledger", href: "/transactions.html" },
+        { label: "Add", href: "/add.html" },
+        { label: "Bills", href: "/bills.html" },
+        { label: "Debts", href: "/debts.html" },
+        { label: "Salary", href: "/salary.html" },
+        { label: "Forecast", href: "/forecast.html" }
+      ]
+    },
+    {
+      group: "Control / QA",
+      items: [
+        { label: "Reconciliation", href: "/reconciliation.html" },
+        { label: "Audit Trail", href: "/audit.html" },
+        { label: "Monthly Close", href: "/monthly-close.html" }
+      ]
+    },
+    {
+      group: "Analysis",
+      items: [
+        { label: "Insights", href: "/insights.html" },
+        { label: "Charts", href: "/charts.html" },
+        { label: "Snapshots", href: "/snapshots.html" }
+      ]
+    },
+    {
+      group: "Modules",
+      items: [
+        { label: "ATM", href: "/atm.html" },
+        { label: "Budgets", href: "/budgets.html" },
+        { label: "Goals", href: "/goals.html" },
+        { label: "Merchants", href: "/merchants.html" },
+        { label: "Nano Loans", href: "/nano-loans.html" }
+      ]
+    }
+  ];
 
   function components() {
     if (!window.SFComponents) {
@@ -32,8 +77,30 @@
     return components().escapeHtml(value);
   }
 
+  function normalizePath(path) {
+    const clean = String(path || "/").split("?")[0].split("#")[0];
+
+    if (clean === "" || clean === "/") return "/index.html";
+    if (clean.endsWith("/")) return clean + "index.html";
+
+    return clean;
+  }
+
+  function currentPath() {
+    return normalizePath(window.location.pathname);
+  }
+
+  function isActiveRoute(item) {
+    const now = currentPath();
+    const href = normalizePath(item.href);
+    const aliases = (item.aliases || []).map(normalizePath);
+
+    return now === href || aliases.includes(now);
+  }
+
   function normalizeConfig(config) {
     const c = config || {};
+
     return {
       eyebrow: c.eyebrow || "Sovereign Finance",
       title: c.title || document.title || "Dashboard",
@@ -41,7 +108,8 @@
       subtitleHtml: c.subtitleHtml,
       actions: Array.isArray(c.actions) ? c.actions : [],
       controls: Array.isArray(c.controls) ? c.controls : [],
-      kpis: Array.isArray(c.kpis) ? c.kpis : []
+      kpis: Array.isArray(c.kpis) ? c.kpis : [],
+      nav: c.nav === false ? false : true
     };
   }
 
@@ -98,6 +166,138 @@
     return appShell;
   }
 
+  function renderFinanceNav() {
+    const groups = FINANCE_NAV.map((group) => {
+      const items = group.items.map((item) => {
+        const active = isActiveRoute(item);
+
+        return `
+          <a class="sf-nav-link${active ? " is-active" : ""}" href="${escape(item.href)}" aria-current="${active ? "page" : "false"}">
+            <span>${escape(item.label)}</span>
+          </a>
+        `;
+      }).join("");
+
+      return `
+        <div class="sf-nav-group">
+          <div class="sf-nav-group-title">${escape(group.group)}</div>
+          <nav class="sf-nav-list" aria-label="${escape(group.group)} finance navigation">
+            ${items}
+          </nav>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <aside class="${SIDEBAR_CLASS}" aria-label="Finance navigation">
+        <div class="sf-nav-brand">
+          <a class="sf-nav-brand-link" href="/index.html" aria-label="Open Finance Hub">
+            <span class="sf-nav-brand-mark">SF</span>
+            <span>
+              <strong>Sovereign Finance</strong>
+              <small>Finance hub</small>
+            </span>
+          </a>
+        </div>
+
+        <div class="sf-nav-scroll">
+          ${groups}
+        </div>
+      </aside>
+    `;
+  }
+
+  function ensureMobileNavButton() {
+    let button = q(".sf-nav-mobile-toggle");
+
+    if (button) return button;
+
+    button = document.createElement("button");
+    button.className = "sf-nav-mobile-toggle";
+    button.type = "button";
+    button.setAttribute("aria-label", "Toggle finance navigation");
+    button.setAttribute("aria-expanded", "false");
+    button.innerHTML = "<span></span><span></span><span></span>";
+
+    button.addEventListener("click", function () {
+      const open = !document.body.classList.contains(NAV_OPEN_CLASS);
+      document.body.classList.toggle(NAV_OPEN_CLASS, open);
+      button.setAttribute("aria-expanded", String(open));
+    });
+
+    document.body.appendChild(button);
+    return button;
+  }
+
+  function ensureNavOverlay() {
+    let overlay = q(".sf-nav-overlay");
+
+    if (overlay) return overlay;
+
+    overlay = document.createElement("button");
+    overlay.className = "sf-nav-overlay";
+    overlay.type = "button";
+    overlay.setAttribute("aria-label", "Close finance navigation");
+
+    overlay.addEventListener("click", function () {
+      document.body.classList.remove(NAV_OPEN_CLASS);
+
+      const button = q(".sf-nav-mobile-toggle");
+      if (button) button.setAttribute("aria-expanded", "false");
+    });
+
+    document.body.appendChild(overlay);
+    return overlay;
+  }
+
+  function closeMobileNavOnRouteClick(sidebar) {
+    qa("a", sidebar).forEach((link) => {
+      link.addEventListener("click", function () {
+        document.body.classList.remove(NAV_OPEN_CLASS);
+
+        const button = q(".sf-nav-mobile-toggle");
+        if (button) button.setAttribute("aria-expanded", "false");
+      });
+    });
+  }
+
+  function ensureFinanceNav(appShell, enabled) {
+    let sidebar = q("." + SIDEBAR_CLASS, appShell);
+
+    if (!enabled) {
+      if (sidebar) sidebar.remove();
+
+      const button = q(".sf-nav-mobile-toggle");
+      const overlay = q(".sf-nav-overlay");
+
+      if (button) button.remove();
+      if (overlay) overlay.remove();
+
+      appShell.classList.remove("sf-app-shell--with-nav");
+      document.body.classList.remove(NAV_OPEN_CLASS);
+
+      return null;
+    }
+
+    if (!sidebar) {
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = renderFinanceNav().trim();
+      sidebar = wrapper.firstElementChild;
+      appShell.insertBefore(sidebar, appShell.firstChild);
+    } else {
+      sidebar.outerHTML = renderFinanceNav().trim();
+      sidebar = q("." + SIDEBAR_CLASS, appShell);
+    }
+
+    appShell.classList.add("sf-app-shell--with-nav");
+
+    ensureMobileNavButton();
+    ensureNavOverlay();
+    closeMobileNavOnRouteClick(sidebar);
+
+    return sidebar;
+  }
+
   function ensurePageShell(appShell) {
     let pageShell = q("." + PAGE_CLASS, appShell);
 
@@ -112,6 +312,7 @@
 
     existing.forEach((node) => {
       if (node === pageShell) return;
+      if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains(SIDEBAR_CLASS)) return;
       contentSlot.appendChild(node);
     });
 
@@ -129,6 +330,7 @@
       region.className = className;
 
       const content = q("." + CONTENT_CLASS, pageShell);
+
       if (content) {
         pageShell.insertBefore(region, content);
       } else {
@@ -144,6 +346,7 @@
 
   function renderHero(config) {
     const c = normalizeConfig(config);
+
     const actionHtml = c.actions.map((action) => {
       return components().button({
         label: action.label || "Action",
@@ -171,6 +374,7 @@
                 : ""
           }
         </div>
+
         ${actionHtml ? `<div class="sf-page-actions">${actionHtml}</div>` : ""}
       </header>
     `;
@@ -205,8 +409,10 @@
   function renderShell(config) {
     const c = normalizeConfig(config);
     const appShell = ensureAppShell();
-    const pageShell = ensurePageShell(appShell);
 
+    ensureFinanceNav(appShell, c.nav !== false);
+
+    const pageShell = ensurePageShell(appShell);
     ensureContentSlot(pageShell);
 
     ensureRegion(pageShell, "sf-page-hero-region", () => renderHero(c));
@@ -241,6 +447,10 @@
     return refresh({ controls: Array.isArray(controls) ? controls : [] });
   }
 
+  function setActions(actions) {
+    return refresh({ actions: Array.isArray(actions) ? actions : [] });
+  }
+
   function setTitle(title) {
     return refresh({ title: title || "" });
   }
@@ -250,7 +460,10 @@
   }
 
   function setSubtitleHtml(subtitleHtml) {
-    return refresh({ subtitleHtml: subtitleHtml == null ? "" : String(subtitleHtml), subtitle: "" });
+    return refresh({
+      subtitleHtml: subtitleHtml == null ? "" : String(subtitleHtml),
+      subtitle: ""
+    });
   }
 
   function debugEnabled() {
@@ -290,6 +503,7 @@
     refresh,
     setKpis,
     setControls,
+    setActions,
     setTitle,
     setSubtitle,
     setSubtitleHtml,
@@ -297,6 +511,9 @@
     revealDebugIfNeeded,
     getConfig: function () {
       return Object.assign({}, currentConfig);
+    },
+    getFinanceNav: function () {
+      return JSON.parse(JSON.stringify(FINANCE_NAV));
     },
     isMounted: function () {
       return mounted;
