@@ -21,7 +21,7 @@
  *   - rate_snapshot stores config row JSON at write time for audit
  */
 
-const VERSION = 'v1.2.0-add-orchestrator-intl-package';
+const VERSION = 'v1.2.1-add-orchestrator-intl-pkr-base-fix';
 
 const DIRECT_MODES = new Set(['expense', 'income', 'transfer', 'international_purchase']);
 
@@ -542,7 +542,7 @@ async function buildIntlPackage(context, body) {
   const errors = [];
   const warnings = [];
 
-  const subtype = (cleanText(body.subtype, 'foreign', 20) || 'foreign').toLowerCase();
+  const subtype = (cleanText(body.subtype, 'pkr_base', 20) || 'pkr_base').toLowerCase();
   if (subtype !== 'foreign' && subtype !== 'pkr_base') {
     errors.push(`Invalid subtype: ${subtype}. Must be 'foreign' or 'pkr_base'.`);
     return { ok: false, errors };
@@ -551,7 +551,8 @@ async function buildIntlPackage(context, body) {
   const date = normalizeDate(body.date);
   const accountId = cleanText(body.account_id || body.from_account_id || body.source_account_id, '', 160);
   const categoryId = cleanText(body.category_id || body.category, '', 160);
-  const merchant = cleanText(body.merchant || body.source || body.person, '', 120);
+  const merchantText = cleanText(body.merchant || body.source || body.person, '', 120);
+  const merchantId = cleanText(body.merchant_id, '', 160);
   const reference = cleanText(body.reference || body.ref, '', 120);
   const userNotes = cleanText(body.notes || body.memo || body.description, '', 200);
 
@@ -629,14 +630,29 @@ async function buildIntlPackage(context, body) {
     ? defaultBankCharge
     : cleanNonNegativeAmount(body.bank_charge_override);
 
-  let fxFeePkr = 0;
-  let excisePkr = 0;
-  if (subtype === 'foreign') {
-    fxFeePkr = round2(basePkr * (fxFeePct / 100));
-    excisePkr = round2(fxFeePkr * (excisePct / 100));
+  // PRA opt-in resolution: explicit payload flag wins; else per-merchant default; else false
+  let praApplied;
+  if (body.include_pra === true || body.include_pra === 'true' || body.include_pra === 1 || body.include_pra === '1') {
+    praApplied = true;
+  } else if (body.include_pra === false || body.include_pra === 'false' || body.include_pra === 0 || body.include_pra === '0') {
+    praApplied = false;
+  } else if (merchantId) {
+    const merchProfile = await lookupMerchantPraDefault(context, merchantId);
+    praApplied = merchProfile === true;
+  } else {
+    praApplied = false;
   }
+
+  // Both subtypes: same component formula. Only difference is how basePkr was derived.
+  // Bank Alfalah CC verified math (Finance_Intl.gs v1.0 LOCKED 2026-04-29):
+  //   fx_fee = base * 4.5%
+  //   excise = fx_fee * 16%
+  //   adv_tax = base * 5%
+  //   pra = base * 5%  (only when praApplied = true)
+  const fxFeePkr = round2(basePkr * (fxFeePct / 100));
+  const excisePkr = round2(fxFeePkr * (excisePct / 100));
   const advanceTaxPkr = round2(basePkr * (advanceTaxPct / 100));
-  const praPkr = round2(basePkr * (praPct / 100));
+  const praPkr = praApplied ? round2(basePkr * (praPct / 100)) : 0;
   const bankChargePkr = round2(userBankCharge);
 
   const totalPkr = round2(basePkr + fxFeePkr + excisePkr + advanceTaxPkr + praPkr + bankChargePkr);
@@ -647,7 +663,7 @@ async function buildIntlPackage(context, body) {
   if (fxFeePkr > 0) components.push({ component: 'fx_fee', amount: fxFeePkr, label: INTL_COMPONENT_LABELS.fx_fee });
   if (excisePkr > 0) components.push({ component: 'excise', amount: excisePkr, label: INTL_COMPONENT_LABELS.excise });
   if (advanceTaxPkr > 0) components.push({ component: 'advance_tax', amount: advanceTaxPkr, label: INTL_COMPONENT_LABELS.advance_tax });
-  if (praPkr > 0) components.push({ component: 'pra', amount: praPkr, label: INTL_COMPONENT_LABELS.pra });
+  if (praApplied && praPkr > 0) components.push({ component: 'pra', amount: praPkr, label: INTL_COMPONENT_LABELS.pra });
   if (bankChargePkr > 0) components.push({ component: 'bank_charge', amount: bankChargePkr, label: INTL_COMPONENT_LABELS.bank_charge });
 
   const payload = {
@@ -656,7 +672,8 @@ async function buildIntlPackage(context, body) {
     date,
     account_id: accountId,
     category_id: categoryId,
-    merchant,
+    merchant: merchantText,
+    merchant_id: merchantId,
     reference,
     notes: userNotes,
     foreign_amount: subtype === 'foreign' ? foreignAmount : null,
@@ -664,6 +681,7 @@ async function buildIntlPackage(context, body) {
     fx_rate: subtype === 'foreign' ? fxRate : null,
     base_pkr: basePkr,
     bank_charge_override: userBankCharge,
+    include_pra: praApplied,
     created_by: cleanText(body.created_by, 'web-add-orchestrator', 80)
   };
 
@@ -674,6 +692,7 @@ async function buildIntlPackage(context, body) {
     excise_pkr: excisePkr,
     advance_tax_pkr: advanceTaxPkr,
     pra_pkr: praPkr,
+    pra_applied: praApplied,
     bank_charge_pkr: bankChargePkr,
     total_pkr: totalPkr,
     foreign_amount: subtype === 'foreign' ? foreignAmount : null,
@@ -691,6 +710,18 @@ async function buildIntlPackage(context, body) {
     warnings,
     errors: []
   };
+}
+
+async function lookupMerchantPraDefault(context, merchantId) {
+  if (!merchantId) return null;
+  const resp = await internalJSON(context, '/api/merchants');
+  if (!resp.ok || !resp.payload) return null;
+  const list = unwrapArray(resp.payload, ['merchants', 'items', 'rows', 'data']);
+  const match = list.find((m) => String(m.id || m.merchant_id) === String(merchantId));
+  if (!match) return null;
+  if (match.default_intl_pra === true || match.default_intl_pra === 1 || match.default_intl_pra === '1' || match.default_intl_pra === 'true') return true;
+  if (match.default_intl_pra === false || match.default_intl_pra === 0 || match.default_intl_pra === '0' || match.default_intl_pra === 'false') return false;
+  return null;
 }
 
 async function writeIntlPackageAtomic(context, built) {
