@@ -426,7 +426,7 @@ function cleanField(field, raw, validation) {
     return cur;
   }
 
-    if (field === 'fx_provider') {
+  if (field === 'fx_provider') {
     const prov = cleanText(raw, '', 80);
     if (!prov) {
       validation.push({ field, error: 'cannot be empty' });
@@ -438,6 +438,9 @@ function cleanField(field, raw, validation) {
     }
     return prov;
   }
+
+  return cleanText(raw, '', 200);
+}
 
 function cleanCurrency(value) {
   const code = String(value || '').trim().toUpperCase();
