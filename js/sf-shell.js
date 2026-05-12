@@ -34,6 +34,14 @@
     return !["SCRIPT", "NOSCRIPT"].includes(node.tagName);
   }
 
+    function shouldWrapNode(node) {
+    if (!node) return false;
+    if (node.nodeType === Node.TEXT_NODE) return Boolean(node.textContent && node.textContent.trim());
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    if (node.classList && node.classList.contains("sf-app-shell")) return false;
+    return !["SCRIPT", "NOSCRIPT"].includes(node.tagName);
+  }
+
   function ensureAppShell() {
     let shell = q(".sf-app-shell");
     if (!shell) {
@@ -50,7 +58,6 @@
     }
     return shell;
   }
-
   function renderHero(config) {
     const title = config.title || document.title || "Dashboard";
     const subtitle = config.subtitle || "";
