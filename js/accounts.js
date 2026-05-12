@@ -1,10 +1,10 @@
-/* Sovereign Finance - Accounts Page v0.8.0 - Shell migration */
-
+/* Sovereign Finance - Accounts Page v0.8.1 - Layer 2 contract restore */
 (function () {
   'use strict';
 
-  var VERSION = 'v0.8.0-shell-migration';
+  var VERSION = 'v0.8.1-layer-2';
   var allAccounts = [];
+  var archivedOpen = false;
 
   function $(id) {
     return document.getElementById(id);
@@ -19,15 +19,47 @@
       .replace(/'/g, '&#39;');
   }
 
+  function asNumber(value, fallback) {
+    var num = Number(value);
+    return Number.isFinite(num) ? num : (fallback == null ? 0 : fallback);
+  }
+
   function fmtPKR(value) {
     var num = Number(value);
     if (!Number.isFinite(num)) return 'Rs —';
-    return 'Rs ' + num.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return 'Rs ' + num.toLocaleString('en-PK', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function firstText() {
+    for (var i = 0; i < arguments.length; i += 1) {
+      var value = arguments[i];
+      if (value !== null && value !== undefined && value !== '') return String(value);
+    }
+    return '';
+  }
+
+  function firstNumber() {
+    for (var i = 0; i < arguments.length; i += 1) {
+      var value = arguments[i];
+      var num = Number(value);
+      if (Number.isFinite(num)) return num;
+    }
+    return null;
   }
 
   function normalizeAccountsPayload(payload) {
     var raw = payload && payload.accounts;
-    if (Array.isArray(raw)) return raw;
+    if (Array.isArray(raw)) {
+      return raw.map(function (row, index) {
+        var out = row || {};
+        if (!out.id) out.id = out.account_id || out.code || ('account_' + index);
+        return out;
+      });
+    }
+
     if (raw && typeof raw === 'object') {
       return Object.keys(raw).map(function (id) {
         var row = raw[id] || {};
@@ -35,99 +67,131 @@
         return row;
       });
     }
+
     return [];
   }
 
-  function renderAccountRow(acct) {
-    var icon = acct.icon || (acct.category === 'asset' ? '💰' : '💳');
-    var name = acct.name || acct.label || acct.id || 'Unknown';
-    var category = acct.category || 'account';
-    var status = acct.status || 'active';
-    var showBalance = Number(acct.balance) || 0;
-    var balanceCls = showBalance < 0 ? 'danger' : '';
+  function classifyAccount(acct) {
+    var explicit = firstText(acct.category, acct.kind, acct.account_kind, acct.side).toLowerCase();
+    var type = firstText(acct.type, acct.account_type, acct.subtype).toLowerCase();
+    var id = firstText(acct.id).toLowerCase();
+    var isCc = Boolean(acct.is_credit_card) || explicit === 'credit_card' || type.indexOf('credit') !== -1 || id.indexOf('cc') !== -1;
 
-    var metaTags = [];
-    if (category) metaTags.push('<span class="meta">' + escHtml(category) + '</span>');
-    if (status && status !== 'active') metaTags.push('<span class="meta warn">' + escHtml(status) + '</span>');
-
-    var html = '';
-    html += '<div class="mini-row">';
-    html += '  <div class="mini-row-left">';
-    html += '    <div class="mini-row-icon">' + escHtml(icon) + '</div>';
-    html += '    <div>';
-    html += '      <div class="mini-row-name">' + escHtml(name) + '</div>';
-    if (metaTags.length) {
-      html += '      <div class="mini-row-sub">' + metaTags.join('') + '</div>';
-    }
-    html += '    </div>';
-    html += '  </div>';
-    html += '  <div class="mini-row-right">';
-    html += '    <div class="mini-row-amount ' + balanceCls + '">' + fmtPKR(showBalance) + '</div>';
-    html += '  </div>';
-    html += '</div>';
-    return html;
+    if (explicit === 'asset' || explicit === 'liability') return explicit;
+    if (isCc) return 'liability';
+    if (type.indexOf('loan') !== -1 || type.indexOf('liability') !== -1 || type.indexOf('payable') !== -1) return 'liability';
+    return 'asset';
   }
 
-  function loadAccounts() {
-    Promise.all([
-      fetch('/api/accounts?debug=1', { cache: 'no-store', headers: { accept: 'application/json' } }).then(function (r) { return r.json(); }),
-      fetch('/api/balances?debug=1', { cache: 'no-store', headers: { accept: 'application/json' } }).then(function (r) { return r.json(); })
-    ]).then(function (results) {
-      var accountsData = results[0];
-      var balancesData = results[1];
+  function normalizeAccount(acct) {
+    var normalized = Object.assign({}, acct || {});
+    normalized.id = firstText(normalized.id, normalized.account_id, normalized.code);
+    normalized.name = firstText(normalized.name, normalized.label, normalized.account_name, normalized.title, normalized.id, 'Unknown account');
+    normalized.category = classifyAccount(normalized);
+    normalized.status = firstText(normalized.status, normalized.state, 'active').toLowerCase();
+    normalized.icon = firstText(normalized.icon, normalized.emoji, normalized.symbol, normalized.category === 'liability' ? '💳' : '💰');
+    normalized.balance = firstNumber(
+      normalized.balance,
+      normalized.current_balance,
+      normalized.amount,
+      normalized.available_balance,
+      normalized.statement_balance,
+      normalized.credit_used
+    );
+    normalized.balance = normalized.balance === null ? 0 : normalized.balance;
+    normalized.creditLimit = firstNumber(normalized.credit_limit, normalized.limit, normalized.card_limit);
+    normalized.utilizationPct = firstNumber(normalized.utilization_pct, normalized.utilization, normalized.credit_utilization_pct);
+    normalized.daysToDue = firstNumber(normalized.days_to_payment_due, normalized.days_to_due, normalized.payment_due_in_days);
+    return normalized;
+  }
 
-      console.log('[accounts] /api/accounts ok:', accountsData.ok, 'count:', accountsData.accounts ? (Array.isArray(accountsData.accounts) ? accountsData.accounts.length : Object.keys(accountsData.accounts).length) : 0);
-      console.log('[accounts] /api/balances ok:', balancesData.ok);
+  function buildMetaTags(acct) {
+    var tags = [];
+    tags.push('<span class="meta">' + escHtml(acct.category) + '</span>');
 
-      if (!accountsData.ok) {
-        if ($('acc-assets-list')) $('acc-assets-list').innerHTML = '<div class="accounts-empty">Error: ' + escHtml(accountsData.error || 'Unknown') + '</div>';
-        return;
-      }
+    if (acct.status && acct.status !== 'active') {
+      tags.push('<span class="meta warn">' + escHtml(acct.status) + '</span>');
+    }
 
-      allAccounts = normalizeAccountsPayload(accountsData);
+    if (acct.creditLimit !== null) {
+      tags.push('<span class="meta accent">limit ' + escHtml(fmtPKR(acct.creditLimit)) + '</span>');
+    }
 
-      var active = allAccounts.filter(function (a) { return a.status !== 'archived' && a.status !== 'deleted'; });
-      var archived = allAccounts.filter(function (a) { return a.status === 'archived'; });
+    if (acct.utilizationPct !== null) {
+      tags.push('<span class="meta ' + (acct.utilizationPct >= 80 ? 'danger' : 'accent') + '">' + escHtml(acct.utilizationPct.toFixed(1) + '% util') + '</span>');
+    }
 
-      var assets = active.filter(function (a) { return a.category === 'asset'; });
-      var liabilities = active.filter(function (a) { return a.category === 'liability'; });
+    if (acct.daysToDue !== null) {
+      tags.push('<span class="meta ' + (acct.daysToDue <= 3 ? 'warn' : '') + '">' + escHtml(acct.daysToDue + 'd due') + '</span>');
+    }
 
-      var assetsTotal = assets.reduce(function (sum, a) { return sum + (Number(a.balance) || 0); }, 0);
-      var liabilitiesTotal = liabilities.reduce(function (sum, a) { return sum + (Number(a.balance) || 0); }, 0);
+    return tags;
+  }
 
-      if ($('acc-assets-count')) $('acc-assets-count').textContent = String(assets.length);
-      if ($('acc-assets-total')) $('acc-assets-total').textContent = fmtPKR(assetsTotal);
-      if ($('acc-liabilities-count')) $('acc-liabilities-count').textContent = String(liabilities.length);
-      if ($('acc-liabilities-total')) $('acc-liabilities-total').textContent = fmtPKR(liabilitiesTotal);
-      if ($('acc-archived-count')) $('acc-archived-count').textContent = String(archived.length);
+  function renderAccountRow(acct) {
+    var tags = buildMetaTags(acct);
+    var amountClass = acct.balance < 0 ? 'danger' : '';
 
-      if ($('acc-assets-list')) {
-        $('acc-assets-list').innerHTML = assets.length
-          ? assets.map(renderAccountRow).join('')
-          : '<div class="accounts-empty">No active asset accounts.</div>';
-      }
+    return [
+      '<div class="mini-row">',
+      '  <div class="mini-row-left">',
+      '    <div class="mini-row-icon">' + escHtml(acct.icon) + '</div>',
+      '    <div>',
+      '      <div class="mini-row-name">' + escHtml(acct.name) + '</div>',
+      tags.length ? '      <div class="mini-row-sub">' + tags.join('') + '</div>' : '',
+      '    </div>',
+      '  </div>',
+      '  <div class="mini-row-right">',
+      '    <div class="mini-row-amount ' + amountClass + '">' + escHtml(fmtPKR(acct.balance)) + '</div>',
+      '  </div>',
+      '</div>'
+    ].join('');
+  }
 
-      if ($('acc-liabilities-list')) {
-        $('acc-liabilities-list').innerHTML = liabilities.length
-          ? liabilities.map(renderAccountRow).join('')
-          : '<div class="accounts-empty">No active liability accounts.</div>';
-      }
+  function setText(id, value) {
+    var node = $(id);
+    if (node) node.textContent = value;
+  }
 
-      if ($('acc-archived-list')) {
-        $('acc-archived-list').innerHTML = archived.length
-          ? archived.map(renderAccountRow).join('')
-          : '<div class="accounts-empty">No archived accounts.</div>';
-      }
+  function renderList(id, items, emptyText) {
+    var node = $(id);
+    if (!node) return;
+    node.innerHTML = items.length
+      ? items.map(renderAccountRow).join('')
+      : '<div class="accounts-empty">' + escHtml(emptyText) + '</div>';
+  }
 
-      if (balancesData.ok) {
-        var netWorth = Number(balancesData.net_worth) || 0;
-        if ($('acc-net-worth')) $('acc-net-worth').textContent = fmtPKR(netWorth);
-      }
+  function renderSummary(assets, liabilities, archived, balancesData) {
+    var assetsTotal = assets.reduce(function (sum, acct) { return sum + asNumber(acct.balance, 0); }, 0);
+    var liabilitiesTotal = liabilities.reduce(function (sum, acct) { return sum + asNumber(acct.balance, 0); }, 0);
 
-      wireArchivedToggle();
-    }).catch(function (err) {
-      console.error('[accounts] load failed:', err);
-      if ($('acc-assets-list')) $('acc-assets-list').innerHTML = '<div class="accounts-empty">Load failed: ' + escHtml(err.message) + '</div>';
+    setText('acc-assets-count', String(assets.length));
+    setText('acc-assets-total', fmtPKR(assetsTotal));
+    setText('acc-liabilities-count', String(liabilities.length));
+    setText('acc-liabilities-total', fmtPKR(liabilitiesTotal));
+    setText('acc-archived-count', String(archived.length));
+
+    if (balancesData && balancesData.ok) {
+      setText('acc-net-worth', fmtPKR(firstNumber(balancesData.net_worth, balancesData.netWorth, 0)));
+    } else {
+      setText('acc-net-worth', fmtPKR(assetsTotal - Math.abs(liabilitiesTotal)));
+    }
+  }
+
+  function syncShellKpis() {
+    var pairs = [
+      ['acc-net-worth', 'acc-net-worth-kpi'],
+      ['acc-assets-count', 'acc-assets-count-kpi'],
+      ['acc-assets-total', 'acc-assets-total-kpi'],
+      ['acc-liabilities-count', 'acc-liabilities-count-kpi'],
+      ['acc-liabilities-total', 'acc-liabilities-total-kpi'],
+      ['acc-archived-count', 'acc-archived-count-kpi']
+    ];
+
+    pairs.forEach(function (pair) {
+      var from = $(pair[0]);
+      var to = $(pair[1]);
+      if (from && to) to.textContent = from.textContent || '—';
     });
   }
 
@@ -135,30 +199,72 @@
     var header = $('acc-archived-header');
     var list = $('acc-archived-list');
     var toggle = $('acc-archived-toggle');
+    if (!header || !list || !toggle || header.__wired) return;
 
-    if (!header || !list || !toggle) return;
-
+    header.__wired = true;
     header.addEventListener('click', function () {
-      var isHidden = list.style.display === 'none';
-      list.style.display = isHidden ? 'grid' : 'none';
-      toggle.textContent = isHidden ? 'v' : '>';
+      archivedOpen = !archivedOpen;
+      list.style.display = archivedOpen ? 'grid' : 'none';
+      toggle.textContent = archivedOpen ? 'v' : '>';
     });
   }
 
   function updateDayCounter() {
     var today = new Date();
     var startOfYear = new Date(today.getFullYear(), 0, 1);
-    var dayOfYear = Math.ceil((today - startOfYear) / (1000 * 60 * 60 * 24));
+    var dayOfYear = Math.ceil((today - startOfYear) / 86400000);
     var cycleDay = dayOfYear % 90 || 90;
     var remaining = 90 - cycleDay + 1;
 
-    if ($('dayNum')) $('dayNum').textContent = String(cycleDay);
-    if ($('acc-day-count')) $('acc-day-count').textContent = String(remaining) + ' days left';
+    setText('dayNum', String(cycleDay));
+    setText('acc-day-count', String(remaining) + ' days left');
+  }
+
+  function loadAccounts() {
+    return Promise.all([
+      fetch('/api/accounts?debug=1', { cache: 'no-store', headers: { accept: 'application/json' } }).then(function (r) { return r.json(); }),
+      fetch('/api/balances?debug=1', { cache: 'no-store', headers: { accept: 'application/json' } }).then(function (r) { return r.json(); })
+    ]).then(function (results) {
+      var accountsData = results[0];
+      var balancesData = results[1];
+
+      if (!accountsData || accountsData.ok === false) {
+        throw new Error((accountsData && accountsData.error) || 'Accounts load failed');
+      }
+
+      allAccounts = normalizeAccountsPayload(accountsData).map(normalizeAccount);
+
+      var active = allAccounts.filter(function (a) { return a.status !== 'archived' && a.status !== 'deleted'; });
+      var archived = allAccounts.filter(function (a) { return a.status === 'archived'; });
+      var assets = active.filter(function (a) { return a.category === 'asset'; });
+      var liabilities = active.filter(function (a) { return a.category === 'liability'; });
+
+      renderList('acc-assets-list', assets, 'No active asset accounts.');
+      renderList('acc-liabilities-list', liabilities, 'No active liability accounts.');
+      renderList('acc-archived-list', archived, 'No archived accounts.');
+      renderSummary(assets, liabilities, archived, balancesData);
+      syncShellKpis();
+      wireArchivedToggle();
+
+      console.log('[accounts] version:', VERSION, 'active:', active.length, 'archived:', archived.length);
+    }).catch(function (err) {
+      console.error('[accounts] load failed:', err);
+      renderList('acc-assets-list', [], 'Load failed: ' + err.message);
+      renderList('acc-liabilities-list', [], 'Load failed: ' + err.message);
+      renderList('acc-archived-list', [], 'Load failed: ' + err.message);
+      setText('acc-net-worth', 'Rs —');
+      setText('acc-assets-count', '0');
+      setText('acc-assets-total', 'Rs —');
+      setText('acc-liabilities-count', '0');
+      setText('acc-liabilities-total', 'Rs —');
+      setText('acc-archived-count', '0');
+      syncShellKpis();
+    });
   }
 
   function boot() {
-    console.log('[accounts] version:', VERSION);
     updateDayCounter();
+    wireArchivedToggle();
     loadAccounts();
   }
 
