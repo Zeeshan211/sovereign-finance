@@ -3,7 +3,7 @@
 
   if (window.SovereignAdd && window.SovereignAdd.initialized) return;
 
-  const VERSION = "v1.5.1-add-intl-pra-opt-in";
+  const VERSION = "v1.5.2-add-dryrun-commit-transfer-fix";
 
   const MODES = {
     expense: {
@@ -135,7 +135,7 @@
     const json = await res.json().catch(() => null);
 
     if (!res.ok || !json || json.ok === false) {
-      throw new Error((json && json.error) || "HTTP " + res.status);
+      throw apiError(json, res.status);
     }
 
     return json;
@@ -155,13 +155,22 @@
     const json = await res.json().catch(() => null);
 
     if (!res.ok || !json || json.ok === false) {
-      const err = new Error((json && json.error) || "HTTP " + res.status);
-      err.status = res.status;
-      err.payload = json;
-      throw err;
+      throw apiError(json, res.status);
     }
 
     return json;
+  }
+
+  function apiError(json, status) {
+    const message =
+      (json && json.error) ||
+      (json && json.message) ||
+      "HTTP " + status;
+
+    const err = new Error(message);
+    err.status = status;
+    err.payload = json || null;
+    return err;
   }
 
   function mode() {
@@ -234,15 +243,18 @@
 
     if (isInternational()) {
       base.subtype = state.intlSubtype;
+
       const bankChargeRaw = $("add-intl-bank-charge")?.value;
       if (bankChargeRaw !== undefined && bankChargeRaw !== "") {
         base.bank_charge_override = num(bankChargeRaw, 0);
       }
+
       base.include_pra = !!$("add-intl-include-pra")?.checked;
 
       if (state.intlSubtype === "foreign") {
         base.foreign_amount = num($("add-intl-foreign-amount")?.value, 0);
         base.foreign_currency = ($("add-intl-currency")?.value || "USD").toUpperCase();
+
         const fxRateRaw = $("add-intl-fx-rate")?.value;
         if (fxRateRaw !== undefined && fxRateRaw !== "") {
           base.fx_rate = num(fxRateRaw, 0);
@@ -255,19 +267,83 @@
     return base;
   }
 
-  function intlBaseAmountForLocal(form) {
-    if (form.subtype === "foreign") {
-      const rate = num(form.fx_rate, 0);
-      return rate > 0 ? num(form.foreign_amount, 0) * rate : 0;
-    }
-    return num(form.pkr_amount, 0);
+  function dryRunRequiresOverride() {
+    return !!(state.dryRun && state.dryRun.ok && state.dryRun.requires_override === true);
   }
 
-  function effectiveImpactAmount(payload) {
-    if (isInternational() && state.intlPreview && state.intlPreview.total_pkr) {
-      return num(state.intlPreview.total_pkr, 0);
+  function dryRunPayloadHash() {
+    return state.dryRun && state.dryRun.payload_hash ? String(state.dryRun.payload_hash) : "";
+  }
+
+  function getProofCheck(name) {
+    const checks = state.dryRun?.proof?.checks || [];
+    return checks.find((check) => check && check.check === name) || null;
+  }
+
+  function getExpectedWrites() {
+    if (!state.dryRun) return [];
+
+    if (Array.isArray(state.dryRun.expected_writes)) {
+      return state.dryRun.expected_writes;
     }
-    return payload.amount;
+
+    const expected = state.dryRun.proof?.expected_writes;
+
+    if (expected && typeof expected === "object") {
+      return Object.entries(expected).map(([model, rows]) => ({
+        model,
+        rows
+      }));
+    }
+
+    const proof = state.dryRun.proof || {};
+
+    if (proof.expected_transaction_rows != null || proof.expected_audit_rows != null) {
+      return [
+        {
+          model: "transactions",
+          rows: proof.expected_transaction_rows ?? "?"
+        },
+        {
+          model: "audit",
+          rows: proof.expected_audit_rows ?? "?"
+        }
+      ];
+    }
+
+    return [];
+  }
+
+  function saveWrittenLabel() {
+    if (!state.save?.ok) return "—";
+
+    const written = state.save.written || {};
+
+    if (isInternational()) {
+      return `Package ${written.intl_package_id || state.save.intl_package_id || "—"} · ${written.row_count || state.save.row_count || 0} rows`;
+    }
+
+    if (Array.isArray(state.save.ids) && state.save.ids.length) {
+      return `transfer ${state.save.ids.join(" → ")}`;
+    }
+
+    if (state.save.id && state.save.linked_id) {
+      return `transfer ${state.save.id} → ${state.save.linked_id}`;
+    }
+
+    if (written.transaction_id) {
+      return `txn ${written.transaction_id}`;
+    }
+
+    if (state.save.transaction_id) {
+      return `txn ${state.save.transaction_id}`;
+    }
+
+    if (state.save.id) {
+      return `txn ${state.save.id}`;
+    }
+
+    return "Saved";
   }
 
   function validateLocal(payload) {
@@ -402,6 +478,7 @@
   function populateIntlCurrencyFromConfig() {
     const select = $("add-intl-currency");
     if (!select) return;
+
     const cfg = state.intlRateConfig;
     if (cfg && cfg.default_currency) {
       const found = Array.from(select.options).find((o) => o.value === cfg.default_currency);
@@ -411,6 +488,7 @@
 
   function applyIntlSubtypeFields() {
     const isForeign = state.intlSubtype === "foreign";
+
     setHidden("add-intl-foreign-fields", !isForeign);
     setHidden("add-intl-pkr-fields", isForeign);
 
@@ -425,7 +503,6 @@
     const currentMode = state.selectedMode;
     const transfer = currentMode === "transfer";
     const international = currentMode === "international";
-    const expense = currentMode === "expense";
     const income = currentMode === "income";
 
     setHidden("add-destination-field", !transfer);
@@ -624,6 +701,7 @@
         state.fxLookup.source === "cache_stale_provider_failed" ? "Cache (stale)" :
         state.fxLookup.source === "forced_refresh" ? "Forced refresh" :
         state.fxLookup.source || "—";
+
       const tone = state.fxLookup.stale ? "warning" : "info";
       setPill("add-intl-fx-source-pill", `FX · ${sourceLabel}`, tone);
     } else {
@@ -678,6 +756,7 @@
                    (state.intlPreview.advance_tax_pkr || 0) +
                    (state.intlPreview.pra_pkr || 0) +
                    (state.intlPreview.bank_charge_pkr || 0);
+
       if (fees > 0) {
         items.push(row(
           "Auto-computed fees & taxes",
@@ -789,31 +868,66 @@
       return;
     }
 
+    const balance = getProofCheck("balance_projection");
+    const expected = getExpectedWrites();
     const route = state.dryRun.route || "transactions";
-    const expected = state.dryRun.expected_writes || [];
+    const blocked = dryRunRequiresOverride();
+
     const expectedHtml = expected.length
       ? expected.map((w) => row(`Write: ${w.model}`, "Expected by backend", String(w.rows ?? w.transaction_rows ?? "?"), "info")).join("")
       : "";
 
-    setHTML("add-dryrun-panel", [
-      row("Dry-run", "Backend validation", "Passed", "positive"),
+    const lines = [
+      row("Dry-run", "Backend validation", blocked ? "Blocked" : "Passed", blocked ? "danger" : "positive"),
       row("Writes performed", "Must be false", String(state.dryRun.writes_performed), state.dryRun.writes_performed === false ? "positive" : "danger"),
       row("Payload hash", "Required for commit", state.dryRun.payload_hash ? state.dryRun.payload_hash.slice(0, 12) + "…" : "Missing", state.dryRun.payload_hash ? "positive" : "danger"),
-      row("Route", "Owner writer", route, "info"),
-      expectedHtml
-    ].join(""));
+      row("Route", "Owner writer", route, "info")
+    ];
+
+    if (blocked) {
+      lines.push(row(
+        "Override required",
+        state.dryRun.override_reason || "Backend requires override",
+        "Save disabled",
+        "danger"
+      ));
+    }
+
+    if (balance) {
+      lines.push(row(
+        "Source balance",
+        balance.account_id || "source account",
+        `${money(balance.current_balance)} → ${money(balance.projected_balance)}`,
+        balance.status === "blocked" ? "danger" : "positive"
+      ));
+
+      if (balance.transfer_target) {
+        lines.push(row(
+          "Destination balance",
+          balance.transfer_target.account_id || "destination account",
+          `${money(balance.transfer_target.current_balance)} → ${money(balance.transfer_target.projected_balance)}`,
+          "positive"
+        ));
+      }
+
+      if (balance.skipped_inactive_transaction_count != null) {
+        lines.push(row(
+          "Inactive rows skipped",
+          "Reversed/reversal rows excluded from balance guard",
+          String(balance.skipped_inactive_transaction_count),
+          "info"
+        ));
+      }
+    }
+
+    setHTML("add-dryrun-panel", lines.concat(expectedHtml).join(""));
   }
 
   function renderSave() {
     if (state.save?.ok) {
-      const written = state.save.written || {};
-      const writtenLabel = isInternational()
-        ? `Package ${written.intl_package_id || "—"} · ${written.row_count || 0} rows`
-        : `txn ${written.transaction_id || "—"}`;
-
       setHTML("add-save-panel", [
         row("Save", "Backend commit", "Saved", "positive"),
-        row("Written", "Source of truth", writtenLabel, "info"),
+        row("Written", "Source of truth", saveWrittenLabel(), "info"),
         row("Ledger", "Review written rows", `<a class="sf-button" href="/transactions.html">Open Ledger</a>`, "info"),
         row("Again", "Reset form for another entry", `<button class="sf-button" type="button" id="add-another">Add Another</button>`, "info")
       ].join(""));
@@ -823,11 +937,29 @@
       return;
     }
 
+    if (state.save && state.save.ok === false) {
+      const response = state.save.response;
+      const detail = response
+        ? `${state.save.error || "Save failed"}${response.next_step ? " · " + response.next_step : ""}`
+        : state.save.error || "Backend rejected commit.";
+
+      setHTML("add-save-panel", errorBlock("Save failed", detail));
+      return;
+    }
+
     if (canSave()) {
       setHTML("add-save-panel", [
         row("Save ready", "Dry-run passed and payload is unchanged", "Ready", "positive"),
         row("Commit rule", "Commit requires payload hash", "Locked", "positive")
       ].join(""));
+      return;
+    }
+
+    if (dryRunRequiresOverride()) {
+      setHTML("add-save-panel", errorBlock(
+        "Save blocked",
+        `Backend requires override: ${state.dryRun.override_reason || "blocked balance projection"}. Override is intentionally disabled in this UI.`
+      ));
       return;
     }
 
@@ -868,13 +1000,28 @@
   }
 
   function canSave() {
-    return isDirectMode() && state.dryRun?.ok && !!state.dryRun.payload_hash && !state.dirtySinceDryRun;
+    return isDirectMode() &&
+      state.dryRun?.ok === true &&
+      !!dryRunPayloadHash() &&
+      !dryRunRequiresOverride() &&
+      !state.dirtySinceDryRun;
   }
 
   function updateButtons() {
     setDisabled("add-run-dryrun", !canDryRun() || state.loading);
     setDisabled("add-confirm-save", !canSave() || state.loading);
     setDisabled("add-intl-fx-fetch", state.fxLoading);
+
+    const save = $("add-confirm-save");
+    if (save) {
+      save.textContent = state.loading ? "Working…" : "Confirm Save";
+    }
+
+    const dry = $("add-run-dryrun");
+    if (dry) {
+      dry.textContent = state.loading ? "Working…" : "Run Dry-Run";
+    }
+
     if ($("add-intl-fx-fetch")) {
       $("add-intl-fx-fetch").textContent = state.fxLoading ? "Fetching…" : "Auto-fetch";
     }
@@ -940,10 +1087,12 @@
       }
     } catch (err) {
       state.preview = null;
+
       if (isInternational()) {
         state.intlPreview = null;
         state.fxLookup = null;
       }
+
       state.errors.preview = err.message;
     }
 
@@ -952,17 +1101,21 @@
 
   async function fetchFxRate() {
     if (state.fxLoading) return;
+
     const currency = ($("add-intl-currency")?.value || "USD").toUpperCase();
+
     state.fxLoading = true;
     updateButtons();
 
     try {
       const data = await getJSON(`/api/intl-rates/fx?from=${encodeURIComponent(currency)}&to=PKR`);
       const rate = num(data.rate, 0);
+
       if (rate > 0 && $("add-intl-fx-rate")) {
         $("add-intl-fx-rate").value = rate.toFixed(4);
         invalidateDryRun();
       }
+
       state.fxLookup = {
         source: data.source,
         rate,
@@ -970,6 +1123,7 @@
         stale: data.stale === true,
         provider: data.provider
       };
+
       delete state.errors.fx;
     } catch (err) {
       state.errors.fx = err.message;
@@ -1015,15 +1169,20 @@
     }
 
     state.loading = true;
+    state.save = null;
     setHTML("add-save-panel", empty("Saving", "Calling /api/add/commit."));
     updateButtons();
 
     try {
-      state.save = await postJSON("/api/add/commit", {
+      const payload = {
         ...readForm(),
-        dry_run_payload_hash: state.dryRun.payload_hash
-      });
+        dry_run_payload_hash: dryRunPayloadHash(),
+        payload_hash: dryRunPayloadHash()
+      };
+
+      state.save = await postJSON("/api/add/commit", payload);
       delete state.errors.save;
+      state.dirtySinceDryRun = false;
     } catch (err) {
       state.save = {
         ok: false,
@@ -1031,7 +1190,6 @@
         response: err.payload || null
       };
       state.errors.save = err.message;
-      setHTML("add-save-panel", errorBlock("Save failed", err.message));
     } finally {
       state.loading = false;
       renderAll();
@@ -1072,12 +1230,14 @@
 
   function setIntlSubtype(nextSubtype) {
     if (nextSubtype !== "foreign" && nextSubtype !== "pkr_base") return;
+
     state.intlSubtype = nextSubtype;
     state.intlPreview = null;
     state.fxLookup = null;
     state.dryRun = null;
     state.save = null;
     state.dirtySinceDryRun = false;
+
     renderAll();
     schedulePreview();
   }
