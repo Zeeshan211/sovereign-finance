@@ -1,271 +1,534 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-  >
-
-  <meta name="theme-color" content="#050816">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-  <title>Accounts · Sovereign Finance</title>
-
-  <link rel="stylesheet" href="/css/sf-theme.css">
-  <link rel="stylesheet" href="/css/sf-shell.css">
-
-  <script src="/js/sf-theme-switcher.js" defer></script>
-  <script src="/js/sf-components.js" defer></script>
-  <script src="/js/sf-shell.js" defer></script>
-
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+  <meta content="#050816" name="theme-color"/>
+  <meta content="yes" name="apple-mobile-web-app-capable"/>
+  <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
+  <title>
+   Accounts · Sovereign Finance
+  </title>
+  <link href="/css/sf-theme.css" rel="stylesheet"/>
+  <link href="/css/sf-shell.css" rel="stylesheet"/>
+  <script defer="" src="/js/sf-theme-switcher.js">
+  </script>
+  <script defer="" src="/js/sf-components.js">
+  </script>
+  <script defer="" src="/js/sf-shell.js">
+  </script>
   <style>
-    .sf-app-shell--with-nav {
-      display: grid;
-      grid-template-columns: 280px minmax(0, 1fr);
-      gap: 24px;
-      width: min(100%, 1680px);
-      margin: 0 auto;
-      padding: 24px;
-    }
-
-    .sf-finance-sidebar {
-      position: sticky;
-      top: 24px;
-      height: calc(100vh - 48px);
-      overflow: auto;
-      border: 1px solid var(--sf-border);
-      border-radius: 24px;
-      background: linear-gradient(180deg, var(--sf-card-strong), var(--sf-card));
-      padding: 18px;
-      box-shadow: var(--sf-shadow-sm);
-    }
-
-    .sf-sidebar-brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding-bottom: 18px;
-      margin-bottom: 18px;
-      border-bottom: 1px solid var(--sf-border-subtle);
-    }
-
-    .sf-sidebar-logo {
-      width: 44px;
-      height: 44px;
-      border-radius: 16px;
-      display: grid;
-      place-items: center;
-      background: linear-gradient(135deg, var(--sf-accent), var(--sf-positive));
-      font-weight: 800;
-      color: #fff;
-    }
-
-    .sf-sidebar-title {
-      font-weight: 800;
-      color: var(--sf-text);
-    }
-
-    .sf-sidebar-sub {
-      font-size: 12px;
-      color: var(--sf-text-muted);
-      margin-top: 2px;
-    }
-
-    .sf-nav-section {
-      margin: 18px 0;
-    }
-
-    .sf-nav-kicker {
-      font-size: 11px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--sf-text-faint);
-      font-weight: 800;
-      margin: 0 0 8px;
-    }
-
-    .sf-nav-list {
-      display: grid;
-      gap: 6px;
-    }
-
-    .sf-nav-link {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 14px;
-      color: var(--sf-text-soft);
-      text-decoration: none;
-      font-weight: 700;
-      border: 1px solid transparent;
-    }
-
-    .sf-nav-link:hover,
-    .sf-nav-link.is-active {
-      background: var(--sf-accent-soft);
-      border-color: var(--sf-border-strong);
-      color: var(--sf-accent-strong);
-    }
-
-    .sf-page-shell {
-      min-width: 0;
-    }
-
-    .sf-money-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 20px;
-    }
-
-    .sf-row-stack {
-      display: grid;
-      gap: 10px;
-    }
-
-    .mini-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      padding: 14px;
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 16px;
-      background: var(--sf-surface-1);
-      margin-bottom: 10px;
-    }
-
-    .mini-row-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
-    }
-
-    .mini-row-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 14px;
-      display: grid;
-      place-items: center;
-      background: var(--sf-accent-soft);
-      color: var(--sf-accent-strong);
-      font-weight: 800;
-      flex: 0 0 auto;
-    }
-
-    .mini-row-meta {
-      min-width: 0;
-    }
-
-    .mini-row-name {
-      font-weight: 800;
-      color: var(--sf-text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .mini-row-sub {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 4px;
-      color: var(--sf-text-muted);
-      font-size: 12px;
-    }
-
-    .mini-row-right {
-      text-align: right;
-      display: grid;
-      justify-items: end;
-      gap: 4px;
-      flex: 0 0 auto;
-    }
-
-    .mini-row-amount {
-      font-weight: 900;
-      color: var(--sf-text);
-      font-size: 16px;
-    }
-
-    .mini-row-amount.danger,
-    .value.danger,
-    .liabilities {
-      color: var(--sf-danger);
-    }
-
-    .assets,
-    .accent,
-    .positive {
-      color: var(--sf-positive);
-    }
-
-    .meta {
-      font-size: 12px;
-      color: var(--sf-text-muted);
-    }
-
-    .meta.warn {
-      color: var(--sf-warning);
-    }
-
-    .meta.danger {
-      color: var(--sf-danger);
-    }
-
-    .ghost-btn,
-    .primary-btn,
-    .danger-btn {
-      border: 1px solid var(--sf-border);
-      border-radius: 999px;
-      padding: 9px 13px;
-      background: var(--sf-surface-1);
-      color: var(--sf-text-soft);
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    .primary-btn {
-      background: var(--sf-accent-soft);
-      color: var(--sf-accent-strong);
-      border-color: var(--sf-border-strong);
-    }
-
-    .danger-btn {
-      background: var(--sf-danger-soft);
-      color: var(--sf-danger);
-      border-color: rgba(255, 127, 138, 0.28);
-    }
-
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.62);
-      z-index: 80;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      padding: 18px;
-    }
-
-    .modal {
-      width: min(560px, 100%);
-      max-height: 88vh;
-      overflow: auto;
-      border: 1px solid var(--sf-border);
-      border-radius: 24px;
-      background: var(--sf-card-strong);
-      padding: 22px;
-      box-shadow: var(--sf-shadow-lg);
-    }
-
-    .modal-title {
-      font-size: 22px;
-      font-weight: 900;
-      color: var(--sf-text);
-    }
+.sf-app-shell--with-nav {
+  display:grid;
+  grid-template-columns:280px minmax(0,1fr);
+  gap:24px;
+  width:min(100%,1680px);
+  margin:0 auto;
+  padding:24px}
+.sf-finance-sidebar {
+  position:sticky;
+  top:24px;
+  height:calc(100vh - 48px);
+  overflow:auto;
+  border:1px solid var(--sf-border);
+  border-radius:24px;
+  background:linear-gradient(180deg,var(--sf-card-strong),var(--sf-card));
+  padding:18px;
+  box-shadow:var(--sf-shadow-sm)}
+.sf-sidebar-brand {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding-bottom:18px;
+  margin-bottom:18px;
+  border-bottom:1px solid var(--sf-border-subtle)}
+.sf-sidebar-logo {
+  width:44px;
+  height:44px;
+  border-radius:16px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--sf-accent),var(--sf-positive));
+  font-weight:800;
+  color:white}
+.sf-sidebar-title {
+  font-weight:800;
+  color:var(--sf-text)}
+.sf-sidebar-sub {
+  font-size:12px;
+  color:var(--sf-text-muted);
+  margin-top:2px}
+.sf-nav-section {
+  margin:18px 0}
+.sf-nav-kicker {
+  font-size:11px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--sf-text-faint);
+  font-weight:800;
+  margin:0 0 8px}
+.sf-nav-list {
+  display:grid;
+  gap:6px}
+.sf-nav-link {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 12px;
+  border-radius:14px;
+  color:var(--sf-text-soft);
+  text-decoration:none;
+  font-weight:700;
+  border:1px solid transparent}
+.sf-nav-link:hover,
+.sf-nav-link.is-active {
+  background:var(--sf-accent-soft);
+  border-color:var(--sf-border-strong);
+  color:var(--sf-accent-strong)}
+.sf-page-shell {
+  min-width:0}
+.sf-money-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:20px}
+.sf-row-stack {
+  display:grid;
+  gap:10px}
+.mini-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px;
+  border:1px solid var(--sf-border-subtle);
+  border-radius:16px;
+  background:var(--sf-surface-1);
+  margin-bottom:10px}
+.mini-row-left {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-width:0}
+.mini-row-icon {
+  width:38px;
+  height:38px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  background:var(--sf-accent-soft);
+  color:var(--sf-accent-strong);
+  font-weight:800}
+.mini-row-meta {
+  min-width:0}
+.mini-row-name {
+  font-weight:800;
+  color:var(--sf-text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis}
+.mini-row-sub {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:4px;
+  color:var(--sf-text-muted);
+  font-size:12px}
+.mini-row-right {
+  text-align:right;
+  display:grid;
+  justify-items:end;
+  gap:4px}
+.mini-row-amount {
+  font-weight:900;
+  color:var(--sf-text);
+  font-size:16px}
+.mini-row-amount.danger,
+.value.danger,
+.liabilities {
+  color:var(--sf-danger)}
+.assets,
+.accent {
+  color:var(--sf-positive)}
+.meta {
+  font-size:12px;
+  color:var(--sf-text-muted)}
+.meta.warn {
+  color:var(--sf-warning)}
+.meta.danger {
+  color:var(--sf-danger)}
+.ghost-btn,
+.primary-btn,
+.danger-btn {
+  border:1px solid var(--sf-border);
+  border-radius:999px;
+  padding:9px 13px;
+  background:var(--sf-surface-1);
+  color:var(--sf-text-soft);
+  font-weight:800;
+  cursor:pointer}
+.primary-btn {
+  background:var(--sf-accent-soft);
+  color:var(--sf-accent-strong);
+  border-color:var(--sf-border-strong)}
+.danger-btn {
+  background:var(--sf-danger-soft);
+  color:var(--sf-danger)}
+.modal-backdrop {
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.62);
+  z-index:80;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px}
+.modal {
+  width:min(560px,100%);
+  max-height:88vh;
+  overflow:auto;
+  border:1px solid var(--sf-border);
+  border-radius:24px;
+  background:var(--sf-card-strong);
+  padding:22px;
+  box-shadow:var(--sf-shadow-lg)}
+.modal-title {
+  font-size:22px;
+  font-weight:900}
+.modal-sub {
+  color:var(--sf-text-muted);
+  font-size:13px;
+  margin:4px 0 18px}
+.field-label {
+  display:block;
+  margin:14px 0 6px;
+  color:var(--sf-text-muted);
+  font-size:12px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.08em}
+.form-input,
+.form-select,
+.amount-input {
+  width:100%;
+  border:1px solid var(--sf-border);
+  border-radius:14px;
+  background:var(--sf-surface-1);
+  color:var(--sf-text);
+  padding:12px 13px;
+  font:inherit}
+.modal-actions {
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:18px;
+  flex-wrap:wrap}
+@media(max-width:980px) {
+  .sf-app-shell--with-nav {
+    grid-template-columns:1fr;
+    padding:16px}
+  .sf-finance-sidebar {
+    position:relative;
+    top:0;
+    height:auto}
+  .sf-money-grid {
+    grid-template-columns:1fr}
+}
+  </style>
+ </head>
+ <body class="sf-shell-body">
+  <div class="sf-app-shell sf-app-shell--with-nav">
+   <aside aria-label="Finance navigation" class="sf-finance-sidebar">
+    <div class="sf-sidebar-brand">
+     <div class="sf-sidebar-logo">
+      SF
+     </div>
+     <div>
+      <div class="sf-sidebar-title">
+       Sovereign Finance
+      </div>
+      <div class="sf-sidebar-sub">
+       Personal finance system
+      </div>
+     </div>
+    </div>
+    <nav>
+     <div class="sf-nav-section">
+      <p class="sf-nav-kicker">
+       Core
+      </p>
+      <div class="sf-nav-list">
+       <a class="sf-nav-link" href="/index.html">
+        Hub
+       </a>
+       <a class="sf-nav-link" href="/add.html">
+        Add
+       </a>
+       <a class="sf-nav-link" href="/transactions.html">
+        Ledger
+       </a>
+       <a class="sf-nav-link is-active" href="/accounts.html">
+        Accounts
+       </a>
+       <a class="sf-nav-link" href="/cc.html">
+        Credit Card
+       </a>
+      </div>
+     </div>
+     <div class="sf-nav-section">
+      <p class="sf-nav-kicker">
+       Cashflow
+      </p>
+      <div class="sf-nav-list">
+       <a class="sf-nav-link" href="/bills.html">
+        Bills
+       </a>
+       <a class="sf-nav-link" href="/debts.html">
+        Debts
+       </a>
+       <a class="sf-nav-link" href="/salary.html">
+        Salary
+       </a>
+       <a class="sf-nav-link" href="/forecast.html">
+        Forecast
+       </a>
+      </div>
+     </div>
+     <div class="sf-nav-section">
+      <p class="sf-nav-kicker">
+       Control / QA
+      </p>
+      <div class="sf-nav-list">
+       <a class="sf-nav-link" href="/reconciliation.html">
+        Reconciliation
+       </a>
+       <a class="sf-nav-link" href="/audit.html">
+        Audit Trail
+       </a>
+       <a class="sf-nav-link" href="/monthly-close.html">
+        Monthly Close
+       </a>
+      </div>
+     </div>
+     <div class="sf-nav-section">
+      <p class="sf-nav-kicker">
+       Analysis
+      </p>
+      <div class="sf-nav-list">
+       <a class="sf-nav-link" href="/insights.html">
+        Insights
+       </a>
+       <a class="sf-nav-link" href="/charts.html">
+        Charts
+       </a>
+       <a class="sf-nav-link" href="/snapshots.html">
+        Snapshots
+       </a>
+      </div>
+     </div>
+     <div class="sf-nav-section">
+      <p class="sf-nav-kicker">
+       Tools
+      </p>
+      <div class="sf-nav-list">
+       <a class="sf-nav-link" href="/atm.html">
+        ATM
+       </a>
+       <a class="sf-nav-link" href="/budgets.html">
+        Budgets
+       </a>
+       <a class="sf-nav-link" href="/goals.html">
+        Goals
+       </a>
+       <a class="sf-nav-link" href="/merchants.html">
+        Merchants
+       </a>
+       <a class="sf-nav-link" href="/nano-loans.html">
+        Nano Loans
+       </a>
+      </div>
+     </div>
+    </nav>
+   </aside>
+   <main class="sf-page-shell">
+    <header class="sf-page-hero">
+     <div class="sf-page-title-group">
+      <div class="sf-page-eyebrow">
+       Accounts
+      </div>
+      <h1 class="sf-page-title">
+       Accounts
+      </h1>
+      <p class="sf-page-subtitle">
+       Balance truth from account and balance APIs. No duplicate navigation, no legacy shell.
+      </p>
+     </div>
+     <div class="sf-page-actions">
+      <span class="sf-pill">
+       <span id="acc-day-count">
+       </span>
+       Day
+       <span id="dayNum">
+       </span>
+       of 90
+      </span>
+     </div>
+    </header>
+    <section class="sf-metric-card sf-metric-card--accent">
+     <p class="sf-card-kicker">
+      Net Worth
+     </p>
+     <div class="sf-metric-value positive counter" id="acc-net-worth">
+      <span class="sf-muted">
+       Loading
+      </span>
+     </div>
+     <p class="sf-card-subtitle">
+      Read from /api/balances; fallback handled by page JS.
+     </p>
+    </section>
+    <section class="sf-money-grid">
+     <section class="sf-panel">
+      <div class="sf-section-head">
+       <div>
+        <p class="sf-section-kicker">
+         Assets
+        </p>
+        <h2 class="sf-section-title">
+         <span id="acc-assets-count">
+          0
+         </span>
+         active
+        </h2>
+       </div>
+       <div class="sf-pill sf-pill--positive assets" id="acc-assets-total">
+       </div>
+      </div>
+      <div class="sf-row-stack" id="acc-assets-list">
+      </div>
+     </section>
+     <section class="sf-panel">
+      <div class="sf-section-head">
+       <div>
+        <p class="sf-section-kicker">
+         Liabilities
+        </p>
+        <h2 class="sf-section-title">
+         <span id="acc-liabilities-count">
+          0
+         </span>
+         active
+        </h2>
+       </div>
+       <div class="sf-pill sf-pill--danger liabilities" id="acc-liabilities-total">
+       </div>
+      </div>
+      <div class="sf-row-stack" id="acc-liabilities-list">
+      </div>
+     </section>
+    </section>
+    <section class="sf-panel" id="acc-archived-header" style="cursor:pointer">
+     <div class="sf-section-head" style="margin-bottom:0">
+      <div>
+       <p class="sf-section-kicker">
+        Archived
+       </p>
+       <h2 class="sf-section-title">
+        <span id="acc-archived-count">
+         0
+        </span>
+        accounts
+       </h2>
+      </div>
+      <button class="ghost-btn" id="acc-archived-toggle" type="button">
+       &gt;
+      </button>
+     </div>
+     <div class="sf-row-stack" id="acc-archived-list" style="display:none;margin-top:14px">
+     </div>
+    </section>
+    <footer>
+     <span class="sf-meta-text">
+      v0.5.0 · accounts · shared shell migration batch 1
+     </span>
+    </footer>
+   </main>
+  </div>
+  <div class="modal-backdrop" id="editAccountModal">
+   <div class="modal">
+    <div class="modal-title" id="editAccountTitle">
+     Edit Account
+    </div>
+    <div class="modal-sub" id="editAccountSub">
+    </div>
+    <label class="field-label">
+     Name
+    </label>
+    <input class="form-input" id="editAccountName" type="text"/>
+    <label class="field-label">
+     Icon
+    </label>
+    <input class="form-input" id="editAccountIcon" type="text"/>
+    <label class="field-label">
+     Kind
+    </label>
+    <select class="form-select" disabled="" id="editAccountKind">
+     <option value="bank">
+      Bank
+     </option>
+     <option value="cash">
+      Cash
+     </option>
+     <option value="wallet">
+      Wallet
+     </option>
+     <option value="cc">
+      Credit Card
+     </option>
+    </select>
+    <label class="field-label">
+     Opening Balance
+    </label>
+    <input class="amount-input" id="editAccountOpening" step="0.01" type="number"/>
+    <label class="field-label">
+     Display Order
+    </label>
+    <input class="form-input" id="editAccountOrder" step="1" type="number"/>
+    <div id="editAccountCCBlock" style="display:none">
+     <label class="field-label">
+      Credit Limit
+     </label>
+     <input class="amount-input" id="editAccountCreditLimit" step="0.01" type="number"/>
+     <label class="field-label">
+      Minimum Payment
+     </label>
+     <input class="amount-input" id="editAccountMinPayment" step="0.01" type="number"/>
+     <label class="field-label">
+      Statement Day
+     </label>
+     <input class="form-input" id="editAccountStatementDay" max="31" min="1" type="number"/>
+     <label class="field-label">
+      Due Day
+     </label>
+     <input class="form-input" id="editAccountDueDay" max="31" min="1" type="number"/>
+    </div>
+    <div class="modal-actions">
+     <button class="ghost-btn" id="editAccountArchive" type="button">
+      Archive
+     </button>
+     <button class="danger-btn" id="editAccountDelete" type="button">
+      Delete
+     </button>
+     <button class="ghost-btn" id="editAccountCancel" type="button">
+      Cancel
+     </button>
+     <button class="primary-btn" id="editAccountConfirm" type="button">
+      Save
+     </button>
+    </div>
+   </div>
+  </div>
+  <script src="/js/accounts.js">
+  </script>
+ </body>
+</html>
