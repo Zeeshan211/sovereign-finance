@@ -1,11 +1,29 @@
+
+/* Sovereign Finance Theme Tokens v0.3.0-multi-accent
+ *
+ * Purpose:
+ * - Centralize all design tokens (color, type, spacing, radius, shadow, motion).
+ * - Support dark (default) + light themes via html[data-theme].
+ * - Support 12 swappable accent palettes via html[data-accent].
+ *
+ * Contract:
+ * - All accent-bearing styles in shell/components/pages MUST consume vars,
+ *   never hardcode rgba(91,162,255,*).
+ * - Switching --sf-accent etc. is the only knob needed to reskin the app.
+ * - Palette overrides apply on top of theme overrides; both can coexist.
+ */
+
 :root {
   color-scheme: dark;
 
   --sf-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --sf-font-mono: "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
+  /* Surfaces (dark default) */
   --sf-bg: #07111f;
-  --sf-bg-elevated: radial-gradient(circle at top, rgba(47, 109, 246, 0.14), transparent 34%), linear-gradient(180deg, #091427 0%, #07111f 100%);
+  --sf-bg-elevated:
+    radial-gradient(circle at top, var(--sf-accent-bg-glow, rgba(47, 109, 246, 0.14)), transparent 34%),
+    linear-gradient(180deg, #091427 0%, #07111f 100%);
   --sf-surface-0: rgba(8, 18, 34, 0.86);
   --sf-surface-1: rgba(11, 24, 44, 0.9);
   --sf-surface-2: rgba(15, 32, 58, 0.94);
@@ -14,16 +32,21 @@
   --sf-card-strong: rgba(14, 29, 52, 0.96);
   --sf-overlay: rgba(3, 8, 16, 0.78);
 
+  /* Text */
   --sf-text: #eef4ff;
   --sf-text-soft: #cad7ef;
   --sf-text-muted: #94a9cc;
   --sf-text-faint: #6d83a8;
 
+  /* Accent (Sapphire — default; overridden by html[data-accent]) */
   --sf-accent: #5ba2ff;
   --sf-accent-strong: #7cc4ff;
   --sf-accent-soft: rgba(91, 162, 255, 0.16);
   --sf-accent-glow: rgba(91, 162, 255, 0.36);
+  --sf-accent-border: rgba(91, 162, 255, 0.34);
+  --sf-accent-bg-glow: rgba(47, 109, 246, 0.14);
 
+  /* Semantic colors (dark) */
   --sf-positive: #53d7a7;
   --sf-positive-soft: rgba(83, 215, 167, 0.16);
   --sf-warning: #f1b857;
@@ -33,16 +56,19 @@
   --sf-info: #8fbcff;
   --sf-info-soft: rgba(143, 188, 255, 0.16);
 
+  /* Borders */
   --sf-border-subtle: rgba(130, 164, 220, 0.14);
   --sf-border: rgba(130, 164, 220, 0.22);
   --sf-border-strong: rgba(130, 164, 220, 0.34);
 
+  /* Shadows */
   --sf-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.18);
   --sf-shadow-sm: 0 10px 24px rgba(0, 0, 0, 0.18);
   --sf-shadow-md: 0 16px 42px rgba(0, 0, 0, 0.24);
   --sf-shadow-lg: 0 24px 70px rgba(0, 0, 0, 0.34);
-  --sf-shadow-accent: 0 0 0 1px rgba(91, 162, 255, 0.18), 0 20px 50px rgba(17, 63, 145, 0.24);
+  --sf-shadow-accent: 0 0 0 1px var(--sf-accent-border), 0 20px 50px var(--sf-accent-glow);
 
+  /* Radius */
   --sf-radius-xs: 10px;
   --sf-radius-sm: 14px;
   --sf-radius-md: 18px;
@@ -50,6 +76,7 @@
   --sf-radius-xl: 30px;
   --sf-radius-pill: 999px;
 
+  /* Spacing */
   --sf-space-1: 4px;
   --sf-space-2: 8px;
   --sf-space-3: 12px;
@@ -61,6 +88,7 @@
   --sf-space-9: 48px;
   --sf-space-10: 64px;
 
+  /* Type sizes */
   --sf-font-11: 11px;
   --sf-font-12: 12px;
   --sf-font-13: 13px;
@@ -72,26 +100,33 @@
   --sf-font-28: 28px;
   --sf-font-36: 36px;
 
+  /* Line heights */
   --sf-line-tight: 1.15;
   --sf-line-normal: 1.45;
   --sf-line-loose: 1.65;
 
+  /* Motion */
   --sf-duration-fast: 140ms;
   --sf-duration-normal: 220ms;
   --sf-duration-slow: 360ms;
   --sf-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 
+  /* Layout */
   --sf-content-max: 1440px;
   --sf-grid-gap: 20px;
   --sf-kpi-min: 220px;
   --sf-panel-min: 320px;
 }
 
+/* ------------------------------------------------------------------ */
+/* LIGHT THEME OVERRIDES (surfaces/text only; accents handled below)  */
+/* ------------------------------------------------------------------ */
 html[data-theme="light"] {
   color-scheme: light;
-
   --sf-bg: #eef4ff;
-  --sf-bg-elevated: linear-gradient(180deg, #f5f8ff 0%, #e7eefb 100%);
+  --sf-bg-elevated:
+    radial-gradient(circle at top, var(--sf-accent-bg-glow-light, rgba(31, 115, 255, 0.10)), transparent 34%),
+    linear-gradient(180deg, #f5f8ff 0%, #e7eefb 100%);
   --sf-surface-0: rgba(255, 255, 255, 0.78);
   --sf-surface-1: rgba(255, 255, 255, 0.9);
   --sf-surface-2: rgba(246, 249, 255, 0.96);
@@ -104,11 +139,6 @@ html[data-theme="light"] {
   --sf-text-soft: #1b2c45;
   --sf-text-muted: #536780;
   --sf-text-faint: #71859d;
-
-  --sf-accent: #1f73ff;
-  --sf-accent-strong: #0057e8;
-  --sf-accent-soft: rgba(31, 115, 255, 0.12);
-  --sf-accent-glow: rgba(31, 115, 255, 0.22);
 
   --sf-positive: #0a9f72;
   --sf-positive-soft: rgba(10, 159, 114, 0.12);
@@ -127,5 +157,249 @@ html[data-theme="light"] {
   --sf-shadow-sm: 0 8px 18px rgba(25, 42, 70, 0.08);
   --sf-shadow-md: 0 14px 34px rgba(25, 42, 70, 0.12);
   --sf-shadow-lg: 0 20px 54px rgba(25, 42, 70, 0.16);
-  --sf-shadow-accent: 0 0 0 1px rgba(31, 115, 255, 0.12), 0 18px 44px rgba(31, 115, 255, 0.12);
+  --sf-shadow-accent: 0 0 0 1px var(--sf-accent-border), 0 18px 44px var(--sf-accent-glow);
+}
+
+/* ------------------------------------------------------------------ */
+/* ACCENT PALETTES                                                    */
+/* Each palette overrides only accent tokens.                          */
+/* Some palettes also adjust --sf-warning or --sf-danger to avoid     */
+/* hue collisions with the accent.                                     */
+/* ------------------------------------------------------------------ */
+
+/* 1. SAPPHIRE — default (explicit so it can be re-applied) */
+html[data-accent="sapphire"] {
+  --sf-accent: #5ba2ff;
+  --sf-accent-strong: #7cc4ff;
+  --sf-accent-soft: rgba(91, 162, 255, 0.16);
+  --sf-accent-glow: rgba(91, 162, 255, 0.36);
+  --sf-accent-border: rgba(91, 162, 255, 0.34);
+  --sf-accent-bg-glow: rgba(47, 109, 246, 0.14);
+  --sf-accent-bg-glow-light: rgba(31, 115, 255, 0.10);
+}
+html[data-accent="sapphire"][data-theme="light"] {
+  --sf-accent: #1f73ff;
+  --sf-accent-strong: #0057e8;
+  --sf-accent-soft: rgba(31, 115, 255, 0.12);
+  --sf-accent-glow: rgba(31, 115, 255, 0.22);
+  --sf-accent-border: rgba(31, 115, 255, 0.28);
+}
+
+/* 2. ROYAL VIOLET */
+html[data-accent="violet"] {
+  --sf-accent: #7c5cff;
+  --sf-accent-strong: #a48bff;
+  --sf-accent-soft: rgba(124, 92, 255, 0.16);
+  --sf-accent-glow: rgba(124, 92, 255, 0.36);
+  --sf-accent-border: rgba(124, 92, 255, 0.34);
+  --sf-accent-bg-glow: rgba(108, 77, 255, 0.14);
+  --sf-accent-bg-glow-light: rgba(108, 77, 255, 0.10);
+}
+html[data-accent="violet"][data-theme="light"] {
+  --sf-accent: #6240e0;
+  --sf-accent-strong: #4a2ec4;
+  --sf-accent-soft: rgba(98, 64, 224, 0.12);
+  --sf-accent-glow: rgba(98, 64, 224, 0.22);
+  --sf-accent-border: rgba(98, 64, 224, 0.28);
+}
+
+/* 3. AMETHYST */
+html[data-accent="amethyst"] {
+  --sf-accent: #b86dff;
+  --sf-accent-strong: #d29bff;
+  --sf-accent-soft: rgba(184, 109, 255, 0.16);
+  --sf-accent-glow: rgba(184, 109, 255, 0.36);
+  --sf-accent-border: rgba(184, 109, 255, 0.34);
+  --sf-accent-bg-glow: rgba(124, 58, 180, 0.14);
+  --sf-accent-bg-glow-light: rgba(124, 58, 180, 0.10);
+}
+html[data-accent="amethyst"][data-theme="light"] {
+  --sf-accent: #8a3ec4;
+  --sf-accent-strong: #6c2aa6;
+  --sf-accent-soft: rgba(138, 62, 196, 0.12);
+  --sf-accent-glow: rgba(138, 62, 196, 0.22);
+  --sf-accent-border: rgba(138, 62, 196, 0.28);
+}
+
+/* 4. EMERALD */
+html[data-accent="emerald"] {
+  --sf-accent: #34d399;
+  --sf-accent-strong: #6ee7b7;
+  --sf-accent-soft: rgba(52, 211, 153, 0.16);
+  --sf-accent-glow: rgba(52, 211, 153, 0.36);
+  --sf-accent-border: rgba(52, 211, 153, 0.34);
+  --sf-accent-bg-glow: rgba(5, 150, 105, 0.14);
+  --sf-accent-bg-glow-light: rgba(5, 150, 105, 0.10);
+  /* Shift positive to teal-leaning so positive doesn't blur into accent */
+  --sf-positive: #67e8f9;
+  --sf-positive-soft: rgba(103, 232, 249, 0.16);
+}
+html[data-accent="emerald"][data-theme="light"] {
+  --sf-accent: #047857;
+  --sf-accent-strong: #065f46;
+  --sf-accent-soft: rgba(4, 120, 87, 0.12);
+  --sf-accent-glow: rgba(4, 120, 87, 0.22);
+  --sf-accent-border: rgba(4, 120, 87, 0.28);
+  --sf-positive: #0e7490;
+  --sf-positive-soft: rgba(14, 116, 144, 0.12);
+}
+
+/* 5. DEEP TEAL */
+html[data-accent="teal"] {
+  --sf-accent: #2dd4bf;
+  --sf-accent-strong: #5eead4;
+  --sf-accent-soft: rgba(45, 212, 191, 0.16);
+  --sf-accent-glow: rgba(45, 212, 191, 0.36);
+  --sf-accent-border: rgba(45, 212, 191, 0.34);
+  --sf-accent-bg-glow: rgba(13, 148, 136, 0.14);
+  --sf-accent-bg-glow-light: rgba(13, 148, 136, 0.10);
+}
+html[data-accent="teal"][data-theme="light"] {
+  --sf-accent: #0d9488;
+  --sf-accent-strong: #0f766e;
+  --sf-accent-soft: rgba(13, 148, 136, 0.12);
+  --sf-accent-glow: rgba(13, 148, 136, 0.22);
+  --sf-accent-border: rgba(13, 148, 136, 0.28);
+}
+
+/* 6. SAGE */
+html[data-accent="sage"] {
+  --sf-accent: #a8c7af;
+  --sf-accent-strong: #c8dcce;
+  --sf-accent-soft: rgba(168, 199, 175, 0.16);
+  --sf-accent-glow: rgba(168, 199, 175, 0.36);
+  --sf-accent-border: rgba(168, 199, 175, 0.34);
+  --sf-accent-bg-glow: rgba(82, 121, 111, 0.14);
+  --sf-accent-bg-glow-light: rgba(82, 121, 111, 0.10);
+}
+html[data-accent="sage"][data-theme="light"] {
+  --sf-accent: #527963;
+  --sf-accent-strong: #3b5e4a;
+  --sf-accent-soft: rgba(82, 121, 99, 0.12);
+  --sf-accent-glow: rgba(82, 121, 99, 0.22);
+  --sf-accent-border: rgba(82, 121, 99, 0.28);
+}
+
+/* 7. CHAMPAGNE — shifts warning to amber to avoid hue collision */
+html[data-accent="champagne"] {
+  --sf-accent: #f0c878;
+  --sf-accent-strong: #fadea0;
+  --sf-accent-soft: rgba(240, 200, 120, 0.16);
+  --sf-accent-glow: rgba(240, 200, 120, 0.36);
+  --sf-accent-border: rgba(240, 200, 120, 0.34);
+  --sf-accent-bg-glow: rgba(184, 134, 11, 0.14);
+  --sf-accent-bg-glow-light: rgba(184, 134, 11, 0.10);
+  --sf-warning: #ffa847;
+  --sf-warning-soft: rgba(255, 168, 71, 0.18);
+}
+html[data-accent="champagne"][data-theme="light"] {
+  --sf-accent: #b7860b;
+  --sf-accent-strong: #8c6708;
+  --sf-accent-soft: rgba(183, 134, 11, 0.12);
+  --sf-accent-glow: rgba(183, 134, 11, 0.22);
+  --sf-accent-border: rgba(183, 134, 11, 0.28);
+  --sf-warning: #c2410c;
+  --sf-warning-soft: rgba(194, 65, 12, 0.12);
+}
+
+/* 8. COPPER — also shifts warning */
+html[data-accent="copper"] {
+  --sf-accent: #e89567;
+  --sf-accent-strong: #f5b893;
+  --sf-accent-soft: rgba(232, 149, 103, 0.16);
+  --sf-accent-glow: rgba(232, 149, 103, 0.36);
+  --sf-accent-border: rgba(232, 149, 103, 0.34);
+  --sf-accent-bg-glow: rgba(160, 82, 45, 0.14);
+  --sf-accent-bg-glow-light: rgba(160, 82, 45, 0.10);
+  --sf-warning: #fbbf24;
+  --sf-warning-soft: rgba(251, 191, 36, 0.18);
+}
+html[data-accent="copper"][data-theme="light"] {
+  --sf-accent: #b45309;
+  --sf-accent-strong: #92400e;
+  --sf-accent-soft: rgba(180, 83, 9, 0.12);
+  --sf-accent-glow: rgba(180, 83, 9, 0.22);
+  --sf-accent-border: rgba(180, 83, 9, 0.28);
+  --sf-warning: #d97706;
+  --sf-warning-soft: rgba(217, 119, 6, 0.12);
+}
+
+/* 9. CRIMSON — shifts danger to deep burgundy */
+html[data-accent="crimson"] {
+  --sf-accent: #f43f5e;
+  --sf-accent-strong: #fb7185;
+  --sf-accent-soft: rgba(244, 63, 94, 0.16);
+  --sf-accent-glow: rgba(244, 63, 94, 0.36);
+  --sf-accent-border: rgba(244, 63, 94, 0.34);
+  --sf-accent-bg-glow: rgba(180, 30, 50, 0.14);
+  --sf-accent-bg-glow-light: rgba(180, 30, 50, 0.10);
+  --sf-danger: #b8333f;
+  --sf-danger-soft: rgba(184, 51, 63, 0.18);
+}
+html[data-accent="crimson"][data-theme="light"] {
+  --sf-accent: #be123c;
+  --sf-accent-strong: #9f1239;
+  --sf-accent-soft: rgba(190, 18, 60, 0.12);
+  --sf-accent-glow: rgba(190, 18, 60, 0.22);
+  --sf-accent-border: rgba(190, 18, 60, 0.28);
+  --sf-danger: #7f1d1d;
+  --sf-danger-soft: rgba(127, 29, 29, 0.12);
+}
+
+/* 10. ROSE GOLD — shifts danger */
+html[data-accent="rose"] {
+  --sf-accent: #f0a8b8;
+  --sf-accent-strong: #f8c8d3;
+  --sf-accent-soft: rgba(240, 168, 184, 0.16);
+  --sf-accent-glow: rgba(240, 168, 184, 0.36);
+  --sf-accent-border: rgba(240, 168, 184, 0.34);
+  --sf-accent-bg-glow: rgba(180, 80, 100, 0.14);
+  --sf-accent-bg-glow-light: rgba(180, 80, 100, 0.10);
+  --sf-danger: #b8333f;
+  --sf-danger-soft: rgba(184, 51, 63, 0.18);
+}
+html[data-accent="rose"][data-theme="light"] {
+  --sf-accent: #d6708a;
+  --sf-accent-strong: #b94f6c;
+  --sf-accent-soft: rgba(214, 112, 138, 0.12);
+  --sf-accent-glow: rgba(214, 112, 138, 0.22);
+  --sf-accent-border: rgba(214, 112, 138, 0.28);
+  --sf-danger: #7f1d1d;
+  --sf-danger-soft: rgba(127, 29, 29, 0.12);
+}
+
+/* 11. GRAPHITE — minimalist, no hue */
+html[data-accent="graphite"] {
+  --sf-accent: #e4e4e7;
+  --sf-accent-strong: #fafafa;
+  --sf-accent-soft: rgba(228, 228, 231, 0.14);
+  --sf-accent-glow: rgba(228, 228, 231, 0.28);
+  --sf-accent-border: rgba(228, 228, 231, 0.30);
+  --sf-accent-bg-glow: rgba(120, 120, 128, 0.10);
+  --sf-accent-bg-glow-light: rgba(120, 120, 128, 0.06);
+}
+html[data-accent="graphite"][data-theme="light"] {
+  --sf-accent: #1f2937;
+  --sf-accent-strong: #0f172a;
+  --sf-accent-soft: rgba(31, 41, 55, 0.10);
+  --sf-accent-glow: rgba(31, 41, 55, 0.18);
+  --sf-accent-border: rgba(31, 41, 55, 0.24);
+}
+
+/* 12. ICE */
+html[data-accent="ice"] {
+  --sf-accent: #67e8f9;
+  --sf-accent-strong: #a5f3fc;
+  --sf-accent-soft: rgba(103, 232, 249, 0.16);
+  --sf-accent-glow: rgba(103, 232, 249, 0.36);
+  --sf-accent-border: rgba(103, 232, 249, 0.34);
+  --sf-accent-bg-glow: rgba(34, 211, 238, 0.14);
+  --sf-accent-bg-glow-light: rgba(34, 211, 238, 0.10);
+}
+html[data-accent="ice"][data-theme="light"] {
+  --sf-accent: #0891b2;
+  --sf-accent-strong: #0e7490;
+  --sf-accent-soft: rgba(8, 145, 178, 0.12);
+  --sf-accent-glow: rgba(8, 145, 178, 0.22);
+  --sf-accent-border: rgba(8, 145, 178, 0.28);
 }
