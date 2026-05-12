@@ -363,10 +363,9 @@ body.sf-shell-body {
 .sf-panel--accent,
 .sf-metric-card--accent,
 .sf-chart-card--accent {
-  border-color: rgba(91, 162, 255, 0.34);
+  border-color: var(--sf-accent-border);
   box-shadow: var(--sf-shadow-accent);
 }
-
 /* Section headings */
 
 .sf-section-head {
@@ -472,9 +471,9 @@ body.sf-shell-body {
 
 .sf-chip.is-active,
 .sf-button--primary {
-  background: linear-gradient(180deg, rgba(91, 162, 255, 0.22), rgba(91, 162, 255, 0.12));
+  background: var(--sf-accent-soft);
   color: var(--sf-accent-strong);
-  border-color: rgba(91, 162, 255, 0.34);
+  border-color: var(--sf-accent-border);
 }
 
 .sf-chip:disabled,
