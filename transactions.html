@@ -48,7 +48,7 @@
       font-size: var(--sf-font-14, 14px);
       font-weight: 700;
       line-height: 1.5;
-      max-width: 820px;
+      max-width: 900px;
     }
 
     .ledger-actions {
@@ -65,8 +65,8 @@
       border-radius: var(--sf-radius-2xl, 30px);
       color: #f8fafc;
       background:
-        radial-gradient(circle at 82% 12%, rgba(16, 185, 129, .32), transparent 24rem),
-        linear-gradient(135deg, #06111f, #0f172a 48%, #123c3a);
+        radial-gradient(circle at 82% 12%, rgba(83, 215, 167, .28), transparent 24rem),
+        linear-gradient(135deg, #06111f, #0f172a 48%, #102a25);
       border: 1px solid rgba(255, 255, 255, .10);
       box-shadow: var(--sf-shadow-lg);
     }
@@ -81,7 +81,7 @@
     }
 
     .ledger-insight p {
-      max-width: 780px;
+      max-width: 860px;
       margin: 14px 0 0;
       color: #cbd5e1;
       font-size: var(--sf-font-15, 15px);
@@ -97,66 +97,20 @@
 
     .ledger-workspace {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
+      grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
       gap: var(--sf-space-4, 16px);
       align-items: start;
     }
 
+    .ledger-panel-stack {
+      display: grid;
+      gap: var(--sf-space-4, 16px);
+    }
+
     .ledger-filter-grid {
       display: grid;
-      grid-template-columns: 1.3fr repeat(4, minmax(130px, .7fr));
-      gap: var(--sf-space-3, 12px);
-      margin-top: var(--sf-space-4, 14px);
-    }
-
-    .ledger-list {
-      display: grid;
-      gap: var(--sf-space-3, 12px);
-      margin-top: var(--sf-space-4, 16px);
-    }
-
-    .ledger-health-grid {
-      display: grid;
-      gap: var(--sf-space-3, 12px);
-      margin-top: var(--sf-space-3, 12px);
-    }
-
-    .ledger-health-line {
-      display: flex;
-      justify-content: space-between;
-      gap: var(--sf-space-3, 12px);
-      padding: 10px 0;
-      border-bottom: 1px solid var(--sf-border-subtle);
-    }
-
-    .ledger-detail-pre {
-      white-space: pre-wrap;
-      overflow: auto;
-      max-height: 420px;
-      padding: 12px;
-      border-radius: var(--sf-radius-sm, 14px);
-      background: var(--sf-surface-2);
-      color: var(--sf-text-muted);
-      font-size: var(--sf-font-12, 12px);
-      line-height: 1.5;
-    }
-
-    .ledger-confirm {
-      border: 1px solid rgba(185, 28, 28, .22);
-      background:
-        linear-gradient(135deg, var(--sf-danger-soft), transparent 68%),
-        var(--sf-card);
-    }
-
-    .ledger-operator-note {
-      padding: var(--sf-space-4, 16px);
-      border: 1px solid rgba(241, 184, 87, .28);
-      border-radius: var(--sf-radius-md, 18px);
-      background: var(--sf-warning-soft);
-      color: var(--sf-warning);
-      font-size: var(--sf-font-13, 13px);
-      font-weight: 800;
-      line-height: 1.45;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
     }
 
     .sf-field {
@@ -173,7 +127,8 @@
     }
 
     .sf-input,
-    .sf-select {
+    .sf-select,
+    .sf-textarea {
       width: 100%;
       border: 1px solid var(--sf-border);
       border-radius: var(--sf-radius-sm, 14px);
@@ -184,28 +139,75 @@
       outline: none;
     }
 
+    .sf-textarea {
+      min-height: 92px;
+      resize: vertical;
+    }
+
     .sf-input:focus,
-    .sf-select:focus {
+    .sf-select:focus,
+    .sf-textarea:focus {
       border-color: var(--sf-accent);
       box-shadow: 0 0 0 3px var(--sf-accent-soft);
     }
 
-    .legacy-id-note {
-      color: var(--sf-text-faint);
-      font-size: var(--sf-font-11, 11px);
-      font-weight: 700;
-      line-height: 1.45;
-      margin-top: var(--sf-space-3, 12px);
+    .ledger-console-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
     }
 
-    .sf-debug-panel[hidden],
-    #reversePanel[hidden] {
-      display: none;
+    .ledger-empty {
+      border: 1px dashed var(--sf-border);
+      border-radius: 18px;
+      padding: 20px;
+      color: var(--sf-text-muted);
+      background: var(--sf-surface-1);
+    }
+
+    .ledger-detail-pre {
+      white-space: pre-wrap;
+      overflow: auto;
+      max-height: 480px;
+      border-radius: 16px;
+      padding: 14px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .health-grid {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .health-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--sf-border-subtle);
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .health-line strong {
+      color: var(--sf-text);
+      text-align: right;
+    }
+
+    .ledger-version-line {
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      font-weight: 750;
     }
 
     @media (max-width: 1180px) {
-      .ledger-workspace,
       .ledger-command,
+      .ledger-workspace,
       .ledger-filter-grid {
         grid-template-columns: 1fr;
       }
@@ -231,59 +233,36 @@
       <section class="sf-page-content ledger-os">
         <section class="ledger-command">
           <div>
-            <div class="sf-page-eyebrow">Sovereign Ledger</div>
+            <div class="sf-page-eyebrow">Banking-grade ledger</div>
             <h1 class="ledger-title">Ledger</h1>
             <p class="ledger-copy">
-              Folded money movement, safe reverse, grouped audit packages, and international transaction visibility
-              from backend-derived ledger truth.
+              Backend owns ledger truth. This page only renders grouped rows, transfer pairs, reversal state, and append-only correction actions.
             </p>
           </div>
 
           <div class="ledger-actions">
-            <a class="sf-button sf-button--primary" href="/add.html">Add Transaction</a>
-            <a class="sf-button" href="/bills.html">Bills</a>
-            <a class="sf-button" href="/debts.html">Debts</a>
-            <a class="sf-button" href="/index.html">Hub</a>
+            <a class="sf-button sf-button--primary" href="/add.html">Add Entry</a>
+            <button class="sf-button" id="refresh_btn" type="button">Refresh</button>
+            <a class="sf-button" href="/accounts.html">Accounts</a>
           </div>
         </section>
 
         <section class="ledger-insight">
-          <div class="sf-page-eyebrow">Ledger OS</div>
-          <h2>Every movement has context.</h2>
+          <div class="sf-page-eyebrow">Ledger renderer v0.8.4</div>
+          <h2>One transfer, one displayed amount.</h2>
           <p>
-            Rows stay folded until opened. Reversals are append-only. Transfer pairs and international packages are
-            grouped from backend metadata instead of frontend guessing.
+            Transfer pairs are stored as two ledger rows, but the card displays the source/outgoing leg only.
+            International packages still sum their component rows.
           </p>
         </section>
 
-        <section id="ledgerStatus" class="sf-panel">
+        <section class="sf-panel">
           <div class="sf-section-head" style="margin-bottom:0;">
             <div>
               <p class="sf-section-kicker">Backend Status</p>
               <h2 class="sf-section-title" id="ledgerHealth">Loading ledger…</h2>
               <p class="sf-section-subtitle" id="healthDetail">
-                Reading transactions with reversal rows and building backend-derived groups.
-              </p>
-            </div>
-
-            <div class="sf-page-actions">
-              <button class="sf-button" type="button" data-include-reversed="1">
-                Include Reversals
-              </button>
-              <button class="sf-button sf-button--primary" id="refresh_btn" type="button">
-                Refresh
-              </button>
-            </div>
-          </div>
-        </section>
-
-        <section id="reversePanel" class="sf-panel ledger-confirm" hidden>
-          <div class="sf-section-head" style="margin-bottom:0;">
-            <div>
-              <p class="sf-section-kicker">Reverse Confirmation</p>
-              <h2 class="sf-section-title">Reverse panel reserved</h2>
-              <p class="sf-section-subtitle">
-                Current hardened ledger JS uses a reason prompt and backend append-only reverse endpoint.
+                Reading transaction rows and health metadata.
               </p>
             </div>
           </div>
@@ -292,40 +271,33 @@
         <section class="ledger-metrics">
           <article class="sf-metric-card">
             <p class="sf-card-kicker">Visible Items</p>
-            <div id="t_count" class="sf-metric-value">0</div>
+            <div id="visibleItems" class="sf-metric-value">0</div>
             <p class="sf-card-subtitle">Grouped cards or raw rows.</p>
           </article>
 
           <article class="sf-metric-card">
-            <p class="sf-card-kicker">Money in</p>
+            <p class="sf-card-kicker">Money In</p>
             <div id="moneyIn" class="sf-metric-value sf-tone-positive">—</div>
             <p class="sf-card-subtitle">Visible active inflow.</p>
           </article>
 
           <article class="sf-metric-card">
-            <p class="sf-card-kicker">Money out</p>
+            <p class="sf-card-kicker">Money Out</p>
             <div id="moneyOut" class="sf-metric-value sf-tone-danger">—</div>
             <p class="sf-card-subtitle">Visible active outflow.</p>
           </article>
 
           <article class="sf-metric-card">
-            <p class="sf-card-kicker">Net movement</p>
+            <p class="sf-card-kicker">Net Movement</p>
             <div id="netMovement" class="sf-metric-value">—</div>
             <p class="sf-card-subtitle">Income minus expense.</p>
           </article>
 
           <article class="sf-metric-card">
-            <p class="sf-card-kicker">Reverse eligible</p>
+            <p class="sf-card-kicker">Reverse Eligible</p>
             <div id="reverseEligible" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">
-              <span id="t_reversed">0</span> hidden reversal rows.
-            </p>
+            <p class="sf-card-subtitle" id="t_reversed">0 hidden reversal rows.</p>
           </article>
-        </section>
-
-        <section class="ledger-operator-note">
-          Ledger display rule: normal rows show active, reversal rows are hidden by default, reversed originals are muted,
-          transfer pairs and international packages render as grouped cards, and reverse buttons follow backend eligibility only.
         </section>
 
         <section class="sf-panel">
@@ -334,7 +306,7 @@
               <p class="sf-section-kicker">Controls</p>
               <h2 class="sf-section-title">Filter Ledger</h2>
               <p class="sf-section-subtitle">
-                These filters do not calculate truth. They only filter backend-provided ledger rows.
+                Filters do not calculate truth. They only filter backend-provided ledger rows.
               </p>
             </div>
           </div>
@@ -342,12 +314,7 @@
           <div class="ledger-filter-grid">
             <div class="sf-field">
               <label for="searchInput">Search</label>
-              <input
-                id="searchInput"
-                class="sf-input"
-                type="search"
-                placeholder="Search transaction, account, category, merchant, notes"
-                autocomplete="off">
+              <input id="searchInput" class="sf-input" type="search" placeholder="Search notes, ID, account, category">
             </div>
 
             <div class="sf-field">
@@ -365,12 +332,10 @@
                 <option value="expense">Expense</option>
                 <option value="transfer">Transfer</option>
                 <option value="atm">ATM</option>
-                <option value="bill">Bill</option>
-                <option value="debt">Debt</option>
+                <option value="repay">Debt</option>
                 <option value="cc_payment">CC Payment</option>
                 <option value="cc_spend">CC Spend</option>
-                <option value="international">International</option>
-                <option value="reversed">Reversed</option>
+                <option value="salary">Salary</option>
               </select>
             </div>
 
@@ -380,55 +345,56 @@
                 <option value="">All status</option>
                 <option value="reverse_eligible">Reverse eligible</option>
                 <option value="reverse_blocked">Reverse blocked</option>
-                <option value="grouped">Grouped</option>
-                <option value="reversed">Reversed</option>
+                <option value="grouped">Grouped only</option>
+                <option value="reversed">Reversed / reversal</option>
               </select>
             </div>
 
             <div class="sf-field">
               <label for="filter_view">View</label>
-              <select id="filter_view" class="sf-select" data-legacy-id="viewMode">
+              <select id="filter_view" class="sf-select">
                 <option value="grouped">Grouped</option>
                 <option value="raw">Raw rows</option>
               </select>
             </div>
           </div>
-
-          <p class="legacy-id-note">
-            Direct edit/delete is intentionally absent. Corrections use backend append-only reversal.
-          </p>
         </section>
 
         <section class="ledger-workspace">
-          <div class="sf-panel">
-            <div class="sf-section-head">
-              <div>
-                <p class="sf-section-kicker">Activity</p>
-                <h2 class="sf-section-title">Latest movements</h2>
-                <p class="sf-section-subtitle">
-                  Backend v0.5 ledger metadata controls grouping, reversal state, and reverse eligibility.
-                </p>
-              </div>
-            </div>
-
-            <div id="activityList" class="ledger-list">
-              <div id="txn-list" class="ledger-list" data-ledger-list="1">
-                <div class="empty-state-inline">Loading activity…</div>
-              </div>
-            </div>
-          </div>
-
-          <aside>
+          <div class="ledger-panel-stack">
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Selected item</p>
-                  <h2 class="sf-section-title">Audit detail</h2>
+                  <p class="sf-section-kicker">Activity</p>
+                  <h2 class="sf-section-title">Latest Movements</h2>
+                  <p class="sf-section-subtitle">
+                    Transfer pairs, international packages, reversal rows, and reversed originals are rendered by the active ledger JS only.
+                  </p>
                 </div>
               </div>
 
-              <div id="detailPanel" class="sf-section-subtitle" style="margin-top:12px;">
-                Open a grouped card in the activity list to inspect its row detail.
+              <div id="txn-list" class="ledger-console-list">
+                <div class="ledger-empty">Loading ledger rows…</div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="ledger-panel-stack">
+            <section class="sf-panel" id="reversePanel" hidden></section>
+
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Selected Item</p>
+                  <h2 class="sf-section-title">Audit Detail</h2>
+                  <p class="sf-section-subtitle">
+                    Open a row to inspect the backend payload.
+                  </p>
+                </div>
+              </div>
+
+              <div id="detailPanel">
+                <div class="ledger-empty">No row selected.</div>
               </div>
             </section>
 
@@ -436,42 +402,38 @@
               <div class="sf-section-head">
                 <div>
                   <p class="sf-section-kicker">Health</p>
-                  <h2 class="sf-section-title">Ledger verification</h2>
+                  <h2 class="sf-section-title">Ledger Verification</h2>
                 </div>
               </div>
 
-              <div id="healthPanel" class="ledger-health-grid">
-                <div class="ledger-health-line">
-                  <span class="sf-section-subtitle">Health</span>
+              <div class="health-grid">
+                <div class="health-line">
+                  <span>Status</span>
                   <strong id="healthStatus">Loading</strong>
                 </div>
-                <div class="ledger-health-line">
-                  <span class="sf-section-subtitle">Mode</span>
+
+                <div class="health-line">
+                  <span>Mode</span>
                   <strong>Backend truth</strong>
                 </div>
-                <div class="ledger-health-line">
-                  <span class="sf-section-subtitle">Mutation</span>
+
+                <div class="health-line">
+                  <span>Mutation</span>
                   <strong>Append-only reverse</strong>
                 </div>
-              </div>
-            </section>
 
-            <section id="debugPanel" class="sf-panel sf-debug-panel" hidden>
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Verification</p>
-                  <h2 class="sf-section-title">Debug output</h2>
+                <div class="health-line">
+                  <span>Renderer</span>
+                  <strong id="ledgerJsVersion">waiting for JS</strong>
                 </div>
               </div>
-
-              <pre id="debugOutput" class="ledger-detail-pre"></pre>
             </section>
           </aside>
         </section>
 
         <footer>
-          <span class="sf-meta-text">
-            v0.8.1 · transactions · shared shell ledger console · feature-preserving shell migration
+          <span class="sf-meta-text" id="ledgerFooterVersion">
+            v0.8.4 · transactions · matched HTML shell
           </span>
         </footer>
       </section>
@@ -480,6 +442,6 @@
 
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
-  <script src="/js/transactions.js"></script>
+  <script src="/js/transactions.js?v=0.8.4-ledger-loader-transfer-fix"></script>
 </body>
 </html>
