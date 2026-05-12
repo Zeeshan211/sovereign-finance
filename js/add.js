@@ -3,7 +3,7 @@
 
   if (window.SovereignAdd && window.SovereignAdd.initialized) return;
 
-  const VERSION = "v1.2.0-add-four-mode-live-impact";
+  const VERSION = "v1.5.0-add-intl-package";
 
   const MODES = {
     expense: {
@@ -27,9 +27,18 @@
     international: {
       label: "International",
       backend: "international_purchase",
-      kind: "preview",
-      copy: "International shows package impact preview only until the backend package writer is shipped."
+      kind: "direct",
+      copy: "International auto-computes FX fee, excise, advance tax, PRA, and bank charge from configured rates. Engine writes one ledger row per component, all linked under one package id."
     }
+  };
+
+  const COMPONENT_LABELS = {
+    base: "Base purchase",
+    fx_fee: "FX fee",
+    excise: "Excise duty",
+    advance_tax: "Advance tax",
+    pra: "PRA / extra tax",
+    bank_charge: "Bank charge"
   };
 
   const state = {
@@ -37,12 +46,17 @@
     accounts: [],
     categories: [],
     merchants: [],
+    intlRateConfig: null,
     selectedMode: "expense",
+    intlSubtype: "foreign",
     preview: null,
+    intlPreview: null,
+    fxLookup: null,
     dryRun: null,
     save: null,
     dirtySinceDryRun: false,
     loading: false,
+    fxLoading: false,
     errors: {}
   };
 
@@ -109,6 +123,7 @@
     if (!el) return;
     el.textContent = label || "";
     el.className = "sf-pill" + (tone ? " sf-pill--" + tone : "");
+    el.hidden = false;
   }
 
   async function getJSON(url) {
@@ -204,7 +219,7 @@
   }
 
   function readForm() {
-    return {
+    const base = {
       mode: backendMode(),
       ui_mode: state.selectedMode,
       date: $("add-date")?.value || today(),
@@ -214,24 +229,44 @@
       category_id: $("add-category")?.value || "",
       merchant: $("add-merchant")?.value || "",
       reference: $("add-reference")?.value || "",
-      notes: $("add-notes")?.value || "",
-      fx_fee: num($("add-fx-fee")?.value, 0),
-      excise: num($("add-excise")?.value, 0),
-      advance_tax: num($("add-advance-tax")?.value, 0),
-      pra: num($("add-pra")?.value, 0)
+      notes: $("add-notes")?.value || ""
     };
+
+    if (isInternational()) {
+      base.subtype = state.intlSubtype;
+      const bankChargeRaw = $("add-intl-bank-charge")?.value;
+      if (bankChargeRaw !== undefined && bankChargeRaw !== "") {
+        base.bank_charge_override = num(bankChargeRaw, 0);
+      }
+
+      if (state.intlSubtype === "foreign") {
+        base.foreign_amount = num($("add-intl-foreign-amount")?.value, 0);
+        base.foreign_currency = ($("add-intl-currency")?.value || "USD").toUpperCase();
+        const fxRateRaw = $("add-intl-fx-rate")?.value;
+        if (fxRateRaw !== undefined && fxRateRaw !== "") {
+          base.fx_rate = num(fxRateRaw, 0);
+        }
+      } else {
+        base.pkr_amount = num($("add-intl-pkr-amount")?.value, 0);
+      }
+    }
+
+    return base;
   }
 
-  function internationalTotal(payload) {
-    return num(payload.amount) +
-      num(payload.fx_fee) +
-      num(payload.excise) +
-      num(payload.advance_tax) +
-      num(payload.pra);
+  function intlBaseAmountForLocal(form) {
+    if (form.subtype === "foreign") {
+      const rate = num(form.fx_rate, 0);
+      return rate > 0 ? num(form.foreign_amount, 0) * rate : 0;
+    }
+    return num(form.pkr_amount, 0);
   }
 
   function effectiveImpactAmount(payload) {
-    return isInternational() ? internationalTotal(payload) : payload.amount;
+    if (isInternational() && state.intlPreview && state.intlPreview.total_pkr) {
+      return num(state.intlPreview.total_pkr, 0);
+    }
+    return payload.amount;
   }
 
   function validateLocal(payload) {
@@ -239,9 +274,24 @@
 
     if (isInternational()) {
       if (!payload.date) errors.push("Date is required.");
-      if (!Number.isFinite(payload.amount) || payload.amount <= 0) errors.push("Base amount must be greater than zero.");
       if (!payload.account_id) errors.push("Account is required.");
       if (!payload.category_id) errors.push("Category is required.");
+
+      if (payload.subtype === "foreign") {
+        if (!Number.isFinite(payload.foreign_amount) || payload.foreign_amount <= 0) {
+          errors.push("Foreign amount must be greater than zero.");
+        }
+        if (!payload.foreign_currency || !/^[A-Z]{3}$/.test(payload.foreign_currency)) {
+          errors.push("Valid currency code is required.");
+        }
+      } else if (payload.subtype === "pkr_base") {
+        if (!Number.isFinite(payload.pkr_amount) || payload.pkr_amount <= 0) {
+          errors.push("PKR amount must be greater than zero.");
+        }
+      } else {
+        errors.push("Invalid subtype.");
+      }
+
       return errors;
     }
 
@@ -279,6 +329,15 @@
         <div class="sf-row-right ${tone ? `sf-tone-${esc(tone)}` : ""}">
           ${value == null ? "—" : value}
         </div>
+      </div>
+    `;
+  }
+
+  function denseRow(title, value, tone) {
+    return `
+      <div class="sf-dense-row">
+        <div>${esc(title)}</div>
+        <div class="${tone ? `sf-tone-${esc(tone)}` : ""}" style="font-weight:700;">${value == null ? "—" : value}</div>
       </div>
     `;
   }
@@ -339,6 +398,28 @@
     if ($("add-category")) $("add-category").value = selectedCategory;
   }
 
+  function populateIntlCurrencyFromConfig() {
+    const select = $("add-intl-currency");
+    if (!select) return;
+    const cfg = state.intlRateConfig;
+    if (cfg && cfg.default_currency) {
+      const found = Array.from(select.options).find((o) => o.value === cfg.default_currency);
+      if (found && !select.value) select.value = cfg.default_currency;
+    }
+  }
+
+  function applyIntlSubtypeFields() {
+    const isForeign = state.intlSubtype === "foreign";
+    setHidden("add-intl-foreign-fields", !isForeign);
+    setHidden("add-intl-pkr-fields", isForeign);
+
+    document.querySelectorAll("[data-intl-subtype]").forEach((btn) => {
+      const active = btn.getAttribute("data-intl-subtype") === state.intlSubtype;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-checked", String(active));
+    });
+  }
+
   function applyModeFields() {
     const currentMode = state.selectedMode;
     const transfer = currentMode === "transfer";
@@ -349,6 +430,8 @@
     setHidden("add-destination-field", !transfer);
     setHidden("add-category-field", transfer);
     setHidden("add-international-fields", !international);
+    setHidden("add-amount", international);
+    setHidden("add-amount-field", international);
 
     const destination = $("add-destination-account");
     if (destination) {
@@ -385,16 +468,27 @@
 
     setText("add-form-copy", mode().copy);
 
-    setPill("add-selected-mode-pill", mode().label, international ? "warning" : "positive");
-    setPill("add-route-pill", international ? "Preview only" : "Direct save", international ? "warning" : "positive");
+    setPill("add-selected-mode-pill", mode().label, "positive");
+    setPill("add-route-pill", international ? "Package writer" : "Direct save", "positive");
 
     document.querySelectorAll("[data-add-mode]").forEach((button) => {
       button.classList.toggle("is-active", button.getAttribute("data-add-mode") === state.selectedMode);
     });
 
-    if (expense || income || transfer || international) {
-      setPill("add-form-status", "Waiting", "info");
+    if (international) {
+      applyIntlSubtypeFields();
+
+      if (state.intlRateConfig) {
+        setPill("add-intl-rates-pill",
+          `Rates · FX ${state.intlRateConfig.fx_fee_pct}% · Tax ${state.intlRateConfig.advance_tax_pct}%`,
+          "info"
+        );
+      } else {
+        setPill("add-intl-rates-pill", "Rates · unavailable", "danger");
+      }
     }
+
+    setPill("add-form-status", "Waiting", "info");
   }
 
   function renderSourceState() {
@@ -406,13 +500,37 @@
     setHTML("add-source-list", [
       row("/api/accounts", status.accounts || "unknown", `${state.accounts.length} loaded`, status.accounts === "ok" ? "positive" : "danger"),
       row("/api/categories", status.categories || "unknown", `${state.categories.length} loaded`, status.categories === "ok" ? "positive" : "danger"),
-      row("/api/merchants", status.merchants || "optional", `${state.merchants.length} loaded`, status.merchants === "ok" ? "positive" : "info")
+      row("/api/merchants", status.merchants || "optional", `${state.merchants.length} loaded`, status.merchants === "ok" ? "positive" : "info"),
+      row("/api/intl-rates", status.intl_rates || "optional", state.intlRateConfig ? "Loaded" : "Not loaded", status.intl_rates === "ok" ? "positive" : "info")
     ].join(""));
   }
 
   function renderLiveImpact() {
     const payload = readForm();
-    const amount = effectiveImpactAmount(payload);
+
+    if (isInternational()) {
+      const source = findAccount(payload.account_id);
+      if (!source) {
+        setHTML("add-live-impact", empty("Waiting for input", "Choose account to preview the impact."));
+        return;
+      }
+
+      const totalPkr = state.intlPreview?.total_pkr ?? null;
+
+      if (totalPkr == null || totalPkr <= 0) {
+        setHTML("add-live-impact", empty("Waiting for amount", "Enter amount and FX rate (or auto-fetch) to preview the package impact."));
+        return;
+      }
+
+      setHTML("add-live-impact", [
+        row(accountName(source), "Current balance", money(accountBalance(source)), "info"),
+        row("Package total", "All components combined", "- " + money(totalPkr), "warning"),
+        row("After", "Backend remains final truth", money(accountBalance(source) - totalPkr), "warning")
+      ].join(""));
+      return;
+    }
+
+    const amount = payload.amount;
 
     if (!payload.account_id || !Number.isFinite(amount) || amount <= 0) {
       setHTML("add-live-impact", empty("Waiting for input", "Choose account and amount to preview the account impact."));
@@ -458,25 +576,59 @@
       return;
     }
 
-    if (isInternational()) {
-      setHTML("add-live-impact", [
-        row(accountName(source), "Current balance", money(accountBalance(source)), "info"),
-        row("Base purchase", "International base amount", "- " + money(payload.amount), "warning"),
-        row("FX fee", "Package fee preview", "- " + money(payload.fx_fee), payload.fx_fee > 0 ? "warning" : "info"),
-        row("Excise duty", "Package tax preview", "- " + money(payload.excise), payload.excise > 0 ? "warning" : "info"),
-        row("Advance tax", "Package tax preview", "- " + money(payload.advance_tax), payload.advance_tax > 0 ? "warning" : "info"),
-        row("PRA / extra tax", "Package extra preview", "- " + money(payload.pra), payload.pra > 0 ? "warning" : "info"),
-        row("Total impact", "Preview only", "- " + money(amount), "danger"),
-        row("After", "Preview only", money(accountBalance(source) - amount), "warning")
-      ].join(""));
-      return;
-    }
-
     setHTML("add-live-impact", [
       row(accountName(source), "Current balance", money(accountBalance(source)), "info"),
       row("Change", "Expense decreases account", "- " + money(amount), "warning"),
       row("After", "Preview only", money(accountBalance(source) - amount), "warning")
     ].join(""));
+  }
+
+  function renderIntlPackagePreview() {
+    if (!isInternational()) {
+      setHidden("add-intl-package-preview", true);
+      return;
+    }
+
+    const preview = state.intlPreview;
+
+    if (!preview || !preview.components || preview.components.length === 0) {
+      setHidden("add-intl-package-preview", true);
+      return;
+    }
+
+    setHidden("add-intl-package-preview", false);
+
+    const rowsHtml = preview.components.map((c) => {
+      const label = COMPONENT_LABELS[c.component] || c.component;
+      return denseRow(label, money(c.amount), c.component === "base" ? "info" : "warning");
+    }).join("");
+
+    setHTML("add-intl-package-rows", rowsHtml);
+
+    const meta = [];
+    meta.push(`Subtype: ${preview.subtype === "foreign" ? "Foreign currency" : "PKR-base"}`);
+    if (preview.subtype === "foreign" && preview.foreign_amount && preview.fx_rate) {
+      meta.push(`${preview.foreign_amount} ${preview.foreign_currency} × ${preview.fx_rate.toFixed(4)}`);
+    }
+    meta.push(`${preview.components.length} ledger row${preview.components.length === 1 ? "" : "s"}`);
+
+    setText("add-intl-package-meta", meta.join(" · "));
+    setText("add-intl-package-total", money(preview.total_pkr));
+
+    if (state.fxLookup) {
+      const sourceLabel =
+        state.fxLookup.source === "user_override" ? "User override" :
+        state.fxLookup.source === "cache" ? "Cache (fresh)" :
+        state.fxLookup.source === "fresh_fetch" ? "Fresh fetch" :
+        state.fxLookup.source === "cache_stale_provider_failed" ? "Cache (stale)" :
+        state.fxLookup.source === "forced_refresh" ? "Forced refresh" :
+        state.fxLookup.source || "—";
+      const tone = state.fxLookup.stale ? "warning" : "info";
+      setPill("add-intl-fx-source-pill", `FX · ${sourceLabel}`, tone);
+    } else {
+      const pill = $("add-intl-fx-source-pill");
+      if (pill) pill.hidden = true;
+    }
   }
 
   function renderSmartAssist() {
@@ -519,13 +671,20 @@
       ));
     }
 
-    if (isInternational()) {
-      items.push(row(
-        "International package",
-        "Multi-row package write is not enabled yet. This page previews total account impact only.",
-        "Preview",
-        "warning"
-      ));
+    if (isInternational() && state.intlPreview) {
+      const fees = (state.intlPreview.fx_fee_pkr || 0) +
+                   (state.intlPreview.excise_pkr || 0) +
+                   (state.intlPreview.advance_tax_pkr || 0) +
+                   (state.intlPreview.pra_pkr || 0) +
+                   (state.intlPreview.bank_charge_pkr || 0);
+      if (fees > 0) {
+        items.push(row(
+          "Auto-computed fees & taxes",
+          "Engine added these from configured rates. No manual entry needed.",
+          money(fees),
+          "info"
+        ));
+      }
     }
 
     if (!items.length) {
@@ -541,20 +700,40 @@
     const errors = validateLocal(payload);
 
     if (isInternational()) {
+      const total = state.intlPreview?.total_pkr;
       const rows = [
-        row("Mode", "International preview", "International", "warning"),
+        row("Mode", "International package writer", "International", "positive"),
+        row("Subtype", "How the bank charged you", state.intlSubtype === "foreign" ? "Foreign currency" : "PKR-base", "info"),
         row("Date", "Transaction date", payload.date, "info"),
         row("Account", payload.account_id || "missing", accountLabel(payload.account_id), payload.account_id ? "info" : "danger"),
-        row("Category", payload.category_id || "missing", categoryLabel(payload.category_id), payload.category_id ? "info" : "danger"),
-        row("Base amount", "Purchase amount", money(payload.amount), "warning"),
-        row("Package total", "Base + fees + taxes", money(internationalTotal(payload)), "danger"),
-        row("Save status", "Backend package writer not shipped", "Preview only", "warning")
+        row("Category", payload.category_id || "missing", categoryLabel(payload.category_id), payload.category_id ? "info" : "danger")
       ];
 
-      if (errors.length) rows.push(row("Blocked", errors.join(" · "), "Fix", "danger"));
+      if (state.intlSubtype === "foreign") {
+        rows.push(row("Foreign amount", payload.foreign_currency || "—", payload.foreign_amount ? `${payload.foreign_amount} ${payload.foreign_currency}` : "missing", payload.foreign_amount ? "info" : "danger"));
+        rows.push(row("FX rate", "PKR per 1 unit", payload.fx_rate ? payload.fx_rate.toFixed(4) : "auto-fetch on preview", payload.fx_rate ? "info" : "warning"));
+      } else {
+        rows.push(row("PKR amount", "Bank-charged in PKR", payload.pkr_amount ? money(payload.pkr_amount) : "missing", payload.pkr_amount ? "info" : "danger"));
+      }
+
+      if (total != null && total > 0) {
+        rows.push(row("Package total", "Auto-computed by backend", money(total), "warning"));
+      }
+
+      rows.push(row("Expected ledger shape", "Backend remains final truth",
+        state.intlPreview ? `1 package + ${state.intlPreview.components?.length || 0} rows` : "—",
+        "info"));
+
+      if (errors.length) {
+        rows.push(row("Blocked", errors.join(" · "), "Fix", "danger"));
+      } else if (!state.intlPreview) {
+        rows.push(row("Waiting", "Backend preview pending", "—", "warning"));
+      } else {
+        rows.push(row("Ready for dry-run", "Backend validation still required", "Ready", "positive"));
+      }
 
       setHTML("add-review-panel", rows.join(""));
-      setPill("add-form-status", errors.length ? "Blocked" : "Preview", errors.length ? "danger" : "warning");
+      setPill("add-form-status", errors.length ? "Blocked" : (state.intlPreview ? "Ready" : "Waiting"), errors.length ? "danger" : (state.intlPreview ? "positive" : "warning"));
       return;
     }
 
@@ -599,13 +778,8 @@
   }
 
   function renderDryRun() {
-    if (isInternational()) {
-      setHTML("add-dryrun-panel", empty("Dry-run unavailable", "International direct write needs the backend package writer first."));
-      return;
-    }
-
     if (!state.dryRun) {
-      setHTML("add-dryrun-panel", empty("Dry-run not run", "A valid direct-mode payload is required."));
+      setHTML("add-dryrun-panel", empty("Dry-run not run", "Click Run Dry-Run after inputs are valid."));
       return;
     }
 
@@ -614,23 +788,31 @@
       return;
     }
 
+    const route = state.dryRun.route || "transactions";
+    const expected = state.dryRun.expected_writes || [];
+    const expectedHtml = expected.length
+      ? expected.map((w) => row(`Write: ${w.model}`, "Expected by backend", String(w.rows ?? w.transaction_rows ?? "?"), "info")).join("")
+      : "";
+
     setHTML("add-dryrun-panel", [
       row("Dry-run", "Backend validation", "Passed", "positive"),
       row("Writes performed", "Must be false", String(state.dryRun.writes_performed), state.dryRun.writes_performed === false ? "positive" : "danger"),
       row("Payload hash", "Required for commit", state.dryRun.payload_hash ? state.dryRun.payload_hash.slice(0, 12) + "…" : "Missing", state.dryRun.payload_hash ? "positive" : "danger"),
-      row("Route", "Owner writer", state.dryRun.route || "transactions", "info")
+      row("Route", "Owner writer", route, "info"),
+      expectedHtml
     ].join(""));
   }
 
   function renderSave() {
-    if (isInternational()) {
-      setHTML("add-save-panel", empty("Save not available", "International package save will be enabled after backend package writer ships."));
-      return;
-    }
-
     if (state.save?.ok) {
+      const written = state.save.written || {};
+      const writtenLabel = isInternational()
+        ? `Package ${written.intl_package_id || "—"} · ${written.row_count || 0} rows`
+        : `txn ${written.transaction_id || "—"}`;
+
       setHTML("add-save-panel", [
         row("Save", "Backend commit", "Saved", "positive"),
+        row("Written", "Source of truth", writtenLabel, "info"),
         row("Ledger", "Review written rows", `<a class="sf-button" href="/transactions.html">Open Ledger</a>`, "info"),
         row("Again", "Reset form for another entry", `<button class="sf-button" type="button" id="add-another">Add Another</button>`, "info")
       ].join(""));
@@ -659,8 +841,12 @@
       version: VERSION,
       selectedMode: state.selectedMode,
       backendMode: backendMode(),
+      intlSubtype: state.intlSubtype,
+      intlRateConfig: state.intlRateConfig,
       context: state.context,
       preview: state.preview,
+      intlPreview: state.intlPreview,
+      fxLookup: state.fxLookup,
       dryRun: state.dryRun,
       save: state.save,
       dirtySinceDryRun: state.dirtySinceDryRun,
@@ -674,7 +860,10 @@
   }
 
   function canDryRun() {
-    return isDirectMode() && validateLocal(readForm()).length === 0;
+    if (!isDirectMode()) return false;
+    if (validateLocal(readForm()).length > 0) return false;
+    if (isInternational() && !state.intlPreview) return false;
+    return true;
   }
 
   function canSave() {
@@ -684,12 +873,17 @@
   function updateButtons() {
     setDisabled("add-run-dryrun", !canDryRun() || state.loading);
     setDisabled("add-confirm-save", !canSave() || state.loading);
+    setDisabled("add-intl-fx-fetch", state.fxLoading);
+    if ($("add-intl-fx-fetch")) {
+      $("add-intl-fx-fetch").textContent = state.fxLoading ? "Fetching…" : "Auto-fetch";
+    }
   }
 
   function renderAll() {
     applyModeFields();
     renderSourceState();
     renderLiveImpact();
+    renderIntlPackagePreview();
     renderSmartAssist();
     renderReview();
     renderDryRun();
@@ -707,15 +901,18 @@
       state.accounts = Array.isArray(context.accounts) ? context.accounts : [];
       state.categories = Array.isArray(context.categories) ? context.categories : [];
       state.merchants = Array.isArray(context.merchants) ? context.merchants : [];
+      state.intlRateConfig = context.intl_rate_config || null;
       delete state.errors.context;
       populateSelects();
+      populateIntlCurrencyFromConfig();
     } catch (err) {
       state.context = {
         can_direct_write: false,
         source_status: {
           accounts: "failed",
           categories: "failed",
-          merchants: "failed"
+          merchants: "failed",
+          intl_rates: "failed"
         }
       };
       state.errors.context = err.message;
@@ -732,12 +929,53 @@
     try {
       state.preview = await postJSON("/api/add/preview", payload);
       delete state.errors.preview;
+
+      if (isInternational()) {
+        state.intlPreview = state.preview.package_preview || null;
+        state.fxLookup = state.preview.fx_lookup || null;
+      } else {
+        state.intlPreview = null;
+        state.fxLookup = null;
+      }
     } catch (err) {
       state.preview = null;
+      if (isInternational()) {
+        state.intlPreview = null;
+        state.fxLookup = null;
+      }
       state.errors.preview = err.message;
     }
 
     if (renderAfter) renderAll();
+  }
+
+  async function fetchFxRate() {
+    if (state.fxLoading) return;
+    const currency = ($("add-intl-currency")?.value || "USD").toUpperCase();
+    state.fxLoading = true;
+    updateButtons();
+
+    try {
+      const data = await getJSON(`/api/intl-rates/fx?from=${encodeURIComponent(currency)}&to=PKR`);
+      const rate = num(data.rate, 0);
+      if (rate > 0 && $("add-intl-fx-rate")) {
+        $("add-intl-fx-rate").value = rate.toFixed(4);
+        invalidateDryRun();
+      }
+      state.fxLookup = {
+        source: data.source,
+        rate,
+        fetched_at: data.fetched_at,
+        stale: data.stale === true,
+        provider: data.provider
+      };
+      delete state.errors.fx;
+    } catch (err) {
+      state.errors.fx = err.message;
+    } finally {
+      state.fxLoading = false;
+      renderAll();
+    }
   }
 
   async function runDryRun() {
@@ -803,7 +1041,7 @@
 
   function schedulePreview() {
     clearTimeout(previewTimer);
-    previewTimer = setTimeout(() => runPreview(), 150);
+    previewTimer = setTimeout(() => runPreview(), 200);
   }
 
   function invalidateDryRun() {
@@ -821,10 +1059,24 @@
 
     state.selectedMode = nextMode;
     state.preview = null;
+    state.intlPreview = null;
+    state.fxLookup = null;
     state.dryRun = null;
     state.save = null;
     state.dirtySinceDryRun = false;
 
+    renderAll();
+    schedulePreview();
+  }
+
+  function setIntlSubtype(nextSubtype) {
+    if (nextSubtype !== "foreign" && nextSubtype !== "pkr_base") return;
+    state.intlSubtype = nextSubtype;
+    state.intlPreview = null;
+    state.fxLookup = null;
+    state.dryRun = null;
+    state.save = null;
+    state.dirtySinceDryRun = false;
     renderAll();
     schedulePreview();
   }
@@ -837,9 +1089,12 @@
     if (date) date.value = today();
 
     state.preview = null;
+    state.intlPreview = null;
+    state.fxLookup = null;
     state.dryRun = null;
     state.save = null;
     state.dirtySinceDryRun = false;
+    state.intlSubtype = "foreign";
 
     setMode("expense");
   }
@@ -847,6 +1102,10 @@
   function bindEvents() {
     document.querySelectorAll("[data-add-mode]").forEach((button) => {
       button.addEventListener("click", () => setMode(button.getAttribute("data-add-mode")));
+    });
+
+    document.querySelectorAll("[data-intl-subtype]").forEach((button) => {
+      button.addEventListener("click", () => setIntlSubtype(button.getAttribute("data-intl-subtype")));
     });
 
     [
@@ -858,16 +1117,20 @@
       "add-merchant",
       "add-reference",
       "add-notes",
-      "add-fx-fee",
-      "add-excise",
-      "add-advance-tax",
-      "add-pra"
+      "add-intl-foreign-amount",
+      "add-intl-currency",
+      "add-intl-fx-rate",
+      "add-intl-pkr-amount",
+      "add-intl-bank-charge"
     ].forEach((id) => {
       const el = $(id);
       if (!el) return;
       el.addEventListener("input", invalidateDryRun);
       el.addEventListener("change", invalidateDryRun);
     });
+
+    const fxFetch = $("add-intl-fx-fetch");
+    if (fxFetch) fxFetch.addEventListener("click", fetchFxRate);
 
     const dryRun = $("add-run-dryrun");
     if (dryRun) dryRun.addEventListener("click", runDryRun);
@@ -888,7 +1151,10 @@
       reload: loadContext,
       state: () => JSON.parse(JSON.stringify(state)),
       runDryRun,
-      confirmSave
+      confirmSave,
+      fetchFxRate,
+      setMode,
+      setIntlSubtype
     };
 
     initDefaults();
