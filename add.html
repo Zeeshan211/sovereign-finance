@@ -1,1663 +1,379 @@
-<!doctype html>
-<html lang="en" data-theme="light">
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sovereign Finance — Add Transaction</title>
-  <link rel="stylesheet" href="/css/app.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-  <style>
-    .add-os {
-      width: min(100%, var(--content-max));
-      margin: 0 auto;
-      display: grid;
-      gap: 18px;
-    }
+  <title>Add Transaction · Sovereign Finance</title>
 
-    .add-command {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 16px;
-      align-items: center;
-      padding: 18px;
-      border: 1px solid var(--border);
-      border-radius: var(--r-xl);
-      background: var(--surface-1);
-      box-shadow: var(--shadow-sm);
-    }
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
 
-    .add-title {
-      margin: 0;
-      color: var(--text-strong);
-      font-size: clamp(28px, 4vw, 48px);
-      line-height: .95;
-      font-weight: 950;
-      letter-spacing: -.07em;
-    }
+  <script>
+    window.SF_PAGE = {
+      title: "Add Transaction",
+      eyebrow: "Sovereign Finance",
+      subtitle: "Controlled write cockpit: choose the event, review the payload, run dry-run, then confirm save.",
+      actions: [
+        { label: "Ledger", href: "/transactions.html" },
+        { label: "Accounts", href: "/accounts.html" },
+        { label: "Bills", href: "/bills.html" },
+        { label: "Debts", href: "/debts.html" }
+      ],
+      kpis: [
+        {
+          title: "Mode",
+          kicker: "Write route",
+          valueHtml: "<span id=\"add-kpi-mode\">Expense</span>",
+          subtitle: "Direct modes save through /api/transactions",
+          foot: "Routed modes open owner pages",
+          tone: "info"
+        },
+        {
+          title: "Sources",
+          kicker: "Load state",
+          valueHtml: "<span id=\"add-kpi-sources\">Loading</span>",
+          subtitleHtml: "<span id=\"add-kpi-sources-sub\">Accounts + categories required</span>",
+          foot: "No stale store fallback",
+          tone: "warning"
+        },
+        {
+          title: "Dry-Run",
+          kicker: "Backend proof",
+          valueHtml: "<span id=\"add-kpi-dryrun\">Not run</span>",
+          subtitle: "Required before save",
+          foot: "writes_performed must be false",
+          tone: "info"
+        },
+        {
+          title: "Save State",
+          kicker: "Final action",
+          valueHtml: "<span id=\"add-kpi-save\">Blocked</span>",
+          subtitle: "Confirm Save unlocks only after dry-run",
+          foot: "No fake success",
+          tone: "danger"
+        }
+      ]
+    };
+  </script>
 
-    .add-copy {
-      margin: 8px 0 0;
-      color: var(--text-muted);
-      font-size: 14px;
-      font-weight: 760;
-      line-height: 1.45;
-    }
-
-    .add-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: flex-end;
-    }
-
-    .add-workspace {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
-      gap: 16px;
-      align-items: start;
-    }
-
-    .add-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .add-grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .add-full {
-      grid-column: 1 / -1;
-    }
-
-    .add-mode-strip {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    .add-mode {
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      background: var(--surface-2);
-      padding: 13px;
-      color: var(--text-strong);
-      font-weight: 950;
-      cursor: pointer;
-      text-align: left;
-    }
-
-    .add-mode.is-active {
-      border-color: rgba(4, 120, 87, .38);
-      background: var(--accent-soft);
-      color: var(--accent);
-      box-shadow: var(--shadow-sm);
-    }
-
-    .impact-card,
-    .intel-card,
-    .guard-card {
-      border: 1px solid var(--border);
-      border-radius: var(--r-xl);
-      background: var(--surface-1);
-      box-shadow: var(--shadow-sm);
-      padding: 16px;
-    }
-
-    .impact-card.good,
-    .intel-card.good,
-    .guard-card.good {
-      border-color: rgba(4, 120, 87, .28);
-      background: linear-gradient(135deg, var(--success-soft), transparent 70%), var(--surface-1);
-    }
-
-    .impact-card.warn,
-    .intel-card.warn,
-    .guard-card.warn {
-      border-color: rgba(180, 83, 9, .28);
-      background: linear-gradient(135deg, var(--warn-soft), transparent 70%), var(--surface-1);
-    }
-
-    .impact-card.danger,
-    .intel-card.danger,
-    .guard-card.danger {
-      border-color: rgba(185, 28, 28, .28);
-      background: linear-gradient(135deg, var(--danger-soft), transparent 70%), var(--surface-1);
-    }
-
-    .impact-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .impact-row:last-child {
-      border-bottom: 0;
-    }
-
-    .impact-row span:first-child {
-      color: var(--text-muted);
-      font-weight: 760;
-    }
-
-    .impact-row span:last-child {
-      color: var(--text-strong);
-      font-weight: 950;
-      text-align: right;
-      overflow-wrap: anywhere;
-    }
-
-    .intl-box {
-      border: 1px solid var(--border);
-      border-radius: var(--r-xl);
-      background: var(--surface-2);
-      padding: 16px;
-      margin-top: 14px;
-    }
-
-    .review-box {
-      border: 1px solid rgba(4, 120, 87, .26);
-      border-radius: var(--r-xl);
-      background: linear-gradient(135deg, var(--success-soft), transparent 70%), var(--surface-1);
-      padding: 16px;
-    }
-
-    .error-box {
-      border: 1px solid rgba(185, 28, 28, .26);
-      border-radius: var(--r-xl);
-      background: linear-gradient(135deg, var(--danger-soft), transparent 70%), var(--surface-1);
-      padding: 16px;
-    }
-
-    .debug-pre {
-      white-space: pre-wrap;
-      overflow: auto;
-      max-height: 420px;
-      padding: 12px;
-      border-radius: 14px;
-      background: var(--surface-2);
-      color: var(--text-muted);
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    .intel-actions,
-    .guard-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 14px;
-    }
-        .mode-guide {
-      border: 1px solid var(--border);
-      border-radius: var(--r-xl);
-      background:
-        linear-gradient(135deg, rgba(4, 120, 87, .08), transparent 70%),
-        var(--surface-2);
-      padding: 14px;
-      margin-bottom: 14px;
-    }
-
-    .mode-guide-title {
-      color: var(--text-strong);
-      font-weight: 950;
-      letter-spacing: -.02em;
-    }
-
-    .mode-guide-copy {
-      margin-top: 6px;
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 760;
-      line-height: 1.45;
-    }
-
-    .mode-guide.warn {
-      border-color: rgba(180, 83, 9, .28);
-      background:
-        linear-gradient(135deg, var(--warn-soft), transparent 70%),
-        var(--surface-1);
-    }
-
-    .mode-guide.danger {
-      border-color: rgba(185, 28, 28, .28);
-      background:
-        linear-gradient(135deg, var(--danger-soft), transparent 70%),
-        var(--surface-1);
-    }
-
-    @media (max-width: 1180px) {
-      .add-workspace,
-      .add-command {
-        grid-template-columns: 1fr;
-      }
-
-      .add-actions {
-        justify-content: flex-start;
-      }
-    }
-
-    @media (max-width: 760px) {
-      .add-grid,
-      .add-grid-3,
-      .add-mode-strip {
-        grid-template-columns: 1fr;
-      }
-
-      .add-actions .btn,
-      .add-mode,
-      .intel-actions .btn,
-      .guard-actions .btn {
-        width: 100%;
-      }
-    }
-  </style>
+  <script src="/js/sf-components.js"></script>
+  <script src="/js/sf-shell.js"></script>
 </head>
 
 <body>
-  <main class="app-page" data-page="add" data-version="add-guarded-routing-v1.7.1-polished">
-    <div class="add-os">
-      <section class="add-command">
+  <section class="sf-panel-grid" aria-label="Add transaction workspace">
+
+    <section class="sf-panel sf-panel--accent sf-span-12" aria-labelledby="add-mode-title">
+      <div class="sf-section-head">
         <div>
-          <div class="section-kicker">Sovereign Entry</div>
-          <h1 class="add-title">Add Transaction</h1>
-          <p class="add-copy">Safe entry with live impact, salary detection, merchant hints, dry-run review, and guarded routing for debt, bills, and credit card actions.</p>
+          <p class="sf-section-kicker">Step 1</p>
+          <h2 id="add-mode-title" class="sf-section-title">What are you recording?</h2>
+          <p class="sf-section-subtitle">
+            Direct modes can save here after dry-run. Advisory modes help classify the event. Routed modes open the owner workflow.
+          </p>
         </div>
-        <div class="add-actions">
-          <a class="btn btn-secondary" href="/transactions.html">Ledger</a>
-          <a class="btn btn-secondary" href="/bills.html">Bills</a>
-          <a class="btn btn-secondary" href="/debts.html">Debts</a>
-          <a class="btn btn-secondary" href="/cc.html">Credit Card</a>
-          <a class="btn btn-secondary" href="/">Hub</a>
+        <div class="sf-section-meta">
+          <span id="add-selected-mode-pill" class="sf-pill sf-pill--info">Expense</span>
+          <span id="add-route-pill" class="sf-pill">Direct save</span>
         </div>
-      </section>
+      </div>
 
-      <section id="statusPanel" class="panel card-padded">
-        <div class="strong">Loading Add Transaction…</div>
-        <div class="muted">Reading accounts, categories, balances, salary, and transaction history.</div>
-      </section>
+      <div class="sf-secondary-grid">
+        <section class="sf-panel" aria-labelledby="add-direct-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Direct Save</p>
+              <h3 id="add-direct-title" class="sf-section-title">Core transaction modes</h3>
+              <p class="sf-section-subtitle">These write through /api/transactions after backend dry-run.</p>
+            </div>
+          </div>
 
-      <section class="add-workspace">
+          <div class="sf-chip-row" role="group" aria-label="Direct transaction modes">
+            <button class="sf-chip is-active" type="button" data-add-mode="expense" data-add-mode-kind="direct">Expense</button>
+            <button class="sf-chip" type="button" data-add-mode="income" data-add-mode-kind="direct">Income</button>
+            <button class="sf-chip" type="button" data-add-mode="transfer" data-add-mode-kind="direct">Transfer</button>
+          </div>
+        </section>
+
+        <section class="sf-panel" aria-labelledby="add-advisory-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Smart / Advisory</p>
+              <h3 id="add-advisory-title" class="sf-section-title">Sheet-era intelligence</h3>
+              <p class="sf-section-subtitle">These assist classification but do not bypass dry-run.</p>
+            </div>
+          </div>
+
+          <div class="sf-chip-row" role="group" aria-label="Advisory modes">
+            <button class="sf-chip" type="button" data-add-mode="salary" data-add-mode-kind="advisory">Salary Income</button>
+            <button class="sf-chip" type="button" data-add-mode="international" data-add-mode-kind="advisory">International Purchase</button>
+          </div>
+        </section>
+
+        <section class="sf-panel" aria-labelledby="add-routed-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Routed Advanced</p>
+              <h3 id="add-routed-title" class="sf-section-title">Owner workflows</h3>
+              <p class="sf-section-subtitle">These are visible here, but saving belongs to the owner page/API.</p>
+            </div>
+          </div>
+
+          <div class="sf-chip-row" role="group" aria-label="Routed advanced modes">
+            <button class="sf-chip" type="button" data-add-mode="bill_payment" data-add-mode-kind="routed">Bill Payment</button>
+            <button class="sf-chip" type="button" data-add-mode="debt_given" data-add-mode-kind="routed">Debt Given</button>
+            <button class="sf-chip" type="button" data-add-mode="debt_received" data-add-mode-kind="routed">Debt Received</button>
+            <button class="sf-chip" type="button" data-add-mode="cc_payment" data-add-mode-kind="routed">CC Payment</button>
+            <button class="sf-chip" type="button" data-add-mode="cc_spend" data-add-mode-kind="routed">CC Spend</button>
+            <button class="sf-chip" type="button" data-add-mode="atm_withdrawal" data-add-mode-kind="routed">ATM Withdrawal</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-6" aria-labelledby="add-details-title">
+      <div class="sf-section-head">
         <div>
-          <section class="panel card-padded">
-            <div class="section-kicker">Mode</div>
-            <div class="add-mode-strip">
-              <button class="add-mode is-active" type="button" data-mode="expense">Expense</button>
-              <button class="add-mode" type="button" data-mode="income">Income</button>
-              <button class="add-mode" type="button" data-mode="transfer">Transfer</button>
-              <button class="add-mode" type="button" data-mode="debt_given">Debt Given</button>
-              <button class="add-mode" type="button" data-mode="debt_received">Debt Received</button>
-              <button class="add-mode" type="button" data-mode="credit_card">Credit Card</button>
-            </div>
-          </section>
+          <p class="sf-section-kicker">Step 2</p>
+          <h2 id="add-details-title" class="sf-section-title">Transaction Details</h2>
+          <p class="sf-section-subtitle">Clean input only. Source APIs provide accounts and categories.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="add-form-status" class="sf-pill">Waiting</span>
+        </div>
+      </div>
 
-          <section class="panel card-padded">
-            <div class="section-kicker">Transaction details</div>
-
-            <form id="txForm" style="margin-top:14px;">
-            <input type="hidden" id="txType" value="expense" />
-
-              <div id="modeGuide" class="mode-guide">
-                <div class="mode-guide-title">Expense mode</div>
-                <div class="mode-guide-copy">Use this for normal spending. Add will show account impact, merchant hints, optional international calculator, dry-run proof, then Confirm Save.</div>
-              </div>
-
-              <div class="add-grid">
-                <div class="form-field">
-                  <label for="txDate">Date</label>
-                  <input id="txDate" type="date" required />
-                </div>
-
-                <div class="form-field">
-                  <label for="txAmount">Amount / committed PKR</label>
-                  <input id="txAmount" type="number" min="0" step="0.01" required />
-                </div>
-
-                <div class="form-field">
-                  <label for="accountId">Account</label>
-                  <select id="accountId" required></select>
-                </div>
-
-                <div class="form-field" id="transferToWrap" hidden>
-                  <label for="transferToAccountId">Transfer to account</label>
-                  <select id="transferToAccountId"></select>
-                </div>
-
-                <div class="form-field">
-                  <label for="categoryId">Category</label>
-                  <select id="categoryId"></select>
-                </div>
-
-                <div class="form-field">
-                  <label for="merchantSource">Merchant / source / person</label>
-                  <input id="merchantSource" type="text" placeholder="e.g. Foodpanda, Motive, Netflix, person name" />
-                </div>
-
-                <div class="form-field">
-                  <label for="referenceText">Reference</label>
-                  <input id="referenceText" type="text" placeholder="optional reference" />
-                </div>
-
-                <div class="form-field add-full">
-                  <label for="notesText">Notes</label>
-                  <textarea id="notesText" placeholder="optional notes"></textarea>
-                </div>
-              </div>
-
-              <div id="internationalToggleWrap" style="margin-top:14px;">
-                <label style="display:flex;gap:10px;align-items:center;">
-                  <input id="isInternational" type="checkbox" />
-                  International transaction calculator
-                </label>
-              </div>
-
-              <div id="internationalPanel" class="intl-box" hidden>
-                <div class="section-kicker">International package preview</div>
-
-                <div class="add-grid-3" style="margin-top:14px;">
-                  <div class="form-field">
-                    <label for="foreignAmount">Foreign amount</label>
-                    <input id="foreignAmount" type="number" min="0" step="0.01" />
-                  </div>
-
-                  <div class="form-field">
-                    <label for="currencyCode">Currency</label>
-                    <input id="currencyCode" type="text" value="USD" />
-                  </div>
-
-                  <div class="form-field">
-                    <label for="fxRate">FX rate</label>
-                    <input id="fxRate" type="number" min="0" step="0.0001" />
-                  </div>
-
-                  <div class="form-field">
-                    <label for="fxFeeRate">FX fee %</label>
-                    <input id="fxFeeRate" type="number" min="0" step="0.01" value="4.5" />
-                  </div>
-
-                  <div class="form-field">
-                    <label for="advanceTaxRate">Advance tax %</label>
-                    <input id="advanceTaxRate" type="number" min="0" step="0.01" value="5" />
-                  </div>
-
-                  <div class="form-field">
-                    <label for="praRate">PRA / other tax %</label>
-                    <input id="praRate" type="number" min="0" step="0.01" value="0" />
-                  </div>
-
-                  <div class="form-field">
-                    <label for="billerCharge">1-Biller / bank charge</label>
-                    <input id="billerCharge" type="number" min="0" step="0.01" value="0" />
-                  </div>
-
-                  <div class="form-field">
-                    <label for="exciseRate">Excise/FED on FX fee %</label>
-                    <input id="exciseRate" type="number" min="0" step="0.01" value="16" />
-                  </div>
-                </div>
-
-                <div id="internationalBreakdown" class="impact-card" style="margin-top:14px;"></div>
-              </div>
-
-              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
-                <button id="reviewBtn" class="btn btn-success" type="submit">Review Transaction</button>
-                <button id="resetBtn" class="btn btn-secondary" type="button">Reset</button>
-              </div>
-            </form>
-          </section>
-
-          <section id="reviewPanel" class="panel card-padded" hidden></section>
-          <section id="resultPanel" class="panel card-padded" hidden></section>
+      <form id="add-form" class="sf-form-grid" autocomplete="off">
+        <div class="sf-field sf-span-6">
+          <label for="add-date">Date</label>
+          <input id="add-date" class="sf-input" type="date" required>
         </div>
 
-        <aside>
-          <section class="panel card-padded">
-            <div class="section-kicker">Live impact</div>
-            <div id="impactPanel" class="impact-card" style="margin-top:12px;"></div>
-          </section>
-
-          <section class="panel card-padded">
-            <div class="section-kicker">Guarded routing</div>
-            <div id="guardPanel" class="guard-card" style="margin-top:12px;"></div>
-          </section>
-
-          <section class="panel card-padded">
-            <div class="section-kicker">Salary detector</div>
-            <div id="salaryPanel" class="intel-card" style="margin-top:12px;"></div>
-          </section>
-
-          <section class="panel card-padded">
-            <div class="section-kicker">Merchant intelligence</div>
-            <div id="merchantPanel" class="intel-card" style="margin-top:12px;"></div>
-          </section>
-
-          <section class="panel card-padded">
-            <div class="section-kicker">Accounts</div>
-            <div id="accountsPanel" class="stack-sm" style="margin-top:12px;"></div>
-          </section>
-
-          <section id="debugPanel" class="panel card-padded" hidden>
-            <div class="section-kicker">Verification</div>
-            <pre id="debugOutput" class="debug-pre"></pre>
-          </section>
-        </aside>
-      </section>
-    </div>
-  </main>
-
-  <script src="/js/theme.js" defer></script>
-  <script src="/js/nav.js" defer></script>
-  <script src="/js/sf-icons.js?v=1.0.0" defer></script>
-
-  <script>
-    (function () {
-      "use strict";
-
-      const VERSION = "add-guarded-routing-v1.7.1-polished";
-      const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
-      const $ = (id) => document.getElementById(id);
-
-      const MERCHANT_RULES = [
-        { match: /motive|salary|payroll/i, label: "Motive / Salary", suggestedCategory: "salary_income", suggestedType: "income", international: false, pra: false, fx: false, source: "rule" },
-        { match: /netflix|spotify|openai|chatgpt/i, label: "Digital subscription", suggestedCategory: "subscriptions", suggestedType: "expense", international: true, pra: true, fx: true, praRate: 5, source: "rule" },
-        { match: /google|aws|amazon web services|github|apple/i, label: "International digital merchant", suggestedCategory: "software_tools", suggestedType: "expense", international: true, pra: false, fx: true, praRate: 0, source: "rule" },
-        { match: /foodpanda|careem|indrive|indriver|uber/i, label: "Local app/service", suggestedCategory: "transport", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" },
-        { match: /jazz|zong|ufone|telenor|nayatel|internet/i, label: "Telecom / internet", suggestedCategory: "bills_utilities", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" },
-        { match: /family contribution|maid|cloth washing/i, label: "Household bill", suggestedCategory: "bills_utilities", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" },
-        { match: /atm|ubl atm|abl atm/i, label: "ATM related", suggestedCategory: "atm_fee", suggestedType: "expense", international: false, pra: false, fx: false, source: "rule" },
-        { match: /credit card payment|cc payment|alfalah cc|card payment/i, label: "Credit card payment", suggestedCategory: "credit_card", suggestedType: "transfer", international: false, pra: false, fx: false, source: "guard" }
-      ];
-
-      const state = {
-        accounts: {},
-        categories: {},
-        balances: {},
-        salary: null,
-        transactions: [],
-        pendingPayload: null,
-        dryRunResult: null,
-        saveResult: null,
-        salarySuggestionIgnored: false,
-        appliedSalarySuggestion: false,
-        appliedMerchantSuggestion: false,
-        currentMerchantSuggestion: null,
-        currentSalarySuggestion: null,
-        currentGuard: null,
-        writeEndpointsCalledOnLoad: 0,
-        finalWriteCalls: 0
-      };
-
-      function escapeHtml(value) {
-        return String(value ?? "")
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#039;");
-      }
-
-      function asNumber(value, fallback = 0) {
-        if (typeof value === "number" && Number.isFinite(value)) return value;
-        if (typeof value === "string") {
-          const parsed = Number(value.replace(/[^\d.-]/g, ""));
-          if (Number.isFinite(parsed)) return parsed;
-        }
-        return fallback;
-      }
-
-      function round2(value) {
-        return Math.round(asNumber(value, 0) * 100) / 100;
-      }
-
-      function money(value) {
-        return new Intl.NumberFormat("en-PK", {
-          style: "currency",
-          currency: "PKR",
-          maximumFractionDigits: 2
-        }).format(asNumber(value, 0));
-      }
-
-      async function readJson(path) {
-        const response = await fetch(path, {
-          headers: { "accept": "application/json" },
-          cache: "no-store"
-        });
-
-        const payload = await response.json().catch(() => null);
-
-        if (!response.ok || !payload) {
-          throw new Error(`${path} HTTP ${response.status}`);
-        }
-
-        return payload;
-      }
-
-      async function postJson(path, body) {
-        const response = await fetch(path, {
-          method: "POST",
-          headers: {
-            "accept": "application/json",
-            "content-type": "application/json"
-          },
-          body: JSON.stringify(body)
-        });
-
-        const payload = await response.json().catch(() => null);
-
-        if (!response.ok || payload?.ok === false) {
-          throw new Error(payload?.error || payload?.message || `${path} HTTP ${response.status}`);
-        }
-
-        return payload;
-      }
-
-      function todayIso() {
-        return new Date().toISOString().slice(0, 10);
-      }
-
-      function categoryArray(payload) {
-        if (Array.isArray(payload?.categories)) return payload.categories;
-        if (Array.isArray(payload?.data)) return payload.data;
-        if (Array.isArray(payload?.results)) return payload.results;
-        if (payload?.categories && typeof payload.categories === "object") {
-          return Object.entries(payload.categories).map(([id, value]) => ({ id, ...(value || {}) }));
-        }
-        return [];
-      }
-
-      function txArray(payload) {
-        return payload?.transactions || payload?.data || payload?.results || [];
-      }
-            function normalizeAccounts(payload) {
-        const raw =
-          payload?.accounts ||
-          payload?.data ||
-          payload?.results ||
-          [];
-
-        if (Array.isArray(raw)) {
-          return Object.fromEntries(
-            raw
-              .filter((account) => {
-                const status = String(account.status || "").toLowerCase();
-                return account.id &&
-                  !account.deleted_at &&
-                  account.active !== false &&
-                  status !== "inactive" &&
-                  status !== "archived" &&
-                  status !== "deleted";
-              })
-              .map((account) => [account.id, account])
-          );
-        }
-
-        if (raw && typeof raw === "object") {
-          return Object.fromEntries(
-            Object.entries(raw).filter(([id, account]) => {
-              const status = String(account?.status || "").toLowerCase();
-              return id &&
-                account &&
-                !account.deleted_at &&
-                account.active !== false &&
-                status !== "inactive" &&
-                status !== "archived" &&
-                status !== "deleted";
-            })
-          );
-        }
-
-        return {};
-      }
-
-      function accountBalance(id) {
-        const fromBalances = state.balances?.accounts?.[id]?.balance;
-        if (fromBalances !== undefined) return asNumber(fromBalances, 0);
-
-        const fromAccounts = state.accounts?.[id]?.balance;
-        if (fromAccounts !== undefined) return asNumber(fromAccounts, 0);
-
-        return 0;
-      }
-
-      function accountName(id) {
-        return state.accounts?.[id]?.name || id || "Unknown account";
-      }
-
-      function categoryExists(id) {
-        return Boolean(state.categories[id]);
-      }
-
-      function chooseExistingCategory(candidates) {
-        for (const id of candidates) {
-          if (categoryExists(id)) return id;
-        }
-        return "";
-      }
-
-      function salaryForecastAmount() {
-        return asNumber(
-          state.salary?.forecast_eligible_monthly ??
-          state.salary?.salary?.forecast_eligible_monthly ??
-          state.salary?.guaranteed_monthly ??
-          state.salary?.salary?.guaranteed_monthly ??
-          0,
-          0
-        );
-      }
-
-            function modeMeta(mode) {
-        const map = {
-          expense: {
-            title: "Expense mode",
-            copy: "Use this for normal spending. Add will show account impact, merchant hints, optional international calculator, dry-run proof, then Confirm Save.",
-            review: "Review Expense",
-            merchantPlaceholder: "e.g. Foodpanda, Netflix, Internet, groceries",
-            notesPlaceholder: "optional expense notes",
-            className: ""
-          },
-          income: {
-            title: "Income mode",
-            copy: "Use this for normal income. Salary detection will appear when amount/source matches the salary forecast.",
-            review: "Review Income",
-            merchantPlaceholder: "e.g. Motive salary, refund, reimbursement",
-            notesPlaceholder: "optional income notes",
-            className: ""
-          },
-          transfer: {
-            title: "Transfer mode",
-            copy: "Use this when money moves between your own accounts. Add will preview both balances and net-worth impact as zero.",
-            review: "Review Transfer",
-            merchantPlaceholder: "e.g. IBFT, cash move, prepaid top-up",
-            notesPlaceholder: "optional transfer notes",
-            className: ""
-          },
-          debt_given: {
-            title: "Debt Given is guarded",
-            copy: "Debt Given must be created in Debts so the receivable and linked ledger movement stay in sync. Generic Add save is blocked by design.",
-            review: "Show Safe Route",
-            merchantPlaceholder: "person / counterparty name",
-            notesPlaceholder: "why money was given / follow-up context",
-            className: "warn"
-          },
-          debt_received: {
-            title: "Debt Received is guarded",
-            copy: "Debt Received must be recorded in Debts so the receivable reduces correctly. Generic income is blocked to prevent double-counting.",
-            review: "Show Safe Route",
-            merchantPlaceholder: "person / counterparty name",
-            notesPlaceholder: "repayment details",
-            className: "warn"
-          },
-          credit_card: {
-            title: "Credit Card is guarded",
-            copy: "Credit-card spends/payments need liability-aware handling. Generic Add save is blocked until the CC flow owns the write.",
-            review: "Show Safe Route",
-            merchantPlaceholder: "merchant or card payment reference",
-            notesPlaceholder: "credit-card context",
-            className: "warn"
-          }
-        };
-
-        return map[mode] || map.expense;
-      }
-
-      function renderModeGuide(mode) {
-        const meta = modeMeta(mode);
-        const guide = $("modeGuide");
-
-        guide.className = `mode-guide ${meta.className || ""}`;
-        guide.innerHTML = `
-          <div class="mode-guide-title">${escapeHtml(meta.title)}</div>
-          <div class="mode-guide-copy">${escapeHtml(meta.copy)}</div>
-        `;
-
-        $("reviewBtn").textContent = meta.review;
-        $("merchantSource").placeholder = meta.merchantPlaceholder;
-        $("notesText").placeholder = meta.notesPlaceholder;
-      }
-
-      function setMode(mode) {
-        $("txType").value = mode;
-
-        document.querySelectorAll(".add-mode").forEach((button) => {
-          button.classList.toggle("is-active", button.dataset.mode === mode);
-        });
-
-        const isTransfer = mode === "transfer";
-        const isGuardedMode = ["debt_given", "debt_received", "credit_card"].includes(mode);
-
-        $("transferToWrap").hidden = !isTransfer && mode !== "credit_card";
-        $("categoryId").disabled = isTransfer || isGuardedMode;
-
-        if (mode !== "expense") {
-          $("isInternational").checked = false;
-        }
-
-        $("internationalToggleWrap").hidden = mode !== "expense";
-
-        renderModeGuide(mode);
-        syncInternational();
-        updateIntelligence();
-        renderImpact();
-        hideReview();
-      }
-
-      function syncInternational() {
-        const enabled = $("isInternational").checked && $("txType").value === "expense";
-        $("internationalPanel").hidden = !enabled;
-        $("txAmount").readOnly = enabled;
-
-        if (enabled) {
-          const total = internationalTotals().total;
-          $("txAmount").value = total ? String(total) : "";
-        }
-
-        renderInternationalBreakdown();
-        renderImpact();
-      }
-
-      function internationalTotals() {
-        const foreignAmount = asNumber($("foreignAmount").value, 0);
-        const fxRate = asNumber($("fxRate").value, 0);
-        const base = round2(foreignAmount * fxRate);
-        const fxFee = round2(base * asNumber($("fxFeeRate").value, 0) / 100);
-        const excise = round2(fxFee * asNumber($("exciseRate").value, 0) / 100);
-        const advanceTax = round2(base * asNumber($("advanceTaxRate").value, 0) / 100);
-        const pra = round2(base * asNumber($("praRate").value, 0) / 100);
-        const biller = round2($("billerCharge").value);
-        const total = round2(base + fxFee + excise + advanceTax + pra + biller);
-
-        return { foreignAmount, fxRate, base, fxFee, excise, advanceTax, pra, biller, total };
-      }
-
-      function renderInternationalBreakdown() {
-        if ($("internationalPanel").hidden) return;
-
-        const t = internationalTotals();
-
-        $("internationalBreakdown").innerHTML = `
-          <div class="impact-row"><span>Base PKR</span><span>${money(t.base)}</span></div>
-          <div class="impact-row"><span>FX fee</span><span>${money(t.fxFee)}</span></div>
-          <div class="impact-row"><span>Excise/FED</span><span>${money(t.excise)}</span></div>
-          <div class="impact-row"><span>Advance tax</span><span>${money(t.advanceTax)}</span></div>
-          <div class="impact-row"><span>PRA / other tax</span><span>${money(t.pra)}</span></div>
-          <div class="impact-row"><span>1-Biller / bank charge</span><span>${money(t.biller)}</span></div>
-          <div class="impact-row"><span>Total committed PKR</span><span>${money(t.total)}</span></div>
-        `;
-      }
-
-      function selectedImpact() {
-        const mode = $("txType").value;
-        const amount = asNumber($("txAmount").value, 0);
-        const accountId = $("accountId").value;
-        const transferTo = $("transferToAccountId").value;
-
-        const before = accountBalance(accountId);
-        const toBefore = accountBalance(transferTo);
-
-        let delta = 0;
-        if (mode === "income" || mode === "debt_received") delta = amount;
-        if (mode === "expense" || mode === "debt_given" || mode === "credit_card") delta = -amount;
-        if (mode === "transfer") delta = -amount;
-
-        const after = round2(before + delta);
-        const toAfter = (mode === "transfer" || mode === "credit_card") ? round2(toBefore + amount) : null;
-
-        let status = "good";
-        let message = "Safe based on selected account balance.";
-
-        if (!accountId) {
-          status = "warn";
-          message = "Select an account.";
-        } else if (!amount || amount <= 0) {
-          status = "warn";
-          message = "Enter an amount.";
-        } else if (mode !== "income" && mode !== "debt_received" && after < 0) {
-          status = "danger";
-          message = "Projected account balance goes below zero.";
-        }
-
-        if ((mode === "transfer" || mode === "credit_card") && accountId === transferTo) {
-          status = "danger";
-          message = "Source and destination cannot be the same.";
-        }
-
-        return { mode, amount, accountId, transferTo, before, after, toBefore, toAfter, status, message };
-      }
-
-      function renderImpact() {
-        const i = selectedImpact();
-        const cardClass = `impact-card ${i.status}`;
-
-        if (i.mode === "transfer" || i.mode === "credit_card") {
-          $("impactPanel").className = cardClass;
-          $("impactPanel").innerHTML = `
-            <div class="impact-row"><span>Status</span><span>${escapeHtml(i.message)}</span></div>
-            <div class="impact-row"><span>From account</span><span>${escapeHtml(accountName(i.accountId))}</span></div>
-            <div class="impact-row"><span>Before</span><span>${money(i.before)}</span></div>
-            <div class="impact-row"><span>Outgoing impact</span><span>- ${money(i.amount)}</span></div>
-            <div class="impact-row"><span>After</span><span>${money(i.after)}</span></div>
-            <div class="impact-row"><span>Destination</span><span>${escapeHtml(accountName(i.transferTo))}</span></div>
-            <div class="impact-row"><span>Destination after</span><span>${i.transferTo ? money(i.toAfter) : "Select destination"}</span></div>
-            <div class="impact-row"><span>Net worth impact</span><span>${money(0)}</span></div>
-          `;
-          return;
-        }
-
-        const direction = (i.mode === "income" || i.mode === "debt_received") ? "+" : "-";
-
-        $("impactPanel").className = cardClass;
-        $("impactPanel").innerHTML = `
-          <div class="impact-row"><span>Status</span><span>${escapeHtml(i.message)}</span></div>
-          <div class="impact-row"><span>Account</span><span>${escapeHtml(accountName(i.accountId))}</span></div>
-          <div class="impact-row"><span>Before</span><span>${money(i.before)}</span></div>
-          <div class="impact-row"><span>Impact</span><span>${direction} ${money(i.amount)}</span></div>
-          <div class="impact-row"><span>After</span><span>${money(i.after)}</span></div>
-        `;
-      }
-
-      function merchantSearchText() {
-        return [
-          $("merchantSource").value,
-          $("referenceText").value,
-          $("notesText").value
-        ].join(" ").trim();
-      }
-
-      function detectGuard() {
-        const mode = $("txType").value;
-        const category = $("categoryId").value;
-        const text = merchantSearchText();
-        const all = `${mode} ${category} ${text}`.toLowerCase();
-
-        if (mode === "debt_given") {
-          return {
-            blocked: true,
-            type: "debt_given",
-            title: "Debt Given is managed in Debts",
-            copy: "This should decrease the selected account, create an owed-to-me debt, and link the ledger movement to the debt record. Generic Add is blocked to avoid double-counting.",
-            route: "/debts.html",
-            routeLabel: "Open Debts"
-          };
-        }
-
-        if (mode === "debt_received") {
-          return {
-            blocked: true,
-            type: "debt_received",
-            title: "Debt Received is managed in Debts",
-            copy: "This should increase the destination account and reduce an existing receivable. Generic income is blocked because it would not reduce the debt balance.",
-            route: "/debts.html",
-            routeLabel: "Open Debts"
-          };
-        }
-
-        if (mode === "credit_card") {
-          return {
-            blocked: true,
-            type: "credit_card",
-            title: "Credit Card actions are managed in Credit Card",
-            copy: "Credit-card payments and spends need liability-aware handling. Generic Add is blocked to avoid wrong outstanding balance or net-worth impact.",
-            route: "/cc.html",
-            routeLabel: "Open Credit Card"
-          };
-        }
-
-        if (mode === "expense" && (/bill|internet|maid|family contribution|bills_utilities/i.test(all))) {
-          return {
-            blocked: true,
-            type: "bill",
-            title: "Bill payment is managed in Bills",
-            copy: "Bills must create an expense transaction and a linked bill_payments row. Generic Add is blocked so the bill register does not drift.",
-            route: "/bills.html",
-            routeLabel: "Open Bills"
-          };
-        }
-
-        if (/cc payment|credit card payment|alfalah cc|card payment/i.test(all)) {
-          return {
-            blocked: true,
-            type: "cc_payment",
-            title: "Credit-card payment is not a normal expense",
-            copy: "A credit-card payment should decrease the bank account and reduce CC liability. Use the Credit Card module or a verified CC flow.",
-            route: "/cc.html",
-            routeLabel: "Open Credit Card"
-          };
-        }
-
-        return {
-          blocked: false,
-          type: "safe",
-          title: "Safe for Add Transaction",
-          copy: "This entry can use the standard Add Transaction review and dry-run flow.",
-          route: null,
-          routeLabel: null
-        };
-      }
-
-         function renderGuardPanel() {
-        const guard = detectGuard();
-        state.currentGuard = guard;
-
-        $("guardPanel").className = `guard-card ${guard.blocked ? "warn" : "good"}`;
-
-        if (!guard.blocked) {
-          $("guardPanel").innerHTML = `
-            <div class="strong">${escapeHtml(guard.title)}</div>
-            <div class="muted" style="margin-top:8px;">${escapeHtml(guard.copy)}</div>
-            <div class="impact-row"><span>Generic Add save</span><span>Allowed after review</span></div>
-            <div class="impact-row"><span>Dry-run required</span><span>Yes</span></div>
-            <div class="impact-row"><span>Final save</span><span>Only after Confirm Save</span></div>
-          `;
-          return;
-        }
-
-        $("guardPanel").innerHTML = `
-          <div class="strong">${escapeHtml(guard.title)}</div>
-          <div class="muted" style="margin-top:8px;">${escapeHtml(guard.copy)}</div>
-
-          <div class="impact-row"><span>Generic Add save</span><span>Blocked</span></div>
-          <div class="impact-row"><span>Reason</span><span>Source-truth protection</span></div>
-          <div class="impact-row"><span>Correct module</span><span>${escapeHtml(guard.routeLabel || "Required")}</span></div>
-
-          ${guard.route ? `
-            <div class="guard-actions">
-              <a class="btn btn-success" href="${escapeHtml(guard.route)}">${escapeHtml(guard.routeLabel)}</a>
-            </div>
-          ` : ""}
-        `;
-      }
-
-      function extractMerchantFromNote(note) {
-        const text = String(note || "");
-        const merchant = text.match(/merchant=([^|]+)/i);
-        if (merchant) return merchant[1].trim();
-        const source = text.match(/source=([^|]+)/i);
-        if (source) return source[1].trim();
-        return text.split("|")[0].split("·")[0].trim();
-      }
-
-      function merchantHistorySuggestion(query) {
-        const q = String(query || "").trim().toLowerCase();
-        if (!q) return null;
-
-        const matches = state.transactions
-          .filter((tx) => {
-            const haystack = [
-              tx.merchant,
-              tx.merchant_id,
-              tx.source,
-              tx.reference,
-              tx.notes,
-              tx.category_id,
-              tx.account_id
-            ].filter(Boolean).join(" ").toLowerCase();
-            return haystack.includes(q);
-          })
-          .slice(0, 20);
-
-        if (!matches.length) return null;
-
-        const categoryCounts = {};
-        const accountCounts = {};
-        let last = matches[0];
-
-        for (const tx of matches) {
-          if (tx.category_id) categoryCounts[tx.category_id] = (categoryCounts[tx.category_id] || 0) + 1;
-          if (tx.account_id) accountCounts[tx.account_id] = (accountCounts[tx.account_id] || 0) + 1;
-          const txTime = new Date(tx.created_at || `${tx.date}T00:00:00`).getTime();
-          const lastTime = new Date(last.created_at || `${last.date}T00:00:00`).getTime();
-          if (txTime > lastTime) last = tx;
-        }
-
-        const topCategory = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
-        const topAccount = Object.entries(accountCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "";
-
-        return {
-          label: extractMerchantFromNote(last.notes) || q,
-          suggestedCategory: topCategory,
-          suggestedAccount: topAccount,
-          lastAmount: asNumber(last.amount, 0),
-          lastDate: last.date || "",
-          matchCount: matches.length,
-          international: matches.some((tx) => /international=true|foreign|fx|usd|eur|gbp|aed/i.test(String(tx.notes || ""))),
-          pra: matches.some((tx) => /pra/i.test(String(tx.notes || ""))),
-          fx: matches.some((tx) => /fx/i.test(String(tx.notes || ""))),
-          source: "history"
-        };
-      }
-
-      function merchantRuleSuggestion(query) {
-        const q = String(query || "").trim();
-        if (!q) return null;
-        return MERCHANT_RULES.find((rule) => rule.match.test(q)) || null;
-      }
-
-      function merchantSuggestion() {
-        const q = merchantSearchText();
-        const rule = merchantRuleSuggestion(q);
-        const history = merchantHistorySuggestion(q);
-
-        if (history && rule) {
-          return {
-            ...rule,
-            ...history,
-            suggestedCategory: history.suggestedCategory || rule.suggestedCategory,
-            suggestedType: rule.suggestedType || $("txType").value,
-            source: `history + ${rule.source}`,
-            ruleLabel: rule.label
-          };
-        }
-
-        return history || rule || null;
-      }
-
-      function salarySuggestion() {
-        const type = $("txType").value;
-        const amount = asNumber($("txAmount").value, 0);
-        const expected = salaryForecastAmount();
-        const text = merchantSearchText();
-
-        if (type !== "income" || !amount || !expected) return null;
-
-        const diff = round2(amount - expected);
-        const pct = expected ? Math.abs(diff / expected) * 100 : 999;
-        const textLooksSalary = /salary|payroll|motive|employer|payslip/i.test(text);
-        const amountLooksSalary = pct <= 10;
-
-        if (!textLooksSalary && !amountLooksSalary) return null;
-
-        return {
-          expected,
-          entered: amount,
-          diff,
-          pct,
-          confidence: textLooksSalary && amountLooksSalary ? "high" : amountLooksSalary ? "medium" : "low",
-          reason: textLooksSalary
-            ? "merchant/source text looks like salary"
-            : "amount is close to salary forecast"
-        };
-      }
-
-      function renderSalaryPanel() {
-        const suggestion = salarySuggestion();
-        state.currentSalarySuggestion = suggestion;
-
-        if (!suggestion) {
-          $("salaryPanel").className = "intel-card";
-          $("salaryPanel").innerHTML = `
-            <div class="muted">No salary pattern detected for the current entry.</div>
-            <div class="impact-row"><span>Forecast salary</span><span>${money(salaryForecastAmount())}</span></div>
-          `;
-          return;
-        }
-
-        $("salaryPanel").className = `intel-card ${suggestion.confidence === "high" ? "good" : "warn"}`;
-        $("salaryPanel").innerHTML = `
-          <div class="strong">This looks like salary.</div>
-          <div class="muted" style="margin-top:6px;">Reason: ${escapeHtml(suggestion.reason)} · Confidence: ${escapeHtml(suggestion.confidence)}</div>
-          <div class="impact-row"><span>Expected salary</span><span>${money(suggestion.expected)}</span></div>
-          <div class="impact-row"><span>Entered amount</span><span>${money(suggestion.entered)}</span></div>
-          <div class="impact-row"><span>Difference</span><span>${money(suggestion.diff)}</span></div>
-          <div class="impact-row"><span>Difference %</span><span>${suggestion.pct.toFixed(2)}%</span></div>
-          <div class="intel-actions">
-            <button id="applySalaryBtn" class="btn btn-success" type="button">Apply Salary Category</button>
-            <button id="ignoreSalaryBtn" class="btn btn-secondary" type="button">Treat Normal</button>
+        <div class="sf-field sf-span-6">
+          <label for="add-amount">Amount</label>
+          <input id="add-amount" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required>
+          <p class="sf-field-help">Positive amount only. Backend decides final validity.</p>
+        </div>
+
+        <div class="sf-field sf-span-6">
+          <label for="add-account">Source account</label>
+          <select id="add-account" class="sf-select" required>
+            <option value="">Loading accounts…</option>
+          </select>
+        </div>
+
+        <div id="add-destination-field" class="sf-field sf-span-6" hidden>
+          <label for="add-destination-account">Destination account</label>
+          <select id="add-destination-account" class="sf-select">
+            <option value="">Select destination…</option>
+          </select>
+          <p class="sf-field-help">Required for transfer. Source and destination cannot match.</p>
+        </div>
+
+        <div class="sf-field sf-span-6">
+          <label for="add-category">Category</label>
+          <select id="add-category" class="sf-select" required>
+            <option value="">Loading categories…</option>
+          </select>
+        </div>
+
+        <div class="sf-field sf-span-6">
+          <label for="add-merchant">Merchant / source / person</label>
+          <input id="add-merchant" class="sf-input" type="text" placeholder="e.g. Imtiaz, Salary, Ali, Fuel">
+          <p class="sf-field-help">Used for suggestions and cleaner ledger labels.</p>
+        </div>
+
+        <div class="sf-field sf-span-6">
+          <label for="add-reference">Reference</label>
+          <input id="add-reference" class="sf-input" type="text" placeholder="Optional receipt, invoice, transfer ref">
+        </div>
+
+        <div class="sf-field sf-span-6">
+          <label for="add-notes">Notes</label>
+          <input id="add-notes" class="sf-input" type="text" placeholder="Optional note">
+        </div>
+      </form>
+    </section>
+
+    <section class="sf-panel sf-span-3" aria-labelledby="add-assist-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Step 3</p>
+          <h2 id="add-assist-title" class="sf-section-title">Smart Assist</h2>
+          <p class="sf-section-subtitle">Suggestions only. Nothing writes automatically.</p>
+        </div>
+      </div>
+
+      <div id="add-smart-assist" class="sf-dense-grid">
+        <div class="sf-empty-state">
+          <div>
+            <h3 class="sf-card-title">Waiting for input</h3>
+            <p class="sf-card-subtitle">Merchant, salary, bill, debt, card, and international hints appear here.</p>
           </div>
-        `;
+        </div>
+      </div>
+    </section>
 
-        $("applySalaryBtn").addEventListener("click", applySalarySuggestion);
-        $("ignoreSalaryBtn").addEventListener("click", () => {
-          state.salarySuggestionIgnored = true;
-          $("salaryPanel").className = "intel-card";
-          $("salaryPanel").innerHTML = `<div class="muted">Salary suggestion ignored for this entry.</div>`;
-          renderDebug();
-        });
-      }
+    <section class="sf-panel sf-span-3" aria-labelledby="add-review-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Step 4</p>
+          <h2 id="add-review-title" class="sf-section-title">Review</h2>
+          <p class="sf-section-subtitle">What will be sent to backend.</p>
+        </div>
+      </div>
 
-      function applySalarySuggestion() {
-        const salaryCategory = chooseExistingCategory(["salary_income", "income_salary", "salary"]);
-        if (salaryCategory) $("categoryId").value = salaryCategory;
-        if (!$("merchantSource").value.trim()) $("merchantSource").value = "Motive Salary";
-        state.appliedSalarySuggestion = true;
-        hideReview();
-        updateIntelligence();
-      }
-
-      function renderMerchantPanel() {
-        const suggestion = merchantSuggestion();
-        state.currentMerchantSuggestion = suggestion;
-
-        if (!suggestion) {
-          $("merchantPanel").className = "intel-card";
-          $("merchantPanel").innerHTML = `
-            <div class="muted">No merchant intelligence match yet.</div>
-            <div class="muted" style="margin-top:8px;">This entry can still be saved normally if not blocked by guarded routing.</div>
-          `;
-          return;
-        }
-
-        const category = suggestion.suggestedCategory || "";
-        const account = suggestion.suggestedAccount || "";
-        const categoryLabel = category ? category : "No category suggestion";
-        const accountLabel = account ? accountName(account) : "No account suggestion";
-
-        $("merchantPanel").className = `intel-card ${suggestion.international ? "warn" : "good"}`;
-        $("merchantPanel").innerHTML = `
-          <div class="strong">${escapeHtml(suggestion.label || "Merchant match")}</div>
-          <div class="muted" style="margin-top:6px;">Source: ${escapeHtml(suggestion.source || "unknown")}</div>
-          <div class="impact-row"><span>Suggested category</span><span>${escapeHtml(categoryLabel)}</span></div>
-          <div class="impact-row"><span>Suggested account</span><span>${escapeHtml(accountLabel)}</span></div>
-          <div class="impact-row"><span>International</span><span>${suggestion.international ? "Yes" : "No"}</span></div>
-          <div class="impact-row"><span>FX fee flag</span><span>${suggestion.fx ? "Yes" : "No"}</span></div>
-          <div class="impact-row"><span>PRA flag</span><span>${suggestion.pra ? "Yes" : "No"}</span></div>
-          ${suggestion.matchCount ? `<div class="impact-row"><span>History matches</span><span>${suggestion.matchCount}</span></div>` : ""}
-          ${suggestion.lastAmount ? `<div class="impact-row"><span>Last amount</span><span>${money(suggestion.lastAmount)}</span></div>` : ""}
-          ${suggestion.lastDate ? `<div class="impact-row"><span>Last date</span><span>${escapeHtml(suggestion.lastDate)}</span></div>` : ""}
-          <div class="intel-actions">
-            <button id="applyMerchantBtn" class="btn btn-success" type="button">Apply Suggestion</button>
+      <div id="add-review-panel" class="sf-dense-grid">
+        <div class="sf-empty-state">
+          <div>
+            <h3 class="sf-card-title">No payload yet</h3>
+            <p class="sf-card-subtitle">Fill the form to build a review payload.</p>
           </div>
-        `;
-
-        $("applyMerchantBtn").addEventListener("click", applyMerchantSuggestion);
-      }
-
-      function applyMerchantSuggestion() {
-        const suggestion = state.currentMerchantSuggestion;
-        if (!suggestion) return;
-
-        if (suggestion.suggestedType && ["expense", "income", "transfer"].includes(suggestion.suggestedType)) {
-          setMode(suggestion.suggestedType);
-        }
-
-        if (suggestion.suggestedAccount && state.accounts[suggestion.suggestedAccount]) {
-          $("accountId").value = suggestion.suggestedAccount;
-        }
-
-        if (suggestion.suggestedCategory && categoryExists(suggestion.suggestedCategory)) {
-          $("categoryId").value = suggestion.suggestedCategory;
-        }
-
-        if (suggestion.international && $("txType").value === "expense") {
-          $("isInternational").checked = true;
-          if (suggestion.praRate !== undefined) $("praRate").value = String(suggestion.praRate);
-          syncInternational();
-        }
-
-        state.appliedMerchantSuggestion = true;
-        hideReview();
-        updateIntelligence();
-        renderImpact();
-      }
-
-      function updateIntelligence() {
-        renderGuardPanel();
-        renderSalaryPanel();
-        renderMerchantPanel();
-        renderDebug();
-      }
-
-      function buildNotes() {
-        const parts = [];
-
-        const merchant = $("merchantSource").value.trim();
-        const reference = $("referenceText").value.trim();
-        const notes = $("notesText").value.trim();
-
-        if (merchant) parts.push(`merchant=${merchant}`);
-        if (reference) parts.push(`reference=${reference}`);
-
-        if (state.appliedSalarySuggestion) {
-          const s = state.currentSalarySuggestion;
-          parts.push(`salary_detected=true`);
-          if (s) parts.push(`salary_expected=${s.expected} | salary_entered=${s.entered} | salary_difference=${s.diff}`);
-        }
-
-        if (state.appliedMerchantSuggestion && state.currentMerchantSuggestion) {
-          parts.push(`merchant_intel_source=${state.currentMerchantSuggestion.source || "unknown"}`);
-        }
-
-        if (notes) parts.push(notes);
-
-        if ($("isInternational").checked && $("txType").value === "expense") {
-          const t = internationalTotals();
-          parts.push([
-            "international=true",
-            `currency=${$("currencyCode").value.trim() || "UNKNOWN"}`,
-            `foreign_amount=${t.foreignAmount}`,
-            `fx_rate=${t.fxRate}`,
-            `base_pkr=${t.base}`,
-            `fx_fee=${t.fxFee}`,
-            `excise_fed=${t.excise}`,
-            `advance_tax_236y=${t.advanceTax}`,
-            `pra_other_tax=${t.pra}`,
-            `biller_charge=${t.biller}`,
-            `total_pkr=${t.total}`
-          ].join(" | "));
-        }
-
-        return parts.join(" | ");
-      }
-
-      function buildPayload() {
-        const mode = $("txType").value;
-        const apiType = mode === "debt_received" ? "income" :
-          mode === "debt_given" || mode === "credit_card" ? "expense" :
-          mode;
-
-        const amount = round2($("txAmount").value);
-        const payload = {
-          type: apiType,
-          date: $("txDate").value,
-          amount,
-          account_id: $("accountId").value,
-          notes: buildNotes()
-        };
-
-        if (apiType !== "transfer" && $("categoryId").value) {
-          payload.category_id = $("categoryId").value;
-        }
-
-        if (apiType === "transfer") {
-          payload.transfer_to_account_id = $("transferToAccountId").value;
-        }
-
-        return payload;
-      }
-
-      function validatePayload(payload) {
-        const guard = detectGuard();
-
-        if (guard.blocked) return guard.title;
-        if (!payload.type) return "Type is required.";
-        if (!payload.date) return "Date is required.";
-        if (!payload.amount || payload.amount <= 0) return "Amount must be greater than zero.";
-        if (!payload.account_id) return "Account is required.";
-        if (payload.type === "transfer" && !payload.transfer_to_account_id) return "Transfer destination is required.";
-        if (payload.type === "transfer" && payload.account_id === payload.transfer_to_account_id) return "Transfer source and destination cannot be the same.";
-        if (selectedImpact().status === "danger") return selectedImpact().message;
-        return null;
-      }
-
-      function hideReview() {
-        state.pendingPayload = null;
-        state.dryRunResult = null;
-        $("reviewPanel").hidden = true;
-        $("reviewPanel").innerHTML = "";
-        $("resultPanel").hidden = true;
-        $("resultPanel").innerHTML = "";
-      }
-
-      async function reviewTransaction(event) {
-        event.preventDefault();
-
-        $("resultPanel").hidden = true;
-        $("resultPanel").innerHTML = "";
-
-        const payload = buildPayload();
-        const error = validatePayload(payload);
-
-        if (error) {
-          const guard = detectGuard();
-          $("reviewPanel").hidden = false;
-          $("reviewPanel").className = "panel card-padded";
-
-                    if (guard.blocked) {
-            $("reviewPanel").innerHTML = `
-              <div class="error-box">
-                <div class="section-kicker">Guarded route</div>
-                <h2 class="authority-title" style="font-size:24px;margin-top:12px;">${escapeHtml(guard.title)}</h2>
-                <div class="muted" style="margin-top:8px;">${escapeHtml(guard.copy)}</div>
-
-                <div class="impact-card warn" style="margin-top:14px;">
-                  <div class="impact-row"><span>Generic Add save</span><span>Blocked</span></div>
-                  <div class="impact-row"><span>Reason</span><span>Prevents source drift / double-counting</span></div>
-                  <div class="impact-row"><span>Correct destination</span><span>${escapeHtml(guard.routeLabel)}</span></div>
-                </div>
-
-                <div style="margin-top:14px;">
-                  <a class="btn btn-success" href="${escapeHtml(guard.route)}">${escapeHtml(guard.routeLabel)}</a>
-                </div>
-              </div>
-            `;
-            return;
-          }
-
-          $("reviewPanel").innerHTML = `<div class="error-box"><div class="strong">Cannot review transaction.</div><div class="muted">${escapeHtml(error)}</div></div>`;
-          return;
-        }
-
-        $("reviewPanel").hidden = false;
-        $("reviewPanel").innerHTML = `
-          <div class="section-kicker">Review</div>
-          <div class="muted" style="margin-top:10px;">Running backend dry-run proof…</div>
-        `;
-
-        try {
-          const dryRun = await postJson("/api/transactions?dry_run=1", payload);
-          state.pendingPayload = payload;
-          state.dryRunResult = dryRun;
-
-          const impact = selectedImpact();
-          const salaryNote = state.currentSalarySuggestion && !state.salarySuggestionIgnored
-            ? `<div class="impact-row"><span>Salary detector</span><span>${state.appliedSalarySuggestion ? "Applied" : "Detected, not applied"}</span></div>`
-            : "";
-
-          const merchantNote = state.currentMerchantSuggestion
-            ? `<div class="impact-row"><span>Merchant intelligence</span><span>${state.appliedMerchantSuggestion ? "Applied" : "Detected, not applied"}</span></div>`
-            : "";
-
-          $("reviewPanel").innerHTML = `
-            <div class="section-kicker">Review transaction</div>
-            <h2 class="authority-title" style="font-size:24px;margin-top:12px;">Confirm this transaction?</h2>
-
-            <div class="review-box" style="margin-top:14px;">
-              <div class="impact-row"><span>Type</span><span>${escapeHtml(payload.type)}</span></div>
-              <div class="impact-row"><span>Date</span><span>${escapeHtml(payload.date)}</span></div>
-              <div class="impact-row"><span>Amount</span><span>${money(payload.amount)}</span></div>
-              <div class="impact-row"><span>Account</span><span>${escapeHtml(accountName(payload.account_id))}</span></div>
-              ${payload.transfer_to_account_id ? `<div class="impact-row"><span>Transfer to</span><span>${escapeHtml(accountName(payload.transfer_to_account_id))}</span></div>` : ""}
-              ${payload.category_id ? `<div class="impact-row"><span>Category</span><span>${escapeHtml(payload.category_id)}</span></div>` : ""}
-              ${salaryNote}
-              ${merchantNote}
-              <div class="impact-row"><span>Projected account after</span><span>${money(impact.after)}</span></div>
-              <div class="impact-row"><span>Backend dry-run</span><span>Passed</span></div>
-            </div>
-
-            <div class="muted" style="margin-top:12px;">
-              Dry-run completed before write. No database write has been performed yet.
-            </div>
-
-            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
-              <button id="cancelReviewBtn" class="btn btn-secondary" type="button">Cancel</button>
-              <button id="confirmSaveBtn" class="btn btn-success" type="button">Confirm Save</button>
-            </div>
-          `;
-
-          $("cancelReviewBtn").addEventListener("click", hideReview);
-          $("confirmSaveBtn").addEventListener("click", confirmSave);
-        } catch (error) {
-          $("reviewPanel").innerHTML = `
-            <div class="error-box">
-              <div class="strong">Dry-run failed.</div>
-              <div class="muted">${escapeHtml(error.message)}</div>
-            </div>
-          `;
-        } finally {
-          renderDebug();
-        }
-      }
-
-      async function confirmSave() {
-        if (!state.pendingPayload) return;
-
-        const button = $("confirmSaveBtn");
-        if (button) button.disabled = true;
-
-        $("resultPanel").hidden = false;
-        $("resultPanel").innerHTML = `<div class="muted">Saving transaction…</div>`;
-
-        try {
-          state.finalWriteCalls += 1;
-          const result = await postJson("/api/transactions", state.pendingPayload);
-          state.saveResult = result;
-
-          $("resultPanel").innerHTML = `
-            <div class="review-box">
-              <div class="section-kicker">Saved</div>
-              <h2 class="authority-title" style="font-size:24px;margin-top:12px;">Transaction saved.</h2>
-              <div class="muted" style="margin-top:8px;">The backend accepted the write. Open Ledger to review the posted movement and audit trail.</div>
-              <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
-                <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
-                <button id="newTxBtn" class="btn btn-success" type="button">Add another</button>
-              </div>
-            </div>
-          `;
-
-          $("newTxBtn").addEventListener("click", resetForm);
-          state.pendingPayload = null;
-          state.dryRunResult = null;
-          $("reviewPanel").hidden = true;
-          $("reviewPanel").innerHTML = "";
-        } catch (error) {
-          $("resultPanel").innerHTML = `
-            <div class="error-box">
-              <div class="strong">Save failed.</div>
-              <div class="muted">${escapeHtml(error.message)}</div>
-            </div>
-          `;
-        } finally {
-          if (button) button.disabled = false;
-          renderDebug();
-        }
-      }
-
-      function resetForm() {
-        $("txForm").reset();
-        $("txDate").value = todayIso();
-        state.appliedSalarySuggestion = false;
-        state.appliedMerchantSuggestion = false;
-        state.salarySuggestionIgnored = false;
-        setMode("expense");
-        $("resultPanel").hidden = true;
-        $("resultPanel").innerHTML = "";
-        hideReview();
-        updateIntelligence();
-        renderImpact();
-      }
-
-      function renderInternationalBreakdown() {
-        if ($("internationalPanel").hidden) return;
-
-        const t = internationalTotals();
-
-        $("internationalBreakdown").innerHTML = `
-          <div class="impact-row"><span>Base PKR</span><span>${money(t.base)}</span></div>
-          <div class="impact-row"><span>FX fee</span><span>${money(t.fxFee)}</span></div>
-          <div class="impact-row"><span>Excise/FED</span><span>${money(t.excise)}</span></div>
-          <div class="impact-row"><span>Advance tax</span><span>${money(t.advanceTax)}</span></div>
-          <div class="impact-row"><span>PRA / other tax</span><span>${money(t.pra)}</span></div>
-          <div class="impact-row"><span>1-Biller / bank charge</span><span>${money(t.biller)}</span></div>
-          <div class="impact-row"><span>Total committed PKR</span><span>${money(t.total)}</span></div>
-        `;
-      }
-
-      function internationalTotals() {
-        const foreignAmount = asNumber($("foreignAmount").value, 0);
-        const fxRate = asNumber($("fxRate").value, 0);
-        const base = round2(foreignAmount * fxRate);
-        const fxFee = round2(base * asNumber($("fxFeeRate").value, 0) / 100);
-        const excise = round2(fxFee * asNumber($("exciseRate").value, 0) / 100);
-        const advanceTax = round2(base * asNumber($("advanceTaxRate").value, 0) / 100);
-        const pra = round2(base * asNumber($("praRate").value, 0) / 100);
-        const biller = round2($("billerCharge").value);
-        const total = round2(base + fxFee + excise + advanceTax + pra + biller);
-
-        return { foreignAmount, fxRate, base, fxFee, excise, advanceTax, pra, biller, total };
-      }
-
-      function syncInternational() {
-        const enabled = $("isInternational").checked && $("txType").value === "expense";
-        $("internationalPanel").hidden = !enabled;
-        $("txAmount").readOnly = enabled;
-
-        if (enabled) {
-          const total = internationalTotals().total;
-          $("txAmount").value = total ? String(total) : "";
-        }
-
-        renderInternationalBreakdown();
-        renderImpact();
-      }
-
-      function renderAccounts() {
-        const rows = Object.entries(state.accounts).map(([id, account]) => {
-          return `
-            <div class="impact-row">
-              <span>${escapeHtml(account.name || id)}</span>
-              <span>${money(accountBalance(id))}</span>
-            </div>
-          `;
-        }).join("");
-
-        $("accountsPanel").innerHTML = rows || `<div class="muted">No accounts loaded.</div>`;
-      }
-
-      function renderDebug() {
-        if (!DEBUG) return;
-
-        $("debugPanel").hidden = false;
-        $("debugOutput").textContent = JSON.stringify({
-          version: VERSION,
-          uxPolishShipment: "20F-mode-specific-layout-polish",
-          modeGuideActive: Boolean(document.getElementById("modeGuide")),
-          accountsLoaded: Object.keys(state.accounts).length,
-          categoriesLoaded: Object.keys(state.categories).length,
-          balancesLoaded: Boolean(state.balances?.accounts),
-          salaryLoaded: Boolean(state.salary),
-          transactionsLoadedForMerchantIntel: state.transactions.length,
-          currentMode: $("txType")?.value || null,
-          currentImpact: $("accountId") ? selectedImpact() : null,
-          guardedModesPresent: true,
-          currentGuard: state.currentGuard,
-          debtGivenBlockedFromGenericSave: $("txType")?.value === "debt_given" ? state.currentGuard?.blocked === true : "not_current_mode",
-          debtReceivedBlockedFromGenericSave: $("txType")?.value === "debt_received" ? state.currentGuard?.blocked === true : "not_current_mode",
-          billPaymentBlockedFromGenericSave: state.currentGuard?.type === "bill" ? state.currentGuard?.blocked === true : "not_current_guard",
-          ccPaymentBlockedFromExpense: state.currentGuard?.type === "cc_payment" || state.currentGuard?.type === "credit_card" ? state.currentGuard?.blocked === true : "not_current_guard",
-          salarySuggestion: state.currentSalarySuggestion,
-          merchantSuggestion: state.currentMerchantSuggestion,
-          appliedSalarySuggestion: state.appliedSalarySuggestion,
-          appliedMerchantSuggestion: state.appliedMerchantSuggestion,
-          pendingPayload: state.pendingPayload,
-          dryRunResult: state.dryRunResult,
-          saveResult: state.saveResult,
-          writeEndpointsCalledOnLoad: state.writeEndpointsCalledOnLoad,
-          finalWriteCalls: state.finalWriteCalls,
-          browserPopupUsage: false
-        }, null, 2);
-      }
-
-      async function boot() {
-        window.SovereignAdd = {
-          version: VERSION,
-          reload: boot,
-          data: () => ({ ...state })
-        };
-
-        try {
-          const [accountsPayload, categoriesPayload, balancesPayload, salaryPayload, transactionsPayload] = await Promise.all([
-            readJson("/api/accounts"),
-            readJson("/api/categories"),
-            readJson("/api/balances"),
-            readJson("/api/salary"),
-            readJson("/api/transactions")
-          ]);
-
-          state.accounts = normalizeAccounts(accountsPayload);
-          state.balances = balancesPayload || {};
-          state.salary = salaryPayload || {};
-          state.transactions = txArray(transactionsPayload);
-
-          const cats = categoryArray(categoriesPayload);
-          state.categories = Object.fromEntries(cats.map((cat) => [cat.id || cat.key, cat]));
-
-          $("accountId").innerHTML = `<option value="">Select account</option>` + Object.entries(state.accounts).map(([id, account]) => {
-            return `<option value="${escapeHtml(id)}">${escapeHtml(account.name || id)}</option>`;
-          }).join("");
-
-          $("transferToAccountId").innerHTML = `<option value="">Select destination</option>` + Object.entries(state.accounts).map(([id, account]) => {
-            return `<option value="${escapeHtml(id)}">${escapeHtml(account.name || id)}</option>`;
-          }).join("");
-
-          $("categoryId").innerHTML = `<option value="">Uncategorized</option>` + cats.map((cat) => {
-            const id = cat.id || cat.key;
-            return `<option value="${escapeHtml(id)}">${escapeHtml(cat.name || cat.label || id)}</option>`;
-          }).join("");
-
-          $("txDate").value = todayIso();
-
-          renderAccounts();
-          setMode("expense");
-          updateIntelligence();
-          renderDebug();
-
-          $("statusPanel").innerHTML = `
-            <div class="strong">Add Transaction ready · ${escapeHtml(VERSION)}</div>
-            <div class="muted">Debt, bill, and credit-card source-truth actions are guarded and routed to their modules.</div>
-          `;
-        } catch (error) {
-          console.error(error);
-          $("statusPanel").innerHTML = `
-            <div class="strong">Add Transaction failed.</div>
-            <div class="muted">${escapeHtml(error.message)}</div>
-          `;
-        }
-      }
-
-      function bindEvents() {
-        document.querySelectorAll(".add-mode").forEach((button) => {
-          button.addEventListener("click", () => {
-            setMode(button.dataset.mode);
-          });
-        });
-
-        [
-          "txAmount",
-          "accountId",
-          "transferToAccountId",
-          "categoryId",
-          "merchantSource",
-          "referenceText",
-          "notesText",
-          "foreignAmount",
-          "currencyCode",
-          "fxRate",
-          "fxFeeRate",
-          "advanceTaxRate",
-          "praRate",
-          "billerCharge",
-          "exciseRate"
-        ].forEach((id) => {
-          const el = $(id);
-          if (el) {
-            el.addEventListener("input", () => {
-              if (id.startsWith("foreign") || id.includes("Rate") || id === "billerCharge" || id === "currencyCode") {
-                syncInternational();
-              } else {
-                renderImpact();
-              }
-              hideReview();
-              updateIntelligence();
-            });
-
-            el.addEventListener("change", () => {
-              renderImpact();
-              hideReview();
-              updateIntelligence();
-            });
-          }
-        });
-
-        $("isInternational").addEventListener("change", () => {
-          syncInternational();
-          hideReview();
-          updateIntelligence();
-        });
-
-        $("txForm").addEventListener("submit", reviewTransaction);
-        $("resetBtn").addEventListener("click", resetForm);
-      }
-
-      document.addEventListener("DOMContentLoaded", () => {
-        bindEvents();
-        boot();
-      });
-    })();
-  </script>
+        </div>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-6" aria-labelledby="add-dryrun-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Step 5</p>
+          <h2 id="add-dryrun-title" class="sf-section-title">Backend Dry-Run</h2>
+          <p class="sf-section-subtitle">Required before save. Dry-run must prove zero writes.</p>
+        </div>
+        <div class="sf-section-meta">
+          <button id="add-run-dryrun" class="sf-button sf-button--primary" type="button" disabled>Run Dry-Run</button>
+        </div>
+      </div>
+
+      <div id="add-dryrun-panel" class="sf-dense-grid">
+        <div class="sf-empty-state">
+          <div>
+            <h3 class="sf-card-title">Dry-run not run</h3>
+            <p class="sf-card-subtitle">Build a valid direct-mode payload first.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-6" aria-labelledby="add-save-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Step 6</p>
+          <h2 id="add-save-title" class="sf-section-title">Confirm Save</h2>
+          <p class="sf-section-subtitle">Save unlocks only after successful dry-run. Any form change invalidates dry-run.</p>
+        </div>
+        <div class="sf-section-meta">
+          <button id="add-confirm-save" class="sf-button sf-button--primary" type="button" disabled>Confirm Save</button>
+        </div>
+      </div>
+
+      <div id="add-save-panel" class="sf-dense-grid">
+        <div class="sf-empty-state">
+          <div>
+            <h3 class="sf-card-title">Save blocked</h3>
+            <p class="sf-card-subtitle">Run backend dry-run first.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-12" aria-labelledby="add-routes-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Advanced Modes</p>
+          <h2 id="add-routes-title" class="sf-section-title">Routed Owner Workflows</h2>
+          <p class="sf-section-subtitle">These Sheet-era workflows are visible here, but direct writes are added only after each backend contract is audited.</p>
+        </div>
+      </div>
+
+      <div class="sf-secondary-grid">
+        <a class="sf-finance-row" id="add-route-bills" href="/bills.html">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Bill Payment</div>
+            <div class="sf-row-subtitle">Bill payment must preserve bill link and payment record.</div>
+          </div>
+          <div class="sf-row-right">Open Bills</div>
+        </a>
+
+        <a class="sf-finance-row" id="add-route-debts" href="/debts.html">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Debt Given / Debt Received</div>
+            <div class="sf-row-subtitle">Debt flows update debt state and ledger through Debts.</div>
+          </div>
+          <div class="sf-row-right">Open Debts</div>
+        </a>
+
+        <a class="sf-finance-row" id="add-route-cc" href="/cc.html">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Credit Card</div>
+            <div class="sf-row-subtitle">Card payment/spend must preserve liability semantics.</div>
+          </div>
+          <div class="sf-row-right">Open Credit Card</div>
+        </a>
+
+        <a class="sf-finance-row" id="add-route-atm" href="/atm.html">
+          <div class="sf-row-left">
+            <div class="sf-row-title">ATM Withdrawal</div>
+            <div class="sf-row-subtitle">ATM writes linked movement and optional fee through ATM flow.</div>
+          </div>
+          <div class="sf-row-right">Open ATM</div>
+        </a>
+
+        <a class="sf-finance-row" id="add-route-merchants" href="/merchants.html">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Merchants</div>
+            <div class="sf-row-subtitle">Merchant rules suggest category/account/PRA; learning is separate.</div>
+          </div>
+          <div class="sf-row-right">Open Merchants</div>
+        </a>
+
+        <a class="sf-finance-row" id="add-route-salary" href="/salary.html">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Salary Source</div>
+            <div class="sf-row-subtitle">Salary source changes belong to Salary, not Add.</div>
+          </div>
+          <div class="sf-row-right">Open Salary</div>
+        </a>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-12" aria-labelledby="add-source-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Source State</p>
+          <h2 id="add-source-title" class="sf-section-title">Write Preconditions</h2>
+          <p class="sf-section-subtitle">Accounts and categories must load from live APIs before direct save is allowed.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="add-source-overall" class="sf-pill">Loading</span>
+        </div>
+      </div>
+
+      <div id="add-source-list" class="sf-secondary-grid">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">Loading write sources</h3>
+            <p class="sf-card-subtitle">Reading /api/accounts and /api/categories.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="add-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Debug</p>
+          <h2 class="sf-section-title">Add Transaction Debug</h2>
+          <p class="sf-section-subtitle">Visible only with ?debug=1.</p>
+        </div>
+      </div>
+
+      <pre id="add-debug-output" class="sf-debug-text">Waiting for js/add.js.</pre>
+    </section>
+
+  </section>
+
+  <script src="/js/add.js"></script>
 </body>
 </html>
