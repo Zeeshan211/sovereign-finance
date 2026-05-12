@@ -2,7 +2,12 @@ html,
 body {
   background: var(--sf-bg);
   color: var(--sf-text);
-}
+}async function fetchFxFromProvider(provider, from, to) {
+  if (provider !== 'exchangerate.host') {
+    return { ok: false, error: `Unsupported FX provider: ${provider}` };
+  }
+
+  const url = `https://api.exchangerate.host/latest?base=${encodeURIComponent(from)}&symbols=${encodeURIComponent(to)}`;
 
 body.sf-shell-body {
   margin: 0;

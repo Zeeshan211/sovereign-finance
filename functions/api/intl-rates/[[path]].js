@@ -320,11 +320,11 @@ async function handleGetFx(context, forceRefresh) {
 }
 
 async function fetchFxFromProvider(provider, from, to) {
-  if (provider !== 'exchangerate.host') {
-    return { ok: false, error: `Unsupported FX provider: ${provider}` };
+  if (provider !== 'frankfurter.app') {
+    return { ok: false, error: `Unsupported FX provider: ${provider}. Only frankfurter.app is supported in this shipment.` };
   }
 
-  const url = `https://api.exchangerate.host/latest?base=${encodeURIComponent(from)}&symbols=${encodeURIComponent(to)}`;
+  const url = `https://api.frankfurter.app/latest?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
 
   try {
     const resp = await fetch(url, {
@@ -427,8 +427,8 @@ function cleanField(field, raw, validation) {
       validation.push({ field, error: 'cannot be empty' });
       return undefined;
     }
-    if (prov !== 'exchangerate.host') {
-      validation.push({ field, error: 'only exchangerate.host is supported in this shipment' });
+    if (prov !== 'frankfurter.app') {
+      validation.push({ field, error: 'only frankfurter.app is supported in this shipment' });
       return undefined;
     }
     return prov;
