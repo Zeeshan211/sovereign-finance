@@ -132,12 +132,26 @@ export async function onRequest(context) {
         'POST /api/add/commit'
       ]
     }, 404);
-  } catch (err) {
+    } catch (err) {
     return json({
       ok: false,
       version: VERSION,
       error: err.message || String(err)
     }, 500);
+  }
+}
+
+async function readJSON(request) {
+  const text = await request.text();
+
+  if (!text || !text.trim()) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    throw new Error('Invalid JSON body');
   }
 }
 
