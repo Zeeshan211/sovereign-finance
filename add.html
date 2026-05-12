@@ -13,12 +13,11 @@
     window.SF_PAGE = {
       title: "Add Transaction",
       eyebrow: "Sovereign Finance",
-      subtitle: "Record one financial event safely. Expense, income, and transfer write here; advanced flows route to their owner pages.",
+      subtitle: "Record one financial event safely. Expense, Income, and Transfer write here after dry-run. International previews package impact until the package writer is shipped.",
       actions: [
         { label: "Ledger", href: "/transactions.html" },
         { label: "Accounts", href: "/accounts.html" },
-        { label: "Bills", href: "/bills.html" },
-        { label: "Debts", href: "/debts.html" }
+        { label: "Hub", href: "/index.html" }
       ],
       kpis: []
     };
@@ -35,29 +34,22 @@
       <div class="sf-section-head">
         <div>
           <p class="sf-section-kicker">Mode</p>
-          <h2 id="add-mode-title" class="sf-section-title">Choose transaction type</h2>
-          <p class="sf-section-subtitle">Expense, Income, and Transfer save here after dry-run. Other modes route to owner workflows.</p>
+          <h2 id="add-mode-title" class="sf-section-title">Choose what you are recording</h2>
+          <p class="sf-section-subtitle">
+            Keep the primary workflow clean: Expense, Income, Transfer, or International. Everything else routes to its owner page below.
+          </p>
         </div>
         <div class="sf-section-meta">
-          <span id="add-selected-mode-pill" class="sf-pill sf-pill--info">Expense</span>
+          <span id="add-selected-mode-pill" class="sf-pill sf-pill--positive">Expense</span>
           <span id="add-route-pill" class="sf-pill sf-pill--positive">Direct save</span>
         </div>
       </div>
 
-      <div class="sf-chip-row" role="group" aria-label="Transaction modes">
-        <button class="sf-chip is-active" type="button" data-add-mode="expense" data-add-mode-kind="direct">Expense</button>
-        <button class="sf-chip" type="button" data-add-mode="income" data-add-mode-kind="direct">Income</button>
-        <button class="sf-chip" type="button" data-add-mode="transfer" data-add-mode-kind="direct">Transfer</button>
-
-        <button class="sf-chip" type="button" data-add-mode="salary" data-add-mode-kind="advisory">Salary Income</button>
-        <button class="sf-chip" type="button" data-add-mode="international" data-add-mode-kind="advisory">International Purchase</button>
-
-        <button class="sf-chip" type="button" data-add-mode="bill_payment" data-add-mode-kind="routed">Bill Payment</button>
-        <button class="sf-chip" type="button" data-add-mode="debt_given" data-add-mode-kind="routed">Debt Given</button>
-        <button class="sf-chip" type="button" data-add-mode="debt_received" data-add-mode-kind="routed">Debt Received</button>
-        <button class="sf-chip" type="button" data-add-mode="cc_payment" data-add-mode-kind="routed">CC Payment</button>
-        <button class="sf-chip" type="button" data-add-mode="cc_spend" data-add-mode-kind="routed">CC Spend</button>
-        <button class="sf-chip" type="button" data-add-mode="atm_withdrawal" data-add-mode-kind="routed">ATM Withdrawal</button>
+      <div class="sf-chip-row add-mode-row" role="group" aria-label="Transaction modes">
+        <button class="sf-chip is-active" type="button" data-add-mode="expense">Expense</button>
+        <button class="sf-chip" type="button" data-add-mode="income">Income</button>
+        <button class="sf-chip" type="button" data-add-mode="transfer">Transfer</button>
+        <button class="sf-chip" type="button" data-add-mode="international">International</button>
       </div>
     </section>
 
@@ -66,7 +58,9 @@
         <div>
           <p class="sf-section-kicker">Entry</p>
           <h2 id="add-form-title" class="sf-section-title">Transaction details</h2>
-          <p id="add-form-copy" class="sf-section-subtitle">Expense requires source account and category. Destination account is only for transfers.</p>
+          <p id="add-form-copy" class="sf-section-subtitle">
+            Expense requires amount, source account, and category. Destination account is only for Transfer.
+          </p>
         </div>
         <div class="sf-section-meta">
           <span id="add-form-status" class="sf-pill">Waiting</span>
@@ -77,6 +71,7 @@
         <div class="sf-field sf-span-6">
           <label for="add-amount">Amount</label>
           <input id="add-amount" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required>
+          <p id="add-amount-help" class="sf-field-help">Positive amount only.</p>
         </div>
 
         <div class="sf-field sf-span-6">
@@ -85,10 +80,11 @@
         </div>
 
         <div class="sf-field sf-span-6">
-          <label for="add-account">Source account</label>
+          <label id="add-account-label" for="add-account">Source account</label>
           <select id="add-account" class="sf-select" required>
             <option value="">Loading accounts…</option>
           </select>
+          <p id="add-account-help" class="sf-field-help">The account affected by this transaction.</p>
         </div>
 
         <div id="add-category-field" class="sf-field sf-span-6">
@@ -96,6 +92,7 @@
           <select id="add-category" class="sf-select" required>
             <option value="">Loading categories…</option>
           </select>
+          <p class="sf-field-help">Used for Expense, Income, and International package labeling.</p>
         </div>
 
         <div id="add-destination-field" class="sf-field sf-span-6" hidden>
@@ -107,7 +104,7 @@
         </div>
 
         <div class="sf-field sf-span-6">
-          <label for="add-merchant">Merchant / source / person</label>
+          <label id="add-merchant-label" for="add-merchant">Merchant / source / person</label>
           <input id="add-merchant" class="sf-input" type="text" placeholder="e.g. Imtiaz, Salary, Ali, Fuel">
         </div>
 
@@ -120,15 +117,74 @@
           <label for="add-notes">Notes</label>
           <input id="add-notes" class="sf-input" type="text" placeholder="Optional note">
         </div>
+
+        <div id="add-international-fields" class="sf-span-12" hidden>
+          <div class="sf-panel" style="margin-top: var(--sf-space-4);">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">International Package</p>
+                <h3 class="sf-section-title">Fees and taxes</h3>
+                <p class="sf-section-subtitle">
+                  Preview only for now. Direct multi-row package write comes after backend package writer is shipped.
+                </p>
+              </div>
+            </div>
+
+            <div class="sf-form-grid">
+              <div class="sf-field sf-span-3">
+                <label for="add-fx-fee">FX fee</label>
+                <input id="add-fx-fee" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+              </div>
+
+              <div class="sf-field sf-span-3">
+                <label for="add-excise">Excise duty</label>
+                <input id="add-excise" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+              </div>
+
+              <div class="sf-field sf-span-3">
+                <label for="add-advance-tax">Advance tax</label>
+                <input id="add-advance-tax" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+              </div>
+
+              <div class="sf-field sf-span-3">
+                <label for="add-pra">PRA / extra tax</label>
+                <input id="add-pra" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+              </div>
+            </div>
+          </div>
+        </div>
       </form>
     </section>
 
-    <section class="sf-panel sf-span-5" aria-labelledby="add-review-title">
+    <section class="sf-panel sf-span-5" aria-labelledby="add-impact-title">
       <div class="sf-section-head">
         <div>
-          <p class="sf-section-kicker">Review & Save</p>
-          <h2 id="add-review-title" class="sf-section-title">Backend validation</h2>
-          <p class="sf-section-subtitle">Run dry-run first. Confirm Save unlocks only after backend proof.</p>
+          <p class="sf-section-kicker">Live Impact</p>
+          <h2 id="add-impact-title" class="sf-section-title">Account balance preview</h2>
+          <p class="sf-section-subtitle">
+            This is a UI preview from loaded account balances. Backend remains final truth.
+          </p>
+        </div>
+      </div>
+
+      <div id="add-live-impact" class="sf-dense-grid">
+        <div class="sf-empty-state">
+          <div>
+            <h3 class="sf-card-title">Waiting for input</h3>
+            <p class="sf-card-subtitle">Choose account and amount to preview the account impact.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-7" aria-labelledby="add-review-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Review</p>
+          <h2 id="add-review-title" class="sf-section-title">What will be submitted</h2>
+          <p class="sf-section-subtitle">
+            Review the payload before dry-run. Direct save is enabled only for Expense, Income, and Transfer.
+          </p>
         </div>
       </div>
 
@@ -140,10 +196,20 @@
           </div>
         </div>
       </div>
+    </section>
 
-      <div style="height: var(--sf-space-5);"></div>
-
+    <section class="sf-panel sf-span-5" aria-labelledby="add-proof-title">
       <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Dry-run & Save</p>
+          <h2 id="add-proof-title" class="sf-section-title">Backend validation</h2>
+          <p class="sf-section-subtitle">
+            Dry-run must pass before Confirm Save unlocks.
+          </p>
+        </div>
+      </div>
+
+      <div class="sf-section-head" style="margin-bottom: var(--sf-space-3);">
         <div>
           <p class="sf-section-kicker">Dry-run</p>
           <h3 class="sf-section-title">Proof before save</h3>
@@ -164,7 +230,7 @@
 
       <div style="height: var(--sf-space-5);"></div>
 
-      <div class="sf-section-head">
+      <div class="sf-section-head" style="margin-bottom: var(--sf-space-3);">
         <div>
           <p class="sf-section-kicker">Commit</p>
           <h3 class="sf-section-title">Final save</h3>
@@ -188,8 +254,10 @@
       <div class="sf-section-head">
         <div>
           <p class="sf-section-kicker">Smart Assist</p>
-          <h2 id="add-assist-title" class="sf-section-title">Suggestions and routing</h2>
-          <p class="sf-section-subtitle">Merchant, salary, bill, debt, card, and international hints appear here. They do not auto-write.</p>
+          <h2 id="add-assist-title" class="sf-section-title">Suggestions</h2>
+          <p class="sf-section-subtitle">
+            Merchant, salary, and international hints appear here. Nothing auto-writes.
+          </p>
         </div>
       </div>
 
@@ -208,7 +276,9 @@
         <div>
           <p class="sf-section-kicker">Source State</p>
           <h2 id="add-source-title" class="sf-section-title">Write preconditions</h2>
-          <p class="sf-section-subtitle">Accounts and categories must load before direct save.</p>
+          <p class="sf-section-subtitle">
+            Accounts and categories must load before direct save.
+          </p>
         </div>
         <div class="sf-section-meta">
           <span id="add-source-overall" class="sf-pill">Loading</span>
@@ -228,9 +298,11 @@
     <section class="sf-panel sf-span-12" aria-labelledby="add-routes-title">
       <div class="sf-section-head">
         <div>
-          <p class="sf-section-kicker">Advanced Owner Workflows</p>
-          <h2 id="add-routes-title" class="sf-section-title">Visible, but not fake direct writes</h2>
-          <p class="sf-section-subtitle">These workflows are part of Add’s future, but each needs its own backend contract before direct save.</p>
+          <p class="sf-section-kicker">Other Finance Workflows</p>
+          <h2 id="add-routes-title" class="sf-section-title">Owner pages</h2>
+          <p class="sf-section-subtitle">
+            These are not primary Add modes yet. They route to owner pages to preserve linked records and source-truth logic.
+          </p>
         </div>
       </div>
 
