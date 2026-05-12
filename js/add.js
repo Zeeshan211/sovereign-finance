@@ -3,32 +3,28 @@
 
   if (window.SovereignAdd && window.SovereignAdd.initialized) return;
 
-  const VERSION = "v1.5.2-add-dryrun-commit-transfer-fix";
+  const VERSION = "v1.5.3-add-direct-transactions-fix";
 
   const MODES = {
     expense: {
       label: "Expense",
       backend: "expense",
-      kind: "direct",
       copy: "Expense decreases the selected source account and requires a category."
     },
     income: {
       label: "Income",
       backend: "income",
-      kind: "direct",
       copy: "Income increases the selected account and requires a category."
     },
     transfer: {
       label: "Transfer",
       backend: "transfer",
-      kind: "direct",
       copy: "Transfer moves money from source account to destination account. Category is not used."
     },
     international: {
       label: "International",
       backend: "international_purchase",
-      kind: "direct",
-      copy: "International auto-computes FX fee, excise, advance tax, PRA, and bank charge from configured rates. Engine writes one ledger row per component, all linked under one package id."
+      copy: "International package writer remains owned by /api/add."
     }
   };
 
@@ -162,12 +158,7 @@
   }
 
   function apiError(json, status) {
-    const message =
-      (json && json.error) ||
-      (json && json.message) ||
-      "HTTP " + status;
-
-    const err = new Error(message);
+    const err = new Error((json && (json.error || json.message)) || "HTTP " + status);
     err.status = status;
     err.payload = json || null;
     return err;
@@ -179,10 +170,6 @@
 
   function backendMode() {
     return mode().backend;
-  }
-
-  function isDirectMode() {
-    return mode().kind === "direct";
   }
 
   function isInternational() {
@@ -231,6 +218,7 @@
     const base = {
       mode: backendMode(),
       ui_mode: state.selectedMode,
+      type: backendMode(),
       date: $("add-date")?.value || today(),
       amount: num($("add-amount")?.value, 0),
       account_id: $("add-account")?.value || "",
@@ -238,18 +226,18 @@
       category_id: $("add-category")?.value || "",
       merchant: $("add-merchant")?.value || "",
       reference: $("add-reference")?.value || "",
-      notes: $("add-notes")?.value || ""
+      notes: $("add-notes")?.value || "",
+      created_by: "web-add"
     };
 
     if (isInternational()) {
       base.subtype = state.intlSubtype;
+      base.include_pra = !!$("add-intl-include-pra")?.checked;
 
       const bankChargeRaw = $("add-intl-bank-charge")?.value;
       if (bankChargeRaw !== undefined && bankChargeRaw !== "") {
         base.bank_charge_override = num(bankChargeRaw, 0);
       }
-
-      base.include_pra = !!$("add-intl-include-pra")?.checked;
 
       if (state.intlSubtype === "foreign") {
         base.foreign_amount = num($("add-intl-foreign-amount")?.value, 0);
@@ -265,6 +253,37 @@
     }
 
     return base;
+  }
+
+  function directTransactionPayload() {
+    const form = readForm();
+
+    const payload = {
+      type: form.type,
+      date: form.date,
+      amount: form.amount,
+      account_id: form.account_id,
+      notes: buildNotes(form),
+      created_by: form.created_by
+    };
+
+    if (form.type === "transfer") {
+      payload.transfer_to_account_id = form.transfer_to_account_id;
+    } else {
+      payload.category_id = form.category_id;
+    }
+
+    return payload;
+  }
+
+  function buildNotes(form) {
+    const parts = [];
+
+    if (form.merchant) parts.push("merchant=" + form.merchant);
+    if (form.reference) parts.push("ref=" + form.reference);
+    if (form.notes) parts.push(form.notes);
+
+    return parts.join(" | ").slice(0, 240);
   }
 
   function dryRunRequiresOverride() {
@@ -283,31 +302,14 @@
   function getExpectedWrites() {
     if (!state.dryRun) return [];
 
-    if (Array.isArray(state.dryRun.expected_writes)) {
-      return state.dryRun.expected_writes;
-    }
-
-    const expected = state.dryRun.proof?.expected_writes;
-
-    if (expected && typeof expected === "object") {
-      return Object.entries(expected).map(([model, rows]) => ({
-        model,
-        rows
-      }));
-    }
+    if (Array.isArray(state.dryRun.expected_writes)) return state.dryRun.expected_writes;
 
     const proof = state.dryRun.proof || {};
 
     if (proof.expected_transaction_rows != null || proof.expected_audit_rows != null) {
       return [
-        {
-          model: "transactions",
-          rows: proof.expected_transaction_rows ?? "?"
-        },
-        {
-          model: "audit",
-          rows: proof.expected_audit_rows ?? "?"
-        }
+        { model: "transactions", rows: proof.expected_transaction_rows ?? "?" },
+        { model: "audit", rows: proof.expected_audit_rows ?? "?" }
       ];
     }
 
@@ -331,17 +333,9 @@
       return `transfer ${state.save.id} → ${state.save.linked_id}`;
     }
 
-    if (written.transaction_id) {
-      return `txn ${written.transaction_id}`;
-    }
-
-    if (state.save.transaction_id) {
-      return `txn ${state.save.transaction_id}`;
-    }
-
-    if (state.save.id) {
-      return `txn ${state.save.id}`;
-    }
+    if (written.transaction_id) return `txn ${written.transaction_id}`;
+    if (state.save.transaction_id) return `txn ${state.save.transaction_id}`;
+    if (state.save.id) return `txn ${state.save.id}`;
 
     return "Saved";
   }
@@ -372,21 +366,13 @@
       return errors;
     }
 
-    if (!state.context?.can_direct_write) {
-      errors.push("Live accounts/categories are required before direct save.");
-    }
-
     if (!payload.date) errors.push("Date is required.");
     if (!Number.isFinite(payload.amount) || payload.amount <= 0) errors.push("Amount must be greater than zero.");
     if (!payload.account_id) errors.push("Source account is required.");
 
-    if (payload.mode === "transfer") {
+    if (payload.mode === "transfer" || payload.type === "transfer") {
       if (!payload.transfer_to_account_id) errors.push("Destination account is required for transfer.");
-      if (
-        payload.account_id &&
-        payload.transfer_to_account_id &&
-        payload.account_id === payload.transfer_to_account_id
-      ) {
+      if (payload.account_id && payload.transfer_to_account_id && payload.account_id === payload.transfer_to_account_id) {
         errors.push("Source and destination accounts cannot match.");
       }
     } else if (!payload.category_id) {
@@ -443,6 +429,64 @@
     `;
   }
 
+  async function loadContext() {
+    setPill("add-source-overall", "Loading", "info");
+
+    try {
+      const context = await getJSON("/api/add/context");
+      state.context = context;
+      state.accounts = Array.isArray(context.accounts) ? context.accounts : [];
+      state.categories = Array.isArray(context.categories) ? context.categories : [];
+      state.merchants = Array.isArray(context.merchants) ? context.merchants : [];
+      state.intlRateConfig = context.intl_rate_config || null;
+
+      if (!state.accounts.length) {
+        const balances = await getJSON("/api/balances");
+        state.accounts = normalizeAccountsFromBalances(balances);
+      }
+
+      if (!state.categories.length) {
+        const categories = await getJSON("/api/categories");
+        state.categories = normalizeCategories(categories);
+      }
+
+      delete state.errors.context;
+      populateSelects();
+      populateIntlCurrencyFromConfig();
+    } catch (err) {
+      state.context = { can_direct_write: false, source_status: { accounts: "failed", categories: "failed" } };
+      state.errors.context = err.message;
+      setHTML("add-source-list", errorBlock("Add context failed", err.message));
+    }
+
+    renderAll();
+    await runPreview(false);
+  }
+
+  function normalizeAccountsFromBalances(payload) {
+    if (!payload || !payload.accounts) return [];
+
+    if (Array.isArray(payload.accounts)) return payload.accounts;
+
+    return Object.entries(payload.accounts).map(([id, account]) => ({
+      id,
+      ...(account || {}),
+      balance: Number(account.balance || account.current_balance || 0),
+      current_balance: Number(account.balance || account.current_balance || 0)
+    }));
+  }
+
+  function normalizeCategories(payload) {
+    if (Array.isArray(payload.categories)) return payload.categories;
+    if (Array.isArray(payload.data)) return payload.data;
+
+    if (payload.categories && typeof payload.categories === "object") {
+      return Object.entries(payload.categories).map(([id, category]) => ({ id, ...(category || {}) }));
+    }
+
+    return [];
+  }
+
   function populateSelects() {
     const selectedAccount = $("add-account")?.value || "";
     const selectedDestination = $("add-destination-account")?.value || "";
@@ -488,7 +532,6 @@
 
   function applyIntlSubtypeFields() {
     const isForeign = state.intlSubtype === "foreign";
-
     setHidden("add-intl-foreign-fields", !isForeign);
     setHidden("add-intl-pkr-fields", isForeign);
 
@@ -526,60 +569,33 @@
     }
 
     setText("add-account-label", transfer ? "Source account" : income ? "Receiving account" : "Source account");
-    setText("add-account-help",
-      transfer
-        ? "Money leaves this account."
-        : income
-          ? "Money enters this account."
-          : "Money leaves this account."
-    );
+    setText("add-account-help", transfer ? "Money leaves this account." : income ? "Money enters this account." : "Money leaves this account.");
 
-    setText("add-merchant-label",
-      income
-        ? "Source / payer"
-        : transfer
-          ? "Transfer label"
-          : international
-            ? "Merchant"
-            : "Merchant / person"
-    );
-
+    setText("add-merchant-label", income ? "Source / payer" : transfer ? "Transfer label" : international ? "Merchant" : "Merchant / person");
     setText("add-form-copy", mode().copy);
 
     setPill("add-selected-mode-pill", mode().label, "positive");
-    setPill("add-route-pill", international ? "Package writer" : "Direct save", "positive");
+    setPill("add-route-pill", international ? "Package writer" : "Direct /api/transactions", "positive");
 
     document.querySelectorAll("[data-add-mode]").forEach((button) => {
       button.classList.toggle("is-active", button.getAttribute("data-add-mode") === state.selectedMode);
     });
 
-    if (international) {
-      applyIntlSubtypeFields();
-
-      if (state.intlRateConfig) {
-        setPill("add-intl-rates-pill",
-          `Rates · FX ${state.intlRateConfig.fx_fee_pct}% · Tax ${state.intlRateConfig.advance_tax_pct}%`,
-          "info"
-        );
-      } else {
-        setPill("add-intl-rates-pill", "Rates · unavailable", "danger");
-      }
-    }
+    if (international) applyIntlSubtypeFields();
 
     setPill("add-form-status", "Waiting", "info");
   }
 
   function renderSourceState() {
-    const status = state.context?.source_status || {};
-    const canWrite = !!state.context?.can_direct_write;
+    const canWrite = state.accounts.length > 0 && state.categories.length > 0;
 
     setPill("add-source-overall", canWrite ? "Ready" : "Blocked", canWrite ? "positive" : "danger");
 
     setHTML("add-source-list", [
-      row("/api/accounts", status.accounts || "unknown", `${state.accounts.length} loaded`, status.accounts === "ok" ? "positive" : "danger"),
-      row("/api/categories", status.categories || "unknown", `${state.categories.length} loaded`, status.categories === "ok" ? "positive" : "danger"),
-      row("/api/merchants", status.merchants || "optional", `${state.merchants.length} loaded`, status.merchants === "ok" ? "positive" : "info"),
-      row("/api/intl-rates", status.intl_rates || "optional", state.intlRateConfig ? "Loaded" : "Not loaded", status.intl_rates === "ok" ? "positive" : "info")
+      row("Accounts", "Loaded for form", `${state.accounts.length} loaded`, state.accounts.length ? "positive" : "danger"),
+      row("Categories", "Loaded for form", `${state.categories.length} loaded`, state.categories.length ? "positive" : "danger"),
+      row("Merchants", "Optional", `${state.merchants.length} loaded`, "info"),
+      row("Intl rates", "Optional", state.intlRateConfig ? "Loaded" : "Not loaded", state.intlRateConfig ? "positive" : "info")
     ].join(""));
   }
 
@@ -588,47 +604,40 @@
 
     if (isInternational()) {
       const source = findAccount(payload.account_id);
-      if (!source) {
-        setHTML("add-live-impact", empty("Waiting for input", "Choose account to preview the impact."));
-        return;
-      }
-
       const totalPkr = state.intlPreview?.total_pkr ?? null;
 
-      if (totalPkr == null || totalPkr <= 0) {
-        setHTML("add-live-impact", empty("Waiting for amount", "Enter amount and FX rate (or auto-fetch) to preview the package impact."));
+      if (!source || !totalPkr) {
+        setHTML("add-live-impact", empty("Waiting for input", "Choose account and amount to preview impact."));
         return;
       }
 
       setHTML("add-live-impact", [
         row(accountName(source), "Current balance", money(accountBalance(source)), "info"),
         row("Package total", "All components combined", "- " + money(totalPkr), "warning"),
-        row("After", "Backend remains final truth", money(accountBalance(source) - totalPkr), "warning")
+        row("After", "Preview only", money(accountBalance(source) - totalPkr), "warning")
       ].join(""));
       return;
     }
 
-    const amount = payload.amount;
-
-    if (!payload.account_id || !Number.isFinite(amount) || amount <= 0) {
+    if (!payload.account_id || !Number.isFinite(payload.amount) || payload.amount <= 0) {
       setHTML("add-live-impact", empty("Waiting for input", "Choose account and amount to preview the account impact."));
       return;
     }
 
     const source = findAccount(payload.account_id);
     if (!source) {
-      setHTML("add-live-impact", errorBlock("Source account not found", "Reload the page or check /api/add/context."));
+      setHTML("add-live-impact", errorBlock("Source account not found", "Reload the page."));
       return;
     }
 
     if (payload.mode === "transfer") {
       const destination = findAccount(payload.transfer_to_account_id);
 
-      if (!payload.transfer_to_account_id || !destination) {
+      if (!destination) {
         setHTML("add-live-impact", [
           row(accountName(source), "Current source balance", money(accountBalance(source)), "info"),
-          row("Change", "Transfer source impact", "- " + money(amount), "warning"),
-          row("After", "Source after transfer", money(accountBalance(source) - amount), "warning"),
+          row("Change", "Transfer source impact", "- " + money(payload.amount), "warning"),
+          row("After", "Source after transfer", money(accountBalance(source) - payload.amount), "warning"),
           row("Destination", "Select destination account", "Missing", "danger")
         ].join(""));
         return;
@@ -636,11 +645,11 @@
 
       setHTML("add-live-impact", [
         row(accountName(source), "Current source balance", money(accountBalance(source)), "info"),
-        row("Source change", "Money leaves source", "- " + money(amount), "warning"),
-        row("Source after", "Preview only", money(accountBalance(source) - amount), "warning"),
+        row("Source change", "Money leaves source", "- " + money(payload.amount), "warning"),
+        row("Source after", "Preview only", money(accountBalance(source) - payload.amount), "warning"),
         row(accountName(destination), "Current destination balance", money(accountBalance(destination)), "info"),
-        row("Destination change", "Money enters destination", "+ " + money(amount), "positive"),
-        row("Destination after", "Preview only", money(accountBalance(destination) + amount), "positive")
+        row("Destination change", "Money enters destination", "+ " + money(payload.amount), "positive"),
+        row("Destination after", "Preview only", money(accountBalance(destination) + payload.amount), "positive")
       ].join(""));
       return;
     }
@@ -648,16 +657,16 @@
     if (payload.mode === "income") {
       setHTML("add-live-impact", [
         row(accountName(source), "Current balance", money(accountBalance(source)), "info"),
-        row("Change", "Income increases account", "+ " + money(amount), "positive"),
-        row("After", "Preview only", money(accountBalance(source) + amount), "positive")
+        row("Change", "Income increases account", "+ " + money(payload.amount), "positive"),
+        row("After", "Preview only", money(accountBalance(source) + payload.amount), "positive")
       ].join(""));
       return;
     }
 
     setHTML("add-live-impact", [
       row(accountName(source), "Current balance", money(accountBalance(source)), "info"),
-      row("Change", "Expense decreases account", "- " + money(amount), "warning"),
-      row("After", "Preview only", money(accountBalance(source) - amount), "warning")
+      row("Change", "Expense decreases account", "- " + money(payload.amount), "warning"),
+      row("After", "Preview only", money(accountBalance(source) - payload.amount), "warning")
     ].join(""));
   }
 
@@ -682,170 +691,38 @@
     }).join("");
 
     setHTML("add-intl-package-rows", rowsHtml);
-
-    const meta = [];
-    meta.push(`Subtype: ${preview.subtype === "foreign" ? "Foreign currency" : "PKR-base"}`);
-    if (preview.subtype === "foreign" && preview.foreign_amount && preview.fx_rate) {
-      meta.push(`${preview.foreign_amount} ${preview.foreign_currency} × ${preview.fx_rate.toFixed(4)}`);
-    }
-    meta.push(`${preview.components.length} ledger row${preview.components.length === 1 ? "" : "s"}`);
-
-    setText("add-intl-package-meta", meta.join(" · "));
+    setText("add-intl-package-meta", `${preview.components.length} ledger row${preview.components.length === 1 ? "" : "s"}`);
     setText("add-intl-package-total", money(preview.total_pkr));
-
-    if (state.fxLookup) {
-      const sourceLabel =
-        state.fxLookup.source === "user_override" ? "User override" :
-        state.fxLookup.source === "cache" ? "Cache (fresh)" :
-        state.fxLookup.source === "fresh_fetch" ? "Fresh fetch" :
-        state.fxLookup.source === "cache_stale_provider_failed" ? "Cache (stale)" :
-        state.fxLookup.source === "forced_refresh" ? "Forced refresh" :
-        state.fxLookup.source || "—";
-
-      const tone = state.fxLookup.stale ? "warning" : "info";
-      setPill("add-intl-fx-source-pill", `FX · ${sourceLabel}`, tone);
-    } else {
-      const pill = $("add-intl-fx-source-pill");
-      if (pill) pill.hidden = true;
-    }
   }
 
   function renderSmartAssist() {
-    const payload = readForm();
-    const items = [];
-
-    if (payload.merchant) {
-      const needle = payload.merchant.toLowerCase();
-
-      const match = state.merchants.find((merchant) => {
-        const aliases = Array.isArray(merchant.aliases) ? merchant.aliases : [];
-        const haystack = [
-          merchant.name,
-          merchant.merchant,
-          merchant.label,
-          ...aliases
-        ].filter(Boolean).join(" ").toLowerCase();
-
-        return haystack.includes(needle) || needle.includes(String(merchant.name || "").toLowerCase());
-      });
-
-      if (match) {
-        items.push(row(
-          "Merchant suggestion",
-          `${match.name || match.merchant || "Matched merchant"}${match.default_category_id ? " · " + match.default_category_id : ""}`,
-          "Review",
-          "info"
-        ));
-      } else {
-        items.push(row("Merchant", "No stored merchant match yet", "Manual", "info"));
-      }
-    }
-
-    if (state.selectedMode === "income" && payload.amount >= 50000) {
-      items.push(row(
-        "Salary detector",
-        "Looks like salary-sized income. Record income here; salary source updates belong to Salary.",
-        "Advisory",
-        "warning"
-      ));
-    }
-
-    if (isInternational() && state.intlPreview) {
-      const fees = (state.intlPreview.fx_fee_pkr || 0) +
-                   (state.intlPreview.excise_pkr || 0) +
-                   (state.intlPreview.advance_tax_pkr || 0) +
-                   (state.intlPreview.pra_pkr || 0) +
-                   (state.intlPreview.bank_charge_pkr || 0);
-
-      if (fees > 0) {
-        items.push(row(
-          "Auto-computed fees & taxes",
-          "Engine added these from configured rates. No manual entry needed.",
-          money(fees),
-          "info"
-        ));
-      }
-    }
-
-    if (!items.length) {
-      setHTML("add-smart-assist", empty("No suggestions yet", "Enter merchant, amount, or choose International."));
-      return;
-    }
-
-    setHTML("add-smart-assist", items.join(""));
+    setHTML("add-smart-assist", empty("No suggestions yet", "Enter merchant, amount, or choose International."));
   }
 
   function renderReview() {
     const payload = readForm();
     const errors = validateLocal(payload);
 
-    if (isInternational()) {
-      const total = state.intlPreview?.total_pkr;
-      const rows = [
-        row("Mode", "International package writer", "International", "positive"),
-        row("Subtype", "How the bank charged you", state.intlSubtype === "foreign" ? "Foreign currency" : "PKR-base", "info"),
-        row("Date", "Transaction date", payload.date, "info"),
-        row("Account", payload.account_id || "missing", accountLabel(payload.account_id), payload.account_id ? "info" : "danger"),
-        row("Category", payload.category_id || "missing", categoryLabel(payload.category_id), payload.category_id ? "info" : "danger")
-      ];
-
-      if (state.intlSubtype === "foreign") {
-        rows.push(row("Foreign amount", payload.foreign_currency || "—", payload.foreign_amount ? `${payload.foreign_amount} ${payload.foreign_currency}` : "missing", payload.foreign_amount ? "info" : "danger"));
-        rows.push(row("FX rate", "PKR per 1 unit", payload.fx_rate ? payload.fx_rate.toFixed(4) : "auto-fetch on preview", payload.fx_rate ? "info" : "warning"));
-      } else {
-        rows.push(row("PKR amount", "Bank-charged in PKR", payload.pkr_amount ? money(payload.pkr_amount) : "missing", payload.pkr_amount ? "info" : "danger"));
-      }
-
-      if (total != null && total > 0) {
-        rows.push(row("Package total", "Auto-computed by backend", money(total), "warning"));
-      }
-
-      rows.push(row("Expected ledger shape", "Backend remains final truth",
-        state.intlPreview ? `1 package + ${state.intlPreview.components?.length || 0} rows` : "—",
-        "info"));
-
-      if (errors.length) {
-        rows.push(row("Blocked", errors.join(" · "), "Fix", "danger"));
-      } else if (!state.intlPreview) {
-        rows.push(row("Waiting", "Backend preview pending", "—", "warning"));
-      } else {
-        rows.push(row("Ready for dry-run", "Backend validation still required", "Ready", "positive"));
-      }
-
-      setHTML("add-review-panel", rows.join(""));
-      setPill("add-form-status", errors.length ? "Blocked" : (state.intlPreview ? "Ready" : "Waiting"), errors.length ? "danger" : (state.intlPreview ? "positive" : "warning"));
-      return;
-    }
-
-    const errorsTone = errors.length ? "danger" : "positive";
-    const expected = payload.mode === "transfer"
-      ? "linked transfer movement"
-      : "1 transaction row";
-
     const rows = [
-      row("Mode", "Direct save through /api/add", mode().label, "positive"),
-      row("Date", "Transaction date", payload.date, "info"),
-      row("Amount", "Positive amount", money(payload.amount), "info"),
-      row("Source account", payload.account_id || "missing", accountLabel(payload.account_id), payload.account_id ? "info" : "danger")
+      row("Mode", isInternational() ? "International package writer" : "Direct /api/transactions", mode().label, "positive"),
+      row("Date", "Transaction date", payload.date, "info")
     ];
 
-    if (payload.mode === "transfer") {
-      rows.push(row(
-        "Destination account",
-        payload.transfer_to_account_id || "missing",
-        accountLabel(payload.transfer_to_account_id),
-        payload.transfer_to_account_id ? "info" : "danger"
-      ));
+    if (isInternational()) {
+      rows.push(row("Account", payload.account_id || "missing", accountLabel(payload.account_id), payload.account_id ? "info" : "danger"));
+      rows.push(row("Category", payload.category_id || "missing", categoryLabel(payload.category_id), payload.category_id ? "info" : "danger"));
     } else {
-      rows.push(row(
-        "Category",
-        payload.category_id || "missing",
-        categoryLabel(payload.category_id),
-        payload.category_id ? "info" : "danger"
-      ));
+      rows.push(row("Amount", "Positive amount", money(payload.amount), "info"));
+      rows.push(row("Source account", payload.account_id || "missing", accountLabel(payload.account_id), payload.account_id ? "info" : "danger"));
+
+      if (payload.mode === "transfer") {
+        rows.push(row("Destination account", payload.transfer_to_account_id || "missing", accountLabel(payload.transfer_to_account_id), payload.transfer_to_account_id ? "info" : "danger"));
+      } else {
+        rows.push(row("Category", payload.category_id || "missing", categoryLabel(payload.category_id), payload.category_id ? "info" : "danger"));
+      }
     }
 
-    rows.push(row("Expected ledger shape", "Backend remains final truth", expected, "info"));
+    rows.push(row("Expected ledger shape", "Backend remains final truth", payload.mode === "transfer" ? "linked transfer movement" : isInternational() ? "intl package" : "1 transaction row", "info"));
 
     if (errors.length) {
       rows.push(row("Blocked", errors.join(" · "), "Fix", "danger"));
@@ -854,7 +731,7 @@
     }
 
     setHTML("add-review-panel", rows.join(""));
-    setPill("add-form-status", errors.length ? "Blocked" : "Ready", errorsTone);
+    setPill("add-form-status", errors.length ? "Blocked" : "Ready", errors.length ? "danger" : "positive");
   }
 
   function renderDryRun() {
@@ -870,57 +747,36 @@
 
     const balance = getProofCheck("balance_projection");
     const expected = getExpectedWrites();
-    const route = state.dryRun.route || "transactions";
     const blocked = dryRunRequiresOverride();
-
-    const expectedHtml = expected.length
-      ? expected.map((w) => row(`Write: ${w.model}`, "Expected by backend", String(w.rows ?? w.transaction_rows ?? "?"), "info")).join("")
-      : "";
 
     const lines = [
       row("Dry-run", "Backend validation", blocked ? "Blocked" : "Passed", blocked ? "danger" : "positive"),
       row("Writes performed", "Must be false", String(state.dryRun.writes_performed), state.dryRun.writes_performed === false ? "positive" : "danger"),
       row("Payload hash", "Required for commit", state.dryRun.payload_hash ? state.dryRun.payload_hash.slice(0, 12) + "…" : "Missing", state.dryRun.payload_hash ? "positive" : "danger"),
-      row("Route", "Owner writer", route, "info")
+      row("Route", "Owner writer", isInternational() ? "add intl package" : "transactions", "info")
     ];
 
     if (blocked) {
-      lines.push(row(
-        "Override required",
-        state.dryRun.override_reason || "Backend requires override",
-        "Save disabled",
-        "danger"
-      ));
+      lines.push(row("Override required", state.dryRun.override_reason || "Backend requires override", "Save disabled", "danger"));
     }
 
     if (balance) {
-      lines.push(row(
-        "Source balance",
-        balance.account_id || "source account",
-        `${money(balance.current_balance)} → ${money(balance.projected_balance)}`,
-        balance.status === "blocked" ? "danger" : "positive"
-      ));
+      lines.push(row("Source balance", balance.account_id || "source account", `${money(balance.current_balance)} → ${money(balance.projected_balance)}`, balance.status === "blocked" ? "danger" : "positive"));
 
       if (balance.transfer_target) {
-        lines.push(row(
-          "Destination balance",
-          balance.transfer_target.account_id || "destination account",
-          `${money(balance.transfer_target.current_balance)} → ${money(balance.transfer_target.projected_balance)}`,
-          "positive"
-        ));
+        lines.push(row("Destination balance", balance.transfer_target.account_id || "destination account", `${money(balance.transfer_target.current_balance)} → ${money(balance.transfer_target.projected_balance)}`, "positive"));
       }
 
       if (balance.skipped_inactive_transaction_count != null) {
-        lines.push(row(
-          "Inactive rows skipped",
-          "Reversed/reversal rows excluded from balance guard",
-          String(balance.skipped_inactive_transaction_count),
-          "info"
-        ));
+        lines.push(row("Inactive rows skipped", "Reversed/reversal rows excluded", String(balance.skipped_inactive_transaction_count), "info"));
       }
     }
 
-    setHTML("add-dryrun-panel", lines.concat(expectedHtml).join(""));
+    expected.forEach((w) => {
+      lines.push(row(`Write: ${w.model}`, "Expected by backend", String(w.rows ?? w.transaction_rows ?? "?"), "info"));
+    });
+
+    setHTML("add-dryrun-panel", lines.join(""));
   }
 
   function renderSave() {
@@ -956,17 +812,11 @@
     }
 
     if (dryRunRequiresOverride()) {
-      setHTML("add-save-panel", errorBlock(
-        "Save blocked",
-        `Backend requires override: ${state.dryRun.override_reason || "blocked balance projection"}. Override is intentionally disabled in this UI.`
-      ));
+      setHTML("add-save-panel", errorBlock("Save blocked", `Backend requires override: ${state.dryRun.override_reason || "blocked balance projection"}.`));
       return;
     }
 
-    setHTML("add-save-panel", empty(
-      "Save blocked",
-      state.dirtySinceDryRun ? "Form changed after dry-run. Run dry-run again." : "Run backend dry-run first."
-    ));
+    setHTML("add-save-panel", empty("Save blocked", state.dirtySinceDryRun ? "Form changed after dry-run. Run dry-run again." : "Run backend dry-run first."));
   }
 
   function renderDebug() {
@@ -993,15 +843,13 @@
   }
 
   function canDryRun() {
-    if (!isDirectMode()) return false;
     if (validateLocal(readForm()).length > 0) return false;
     if (isInternational() && !state.intlPreview) return false;
     return true;
   }
 
   function canSave() {
-    return isDirectMode() &&
-      state.dryRun?.ok === true &&
+    return state.dryRun?.ok === true &&
       !!dryRunPayloadHash() &&
       !dryRunRequiresOverride() &&
       !state.dirtySinceDryRun;
@@ -1013,18 +861,13 @@
     setDisabled("add-intl-fx-fetch", state.fxLoading);
 
     const save = $("add-confirm-save");
-    if (save) {
-      save.textContent = state.loading ? "Working…" : "Confirm Save";
-    }
+    if (save) save.textContent = state.loading ? "Working…" : "Confirm Save";
 
     const dry = $("add-run-dryrun");
-    if (dry) {
-      dry.textContent = state.loading ? "Working…" : "Run Dry-Run";
-    }
+    if (dry) dry.textContent = state.loading ? "Working…" : "Run Dry-Run";
 
-    if ($("add-intl-fx-fetch")) {
-      $("add-intl-fx-fetch").textContent = state.fxLoading ? "Fetching…" : "Auto-fetch";
-    }
+    const fx = $("add-intl-fx-fetch");
+    if (fx) fx.textContent = state.fxLoading ? "Fetching…" : "Auto-fetch";
   }
 
   function renderAll() {
@@ -1040,59 +883,24 @@
     updateButtons();
   }
 
-  async function loadContext() {
-    setPill("add-source-overall", "Loading", "info");
-
-    try {
-      const context = await getJSON("/api/add/context");
-      state.context = context;
-      state.accounts = Array.isArray(context.accounts) ? context.accounts : [];
-      state.categories = Array.isArray(context.categories) ? context.categories : [];
-      state.merchants = Array.isArray(context.merchants) ? context.merchants : [];
-      state.intlRateConfig = context.intl_rate_config || null;
-      delete state.errors.context;
-      populateSelects();
-      populateIntlCurrencyFromConfig();
-    } catch (err) {
-      state.context = {
-        can_direct_write: false,
-        source_status: {
-          accounts: "failed",
-          categories: "failed",
-          merchants: "failed",
-          intl_rates: "failed"
-        }
-      };
-      state.errors.context = err.message;
-      setHTML("add-source-list", errorBlock("Add context failed", err.message));
+  async function runPreview(renderAfter = true) {
+    if (!isInternational()) {
+      state.preview = { ok: true, route: "transactions", normalized_payload: readForm() };
+      state.intlPreview = null;
+      state.fxLookup = null;
+      if (renderAfter) renderAll();
+      return;
     }
 
-    renderAll();
-    await runPreview(false);
-  }
-
-  async function runPreview(renderAfter = true) {
-    const payload = readForm();
-
     try {
-      state.preview = await postJSON("/api/add/preview", payload);
+      state.preview = await postJSON("/api/add/preview", readForm());
+      state.intlPreview = state.preview.package_preview || null;
+      state.fxLookup = state.preview.fx_lookup || null;
       delete state.errors.preview;
-
-      if (isInternational()) {
-        state.intlPreview = state.preview.package_preview || null;
-        state.fxLookup = state.preview.fx_lookup || null;
-      } else {
-        state.intlPreview = null;
-        state.fxLookup = null;
-      }
     } catch (err) {
       state.preview = null;
-
-      if (isInternational()) {
-        state.intlPreview = null;
-        state.fxLookup = null;
-      }
-
+      state.intlPreview = null;
+      state.fxLookup = null;
       state.errors.preview = err.message;
     }
 
@@ -1103,7 +911,6 @@
     if (state.fxLoading) return;
 
     const currency = ($("add-intl-currency")?.value || "USD").toUpperCase();
-
     state.fxLoading = true;
     updateButtons();
 
@@ -1143,18 +950,17 @@
     state.dryRun = null;
     state.save = null;
     state.dirtySinceDryRun = false;
-    setHTML("add-dryrun-panel", empty("Running dry-run", "Calling /api/add/dry-run."));
+    setHTML("add-dryrun-panel", empty("Running dry-run", isInternational() ? "Calling /api/add/dry-run." : "Calling /api/transactions?dry_run=1."));
     updateButtons();
 
     try {
-      state.dryRun = await postJSON("/api/add/dry-run", readForm());
+      state.dryRun = isInternational()
+        ? await postJSON("/api/add/dry-run", readForm())
+        : await postJSON("/api/transactions?dry_run=1", directTransactionPayload());
+
       delete state.errors.dryRun;
     } catch (err) {
-      state.dryRun = {
-        ok: false,
-        error: err.message,
-        response: err.payload || null
-      };
+      state.dryRun = { ok: false, error: err.message, response: err.payload || null };
       state.errors.dryRun = err.message;
     } finally {
       state.loading = false;
@@ -1170,25 +976,28 @@
 
     state.loading = true;
     state.save = null;
-    setHTML("add-save-panel", empty("Saving", "Calling /api/add/commit."));
+    setHTML("add-save-panel", empty("Saving", isInternational() ? "Calling /api/add/commit." : "Calling /api/transactions."));
     updateButtons();
 
     try {
-      const payload = {
-        ...readForm(),
-        dry_run_payload_hash: dryRunPayloadHash(),
-        payload_hash: dryRunPayloadHash()
-      };
+      if (isInternational()) {
+        state.save = await postJSON("/api/add/commit", {
+          ...readForm(),
+          dry_run_payload_hash: dryRunPayloadHash(),
+          payload_hash: dryRunPayloadHash()
+        });
+      } else {
+        state.save = await postJSON("/api/transactions", {
+          ...directTransactionPayload(),
+          dry_run_payload_hash: dryRunPayloadHash(),
+          payload_hash: dryRunPayloadHash()
+        });
+      }
 
-      state.save = await postJSON("/api/add/commit", payload);
       delete state.errors.save;
       state.dirtySinceDryRun = false;
     } catch (err) {
-      state.save = {
-        ok: false,
-        error: err.message,
-        response: err.payload || null
-      };
+      state.save = { ok: false, error: err.message, response: err.payload || null };
       state.errors.save = err.message;
     } finally {
       state.loading = false;
@@ -1204,10 +1013,7 @@
   }
 
   function invalidateDryRun() {
-    if (state.dryRun && !state.save?.ok) {
-      state.dirtySinceDryRun = true;
-    }
-
+    if (state.dryRun && !state.save?.ok) state.dirtySinceDryRun = true;
     state.save = null;
     renderAll();
     schedulePreview();
