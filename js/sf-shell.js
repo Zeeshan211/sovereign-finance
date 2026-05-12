@@ -15,54 +15,63 @@
     {
       group: "Core",
       items: [
-        { label: "Hub", href: "/index.html", aliases: ["/", "/index.html"] },
-        { label: "Accounts", href: "/accounts.html" },
-        { label: "Credit Card", href: "/cc.html" },
-        { label: "Ledger", href: "/transactions.html" },
-        { label: "Add", href: "/add.html" },
-        { label: "Bills", href: "/bills.html" },
-        { label: "Debts", href: "/debts.html" },
-        { label: "Salary", href: "/salary.html" },
-        { label: "Forecast", href: "/forecast.html" }
+        { label: "Hub", href: "/index.html", aliases: ["/", "/index", "/index.html"] },
+        { label: "Accounts", href: "/accounts.html", aliases: ["/accounts"] },
+        { label: "Credit Card", href: "/cc.html", aliases: ["/cc"] },
+        { label: "Ledger", href: "/transactions.html", aliases: ["/transactions"] },
+        { label: "Add", href: "/add.html", aliases: ["/add"] },
+        { label: "Bills", href: "/bills.html", aliases: ["/bills"] },
+        { label: "Debts", href: "/debts.html", aliases: ["/debts"] },
+        { label: "Salary", href: "/salary.html", aliases: ["/salary"] },
+        { label: "Forecast", href: "/forecast.html", aliases: ["/forecast"] }
       ]
     },
     {
       group: "Control / QA",
       items: [
-        { label: "Reconciliation", href: "/reconciliation.html" },
-        { label: "Audit Trail", href: "/audit.html" },
-        { label: "Monthly Close", href: "/monthly-close.html" }
+        { label: "Reconciliation", href: "/reconciliation.html", aliases: ["/reconciliation"] },
+        { label: "Audit Trail", href: "/audit.html", aliases: ["/audit"] },
+        { label: "Monthly Close", href: "/monthly-close.html", aliases: ["/monthly-close"] }
       ]
     },
     {
       group: "Analysis",
       items: [
-        { label: "Insights", href: "/insights.html" },
-        { label: "Charts", href: "/charts.html" },
-        { label: "Snapshots", href: "/snapshots.html" }
+        { label: "Insights", href: "/insights.html", aliases: ["/insights"] },
+        { label: "Charts", href: "/charts.html", aliases: ["/charts"] },
+        { label: "Snapshots", href: "/snapshots.html", aliases: ["/snapshots"] }
       ]
     },
     {
       group: "Modules",
       items: [
-        { label: "ATM", href: "/atm.html" },
-        { label: "Budgets", href: "/budgets.html" },
-        { label: "Goals", href: "/goals.html" },
-        { label: "Merchants", href: "/merchants.html" },
-        { label: "Nano Loans", href: "/nano-loans.html" }
+        { label: "ATM", href: "/atm.html", aliases: ["/atm"] },
+        { label: "Budgets", href: "/budgets.html", aliases: ["/budgets"] },
+        { label: "Goals", href: "/goals.html", aliases: ["/goals"] },
+        { label: "Merchants", href: "/merchants.html", aliases: ["/merchants"] },
+        { label: "Nano Loans", href: "/nano-loans.html", aliases: ["/nano-loans"] }
       ]
     }
   ];
 
-  function components() {
-    if (!window.SFComponents) {
-      throw new Error("SFComponents must load before sf-shell.js");
-    }
-    return window.SFComponents;
+  function comp() {
+    return window.SFComponents || {};
   }
 
-  function readConfig() {
-    return window.SF_PAGE || {};
+  function escapeHtml(value) {
+    const c = comp();
+    if (typeof c.escapeHtml === "function") return c.escapeHtml(value);
+
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function classNames() {
+    return Array.from(arguments).filter(Boolean).join(" ");
   }
 
   function q(selector, root) {
@@ -73,15 +82,16 @@
     return Array.from((root || document).querySelectorAll(selector));
   }
 
-  function escape(value) {
-    return components().escapeHtml(value);
+  function readConfig() {
+    return window.SF_PAGE || {};
   }
 
   function normalizePath(path) {
-    const clean = String(path || "/").split("?")[0].split("#")[0];
+    let clean = String(path || "/").split("?")[0].split("#")[0];
 
-    if (clean === "" || clean === "/") return "/index.html";
-    if (clean.endsWith("/")) return clean + "index.html";
+    if (!clean || clean === "/") return "/index.html";
+    if (clean.endsWith("/")) clean = clean.slice(0, -1);
+    if (!clean.includes(".") && clean !== "/") return clean + ".html";
 
     return clean;
   }
@@ -90,7 +100,7 @@
     return normalizePath(window.location.pathname);
   }
 
-  function isActiveRoute(item) {
+  function routeMatches(item) {
     const now = currentPath();
     const href = normalizePath(item.href);
     const aliases = (item.aliases || []).map(normalizePath);
@@ -135,53 +145,98 @@
 
     const tag = node.tagName.toLowerCase();
 
-    if (tag === "script") return true;
-    if (tag === "style") return true;
-    if (tag === "link") return true;
-    if (tag === "meta") return true;
-    if (tag === "title") return true;
-
-    return false;
+    return (
+      tag === "script" ||
+      tag === "style" ||
+      tag === "link" ||
+      tag === "meta" ||
+      tag === "title"
+    );
   }
 
-  function ensureAppShell() {
-    let appShell = q("." + SHELL_CLASS);
+  function buttonHTML(opts) {
+    const c = comp();
+    if (typeof c.button === "function") return c.button(opts);
 
-    if (appShell) return appShell;
+    const o = opts || {};
+    const tag = o.href ? "a" : "button";
+    const attrs = [
+      `class="${classNames("sf-button", o.primary && "sf-button--primary", o.className)}"`
+    ];
 
-    appShell = document.createElement("main");
-    appShell.className = SHELL_CLASS;
+    if (o.href) attrs.push(`href="${escapeHtml(o.href)}"`);
+    else attrs.push('type="button"');
 
-    const nodes = Array.from(document.body.childNodes);
-    const contentNodes = [];
+    if (o.disabled) attrs.push("disabled");
+    if (o.id) attrs.push(`id="${escapeHtml(o.id)}"`);
+    if (o.ariaLabel) attrs.push(`aria-label="${escapeHtml(o.ariaLabel)}"`);
 
-    nodes.forEach((node) => {
-      if (isShellAsset(node)) return;
-      contentNodes.push(node);
-    });
+    return `<${tag} ${attrs.join(" ")}>${o.labelHtml != null ? String(o.labelHtml) : escapeHtml(o.label || "Action")}</${tag}>`;
+  }
 
-    contentNodes.forEach((node) => appShell.appendChild(node));
-    document.body.appendChild(appShell);
+  function chipHTML(opts) {
+    const c = comp();
+    if (typeof c.chip === "function") return c.chip(opts);
 
-    return appShell;
+    const o = opts || {};
+    const tag = o.href ? "a" : "button";
+    const attrs = [
+      `class="${classNames("sf-chip", o.active && "is-active", o.className)}"`
+    ];
+
+    if (o.href) attrs.push(`href="${escapeHtml(o.href)}"`);
+    else attrs.push('type="button"');
+
+    if (o.disabled) attrs.push("disabled");
+    if (o.id) attrs.push(`id="${escapeHtml(o.id)}"`);
+
+    return `<${tag} ${attrs.join(" ")}>${o.labelHtml != null ? String(o.labelHtml) : escapeHtml(o.label || "Option")}</${tag}>`;
+  }
+
+  function metricCardHTML(opts) {
+    const c = comp();
+    if (typeof c.metricCard === "function") return c.metricCard(opts);
+
+    const o = opts || {};
+    const value = o.valueHtml != null ? String(o.valueHtml) : escapeHtml(o.value || "—");
+    const subtitle = o.subtitleHtml != null
+      ? String(o.subtitleHtml)
+      : o.subtitle
+        ? escapeHtml(o.subtitle)
+        : "";
+    const foot = o.footHtml != null
+      ? String(o.footHtml)
+      : o.foot
+        ? escapeHtml(o.foot)
+        : "";
+
+    return `
+      <section class="${classNames("sf-metric-card", o.accent && "sf-metric-card--accent", o.className)}">
+        ${o.kicker ? `<p class="sf-card-kicker">${escapeHtml(o.kicker)}</p>` : ""}
+        ${o.title ? `<h3 class="sf-card-title">${escapeHtml(o.title)}</h3>` : ""}
+        <div class="${classNames("sf-metric-value", o.tone && "sf-tone-" + o.tone)}">${value}</div>
+        ${subtitle ? `<p class="sf-card-subtitle">${subtitle}</p>` : ""}
+        ${foot ? `<div class="sf-metric-foot">${foot}</div>` : ""}
+      </section>
+    `;
   }
 
   function renderFinanceNav() {
     const groups = FINANCE_NAV.map((group) => {
       const items = group.items.map((item) => {
-        const active = isActiveRoute(item);
+        const active = routeMatches(item);
 
         return `
-          <a class="sf-nav-link${active ? " is-active" : ""}" href="${escape(item.href)}" aria-current="${active ? "page" : "false"}">
-            <span>${escape(item.label)}</span>
+          <a class="sf-nav-link${active ? " is-active" : ""}" href="${escapeHtml(item.href)}" aria-current="${active ? "page" : "false"}">
+            <span>${escapeHtml(item.label)}</span>
           </a>
         `;
       }).join("");
 
       return `
         <div class="sf-nav-group">
-          <div class="sf-nav-group-title">${escape(group.group)}</div>
-          <nav class="sf-nav-list" aria-label="${escape(group.group)} finance navigation">
+          <div class="sf-nav-group-title">${escapeHtml(group.group)}</div>
+          <nav class="sf-nav-list" aria-label="${escapeHtml(group.group)} finance navigation">
             ${items}
           </nav>
         </div>
@@ -205,6 +260,23 @@
         </div>
       </aside>
     `;
+  }
+
+  function ensureAppShell() {
+    let appShell = q("." + SHELL_CLASS);
+
+    if (appShell) return appShell;
+
+    appShell = document.createElement("main");
+    appShell.className = SHELL_CLASS;
+
+    const nodes = Array.from(document.body.childNodes);
+    const contentNodes = nodes.filter((node) => !isShellAsset(node));
+
+    contentNodes.forEach((node) => appShell.appendChild(node));
+    document.body.appendChild(appShell);
+
+    return appShell;
   }
 
   function ensureMobileNavButton() {
@@ -240,25 +312,18 @@
     overlay.setAttribute("aria-label", "Close finance navigation");
 
     overlay.addEventListener("click", function () {
-      document.body.classList.remove(NAV_OPEN_CLASS);
-
-      const button = q(".sf-nav-mobile-toggle");
-      if (button) button.setAttribute("aria-expanded", "false");
+      closeMobileNav();
     });
 
     document.body.appendChild(overlay);
     return overlay;
   }
 
-  function closeMobileNavOnRouteClick(sidebar) {
-    qa("a", sidebar).forEach((link) => {
-      link.addEventListener("click", function () {
-        document.body.classList.remove(NAV_OPEN_CLASS);
+  function closeMobileNav() {
+    document.body.classList.remove(NAV_OPEN_CLASS);
 
-        const button = q(".sf-nav-mobile-toggle");
-        if (button) button.setAttribute("aria-expanded", "false");
-      });
-    });
+    const button = q(".sf-nav-mobile-toggle");
+    if (button) button.setAttribute("aria-expanded", "false");
   }
 
   function ensureFinanceNav(appShell, enabled) {
@@ -266,23 +331,19 @@
 
     if (!enabled) {
       if (sidebar) sidebar.remove();
-
       const button = q(".sf-nav-mobile-toggle");
       const overlay = q(".sf-nav-overlay");
-
       if (button) button.remove();
       if (overlay) overlay.remove();
-
       appShell.classList.remove("sf-app-shell--with-nav");
-      document.body.classList.remove(NAV_OPEN_CLASS);
-
+      closeMobileNav();
       return null;
     }
 
     if (!sidebar) {
-      const wrapper = document.createElement("div");
-      wrapper.innerHTML = renderFinanceNav().trim();
-      sidebar = wrapper.firstElementChild;
+      const temp = document.createElement("div");
+      temp.innerHTML = renderFinanceNav().trim();
+      sidebar = temp.firstElementChild;
       appShell.insertBefore(sidebar, appShell.firstChild);
     } else {
       sidebar.outerHTML = renderFinanceNav().trim();
@@ -293,7 +354,10 @@
 
     ensureMobileNavButton();
     ensureNavOverlay();
-    closeMobileNavOnRouteClick(sidebar);
+
+    qa("a", sidebar).forEach((link) => {
+      link.addEventListener("click", closeMobileNav);
+    });
 
     return sidebar;
   }
@@ -306,9 +370,10 @@
     pageShell = document.createElement("div");
     pageShell.className = PAGE_CLASS;
 
-    const existing = Array.from(appShell.childNodes);
     const contentSlot = document.createElement("section");
     contentSlot.className = CONTENT_CLASS;
+
+    const existing = Array.from(appShell.childNodes);
 
     existing.forEach((node) => {
       if (node === pageShell) return;
@@ -320,78 +385,6 @@
     appShell.appendChild(pageShell);
 
     return pageShell;
-  }
-
-  function ensureRegion(pageShell, className, create) {
-    let region = q("." + className, pageShell);
-
-    if (!region) {
-      region = document.createElement("section");
-      region.className = className;
-
-      const content = q("." + CONTENT_CLASS, pageShell);
-
-      if (content) {
-        pageShell.insertBefore(region, content);
-      } else {
-        pageShell.appendChild(region);
-      }
-    }
-
-    region.innerHTML = create();
-    region.hidden = !String(region.innerHTML || "").trim();
-
-    return region;
-  }
-
-  function renderHero(config) {
-    const c = normalizeConfig(config);
-
-    const actionHtml = c.actions.map((action) => {
-      return components().button({
-        label: action.label || "Action",
-        labelHtml: action.labelHtml,
-        href: action.href,
-        primary: action.primary,
-        className: action.className,
-        disabled: action.disabled,
-        id: action.id,
-        dataset: action.dataset,
-        ariaLabel: action.ariaLabel
-      });
-    }).join("");
-
-    return `
-      <header class="sf-page-hero">
-        <div class="sf-page-title-group">
-          <div class="sf-page-eyebrow">${escape(c.eyebrow)}</div>
-          <h1 class="sf-page-title">${escape(c.title)}</h1>
-          ${
-            c.subtitleHtml != null
-              ? `<p class="sf-page-subtitle">${String(c.subtitleHtml)}</p>`
-              : c.subtitle
-                ? `<p class="sf-page-subtitle">${escape(c.subtitle)}</p>`
-                : ""
-          }
-        </div>
-
-        ${actionHtml ? `<div class="sf-page-actions">${actionHtml}</div>` : ""}
-      </header>
-    `;
-  }
-
-  function renderControls(config) {
-    const controls = Array.isArray(config.controls) ? config.controls : [];
-    if (!controls.length) return "";
-
-    return controls.map((control) => components().chip(control)).join("");
-  }
-
-  function renderKpis(config) {
-    const kpis = Array.isArray(config.kpis) ? config.kpis : [];
-    if (!kpis.length) return "";
-
-    return kpis.map((kpi) => components().metricCard(kpi)).join("");
   }
 
   function ensureContentSlot(pageShell) {
@@ -406,10 +399,81 @@
     return content;
   }
 
+  function ensureRegion(pageShell, className, create) {
+    let region = q("." + className, pageShell);
+
+    if (!region) {
+      region = document.createElement("section");
+      region.className = className;
+
+      const content = q("." + CONTENT_CLASS, pageShell);
+
+      if (content) pageShell.insertBefore(region, content);
+      else pageShell.appendChild(region);
+    }
+
+    const next = create();
+    region.innerHTML = next;
+    region.hidden = !String(next || "").trim();
+
+    return region;
+  }
+
+  function renderHero(config) {
+    const c = normalizeConfig(config);
+
+    const actionHtml = c.actions.map((action) => buttonHTML({
+      label: action.label || "Action",
+      labelHtml: action.labelHtml,
+      href: action.href,
+      primary: action.primary,
+      className: action.className,
+      disabled: action.disabled,
+      id: action.id,
+      dataset: action.dataset,
+      ariaLabel: action.ariaLabel
+    })).join("");
+
+    return `
+      <header class="sf-page-hero">
+        <div class="sf-page-title-group">
+          <div class="sf-page-eyebrow">${escapeHtml(c.eyebrow)}</div>
+          <h1 class="sf-page-title">${escapeHtml(c.title)}</h1>
+          ${
+            c.subtitleHtml != null
+              ? `<p class="sf-page-subtitle">${String(c.subtitleHtml)}</p>`
+              : c.subtitle
+                ? `<p class="sf-page-subtitle">${escapeHtml(c.subtitle)}</p>`
+                : ""
+          }
+        </div>
+
+        ${actionHtml ? `<div class="sf-page-actions">${actionHtml}</div>` : ""}
+      </header>
+    `;
+  }
+
+  function renderControls(config) {
+    const controls = Array.isArray(config.controls) ? config.controls : [];
+    if (!controls.length) return "";
+
+    return controls.map((control) => chipHTML(control)).join("");
+  }
+
+  function renderKpis(config) {
+    const kpis = Array.isArray(config.kpis) ? config.kpis : [];
+    if (!kpis.length) return "";
+
+    return kpis.map((kpi) => metricCardHTML(kpi)).join("");
+  }
+
   function renderShell(config) {
     const c = normalizeConfig(config);
-    const appShell = ensureAppShell();
 
+    ensureBodyClass();
+    applyDebugMode();
+
+    const appShell = ensureAppShell();
     ensureFinanceNav(appShell, c.nav !== false);
 
     const pageShell = ensurePageShell(appShell);
@@ -424,12 +488,12 @@
     currentConfig = c;
     mounted = true;
 
+    revealDebugIfNeeded();
+
     return pageShell;
   }
 
   function mount(config) {
-    ensureBodyClass();
-    applyDebugMode();
     return renderShell(config || readConfig());
   }
 
@@ -488,16 +552,6 @@
     }
   }
 
-  ready(function () {
-    try {
-      mount();
-      revealDebugIfNeeded();
-    } catch (err) {
-      console.error("[sf-shell] mount failed", err);
-      document.body.classList.add("sf-shell-failed");
-    }
-  });
-
   window[ROOT] = {
     mount,
     refresh,
@@ -519,4 +573,13 @@
       return mounted;
     }
   };
+
+  ready(function () {
+    try {
+      mount();
+    } catch (err) {
+      console.error("[sf-shell] mount failed", err);
+      document.body.classList.add("sf-shell-failed");
+    }
+  });
 })();
