@@ -1,37 +1,26 @@
-/* Sovereign Finance Theme Switcher v1.0.0
+/* Sovereign Finance Theme Switcher v2.0.0
  *
- * Self-contained accent palette switcher.
+ * Folded floating button at top-right of every page.
+ * Click to expand → combo panel with 12 accents + 11 backgrounds.
+ * Click outside or press ESC to fold back.
  *
- * Behavior:
- * - Reads stored accent from localStorage and sets html[data-accent]
- *   synchronously on script execution (prevents FOUC if loaded in <head>).
- * - Mounts a 3-dot switcher into the shared finance sidebar footer.
- * - "..." button opens a full overlay with all 12 palettes.
- * - Each palette pick persists to localStorage and updates the recent set.
- * - The 3 dots in the sidebar reflect the 3 most-recently-applied palettes.
+ * Storage:
+ *   sf-accent  string  active palette id
+ *   sf-bg      string  active background id
  *
- * Storage keys:
- *   sf-accent         string  active palette id
- *   sf-accent-recent  JSON    last 3 palette ids (most recent first)
- *
- * Mount target: first .sf-finance-sidebar in the DOM.
- *   If sidebar isn't present yet, MutationObserver waits up to 10s.
- *
- * Load order: include in <head> non-deferred:
- *   <script src="/js/sf-theme-switcher.js"></script>
- *
- * No deps. No money logic. Pure presentation.
+ * Mounts to document.body (no sidebar dependency, works on every page).
+ * Loads via single <script src="/js/sf-theme-switcher.js"></script> in <head>.
  */
 (function () {
   "use strict";
 
-  var VERSION = "v1.0.0";
-  var STORAGE_KEY = "sf-accent";
-  var RECENT_KEY = "sf-accent-recent";
+  var VERSION = "v2.0.0";
+  var KEY_ACCENT = "sf-accent";
+  var KEY_BG = "sf-bg";
   var DEFAULT_ACCENT = "sapphire";
-  var DEFAULT_RECENT = ["sapphire", "violet", "teal"];
+  var DEFAULT_BG = "slate";
 
-  var PALETTES = [
+  var ACCENTS = [
     { id: "sapphire",  name: "Sapphire",     hex: "#5ba2ff" },
     { id: "violet",    name: "Royal Violet", hex: "#7c5cff" },
     { id: "amethyst",  name: "Amethyst",     hex: "#b86dff" },
@@ -46,243 +35,238 @@
     { id: "ice",       name: "Ice",          hex: "#67e8f9" }
   ];
 
-  // ===== Storage helpers =====
-  function safeGet(key, fallback) {
-    try {
-      var v = localStorage.getItem(key);
-      return v == null ? fallback : v;
-    } catch (e) { return fallback; }
-  }
-  function safeSet(key, value) {
-    try { localStorage.setItem(key, value); } catch (e) {}
-  }
-  function isValidId(id) {
-    for (var i = 0; i < PALETTES.length; i++) {
-      if (PALETTES[i].id === id) return true;
-    }
-    return false;
-  }
-  function paletteById(id) {
-    for (var i = 0; i < PALETTES.length; i++) {
-      if (PALETTES[i].id === id) return PALETTES[i];
-    }
-    return PALETTES[0];
-  }
-  function getStoredAccent() {
-    var v = safeGet(STORAGE_KEY, DEFAULT_ACCENT);
-    return isValidId(v) ? v : DEFAULT_ACCENT;
-  }
-  function getStoredRecent() {
-    try {
-      var raw = safeGet(RECENT_KEY, null);
-      if (!raw) return DEFAULT_RECENT.slice();
-      var arr = JSON.parse(raw);
-      if (!Array.isArray(arr)) return DEFAULT_RECENT.slice();
-      var valid = arr.filter(isValidId);
-      return valid.length ? valid.slice(0, 3) : DEFAULT_RECENT.slice();
-    } catch (e) { return DEFAULT_RECENT.slice(); }
-  }
-  function setStoredRecent(arr) { safeSet(RECENT_KEY, JSON.stringify(arr)); }
+  var BACKGROUNDS = [
+    { id: "slate",       name: "Slate",     color: "#07111f" },
+    { id: "obsidian",    name: "Obsidian",  color: "#0a0a0c" },
+    { id: "graphite-bg", name: "Graphite",  color: "#161618" },
+    { id: "charcoal",    name: "Charcoal",  color: "#1c1c1e" },
+    { id: "midnight",    name: "Midnight",  color: "#0d0d12" },
+    { id: "plum",        name: "Plum",      color: "#14101c" },
+    { id: "espresso",    name: "Espresso",  color: "#1a1612" },
+    { id: "forest",      name: "Forest",    color: "#0a1410" },
+    { id: "black",       name: "Black",     color: "#000000" },
+    { id: "linen",       name: "Linen",     color: "#faf8f3" },
+    { id: "pearl",       name: "Pearl",     color: "#f5f5f7" }
+  ];
 
-  // ===== Apply palette =====
+  // ===== Storage =====
+  function safeGet(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } }
+  function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function isAccent(id) { for (var i = 0; i < ACCENTS.length; i++) if (ACCENTS[i].id === id) return true; return false; }
+  function isBg(id) { for (var i = 0; i < BACKGROUNDS.length; i++) if (BACKGROUNDS[i].id === id) return true; return false; }
+  function findAccent(id) { for (var i = 0; i < ACCENTS.length; i++) if (ACCENTS[i].id === id) return ACCENTS[i]; return ACCENTS[0]; }
+  function findBg(id) { for (var i = 0; i < BACKGROUNDS.length; i++) if (BACKGROUNDS[i].id === id) return BACKGROUNDS[i]; return BACKGROUNDS[0]; }
+  function getAccent() { var v = safeGet(KEY_ACCENT, DEFAULT_ACCENT); return isAccent(v) ? v : DEFAULT_ACCENT; }
+  function getBg() { var v = safeGet(KEY_BG, DEFAULT_BG); return isBg(v) ? v : DEFAULT_BG; }
+
   function applyAccent(id) {
-    if (!isValidId(id)) id = DEFAULT_ACCENT;
+    if (!isAccent(id)) id = DEFAULT_ACCENT;
     document.documentElement.setAttribute("data-accent", id);
-    safeSet(STORAGE_KEY, id);
-    var recent = getStoredRecent();
-    var idx = recent.indexOf(id);
-    if (idx === 0) return id;
-    if (idx > -1) recent.splice(idx, 1);
-    recent.unshift(id);
-    if (recent.length > 3) recent = recent.slice(0, 3);
-    setStoredRecent(recent);
-    return id;
+    safeSet(KEY_ACCENT, id);
+  }
+  function applyBg(id) {
+    if (!isBg(id)) id = DEFAULT_BG;
+    document.documentElement.setAttribute("data-bg", id);
+    safeSet(KEY_BG, id);
   }
 
-  // ===== Synchronous bootstrap (runs immediately, before paint) =====
-  (function bootstrap() {
-    document.documentElement.setAttribute("data-accent", getStoredAccent());
+  // ===== Bootstrap (sync, before paint) =====
+  (function () {
+    document.documentElement.setAttribute("data-accent", getAccent());
+    document.documentElement.setAttribute("data-bg", getBg());
   })();
 
   // ===== UI =====
-  var mountedFooter = null;
-  var overlayEl = null;
+  var buttonEl = null;
+  var panelEl = null;
+  var isOpen = false;
 
-  function buildFooter() {
-    var current = getStoredAccent();
-    var recent = getStoredRecent();
-
-    var footer = document.createElement("div");
-    footer.className = "sf-theme-switcher";
-    footer.innerHTML =
-      '<div class="sf-theme-kicker">Theme</div>' +
-      '<div class="sf-theme-row">' +
-        recent.map(function (id) {
-          var p = paletteById(id);
-          return '<button class="sf-theme-dot' + (id === current ? ' is-active' : '') + '"' +
-                 ' data-accent-id="' + id + '"' +
-                 ' title="' + p.name + '"' +
-                 ' style="--sf-dot:' + p.hex + '"></button>';
-        }).join('') +
-        '<button class="sf-theme-more" title="All palettes" aria-label="All palettes">' +
-          '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">' +
-            '<circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>' +
-          '</svg>' +
-        '</button>' +
-      '</div>';
-
-    footer.addEventListener("click", function (e) {
-      var dot = e.target.closest(".sf-theme-dot");
-      if (dot) {
-        applyAccent(dot.getAttribute("data-accent-id"));
-        refreshFooter();
-        return;
-      }
-      var more = e.target.closest(".sf-theme-more");
-      if (more) openOverlay();
+  function buildButton() {
+    var btn = document.createElement("button");
+    btn.className = "sf-theme-fab";
+    btn.setAttribute("aria-label", "Open theme switcher");
+    btn.setAttribute("title", "Theme");
+    btn.innerHTML = renderFabIcon();
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      toggle();
     });
-
-    return footer;
+    return btn;
   }
 
-  function refreshFooter() {
-    if (!mountedFooter || !mountedFooter.parentNode) return;
-    var fresh = buildFooter();
-    mountedFooter.parentNode.replaceChild(fresh, mountedFooter);
-    mountedFooter = fresh;
-    if (overlayEl) refreshOverlay();
+  function renderFabIcon() {
+    var a = findAccent(getAccent());
+    var b = findBg(getBg());
+    return (
+      '<span class="sf-fab-stack">' +
+        '<span class="sf-fab-dot sf-fab-bg" style="background:' + b.color + '"></span>' +
+        '<span class="sf-fab-dot sf-fab-accent" style="background:' + a.hex + '"></span>' +
+      '</span>'
+    );
   }
 
-  function buildOverlay() {
-    var current = getStoredAccent();
-    var ov = document.createElement("div");
-    ov.className = "sf-theme-overlay";
-    ov.innerHTML =
-      '<div class="sf-theme-modal" role="dialog" aria-label="Choose theme">' +
-        '<div class="sf-theme-modal-head">' +
-          '<div>' +
-            '<div class="sf-theme-modal-kicker">Theme</div>' +
-            '<h3 class="sf-theme-modal-title">Choose accent</h3>' +
-          '</div>' +
-          '<button class="sf-theme-close" aria-label="Close">&times;</button>' +
+  function refreshButton() {
+    if (buttonEl) buttonEl.innerHTML = renderFabIcon();
+  }
+
+  function buildPanel() {
+    var currentA = getAccent();
+    var currentB = getBg();
+    var panel = document.createElement("div");
+    panel.className = "sf-theme-panel";
+    panel.innerHTML =
+      '<div class="sf-theme-panel-head">' +
+        '<div>' +
+          '<div class="sf-theme-panel-kicker">Theme</div>' +
+          '<div class="sf-theme-panel-combo"><b>' + findAccent(currentA).name + '</b> on <b>' + findBg(currentB).name + '</b></div>' +
         '</div>' +
-        '<div class="sf-theme-modal-sub">Tap a palette to apply. The last 3 used appear pinned in the sidebar.</div>' +
-        '<div class="sf-theme-grid">' +
-          PALETTES.map(function (p) {
-            return '<button class="sf-theme-card' + (p.id === current ? ' is-active' : '') + '"' +
-                   ' data-accent-id="' + p.id + '"' +
-                   ' style="--sf-card-color:' + p.hex + '">' +
-                     '<span class="sf-theme-card-swatch"></span>' +
-                     '<span class="sf-theme-card-name">' + p.name + '</span>' +
+        '<button class="sf-theme-panel-close" aria-label="Close">&times;</button>' +
+      '</div>' +
+      '<div class="sf-theme-section">' +
+        '<div class="sf-theme-section-label">Accent</div>' +
+        '<div class="sf-theme-grid sf-theme-grid-accent">' +
+          ACCENTS.map(function (p) {
+            return '<button class="sf-theme-pick' + (p.id === currentA ? ' is-active' : '') + '"' +
+                   ' data-axis="accent" data-id="' + p.id + '"' +
+                   ' title="' + p.name + '"' +
+                   ' style="--sf-pick:' + p.hex + '">' +
+                     '<span class="sf-theme-pick-swatch"></span>' +
+                     '<span class="sf-theme-pick-name">' + p.name + '</span>' +
                    '</button>';
-          }).join('') +
+          }).join("") +
+        '</div>' +
+      '</div>' +
+      '<div class="sf-theme-section">' +
+        '<div class="sf-theme-section-label">Background</div>' +
+        '<div class="sf-theme-grid sf-theme-grid-bg">' +
+          BACKGROUNDS.map(function (b) {
+            return '<button class="sf-theme-pick' + (b.id === currentB ? ' is-active' : '') + '"' +
+                   ' data-axis="bg" data-id="' + b.id + '"' +
+                   ' title="' + b.name + '"' +
+                   ' style="--sf-pick:' + b.color + '">' +
+                     '<span class="sf-theme-pick-swatch sf-theme-pick-square"></span>' +
+                     '<span class="sf-theme-pick-name">' + b.name + '</span>' +
+                   '</button>';
+          }).join("") +
         '</div>' +
       '</div>';
 
-    ov.addEventListener("click", function (e) {
-      if (e.target === ov) { closeOverlay(); return; }
-      if (e.target.closest(".sf-theme-close")) { closeOverlay(); return; }
-      var card = e.target.closest(".sf-theme-card");
-      if (card) {
-        applyAccent(card.getAttribute("data-accent-id"));
-        refreshFooter();
-      }
+    panel.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (e.target.closest(".sf-theme-panel-close")) { close(); return; }
+      var pick = e.target.closest(".sf-theme-pick");
+      if (!pick) return;
+      var axis = pick.getAttribute("data-axis");
+      var id = pick.getAttribute("data-id");
+      if (axis === "accent") applyAccent(id);
+      else applyBg(id);
+      refreshPanel();
+      refreshButton();
     });
 
-    return ov;
+    return panel;
   }
 
-  function refreshOverlay() {
-    if (!overlayEl || !overlayEl.parentNode) return;
-    var fresh = buildOverlay();
+  function refreshPanel() {
+    if (!panelEl || !panelEl.parentNode) return;
+    var fresh = buildPanel();
     fresh.classList.add("is-open");
-    overlayEl.parentNode.replaceChild(fresh, overlayEl);
-    overlayEl = fresh;
+    panelEl.parentNode.replaceChild(fresh, panelEl);
+    panelEl = fresh;
   }
 
-  function openOverlay() {
-    if (overlayEl) return;
-    overlayEl = buildOverlay();
-    document.body.appendChild(overlayEl);
+  function open() {
+    if (isOpen) return;
+    isOpen = true;
+    panelEl = buildPanel();
+    document.body.appendChild(panelEl);
+    requestAnimationFrame(function () { panelEl.classList.add("is-open"); });
+    document.addEventListener("click", onDocClick);
     document.addEventListener("keydown", onEsc);
-    requestAnimationFrame(function () { overlayEl.classList.add("is-open"); });
+    if (buttonEl) buttonEl.classList.add("is-open");
   }
-  function closeOverlay() {
-    if (!overlayEl) return;
-    overlayEl.classList.remove("is-open");
+  function close() {
+    if (!isOpen) return;
+    isOpen = false;
+    if (panelEl) {
+      panelEl.classList.remove("is-open");
+      var dying = panelEl;
+      panelEl = null;
+      setTimeout(function () { if (dying.parentNode) dying.parentNode.removeChild(dying); }, 200);
+    }
+    document.removeEventListener("click", onDocClick);
     document.removeEventListener("keydown", onEsc);
-    var dying = overlayEl;
-    overlayEl = null;
-    setTimeout(function () { if (dying.parentNode) dying.parentNode.removeChild(dying); }, 200);
+    if (buttonEl) buttonEl.classList.remove("is-open");
   }
-  function onEsc(e) { if (e.key === "Escape") closeOverlay(); }
+  function toggle() { isOpen ? close() : open(); }
+  function onDocClick(e) {
+    if (panelEl && (panelEl === e.target || panelEl.contains(e.target))) return;
+    if (buttonEl && (buttonEl === e.target || buttonEl.contains(e.target))) return;
+    close();
+  }
+  function onEsc(e) { if (e.key === "Escape") close(); }
 
   function injectStyles() {
     if (document.getElementById("sf-theme-switcher-styles")) return;
     var css =
-      '.sf-theme-switcher{margin-top:auto;padding:14px 12px 4px;border-top:1px solid var(--sf-border-subtle);}' +
-      '.sf-theme-kicker{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--sf-text-faint);margin-bottom:8px;padding:0 4px;}' +
-      '.sf-theme-row{display:flex;align-items:center;gap:8px;padding:0 4px;}' +
-      '.sf-theme-dot{appearance:none;border:0;padding:0;width:22px;height:22px;border-radius:50%;background:var(--sf-dot,#888);cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,.08);transition:transform .15s var(--sf-ease,ease),box-shadow .15s var(--sf-ease,ease);}' +
-      '.sf-theme-dot:hover{transform:scale(1.12);}' +
-      '.sf-theme-dot.is-active{box-shadow:0 0 0 2px var(--sf-bg,#07111f),0 0 0 4px var(--sf-dot,#888);}' +
-      '.sf-theme-more{appearance:none;border:1px solid var(--sf-border);background:var(--sf-surface-1);color:var(--sf-text-soft);width:28px;height:22px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-left:2px;transition:all .15s var(--sf-ease,ease);}' +
-      '.sf-theme-more:hover{border-color:var(--sf-accent-border);color:var(--sf-accent-strong);}' +
+      '.sf-theme-fab{position:fixed;top:14px;right:14px;z-index:9998;width:42px;height:42px;border-radius:14px;border:1px solid var(--sf-border,rgba(255,255,255,.14));background:var(--sf-surface-1,rgba(20,20,24,.9));backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--sf-shadow-sm,0 10px 24px rgba(0,0,0,.18));transition:transform .15s var(--sf-ease,ease),border-color .15s var(--sf-ease,ease),box-shadow .15s var(--sf-ease,ease);padding:0;}' +
+      '.sf-theme-fab:hover{transform:translateY(-1px);border-color:var(--sf-accent-border,rgba(91,162,255,.34));box-shadow:0 8px 24px var(--sf-accent-glow,rgba(91,162,255,.36));}' +
+      '.sf-theme-fab.is-open{border-color:var(--sf-accent-border,rgba(91,162,255,.34));box-shadow:0 0 0 2px var(--sf-accent-soft,rgba(91,162,255,.16));}' +
+      '.sf-fab-stack{position:relative;width:24px;height:24px;}' +
+      '.sf-fab-dot{position:absolute;width:16px;height:16px;border-radius:50%;border:1.5px solid var(--sf-surface-1,rgba(20,20,24,.9));}' +
+      '.sf-fab-bg{top:0;left:0;}' +
+      '.sf-fab-accent{bottom:0;right:0;}' +
 
-      '.sf-theme-overlay{position:fixed;inset:0;background:var(--sf-overlay,rgba(3,8,16,.78));backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:24px;z-index:9999;opacity:0;transition:opacity .2s var(--sf-ease,ease);}' +
-      '.sf-theme-overlay.is-open{opacity:1;}' +
-      '.sf-theme-modal{background:linear-gradient(180deg,var(--sf-card-strong) 0%,var(--sf-card) 100%);border:1px solid var(--sf-border);border-radius:var(--sf-radius-lg,24px);padding:28px;width:min(100%,640px);max-height:85vh;overflow:auto;box-shadow:var(--sf-shadow-lg);}' +
-      '.sf-theme-modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;}' +
-      '.sf-theme-modal-kicker{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--sf-text-faint);}' +
-      '.sf-theme-modal-title{margin:4px 0 0;font-size:22px;font-weight:700;letter-spacing:-.02em;color:var(--sf-text);}' +
-      '.sf-theme-modal-sub{margin-top:6px;font-size:13px;color:var(--sf-text-muted);}' +
-      '.sf-theme-close{appearance:none;background:transparent;border:0;color:var(--sf-text-muted);font-size:24px;line-height:1;cursor:pointer;padding:4px 12px;border-radius:8px;transition:all .15s var(--sf-ease,ease);}' +
-      '.sf-theme-close:hover{background:var(--sf-surface-1);color:var(--sf-text);}' +
-      '.sf-theme-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:20px;}' +
-      '.sf-theme-card{appearance:none;text-align:left;padding:14px;border:1px solid var(--sf-border);border-radius:var(--sf-radius-sm,14px);background:var(--sf-surface-1);color:var(--sf-text-soft);cursor:pointer;display:flex;align-items:center;gap:12px;transition:all .15s var(--sf-ease,ease);}' +
-      '.sf-theme-card:hover{transform:translateY(-2px);border-color:var(--sf-accent-border);}' +
-      '.sf-theme-card.is-active{border-color:var(--sf-accent-border);background:var(--sf-accent-soft);color:var(--sf-accent-strong);box-shadow:var(--sf-shadow-accent);}' +
-      '.sf-theme-card-swatch{width:24px;height:24px;border-radius:50%;background:var(--sf-card-color,#888);box-shadow:0 0 0 1px rgba(255,255,255,.08),0 0 12px var(--sf-card-color,#888);flex-shrink:0;}' +
-      '.sf-theme-card-name{font-size:13px;font-weight:600;}' +
-      '@media (max-width:720px){.sf-theme-grid{grid-template-columns:repeat(2,1fr);}}';
+      '.sf-theme-panel{position:fixed;top:64px;right:14px;z-index:9999;width:340px;max-width:calc(100vw - 28px);max-height:calc(100vh - 84px);overflow:auto;background:linear-gradient(180deg,var(--sf-card-strong,rgba(26,26,30,.96)) 0%,var(--sf-card,rgba(18,18,22,.85)) 100%);border:1px solid var(--sf-border,rgba(255,255,255,.14));border-radius:18px;padding:16px;box-shadow:var(--sf-shadow-lg,0 24px 70px rgba(0,0,0,.34));opacity:0;transform:translateY(-6px) scale(.98);transform-origin:top right;transition:opacity .18s var(--sf-ease,ease),transform .18s var(--sf-ease,ease);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}' +
+      '.sf-theme-panel.is-open{opacity:1;transform:translateY(0) scale(1);}' +
+
+      '.sf-theme-panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;}' +
+      '.sf-theme-panel-kicker{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--sf-text-faint,#71717a);}' +
+      '.sf-theme-panel-combo{margin-top:4px;font-size:13px;color:var(--sf-text-soft,#d4d4d8);}' +
+      '.sf-theme-panel-combo b{color:var(--sf-accent-strong,#7cc4ff);font-weight:600;}' +
+      '.sf-theme-panel-close{appearance:none;background:transparent;border:0;color:var(--sf-text-muted,#a1a1aa);font-size:22px;line-height:1;cursor:pointer;padding:2px 8px;border-radius:8px;transition:all .15s var(--sf-ease,ease);}' +
+      '.sf-theme-panel-close:hover{background:var(--sf-surface-2,rgba(36,36,40,.96));color:var(--sf-text,#fff);}' +
+
+      '.sf-theme-section{margin-bottom:14px;}' +
+      '.sf-theme-section:last-child{margin-bottom:0;}' +
+      '.sf-theme-section-label{font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--sf-text-faint,#71717a);margin-bottom:8px;padding:0 2px;}' +
+
+      '.sf-theme-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}' +
+      '.sf-theme-pick{appearance:none;border:1px solid var(--sf-border,rgba(255,255,255,.14));background:var(--sf-surface-1,rgba(20,20,24,.9));color:var(--sf-text-soft,#d4d4d8);padding:8px 8px 8px 6px;border-radius:10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s var(--sf-ease,ease);text-align:left;line-height:1.1;}' +
+      '.sf-theme-pick:hover{transform:translateY(-1px);border-color:var(--sf-border-strong,rgba(255,255,255,.24));}' +
+      '.sf-theme-pick.is-active{border-color:var(--sf-accent-border,rgba(91,162,255,.34));background:var(--sf-accent-soft,rgba(91,162,255,.16));color:var(--sf-accent-strong,#7cc4ff);box-shadow:0 0 0 1px var(--sf-accent-border,rgba(91,162,255,.34));}' +
+      '.sf-theme-pick-swatch{width:14px;height:14px;border-radius:50%;background:var(--sf-pick,#888);box-shadow:0 0 0 1px rgba(255,255,255,.12);flex-shrink:0;}' +
+      '.sf-theme-pick-square{border-radius:4px;}' +
+      '.sf-theme-pick-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+
+      '@media (max-width:520px){.sf-theme-panel{width:calc(100vw - 28px);}.sf-theme-grid{grid-template-columns:repeat(2,1fr);}}';
     var style = document.createElement("style");
     style.id = "sf-theme-switcher-styles";
     style.textContent = css;
     document.head.appendChild(style);
   }
 
-  function tryMount() {
-    var sidebar = document.querySelector(".sf-finance-sidebar");
-    if (!sidebar) return false;
-    if (sidebar.querySelector(".sf-theme-switcher")) return true;
+  function mount() {
+    if (document.querySelector(".sf-theme-fab")) return;
     injectStyles();
-    var footer = buildFooter();
-    sidebar.appendChild(footer);
-    mountedFooter = footer;
-    return true;
-  }
-
-  function mountWhenReady() {
-    if (tryMount()) return;
-    var observer = new MutationObserver(function () {
-      if (tryMount()) observer.disconnect();
-    });
-    observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
-    setTimeout(function () { observer.disconnect(); }, 10000);
+    buttonEl = buildButton();
+    document.body.appendChild(buttonEl);
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", mountWhenReady);
+    document.addEventListener("DOMContentLoaded", mount);
   } else {
-    mountWhenReady();
+    mount();
   }
 
   window.SFThemeSwitcher = {
     version: VERSION,
-    palettes: function () { return PALETTES.slice(); },
-    current: function () { return document.documentElement.getAttribute("data-accent"); },
-    apply: function (id) { applyAccent(id); refreshFooter(); },
-    open: openOverlay,
-    close: closeOverlay
+    accents: function () { return ACCENTS.slice(); },
+    backgrounds: function () { return BACKGROUNDS.slice(); },
+    current: function () { return { accent: getAccent(), bg: getBg() }; },
+    applyAccent: function (id) { applyAccent(id); refreshButton(); if (panelEl) refreshPanel(); },
+    applyBg: function (id) { applyBg(id); refreshButton(); if (panelEl) refreshPanel(); },
+    open: open,
+    close: close
   };
 })();
