@@ -1,18 +1,19 @@
 /* js/transactions-v084.js
  * Sovereign Finance · Ledger Console
- * v0.8.6-ledger-renderer-stable
+ * v0.8.7-card-title-class-isolation
  *
- * Fixes:
- * - Restores missing fetchJSON.
- * - Keeps transfer pair display as one leg only.
- * - Shortens giant note titles.
- * - Keeps backend untouched.
+ * Fix:
+ * - Card titles no longer use .ledger-title.
+ * - .ledger-title remains reserved for the page hero heading.
+ * - Ledger cards now use .ledger-card-title with scoped renderer styling.
+ * - Keeps transfer pair amount display as one leg only.
+ * - Keeps shortened note titles.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.8.6-ledger-renderer-stable';
+  const VERSION = 'v0.8.7-card-title-class-isolation';
 
   const API_TRANSACTIONS = '/api/transactions?include_reversed=1&limit=500';
   const API_ACCOUNTS = '/api/add/context';
@@ -103,9 +104,7 @@
 
   function accountLabel(id) {
     const account = state.accounts.get(String(id || ''));
-
     if (!account) return id || '—';
-
     return `${account.icon || ''} ${account.name || account.id || id}`.trim();
   }
 
@@ -192,13 +191,11 @@
 
   function normalizeTransactionRows(payload) {
     if (!payload) return [];
-
     if (Array.isArray(payload)) return payload;
     if (Array.isArray(payload.transactions)) return payload.transactions;
     if (Array.isArray(payload.rows)) return payload.rows;
     if (Array.isArray(payload.data)) return payload.data;
     if (Array.isArray(payload.result)) return payload.result;
-
     return [];
   }
 
@@ -255,12 +252,10 @@
       .sort((a, b) => {
         const ad = String(a.date || '');
         const bd = String(b.date || '');
-
         if (ad !== bd) return bd.localeCompare(ad);
 
         const ac = String(a.created_at || '');
         const bc = String(b.created_at || '');
-
         if (ac !== bc) return bc.localeCompare(ac);
 
         return String(b.key).localeCompare(String(a.key));
@@ -271,9 +266,7 @@
     const rows = group.rows.slice().sort((a, b) => {
       const ac = String(a.created_at || '');
       const bc = String(b.created_at || '');
-
       if (ac !== bc) return bc.localeCompare(ac);
-
       return String(b.id).localeCompare(String(a.id));
     });
 
@@ -386,7 +379,6 @@
   function groupAmountText(group) {
     if (group.type === 'linked_pair') return money(group.amount, true);
     if (group.type === 'intl_package') return money(-group.amount);
-
     return money(signedAmount(group.primary));
   }
 
@@ -532,7 +524,7 @@
           <div class="ledger-icon">${groupIcon(group)}</div>
 
           <div>
-            <div class="ledger-title">${esc(groupTitle(group))}</div>
+            <div class="ledger-card-title">${esc(groupTitle(group))}</div>
             <div class="ledger-sub">${esc(groupSubtitle(group))}</div>
           </div>
 
@@ -587,7 +579,7 @@
           <div class="ledger-icon">${groupIcon({ type: 'single', primary: row })}</div>
 
           <div>
-            <div class="ledger-title">${esc(rowTitle(row))}</div>
+            <div class="ledger-card-title">${esc(rowTitle(row))}</div>
             <div class="ledger-sub">${esc(row.date || '—')} · ${esc(accountLabel(row.account_id))} · ${esc(typeLabel(row.type))} · ${esc(shortId(row.id))}</div>
           </div>
 
@@ -950,9 +942,32 @@
     }, 3000);
   }
 
+  function injectStyles() {
+    if ($('ledger-card-title-style')) return;
+
+    const style = document.createElement('style');
+    style.id = 'ledger-card-title-style';
+    style.textContent = `
+      .ledger-card-title {
+        color: var(--sf-text);
+        font-size: 14px;
+        line-height: 1.25;
+        font-weight: 900;
+        letter-spacing: normal;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
   function init() {
+    injectStyles();
+
     setText('ledgerJsVersion', VERSION);
-    setText('ledgerFooterVersion', `v0.8.6 · transactions · ${VERSION}`);
+    setText('ledgerFooterVersion', `v0.8.7 · transactions · ${VERSION}`);
 
     bindFilters();
     loadAll();
