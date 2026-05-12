@@ -160,6 +160,7 @@
       flex-wrap: wrap;
       gap: var(--sf-space-3);
       align-items: center;
+      margin-bottom: var(--sf-space-4);
     }
 
     .accounts-archived-head {
@@ -194,7 +195,8 @@
         grid-template-columns: 1fr;
       }
 
-      .accounts-list-host .mini-row-right {
+      .accounts-list-host .mini-row-right,
+      .accounts-summary-value {
         text-align: left;
       }
     }
@@ -334,51 +336,6 @@
   <script src="/js/nav.js"></script>
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
-  <script src="/js/app.js"></script>
-  <script src="/js/store.js"></script>
-  <script src="/js/numbers.js"></script>
   <script src="/js/accounts.js"></script>
-  <script>
-    (function () {
-      function syncText(fromId, toId) {
-        var from = document.getElementById(fromId);
-        var to = document.getElementById(toId);
-        if (!from || !to) return;
-        to.textContent = from.textContent || "—";
-      }
-
-      function runSync() {
-        syncText("acc-net-worth", "acc-net-worth-kpi");
-        syncText("acc-assets-count", "acc-assets-count-kpi");
-        syncText("acc-assets-total", "acc-assets-total-kpi");
-        syncText("acc-liabilities-count", "acc-liabilities-count-kpi");
-        syncText("acc-liabilities-total", "acc-liabilities-total-kpi");
-        syncText("acc-archived-count", "acc-archived-count-kpi");
-      }
-
-      function watch(id) {
-        var node = document.getElementById(id);
-        if (!node || typeof MutationObserver === "undefined") return;
-        var observer = new MutationObserver(runSync);
-        observer.observe(node, { childList: true, subtree: true, characterData: true });
-      }
-
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", function () {
-          runSync();
-          [
-            "acc-net-worth",
-            "acc-assets-count",
-            "acc-assets-total",
-            "acc-liabilities-count",
-            "acc-liabilities-total",
-            "acc-archived-count"
-          ].forEach(watch);
-        }, { once: true });
-      } else {
-        runSync();
-      }
-    })();
-  </script>
 </body>
 </html>
