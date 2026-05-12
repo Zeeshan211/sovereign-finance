@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audit Log — Sovereign Finance</title>
+    <title>Edit Transaction — Sovereign Finance</title>
     <script src="/js/sf-theme-switcher.js"></script>
     <link rel="stylesheet" href="/css/sf-theme.css">
     <link rel="stylesheet" href="/css/sf-shell.css">
@@ -16,51 +16,69 @@
             <section class="sf-page-content">
                 <div class="sf-page-hero">
                     <div class="sf-page-title-group">
-                        <span class="sf-page-eyebrow">Control / QA</span>
-                        <h1 class="sf-page-title">Audit Log</h1>
-                        <p class="sf-page-subtitle">Every state-changing action recorded with timestamp, actor, and payload diff. Read-only.</p>
+                        <span class="sf-page-eyebrow">Edit</span>
+                        <h1 class="sf-page-title">Edit Transaction</h1>
+                        <p class="sf-page-subtitle">Modify or delete a single ledger row. Reverse-and-recreate is preferred for audited rows.</p>
                     </div>
                     <div class="sf-page-actions">
-                        <span class="sf-pill sf-pill--info" id="audit-summary">loading…</span>
+                        <span class="sf-pill sf-pill--info" id="edit-id-badge">loading</span>
                     </div>
                 </div>
 
                 <div class="sf-panel">
                     <div class="sf-section-head">
                         <div>
-                            <p class="sf-section-kicker">Filter</p>
-                            <h3 class="sf-section-title">Action filter</h3>
-                        </div>
-                        <div class="sf-section-meta">
-                            <button id="auditRefresh" class="sf-button sf-button--primary" title="Refresh">↻ Refresh</button>
+                            <p class="sf-section-kicker">Transaction</p>
+                            <h3 class="sf-section-title">Update fields</h3>
+                            <p class="sf-section-subtitle">Backend remains source of truth. Submit to PUT.</p>
                         </div>
                     </div>
-                    <div class="sf-form-grid">
+
+                    <form id="editForm" class="sf-form-grid" autocomplete="off">
+                        <div class="sf-field sf-span-12">
+                            <label class="sf-label">Type</label>
+                            <div class="sf-chip-row type-toggle">
+                                <button type="button" class="sf-chip type-btn" data-type="expense">Expense</button>
+                                <button type="button" class="sf-chip type-btn" data-type="income">Income</button>
+                                <button type="button" class="sf-chip type-btn" data-type="transfer">Transfer</button>
+                            </div>
+                        </div>
+
                         <div class="sf-field sf-span-6">
-                            <label for="actionFilter">Action type</label>
-                            <select id="actionFilter" class="sf-select">
-                                <option value="">All actions</option>
-                            </select>
+                            <label for="amountInput">Amount</label>
+                            <input id="amountInput" class="sf-input amount-input" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" required>
                         </div>
-                    </div>
-                </div>
 
-                <div class="sf-panel">
-                    <div class="sf-section-head">
-                        <div>
-                            <p class="sf-section-kicker">Log</p>
-                            <h3 class="sf-section-title">Recorded actions</h3>
-                            <p class="sf-section-subtitle">Newest first. Showing currently-loaded set.</p>
+                        <div class="sf-field sf-span-6">
+                            <label for="dateInput">Date</label>
+                            <input id="dateInput" class="sf-input form-input" type="date">
                         </div>
-                    </div>
-                    <div id="audit-list">
-                        <div class="sf-empty-state"><div><p>Loading audit log…</p></div></div>
-                    </div>
+
+                        <div class="sf-field sf-span-6">
+                            <label for="accountSelect">Account</label>
+                            <select id="accountSelect" class="sf-select form-select" required></select>
+                        </div>
+
+                        <div class="sf-field sf-span-6">
+                            <label for="categorySelect">Category</label>
+                            <select id="categorySelect" class="sf-select form-select"></select>
+                        </div>
+
+                        <div class="sf-field sf-span-12">
+                            <label for="notesInput">Notes <span style="text-transform:none;color:var(--sf-text-faint);">optional</span></label>
+                            <input id="notesInput" class="sf-input form-input" type="text" maxlength="200" placeholder="What was this for?">
+                        </div>
+
+                        <div class="sf-span-12" style="display:flex;gap:10px;justify-content:flex-end;">
+                            <button id="deleteBtn" type="button" class="sf-button danger-btn" style="color:var(--sf-danger);border-color:var(--sf-danger);">Delete Transaction</button>
+                            <button id="submitBtn" type="submit" class="sf-button sf-button--primary primary-btn">Update Transaction</button>
+                        </div>
+                    </form>
                 </div>
             </section>
         </main>
     </div>
 
-    <script src="/js/audit.js"></script>
+    <script src="/js/edit.js"></script>
 </body>
 </html>
