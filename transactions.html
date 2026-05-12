@@ -1,52 +1,60 @@
-<!doctype html>
-<html lang="en" data-theme="light">
+<!DOCTYPE html>
+<html lang="en" data-page="transactions">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sovereign Finance — Ledger</title>
-  <link rel="stylesheet" href="/css/app.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#050816">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+
+  <title>Ledger · Sovereign Finance</title>
+
+  <script src="/js/sf-theme-switcher.js"></script>
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
 
   <style>
     .ledger-os {
-      width: min(100%, var(--content-max));
+      width: min(100%, 1480px);
       margin: 0 auto;
       display: grid;
-      gap: 18px;
+      gap: var(--sf-space-5, 20px);
     }
 
     .ledger-command {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      gap: 16px;
+      gap: var(--sf-space-4, 16px);
       align-items: center;
-      padding: 18px;
-      border: 1px solid var(--border);
-      border-radius: var(--r-xl);
-      background: var(--surface-1);
-      box-shadow: var(--shadow-sm);
+      padding: clamp(18px, 3vw, 28px);
+      border: 1px solid var(--sf-border);
+      border-radius: var(--sf-radius-xl, 24px);
+      background: var(--sf-card);
+      box-shadow: var(--sf-shadow-sm);
     }
 
     .ledger-title {
       margin: 0;
-      color: var(--text-strong);
-      font-size: clamp(28px, 4vw, 48px);
-      line-height: .95;
+      color: var(--sf-text);
+      font-size: clamp(32px, 5vw, 58px);
+      line-height: .92;
       font-weight: 950;
       letter-spacing: -.07em;
     }
 
     .ledger-copy {
-      margin: 8px 0 0;
-      color: var(--text-muted);
-      font-size: 14px;
-      font-weight: 760;
-      line-height: 1.45;
+      margin: 10px 0 0;
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-14, 14px);
+      font-weight: 700;
+      line-height: 1.5;
+      max-width: 820px;
     }
 
     .ledger-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: var(--sf-space-2, 10px);
       justify-content: flex-end;
     }
 
@@ -54,19 +62,19 @@
       position: relative;
       overflow: hidden;
       padding: clamp(22px, 4vw, 38px);
-      border-radius: var(--r-2xl);
+      border-radius: var(--sf-radius-2xl, 30px);
       color: #f8fafc;
       background:
         radial-gradient(circle at 82% 12%, rgba(16, 185, 129, .32), transparent 24rem),
         linear-gradient(135deg, #06111f, #0f172a 48%, #123c3a);
-      border: 1px solid rgba(255,255,255,.10);
-      box-shadow: var(--shadow-lg);
+      border: 1px solid rgba(255, 255, 255, .10);
+      box-shadow: var(--sf-shadow-lg);
     }
 
     .ledger-insight h2 {
       margin: 12px 0 0;
       color: #fff;
-      font-size: clamp(36px, 6vw, 70px);
+      font-size: clamp(34px, 6vw, 68px);
       line-height: .92;
       font-weight: 950;
       letter-spacing: -.075em;
@@ -76,7 +84,7 @@
       max-width: 780px;
       margin: 14px 0 0;
       color: #cbd5e1;
-      font-size: 15px;
+      font-size: var(--sf-font-15, 15px);
       line-height: 1.6;
       font-weight: 720;
     }
@@ -84,133 +92,41 @@
     .ledger-metrics {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: 14px;
+      gap: var(--sf-space-4, 14px);
     }
 
     .ledger-workspace {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
-      gap: 16px;
+      gap: var(--sf-space-4, 16px);
       align-items: start;
     }
 
     .ledger-filter-grid {
       display: grid;
       grid-template-columns: 1.3fr repeat(4, minmax(130px, .7fr));
-      gap: 12px;
-      margin-top: 14px;
+      gap: var(--sf-space-3, 12px);
+      margin-top: var(--sf-space-4, 14px);
     }
 
     .ledger-list {
       display: grid;
-      gap: 8px;
-      margin-top: 16px;
+      gap: var(--sf-space-3, 12px);
+      margin-top: var(--sf-space-4, 16px);
     }
 
-    .ledger-row {
-      cursor: pointer;
+    .ledger-health-grid {
       display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 0;
-      align-items: center;
-      padding: 14px;
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      background: var(--surface-1);
-      box-shadow: var(--shadow-xs);
-      transition: transform var(--fast), border-color var(--fast), box-shadow var(--fast), background var(--fast);
+      gap: var(--sf-space-3, 12px);
+      margin-top: var(--sf-space-3, 12px);
     }
 
-    .ledger-row:hover {
-      transform: translateY(-1px);
-      border-color: rgba(4, 120, 87, .24);
-      box-shadow: var(--shadow-sm);
-      background: rgba(4, 120, 87, .045);
-    }
-
-    .ledger-row.is-open {
-      border-color: rgba(4, 120, 87, 0.34);
-      background:
-        linear-gradient(135deg, rgba(4, 120, 87, 0.075), transparent 58%),
-        var(--surface-1);
-      box-shadow: var(--shadow-md);
-    }
-
-    .ledger-row-main {
-      min-width: 0;
-    }
-
-    .ledger-row-top {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 14px;
-      align-items: start;
-    }
-
-    .ledger-row-title {
-      margin-top: 8px;
-      color: var(--text-strong);
-      font-size: 15px;
-      font-weight: 950;
-      letter-spacing: -.025em;
-      overflow-wrap: anywhere;
-    }
-
-    .ledger-row-meta,
-    .ledger-row-folded-meta {
-      margin-top: 4px;
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 760;
-      overflow-wrap: anywhere;
-    }
-
-    .ledger-row-folded-meta {
-      margin-top: 6px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .ledger-row-hint {
-      margin-top: 8px;
-      color: var(--text-soft);
-      font-size: 11px;
-      font-weight: 800;
-    }
-
-    .ledger-row.is-open .ledger-row-hint {
-      display: none;
-    }
-
-    .ledger-row-expanded {
-      display: none;
-      margin-top: 14px;
-      padding-top: 14px;
-      border-top: 1px solid var(--border);
-    }
-
-    .ledger-row.is-open .ledger-row-expanded {
-      display: block;
-    }
-
-    .ledger-amount {
-      font-size: 17px;
-      font-weight: 950;
-      white-space: nowrap;
-      text-align: right;
-    }
-
-    .ledger-row-actions {
+    .ledger-health-line {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    .ledger-confirm {
-      border: 1px solid rgba(185, 28, 28, .22);
-      background: linear-gradient(135deg, var(--danger-soft), transparent 68%), var(--surface-1);
+      justify-content: space-between;
+      gap: var(--sf-space-3, 12px);
+      padding: 10px 0;
+      border-bottom: 1px solid var(--sf-border-subtle);
     }
 
     .ledger-detail-pre {
@@ -218,40 +134,73 @@
       overflow: auto;
       max-height: 420px;
       padding: 12px;
-      border-radius: 14px;
-      background: var(--surface-2);
-      color: var(--text-muted);
-      font-size: 12px;
+      border-radius: var(--sf-radius-sm, 14px);
+      background: var(--sf-surface-2);
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-12, 12px);
       line-height: 1.5;
     }
 
-    .ledger-mini-grid {
+    .ledger-confirm {
+      border: 1px solid rgba(185, 28, 28, .22);
+      background:
+        linear-gradient(135deg, var(--sf-danger-soft), transparent 68%),
+        var(--sf-card);
+    }
+
+    .ledger-operator-note {
+      padding: var(--sf-space-4, 16px);
+      border: 1px solid rgba(241, 184, 87, .28);
+      border-radius: var(--sf-radius-md, 18px);
+      background: var(--sf-warning-soft);
+      color: var(--sf-warning);
+      font-size: var(--sf-font-13, 13px);
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .sf-field {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 10px;
-      margin-top: 12px;
+      gap: var(--sf-space-2, 8px);
     }
 
-    .ledger-mini {
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: var(--surface-2);
-      padding: 12px;
-    }
-
-    .ledger-mini-label {
-      color: var(--text-muted);
-      font-size: 11px;
-      font-weight: 950;
+    .sf-field label {
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-12, 12px);
+      font-weight: 850;
+      letter-spacing: .08em;
       text-transform: uppercase;
-      letter-spacing: .06em;
     }
 
-    .ledger-mini-value {
-      margin-top: 5px;
-      color: var(--text-strong);
-      font-weight: 950;
-      overflow-wrap: anywhere;
+    .sf-input,
+    .sf-select {
+      width: 100%;
+      border: 1px solid var(--sf-border);
+      border-radius: var(--sf-radius-sm, 14px);
+      background: var(--sf-surface-1);
+      color: var(--sf-text);
+      padding: 12px 13px;
+      font: inherit;
+      outline: none;
+    }
+
+    .sf-input:focus,
+    .sf-select:focus {
+      border-color: var(--sf-accent);
+      box-shadow: 0 0 0 3px var(--sf-accent-soft);
+    }
+
+    .legacy-id-note {
+      color: var(--sf-text-faint);
+      font-size: var(--sf-font-11, 11px);
+      font-weight: 700;
+      line-height: 1.45;
+      margin-top: var(--sf-space-3, 12px);
+    }
+
+    .sf-debug-panel[hidden],
+    #reversePanel[hidden] {
+      display: none;
     }
 
     @media (max-width: 1180px) {
@@ -267,1068 +216,270 @@
     }
 
     @media (max-width: 760px) {
-      .ledger-row-top {
-        grid-template-columns: 1fr;
-      }
-
-      .ledger-amount {
-        text-align: left;
-      }
-
-      .ledger-row-actions .btn,
-      .ledger-actions .btn {
+      .ledger-actions .sf-button {
         width: 100%;
       }
     }
   </style>
 </head>
 
-<body>
-  <main class="app-page" data-page="transactions" data-version="ledger-product-v1.2.1-folded">
-    <div class="ledger-os">
-      <section class="ledger-command">
-        <div>
-          <div class="section-kicker">Sovereign Ledger</div>
-          <h1 class="ledger-title">Ledger</h1>
-          <p class="ledger-copy">Folded money movement, safe reverse, grouped audit packages, and international transaction visibility from existing Add Transaction data.</p>
-        </div>
-        <div class="ledger-actions">
-          <a class="btn btn-success" href="/add.html">Add Transaction</a>
-          <a class="btn btn-secondary" href="/bills.html">Bills</a>
-          <a class="btn btn-secondary" href="/debts.html">Debts</a>
-          <a class="btn btn-secondary" href="/">Hub</a>
-        </div>
-      </section>
+<body class="sf-shell-body">
+  <div class="sf-app-shell sf-app-shell--with-nav">
+    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
 
-      <section class="ledger-insight">
-        <div class="hero-kicker">Ledger OS</div>
-        <h2>Every movement has context.</h2>
-        <p>Rows stay folded until you open them. Reverse and audit actions appear only when needed, keeping the ledger clean while preserving full audit detail.</p>
-      </section>
-
-      <section id="ledgerStatus" class="panel card-padded">
-        <div class="strong">Loading ledger…</div>
-        <div class="muted">Reading transactions with reversal rows and building audit groups.</div>
-      </section>
-
-      <section id="reversePanel" class="panel card-padded ledger-confirm" hidden></section>
-
-      <section class="ledger-metrics">
-        <article class="metric-card">
-          <div class="metric-label">Money in</div>
-          <div id="moneyIn" class="metric-value">—</div>
-          <div class="metric-sub">Visible active inflow.</div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-label">Money out</div>
-          <div id="moneyOut" class="metric-value">—</div>
-          <div class="metric-sub">Visible active outflow.</div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-label">Net movement</div>
-          <div id="netMovement" class="metric-value">—</div>
-          <div class="metric-sub">Income minus expense.</div>
-        </article>
-        <article class="metric-card">
-          <div class="metric-label">Reverse eligible</div>
-          <div id="reverseEligible" class="metric-value">—</div>
-          <div class="metric-sub">Safe ledger-only groups.</div>
-        </article>
-      </section>
-
-      <section class="panel card-padded">
-        <div class="section-kicker">Controls</div>
-        <div class="ledger-filter-grid">
-          <div class="form-field">
-            <label for="searchInput">Search</label>
-            <input id="searchInput" type="search" placeholder="Search transaction, account, category, merchant, notes" />
+    <main class="sf-page-shell">
+      <section class="sf-page-content ledger-os">
+        <section class="ledger-command">
+          <div>
+            <div class="sf-page-eyebrow">Sovereign Ledger</div>
+            <h1 class="ledger-title">Ledger</h1>
+            <p class="ledger-copy">
+              Folded money movement, safe reverse, grouped audit packages, and international transaction visibility
+              from backend-derived ledger truth.
+            </p>
           </div>
-          <div class="form-field">
-            <label for="accountFilter">Account</label>
-            <select id="accountFilter"><option value="">All accounts</option></select>
+
+          <div class="ledger-actions">
+            <a class="sf-button sf-button--primary" href="/add.html">Add Transaction</a>
+            <a class="sf-button" href="/bills.html">Bills</a>
+            <a class="sf-button" href="/debts.html">Debts</a>
+            <a class="sf-button" href="/index.html">Hub</a>
           </div>
-          <div class="form-field">
-            <label for="typeFilter">Type</label>
-            <select id="typeFilter">
-              <option value="">All types</option>
-              <option value="income">Income</option>
-              <option value="expense">Expense</option>
-              <option value="transfer">Transfer</option>
-              <option value="atm">ATM</option>
-              <option value="bill">Bill</option>
-              <option value="debt">Debt</option>
-              <option value="international">International</option>
-              <option value="reversed">Reversed</option>
-            </select>
+        </section>
+
+        <section class="ledger-insight">
+          <div class="sf-page-eyebrow">Ledger OS</div>
+          <h2>Every movement has context.</h2>
+          <p>
+            Rows stay folded until opened. Reversals are append-only. Transfer pairs and international packages are
+            grouped from backend metadata instead of frontend guessing.
+          </p>
+        </section>
+
+        <section id="ledgerStatus" class="sf-panel">
+          <div class="sf-section-head" style="margin-bottom:0;">
+            <div>
+              <p class="sf-section-kicker">Backend Status</p>
+              <h2 class="sf-section-title" id="ledgerHealth">Loading ledger…</h2>
+              <p class="sf-section-subtitle" id="healthDetail">
+                Reading transactions with reversal rows and building backend-derived groups.
+              </p>
+            </div>
+
+            <div class="sf-page-actions">
+              <button class="sf-button" type="button" data-include-reversed="1">
+                Include Reversals
+              </button>
+              <button class="sf-button sf-button--primary" id="refresh_btn" type="button">
+                Refresh
+              </button>
+            </div>
           </div>
-          <div class="form-field">
-            <label for="statusFilter">Status</label>
-            <select id="statusFilter">
-              <option value="">All status</option>
-              <option value="eligible">Reverse eligible</option>
-              <option value="blocked">Reverse blocked</option>
-              <option value="grouped">Grouped</option>
-              <option value="reversed">Reversed</option>
-            </select>
+        </section>
+
+        <section id="reversePanel" class="sf-panel ledger-confirm" hidden>
+          <div class="sf-section-head" style="margin-bottom:0;">
+            <div>
+              <p class="sf-section-kicker">Reverse Confirmation</p>
+              <h2 class="sf-section-title">Reverse panel reserved</h2>
+              <p class="sf-section-subtitle">
+                Current hardened ledger JS uses a reason prompt and backend append-only reverse endpoint.
+              </p>
+            </div>
           </div>
-          <div class="form-field">
-            <label for="viewMode">View</label>
-            <select id="viewMode">
-              <option value="grouped">Grouped</option>
-              <option value="raw">Raw rows</option>
-            </select>
+        </section>
+
+        <section class="ledger-metrics">
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Visible Items</p>
+            <div id="t_count" class="sf-metric-value">0</div>
+            <p class="sf-card-subtitle">Grouped cards or raw rows.</p>
+          </article>
+
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Money in</p>
+            <div id="moneyIn" class="sf-metric-value sf-tone-positive">—</div>
+            <p class="sf-card-subtitle">Visible active inflow.</p>
+          </article>
+
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Money out</p>
+            <div id="moneyOut" class="sf-metric-value sf-tone-danger">—</div>
+            <p class="sf-card-subtitle">Visible active outflow.</p>
+          </article>
+
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Net movement</p>
+            <div id="netMovement" class="sf-metric-value">—</div>
+            <p class="sf-card-subtitle">Income minus expense.</p>
+          </article>
+
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Reverse eligible</p>
+            <div id="reverseEligible" class="sf-metric-value">—</div>
+            <p class="sf-card-subtitle">
+              <span id="t_reversed">0</span> hidden reversal rows.
+            </p>
+          </article>
+        </section>
+
+        <section class="ledger-operator-note">
+          Ledger display rule: normal rows show active, reversal rows are hidden by default, reversed originals are muted,
+          transfer pairs and international packages render as grouped cards, and reverse buttons follow backend eligibility only.
+        </section>
+
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Controls</p>
+              <h2 class="sf-section-title">Filter Ledger</h2>
+              <p class="sf-section-subtitle">
+                These filters do not calculate truth. They only filter backend-provided ledger rows.
+              </p>
+            </div>
           </div>
-        </div>
-      </section>
 
-      <section class="ledger-workspace">
-        <div class="panel card-padded">
-          <div class="section-kicker">Activity</div>
-          <h2 class="authority-title" style="font-size:24px;margin-top:12px;">Latest movements</h2>
-          <div id="activityList" class="ledger-list">
-            <div class="muted">Loading activity…</div>
+          <div class="ledger-filter-grid">
+            <div class="sf-field">
+              <label for="searchInput">Search</label>
+              <input
+                id="searchInput"
+                class="sf-input"
+                type="search"
+                placeholder="Search transaction, account, category, merchant, notes"
+                autocomplete="off">
+            </div>
+
+            <div class="sf-field">
+              <label for="accountFilter">Account</label>
+              <select id="accountFilter" class="sf-select">
+                <option value="">All accounts</option>
+              </select>
+            </div>
+
+            <div class="sf-field">
+              <label for="typeFilter">Type</label>
+              <select id="typeFilter" class="sf-select">
+                <option value="">All types</option>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+                <option value="transfer">Transfer</option>
+                <option value="atm">ATM</option>
+                <option value="bill">Bill</option>
+                <option value="debt">Debt</option>
+                <option value="cc_payment">CC Payment</option>
+                <option value="cc_spend">CC Spend</option>
+                <option value="international">International</option>
+                <option value="reversed">Reversed</option>
+              </select>
+            </div>
+
+            <div class="sf-field">
+              <label for="statusFilter">Status</label>
+              <select id="statusFilter" class="sf-select">
+                <option value="">All status</option>
+                <option value="reverse_eligible">Reverse eligible</option>
+                <option value="reverse_blocked">Reverse blocked</option>
+                <option value="grouped">Grouped</option>
+                <option value="reversed">Reversed</option>
+              </select>
+            </div>
+
+            <div class="sf-field">
+              <label for="filter_view">View</label>
+              <select id="filter_view" class="sf-select" data-legacy-id="viewMode">
+                <option value="grouped">Grouped</option>
+                <option value="raw">Raw rows</option>
+              </select>
+            </div>
           </div>
-        </div>
 
-        <aside>
-          <section class="panel card-padded">
-            <div class="section-kicker">Selected item</div>
-            <div id="detailPanel" class="muted" style="margin-top:12px;">Open a ledger row to inspect grouped audit detail.</div>
-          </section>
-
-          <section class="panel card-padded">
-            <div class="section-kicker">Health</div>
-            <div id="healthPanel" class="stack-sm" style="margin-top:12px;"></div>
-          </section>
-
-          <section id="debugPanel" class="panel card-padded" hidden>
-            <div class="section-kicker">Verification</div>
-            <pre id="debugOutput" class="ledger-detail-pre"></pre>
-          </section>
-        </aside>
-      </section>
-    </div>
-  </main>
-
-  <script src="/js/theme.js" defer></script>
-  <script src="/js/nav.js" defer></script>
-  <script src="/js/sf-icons.js?v=1.0.0" defer></script>
-
-  <script>
-    (function () {
-      "use strict";
-
-      const VERSION = "ledger-product-v1.2.1-folded";
-      const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
-      const NOISE = /SF_SHIPMENT|DIRECT_WRITE_TEST|RS1_TEST|CREATE_RECEIVABLE|RECEIVE_RS1/i;
-      const RAW_IDS = /bill_id=|debt_id=|bill_payment_id=/i;
-      const INTL = /international|intl|foreign|fx|forex|currency|usd|eur|gbp|aed|excise|fed|advance tax|236y|pra|withholding|1-biller|1 biller|biller charge|fx fee/i;
-
-      const $ = (id) => document.getElementById(id);
-
-      const state = {
-        transactions: [],
-        accounts: {},
-        categories: {},
-        groups: [],
-        filtered: [],
-        selected: null,
-        pendingReverse: null,
-        openGroupId: null,
-        writeEndpointsCalledOnLoad: 0,
-        lastReverseResult: null
-      };
-
-      function asNumber(value, fallback = 0) {
-        if (typeof value === "number" && Number.isFinite(value)) return value;
-        if (typeof value === "string") {
-          const parsed = Number(value.replace(/[^\d.-]/g, ""));
-          if (Number.isFinite(parsed)) return parsed;
-        }
-        return fallback;
-      }
-
-      function money(value) {
-        return new Intl.NumberFormat("en-PK", {
-          style: "currency",
-          currency: "PKR",
-          maximumFractionDigits: 2
-        }).format(asNumber(value, 0));
-      }
-
-      function escapeHtml(value) {
-        return String(value ?? "")
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#039;");
-      }
-
-      async function readJson(path) {
-        const response = await fetch(path, {
-          headers: { "accept": "application/json" },
-          cache: "no-store"
-        });
-
-        const payload = await response.json().catch(() => null);
-
-        if (!response.ok || !payload) {
-          throw new Error(`${path} HTTP ${response.status}`);
-        }
-
-        return payload;
-      }
-
-      function rowsFrom(payload) {
-        return payload.transactions || payload.data || payload.results || [];
-      }
-
-      function accountName(id) {
-        return state.accounts[id]?.name || id || "Unknown account";
-      }
-
-      function categoryName(id) {
-        if (!id) return "Uncategorized";
-        return state.categories[id]?.name || state.categories[id]?.label || id;
-      }
-
-      function signed(tx) {
-        const type = String(tx.type || "").toLowerCase();
-        const amount = asNumber(tx.amount, 0);
-        if (type === "income" || type === "borrow") return amount;
-        if (type === "transfer") return 0;
-        return -amount;
-      }
-
-      function fieldText(tx) {
-        return [
-          tx.id,
-          tx.type,
-          tx.account_id,
-          tx.transfer_to_account_id,
-          tx.category_id,
-          tx.merchant_id,
-          tx.merchant,
-          tx.source,
-          tx.reference,
-          tx.notes,
-          tx.currency,
-          tx.fx_rate,
-          tx.foreign_amount,
-          tx.international,
-          tx.is_international
-        ].filter(Boolean).join(" ");
-      }
-
-      function isNoise(tx) {
-        return NOISE.test(String(tx.notes || ""));
-      }
-
-      function isBill(tx) {
-        return /Bill payment|bill_id=|bill_payment_id=/i.test(String(tx.notes || "")) ||
-          String(tx.category_id || "").toLowerCase().includes("bills");
-      }
-
-      function isDebt(tx) {
-        return /Debt given|Debt received|Debt created|debt_id=|Received - debt/i.test(String(tx.notes || "")) ||
-          String(tx.category_id || "").toLowerCase() === "debt_payment";
-      }
-
-      function isSalary(tx) {
-        return /salary|payroll|payslip/i.test(String(tx.notes || "")) ||
-          String(tx.category_id || "").toLowerCase().includes("salary");
-      }
-
-      function isCc(tx) {
-        const type = String(tx.type || "").toLowerCase();
-        return type === "cc_payment" || type === "cc_spend" || tx.account_id === "cc" ||
-          /credit card|cc payment|alfalah cc/i.test(String(tx.notes || ""));
-      }
-
-      function isInternational(tx) {
-        if (tx.is_international === true || tx.international === true) return true;
-        return INTL.test(fieldText(tx));
-      }
-
-      function isReversalRow(tx) {
-        return Boolean(tx.reversed_by || tx.reversed_at) ||
-          /REVERSAL|Reversal of|REVERSED_BY/i.test(String(tx.notes || ""));
-      }
-
-      function linkedId(tx) {
-        if (tx.linked_txn_id) return tx.linked_txn_id;
-
-        const text = String(tx.notes || "");
-        const linked = text.match(/\[linked:\s*([^\]]+)\]/i);
-        if (linked) return linked[1].trim();
-
-        const reversedBy = text.match(/\[ATM_FEE_REVERSED_BY:\s*([^\]]+)\]/i);
-        if (reversedBy) return reversedBy[1].trim();
-
-        const reversalOf = text.match(/Reversal of\s+([A-Za-z0-9_-]+)/i);
-        if (reversalOf) return reversalOf[1].trim();
-
-        return null;
-      }
-
-      function packageKey(tx) {
-        const text = fieldText(tx);
-
-        const patterns = [
-          /package_id[=:]\s*([A-Za-z0-9_-]+)/i,
-          /intl_package_id[=:]\s*([A-Za-z0-9_-]+)/i,
-          /international_package_id[=:]\s*([A-Za-z0-9_-]+)/i,
-          /parent_id[=:]\s*([A-Za-z0-9_-]+)/i,
-          /parent_txn_id[=:]\s*([A-Za-z0-9_-]+)/i,
-          /intl_parent[=:]\s*([A-Za-z0-9_-]+)/i,
-          /group_id[=:]\s*([A-Za-z0-9_-]+)/i
-        ];
-
-        for (const pattern of patterns) {
-          const match = text.match(pattern);
-          if (match) return match[1].trim();
-        }
-
-        if (isInternational(tx) && linkedId(tx)) return linkedId(tx);
-        return null;
-      }
-
-      function cleanNote(note) {
-        return String(note || "")
-          .replace(/\s*\|\s*bill_id=.*$/i, "")
-          .replace(/\s*\|\s*debt_id=.*$/i, "")
-          .replace(/\s*\|\s*bill_payment_id=.*$/i, "")
-          .replace(/\s*\|\s*notes=.*$/i, "")
-          .replace(/\[linked:[^\]]+\]/gi, "")
-          .replace(/\[ATM_WITHDRAW\]/gi, "")
-          .replace(/\[ATM_FEE_PENDING\]/gi, "")
-          .replace(/\[ATM_FEE_REVERSED_BY:\s*[^\]]+\]/gi, "")
-          .replace(/\[ATM_FEE_REVERSAL\]/gi, "ATM fee reversal —")
-          .replace(/\s+/g, " ")
-          .trim();
-      }
-
-      function billTitle(tx) {
-        const match = String(tx.notes || "").match(/Bill payment:\s*([^|]+)/i);
-        return match ? `Paid ${match[1].trim()}` : "Bill payment";
-      }
-
-      function debtTitle(tx) {
-        const note = String(tx.notes || "");
-        const given = note.match(/Debt given:\s*([^|]+)/i);
-        if (given) return `Money given to ${given[1].trim()}`;
-        const received = note.match(/Debt received:\s*([^|]+)/i);
-        if (received) return `Debt received from ${received[1].trim()}`;
-        const created = note.match(/Debt created:\s*([^|]+)/i);
-        if (created) return `Debt created: ${created[1].trim()}`;
-        if (/Received -/i.test(note)) return "Debt repayment received";
-        return "Debt movement";
-      }
-
-      function merchantName(rows) {
-        for (const tx of rows) {
-          const explicit = tx.merchant || tx.merchant_name || tx.merchant_id || tx.source || tx.reference;
-          if (explicit) return String(explicit);
-        }
-
-        const note = cleanNote(rows[0]?.notes || "");
-        if (note) return note.split(" · ")[0].split("|")[0].trim();
-
-        return "Unknown merchant";
-      }
-
-      function taxBreakdown(rows) {
-        const parts = {
-          base: 0,
-          fxFee: 0,
-          exciseFed: 0,
-          advanceTax: 0,
-          pra: 0,
-          biller: 0,
-          otherTax: 0,
-          other: 0
-        };
-
-        for (const tx of rows) {
-          const text = fieldText(tx);
-          const amount = asNumber(tx.amount, 0);
-
-          if (/base|principal|purchase/i.test(text) && !/fee|tax|excise|fed|pra|236y/i.test(text)) parts.base += amount;
-          else if (/fx fee|forex fee|foreign exchange fee|conversion fee/i.test(text)) parts.fxFee += amount;
-          else if (/excise|fed/i.test(text)) parts.exciseFed += amount;
-          else if (/advance tax|236y|withholding/i.test(text)) parts.advanceTax += amount;
-          else if (/pra/i.test(text)) parts.pra += amount;
-          else if (/1-biller|1 biller|biller charge/i.test(text)) parts.biller += amount;
-          else if (/tax/i.test(text)) parts.otherTax += amount;
-          else parts.other += amount;
-        }
-
-        return parts;
-      }
-
-      function inferKind(rows) {
-        const text = rows.map((tx) => fieldText(tx)).join(" ");
-
-        if (rows.some(isInternational)) return "international";
-        if (/Bill payment|bill_id=|bill_payment_id=/i.test(text)) return "bill";
-        if (/Debt given|Debt received|Debt created|debt_id=|Received - debt/i.test(text)) return "debt";
-        if (/ATM_WITHDRAW/i.test(text)) return "atm";
-        if (/ATM_FEE|ATM fee/i.test(text)) return "atm_fee";
-        if (rows.some((tx) => String(tx.type).toLowerCase() === "transfer")) return "transfer";
-        if (rows.some(isReversalRow)) return "reversed";
-        return String(rows[0]?.type || "transaction").toLowerCase();
-      }
-
-      function titleFor(rows, kind) {
-        const first = rows[0];
-
-        if (kind === "international") return `International transaction — ${merchantName(rows)}`;
-
-        if (kind === "transfer") {
-          const out = rows.find((tx) => String(tx.type).toLowerCase() === "transfer") || first;
-          const into = rows.find((tx) => String(tx.type).toLowerCase() === "income" && tx.id !== out.id);
-          return `Transfer from ${accountName(out.account_id)} to ${into ? accountName(into.account_id) : "linked account"}`;
-        }
-
-        if (kind === "atm") {
-          const out = rows.find((tx) => String(tx.type).toLowerCase() === "transfer") || first;
-          const into = rows.find((tx) => String(tx.type).toLowerCase() === "income" && tx.id !== out.id);
-          return `ATM withdrawal from ${accountName(out.account_id)} to ${into ? accountName(into.account_id) : "cash"}`;
-        }
-
-        if (kind === "atm_fee") {
-          const reversed = rows.some((tx) => /ATM_FEE_REVERSAL|Reversal of|REVERSED_BY/i.test(String(tx.notes || "")));
-          return reversed ? "ATM fee reversed" : "ATM fee pending";
-        }
-
-        if (kind === "bill") return billTitle(first);
-        if (kind === "debt") return debtTitle(first);
-        if (kind === "reversed") return "Reversed ledger movement";
-
-        const cleaned = cleanNote(first.notes);
-        if (cleaned) return cleaned;
-
-        if (first.type === "income") return "Income recorded";
-        if (first.type === "expense") return "Expense recorded";
-        if (first.type === "transfer") return "Transfer recorded";
-        if (first.type === "atm") return "ATM fee recorded";
-
-        return "Transaction recorded";
-      }
-
-      function reverseEligibility(rows, kind, hasNoise, hasReversal) {
-        if (hasNoise) return { allowed: false, reason: "Test record", targetId: null };
-        if (hasReversal) return { allowed: false, reason: "Already reversed", targetId: null };
-        if (kind === "international" || rows.some(isInternational)) return { allowed: false, reason: "Managed as international package", targetId: null };
-        if (rows.some(isBill)) return { allowed: false, reason: "Managed in Bills", targetId: null };
-        if (rows.some(isDebt)) return { allowed: false, reason: "Managed in Debts", targetId: null };
-        if (rows.some(isSalary)) return { allowed: false, reason: "Managed in Salary", targetId: null };
-        if (rows.some(isCc)) return { allowed: false, reason: "Managed in Credit Card", targetId: null };
-
-        if (kind === "transfer" || kind === "atm") {
-          const sourceLeg = rows.find((tx) => String(tx.type).toLowerCase() === "transfer") || rows[0];
-          return { allowed: true, reason: "Eligible linked movement", targetId: sourceLeg.id };
-        }
-
-        if (["expense", "income", "borrow", "repay", "atm_fee"].includes(kind)) {
-          return { allowed: true, reason: "Eligible ledger movement", targetId: rows[0].id };
-        }
-
-        return { allowed: false, reason: "Not reversible here", targetId: null };
-      }
-
-      function buildGroups(rows) {
-        const byId = new Map(rows.map((tx) => [tx.id, tx]));
-        const graph = new Map();
-        const packages = new Map();
-
-        function ensure(id) {
-          if (!graph.has(id)) graph.set(id, new Set());
-        }
-
-        function connect(a, b) {
-          if (!a || !b || !byId.has(a) || !byId.has(b)) return;
-          ensure(a);
-          ensure(b);
-          graph.get(a).add(b);
-          graph.get(b).add(a);
-        }
-
-        for (const tx of rows) {
-          ensure(tx.id);
-          connect(tx.id, linkedId(tx));
-          connect(tx.id, tx.reversed_by);
-
-          const pkg = packageKey(tx);
-          if (pkg) {
-            if (!packages.has(pkg)) packages.set(pkg, []);
-            packages.get(pkg).push(tx.id);
-          }
-        }
-
-        for (const tx of rows) {
-          for (const other of rows) {
-            if (other.reversed_by === tx.id) connect(tx.id, other.id);
-          }
-        }
-
-        for (const ids of packages.values()) {
-          for (let i = 0; i < ids.length; i += 1) {
-            for (let j = i + 1; j < ids.length; j += 1) {
-              connect(ids[i], ids[j]);
-            }
-          }
-        }
-
-        const seen = new Set();
-        const groups = [];
-
-        for (const tx of rows) {
-          if (seen.has(tx.id)) continue;
-
-          const stack = [tx.id];
-          const ids = [];
-
-          while (stack.length) {
-            const id = stack.pop();
-            if (seen.has(id)) continue;
-            seen.add(id);
-            ids.push(id);
-            for (const next of graph.get(id) || []) {
-              if (!seen.has(next)) stack.push(next);
-            }
-          }
-
-          const component = ids.map((id) => byId.get(id)).filter(Boolean);
-          const allNoise = component.every(isNoise);
-          if (!DEBUG && allNoise) continue;
-
-          const kind = inferKind(component);
-          const hasNoise = component.some(isNoise);
-          const hasReversal = component.some(isReversalRow);
-          const hasInternational = component.some(isInternational);
-          const dateSort = component
-            .map((row) => new Date(row.created_at || `${row.date}T00:00:00`).getTime())
-            .filter(Number.isFinite)
-            .sort((a, b) => b - a)[0] || 0;
-
-          const amount = component.reduce((sum, row) => sum + signed(row), 0);
-          const displayAmount = (kind === "transfer" || kind === "atm")
-            ? Math.max(...component.map((row) => asNumber(row.amount, 0)))
-            : Math.abs(amount);
-
-          const accounts = [...new Set(component.map((row) => accountName(row.account_id)).filter(Boolean))];
-          const categories = [...new Set(component.map((row) => categoryName(row.category_id)).filter(Boolean))];
-          const breakdown = kind === "international" ? taxBreakdown(component) : null;
-
-          groups.push({
-            id: component.map((row) => row.id).join("__"),
-            kind,
-            title: titleFor(component, kind),
-            rows: component,
-            amount,
-            displayAmount,
-            accounts,
-            categories,
-            merchant: merchantName(component),
-            taxBreakdown: breakdown,
-            date: component[0]?.date || "",
-            created_at: component[0]?.created_at || "",
-            dateSort,
-            isGrouped: component.length > 1,
-            hasNoise,
-            hasReversal,
-            hasInternational,
-            hasMerchant: component.some((row) => row.merchant_id || row.merchant || row.source || row.reference),
-            hasRawIds: component.some((row) => RAW_IDS.test(String(row.notes || ""))),
-            reverse: reverseEligibility(component, kind, hasNoise, hasReversal)
-          });
-        }
-
-        return groups.sort((a, b) => b.dateSort - a.dateSort);
-      }
-
-      function pill(text, cls) {
-        return `<span class="badge ${cls || "badge-info"}">${escapeHtml(text)}</span>`;
-      }
-
-      function amountClass(group) {
-        if (group.kind === "transfer" || group.kind === "atm") return "money-neutral";
-        if (group.amount > 0) return "money-positive";
-        if (group.amount < 0) return "money-negative";
-        return "money-neutral";
-      }
-
-      function amountSign(group) {
-        if (group.kind === "transfer" || group.kind === "atm") return "↔";
-        if (group.amount > 0) return "+";
-        if (group.amount < 0) return "-";
-        return "";
-      }
-
-      function filterGroups() {
-        const q = $("searchInput").value.trim().toLowerCase();
-        const account = $("accountFilter").value;
-        const type = $("typeFilter").value;
-        const status = $("statusFilter").value;
-        const mode = $("viewMode").value;
-
-        const source = mode === "raw"
-          ? buildGroups(state.transactions.map((tx) => ({ ...tx, linked_txn_id: null })))
-          : state.groups;
-
-        state.filtered = source.filter((group) => {
-          if (!DEBUG && group.hasNoise) return false;
-
-          const haystack = [
-            group.title,
-            group.kind,
-            group.merchant,
-            group.accounts.join(" "),
-            group.categories.join(" "),
-            group.rows.map((row) => row.notes || "").join(" ")
-          ].join(" ").toLowerCase();
-
-          const qOk = !q || haystack.includes(q);
-          const accountOk = !account || group.rows.some((row) => row.account_id === account);
-          const typeOk = !type || group.kind === type || group.rows.some((row) => String(row.type).toLowerCase() === type);
-
-          let statusOk = true;
-          if (status === "eligible") statusOk = group.reverse.allowed;
-          if (status === "blocked") statusOk = !group.reverse.allowed;
-          if (status === "grouped") statusOk = group.isGrouped;
-          if (status === "reversed") statusOk = group.hasReversal;
-
-          return qOk && accountOk && typeOk && statusOk;
-        });
-
-        if (!state.filtered.some((group) => group.id === state.openGroupId)) {
-          state.openGroupId = null;
-        }
-
-        render();
-      }
-
-      function renderMetrics() {
-        let income = 0;
-        let expense = 0;
-
-        for (const group of state.filtered) {
-          if (group.kind === "transfer" || group.kind === "atm") continue;
-
-          for (const tx of group.rows) {
-            if (!DEBUG && isNoise(tx)) continue;
-            if (isReversalRow(tx) && !DEBUG) continue;
-
-            const value = signed(tx);
-            if (value > 0) income += value;
-            if (value < 0) expense += Math.abs(value);
-          }
-        }
-
-        $("moneyIn").textContent = money(income);
-        $("moneyOut").textContent = money(expense);
-        $("netMovement").textContent = money(income - expense);
-        $("reverseEligible").textContent = String(state.filtered.filter((group) => group.reverse.allowed).length);
-      }
-
-      function renderHealth() {
-        const rows = [
-          ["Version", VERSION],
-          ["Transactions", String(state.transactions.length)],
-          ["Groups", String(state.groups.length)],
-          ["Visible", String(state.filtered.length)],
-          ["Hidden test groups", String(state.groups.filter((g) => g.hasNoise).length)],
-          ["Transfer / ATM groups", String(state.groups.filter((g) => g.kind === "transfer" || g.kind === "atm").length)],
-          ["Reversal groups", String(state.groups.filter((g) => g.hasReversal).length)],
-          ["International groups", String(state.groups.filter((g) => g.kind === "international").length)],
-          ["Merchant groups", String(state.groups.filter((g) => g.hasMerchant).length)],
-          ["Reverse eligible", String(state.groups.filter((g) => g.reverse.allowed).length)]
-        ];
-
-        $("healthPanel").innerHTML = rows.map(([label, value]) => `
-          <div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
-            <span class="muted">${escapeHtml(label)}</span>
-            <span class="strong text-right">${escapeHtml(value)}</span>
-          </div>
-        `).join("");
-      }
-
-      function renderInternationalMini(group) {
-        if (group.kind !== "international") return "";
-
-        const b = group.taxBreakdown || {};
-        const items = [
-          ["Merchant", group.merchant || "Unknown"],
-          ["Base / purchase", b.base ? money(b.base) : "Not separated"],
-          ["FX fee", b.fxFee ? money(b.fxFee) : "Not present"],
-          ["Excise / FED", b.exciseFed ? money(b.exciseFed) : "Not present"],
-          ["Advance tax", b.advanceTax ? money(b.advanceTax) : "Not present"],
-          ["PRA / other", b.pra ? money(b.pra) : "Not present"],
-          ["1-Biller", b.biller ? money(b.biller) : "Not present"]
-        ];
-
-        return `
-          <div class="ledger-mini-grid">
-            ${items.map(([label, value]) => `
-              <div class="ledger-mini">
-                <div class="ledger-mini-label">${escapeHtml(label)}</div>
-                <div class="ledger-mini-value">${escapeHtml(value)}</div>
+          <p class="legacy-id-note">
+            Direct edit/delete is intentionally absent. Corrections use backend append-only reversal.
+          </p>
+        </section>
+
+        <section class="ledger-workspace">
+          <div class="sf-panel">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Activity</p>
+                <h2 class="sf-section-title">Latest movements</h2>
+                <p class="sf-section-subtitle">
+                  Backend v0.5 ledger metadata controls grouping, reversal state, and reverse eligibility.
+                </p>
               </div>
-            `).join("")}
+            </div>
+
+            <div id="activityList" class="ledger-list">
+              <div id="txn-list" class="ledger-list" data-ledger-list="1">
+                <div class="empty-state-inline">Loading activity…</div>
+              </div>
+            </div>
           </div>
-        `;
-      }
 
-      function renderActivity() {
-        const groups = state.filtered.slice(0, 140);
-
-        if (!groups.length) {
-          $("activityList").innerHTML = `<div class="muted">No ledger activity matches the selected filters.</div>`;
-          return;
-        }
-
-        $("activityList").innerHTML = groups.map((group, index) => {
-          const isOpen = state.openGroupId === group.id;
-
-          const subtitle = [
-            group.date,
-            group.accounts.join(" → "),
-            group.categories.filter((x) => x && x !== "Uncategorized").join(", ")
-          ].filter(Boolean).join(" · ");
-
-          const status = group.hasReversal
-            ? pill("Reversal linked", "badge-warning")
-            : group.isGrouped
-              ? pill("Grouped", "badge-ready")
-              : pill("Single", "badge-unknown");
-
-          const intl = group.kind === "international" ? pill("International package", "badge-info") : "";
-          const merchant = group.hasMerchant ? pill("Merchant", "badge-info") : "";
-
-          const reverseButton = group.reverse.allowed
-            ? `<button class="btn btn-danger" type="button" data-reverse="${index}">Reverse</button>`
-            : `<button class="btn btn-secondary" type="button" disabled>${escapeHtml(group.reverse.reason)}</button>`;
-
-          return `
-            <article class="ledger-row ${isOpen ? "is-open" : ""}" data-open="${index}">
-              <div class="ledger-row-main">
-                <div class="ledger-row-top">
-                  <div>
-                    ${pill(group.kind, "badge-info")}
-                    ${status}
-                    ${intl}
-                    ${merchant}
-
-                    <div class="ledger-row-title">${escapeHtml(group.title)}</div>
-                    <div class="ledger-row-folded-meta">${escapeHtml(subtitle)}</div>
-                    <div class="ledger-row-hint">Click to open details and actions</div>
-                  </div>
-
-                  <div class="ledger-amount ${amountClass(group)}">
-                    ${escapeHtml(amountSign(group))} ${money(group.displayAmount)}
-                  </div>
-                </div>
-
-                <div class="ledger-row-expanded">
-                  ${renderInternationalMini(group)}
-
-                  <div class="ledger-row-meta" style="white-space:normal;">
-                    ${escapeHtml(subtitle)}
-                  </div>
-
-                  <div class="ledger-row-actions">
-                    <button class="btn btn-secondary" type="button" data-detail="${index}">View Audit</button>
-                    ${reverseButton}
-                  </div>
+          <aside>
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Selected item</p>
+                  <h2 class="sf-section-title">Audit detail</h2>
                 </div>
               </div>
-            </article>
-          `;
-        }).join("");
-      }
 
-      function detailHtml(group) {
-        const rows = group.rows.map((tx) => `
-          <div style="border-bottom:1px solid var(--border);padding:10px 0;">
-            <div class="strong">${escapeHtml(tx.type)} · ${money(tx.amount)} · ${escapeHtml(accountName(tx.account_id))}</div>
-            <div class="muted">Date: ${escapeHtml(tx.date || "")} · Created: ${escapeHtml(tx.created_at || "")}</div>
-            <div class="muted">Category: ${escapeHtml(categoryName(tx.category_id))}</div>
-            <div class="muted">Merchant/source: ${escapeHtml(tx.merchant || tx.merchant_id || tx.source || tx.reference || "None")}</div>
-            <div class="muted">Transaction ID: ${escapeHtml(tx.id)}</div>
-            <div class="muted">Linked: ${escapeHtml(tx.linked_txn_id || linkedId(tx) || "None")}</div>
-            <div class="muted">Package key: ${escapeHtml(packageKey(tx) || "None")}</div>
-            <div class="muted">Reversed by: ${escapeHtml(tx.reversed_by || "None")} · Reversed at: ${escapeHtml(tx.reversed_at || "None")}</div>
-            <div class="muted">International markers: ${escapeHtml(isInternational(tx) ? "Yes" : "No")}</div>
-            <div class="muted" style="margin-top:6px;">Raw notes: ${escapeHtml(tx.notes || "")}</div>
-          </div>
-        `).join("");
+              <div id="detailPanel" class="sf-section-subtitle" style="margin-top:12px;">
+                Open a grouped card in the activity list to inspect its row detail.
+              </div>
+            </section>
 
-        return `
-          <div class="authority-title">${escapeHtml(group.title)}</div>
-          <div class="authority-copy" style="margin-top:6px;">${escapeHtml(group.kind)} · ${escapeHtml(group.accounts.join(" → "))} · ${escapeHtml(group.date)}</div>
-          <div style="margin-top:12px;">
-            ${pill(group.reverse.allowed ? "Eligible for reverse" : group.reverse.reason, group.reverse.allowed ? "badge-ready" : "badge-warning")}
-            ${group.kind === "international" ? pill("International display/audit only", "badge-info") : ""}
-          </div>
-          ${renderInternationalMini(group)}
-          <div class="authority-copy" style="margin-top:12px;">Raw IDs, package links, merchant/source, and backend notes are intentionally shown only in this audit detail.</div>
-          <div style="margin-top:12px;">${rows}</div>
-        `;
-      }
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Health</p>
+                  <h2 class="sf-section-title">Ledger verification</h2>
+                </div>
+              </div>
 
-      function showDetail(index) {
-        const group = state.filtered[index];
-        if (!group) return;
-        state.selected = group;
-        state.openGroupId = group.id;
-        $("detailPanel").innerHTML = detailHtml(group);
-      }
+              <div id="healthPanel" class="ledger-health-grid">
+                <div class="ledger-health-line">
+                  <span class="sf-section-subtitle">Health</span>
+                  <strong id="healthStatus">Loading</strong>
+                </div>
+                <div class="ledger-health-line">
+                  <span class="sf-section-subtitle">Mode</span>
+                  <strong>Backend truth</strong>
+                </div>
+                <div class="ledger-health-line">
+                  <span class="sf-section-subtitle">Mutation</span>
+                  <strong>Append-only reverse</strong>
+                </div>
+              </div>
+            </section>
 
-      function showReverse(index) {
-        const group = state.filtered[index];
-        if (!group || !group.reverse.allowed) return;
+            <section id="debugPanel" class="sf-panel sf-debug-panel" hidden>
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Verification</p>
+                  <h2 class="sf-section-title">Debug output</h2>
+                </div>
+              </div>
 
-        const target = group.rows.find((row) => row.id === group.reverse.targetId) || group.rows[0];
-        state.pendingReverse = group;
-        state.openGroupId = group.id;
+              <pre id="debugOutput" class="ledger-detail-pre"></pre>
+            </section>
+          </aside>
+        </section>
 
-        $("reversePanel").hidden = false;
-        $("reversePanel").innerHTML = `
-          <div class="section-kicker">Reverse confirmation</div>
-          <h2 class="authority-title" style="font-size:24px;margin-top:12px;">Reverse this ledger movement?</h2>
-          <div class="authority-copy" style="margin-top:8px;">${escapeHtml(group.title)} · ${money(group.displayAmount)} · ${escapeHtml(group.accounts.join(" → "))}</div>
+        <footer>
+          <span class="sf-meta-text">
+            v0.8.1 · transactions · shared shell ledger console · feature-preserving shell migration
+          </span>
+        </footer>
+      </section>
+    </main>
+  </div>
 
-          <div class="surface-card card-padded" style="margin-top:14px;background:var(--surface-2);">
-            <div class="strong">This will:</div>
-            <div class="muted">Create a reversal transaction, mark the original reversed, and restore the ledger balance effect through /api/transactions/reverse.</div>
-
-            <div class="strong" style="margin-top:12px;">This will not:</div>
-            <div class="muted">Edit bill, debt, salary, credit-card, forecast, or international package source records. Those stay managed by their own modules.</div>
-
-            <div class="strong" style="margin-top:12px;">Reverse target:</div>
-            <div class="muted">${escapeHtml(target.id)} · ${escapeHtml(target.type)} · ${money(target.amount)} · ${escapeHtml(accountName(target.account_id))}</div>
-          </div>
-
-          <div id="reverseMessage" class="muted" style="margin-top:12px;"></div>
-
-          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
-            <button id="cancelReverse" class="btn btn-secondary" type="button">Cancel</button>
-            <button id="confirmReverse" class="btn btn-danger" type="button">Confirm Reverse</button>
-          </div>
-        `;
-
-        $("cancelReverse").addEventListener("click", () => {
-          state.pendingReverse = null;
-          $("reversePanel").hidden = true;
-          $("reversePanel").innerHTML = "";
-        });
-
-        $("confirmReverse").addEventListener("click", confirmReverse);
-        $("reversePanel").scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-
-      async function confirmReverse() {
-        const group = state.pendingReverse;
-        if (!group || !group.reverse.allowed || !group.reverse.targetId) return;
-
-        const button = $("confirmReverse");
-        const message = $("reverseMessage");
-
-        button.disabled = true;
-        message.textContent = "Reversing ledger movement…";
-
-        try {
-          const response = await fetch("/api/transactions/reverse", {
-            method: "POST",
-            headers: {
-              "accept": "application/json",
-              "content-type": "application/json"
-            },
-            body: JSON.stringify({
-              id: group.reverse.targetId,
-              reason: "Ledger in-page reverse confirmation"
-            })
-          });
-
-          const payload = await response.json().catch(() => null);
-
-          if (!response.ok || payload?.ok === false) {
-            throw new Error(payload?.error || payload?.message || `/api/transactions/reverse HTTP ${response.status}`);
-          }
-
-          state.lastReverseResult = payload;
-          message.innerHTML = `<span class="money-positive strong">Reverse completed. Reloading ledger…</span>`;
-
-          await boot({ keepReverseSuccess: true });
-
-          $("reversePanel").hidden = false;
-          $("reversePanel").innerHTML = `
-            <div class="section-kicker">Reverse complete</div>
-            <h2 class="authority-title" style="font-size:24px;margin-top:12px;">Ledger reverse completed.</h2>
-            <div class="authority-copy" style="margin-top:8px;">The reverse endpoint accepted the request and the ledger was reloaded.</div>
-            <div style="margin-top:14px;"><button id="closeReverseSuccess" class="btn btn-secondary" type="button">Close</button></div>
-          `;
-
-          $("closeReverseSuccess").addEventListener("click", () => {
-            $("reversePanel").hidden = true;
-            $("reversePanel").innerHTML = "";
-          });
-        } catch (error) {
-          console.error(error);
-          message.innerHTML = `<span class="money-negative strong">${escapeHtml(error.message)}</span>`;
-        } finally {
-          const confirmButton = $("confirmReverse");
-          if (confirmButton) confirmButton.disabled = false;
-        }
-      }
-
-      function renderDebug() {
-        if (!DEBUG) return;
-
-        const verification = {
-          version: VERSION,
-          transactionsLoaded: state.transactions.length,
-          groupsBuilt: state.groups.length,
-          visibleGroups: state.filtered.length,
-          hiddenNoiseGroups: state.groups.filter((g) => g.hasNoise).length,
-          transferGroups: state.groups.filter((g) => g.kind === "transfer").length,
-          atmGroups: state.groups.filter((g) => g.kind === "atm" || g.kind === "atm_fee").length,
-          reversalGroups: state.groups.filter((g) => g.hasReversal).length,
-          billLinkedGroups: state.groups.filter((g) => g.kind === "bill").length,
-          debtLinkedGroups: state.groups.filter((g) => g.kind === "debt").length,
-          internationalGroups: state.groups.filter((g) => g.kind === "international").length,
-          merchantGroups: state.groups.filter((g) => g.hasMerchant).length,
-          rawIdGroups: state.groups.filter((g) => g.hasRawIds).length,
-          reverseEligibleGroups: state.groups.filter((g) => g.reverse.allowed).length,
-          writeEndpointsCalledOnLoad: state.writeEndpointsCalledOnLoad,
-          overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-          lastReverseResult: state.lastReverseResult
-        };
-
-        $("debugPanel").hidden = false;
-        $("debugOutput").textContent = JSON.stringify(verification, null, 2);
-      }
-
-      function render() {
-        renderMetrics();
-        renderHealth();
-        renderActivity();
-        renderDebug();
-
-        $("ledgerStatus").innerHTML = `
-          <div class="strong">Ledger ready · ${escapeHtml(VERSION)}</div>
-          <div class="muted">Rows are folded by default. Open a row to see actions, audit, and reverse availability.</div>
-        `;
-      }
-
-      function populateFilters() {
-        $("accountFilter").innerHTML = `<option value="">All accounts</option>` + Object.entries(state.accounts).map(([id, account]) => {
-          return `<option value="${escapeHtml(id)}">${escapeHtml(account.name || id)}</option>`;
-        }).join("");
-      }
-
-      function bindEvents() {
-        $("searchInput").addEventListener("input", filterGroups);
-        $("accountFilter").addEventListener("change", filterGroups);
-        $("typeFilter").addEventListener("change", filterGroups);
-        $("statusFilter").addEventListener("change", filterGroups);
-        $("viewMode").addEventListener("change", filterGroups);
-
-        document.addEventListener("click", (event) => {
-          const detail = event.target.closest("[data-detail]");
-          if (detail) {
-            event.stopPropagation();
-            const index = Number(detail.getAttribute("data-detail"));
-            showDetail(index);
-            renderActivity();
-            return;
-          }
-
-          const reverse = event.target.closest("[data-reverse]");
-          if (reverse) {
-            event.stopPropagation();
-            const index = Number(reverse.getAttribute("data-reverse"));
-            showReverse(index);
-            renderActivity();
-            return;
-          }
-
-          const row = event.target.closest("[data-open]");
-          if (row) {
-            const index = Number(row.getAttribute("data-open"));
-            const group = state.filtered[index];
-            if (!group) return;
-
-            state.openGroupId = state.openGroupId === group.id ? null : group.id;
-
-            if (state.openGroupId) {
-              state.selected = group;
-              $("detailPanel").innerHTML = detailHtml(group);
-            } else {
-              state.selected = null;
-              $("detailPanel").innerHTML = `<div class="muted" style="margin-top:12px;">Open a ledger row to inspect grouped audit detail.</div>`;
-            }
-
-            renderActivity();
-          }
-        });
-      }
-
-      async function boot(options = {}) {
-        window.SovereignLedger = {
-          version: VERSION,
-          reload: boot,
-          data: () => ({
-            groups: state.groups,
-            filtered: state.filtered,
-            selected: state.selected,
-            pendingReverse: state.pendingReverse,
-            openGroupId: state.openGroupId,
-            lastReverseResult: state.lastReverseResult
-          })
-        };
-
-        try {
-          const [txPayload, accountsPayload, categoriesPayload] = await Promise.all([
-            readJson("/api/transactions?include_reversed=1"),
-            readJson("/api/accounts"),
-            readJson("/api/categories")
-          ]);
-
-          state.transactions = rowsFrom(txPayload);
-          state.accounts = accountsPayload.accounts || {};
-
-          if (Array.isArray(categoriesPayload.data)) {
-            state.categories = Object.fromEntries(categoriesPayload.data.map((c) => [c.id || c.key, c]));
-          } else {
-            state.categories = categoriesPayload.categories || {};
-          }
-
-          state.groups = buildGroups(state.transactions);
-          populateFilters();
-          filterGroups();
-
-          if (!options.keepReverseSuccess) {
-            $("reversePanel").hidden = true;
-            $("reversePanel").innerHTML = "";
-          }
-        } catch (error) {
-          console.error(error);
-          $("ledgerStatus").innerHTML = `
-            <div class="strong">Ledger failed.</div>
-            <div class="muted">${escapeHtml(error.message)}</div>
-          `;
-          $("activityList").innerHTML = `<div class="muted">No fake ledger data shown.</div>`;
-        }
-      }
-
-      document.addEventListener("DOMContentLoaded", () => {
-        bindEvents();
-        boot();
-      });
-    })();
-  </script>
+  <script src="/js/sf-components.js"></script>
+  <script src="/js/sf-shell.js"></script>
+  <script src="/js/transactions.js"></script>
 </body>
 </html>
