@@ -1,1232 +1,829 @@
-<!doctype html>
-<html lang="en" data-theme="light">
+<!DOCTYPE html>
+<html lang="en" data-page="debts">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Debts · Sovereign Finance</title>
-  <meta name="description" content="Manage debts, account-linked lending, payments, received amounts, installments, and due dates." />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#050816">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
 
-  <link rel="stylesheet" href="/css/app.css?v=ui-token-lock-2-1" />
-  <link rel="stylesheet" href="/css/nav.css" />
-  <link rel="stylesheet" href="/css/icons.css" />
+  <title>Debts · Sovereign Finance</title>
+
+  <script src="/js/sf-theme-switcher.js"></script>
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
+
+  <style>
+    .debts-os {
+      width: min(100%, 1480px);
+      margin: 0 auto;
+      display: grid;
+      gap: var(--sf-space-5, 20px);
+    }
+
+    .debts-command {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--sf-space-4, 16px);
+      align-items: center;
+      padding: clamp(18px, 3vw, 28px);
+      border: 1px solid var(--sf-border);
+      border-radius: var(--sf-radius-xl, 24px);
+      background: var(--sf-card);
+      box-shadow: var(--sf-shadow-sm);
+    }
+
+    .debts-title {
+      margin: 0;
+      color: var(--sf-text);
+      font-size: clamp(32px, 5vw, 58px);
+      line-height: .92;
+      font-weight: 950;
+      letter-spacing: -.07em;
+    }
+
+    .debts-copy {
+      margin: 10px 0 0;
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-14, 14px);
+      font-weight: 700;
+      line-height: 1.5;
+      max-width: 880px;
+    }
+
+    .debts-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sf-space-2, 10px);
+      justify-content: flex-end;
+    }
+
+    .debts-insight {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(22px, 4vw, 38px);
+      border-radius: var(--sf-radius-2xl, 30px);
+      color: #f8fafc;
+      background:
+        radial-gradient(circle at 82% 12%, rgba(241, 184, 87, .34), transparent 24rem),
+        linear-gradient(135deg, #06111f, #0f172a 48%, #3b2716);
+      border: 1px solid rgba(255, 255, 255, .10);
+      box-shadow: var(--sf-shadow-lg);
+    }
+
+    .debts-insight h2 {
+      margin: 12px 0 0;
+      color: #fff;
+      font-size: clamp(34px, 6vw, 68px);
+      line-height: .92;
+      font-weight: 950;
+      letter-spacing: -.075em;
+    }
+
+    .debts-insight p {
+      max-width: 840px;
+      margin: 14px 0 0;
+      color: #cbd5e1;
+      font-size: var(--sf-font-15, 15px);
+      line-height: 1.6;
+      font-weight: 720;
+    }
+
+    .debts-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: var(--sf-space-4, 14px);
+    }
+
+    .debts-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
+      gap: var(--sf-space-4, 16px);
+      align-items: start;
+    }
+
+    .debts-list {
+      display: grid;
+      gap: var(--sf-space-3, 12px);
+      margin-top: var(--sf-space-4, 16px);
+    }
+
+    .debt-card {
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 18px;
+      background: var(--sf-surface-1);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .debt-card.is-closed,
+    .debt-card.is-settled {
+      opacity: .72;
+      border-style: dashed;
+    }
+
+    .debt-card.is-owe {
+      border-color: rgba(255, 127, 138, .22);
+    }
+
+    .debt-card.is-owed {
+      border-color: rgba(83, 215, 167, .22);
+    }
+
+    .debt-main-line {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .debt-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: var(--sf-warning-soft);
+      color: var(--sf-warning);
+      font-weight: 900;
+    }
+
+    .debt-title {
+      color: var(--sf-text);
+      font-size: 15px;
+      font-weight: 950;
+      overflow-wrap: anywhere;
+    }
+
+    .debt-sub {
+      margin-top: 4px;
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .debt-amount {
+      color: var(--sf-text);
+      text-align: right;
+      font-size: 16px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .debt-progress {
+      display: grid;
+      gap: 8px;
+    }
+
+    .debt-progress-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .debt-progress-track {
+      height: 10px;
+      border-radius: 999px;
+      background: var(--sf-surface-2);
+      overflow: hidden;
+      border: 1px solid var(--sf-border-subtle);
+    }
+
+    .debt-progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--sf-positive), var(--sf-accent));
+    }
+
+    .debt-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .debt-tag {
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 999px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-muted);
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    .debt-tag.good {
+      background: var(--sf-positive-soft);
+      color: var(--sf-positive);
+      border-color: rgba(83, 215, 167, .28);
+    }
+
+    .debt-tag.warn {
+      background: var(--sf-warning-soft);
+      color: var(--sf-warning);
+      border-color: rgba(241, 184, 87, .28);
+    }
+
+    .debt-tag.danger {
+      background: var(--sf-danger-soft);
+      color: var(--sf-danger);
+      border-color: rgba(255, 127, 138, .28);
+    }
+
+    .debt-card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .debt-action {
+      border: 1px solid var(--sf-border);
+      border-radius: 999px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-soft);
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .debt-action.primary {
+      background: var(--sf-accent-soft);
+      color: var(--sf-accent-strong);
+      border-color: var(--sf-border-strong);
+    }
+
+    .debt-action.pay {
+      background: var(--sf-positive-soft);
+      color: var(--sf-positive);
+      border-color: rgba(83, 215, 167, .28);
+    }
+
+    .debt-action.reverse {
+      background: var(--sf-danger-soft);
+      color: var(--sf-danger);
+      border-color: rgba(255, 127, 138, .28);
+    }
+
+    .debt-action:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .debts-panel-stack {
+      display: grid;
+      gap: var(--sf-space-4, 16px);
+    }
+
+    .debt-form-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .debt-two-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .sf-field {
+      display: grid;
+      gap: var(--sf-space-2, 8px);
+    }
+
+    .sf-field label {
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-12, 12px);
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .sf-input,
+    .sf-select,
+    .sf-textarea {
+      width: 100%;
+      border: 1px solid var(--sf-border);
+      border-radius: var(--sf-radius-sm, 14px);
+      background: var(--sf-surface-1);
+      color: var(--sf-text);
+      padding: 12px 13px;
+      font: inherit;
+      outline: none;
+    }
+
+    .sf-textarea {
+      min-height: 92px;
+      resize: vertical;
+    }
+
+    .sf-input:focus,
+    .sf-select:focus,
+    .sf-textarea:focus {
+      border-color: var(--sf-accent);
+      box-shadow: 0 0 0 3px var(--sf-accent-soft);
+    }
+
+    .proof-box {
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 16px;
+      background: var(--sf-surface-1);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .proof-box.good {
+      border-color: rgba(83, 215, 167, .28);
+      background:
+        linear-gradient(135deg, var(--sf-positive-soft), transparent 68%),
+        var(--sf-surface-1);
+    }
+
+    .proof-box.warn {
+      border-color: rgba(241, 184, 87, .30);
+      background:
+        linear-gradient(135deg, var(--sf-warning-soft), transparent 68%),
+        var(--sf-surface-1);
+    }
+
+    .proof-box.danger {
+      border-color: rgba(255, 127, 138, .30);
+      background:
+        linear-gradient(135deg, var(--sf-danger-soft), transparent 68%),
+        var(--sf-surface-1);
+    }
+
+    .proof-title {
+      color: var(--sf-text);
+      font-weight: 950;
+      font-size: 14px;
+    }
+
+    .proof-sub {
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .panel-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .debts-empty {
+      border: 1px dashed var(--sf-border);
+      border-radius: 18px;
+      padding: 20px;
+      color: var(--sf-text-muted);
+      background: var(--sf-surface-1);
+    }
+
+    .health-grid,
+    .history-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .health-line,
+    .history-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--sf-border-subtle);
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .health-line strong,
+    .history-line strong {
+      color: var(--sf-text);
+      overflow-wrap: anywhere;
+      text-align: right;
+    }
+
+    .debts-debug-pre {
+      white-space: pre-wrap;
+      overflow: auto;
+      max-height: 420px;
+      padding: 12px;
+      border-radius: var(--sf-radius-sm, 14px);
+      background: var(--sf-surface-2);
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-12, 12px);
+      line-height: 1.5;
+    }
+
+    .is-hidden,
+    [hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 1180px) {
+      .debts-workspace,
+      .debts-command {
+        grid-template-columns: 1fr;
+      }
+
+      .debts-actions,
+      .debt-card-actions,
+      .panel-actions {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .debt-main-line,
+      .debt-two-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .debt-amount {
+        text-align: left;
+      }
+
+      .debts-actions .sf-button,
+      .debt-card-actions .debt-action,
+      .panel-actions .sf-button {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 
-<body>
-  <aside class="sf-sidebar" aria-label="Sovereign Finance navigation">
-    <div class="sf-sidebar-brand">
-      <a class="sf-brand-home" href="/index.html">
-        <span class="sf-brand-mark">SF</span>
-        <span class="sf-brand-copy">
-          <span class="sf-brand-title">Sovereign Finance</span>
-          <span class="sf-brand-subtitle">Personal finance system</span>
-        </span>
-      </a>
-      <button class="sf-sidebar-fold" type="button" id="sidebarFold" aria-label="Collapse sidebar">
-        <span class="sf-nav-icon">‹</span>
-      </button>
-    </div>
+<body class="sf-shell-body">
+  <div class="sf-app-shell sf-app-shell--with-nav">
+    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
 
-    <nav class="sf-nav-scroll" aria-label="Main navigation">
-      <a class="sf-nav-link" href="/index.html"><span class="sf-nav-icon">⌂</span><span class="sf-nav-label">Hub</span></a>
-      <a class="sf-nav-link" href="/add.html"><span class="sf-nav-icon">＋</span><span class="sf-nav-label">Add</span></a>
-      <a class="sf-nav-link" href="/transactions.html"><span class="sf-nav-icon">≡</span><span class="sf-nav-label">Ledger</span></a>
-      <a class="sf-nav-link" href="/bills.html"><span class="sf-nav-icon">◷</span><span class="sf-nav-label">Bills</span></a>
-      <a class="sf-nav-link active" href="/debts.html" aria-current="page"><span class="sf-nav-icon">↔</span><span class="sf-nav-label">Debts</span></a>
-      <a class="sf-nav-link" href="/salary.html"><span class="sf-nav-icon">₨</span><span class="sf-nav-label">Salary</span></a>
-      <a class="sf-nav-link" href="/forecast.html"><span class="sf-nav-icon">⌁</span><span class="sf-nav-label">Forecast</span></a>
-      <a class="sf-nav-link" href="/reconciliation.html"><span class="sf-nav-icon">✓</span><span class="sf-nav-label">Reconcile</span></a>
-      <a class="sf-nav-link" href="/accounts.html"><span class="sf-nav-icon">◫</span><span class="sf-nav-label">Accounts</span></a>
-      <a class="sf-nav-link" href="/cc.html"><span class="sf-nav-icon">▣</span><span class="sf-nav-label">Credit Card</span></a>
-    </nav>
+    <main class="sf-page-shell">
+      <section class="sf-page-content debts-os">
+        <section class="debts-command">
+          <div>
+            <div class="sf-page-eyebrow">Banking-grade debts</div>
+            <h1 class="debts-title">Debts</h1>
+            <p class="debts-copy">
+              Debts own their payments. Every new payment must dry-run first, then create one ledger transaction and one immutable debt payment row.
+            </p>
+          </div>
 
-    <div class="sf-sidebar-footer">
-      <div class="sf-sidebar-footer-title">Flat navigation</div>
-      <div class="sf-sidebar-footer-copy">No submenus. No nested routes.</div>
-    </div>
-  </aside>
+          <div class="debts-actions">
+            <button class="sf-button sf-button--primary" id="addDebtBtn" type="button">Add Debt</button>
+            <button class="sf-button" id="refreshDebtsBtn" type="button">Refresh</button>
+            <a class="sf-button" href="/transactions.html">Ledger</a>
+            <a class="sf-button" href="/add.html">Add</a>
+          </div>
+        </section>
 
-  <div class="sf-overlay" id="navOverlay"></div>
-
-  <header class="sf-topbar">
-    <div class="sf-topbar-left">
-      <button class="sf-mobile-menu" type="button" id="mobileMenu" aria-label="Open navigation">☰</button>
-      <div>
-        <div class="sf-page-eyebrow">Sovereign Finance</div>
-        <div class="sf-page-title">Debts</div>
-      </div>
-    </div>
-
-    <div class="sf-topbar-right">
-      <button class="sf-theme-toggle" type="button" id="themeToggle" aria-label="Toggle theme">◐</button>
-    </div>
-  </header>
-
-  <main class="app-page">
-    <section class="finance-hero">
-      <div class="hero-kicker">Debt register</div>
-      <h1 class="hero-title">Debts, ledger-linked.</h1>
-      <p class="hero-copy">
-        Create debts with account movement, record partial payments, receive installments, and defer next dates without breaking the ledger.
-      </p>
-
-      <div class="stack-sm" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;">
-        <button class="btn btn-success" type="button" id="addDebtBtn">Add Debt</button>
-        <button class="btn btn-secondary" type="button" id="refreshBtn">Refresh</button>
-        <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
-      </div>
-    </section>
-
-    <section class="grid-4">
-      <article class="kpi-card">
-        <div class="kpi-label">I owe</div>
-        <div class="kpi-value" id="iOweTotal">—</div>
-        <div class="kpi-sub">Outstanding payable</div>
-      </article>
-
-      <article class="kpi-card">
-        <div class="kpi-label">Owed to me</div>
-        <div class="kpi-value" id="owedToMeTotal">—</div>
-        <div class="kpi-sub">Outstanding receivable</div>
-      </article>
-
-      <article class="kpi-card">
-        <div class="kpi-label">Active debts</div>
-        <div class="kpi-value" id="activeDebtCount">—</div>
-        <div class="kpi-sub" id="activeDebtNote">Loading debts</div>
-      </article>
-
-      <article class="kpi-card">
-        <div class="kpi-label">Settled</div>
-        <div class="kpi-value" id="settledDebtCount">—</div>
-        <div class="kpi-sub">Closed records</div>
-      </article>
-    </section>
-
-    <section class="dashboard-grid">
-      <div class="stack">
-        <article class="card card-padded">
-          <div class="section-kicker">Debt register</div>
-          <h2 class="authority-title" style="margin-top:12px;">Active and settled records</h2>
-          <p class="authority-copy">
-            Direction controls the action. Money movement always asks for the account it hits.
+        <section class="debts-insight">
+          <div class="sf-page-eyebrow">Debt Engine</div>
+          <h2>No silent paid amount drift.</h2>
+          <p>
+            A debt payment is real only when debt payment amount, linked ledger transaction amount, and debt paid amount agree.
+            Legacy migrated balances are separated from new immutable payment rows.
           </p>
+        </section>
 
-          <div class="grid-2" style="margin-top:16px;align-items:end;">
-            <div class="field">
-              <label for="searchInput">Search</label>
-              <input id="searchInput" type="search" placeholder="Search debts..." />
+        <section class="sf-panel">
+          <div class="sf-section-head" style="margin-bottom:0;">
+            <div>
+              <p class="sf-section-kicker">Backend Health</p>
+              <h2 class="sf-section-title" id="debtsHealthTitle">Checking Debts health…</h2>
+              <p class="sf-section-subtitle" id="debtsHealthSub">
+                Verifies immutable debt payments, reversed transaction mismatches, amount mismatches, and legacy opening state.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="debts-metrics">
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">I Owe</p>
+            <div id="metricOwe" class="sf-metric-value sf-tone-danger">Rs 0</div>
+            <p class="sf-card-subtitle">Remaining payable debt.</p>
+          </article>
+
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Owed To Me</p>
+            <div id="metricOwed" class="sf-metric-value sf-tone-positive">Rs 0</div>
+            <p class="sf-card-subtitle">Remaining receivables.</p>
+          </article>
+
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Net Position</p>
+            <div id="metricNet" class="sf-metric-value">Rs 0</div>
+            <p class="sf-card-subtitle">Owed to me minus I owe.</p>
+          </article>
+
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Active / Settled</p>
+            <div id="metricCounts" class="sf-metric-value">0 / 0</div>
+            <p class="sf-card-subtitle">Current debt states.</p>
+          </article>
+        </section>
+
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Controls</p>
+              <h2 class="sf-section-title">Filter Debts</h2>
+              <p class="sf-section-subtitle">Filters only change display. Backend remains the source of truth.</p>
+            </div>
+          </div>
+
+          <div class="debt-two-grid">
+            <div class="sf-field">
+              <label for="debtSearchInput">Search</label>
+              <input id="debtSearchInput" class="sf-input" type="search" placeholder="Search name, notes, ID">
             </div>
 
-            <div class="field">
-              <label for="statusFilter">View</label>
-              <select id="statusFilter">
+            <div class="sf-field">
+              <label for="debtViewFilter">View</label>
+              <select id="debtViewFilter" class="sf-select">
                 <option value="active">Active</option>
-                <option value="i_owe">I owe</option>
-                <option value="owed_to_me">Owed to me</option>
-                <option value="settled">Settled</option>
+                <option value="owe">I owe</option>
+                <option value="owed">Owed to me</option>
+                <option value="settled">Settled / closed</option>
                 <option value="all">All</option>
               </select>
             </div>
           </div>
-
-          <div class="table-wrap" style="margin-top:16px;">
-            <table>
-              <thead>
-                <tr>
-                  <th>Debt</th>
-                  <th>Direction</th>
-                  <th>Original</th>
-                  <th>Outstanding</th>
-                  <th>Next date</th>
-                  <th>Status</th>
-                  <th class="text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="debtsTableBody">
-                <tr>
-                  <td colspan="7" class="muted text-center">Loading debts...</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </article>
-      </div>
-
-      <aside class="stack">
-        <article class="card card-padded">
-          <div class="section-kicker">Quick actions</div>
-          <div class="stack-sm" style="margin-top:16px;">
-            <button class="btn btn-success" type="button" id="sideAddDebtBtn">Add Debt</button>
-            <button class="btn btn-secondary" type="button" id="sideRefreshBtn">Refresh Debts</button>
-            <a class="btn btn-secondary" href="/transactions.html">Open Ledger</a>
-          </div>
-        </article>
-
-        <article class="card card-padded">
-          <div class="section-kicker">Priority</div>
-          <h2 class="authority-title" style="margin-top:12px;">Largest outstanding</h2>
-          <p class="authority-copy">Active debts ordered by outstanding amount.</p>
-          <div class="stack-sm" id="priorityList" style="margin-top:16px;">
-            <div class="card card-compact muted">Loading debts...</div>
-          </div>
-        </article>
-
-        <article class="card card-padded">
-          <div class="section-kicker">Page status</div>
-          <h2 class="authority-title" style="margin-top:12px;" id="pageStatus">Loading</h2>
-          <p class="authority-copy" id="pageStatusDetail">Fetching debts.</p>
-          <p class="authority-copy">Last refreshed: <span id="lastRefreshed">—</span></p>
-        </article>
-      </aside>
-    </section>
-
-    <pre id="debugPanel" hidden></pre>
-  </main>
-
-  <section id="debtModal" hidden>
-    <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
-    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,720px);max-height:90vh;overflow:auto;">
-      <div class="grid-2" style="align-items:start;">
-        <div>
-          <div class="section-kicker">Debt</div>
-          <h2 class="authority-title" style="margin-top:12px;" id="debtModalTitle">Add Debt</h2>
-          <p class="authority-copy" id="debtModalCopy">Create a debt record. If money moves now, select the account it hits.</p>
-        </div>
-        <div class="text-right">
-          <button class="btn btn-secondary" type="button" id="closeDebtModal">Close</button>
-        </div>
-      </div>
-
-      <form id="debtForm" class="stack" style="margin-top:18px;">
-        <input type="hidden" id="debtId" />
-
-        <div class="grid-2">
-          <div class="field">
-            <label for="debtName">Name / code</label>
-            <input id="debtName" required placeholder="Use existing code or short label" />
-          </div>
-
-          <div class="field">
-            <label for="debtDirection">Direction</label>
-            <select id="debtDirection">
-              <option value="owed_to_me">Owed to me</option>
-              <option value="i_owe">I owe</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="field">
-            <label for="debtOriginalAmount">Original amount</label>
-            <input id="debtOriginalAmount" required type="number" min="0" step="0.01" placeholder="0.00" />
-          </div>
-
-          <div class="field">
-            <label for="debtOutstandingAmount">Outstanding amount</label>
-            <input id="debtOutstandingAmount" type="number" min="0" step="0.01" placeholder="Leave blank if same" />
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="field">
-            <label for="debtInstallmentAmount">Installment amount</label>
-            <input id="debtInstallmentAmount" type="number" min="0" step="0.01" placeholder="Optional" />
-          </div>
-
-          <div class="field">
-            <label for="debtNextDueDate">Next due / follow-up date</label>
-            <input id="debtNextDueDate" type="date" />
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="field">
-            <label for="debtStatus">Status</label>
-            <select id="debtStatus">
-              <option value="active">Active</option>
-              <option value="settled">Settled</option>
-              <option value="archived">Archived</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="debtLedgerMode">Ledger movement now</label>
-            <select id="debtLedgerMode">
-              <option value="with_ledger">Yes, money moved now</option>
-              <option value="debt_only">No, debt record only</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="card card-compact" id="debtLedgerPanel">
-          <div class="grid-2">
-            <div class="field">
-              <label for="debtAccount" id="debtAccountLabel">Source account</label>
-              <select id="debtAccount">
-                <option value="">Select account</option>
-              </select>
-            </div>
-
-            <div class="field">
-              <label for="debtMovementDate">Movement date</label>
-              <input id="debtMovementDate" type="date" />
-            </div>
-          </div>
-          <p class="authority-copy" id="debtLedgerHint" style="margin-top:10px;">
-            Owed to me means money leaves the selected account. I owe means money enters the selected account.
-          </p>
-        </div>
-
-        <div class="field">
-          <label for="debtNotes">Notes</label>
-          <textarea id="debtNotes" placeholder="Optional"></textarea>
-        </div>
-
-        <button class="primary-submit" type="submit" id="debtSubmit">Save Debt</button>
-      </form>
-    </div>
-  </section>
-
-  <section id="movementModal" hidden>
-    <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
-    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,640px);max-height:90vh;overflow:auto;">
-      <div class="grid-2" style="align-items:start;">
-        <div>
-          <div class="section-kicker" id="movementKicker">Payment</div>
-          <h2 class="authority-title" style="margin-top:12px;" id="movementTitle">Record Payment</h2>
-          <p class="authority-copy" id="movementCopy">Record movement against this debt.</p>
-        </div>
-        <div class="text-right">
-          <button class="btn btn-secondary" type="button" id="closeMovementModal">Close</button>
-        </div>
-      </div>
-
-      <div class="card card-compact" style="margin-top:14px;">
-        <div class="grid-2" style="align-items:center;">
-          <div>
-            <div class="muted">Selected debt</div>
-            <div class="strong" id="movementDebtName">—</div>
-          </div>
-          <div class="text-right">
-            <div class="muted" id="movementDebtDirection">—</div>
-            <div class="strong" id="movementDebtOutstanding">—</div>
-          </div>
-        </div>
-      </div>
-
-      <form id="movementForm" class="stack" style="margin-top:18px;">
-        <input type="hidden" id="movementDebtId" />
-        <input type="hidden" id="movementType" />
-
-        <div class="grid-2">
-          <div class="field">
-            <label for="movementAmount" id="movementAmountLabel">Amount</label>
-            <input id="movementAmount" type="number" min="0" step="0.01" required />
-          </div>
-
-          <div class="field">
-            <label for="movementDate">Date</label>
-            <input id="movementDate" type="date" required />
-          </div>
-        </div>
-
-        <div class="grid-2">
-          <div class="field">
-            <label for="movementAccount" id="movementAccountLabel">Account</label>
-            <select id="movementAccount" required>
-              <option value="">Select account</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label for="movementNextDueDate" id="movementNextDateLabel">Next due / follow-up date</label>
-            <input id="movementNextDueDate" type="date" />
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="movementNotes">Notes</label>
-          <textarea id="movementNotes" placeholder="Optional"></textarea>
-        </div>
-
-        <button class="primary-submit" type="submit" id="movementSubmit">Record</button>
-      </form>
-    </div>
-  </section>
-
-  <section id="deferModal" hidden>
-    <div class="sf-overlay" style="display:block;opacity:1;pointer-events:auto;"></div>
-    <div class="card card-padded" style="position:fixed;z-index:1001;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,560px);max-height:90vh;overflow:auto;">
-      <div class="grid-2" style="align-items:start;">
-        <div>
-          <div class="section-kicker">Defer</div>
-          <h2 class="authority-title" style="margin-top:12px;" id="deferTitle">Defer Debt</h2>
-          <p class="authority-copy" id="deferCopy">Move the next due date without changing the balance.</p>
-        </div>
-        <div class="text-right">
-          <button class="btn btn-secondary" type="button" id="closeDeferModal">Close</button>
-        </div>
-      </div>
-
-      <div class="card card-compact" style="margin-top:14px;">
-        <div class="grid-2" style="align-items:center;">
-          <div>
-            <div class="muted">Selected debt</div>
-            <div class="strong" id="deferDebtName">—</div>
-          </div>
-          <div class="text-right">
-            <div class="muted" id="deferDebtDirection">—</div>
-            <div class="strong" id="deferDebtOutstanding">—</div>
-          </div>
-        </div>
-      </div>
-
-      <form id="deferForm" class="stack" style="margin-top:18px;" autocomplete="off">
-        <input type="hidden" id="deferDebtId" />
-
-        <div class="field">
-          <label for="deferNextDate">New next due / follow-up date</label>
-          <input id="deferNextDate" type="date" required />
-        </div>
-
-        <div class="field">
-          <label for="deferNotes">Reason / notes</label>
-          <textarea id="deferNotes" placeholder="Optional" autocomplete="off"></textarea>
-        </div>
-
-        <button class="primary-submit" type="submit">Defer Debt</button>
-      </form>
-    </div>
-  </section>
-
-  <div class="toast" id="toast"></div>
-
-  <script src="/js/theme.js?v=1.0.0"></script>
-  <script src="/js/nav.js?v=2.0.0"></script>
-
-  <script>
-    (() => {
-      "use strict";
-
-      const VERSION = "ui5-debts-5";
-      const DEBUG = new URLSearchParams(location.search).get("debug") === "1";
-
-      const state = {
-        debts: [],
-        accounts: [],
-        raw: null,
-        accountsRaw: null,
-        error: null,
-        search: "",
-        filter: "active"
-      };
-
-      const $ = id => document.getElementById(id);
-
-      const els = {
-        iOweTotal: $("iOweTotal"),
-        owedToMeTotal: $("owedToMeTotal"),
-        activeDebtCount: $("activeDebtCount"),
-        activeDebtNote: $("activeDebtNote"),
-        settledDebtCount: $("settledDebtCount"),
-        searchInput: $("searchInput"),
-        statusFilter: $("statusFilter"),
-        debtsTableBody: $("debtsTableBody"),
-        priorityList: $("priorityList"),
-        pageStatus: $("pageStatus"),
-        pageStatusDetail: $("pageStatusDetail"),
-        lastRefreshed: $("lastRefreshed"),
-        addDebtBtn: $("addDebtBtn"),
-        sideAddDebtBtn: $("sideAddDebtBtn"),
-        refreshBtn: $("refreshBtn"),
-        sideRefreshBtn: $("sideRefreshBtn"),
-
-        debtModal: $("debtModal"),
-        closeDebtModal: $("closeDebtModal"),
-        debtForm: $("debtForm"),
-        debtModalTitle: $("debtModalTitle"),
-        debtModalCopy: $("debtModalCopy"),
-        debtId: $("debtId"),
-        debtName: $("debtName"),
-        debtDirection: $("debtDirection"),
-        debtOriginalAmount: $("debtOriginalAmount"),
-        debtOutstandingAmount: $("debtOutstandingAmount"),
-        debtInstallmentAmount: $("debtInstallmentAmount"),
-        debtNextDueDate: $("debtNextDueDate"),
-        debtStatus: $("debtStatus"),
-        debtLedgerMode: $("debtLedgerMode"),
-        debtLedgerPanel: $("debtLedgerPanel"),
-        debtAccount: $("debtAccount"),
-        debtAccountLabel: $("debtAccountLabel"),
-        debtMovementDate: $("debtMovementDate"),
-        debtLedgerHint: $("debtLedgerHint"),
-        debtNotes: $("debtNotes"),
-        debtSubmit: $("debtSubmit"),
-
-        movementModal: $("movementModal"),
-        closeMovementModal: $("closeMovementModal"),
-        movementForm: $("movementForm"),
-        movementDebtId: $("movementDebtId"),
-        movementType: $("movementType"),
-        movementKicker: $("movementKicker"),
-        movementTitle: $("movementTitle"),
-        movementCopy: $("movementCopy"),
-        movementDebtName: $("movementDebtName"),
-        movementDebtDirection: $("movementDebtDirection"),
-        movementDebtOutstanding: $("movementDebtOutstanding"),
-        movementDate: $("movementDate"),
-        movementAmount: $("movementAmount"),
-        movementAmountLabel: $("movementAmountLabel"),
-        movementAccount: $("movementAccount"),
-        movementAccountLabel: $("movementAccountLabel"),
-        movementNextDueDate: $("movementNextDueDate"),
-        movementNextDateLabel: $("movementNextDateLabel"),
-        movementNotes: $("movementNotes"),
-        movementSubmit: $("movementSubmit"),
-
-        deferModal: $("deferModal"),
-        closeDeferModal: $("closeDeferModal"),
-        deferForm: $("deferForm"),
-        deferDebtId: $("deferDebtId"),
-        deferNextDate: $("deferNextDate"),
-        deferNotes: $("deferNotes"),
-        deferTitle: $("deferTitle"),
-        deferDebtName: $("deferDebtName"),
-        deferDebtDirection: $("deferDebtDirection"),
-        deferDebtOutstanding: $("deferDebtOutstanding"),
-
-        toast: $("toast"),
-        debugPanel: $("debugPanel")
-      };
-
-      window.SovereignDebts = {
-        version: VERSION,
-        refresh,
-        getState: () => JSON.parse(JSON.stringify(state))
-      };
-
-      function money(value) {
-        const n = Number(value);
-        if (!Number.isFinite(n)) return "—";
-        return new Intl.NumberFormat("en-PK", {
-          style: "currency",
-          currency: "PKR",
-          maximumFractionDigits: 0
-        }).format(n);
-      }
-
-      function num(value) {
-        const n = Number(value);
-        return Number.isFinite(n) ? n : null;
-      }
-
-      function todayIso() {
-        return new Date().toISOString().slice(0, 10);
-      }
-
-      function escapeHtml(value) {
-        return String(value ?? "")
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#039;");
-      }
-
-      async function readJson(path, options = {}) {
-        const res = await fetch(path, {
-          ...options,
-          headers: {
-            "content-type": "application/json",
-            ...(options.headers || {})
-          }
-        });
-
-        const text = await res.text();
-        let json;
-
-        try {
-          json = text ? JSON.parse(text) : {};
-        } catch {
-          throw new Error(`${path} returned non-JSON`);
-        }
-
-        if (!res.ok) {
-          throw new Error(json?.error || json?.message || `${path} HTTP ${res.status}`);
-        }
-
-        return json;
-      }
-
-      function asArray(payload, key) {
-        if (!payload) return [];
-        if (Array.isArray(payload)) return payload;
-        if (Array.isArray(payload[key])) return payload[key];
-        if (Array.isArray(payload.items)) return payload.items;
-        if (Array.isArray(payload.data)) return payload.data;
-        if (Array.isArray(payload.rows)) return payload.rows;
-        return [];
-      }
-
-      function accountId(account) {
-        return account.id || account.account_id || account.name;
-      }
-
-      function accountName(account) {
-        return account.name || account.account_name || account.label || account.id || account.account_id || "Account";
-      }
-
-      function normalizeDirection(value) {
-        const v = String(value ?? "").toLowerCase();
-
-        if (["owed_to_me", "owed", "receivable", "to_me", "they_owe_me", "receive", "received"].includes(v)) {
-          return "owed_to_me";
-        }
-
-        if (["i_owe", "owe", "payable", "i owe", "debt"].includes(v)) {
-          return "i_owe";
-        }
-
-        return "i_owe";
-      }
-
-      function directionLabel(direction) {
-        return direction === "owed_to_me" ? "Owed to me" : "I owe";
-      }
-
-      function normalizeStatus(value, outstanding) {
-        const v = String(value ?? "").toLowerCase();
-        if (["settled", "closed", "paid", "complete", "completed"].includes(v)) return "settled";
-        if (["archived", "deleted"].includes(v)) return "archived";
-        if (Number(outstanding) === 0) return "settled";
-        return "active";
-      }
-
-      function normalizeDebt(raw) {
-        const id = raw.id ?? raw.debt_id ?? raw.uuid ?? raw.name ?? raw.code;
-        const name = raw.name ?? raw.title ?? raw.debt_name ?? raw.code ?? "Unnamed debt";
-        const direction = normalizeDirection(raw.direction ?? raw.type ?? raw.debt_type ?? raw.kind);
-        const original = num(raw.original_amount ?? raw.principal ?? raw.total_amount ?? raw.amount ?? raw.value);
-        const outstanding = num(
-          raw.outstanding ??
-          raw.outstanding_amount ??
-          raw.remaining ??
-          raw.remaining_amount ??
-          raw.balance ??
-          raw.current_balance ??
-          raw.amount
-        );
-        const installment = num(raw.installment_amount ?? raw.installment ?? raw.expected_installment);
-        const nextDueDate = raw.next_due_date ?? raw.due_date ?? raw.nextDueDate ?? null;
-        const status = normalizeStatus(raw.status, outstanding);
-
-        return {
-          ...raw,
-          id,
-          name,
-          direction,
-          original,
-          outstanding,
-          installment,
-          next_due_date: nextDueDate,
-          status,
-          notes: raw.notes ?? raw.description ?? ""
-        };
-      }
-
-      async function refresh() {
-        state.error = null;
-        renderLoading();
-
-        try {
-          const [debtsPayload, accountsPayload] = await Promise.all([
-            readJson(`/api/debts?cb=${Date.now()}`),
-            readJson(`/api/accounts?cb=${Date.now()}`)
-          ]);
-
-          state.raw = debtsPayload;
-          state.accountsRaw = accountsPayload;
-          state.debts = asArray(debtsPayload, "debts").map(normalizeDebt);
-          state.accounts = asArray(accountsPayload, "accounts");
-        } catch (err) {
-          state.error = err?.message || "Unable to load debts.";
-        }
-
-        render();
-      }
-
-      function filteredDebts() {
-        const q = state.search.trim().toLowerCase();
-
-        return state.debts.filter(debt => {
-          const matchesSearch = !q || [debt.name, debt.notes, debt.direction, debt.status]
-            .filter(Boolean)
-            .some(v => String(v).toLowerCase().includes(q));
-
-          if (!matchesSearch) return false;
-          if (state.filter === "active") return debt.status === "active";
-          if (state.filter === "i_owe") return debt.direction === "i_owe";
-          if (state.filter === "owed_to_me") return debt.direction === "owed_to_me";
-          if (state.filter === "settled") return debt.status === "settled";
-          return true;
-        });
-      }
-
-      function renderLoading() {
-        els.pageStatus.textContent = "Loading";
-        els.pageStatusDetail.textContent = "Fetching debts.";
-        els.debtsTableBody.innerHTML = `<tr><td colspan="7" class="muted text-center">Loading debts...</td></tr>`;
-        els.priorityList.innerHTML = `<div class="card card-compact muted">Loading debts...</div>`;
-      }
-
-      function render() {
-        renderStatus();
-        renderStats();
-        renderTable();
-        renderPriority();
-        renderDebug();
-      }
-
-      function renderStatus() {
-        els.lastRefreshed.textContent = new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit"
-        });
-
-        if (state.error) {
-          els.pageStatus.textContent = "Unavailable";
-          els.pageStatusDetail.textContent = state.error;
-          return;
-        }
-
-        els.pageStatus.textContent = "Ready";
-        els.pageStatusDetail.textContent = "Debts and accounts are loaded.";
-      }
-
-      function renderStats() {
-        const active = state.debts.filter(d => d.status === "active");
-        const settled = state.debts.filter(d => d.status === "settled");
-
-        const iOwe = active
-          .filter(d => d.direction === "i_owe")
-          .map(d => d.outstanding)
-          .filter(v => v !== null)
-          .reduce((sum, v) => sum + v, 0);
-
-        const owedToMe = active
-          .filter(d => d.direction === "owed_to_me")
-          .map(d => d.outstanding)
-          .filter(v => v !== null)
-          .reduce((sum, v) => sum + v, 0);
-
-        els.iOweTotal.textContent = state.error ? "—" : money(iOwe);
-        els.owedToMeTotal.textContent = state.error ? "—" : money(owedToMe);
-        els.activeDebtCount.textContent = state.error ? "—" : String(active.length);
-        els.activeDebtNote.textContent = state.error ? "Debts unavailable" : `${state.debts.length} total record${state.debts.length === 1 ? "" : "s"}`;
-        els.settledDebtCount.textContent = state.error ? "—" : String(settled.length);
-      }
-
-      function renderDebtActions(debt) {
-        const id = escapeHtml(debt.id);
-        const status = String(debt.status || "").toLowerCase();
-
-        if (status === "settled" || status === "archived") {
-          return `<button class="btn btn-secondary" type="button" data-edit="${id}">Edit</button>`;
-        }
-
-        if (debt.direction === "i_owe") {
-          return `
-            <button class="btn btn-secondary" type="button" data-edit="${id}">Edit</button>
-            <button class="btn btn-success" type="button" data-pay="${id}">Payment</button>
-            <button class="btn btn-secondary" type="button" data-defer="${id}">Defer</button>
-          `;
-        }
-
-        return `
-          <button class="btn btn-secondary" type="button" data-edit="${id}">Edit</button>
-          <button class="btn btn-success" type="button" data-receive="${id}">Received</button>
-          <button class="btn btn-secondary" type="button" data-defer="${id}">Defer</button>
-        `;
-      }
-
-      function renderTable() {
-        if (state.error) {
-          els.debtsTableBody.innerHTML = `<tr><td colspan="7" class="text-center">${escapeHtml(state.error)}</td></tr>`;
-          return;
-        }
-
-        const debts = filteredDebts();
-
-        if (!debts.length) {
-          els.debtsTableBody.innerHTML = `<tr><td colspan="7" class="muted text-center">No debts found.</td></tr>`;
-          return;
-        }
-
-        els.debtsTableBody.innerHTML = debts.map(debt => {
-          const badgeClass = debt.status === "settled" ? "badge-pass" : debt.status === "archived" ? "badge-unknown" : "badge-warning";
-
-          return `
-            <tr>
-              <td>
-                <div class="strong">${escapeHtml(debt.name)}</div>
-                <div class="muted">${debt.notes ? escapeHtml(debt.notes) : "—"}</div>
-              </td>
-              <td>${escapeHtml(directionLabel(debt.direction))}</td>
-              <td>${money(debt.original)}</td>
-              <td>${money(debt.outstanding)}</td>
-              <td>${debt.next_due_date ? escapeHtml(debt.next_due_date) : "—"}</td>
-              <td><span class="badge ${badgeClass}">${escapeHtml(debt.status)}</span></td>
-              <td class="text-right">${renderDebtActions(debt)}</td>
-            </tr>
-          `;
-        }).join("");
-      }
-
-      function renderPriority() {
-        if (state.error) {
-          els.priorityList.innerHTML = `<div class="authority-panel blocked">${escapeHtml(state.error)}</div>`;
-          return;
-        }
-
-        const priority = state.debts
-          .filter(d => d.status === "active")
-          .slice()
-          .sort((a, b) => Number(b.outstanding || 0) - Number(a.outstanding || 0))
-          .slice(0, 5);
-
-        if (!priority.length) {
-          els.priorityList.innerHTML = `<div class="card card-compact muted">No active debts.</div>`;
-          return;
-        }
-
-        els.priorityList.innerHTML = priority.map(debt => `
-          <div class="card card-compact">
-            <div class="grid-2" style="align-items:center;">
-              <div>
-                <div class="strong">${escapeHtml(debt.name)}</div>
-                <div class="muted">${escapeHtml(directionLabel(debt.direction))}${debt.next_due_date ? ` · ${escapeHtml(debt.next_due_date)}` : ""}</div>
+        </section>
+
+        <section class="debts-workspace">
+          <div class="debts-panel-stack">
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Debts</p>
+                  <h2 class="sf-section-title">Current Debt Book</h2>
+                  <p class="sf-section-subtitle">
+                    Direction controls whether payment is money out or money in.
+                  </p>
+                </div>
               </div>
-              <div class="text-right strong">${money(debt.outstanding)}</div>
-            </div>
+
+              <div id="debtsList" class="debts-list">
+                <div class="debts-empty">Loading debts…</div>
+              </div>
+            </section>
+
+            <section class="sf-panel" id="debtHistoryPanel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Payment History</p>
+                  <h2 class="sf-section-title">Selected Debt</h2>
+                  <p class="sf-section-subtitle" id="historySubtitle">
+                    Select a debt to view immutable payment rows and linked ledger transaction IDs.
+                  </p>
+                </div>
+              </div>
+
+              <div id="paymentHistory" class="history-list">
+                <div class="debts-empty">No debt selected.</div>
+              </div>
+            </section>
           </div>
-        `).join("");
-      }
-
-      function renderDebug() {
-        if (!DEBUG || !els.debugPanel) return;
-
-        els.debugPanel.hidden = false;
-        els.debugPanel.textContent = JSON.stringify({
-          ui_version: VERSION,
-          error: state.error,
-          debt_count: state.debts.length,
-          account_count: state.accounts.length,
-          filter: state.filter,
-          raw_payload: state.raw,
-          accounts_payload: state.accountsRaw
-        }, null, 2);
-      }
-
-      function debtById(id) {
-        return state.debts.find(d => String(d.id) === String(id));
-      }
-
-      function accountOptions(selected = "") {
-        return `
-          <option value="">Select account</option>
-          ${state.accounts.map(account => {
-            const id = accountId(account);
-            const name = accountName(account);
-            const balance = account.balance ?? account.current_balance;
-            const label = Number.isFinite(Number(balance)) ? `${name} · ${money(balance)}` : name;
-            return `<option value="${escapeHtml(id)}"${String(id) === String(selected) ? " selected" : ""}>${escapeHtml(label)}</option>`;
-          }).join("")}
-        `;
-      }
-
-      function renderDebtAccountOptions() {
-        els.debtAccount.innerHTML = accountOptions(els.debtAccount.value);
-      }
-
-      function renderMovementAccountOptions() {
-        els.movementAccount.innerHTML = accountOptions(els.movementAccount.value);
-      }
-
-      function renderDebtLedgerMode() {
-        const mode = els.debtLedgerMode.value;
-        const direction = els.debtDirection.value;
-        const withLedger = mode === "with_ledger";
-
-        els.debtLedgerPanel.hidden = !withLedger;
-        els.debtAccount.required = withLedger;
-        els.debtMovementDate.required = withLedger;
-
-        if (direction === "owed_to_me") {
-          els.debtAccountLabel.textContent = "Money went out from account";
-          els.debtLedgerHint.textContent = "This creates an owed-to-me debt, writes a linked ledger outflow, and reduces the selected account.";
-        } else {
-          els.debtAccountLabel.textContent = "Money received into account";
-          els.debtLedgerHint.textContent = "This creates an I-owe debt, writes a linked ledger inflow, and increases the selected account.";
-        }
-      }
-
-      function openDebtModal(debt = null) {
-        const editing = Boolean(debt);
-
-        els.debtModal.hidden = false;
-        els.debtModalTitle.textContent = editing ? "Edit Debt" : "Add Debt";
-        els.debtModalCopy.textContent = editing
-          ? "Update debt details. Existing ledger movement is not recreated here."
-          : "Create a debt record. If money moves now, select the account it hits.";
-
-        els.debtId.value = debt?.id ?? "";
-        els.debtName.value = debt?.name ?? "";
-        els.debtDirection.value = debt?.direction ?? "owed_to_me";
-        els.debtOriginalAmount.value = debt?.original ?? "";
-        els.debtOutstandingAmount.value = debt?.outstanding ?? "";
-        els.debtInstallmentAmount.value = debt?.installment ?? "";
-        els.debtNextDueDate.value = debt?.next_due_date ?? "";
-        els.debtStatus.value = debt?.status ?? "active";
-        els.debtLedgerMode.value = editing ? "debt_only" : "with_ledger";
-        els.debtMovementDate.value = todayIso();
-        els.debtAccount.value = "";
-        els.debtNotes.value = debt?.notes ?? "";
-
-        renderDebtAccountOptions();
-        renderDebtLedgerMode();
-
-        setTimeout(() => els.debtName.focus(), 30);
-      }
-
-      function closeDebtModal() {
-        els.debtModal.hidden = true;
-        els.debtForm.reset();
-        els.debtId.value = "";
-      }
-
-      function openMovementModal(debt, type) {
-        const isReceived = type === "received";
-
-        els.movementModal.hidden = false;
-        els.movementDebtId.value = debt.id;
-        els.movementType.value = type;
-        els.movementDate.value = todayIso();
-        els.movementAmount.value = debt.installment ?? "";
-        els.movementNextDueDate.value = debt.next_due_date ?? "";
-        els.movementNotes.value = "";
-
-        els.movementKicker.textContent = isReceived ? "Received" : "Payment";
-        els.movementTitle.textContent = isReceived ? "Record Received" : "Record Payment";
-        els.movementCopy.textContent = isReceived
-          ? `Record amount received for ${debt.name}.`
-          : `Record payment made for ${debt.name}.`;
-
-        els.movementDebtName.textContent = debt.name || "Selected debt";
-        els.movementDebtDirection.textContent = directionLabel(debt.direction);
-        els.movementDebtOutstanding.textContent = money(debt.outstanding);
-
-        els.movementAmountLabel.textContent = isReceived ? "Amount received" : "Amount paid";
-        els.movementAccountLabel.textContent = isReceived ? "Received into account" : "Paid from account";
-        els.movementNextDateLabel.textContent = isReceived ? "Next follow-up date" : "Next due date";
-        els.movementSubmit.textContent = isReceived ? "Record Received" : "Record Payment";
-
-        renderMovementAccountOptions();
-
-        setTimeout(() => els.movementAmount.focus(), 30);
-      }
-
-      function closeMovementModal() {
-        els.movementModal.hidden = true;
-        els.movementForm.reset();
-      }
-
-      function openDeferModal(debt) {
-        els.deferModal.hidden = false;
-        els.deferDebtId.value = debt.id;
-        els.deferNextDate.value = debt.next_due_date ?? "";
-        els.deferNotes.value = "";
-        els.deferTitle.textContent = `Defer ${debt.name}`;
-        els.deferDebtName.textContent = debt.name || "Selected debt";
-        els.deferDebtDirection.textContent = directionLabel(debt.direction);
-        els.deferDebtOutstanding.textContent = money(debt.outstanding);
-        setTimeout(() => els.deferNextDate.focus(), 30);
-      }
-
-      function closeDeferModal() {
-        els.deferModal.hidden = true;
-        els.deferForm.reset();
-      }
-
-      function toast(message, type = "") {
-        els.toast.textContent = message;
-        els.toast.className = `toast show ${type}`;
-        clearTimeout(toast.timer);
-        toast.timer = setTimeout(() => {
-          els.toast.className = "toast";
-        }, 2800);
-      }
-
-      async function tryMutation(candidates, fallbackBody) {
-        let lastError = null;
-
-        for (const candidate of candidates) {
-          try {
-            return await readJson(candidate.url, {
-              method: candidate.method,
-              body: JSON.stringify(candidate.body || fallbackBody)
-            });
-          } catch (err) {
-            lastError = err;
-          }
-        }
-
-        throw lastError || new Error("Unable to save changes.");
-      }
-
-      function debtPayloadFromForm() {
-        const id = els.debtId.value.trim();
-        const original = Number(els.debtOriginalAmount.value);
-        const outstandingInput = els.debtOutstandingAmount.value.trim();
-        const outstanding = outstandingInput ? Number(outstandingInput) : original;
-        const installmentInput = els.debtInstallmentAmount.value.trim();
-        const installment = installmentInput ? Number(installmentInput) : null;
-        const withLedger = els.debtLedgerMode.value === "with_ledger";
-
-        const payload = {
-          id: id || undefined,
-          action: id ? "update" : "create",
-          name: els.debtName.value.trim(),
-          direction: els.debtDirection.value,
-          type: els.debtDirection.value,
-          original_amount: original,
-          amount: original,
-          outstanding_amount: outstanding,
-          outstanding,
-          installment_amount: installment,
-          next_due_date: els.debtNextDueDate.value || null,
-          due_date: els.debtNextDueDate.value || null,
-          status: els.debtStatus.value,
-          notes: els.debtNotes.value.trim(),
-          ledger_mode: withLedger ? "with_ledger" : "debt_only",
-          create_ledger_entry: withLedger,
-          account_id: withLedger ? els.debtAccount.value : null,
-          movement_date: withLedger ? els.debtMovementDate.value : null
-        };
-
-        if (withLedger && payload.direction === "owed_to_me") {
-          payload.ledger_direction = "out";
-          payload.transaction_type = "debt_given";
-          payload.ledger_effect = "decrease_account";
-        }
-
-        if (withLedger && payload.direction === "i_owe") {
-          payload.ledger_direction = "in";
-          payload.transaction_type = "debt_borrowed";
-          payload.ledger_effect = "increase_account";
-        }
-
-        return payload;
-      }
-
-      async function saveDebt(payload) {
-        if (payload.id) {
-          return tryMutation([
-            { url: `/api/debts/${encodeURIComponent(payload.id)}`, method: "PUT", body: payload },
-            { url: `/api/debts/${encodeURIComponent(payload.id)}`, method: "POST", body: { ...payload, action: "update" } }
-          ], payload);
-        }
-
-        return tryMutation([
-          { url: "/api/debts", method: "POST", body: payload }
-        ], payload);
-      }
-
-      async function recordMovement(payload) {
-        const id = payload.id;
-        const action = payload.type === "received" ? "received" : "payment";
-
-        const body = {
-          ...payload,
-          action,
-          debt_id: id,
-          account_id: payload.account_id
-        };
-
-        return tryMutation([
-          { url: `/api/debts/${encodeURIComponent(id)}/pay`, method: "POST", body },
-          { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body }
-        ], body);
-      }
-
-      async function deferDebt(payload) {
-        const id = payload.id;
-
-        const body = {
-          ...payload,
-          action: "defer",
-          debt_id: id
-        };
-
-        return tryMutation([
-          { url: `/api/debts/${encodeURIComponent(id)}/defer`, method: "POST", body },
-          { url: `/api/debts/${encodeURIComponent(id)}`, method: "PUT", body },
-          { url: `/api/debts/${encodeURIComponent(id)}`, method: "POST", body: { ...body, action: "update" } }
-        ], body);
-      }
-
-      function bindEvents() {
-        els.addDebtBtn.addEventListener("click", () => openDebtModal());
-        els.sideAddDebtBtn.addEventListener("click", () => openDebtModal());
-        els.refreshBtn.addEventListener("click", refresh);
-        els.sideRefreshBtn.addEventListener("click", refresh);
-
-        els.closeDebtModal.addEventListener("click", closeDebtModal);
-        els.closeMovementModal.addEventListener("click", closeMovementModal);
-        els.closeDeferModal.addEventListener("click", closeDeferModal);
-
-        els.debtDirection.addEventListener("change", renderDebtLedgerMode);
-        els.debtLedgerMode.addEventListener("change", renderDebtLedgerMode);
-
-        els.searchInput.addEventListener("input", event => {
-          state.search = event.target.value;
-          render();
-        });
-
-        els.statusFilter.addEventListener("change", event => {
-          state.filter = event.target.value;
-          render();
-        });
-
-        document.addEventListener("click", event => {
-          const editId = event.target?.getAttribute?.("data-edit");
-          const payId = event.target?.getAttribute?.("data-pay");
-          const receiveId = event.target?.getAttribute?.("data-receive");
-          const deferId = event.target?.getAttribute?.("data-defer");
-
-          if (editId) {
-            const debt = debtById(editId);
-            if (debt) openDebtModal(debt);
-          }
-
-          if (payId) {
-            const debt = debtById(payId);
-            if (debt) openMovementModal(debt, "payment");
-          }
-
-          if (receiveId) {
-            const debt = debtById(receiveId);
-            if (debt) openMovementModal(debt, "received");
-          }
-
-          if (deferId) {
-            const debt = debtById(deferId);
-            if (debt) openDeferModal(debt);
-          }
-        });
-
-        document.addEventListener("keydown", event => {
-          if (event.key === "Escape") {
-            closeDebtModal();
-            closeMovementModal();
-            closeDeferModal();
-          }
-        });
-
-        els.debtForm.addEventListener("submit", async event => {
-          event.preventDefault();
-
-          const payload = debtPayloadFromForm();
-
-          if (!payload.name) return toast("Debt name or code is required.", "toast-warning");
-          if (!Number.isFinite(payload.original_amount)) return toast("Original amount is required.", "toast-warning");
-          if (!Number.isFinite(payload.outstanding_amount)) return toast("Outstanding amount is invalid.", "toast-warning");
-          if (payload.installment_amount !== null && !Number.isFinite(payload.installment_amount)) return toast("Installment amount is invalid.", "toast-warning");
-
-          if (payload.create_ledger_entry && (!payload.account_id || !payload.movement_date)) {
-            return toast("Account and movement date are required when money moved.", "toast-warning");
-          }
-
-          try {
-            await saveDebt(payload);
-            closeDebtModal();
-            toast("Debt saved.", "toast-success");
-            await refresh();
-          } catch (err) {
-            toast(err?.message || "Unable to save debt.", "toast-error");
-          }
-        });
-
-        els.movementForm.addEventListener("submit", async event => {
-          event.preventDefault();
-
-          const payload = {
-            id: els.movementDebtId.value,
-            type: els.movementType.value,
-            action: els.movementType.value === "received" ? "received" : "payment",
-            date: els.movementDate.value,
-            amount: Number(els.movementAmount.value),
-            account_id: els.movementAccount.value,
-            next_due_date: els.movementNextDueDate.value || null,
-            notes: els.movementNotes.value.trim()
-          };
-
-          if (!payload.id || !payload.date || !Number.isFinite(payload.amount) || !payload.account_id) {
-            return toast("Date, amount, and account are required.", "toast-warning");
-          }
-
-          if (payload.amount <= 0) return toast("Amount must be greater than zero.", "toast-warning");
-
-          try {
-            await recordMovement(payload);
-            closeMovementModal();
-            toast(payload.type === "received" ? "Received amount recorded." : "Payment recorded.", "toast-success");
-            await refresh();
-          } catch (err) {
-            toast(err?.message || "Unable to record movement.", "toast-error");
-          }
-        });
-
-        els.deferForm.addEventListener("submit", async event => {
-          event.preventDefault();
-
-          const debt = debtById(els.deferDebtId.value);
-
-          const payload = {
-            id: els.deferDebtId.value,
-            debt_id: els.deferDebtId.value,
-            action: "defer",
-            name: debt?.name,
-            direction: debt?.direction,
-            type: debt?.direction,
-            original_amount: debt?.original,
-            amount: debt?.original,
-            outstanding_amount: debt?.outstanding,
-            outstanding: debt?.outstanding,
-            installment_amount: debt?.installment ?? null,
-            status: debt?.status || "active",
-            next_due_date: els.deferNextDate.value,
-            due_date: els.deferNextDate.value,
-            notes: els.deferNotes.value.trim()
-          };
-
-          if (!payload.id || !payload.name || !payload.next_due_date) {
-            return toast("Debt and new next due date are required.", "toast-warning");
-          }
-
-          try {
-            await deferDebt(payload);
-            closeDeferModal();
-            toast("Debt deferred.", "toast-success");
-            await refresh();
-          } catch (err) {
-            toast(err?.message || "Unable to defer debt.", "toast-error");
-          }
-        });
-      }
-
-      bindEvents();
-      refresh();
-    })();
-  </script>
+
+          <aside class="debts-panel-stack">
+            <section class="sf-panel" id="debtFormPanel" hidden>
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker" id="debtFormKicker">Debt Config</p>
+                  <h2 class="sf-section-title" id="debtFormTitle">Add Debt</h2>
+                  <p class="sf-section-subtitle">
+                    Config only. Payments use the payment panel.
+                  </p>
+                </div>
+              </div>
+
+              <form id="debtForm" class="debt-form-grid">
+                <input id="debtIdInput" type="hidden">
+
+                <div class="sf-field">
+                  <label for="debtNameInput">Name</label>
+                  <input id="debtNameInput" class="sf-input" type="text" maxlength="120" required>
+                </div>
+
+                <div class="debt-two-grid">
+                  <div class="sf-field">
+                    <label for="debtKindInput">Direction</label>
+                    <select id="debtKindInput" class="sf-select" required>
+                      <option value="owe">I owe</option>
+                      <option value="owed">Owed to me</option>
+                    </select>
+                  </div>
+
+                  <div class="sf-field">
+                    <label for="debtOriginalInput">Original Amount</label>
+                    <input id="debtOriginalInput" class="sf-input" type="number" min="0.01" step="0.01" required>
+                  </div>
+                </div>
+
+                <div class="debt-two-grid">
+                  <div class="sf-field">
+                    <label for="debtDueDateInput">Due / Follow-up Date</label>
+                    <input id="debtDueDateInput" class="sf-input" type="date">
+                  </div>
+
+                  <div class="sf-field">
+                    <label for="debtInstallmentInput">Installment</label>
+                    <input id="debtInstallmentInput" class="sf-input" type="number" min="0" step="0.01">
+                  </div>
+                </div>
+
+                <div class="sf-field">
+                  <label for="debtNotesInput">Notes</label>
+                  <textarea id="debtNotesInput" class="sf-textarea" maxlength="240"></textarea>
+                </div>
+
+                <div class="panel-actions">
+                  <button class="sf-button" id="cancelDebtFormBtn" type="button">Cancel</button>
+                  <button class="sf-button sf-button--primary" type="submit">Save Debt</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="sf-panel" id="payPanel" hidden>
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Payment</p>
+                  <h2 class="sf-section-title" id="payPanelTitle">Record Payment</h2>
+                  <p class="sf-section-subtitle">
+                    Run dry-run first. Confirm is locked until backend proof returns a payload hash.
+                  </p>
+                </div>
+              </div>
+
+              <form id="payForm" class="debt-form-grid">
+                <input id="payDebtIdInput" type="hidden">
+                <input id="payPayloadHashInput" type="hidden">
+                <input id="payOverrideTokenInput" type="hidden">
+
+                <div class="proof-box" id="payDebtSummary">
+                  <div class="proof-title">No debt selected</div>
+                  <div class="proof-sub">Select Pay/Receive from a debt card.</div>
+                </div>
+
+                <div class="debt-two-grid">
+                  <div class="sf-field">
+                    <label for="payAmountInput">Amount</label>
+                    <input id="payAmountInput" class="sf-input" type="number" min="0.01" step="0.01" required>
+                  </div>
+
+                  <div class="sf-field">
+                    <label for="payAccountInput">Account</label>
+                    <select id="payAccountInput" class="sf-select" required></select>
+                  </div>
+                </div>
+
+                <div class="sf-field">
+                  <label for="payDateInput">Payment Date</label>
+                  <input id="payDateInput" class="sf-input" type="date" required>
+                </div>
+
+                <div class="sf-field">
+                  <label for="payNotesInput">Notes</label>
+                  <textarea id="payNotesInput" class="sf-textarea" maxlength="220"></textarea>
+                </div>
+
+                <div id="payProofBox" class="proof-box warn">
+                  <div class="proof-title">Dry-run required</div>
+                  <div class="proof-sub">Confirm is disabled until backend returns a payload hash.</div>
+                </div>
+
+                <div class="panel-actions">
+                  <button class="sf-button" id="cancelPayBtn" type="button">Cancel</button>
+                  <button class="sf-button" id="runPayDryRunBtn" type="button">Run Dry-Run</button>
+                  <button class="sf-button sf-button--primary" id="confirmPayBtn" type="submit" disabled>Confirm</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="sf-panel" id="reversePaymentPanel" hidden>
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Append-only reversal</p>
+                  <h2 class="sf-section-title">Reverse Debt Payment</h2>
+                  <p class="sf-section-subtitle">
+                    Creates reversal transaction, marks payment reversed, and restores debt paid amount.
+                  </p>
+                </div>
+              </div>
+
+              <form id="reversePaymentForm" class="debt-form-grid">
+                <input id="reversePaymentIdInput" type="hidden">
+
+                <div id="reversePaymentSummary" class="proof-box warn">
+                  <div class="proof-title">No payment selected</div>
+                  <div class="proof-sub">Select a payment from history.</div>
+                </div>
+
+                <div class="sf-field">
+                  <label for="reverseReasonInput">Reason Required</label>
+                  <textarea
+                    id="reverseReasonInput"
+                    class="sf-textarea"
+                    maxlength="500"
+                    placeholder="Example: wrong debt, duplicate payment, incorrect account"
+                    required></textarea>
+                </div>
+
+                <div id="reversePaymentError" class="proof-sub sf-tone-danger" hidden></div>
+
+                <div class="panel-actions">
+                  <button class="sf-button" id="cancelReversePaymentBtn" type="button">Cancel</button>
+                  <button class="sf-button sf-button--danger" type="submit">Confirm Reversal</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="sf-panel" id="deferPanel" hidden>
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Defer</p>
+                  <h2 class="sf-section-title">Defer Debt</h2>
+                  <p class="sf-section-subtitle">
+                    No money movement. Updates due/follow-up state only.
+                  </p>
+                </div>
+              </div>
+
+              <form id="deferForm" class="debt-form-grid">
+                <input id="deferDebtIdInput" type="hidden">
+
+                <div id="deferSummary" class="proof-box">
+                  <div class="proof-title">No debt selected</div>
+                </div>
+
+                <div class="sf-field">
+                  <label for="deferDateInput">New Date</label>
+                  <input id="deferDateInput" class="sf-input" type="date" required>
+                </div>
+
+                <div class="sf-field">
+                  <label for="deferReasonInput">Reason</label>
+                  <textarea id="deferReasonInput" class="sf-textarea" maxlength="300" required></textarea>
+                </div>
+
+                <div class="panel-actions">
+                  <button class="sf-button" id="cancelDeferBtn" type="button">Cancel</button>
+                  <button class="sf-button sf-button--primary" type="submit">Confirm Defer</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Health</p>
+                  <h2 class="sf-section-title">Debt Verification</h2>
+                </div>
+              </div>
+
+              <div id="healthPanel" class="health-grid">
+                <div class="health-line">
+                  <span>Status</span>
+                  <strong>Loading</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="sf-panel" id="debugPanel" hidden>
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Debug</p>
+                  <h2 class="sf-section-title">Payload</h2>
+                </div>
+              </div>
+
+              <pre id="debugOutput" class="debts-debug-pre"></pre>
+            </section>
+          </aside>
+        </section>
+
+        <footer>
+          <span class="sf-meta-text">
+            v1.0.0 · debts · shared shell banking-grade console
+          </span>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/sf-components.js"></script>
+  <script src="/js/sf-shell.js"></script>
+  <script src="/js/debts.js"></script>
 </body>
 </html>
