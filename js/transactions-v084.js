@@ -1,17 +1,18 @@
 /* js/transactions-v084.js
  * Sovereign Finance · Ledger Console
- * v0.8.5-transfer-amount-source-fix
+ * v0.8.6-ledger-renderer-stable
  *
- * Fix:
- * - Transfer linked pairs display actual ledger row amount.
- * - Uses row.amount first for transfer rows.
- * - Does not touch backend/routes.
+ * Fixes:
+ * - Restores missing fetchJSON.
+ * - Keeps transfer pair display as one leg only.
+ * - Shortens giant note titles.
+ * - Keeps backend untouched.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.8.5-transfer-amount-source-fix';
+  const VERSION = 'v0.8.6-ledger-renderer-stable';
 
   const API_TRANSACTIONS = '/api/transactions?include_reversed=1&limit=500';
   const API_ACCOUNTS = '/api/add/context';
@@ -21,7 +22,6 @@
     rows: [],
     groups: [],
     accounts: new Map(),
-    health: null,
     filters: {
       search: '',
       account: '',
@@ -45,6 +45,11 @@
   function setText(id, value) {
     const el = $(id);
     if (el) el.textContent = value == null ? '' : String(value);
+  }
+
+  function truncate(value, max) {
+    const text = String(value || '').trim();
+    return text.length > max ? text.slice(0, max - 1) + '…' : text;
   }
 
   function money(value, unsigned = false) {
@@ -79,7 +84,9 @@
     const type = normalizeType(row.type);
     const amount = absAmount(row);
 
-    if (['income', 'salary', 'opening', 'borrow', 'debt_in'].includes(type)) return amount;
+    if (['income', 'salary', 'opening', 'borrow', 'debt_in'].includes(type)) {
+      return amount;
+    }
 
     return -amount;
   }
@@ -132,32 +139,57 @@
   }
 
   function rowTitle(row) {
-  if (isReversalRow(row)) return 'Reversal row';
-  if (isReversedOriginal(row)) return 'Reversed original';
+    if (isReversalRow(row)) return 'Reversal row';
+    if (isReversedOriginal(row)) return 'Reversed original';
 
-  const notes = String(row.notes || '').trim();
+    const notes = String(row.notes || '').trim();
 
-  if (/^merchant=/i.test(notes)) {
-    return truncate(
-      notes.replace(/^merchant=/i, '').split('|')[0].trim() || typeLabel(row.type),
-      42
-    );
+    if (/^merchant=/i.test(notes)) {
+      return truncate(
+        notes.replace(/^merchant=/i, '').split('|')[0].trim() || typeLabel(row.type),
+        42
+      );
+    }
+
+    if (/^Debt received:/i.test(notes)) return 'Debt received';
+    if (/^Debt payment:/i.test(notes)) return 'Debt payment';
+    if (/^Debt given:/i.test(notes)) return 'Debt given';
+    if (/^Bill payment:/i.test(notes)) return 'Bill payment';
+    if (/^\[INTL /i.test(notes)) return 'International charge';
+    if (/^From:/i.test(notes) || /^To:/i.test(notes)) return 'Transfer';
+
+    return notes ? truncate(notes, 48) : typeLabel(row.type);
   }
 
-  if (/^Debt received:/i.test(notes)) return 'Debt received';
-  if (/^Debt payment:/i.test(notes)) return 'Debt payment';
-  if (/^Debt given:/i.test(notes)) return 'Debt given';
-  if (/^Bill payment:/i.test(notes)) return 'Bill payment';
-  if (/^\[INTL /i.test(notes)) return 'International charge';
-  if (/^From:/i.test(notes) || /^To:/i.test(notes)) return 'Transfer';
+  async function fetchJSON(url) {
+    const response = await fetch(url, {
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json'
+      }
+    });
 
-  return notes ? truncate(notes, 48) : typeLabel(row.type);
-}
+    const text = await response.text();
 
-function truncate(value, max) {
-  const text = String(value || '').trim();
-  return text.length > max ? text.slice(0, max - 1) + '…' : text;
-}
+    let payload = null;
+
+    try {
+      payload = text ? JSON.parse(text) : null;
+    } catch {
+      throw new Error(`Non-JSON response from ${url}: HTTP ${response.status}`);
+    }
+
+    if (!response.ok) {
+      throw new Error((payload && payload.error) || `HTTP ${response.status}`);
+    }
+
+    if (!payload) {
+      throw new Error(`Empty JSON response from ${url}: HTTP ${response.status}`);
+    }
+
+    return payload;
+  }
+
   function normalizeTransactionRows(payload) {
     if (!payload) return [];
 
@@ -223,10 +255,12 @@ function truncate(value, max) {
       .sort((a, b) => {
         const ad = String(a.date || '');
         const bd = String(b.date || '');
+
         if (ad !== bd) return bd.localeCompare(ad);
 
         const ac = String(a.created_at || '');
         const bc = String(b.created_at || '');
+
         if (ac !== bc) return bc.localeCompare(ac);
 
         return String(b.key).localeCompare(String(a.key));
@@ -237,7 +271,9 @@ function truncate(value, max) {
     const rows = group.rows.slice().sort((a, b) => {
       const ac = String(a.created_at || '');
       const bc = String(b.created_at || '');
+
       if (ac !== bc) return bc.localeCompare(ac);
+
       return String(b.id).localeCompare(String(a.id));
     });
 
@@ -310,6 +346,7 @@ function truncate(value, max) {
         group.rows.find(row => signedAmount(row) < 0);
 
       const linkedId = out && (out.linked_txn_id || parseLinkedId(out.notes));
+
       const inbound = group.rows.find(row => row.id !== out?.id && (!linkedId || row.id === linkedId)) ||
         group.rows.find(row => row.id !== out?.id);
 
@@ -581,7 +618,7 @@ function truncate(value, max) {
           <strong>${esc(shortId(row.id))}</strong>
           · ${esc(accountLabel(row.account_id))}
           · ${esc(typeLabel(row.type))}
-          · ${esc(row.notes || '')}
+          · ${esc(truncate(row.notes || '', 90))}
         </div>
         <div>${money(signed)}</div>
       </div>
@@ -852,8 +889,6 @@ function truncate(value, max) {
       const payload = await fetchJSON(API_HEALTH);
       const health = payload.health || payload;
 
-      state.health = health;
-
       const status = String(health.status || 'ok').toUpperCase();
       const detail = health.summary ||
         `active ${health.active_count ?? health.active ?? '—'} · reversals ${health.reversal_count ?? health.reversals ?? '—'} · orphan links ${health.orphan_link_count ?? health.orphan_links ?? '—'}`;
@@ -917,7 +952,7 @@ function truncate(value, max) {
 
   function init() {
     setText('ledgerJsVersion', VERSION);
-    setText('ledgerFooterVersion', `v0.8.5 · transactions · ${VERSION}`);
+    setText('ledgerFooterVersion', `v0.8.6 · transactions · ${VERSION}`);
 
     bindFilters();
     loadAll();
@@ -928,8 +963,7 @@ function truncate(value, max) {
       state: () => JSON.parse(JSON.stringify({
         rows: state.rows,
         groups: state.groups,
-        filters: state.filters,
-        health: state.health
+        filters: state.filters
       }))
     };
   }
