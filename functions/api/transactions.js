@@ -1,30 +1,22 @@
 /* /api/transactions — banking-grade ledger engine
- * Sovereign Finance v0.5.1-ledger-balance-reversal-fix
+ * Sovereign Finance v0.5.2-ledger-read-recovery
  *
- * Backend owns:
- * - dry-run proof + payload hash
- * - balance projection
- * - asset overdraft block
- * - CC over-limit block
- * - salary-pattern warning
- * - duplicate suspicion warning
- * - append-only writes
- * - transfer pair atomic write
- *
- * v0.5.1 fix:
- * - Balance projection now excludes BOTH reversal rows and reversed original rows.
- * - GET list over-fetches before hiding reversals so /api/transactions?limit=5 does not return empty just because latest rows are reversals.
+ * Fix:
+ * - GET /api/transactions is hardened so ledger list does not disappear.
+ * - Over-fetches before hiding reversal rows.
+ * - Does not crash if optional columns are absent.
+ * - Properly distinguishes:
+ *   - reversal rows: [REVERSAL OF ...]
+ *   - reversed originals: reversed_by / reversed_at / [REVERSED BY ...]
+ * - Transfer pairs are visible and grouped by linked_txn_id / [linked: ...].
+ * - Keeps dry-run hash contract and transfer pair commit.
  */
 
 import { audit } from './_lib.js';
 
-const VERSION = 'v0.5.1-ledger-balance-reversal-fix';
+const VERSION = 'v0.5.2-ledger-read-recovery';
 
-const FRONTEND_ADD_TYPES = [
-  'expense',
-  'income',
-  'transfer'
-];
+const FRONTEND_ADD_TYPES = ['expense', 'income', 'transfer'];
 
 const SYSTEM_TYPES = [
   'cc_payment',
@@ -107,37 +99,51 @@ export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
     const url = new URL(context.request.url);
+
     const includeReversed = url.searchParams.get('include_reversed') === '1';
     const limit = clampInt(url.searchParams.get('limit'), 1, 500, 200);
+
     const txColumns = await getTableColumns(db, 'transactions');
     const selectCols = selectTransactionColumns(txColumns);
 
+    if (!selectCols.length || !txColumns.has('id')) {
+      return jsonResponse({
+        ok: false,
+        version: VERSION,
+        error: 'transactions table is missing required id column'
+      }, 500);
+    }
+
     const fetchLimit = includeReversed
       ? limit
-      : Math.min(500, Math.max(limit * 5, limit + 50));
+      : Math.min(500, Math.max(limit * 10, limit + 100));
+
+    const orderBy = buildTransactionOrderBy(txColumns);
 
     const result = await db.prepare(
       `SELECT ${selectCols.join(', ')}
        FROM transactions
-       ORDER BY date DESC, datetime(created_at) DESC, id DESC
+       ORDER BY ${orderBy}
        LIMIT ?`
     ).bind(fetchLimit).all();
 
-    const allRows = result.results || [];
-    const decorated = allRows.map(row => decorateTransaction(row));
+    const rawRows = result.results || [];
+    const decorated = rawRows.map(row => decorateTransaction(row));
 
     const visibleRows = includeReversed
       ? decorated.slice(0, limit)
-      : decorated.filter(t => !t.is_reversal).slice(0, limit);
-
-    const hiddenReversalCount = decorated.filter(t => t.is_reversal).length;
+      : decorated.filter(row => !row.is_reversal).slice(0, limit);
 
     return jsonResponse({
       ok: true,
       version: VERSION,
       include_reversed: includeReversed,
+      requested_limit: limit,
+      fetched_count: decorated.length,
       count: visibleRows.length,
-      hidden_reversal_count: includeReversed ? 0 : hiddenReversalCount,
+      hidden_reversal_count: includeReversed
+        ? 0
+        : decorated.filter(row => row.is_reversal).length,
       contract: {
         frontend_add_types: FRONTEND_ADD_TYPES,
         backend_system_types: SYSTEM_TYPES,
@@ -234,6 +240,10 @@ export async function onRequestPost(context) {
     }, 500);
   }
 }
+
+/* ─────────────────────────────
+ * Validation / dry-run
+ * ───────────────────────────── */
 
 async function validateTransactionPayload(context, body) {
   const db = context.env.DB;
@@ -399,13 +409,8 @@ async function validateTransactionPayload(context, body) {
   const salaryProof = buildSalaryProof(normalized, sourceAccount);
   const duplicateProof = await buildDuplicateProof(db, normalized);
 
-  if (salaryProof.status === 'warn') {
-    warnings.push(salaryProof);
-  }
-
-  if (duplicateProof.status === 'warn') {
-    warnings.push(duplicateProof);
-  }
+  if (salaryProof.status === 'warn') warnings.push(salaryProof);
+  if (duplicateProof.status === 'warn') warnings.push(duplicateProof);
 
   if (currency !== 'PKR' && (!Number.isFinite(fxRate) || fxRate <= 0)) {
     warnings.push({
@@ -519,152 +524,9 @@ function buildWriteProof(payload, checks) {
   };
 }
 
-async function buildBalanceProof(db, payload, sourceAccount, transferToAccount) {
-  const sourceBalance = await computeAccountBalance(db, payload.account_id);
-  const sourceProjection = projectBalance(sourceBalance.balance, payload.type, payload.pkr_amount, 'source');
-
-  const sourceKind = classifyAccount(sourceAccount);
-  const sourceLimit = accountCreditLimit(sourceAccount);
-
-  const proof = {
-    check: 'balance_projection',
-    status: 'pass',
-    source: 'transactions',
-    account_id: payload.account_id,
-    account_kind: sourceKind,
-    current_balance: roundMoney(sourceBalance.balance),
-    projected_balance: roundMoney(sourceProjection),
-    transaction_count: sourceBalance.txn_count,
-    skipped_inactive_transaction_count: sourceBalance.skipped_inactive_count,
-    requires_override: false,
-    override_reason: null,
-    blocked: false,
-    detail: 'Projected source account balance is within constraints.'
-  };
-
-  if (sourceKind === 'asset' && sourceProjection < -BALANCE_TOLERANCE) {
-    proof.status = 'blocked';
-    proof.requires_override = true;
-    proof.blocked = true;
-    proof.override_reason = 'asset_overdraft';
-    proof.detail = 'Asset account would go negative: current ' +
-      roundMoney(sourceBalance.balance) + ', projected ' + roundMoney(sourceProjection) + '.';
-  }
-
-  if (sourceKind === 'liability') {
-    const outstanding = Math.max(0, -sourceProjection);
-
-    proof.projected_outstanding = roundMoney(outstanding);
-    proof.credit_limit = sourceLimit;
-
-    if (outstanding > sourceLimit + CC_OVERLIMIT_TOLERANCE) {
-      proof.status = 'blocked';
-      proof.requires_override = true;
-      proof.blocked = true;
-      proof.override_reason = 'cc_overlimit';
-      proof.detail = 'Liability account would exceed limit: projected outstanding ' +
-        roundMoney(outstanding) + ', limit ' + sourceLimit + '.';
-    }
-  }
-
-  if (payload.type === 'transfer' && transferToAccount) {
-    const targetBalance = await computeAccountBalance(db, payload.transfer_to_account_id);
-    const targetProjection = projectBalance(targetBalance.balance, 'income', payload.pkr_amount, 'target');
-
-    proof.transfer_target = {
-      account_id: payload.transfer_to_account_id,
-      current_balance: roundMoney(targetBalance.balance),
-      projected_balance: roundMoney(targetProjection),
-      transaction_count: targetBalance.txn_count,
-      skipped_inactive_transaction_count: targetBalance.skipped_inactive_count
-    };
-  }
-
-  return proof;
-}
-
-async function buildDuplicateProof(db, payload) {
-  const rows = await db.prepare(
-    `SELECT id, date, type, amount, account_id, category_id, notes, reversed_by, reversed_at
-     FROM transactions
-     WHERE date = ?
-       AND type = ?
-       AND account_id = ?
-       AND ROUND(amount, 2) = ROUND(?, 2)
-     ORDER BY datetime(created_at) DESC
-     LIMIT 5`
-  ).bind(
-    payload.date,
-    payload.type,
-    payload.account_id,
-    payload.amount
-  ).all();
-
-  const matches = (rows.results || []).filter(row => {
-    if (isInactiveForBalance(row)) return false;
-    if (payload.category_id && row.category_id && payload.category_id !== row.category_id) return false;
-    return true;
-  });
-
-  if (matches.length === 0) {
-    return {
-      check: 'duplicate_suspicion',
-      status: 'pass',
-      source: 'transactions',
-      detail: 'No same-day same-account same-type same-amount match found.'
-    };
-  }
-
-  return {
-    check: 'duplicate_suspicion',
-    status: 'warn',
-    source: 'transactions',
-    duplicate_count: matches.length,
-    possible_duplicate_ids: matches.map(row => row.id),
-    detail: 'Possible duplicate transaction exists for same date/account/type/amount.'
-  };
-}
-
-function buildSalaryProof(payload, sourceAccount) {
-  const day = Number(String(payload.date || '').slice(8, 10));
-  const accountToken = token((sourceAccount && (sourceAccount.name || sourceAccount.id)) || payload.account_id);
-  const categoryToken = token(payload.category_id);
-
-  const matches =
-    SALARY_RULES.account_tokens.some(t => accountToken.includes(t)) &&
-    SALARY_RULES.types.includes(payload.type) &&
-    payload.currency === SALARY_RULES.currency &&
-    payload.pkr_amount >= SALARY_RULES.min_amount &&
-    payload.pkr_amount <= SALARY_RULES.max_amount &&
-    SALARY_RULES.valid_days.includes(day);
-
-  if (!matches) {
-    return {
-      check: 'salary_pattern',
-      status: 'not_required',
-      source: 'sheet-salary-rules',
-      detail: 'Transaction does not match salary detector.'
-    };
-  }
-
-  if (categoryToken === token(SALARY_RULES.category_id)) {
-    return {
-      check: 'salary_pattern',
-      status: 'pass',
-      source: 'sheet-salary-rules',
-      detail: 'Salary-like income already uses salary category.'
-    };
-  }
-
-  return {
-    check: 'salary_pattern',
-    status: 'warn',
-    source: 'sheet-salary-rules',
-    suggested_category_id: SALARY_RULES.category_id,
-    suggested_counterparty: SALARY_RULES.default_employer,
-    detail: 'Transaction matches salary pattern but category is not salary_income.'
-  };
-}
+/* ─────────────────────────────
+ * Write
+ * ───────────────────────────── */
 
 async function createSingleTransaction(context, validation) {
   const db = context.env.DB;
@@ -687,7 +549,8 @@ async function createSingleTransaction(context, validation) {
     pkr_amount: payload.pkr_amount,
     fx_rate_at_commit: payload.fx_rate_at_commit,
     fx_source: payload.fx_source,
-    created_by: payload.created_by
+    created_by: payload.created_by,
+    created_at: nowISO()
   };
 
   try {
@@ -756,8 +619,8 @@ async function createTransferPair(context, validation) {
   const inId = makeTxnId('txin');
   const baseNotes = cleanNotes(payload.notes || 'Transfer');
 
-  const outNotes = `To: ${payload.transfer_to_account_name || payload.transfer_to_account_id} ${baseNotes} (OUT) [linked: ${inId}]`.slice(0, 200);
-  const inNotes = `From: ${payload.account_name || payload.account_id} ${baseNotes} (IN) [linked: ${outId}]`.slice(0, 200);
+  const outNotes = `To: ${payload.transfer_to_account_name || payload.transfer_to_account_id} ${baseNotes} (OUT) [linked: ${inId}]`.slice(0, 240);
+  const inNotes = `From: ${payload.account_name || payload.account_id} ${baseNotes} (IN) [linked: ${outId}]`.slice(0, 240);
 
   const outRow = filterInsertable(txColumns, {
     id: outId,
@@ -765,7 +628,7 @@ async function createTransferPair(context, validation) {
     type: 'transfer',
     amount: payload.amount,
     account_id: payload.account_id,
-    transfer_to_account_id: null,
+    transfer_to_account_id: payload.transfer_to_account_id,
     linked_txn_id: inId,
     category_id: null,
     notes: outNotes,
@@ -775,7 +638,8 @@ async function createTransferPair(context, validation) {
     pkr_amount: payload.pkr_amount,
     fx_rate_at_commit: payload.fx_rate_at_commit,
     fx_source: payload.fx_source,
-    created_by: payload.created_by
+    created_by: payload.created_by,
+    created_at: nowISO()
   });
 
   const inRow = filterInsertable(txColumns, {
@@ -784,7 +648,7 @@ async function createTransferPair(context, validation) {
     type: 'income',
     amount: payload.amount,
     account_id: payload.transfer_to_account_id,
-    transfer_to_account_id: null,
+    transfer_to_account_id: payload.account_id,
     linked_txn_id: outId,
     category_id: null,
     notes: inNotes,
@@ -794,7 +658,8 @@ async function createTransferPair(context, validation) {
     pkr_amount: payload.pkr_amount,
     fx_rate_at_commit: payload.fx_rate_at_commit,
     fx_source: payload.fx_source,
-    created_by: payload.created_by
+    created_by: payload.created_by,
+    created_at: nowISO()
   });
 
   try {
@@ -859,9 +724,98 @@ async function createTransferPair(context, validation) {
   });
 }
 
+/* ─────────────────────────────
+ * Balance / duplicate / salary
+ * ───────────────────────────── */
+
+async function buildBalanceProof(db, payload, sourceAccount, transferToAccount) {
+  const sourceBalance = await computeAccountBalance(db, payload.account_id);
+  const sourceProjection = projectBalance(sourceBalance.balance, payload.type, payload.pkr_amount, 'source');
+
+  const sourceKind = classifyAccount(sourceAccount);
+  const sourceLimit = accountCreditLimit(sourceAccount);
+
+  const proof = {
+    check: 'balance_projection',
+    status: 'pass',
+    source: 'transactions',
+    account_id: payload.account_id,
+    account_kind: sourceKind,
+    current_balance: roundMoney(sourceBalance.balance),
+    projected_balance: roundMoney(sourceProjection),
+    transaction_count: sourceBalance.txn_count,
+    skipped_inactive_transaction_count: sourceBalance.skipped_inactive_count,
+    requires_override: false,
+    override_reason: null,
+    blocked: false,
+    detail: 'Projected source account balance is within constraints.'
+  };
+
+  if (sourceKind === 'asset' && sourceProjection < -BALANCE_TOLERANCE) {
+    proof.status = 'blocked';
+    proof.requires_override = true;
+    proof.blocked = true;
+    proof.override_reason = 'asset_overdraft';
+    proof.detail = 'Asset account would go negative: current ' +
+      roundMoney(sourceBalance.balance) + ', projected ' + roundMoney(sourceProjection) + '.';
+  }
+
+  if (sourceKind === 'liability') {
+    const outstanding = Math.max(0, -sourceProjection);
+
+    proof.projected_outstanding = roundMoney(outstanding);
+    proof.credit_limit = sourceLimit;
+
+    if (outstanding > sourceLimit + CC_OVERLIMIT_TOLERANCE) {
+      proof.status = 'blocked';
+      proof.requires_override = true;
+      proof.blocked = true;
+      proof.override_reason = 'cc_overlimit';
+      proof.detail = 'Liability account would exceed limit: projected outstanding ' +
+        roundMoney(outstanding) + ', limit ' + sourceLimit + '.';
+    }
+  }
+
+  if (payload.type === 'transfer' && transferToAccount) {
+    const targetBalance = await computeAccountBalance(db, payload.transfer_to_account_id);
+    const targetProjection = projectBalance(targetBalance.balance, 'income', payload.pkr_amount, 'target');
+
+    proof.transfer_target = {
+      account_id: payload.transfer_to_account_id,
+      current_balance: roundMoney(targetBalance.balance),
+      projected_balance: roundMoney(targetProjection),
+      transaction_count: targetBalance.txn_count,
+      skipped_inactive_transaction_count: targetBalance.skipped_inactive_count
+    };
+  }
+
+  return proof;
+}
+
 async function computeAccountBalance(db, accountId) {
+  const txColumns = await getTableColumns(db, 'transactions');
+
+  if (!txColumns.has('account_id')) {
+    return {
+      balance: 0,
+      txn_count: 0,
+      skipped_inactive_count: 0
+    };
+  }
+
+  const wanted = [
+    'id',
+    'type',
+    'amount',
+    'pkr_amount',
+    'account_id',
+    'notes',
+    'reversed_by',
+    'reversed_at'
+  ].filter(col => txColumns.has(col));
+
   const rows = await db.prepare(
-    `SELECT id, type, amount, account_id, notes, reversed_by, reversed_at
+    `SELECT ${wanted.join(', ')}
      FROM transactions
      WHERE account_id = ?`
   ).bind(accountId).all();
@@ -876,7 +830,7 @@ async function computeAccountBalance(db, accountId) {
       continue;
     }
 
-    const amount = Number(row.amount) || 0;
+    const amount = Number(row.pkr_amount || row.amount || 0);
 
     balance += signedAmount(row.type, amount);
     txnCount++;
@@ -890,9 +844,7 @@ async function computeAccountBalance(db, accountId) {
 }
 
 function projectBalance(current, type, amount, side) {
-  if (side === 'target') {
-    return current + amount;
-  }
+  if (side === 'target') return current + amount;
 
   return current + signedAmount(type, amount);
 }
@@ -900,20 +852,107 @@ function projectBalance(current, type, amount, side) {
 function signedAmount(type, amount) {
   const t = normalizeType(type);
 
-  if (['income', 'salary', 'opening', 'borrow', 'debt_in'].includes(t)) {
-    return amount;
-  }
-
-  if (['expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out'].includes(t)) {
-    return -amount;
-  }
-
-  if (t === 'cc_payment') {
-    return -amount;
-  }
+  if (['income', 'salary', 'opening', 'borrow', 'debt_in'].includes(t)) return amount;
+  if (['expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out'].includes(t)) return -amount;
+  if (t === 'cc_payment') return -amount;
 
   return -amount;
 }
+
+async function buildDuplicateProof(db, payload) {
+  const txColumns = await getTableColumns(db, 'transactions');
+  const select = [
+    'id',
+    'date',
+    'type',
+    'amount',
+    'account_id',
+    'category_id',
+    'notes',
+    'reversed_by',
+    'reversed_at'
+  ].filter(col => txColumns.has(col));
+
+  const rows = await db.prepare(
+    `SELECT ${select.join(', ')}
+     FROM transactions
+     WHERE date = ?
+       AND type = ?
+       AND account_id = ?
+       AND ROUND(amount, 2) = ROUND(?, 2)
+     ORDER BY ${buildTransactionOrderBy(txColumns)}
+     LIMIT 5`
+  ).bind(payload.date, payload.type, payload.account_id, payload.amount).all();
+
+  const matches = (rows.results || []).filter(row => {
+    if (isInactiveForBalance(row)) return false;
+    if (payload.category_id && row.category_id && payload.category_id !== row.category_id) return false;
+    return true;
+  });
+
+  if (!matches.length) {
+    return {
+      check: 'duplicate_suspicion',
+      status: 'pass',
+      source: 'transactions',
+      detail: 'No same-day same-account same-type same-amount match found.'
+    };
+  }
+
+  return {
+    check: 'duplicate_suspicion',
+    status: 'warn',
+    source: 'transactions',
+    duplicate_count: matches.length,
+    possible_duplicate_ids: matches.map(row => row.id),
+    detail: 'Possible duplicate transaction exists for same date/account/type/amount.'
+  };
+}
+
+function buildSalaryProof(payload, sourceAccount) {
+  const day = Number(String(payload.date || '').slice(8, 10));
+  const accountToken = token((sourceAccount && (sourceAccount.name || sourceAccount.id)) || payload.account_id);
+  const categoryToken = token(payload.category_id);
+
+  const matches =
+    SALARY_RULES.account_tokens.some(t => accountToken.includes(t)) &&
+    SALARY_RULES.types.includes(payload.type) &&
+    payload.currency === SALARY_RULES.currency &&
+    payload.pkr_amount >= SALARY_RULES.min_amount &&
+    payload.pkr_amount <= SALARY_RULES.max_amount &&
+    SALARY_RULES.valid_days.includes(day);
+
+  if (!matches) {
+    return {
+      check: 'salary_pattern',
+      status: 'not_required',
+      source: 'sheet-salary-rules',
+      detail: 'Transaction does not match salary detector.'
+    };
+  }
+
+  if (categoryToken === token(SALARY_RULES.category_id)) {
+    return {
+      check: 'salary_pattern',
+      status: 'pass',
+      source: 'sheet-salary-rules',
+      detail: 'Salary-like income already uses salary category.'
+    };
+  }
+
+  return {
+    check: 'salary_pattern',
+    status: 'warn',
+    source: 'sheet-salary-rules',
+    suggested_category_id: SALARY_RULES.category_id,
+    suggested_counterparty: SALARY_RULES.default_employer,
+    detail: 'Transaction matches salary pattern but category is not salary_income.'
+  };
+}
+
+/* ─────────────────────────────
+ * Resolve helpers
+ * ───────────────────────────── */
 
 async function resolveAccount(db, input) {
   const raw = cleanText(input, '', 160);
@@ -1029,7 +1068,7 @@ async function resolveCategory(db, input, type) {
       status: 409,
       error: 'Category not found. Use a category from /api/categories.'
     };
-  } catch (err) {
+  } catch {
     return {
       ok: false,
       status: 409,
@@ -1038,83 +1077,9 @@ async function resolveCategory(db, input, type) {
   }
 }
 
-function checkCommitHash(body, validation) {
-  const suppliedHash = cleanText(
-    body.dry_run_payload_hash || body.payload_hash,
-    '',
-    200
-  );
-
-  if (!suppliedHash) {
-    return {
-      ok: false,
-      status: 428,
-      error: 'dry_run_payload_hash required before commit',
-      supplied_hash: ''
-    };
-  }
-
-  if (suppliedHash !== validation.payload_hash) {
-    return {
-      ok: false,
-      status: 409,
-      error: 'Payload changed after dry-run. Run dry-run again.',
-      supplied_hash: suppliedHash
-    };
-  }
-
-  return {
-    ok: true
-  };
-}
-
-function checkOverrideToken(body, validation) {
-  if (!validation.requires_override) {
-    return {
-      ok: true
-    };
-  }
-
-  const suppliedToken = cleanText(body.override_token, '', 200);
-
-  if (!suppliedToken) {
-    return {
-      ok: false,
-      status: 428,
-      error: 'override_token required for blocked balance projection'
-    };
-  }
-
-  if (suppliedToken !== validation.override_token) {
-    return {
-      ok: false,
-      status: 409,
-      error: 'Invalid override_token. Re-run dry-run and confirm override again.'
-    };
-  }
-
-  return {
-    ok: true
-  };
-}
-
-function normalizeType(type) {
-  const raw = cleanText(type, '', 40).toLowerCase();
-
-  if (raw === 'manual_income') return 'income';
-  if (raw === 'salary_income') return 'salary';
-  if (raw === 'debt_payment') return 'repay';
-  if (raw === 'credit_card') return 'cc_spend';
-  if (raw === 'international' || raw === 'international_purchase') return 'expense';
-
-  return raw;
-}
-
-function canonicalCategory(value) {
-  const key = token(value);
-
-  return CATEGORY_ALIASES[key] || cleanText(value, '', 160);
-}
+/* ─────────────────────────────
+ * Decorate / reversal logic
+ * ───────────────────────────── */
 
 function decorateTransaction(row) {
   const notes = String(row.notes || '');
@@ -1124,6 +1089,7 @@ function decorateTransaction(row) {
   const groupId = row.intl_package_id ||
     row.linked_txn_id ||
     linkedFromNote ||
+    transferGroupId(row) ||
     null;
 
   return {
@@ -1140,6 +1106,17 @@ function decorateTransaction(row) {
       ? 'intl_package'
       : (groupId ? 'linked_pair' : 'single')
   };
+}
+
+function transferGroupId(row) {
+  const type = String(row.type || '').toLowerCase();
+
+  if (type !== 'transfer' && type !== 'income') return null;
+
+  const notes = String(row.notes || '');
+  const linked = extractLinkedId(notes);
+
+  return linked || null;
 }
 
 function isReversalRow(row) {
@@ -1170,6 +1147,80 @@ function extractLinkedId(notes) {
   const match = String(notes || '').match(/\[linked:\s*([^\]]+)\]/i);
 
   return match ? match[1].trim() : null;
+}
+
+/* ─────────────────────────────
+ * Generic helpers
+ * ───────────────────────────── */
+
+function checkCommitHash(body, validation) {
+  const suppliedHash = cleanText(
+    body.dry_run_payload_hash || body.payload_hash,
+    '',
+    200
+  );
+
+  if (!suppliedHash) {
+    return {
+      ok: false,
+      status: 428,
+      error: 'dry_run_payload_hash required before commit',
+      supplied_hash: ''
+    };
+  }
+
+  if (suppliedHash !== validation.payload_hash) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Payload changed after dry-run. Run dry-run again.',
+      supplied_hash: suppliedHash
+    };
+  }
+
+  return { ok: true };
+}
+
+function checkOverrideToken(body, validation) {
+  if (!validation.requires_override) return { ok: true };
+
+  const suppliedToken = cleanText(body.override_token, '', 200);
+
+  if (!suppliedToken) {
+    return {
+      ok: false,
+      status: 428,
+      error: 'override_token required for blocked balance projection'
+    };
+  }
+
+  if (suppliedToken !== validation.override_token) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Invalid override_token. Re-run dry-run and confirm override again.'
+    };
+  }
+
+  return { ok: true };
+}
+
+function normalizeType(type) {
+  const raw = cleanText(type, '', 40).toLowerCase();
+
+  if (raw === 'manual_income') return 'income';
+  if (raw === 'salary_income') return 'salary';
+  if (raw === 'debt_payment') return 'repay';
+  if (raw === 'credit_card') return 'cc_spend';
+  if (raw === 'international' || raw === 'international_purchase') return 'expense';
+
+  return raw;
+}
+
+function canonicalCategory(value) {
+  const key = token(value);
+
+  return CATEGORY_ALIASES[key] || cleanText(value, '', 160);
 }
 
 function classifyAccount(account) {
@@ -1204,9 +1255,7 @@ function accountCreditLimit(account) {
   for (const value of candidates) {
     const n = Number(value);
 
-    if (Number.isFinite(n) && n > 0) {
-      return n;
-    }
+    if (Number.isFinite(n) && n > 0) return n;
   }
 
   return DEFAULT_CC_LIMIT;
@@ -1217,9 +1266,7 @@ async function getTableColumns(db, table) {
   const columns = new Set();
 
   for (const row of result.results || []) {
-    if (row.name) {
-      columns.add(row.name);
-    }
+    if (row.name) columns.add(row.name);
   }
 
   return columns;
@@ -1249,18 +1296,24 @@ function selectTransactionColumns(columns) {
     'created_at'
   ];
 
-  return wanted
-    .filter(col => columns.has(col))
-    .map(col => col);
+  return wanted.filter(col => columns.has(col));
+}
+
+function buildTransactionOrderBy(columns) {
+  const parts = [];
+
+  if (columns.has('date')) parts.push('date DESC');
+  if (columns.has('created_at')) parts.push('datetime(created_at) DESC');
+  if (columns.has('id')) parts.push('id DESC');
+
+  return parts.length ? parts.join(', ') : 'rowid DESC';
 }
 
 function filterInsertable(columns, row) {
   const out = {};
 
   for (const [key, value] of Object.entries(row)) {
-    if (columns.has(key)) {
-      out[key] = value;
-    }
+    if (columns.has(key)) out[key] = value;
   }
 
   return out;
@@ -1286,23 +1339,17 @@ function buildInsertStatement(db, table, row) {
 function normalizeCurrency(value) {
   const raw = cleanText(value, 'PKR', 10).toUpperCase();
 
-  if (/^[A-Z]{3}$/.test(raw)) {
-    return raw;
-  }
+  if (/^[A-Z]{3}$/.test(raw)) return raw;
 
   return 'PKR';
 }
 
 function normalizeFxRate(value, currency) {
-  if (currency === 'PKR') {
-    return 1;
-  }
+  if (currency === 'PKR') return 1;
 
   const n = Number(value);
 
-  if (Number.isFinite(n) && n > 0) {
-    return roundMoney(n);
-  }
+  if (Number.isFinite(n) && n > 0) return roundMoney(n);
 
   return 0;
 }
@@ -1355,9 +1402,7 @@ function canonicalJSONString(value) {
 }
 
 function sortKeys(value) {
-  if (Array.isArray(value)) {
-    return value.map(sortKeys);
-  }
+  if (Array.isArray(value)) return value.map(sortKeys);
 
   if (value && typeof value === 'object') {
     return Object.keys(value)
@@ -1377,6 +1422,10 @@ function makeTxnId(prefix) {
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function nowISO() {
+  return new Date().toISOString();
 }
 
 function normalizeDate(value) {
@@ -1405,7 +1454,7 @@ function roundMoney(value) {
 }
 
 function cleanNotes(notes) {
-  return String(notes || '').trim().slice(0, 200);
+  return String(notes || '').trim().slice(0, 240);
 }
 
 function cleanText(value, fallback, maxLen) {
@@ -1438,7 +1487,7 @@ function isForeignKeyError(err) {
 async function readJSON(request) {
   try {
     return await request.json();
-  } catch (err) {
+  } catch {
     return {};
   }
 }
