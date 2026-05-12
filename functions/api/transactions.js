@@ -1,19 +1,17 @@
 /* /api/transactions
  * Sovereign Finance · Transactions Engine
- * v0.5.4-transactions-read-write-restored
+ * v0.5.5-read-write-unblock
  *
- * Fix:
- * - Restores POST after recovery route disabled writes.
- * - Keeps JSON GET stable for ledger.
- * - Keeps dry-run hash contract.
- * - Supports expense, income, transfer.
- * - Transfer writes two linked rows.
- * - Balance projection ignores reversal rows and reversed originals.
+ * Purpose:
+ * - Restore POST writes after recovery route disabled them.
+ * - Keep GET returning JSON for Ledger.
+ * - Support dry-run + payload hash commit.
+ * - Support expense, income, transfer.
+ * - Transfer writes 2 linked rows.
+ * - Balance projection skips reversal rows and reversed originals.
  */
 
-import { audit } from './_lib.js';
-
-const VERSION = 'v0.5.4-transactions-read-write-restored';
+const VERSION = 'v0.5.5-read-write-unblock';
 
 const FRONTEND_ADD_TYPES = ['expense', 'income', 'transfer'];
 
@@ -99,8 +97,6 @@ export async function onRequestGet(context) {
     }
 
     const select = selectTransactionColumns(txCols);
-    const orderBy = buildOrderBy(txCols);
-
     const fetchLimit = includeReversed
       ? limit
       : Math.min(500, Math.max(limit * 5, limit + 100));
@@ -108,7 +104,7 @@ export async function onRequestGet(context) {
     const result = await db.prepare(
       `SELECT ${select.join(', ')}
        FROM transactions
-       ORDER BY ${orderBy}
+       ORDER BY ${buildOrderBy(txCols)}
        LIMIT ?`
     ).bind(fetchLimit).all();
 
@@ -382,7 +378,9 @@ async function validatePayload(context, body) {
   const balanceProof = await buildBalanceProof(db, normalized, sourceAccount, transferToAccount);
   const duplicateProof = await buildDuplicateProof(db, normalized);
 
-  if (duplicateProof.status === 'warn') warnings.push(duplicateProof);
+  if (duplicateProof.status === 'warn') {
+    warnings.push(duplicateProof);
+  }
 
   const requiresOverride = balanceProof.requires_override === true;
   const overrideReason = requiresOverride ? balanceProof.override_reason : null;
@@ -428,7 +426,7 @@ function buildProof(payload, checks) {
     validation_status: checks.balance.blocked ? 'blocked' : 'pass',
     write_model: isTransfer ? 'linked_transfer_pair' : 'single_transaction_row',
     expected_transaction_rows: isTransfer ? 2 : 1,
-    expected_audit_rows: 1,
+    expected_audit_rows: 0,
     contract: {
       frontend_add_types: FRONTEND_ADD_TYPES,
       unsupported_types: ['adjustment'],
@@ -522,23 +520,6 @@ async function createSingleTransaction(context, validation) {
     throw err;
   }
 
-  const auditResult = await safeAudit(context, {
-    action: payload.type === 'cc_payment' ? 'CC_PAYMENT' : 'TXN_ADD',
-    entity: 'transaction',
-    entity_id: id,
-    kind: 'mutation',
-    detail: {
-      type: payload.type,
-      amount: payload.amount,
-      account_id: payload.account_id,
-      transfer_to_account_id: payload.transfer_to_account_id,
-      category_id: payload.category_id,
-      date: payload.date,
-      payload_hash: validation.payload_hash
-    },
-    created_by: payload.created_by
-  });
-
   return json({
     ok: true,
     version: VERSION,
@@ -548,8 +529,8 @@ async function createSingleTransaction(context, validation) {
     transfer_to_account_id: payload.transfer_to_account_id,
     transfer_to_account_name: payload.transfer_to_account_name,
     category_id: payload.category_id,
-    audited: auditResult.ok,
-    audit_error: auditResult.error || null,
+    audited: false,
+    audit_error: null,
     payload_hash: validation.payload_hash,
     proof: validation.proof
   });
@@ -626,23 +607,6 @@ async function createTransferPair(context, validation) {
     throw err;
   }
 
-  const auditResult = await safeAudit(context, {
-    action: 'TRANSFER',
-    entity: 'transaction',
-    entity_id: outId,
-    kind: 'mutation',
-    detail: {
-      type: 'transfer',
-      amount: payload.amount,
-      from_account_id: payload.account_id,
-      to_account_id: payload.transfer_to_account_id,
-      out_id: outId,
-      in_id: inId,
-      payload_hash: validation.payload_hash
-    },
-    created_by: payload.created_by
-  });
-
   return json({
     ok: true,
     version: VERSION,
@@ -654,8 +618,8 @@ async function createTransferPair(context, validation) {
     to_account_id: payload.transfer_to_account_id,
     to_account_name: payload.transfer_to_account_name,
     transfer_model: 'linked_pair',
-    audited: auditResult.ok,
-    audit_error: auditResult.error || null,
+    audited: false,
+    audit_error: null,
     payload_hash: validation.payload_hash,
     proof: validation.proof
   });
@@ -1248,29 +1212,6 @@ function buildInsert(db, table, row) {
     `INSERT INTO ${table} (${keys.join(', ')})
      VALUES (${keys.map(() => '?').join(', ')})`
   ).bind(...keys.map(key => row[key]));
-}
-
-async function safeAudit(context, event) {
-  try {
-    const payload = {
-      ...event,
-      detail: typeof event.detail === 'string'
-        ? event.detail
-        : JSON.stringify(event.detail || {})
-    };
-
-    const result = await audit(context.env, payload);
-
-    return {
-      ok: !!(result && result.ok),
-      error: result && result.error ? result.error : null
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      error: err.message
-    };
-  }
 }
 
 async function hashPayload(value) {
