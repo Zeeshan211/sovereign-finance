@@ -3,7 +3,7 @@
 
   if (window.SovereignAdd && window.SovereignAdd.initialized) return;
 
-  const VERSION = "v1.5.0-add-intl-package";
+  const VERSION = "v1.5.1-add-intl-pra-opt-in";
 
   const MODES = {
     expense: {
@@ -238,6 +238,7 @@
       if (bankChargeRaw !== undefined && bankChargeRaw !== "") {
         base.bank_charge_override = num(bankChargeRaw, 0);
       }
+      base.include_pra = !!$("add-intl-include-pra")?.checked;
 
       if (state.intlSubtype === "foreign") {
         base.foreign_amount = num($("add-intl-foreign-amount")?.value, 0);
@@ -1121,7 +1122,8 @@
       "add-intl-currency",
       "add-intl-fx-rate",
       "add-intl-pkr-amount",
-      "add-intl-bank-charge"
+      "add-intl-bank-charge",
+      "add-intl-include-pra"
     ].forEach((id) => {
       const el = $(id);
       if (!el) return;

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sovereign Finance — International Rates</title>
+  <script src="/js/sf-theme-switcher.js"></script>
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
+</head>
+<body class="sf-shell-body">
+  <div class="sf-app-shell sf-app-shell--with-nav">
+    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
+
+    <main class="sf-page-shell">
+      <section class="sf-page-content">
+        <div class="sf-page-hero">
+          <div class="sf-page-title-group">
+            <span class="sf-page-eyebrow">Admin</span>
+            <h1 class="sf-page-title">International Rates</h1>
+            <p class="sf-page-subtitle">
+              Edit FX fee, excise, advance tax, PRA, and bank charge defaults used by the international package writer. Every change is logged.
+            </p>
+          </div>
+          <div class="sf-page-actions">
+            <a class="sf-button" href="/add.html">Back to Add</a>
+          </div>
+        </div>
+
+        <div class="sf-panel" id="rates-current">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Current Configuration</p>
+              <h3 class="sf-section-title">Rates in effect</h3>
+              <p class="sf-section-subtitle" id="rates-meta">Loading…</p>
+            </div>
+            <div class="sf-section-meta">
+              <span class="sf-pill sf-pill--info" id="rates-status">Loading</span>
+            </div>
+          </div>
+          <div class="sf-dense-grid" id="rates-display"></div>
+        </div>
+
+        <div class="sf-panel" id="rates-edit">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Edit</p>
+              <h3 class="sf-section-title">Update rates</h3>
+              <p class="sf-section-subtitle">Change any field. Reason is required for the audit log.</p>
+            </div>
+          </div>
+
+          <form id="rates-form" class="sf-form-grid">
+            <div class="sf-field sf-span-3">
+              <label for="r-fx-fee">FX fee %</label>
+              <input id="r-fx-fee" class="sf-input" type="number" min="0" max="100" step="0.01">
+              <p class="sf-field-help">% of base PKR. Bank Alfalah CC: 4.5%</p>
+            </div>
+            <div class="sf-field sf-span-3">
+              <label for="r-excise">Excise on FX fee %</label>
+              <input id="r-excise" class="sf-input" type="number" min="0" max="100" step="0.01">
+              <p class="sf-field-help">% of FX fee. Standard: 16%</p>
+            </div>
+            <div class="sf-field sf-span-3">
+              <label for="r-adv-tax">Advance tax %</label>
+              <input id="r-adv-tax" class="sf-input" type="number" min="0" max="100" step="0.01">
+              <p class="sf-field-help">% of base PKR (236Y). Standard: 5%</p>
+            </div>
+            <div class="sf-field sf-span-3">
+              <label for="r-pra">PRA %</label>
+              <input id="r-pra" class="sf-input" type="number" min="0" max="100" step="0.01">
+              <p class="sf-field-help">% of base PKR. Punjab IT services: 5%. Applied only when opted-in per transaction.</p>
+            </div>
+            <div class="sf-field sf-span-3">
+              <label for="r-bank-charge">Default bank charge</label>
+              <input id="r-bank-charge" class="sf-input" type="number" min="0" step="0.01">
+              <p class="sf-field-help">Flat PKR. Per-transaction override available on Add page.</p>
+            </div>
+            <div class="sf-field sf-span-3">
+              <label for="r-currency">Default currency</label>
+              <input id="r-currency" class="sf-input" type="text" maxlength="3" style="text-transform:uppercase;">
+              <p class="sf-field-help">3-letter ISO code (USD, EUR, etc.)</p>
+            </div>
+            <div class="sf-field sf-span-3">
+              <label for="r-cache-ttl">FX cache TTL (minutes)</label>
+              <input id="r-cache-ttl" class="sf-input" type="number" min="1" max="10080" step="1">
+              <p class="sf-field-help">Default 360 (6 hours). Max 10080 (7 days).</p>
+            </div>
+            <div class="sf-field sf-span-12">
+              <label for="r-reason">Reason for change <span style="color:var(--sf-danger);">*</span></label>
+              <input id="r-reason" class="sf-input" type="text" placeholder="e.g. SBP changed FX fee from 4.5% to 5% effective 2026-06-01" required>
+              <p class="sf-field-help">Required. Logged in audit history.</p>
+            </div>
+            <div class="sf-span-12" style="display:flex;gap:10px;justify-content:flex-end;">
+              <button type="button" class="sf-button" id="r-reset">Reset to current</button>
+              <button type="submit" class="sf-button sf-button--primary" id="r-save">Save changes</button>
+            </div>
+          </form>
+
+          <div id="r-result" style="margin-top:16px;"></div>
+        </div>
+
+        <div class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Audit Trail</p>
+              <h3 class="sf-section-title">Recent rate changes</h3>
+              <p class="sf-section-subtitle">Last 20 modifications. Older history available via /api/intl-rates/audit?limit=200.</p>
+            </div>
+          </div>
+          <div id="audit-list" class="sf-dense-grid"></div>
+        </div>
+
+        <div class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">FX Provider</p>
+              <h3 class="sf-section-title">Live USD → PKR</h3>
+              <p class="sf-section-subtitle">Current rate from configured FX provider. Cached.</p>
+            </div>
+            <div class="sf-section-meta">
+              <button type="button" class="sf-button" id="fx-refresh">Force refresh</button>
+            </div>
+          </div>
+          <div class="sf-dense-grid" id="fx-status"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    const $ = (id) => document.getElementById(id);
+    const fmt = (n, d = 2) => {
+      const x = Number(n);
+      return Number.isFinite(x) ? x.toFixed(d) : "—";
+    };
+    const esc = (s) => String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+    let currentConfig = null;
+
+    async function loadConfig() {
+      $("rates-status").textContent = "Loading";
+      $("rates-status").className = "sf-pill sf-pill--info";
+      try {
+        const res = await fetch("/api/intl-rates", { cache: "no-store" });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Load failed");
+        currentConfig = data.config;
+        renderConfig(data.config);
+        fillForm(data.config);
+        $("rates-status").textContent = "Loaded";
+        $("rates-status").className = "sf-pill sf-pill--positive";
+      } catch (err) {
+        $("rates-display").innerHTML = `<div class="sf-error-state">Load failed: ${esc(err.message)}</div>`;
+        $("rates-status").textContent = "Failed";
+        $("rates-status").className = "sf-pill sf-pill--danger";
+      }
+    }
+
+    function renderConfig(cfg) {
+      $("rates-meta").textContent = `Last updated ${cfg.updated_at} by ${cfg.updated_by}`;
+      $("rates-display").innerHTML = [
+        denseRow("FX fee", `${fmt(cfg.fx_fee_pct)} %`, "info"),
+        denseRow("Excise on FX fee", `${fmt(cfg.excise_on_fx_fee_pct)} %`, "info"),
+        denseRow("Advance tax (236Y)", `${fmt(cfg.advance_tax_pct)} %`, "info"),
+        denseRow("PRA (Punjab IT)", `${fmt(cfg.pra_pct)} %`, "info"),
+        denseRow("Default bank charge", `Rs ${fmt(cfg.default_bank_charge)}`, "info"),
+        denseRow("Default currency", esc(cfg.default_currency), "info"),
+        denseRow("FX provider", esc(cfg.fx_provider), "info"),
+        denseRow("FX cache TTL", `${cfg.fx_cache_ttl_minutes} min`, "info")
+      ].join("");
+    }
+
+    function fillForm(cfg) {
+      $("r-fx-fee").value = cfg.fx_fee_pct;
+      $("r-excise").value = cfg.excise_on_fx_fee_pct;
+      $("r-adv-tax").value = cfg.advance_tax_pct;
+      $("r-pra").value = cfg.pra_pct;
+      $("r-bank-charge").value = cfg.default_bank_charge;
+      $("r-currency").value = cfg.default_currency;
+      $("r-cache-ttl").value = cfg.fx_cache_ttl_minutes;
+      $("r-reason").value = "";
+      $("r-result").innerHTML = "";
+    }
+
+    function denseRow(label, value, tone) {
+      return `<div class="sf-dense-row"><div>${esc(label)}</div><div class="${tone ? "sf-tone-" + tone : ""}" style="font-weight:700;">${value}</div></div>`;
+    }
+
+    async function loadAudit() {
+      try {
+        const res = await fetch("/api/intl-rates/audit?limit=20", { cache: "no-store" });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Audit load failed");
+        if (!data.audit || data.audit.length === 0) {
+          $("audit-list").innerHTML = `<div class="sf-empty-state"><div><h3 class="sf-card-title">No changes yet</h3><p class="sf-card-subtitle">Audit log is empty.</p></div></div>`;
+          return;
+        }
+        $("audit-list").innerHTML = data.audit.map(a => `
+          <div class="sf-finance-row">
+            <div class="sf-row-left">
+              <div class="sf-row-title">${esc(a.field_name)}: ${esc(a.old_value || "—")} → <strong>${esc(a.new_value)}</strong></div>
+              <div class="sf-row-subtitle">${esc(a.changed_at)} · ${esc(a.changed_by)}${a.reason ? " · " + esc(a.reason) : ""}</div>
+            </div>
+          </div>
+        `).join("");
+      } catch (err) {
+        $("audit-list").innerHTML = `<div class="sf-error-state">Audit load failed: ${esc(err.message)}</div>`;
+      }
+    }
+
+    async function loadFx(force) {
+      $("fx-status").innerHTML = `<div class="sf-empty-state"><div><p>Loading…</p></div></div>`;
+      try {
+        const url = force ? "/api/intl-rates/fx/refresh?from=USD&to=PKR" : "/api/intl-rates/fx?from=USD&to=PKR";
+        const method = force ? "POST" : "GET";
+        const res = await fetch(url, { method, cache: "no-store" });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "FX fetch failed");
+        $("fx-status").innerHTML = [
+          denseRow("USD → PKR", `${fmt(data.rate, 4)}`, "positive"),
+          denseRow("Source", esc(data.source), data.stale ? "warning" : "info"),
+          denseRow("Provider", esc(data.provider), "info"),
+          denseRow("Fetched at", esc(data.fetched_at), "info"),
+          denseRow("Stale?", data.stale ? "Yes" : "No", data.stale ? "warning" : "positive")
+        ].join("");
+      } catch (err) {
+        $("fx-status").innerHTML = `<div class="sf-error-state">FX failed: ${esc(err.message)}</div>`;
+      }
+    }
+
+    async function saveRates(ev) {
+      ev.preventDefault();
+      const reason = $("r-reason").value.trim();
+      if (!reason) {
+        $("r-result").innerHTML = `<div class="sf-error-state" style="min-height:60px;">Reason is required for audit log.</div>`;
+        return;
+      }
+      const body = {
+        fx_fee_pct: Number($("r-fx-fee").value),
+        excise_on_fx_fee_pct: Number($("r-excise").value),
+        advance_tax_pct: Number($("r-adv-tax").value),
+        pra_pct: Number($("r-pra").value),
+        default_bank_charge: Number($("r-bank-charge").value),
+        default_currency: $("r-currency").value.trim().toUpperCase(),
+        fx_cache_ttl_minutes: Number($("r-cache-ttl").value),
+        reason,
+        changed_by: "web-intl-rates-admin"
+      };
+      $("r-save").disabled = true;
+      $("r-save").textContent = "Saving…";
+      try {
+        const res = await fetch("/api/intl-rates", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Save failed");
+        if (data.changed === 0) {
+          $("r-result").innerHTML = `<div class="sf-empty-state" style="min-height:60px;"><div><p>No changes detected — values match current.</p></div></div>`;
+        } else {
+          $("r-result").innerHTML = `<div class="sf-empty-state sf-tone-positive" style="min-height:60px;"><div><p>Saved · ${data.changed} field${data.changed === 1 ? "" : "s"} updated.</p></div></div>`;
+          await loadConfig();
+          await loadAudit();
+        }
+      } catch (err) {
+        $("r-result").innerHTML = `<div class="sf-error-state" style="min-height:60px;">Save failed: ${esc(err.message)}</div>`;
+      } finally {
+        $("r-save").disabled = false;
+        $("r-save").textContent = "Save changes";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadConfig();
+      loadAudit();
+      loadFx(false);
+      $("rates-form").addEventListener("submit", saveRates);
+      $("r-reset").addEventListener("click", () => currentConfig && fillForm(currentConfig));
+      $("fx-refresh").addEventListener("click", () => loadFx(true));
+    });
+  })();
+  </script>
+</body>
+</html>

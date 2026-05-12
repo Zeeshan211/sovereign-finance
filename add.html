@@ -205,6 +205,15 @@
                 <input id="add-intl-bank-charge" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="auto from rates">
                 <p class="sf-field-help">Leave blank to use configured default. Set to 0 to suppress, or override per transaction.</p>
               </div>
+
+              <div class="sf-field sf-span-6">
+                <label class="sf-label">Punjab IT services tax (PRA)</label>
+                <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--sf-border);border-radius:var(--sf-radius-sm);background:var(--sf-surface-1);cursor:pointer;">
+                  <input id="add-intl-include-pra" type="checkbox" style="width:18px;height:18px;accent-color:var(--sf-accent);">
+                  <span style="font-size:var(--sf-font-13);color:var(--sf-text-soft);">Include PRA (5% of base)</span>
+                </label>
+                <p class="sf-field-help">Tick if this merchant collects PRA. Skip otherwise. Defaults from merchant profile if known.</p>
+              </div>
             </div>
           </div>
 
