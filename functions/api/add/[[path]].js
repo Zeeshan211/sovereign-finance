@@ -1,14 +1,15 @@
 /* /api/add/[[path]]
  * Sovereign Finance · Add Orchestrator
- * v1.2.4-add-context-balances-primary
+ * v1.2.5-add-context-inline-balances
  *
  * Fix:
- * - /api/add/context now uses /api/balances as the primary account source.
- * - D1 accounts are fallback only.
- * - Keeps commit hash forwarding for /api/transactions.
+ * - /api/add/context no longer depends on internal /api/balances fetch.
+ * - Account balances are computed inline from transactions with reversal-safe rules.
+ * - Dropdown balances should no longer show Rs 0 unless the real computed balance is 0.
+ * - Keeps /api/transactions dry-run + commit hash forwarding.
  */
 
-const VERSION = 'v1.2.4-add-context-balances-primary';
+const VERSION = 'v1.2.5-add-context-inline-balances';
 
 const CATEGORY_ALIASES = {
   grocery: 'groceries',
@@ -55,9 +56,6 @@ const CATEGORY_ALIASES = {
 
 const DIRECT_TYPES = new Set(['expense', 'income', 'transfer']);
 const INTERNATIONAL_TYPES = new Set(['international', 'international_purchase']);
-
-const ACTIVE_ACCOUNT_WHERE =
-  "(deleted_at IS NULL OR deleted_at = '') AND (archived_at IS NULL OR archived_at = '') AND (status IS NULL OR status = '' OR status = 'active')";
 
 export async function onRequestGet(context) {
   try {
@@ -112,18 +110,12 @@ export async function onRequestPost(context) {
 async function getContext(context) {
   const db = context.env.DB;
 
-  const [balancesPayload, dbAccounts, categories, merchants, intlConfig] = await Promise.all([
-    internalGet(context, '/api/balances').catch(() => null),
-    loadAccountsDirect(db).catch(() => []),
-    loadCategoriesDirect(db).catch(() => []),
-    loadMerchantsDirect(db).catch(() => []),
+  const [accounts, categories, merchants, intlConfig] = await Promise.all([
+    loadAccountsWithInlineBalances(db),
+    loadCategoriesDirect(db),
+    loadMerchantsDirect(db),
     getIntlConfig(db).catch(() => null)
   ]);
-
-  const accountsFromBalances = normalizeAccountsFromBalances(balancesPayload);
-  const accounts = accountsFromBalances.length
-    ? mergeAccountMetadata(accountsFromBalances, dbAccounts)
-    : dbAccounts;
 
   return json({
     ok: true,
@@ -142,79 +134,7 @@ async function getContext(context) {
   });
 }
 
-function normalizeAccountsFromBalances(payload) {
-  if (!payload || payload.ok === false || !payload.accounts) return [];
-
-  if (Array.isArray(payload.accounts)) {
-    return payload.accounts.map(row => ({
-      id: row.id || row.account_id,
-      name: row.name || row.label || row.id || row.account_id,
-      type: row.type || 'asset',
-      kind: row.kind || row.type || 'account',
-      currency: row.currency || 'PKR',
-      color: row.color || null,
-      icon: row.icon || '',
-      opening_balance: Number(row.opening_balance || 0),
-      credit_limit: row.credit_limit == null ? null : Number(row.credit_limit),
-      balance: Number(row.balance || row.current_balance || row.available_balance || 0),
-      current_balance: Number(row.balance || row.current_balance || row.available_balance || 0),
-      status: row.status || 'active',
-      display_order: row.display_order == null ? 999 : Number(row.display_order)
-    })).filter(row => row.id);
-  }
-
-  if (typeof payload.accounts === 'object') {
-    return Object.entries(payload.accounts).map(([id, row]) => ({
-      id,
-      name: row.name || id,
-      type: row.type || 'asset',
-      kind: row.kind || row.type || 'account',
-      currency: row.currency || 'PKR',
-      color: row.color || null,
-      icon: row.icon || '',
-      opening_balance: Number(row.opening_balance || 0),
-      credit_limit: row.credit_limit == null ? null : Number(row.credit_limit),
-      balance: Number(row.balance || row.current_balance || row.available_balance || 0),
-      current_balance: Number(row.balance || row.current_balance || row.available_balance || 0),
-      status: row.status || 'active',
-      display_order: row.display_order == null ? 999 : Number(row.display_order)
-    })).filter(row => row.id);
-  }
-
-  return [];
-}
-
-function mergeAccountMetadata(balanceAccounts, dbAccounts) {
-  const meta = new Map(dbAccounts.map(account => [account.id, account]));
-
-  return balanceAccounts.map(account => {
-    const db = meta.get(account.id) || {};
-
-    return {
-      ...db,
-      ...account,
-      name: account.name || db.name || account.id,
-      type: account.type || db.type || 'asset',
-      kind: account.kind || db.kind || account.type || 'account',
-      currency: account.currency || db.currency || 'PKR',
-      color: account.color || db.color || null,
-      icon: account.icon || db.icon || '',
-      opening_balance: Number(account.opening_balance ?? db.opening_balance ?? 0),
-      credit_limit: account.credit_limit ?? db.credit_limit ?? null,
-      balance: Number(account.balance ?? account.current_balance ?? 0),
-      current_balance: Number(account.current_balance ?? account.balance ?? 0),
-      status: account.status || db.status || 'active',
-      display_order: Number(account.display_order ?? db.display_order ?? 999)
-    };
-  }).sort((a, b) => {
-    const ao = Number(a.display_order ?? 999);
-    const bo = Number(b.display_order ?? 999);
-    if (ao !== bo) return ao - bo;
-    return String(a.name || a.id).localeCompare(String(b.name || b.id));
-  });
-}
-
-async function loadAccountsDirect(db) {
+async function loadAccountsWithInlineBalances(db) {
   const cols = await tableColumns(db, 'accounts');
   if (!cols.has('id')) return [];
 
@@ -229,33 +149,153 @@ async function loadAccountsDirect(db) {
     'opening_balance',
     'credit_limit',
     'status',
-    'display_order'
+    'display_order',
+    'deleted_at',
+    'archived_at'
   ].filter(col => cols.has(col));
 
-  const order = cols.has('display_order') ? 'display_order, name, id' : 'name, id';
+  const order = cols.has('display_order')
+    ? 'display_order, name, id'
+    : (cols.has('name') ? 'name, id' : 'id');
+
+  const where = buildActiveAccountWhere(cols);
 
   const rows = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM accounts
-     WHERE ${ACTIVE_ACCOUNT_WHERE}
+     ${where ? 'WHERE ' + where : ''}
      ORDER BY ${order}`
   ).all();
 
-  return (rows.results || []).map(row => ({
-    id: row.id,
-    name: row.name || row.id,
-    type: row.type || row.kind || 'asset',
-    kind: row.kind || row.type || 'account',
-    currency: row.currency || 'PKR',
-    color: row.color || null,
-    icon: row.icon || '',
-    opening_balance: Number(row.opening_balance || 0),
-    credit_limit: row.credit_limit == null ? null : Number(row.credit_limit),
-    balance: Number(row.opening_balance || 0),
-    current_balance: Number(row.opening_balance || 0),
-    status: row.status || 'active',
-    display_order: row.display_order == null ? 999 : Number(row.display_order)
-  }));
+  const accounts = rows.results || [];
+
+  const out = [];
+
+  for (const account of accounts) {
+    const computed = await computeAccountBalance(db, account.id);
+    const opening = Number(account.opening_balance || 0);
+    const balance = roundMoney(opening + computed.balance);
+
+    out.push({
+      id: account.id,
+      name: account.name || account.id,
+      type: account.type || account.kind || 'asset',
+      kind: account.kind || account.type || 'account',
+      currency: account.currency || 'PKR',
+      color: account.color || null,
+      icon: account.icon || '',
+      opening_balance: opening,
+      credit_limit: account.credit_limit == null ? null : Number(account.credit_limit),
+      balance,
+      current_balance: balance,
+      status: account.status || 'active',
+      display_order: account.display_order == null ? 999 : Number(account.display_order),
+      balance_source: 'inline_transactions',
+      transaction_count: computed.txn_count,
+      skipped_inactive_transaction_count: computed.skipped_inactive_count
+    });
+  }
+
+  return out;
+}
+
+function buildActiveAccountWhere(cols) {
+  const clauses = [];
+
+  if (cols.has('deleted_at')) {
+    clauses.push("(deleted_at IS NULL OR deleted_at = '')");
+  }
+
+  if (cols.has('archived_at')) {
+    clauses.push("(archived_at IS NULL OR archived_at = '')");
+  }
+
+  if (cols.has('status')) {
+    clauses.push("(status IS NULL OR status = '' OR status = 'active')");
+  }
+
+  return clauses.join(' AND ');
+}
+
+async function computeAccountBalance(db, accountId) {
+  const txCols = await tableColumns(db, 'transactions');
+
+  if (!txCols.has('account_id')) {
+    return {
+      balance: 0,
+      txn_count: 0,
+      skipped_inactive_count: 0
+    };
+  }
+
+  const wanted = [
+    'id',
+    'type',
+    'amount',
+    'pkr_amount',
+    'notes',
+    'reversed_by',
+    'reversed_at'
+  ].filter(col => txCols.has(col));
+
+  const rows = await db.prepare(
+    `SELECT ${wanted.join(', ')}
+     FROM transactions
+     WHERE account_id = ?`
+  ).bind(accountId).all();
+
+  let balance = 0;
+  let txnCount = 0;
+  let skippedInactiveCount = 0;
+
+  for (const row of rows.results || []) {
+    if (isInactiveForBalance(row)) {
+      skippedInactiveCount += 1;
+      continue;
+    }
+
+    const amount = Number(row.pkr_amount || row.amount || 0);
+
+    balance += signedAmount(row.type, amount);
+    txnCount += 1;
+  }
+
+  return {
+    balance: roundMoney(balance),
+    txn_count: txnCount,
+    skipped_inactive_count: skippedInactiveCount
+  };
+}
+
+function isInactiveForBalance(row) {
+  if (!row) return false;
+
+  const notes = String(row.notes || '').toUpperCase();
+
+  return !!(
+    row.reversed_by ||
+    row.reversed_at ||
+    notes.includes('[REVERSAL OF ') ||
+    notes.includes('[REVERSED BY ')
+  );
+}
+
+function signedAmount(type, amount) {
+  const t = normalizeMode(type);
+
+  if (['income', 'salary', 'opening', 'borrow', 'debt_in'].includes(t)) {
+    return amount;
+  }
+
+  if (['expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out'].includes(t)) {
+    return -amount;
+  }
+
+  if (t === 'cc_payment') {
+    return -amount;
+  }
+
+  return -amount;
 }
 
 async function loadCategoriesDirect(db) {
@@ -272,7 +312,9 @@ async function loadCategoriesDirect(db) {
     'display_order'
   ].filter(col => cols.has(col));
 
-  const order = cols.has('display_order') ? 'display_order, name, id' : 'name, id';
+  const order = cols.has('display_order')
+    ? 'display_order, name, id'
+    : (cols.has('name') ? 'name, id' : 'id');
 
   const rows = await db.prepare(
     `SELECT ${wanted.join(', ')}
@@ -491,6 +533,10 @@ function normalizeMode(value) {
 
   if (raw === 'international' || raw === 'international_purchase') return 'international_purchase';
   if (raw === 'manual_income') return 'income';
+  if (raw === 'salary_income') return 'salary';
+  if (raw === 'debt_payment') return 'repay';
+  if (raw === 'credit_card') return 'cc_spend';
+
   if (DIRECT_TYPES.has(raw)) return raw;
 
   return raw;
@@ -783,11 +829,14 @@ async function getIntlConfig(db) {
 }
 
 async function getAccount(db, id) {
+  const cols = await tableColumns(db, 'accounts');
+  const where = buildActiveAccountWhere(cols);
+
   return db.prepare(
     `SELECT *
      FROM accounts
      WHERE id = ?
-       AND ${ACTIVE_ACCOUNT_WHERE}
+     ${where ? 'AND ' + where : ''}
      LIMIT 1`
   ).bind(id).first();
 }
@@ -828,26 +877,6 @@ function insertStatement(db, table, row) {
     `INSERT INTO ${table} (${keys.join(', ')})
      VALUES (${keys.map(() => '?').join(', ')})`
   ).bind(...keys.map(key => row[key]));
-}
-
-async function internalGet(context, path) {
-  const url = new URL(context.request.url);
-  url.pathname = path;
-  url.search = '';
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      accept: 'application/json'
-    }
-  });
-
-  const payload = await response.json().catch(() => null);
-
-  if (!response.ok || !payload || payload.ok === false) {
-    throw new Error((payload && payload.error) || 'HTTP ' + response.status);
-  }
-
-  return payload;
 }
 
 async function internalPost(context, path, body) {
