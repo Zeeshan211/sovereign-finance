@@ -40,6 +40,7 @@ body.sf-shell-body {
 .sf-chart-slot {
   min-width: 0;
 }
+
 .sf-page-hero {
   display: flex;
   flex-wrap: wrap;
@@ -383,7 +384,7 @@ body.sf-shell-body {
   }
 
   .sf-page-hero {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 
   .sf-page-actions {
