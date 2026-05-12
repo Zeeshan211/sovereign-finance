@@ -1,215 +1,447 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Budgets — Sovereign Finance</title>
-    <script src="/js/sf-theme-switcher.js"></script>
-    <link rel="stylesheet" href="/css/sf-theme.css">
-    <link rel="stylesheet" href="/css/sf-shell.css">
-    <style>
-      .budgets-modal {
-        display: none;
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(0,0,0,0.7);
-        backdrop-filter: blur(8px);
-        z-index: 9000;
-        align-items: center;
-        justify-content: center;
-        padding: var(--sf-space-5);
-      }
-      .budgets-modal.is-open,
-      .modal-backdrop[style*="display: flex"],
-      .modal-backdrop[style*="display:flex"] {
-        display: flex !important;
-      }
-      .modal-backdrop {
-        display: none;
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(0,0,0,0.7);
-        backdrop-filter: blur(8px);
-        z-index: 9000;
-        align-items: center;
-        justify-content: center;
-        padding: var(--sf-space-5);
-      }
-      .modal {
-        background: linear-gradient(180deg, var(--sf-card-strong) 0%, var(--sf-card) 100%);
-        border: 1px solid var(--sf-border);
-        border-radius: var(--sf-radius-lg);
-        padding: var(--sf-space-6);
-        width: 100%;
-        max-width: 460px;
-        box-shadow: var(--sf-shadow-lg);
-      }
-      .modal-title {
-        font-size: var(--sf-font-20);
-        font-weight: 700;
-        color: var(--sf-text);
-        margin-bottom: var(--sf-space-2);
-      }
-      .modal-sub {
-        color: var(--sf-text-muted);
-        font-size: var(--sf-font-13);
-        margin-bottom: var(--sf-space-5);
-      }
-      .field-label {
-        display: block;
-        font-size: var(--sf-font-12);
-        font-weight: 700;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--sf-text-faint);
-        margin-bottom: var(--sf-space-2);
-        margin-top: var(--sf-space-4);
-      }
-      .field-label:first-of-type { margin-top: 0; }
-      .form-input,
-      .amount-input {
-        width: 100%;
-        min-height: 44px;
-        border: 1px solid var(--sf-border);
-        border-radius: var(--sf-radius-sm);
-        background: var(--sf-surface-1);
-        color: var(--sf-text);
-        font: inherit;
-        padding: 12px 14px;
-        outline: none;
-      }
-      .form-input:focus,
-      .amount-input:focus {
-        border-color: var(--sf-accent);
-        box-shadow: 0 0 0 3px var(--sf-accent-soft);
-      }
-      .modal-actions {
-        display: flex;
-        gap: var(--sf-space-3);
-        justify-content: flex-end;
-        margin-top: var(--sf-space-5);
-      }
-      .ghost-btn {
-        appearance: none;
-        border: 1px solid var(--sf-border);
-        background: var(--sf-surface-1);
-        color: var(--sf-text-soft);
-        padding: 10px 16px;
-        border-radius: var(--sf-radius-pill);
-        font-size: var(--sf-font-12);
-        font-weight: 600;
-        cursor: pointer;
-      }
-      .ghost-btn:hover {
-        border-color: var(--sf-border-strong);
-      }
-      .primary-btn {
-        appearance: none;
-        border: 1px solid var(--sf-accent-border);
-        background: var(--sf-accent-soft);
-        color: var(--sf-accent-strong);
-        padding: 10px 16px;
-        border-radius: var(--sf-radius-pill);
-        font-size: var(--sf-font-12);
-        font-weight: 700;
-        cursor: pointer;
-      }
-      .primary-btn:hover {
-        box-shadow: 0 4px 14px var(--sf-accent-glow);
-      }
-    </style>
-</head>
-<body class="sf-shell-body">
-    <div class="sf-app-shell sf-app-shell--with-nav">
-        <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
-
-        <main class="sf-page-shell">
-            <section class="sf-page-content">
-                <div class="sf-page-hero">
-                    <div class="sf-page-title-group">
-                        <span class="sf-page-eyebrow">Modules</span>
-                        <h1 class="sf-page-title">Budgets</h1>
-                        <p class="sf-page-subtitle">Monthly spending caps per category. Compare against actuals to flag overruns.</p>
-                    </div>
-                    <div class="sf-page-actions">
-                        <span class="sf-pill sf-pill--info" id="budgets-summary">loading…</span>
-                        <button id="addBudgetBtn" class="sf-button sf-button--primary">+ Add Budget</button>
-                    </div>
-                </div>
-
-                <div class="sf-kpi-row">
-                    <div class="sf-metric-card sf-metric-card--accent">
-                        <p class="sf-card-kicker">Monthly Cap</p>
-                        <div class="sf-metric-value" id="budgets-total-cap">—</div>
-                        <span class="sf-metric-foot"><span id="budgets-count">0</span> budgets</span>
-                    </div>
-                    <div class="sf-metric-card">
-                        <p class="sf-card-kicker">Spent This Month</p>
-                        <div class="sf-metric-value" id="budgets-total-spent" style="color: var(--sf-danger);">—</div>
-                        <span class="sf-metric-foot"><span id="budgets-over-count">0</span> over</span>
-                    </div>
-                </div>
-
-                <div class="sf-panel">
-                    <div class="sf-section-head">
-                        <div>
-                            <p class="sf-section-kicker">Categories</p>
-                            <h3 class="sf-section-title">Per-category budgets</h3>
-                            <p class="sf-section-subtitle">Click a category to edit cap or notes.</p>
-                        </div>
-                    </div>
-                    <div id="budgets-list">
-                        <div class="sf-empty-state"><div><p>Loading budgets…</p></div></div>
-                    </div>
-                </div>
-            </section>
-        </main>
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+  <meta content="#050816" name="theme-color"/>
+  <meta content="yes" name="apple-mobile-web-app-capable"/>
+  <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
+  <title>
+   Budgets · Sovereign Finance
+  </title>
+  <link href="/css/sf-theme.css" rel="stylesheet"/>
+  <link href="/css/sf-shell.css" rel="stylesheet"/>
+  <script defer="" src="/js/sf-theme-switcher.js">
+  </script>
+  <script defer="" src="/js/sf-components.js">
+  </script>
+  <script defer="" src="/js/sf-shell.js">
+  </script>
+  <style>
+.sf-app-shell--with-nav {
+  display:grid;
+  grid-template-columns:280px minmax(0,1fr);
+  gap:24px;
+  width:min(100%,1680px);
+  margin:0 auto;
+  padding:24px}
+.sf-finance-sidebar {
+  position:sticky;
+  top:24px;
+  height:calc(100vh - 48px);
+  overflow:auto;
+  border:1px solid var(--sf-border);
+  border-radius:24px;
+  background:linear-gradient(180deg,var(--sf-card-strong),var(--sf-card));
+  padding:18px;
+  box-shadow:var(--sf-shadow-sm)}
+.sf-sidebar-brand {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding-bottom:18px;
+  margin-bottom:18px;
+  border-bottom:1px solid var(--sf-border-subtle)}
+.sf-sidebar-logo {
+  width:44px;
+  height:44px;
+  border-radius:16px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--sf-accent),var(--sf-positive));
+  font-weight:800;
+  color:white}
+.sf-sidebar-title {
+  font-weight:800}
+.sf-sidebar-sub {
+  font-size:12px;
+  color:var(--sf-text-muted)}
+.sf-nav-section {
+  margin:18px 0}
+.sf-nav-kicker {
+  font-size:11px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--sf-text-faint);
+  font-weight:800;
+  margin:0 0 8px}
+.sf-nav-list {
+  display:grid;
+  gap:6px}
+.sf-nav-link {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:10px 12px;
+  border-radius:14px;
+  color:var(--sf-text-soft);
+  text-decoration:none;
+  font-weight:700;
+  border:1px solid transparent}
+.sf-nav-link:hover,
+.sf-nav-link.is-active {
+  background:var(--sf-accent-soft);
+  border-color:var(--sf-border-strong);
+  color:var(--sf-accent-strong)}
+.sf-page-shell {
+  min-width:0}
+.sf-money-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:20px}
+.mini-row {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  padding:14px;
+  border:1px solid var(--sf-border-subtle);
+  border-radius:16px;
+  background:var(--sf-surface-1);
+  margin-bottom:10px}
+.mini-row-left {
+  min-width:0}
+.mini-row-name {
+  font-weight:900;
+  color:var(--sf-text)}
+.mini-row-sub {
+  color:var(--sf-text-muted);
+  font-size:12px;
+  margin-top:4px}
+.mini-row-right {
+  text-align:right;
+  display:grid;
+  justify-items:end;
+  gap:4px}
+.mini-row-amount {
+  font-weight:900}
+.accent {
+  color:var(--sf-positive)}
+.liabilities {
+  color:var(--sf-warning)}
+.negative {
+  color:var(--sf-danger)}
+.dense-badge {
+  border:1px solid var(--sf-border-subtle);
+  border-radius:999px;
+  background:var(--sf-surface-2);
+  font-weight:800}
+.ghost-btn,
+.primary-btn {
+  border:1px solid var(--sf-border);
+  border-radius:999px;
+  padding:9px 13px;
+  background:var(--sf-surface-1);
+  color:var(--sf-text-soft);
+  font-weight:800;
+  cursor:pointer}
+.primary-btn {
+  background:var(--sf-accent-soft);
+  color:var(--sf-accent-strong);
+  border-color:var(--sf-border-strong)}
+.empty-state-inline {
+  padding:18px;
+  border:1px solid var(--sf-border-subtle);
+  border-radius:16px;
+  background:var(--sf-surface-1);
+  color:var(--sf-text-muted)}
+.modal-backdrop {
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.62);
+  z-index:80;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:18px}
+.modal {
+  width:min(520px,100%);
+  max-height:88vh;
+  overflow:auto;
+  border:1px solid var(--sf-border);
+  border-radius:24px;
+  background:var(--sf-card-strong);
+  padding:22px;
+  box-shadow:var(--sf-shadow-lg)}
+.modal-title {
+  font-size:22px;
+  font-weight:900}
+.modal-sub {
+  color:var(--sf-text-muted);
+  font-size:13px;
+  margin:4px 0 18px}
+.field-label {
+  display:block;
+  margin:14px 0 6px;
+  color:var(--sf-text-muted);
+  font-size:12px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.08em}
+.form-input,
+.amount-input {
+  width:100%;
+  border:1px solid var(--sf-border);
+  border-radius:14px;
+  background:var(--sf-surface-1);
+  color:var(--sf-text);
+  padding:12px 13px;
+  font:inherit}
+.modal-actions {
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:18px;
+  flex-wrap:wrap}
+@media(max-width:980px) {
+  .sf-app-shell--with-nav {
+    grid-template-columns:1fr;
+    padding:16px}
+  .sf-finance-sidebar {
+    position:relative;
+    top:0;
+    height:auto}
+  .sf-money-grid {
+    grid-template-columns:1fr}
+}
+  </style>
+ </head>
+ <body class="sf-shell-body">
+  <div class="sf-app-shell sf-app-shell--with-nav">
+   <aside aria-label="Finance navigation" class="sf-finance-sidebar">
+    <div class="sf-sidebar-brand">
+     <div class="sf-sidebar-logo">
+      SF
+     </div>
+     <div>
+      <div class="sf-sidebar-title">
+       Sovereign Finance
+      </div>
+      <div class="sf-sidebar-sub">
+       Personal finance system
+      </div>
+     </div>
     </div>
-
-    <!-- Add Budget Modal -->
-    <div id="addBudgetModal" class="modal-backdrop">
-        <div class="modal">
-            <div class="modal-title">Add Budget</div>
-            <div class="modal-sub">Set a monthly spending cap per category.</div>
-
-            <label class="field-label">Category ID</label>
-            <input id="addBudgetCategory" type="text" placeholder="e.g. groceries, utilities, rent" class="form-input" maxlength="40">
-
-            <label class="field-label">Monthly Cap</label>
-            <input id="addBudgetAmount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0" class="amount-input">
-
-            <label class="field-label">Notes (optional)</label>
-            <input id="addBudgetNotes" type="text" placeholder="context, reminders" class="form-input" maxlength="200">
-
-            <div class="modal-actions">
-                <button id="addBudgetCancel" class="ghost-btn">Cancel</button>
-                <button id="addBudgetConfirm" class="primary-btn">Add Budget</button>
-            </div>
-        </div>
+    <nav>
+     <div class="sf-nav-section">
+      <p class="sf-nav-kicker">
+       Core
+      </p>
+      <div class="sf-nav-list">
+       <a class="sf-nav-link" href="/index.html">
+        Hub
+       </a>
+       <a class="sf-nav-link" href="/add.html">
+        Add
+       </a>
+       <a class="sf-nav-link" href="/transactions.html">
+        Ledger
+       </a>
+       <a class="sf-nav-link" href="/accounts.html">
+        Accounts
+       </a>
+       <a class="sf-nav-link" href="/cc.html">
+        Credit Card
+       </a>
+      </div>
+     </div>
+     <div class="sf-nav-section">
+      <p class="sf-nav-kicker">
+       Cashflow
+      </p>
+      <div class="sf-nav-list">
+       <a class="sf-nav-link" href="/bills.html">
+        Bills
+       </a>
+       <a class="sf-nav-link" href="/debts.html">
+        Debts
+       </a>
+       <a class="sf-nav-link" href="/salary.html">
+        Salary
+       </a>
+       <a class="sf-nav-link" href="/forecast.html">
+        Forecast
+       </a>
+      </div>
+     </div>
+     <div class="sf-nav-section">
+      <p class="sf-nav-kicker">
+       Control / QA
+      </p>
+      <div class="sf-nav-list">
+       <a class="sf-nav-link" href="/reconciliation.html">
+        Reconciliation
+       </a>
+       <a class="sf-nav-link" href="/audit.html">
+        Audit Trail
+       </a>
+       <a class="sf-nav-link" href="/monthly-close.html">
+        Monthly Close
+       </a>
+      </div>
+     </div>
+     <div class="sf-nav-section">
+      <p class="sf-nav-kicker">
+       Analysis
+      </p>
+      <div class="sf-nav-list">
+       <a class="sf-nav-link" href="/insights.html">
+        Insights
+       </a>
+       <a class="sf-nav-link" href="/charts.html">
+        Charts
+       </a>
+       <a class="sf-nav-link" href="/snapshots.html">
+        Snapshots
+       </a>
+      </div>
+     </div>
+     <div class="sf-nav-section">
+      <p class="sf-nav-kicker">
+       Tools
+      </p>
+      <div class="sf-nav-list">
+       <a class="sf-nav-link" href="/atm.html">
+        ATM
+       </a>
+       <a class="sf-nav-link is-active" href="/budgets.html">
+        Budgets
+       </a>
+       <a class="sf-nav-link" href="/goals.html">
+        Goals
+       </a>
+       <a class="sf-nav-link" href="/merchants.html">
+        Merchants
+       </a>
+       <a class="sf-nav-link" href="/nano-loans.html">
+        Nano Loans
+       </a>
+      </div>
+     </div>
+    </nav>
+   </aside>
+   <main class="sf-page-shell">
+    <header class="sf-page-hero">
+     <div class="sf-page-title-group">
+      <div class="sf-page-eyebrow">
+       Budgets
+      </div>
+      <h1 class="sf-page-title">
+       Budgets
+      </h1>
+      <p class="sf-page-subtitle" id="budgets-summary">
+       loading
+      </p>
+     </div>
+     <div class="sf-page-actions">
+      <button class="sf-button sf-button--primary" id="addBudgetBtn" type="button">
+       + Add Budget
+      </button>
+     </div>
+    </header>
+    <section class="sf-money-grid">
+     <section class="sf-metric-card">
+      <p class="sf-card-kicker">
+       Monthly Cap
+      </p>
+      <div class="sf-metric-value accent" id="budgets-total-cap">
+      </div>
+      <p class="sf-card-subtitle" id="budgets-count">
+       0 budgets
+      </p>
+     </section>
+     <section class="sf-metric-card">
+      <p class="sf-card-kicker">
+       Spent This Month
+      </p>
+      <div class="sf-metric-value liabilities" id="budgets-total-spent">
+      </div>
+      <p class="sf-card-subtitle" id="budgets-over-count">
+       0 over
+      </p>
+     </section>
+    </section>
+    <section class="sf-panel">
+     <div class="sf-section-head">
+      <div>
+       <p class="sf-section-kicker">
+        Categories
+       </p>
+       <h2 class="sf-section-title">
+        Budget caps
+       </h2>
+      </div>
+     </div>
+     <div id="budgets-list">
+     </div>
+    </section>
+    <footer>
+     <span class="sf-meta-text">
+      v0.1.0 · budgets · shared shell migration batch 1
+     </span>
+    </footer>
+   </main>
+  </div>
+  <div class="modal-backdrop" id="addBudgetModal">
+   <div class="modal">
+    <div class="modal-title">
+     Add Budget
     </div>
-
-    <!-- Edit Budget Modal -->
-    <div id="editBudgetModal" class="modal-backdrop">
-        <div class="modal">
-            <div class="modal-title" id="editBudgetTitle">Edit Budget</div>
-            <div class="modal-sub" id="editBudgetSub">category: —</div>
-
-            <label class="field-label">Monthly Cap</label>
-            <input id="editBudgetAmount" type="number" inputmode="decimal" step="0.01" min="0" class="amount-input">
-
-            <label class="field-label">Notes</label>
-            <input id="editBudgetNotes" type="text" class="form-input" maxlength="200">
-
-            <div class="modal-actions">
-                <button id="editBudgetDelete" class="ghost-btn" style="color: var(--sf-danger); border-color: var(--sf-danger); margin-right: auto;">Delete</button>
-                <button id="editBudgetCancel" class="ghost-btn">Cancel</button>
-                <button id="editBudgetConfirm" class="primary-btn">Save</button>
-            </div>
-        </div>
+    <div class="modal-sub">
+     Set a monthly spending cap per category
     </div>
-
-    <script src="/js/budgets.js"></script>
-</body>
+    <label class="field-label">
+     Category ID
+    </label>
+    <input class="form-input" id="addBudgetCategory" maxlength="40" placeholder="e.g. groceries, utilities, rent" type="text"/>
+    <label class="field-label">
+     Monthly Cap
+    </label>
+    <input class="amount-input" id="addBudgetAmount" inputmode="decimal" min="0" placeholder="0" step="0.01" type="number"/>
+    <label class="field-label">
+     Notes (optional)
+    </label>
+    <input class="form-input" id="addBudgetNotes" maxlength="200" placeholder="context, reminders" type="text"/>
+    <div class="modal-actions">
+     <button class="ghost-btn" id="addBudgetCancel">
+      Cancel
+     </button>
+     <button class="primary-btn" id="addBudgetConfirm">
+      Add Budget
+     </button>
+    </div>
+   </div>
+  </div>
+  <div class="modal-backdrop" id="editBudgetModal">
+   <div class="modal">
+    <div class="modal-title" id="editBudgetTitle">
+     Edit Budget
+    </div>
+    <div class="modal-sub" id="editBudgetSub">
+     category:
+    </div>
+    <label class="field-label">
+     Monthly Cap
+    </label>
+    <input class="amount-input" id="editBudgetAmount" inputmode="decimal" min="0" step="0.01" type="number"/>
+    <label class="field-label">
+     Notes
+    </label>
+    <input class="form-input" id="editBudgetNotes" maxlength="200" type="text"/>
+    <div class="modal-actions">
+     <button class="ghost-btn" id="editBudgetDelete">
+      Delete
+     </button>
+     <button class="ghost-btn" id="editBudgetCancel">
+      Cancel
+     </button>
+     <button class="primary-btn" id="editBudgetConfirm">
+      Save
+     </button>
+    </div>
+   </div>
+  </div>
+  <script src="/js/budgets.js">
+  </script>
+ </body>
 </html>
