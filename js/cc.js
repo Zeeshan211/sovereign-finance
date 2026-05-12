@@ -1,213 +1,606 @@
-/* ─── Sovereign Finance · CC Payoff Planner Page · v0.1.0 · Sub-1D-CC-PLAN Ship 3 ───
- * Wires:
- *   - GET /api/cc/payoff-plan → render summary + per-CC card with scenarios
- *   - Each scenario shows recommended paying account (richest that can cover)
- *   - "Pay this" button on each scenario → opens /add.html with prefilled amount + accounts
- *
- * Read-only page. No mutations from here. Payment execution happens via /add.html (existing flow)
- * which already has snap+audit guarantees.
- *
- * Backend contract (cc/[[path]].js v0.1.0):
- *   GET /api/cc/payoff-plan
- *     → {ok, plans:[{cc_id, cc_name, outstanding, credit_limit, available_credit,
- *                    utilization_pct, days_to_payment_due, scenarios:[
- *                      {id, label, amount, helps_with, fundable,
- *                       achievable_with_balances:[{account_id, account_name, balance, can_cover, gap}]}
- *                    ], paying_accounts_summary:{...}}]}
- */
 (function () {
-  'use strict';
+  "use strict";
 
-  if (window._ccInited) return;
-  window._ccInited = true;
+  if (window.SovereignCC && window.SovereignCC.initialized) return;
 
-  const VERSION = 'v0.1.0';
+  const VERSION = "v0.3.1-shared-ui";
+  const CC_ENDPOINT = "/api/cc";
+  const ADD_PAYMENT_BASE = "/add.html?type=transfer";
+
+  let ccPayload = null;
+  let selectedCardId = null;
+  let selectedPlanPayload = null;
+
   const $ = id => document.getElementById(id);
 
-  const fmtPKR = n => 'Rs ' + Math.round(Number(n) || 0).toLocaleString('en-PK');
-  const escHtml = s => String(s == null ? '' : s)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  function components() {
+    return window.SFComponents || {};
+  }
 
-  function setText(id, text) {
+  function esc(value) {
+    const c = components();
+    if (typeof c.escapeHtml === "function") return c.escapeHtml(value);
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function money(value) {
+    const c = components();
+    if (typeof c.money === "function") return c.money(value);
+    return "Rs " + Math.round(Number(value) || 0).toLocaleString("en-PK");
+  }
+
+  function percent(value) {
+    const c = components();
+    if (typeof c.percent === "function") return c.percent(value);
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "—";
+    return n.toFixed(n % 1 === 0 ? 0 : 1) + "%";
+  }
+
+  function setText(id, value) {
     const el = $(id);
-    if (el) el.textContent = text;
+    if (el) el.textContent = value == null ? "" : String(value);
   }
-  function setHTML(id, html) {
+
+  function setHTML(id, value) {
     const el = $(id);
-    if (el) el.innerHTML = html;
+    if (el) el.innerHTML = value == null ? "" : String(value);
   }
 
-  function utilizationClass(pct) {
-    if (pct == null) return '';
-    if (pct >= 100) return 'negative';
-    if (pct >= 90) return 'negative';
-    if (pct >= 75) return 'liabilities';
-    return 'accent';
+  function asNumber(value, fallback) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : (fallback || 0);
   }
 
-  function utilizationBarColor(pct) {
-    const cls = utilizationClass(pct);
-    if (cls === 'negative') return 'var(--danger,#ef4444)';
-    if (cls === 'liabilities') return 'var(--warning,#f59e0b)';
-    return 'var(--accent,#22c55e)';
+  function round2(value) {
+    return Math.round(asNumber(value, 0) * 100) / 100;
   }
 
-  function dueLabel(days) {
-    if (days == null) return 'no due day set';
-    if (days === 0) return 'due TODAY';
-    if (days === 1) return 'due tomorrow';
-    if (days <= 7) return `due in ${days} days · urgent`;
-    return `due in ${days} days`;
+  function normalizeCards(payload) {
+    if (!payload) return [];
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload.accounts)) return payload.accounts;
+    if (Array.isArray(payload.cards)) return payload.cards;
+    if (Array.isArray(payload.credit_cards)) return payload.credit_cards;
+    if (Array.isArray(payload.data)) return payload.data;
+    return [];
   }
 
-  function dueClass(days) {
-    if (days == null) return '';
-    if (days <= 1) return 'negative';
-    if (days <= 7) return 'liabilities';
-    return 'accent';
+  function cardName(card) {
+    return card.name || card.label || card.account_name || card.id || "Credit Card";
   }
 
-  function scenarioIcon(id) {
-    return id === 'min' ? '🛟'
-         : id === 'to_30_pct' ? '🎯'
-         : id === 'to_zero' ? '🆓'
-         : '💰';
+  function cardId(card) {
+    return card.id || card.account_id || "";
   }
 
-  /* ─────── Renderers ─────── */
-  function renderScenario(scenario, plan) {
-    const recommended = scenario.achievable_with_balances.find(a => a.can_cover);
-    const fundableBadge = scenario.fundable
-      ? `<span class="dense-badge accent" style="font-size:10px;padding:2px 6px;margin-left:6px">fundable</span>`
-      : `<span class="dense-badge negative" style="font-size:10px;padding:2px 6px;margin-left:6px">short</span>`;
+  function utilizationTone(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "info";
+    if (n >= 75) return "danger";
+    if (n >= 40) return "warning";
+    return "positive";
+  }
 
-    const recommendedSource = recommended
-      ? `<div class="mini-row-sub" style="font-size:11px;margin-top:4px">
-          → fund from <strong>${escHtml(recommended.account_name)}</strong> (Rs ${fmtPKR(recommended.balance).slice(3)} available)
-         </div>`
-      : `<div class="mini-row-sub negative" style="font-size:11px;margin-top:4px">
-          ⚠ no single account covers this — gap of ${fmtPKR(scenario.achievable_with_balances[0]?.gap || 0)} on richest
-         </div>`;
+  function dueTone(card) {
+    const status = String(card.due_status || card.due?.due_status || "").toLowerCase();
+    const days = card.days_until_payment_due ?? card.days_to_payment_due ?? card.due?.days_until_payment_due;
 
-    // Build /add.html link with prefilled query params (transfer from richest to CC)
-    const addUrl = recommended
-      ? `/add.html?type=transfer&amount=${scenario.amount}&from=${encodeURIComponent(recommended.account_id)}&to=${encodeURIComponent(plan.cc_id)}&notes=${encodeURIComponent('CC paydown · ' + scenario.label)}`
-      : null;
+    if (status === "overdue") return "danger";
+    if (status === "due_urgent") return "danger";
+    if (status === "due_soon") return "warning";
 
+    const n = Number(days);
+    if (Number.isFinite(n) && n < 0) return "danger";
+    if (Number.isFinite(n) && n <= 3) return "danger";
+    if (Number.isFinite(n) && n <= 7) return "warning";
+
+    return "positive";
+  }
+
+  function dueLabel(card) {
+    const outstanding = asNumber(card.outstanding ?? card.cc_outstanding, 0);
+    if (outstanding <= 0) return "clear";
+
+    const days = card.days_until_payment_due ?? card.days_to_payment_due ?? card.due?.days_until_payment_due;
+    const n = Number(days);
+
+    if (!Number.isFinite(n)) return "no due date";
+    if (n < 0) return "overdue " + Math.abs(n) + "d";
+    if (n === 0) return "due today";
+    if (n === 1) return "due tomorrow";
+    return "due in " + n + "d";
+  }
+
+  function sourceLabel(source, estimate) {
+    if (!source) return estimate ? "estimated" : "configured";
+    if (source === "estimated_outstanding_5pct") return "5% estimate";
+    if (source === "account_configured") return "configured";
+    if (source === "none_no_outstanding") return "none";
+    return source.replace(/_/g, " ");
+  }
+
+  async function fetchJSON(url) {
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        accept: "application/json",
+        "x-sovereign-cc-page": VERSION
+      }
+    });
+
+    const data = await response.json().catch(() => null);
+
+    if (!response.ok || !data) {
+      throw new Error((data && data.error) || "HTTP " + response.status);
+    }
+
+    if (data.ok === false) {
+      throw new Error(data.error || "Request failed");
+    }
+
+    return data;
+  }
+
+  function setStatus(label, tone) {
+    const el = $("cc-api-status");
+    if (!el) return;
+    el.textContent = label;
+    el.className = "sf-pill" + (tone ? " sf-pill--" + tone : "");
+  }
+
+  function updateShellKpis(cards, payload) {
+    const totalOutstanding = round2(
+      payload?.total_outstanding ??
+      cards.reduce((sum, card) => sum + asNumber(card.outstanding ?? card.cc_outstanding, 0), 0)
+    );
+
+    const totalLimit = round2(
+      payload?.total_credit_limit ??
+      cards.reduce((sum, card) => sum + asNumber(card.credit_limit, 0), 0)
+    );
+
+    const utilization = payload?.utilization_pct ??
+      (totalLimit > 0 ? round2((totalOutstanding / totalLimit) * 100) : null);
+
+    const minimumDue = round2(
+      cards.reduce((sum, card) => sum + asNumber(card.minimum_payment_amount, 0), 0)
+    );
+
+    const urgentCount = cards.filter(card => {
+      const tone = dueTone(card);
+      return tone === "danger" || tone === "warning";
+    }).length;
+
+    const kpis = [
+      {
+        title: "Outstanding",
+        kicker: "Credit Card",
+        valueHtml: money(totalOutstanding),
+        subtitle: cards.length + " active card" + (cards.length === 1 ? "" : "s"),
+        footHtml: "Formula: <strong>max(0, -balance)</strong>",
+        tone: totalOutstanding > 0 ? "warning" : "positive"
+      },
+      {
+        title: "Minimum Due",
+        kicker: "Payment",
+        valueHtml: money(minimumDue),
+        subtitle: minimumDue > 0 ? "Configured or 5% estimate" : "No minimum due",
+        foot: "No writes from this page",
+        tone: minimumDue > 0 ? "warning" : "positive"
+      },
+      {
+        title: "Utilization",
+        kicker: "Risk",
+        valueHtml: utilization == null ? "—" : percent(utilization),
+        subtitle: totalLimit > 0 ? money(totalLimit) + " total limit" : "No card limit configured",
+        foot: "Limit minus outstanding",
+        tone: utilizationTone(utilization)
+      },
+      {
+        title: "Due Pressure",
+        kicker: "Timing",
+        valueHtml: urgentCount ? String(urgentCount) : "Clear",
+        subtitle: urgentCount ? "Cards need attention" : "No urgent due pressure",
+        foot: "Statement and due-date engine",
+        tone: urgentCount ? "danger" : "positive"
+      }
+    ];
+
+    if (window.SFShell && typeof window.SFShell.setKpis === "function") {
+      window.SFShell.setKpis(kpis);
+    }
+  }
+
+  function renderMeter(value, tone) {
+    const pct = Number.isFinite(Number(value)) ? Math.max(0, Math.min(100, Number(value))) : 0;
     return `
-      <div class="mini-row" style="border-left:3px solid ${utilizationBarColor(plan.utilization_pct)};padding-left:10px">
-        <div class="mini-row-left" style="flex:1">
-          <div class="mini-row-name">${scenarioIcon(scenario.id)} ${escHtml(scenario.label)} ${fundableBadge}</div>
-          <div class="mini-row-sub" style="margin-top:2px">${escHtml(scenario.helps_with)}</div>
-          ${recommendedSource}
-        </div>
-        <div class="mini-row-right">
-          <div class="mini-row-amount accent">${fmtPKR(scenario.amount)}</div>
-          ${addUrl
-            ? `<a href="${addUrl}" class="primary-btn" style="font-size:12px;padding:4px 10px;margin-top:4px;text-decoration:none;display:inline-block">Pay →</a>`
-            : `<button class="ghost-btn" disabled style="font-size:12px;padding:4px 10px;margin-top:4px;opacity:0.4">Pay →</button>`
-          }
-        </div>
-      </div>`;
-  }
-
-  function renderCCCard(plan) {
-    const utilPct = plan.utilization_pct;
-    const utilDisplay = utilPct != null ? `${utilPct}% utilized` : 'no credit limit set';
-    const utilBarPct = utilPct != null ? Math.min(100, utilPct) : 0;
-    const utilBarColor = utilizationBarColor(utilPct);
-
-    const days = plan.days_to_payment_due;
-    const dueBadge = `<span class="dense-badge ${dueClass(days)}" style="font-size:11px;padding:3px 8px;margin-left:8px">${escHtml(dueLabel(days))}</span>`;
-
-    const scenariosHTML = plan.scenarios.map(s => renderScenario(s, plan)).join('');
-
-    return `
-      <section class="net-worth" style="margin-bottom:8px">
-        <div class="nw-label">${escHtml(plan.cc_name)} ${dueBadge}</div>
-        <div class="nw-value ${utilizationClass(utilPct)}" style="font-size:32px">
-          ${fmtPKR(plan.outstanding).slice(3)}<span class="nw-currency">PKR outstanding</span>
-        </div>
-        <div style="background:rgba(255,255,255,0.08);border-radius:6px;height:8px;margin-top:10px;overflow:hidden">
-          <div style="width:${utilBarPct}%;height:100%;background:${utilBarColor};transition:width 0.3s"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:6px;opacity:0.7">
-          <span>${escHtml(utilDisplay)}</span>
-          <span>Rs ${fmtPKR(plan.available_credit || 0).slice(3)} available</span>
-        </div>
-      </section>
-
-      <div class="section-header">
-        <span class="section-label">Payment Scenarios</span>
-      </div>
-      <div>
-        ${scenariosHTML}
-      </div>
-
-      <div class="section-header" style="margin-top:16px">
-        <span class="section-label">Funding Sources Snapshot</span>
-      </div>
-      <div class="mini-row" style="opacity:0.85">
-        <div class="mini-row-left" style="flex:1">
-          <div class="mini-row-name">${plan.paying_accounts_summary.count} active funding accounts</div>
-          <div class="mini-row-sub">richest: ${escHtml(plan.paying_accounts_summary.richest_account?.name || '—')}</div>
-        </div>
-        <div class="mini-row-right">
-          <div class="mini-row-amount accent">${fmtPKR(plan.paying_accounts_summary.total_available)}</div>
-          <div class="mini-row-sub" style="font-size:10px;margin-top:2px">total available</div>
-        </div>
+      <div class="sf-meter" aria-label="Utilization ${esc(percent(value))}">
+        <div class="sf-meter-fill sf-tone-${esc(tone || "info")}" style="--sf-meter-value:${pct}%"></div>
       </div>
     `;
   }
 
-  /* ─────── Loader ─────── */
-  async function loadAll() {
-    console.log('[cc]', VERSION, 'loadAll start');
-    try {
-      const r = await fetch('/api/cc/payoff-plan', { cache: 'no-store' });
-      const body = await r.json();
-      console.log('[cc] /api/cc/payoff-plan', r.status, '→', body.count, 'plans');
-      if (!body.ok) throw new Error(body.error || 'cc payload not ok');
+  function addPaymentUrl(card, amount) {
+    const params = new URLSearchParams();
+    params.set("type", "transfer");
+    params.set("to", cardId(card) || "cc");
 
-      const plans = body.plans || [];
-      if (plans.length === 0) {
-        setText('cc-summary', 'no CC accounts');
-        setHTML('cc-cards-container',
-          `<div class="empty-state-inline" style="margin:20px;padding:40px;text-align:center">
-            No credit card accounts found.<br>
-            <a href="/accounts.html" class="primary-btn" style="margin-top:12px;display:inline-block;text-decoration:none">Add a CC</a>
-          </div>`
-        );
-        return;
+    if (amount && Number(amount) > 0) {
+      params.set("amount", String(round2(amount)));
+    }
+
+    params.set("notes", "CC payment · " + cardName(card));
+    return "/add.html?" + params.toString();
+  }
+
+  function renderCard(card) {
+    const id = cardId(card);
+    const outstanding = asNumber(card.outstanding ?? card.cc_outstanding, 0);
+    const creditLimit = asNumber(card.credit_limit, 0);
+    const availableCredit = card.available_credit == null ? null : asNumber(card.available_credit, 0);
+    const utilization = card.utilization_pct;
+    const utilTone = utilizationTone(utilization);
+    const minPayment = asNumber(card.minimum_payment_amount, 0);
+    const selected = id && id === selectedCardId;
+
+    const due = dueLabel(card);
+    const duePill = components().statusPill
+      ? components().statusPill({ label: due, tone: dueTone(card) })
+      : `<span class="sf-pill sf-pill--${dueTone(card)}">${esc(due)}</span>`;
+
+    return `
+      <button class="sf-finance-row cc-card-row${selected ? " is-active" : ""}" type="button" data-card-id="${esc(id)}">
+        <div class="sf-row-left">
+          <div class="sf-row-title">${esc(cardName(card))}</div>
+          <div class="sf-row-subtitle">
+            ${duePill}
+            <span class="sf-pill">${esc(card.balance_model || "liability")}</span>
+          </div>
+          ${renderMeter(utilization, utilTone)}
+        </div>
+        <div class="sf-row-right">
+          <div class="sf-tone-${outstanding > 0 ? "warning" : "positive"}">${money(outstanding)}</div>
+          <div class="sf-row-subtitle">outstanding</div>
+          <div class="sf-row-subtitle">
+            ${creditLimit > 0 ? "Limit " + money(creditLimit) : "No limit"}
+            ${availableCredit != null ? " · Available " + money(availableCredit) : ""}
+          </div>
+          <div class="sf-row-subtitle">
+            Min ${money(minPayment)} · ${esc(sourceLabel(card.minimum_payment_source, card.minimum_payment_is_estimate))}
+          </div>
+        </div>
+      </button>
+    `;
+  }
+
+  function renderCards(cards) {
+    if (!cards.length) {
+      setText("cc-summary", "No credit card accounts found.");
+      setHTML("cc-cards-container", components().emptyState
+        ? components().emptyState({
+          title: "No credit cards",
+          subtitle: "Add a credit-card account from Accounts first.",
+          actionHtml: '<a class="sf-button sf-button--primary" href="/accounts.html">Open Accounts</a>'
+        })
+        : '<div class="sf-empty-state">No credit cards</div>'
+      );
+      return;
+    }
+
+    const totalOutstanding = cards.reduce((sum, card) => {
+      return sum + asNumber(card.outstanding ?? card.cc_outstanding, 0);
+    }, 0);
+
+    setText(
+      "cc-summary",
+      cards.length + " card" + (cards.length === 1 ? "" : "s") + " · " + money(totalOutstanding) + " outstanding"
+    );
+
+    setHTML("cc-cards-container", cards.map(renderCard).join(""));
+
+    document.querySelectorAll(".cc-card-row").forEach(row => {
+      row.addEventListener("click", () => {
+        const id = row.getAttribute("data-card-id");
+        if (id) selectCard(id);
+      });
+    });
+  }
+
+  function renderPressure(card) {
+    if (!card) {
+      setHTML("cc-pressure-panel", components().emptyState
+        ? components().emptyState({
+          title: "No card selected",
+          subtitle: "Open a card to inspect payment pressure."
+        })
+        : '<div class="sf-empty-state">No card selected</div>'
+      );
+      return;
+    }
+
+    const outstanding = asNumber(card.outstanding ?? card.cc_outstanding, 0);
+    const minPayment = asNumber(card.minimum_payment_amount, 0);
+    const utilization = card.utilization_pct;
+    const availableCredit = card.available_credit == null ? null : asNumber(card.available_credit, 0);
+    const dueHeadline = card.due_headline || card.due?.due_headline || dueLabel(card);
+
+    const rows = [
+      {
+        label: "Outstanding",
+        valueHtml: money(outstanding),
+        tone: outstanding > 0 ? "warning" : "positive"
+      },
+      {
+        label: "Minimum payment",
+        meta: sourceLabel(card.minimum_payment_source, card.minimum_payment_is_estimate),
+        valueHtml: money(minPayment),
+        tone: minPayment > 0 ? "warning" : "positive"
+      },
+      {
+        label: "Utilization",
+        valueHtml: utilization == null ? "—" : percent(utilization),
+        tone: utilizationTone(utilization)
+      },
+      {
+        label: "Available credit",
+        valueHtml: availableCredit == null ? "—" : money(availableCredit),
+        tone: "info"
+      },
+      {
+        label: "Payment due",
+        meta: dueHeadline,
+        value: card.payment_due_date || card.due?.payment_due_date || "—",
+        tone: dueTone(card)
       }
+    ];
 
-      // Summary header
-      const totalOutstanding = plans.reduce((s, p) => s + (p.outstanding || 0), 0);
-      const urgent = plans.filter(p => p.days_to_payment_due != null && p.days_to_payment_due <= 7).length;
-      setText('cc-summary',
-        `${plans.length} CC · ${fmtPKR(totalOutstanding)} outstanding${urgent > 0 ? ` · ${urgent} urgent` : ''}`
-      );
+    const list = components().statList
+      ? components().statList(rows)
+      : rows.map(r => `<div class="sf-dense-row"><span>${esc(r.label)}</span><strong>${r.valueHtml || esc(r.value)}</strong></div>`).join("");
 
-      // Render each CC plan
-      setHTML('cc-cards-container', plans.map(renderCCCard).join('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.08);margin:20px 0">'));
-    } catch (e) {
-      console.error('[cc] loadAll FAILED:', e);
-      setText('cc-summary', 'load failed');
-      setHTML('cc-cards-container',
-        '<div class="empty-state-inline">Failed: ' + escHtml(e.message) + '</div>'
+    const action = minPayment > 0
+      ? `<a class="sf-button sf-button--primary" href="${esc(addPaymentUrl(card, minPayment))}">Pay minimum via Add</a>`
+      : `<a class="sf-button" href="${esc(addPaymentUrl(card, outstanding))}">Open Add payment</a>`;
+
+    setHTML("cc-pressure-panel", `
+      ${list}
+      <div class="sf-empty-action">${action}</div>
+    `);
+  }
+
+  function scenarioTitle(key) {
+    return String(key || "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, ch => ch.toUpperCase());
+  }
+
+  function scenarioSummary(scenario) {
+    if (!scenario || typeof scenario !== "object") return "—";
+    if (scenario.message) return scenario.message;
+
+    const parts = [];
+    if (scenario.payment != null) parts.push("Payment " + money(scenario.payment));
+    if (scenario.months != null) parts.push(String(scenario.months) + " months");
+    if (scenario.total_interest != null) parts.push("Interest " + money(scenario.total_interest));
+    return parts.join(" · ") || "—";
+  }
+
+  function renderPayoffScenarios(planPayload) {
+    if (!planPayload) {
+      setHTML("cc-payoff-plan", components().emptyState
+        ? components().emptyState({
+          title: "No payoff plan loaded",
+          subtitle: "Open a card to load its payoff scenarios."
+        })
+        : '<div class="sf-empty-state">No payoff plan loaded</div>'
       );
+      return;
+    }
+
+    const account = planPayload.account || {};
+    const scenarios = planPayload.scenarios || {};
+    const entries = Array.isArray(scenarios)
+      ? scenarios.map((item, index) => ["scenario_" + (index + 1), item])
+      : Object.entries(scenarios);
+
+    if (scenarios.paid_off || !entries.length) {
+      setHTML("cc-payoff-plan", components().emptyState
+        ? components().emptyState({
+          title: "Already paid off",
+          subtitle: scenarios.message || "No payoff scenarios needed."
+        })
+        : '<div class="sf-empty-state">Already paid off</div>'
+      );
+      return;
+    }
+
+    const rows = entries.map(([key, scenario]) => {
+      const amount = scenario && scenario.payment != null ? scenario.payment : null;
+      const paymentLink = amount && amount > 0
+        ? `<a class="sf-button" href="${esc(addPaymentUrl(account, amount))}">Pay via Add</a>`
+        : `<span class="sf-pill">No payment</span>`;
+
+      return `
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">${esc(scenarioTitle(key))}</div>
+            <div class="sf-row-subtitle">${esc(scenarioSummary(scenario))}</div>
+          </div>
+          <div class="sf-row-right">
+            ${paymentLink}
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    setHTML("cc-payoff-plan", rows);
+  }
+
+  function renderDebug() {
+    const debug = {
+      page_version: VERSION,
+      primary_endpoint: CC_ENDPOINT,
+      selected_card_id: selectedCardId,
+      cc_payload: ccPayload,
+      selected_plan_payload: selectedPlanPayload,
+      contract: {
+        read_only: true,
+        payment_execution: "/add.html",
+        primary_api: "/api/cc",
+        planner_api: "/api/cc/{id}/payoff-plan",
+        outstanding_formula: "max(0, -balance)"
+      }
+    };
+
+    setText("cc-debug-output", JSON.stringify(debug, null, 2));
+
+    if (window.SFShell && typeof window.SFShell.revealDebugIfNeeded === "function") {
+      window.SFShell.revealDebugIfNeeded();
     }
   }
 
-  /* ─────── Init ─────── */
+  async function loadPlan(cardIdValue) {
+    if (!cardIdValue) return;
+
+    const selected = normalizeCards(ccPayload).find(card => cardId(card) === cardIdValue) || null;
+    setText("cc-selected-card", selected ? cardName(selected) : cardIdValue);
+
+    setHTML("cc-payoff-plan", components().loadingState
+      ? components().loadingState({
+        title: "Loading payoff plan",
+        subtitle: "/api/cc/" + cardIdValue + "/payoff-plan"
+      })
+      : '<div class="sf-loading-state">Loading payoff plan</div>'
+    );
+
+    try {
+      selectedPlanPayload = await fetchJSON("/api/cc/" + encodeURIComponent(cardIdValue) + "/payoff-plan");
+      renderPayoffScenarios(selectedPlanPayload);
+    } catch (err) {
+      selectedPlanPayload = { ok: false, error: err.message };
+      setHTML("cc-payoff-plan", components().errorState
+        ? components().errorState({
+          title: "Payoff plan failed",
+          message: err.message
+        })
+        : '<div class="sf-empty-state">Payoff plan failed: ' + esc(err.message) + '</div>'
+      );
+    }
+
+    renderDebug();
+  }
+
+  function selectCard(cardIdValue) {
+    selectedCardId = cardIdValue;
+    const cards = normalizeCards(ccPayload);
+    const selected = cards.find(card => cardId(card) === selectedCardId) || null;
+
+    renderCards(cards);
+    renderPressure(selected);
+    loadPlan(selectedCardId);
+  }
+
+  async function loadAll() {
+    setStatus("Loading", "info");
+
+    setHTML("cc-cards-container", components().loadingState
+      ? components().loadingState({
+        title: "Loading cards",
+        subtitle: "Reading /api/cc."
+      })
+      : '<div class="sf-loading-state">Loading cards</div>'
+    );
+
+    try {
+      ccPayload = await fetchJSON(CC_ENDPOINT);
+      const cards = normalizeCards(ccPayload);
+
+      setStatus("Ready · " + (ccPayload.version || "unknown"), "positive");
+      updateShellKpis(cards, ccPayload);
+      renderCards(cards);
+
+      if (cards.length) {
+        const first = cards[0];
+        const firstId = cardId(first);
+        selectedCardId = selectedCardId || firstId;
+        renderPressure(first);
+        await loadPlan(selectedCardId);
+      } else {
+        renderPressure(null);
+        renderPayoffScenarios(null);
+      }
+    } catch (err) {
+      ccPayload = { ok: false, error: err.message };
+      setStatus("Load failed", "danger");
+      setText("cc-summary", "Credit Card load failed.");
+
+      setHTML("cc-cards-container", components().errorState
+        ? components().errorState({
+          title: "Credit Card API failed",
+          message: err.message
+        })
+        : '<div class="sf-empty-state">Credit Card API failed: ' + esc(err.message) + '</div>'
+      );
+
+      if (window.SFShell && typeof window.SFShell.setKpis === "function") {
+        window.SFShell.setKpis([
+          {
+            title: "Outstanding",
+            kicker: "Credit Card",
+            value: "Failed",
+            subtitle: err.message,
+            tone: "danger"
+          },
+          {
+            title: "Minimum Due",
+            kicker: "Payment",
+            value: "—",
+            subtitle: "No fallback write",
+            tone: "danger"
+          },
+          {
+            title: "Utilization",
+            kicker: "Risk",
+            value: "—",
+            subtitle: "API unavailable",
+            tone: "danger"
+          },
+          {
+            title: "Due Pressure",
+            kicker: "Timing",
+            value: "—",
+            subtitle: "API unavailable",
+            tone: "danger"
+          }
+        ]);
+      }
+    }
+
+    renderDebug();
+  }
+
   function init() {
-    console.log('[cc]', VERSION, 'init');
+    window.SovereignCC = {
+      initialized: true,
+      version: VERSION,
+      reload: loadAll,
+      selectCard,
+      payload: () => ccPayload,
+      selectedPlan: () => selectedPlanPayload,
+      selectedCardId: () => selectedCardId
+    };
+
     loadAll();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
   } else {
     init();
   }
