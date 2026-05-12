@@ -1,1380 +1,202 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sovereign Finance — Credit Card</title>
-  <link rel="stylesheet" href="/css/app.css" />
-
-  <style>
-  :root {
-    --sf-bg: #f3f6ef;
-    --sf-surface: #ffffff;
-    --sf-ink: #18211b;
-    --sf-muted: #667064;
-    --sf-faint: #8b9589;
-    --sf-line: #dfe6da;
-    --sf-hero: #111c17;
-    --sf-hero-2: #1b2b23;
-    --sf-green: #2f7d4f;
-    --sf-green-soft: #e7f3eb;
-    --sf-yellow: #b7791f;
-    --sf-yellow-soft: #fff6dd;
-    --sf-red: #c2413a;
-    --sf-red-soft: #fdebea;
-    --sf-blue: #2f5f9f;
-    --sf-blue-soft: #e8effb;
-    --sf-radius: 22px;
-    --sf-shadow: 0 18px 50px rgba(28, 42, 31, 0.10);
-  }
-
-  body {
-    min-height: 100vh;
-    margin: 0;
-    background: var(--sf-bg);
-    color: var(--sf-ink);
-  }
-
-  .cc-shell {
-    width: min(1180px, calc(100% - 32px));
-    margin: 0 auto;
-    padding: 24px 0 48px;
-  }
-
-  .cc-topbar {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 18px;
-    margin-bottom: 22px;
-    padding: 30px;
-    border-radius: 30px;
-    background:
-      radial-gradient(circle at top right, rgba(84, 168, 116, 0.28), transparent 28rem),
-      linear-gradient(135deg, var(--sf-hero), var(--sf-hero-2));
-    color: #fff;
-    box-shadow: var(--sf-shadow);
-  }
-
-  .cc-brand {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .cc-kicker {
-    color: rgba(255, 255, 255, 0.68);
-    font-size: 12px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
-
-  .cc-title {
-    margin: 0;
-    font-size: clamp(32px, 5vw, 56px);
-    line-height: 0.95;
-    letter-spacing: -0.055em;
-  }
-
-  .cc-version {
-    color: rgba(255, 255, 255, 0.58);
-    font-size: 12px;
-    text-align: right;
-    white-space: nowrap;
-  }
-
-  .cc-nav {
-    display: none !important;
-  }
-
-  .cc-status {
-    border: 1px solid var(--sf-line);
-    background: var(--sf-surface);
-    border-radius: 18px;
-    padding: 14px 16px;
-    color: var(--sf-muted);
-    margin-bottom: 18px;
-    box-shadow: var(--sf-shadow);
-  }
-
-  .cc-status strong {
-    color: var(--sf-ink);
-  }
-
-  .cc-summary {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 14px;
-    margin-bottom: 18px;
-  }
-
-  .cc-card,
-  .cc-panel {
-    border: 1px solid var(--sf-line);
-    background: var(--sf-surface);
-    border-radius: var(--sf-radius);
-    box-shadow: var(--sf-shadow);
-  }
-
-  .cc-card {
-    padding: 18px;
-    min-height: 122px;
-    overflow: hidden;
-    position: relative;
-  }
-
-  .cc-card::after {
-    content: "";
-    position: absolute;
-    right: -38px;
-    bottom: -52px;
-    width: 120px;
-    height: 120px;
-    border-radius: 999px;
-    background: var(--sf-green-soft);
-    pointer-events: none;
-  }
-
-  .cc-label {
-    color: var(--sf-muted);
-    font-size: 13px;
-    margin-bottom: 8px;
-  }
-
-  .cc-value {
-    color: var(--sf-ink);
-    font-size: clamp(22px, 3vw, 34px);
-    line-height: 1.05;
-    font-weight: 760;
-    letter-spacing: -0.045em;
-    word-break: break-word;
-  }
-
-  .cc-sub {
-    color: var(--sf-faint);
-    font-size: 12px;
-    margin-top: 8px;
-    line-height: 1.4;
-  }
-
-  .cc-grid {
-    display: grid;
-    grid-template-columns: 1.25fr 0.75fr;
-    gap: 18px;
-    align-items: start;
-  }
-
-  .cc-panel {
-    padding: 18px;
-    margin-bottom: 18px;
-  }
-
-  .cc-panel h2,
-  .cc-panel h3 {
-    margin: 0 0 14px;
-    color: var(--sf-ink);
-    letter-spacing: -0.03em;
-  }
-
-  .cc-panel h2 {
-    font-size: 22px;
-  }
-
-  .cc-panel h3 {
-    font-size: 17px;
-  }
-
-  .cc-account-list {
-    display: grid;
-    gap: 16px;
-  }
-
-  .cc-account {
-    border: 1px solid var(--sf-line);
-    background: #fbfdf8;
-    border-radius: 22px;
-    padding: 18px;
-  }
-
-  .cc-account-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 14px;
-    margin-bottom: 16px;
-  }
-
-  .cc-account-name {
-    color: var(--sf-ink);
-    font-size: 21px;
-    font-weight: 760;
-    letter-spacing: -0.035em;
-    margin: 0;
-  }
-
-  .cc-account-meta {
-    color: var(--sf-muted);
-    font-size: 13px;
-    margin-top: 5px;
-  }
-
-  .cc-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    border: 1px solid var(--sf-line);
-    padding: 7px 10px;
-    font-size: 12px;
-    color: var(--sf-muted);
-    background: #f8faf5;
-    white-space: nowrap;
-  }
-
-  .cc-pill.good {
-    color: var(--sf-green);
-    border-color: #b8dac4;
-    background: var(--sf-green-soft);
-  }
-
-  .cc-pill.warn {
-    color: var(--sf-yellow);
-    border-color: #eed58e;
-    background: var(--sf-yellow-soft);
-  }
-
-  .cc-pill.danger {
-    color: var(--sf-red);
-    border-color: #f3b8b5;
-    background: var(--sf-red-soft);
-  }
-
-  .cc-account-metrics {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-
-  .cc-metric {
-    border: 1px solid var(--sf-line);
-    background: var(--sf-surface);
-    border-radius: 16px;
-    padding: 13px;
-    min-width: 0;
-  }
-
-  .cc-metric .cc-label {
-    margin-bottom: 6px;
-  }
-
-  .cc-metric .cc-value {
-    font-size: 18px;
-    letter-spacing: -0.025em;
-  }
-
-  .cc-progress {
-    height: 11px;
-    border-radius: 999px;
-    background: #e6ecdf;
-    overflow: hidden;
-    margin: 10px 0 8px;
-  }
-
-  .cc-progress > span {
-    display: block;
-    height: 100%;
-    width: 0%;
-    max-width: 100%;
-    border-radius: inherit;
-    background: linear-gradient(90deg, #2f7d4f, #c59a22, #c2413a);
-    transition: width 300ms ease;
-  }
-
-  .cc-two {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
-
-  .cc-plan-box {
-    border: 1px solid var(--sf-line);
-    background: var(--sf-surface);
-    border-radius: 18px;
-    padding: 14px;
-    margin-top: 14px;
-  }
-
-  .cc-plan-list {
-    display: grid;
-    gap: 10px;
-    margin-top: 12px;
-  }
-
-  .cc-plan {
-    display: grid;
-    grid-template-columns: 1.1fr 0.9fr 0.8fr;
-    gap: 10px;
-    align-items: center;
-    border: 1px solid var(--sf-line);
-    background: #fbfdf8;
-    border-radius: 14px;
-    padding: 12px;
-  }
-
-  .cc-plan strong {
-    display: block;
-    color: var(--sf-ink);
-    font-size: 14px;
-  }
-
-  .cc-plan span {
-    color: var(--sf-muted);
-    font-size: 12px;
-  }
-
-  .cc-side-list {
-    display: grid;
-    gap: 12px;
-  }
-
-  .cc-side-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 11px 0;
-    border-bottom: 1px solid var(--sf-line);
-  }
-
-  .cc-side-row:last-child {
-    border-bottom: 0;
-  }
-
-  .cc-side-row span:first-child {
-    color: var(--sf-muted);
-  }
-
-  .cc-side-row span:last-child {
-    text-align: right;
-    font-weight: 700;
-    color: var(--sf-ink);
-  }
-
-  .cc-empty {
-    border: 1px dashed #cbd6c5;
-    color: var(--sf-muted);
-    border-radius: 18px;
-    padding: 20px;
-    background: #fbfdf8;
-  }
-
-  .cc-error {
-    color: var(--sf-red);
-  }
-
-  .cc-debug {
-    display: none;
-    white-space: pre-wrap;
-    overflow-x: auto;
-    max-height: 360px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--sf-muted);
-    background: #f8faf5;
-    border-radius: 14px;
-    padding: 14px;
-  }
-
-  .cc-debug.is-visible {
-    display: block;
-  }
-
-  @media (max-width: 980px) {
-    .cc-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .cc-summary,
-    .cc-account-metrics {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  @media (max-width: 620px) {
-    .cc-shell {
-      width: min(100% - 22px, 1180px);
-      padding-top: 14px;
-    }
-
-    .cc-topbar,
-    .cc-account-head {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .cc-topbar {
-      padding: 24px;
-      border-radius: 24px;
-    }
-
-    .cc-version {
-      text-align: left;
-    }
-
-    .cc-summary,
-    .cc-account-metrics,
-    .cc-two,
-    .cc-plan {
-      grid-template-columns: 1fr;
-    }
-  }
-
-      /* Shipment 14: shared chart, side-panel, and mobile hardening */
-  html,
-  body {
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
-
-  .cc-shell,
-  .rec-shell,
-  .sal-shell,
-  .fc-shell {
-    max-width: 1180px;
-  }
-
-  .cc-card,
-  .rec-card,
-  .sal-card,
-  .fc-card,
-  .cc-panel,
-  .rec-panel,
-  .sal-panel,
-  .fc-panel,
-  .cc-account,
-  .rec-check,
-  .sal-check,
-  .fc-check,
-  .fc-day {
-    min-width: 0;
-  }
-
-  .cc-value,
-  .rec-value,
-  .sal-value,
-  .fc-value,
-  .cc-side-row span,
-  .rec-side-row span,
-  .sal-row span,
-  .fc-row span {
-    overflow-wrap: anywhere;
-  }
-
-  .cc-progress,
-  .fc-bar {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .cc-progress > span,
-  .fc-bar span {
-    min-width: 4px;
-  }
-
-  .cc-plan,
-  .fc-day {
-    min-width: 0;
-  }
-
-  .cc-plan strong,
-  .cc-plan span,
-  .fc-day-date,
-  .fc-day-text {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .rec-table {
-    max-width: 100%;
-  }
-
-  .rec-table th,
-  .rec-table td {
-    white-space: normal;
-  }
-
-  .cc-empty,
-  .rec-empty,
-  .sal-empty,
-  .fc-empty {
-    color: var(--sf-muted);
-  }
-
-  @media (max-width: 760px) {
-    .cc-shell,
-    .rec-shell,
-    .sal-shell,
-    .fc-shell {
-      width: min(100% - 20px, 1180px);
-      padding-bottom: 36px;
-    }
-
-    .cc-topbar,
-    .rec-topbar,
-    .sal-topbar,
-    .fc-topbar {
-      margin-bottom: 16px;
-    }
-
-    .cc-summary,
-    .rec-summary,
-    .sal-summary,
-    .fc-summary,
-    .cc-account-metrics,
-    .sal-two,
-    .sal-three {
-      grid-template-columns: 1fr !important;
-    }
-
-    .cc-grid,
-    .rec-grid,
-    .sal-grid,
-    .fc-grid {
-      grid-template-columns: 1fr !important;
-      gap: 14px;
-    }
-
-    .cc-panel,
-    .rec-panel,
-    .sal-panel,
-    .fc-panel,
-    .cc-card,
-    .rec-card,
-    .sal-card,
-    .fc-card {
-      border-radius: 18px;
-    }
-
-    .cc-account-head,
-    .rec-check-head,
-    .fc-check-head {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .cc-pill,
-    .rec-pill,
-    .sal-pill,
-    .fc-pill {
-      width: fit-content;
-      max-width: 100%;
-      white-space: normal;
-      text-align: left;
-    }
-
-    .cc-side-row,
-    .rec-side-row,
-    .sal-row,
-    .fc-row {
-      align-items: flex-start;
-    }
-
-    .cc-side-row span:last-child,
-    .rec-side-row span:last-child,
-    .sal-row span:last-child,
-    .fc-row span:last-child {
-      max-width: 54%;
-    }
-
-    .cc-plan {
-      grid-template-columns: 1fr !important;
-    }
-
-    .fc-day {
-      grid-template-columns: 1fr !important;
-    }
-  }
-
-  @media (max-width: 420px) {
-    .cc-title,
-    .rec-title,
-    .sal-title,
-    .fc-title {
-      font-size: 34px;
-    }
-
-    .cc-value,
-    .rec-value,
-    .sal-value,
-    .fc-value {
-      font-size: 24px;
-    }
-
-    .cc-side-row,
-    .rec-side-row,
-    .sal-row,
-    .fc-row {
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .cc-side-row span:last-child,
-    .rec-side-row span:last-child,
-    .sal-row span:last-child,
-    .fc-row span:last-child {
-      max-width: 100%;
-      text-align: left;
-    }
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <title>Credit Card · Sovereign Finance</title>
+
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
+
+  <script>
+    window.SF_PAGE = {
+      title: "Credit Card",
+      eyebrow: "Sovereign Finance",
+      subtitle: "Read-only card pressure, utilization, due timing, and payoff planning from the canonical credit-card API.",
+      actions: [
+        { label: "Hub", href: "/" },
+        { label: "Forecast", href: "/forecast.html" },
+        { label: "Add Payment", href: "/add.html?type=transfer&to=cc", primary: true }
+      ],
+      kpis: [
+        {
+          title: "Outstanding",
+          kicker: "Credit Card",
+          value: "Loading",
+          subtitle: "From /api/cc",
+          foot: "Backend owns liability semantics"
+        },
+        {
+          title: "Minimum Due",
+          kicker: "Payment",
+          value: "Loading",
+          subtitle: "Configured amount or 5% estimate",
+          foot: "No writes from this page"
+        },
+        {
+          title: "Utilization",
+          kicker: "Risk",
+          value: "Loading",
+          subtitle: "Only when card limit exists",
+          foot: "Limit minus outstanding"
+        },
+        {
+          title: "Due Pressure",
+          kicker: "Timing",
+          value: "Loading",
+          subtitle: "Statement and due-date engine",
+          foot: "Read-only"
+        }
+      ]
+    };
+  </script>
+
+  <script src="/js/sf-components.js"></script>
+  <script src="/js/sf-shell.js"></script>
 </head>
 
 <body>
-  <main class="cc-shell" data-page="credit-card" data-version="cc-richness-v1.0.2-hardened">
-    <section class="cc-topbar">
-      <div class="cc-brand">
-        <div class="cc-kicker">Sovereign Finance</div>
-        <h1 class="cc-title">Credit Card</h1>
-      </div>
-      <div class="cc-version">cc-richness-v1.0.2-hardened</div>
-    </section>
-
-    <nav class="cc-nav" aria-label="Primary">
-      <a href="/index.html">Hub</a>
-      <a href="/add.html">Add</a>
-      <a href="/transactions.html">Ledger</a>
-      <a href="/bills.html">Bills</a>
-      <a href="/debts.html">Debts</a>
-      <a href="/salary.html">Salary</a>
-      <a href="/forecast.html">Forecast</a>
-      <a href="/cc.html" aria-current="page">Credit Card</a>
-      <a href="/reconciliation.html">Reconciliation</a>
-    </nav>
-
-    <section id="ccStatus" class="cc-status">
-      <strong>Loading credit card truth…</strong>
-      <span>Reading current card data.</span>
-    </section>
-
-    <section class="cc-summary" aria-label="Credit card summary">
-      <article class="cc-card">
-        <div class="cc-label">Outstanding</div>
-        <div id="totalOutstanding" class="cc-value">—</div>
-        <div class="cc-sub">Verified from card API.</div>
-      </article>
-
-      <article class="cc-card">
-        <div class="cc-label">Minimum Due</div>
-        <div id="totalMinimumDue" class="cc-value">—</div>
-        <div id="minimumDueSource" class="cc-sub">Configured amount or 5% estimate.</div>
-      </article>
-
-      <article class="cc-card">
-        <div class="cc-label">Credit Limit</div>
-        <div id="totalCreditLimit" class="cc-value">—</div>
-        <div class="cc-sub">Only shown when account limit exists.</div>
-      </article>
-
-      <article class="cc-card">
-        <div class="cc-label">Available Credit</div>
-        <div id="totalAvailableCredit" class="cc-value">—</div>
-        <div class="cc-sub">Limit minus outstanding.</div>
-      </article>
-    </section>
-
-    <section class="cc-grid">
-      <div>
-        <section class="cc-panel">
-          <h2>Cards</h2>
-          <div id="accountList" class="cc-account-list">
-            <div class="cc-empty">Loading cards…</div>
-          </div>
-        </section>
+  <section class="sf-panel-grid" aria-label="Credit card workspace">
+    <section class="sf-panel sf-span-8" aria-labelledby="cc-cards-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Cards</p>
+          <h2 id="cc-cards-title" class="sf-section-title">Card Accounts</h2>
+          <p id="cc-summary" class="sf-section-subtitle">Loading cards from /api/cc.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="cc-api-status" class="sf-pill">Loading</span>
+        </div>
       </div>
 
-      <aside>
-        <section class="cc-panel">
-          <h3>Payment Pressure</h3>
-          <div id="pressurePanel" class="cc-side-list">
-            <div class="cc-empty">Loading pressure view…</div>
+      <div id="cc-cards-container" class="sf-dense-grid">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">Loading cards</h3>
+            <p class="sf-card-subtitle">Reading canonical credit-card account state.</p>
           </div>
-        </section>
-
-        <section class="cc-panel">
-          <h3>Utilization</h3>
-          <div class="cc-progress" aria-label="Total utilization">
-            <span id="totalUtilizationBar"></span>
-          </div>
-          <div id="totalUtilizationText" class="cc-sub">Waiting for card limit.</div>
-        </section>
-
-        <section class="cc-panel">
-          <h3>Read Sources</h3>
-          <div class="cc-side-list">
-            <div class="cc-side-row">
-              <span>Primary</span>
-              <span>/api/cc</span>
-            </div>
-            <div class="cc-side-row">
-              <span>Planner</span>
-              <span>/api/cc/{id}/payoff-plan</span>
-            </div>
-            <div class="cc-side-row">
-              <span>Debug cross-check</span>
-              <span>?debug=1</span>
-            </div>
-          </div>
-        </section>
-
-        <section id="debugPanel" class="cc-panel" hidden>
-          <h3>Debug</h3>
-          <pre id="debugOutput" class="cc-debug"></pre>
-        </section>
-      </aside>
+        </div>
+      </div>
     </section>
-  </main>
 
-  <script src="/js/theme.js" defer></script>
-  <script src="/js/nav.js" defer></script>
+    <aside class="sf-panel sf-span-4" aria-labelledby="cc-pressure-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Pressure</p>
+          <h2 id="cc-pressure-title" class="sf-section-title">Payment Pressure</h2>
+          <p class="sf-section-subtitle">Due date, minimum payment, utilization, and payoff scenarios.</p>
+        </div>
+      </div>
 
-  <script>
-    (function () {
-      "use strict";
-
-      const PAGE_VERSION = "cc-richness-v1.0.2-hardened";
-      const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
-
-      const state = {
-        cc: null,
-        balances: null,
-        accounts: [],
-        payoffPlans: new Map()
-      };
-
-      const $ = (id) => document.getElementById(id);
-
-      function asNumber(value, fallback = 0) {
-        if (typeof value === "number" && Number.isFinite(value)) return value;
-        if (typeof value === "string") {
-          const cleaned = value.replace(/[^\d.-]/g, "");
-          const parsed = Number(cleaned);
-          if (Number.isFinite(parsed)) return parsed;
-        }
-        return fallback;
-      }
-
-      function isRealNumber(value) {
-        return typeof value === "number" && Number.isFinite(value);
-      }
-
-      function money(value) {
-        const amount = asNumber(value, 0);
-        return new Intl.NumberFormat("en-PK", {
-          style: "currency",
-          currency: "PKR",
-          maximumFractionDigits: 2
-        }).format(amount);
-      }
-
-      function pct(value) {
-        const amount = asNumber(value, 0);
-        return `${amount.toFixed(1)}%`;
-      }
-
-      function text(value, fallback = "—") {
-        if (value === null || value === undefined || value === "") return fallback;
-        return String(value);
-      }
-
-      function dateText(value) {
-        if (!value) return "—";
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return String(value);
-        return date.toLocaleDateString("en-PK", {
-          year: "numeric",
-          month: "short",
-          day: "numeric"
-        });
-      }
-
-      function clamp(value, min, max) {
-        return Math.min(max, Math.max(min, value));
-      }
-
-      async function readJson(path) {
-        const response = await fetch(path, {
-          headers: { "Accept": "application/json" },
-          cache: "no-store"
-        });
-
-        const payload = await response.json().catch(() => null);
-
-        if (!response.ok) {
-          const message = payload?.error || payload?.message || `${path} failed with HTTP ${response.status}`;
-          throw new Error(message);
-        }
-
-        return payload;
-      }
-
-      function firstDefined(...values) {
-        for (const value of values) {
-          if (value !== undefined && value !== null && value !== "") return value;
-        }
-        return undefined;
-      }
-
-      function getArray(payload, keys) {
-        for (const key of keys) {
-          const value = payload?.[key];
-          if (Array.isArray(value)) return value;
-        }
-        return [];
-      }
-
-      function normalizeAccount(raw, index) {
-        const id = text(firstDefined(
-          raw.id,
-          raw.account_id,
-          raw.accountId,
-          raw.key,
-          raw.slug,
-          raw.code,
-          raw.name
-        ), `cc_${index + 1}`);
-
-        const name = text(firstDefined(raw.name, raw.label, raw.account_name, raw.display_name), `Credit Card ${index + 1}`);
-
-        const outstanding = Math.max(0, asNumber(firstDefined(
-          raw.outstanding,
-          raw.cc_outstanding,
-          raw.current_outstanding,
-          raw.balance_outstanding,
-          raw.balance < 0 ? Math.abs(raw.balance) : undefined,
-          raw.current_balance < 0 ? Math.abs(raw.current_balance) : undefined
-        ), 0));
-
-        const creditLimit = Math.max(0, asNumber(firstDefined(
-          raw.credit_limit,
-          raw.creditLimit,
-          raw.limit,
-          raw.card_limit
-        ), 0));
-
-        const availableCredit = firstDefined(
-          raw.available_credit,
-          raw.availableCredit,
-          creditLimit > 0 ? Math.max(0, creditLimit - outstanding) : undefined
-        );
-
-        const utilizationPct = firstDefined(
-          raw.utilization_pct,
-          raw.utilizationPct,
-          raw.utilization_percent,
-          creditLimit > 0 ? (outstanding / creditLimit) * 100 : undefined
-        );
-
-        const minimumDue = Math.max(0, asNumber(firstDefined(
-          raw.minimum_due,
-          raw.minimumDue,
-          raw.min_due,
-          raw.min_payment_due,
-          raw.minimum_payment_due,
-          raw.minimum_payment,
-          raw.min_payment_amount,
-          raw.minimum_payment_amount
-        ), outstanding * 0.05));
-
-        const minimumSource = text(firstDefined(
-          raw.minimum_due_source,
-          raw.minimumDueSource,
-          raw.minimum_payment_source,
-          raw.min_payment_source,
-          raw.min_source,
-          isRealNumber(raw.minimum_due) ||
-          isRealNumber(raw.min_payment_due) ||
-          isRealNumber(raw.minimum_payment_amount) ||
-          isRealNumber(raw.min_payment_amount)
-            ? "configured"
-            : "estimated 5%"
-        ));
-
-        const statementDay = firstDefined(
-          raw.statement_day,
-          raw.statementDay,
-          raw.statement_date_day
-        );
-
-        const paymentDueDay = firstDefined(
-          raw.payment_due_day,
-          raw.paymentDueDay,
-          raw.due_day
-        );
-
-        const paymentDueDate = firstDefined(
-          raw.payment_due_date,
-          raw.paymentDueDate,
-          raw.due_date,
-          raw.next_due_date
-        );
-
-        const latestStatementDate = firstDefined(
-          raw.latest_statement_date,
-          raw.latestStatementDate,
-          raw.statement_date
-        );
-
-        const nextStatementDate = firstDefined(
-          raw.next_statement_date,
-          raw.nextStatementDate
-        );
-
-        const daysUntilDue = firstDefined(
-          raw.days_until_payment_due,
-          raw.daysUntilPaymentDue,
-          raw.days_until_due,
-          raw.due_in_days
-        );
-
-        const dueHeadline = text(firstDefined(
-          raw.due_headline,
-          raw.dueHeadline,
-          raw.payment_due_headline,
-          raw.status_headline
-        ), dueLabel(daysUntilDue));
-
-        return {
-          raw,
-          id,
-          name,
-          outstanding,
-          creditLimit,
-          availableCredit: asNumber(availableCredit, 0),
-          utilizationPct: asNumber(utilizationPct, 0),
-          minimumDue,
-          minimumSource,
-          statementDay,
-          paymentDueDay,
-          paymentDueDate,
-          latestStatementDate,
-          nextStatementDate,
-          daysUntilDue: daysUntilDue === undefined ? null : asNumber(daysUntilDue, 0),
-          dueHeadline
-        };
-      }
-
-      function normalizeAccounts(payload) {
-        const direct = getArray(payload, ["accounts", "cards", "credit_cards", "creditCards", "data"]);
-        if (direct.length) return direct.map(normalizeAccount);
-
-        if (payload?.account && typeof payload.account === "object") {
-          return [normalizeAccount(payload.account, 0)];
-        }
-
-        if (payload?.card && typeof payload.card === "object") {
-          return [normalizeAccount(payload.card, 0)];
-        }
-
-        return [];
-      }
-
-      function summarize(accounts, payload) {
-        const sum = (field) => accounts.reduce((total, account) => total + asNumber(account[field], 0), 0);
-
-        const outstanding = asNumber(firstDefined(
-          payload?.total_outstanding,
-          payload?.totalOutstanding,
-          payload?.summary?.total_outstanding,
-          payload?.summary?.outstanding,
-          payload?.totals?.total_outstanding,
-          payload?.totals?.outstanding
-        ), sum("outstanding"));
-
-        const minimumDue = asNumber(firstDefined(
-          payload?.total_minimum_due,
-          payload?.totalMinimumDue,
-          payload?.summary?.total_minimum_due,
-          payload?.summary?.minimum_due,
-          payload?.totals?.minimum_due
-        ), sum("minimumDue"));
-
-        const creditLimit = asNumber(firstDefined(
-          payload?.total_credit_limit,
-          payload?.totalCreditLimit,
-          payload?.summary?.total_credit_limit,
-          payload?.totals?.credit_limit
-        ), sum("creditLimit"));
-
-        const availableCredit = asNumber(firstDefined(
-          payload?.total_available_credit,
-          payload?.totalAvailableCredit,
-          payload?.summary?.total_available_credit,
-          payload?.totals?.available_credit
-        ), sum("availableCredit"));
-
-        const utilizationPct = creditLimit > 0 ? (outstanding / creditLimit) * 100 : 0;
-
-        return {
-          outstanding,
-          minimumDue,
-          creditLimit,
-          availableCredit,
-          utilizationPct
-        };
-      }
-
-      function dueClass(days) {
-        if (days === null || days === undefined) return "";
-        if (days < 0) return "danger";
-        if (days <= 3) return "danger";
-        if (days <= 7) return "warn";
-        return "good";
-      }
-
-      function dueLabel(days) {
-        if (days === null || days === undefined || Number.isNaN(Number(days))) return "Due date unavailable";
-        const value = Number(days);
-        if (value < 0) return `${Math.abs(value)} day${Math.abs(value) === 1 ? "" : "s"} overdue`;
-        if (value === 0) return "Due today";
-        return `${value} day${value === 1 ? "" : "s"} until due`;
-      }
-
-      function minSourceLabel(source) {
-        const value = String(source || "").replace(/_/g, " ").trim();
-        if (!value) return "source unavailable";
-        return value;
-      }
-
-      function setStatus(kind, html) {
-        const node = $("ccStatus");
-        node.className = "cc-status";
-        if (kind === "error") node.classList.add("cc-error");
-        node.innerHTML = html;
-      }
-
-      function renderSummary(summary, accounts) {
-        $("totalOutstanding").textContent = money(summary.outstanding);
-        $("totalMinimumDue").textContent = money(summary.minimumDue);
-        $("totalCreditLimit").textContent = summary.creditLimit > 0 ? money(summary.creditLimit) : "—";
-        $("totalAvailableCredit").textContent = summary.creditLimit > 0 ? money(summary.availableCredit) : "—";
-
-        const estimatedCount = accounts.filter((account) => String(account.minimumSource).toLowerCase().includes("estimate")).length;
-        $("minimumDueSource").textContent = estimatedCount
-          ? `${estimatedCount} card${estimatedCount === 1 ? "" : "s"} using 5% estimate.`
-          : "Using configured minimum where available.";
-
-        const utilization = clamp(summary.utilizationPct, 0, 100);
-        $("totalUtilizationBar").style.width = `${utilization}%`;
-        $("totalUtilizationText").textContent = summary.creditLimit > 0
-          ? `${pct(summary.utilizationPct)} used across available card limit.`
-          : "Credit limit unavailable.";
-      }
-
-      function renderPressure(accounts, summary) {
-        const dueSorted = [...accounts]
-          .filter((account) => account.outstanding > 0)
-          .sort((a, b) => {
-            const av = a.daysUntilDue === null ? 9999 : a.daysUntilDue;
-            const bv = b.daysUntilDue === null ? 9999 : b.daysUntilDue;
-            return av - bv;
-          });
-
-        const nextDue = dueSorted[0];
-
-        const rows = [
-          ["Outstanding", money(summary.outstanding)],
-          ["Minimum due", money(summary.minimumDue)],
-          ["Cards with balance", String(accounts.filter((account) => account.outstanding > 0).length)],
-          ["Nearest due", nextDue ? `${nextDue.name}: ${dueLabel(nextDue.daysUntilDue)}` : "No active due pressure"]
-        ];
-
-        $("pressurePanel").innerHTML = rows.map(([label, value]) => `
-          <div class="cc-side-row">
-            <span>${escapeHtml(label)}</span>
-            <span>${escapeHtml(value)}</span>
+      <div id="cc-pressure-panel" class="sf-dense-grid">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">Loading pressure view</h3>
+            <p class="sf-card-subtitle">Select a card after data loads.</p>
           </div>
-        `).join("");
-      }
+        </div>
+      </div>
+    </aside>
 
-      function renderAccounts(accounts) {
-        const list = $("accountList");
+    <section class="sf-panel sf-span-12" aria-labelledby="cc-plan-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Planner</p>
+          <h2 id="cc-plan-title" class="sf-section-title">Payoff Plan</h2>
+          <p class="sf-section-subtitle">Planner data comes from /api/cc/{id}/payoff-plan. Payment action routes to Add Transaction.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="cc-selected-card" class="sf-pill">No card selected</span>
+        </div>
+      </div>
 
-        if (!accounts.length) {
-          list.innerHTML = `<div class="cc-empty">No credit card accounts returned by the card API.</div>`;
-          return;
-        }
-
-        list.innerHTML = accounts.map((account) => {
-          const utilization = clamp(account.utilizationPct, 0, 100);
-          const planHtml = renderPlan(account);
-
-          return `
-            <article class="cc-account" data-account-id="${escapeAttr(account.id)}">
-              <div class="cc-account-head">
-                <div>
-                  <h2 class="cc-account-name">${escapeHtml(account.name)}</h2>
-                  <div class="cc-account-meta">
-                    Statement day: ${escapeHtml(text(account.statementDay))} · Payment day: ${escapeHtml(text(account.paymentDueDay))}
-                  </div>
-                </div>
-                <span class="cc-pill ${dueClass(account.daysUntilDue)}">${escapeHtml(account.dueHeadline)}</span>
-              </div>
-
-              <div class="cc-account-metrics">
-                <div class="cc-metric">
-                  <div class="cc-label">Outstanding</div>
-                  <div class="cc-value">${money(account.outstanding)}</div>
-                </div>
-                <div class="cc-metric">
-                  <div class="cc-label">Minimum due</div>
-                  <div class="cc-value">${money(account.minimumDue)}</div>
-                  <div class="cc-sub">${escapeHtml(minSourceLabel(account.minimumSource))}</div>
-                </div>
-                <div class="cc-metric">
-                  <div class="cc-label">Due date</div>
-                  <div class="cc-value">${escapeHtml(dateText(account.paymentDueDate))}</div>
-                  <div class="cc-sub">${escapeHtml(dueLabel(account.daysUntilDue))}</div>
-                </div>
-                <div class="cc-metric">
-                  <div class="cc-label">Available</div>
-                  <div class="cc-value">${account.creditLimit > 0 ? money(account.availableCredit) : "—"}</div>
-                  <div class="cc-sub">Limit: ${account.creditLimit > 0 ? money(account.creditLimit) : "unavailable"}</div>
-                </div>
-              </div>
-
-              <div class="cc-two">
-                <div class="cc-metric">
-                  <div class="cc-label">Utilization</div>
-                  <div class="cc-progress"><span style="width:${utilization}%"></span></div>
-                  <div class="cc-sub">${account.creditLimit > 0 ? pct(account.utilizationPct) : "Credit limit unavailable"}</div>
-                </div>
-                <div class="cc-metric">
-                  <div class="cc-label">Statement cycle</div>
-                  <div class="cc-sub">Latest: ${escapeHtml(dateText(account.latestStatementDate))}</div>
-                  <div class="cc-sub">Next: ${escapeHtml(dateText(account.nextStatementDate))}</div>
-                </div>
-              </div>
-
-              ${planHtml}
-            </article>
-          `;
-        }).join("");
-      }
-
-      function renderPlan(account) {
-        const plan = state.payoffPlans.get(account.id);
-
-        if (!plan) {
-          return `
-            <div class="cc-plan-box">
-              <h3>Payment planner</h3>
-              <div class="cc-empty">Planner unavailable for this card.</div>
-            </div>
-          `;
-        }
-
-        const scenarios = normalizeScenarios(plan);
-
-        if (!scenarios.length) {
-          return `
-            <div class="cc-plan-box">
-              <h3>Payment planner</h3>
-              <div class="cc-empty">No planner scenarios returned.</div>
-            </div>
-          `;
-        }
-
-        return `
-          <div class="cc-plan-box">
-            <h3>Payment planner</h3>
-            <div class="cc-plan-list">
-              ${scenarios.slice(0, 4).map((scenario) => `
-                <div class="cc-plan">
-                  <div>
-                    <strong>${escapeHtml(scenario.label)}</strong>
-                    <span>${escapeHtml(scenario.note)}</span>
-                  </div>
-                  <div>
-                    <strong>${money(scenario.payment)}</strong>
-                    <span>payment</span>
-                  </div>
-                  <div>
-                    <strong>${escapeHtml(scenario.months)}</strong>
-                    <span>timeline</span>
-                  </div>
-                </div>
-              `).join("")}
-            </div>
+      <div id="cc-payoff-plan" class="sf-dense-grid">
+        <div class="sf-empty-state">
+          <div>
+            <h3 class="sf-card-title">No payoff plan loaded</h3>
+            <p class="sf-card-subtitle">Open a card to load its payoff scenarios.</p>
           </div>
-        `;
-      }
+        </div>
+      </div>
+    </section>
 
-      function normalizeScenarios(plan) {
-        const rawScenarios = getArray(plan, ["scenarios", "plans", "payoff_scenarios", "payoffScenarios", "data"]);
+    <section class="sf-panel sf-span-12" aria-labelledby="cc-dependencies-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Dependency Map</p>
+          <h2 id="cc-dependencies-title" class="sf-section-title">Source Ownership</h2>
+          <p class="sf-section-subtitle">This page reads card state only. It does not write ledger rows or recalculate finance truth.</p>
+        </div>
+      </div>
 
-        return rawScenarios.map((raw, index) => {
-          const payment = asNumber(firstDefined(
-            raw.monthly_payment,
-            raw.monthlyPayment,
-            raw.payment,
-            raw.amount,
-            raw.minimum_due,
-            raw.minimumDue
-          ), 0);
+      <div class="sf-secondary-grid">
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Primary API</div>
+            <div class="sf-row-subtitle">Canonical credit-card state</div>
+          </div>
+          <div class="sf-row-right">/api/cc</div>
+        </div>
 
-          const monthsValue = firstDefined(
-            raw.months_to_payoff,
-            raw.monthsToPayoff,
-            raw.months,
-            raw.timeline_months,
-            raw.duration_months
-          );
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Planner API</div>
+            <div class="sf-row-subtitle">Card-specific payoff scenarios</div>
+          </div>
+          <div class="sf-row-right">/api/cc/{id}/payoff-plan</div>
+        </div>
 
-          const totalInterest = firstDefined(
-            raw.total_interest,
-            raw.totalInterest,
-            raw.interest
-          );
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Payment Execution</div>
+            <div class="sf-row-subtitle">Dry-run and real save belong to Add Transaction</div>
+          </div>
+          <div class="sf-row-right">/add.html</div>
+        </div>
 
-          const label = text(firstDefined(
-            raw.label,
-            raw.name,
-            raw.title,
-            index === 0 ? "Minimum path" : `Scenario ${index + 1}`
-          ));
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Forecast Consumer</div>
+            <div class="sf-row-subtitle">Forecast reads /api/cc independently</div>
+          </div>
+          <div class="sf-row-right">/forecast.html</div>
+        </div>
+      </div>
+    </section>
 
-          const noteParts = [];
-          if (totalInterest !== undefined) noteParts.push(`interest ${money(totalInterest)}`);
-          if (raw.description || raw.note) noteParts.push(text(firstDefined(raw.description, raw.note)));
+    <section id="cc-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Debug</p>
+          <h2 class="sf-section-title">Credit Card Debug</h2>
+          <p class="sf-section-subtitle">Visible only with ?debug=1.</p>
+        </div>
+      </div>
 
-          return {
-            label,
-            payment,
-            months: monthsValue === undefined ? "—" : `${text(monthsValue)} mo`,
-            note: noteParts.length ? noteParts.join(" · ") : "Read-only scenario"
-          };
-        });
-      }
+      <div class="sf-dense-grid">
+        <div class="sf-dense-row">
+          <span>Primary source</span>
+          <strong>/api/cc</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>Planner source</span>
+          <strong>/api/cc/{id}/payoff-plan</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>Expected API version</span>
+          <strong>v0.3.1</strong>
+        </div>
+        <div class="sf-dense-row">
+          <span>Write behavior</span>
+          <strong>Read-only page</strong>
+        </div>
+      </div>
 
-      async function loadPayoffPlans(accounts) {
-        const jobs = accounts
-          .filter((account) => account.id && account.outstanding > 0)
-          .map(async (account) => {
-            try {
-              const plan = await readJson(`/api/cc/${encodeURIComponent(account.id)}/payoff-plan`);
-              state.payoffPlans.set(account.id, plan);
-            } catch (error) {
-              state.payoffPlans.set(account.id, null);
-              if (DEBUG) console.warn("Planner unavailable", account.id, error);
-            }
-          });
+      <pre id="cc-debug-output" class="sf-debug-text">Waiting for js/cc.js.</pre>
+    </section>
+  </section>
 
-        await Promise.allSettled(jobs);
-      }
-
-      function renderDebug(summary) {
-        const panel = $("debugPanel");
-        const output = $("debugOutput");
-
-        if (!DEBUG) return;
-
-        panel.hidden = false;
-        output.classList.add("is-visible");
-
-        const balancesCcOutstanding = firstDefined(
-          state.balances?.cc_outstanding,
-          state.balances?.summary?.cc_outstanding,
-          state.balances?.totals?.cc_outstanding
-        );
-
-        const debug = {
-          version: PAGE_VERSION,
-          cc_accounts: state.accounts.map((account) => ({
-            id: account.id,
-            name: account.name,
-            outstanding: account.outstanding,
-            minimumDue: account.minimumDue,
-            dueDate: account.paymentDueDate,
-            daysUntilDue: account.daysUntilDue,
-            utilizationPct: account.utilizationPct
-          })),
-          summary,
-          balances_cross_check: {
-            loaded: Boolean(state.balances),
-            cc_outstanding: balancesCcOutstanding ?? null,
-            delta_vs_card_api: balancesCcOutstanding === undefined
-              ? null
-              : Number((asNumber(balancesCcOutstanding, 0) - summary.outstanding).toFixed(2))
-          },
-          payoff_plan_accounts: [...state.payoffPlans.keys()]
-        };
-
-        output.textContent = JSON.stringify(debug, null, 2);
-      }
-
-      function escapeHtml(value) {
-        return String(value)
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#039;");
-      }
-
-      function escapeAttr(value) {
-        return escapeHtml(value).replaceAll("`", "&#096;");
-      }
-
-      async function boot() {
-        window.SovereignCreditCard = {
-          version: PAGE_VERSION,
-          reload: boot
-        };
-
-        try {
-          setStatus("loading", `<strong>Loading credit card truth…</strong> <span>Reading /api/cc.</span>`);
-
-          state.cc = await readJson("/api/cc");
-          state.accounts = normalizeAccounts(state.cc);
-
-          await loadPayoffPlans(state.accounts);
-
-          if (DEBUG) {
-            try {
-              state.balances = await readJson("/api/balances");
-            } catch (error) {
-              state.balances = { error: error.message };
-            }
-          }
-
-          const summary = summarize(state.accounts, state.cc);
-
-          renderSummary(summary, state.accounts);
-          renderPressure(state.accounts, summary);
-          renderAccounts(state.accounts);
-          renderDebug(summary);
-
-          const activeCards = state.accounts.filter((account) => account.outstanding > 0).length;
-          setStatus("ready", `<strong>Credit card view ready.</strong> <span>${activeCards} card${activeCards === 1 ? "" : "s"} with outstanding balance. Primary source: /api/cc.</span>`);
-
-          console.log("cc page:", PAGE_VERSION);
-          console.log("cc outstanding:", summary.outstanding);
-        } catch (error) {
-          console.error(error);
-          setStatus("error", `<strong>Credit card view failed.</strong> <span>${escapeHtml(error.message)}</span>`);
-          $("accountList").innerHTML = `<div class="cc-empty cc-error">Could not load /api/cc.</div>`;
-          $("pressurePanel").innerHTML = `<div class="cc-empty cc-error">No pressure view available.</div>`;
-        }
-      }
-
-      document.addEventListener("DOMContentLoaded", boot);
-    })();
-  </script>
+  <script src="/js/cc.js"></script>
 </body>
 </html>
