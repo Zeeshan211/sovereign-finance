@@ -132,41 +132,32 @@
   }
 
   function rowTitle(row) {
-    if (isReversalRow(row)) return 'Reversal row';
-    if (isReversedOriginal(row)) return 'Reversed original';
+  if (isReversalRow(row)) return 'Reversal row';
+  if (isReversedOriginal(row)) return 'Reversed original';
 
-    const notes = String(row.notes || '').trim();
-    return notes || typeLabel(row.type);
+  const notes = String(row.notes || '').trim();
+
+  if (/^merchant=/i.test(notes)) {
+    return truncate(
+      notes.replace(/^merchant=/i, '').split('|')[0].trim() || typeLabel(row.type),
+      42
+    );
   }
 
-  async function fetchJSON(url) {
-    const response = await fetch(url, {
-      cache: 'no-store',
-      headers: {
-        accept: 'application/json'
-      }
-    });
+  if (/^Debt received:/i.test(notes)) return 'Debt received';
+  if (/^Debt payment:/i.test(notes)) return 'Debt payment';
+  if (/^Debt given:/i.test(notes)) return 'Debt given';
+  if (/^Bill payment:/i.test(notes)) return 'Bill payment';
+  if (/^\[INTL /i.test(notes)) return 'International charge';
+  if (/^From:/i.test(notes) || /^To:/i.test(notes)) return 'Transfer';
 
-    const text = await response.text();
+  return notes ? truncate(notes, 48) : typeLabel(row.type);
+}
 
-    let payload = null;
-    try {
-      payload = text ? JSON.parse(text) : null;
-    } catch {
-      throw new Error(`Non-JSON response from ${url}: HTTP ${response.status}`);
-    }
-
-    if (!response.ok) {
-      throw new Error((payload && payload.error) || `HTTP ${response.status}`);
-    }
-
-    if (!payload) {
-      throw new Error(`Empty JSON response from ${url}: HTTP ${response.status}`);
-    }
-
-    return payload;
-  }
-
+function truncate(value, max) {
+  const text = String(value || '').trim();
+  return text.length > max ? text.slice(0, max - 1) + '…' : text;
+}
   function normalizeTransactionRows(payload) {
     if (!payload) return [];
 
