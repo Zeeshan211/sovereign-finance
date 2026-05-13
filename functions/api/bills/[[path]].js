@@ -1,1367 +1,1217 @@
-/* /api/bills/[[path]].js
- * Sovereign Finance · Bills Engine
- * v1.0.0-bills-banking-grade
+/* /api/bills
+ * Sovereign Finance · Bills Backend
+ * v0.6.1-bills-effective-payment-state
  *
- * Backend owns:
- * - bill config CRUD
- * - bill payment dry-run proof
- * - atomic bill payment + ledger transaction + payment row
- * - partial/full payment state
- * - bill-aware reversal
- * - defer without money movement
- * - health verification
+ * Fix:
+ * - Current cycle no longer counts bill_payments whose linked ledger transaction is reversed.
+ * - Health and current_cycle use the same effective payment classifier.
+ * - Raw bill_payments.status remains stored status.
+ * - effective_status is computed from ledger truth.
+ * - Ledger-reversed payments are excluded from paid_total.
  */
 
-import { audit } from '../_lib.js';
-
-const VERSION = 'v1.0.0-bills-banking-grade';
+const VERSION = 'v0.6.1-bills-effective-payment-state';
 
 const DEFAULT_CATEGORY_ID = 'bills_utilities';
-const DEFAULT_CREATED_BY = 'web-bills';
-const BALANCE_TOLERANCE_PAISA = 1;
-
-const ACTIVE_ACCOUNT_CONDITION =
-  "(deleted_at IS NULL OR deleted_at = '') AND (archived_at IS NULL OR archived_at = '') AND (status IS NULL OR status = '' OR status = 'active')";
 
 export async function onRequestGet(context) {
   try {
-    const parts = getPathParts(context);
+    const db = context.env.DB;
+    const parts = pathParts(context);
+    const route = parts[0] || '';
+    const url = new URL(context.request.url);
 
-    if (parts[0] === 'health') {
-      return getHealth(context);
+    if (!route) {
+      return getBillsOverview(db, url);
     }
 
-    if (parts[0]) {
-      return getOneBill(context, parts[0]);
+    if (route === 'health') {
+      return getBillsHealth(db);
     }
 
-    return listBills(context);
+    if (route === 'history') {
+      return getBillHistory(db, url);
+    }
+
+    if (route === 'cycle' || route === 'current-cycle') {
+      return getBillsOverview(db, url);
+    }
+
+    return json({
+      ok: false,
+      version: VERSION,
+      error: 'Unsupported bills GET route'
+    }, 404);
   } catch (err) {
     return json({
       ok: false,
       version: VERSION,
-      error: err.message
+      error: err.message || String(err)
     }, 500);
   }
 }
 
 export async function onRequestPost(context) {
   try {
-    const parts = getPathParts(context);
+    const db = context.env.DB;
+    const parts = pathParts(context);
+    const route = parts[0] || '';
     const body = await readJSON(context.request);
 
-    if (!parts[0]) {
-      return createBill(context, body);
+    if (route === 'pay') {
+      return payBill(context, body);
     }
 
-    if (parts[0] === 'payments' && parts[1] && parts[2] === 'reverse') {
-      return reversePayment(context, parts[1], body);
+    if (route === 'reverse-payment' || route === 'reverse') {
+      return reverseBillPayment(context, body);
     }
 
-    if (parts[1] === 'pay' && parts[2] === 'dry-run') {
-      return payBillDryRun(context, parts[0], body);
+    if (route === 'defer') {
+      return deferBill(db, body);
     }
 
-    if (parts[1] === 'pay') {
-      return payBillCommit(context, parts[0], body);
+    if (route === 'update' || route === 'edit') {
+      return updateBill(db, body);
     }
 
-    if (parts[1] === 'defer') {
-      return deferBill(context, parts[0], body);
+    if (route === 'health-repair' || route === 'repair') {
+      return repairLedgerReversedPayments(db);
     }
 
     return json({
       ok: false,
       version: VERSION,
-      error: 'Unsupported POST route'
+      error: 'Unsupported bills POST route'
     }, 404);
   } catch (err) {
     return json({
       ok: false,
       version: VERSION,
-      error: err.message
-    }, 500);
-  }
-}
-
-export async function onRequestPut(context) {
-  try {
-    const parts = getPathParts(context);
-    const body = await readJSON(context.request);
-
-    if (!parts[0]) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: 'bill id required'
-      }, 400);
-    }
-
-    return updateBill(context, parts[0], body);
-  } catch (err) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: err.message
-    }, 500);
-  }
-}
-
-export async function onRequestDelete(context) {
-  try {
-    const parts = getPathParts(context);
-
-    if (!parts[0]) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: 'bill id required'
-      }, 400);
-    }
-
-    return softDeleteBill(context, parts[0]);
-  } catch (err) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: err.message
+      error: err.message || String(err)
     }, 500);
   }
 }
 
 /* ─────────────────────────────
- * Bills read
+ * Overview / current cycle
  * ───────────────────────────── */
 
-async function listBills(context) {
-  const db = context.env.DB;
-  const billCols = await cols(db, 'bills');
-  const paymentCols = await cols(db, 'bill_payments');
+async function getBillsOverview(db, url) {
+  const month = normalizeMonth(url.searchParams.get('month')) || currentMonth();
 
-  const rows = await db.prepare(
-    `SELECT *
-     FROM bills
-     WHERE status IS NULL OR status != 'deleted'
-     ORDER BY
-       CASE WHEN due_day IS NULL THEN 99 ELSE due_day END,
-       name`
-  ).all();
+  const [billCols, paymentCols, txCols] = await Promise.all([
+    tableColumns(db, 'bills'),
+    tableColumns(db, 'bill_payments'),
+    tableColumns(db, 'transactions')
+  ]);
 
-  const bills = [];
+  const bills = await loadBills(db, billCols);
+  const allPayments = await loadPaymentsForMonth(db, paymentCols, month);
+  const txMap = await loadTransactionMapForPayments(db, txCols, allPayments);
 
-  for (const bill of rows.results || []) {
-    bills.push(await decorateBill(db, bill, billCols, paymentCols));
+  const enrichedBills = [];
+  let expectedPaisa = 0;
+  let paidPaisa = 0;
+  let paidCount = 0;
+  let partialCount = 0;
+  let unpaidCount = 0;
+
+  for (const bill of bills) {
+    if (!isActiveBill(bill)) continue;
+
+    const amountPaisa = billAmountPaisa(bill);
+    expectedPaisa += amountPaisa;
+
+    const billPayments = allPayments.filter(p => String(p.bill_id) === String(bill.id));
+    const cycle = buildBillCycle(bill, billPayments, txMap, month);
+
+    paidPaisa += cycle.paid_paisa;
+
+    if (cycle.status === 'paid') paidCount += 1;
+    else if (cycle.status === 'partial') partialCount += 1;
+    else unpaidCount += 1;
+
+    enrichedBills.push({
+      ...bill,
+      month,
+      amount: paisaToMoney(amountPaisa),
+      amount_paisa: amountPaisa,
+      current_cycle: cycle,
+
+      paid_amount: cycle.paid_amount,
+      paid_paisa: cycle.paid_paisa,
+      remaining_amount: cycle.remaining_amount,
+      remaining_paisa: cycle.remaining_paisa,
+      payment_status: cycle.status,
+      status_for_month: cycle.status
+    });
   }
-
-  return json({
-    ok: true,
-    version: VERSION,
-    bills
-  });
-}
-
-async function getOneBill(context, id) {
-  const db = context.env.DB;
-  const billCols = await cols(db, 'bills');
-  const paymentCols = await cols(db, 'bill_payments');
-  const bill = await getBill(db, id);
-
-  if (!bill) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'bill not found',
-      id
-    }, 404);
-  }
-
-  return json({
-    ok: true,
-    version: VERSION,
-    bill: await decorateBill(db, bill, billCols, paymentCols)
-  });
-}
-
-async function decorateBill(db, bill, billCols, paymentCols) {
-  const billMonth = currentBillMonth();
-  const expectedPaisa = moneyToPaisa(bill.amount || 0);
-  const cycle = await getBillCycle(db, bill.id, billMonth, expectedPaisa);
-
-  return {
-    id: bill.id,
-    name: bill.name,
-    amount: paisaToMoney(expectedPaisa),
-    due_day: bill.due_day ?? null,
-    frequency: bill.frequency || 'monthly',
-    category_id: bill.category_id || DEFAULT_CATEGORY_ID,
-    default_account_id: bill.default_account_id || bill.account_id || null,
-    status: bill.status || 'active',
-    notes: bill.notes || '',
-    last_paid_date: bill.last_paid_date || null,
-    last_paid_account_id: bill.last_paid_account_id || null,
-    current_cycle: cycle,
-    reverse_eligible: false,
-    reverse_block_reason: 'Reverse a specific payment, not the bill config.'
-  };
-}
-
-async function getBillCycle(db, billId, billMonth, expectedPaisa) {
-  const rows = await db.prepare(
-    `SELECT *
-     FROM bill_payments
-     WHERE bill_id = ?
-       AND bill_month = ?
-     ORDER BY datetime(created_at) DESC, id DESC`
-  ).bind(billId, billMonth).all();
-
-  const payments = rows.results || [];
-  const active = payments.filter(p => String(p.status || 'paid') === 'paid');
-  const reversed = payments.filter(p => String(p.status || '') === 'reversed');
-
-  const paidPaisa = active.reduce((sum, p) => {
-    return sum + Number(p.amount_paisa || moneyToPaisa(p.amount || 0));
-  }, 0);
 
   const remainingPaisa = Math.max(0, expectedPaisa - paidPaisa);
+  const health = await computeBillsHealth(db);
 
-  return {
-    bill_month: billMonth,
-    expected_amount: paisaToMoney(expectedPaisa),
-    expected_amount_paisa: expectedPaisa,
-    paid_total: paisaToMoney(paidPaisa),
-    paid_total_paisa: paidPaisa,
+  return json({
+    ok: true,
+    version: VERSION,
+    month,
+
+    expected_this_cycle: paisaToMoney(expectedPaisa),
+    expected_this_cycle_paisa: expectedPaisa,
+    paid_this_cycle: paisaToMoney(paidPaisa),
+    paid_this_cycle_paisa: paidPaisa,
     remaining: paisaToMoney(remainingPaisa),
     remaining_paisa: remainingPaisa,
-    payment_status: remainingPaisa === 0
-      ? 'paid'
-      : (paidPaisa > 0 ? 'partial' : 'unpaid'),
-    payment_count: active.length,
-    reversed_payment_count: reversed.length,
-    linked_transaction_ids: active.map(p => p.transaction_id).filter(Boolean),
-    payments: payments.map(paymentDTO)
-  };
-}
 
-function paymentDTO(p) {
-  return {
-    id: p.id,
-    bill_id: p.bill_id,
-    bill_month: p.bill_month || p.month,
-    amount: Number(p.amount || 0),
-    amount_paisa: Number(p.amount_paisa || moneyToPaisa(p.amount || 0)),
-    account_id: p.account_id,
-    category_id: p.category_id || DEFAULT_CATEGORY_ID,
-    paid_date: p.paid_date || p.payment_date,
-    transaction_id: p.transaction_id,
-    status: p.status || 'paid',
-    reversed_at: p.reversed_at || null,
-    reversal_transaction_id: p.reversal_transaction_id || null,
-    notes: p.notes || '',
-    created_at: p.created_at || null
-  };
-}
+    paid_count: paidCount,
+    partial_count: partialCount,
+    unpaid_count: unpaidCount,
 
-/* ─────────────────────────────
- * Bills config writes
- * ───────────────────────────── */
-
-async function createBill(context, body) {
-  const db = context.env.DB;
-  const billCols = await cols(db, 'bills');
-
-  const name = text(body.name, '', 120);
-  const amount = roundMoney(Number(body.amount || 0));
-  const dueDay = nullableInt(body.due_day ?? body.day);
-  const categoryId = text(body.category_id || body.category, DEFAULT_CATEGORY_ID, 80);
-  const defaultAccountId = text(body.default_account_id || body.account_id, '', 80) || null;
-  const notes = text(body.notes, '', 240);
-  const createdBy = text(body.created_by, DEFAULT_CREATED_BY, 80);
-
-  if (!name) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'name required'
-    }, 400);
-  }
-
-  if (!Number.isFinite(amount) || amount < 0) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'amount must be >= 0'
-    }, 400);
-  }
-
-  if (dueDay != null && (dueDay < 0 || dueDay > 31)) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'due_day must be 0-31'
-    }, 400);
-  }
-
-  if (defaultAccountId) {
-    const account = await resolveAccount(db, defaultAccountId);
-
-    if (!account.ok) {
-      return json(account, 409);
-    }
-  }
-
-  const id = makeId('bill');
-
-  const row = {
-    id,
-    name,
-    amount,
-    due_day: dueDay,
-    frequency: body.frequency || 'monthly',
-    category_id: categoryId,
-    default_account_id: defaultAccountId,
-    notes,
-    status: 'active',
-    created_by: createdBy,
-    created_at: nowISO()
-  };
-
-  await insertDynamic(db, 'bills', billCols, row);
-
-  await safeAudit(context, {
-    action: 'BILL_CREATED',
-    entity: 'bill',
-    entity_id: id,
-    kind: 'mutation',
-    detail: row,
-    created_by: createdBy
-  });
-
-  return json({
-    ok: true,
-    version: VERSION,
-    id,
-    bill: row
-  });
-}
-
-async function updateBill(context, id, body) {
-  const db = context.env.DB;
-  const bill = await getBill(db, id);
-
-  if (!bill) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'bill not found',
-      id
-    }, 404);
-  }
-
-  const allowed = {};
-  const map = {
-    name: 'name',
-    amount: 'amount',
-    due_day: 'due_day',
-    day: 'due_day',
-    frequency: 'frequency',
-    category_id: 'category_id',
-    category: 'category_id',
-    default_account_id: 'default_account_id',
-    account_id: 'default_account_id',
-    status: 'status',
-    notes: 'notes'
-  };
-
-  for (const [inputKey, column] of Object.entries(map)) {
-    if (Object.prototype.hasOwnProperty.call(body, inputKey)) {
-      allowed[column] = body[inputKey];
-    }
-  }
-
-  if (allowed.amount != null) {
-    allowed.amount = roundMoney(Number(allowed.amount));
-
-    if (!Number.isFinite(allowed.amount) || allowed.amount < 0) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: 'amount must be >= 0'
-      }, 400);
-    }
-  }
-
-  if (allowed.due_day != null) {
-    allowed.due_day = nullableInt(allowed.due_day);
-
-    if (allowed.due_day != null && (allowed.due_day < 0 || allowed.due_day > 31)) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: 'due_day must be 0-31'
-      }, 400);
-    }
-  }
-
-  if (allowed.default_account_id) {
-    const account = await resolveAccount(db, allowed.default_account_id);
-
-    if (!account.ok) {
-      return json(account, 409);
-    }
-  }
-
-  if (!Object.keys(allowed).length) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'no editable fields supplied'
-    }, 400);
-  }
-
-  const billCols = await cols(db, 'bills');
-  await updateDynamic(db, 'bills', billCols, id, allowed);
-
-  await safeAudit(context, {
-    action: 'BILL_UPDATED',
-    entity: 'bill',
-    entity_id: id,
-    kind: 'mutation',
-    detail: allowed,
-    created_by: text(body.created_by, DEFAULT_CREATED_BY, 80)
-  });
-
-  return json({
-    ok: true,
-    version: VERSION,
-    id,
-    updated: allowed
-  });
-}
-
-async function softDeleteBill(context, id) {
-  const db = context.env.DB;
-  const bill = await getBill(db, id);
-
-  if (!bill) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'bill not found',
-      id
-    }, 404);
-  }
-
-  const billCols = await cols(db, 'bills');
-
-  await updateDynamic(db, 'bills', billCols, id, {
-    status: 'deleted',
-    deleted_at: nowISO()
-  });
-
-  await safeAudit(context, {
-    action: 'BILL_DELETED',
-    entity: 'bill',
-    entity_id: id,
-    kind: 'mutation',
-    detail: { status: 'deleted' },
-    created_by: DEFAULT_CREATED_BY
-  });
-
-  return json({
-    ok: true,
-    version: VERSION,
-    id,
-    deleted: true
-  });
-}
-
-/* ─────────────────────────────
- * Pay dry-run + commit
- * ───────────────────────────── */
-
-async function payBillDryRun(context, billId, body) {
-  const validation = await validateBillPayment(context, billId, body);
-
-  if (!validation.ok) {
-    return json(validation, validation.status || 400);
-  }
-
-  return json({
-    ok: true,
-    version: VERSION,
-    dry_run: true,
-    writes_performed: false,
-    payload_hash: validation.payload_hash,
-    transaction_payload_hash: validation.transaction_payload_hash,
-    requires_override: validation.requires_override,
-    override_reason: validation.override_reason,
-    override_token: validation.override_token,
-    projected_bill_state: validation.projected_bill_state,
-    transaction_proof: validation.transaction_proof,
-    warnings: validation.warnings,
-    normalized_payload: validation.normalized_payload
-  });
-}
-
-async function payBillCommit(context, billId, body) {
-  const validation = await validateBillPayment(context, billId, body);
-
-  if (!validation.ok) {
-    return json(validation, validation.status || 400);
-  }
-
-  const suppliedHash = text(body.payload_hash || body.dry_run_payload_hash, '', 200);
-
-  if (!suppliedHash) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'payload_hash required. Run dry-run first.'
-    }, 428);
-  }
-
-  if (suppliedHash !== validation.payload_hash) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'payload changed after dry-run. Run dry-run again.',
-      expected: validation.payload_hash,
-      supplied: suppliedHash
-    }, 409);
-  }
-
-  if (validation.requires_override) {
-    const suppliedOverride = text(body.override_token, '', 200);
-
-    if (!suppliedOverride || suppliedOverride !== validation.override_token) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: 'valid override_token required',
-        override_reason: validation.override_reason
-      }, 428);
-    }
-  }
-
-  const db = context.env.DB;
-  const txCols = await cols(db, 'transactions');
-  const paymentCols = await cols(db, 'bill_payments');
-  const billCols = await cols(db, 'bills');
-
-  const p = validation.normalized_payload;
-  const transactionId = makeId('tx_bill');
-  const paymentId = makeId('billpay');
-
-  const txRow = {
-    id: transactionId,
-    date: p.paid_date,
-    type: 'expense',
-    amount: p.amount,
-    account_id: p.account_id,
-    transfer_to_account_id: null,
-    category_id: p.category_id,
-    notes: `Bill payment: ${p.bill_name} | bill_id=${p.bill_id} | bill_payment_id=${paymentId} | bill_month=${p.bill_month}${p.notes ? ' | notes=' + p.notes : ''}`.slice(0, 240),
-    fee_amount: 0,
-    pra_amount: 0,
-    currency: 'PKR',
-    pkr_amount: p.amount,
-    fx_rate_at_commit: 1,
-    fx_source: 'PKR-base',
-    created_by: p.created_by,
-    created_at: nowISO()
-  };
-
-  const payRow = {
-    id: paymentId,
-    bill_id: p.bill_id,
-    bill_month: p.bill_month,
-    month: p.bill_month,
-    bill_name_snapshot: p.bill_name,
-    expected_amount_paisa: p.expected_amount_paisa,
-    amount_paisa: p.amount_paisa,
-    expected_amount: paisaToMoney(p.expected_amount_paisa),
-    amount: p.amount,
-    account_id: p.account_id,
-    category_id: p.category_id,
-    paid_date: p.paid_date,
-    payment_date: p.paid_date,
-    transaction_id: transactionId,
-    status: 'paid',
-    notes: p.notes,
-    dry_run_payload_hash: validation.payload_hash,
-    transaction_payload_hash: validation.transaction_payload_hash,
-    created_by: p.created_by,
-    created_at: nowISO()
-  };
-
-  const billPatch = {
-    last_paid_date: p.paid_date,
-    last_paid_account_id: p.account_id,
-    status: validation.projected_bill_state.remaining_paisa === 0 ? 'paid' : 'active'
-  };
-
-  await db.batch([
-    buildInsert(db, 'transactions', filterToCols(txCols, txRow)),
-    buildInsert(db, 'bill_payments', filterToCols(paymentCols, payRow)),
-    buildUpdate(db, 'bills', billCols, p.bill_id, billPatch)
-  ]);
-
-  await safeAudit(context, {
-    action: 'BILL_PAID',
-    entity: 'bill',
-    entity_id: p.bill_id,
-    kind: 'mutation',
-    detail: {
-      bill_payment_id: paymentId,
-      transaction_id: transactionId,
-      bill_month: p.bill_month,
-      amount: p.amount,
-      amount_paisa: p.amount_paisa,
-      account_id: p.account_id,
-      category_id: p.category_id,
-      payload_hash: validation.payload_hash
+    bills: enrichedBills,
+    current_cycle: {
+      month,
+      expected_paisa: expectedPaisa,
+      expected_amount: paisaToMoney(expectedPaisa),
+      paid_paisa: paidPaisa,
+      paid_amount: paisaToMoney(paidPaisa),
+      remaining_paisa: remainingPaisa,
+      remaining_amount: paisaToMoney(remainingPaisa),
+      paid_count: paidCount,
+      partial_count: partialCount,
+      unpaid_count: unpaidCount
     },
-    created_by: p.created_by
-  });
 
-  return json({
-    ok: true,
-    version: VERSION,
-    bill_id: p.bill_id,
-    bill_payment_id: paymentId,
-    transaction_id: transactionId,
-    projected_bill_state: validation.projected_bill_state,
-    payload_hash: validation.payload_hash
+    health: {
+      status: health.status,
+      payment_rows: health.payment_rows,
+      orphans: health.orphans,
+      active_payment_reversed_txn_mismatch: health.active_payment_reversed_txn_mismatch,
+      missing_reversal_txn: health.missing_reversal_txn,
+      duplicate_bill_month_amount: health.duplicate_bill_month_amount,
+      amount_mismatches: health.amount_mismatches
+    },
+
+    rules: {
+      current_cycle_uses_effective_status: true,
+      active_payment_requires_unreversed_ledger_txn: true,
+      raw_payment_status_is_not_money_truth: true
+    }
   });
 }
 
-async function validateBillPayment(context, billId, body) {
-  const db = context.env.DB;
-  const bill = await getBill(db, billId);
+function buildBillCycle(bill, payments, txMap, month) {
+  const amountPaisa = billAmountPaisa(bill);
 
-  if (!bill) {
+  const enrichedPayments = payments.map(payment => {
+    const tx = payment.transaction_id ? txMap.get(String(payment.transaction_id)) : null;
+    const classifier = classifyPaymentEffectiveness(payment, tx);
+
     return {
-      ok: false,
-      version: VERSION,
-      status: 404,
-      error: 'bill not found',
-      bill_id: billId
+      ...payment,
+      amount: paymentAmount(payment),
+      amount_paisa: paymentAmountPaisa(payment),
+      ledger_transaction: tx ? sanitizeTransaction(tx) : null,
+      effective_status: classifier.effective_status,
+      effective_paid: classifier.effective_paid,
+      effective_exclusion_reason: classifier.reason,
+      ledger_reversed: classifier.ledger_reversed,
+      ledger_missing: classifier.ledger_missing
     };
-  }
+  });
 
-  if (String(bill.status || 'active') === 'deleted') {
-    return {
-      ok: false,
-      version: VERSION,
-      status: 409,
-      error: 'bill is deleted'
-    };
-  }
+  const effectiveActive = enrichedPayments.filter(payment => payment.effective_paid === true);
 
-  const amount = roundMoney(Number(body.amount));
-  const amountPaisa = moneyToPaisa(amount);
+  const paidPaisa = effectiveActive.reduce((sum, payment) => {
+    return sum + paymentAmountPaisa(payment);
+  }, 0);
 
-  if (!Number.isFinite(amount) || amount <= 0 || amountPaisa <= 0) {
-    return {
-      ok: false,
-      version: VERSION,
-      status: 400,
-      error: 'amount must be greater than 0'
-    };
-  }
+  const remainingPaisa = Math.max(0, amountPaisa - paidPaisa);
 
-  const paidDate = normalizeDate(body.paid_date || body.date) || todayISO();
-  const billMonth = text(body.bill_month || body.month, paidDate.slice(0, 7), 7);
-  const accountId = text(body.account_id || bill.default_account_id || bill.account_id, '', 80);
-  const categoryId = text(body.category_id || bill.category_id, DEFAULT_CATEGORY_ID, 80);
-  const notes = text(body.notes, '', 220);
-  const createdBy = text(body.created_by, DEFAULT_CREATED_BY, 80);
+  let status = 'unpaid';
+  if (paidPaisa >= amountPaisa && amountPaisa > 0) status = 'paid';
+  else if (paidPaisa > 0) status = 'partial';
 
-  if (!accountId) {
-    return {
-      ok: false,
-      version: VERSION,
-      status: 400,
-      error: 'account_id required'
-    };
-  }
-
-  const account = await resolveAccount(db, accountId);
-
-  if (!account.ok) {
-    return {
-      ...account,
-      version: VERSION,
-      status: account.status || 409
-    };
-  }
-
-  const expectedPaisa = moneyToPaisa(bill.amount || 0);
-  const cycle = await getBillCycle(db, bill.id, billMonth, expectedPaisa);
-
-  const remainingBefore = Number(cycle.remaining_paisa || 0);
-
-  if (amountPaisa > remainingBefore && remainingBefore > 0 && body.allow_overpay !== true) {
-    return {
-      ok: false,
-      version: VERSION,
-      status: 409,
-      error: 'payment exceeds remaining bill amount',
-      remaining: paisaToMoney(remainingBefore),
-      attempted: amount
-    };
-  }
-
-  const balanceProof = await buildBalanceProof(db, account.account, amountPaisa);
-
-  const warnings = [];
-  const duplicate = await duplicatePaymentWarning(db, bill.id, billMonth, amountPaisa);
-
-  if (duplicate.status === 'warn') {
-    warnings.push(duplicate);
-  }
-
-  const normalized = {
+  return {
+    month,
     bill_id: bill.id,
-    bill_name: bill.name,
-    bill_month: billMonth,
-    expected_amount_paisa: expectedPaisa,
-    amount,
     amount_paisa: amountPaisa,
-    account_id: account.account.id,
-    category_id: categoryId,
-    paid_date: paidDate,
-    notes,
-    created_by: createdBy
+    amount: paisaToMoney(amountPaisa),
+
+    paid_paisa: paidPaisa,
+    paid_amount: paisaToMoney(paidPaisa),
+    remaining_paisa: remainingPaisa,
+    remaining_amount: paisaToMoney(remainingPaisa),
+    status,
+
+    raw_payment_count: enrichedPayments.length,
+    active_payment_count: effectiveActive.length,
+    ignored_payment_count: enrichedPayments.length - effectiveActive.length,
+
+    payments: enrichedPayments,
+    active_payments: effectiveActive,
+    ignored_payments: enrichedPayments.filter(payment => payment.effective_paid !== true)
   };
-
-  const projectedPaidPaisa = Number(cycle.paid_total_paisa || 0) + amountPaisa;
-  const projectedRemaining = Math.max(0, expectedPaisa - projectedPaidPaisa);
-
-  const projectedBillState = {
-    bill_month: billMonth,
-    expected_amount: paisaToMoney(expectedPaisa),
-    expected_amount_paisa: expectedPaisa,
-    paid_total_after: paisaToMoney(projectedPaidPaisa),
-    paid_total_after_paisa: projectedPaidPaisa,
-    remaining: paisaToMoney(projectedRemaining),
-    remaining_paisa: projectedRemaining,
-    payment_status: projectedRemaining === 0 ? 'paid' : 'partial'
-  };
-
-  const transactionPayload = {
-    route: 'bills.pay.transaction',
-    type: 'expense',
-    amount,
-    account_id: account.account.id,
-    category_id: categoryId,
-    date: paidDate,
-    bill_id: bill.id,
-    bill_month: billMonth
-  };
-
-  const transactionHash = await hash(transactionPayload);
-
-  const payloadHash = await hash({
-    route: 'bills.pay',
-    normalized
-  });
-
-  const requiresOverride = balanceProof.requires_override === true;
-  const overrideReason = requiresOverride ? balanceProof.override_reason : null;
-  const overrideToken = requiresOverride
-    ? await hash({
-      route: 'bills.pay.override',
-      reason: overrideReason,
-      normalized
-    })
-    : null;
-
-  return {
-    ok: true,
-    normalized_payload: normalized,
-    payload_hash: payloadHash,
-    transaction_payload_hash: transactionHash,
-    requires_override: requiresOverride,
-    override_reason: overrideReason,
-    override_token: overrideToken,
-    projected_bill_state: projectedBillState,
-    transaction_proof: {
-      action: 'bill_payment',
-      writes_performed: false,
-      expected_writes: {
-        transactions: 1,
-        bill_payments: 1,
-        bills_update: 1,
-        audit: 1
-      },
-      balance_projection: balanceProof,
-      duplicate_payment: duplicate
-    },
-    warnings
-  };
-}
-
-/* ─────────────────────────────
- * Reverse payment
- * ───────────────────────────── */
-
-async function reversePayment(context, paymentId, body) {
-  const db = context.env.DB;
-  const reason = text(body.reason, '', 500);
-  const createdBy = text(body.created_by, DEFAULT_CREATED_BY, 80);
-
-  if (!reason) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'reason required'
-    }, 400);
-  }
-
-  const payment = await db.prepare(
-    `SELECT *
-     FROM bill_payments
-     WHERE id = ?
-     LIMIT 1`
-  ).bind(paymentId).first();
-
-  if (!payment) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'bill payment not found',
-      payment_id: paymentId
-    }, 404);
-  }
-
-  if (String(payment.status || 'paid') === 'reversed') {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'bill payment already reversed',
-      payment_id: paymentId
-    }, 409);
-  }
-
-  const txCols = await cols(db, 'transactions');
-  const paymentCols = await cols(db, 'bill_payments');
-  const originalTxn = await getTransaction(db, txCols, payment.transaction_id);
-
-  if (!originalTxn) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'linked ledger transaction not found',
-      transaction_id: payment.transaction_id
-    }, 409);
-  }
-
-  if (isReversed(originalTxn)) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'linked ledger transaction already reversed',
-      transaction_id: payment.transaction_id
-    }, 409);
-  }
-
-  const reversalId = makeId('rev_bill');
-
-  const reversalRow = {
-    id: reversalId,
-    date: todayISO(),
-    type: 'income',
-    amount: Math.abs(Number(originalTxn.amount || payment.amount || 0)),
-    account_id: originalTxn.account_id,
-    transfer_to_account_id: null,
-    category_id: originalTxn.category_id || payment.category_id || DEFAULT_CATEGORY_ID,
-    notes: `[REVERSAL OF ${originalTxn.id}] Bill payment reversal: ${payment.bill_name_snapshot || payment.bill_id} | bill_payment_id=${payment.id} | reason=${reason}`.slice(0, 240),
-    fee_amount: 0,
-    pra_amount: 0,
-    currency: 'PKR',
-    pkr_amount: Math.abs(Number(originalTxn.pkr_amount || originalTxn.amount || payment.amount || 0)),
-    fx_rate_at_commit: 1,
-    fx_source: 'bill-reversal',
-    linked_txn_id: originalTxn.id,
-    created_by: createdBy,
-    created_at: nowISO()
-  };
-
-  await db.batch([
-    buildInsert(db, 'transactions', filterToCols(txCols, reversalRow)),
-    buildMarkTxnReversed(db, txCols, originalTxn.id, reversalId, reason),
-    buildUpdate(db, 'bill_payments', paymentCols, payment.id, {
-      status: 'reversed',
-      reversed_at: nowISO(),
-      reversal_transaction_id: reversalId,
-      reason
-    })
-  ]);
-
-  await safeAudit(context, {
-    action: 'BILL_PAYMENT_REVERSED',
-    entity: 'bill_payment',
-    entity_id: payment.id,
-    kind: 'mutation',
-    detail: {
-      bill_id: payment.bill_id,
-      transaction_id: originalTxn.id,
-      reversal_transaction_id: reversalId,
-      reason
-    },
-    created_by: createdBy
-  });
-
-  return json({
-    ok: true,
-    version: VERSION,
-    bill_payment_id: payment.id,
-    original_transaction_id: originalTxn.id,
-    reversal_transaction_id: reversalId,
-    status: 'reversed'
-  });
-}
-
-/* ─────────────────────────────
- * Defer
- * ───────────────────────────── */
-
-async function deferBill(context, billId, body) {
-  const db = context.env.DB;
-  const bill = await getBill(db, billId);
-
-  if (!bill) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'bill not found',
-      bill_id: billId
-    }, 404);
-  }
-
-  const newDueDate = normalizeDate(body.new_due_date || body.due_date);
-  const reason = text(body.reason || body.notes, '', 300);
-  const createdBy = text(body.created_by, DEFAULT_CREATED_BY, 80);
-
-  if (!newDueDate) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'new_due_date required'
-    }, 400);
-  }
-
-  const billCols = await cols(db, 'bills');
-
-  await updateDynamic(db, 'bills', billCols, bill.id, {
-    deferred_until: newDueDate,
-    defer_reason: reason,
-    status: 'deferred'
-  });
-
-  await safeAudit(context, {
-    action: 'BILL_DEFERRED',
-    entity: 'bill',
-    entity_id: bill.id,
-    kind: 'mutation',
-    detail: {
-      new_due_date: newDueDate,
-      reason
-    },
-    created_by: createdBy
-  });
-
-  return json({
-    ok: true,
-    version: VERSION,
-    bill_id: bill.id,
-    deferred_until: newDueDate
-  });
 }
 
 /* ─────────────────────────────
  * Health
  * ───────────────────────────── */
 
-async function getHealth(context) {
-  const db = context.env.DB;
-  const txCols = await cols(db, 'transactions');
+async function getBillsHealth(db) {
+  const health = await computeBillsHealth(db);
+  return json({
+    ok: true,
+    version: VERSION,
+    health,
+    status: health.status,
+    payment_rows: health.payment_rows,
+    orphans: health.orphans,
+    active_payment_reversed_txn_mismatch: health.active_payment_reversed_txn_mismatch,
+    missing_reversal_txn: health.missing_reversal_txn,
+    duplicate_bill_month_amount: health.duplicate_bill_month_amount,
+    amount_mismatches: health.amount_mismatches
+  });
+}
 
-  const payments = await db.prepare(
-    `SELECT *
-     FROM bill_payments
-     ORDER BY datetime(created_at) DESC, id DESC
-     LIMIT 5000`
-  ).all();
+async function computeBillsHealth(db) {
+  const [billCols, paymentCols, txCols] = await Promise.all([
+    tableColumns(db, 'bills'),
+    tableColumns(db, 'bill_payments'),
+    tableColumns(db, 'transactions')
+  ]);
 
-  const rows = payments.results || [];
+  const bills = await loadBills(db, billCols, { includeInactive: true });
+  const payments = await loadAllPayments(db, paymentCols);
+  const txMap = await loadTransactionMapForPayments(db, txCols, payments);
 
-  const orphanPayments = [];
-  const reversedTxnActivePayment = [];
-  const reversedPaymentsMissingReversal = [];
-  const amountMismatches = [];
+  const billIds = new Set(bills.map(b => String(b.id)));
 
-  for (const p of rows) {
-    const tx = await getTransaction(db, txCols, p.transaction_id);
+  let orphans = 0;
+  let activePaymentReversedTxnMismatch = 0;
+  let missingReversalTxn = 0;
+  let amountMismatches = 0;
 
-    if (!tx) {
-      orphanPayments.push(p.id);
-      continue;
+  const dupMap = new Map();
+
+  for (const payment of payments) {
+    if (!billIds.has(String(payment.bill_id))) {
+      orphans += 1;
     }
 
-    const paymentPaisa = Number(p.amount_paisa || moneyToPaisa(p.amount || 0));
-    const txPaisa = moneyToPaisa(tx.amount || 0);
+    const tx = payment.transaction_id ? txMap.get(String(payment.transaction_id)) : null;
+    const classifier = classifyPaymentEffectiveness(payment, tx);
 
-    if (Math.abs(paymentPaisa - txPaisa) > BALANCE_TOLERANCE_PAISA) {
-      amountMismatches.push({
-        bill_payment_id: p.id,
-        transaction_id: tx.id,
-        payment_paisa: paymentPaisa,
-        transaction_paisa: txPaisa
-      });
+    if (classifier.ledger_reversed && String(payment.status || 'paid') === 'paid') {
+      activePaymentReversedTxnMismatch += 1;
     }
 
-    if (isReversed(tx) && String(p.status || 'paid') === 'paid') {
-      reversedTxnActivePayment.push({
-        bill_payment_id: p.id,
-        transaction_id: tx.id
-      });
+    if (payment.reversal_transaction_id && !txMap.get(String(payment.reversal_transaction_id))) {
+      missingReversalTxn += 1;
     }
 
-    if (String(p.status || '') === 'reversed' && !p.reversal_transaction_id) {
-      reversedPaymentsMissingReversal.push(p.id);
+    if (tx && Math.abs(paymentAmountPaisa(payment) - txAmountPaisa(tx)) > 0) {
+      amountMismatches += 1;
     }
+
+    const key = [
+      payment.bill_id,
+      payment.month || payment.cycle_month || '',
+      paymentAmountPaisa(payment),
+      payment.transaction_id || ''
+    ].join('|');
+
+    dupMap.set(key, (dupMap.get(key) || 0) + 1);
   }
 
-  const duplicateRows = await db.prepare(
-    `SELECT bill_id, bill_month, amount_paisa, COUNT(*) AS c
-     FROM bill_payments
-     WHERE status = 'paid'
-     GROUP BY bill_id, bill_month, amount_paisa
-     HAVING COUNT(*) > 1`
-  ).all();
+  let duplicateBillMonthAmount = 0;
+  for (const count of dupMap.values()) {
+    if (count > 1) duplicateBillMonthAmount += count - 1;
+  }
 
-  const status =
-    orphanPayments.length ||
-    reversedTxnActivePayment.length ||
-    reversedPaymentsMissingReversal.length ||
-    amountMismatches.length
-      ? 'warn'
-      : 'pass';
+  const status = (
+    orphans ||
+    activePaymentReversedTxnMismatch ||
+    missingReversalTxn ||
+    duplicateBillMonthAmount ||
+    amountMismatches
+  ) ? 'warn' : 'ok';
+
+  return {
+    status,
+    version: VERSION,
+    payment_rows: payments.length,
+    orphans,
+    active_payment_reversed_txn_mismatch: activePaymentReversedTxnMismatch,
+    missing_reversal_txn: missingReversalTxn,
+    duplicate_bill_month_amount: duplicateBillMonthAmount,
+    amount_mismatches: amountMismatches,
+    note: 'Health detects stored-row mismatches. Current cycle excludes ledger-reversed payments regardless of stored status.'
+  };
+}
+
+/* ─────────────────────────────
+ * History
+ * ───────────────────────────── */
+
+async function getBillHistory(db, url) {
+  const billId = url.searchParams.get('bill_id') || url.searchParams.get('id');
+
+  if (!billId) {
+    return json({
+      ok: false,
+      version: VERSION,
+      error: 'bill_id required'
+    }, 400);
+  }
+
+  const [paymentCols, txCols] = await Promise.all([
+    tableColumns(db, 'bill_payments'),
+    tableColumns(db, 'transactions')
+  ]);
+
+  const payments = await loadPaymentsForBill(db, paymentCols, billId);
+  const txMap = await loadTransactionMapForPayments(db, txCols, payments);
+
+  const enriched = payments.map(payment => {
+    const tx = payment.transaction_id ? txMap.get(String(payment.transaction_id)) : null;
+    const classifier = classifyPaymentEffectiveness(payment, tx);
+
+    return {
+      ...payment,
+      amount: paymentAmount(payment),
+      amount_paisa: paymentAmountPaisa(payment),
+      ledger_transaction: tx ? sanitizeTransaction(tx) : null,
+      effective_status: classifier.effective_status,
+      effective_paid: classifier.effective_paid,
+      effective_exclusion_reason: classifier.reason,
+      ledger_reversed: classifier.ledger_reversed,
+      ledger_missing: classifier.ledger_missing
+    };
+  });
 
   return json({
     ok: true,
     version: VERSION,
-    health: {
-      status,
-      payment_count: rows.length,
-      orphan_payments_without_transaction: orphanPayments,
-      payments_with_reversed_transaction_but_active_payment: reversedTxnActivePayment,
-      reversed_payments_without_reversal_transaction: reversedPaymentsMissingReversal,
-      duplicate_payments_same_month: duplicateRows.results || [],
-      payment_amount_mismatches: amountMismatches
-    }
+    bill_id: billId,
+    payments: enriched
   });
 }
 
 /* ─────────────────────────────
- * Helpers
+ * Mutations
  * ───────────────────────────── */
 
-async function getBill(db, id) {
-  return db.prepare(
-    `SELECT *
-     FROM bills
-     WHERE id = ?
-     LIMIT 1`
-  ).bind(id).first();
+async function payBill(context, body) {
+  const db = context.env.DB;
+
+  const billId = clean(body.bill_id || body.id, 120);
+  const amount = Number(body.amount);
+  const month = normalizeMonth(body.month || body.cycle_month) || currentMonth();
+
+  if (!billId) {
+    return json({ ok: false, version: VERSION, error: 'bill_id required' }, 400);
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return json({ ok: false, version: VERSION, error: 'amount must be greater than zero' }, 400);
+  }
+
+  const [billCols, paymentCols] = await Promise.all([
+    tableColumns(db, 'bills'),
+    tableColumns(db, 'bill_payments')
+  ]);
+
+  const bill = await getBillById(db, billCols, billId);
+  if (!bill) {
+    return json({ ok: false, version: VERSION, error: 'bill not found' }, 404);
+  }
+
+  const accountId = clean(body.account_id || bill.account_id || bill.default_account_id || 'cash', 120);
+  const categoryId = clean(body.category_id || bill.category_id || DEFAULT_CATEGORY_ID, 120);
+  const notes = clean(
+    body.notes || `${bill.name || bill.label || 'Bill'} · Bill payment · ${month}`,
+    240
+  );
+
+  const dryRun = body.dry_run === true || body.dry_run === '1' || body.dry_run === 'true';
+
+  if (dryRun) {
+    return json({
+      ok: true,
+      version: VERSION,
+      dry_run: true,
+      writes_performed: false,
+      expected_writes: [
+        { model: 'transactions', rows: 1 },
+        { model: 'bill_payments', rows: 1 }
+      ],
+      normalized_payload: {
+        bill_id: billId,
+        month,
+        amount,
+        account_id: accountId,
+        category_id: categoryId,
+        notes
+      }
+    });
+  }
+
+  const txResult = await internalPost(context, '/api/transactions', {
+    type: 'expense',
+    amount,
+    account_id: accountId,
+    category_id: categoryId,
+    date: body.date || todayISO(),
+    notes,
+    created_by: body.created_by || 'bills'
+  });
+
+  const txId = txResult.id || txResult.transaction_id;
+
+  if (!txId) {
+    return json({
+      ok: false,
+      version: VERSION,
+      error: 'transaction write succeeded but no transaction id was returned',
+      transaction_response: txResult
+    }, 500);
+  }
+
+  await ensureBillPaymentsTable(db);
+
+  const paymentId = makeId('billpay');
+  const now = nowISO();
+
+  const row = filterToCols(paymentCols, {
+    id: paymentId,
+    bill_id: billId,
+    month,
+    cycle_month: month,
+    amount,
+    amount_paisa: moneyToPaisa(amount),
+    transaction_id: txId,
+    status: 'paid',
+    paid_at: now,
+    created_at: now,
+    created_by: body.created_by || 'bills'
+  });
+
+  await insertRow(db, 'bill_payments', row).run();
+
+  return json({
+    ok: true,
+    version: VERSION,
+    id: paymentId,
+    bill_payment_id: paymentId,
+    transaction_id: txId,
+    bill_id: billId,
+    month,
+    amount,
+    amount_paisa: moneyToPaisa(amount),
+    status: 'paid'
+  });
 }
 
-async function getTransaction(db, txCols, id) {
-  const select = [
+async function reverseBillPayment(context, body) {
+  const db = context.env.DB;
+  const paymentId = clean(body.payment_id || body.id, 120);
+
+  if (!paymentId) {
+    return json({ ok: false, version: VERSION, error: 'payment_id required' }, 400);
+  }
+
+  const paymentCols = await tableColumns(db, 'bill_payments');
+  const payment = await getBillPaymentById(db, paymentCols, paymentId);
+
+  if (!payment) {
+    return json({ ok: false, version: VERSION, error: 'bill payment not found' }, 404);
+  }
+
+  if (String(payment.status || '').toLowerCase() === 'reversed') {
+    return json({
+      ok: true,
+      version: VERSION,
+      id: paymentId,
+      already_reversed: true,
+      payment
+    });
+  }
+
+  let reversalId = null;
+
+  if (payment.transaction_id) {
+    const reverseResult = await tryReverseTransaction(context, payment.transaction_id, body.reason || 'Bill payment reversed');
+    reversalId = reverseResult.reversal_transaction_id || reverseResult.id || reverseResult.reversal_id || null;
+  }
+
+  const now = nowISO();
+
+  const updates = {
+    status: 'reversed',
+    reversed_at: now,
+    reversal_transaction_id: reversalId
+  };
+
+  await updateRowById(db, 'bill_payments', paymentCols, paymentId, updates);
+
+  return json({
+    ok: true,
+    version: VERSION,
+    id: paymentId,
+    bill_payment_id: paymentId,
+    status: 'reversed',
+    reversed_at: now,
+    reversal_transaction_id: reversalId
+  });
+}
+
+async function deferBill(db, body) {
+  const billId = clean(body.bill_id || body.id, 120);
+  if (!billId) return json({ ok: false, version: VERSION, error: 'bill_id required' }, 400);
+
+  const billCols = await tableColumns(db, 'bills');
+  const updates = {};
+
+  if (billCols.has('deferred_until')) updates.deferred_until = clean(body.deferred_until || body.until || '', 40);
+  if (billCols.has('deferred_month')) updates.deferred_month = clean(body.deferred_month || body.month || '', 20);
+  if (billCols.has('updated_at')) updates.updated_at = nowISO();
+
+  if (!Object.keys(updates).length) {
+    return json({
+      ok: false,
+      version: VERSION,
+      error: 'No supported defer columns exist on bills table'
+    }, 409);
+  }
+
+  await updateRowById(db, 'bills', billCols, billId, updates);
+
+  return json({
+    ok: true,
+    version: VERSION,
+    id: billId,
+    updated: updates
+  });
+}
+
+async function updateBill(db, body) {
+  const billId = clean(body.bill_id || body.id, 120);
+  if (!billId) return json({ ok: false, version: VERSION, error: 'bill_id required' }, 400);
+
+  const billCols = await tableColumns(db, 'bills');
+
+  const updates = filterToCols(billCols, {
+    name: body.name,
+    label: body.label,
+    amount: body.amount,
+    amount_paisa: body.amount_paisa != null ? body.amount_paisa : (body.amount != null ? moneyToPaisa(body.amount) : undefined),
+    due_day: body.due_day,
+    account_id: body.account_id,
+    default_account_id: body.default_account_id,
+    category_id: body.category_id,
+    status: body.status,
+    active: body.active,
+    updated_at: nowISO()
+  });
+
+  for (const key of Object.keys(updates)) {
+    if (updates[key] === undefined) delete updates[key];
+  }
+
+  if (!Object.keys(updates).length) {
+    return json({
+      ok: false,
+      version: VERSION,
+      error: 'No supported bill fields supplied'
+    }, 400);
+  }
+
+  await updateRowById(db, 'bills', billCols, billId, updates);
+
+  return json({
+    ok: true,
+    version: VERSION,
+    id: billId,
+    updated: updates
+  });
+}
+
+async function repairLedgerReversedPayments(db) {
+  const [paymentCols, txCols] = await Promise.all([
+    tableColumns(db, 'bill_payments'),
+    tableColumns(db, 'transactions')
+  ]);
+
+  const payments = await loadAllPayments(db, paymentCols);
+  const txMap = await loadTransactionMapForPayments(db, txCols, payments);
+
+  let repaired = 0;
+  const repairedIds = [];
+
+  for (const payment of payments) {
+    const tx = payment.transaction_id ? txMap.get(String(payment.transaction_id)) : null;
+    const classifier = classifyPaymentEffectiveness(payment, tx);
+
+    if (classifier.ledger_reversed && String(payment.status || 'paid') === 'paid') {
+      await updateRowById(db, 'bill_payments', paymentCols, payment.id, {
+        status: 'reversed',
+        reversed_at: tx?.reversed_at || nowISO(),
+        reversal_transaction_id: tx?.reversed_by || payment.reversal_transaction_id || null
+      });
+      repaired += 1;
+      repairedIds.push(payment.id);
+    }
+  }
+
+  return json({
+    ok: true,
+    version: VERSION,
+    repaired,
+    repaired_ids: repairedIds
+  });
+}
+
+/* ─────────────────────────────
+ * Core classifier
+ * ───────────────────────────── */
+
+function classifyPaymentEffectiveness(payment, tx) {
+  const rawStatus = String(payment.status || 'paid').toLowerCase();
+
+  if (rawStatus === 'reversed' || rawStatus === 'voided' || rawStatus === 'cancelled') {
+    return {
+      effective_status: rawStatus,
+      effective_paid: false,
+      reason: 'payment_status_' + rawStatus,
+      ledger_reversed: Boolean(tx && isReversedTransaction(tx)),
+      ledger_missing: false
+    };
+  }
+
+  if (payment.reversed_at || payment.reversal_transaction_id) {
+    return {
+      effective_status: 'reversed',
+      effective_paid: false,
+      reason: 'payment_has_reversal_marker',
+      ledger_reversed: Boolean(tx && isReversedTransaction(tx)),
+      ledger_missing: false
+    };
+  }
+
+  if (payment.transaction_id && !tx) {
+    return {
+      effective_status: 'ledger_missing',
+      effective_paid: false,
+      reason: 'linked_transaction_missing',
+      ledger_reversed: false,
+      ledger_missing: true
+    };
+  }
+
+  if (tx && isReversedTransaction(tx)) {
+    return {
+      effective_status: 'ledger_reversed',
+      effective_paid: false,
+      reason: 'linked_transaction_reversed',
+      ledger_reversed: true,
+      ledger_missing: false
+    };
+  }
+
+  if (rawStatus === 'paid') {
+    return {
+      effective_status: 'paid',
+      effective_paid: true,
+      reason: null,
+      ledger_reversed: false,
+      ledger_missing: false
+    };
+  }
+
+  return {
+    effective_status: rawStatus || 'unknown',
+    effective_paid: false,
+    reason: 'payment_status_not_paid',
+    ledger_reversed: false,
+    ledger_missing: false
+  };
+}
+
+function isReversedTransaction(tx) {
+  const notes = String(tx?.notes || '').toUpperCase();
+
+  return !!(
+    tx?.reversed_by ||
+    tx?.reversed_at ||
+    notes.includes('[REVERSED BY ') ||
+    notes.includes('[REVERSAL OF ')
+  );
+}
+
+/* ─────────────────────────────
+ * Loaders
+ * ───────────────────────────── */
+
+async function loadBills(db, cols, options = {}) {
+  if (!cols.has('id')) return [];
+
+  const wanted = [
+    'id',
+    'name',
+    'label',
+    'amount',
+    'amount_paisa',
+    'due_day',
+    'account_id',
+    'default_account_id',
+    'category_id',
+    'status',
+    'active',
+    'deferred_until',
+    'deferred_month',
+    'created_at',
+    'updated_at'
+  ].filter(col => cols.has(col));
+
+  const order = cols.has('due_day')
+    ? 'due_day, name, id'
+    : (cols.has('name') ? 'name, id' : 'id');
+
+  const rows = await db.prepare(
+    `SELECT ${wanted.join(', ')}
+     FROM bills
+     ORDER BY ${order}`
+  ).all();
+
+  return (rows.results || [])
+    .filter(row => options.includeInactive || isActiveBill(row))
+    .map(row => ({
+      id: row.id,
+      name: row.name || row.label || row.id,
+      label: row.label || row.name || row.id,
+      amount: row.amount != null ? Number(row.amount) : paisaToMoney(row.amount_paisa || 0),
+      amount_paisa: billAmountPaisa(row),
+      due_day: row.due_day == null ? null : Number(row.due_day),
+      account_id: row.account_id || row.default_account_id || '',
+      default_account_id: row.default_account_id || row.account_id || '',
+      category_id: row.category_id || DEFAULT_CATEGORY_ID,
+      status: row.status || 'active',
+      active: row.active,
+      deferred_until: row.deferred_until || null,
+      deferred_month: row.deferred_month || null,
+      created_at: row.created_at || null,
+      updated_at: row.updated_at || null
+    }));
+}
+
+async function loadPaymentsForMonth(db, cols, month) {
+  if (!cols.has('bill_id')) return [];
+
+  const wanted = paymentSelectColumns(cols);
+  const monthCol = cols.has('month') ? 'month' : (cols.has('cycle_month') ? 'cycle_month' : null);
+
+  if (!monthCol) {
+    return loadAllPayments(db, cols);
+  }
+
+  const rows = await db.prepare(
+    `SELECT ${wanted.join(', ')}
+     FROM bill_payments
+     WHERE ${monthCol} = ?
+     ORDER BY ${cols.has('paid_at') ? 'datetime(paid_at) DESC,' : ''} ${cols.has('created_at') ? 'datetime(created_at) DESC,' : ''} id DESC`
+  ).bind(month).all();
+
+  return normalizePayments(rows.results || []);
+}
+
+async function loadPaymentsForBill(db, cols, billId) {
+  if (!cols.has('bill_id')) return [];
+
+  const wanted = paymentSelectColumns(cols);
+
+  const rows = await db.prepare(
+    `SELECT ${wanted.join(', ')}
+     FROM bill_payments
+     WHERE bill_id = ?
+     ORDER BY ${cols.has('paid_at') ? 'datetime(paid_at) DESC,' : ''} ${cols.has('created_at') ? 'datetime(created_at) DESC,' : ''} id DESC`
+  ).bind(billId).all();
+
+  return normalizePayments(rows.results || []);
+}
+
+async function loadAllPayments(db, cols) {
+  if (!cols.has('id')) return [];
+
+  const wanted = paymentSelectColumns(cols);
+
+  const rows = await db.prepare(
+    `SELECT ${wanted.join(', ')}
+     FROM bill_payments
+     ORDER BY ${cols.has('paid_at') ? 'datetime(paid_at) DESC,' : ''} ${cols.has('created_at') ? 'datetime(created_at) DESC,' : ''} id DESC`
+  ).all();
+
+  return normalizePayments(rows.results || []);
+}
+
+function paymentSelectColumns(cols) {
+  return [
+    'id',
+    'bill_id',
+    'month',
+    'cycle_month',
+    'amount',
+    'amount_paisa',
+    'transaction_id',
+    'status',
+    'paid_at',
+    'reversed_at',
+    'reversal_transaction_id',
+    'created_at',
+    'created_by'
+  ].filter(col => cols.has(col));
+}
+
+function normalizePayments(rows) {
+  return rows.map(row => ({
+    id: row.id,
+    bill_id: row.bill_id,
+    month: row.month || row.cycle_month || '',
+    cycle_month: row.cycle_month || row.month || '',
+    amount: paymentAmount(row),
+    amount_paisa: paymentAmountPaisa(row),
+    transaction_id: row.transaction_id || null,
+    status: row.status || 'paid',
+    paid_at: row.paid_at || row.created_at || null,
+    reversed_at: row.reversed_at || null,
+    reversal_transaction_id: row.reversal_transaction_id || null,
+    created_at: row.created_at || null,
+    created_by: row.created_by || null
+  }));
+}
+
+async function loadTransactionMapForPayments(db, cols, payments) {
+  const ids = Array.from(new Set(
+    payments
+      .flatMap(payment => [payment.transaction_id, payment.reversal_transaction_id])
+      .filter(Boolean)
+      .map(String)
+  ));
+
+  const map = new Map();
+
+  if (!ids.length || !cols.has('id')) return map;
+
+  const wanted = [
     'id',
     'date',
     'type',
     'amount',
+    'pkr_amount',
     'account_id',
     'category_id',
     'notes',
-    'pkr_amount',
     'reversed_by',
-    'reversed_at'
-  ].filter(c => txCols.has(c));
+    'reversed_at',
+    'created_at'
+  ].filter(col => cols.has(col));
 
-  if (!select.length) return null;
+  for (const chunk of chunks(ids, 50)) {
+    const placeholders = chunk.map(() => '?').join(', ');
+    const rows = await db.prepare(
+      `SELECT ${wanted.join(', ')}
+       FROM transactions
+       WHERE id IN (${placeholders})`
+    ).bind(...chunk).all();
 
-  return db.prepare(
-    `SELECT ${select.join(', ')}
-     FROM transactions
-     WHERE id = ?
-     LIMIT 1`
-  ).bind(id).first();
-}
-
-async function resolveAccount(db, accountId) {
-  const row = await db.prepare(
-    `SELECT *
-     FROM accounts
-     WHERE id = ?
-       AND ${ACTIVE_ACCOUNT_CONDITION}
-     LIMIT 1`
-  ).bind(accountId).first();
-
-  if (!row) {
-    return {
-      ok: false,
-      status: 409,
-      error: 'account not found or inactive',
-      account_id: accountId
-    };
-  }
-
-  return {
-    ok: true,
-    account: row
-  };
-}
-
-async function buildBalanceProof(db, account, amountPaisa) {
-  const balance = await computeAccountBalancePaisa(db, account.id);
-  const projected = balance - amountPaisa;
-
-  const proof = {
-    check: 'bill_payment_balance_projection',
-    account_id: account.id,
-    current_balance: paisaToMoney(balance),
-    current_balance_paisa: balance,
-    payment_amount: paisaToMoney(amountPaisa),
-    payment_amount_paisa: amountPaisa,
-    projected_balance: paisaToMoney(projected),
-    projected_balance_paisa: projected,
-    requires_override: false,
-    override_reason: null,
-    status: 'pass'
-  };
-
-  const kind = classifyAccount(account);
-
-  if (kind === 'asset' && projected < -BALANCE_TOLERANCE_PAISA) {
-    proof.status = 'blocked';
-    proof.requires_override = true;
-    proof.override_reason = 'asset_overdraft';
-  }
-
-  return proof;
-}
-
-async function computeAccountBalancePaisa(db, accountId) {
-  const rows = await db.prepare(
-    `SELECT type, amount, notes, reversed_by, reversed_at
-     FROM transactions
-     WHERE account_id = ?`
-  ).bind(accountId).all();
-
-  let balance = 0;
-
-  for (const row of rows.results || []) {
-    if (isReversal(row)) continue;
-
-    const amount = moneyToPaisa(row.amount || 0);
-    const type = String(row.type || '').toLowerCase();
-
-    if (['income', 'borrow', 'salary', 'opening', 'debt_in'].includes(type)) {
-      balance += amount;
-    } else {
-      balance -= amount;
+    for (const row of rows.results || []) {
+      map.set(String(row.id), row);
     }
   }
 
-  return balance;
+  return map;
 }
 
-async function duplicatePaymentWarning(db, billId, billMonth, amountPaisa) {
-  const rows = await db.prepare(
-    `SELECT id
-     FROM bill_payments
-     WHERE bill_id = ?
-       AND bill_month = ?
-       AND amount_paisa = ?
-       AND status = 'paid'
-     LIMIT 5`
-  ).bind(billId, billMonth, amountPaisa).all();
+async function getBillById(db, cols, billId) {
+  if (!cols.has('id')) return null;
 
-  const matches = rows.results || [];
-
-  if (!matches.length) {
-    return {
-      check: 'duplicate_payment',
-      status: 'pass',
-      detail: 'No same bill/month/amount active payment found.'
-    };
-  }
-
-  return {
-    check: 'duplicate_payment',
-    status: 'warn',
-    possible_duplicate_payment_ids: matches.map(r => r.id),
-    detail: 'Possible duplicate bill payment.'
-  };
-}
-
-function classifyAccount(account) {
-  const textValue = [
-    account.kind,
-    account.type,
-    account.account_type,
-    account.name,
-    account.id
-  ].map(v => String(v || '').toLowerCase()).join(' ');
-
-  if (
-    textValue.includes('credit') ||
-    textValue.includes('liability') ||
-    textValue.includes('cc')
-  ) {
-    return 'liability';
-  }
-
-  return 'asset';
-}
-
-function isReversal(row) {
-  const notes = String(row.notes || '').toUpperCase();
-  return notes.includes('[REVERSAL OF ');
-}
-
-function isReversed(row) {
-  const notes = String(row.notes || '').toUpperCase();
-  return !!(row.reversed_by || row.reversed_at || notes.includes('[REVERSED BY '));
-}
-
-function buildMarkTxnReversed(db, txCols, id, reversalId, reason) {
-  const sets = [];
-  const values = [];
-
-  if (txCols.has('reversed_by')) {
-    sets.push('reversed_by = ?');
-    values.push(reversalId);
-  }
-
-  if (txCols.has('reversed_at')) {
-    sets.push('reversed_at = ?');
-    values.push(nowISO());
-  }
-
-  if (txCols.has('notes')) {
-    sets.push(
-      `notes = CASE
-        WHEN notes IS NULL OR notes = '' THEN ?
-        ELSE substr(notes || ' ' || ?, 1, 240)
-      END`
-    );
-
-    const marker = `[REVERSED BY ${reversalId}] ${reason}`.slice(0, 240);
-    values.push(marker, marker);
-  }
-
-  if (!sets.length) {
-    throw new Error('transactions table has no reversal marker columns');
-  }
-
-  values.push(id);
+  const wanted = [
+    'id',
+    'name',
+    'label',
+    'amount',
+    'amount_paisa',
+    'account_id',
+    'default_account_id',
+    'category_id',
+    'status',
+    'active'
+  ].filter(col => cols.has(col));
 
   return db.prepare(
-    `UPDATE transactions
-     SET ${sets.join(', ')}
-     WHERE id = ?`
-  ).bind(...values);
+    `SELECT ${wanted.join(', ')}
+     FROM bills
+     WHERE id = ?
+     LIMIT 1`
+  ).bind(billId).first();
 }
 
-async function cols(db, table) {
-  const result = await db.prepare(`PRAGMA table_info(${table})`).all();
-  const set = new Set();
+async function getBillPaymentById(db, cols, paymentId) {
+  if (!cols.has('id')) return null;
 
-  for (const row of result.results || []) {
-    if (row.name) set.add(row.name);
+  const wanted = paymentSelectColumns(cols);
+
+  return db.prepare(
+    `SELECT ${wanted.join(', ')}
+     FROM bill_payments
+     WHERE id = ?
+     LIMIT 1`
+  ).bind(paymentId).first();
+}
+
+/* ─────────────────────────────
+ * DB helpers
+ * ───────────────────────────── */
+
+async function ensureBillPaymentsTable(db) {
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS bill_payments (
+      id TEXT PRIMARY KEY,
+      bill_id TEXT NOT NULL,
+      month TEXT,
+      amount REAL,
+      amount_paisa INTEGER,
+      transaction_id TEXT,
+      status TEXT DEFAULT 'paid',
+      paid_at TEXT,
+      reversed_at TEXT,
+      reversal_transaction_id TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      created_by TEXT
+    )
+  `).run();
+
+  const needed = {
+    cycle_month: 'TEXT',
+    amount_paisa: 'INTEGER',
+    reversed_at: 'TEXT',
+    reversal_transaction_id: 'TEXT',
+    created_by: 'TEXT'
+  };
+
+  for (const [col, type] of Object.entries(needed)) {
+    await safeAddColumn(db, 'bill_payments', col, type);
   }
-
-  return set;
 }
 
-function filterToCols(colSet, row) {
+async function safeAddColumn(db, table, col, type) {
+  const cols = await tableColumns(db, table);
+  if (cols.has(col)) return;
+
+  try {
+    await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${col} ${type}`).run();
+  } catch {
+    // ignore duplicate race
+  }
+}
+
+async function updateRowById(db, table, cols, id, updates) {
+  const filtered = filterToCols(cols, updates);
+  delete filtered.id;
+
+  const keys = Object.keys(filtered).filter(key => filtered[key] !== undefined);
+
+  if (!keys.length) return;
+
+  await db.prepare(
+    `UPDATE ${table}
+     SET ${keys.map(key => `${key} = ?`).join(', ')}
+     WHERE id = ?`
+  ).bind(...keys.map(key => filtered[key]), id).run();
+}
+
+function filterToCols(cols, row) {
   const out = {};
 
-  for (const [key, value] of Object.entries(row)) {
-    if (colSet.has(key)) out[key] = value;
+  for (const [key, value] of Object.entries(row || {})) {
+    if (cols.has(key)) out[key] = value;
   }
 
   return out;
 }
 
-async function insertDynamic(db, table, colSet, row) {
-  return buildInsert(db, table, filterToCols(colSet, row)).run();
-}
-
-function buildInsert(db, table, row) {
+function insertRow(db, table, row) {
   const keys = Object.keys(row);
 
   if (!keys.length) {
-    throw new Error('no insertable columns for ' + table);
+    throw new Error('No insertable columns for ' + table);
   }
 
   return db.prepare(
     `INSERT INTO ${table} (${keys.join(', ')})
      VALUES (${keys.map(() => '?').join(', ')})`
-  ).bind(...keys.map(k => row[k]));
+  ).bind(...keys.map(key => row[key]));
 }
 
-async function updateDynamic(db, table, colSet, id, patch) {
-  return buildUpdate(db, table, colSet, id, patch).run();
-}
-
-function buildUpdate(db, table, colSet, id, patch) {
-  const keys = Object.keys(patch).filter(k => colSet.has(k));
-
-  if (!keys.length) {
-    return db.prepare(`SELECT 1`).bind();
-  }
-
-  return db.prepare(
-    `UPDATE ${table}
-     SET ${keys.map(k => `${k} = ?`).join(', ')}
-     WHERE id = ?`
-  ).bind(...keys.map(k => patch[k]), id);
-}
-
-async function safeAudit(context, event) {
+async function tableColumns(db, table) {
   try {
-    const result = await audit(context.env, {
-      ...event,
-      detail: typeof event.detail === 'string'
-        ? event.detail
-        : JSON.stringify(event.detail || {})
-    });
+    const result = await db.prepare(`PRAGMA table_info(${table})`).all();
+    const set = new Set();
 
-    return {
-      ok: !!(result && result.ok),
-      error: result && result.error ? result.error : null
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      error: err.message
-    };
+    for (const row of result.results || []) {
+      if (row.name) set.add(row.name);
+    }
+
+    return set;
+  } catch {
+    return new Set();
   }
 }
 
-function getPathParts(context) {
+/* ─────────────────────────────
+ * Transaction helpers
+ * ───────────────────────────── */
+
+async function internalPost(context, path, body) {
+  const url = new URL(context.request.url);
+  const [pathname, search = ''] = path.split('?');
+
+  url.pathname = pathname;
+  url.search = search ? '?' + search : '';
+
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body || {})
+  });
+
+  const payload = await response.json().catch(() => null);
+
+  if (!response.ok || !payload || payload.ok === false) {
+    throw new Error((payload && payload.error) || 'HTTP ' + response.status);
+  }
+
+  return payload;
+}
+
+async function tryReverseTransaction(context, transactionId, reason) {
+  const attempts = [
+    {
+      path: `/api/transactions/${encodeURIComponent(transactionId)}/reverse`,
+      body: { reason, created_by: 'bills' }
+    },
+    {
+      path: '/api/transactions/reverse',
+      body: { id: transactionId, reason, created_by: 'bills' }
+    },
+    {
+      path: `/api/transactions/${encodeURIComponent(transactionId)}`,
+      body: { action: 'reverse', reason, created_by: 'bills' }
+    }
+  ];
+
+  let lastError = null;
+
+  for (const attempt of attempts) {
+    try {
+      return await internalPost(context, attempt.path, attempt.body);
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('transaction reversal failed');
+}
+
+/* ─────────────────────────────
+ * Money / status helpers
+ * ───────────────────────────── */
+
+function isActiveBill(bill) {
+  const status = String(bill.status || 'active').toLowerCase();
+
+  if (status === 'inactive' || status === 'archived' || status === 'deleted') return false;
+  if (bill.active === 0 || bill.active === false || bill.active === '0' || bill.active === 'false') return false;
+
+  return true;
+}
+
+function billAmountPaisa(bill) {
+  if (bill.amount_paisa != null && Number.isFinite(Number(bill.amount_paisa))) {
+    return Math.round(Number(bill.amount_paisa));
+  }
+
+  return moneyToPaisa(bill.amount || 0);
+}
+
+function paymentAmount(payment) {
+  if (payment.amount != null && Number.isFinite(Number(payment.amount))) {
+    return roundMoney(Number(payment.amount));
+  }
+
+  return paisaToMoney(payment.amount_paisa || 0);
+}
+
+function paymentAmountPaisa(payment) {
+  if (payment.amount_paisa != null && Number.isFinite(Number(payment.amount_paisa))) {
+    return Math.round(Number(payment.amount_paisa));
+  }
+
+  return moneyToPaisa(payment.amount || 0);
+}
+
+function txAmountPaisa(tx) {
+  const pkr = Number(tx.pkr_amount);
+  if (Number.isFinite(pkr) && pkr !== 0) return moneyToPaisa(pkr);
+
+  const amount = Number(tx.amount);
+  if (Number.isFinite(amount)) return moneyToPaisa(amount);
+
+  return 0;
+}
+
+function moneyToPaisa(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100);
+}
+
+function paisaToMoney(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n) / 100;
+}
+
+function roundMoney(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+function sanitizeTransaction(tx) {
+  return {
+    id: tx.id,
+    date: tx.date || null,
+    type: tx.type || null,
+    amount: tx.amount != null ? Number(tx.amount) : null,
+    pkr_amount: tx.pkr_amount != null ? Number(tx.pkr_amount) : null,
+    account_id: tx.account_id || null,
+    category_id: tx.category_id || null,
+    reversed_by: tx.reversed_by || null,
+    reversed_at: tx.reversed_at || null,
+    is_reversed: isReversedTransaction(tx)
+  };
+}
+
+/* ─────────────────────────────
+ * Utility
+ * ───────────────────────────── */
+
+function pathParts(context) {
   const raw = context.params && context.params.path;
 
-  if (Array.isArray(raw)) {
-    return raw.map(String).filter(Boolean);
-  }
-
+  if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
   if (!raw) return [];
 
   return String(raw).split('/').filter(Boolean);
@@ -1375,42 +1225,13 @@ async function readJSON(request) {
   }
 }
 
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache'
-    }
-  });
+function normalizeMonth(value) {
+  const raw = clean(value, 20);
+  return /^\d{4}-\d{2}$/.test(raw) ? raw : null;
 }
 
-function moneyToPaisa(value) {
-  const n = Number(value);
-
-  if (!Number.isFinite(n)) return 0;
-
-  return Math.round(n * 100);
-}
-
-function paisaToMoney(value) {
-  const n = Number(value);
-
-  if (!Number.isFinite(n)) return 0;
-
-  return Math.round(n) / 100;
-}
-
-function roundMoney(value) {
-  const n = Number(value);
-
-  if (!Number.isFinite(n)) return 0;
-
-  return Math.round(n * 100) / 100;
-}
-
-function currentBillMonth() {
-  return todayISO().slice(0, 7);
+function currentMonth() {
+  return new Date().toISOString().slice(0, 7);
 }
 
 function todayISO() {
@@ -1421,54 +1242,31 @@ function nowISO() {
   return new Date().toISOString();
 }
 
-function normalizeDate(value) {
-  const raw = text(value, '', 40);
-
-  if (!raw) return null;
-  if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
-
-  return raw.slice(0, 10);
-}
-
-function nullableInt(value) {
-  if (value === null || value === undefined || value === '') return null;
-
-  const n = Number(value);
-
-  if (!Number.isFinite(n)) return null;
-
-  return Math.floor(n);
-}
-
-function text(value, fallback = '', max = 500) {
-  const raw = value == null ? fallback : value;
-
-  return String(raw == null ? '' : raw).trim().slice(0, max);
+function clean(value, max = 500) {
+  return String(value == null ? '' : value).trim().slice(0, max);
 }
 
 function makeId(prefix) {
   return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
 }
 
-async function hash(value) {
-  const canonical = JSON.stringify(sortKeys(value));
-  const bytes = new TextEncoder().encode(canonical);
-  const digest = await crypto.subtle.digest('SHA-256', bytes);
+function chunks(values, size) {
+  const out = [];
 
-  return Array.from(new Uint8Array(digest))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-}
-
-function sortKeys(value) {
-  if (Array.isArray(value)) return value.map(sortKeys);
-
-  if (value && typeof value === 'object') {
-    return Object.keys(value).sort().reduce((acc, key) => {
-      acc[key] = sortKeys(value[key]);
-      return acc;
-    }, {});
+  for (let i = 0; i < values.length; i += size) {
+    out.push(values.slice(i, i + size));
   }
 
-  return value;
+  return out;
+}
+
+function json(payload, status = 200) {
+  return new Response(JSON.stringify(payload, null, 2), {
+    status,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      'Pragma': 'no-cache'
+    }
+  });
 }
