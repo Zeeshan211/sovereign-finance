@@ -1,1364 +1,1070 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" data-page="salary">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sovereign Finance — Salary</title>
-  <link rel="stylesheet" href="/css/app.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#050816">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+
+  <title>Salary · Sovereign Finance</title>
+
+  <script src="/js/sf-theme-switcher.js"></script>
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
 
   <style>
-    :root {
-      --sf-bg: #f3f6ef;
-      --sf-surface: #ffffff;
-      --sf-ink: #18211b;
-      --sf-muted: #667064;
-      --sf-faint: #8b9589;
-      --sf-line: #dfe6da;
-      --sf-hero: #111c17;
-      --sf-hero-2: #1b2b23;
-      --sf-green: #2f7d4f;
-      --sf-green-soft: #e7f3eb;
-      --sf-yellow: #b7791f;
-      --sf-yellow-soft: #fff6dd;
-      --sf-red: #c2413a;
-      --sf-red-soft: #fdebea;
-      --sf-blue: #2f5f9f;
-      --sf-blue-soft: #e8effb;
-      --sf-radius: 22px;
-      --sf-shadow: 0 18px 50px rgba(28, 42, 31, 0.10);
-    }
-
-    html,
-    body {
-      max-width: 100%;
-      overflow-x: hidden;
-    }
-
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-    }
-
-    body {
-      min-height: 100vh;
-      margin: 0;
-      background: var(--sf-bg);
-      color: var(--sf-ink);
-    }
-
-    .sal-shell {
-      width: min(1180px, calc(100% - 32px));
-      max-width: 1180px;
+    .salary-os {
+      width: min(100%, 1480px);
       margin: 0 auto;
-      padding: 24px 0 48px;
+      display: grid;
+      gap: var(--sf-space-5, 20px);
     }
 
-    .sal-topbar {
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      gap: 18px;
-      margin-bottom: 22px;
-      padding: 30px;
-      border-radius: 30px;
-      background:
-        radial-gradient(circle at top right, rgba(84, 168, 116, 0.28), transparent 28rem),
-        linear-gradient(135deg, var(--sf-hero), var(--sf-hero-2));
-      color: #fff;
-      box-shadow: var(--sf-shadow);
+    .salary-command {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--sf-space-4, 16px);
+      align-items: center;
+      padding: clamp(18px, 3vw, 28px);
+      border: 1px solid var(--sf-border);
+      border-radius: var(--sf-radius-xl, 24px);
+      background: var(--sf-card);
+      box-shadow: var(--sf-shadow-sm);
     }
 
-    .sal-kicker {
-      color: rgba(255, 255, 255, .68);
-      font-size: 12px;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      margin-bottom: 6px;
-    }
-
-    .sal-title {
+    .salary-hero-title {
       margin: 0;
-      font-size: clamp(32px, 5vw, 56px);
-      line-height: .95;
-      letter-spacing: -.055em;
+      color: var(--sf-text);
+      font-size: clamp(34px, 6vw, 62px);
+      line-height: .92;
+      font-weight: 950;
+      letter-spacing: -.07em;
     }
 
-    .sal-version {
-      color: rgba(255, 255, 255, .58);
-      font-size: 12px;
-      text-align: right;
-      white-space: nowrap;
+    .salary-copy {
+      margin: 10px 0 0;
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-14, 14px);
+      font-weight: 700;
+      line-height: 1.55;
+      max-width: 900px;
     }
 
-    .sal-status {
-      border: 1px solid var(--sf-line);
-      background: var(--sf-surface);
-      border-radius: 18px;
-      padding: 14px 16px;
-      color: var(--sf-muted);
-      margin-bottom: 18px;
-      box-shadow: var(--sf-shadow);
+    .salary-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sf-space-2, 10px);
+      justify-content: flex-end;
     }
 
-    .sal-status strong {
-      color: var(--sf-ink);
-    }
-
-    .sal-summary {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-      margin-bottom: 18px;
-    }
-
-    .sal-card,
-    .sal-panel {
-      border: 1px solid var(--sf-line);
-      background: var(--sf-surface);
-      border-radius: var(--sf-radius);
-      box-shadow: var(--sf-shadow);
-      min-width: 0;
-    }
-
-    .sal-card {
-      padding: 18px;
-      min-height: 122px;
-      overflow: hidden;
+    .salary-insight {
       position: relative;
+      overflow: hidden;
+      padding: clamp(22px, 4vw, 38px);
+      border-radius: var(--sf-radius-2xl, 30px);
+      color: #f8fafc;
+      background:
+        radial-gradient(circle at 82% 12%, rgba(83, 215, 167, .28), transparent 24rem),
+        linear-gradient(135deg, #06111f, #0f172a 48%, #102a25);
+      border: 1px solid rgba(255, 255, 255, .10);
+      box-shadow: var(--sf-shadow-lg);
     }
 
-    .sal-card::after {
-      content: "";
-      position: absolute;
-      right: -38px;
-      bottom: -52px;
-      width: 120px;
-      height: 120px;
-      border-radius: 999px;
-      background: var(--sf-green-soft);
-      pointer-events: none;
+    .salary-insight h2 {
+      margin: 12px 0 0;
+      color: #fff;
+      font-size: clamp(34px, 6vw, 68px);
+      line-height: .92;
+      font-weight: 950;
+      letter-spacing: -.075em;
     }
 
-    .sal-label {
-      color: var(--sf-muted);
-      font-size: 13px;
-      margin-bottom: 8px;
+    .salary-insight p {
+      max-width: 900px;
+      margin: 14px 0 0;
+      color: #cbd5e1;
+      font-size: var(--sf-font-15, 15px);
+      line-height: 1.6;
+      font-weight: 720;
     }
 
-    .sal-value {
-      color: var(--sf-ink);
-      font-size: clamp(22px, 3vw, 34px);
-      line-height: 1.05;
-      font-weight: 760;
-      letter-spacing: -.045em;
-      word-break: break-word;
-      overflow-wrap: anywhere;
-    }
-
-    .sal-sub {
-      color: var(--sf-faint);
-      font-size: 12px;
-      margin-top: 8px;
-      line-height: 1.4;
-    }
-
-    .sal-grid {
+    .salary-metrics {
       display: grid;
-      grid-template-columns: 1.15fr .85fr;
-      gap: 18px;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: var(--sf-space-4, 14px);
+    }
+
+    .salary-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
+      gap: var(--sf-space-4, 16px);
       align-items: start;
     }
 
-    .sal-panel {
-      padding: 18px;
-      margin-bottom: 18px;
-    }
-
-    .sal-panel h2,
-    .sal-panel h3 {
-      margin: 0 0 14px;
-      color: var(--sf-ink);
-      letter-spacing: -.03em;
-    }
-
-    .sal-panel h2 {
-      font-size: 22px;
-    }
-
-    .sal-panel h3 {
-      font-size: 17px;
-    }
-
-    .sal-form {
+    .salary-stack {
       display: grid;
-      gap: 14px;
+      gap: var(--sf-space-4, 16px);
     }
 
-    .sal-two,
-    .sal-three {
+    .salary-grid {
       display: grid;
-      gap: 12px;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: var(--sf-space-4, 16px);
     }
 
-    .sal-two {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
+    .salary-span-12 { grid-column: span 12; }
+    .salary-span-8 { grid-column: span 8; }
+    .salary-span-6 { grid-column: span 6; }
+    .salary-span-4 { grid-column: span 4; }
+    .salary-span-3 { grid-column: span 3; }
 
-    .sal-three {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .sal-field {
+    .salary-field {
       display: grid;
-      gap: 7px;
-      min-width: 0;
+      gap: var(--sf-space-2, 8px);
     }
 
-    .sal-field label {
-      color: var(--sf-muted);
-      font-size: 13px;
+    .salary-field label {
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-12, 12px);
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
     }
 
-    .sal-field input {
+    .salary-input,
+    .salary-select,
+    .salary-textarea {
       width: 100%;
-      border: 1px solid var(--sf-line);
-      border-radius: 14px;
-      background: #fbfdf8;
-      color: var(--sf-ink);
+      border: 1px solid var(--sf-border);
+      border-radius: var(--sf-radius-sm, 14px);
+      background: var(--sf-surface-1);
+      color: var(--sf-text);
       padding: 12px 13px;
       font: inherit;
       outline: none;
     }
 
-    .sal-field input:focus {
-      border-color: #89b894;
-      box-shadow: 0 0 0 3px rgba(47, 125, 79, .12);
+    .salary-textarea {
+      min-height: 92px;
+      resize: vertical;
     }
 
-    .sal-field input[readonly] {
-      color: var(--sf-muted);
-      background: #f7faf4;
+    .salary-input:focus,
+    .salary-select:focus,
+    .salary-textarea:focus {
+      border-color: var(--sf-accent);
+      box-shadow: 0 0 0 3px var(--sf-accent-soft);
     }
 
-    .sal-check {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      border: 1px solid var(--sf-line);
-      background: #fbfdf8;
-      border-radius: 16px;
-      padding: 13px;
-      color: var(--sf-muted);
-      font-size: 13px;
-      line-height: 1.45;
-      min-width: 0;
-    }
-
-    .sal-check input {
-      margin-top: 3px;
-      width: 18px;
-      height: 18px;
-      accent-color: var(--sf-green);
-      flex: 0 0 auto;
-    }
-
-    .sal-row-list {
+    .salary-row {
       display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 12px;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--sf-border-subtle);
     }
 
-    .sal-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 11px 0;
-      border-bottom: 1px solid var(--sf-line);
-      min-width: 0;
-    }
-
-    .sal-row:last-child {
+    .salary-row:last-child {
       border-bottom: 0;
+      padding-bottom: 0;
     }
 
-    .sal-row span {
-      overflow-wrap: anywhere;
-    }
-
-    .sal-row span:first-child {
-      color: var(--sf-muted);
-    }
-
-    .sal-row span:last-child {
-      text-align: right;
-      font-weight: 700;
-      color: var(--sf-ink);
-    }
-
-    .sal-pill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 999px;
-      border: 1px solid var(--sf-line);
-      padding: 7px 10px;
-      font-size: 12px;
-      color: var(--sf-muted);
-      background: #f8faf5;
-      white-space: nowrap;
-    }
-
-    .sal-pill.good {
-      color: var(--sf-green);
-      border-color: #b8dac4;
-      background: var(--sf-green-soft);
-    }
-
-    .sal-pill.warn {
-      color: var(--sf-yellow);
-      border-color: #eed58e;
-      background: var(--sf-yellow-soft);
-    }
-
-    .sal-pill.danger {
-      color: var(--sf-red);
-      border-color: #f3b8b5;
-      background: var(--sf-red-soft);
-    }
-
-    .sal-chart-grid {
-      display: grid;
-      grid-template-columns: 180px 1fr;
-      gap: 18px;
-      align-items: center;
-    }
-
-    .sal-donut {
-      width: 160px;
-      height: 160px;
-      border-radius: 999px;
-      background: conic-gradient(var(--sf-green) 0deg, var(--sf-green) 360deg);
-      position: relative;
-      box-shadow: inset 0 0 0 1px var(--sf-line);
-    }
-
-    .sal-donut::after {
-      content: "";
-      position: absolute;
-      inset: 34px;
-      border-radius: 999px;
-      background: var(--sf-surface);
-      box-shadow: inset 0 0 0 1px var(--sf-line);
-    }
-
-    .sal-donut-label {
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      z-index: 1;
-      text-align: center;
-      padding: 44px;
-      font-size: 12px;
-      color: var(--sf-muted);
+    .salary-row-title {
+      color: var(--sf-text);
+      font-size: 14px;
+      font-weight: 900;
       line-height: 1.25;
     }
 
-    .sal-bar {
-      height: 11px;
-      border-radius: 999px;
-      background: #e6ecdf;
-      overflow: hidden;
-      margin-top: 8px;
-    }
-
-    .sal-bar span {
-      display: block;
-      height: 100%;
-      width: 0%;
-      min-width: 4px;
-      max-width: 100%;
-      border-radius: inherit;
-      background: linear-gradient(90deg, #2f7d4f, #b7791f, #2f5f9f);
-    }
-
-    .sal-button-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
+    .salary-row-sub {
       margin-top: 4px;
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.4;
     }
 
-    .sal-button {
-      border: 1px solid #246540;
-      background: var(--sf-green);
-      color: #fff;
-      border-radius: 999px;
-      padding: 11px 16px;
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
+    .salary-row-value {
+      color: var(--sf-text);
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      white-space: nowrap;
     }
 
-    .sal-button.secondary {
-      border-color: var(--sf-line);
-      background: #fbfdf8;
-      color: var(--sf-ink);
+    .salary-proof {
+      display: grid;
+      gap: 10px;
     }
 
-    .sal-button:disabled {
-      cursor: not-allowed;
-      opacity: .55;
+    .salary-proof-line {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--sf-border-subtle);
     }
 
-    .sal-empty {
-      border: 1px dashed #cbd6c5;
-      color: var(--sf-muted);
-      border-radius: 18px;
-      padding: 18px;
-      background: #fbfdf8;
+    .salary-proof-line:last-child {
+      border-bottom: 0;
+    }
+
+    .salary-proof-line code,
+    .salary-code {
+      color: var(--sf-info);
+      background: var(--sf-info-soft);
+      border: 1px solid rgba(143, 188, 255, .20);
+      border-radius: 10px;
+      padding: 2px 6px;
+      font-family: var(--sf-font-mono);
+      font-size: 11px;
+    }
+
+    .salary-candidate {
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 16px;
+      background: var(--sf-surface-1);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .salary-candidate-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .salary-candidate-title {
+      color: var(--sf-text);
+      font-weight: 950;
+      font-size: 14px;
+    }
+
+    .salary-candidate-meta {
+      color: var(--sf-text-muted);
+      font-size: 12px;
       line-height: 1.45;
     }
 
-    .sal-error {
-      color: var(--sf-red);
+    .salary-split-bar {
+      display: grid;
+      grid-template-columns: var(--guaranteed, 1fr) var(--variable, 0fr) var(--tax, 0fr);
+      gap: 4px;
+      height: 18px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: var(--sf-surface-2);
+      border: 1px solid var(--sf-border-subtle);
     }
 
-    .sal-debug {
-      display: none;
+    .salary-split-bar span:nth-child(1) { background: var(--sf-positive); }
+    .salary-split-bar span:nth-child(2) { background: var(--sf-warning); }
+    .salary-split-bar span:nth-child(3) { background: var(--sf-danger); }
+
+    .salary-empty {
+      border: 1px dashed var(--sf-border);
+      border-radius: 18px;
+      padding: 18px;
+      color: var(--sf-text-muted);
+      background: var(--sf-surface-1);
+      line-height: 1.5;
+    }
+
+    .salary-debug {
       white-space: pre-wrap;
-      overflow-x: auto;
-      max-height: 360px;
+      overflow: auto;
+      max-height: 520px;
+      border-radius: 16px;
+      padding: 14px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-muted);
       font-size: 12px;
       line-height: 1.5;
-      color: var(--sf-muted);
-      background: #f8faf5;
-      border-radius: 14px;
-      padding: 14px;
+      font-family: var(--sf-font-mono);
     }
 
-    .sal-debug.is-visible {
-      display: block;
+    .salary-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
     }
 
-    @media (max-width: 980px) {
-      .sal-grid {
+    .salary-pill {
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 999px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-soft);
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .salary-toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 9999;
+      transform: translateY(18px);
+      opacity: 0;
+      pointer-events: none;
+      transition: .2s ease;
+      border: 1px solid var(--sf-border);
+      border-radius: 16px;
+      padding: 12px 14px;
+      background: var(--sf-card-strong);
+      color: var(--sf-text);
+      box-shadow: var(--sf-shadow-md);
+      font-weight: 850;
+    }
+
+    .salary-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    @media (max-width: 1180px) {
+      .salary-command,
+      .salary-workspace {
         grid-template-columns: 1fr;
       }
 
-      .sal-summary {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+      .salary-actions {
+        justify-content: flex-start;
+      }
+
+      .salary-span-8,
+      .salary-span-6,
+      .salary-span-4,
+      .salary-span-3 {
+        grid-column: span 12;
       }
     }
 
     @media (max-width: 760px) {
-      .sal-shell {
-        width: min(100% - 20px, 1180px);
-        padding-bottom: 36px;
+      .salary-actions .sf-button {
+        width: 100%;
       }
 
-      .sal-topbar {
-        margin-bottom: 16px;
+      .salary-row,
+      .salary-proof-line,
+      .salary-candidate-head {
+        grid-template-columns: 1fr;
       }
 
-      .sal-summary,
-      .sal-two,
-      .sal-three,
-      .sal-grid,
-      .sal-chart-grid {
-        grid-template-columns: 1fr !important;
-      }
-
-      .sal-panel,
-      .sal-card {
-        border-radius: 18px;
-      }
-
-      .sal-row {
-        align-items: flex-start;
-      }
-
-      .sal-row span:last-child {
-        max-width: 54%;
-      }
-
-      .sal-donut {
-        margin: 0 auto;
-      }
-    }
-
-    @media (max-width: 420px) {
-      .sal-topbar {
-        flex-direction: column;
-        align-items: stretch;
-        padding: 24px;
-        border-radius: 24px;
-      }
-
-      .sal-version {
-        text-align: left;
-      }
-
-      .sal-title {
-        font-size: 34px;
-      }
-
-      .sal-value {
-        font-size: 24px;
-      }
-
-      .sal-row {
-        flex-direction: column;
-        gap: 4px;
-      }
-
-      .sal-row span:last-child {
-        max-width: 100%;
+      .salary-row-value {
         text-align: left;
       }
     }
   </style>
 </head>
 
-<body>
-  <main class="sal-shell" data-page="salary" data-version="salary-payslip-engine-v1.0.4-gross-wfh">
-    <section class="sal-topbar">
-      <div>
-        <div class="sal-kicker">Sovereign Finance</div>
-        <h1 class="sal-title">Salary</h1>
-      </div>
-      <div class="sal-version">salary-payslip-engine-v1.0.4-gross-wfh</div>
-    </section>
+<body class="sf-shell-body">
+  <div class="sf-app-shell sf-app-shell--with-nav">
+    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
 
-    <section id="salStatus" class="sal-status">
-      <strong>Loading salary engine…</strong>
-      <span>Base salary is not tax-deducted in the monthly forecast.</span>
-    </section>
+    <main class="sf-page-shell">
+      <section class="sf-page-content salary-os">
+        <section class="salary-command">
+          <div>
+            <div class="sf-page-eyebrow">Salary truth engine</div>
+            <h1 class="salary-hero-title">Salary</h1>
+            <p class="salary-copy">
+              Salary is now rendered from the backend contract. This page does not own money truth and does not write ledger transactions.
+            </p>
+          </div>
 
-    <section class="sal-summary">
-      <article class="sal-card">
-        <div class="sal-label">Base Salary</div>
-        <div id="baseSalaryCard" class="sal-value">—</div>
-        <div class="sal-sub">Gross monthly salary used in forecast.</div>
-      </article>
-
-      <article class="sal-card">
-        <div class="sal-label">WFH Allowance</div>
-        <div id="wfhCard" class="sal-value">—</div>
-        <div class="sal-sub">30 USD × salary-day FX.</div>
-      </article>
-
-      <article class="sal-card">
-        <div class="sal-label">MBO Net</div>
-        <div id="mboNetCard" class="sal-value">—</div>
-        <div class="sal-sub">Only Jan / Apr / Jul / Oct.</div>
-      </article>
-
-      <article class="sal-card">
-        <div class="sal-label">Forecast Salary</div>
-        <div id="forecastSalaryCard" class="sal-value">—</div>
-        <div class="sal-sub">Exported to forecast.</div>
-      </article>
-    </section>
-
-    <section class="sal-grid">
-      <div>
-        <section class="sal-panel">
-          <h2>Payslip salary base</h2>
-          <div class="sal-form">
-            <div class="sal-three">
-              <div class="sal-field">
-                <label for="basicSalary">Basic salary</label>
-                <input id="basicSalary" type="number" value="74226" readonly />
-              </div>
-
-              <div class="sal-field">
-                <label for="houseRent">House rent allowance</label>
-                <input id="houseRent" type="number" value="25979" readonly />
-              </div>
-
-              <div class="sal-field">
-                <label for="medicalAllowance">Medical allowance</label>
-                <input id="medicalAllowance" type="number" value="7423" readonly />
-              </div>
-            </div>
-
-            <div class="sal-three">
-              <div class="sal-field">
-                <label for="utilityAllowance">Utility allowance</label>
-                <input id="utilityAllowance" type="number" value="3705" readonly />
-              </div>
-
-              <div class="sal-field">
-                <label for="baseGross">Forecast base salary</label>
-                <input id="baseGross" type="number" value="111333.34" step="0.01" inputmode="decimal" />
-              </div>
-
-              <div class="sal-field">
-                <label for="forecastMonth">Forecast month</label>
-                <input id="forecastMonth" type="month" />
-              </div>
-            </div>
-
-            <div class="sal-empty">
-              The forecast base salary is not reduced by the monthly income-tax row. The tax table is shown for audit and MBO/extra tax estimation only.
-            </div>
+          <div class="salary-actions">
+            <button class="sf-button sf-button--primary" id="refreshSalaryBtn" type="button">Refresh</button>
+            <a class="sf-button" id="addSalaryLink" href="/add.html">Add Salary Income</a>
+            <a class="sf-button" href="/forecast.html">Forecast</a>
+            <a class="sf-button" href="/transactions.html">Ledger</a>
           </div>
         </section>
 
-        <section class="sal-panel">
-          <h2>WFH allowance</h2>
-          <div class="sal-form">
-            <div class="sal-three">
-              <div class="sal-field">
-                <label for="includeWfh">Include WFH this month</label>
-                <input id="includeWfh" type="checkbox" checked />
-              </div>
-
-              <div class="sal-field">
-                <label for="wfhUsd">WFH USD amount</label>
-                <input id="wfhUsd" type="number" value="30" step="0.01" inputmode="decimal" />
-              </div>
-
-              <div class="sal-field">
-                <label for="wfhFxRate">Salary-day USD/PKR rate</label>
-                <input id="wfhFxRate" type="number" value="278.8667" step="0.0001" inputmode="decimal" />
-              </div>
-            </div>
-
-            <div class="sal-two">
-              <div class="sal-field">
-                <label for="wfhAllowance">WFH calculated</label>
-                <input id="wfhAllowance" type="number" value="8366" step="0.01" inputmode="decimal" readonly />
-              </div>
-
-              <div class="sal-field">
-                <label for="wfhNote">WFH note</label>
-                <input id="wfhNote" type="text" value="Use fresh salary-day FX rate" readonly />
-              </div>
-            </div>
-
-            <div class="sal-empty">
-              WFH is calculated as 30 USD multiplied by the salary-day USD/PKR rate. The default FX is the latest payslip-implied fallback, not fixed truth.
-            </div>
+        <section class="salary-insight">
+          <div class="sf-page-eyebrow">Contract-rendered salary</div>
+          <h2 id="salaryHeroAmount">Loading…</h2>
+          <p id="salaryHeroCopy">
+            Reading /api/salary and checking current-month ledger-backed salary detection.
+          </p>
+          <div class="salary-pill-row">
+            <span class="salary-pill" id="salaryVersionPill">version loading</span>
+            <span class="salary-pill" id="salarySchemaPill">schema loading</span>
+            <span class="salary-pill" id="salaryStatusPill">status loading</span>
           </div>
         </section>
 
-        <section class="sal-panel">
-          <h2>MBO forecast control</h2>
-          <div class="sal-form">
-            <div class="sal-two">
-              <div class="sal-field">
-                <label for="mboAmount">MBO amount</label>
-                <input id="mboAmount" type="number" value="35000" step="0.01" inputmode="decimal" />
-              </div>
+        <section class="salary-metrics">
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Forecast Eligible</p>
+            <div id="metricForecastEligible" class="sf-metric-value sf-tone-positive">—</div>
+            <p class="sf-card-subtitle">Amount Forecast may consume.</p>
+          </article>
 
-              <div class="sal-field">
-                <label for="mboPayoutsPerYear">MBO payouts per tax year</label>
-                <input id="mboPayoutsPerYear" type="number" value="4" min="0" max="12" step="1" readonly />
-              </div>
-            </div>
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Guaranteed Net</p>
+            <div id="metricGuaranteed" class="sf-metric-value">—</div>
+            <p class="sf-card-subtitle">Base + WFH after estimated tax.</p>
+          </article>
 
-            <label class="sal-check">
-              <input id="includeMbo" type="checkbox" disabled />
-              <span>MBO is included only for January, April, July, and October. Amount is editable; recurrence is not.</span>
-            </label>
-          </div>
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Variable Net</p>
+            <div id="metricVariable" class="sf-metric-value sf-tone-warning">—</div>
+            <p class="sf-card-subtitle">Included only when confirmed.</p>
+          </article>
+
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Current Month</p>
+            <div id="metricCurrentMonth" class="sf-metric-value">—</div>
+            <p class="sf-card-subtitle" id="metricCurrentMonthSub">Ledger-backed salary status.</p>
+          </article>
         </section>
 
-        <section class="sal-panel">
-          <h2>Confirmed one-off extras</h2>
-          <div class="sal-form">
-            <div class="sal-three">
-              <div class="sal-field">
-                <label for="overtimeGeneral">Overtime general</label>
-                <input id="overtimeGeneral" type="number" value="0" step="0.01" inputmode="decimal" />
+        <section class="salary-workspace">
+          <div class="salary-stack">
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Salary calculation</p>
+                  <h2 class="sf-section-title">Backend Truth</h2>
+                  <p class="sf-section-subtitle">
+                    These numbers come from /api/salary. The page does not recalculate separate truth.
+                  </p>
+                </div>
               </div>
 
-              <div class="sal-field">
-                <label for="overtimeEid">Overtime Eid</label>
-                <input id="overtimeEid" type="number" value="0" step="0.01" inputmode="decimal" />
+              <div id="salaryCalculationPanel" class="salary-stack">
+                <div class="salary-empty">Loading salary calculation…</div>
+              </div>
+            </section>
+
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Current month detection</p>
+                  <h2 class="sf-section-title">Ledger-backed Salary Status</h2>
+                  <p class="sf-section-subtitle">
+                    Salary is considered received only if a matching active ledger income row exists.
+                  </p>
+                </div>
               </div>
 
-              <div class="sal-field">
-                <label for="referralBonus">Referral bonus</label>
-                <input id="referralBonus" type="number" value="0" step="0.01" inputmode="decimal" />
+              <div id="salaryDetectionPanel" class="salary-stack">
+                <div class="salary-empty">Loading salary detection…</div>
               </div>
-            </div>
+            </section>
 
-            <div class="sal-three">
-              <div class="sal-field">
-                <label for="spotBonus">Spot bonus</label>
-                <input id="spotBonus" type="number" value="0" step="0.01" inputmode="decimal" />
-              </div>
-
-              <div class="sal-field">
-                <label for="otherExtra">Other confirmed extra</label>
-                <input id="otherExtra" type="number" value="0" step="0.01" inputmode="decimal" />
-              </div>
-
-              <div class="sal-field">
-                <label for="includeOtherExtras">Include one-off extras</label>
-                <input id="includeOtherExtras" type="checkbox" />
-              </div>
-            </div>
-
-            <div class="sal-empty">
-              Overtime, referral bonus, spot bonus, and other extras are confirmed for this month only. They never auto-repeat.
-            </div>
-          </div>
-        </section>
-
-        <section class="sal-panel">
-          <h2>Tax engine from payslip</h2>
-          <div class="sal-form">
-            <div class="sal-three">
-              <div class="sal-field">
-                <label for="annualTaxableWithoutMbo">Annual taxable without MBO</label>
-                <input id="annualTaxableWithoutMbo" type="number" value="1462413" step="0.01" readonly />
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Forecast bridge</p>
+                  <h2 class="sf-section-title">Forecast Compatibility</h2>
+                  <p class="sf-section-subtitle">
+                    Forecast consumes the same salary endpoint. This panel checks that the bridge still resolves.
+                  </p>
+                </div>
+                <button class="sf-button" id="checkForecastBtn" type="button">Check Forecast</button>
               </div>
 
-              <div class="sal-field">
-                <label for="actualPayslipTaxable">Payslip annual taxable</label>
-                <input id="actualPayslipTaxable" type="number" value="1589316" step="0.01" readonly />
+              <div id="forecastBridgePanel">
+                <div class="salary-empty">Forecast check not run yet.</div>
+              </div>
+            </section>
+
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Tax proof</p>
+                  <h2 class="sf-section-title">Payslip / Tax Audit</h2>
+                  <p class="sf-section-subtitle">
+                    Derived from the backend salary contract and Sheet parity fields.
+                  </p>
+                </div>
               </div>
 
-              <div class="sal-field">
-                <label for="actualPayslipTax">Payslip tax liability</label>
-                <input id="actualPayslipTax" type="number" value="48825" step="0.01" readonly />
+              <div id="taxProofPanel" class="salary-proof">
+                <div class="salary-empty">Loading tax proof…</div>
               </div>
-            </div>
-
-            <div class="sal-empty">
-              Slab used: 0 up to 600,000; 1% from 600,001 to 1,200,000; 6,000 + 11% over 1,200,000; 116,000 + 23% over 2,200,000; 346,000 + 30% over 3,200,000; 616,000 + 35% over 4,100,000.
-            </div>
-          </div>
-        </section>
-
-        <section class="sal-panel">
-          <h2>Save to salary source</h2>
-          <div class="sal-empty">
-            Save exports the computed salary forecast to the existing salary endpoint. Forecast wiring is fixed in Shipment 16B.
+            </section>
           </div>
 
-          <div class="sal-button-row">
-            <button id="saveSalary" class="sal-button" type="button">Save salary forecast</button>
-            <button id="resetAutoMonth" class="sal-button secondary" type="button">Apply month rules</button>
-          </div>
-        </section>
-      </div>
+          <aside class="salary-stack">
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Save salary config</p>
+                  <h2 class="sf-section-title">Config Only</h2>
+                  <p class="sf-section-subtitle">
+                    Saving updates salary config. It does not create ledger income.
+                  </p>
+                </div>
+              </div>
 
-      <aside>
-        <section class="sal-panel">
-          <h3>Salary calculation</h3>
-          <div id="calculationPanel" class="sal-row-list">
-            <div class="sal-empty">Calculating…</div>
-          </div>
+              <form id="salaryConfigForm" class="salary-grid">
+                <div class="salary-field salary-span-6">
+                  <label for="basicInput">Basic</label>
+                  <input class="salary-input" id="basicInput" name="basic" type="number" step="0.01">
+                </div>
+
+                <div class="salary-field salary-span-6">
+                  <label for="hraInput">HRA</label>
+                  <input class="salary-input" id="hraInput" name="hra" type="number" step="0.01">
+                </div>
+
+                <div class="salary-field salary-span-6">
+                  <label for="medicalInput">Medical</label>
+                  <input class="salary-input" id="medicalInput" name="medical" type="number" step="0.01">
+                </div>
+
+                <div class="salary-field salary-span-6">
+                  <label for="utilityInput">Utility</label>
+                  <input class="salary-input" id="utilityInput" name="utility" type="number" step="0.01">
+                </div>
+
+                <div class="salary-field salary-span-6">
+                  <label for="wfhInput">WFH Allowance</label>
+                  <input class="salary-input" id="wfhInput" name="wfh_allowance" type="number" step="0.01">
+                </div>
+
+                <div class="salary-field salary-span-6">
+                  <label for="taxRateInput">Tax Rate %</label>
+                  <input class="salary-input" id="taxRateInput" name="tax_rate_pct" type="number" step="0.01">
+                </div>
+
+                <div class="salary-field salary-span-6">
+                  <label for="mboInput">MBO</label>
+                  <input class="salary-input" id="mboInput" name="mbo" type="number" step="0.01">
+                </div>
+
+                <div class="salary-field salary-span-6">
+                  <label for="overtimeDaysInput">Overtime Days</label>
+                  <input class="salary-input" id="overtimeDaysInput" name="overtime_days" type="number" step="0.01">
+                </div>
+
+                <div class="salary-field salary-span-6">
+                  <label for="overtimeRateInput">Overtime Rate</label>
+                  <input class="salary-input" id="overtimeRateInput" name="overtime_rate" type="number" step="0.01">
+                </div>
+
+                <div class="salary-field salary-span-6">
+                  <label for="variableConfirmedInput">Variable Confirmed</label>
+                  <select class="salary-select" id="variableConfirmedInput" name="variable_confirmed">
+                    <option value="false">No — Forecast uses guaranteed only</option>
+                    <option value="true">Yes — Forecast may include variable</option>
+                  </select>
+                </div>
+
+                <div class="salary-field salary-span-12">
+                  <label for="salaryNotesInput">Notes</label>
+                  <textarea class="salary-textarea" id="salaryNotesInput" name="notes"></textarea>
+                </div>
+
+                <div class="salary-span-12 salary-actions" style="justify-content:flex-start;">
+                  <button class="sf-button" id="salaryDryRunBtn" type="button">Dry-run Save</button>
+                  <button class="sf-button sf-button--primary" id="salarySaveBtn" type="button">Save Config</button>
+                </div>
+              </form>
+
+              <div id="salarySavePanel" style="margin-top:16px;">
+                <div class="salary-empty">No salary config save run yet.</div>
+              </div>
+            </section>
+
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Contract proof</p>
+                  <h2 class="sf-section-title">Backend Proof</h2>
+                </div>
+              </div>
+
+              <div id="salaryProofPanel" class="salary-proof">
+                <div class="salary-empty">Loading proof…</div>
+              </div>
+            </section>
+
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Debug</p>
+                  <h2 class="sf-section-title">Raw Contract</h2>
+                </div>
+              </div>
+
+              <pre id="salaryDebug" class="salary-debug">Loading…</pre>
+            </section>
+          </aside>
         </section>
 
-        <section class="sal-panel">
-          <h3>Tax proof</h3>
-          <div id="taxPanel" class="sal-row-list">
-            <div class="sal-empty">Calculating tax…</div>
-          </div>
-        </section>
+        <footer>
+          <span class="sf-meta-text" id="salaryFooterVersion">
+            salary.html · contract renderer
+          </span>
+        </footer>
+      </section>
+    </main>
+  </div>
 
-        <section class="sal-panel">
-          <h3>Visual split</h3>
-          <div class="sal-chart-grid">
-            <div class="sal-donut" id="salaryDonut">
-              <div class="sal-donut-label" id="donutLabel">Salary<br />split</div>
-            </div>
-            <div id="chartLegend" class="sal-row-list"></div>
-          </div>
-        </section>
+  <div id="salaryToast" class="salary-toast"></div>
 
-        <section class="sal-panel">
-          <h3>Forecast bridge</h3>
-          <div id="forecastPanel" class="sal-row-list">
-            <div class="sal-empty">Loading forecast bridge…</div>
-          </div>
-        </section>
-
-        <section id="debugPanel" class="sal-panel" hidden>
-          <h3>Debug</h3>
-          <pre id="debugOutput" class="sal-debug"></pre>
-        </section>
-      </aside>
-    </section>
-  </main>
-
-  <script src="/js/theme.js" defer></script>
-  <script src="/js/nav.js" defer></script>
+  <script src="/js/sf-components.js"></script>
+  <script src="/js/sf-shell.js"></script>
 
   <script>
     (function () {
-      "use strict";
+      'use strict';
 
-      const PAGE_VERSION = "salary-payslip-engine-v1.0.4-gross-wfh";
-      const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
-
-      const PAYSLIP = {
-        basicSalary: 74226,
-        houseRentAllowance: 25979,
-        medicalAllowance: 7423,
-        utilityAllowance: 3705,
-
-        grossBaseMonthly: 111333.34,
-        taxableBaseAnnual: 1246920,
-        annualTaxableWithoutMbo: 1462413,
-        payslipAnnualTaxable: 1589316,
-        payslipTaxLiability: 48825,
-
-        defaultMboAmount: 35000,
-        mboPayoutMonths: [0, 3, 6, 9],
-        mboPayoutsPerYear: 4,
-
-        wfhUsdAmount: 30,
-        latestWfhAllowancePkr: 8366,
-        latestWfhFxRate: 278.8667
-      };
+      const VERSION = 'salary-ui-v1.0.0-contract-renderer';
+      const API_SALARY = '/api/salary';
+      const API_FORECAST = '/api/forecast';
 
       const state = {
-        salary: null,
-        forecast: null,
-        loaded: false
+        salaryPayload: null,
+        forecastPayload: null,
+        saving: false
       };
 
-      const $ = (id) => document.getElementById(id);
+      const $ = id => document.getElementById(id);
 
-      function asNumber(value, fallback = 0) {
-        if (typeof value === "number" && Number.isFinite(value)) return value;
-        if (typeof value === "string") {
-          const parsed = Number(value.replace(/[^\d.-]/g, ""));
-          if (Number.isFinite(parsed)) return parsed;
-        }
-        return fallback;
+      function esc(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
       }
 
-      function round2(value) {
-        return Math.round(asNumber(value, 0) * 100) / 100;
+      function setText(id, value) {
+        const el = $(id);
+        if (el) el.textContent = value == null ? '' : String(value);
+      }
+
+      function setHTML(id, value) {
+        const el = $(id);
+        if (el) el.innerHTML = value == null ? '' : String(value);
+      }
+
+      function num(value, fallback = 0) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : fallback;
       }
 
       function money(value) {
-        return new Intl.NumberFormat("en-PK", {
-          style: "currency",
-          currency: "PKR",
+        const n = num(value, 0);
+        return 'Rs ' + n.toLocaleString('en-PK', {
+          minimumFractionDigits: n % 1 === 0 ? 0 : 2,
           maximumFractionDigits: 2
-        }).format(asNumber(value, 0));
+        });
       }
 
-      function percent(value) {
-        return `${asNumber(value, 0).toFixed(2)}%`;
+      function pct(value) {
+        return num(value, 0).toLocaleString('en-PK', {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2
+        }) + '%';
       }
 
-      function escapeHtml(value) {
-        return String(value)
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#039;");
+      function statusTone(status) {
+        const s = String(status || '').toLowerCase();
+        if (['received', 'ready', 'pass', 'ok', 'high'].includes(s)) return 'positive';
+        if (['pending', 'partial', 'ambiguous', 'medium', 'watch'].includes(s)) return 'warning';
+        if (['overpaid', 'failed', 'error', 'low', 'unknown'].includes(s)) return 'danger';
+        return 'info';
       }
 
-      function setStatus(kind, html) {
-        const node = $("salStatus");
-        node.className = "sal-status";
-        if (kind === "error") node.classList.add("sal-error");
-        node.innerHTML = html;
+      function pill(text, tone) {
+        return `<span class="sf-pill sf-pill--${esc(tone || 'info')}">${esc(text)}</span>`;
       }
 
-      function setCurrentMonth() {
-        const now = new Date();
-        $("forecastMonth").value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-      }
-
-      function monthIndexFromInput() {
-        const value = $("forecastMonth").value;
-        if (!value || !value.includes("-")) return new Date().getMonth();
-        return Number(value.split("-")[1]) - 1;
-      }
-
-      function isMboPayoutMonth(monthIndex) {
-        return PAYSLIP.mboPayoutMonths.includes(monthIndex);
-      }
-
-      function calculateTax(annualTaxable) {
-        const income = Math.max(0, asNumber(annualTaxable, 0));
-
-        if (income <= 600000) return 0;
-        if (income <= 1200000) return (income - 600000) * 0.01;
-        if (income <= 2200000) return 6000 + ((income - 1200000) * 0.11);
-        if (income <= 3200000) return 116000 + ((income - 2200000) * 0.23);
-        if (income <= 4100000) return 346000 + ((income - 3200000) * 0.30);
-        return 616000 + ((income - 4100000) * 0.35);
-      }
-
-      function marginalTaxRate(annualTaxable) {
-        const income = Math.max(0, asNumber(annualTaxable, 0));
-
-        if (income <= 600000) return 0;
-        if (income <= 1200000) return 0.01;
-        if (income <= 2200000) return 0.11;
-        if (income <= 3200000) return 0.23;
-        if (income <= 4100000) return 0.30;
-        return 0.35;
-      }
-
-      function readCalc() {
-        const monthIndex = monthIndexFromInput();
-
-        const baseGross = asNumber($("baseGross").value, PAYSLIP.grossBaseMonthly);
-
-        const includeWfh = Boolean($("includeWfh").checked);
-        const wfhUsd = asNumber($("wfhUsd").value, PAYSLIP.wfhUsdAmount);
-        const wfhFxRate = asNumber($("wfhFxRate").value, PAYSLIP.latestWfhFxRate);
-        const wfhAllowance = includeWfh ? round2(wfhUsd * wfhFxRate) : 0;
-
-        $("wfhAllowance").value = String(wfhAllowance);
-
-        const mboAmount = asNumber($("mboAmount").value, PAYSLIP.defaultMboAmount);
-        const includeMbo = isMboPayoutMonth(monthIndex);
-        $("includeMbo").checked = includeMbo;
-
-        const overtimeGeneral = asNumber($("overtimeGeneral").value, 0);
-        const overtimeEid = asNumber($("overtimeEid").value, 0);
-        const referralBonus = asNumber($("referralBonus").value, 0);
-        const spotBonus = asNumber($("spotBonus").value, 0);
-        const otherExtra = asNumber($("otherExtra").value, 0);
-        const includeOtherExtras = Boolean($("includeOtherExtras").checked);
-
-        const oneOffExtrasGross = includeOtherExtras
-          ? overtimeGeneral + overtimeEid + referralBonus + spotBonus + otherExtra
-          : 0;
-
-        const annualMboProjection = mboAmount * PAYSLIP.mboPayoutsPerYear;
-        const annualTaxableBeforeThisMonthExtras = PAYSLIP.annualTaxableWithoutMbo + annualMboProjection;
-        const annualTaxableWithExtras = annualTaxableBeforeThisMonthExtras + oneOffExtrasGross;
-
-        const projectedAnnualTax = calculateTax(annualTaxableWithExtras);
-        const effectiveTaxRate = annualTaxableWithExtras > 0 ? (projectedAnnualTax / annualTaxableWithExtras) * 100 : 0;
-        const currentMarginalRate = marginalTaxRate(annualTaxableWithExtras) * 100;
-
-        const taxBeforeMbo = calculateTax(PAYSLIP.annualTaxableWithoutMbo + annualMboProjection - (includeMbo ? mboAmount : 0));
-        const taxAfterMbo = calculateTax(PAYSLIP.annualTaxableWithoutMbo + annualMboProjection);
-        const mboTax = includeMbo ? Math.max(0, taxAfterMbo - taxBeforeMbo) : 0;
-
-        const mboGross = includeMbo ? mboAmount : 0;
-        const mboNet = Math.max(0, mboGross - mboTax);
-
-        const taxBeforeExtras = calculateTax(annualTaxableBeforeThisMonthExtras);
-        const taxAfterExtras = calculateTax(annualTaxableWithExtras);
-        const oneOffExtrasTax = includeOtherExtras ? Math.max(0, taxAfterExtras - taxBeforeExtras) : 0;
-        const oneOffExtrasNet = Math.max(0, oneOffExtrasGross - oneOffExtrasTax);
-
-        const guaranteedMonthly = baseGross + wfhAllowance;
-        const variableMonthly = mboNet + oneOffExtrasNet;
-        const forecastEligible = guaranteedMonthly + variableMonthly;
-
-        return {
-          forecastMonth: $("forecastMonth").value,
-          monthIndex,
-          includeWfh,
-          wfhUsd,
-          wfhFxRate,
-          wfhAllowance,
-
-          baseGross,
-          guaranteedMonthly,
-
-          mboAmount,
-          includeMbo,
-          mboGross,
-          mboTax,
-          mboNet,
-
-          includeOtherExtras,
-          overtimeGeneral,
-          overtimeEid,
-          referralBonus,
-          spotBonus,
-          otherExtra,
-          oneOffExtrasGross,
-          oneOffExtrasTax,
-          oneOffExtrasNet,
-
-          variableMonthly,
-          forecastEligible,
-
-          annualMboProjection,
-          annualTaxableBeforeThisMonthExtras,
-          annualTaxableWithExtras,
-          projectedAnnualTax,
-          payslipAnnualTaxable: PAYSLIP.payslipAnnualTaxable,
-          payslipTaxLiability: PAYSLIP.payslipTaxLiability,
-          effectiveTaxRate,
-          currentMarginalRate
-        };
-      }
-
-      function row(label, value) {
+      function row(title, sub, value, tone) {
         return `
-          <div class="sal-row">
-            <span>${escapeHtml(label)}</span>
-            <span>${escapeHtml(value)}</span>
+          <div class="salary-row">
+            <div>
+              <div class="salary-row-title">${esc(title)}</div>
+              ${sub ? `<div class="salary-row-sub">${esc(sub)}</div>` : ''}
+            </div>
+            <div class="salary-row-value ${tone ? `sf-tone-${esc(tone)}` : ''}">
+              ${value == null ? '—' : value}
+            </div>
           </div>
         `;
       }
 
-      function renderRows(items) {
-        return items.map(([label, value]) => row(label, value)).join("");
-      }
-
-      function renderCards(calc) {
-        $("baseSalaryCard").textContent = money(calc.baseGross);
-        $("wfhCard").textContent = money(calc.wfhAllowance);
-        $("mboNetCard").textContent = money(calc.mboNet);
-        $("forecastSalaryCard").textContent = money(calc.forecastEligible);
-      }
-
-      function renderCalculation(calc) {
-        $("calculationPanel").innerHTML = renderRows([
-          ["Base salary", money(calc.baseGross)],
-          ["WFH included", calc.includeWfh ? "Yes" : "No"],
-          ["WFH USD", `$${calc.wfhUsd.toFixed(2)}`],
-          ["WFH FX rate", calc.wfhFxRate.toFixed(4)],
-          ["WFH allowance", money(calc.wfhAllowance)],
-          ["Guaranteed monthly", money(calc.guaranteedMonthly)],
-
-          ["MBO included", calc.includeMbo ? "Yes" : "No"],
-          ["MBO gross", money(calc.mboGross)],
-          ["MBO tax", money(calc.mboTax)],
-          ["MBO net", money(calc.mboNet)],
-
-          ["One-off extras included", calc.includeOtherExtras ? "Yes" : "No"],
-          ["One-off extras gross", money(calc.oneOffExtrasGross)],
-          ["One-off extras tax", money(calc.oneOffExtrasTax)],
-          ["One-off extras net", money(calc.oneOffExtrasNet)],
-
-          ["Forecast salary", money(calc.forecastEligible)]
-        ]);
-      }
-
-      function renderTax(calc) {
-        $("taxPanel").innerHTML = renderRows([
-          ["Annual taxable before this month extras", money(calc.annualTaxableBeforeThisMonthExtras)],
-          ["Annual MBO projection", money(calc.annualMboProjection)],
-          ["Annual taxable with confirmed extras", money(calc.annualTaxableWithExtras)],
-          ["Projected annual tax", money(calc.projectedAnnualTax)],
-          ["Payslip annual taxable", money(calc.payslipAnnualTaxable)],
-          ["Payslip tax liability", money(calc.payslipTaxLiability)],
-          ["Tax delta vs payslip", money(calc.projectedAnnualTax - calc.payslipTaxLiability)],
-          ["Effective tax rate", percent(calc.effectiveTaxRate)],
-          ["Current marginal rate", percent(calc.currentMarginalRate)]
-        ]);
-      }
-
-      function renderChart(calc) {
-        const total = Math.max(
-          1,
-          calc.baseGross +
-          calc.wfhAllowance +
-          calc.mboNet +
-          calc.mboTax +
-          calc.oneOffExtrasNet +
-          calc.oneOffExtrasTax
-        );
-
-        const baseDeg = (calc.baseGross / total) * 360;
-        const wfhDeg = (calc.wfhAllowance / total) * 360;
-        const mboNetDeg = (calc.mboNet / total) * 360;
-        const mboTaxDeg = (calc.mboTax / total) * 360;
-        const extrasNetDeg = (calc.oneOffExtrasNet / total) * 360;
-        const extrasTaxDeg = (calc.oneOffExtrasTax / total) * 360;
-
-        const a = baseDeg;
-        const b = a + wfhDeg;
-        const c = b + mboNetDeg;
-        const d = c + mboTaxDeg;
-        const e = d + extrasNetDeg;
-        const f = e + extrasTaxDeg;
-
-        $("salaryDonut").style.background = `
-          conic-gradient(
-            var(--sf-green) 0deg ${a}deg,
-            #7aa382 ${a}deg ${b}deg,
-            var(--sf-blue) ${b}deg ${c}deg,
-            var(--sf-yellow) ${c}deg ${d}deg,
-            #8fbf9b ${d}deg ${e}deg,
-            var(--sf-red) ${e}deg ${f}deg,
-            #e6ecdf ${f}deg 360deg
-          )
-        `;
-
-        $("donutLabel").innerHTML = `${money(calc.forecastEligible)}<br />forecast`;
-
-        const max = Math.max(
-          calc.baseGross,
-          calc.wfhAllowance,
-          calc.mboNet,
-          calc.mboTax,
-          calc.oneOffExtrasNet,
-          calc.oneOffExtrasTax,
-          1
-        );
-
-        $("chartLegend").innerHTML = [
-          ["Base salary", calc.baseGross],
-          ["WFH allowance", calc.wfhAllowance],
-          ["MBO net", calc.mboNet],
-          ["MBO tax", calc.mboTax],
-          ["Extras net", calc.oneOffExtrasNet],
-          ["Extras tax", calc.oneOffExtrasTax]
-        ].map(([label, value]) => `
-          <div>
-            ${row(label, money(value))}
-            <div class="sal-bar"><span style="width:${Math.max(4, Math.min(100, (value / max) * 100))}%"></span></div>
+      function proofLine(check, source, detail, status) {
+        return `
+          <div class="salary-proof-line">
+            <div>
+              <div class="salary-row-title">${esc(check || 'check')}</div>
+              <div class="salary-row-sub">${esc(detail || '')}</div>
+              <div class="salary-row-sub"><code>${esc(source || 'source')}</code></div>
+            </div>
+            <div>${pill(status || 'info', statusTone(status))}</div>
           </div>
-        `).join("");
+        `;
       }
 
-      function renderForecastBridge(calc) {
-        const salaryRoot = state.salary?.salary || state.salary?.data || state.salary?.current || state.salary || {};
-        const currentApiEligible = Number(
-          salaryRoot.forecast_eligible_monthly ??
-          state.salary?.forecast_eligible_monthly ??
-          state.salary?.guaranteed_monthly ??
-          0
-        );
-
-        const forecastSalary = Number(
-          state.forecast?.inputs?.guaranteed_salary ??
-          state.forecast?.salary?.forecast_eligible_monthly ??
-          state.forecast?.salary?.guaranteed_salary ??
-          state.forecast?.guaranteed_salary ??
-          0
-        );
-
-        $("forecastPanel").innerHTML = renderRows([
-          ["This page forecast", money(calc.forecastEligible)],
-          ["Current salary API", money(currentApiEligible)],
-          ["Current forecast API", money(forecastSalary)],
-          ["MBO rule", calc.includeMbo ? "Month qualifies" : "Month does not qualify"],
-          ["Save state", "Use Save salary forecast to export"]
-        ]);
-      }
-
-      function renderDebug(calc) {
-        if (!DEBUG) return;
-
-        $("debugPanel").hidden = false;
-        $("debugOutput").classList.add("is-visible");
-        $("debugOutput").textContent = JSON.stringify({
-          version: PAGE_VERSION,
-          payslip_constants: PAYSLIP,
-          calculation: calc,
-          salary_api: state.salary,
-          forecast_api: state.forecast
-        }, null, 2);
-      }
-
-      function render() {
-        const calc = readCalc();
-
-        renderCards(calc);
-        renderCalculation(calc);
-        renderTax(calc);
-        renderChart(calc);
-        renderForecastBridge(calc);
-        renderDebug(calc);
-
-        const monthName = new Date(`${calc.forecastMonth || "2026-01"}-01T00:00:00`).toLocaleString("en-US", { month: "long" });
-        const mboStatus = calc.includeMbo ? "MBO included" : "MBO excluded";
-        const wfhStatus = calc.includeWfh ? `WFH ${money(calc.wfhAllowance)} included` : "WFH excluded";
-
-        setStatus("ready", `<strong>Salary engine ready.</strong> <span>${mboStatus} for ${monthName}. ${wfhStatus}.</span>`);
-      }
-
-      async function readJson(path) {
-        const response = await fetch(path, {
-          headers: { "Accept": "application/json" },
-          cache: "no-store"
+      async function fetchJSON(url, options) {
+        const res = await fetch(url, {
+          cache: 'no-store',
+          headers: {
+            Accept: 'application/json',
+            ...(options && options.headers ? options.headers : {})
+          },
+          ...(options || {})
         });
 
-        const payload = await response.json().catch(() => null);
+        const text = await res.text();
+        let payload = null;
 
-        if (!response.ok) {
-          throw new Error(`${path} HTTP ${response.status}`);
+        try {
+          payload = text ? JSON.parse(text) : null;
+        } catch {
+          throw new Error(`Non-JSON response from ${url}: HTTP ${res.status}`);
+        }
+
+        if (!res.ok || !payload || payload.ok === false) {
+          throw new Error((payload && payload.error) || `HTTP ${res.status}`);
         }
 
         return payload;
       }
 
-      async function saveSalary() {
-        const button = $("saveSalary");
-        const calc = readCalc();
-
-        button.disabled = true;
-
-        try {
-          setStatus("saving", `<strong>Saving salary forecast…</strong> <span>Exporting salary engine result.</span>`);
-
-          const payload = {
-            salary_month: calc.forecastMonth,
-            source: PAGE_VERSION,
-
-            gross_monthly: round2(calc.baseGross),
-            monthly_tax: 0,
-            other_deductions: 0,
-            net_monthly: round2(calc.guaranteedMonthly),
-
-            guaranteed_monthly: round2(calc.guaranteedMonthly),
-            variable_confirmed: Boolean(calc.includeMbo || calc.includeOtherExtras),
-            variable_monthly: round2(calc.variableMonthly),
-            forecast_eligible_monthly: round2(calc.forecastEligible),
-
-            wfh_included: Boolean(calc.includeWfh),
-            wfh_usd: round2(calc.wfhUsd),
-            wfh_fx_rate: round2(calc.wfhFxRate),
-            wfh_allowance: round2(calc.wfhAllowance),
-
-            mbo_amount: round2(calc.mboAmount),
-            mbo_included: Boolean(calc.includeMbo),
-            mbo_tax: round2(calc.mboTax),
-            mbo_net: round2(calc.mboNet),
-
-            other_extras_included: Boolean(calc.includeOtherExtras),
-            other_extras_gross: round2(calc.oneOffExtrasGross),
-            other_extras_tax: round2(calc.oneOffExtrasTax),
-            other_extras_net: round2(calc.oneOffExtrasNet),
-
-            annual_taxable_income: round2(calc.annualTaxableWithExtras),
-            annual_tax_liability: round2(calc.projectedAnnualTax),
-            effective_tax_rate: round2(calc.effectiveTaxRate),
-            marginal_tax_rate: round2(calc.currentMarginalRate),
-
-            salary_engine: {
-              version: PAGE_VERSION,
-              forecast_base_salary_is_gross: true,
-              base_gross_monthly: round2(calc.baseGross),
-              wfh_formula: "wfh_usd * salary_day_usd_pkr_fx",
-              wfh_default_usd: PAYSLIP.wfhUsdAmount,
-              wfh_default_fx_source: "April 2026 payslip implied fallback",
-              mbo_payout_months: ["January", "April", "July", "October"],
-              mbo_default_amount: PAYSLIP.defaultMboAmount,
-              tax_slabs_source: "April 2026 payslip"
-            },
-
-            variable_breakdown: {
-              mbo: round2(calc.mboGross),
-              mbo_net: round2(calc.mboNet),
-              overtime_general: round2(calc.overtimeGeneral),
-              overtime_eid: round2(calc.overtimeEid),
-              referral_bonus: round2(calc.referralBonus),
-              spot_bonus: round2(calc.spotBonus),
-              other_extra: round2(calc.otherExtra),
-              wfh_usd: round2(calc.wfhUsd),
-              wfh_fx_rate: round2(calc.wfhFxRate),
-              wfh_allowance: round2(calc.wfhAllowance),
-              overtime: round2(calc.overtimeGeneral + calc.overtimeEid),
-              kitty_cash: 0
-            }
-          };
-
-          const response = await fetch("/api/salary", {
-            method: "POST",
-            headers: {
-              "Accept": "application/json",
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-          });
-
-          const saved = await response.json().catch(() => null);
-
-          if (!response.ok) {
-            throw new Error(saved?.error || saved?.message || `/api/salary HTTP ${response.status}`);
-          }
-
-          state.salary = saved;
-
-          try {
-            state.forecast = await readJson("/api/forecast");
-          } catch {
-            state.forecast = null;
-          }
-
-          render();
-
-          console.log("salary page:", PAGE_VERSION);
-          console.log("salary save payload:", payload);
-          console.log("salary save response:", saved);
-
-          setStatus("ready", `<strong>Salary forecast saved.</strong> <span>Saved computed forecast salary ${money(calc.forecastEligible)}.</span>`);
-        } catch (error) {
-          console.error(error);
-          setStatus("error", `<strong>Salary save failed.</strong> <span>${escapeHtml(error.message)}</span>`);
-        } finally {
-          button.disabled = false;
-        }
+      async function postJSON(url, body) {
+        return fetchJSON(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body || {})
+        });
       }
 
-      function applyMonthRules() {
-        const calcMonth = monthIndexFromInput();
-        $("includeMbo").checked = isMboPayoutMonth(calcMonth);
-        render();
+      function salaryRoot() {
+        return state.salaryPayload || {};
       }
 
-      async function boot() {
-        window.SovereignSalary = {
-          version: PAGE_VERSION,
-          reload: boot,
-          calculate: () => readCalc()
+      function salaryObj() {
+        const payload = salaryRoot();
+        return payload.salary || payload.salary_truth || {};
+      }
+
+      function truthObj() {
+        const payload = salaryRoot();
+        return payload.salary_truth || {};
+      }
+
+      function currentMonthObj() {
+        const payload = salaryRoot();
+        return payload.current_month || {};
+      }
+
+      function candidates() {
+        const payload = salaryRoot();
+        return Array.isArray(payload.candidates) ? payload.candidates : [];
+      }
+
+      function renderHero() {
+        const payload = salaryRoot();
+        const salary = salaryObj();
+        const truth = truthObj();
+        const current = currentMonthObj();
+
+        const forecastEligible = num(
+          payload.forecast_eligible_monthly ??
+          salary.forecast_eligible_monthly ??
+          truth.expected_net,
+          0
+        );
+
+        setText('salaryHeroAmount', money(forecastEligible));
+        setText(
+          'salaryHeroCopy',
+          `Forecast eligible salary for ${current.month || 'current month'} is ${money(forecastEligible)}. Current ledger status: ${current.status || 'unknown'}.`
+        );
+
+        setText('salaryVersionPill', payload.version || 'version unknown');
+        setText('salarySchemaPill', payload.schema_version || 'schema unknown');
+        setText('salaryStatusPill', current.status || 'status unknown');
+
+        setText('metricForecastEligible', money(forecastEligible));
+        setText('metricGuaranteed', money(payload.guaranteed_monthly ?? salary.guaranteed_monthly ?? salary.guaranteed_net));
+        setText('metricVariable', money(payload.variable_monthly ?? salary.variable_monthly ?? salary.variable_net));
+        setText('metricCurrentMonth', current.status || 'unknown');
+        setText('metricCurrentMonthSub', `${current.month || '—'} · received ${money(current.received || 0)} · variance ${money(current.variance || 0)}`);
+
+        setText('salaryFooterVersion', `${VERSION} · backend ${payload.version || 'unknown'}`);
+      }
+
+      function renderCalculation() {
+        const salary = salaryObj();
+        const payload = salaryRoot();
+
+        const guaranteedGross = salary.guaranteed_gross_monthly ?? salary.contract_base;
+        const variableGross = salary.variable_gross_monthly;
+        const totalGross = salary.total_gross_monthly;
+        const tax = salary.estimated_tax_monthly;
+        const net = salary.net_landing ?? payload.forecast_eligible_monthly;
+
+        const totalForSplit = Math.max(1, num(totalGross, 0));
+        const guaranteedPct = Math.max(1, num(guaranteedGross, 0) / totalForSplit * 100);
+        const variablePct = Math.max(0, num(variableGross, 0) / totalForSplit * 100);
+        const taxPct = Math.max(0, num(tax, 0) / Math.max(1, num(totalGross, 0)) * 100);
+
+        setHTML('salaryCalculationPanel', `
+          <div class="salary-split-bar" style="--guaranteed:${guaranteedPct}fr;--variable:${variablePct}fr;--tax:${taxPct}fr;">
+            <span title="Guaranteed"></span>
+            <span title="Variable"></span>
+            <span title="Tax"></span>
+          </div>
+
+          ${row('Contract base', 'Basic + HRA + Medical + Utility', money(salary.contract_base), 'info')}
+          ${row('WFH allowance', `${salary.wfh_usd || 0} USD @ ${salary.wfh_fx_rate || 0}`, money(salary.wfh_allowance), 'positive')}
+          ${row('Guaranteed gross', 'Base + WFH', money(guaranteedGross), 'positive')}
+          ${row('Variable gross', 'MBO + overtime + confirmed extras', money(variableGross), salary.variable_confirmed ? 'warning' : 'info')}
+          ${row('Estimated monthly tax', `${pct(salary.tax_rate_pct)} effective input`, money(tax), 'danger')}
+          ${row('Net landing', 'Full expected monthly net if variable is included', money(net), 'positive')}
+          ${row('Forecast eligible', salary.variable_confirmed ? 'Variable confirmed, forecast may include it' : 'Variable not confirmed, forecast uses guaranteed only', money(payload.forecast_eligible_monthly ?? salary.forecast_eligible_monthly), 'positive')}
+        `);
+      }
+
+      function renderDetection() {
+        const current = currentMonthObj();
+        const rows = candidates();
+
+        const cards = rows.length
+          ? rows.map(candidate => `
+              <div class="salary-candidate">
+                <div class="salary-candidate-head">
+                  <div>
+                    <div class="salary-candidate-title">${esc(candidate.id || 'candidate')}</div>
+                    <div class="salary-candidate-meta">${esc(candidate.date || '—')} · ${esc(candidate.account_id || '—')} · ${esc(candidate.category_id || 'no category')}</div>
+                  </div>
+                  <div class="salary-row-value">${money(candidate.amount)}</div>
+                </div>
+                <div class="salary-pill-row">
+                  ${pill(candidate.matched ? 'matched' : 'not matched', candidate.matched ? 'positive' : 'warning')}
+                  ${pill(candidate.confidence || 'none', statusTone(candidate.confidence))}
+                  ${candidate.match ? pill(`${candidate.match.anchor_label}: ${pct(candidate.match.variance_pct)} variance`, 'info') : ''}
+                </div>
+                <div class="salary-row-sub">${esc(candidate.notes || '')}</div>
+              </div>
+            `).join('')
+          : '<div class="salary-empty">No salary candidates found for this month.</div>';
+
+        setHTML('salaryDetectionPanel', `
+          ${row('Status', current.month || 'current month', current.status || 'unknown', statusTone(current.status))}
+          ${row('Expected', 'Forecast eligible amount', money(current.expected), 'info')}
+          ${row('Received', 'Matched active ledger salary income', money(current.received), current.received ? 'positive' : 'warning')}
+          ${row('Variance', 'Received minus expected', money(current.variance), num(current.variance, 0) >= 0 ? 'positive' : 'warning')}
+          <div class="salary-stack">${cards}</div>
+        `);
+      }
+
+      function renderTaxProof() {
+        const salary = salaryObj();
+
+        setHTML('taxProofPanel', `
+          ${proofLine('Basic salary', 'salary.basic', money(salary.basic), 'pass')}
+          ${proofLine('House rent allowance', 'salary.hra', money(salary.hra), 'pass')}
+          ${proofLine('Medical allowance', 'salary.medical', money(salary.medical), 'pass')}
+          ${proofLine('Utility allowance', 'salary.utility', money(salary.utility), 'pass')}
+          ${proofLine('Monthly tax estimate', 'salary.estimated_tax_monthly', money(salary.estimated_tax_monthly), 'pass')}
+          ${proofLine('FY taxable', 'salary.fy_taxable', money(salary.fy_taxable), 'info')}
+          ${proofLine('FY tax total', 'salary.fy_tax_total', money(salary.fy_tax_total), 'info')}
+          ${proofLine('FY tax remaining', 'salary.fy_tax_remaining', money(salary.fy_tax_remaining), 'info')}
+        `);
+      }
+
+      function renderProof() {
+        const proof = salaryRoot().proof || {};
+        const checks = Array.isArray(proof.checks) ? proof.checks : [];
+
+        setHTML('salaryProofPanel', checks.length
+          ? checks.map(check => proofLine(check.check, check.source, check.detail, check.status)).join('')
+          : '<div class="salary-empty">No backend proof checks returned.</div>'
+        );
+      }
+
+      function fillForm() {
+        const salary = salaryObj();
+
+        const pairs = [
+          ['basicInput', salary.basic],
+          ['hraInput', salary.hra],
+          ['medicalInput', salary.medical],
+          ['utilityInput', salary.utility],
+          ['wfhInput', salary.wfh_allowance],
+          ['taxRateInput', salary.tax_rate_pct],
+          ['mboInput', salary.mbo],
+          ['overtimeDaysInput', salary.overtime_days],
+          ['overtimeRateInput', salary.overtime_rate],
+          ['salaryNotesInput', salary.notes || '']
+        ];
+
+        pairs.forEach(([id, value]) => {
+          const el = $(id);
+          if (el) el.value = value == null ? '' : String(value);
+        });
+
+        const confirmed = $('variableConfirmedInput');
+        if (confirmed) confirmed.value = salary.variable_confirmed ? 'true' : 'false';
+      }
+
+      function renderAddLink() {
+        const salary = salaryObj();
+        const payload = salaryRoot();
+        const amount = payload.forecast_eligible_monthly ?? salary.forecast_eligible_monthly ?? salary.net_landing ?? salary.guaranteed_monthly;
+        const accountId = salary.lands_in_account_id || truthObj().expected_account_id || 'meezan';
+        const notes = `Salary · ${currentMonthObj().month || new Date().toISOString().slice(0, 7)} · from salary backend`;
+
+        const url = new URL('/add.html', window.location.origin);
+        url.searchParams.set('mode', 'income');
+        url.searchParams.set('type', 'income');
+        url.searchParams.set('account_id', accountId);
+        url.searchParams.set('category_id', 'salary_income');
+        url.searchParams.set('amount', String(num(amount, 0)));
+        url.searchParams.set('notes', notes);
+
+        const link = $('addSalaryLink');
+        if (link) link.href = url.pathname + url.search;
+      }
+
+      function renderDebug() {
+        setText('salaryDebug', JSON.stringify(state.salaryPayload, null, 2));
+      }
+
+      function renderAll() {
+        renderHero();
+        renderCalculation();
+        renderDetection();
+        renderTaxProof();
+        renderProof();
+        fillForm();
+        renderAddLink();
+        renderDebug();
+      }
+
+      function formPayload() {
+        return {
+          basic: num($('basicInput')?.value),
+          hra: num($('hraInput')?.value),
+          medical: num($('medicalInput')?.value),
+          utility: num($('utilityInput')?.value),
+          wfh_allowance: num($('wfhInput')?.value),
+          tax_rate_pct: num($('taxRateInput')?.value),
+          mbo: num($('mboInput')?.value),
+          overtime_days: num($('overtimeDaysInput')?.value),
+          overtime_rate: num($('overtimeRateInput')?.value),
+          variable_confirmed: $('variableConfirmedInput')?.value === 'true',
+          notes: $('salaryNotesInput')?.value || ''
         };
+      }
+
+      async function loadSalary() {
+        setText('salaryHeroAmount', 'Loading…');
 
         try {
-          setCurrentMonth();
-
-          $("baseGross").value = String(PAYSLIP.grossBaseMonthly);
-          $("mboAmount").value = String(PAYSLIP.defaultMboAmount);
-          $("mboPayoutsPerYear").value = String(PAYSLIP.mboPayoutsPerYear);
-          $("annualTaxableWithoutMbo").value = String(PAYSLIP.annualTaxableWithoutMbo);
-          $("actualPayslipTaxable").value = String(PAYSLIP.payslipAnnualTaxable);
-          $("actualPayslipTax").value = String(PAYSLIP.payslipTaxLiability);
-          $("wfhUsd").value = String(PAYSLIP.wfhUsdAmount);
-          $("wfhFxRate").value = String(PAYSLIP.latestWfhFxRate);
-
-          try {
-            state.salary = await readJson("/api/salary");
-          } catch {
-            state.salary = null;
-          }
-
-          try {
-            state.forecast = await readJson("/api/forecast");
-          } catch {
-            state.forecast = null;
-          }
-
-          if (!state.loaded) {
-            document.querySelectorAll("input").forEach((node) => {
-              node.addEventListener("input", render);
-              node.addEventListener("change", render);
-            });
-
-            $("forecastMonth").addEventListener("change", applyMonthRules);
-            $("resetAutoMonth").addEventListener("click", applyMonthRules);
-            $("saveSalary").addEventListener("click", saveSalary);
-
-            state.loaded = true;
-          }
-
-          applyMonthRules();
-
-          console.log("salary page:", PAGE_VERSION);
-        } catch (error) {
-          console.error(error);
-          setStatus("error", `<strong>Salary engine failed.</strong> <span>${escapeHtml(error.message)}</span>`);
+          state.salaryPayload = await fetchJSON(API_SALARY);
+          renderAll();
+          toast('Salary contract loaded.');
+        } catch (err) {
+          setHTML('salaryCalculationPanel', `<div class="salary-empty">Salary load failed: ${esc(err.message)}</div>`);
+          setText('salaryHeroAmount', 'Salary failed');
+          setText('salaryHeroCopy', err.message);
+          setText('salaryDebug', err.stack || err.message);
         }
       }
 
-      document.addEventListener("DOMContentLoaded", boot);
+      async function dryRunSave() {
+        try {
+          const payload = await postJSON(API_SALARY + '?dry_run=1', formPayload());
+          setHTML('salarySavePanel', `
+            ${row('Dry-run', 'Salary config validation', 'Passed', 'positive')}
+            ${row('Writes performed', 'Must be false', String(payload.writes_performed), payload.writes_performed === false ? 'positive' : 'danger')}
+            ${row('Payload hash', 'Proof hash', payload.payload_hash ? payload.payload_hash.slice(0, 16) + '…' : 'not returned', payload.payload_hash ? 'positive' : 'warning')}
+          `);
+          toast('Salary config dry-run passed.');
+        } catch (err) {
+          setHTML('salarySavePanel', `<div class="salary-empty">Dry-run failed: ${esc(err.message)}</div>`);
+        }
+      }
+
+      async function saveConfig() {
+        try {
+          const payload = await postJSON(API_SALARY, formPayload());
+          state.salaryPayload = payload;
+          setHTML('salarySavePanel', `
+            ${row('Save', 'Salary config update', 'Saved', 'positive')}
+            ${row('Writes performed', 'Salary config only', String(payload.writes_performed), payload.writes_performed ? 'positive' : 'warning')}
+            ${row('Ledger rows', 'Salary API must not write ledger', '0', 'positive')}
+          `);
+          renderAll();
+          toast('Salary config saved.');
+        } catch (err) {
+          setHTML('salarySavePanel', `<div class="salary-empty">Save failed: ${esc(err.message)}</div>`);
+        }
+      }
+
+      async function checkForecast() {
+        setHTML('forecastBridgePanel', '<div class="salary-empty">Checking Forecast…</div>');
+
+        try {
+          state.forecastPayload = await fetchJSON(API_FORECAST);
+          const salary = state.forecastPayload.salary || {};
+          setHTML('forecastBridgePanel', `
+            ${row('Forecast API', 'Bridge status', state.forecastPayload.ok ? 'OK' : 'Failed', state.forecastPayload.ok ? 'positive' : 'danger')}
+            ${row('Forecast salary', 'forecast_eligible_monthly', money(salary.forecast_eligible_monthly), 'positive')}
+            ${row('Guaranteed salary', 'salary.guaranteed_monthly', money(salary.guaranteed_monthly), 'info')}
+            ${row('Variable confirmed', 'salary.variable_confirmed', String(salary.variable_confirmed), salary.variable_confirmed ? 'positive' : 'warning')}
+            ${row('Forecast version', 'backend route', state.forecastPayload.version || 'unknown', 'info')}
+          `);
+          toast('Forecast bridge OK.');
+        } catch (err) {
+          setHTML('forecastBridgePanel', `<div class="salary-empty">Forecast check failed: ${esc(err.message)}</div>`);
+        }
+      }
+
+      function toast(message) {
+        const el = $('salaryToast');
+        if (!el) return;
+
+        el.textContent = message;
+        el.classList.add('show');
+
+        clearTimeout(el._timer);
+        el._timer = setTimeout(() => el.classList.remove('show'), 2500);
+      }
+
+      function bind() {
+        $('refreshSalaryBtn')?.addEventListener('click', loadSalary);
+        $('salaryDryRunBtn')?.addEventListener('click', dryRunSave);
+        $('salarySaveBtn')?.addEventListener('click', saveConfig);
+        $('checkForecastBtn')?.addEventListener('click', checkForecast);
+      }
+
+      function init() {
+        bind();
+        loadSalary();
+
+        window.SovereignSalary = {
+          version: VERSION,
+          reload: loadSalary,
+          checkForecast,
+          state: () => JSON.parse(JSON.stringify(state))
+        };
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+      } else {
+        init();
+      }
     })();
   </script>
 </body>
