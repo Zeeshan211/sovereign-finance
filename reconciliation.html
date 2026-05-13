@@ -1,1359 +1,661 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" data-page="reconciliation">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sovereign Finance — Reconciliation</title>
-  <link rel="stylesheet" href="/css/app.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050816" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
 
-<style>
-  :root {
-    --sf-bg: #f3f6ef;
-    --sf-surface: #ffffff;
-    --sf-ink: #18211b;
-    --sf-muted: #667064;
-    --sf-faint: #8b9589;
-    --sf-line: #dfe6da;
-    --sf-hero: #111c17;
-    --sf-hero-2: #1b2b23;
-    --sf-green: #2f7d4f;
-    --sf-green-soft: #e7f3eb;
-    --sf-yellow: #b7791f;
-    --sf-yellow-soft: #fff6dd;
-    --sf-red: #c2413a;
-    --sf-red-soft: #fdebea;
-    --sf-blue: #2f5f9f;
-    --sf-blue-soft: #e8effb;
-    --sf-radius: 22px;
-    --sf-shadow: 0 18px 50px rgba(28, 42, 31, 0.10);
-  }
+  <title>Reconciliation · Sovereign Finance</title>
 
-  body {
-    min-height: 100vh;
-    margin: 0;
-    background: var(--sf-bg);
-    color: var(--sf-ink);
-  }
+  <script src="/js/sf-theme-switcher.js"></script>
+  <link rel="stylesheet" href="/css/sf-theme.css" />
+  <link rel="stylesheet" href="/css/sf-shell.css" />
 
-  .rec-shell {
-    width: min(1180px, calc(100% - 32px));
-    margin: 0 auto;
-    padding: 24px 0 48px;
-  }
-
-  .rec-topbar {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 18px;
-    margin-bottom: 22px;
-    padding: 30px;
-    border-radius: 30px;
-    background:
-      radial-gradient(circle at top right, rgba(84, 168, 116, 0.28), transparent 28rem),
-      linear-gradient(135deg, var(--sf-hero), var(--sf-hero-2));
-    color: #fff;
-    box-shadow: var(--sf-shadow);
-  }
-
-  .rec-kicker {
-    color: rgba(255, 255, 255, 0.68);
-    font-size: 12px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-
-  .rec-title {
-    margin: 0;
-    font-size: clamp(32px, 5vw, 56px);
-    line-height: 0.95;
-    letter-spacing: -0.055em;
-  }
-
-  .rec-version {
-    color: rgba(255, 255, 255, 0.58);
-    font-size: 12px;
-    text-align: right;
-    white-space: nowrap;
-  }
-
-  .rec-nav {
-    display: none !important;
-  }
-
-  .rec-status {
-    border: 1px solid var(--sf-line);
-    background: var(--sf-surface);
-    border-radius: 18px;
-    padding: 14px 16px;
-    color: var(--sf-muted);
-    margin-bottom: 18px;
-    box-shadow: var(--sf-shadow);
-  }
-
-  .rec-status strong {
-    color: var(--sf-ink);
-  }
-
-  .rec-summary {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 14px;
-    margin-bottom: 18px;
-  }
-
-  .rec-card,
-  .rec-panel {
-    border: 1px solid var(--sf-line);
-    background: var(--sf-surface);
-    border-radius: var(--sf-radius);
-    box-shadow: var(--sf-shadow);
-  }
-
-  .rec-card {
-    padding: 18px;
-    min-height: 122px;
-    overflow: hidden;
-    position: relative;
-  }
-
-  .rec-card::after {
-    content: "";
-    position: absolute;
-    right: -38px;
-    bottom: -52px;
-    width: 120px;
-    height: 120px;
-    border-radius: 999px;
-    background: var(--sf-green-soft);
-    pointer-events: none;
-  }
-
-  .rec-label {
-    color: var(--sf-muted);
-    font-size: 13px;
-    margin-bottom: 8px;
-  }
-
-  .rec-value {
-    color: var(--sf-ink);
-    font-size: clamp(22px, 3vw, 34px);
-    line-height: 1.05;
-    font-weight: 760;
-    letter-spacing: -0.045em;
-    word-break: break-word;
-  }
-
-  .rec-sub {
-    color: var(--sf-faint);
-    font-size: 12px;
-    margin-top: 8px;
-    line-height: 1.4;
-  }
-
-  .rec-grid {
-    display: grid;
-    grid-template-columns: 1.15fr 0.85fr;
-    gap: 18px;
-    align-items: start;
-  }
-
-  .rec-panel {
-    padding: 18px;
-    margin-bottom: 18px;
-  }
-
-  .rec-panel h2,
-  .rec-panel h3 {
-    margin: 0 0 14px;
-    color: var(--sf-ink);
-    letter-spacing: -0.03em;
-  }
-
-  .rec-panel h2 {
-    font-size: 22px;
-  }
-
-  .rec-panel h3 {
-    font-size: 17px;
-  }
-
-  .rec-check-list {
-    display: grid;
-    gap: 12px;
-  }
-
-  .rec-check {
-    border: 1px solid var(--sf-line);
-    background: #fbfdf8;
-    border-radius: 18px;
-    padding: 14px;
-  }
-
-  .rec-check-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 10px;
-  }
-
-  .rec-check-title {
-    color: var(--sf-ink);
-    font-weight: 750;
-    font-size: 16px;
-    letter-spacing: -0.02em;
-  }
-
-  .rec-check-body {
-    color: var(--sf-muted);
-    font-size: 13px;
-    line-height: 1.45;
-  }
-
-  .rec-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    border: 1px solid var(--sf-line);
-    padding: 7px 10px;
-    font-size: 12px;
-    color: var(--sf-muted);
-    background: #f8faf5;
-    white-space: nowrap;
-  }
-
-  .rec-pill.good {
-    color: var(--sf-green);
-    border-color: #b8dac4;
-    background: var(--sf-green-soft);
-  }
-
-  .rec-pill.warn {
-    color: var(--sf-yellow);
-    border-color: #eed58e;
-    background: var(--sf-yellow-soft);
-  }
-
-  .rec-pill.danger {
-    color: var(--sf-red);
-    border-color: #f3b8b5;
-    background: var(--sf-red-soft);
-  }
-
-  .rec-pill.info {
-    color: var(--sf-blue);
-    border-color: #bacbeb;
-    background: var(--sf-blue-soft);
-  }
-
-  .rec-side-list {
-    display: grid;
-    gap: 12px;
-  }
-
-  .rec-side-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 11px 0;
-    border-bottom: 1px solid var(--sf-line);
-  }
-
-  .rec-side-row:last-child {
-    border-bottom: 0;
-  }
-
-  .rec-side-row span:first-child {
-    color: var(--sf-muted);
-  }
-
-  .rec-side-row span:last-child {
-    text-align: right;
-    font-weight: 700;
-    color: var(--sf-ink);
-  }
-
-  .rec-form {
-    display: grid;
-    gap: 12px;
-  }
-
-  .rec-field {
-    display: grid;
-    gap: 7px;
-  }
-
-  .rec-field label {
-    color: var(--sf-muted);
-    font-size: 13px;
-  }
-
-  .rec-field select,
-  .rec-field input {
-    width: 100%;
-    border: 1px solid var(--sf-line);
-    border-radius: 14px;
-    background: #fbfdf8;
-    color: var(--sf-ink);
-    padding: 12px 13px;
-    font: inherit;
-    outline: none;
-    box-sizing: border-box;
-  }
-
-  .rec-field select:focus,
-  .rec-field input:focus {
-    border-color: #89b894;
-    box-shadow: 0 0 0 3px rgba(47, 125, 79, 0.12);
-  }
-
-  .rec-result {
-    border: 1px solid var(--sf-line);
-    background: #fbfdf8;
-    border-radius: 18px;
-    padding: 14px;
-    margin-top: 4px;
-  }
-
-  .rec-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
-
-  .rec-table th,
-  .rec-table td {
-    text-align: left;
-    padding: 10px 8px;
-    border-bottom: 1px solid var(--sf-line);
-    vertical-align: top;
-  }
-
-  .rec-table th {
-    color: var(--sf-muted);
-    font-weight: 650;
-  }
-
-  .rec-table td {
-    color: var(--sf-ink);
-  }
-
-  .rec-table td:last-child,
-  .rec-table th:last-child {
-    text-align: right;
-  }
-
-  .rec-empty {
-    border: 1px dashed #cbd6c5;
-    color: var(--sf-muted);
-    border-radius: 18px;
-    padding: 18px;
-    background: #fbfdf8;
-    line-height: 1.45;
-  }
-
-  .rec-error {
-    color: var(--sf-red);
-  }
-
-  .rec-debug {
-    display: none;
-    white-space: pre-wrap;
-    overflow-x: auto;
-    max-height: 360px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--sf-muted);
-    background: #f8faf5;
-    border-radius: 14px;
-    padding: 14px;
-  }
-
-  .rec-debug.is-visible {
-    display: block;
-  }
-
-  @media (max-width: 980px) {
-    .rec-grid {
-      grid-template-columns: 1fr;
+  <style>
+    .recon-os {
+      width: min(100%, 1480px);
+      margin: 0 auto;
+      display: grid;
+      gap: var(--sf-space-5, 20px);
     }
 
-    .rec-summary {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-  }
-
-  @media (max-width: 620px) {
-    .rec-shell {
-      width: min(100% - 22px, 1180px);
-      padding-top: 14px;
-    }
-
-    .rec-topbar,
-    .rec-check-head {
-      flex-direction: column;
-      align-items: stretch;
+    .recon-command {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--sf-space-4, 16px);
+      align-items: center;
+      padding: clamp(18px, 3vw, 28px);
+      border: 1px solid var(--sf-border);
+      border-radius: var(--sf-radius-xl, 24px);
+      background: var(--sf-card);
+      box-shadow: var(--sf-shadow-sm);
     }
 
-    .rec-topbar {
-      padding: 24px;
-      border-radius: 24px;
+    .recon-title {
+      margin: 0;
+      color: var(--sf-text);
+      font-size: clamp(34px, 6vw, 62px);
+      line-height: .92;
+      font-weight: 950;
+      letter-spacing: -.07em;
     }
 
-    .rec-version {
-      text-align: left;
+    .recon-copy {
+      margin: 10px 0 0;
+      color: var(--sf-text-muted);
+      font-size: var(--sf-font-14, 14px);
+      font-weight: 700;
+      line-height: 1.55;
+      max-width: 980px;
     }
 
-    .rec-summary {
-      grid-template-columns: 1fr;
+    .recon-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sf-space-2, 10px);
+      justify-content: flex-end;
     }
 
-    .rec-table {
-      display: block;
-      overflow-x: auto;
-      white-space: nowrap;
-    }
-  }
-
-    /* Shipment 14: shared chart, side-panel, and mobile hardening */
-  html,
-  body {
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
-
-  .cc-shell,
-  .rec-shell,
-  .sal-shell,
-  .fc-shell {
-    max-width: 1180px;
-  }
-
-  .cc-card,
-  .rec-card,
-  .sal-card,
-  .fc-card,
-  .cc-panel,
-  .rec-panel,
-  .sal-panel,
-  .fc-panel,
-  .cc-account,
-  .rec-check,
-  .sal-check,
-  .fc-check,
-  .fc-day {
-    min-width: 0;
-  }
-
-  .cc-value,
-  .rec-value,
-  .sal-value,
-  .fc-value,
-  .cc-side-row span,
-  .rec-side-row span,
-  .sal-row span,
-  .fc-row span {
-    overflow-wrap: anywhere;
-  }
-
-  .cc-progress,
-  .fc-bar {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .cc-progress > span,
-  .fc-bar span {
-    min-width: 4px;
-  }
-
-  .cc-plan,
-  .fc-day {
-    min-width: 0;
-  }
-
-  .cc-plan strong,
-  .cc-plan span,
-  .fc-day-date,
-  .fc-day-text {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .rec-table {
-    max-width: 100%;
-  }
-
-  .rec-table th,
-  .rec-table td {
-    white-space: normal;
-  }
-
-  .cc-empty,
-  .rec-empty,
-  .sal-empty,
-  .fc-empty {
-    color: var(--sf-muted);
-  }
-
-  @media (max-width: 760px) {
-    .cc-shell,
-    .rec-shell,
-    .sal-shell,
-    .fc-shell {
-      width: min(100% - 20px, 1180px);
-      padding-bottom: 36px;
+    .recon-hero {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(22px, 4vw, 38px);
+      border-radius: var(--sf-radius-2xl, 30px);
+      color: #f8fafc;
+      background:
+        radial-gradient(circle at 82% 12%, rgba(83, 215, 167, .28), transparent 24rem),
+        linear-gradient(135deg, #06111f, #0f172a 48%, #102a25);
+      border: 1px solid rgba(255, 255, 255, .10);
+      box-shadow: var(--sf-shadow-lg);
     }
 
-    .cc-topbar,
-    .rec-topbar,
-    .sal-topbar,
-    .fc-topbar {
+    .recon-hero h2 {
+      margin: 12px 0 0;
+      color: #fff;
+      font-size: clamp(34px, 6vw, 68px);
+      line-height: .92;
+      font-weight: 950;
+      letter-spacing: -.075em;
+    }
+
+    .recon-hero p {
+      max-width: 920px;
+      margin: 14px 0 0;
+      color: #cbd5e1;
+      font-size: var(--sf-font-15, 15px);
+      line-height: 1.6;
+      font-weight: 720;
+    }
+
+    .recon-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .recon-pill {
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .08);
+      color: #e5e7eb;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 850;
+    }
+
+    .recon-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: var(--sf-space-4, 14px);
+    }
+
+    .recon-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
+      gap: var(--sf-space-4, 16px);
+      align-items: start;
+    }
+
+    .recon-stack {
+      display: grid;
+      gap: var(--sf-space-4, 16px);
+    }
+
+    .recon-toolbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
       margin-bottom: 16px;
     }
 
-    .cc-summary,
-    .rec-summary,
-    .sal-summary,
-    .fc-summary,
-    .cc-account-metrics,
-    .sal-two,
-    .sal-three {
-      grid-template-columns: 1fr !important;
+    .recon-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
-    .cc-grid,
-    .rec-grid,
-    .sal-grid,
-    .fc-grid {
-      grid-template-columns: 1fr !important;
-      gap: 14px;
+    .recon-filter {
+      border: 1px solid var(--sf-border);
+      border-radius: 999px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-soft);
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
     }
 
-    .cc-panel,
-    .rec-panel,
-    .sal-panel,
-    .fc-panel,
-    .cc-card,
-    .rec-card,
-    .sal-card,
-    .fc-card {
+    .recon-filter.is-active {
+      background: var(--sf-accent);
+      border-color: var(--sf-accent);
+      color: var(--sf-accent-contrast);
+    }
+
+    .recon-account-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .recon-account-card {
+      border: 1px solid var(--sf-border-subtle);
       border-radius: 18px;
+      background: var(--sf-surface-1);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
     }
 
-    .cc-account-head,
-    .rec-check-head,
-    .fc-check-head {
-      flex-direction: column;
-      align-items: stretch;
+    .recon-account-card.is-selected {
+      border-color: var(--sf-accent);
+      box-shadow: 0 0 0 3px var(--sf-accent-soft);
     }
 
-    .cc-pill,
-    .rec-pill,
-    .sal-pill,
-    .fc-pill {
-      width: fit-content;
-      max-width: 100%;
-      white-space: normal;
-      text-align: left;
+    .recon-account-head {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
     }
 
-    .cc-side-row,
-    .rec-side-row,
-    .sal-row,
-    .fc-row {
-      align-items: flex-start;
+    .recon-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: var(--sf-accent-soft);
+      color: var(--sf-accent-strong);
+      font-weight: 900;
     }
 
-    .cc-side-row span:last-child,
-    .rec-side-row span:last-child,
-    .sal-row span:last-child,
-    .fc-row span:last-child {
-      max-width: 54%;
+    .recon-account-title {
+      color: var(--sf-text);
+      font-size: 15px;
+      font-weight: 950;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .cc-plan {
-      grid-template-columns: 1fr !important;
+    .recon-account-sub {
+      margin-top: 4px;
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.35;
     }
 
-    .fc-day {
-      grid-template-columns: 1fr !important;
-    }
-  }
-
-  @media (max-width: 420px) {
-    .cc-title,
-    .rec-title,
-    .sal-title,
-    .fc-title {
-      font-size: 34px;
+    .recon-amount {
+      color: var(--sf-text);
+      font-size: 16px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      text-align: right;
     }
 
-    .cc-value,
-    .rec-value,
-    .sal-value,
-    .fc-value {
-      font-size: 24px;
+    .recon-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
 
-    .cc-side-row,
-    .rec-side-row,
-    .sal-row,
-    .fc-row {
-      flex-direction: column;
-      gap: 4px;
+    .recon-tag {
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 999px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-muted);
+      padding: 4px 8px;
+      font-size: 11px;
+      font-weight: 850;
     }
 
-    .cc-side-row span:last-child,
-    .rec-side-row span:last-child,
-    .sal-row span:last-child,
-    .fc-row span:last-child {
-      max-width: 100%;
-      text-align: left;
+    .recon-tag.good {
+      background: var(--sf-positive-soft);
+      color: var(--sf-positive);
+      border-color: rgba(83, 215, 167, .28);
     }
-  }
-</style>
+
+    .recon-tag.warn {
+      background: var(--sf-warning-soft);
+      color: var(--sf-warning);
+      border-color: rgba(241, 184, 87, .28);
+    }
+
+    .recon-tag.danger {
+      background: var(--sf-danger-soft);
+      color: var(--sf-danger);
+      border-color: rgba(255, 127, 138, .28);
+    }
+
+    .recon-card-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .recon-action {
+      border: 1px solid var(--sf-border);
+      border-radius: 999px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-soft);
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .recon-action.primary {
+      background: var(--sf-accent);
+      border-color: var(--sf-accent);
+      color: var(--sf-accent-contrast);
+    }
+
+    .recon-action.danger {
+      background: var(--sf-danger-soft);
+      color: var(--sf-danger);
+      border-color: rgba(255, 127, 138, .28);
+    }
+
+    .recon-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--sf-border-subtle);
+    }
+
+    .recon-row:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
+    }
+
+    .recon-row-title {
+      color: var(--sf-text);
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1.25;
+    }
+
+    .recon-row-sub {
+      margin-top: 4px;
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .recon-row-value {
+      color: var(--sf-text);
+      font-weight: 950;
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .recon-form {
+      display: grid;
+      gap: 12px;
+    }
+
+    .recon-field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .recon-field label {
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .recon-input,
+    .recon-select,
+    .recon-textarea {
+      width: 100%;
+      border: 1px solid var(--sf-border);
+      border-radius: 14px;
+      background: var(--sf-surface-1);
+      color: var(--sf-text);
+      padding: 12px 13px;
+      font: inherit;
+      outline: none;
+    }
+
+    .recon-textarea {
+      min-height: 88px;
+      resize: vertical;
+    }
+
+    .recon-input:focus,
+    .recon-select:focus,
+    .recon-textarea:focus {
+      border-color: var(--sf-accent);
+      box-shadow: 0 0 0 3px var(--sf-accent-soft);
+    }
+
+    .recon-empty {
+      border: 1px dashed var(--sf-border);
+      border-radius: 18px;
+      padding: 18px;
+      color: var(--sf-text-muted);
+      background: var(--sf-surface-1);
+      line-height: 1.5;
+    }
+
+    .recon-debug {
+      white-space: pre-wrap;
+      overflow: auto;
+      max-height: 420px;
+      border-radius: 16px;
+      padding: 14px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.5;
+      font-family: var(--sf-font-mono);
+    }
+
+    .recon-toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 9999;
+      transform: translateY(18px);
+      opacity: 0;
+      pointer-events: none;
+      transition: .2s ease;
+      border: 1px solid var(--sf-border);
+      border-radius: 16px;
+      padding: 12px 14px;
+      background: var(--sf-card-strong);
+      color: var(--sf-text);
+      box-shadow: var(--sf-shadow-md);
+      font-weight: 850;
+    }
+
+    .recon-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    @media (max-width: 1180px) {
+      .recon-command,
+      .recon-workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .recon-actions {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .recon-actions .sf-button,
+      .recon-action,
+      .recon-filter {
+        width: 100%;
+      }
+
+      .recon-toolbar,
+      .recon-account-head,
+      .recon-row {
+        grid-template-columns: 1fr;
+      }
+
+      .recon-amount,
+      .recon-row-value {
+        text-align: left;
+      }
+
+      .recon-card-actions {
+        justify-content: stretch;
+      }
+    }
+  </style>
 </head>
 
-<body>
-  <main class="rec-shell" data-page="reconciliation" data-version="reconciliation-readonly-v1.0.2-hardened">
-    <section class="rec-topbar">
-      <div>
-        <div class="rec-kicker">Sovereign Finance</div>
-        <h1 class="rec-title">Reconciliation</h1>
-      </div>
-      <div class="rec-version">reconciliation-readonly-v1.0.2-hardened</div>
-    </section>
+<body class="sf-shell-body">
+  <div class="sf-app-shell sf-app-shell--with-nav">
+    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
 
-    <nav class="rec-nav" aria-label="Primary">
-      <a href="/index.html">Hub</a>
-      <a href="/add.html">Add</a>
-      <a href="/transactions.html">Ledger</a>
-      <a href="/bills.html">Bills</a>
-      <a href="/debts.html">Debts</a>
-      <a href="/salary.html">Salary</a>
-      <a href="/forecast.html">Forecast</a>
-      <a href="/cc.html">Credit Card</a>
-      <a href="/reconciliation.html" aria-current="page">Reconciliation</a>
-    </nav>
+    <main class="sf-page-shell">
+      <section class="sf-page-content recon-os">
+        <section class="recon-command">
+          <div>
+            <div class="sf-page-eyebrow">Banking-grade reconciliation</div>
+            <h1 class="recon-title">Reconciliation</h1>
+            <p class="recon-copy">
+              Reconciliation compares bank-app declared balances against Accounts truth. It records declarations and drift proof only. It does not mutate ledger or account balances.
+            </p>
+          </div>
 
-    <section id="recStatus" class="rec-status">
-      <strong>Loading reconciliation checks…</strong>
-      <span>Reading current finance sources.</span>
-    </section>
-
-    <section class="rec-summary" aria-label="Reconciliation summary">
-      <article class="rec-card">
-        <div class="rec-label">Liquid Balance</div>
-        <div id="totalLiquid" class="rec-value">—</div>
-        <div class="rec-sub">From balance source.</div>
-      </article>
-
-      <article class="rec-card">
-        <div class="rec-label">Credit Card</div>
-        <div id="ccOutstanding" class="rec-value">—</div>
-        <div class="rec-sub">Outstanding liability.</div>
-      </article>
-
-      <article class="rec-card">
-        <div class="rec-label">Payable Debt</div>
-        <div id="payableDebt" class="rec-value">—</div>
-        <div class="rec-sub">Active amount owed.</div>
-      </article>
-
-      <article class="rec-card">
-        <div class="rec-label">Receivables</div>
-        <div id="receivables" class="rec-value">—</div>
-        <div class="rec-sub">Expected incoming repayments.</div>
-      </article>
-    </section>
-
-    <section class="rec-grid">
-      <div>
-        <section class="rec-panel">
-          <h2>Read-only checks</h2>
-          <div id="checkList" class="rec-check-list">
-            <div class="rec-empty">Loading checks…</div>
+          <div class="recon-actions">
+            <button class="sf-button sf-button--primary" id="refreshReconBtn" type="button">Refresh</button>
+            <a class="sf-button" href="/accounts.html">Accounts</a>
+            <a class="sf-button" href="/transactions.html">Ledger</a>
           </div>
         </section>
 
-        <section class="rec-panel">
-          <h2>Manual statement compare</h2>
-          <div class="rec-form">
-            <div class="rec-field">
-              <label for="accountSelect">Account</label>
-              <select id="accountSelect">
-                <option value="">Loading accounts…</option>
-              </select>
-            </div>
-
-            <div class="rec-field">
-              <label for="actualBalance">Actual bank/app balance</label>
-              <input id="actualBalance" type="number" step="0.01" inputmode="decimal" placeholder="Enter statement balance" />
-            </div>
-
-            <div id="manualResult" class="rec-result">
-              <div class="rec-empty">Choose an account and enter actual balance. This calculates difference only.</div>
-            </div>
+        <section class="recon-hero">
+          <div class="sf-page-eyebrow">Every rupee accounted for</div>
+          <h2 id="reconHeroStatus">Loading</h2>
+          <p id="reconHeroCopy">
+            Reading /api/reconciliation and validating /api/accounts as the computed balance source.
+          </p>
+          <div class="recon-pill-row">
+            <span class="recon-pill" id="reconVersionPill">version loading</span>
+            <span class="recon-pill" id="reconSourcePill">source loading</span>
+            <span class="recon-pill" id="reconPolicyPill">policy loading</span>
           </div>
         </section>
 
-        <section class="rec-panel">
-          <h2>Account balances</h2>
-          <div id="accountTableWrap">
-            <div class="rec-empty">Loading account table…</div>
-          </div>
-        </section>
-      </div>
-
-      <aside>
-        <section class="rec-panel">
-          <h3>Source status</h3>
-          <div id="sourcePanel" class="rec-side-list">
-            <div class="rec-empty">Loading sources…</div>
-          </div>
-        </section>
-
-        <section class="rec-panel">
-          <h3>Mismatch priority</h3>
-          <div id="priorityPanel" class="rec-side-list">
-            <div class="rec-empty">Loading priorities…</div>
-          </div>
-        </section>
-
-        <section class="rec-panel">
-          <h3>Mode</h3>
-          <div class="rec-side-list">
-            <div class="rec-side-row">
-              <span>Page mode</span>
-              <span>Read-only</span>
-            </div>
-            <div class="rec-side-row">
-              <span>Balance source</span>
-              <span>/api/balances</span>
-            </div>
-            <div class="rec-side-row">
-              <span>Manual compare</span>
-              <span>Local only</span>
-            </div>
-          </div>
-        </section>
-
-        <section id="debugPanel" class="rec-panel" hidden>
-          <h3>Debug</h3>
-          <pre id="debugOutput" class="rec-debug"></pre>
-        </section>
-      </aside>
-    </section>
-  </main>
-
-  <script src="/js/theme.js" defer></script>
-  <script src="/js/nav.js" defer></script>
-
-  <script>
-    (function () {
-      "use strict";
-
-      const PAGE_VERSION = "reconciliation-readonly-v1.0.2-hardened";
-      const DEBUG = new URLSearchParams(window.location.search).get("debug") === "1";
-
-      const state = {
-        accounts: null,
-        balances: null,
-        transactions: null,
-        bills: null,
-        debts: null,
-        cc: null,
-        accountRows: [],
-        checks: [],
-        sourceStatus: []
-      };
-
-      const $ = (id) => document.getElementById(id);
-
-      function asNumber(value, fallback = 0) {
-        if (typeof value === "number" && Number.isFinite(value)) return value;
-        if (typeof value === "string") {
-          const parsed = Number(value.replace(/[^\d.-]/g, ""));
-          if (Number.isFinite(parsed)) return parsed;
-        }
-        return fallback;
-      }
-
-      function money(value) {
-        return new Intl.NumberFormat("en-PK", {
-          style: "currency",
-          currency: "PKR",
-          maximumFractionDigits: 2
-        }).format(asNumber(value, 0));
-      }
-
-      function pct(value) {
-        return `${asNumber(value, 0).toFixed(1)}%`;
-      }
-
-      function text(value, fallback = "—") {
-        if (value === null || value === undefined || value === "") return fallback;
-        return String(value);
-      }
-
-      function round2(value) {
-        return Math.round(asNumber(value, 0) * 100) / 100;
-      }
-
-      function escapeHtml(value) {
-        return String(value)
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;")
-          .replaceAll('"', "&quot;")
-          .replaceAll("'", "&#039;");
-      }
-
-      function firstDefined() {
-        for (const value of arguments) {
-          if (value !== undefined && value !== null && value !== "") return value;
-        }
-        return undefined;
-      }
-
-      function setStatus(kind, html) {
-        const node = $("recStatus");
-        node.className = "rec-status";
-        if (kind === "error") node.classList.add("rec-error");
-        node.innerHTML = html;
-      }
-
-      async function readJson(path, required) {
-        try {
-          const response = await fetch(path, {
-            headers: { "Accept": "application/json" },
-            cache: "no-store"
-          });
-
-          const payload = await response.json().catch(() => null);
-
-          if (!response.ok) {
-            throw new Error(`${path} HTTP ${response.status}`);
-          }
-
-          state.sourceStatus.push({ path, ok: true, status: response.status });
-          return payload;
-        } catch (error) {
-          state.sourceStatus.push({ path, ok: false, error: error.message });
-          if (required) throw error;
-          return null;
-        }
-      }
-
-      function arrayFrom(payload, keys) {
-        for (const key of keys) {
-          if (Array.isArray(payload?.[key])) return payload[key];
-        }
-        return [];
-      }
-
-      function normalizeAccounts() {
-        const balanceAccounts = state.balances?.accounts || {};
-        const fromBalances = Object.entries(balanceAccounts).map(([id, row]) => ({
-          id,
-          name: text(firstDefined(row.name, id), id),
-          kind: text(firstDefined(row.kind, row.type), ""),
-          type: text(row.type, ""),
-          opening_balance: asNumber(row.opening_balance, 0),
-          balance: round2(firstDefined(row.balance, row.current_balance, 0)),
-          credit_limit: firstDefined(row.credit_limit, row.creditLimit)
-        }));
-
-        const fromAccounts = arrayFrom(state.accounts, ["accounts", "data", "results"]).map((row) => ({
-          id: text(firstDefined(row.id, row.account_id, row.key, row.slug, row.name)),
-          name: text(firstDefined(row.name, row.label, row.account_name, row.id)),
-          kind: text(firstDefined(row.kind, row.type), ""),
-          type: text(row.type, ""),
-          opening_balance: asNumber(row.opening_balance, 0),
-          balance: null,
-          credit_limit: firstDefined(row.credit_limit, row.creditLimit)
-        }));
-
-        const map = new Map();
-
-        for (const row of fromAccounts) {
-          if (row.id) map.set(row.id, row);
-        }
-
-        for (const row of fromBalances) {
-          const existing = map.get(row.id) || {};
-          map.set(row.id, {
-            ...existing,
-            ...row,
-            name: row.name || existing.name || row.id,
-            opening_balance: firstDefined(existing.opening_balance, row.opening_balance, 0),
-            credit_limit: firstDefined(row.credit_limit, existing.credit_limit)
-          });
-        }
-
-        state.accountRows = [...map.values()].sort((a, b) => String(a.name).localeCompare(String(b.name)));
-      }
-
-      function isCcAccount(account) {
-        const value = `${account.kind || ""} ${account.type || ""}`.toLowerCase();
-        return value.includes("cc") || value.includes("credit");
-      }
-
-      function activeTransactions() {
-        return arrayFrom(state.transactions, ["transactions", "data", "results"]).filter((txn) => {
-          if (txn.reversed_by || txn.reversed_at) return false;
-          const notes = String(txn.notes || "").toUpperCase();
-          return !notes.includes("[REVERSED BY ") && !notes.includes("[REVERSAL OF ");
-        });
-      }
-
-      function transactionImpactFor(accountId) {
-        const plus = new Set(["income", "salary", "debt_in", "borrow", "opening"]);
-        const minus = new Set(["expense", "cc_spend", "atm", "debt_out", "repay", "transfer"]);
-        let impact = 0;
-
-        for (const txn of activeTransactions()) {
-          const amount = asNumber(txn.amount, 0);
-          const fee = asNumber(txn.fee_amount, 0);
-          const pra = asNumber(txn.pra_amount, 0);
-          const type = String(txn.type || "").toLowerCase();
-          const source = text(txn.account_id, "");
-          const target = text(txn.transfer_to_account_id, "");
-
-          if ((type === "transfer" || type === "cc_payment") && source === accountId && target) {
-            impact -= amount + fee + pra;
-            continue;
-          }
-
-          if ((type === "transfer" || type === "cc_payment") && target === accountId && source) {
-            impact += amount;
-            continue;
-          }
-
-          if (source !== accountId) continue;
-
-          if (plus.has(type)) impact += amount;
-          else if (minus.has(type)) impact -= amount + fee + pra;
-        }
-
-        return round2(impact);
-      }
-
-      function buildChecks() {
-        const checks = [];
-
-        const totalLiquid = asNumber(firstDefined(
-          state.balances?.total_liquid,
-          state.balances?.cash,
-          state.balances?.total_liquid_assets
-        ), 0);
-
-        const accountLiquid = state.accountRows
-          .filter((account) => !isCcAccount(account))
-          .reduce((sum, account) => sum + asNumber(account.balance, 0), 0);
-
-        const liquidDelta = round2(accountLiquid - totalLiquid);
-
-        checks.push({
-          title: "Account balance rollup",
-          status: Math.abs(liquidDelta) <= 0.5 ? "good" : "warn",
-          badge: Math.abs(liquidDelta) <= 0.5 ? "Aligned" : "Mismatch",
-          body: `Non-card account balances total ${money(accountLiquid)}. Reported liquid balance is ${money(totalLiquid)}. Difference: ${money(liquidDelta)}.`
-        });
-
-        const ledgerCheckable = state.accountRows.filter((account) => Number.isFinite(asNumber(account.opening_balance, NaN)) && account.balance !== null);
-        const ledgerMismatches = [];
-
-        for (const account of ledgerCheckable) {
-          const expected = round2(asNumber(account.opening_balance, 0) + transactionImpactFor(account.id));
-          const actual = round2(account.balance);
-          const delta = round2(actual - expected);
-          if (Math.abs(delta) > 0.5) {
-            ledgerMismatches.push({ account, expected, actual, delta });
-          }
-        }
-
-        checks.push({
-          title: "Ledger vs account balance",
-          status: ledgerMismatches.length ? "warn" : "good",
-          badge: ledgerMismatches.length ? `${ledgerMismatches.length} mismatch` : "No mismatch",
-          body: ledgerCheckable.length
-            ? `${ledgerCheckable.length} accounts checked from opening balance plus active ledger impact. ${ledgerMismatches.length ? "Review mismatch priority." : "No material difference found."}`
-            : "Opening balances unavailable, so ledger reconstruction is not checkable here.",
-          details: ledgerMismatches
-        });
-
-        const billsSummary = summarizeBills();
-        checks.push({
-          title: "Bills payment state",
-          status: billsSummary.status,
-          badge: billsSummary.badge,
-          body: billsSummary.body
-        });
-
-        const debtSummary = summarizeDebts();
-        checks.push({
-          title: "Debt movement state",
-          status: debtSummary.status,
-          badge: debtSummary.badge,
-          body: debtSummary.body
-        });
-
-        const ccSummary = summarizeCc();
-        checks.push({
-          title: "Credit card outstanding",
-          status: ccSummary.status,
-          badge: ccSummary.badge,
-          body: ccSummary.body
-        });
-
-        state.checks = checks;
-      }
-
-      function summarizeBills() {
-        if (!state.bills) {
-          return {
-            status: "info",
-            badge: "Unavailable",
-            body: "Bills source did not load. No bill mismatch calculated."
-          };
-        }
-
-        const bills = arrayFrom(state.bills, ["bills", "data", "results"]);
-        const remaining = firstDefined(
-          state.bills.remaining_this_month,
-          state.bills.total_remaining,
-          state.bills.summary?.remaining_this_month,
-          state.bills.summary?.total_remaining
-        );
-        const paid = firstDefined(
-          state.bills.paid_this_month,
-          state.bills.summary?.paid_this_month
-        );
-
-        if (remaining !== undefined || paid !== undefined) {
-          return {
-            status: "good",
-            badge: "Loaded",
-            body: `Bills loaded. Remaining this month: ${money(remaining || 0)}. Paid this month: ${money(paid || 0)}.`
-          };
-        }
-
-        const openAmount = bills.reduce((sum, bill) => {
-          const status = String(bill.status || bill.current_month_cleared || "").toLowerCase();
-          const cleared = status === "paid" || status === "cleared" || status === "true";
-          return cleared ? sum : sum + asNumber(firstDefined(bill.amount, bill.expected_amount, bill.monthly_amount), 0);
-        }, 0);
-
-        return {
-          status: "good",
-          badge: `${bills.length} bills`,
-          body: `Bills loaded. Estimated open bill amount from returned rows: ${money(openAmount)}.`
-        };
-      }
-
-      function summarizeDebts() {
-        const balancePayable = asNumber(firstDefined(
-          state.balances?.payable_debt_remaining,
-          state.balances?.total_owed,
-          state.balances?.total_debts
-        ), 0);
-
-        const balanceReceivable = asNumber(firstDefined(
-          state.balances?.total_receivables,
-          state.balances?.receivables_from_debts
-        ), 0);
-
-        if (!state.debts) {
-          return {
-            status: "info",
-            badge: "From balances",
-            body: `Debt endpoint unavailable. Balance source shows payable debt ${money(balancePayable)} and receivables ${money(balanceReceivable)}.`
-          };
-        }
-
-        const debts = arrayFrom(state.debts, ["debts", "data", "results"]);
-        let payable = 0;
-        let receivable = 0;
-
-        for (const debt of debts) {
-          const status = String(debt.status || "").toLowerCase();
-          if (status && status !== "active" && status !== "open") continue;
-
-          const original = asNumber(firstDefined(debt.original_amount, debt.amount, debt.total_amount), 0);
-          const paid = asNumber(firstDefined(debt.paid_amount, debt.received_amount, debt.settled_amount), 0);
-          const remaining = Math.max(0, original - paid);
-          const kind = String(firstDefined(debt.kind, debt.type, "")).toLowerCase();
-
-          if (["owe", "i_owe", "payable", "debt"].includes(kind)) payable += remaining;
-          else if (["owed", "owed_me", "receivable", "to_me"].includes(kind)) receivable += remaining;
-        }
-
-        const payableDelta = round2(payable - balancePayable);
-        const receivableDelta = round2(receivable - balanceReceivable);
-        const mismatch = Math.abs(payableDelta) > 0.5 || Math.abs(receivableDelta) > 0.5;
-
-        return {
-          status: mismatch ? "warn" : "good",
-          badge: mismatch ? "Review" : "Aligned",
-          body: `Debt rows imply payable ${money(payable)} and receivable ${money(receivable)}. Balance source says payable ${money(balancePayable)} and receivable ${money(balanceReceivable)}.`
-        };
-      }
-
-      function summarizeCc() {
-        const balanceCc = asNumber(firstDefined(
-          state.balances?.cc_outstanding,
-          state.balances?.cc
-        ), 0);
-
-        if (!state.cc) {
-          return {
-            status: "info",
-            badge: "From balances",
-            body: `Card endpoint unavailable. Balance source shows card outstanding ${money(balanceCc)}.`
-          };
-        }
-
-        const cards = arrayFrom(state.cc, ["accounts", "cards", "credit_cards", "creditCards", "data"]);
-        let ccTotal = asNumber(firstDefined(
-          state.cc.total_outstanding,
-          state.cc.totalOutstanding,
-          state.cc.summary?.total_outstanding,
-          state.cc.summary?.outstanding,
-          state.cc.totals?.outstanding
-        ), NaN);
-
-        if (!Number.isFinite(ccTotal)) {
-          ccTotal = cards.reduce((sum, card) => {
-            const balance = asNumber(firstDefined(card.balance, card.current_balance), 0);
-            const outstanding = firstDefined(
-              card.outstanding,
-              card.cc_outstanding,
-              card.current_outstanding,
-              balance < 0 ? Math.abs(balance) : undefined
-            );
-            return sum + asNumber(outstanding, 0);
-          }, 0);
-        }
-
-        const delta = round2(ccTotal - balanceCc);
-
-        return {
-          status: Math.abs(delta) <= 0.5 ? "good" : "warn",
-          badge: Math.abs(delta) <= 0.5 ? "Aligned" : "Mismatch",
-          body: `Card source shows ${money(ccTotal)} outstanding. Balance source shows ${money(balanceCc)}. Difference: ${money(delta)}.`
-        };
-      }
-
-      function renderSummary() {
-        $("totalLiquid").textContent = money(firstDefined(state.balances?.total_liquid, state.balances?.cash, 0));
-        $("ccOutstanding").textContent = money(firstDefined(state.balances?.cc_outstanding, state.balances?.cc, 0));
-        $("payableDebt").textContent = money(firstDefined(state.balances?.payable_debt_remaining, state.balances?.total_owed, state.balances?.total_debts, 0));
-        $("receivables").textContent = money(firstDefined(state.balances?.total_receivables, state.balances?.receivables_from_debts, 0));
-      }
-
-      function renderChecks() {
-        $("checkList").innerHTML = state.checks.map((check) => `
-          <article class="rec-check">
-            <div class="rec-check-head">
-              <div class="rec-check-title">${escapeHtml(check.title)}</div>
-              <span class="rec-pill ${escapeHtml(check.status)}">${escapeHtml(check.badge)}</span>
-            </div>
-            <div class="rec-check-body">${escapeHtml(check.body)}</div>
+        <section class="recon-metrics">
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Accounts</p>
+            <div id="metricAccountCount" class="sf-metric-value">—</div>
+            <p class="sf-card-subtitle">Accounts returned by source.</p>
           </article>
-        `).join("");
-      }
 
-      function renderSources() {
-        $("sourcePanel").innerHTML = state.sourceStatus.map((source) => `
-          <div class="rec-side-row">
-            <span>${escapeHtml(source.path)}</span>
-            <span>${source.ok ? "OK" : "Failed"}</span>
-          </div>
-        `).join("");
-      }
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Declared</p>
+            <div id="metricDeclaredCount" class="sf-metric-value">—</div>
+            <p class="sf-card-subtitle">Accounts with saved declarations.</p>
+          </article>
 
-      function renderPriority() {
-        const warnings = [];
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">OK / Check / Investigate</p>
+            <div id="metricSeverityCounts" class="sf-metric-value">—</div>
+            <p class="sf-card-subtitle">Drift severity split.</p>
+          </article>
 
-        for (const check of state.checks) {
-          if (check.status === "warn" || check.status === "danger") {
-            warnings.push(`${check.title}: ${check.badge}`);
-          }
-        }
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Open Drift</p>
+            <div id="metricOpenDrift" class="sf-metric-value sf-tone-warning">—</div>
+            <p class="sf-card-subtitle">Check + investigate.</p>
+          </article>
 
-        if (!warnings.length) {
-          $("priorityPanel").innerHTML = `
-            <div class="rec-side-row">
-              <span>Status</span>
-              <span>No material mismatch</span>
-            </div>
-          `;
-          return;
-        }
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Total Abs Drift</p>
+            <div id="metricTotalAbsDrift" class="sf-metric-value sf-tone-danger">—</div>
+            <p class="sf-card-subtitle">Sum of absolute deltas.</p>
+          </article>
 
-        $("priorityPanel").innerHTML = warnings.map((warning) => `
-          <div class="rec-side-row">
-            <span>Review</span>
-            <span>${escapeHtml(warning)}</span>
-          </div>
-        `).join("");
-      }
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Ledger Writes</p>
+            <div id="metricLedgerWrites" class="sf-metric-value">Blocked</div>
+            <p class="sf-card-subtitle">Reconciliation never mutates ledger.</p>
+          </article>
+        </section>
 
-      function renderAccounts() {
-        const select = $("accountSelect");
-
-        if (!state.accountRows.length) {
-          select.innerHTML = `<option value="">No accounts found</option>`;
-          $("accountTableWrap").innerHTML = `<div class="rec-empty">No accounts returned by sources.</div>`;
-          return;
-        }
-
-        select.innerHTML = [
-          `<option value="">Choose account</option>`,
-          ...state.accountRows.map((account) => `
-            <option value="${escapeHtml(account.id)}">${escapeHtml(account.name)} — ${money(account.balance)}</option>
-          `)
-        ].join("");
-
-        $("accountTableWrap").innerHTML = `
-          <table class="rec-table">
-            <thead>
-              <tr>
-                <th>Account</th>
-                <th>Kind</th>
-                <th>Opening</th>
-                <th>Current</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${state.accountRows.map((account) => `
-                <tr>
-                  <td>${escapeHtml(account.name)}</td>
-                  <td>${escapeHtml(text(firstDefined(account.kind, account.type)))}</td>
-                  <td>${money(account.opening_balance)}</td>
-                  <td>${money(account.balance)}</td>
-                </tr>
-              `).join("")}
-            </tbody>
-          </table>
-        `;
-      }
-
-      function renderManualCompare() {
-        const accountId = $("accountSelect").value;
-        const actual = asNumber($("actualBalance").value, NaN);
-        const account = state.accountRows.find((item) => item.id === accountId);
-
-        if (!account || !Number.isFinite(actual)) {
-          $("manualResult").innerHTML = `<div class="rec-empty">Choose an account and enter actual balance. This calculates difference only.</div>`;
-          return;
-        }
-
-        const appBalance = asNumber(account.balance, 0);
-        const delta = round2(actual - appBalance);
-        const status = Math.abs(delta) <= 0.5 ? "good" : "warn";
-
-        $("manualResult").innerHTML = `
-          <div class="rec-check">
-            <div class="rec-check-head">
-              <div class="rec-check-title">${escapeHtml(account.name)}</div>
-              <span class="rec-pill ${status}">${Math.abs(delta) <= 0.5 ? "Aligned" : "Difference"}</span>
-            </div>
-            <div class="rec-side-list">
-              <div class="rec-side-row">
-                <span>App balance</span>
-                <span>${money(appBalance)}</span>
+        <section class="recon-workspace">
+          <div class="recon-stack">
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Accounts</p>
+                  <h2 class="sf-section-title">Computed vs Declared</h2>
+                  <p class="sf-section-subtitle">
+                    Computed balances come from /api/accounts. Declared values are manual bank-app evidence.
+                  </p>
+                </div>
               </div>
-              <div class="rec-side-row">
-                <span>Actual balance</span>
-                <span>${money(actual)}</span>
+
+              <div class="recon-toolbar">
+                <div class="recon-filters" id="reconFilters">
+                  <button class="recon-filter is-active" type="button" data-filter="all">All</button>
+                  <button class="recon-filter" type="button" data-filter="not_reconciled">Not Reconciled</button>
+                  <button class="recon-filter" type="button" data-filter="ok">OK</button>
+                  <button class="recon-filter" type="button" data-filter="check">Check</button>
+                  <button class="recon-filter" type="button" data-filter="investigate">Investigate</button>
+                </div>
+
+                <button class="recon-action" id="reloadReconBtn" type="button">Reload</button>
               </div>
-              <div class="rec-side-row">
-                <span>Difference</span>
-                <span>${money(delta)}</span>
+
+              <div id="reconAccountList" class="recon-account-list">
+                <div class="recon-empty">Loading reconciliation accounts…</div>
               </div>
-            </div>
+            </section>
           </div>
-        `;
-      }
 
-      function renderDebug() {
-        if (!DEBUG) return;
+          <aside class="recon-stack">
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Declaration</p>
+                  <h2 class="sf-section-title" id="selectedReconTitle">No account selected</h2>
+                  <p class="sf-section-subtitle" id="selectedReconSub">
+                    Select an account, enter bank-app balance, dry-run, then save declaration.
+                  </p>
+                </div>
+              </div>
 
-        $("debugPanel").hidden = false;
-        $("debugOutput").classList.add("is-visible");
-        $("debugOutput").textContent = JSON.stringify({
-          version: PAGE_VERSION,
-          sources: state.sourceStatus,
-          checks: state.checks,
-          account_count: state.accountRows.length,
-          active_transaction_count: activeTransactions().length
-        }, null, 2);
-      }
+              <div id="selectedReconPanel">
+                <div class="recon-empty">No account selected.</div>
+              </div>
 
-      async function boot() {
-        window.SovereignReconciliation = {
-          version: PAGE_VERSION,
-          reload: boot
-        };
+              <form class="recon-form" id="reconDeclarationForm" style="margin-top:16px;">
+                <div class="recon-field">
+                  <label for="reconAccountSelect">Account</label>
+                  <select class="recon-select" id="reconAccountSelect">
+                    <option value="">Select account…</option>
+                  </select>
+                </div>
 
-        try {
-          setStatus("loading", `<strong>Loading reconciliation checks…</strong> <span>Reading safe sources.</span>`);
+                <div class="recon-field">
+                  <label for="declaredBalanceInput">Declared balance</label>
+                  <input class="recon-input" id="declaredBalanceInput" type="number" step="0.01" placeholder="Bank app balance" />
+                </div>
 
-          const results = await Promise.allSettled([
-            readJson("/api/balances", true),
-            readJson("/api/accounts", false),
-            readJson("/api/transactions", false),
-            readJson("/api/bills", false),
-            readJson("/api/debts", false),
-            readJson("/api/cc", false)
-          ]);
+                <div class="recon-field">
+                  <label for="declaredAtInput">Declared at</label>
+                  <input class="recon-input" id="declaredAtInput" type="datetime-local" />
+                </div>
 
-          state.balances = results[0].status === "fulfilled" ? results[0].value : null;
-          state.accounts = results[1].status === "fulfilled" ? results[1].value : null;
-          state.transactions = results[2].status === "fulfilled" ? results[2].value : null;
-          state.bills = results[3].status === "fulfilled" ? results[3].value : null;
-          state.debts = results[4].status === "fulfilled" ? results[4].value : null;
-          state.cc = results[5].status === "fulfilled" ? results[5].value : null;
+                <div class="recon-field">
+                  <label for="reconNotesInput">Notes</label>
+                  <textarea class="recon-textarea" id="reconNotesInput" placeholder="Manual bank app check, screenshot reference, reason, etc."></textarea>
+                </div>
 
-          normalizeAccounts();
-          buildChecks();
+                <div class="recon-card-actions">
+                  <button class="recon-action" id="dryRunReconBtn" type="button">Dry-run Declaration</button>
+                  <button class="recon-action primary" id="saveReconBtn" type="button">Save Declaration</button>
+                </div>
+              </form>
+            </section>
 
-          renderSummary();
-          renderChecks();
-          renderSources();
-          renderPriority();
-          renderAccounts();
-          renderManualCompare();
-          renderDebug();
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Declaration result</p>
+                  <h2 class="sf-section-title">Proof</h2>
+                </div>
+              </div>
 
-          $("accountSelect").addEventListener("change", renderManualCompare);
-          $("actualBalance").addEventListener("input", renderManualCompare);
+              <div id="declarationResultPanel">
+                <div class="recon-empty">No declaration dry-run/save yet.</div>
+              </div>
+            </section>
 
-          setStatus("ready", `<strong>Reconciliation ready.</strong> <span>Read-only checks loaded from current sources.</span>`);
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Health</p>
+                  <h2 class="sf-section-title">Backend Health</h2>
+                </div>
+              </div>
 
-          console.log("reconciliation page:", PAGE_VERSION);
-          console.log("reconciliation sources:", state.sourceStatus);
-        } catch (error) {
-          console.error(error);
-          setStatus("error", `<strong>Reconciliation failed.</strong> <span>${escapeHtml(error.message)}</span>`);
-          $("checkList").innerHTML = `<div class="rec-empty rec-error">Could not load required balance source.</div>`;
-        }
-      }
+              <div id="reconHealthPanel">
+                <div class="recon-empty">Loading health…</div>
+              </div>
+            </section>
 
-      document.addEventListener("DOMContentLoaded", boot);
-    })();
-  </script>
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Source + policy</p>
+                  <h2 class="sf-section-title">Truth Contract</h2>
+                </div>
+              </div>
+
+              <div id="reconSourcePanel">
+                <div class="recon-empty">Loading source contract…</div>
+              </div>
+            </section>
+
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Debug</p>
+                  <h2 class="sf-section-title">Raw Contract</h2>
+                </div>
+              </div>
+
+              <pre id="reconDebug" class="recon-debug">Loading…</pre>
+            </section>
+          </aside>
+        </section>
+
+        <footer>
+          <span class="sf-meta-text" id="reconFooterVersion">
+            reconciliation.html · declaration renderer
+          </span>
+        </footer>
+      </section>
+    </main>
+  </div>
+
+  <div id="reconToast" class="recon-toast"></div>
+
+  <script src="/js/sf-components.js"></script>
+  <script src="/js/sf-shell.js"></script>
+  <script src="/js/reconciliation.js?v=0.2.0-declaration-ui"></script>
 </body>
 </html>
