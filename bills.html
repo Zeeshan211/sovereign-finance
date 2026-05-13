@@ -36,7 +36,7 @@
     .bills-title {
       margin: 0;
       color: var(--sf-text);
-      font-size: clamp(32px, 5vw, 58px);
+      font-size: clamp(34px, 6vw, 62px);
       line-height: .92;
       font-weight: 950;
       letter-spacing: -.07em;
@@ -47,8 +47,8 @@
       color: var(--sf-text-muted);
       font-size: var(--sf-font-14, 14px);
       font-weight: 700;
-      line-height: 1.5;
-      max-width: 860px;
+      line-height: 1.55;
+      max-width: 900px;
     }
 
     .bills-actions {
@@ -65,8 +65,8 @@
       border-radius: var(--sf-radius-2xl, 30px);
       color: #f8fafc;
       background:
-        radial-gradient(circle at 82% 12%, rgba(59, 130, 246, .28), transparent 24rem),
-        linear-gradient(135deg, #06111f, #0f172a 48%, #1e293b);
+        radial-gradient(circle at 82% 12%, rgba(83, 215, 167, .28), transparent 24rem),
+        linear-gradient(135deg, #06111f, #0f172a 48%, #102a25);
       border: 1px solid rgba(255, 255, 255, .10);
       box-shadow: var(--sf-shadow-lg);
     }
@@ -81,7 +81,7 @@
     }
 
     .bills-insight p {
-      max-width: 820px;
+      max-width: 900px;
       margin: 14px 0 0;
       color: #cbd5e1;
       font-size: var(--sf-font-15, 15px);
@@ -102,10 +102,14 @@
       align-items: start;
     }
 
+    .bills-stack {
+      display: grid;
+      gap: var(--sf-space-4, 16px);
+    }
+
     .bills-list {
       display: grid;
-      gap: var(--sf-space-3, 12px);
-      margin-top: var(--sf-space-4, 16px);
+      gap: 12px;
     }
 
     .bill-card {
@@ -117,28 +121,12 @@
       gap: 12px;
     }
 
-    .bill-card.is-paid {
-      border-color: rgba(83, 215, 167, .25);
-      background:
-        linear-gradient(135deg, var(--sf-positive-soft), transparent 62%),
-        var(--sf-surface-1);
+    .bill-card.is-selected {
+      border-color: var(--sf-accent);
+      box-shadow: 0 0 0 3px var(--sf-accent-soft);
     }
 
-    .bill-card.is-partial {
-      border-color: rgba(241, 184, 87, .28);
-      background:
-        linear-gradient(135deg, var(--sf-warning-soft), transparent 62%),
-        var(--sf-surface-1);
-    }
-
-    .bill-card.is-overdue {
-      border-color: rgba(255, 127, 138, .30);
-      background:
-        linear-gradient(135deg, var(--sf-danger-soft), transparent 62%),
-        var(--sf-surface-1);
-    }
-
-    .bill-main-line {
+    .bill-card-head {
       display: grid;
       grid-template-columns: 42px minmax(0, 1fr) auto;
       gap: 12px;
@@ -159,53 +147,59 @@
     .bill-title {
       color: var(--sf-text);
       font-size: 15px;
+      line-height: 1.25;
       font-weight: 950;
-      overflow-wrap: anywhere;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .bill-sub {
       margin-top: 4px;
       color: var(--sf-text-muted);
       font-size: 12px;
-      line-height: 1.4;
+      line-height: 1.35;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .bill-amount {
       color: var(--sf-text);
-      text-align: right;
       font-size: 16px;
       font-weight: 950;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
+      text-align: right;
     }
 
-    .bill-progress {
+    .bill-bars {
       display: grid;
       gap: 8px;
     }
 
-    .bill-progress-meta {
+    .bill-progress {
+      overflow: hidden;
+      height: 12px;
+      border-radius: 999px;
+      border: 1px solid var(--sf-border-subtle);
+      background: var(--sf-surface-2);
+    }
+
+    .bill-progress-fill {
+      height: 100%;
+      width: var(--paid-pct, 0%);
+      background: linear-gradient(90deg, var(--sf-positive), var(--sf-accent));
+      border-radius: inherit;
+    }
+
+    .bill-progress-copy {
       display: flex;
       justify-content: space-between;
       gap: 12px;
       color: var(--sf-text-muted);
       font-size: 12px;
-      font-weight: 800;
-    }
-
-    .bill-progress-track {
-      height: 10px;
-      border-radius: 999px;
-      background: var(--sf-surface-2);
-      overflow: hidden;
-      border: 1px solid var(--sf-border-subtle);
-    }
-
-    .bill-progress-fill {
-      height: 100%;
-      width: 0%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, var(--sf-positive), var(--sf-accent));
+      font-weight: 750;
     }
 
     .bill-tags {
@@ -242,11 +236,11 @@
       border-color: rgba(255, 127, 138, .28);
     }
 
-    .bill-card-actions {
+    .bill-actions {
       display: flex;
-      flex-wrap: wrap;
       justify-content: flex-end;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
     .bill-action {
@@ -261,63 +255,105 @@
     }
 
     .bill-action.primary {
-      background: var(--sf-accent-soft);
-      color: var(--sf-accent-strong);
-      border-color: var(--sf-border-strong);
+      background: var(--sf-accent);
+      border-color: var(--sf-accent);
+      color: var(--sf-accent-contrast);
     }
 
-    .bill-action.pay {
-      background: var(--sf-positive-soft);
-      color: var(--sf-positive);
-      border-color: rgba(83, 215, 167, .28);
-    }
-
-    .bill-action.reverse {
+    .bill-action.danger {
       background: var(--sf-danger-soft);
       color: var(--sf-danger);
       border-color: rgba(255, 127, 138, .28);
     }
 
-    .bill-action:disabled {
-      opacity: .45;
-      cursor: not-allowed;
+    .bill-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--sf-border-subtle);
     }
 
-    .bills-panel-stack {
-      display: grid;
-      gap: var(--sf-space-4, 16px);
+    .bill-row:last-child {
+      border-bottom: 0;
+      padding-bottom: 0;
     }
 
-    .bill-form-grid {
-      display: grid;
-      gap: 14px;
+    .bill-row-title {
+      color: var(--sf-text);
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1.25;
     }
 
-    .bill-two-grid {
+    .bill-row-sub {
+      margin-top: 4px;
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .bill-row-value {
+      color: var(--sf-text);
+      font-weight: 950;
+      text-align: right;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .bill-payment {
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 16px;
+      background: var(--sf-surface-1);
+      padding: 12px;
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .bill-payment-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .bill-payment-title {
+      color: var(--sf-text);
+      font-weight: 950;
+      font-size: 14px;
+    }
+
+    .bill-payment-meta {
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .bill-form {
+      display: grid;
       gap: 12px;
     }
 
-    .sf-field {
+    .bill-field {
       display: grid;
-      gap: var(--sf-space-2, 8px);
+      gap: 7px;
     }
 
-    .sf-field label {
+    .bill-field label {
       color: var(--sf-text-muted);
-      font-size: var(--sf-font-12, 12px);
+      font-size: 12px;
       font-weight: 850;
       letter-spacing: .08em;
       text-transform: uppercase;
     }
 
-    .sf-input,
-    .sf-select,
-    .sf-textarea {
+    .bill-input,
+    .bill-select,
+    .bill-textarea {
       width: 100%;
       border: 1px solid var(--sf-border);
-      border-radius: var(--sf-radius-sm, 14px);
+      border-radius: 14px;
       background: var(--sf-surface-1);
       color: var(--sf-text);
       padding: 12px 13px;
@@ -325,139 +361,93 @@
       outline: none;
     }
 
-    .sf-textarea {
-      min-height: 92px;
+    .bill-textarea {
+      min-height: 88px;
       resize: vertical;
     }
 
-    .sf-input:focus,
-    .sf-select:focus,
-    .sf-textarea:focus {
+    .bill-input:focus,
+    .bill-select:focus,
+    .bill-textarea:focus {
       border-color: var(--sf-accent);
       box-shadow: 0 0 0 3px var(--sf-accent-soft);
     }
 
-    .proof-box {
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 16px;
-      background: var(--sf-surface-1);
-      padding: 14px;
-      display: grid;
-      gap: 10px;
-    }
-
-    .proof-box.good {
-      border-color: rgba(83, 215, 167, .28);
-      background:
-        linear-gradient(135deg, var(--sf-positive-soft), transparent 68%),
-        var(--sf-surface-1);
-    }
-
-    .proof-box.warn {
-      border-color: rgba(241, 184, 87, .30);
-      background:
-        linear-gradient(135deg, var(--sf-warning-soft), transparent 68%),
-        var(--sf-surface-1);
-    }
-
-    .proof-title {
-      color: var(--sf-text);
-      font-weight: 950;
-      font-size: 14px;
-    }
-
-    .proof-sub {
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.45;
-      overflow-wrap: anywhere;
-    }
-
-    .panel-actions {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-
-    .bills-empty {
+    .bill-empty {
       border: 1px dashed var(--sf-border);
       border-radius: 18px;
-      padding: 20px;
+      padding: 18px;
       color: var(--sf-text-muted);
       background: var(--sf-surface-1);
-    }
-
-    .health-grid,
-    .history-list {
-      display: grid;
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    .health-line,
-    .history-line {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--sf-border-subtle);
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.4;
-    }
-
-    .health-line strong,
-    .history-line strong {
-      color: var(--sf-text);
-      overflow-wrap: anywhere;
-      text-align: right;
-    }
-
-    .bills-debug-pre {
-      white-space: pre-wrap;
-      overflow: auto;
-      max-height: 420px;
-      padding: 12px;
-      border-radius: var(--sf-radius-sm, 14px);
-      background: var(--sf-surface-2);
-      color: var(--sf-text-muted);
-      font-size: var(--sf-font-12, 12px);
       line-height: 1.5;
     }
 
-    .is-hidden,
-    [hidden] {
-      display: none !important;
+    .bill-debug {
+      white-space: pre-wrap;
+      overflow: auto;
+      max-height: 420px;
+      border-radius: 16px;
+      padding: 14px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.5;
+      font-family: var(--sf-font-mono);
+    }
+
+    .bill-toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 9999;
+      transform: translateY(18px);
+      opacity: 0;
+      pointer-events: none;
+      transition: .2s ease;
+      border: 1px solid var(--sf-border);
+      border-radius: 16px;
+      padding: 12px 14px;
+      background: var(--sf-card-strong);
+      color: var(--sf-text);
+      box-shadow: var(--sf-shadow-md);
+      font-weight: 850;
+    }
+
+    .bill-toast.show {
+      transform: translateY(0);
+      opacity: 1;
     }
 
     @media (max-width: 1180px) {
-      .bills-workspace,
-      .bills-command {
+      .bills-command,
+      .bills-workspace {
         grid-template-columns: 1fr;
       }
 
-      .bills-actions,
-      .bill-card-actions,
-      .panel-actions {
+      .bills-actions {
         justify-content: flex-start;
       }
     }
 
     @media (max-width: 760px) {
-      .bill-main-line,
-      .bill-two-grid {
+      .bills-actions .sf-button,
+      .bill-action {
+        width: 100%;
+      }
+
+      .bill-card-head,
+      .bill-row,
+      .bill-payment-head {
         grid-template-columns: 1fr;
       }
 
-      .bill-amount {
+      .bill-amount,
+      .bill-row-value {
         text-align: left;
       }
 
-      .bills-actions .sf-button,
-      .bill-card-actions .bill-action,
-      .panel-actions .sf-button {
-        width: 100%;
+      .bill-actions {
+        justify-content: stretch;
       }
     }
   </style>
@@ -471,293 +461,116 @@
       <section class="sf-page-content bills-os">
         <section class="bills-command">
           <div>
-            <div class="sf-page-eyebrow">Banking-grade bills</div>
+            <div class="sf-page-eyebrow">Bills command center</div>
             <h1 class="bills-title">Bills</h1>
             <p class="bills-copy">
-              Bills own their payments. Every payment must dry-run first, then create one ledger transaction and one immutable bill payment row.
+              Bills uses backend current_cycle as money truth. Frontend displays paid, remaining, ledger-reversed payments, and health state without recalculating totals.
             </p>
           </div>
 
           <div class="bills-actions">
-            <button class="sf-button sf-button--primary" id="addBillBtn" type="button">Add Bill</button>
-            <button class="sf-button" id="refreshBillsBtn" type="button">Refresh</button>
+            <button class="sf-button sf-button--primary" id="refreshBillsBtn" type="button">Refresh</button>
+            <button class="sf-button" id="repairBillsBtn" type="button">Repair Reversed Payments</button>
+            <a class="sf-button" href="/add.html">Add Entry</a>
             <a class="sf-button" href="/transactions.html">Ledger</a>
-            <a class="sf-button" href="/add.html">Add</a>
           </div>
         </section>
 
         <section class="bills-insight">
-          <div class="sf-page-eyebrow">Bills Engine</div>
-          <h2>No metadata-only payments.</h2>
-          <p>
-            A bill payment is real only when bill payment amount, linked ledger transaction amount, and account balance impact agree.
-            If one paisa differs, health must fail.
+          <div class="sf-page-eyebrow">Backend effective payment state</div>
+          <h2 id="billsHeroAmount">Loading…</h2>
+          <p id="billsHeroCopy">
+            Reading /api/bills. Ledger-reversed bill payments are excluded from paid totals by backend current_cycle.
           </p>
-        </section>
-
-        <section class="sf-panel">
-          <div class="sf-section-head" style="margin-bottom:0;">
-            <div>
-              <p class="sf-section-kicker">Backend Health</p>
-              <h2 class="sf-section-title" id="billsHealthTitle">Checking Bills health…</h2>
-              <p class="sf-section-subtitle" id="billsHealthSub">
-                Verifies orphan payments, reversed transaction mismatch, duplicate payments, and amount mismatches.
-              </p>
-            </div>
+          <div class="bill-tags" style="margin-top:12px;">
+            <span class="bill-tag" id="billsVersionPill">version loading</span>
+            <span class="bill-tag" id="billsMonthPill">month loading</span>
+            <span class="bill-tag" id="billsHealthPill">health loading</span>
           </div>
         </section>
 
         <section class="bills-metrics">
           <article class="sf-metric-card">
             <p class="sf-card-kicker">Expected This Cycle</p>
-            <div id="metricExpected" class="sf-metric-value">Rs 0</div>
-            <p class="sf-card-subtitle">Sum of active bill amounts.</p>
+            <div id="metricExpected" class="sf-metric-value">—</div>
+            <p class="sf-card-subtitle">Backend sum of active bill amounts.</p>
           </article>
 
           <article class="sf-metric-card">
             <p class="sf-card-kicker">Paid This Cycle</p>
-            <div id="metricPaid" class="sf-metric-value sf-tone-positive">Rs 0</div>
-            <p class="sf-card-subtitle">Active linked bill payments.</p>
+            <div id="metricPaid" class="sf-metric-value sf-tone-positive">—</div>
+            <p class="sf-card-subtitle">Backend effective paid total.</p>
           </article>
 
           <article class="sf-metric-card">
             <p class="sf-card-kicker">Remaining</p>
-            <div id="metricRemaining" class="sf-metric-value sf-tone-warning">Rs 0</div>
-            <p class="sf-card-subtitle">Unpaid or partial balance.</p>
+            <div id="metricRemaining" class="sf-metric-value sf-tone-warning">—</div>
+            <p class="sf-card-subtitle">Backend remaining balance.</p>
           </article>
 
           <article class="sf-metric-card">
             <p class="sf-card-kicker">Paid / Partial / Unpaid</p>
-            <div id="metricStatusCounts" class="sf-metric-value">0 / 0 / 0</div>
+            <div id="metricCounts" class="sf-metric-value">—</div>
             <p class="sf-card-subtitle">Current cycle state.</p>
+          </article>
+
+          <article class="sf-metric-card">
+            <p class="sf-card-kicker">Ledger Reversed Excluded</p>
+            <div id="metricExcluded" class="sf-metric-value sf-tone-danger">—</div>
+            <p class="sf-card-subtitle">Payments ignored by effective status.</p>
           </article>
         </section>
 
         <section class="bills-workspace">
-          <div class="bills-panel-stack">
+          <div class="bills-stack">
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Bills</p>
-                  <h2 class="sf-section-title">Current Cycle</h2>
+                  <p class="sf-section-kicker">Current Cycle</p>
+                  <h2 class="sf-section-title">Bills</h2>
                   <p class="sf-section-subtitle">
-                    Payment status comes from backend `current_cycle`, not frontend calculations.
+                    Payment state comes from backend current_cycle. Stored payment status is displayed separately from effective status.
                   </p>
                 </div>
               </div>
 
               <div id="billsList" class="bills-list">
-                <div class="bills-empty">Loading bills…</div>
+                <div class="bill-empty">Loading bills…</div>
               </div>
             </section>
+          </div>
 
-            <section class="sf-panel" id="billHistoryPanel">
+          <aside class="bills-stack">
+            <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Payment History</p>
-                  <h2 class="sf-section-title">Selected Bill</h2>
-                  <p class="sf-section-subtitle" id="historySubtitle">
+                  <p class="sf-section-kicker">Selected Bill</p>
+                  <h2 class="sf-section-title" id="selectedBillTitle">No bill selected</h2>
+                  <p class="sf-section-subtitle" id="selectedBillSub">
                     Select a bill to view linked payments and ledger transaction IDs.
                   </p>
                 </div>
               </div>
 
-              <div id="paymentHistory" class="history-list">
-                <div class="bills-empty">No bill selected.</div>
+              <div id="selectedBillPanel">
+                <div class="bill-empty">No bill selected.</div>
               </div>
             </section>
-          </div>
 
-          <aside class="bills-panel-stack">
-            <section class="sf-panel" id="billFormPanel" hidden>
+            <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker" id="billFormKicker">Bill Config</p>
-                  <h2 class="sf-section-title" id="billFormTitle">Add Bill</h2>
+                  <p class="sf-section-kicker">Payment Action</p>
+                  <h2 class="sf-section-title">Pay / Edit / Defer</h2>
                   <p class="sf-section-subtitle">
-                    Config only. No money movement happens here.
+                    Payment calls backend Bills API. Totals still come back from backend after refresh.
                   </p>
                 </div>
               </div>
 
-              <form id="billForm" class="bill-form-grid">
-                <input id="billIdInput" type="hidden">
-
-                <div class="sf-field">
-                  <label for="billNameInput">Name</label>
-                  <input id="billNameInput" class="sf-input" type="text" maxlength="120" required>
-                </div>
-
-                <div class="bill-two-grid">
-                  <div class="sf-field">
-                    <label for="billAmountInput">Expected Amount</label>
-                    <input id="billAmountInput" class="sf-input" type="number" min="0" step="0.01" required>
-                  </div>
-
-                  <div class="sf-field">
-                    <label for="billDueDayInput">Due Day</label>
-                    <input id="billDueDayInput" class="sf-input" type="number" min="0" max="31" step="1">
-                  </div>
-                </div>
-
-                <div class="bill-two-grid">
-                  <div class="sf-field">
-                    <label for="billAccountInput">Default Account</label>
-                    <select id="billAccountInput" class="sf-select"></select>
-                  </div>
-
-                  <div class="sf-field">
-                    <label for="billCategoryInput">Category</label>
-                    <input id="billCategoryInput" class="sf-input" type="text" value="bills_utilities">
-                  </div>
-                </div>
-
-                <div class="sf-field">
-                  <label for="billNotesInput">Notes</label>
-                  <textarea id="billNotesInput" class="sf-textarea" maxlength="240"></textarea>
-                </div>
-
-                <div class="panel-actions">
-                  <button class="sf-button" id="cancelBillFormBtn" type="button">Cancel</button>
-                  <button class="sf-button sf-button--primary" type="submit">Save Bill</button>
-                </div>
-              </form>
-            </section>
-
-            <section class="sf-panel" id="payPanel" hidden>
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Payment</p>
-                  <h2 class="sf-section-title" id="payPanelTitle">Pay Bill</h2>
-                  <p class="sf-section-subtitle">
-                    Run dry-run first. Confirm is locked until backend proof passes.
-                  </p>
-                </div>
+              <div id="billActionPanel">
+                <div class="bill-empty">Choose Pay, Edit, or Defer from a bill card.</div>
               </div>
-
-              <form id="payForm" class="bill-form-grid">
-                <input id="payBillIdInput" type="hidden">
-                <input id="payPayloadHashInput" type="hidden">
-                <input id="payOverrideTokenInput" type="hidden">
-
-                <div class="proof-box" id="payBillSummary">
-                  <div class="proof-title">No bill selected</div>
-                  <div class="proof-sub">Select Pay from a bill card.</div>
-                </div>
-
-                <div class="bill-two-grid">
-                  <div class="sf-field">
-                    <label for="payAmountInput">Amount</label>
-                    <input id="payAmountInput" class="sf-input" type="number" min="0.01" step="0.01" required>
-                  </div>
-
-                  <div class="sf-field">
-                    <label for="payAccountInput">Account</label>
-                    <select id="payAccountInput" class="sf-select" required></select>
-                  </div>
-                </div>
-
-                <div class="bill-two-grid">
-                  <div class="sf-field">
-                    <label for="payDateInput">Paid Date</label>
-                    <input id="payDateInput" class="sf-input" type="date" required>
-                  </div>
-
-                  <div class="sf-field">
-                    <label for="payMonthInput">Bill Month</label>
-                    <input id="payMonthInput" class="sf-input" type="month" required>
-                  </div>
-                </div>
-
-                <div class="sf-field">
-                  <label for="payNotesInput">Notes</label>
-                  <textarea id="payNotesInput" class="sf-textarea" maxlength="220"></textarea>
-                </div>
-
-                <div id="payProofBox" class="proof-box warn">
-                  <div class="proof-title">Dry-run required</div>
-                  <div class="proof-sub">Confirm Pay is disabled until backend returns a payload hash.</div>
-                </div>
-
-                <div class="panel-actions">
-                  <button class="sf-button" id="cancelPayBtn" type="button">Cancel</button>
-                  <button class="sf-button" id="runPayDryRunBtn" type="button">Run Dry-Run</button>
-                  <button class="sf-button sf-button--primary" id="confirmPayBtn" type="submit" disabled>Confirm Pay</button>
-                </div>
-              </form>
-            </section>
-
-            <section class="sf-panel" id="reversePaymentPanel" hidden>
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Append-only reversal</p>
-                  <h2 class="sf-section-title">Reverse Bill Payment</h2>
-                  <p class="sf-section-subtitle">
-                    Creates reversal transaction and marks bill payment reversed.
-                  </p>
-                </div>
-              </div>
-
-              <form id="reversePaymentForm" class="bill-form-grid">
-                <input id="reversePaymentIdInput" type="hidden">
-
-                <div id="reversePaymentSummary" class="proof-box warn">
-                  <div class="proof-title">No payment selected</div>
-                  <div class="proof-sub">Select a payment from history.</div>
-                </div>
-
-                <div class="sf-field">
-                  <label for="reverseReasonInput">Reason Required</label>
-                  <textarea
-                    id="reverseReasonInput"
-                    class="sf-textarea"
-                    maxlength="500"
-                    placeholder="Example: wrong bill, duplicate payment, incorrect account"
-                    required></textarea>
-                </div>
-
-                <div id="reversePaymentError" class="proof-sub sf-tone-danger" hidden></div>
-
-                <div class="panel-actions">
-                  <button class="sf-button" id="cancelReversePaymentBtn" type="button">Cancel</button>
-                  <button class="sf-button sf-button--danger" type="submit">Confirm Reversal</button>
-                </div>
-              </form>
-            </section>
-
-            <section class="sf-panel" id="deferPanel" hidden>
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Defer</p>
-                  <h2 class="sf-section-title">Defer Bill</h2>
-                  <p class="sf-section-subtitle">
-                    No money movement. Updates due state and audit only.
-                  </p>
-                </div>
-              </div>
-
-              <form id="deferForm" class="bill-form-grid">
-                <input id="deferBillIdInput" type="hidden">
-
-                <div id="deferSummary" class="proof-box">
-                  <div class="proof-title">No bill selected</div>
-                </div>
-
-                <div class="sf-field">
-                  <label for="deferDateInput">New Due Date</label>
-                  <input id="deferDateInput" class="sf-input" type="date" required>
-                </div>
-
-                <div class="sf-field">
-                  <label for="deferReasonInput">Reason</label>
-                  <textarea id="deferReasonInput" class="sf-textarea" maxlength="300" required></textarea>
-                </div>
-
-                <div class="panel-actions">
-                  <button class="sf-button" id="cancelDeferBtn" type="button">Cancel</button>
-                  <button class="sf-button sf-button--primary" type="submit">Confirm Defer</button>
-                </div>
-              </form>
             </section>
 
             <section class="sf-panel">
@@ -768,38 +581,37 @@
                 </div>
               </div>
 
-              <div id="healthPanel" class="health-grid">
-                <div class="health-line">
-                  <span>Status</span>
-                  <strong>Loading</strong>
-                </div>
+              <div id="billsHealthPanel">
+                <div class="bill-empty">Loading health…</div>
               </div>
             </section>
 
-            <section class="sf-panel" id="debugPanel" hidden>
+            <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
                   <p class="sf-section-kicker">Debug</p>
-                  <h2 class="sf-section-title">Payload</h2>
+                  <h2 class="sf-section-title">Raw Contract</h2>
                 </div>
               </div>
 
-              <pre id="debugOutput" class="bills-debug-pre"></pre>
+              <pre id="billsDebug" class="bill-debug">Loading…</pre>
             </section>
           </aside>
         </section>
 
         <footer>
-          <span class="sf-meta-text">
-            v1.0.0 · bills · shared shell banking-grade console
+          <span class="sf-meta-text" id="billsFooterVersion">
+            bills.html · backend current_cycle renderer
           </span>
         </footer>
       </section>
     </main>
   </div>
 
+  <div id="billToast" class="bill-toast"></div>
+
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
-  <script src="/js/bills.js"></script>
+  <script src="/js/bills.js?v=0.7.0-effective-state-ui"></script>
 </body>
 </html>
