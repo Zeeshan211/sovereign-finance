@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#050816">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
 
   <title>Forecast · Sovereign Finance</title>
 
@@ -18,99 +16,193 @@
       width: min(100%, 1480px);
       margin: 0 auto;
       display: grid;
-      gap: var(--sf-space-5, 20px);
+      gap: 16px;
     }
 
-    .forecast-command {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: var(--sf-space-4, 16px);
-      align-items: center;
-      padding: clamp(18px, 3vw, 28px);
+    .forecast-toolbar,
+    .forecast-status,
+    .forecast-rules,
+    .forecast-kpi,
+    .forecast-row {
       border: 1px solid var(--sf-border);
-      border-radius: var(--sf-radius-xl, 24px);
-      background: var(--sf-card);
-      box-shadow: var(--sf-shadow-sm);
+      background: var(--sf-surface-1);
     }
 
-    .forecast-title {
-      margin: 0;
-      color: var(--sf-text);
-      font-size: clamp(34px, 6vw, 62px);
-      line-height: .92;
-      font-weight: 950;
-      letter-spacing: -.07em;
+    .forecast-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 12px 14px;
+      border-radius: 18px;
     }
 
     .forecast-copy {
-      margin: 10px 0 0;
       color: var(--sf-text-muted);
-      font-size: var(--sf-font-14, 14px);
-      font-weight: 700;
-      line-height: 1.55;
-      max-width: 900px;
+      font-size: 13px;
+      font-weight: 750;
+      line-height: 1.45;
     }
 
     .forecast-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: var(--sf-space-2, 10px);
-      justify-content: flex-end;
+      gap: 8px;
     }
 
-    .forecast-insight {
-      position: relative;
-      overflow: hidden;
-      padding: clamp(22px, 4vw, 38px);
-      border-radius: var(--sf-radius-2xl, 30px);
-      color: #f8fafc;
+    .forecast-status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 12px 14px;
+      border-radius: 18px;
       background:
-        radial-gradient(circle at 82% 12%, rgba(83, 215, 167, .28), transparent 24rem),
-        linear-gradient(135deg, #06111f, #0f172a 48%, #102a25);
-      border: 1px solid rgba(255, 255, 255, .10);
-      box-shadow: var(--sf-shadow-lg);
+        radial-gradient(circle at 90% 20%, rgba(83, 215, 167, .12), transparent 22rem),
+        var(--sf-surface-1);
     }
 
-    .forecast-insight h2 {
-      margin: 12px 0 0;
-      color: #fff;
-      font-size: clamp(34px, 6vw, 70px);
-      line-height: .92;
-      font-weight: 950;
-      letter-spacing: -.075em;
-    }
-
-    .forecast-insight p {
-      max-width: 960px;
-      margin: 14px 0 0;
-      color: #cbd5e1;
-      font-size: var(--sf-font-15, 15px);
-      line-height: 1.6;
-      font-weight: 720;
-    }
-
-    .forecast-pill-row {
+    .forecast-chip-row {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-top: 14px;
+      align-items: center;
     }
 
-    .forecast-pill {
-      border: 1px solid rgba(255, 255, 255, .16);
+    .forecast-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 5px 9px;
+      border: 1px solid var(--sf-border-subtle);
       border-radius: 999px;
-      background: rgba(255, 255, 255, .08);
-      color: #e5e7eb;
-      padding: 7px 10px;
-      font-size: 12px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-muted);
+      font-size: 11px;
       font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .forecast-chip.strong {
+      color: var(--sf-text);
+      background: var(--sf-accent-soft);
+      border-color: rgba(241, 184, 87, .28);
+    }
+
+    .forecast-chip.good {
+      color: var(--sf-positive);
+      background: var(--sf-positive-soft);
+      border-color: rgba(83, 215, 167, .28);
+    }
+
+    .forecast-chip.warn {
+      color: var(--sf-warning);
+      background: var(--sf-warning-soft);
+      border-color: rgba(241, 184, 87, .28);
+    }
+
+    .forecast-rules {
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .forecast-rules summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 12px 14px;
+      color: var(--sf-text);
+      font-size: 13px;
+      font-weight: 900;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .forecast-rules summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .forecast-rules summary::after {
+      content: "▾";
+      color: var(--sf-text-muted);
+      transition: transform .18s ease;
+    }
+
+    .forecast-rules[open] summary::after {
+      transform: rotate(180deg);
+    }
+
+    .forecast-rules-body {
+      padding: 0 14px 14px;
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .forecast-rules-body ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .forecast-kpis {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .forecast-kpi {
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .forecast-kpi-label {
+      margin: 0 0 8px;
+      color: var(--sf-text-muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .forecast-kpi-value {
+      margin: 0;
+      color: var(--sf-text);
+      font-size: clamp(22px, 3vw, 34px);
+      line-height: 1;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .forecast-kpi-value.good {
+      color: var(--sf-positive);
+    }
+
+    .forecast-kpi-value.warn {
+      color: var(--sf-warning);
+    }
+
+    .forecast-kpi-value.danger {
+      color: var(--sf-danger);
+    }
+
+    .forecast-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .forecast-panel-stack {
+      display: grid;
+      gap: 16px;
     }
 
     .forecast-controls {
       display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
-      align-items: end;
     }
 
     .forecast-field {
@@ -120,7 +212,7 @@
 
     .forecast-field label {
       color: var(--sf-text-muted);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 850;
       letter-spacing: .08em;
       text-transform: uppercase;
@@ -133,76 +225,241 @@
       border-radius: 14px;
       background: var(--sf-surface-1);
       color: var(--sf-text);
-      padding: 12px 13px;
+      padding: 11px 12px;
       font: inherit;
       outline: none;
     }
 
-    .forecast-input:focus,
-    .forecast-select:focus {
-      border-color: var(--sf-accent);
-      box-shadow: 0 0 0 3px var(--sf-accent-soft);
-    }
-
-    .forecast-metrics {
+    .forecast-list {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: var(--sf-space-4, 14px);
+      gap: 10px;
     }
 
-    .forecast-workspace {
+    .forecast-empty {
+      border: 1px dashed var(--sf-border);
+      border-radius: 18px;
+      padding: 18px;
+      background: var(--sf-surface-1);
+      color: var(--sf-text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .forecast-row {
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(255,255,255,.025);
+    }
+
+    .forecast-row-shell {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: inherit;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
-      gap: var(--sf-space-4, 16px);
-      align-items: start;
+      grid-template-columns: 34px minmax(220px, 1.6fr) 110px 106px 116px 88px 20px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      text-align: left;
+      cursor: pointer;
     }
 
-    .forecast-stack {
+    .forecast-row-shell:hover {
+      background: rgba(255,255,255,.035);
+    }
+
+    .forecast-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 11px;
       display: grid;
-      gap: var(--sf-space-4, 16px);
+      place-items: center;
+      background: var(--sf-accent-soft);
+      color: var(--sf-accent-strong);
+      font-size: 15px;
+      font-weight: 900;
     }
 
-    .forecast-panel-scroll {
-      max-height: 720px;
-      overflow: auto;
-      padding-right: 2px;
+    .forecast-title-line {
+      color: var(--sf-text);
+      font-size: 14px;
+      font-weight: 950;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
-    .forecast-debug {
+    .forecast-sub {
+      margin-top: 3px;
+      color: var(--sf-text-muted);
+      font-size: 11px;
+      font-weight: 750;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .forecast-cell,
+    .forecast-date,
+    .forecast-status-label {
+      color: var(--sf-text-muted);
+      font-size: 11px;
+      font-weight: 850;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .forecast-date,
+    .forecast-amount {
+      text-align: right;
+    }
+
+    .forecast-amount {
+      color: var(--sf-text);
+      font-size: 13px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .forecast-amount.income {
+      color: var(--sf-positive);
+    }
+
+    .forecast-amount.outflow {
+      color: var(--sf-danger);
+    }
+
+    .forecast-status-label {
+      justify-self: end;
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: var(--sf-surface-2);
+    }
+
+    .forecast-status-label.good {
+      color: var(--sf-positive);
+      border-color: rgba(83, 215, 167, .22);
+    }
+
+    .forecast-status-label.warn {
+      color: var(--sf-warning);
+      border-color: rgba(241, 184, 87, .28);
+    }
+
+    .forecast-status-label.danger {
+      color: var(--sf-danger);
+      border-color: rgba(255, 127, 138, .28);
+    }
+
+    .forecast-caret {
+      color: var(--sf-text-muted);
+      font-size: 13px;
+      justify-self: end;
+      transition: transform .18s ease;
+    }
+
+    .forecast-row.is-open .forecast-caret {
+      transform: rotate(180deg);
+    }
+
+    .forecast-detail {
+      display: none;
+      border-top: 1px solid var(--sf-border-subtle);
+      padding: 12px;
+      background: rgba(0,0,0,.12);
+      gap: 10px;
+    }
+
+    .forecast-row.is-open .forecast-detail {
+      display: grid;
+    }
+
+    .forecast-detail-grid {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 8px 14px;
+      align-items: baseline;
+    }
+
+    .forecast-detail-label {
+      color: var(--sf-text-muted);
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-weight: 900;
+    }
+
+    .forecast-detail-value {
+      color: var(--sf-text);
+      font-size: 12px;
+      font-weight: 800;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .forecast-pre {
       white-space: pre-wrap;
       overflow: auto;
-      max-height: 520px;
+      max-height: 460px;
       border-radius: 16px;
       padding: 14px;
       background: var(--sf-surface-2);
       color: var(--sf-text-muted);
       font-size: 12px;
       line-height: 1.5;
-      font-family: var(--sf-font-mono);
-    }
-
-    .forecast-placeholder {
-      border: 1px dashed var(--sf-border);
-      border-radius: 18px;
-      padding: 18px;
-      color: var(--sf-text-muted);
-      background: var(--sf-surface-1);
-      line-height: 1.5;
     }
 
     @media (max-width: 1180px) {
-      .forecast-command,
-      .forecast-workspace,
+      .forecast-workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .forecast-kpis {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .forecast-controls {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 980px) {
+      .forecast-row-shell {
+        grid-template-columns: 32px minmax(0, 1fr) 112px 20px;
+      }
+
+      .forecast-cell,
+      .forecast-date,
+      .forecast-status-label {
+        display: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .forecast-kpis,
       .forecast-controls {
         grid-template-columns: 1fr;
       }
 
-      .forecast-actions {
-        justify-content: flex-start;
+      .forecast-row-shell {
+        grid-template-columns: 30px minmax(0, 1fr) 20px;
       }
-    }
 
-    @media (max-width: 760px) {
+      .forecast-amount {
+        grid-column: 2;
+        text-align: left;
+        margin-top: -3px;
+      }
+
+      .forecast-detail-grid {
+        grid-template-columns: 1fr;
+      }
+
       .forecast-actions .sf-button {
         width: 100%;
       }
@@ -216,270 +473,169 @@
 
     <main class="sf-page-shell">
       <section class="sf-page-content forecast-os">
-        <section class="forecast-command">
-          <div>
-            <div class="sf-page-eyebrow">Forecast brain</div>
-            <h1 class="forecast-title">Forecast</h1>
-            <p class="forecast-copy">
-              Forecast now renders the hardened backend contract. It explains source health, crisis attribution, bill effective-state impact, salary bridge, debt pressure, and credit-card assumptions.
-            </p>
+        <section class="forecast-toolbar">
+          <div class="forecast-copy">
+            Forecast combines current account balances, saved salary source, debts due, and optional buffers into a forward cash position.
           </div>
 
           <div class="forecast-actions">
             <button class="sf-button sf-button--primary" id="refreshForecastBtn" type="button">Refresh</button>
             <a class="sf-button" href="/salary.html">Salary</a>
-            <a class="sf-button" href="/bills.html">Bills</a>
             <a class="sf-button" href="/debts.html">Debts</a>
-            <a class="sf-button" href="/accounts.html">Accounts</a>
+            <a class="sf-button" href="/transactions.html">Ledger</a>
           </div>
         </section>
 
-        <section class="forecast-insight">
-          <div class="sf-page-eyebrow">Runway status</div>
-          <h2 id="forecastHeroStatus">Loading</h2>
-          <p id="forecastHeroCopy">
-            Reading /api/forecast and validating required source contracts.
-          </p>
-
-          <div class="forecast-pill-row">
-            <span class="forecast-pill" id="forecastVersionPill">version loading</span>
-            <span class="forecast-pill" id="forecastModePill">mode loading</span>
-            <span class="forecast-pill" id="forecastSourcePill">sources loading</span>
+        <section class="forecast-status" aria-label="Forecast system status">
+          <div class="forecast-chip-row">
+            <span class="forecast-chip strong" id="forecastHealth">Loading forecast</span>
+            <span class="forecast-chip good">Backend truth + local projection</span>
+            <span class="forecast-chip" id="forecastHorizonChip">Horizon loading</span>
+            <span class="forecast-chip" id="forecastSalaryChip">Salary source loading</span>
+            <span class="forecast-chip" id="forecastVersion">forecast compact shell</span>
           </div>
+          <span class="forecast-chip" id="forecastStatusDetail">Reading accounts, salary, and debts.</span>
+        </section>
+
+        <details class="forecast-rules">
+          <summary>Forecast rules</summary>
+          <div class="forecast-rules-body">
+            <ul>
+              <li>Forecast starts from current account balances.</li>
+              <li>Saved Salary contract contributes expected income if Forecast is enabled on Salary.</li>
+              <li>Active debts due inside the selected horizon are projected as outflows.</li>
+              <li>Forecast does not write to Ledger or mutate account balances.</li>
+              <li>Scenario buffer is a planning adjustment only, not backend money truth.</li>
+            </ul>
+          </div>
+        </details>
+
+        <section class="forecast-kpis">
+          <article class="forecast-kpi">
+            <p class="forecast-kpi-label">Cash Now</p>
+            <p class="forecast-kpi-value" id="cashNow">—</p>
+          </article>
+
+          <article class="forecast-kpi">
+            <p class="forecast-kpi-label">Expected Income</p>
+            <p class="forecast-kpi-value good" id="expectedIncome">—</p>
+          </article>
+
+          <article class="forecast-kpi">
+            <p class="forecast-kpi-label">Expected Outflow</p>
+            <p class="forecast-kpi-value danger" id="expectedOutflow">—</p>
+          </article>
+
+          <article class="forecast-kpi">
+            <p class="forecast-kpi-label">Buffer</p>
+            <p class="forecast-kpi-value warn" id="scenarioBuffer">—</p>
+          </article>
+
+          <article class="forecast-kpi">
+            <p class="forecast-kpi-label">Projected End</p>
+            <p class="forecast-kpi-value" id="projectedEnd">—</p>
+          </article>
         </section>
 
         <section class="sf-panel">
           <div class="sf-section-head">
             <div>
-              <p class="sf-section-kicker">Controls</p>
-              <h2 class="sf-section-title">Scenario Inputs</h2>
+              <p class="sf-section-kicker">Scenario controls</p>
+              <h2 class="sf-section-title">Forecast Scenario</h2>
               <p class="sf-section-subtitle">
-                These controls only ask the backend for a different projection. The UI does not calculate forecast truth.
+                Adjust planning horizon and manual buffer without changing backend money truth.
               </p>
             </div>
           </div>
 
           <div class="forecast-controls">
             <div class="forecast-field">
-              <label for="forecastModeSelect">Mode</label>
-              <select class="forecast-select" id="forecastModeSelect">
-                <option value="survival">Survival</option>
-                <option value="normal" selected>Normal</option>
-                <option value="aggressive">Aggressive</option>
+              <label for="horizonInput">Horizon</label>
+              <select id="horizonInput" class="forecast-select">
+                <option value="7">Next 7 days</option>
+                <option value="14">Next 14 days</option>
+                <option value="30" selected>Next 30 days</option>
+                <option value="60">Next 60 days</option>
+                <option value="90">Next 90 days</option>
               </select>
             </div>
 
             <div class="forecast-field">
-              <label for="crisisFloorInput">Crisis Floor</label>
-              <input class="forecast-input" id="crisisFloorInput" type="number" step="100" value="5000">
+              <label for="bufferInput">Manual Buffer</label>
+              <input id="bufferInput" class="forecast-input" type="number" step="0.01" value="0">
             </div>
 
             <div class="forecast-field">
-              <label for="forecastDaysInput">Days</label>
-              <input class="forecast-input" id="forecastDaysInput" type="number" step="1" min="30" max="365" value="90">
+              <label for="salaryModeInput">Salary</label>
+              <select id="salaryModeInput" class="forecast-select">
+                <option value="auto" selected>Use Salary source</option>
+                <option value="exclude">Exclude Salary</option>
+              </select>
             </div>
 
             <div class="forecast-field">
-              <label for="forecastMonthsInput">Months</label>
-              <input class="forecast-input" id="forecastMonthsInput" type="number" step="1" min="3" max="24" value="6">
+              <label for="debtModeInput">Debts</label>
+              <select id="debtModeInput" class="forecast-select">
+                <option value="due" selected>Due in horizon</option>
+                <option value="all">All active debts</option>
+                <option value="exclude">Exclude debts</option>
+              </select>
             </div>
-
-            <button class="sf-button sf-button--primary" id="forecastRefreshBtn" type="button">Run Forecast</button>
           </div>
-        </section>
-
-        <section class="forecast-metrics">
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Next Salary</p>
-            <div id="metricNextSalary" class="sf-metric-value sf-tone-positive">—</div>
-            <p class="sf-card-subtitle">Backend salary forecast eligible.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Guaranteed Salary</p>
-            <div id="metricGuaranteedSalary" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">Guaranteed monthly amount.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Variable Salary</p>
-            <div id="metricVariableSalary" class="sf-metric-value sf-tone-warning">—</div>
-            <p class="sf-card-subtitle">Included only if confirmed.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Lowest Liquid</p>
-            <div id="metricLowestLiquid" class="sf-metric-value sf-tone-danger">—</div>
-            <p class="sf-card-subtitle" id="metricLowestDate">Lowest projected date.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">First Breach</p>
-            <div id="metricFirstBreach" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">First day below crisis floor.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Cash Needed</p>
-            <div id="metricCashNeeded" class="sf-metric-value sf-tone-danger">—</div>
-            <p class="sf-card-subtitle">Required to avoid crisis floor breach.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Debt-Free Estimate</p>
-            <div id="metricDebtFree" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">Scenario-based estimate.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Debt Remaining</p>
-            <div id="metricDebtRemaining" class="sf-metric-value sf-tone-warning">—</div>
-            <p class="sf-card-subtitle">Backend debt pressure.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">CC Minimum</p>
-            <div id="metricCcMinimum" class="sf-metric-value sf-tone-warning">—</div>
-            <p class="sf-card-subtitle" id="metricCcSource">Source loading.</p>
-          </article>
         </section>
 
         <section class="forecast-workspace">
-          <div class="forecast-stack">
+          <div class="forecast-panel-stack">
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Crisis floor analysis</p>
-                  <h2 class="sf-section-title">Why the Forecast Says What It Says</h2>
+                  <p class="sf-section-kicker">Projection timeline</p>
+                  <h2 class="sf-section-title">Forecast Events</h2>
                   <p class="sf-section-subtitle">
-                    Backend-provided first breach, lowest-liquid day, required cash, and outflow drivers.
+                    Compact projected events from salary, debts, and scenario buffer. These are projections, not ledger rows.
                   </p>
                 </div>
               </div>
 
-              <div id="crisisAnalysisPanel">
-                <div class="forecast-placeholder">Loading crisis analysis…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Waterfall</p>
-                  <h2 class="sf-section-title">Required Cash Path</h2>
-                  <p class="sf-section-subtitle">
-                    Liquid now plus salary, minus bills, CC minimum, and debt pressure.
-                  </p>
-                </div>
-              </div>
-
-              <div id="waterfallPanel">
-                <div class="forecast-placeholder">Loading waterfall…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Timeline</p>
-                  <h2 class="sf-section-title">Daily Projection</h2>
-                  <p class="sf-section-subtitle">
-                    Daily closing liquid and backend events. Receivables remain optional upside.
-                  </p>
-                </div>
-              </div>
-
-              <div id="timelinePanel" class="forecast-panel-scroll">
-                <div class="forecast-placeholder">Loading daily timeline…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Monthly projection</p>
-                  <h2 class="sf-section-title">Debt-Free Scenario</h2>
-                  <p class="sf-section-subtitle">
-                    Scenario-based estimate using surplus above crisis floor.
-                  </p>
-                </div>
-              </div>
-
-              <div id="monthlyPanel">
-                <div class="forecast-placeholder">Loading monthly projection…</div>
+              <div id="forecastList" class="forecast-list">
+                <div class="forecast-empty">Loading forecast events…</div>
               </div>
             </section>
           </div>
 
-          <aside class="forecast-stack">
+          <aside class="forecast-panel-stack">
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Position</p>
-                  <h2 class="sf-section-title">Current Position</h2>
+                  <p class="sf-section-kicker">Forecast source</p>
+                  <h2 class="sf-section-title" id="forecastSelectedTitle">No event selected</h2>
+                  <p class="sf-section-subtitle" id="forecastSelectedSub">
+                    Expand an event to inspect source and impact.
+                  </p>
                 </div>
               </div>
 
-              <div id="positionPanel">
-                <div class="forecast-placeholder">Loading current position…</div>
+              <div id="forecastDetailPanel">
+                <div class="forecast-empty">No event selected.</div>
               </div>
             </section>
 
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Salary bridge</p>
-                  <h2 class="sf-section-title">Salary Contract</h2>
+                  <p class="sf-section-kicker">Raw payload</p>
+                  <h2 class="sf-section-title">Forecast Inputs</h2>
                 </div>
               </div>
 
-              <div id="salaryBridgePanel">
-                <div class="forecast-placeholder">Loading salary bridge…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Obligations</p>
-                  <h2 class="sf-section-title">Bills / Debts / CC</h2>
-                </div>
-              </div>
-
-              <div id="obligationsPanel">
-                <div class="forecast-placeholder">Loading obligations…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Sources</p>
-                  <h2 class="sf-section-title">Source Health + Proof</h2>
-                </div>
-              </div>
-
-              <div id="sourcesPanel">
-                <div class="forecast-placeholder">Loading source health…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Debug</p>
-                  <h2 class="sf-section-title">Raw Forecast Contract</h2>
-                </div>
-              </div>
-
-              <pre id="debugPanel" class="forecast-debug">Loading…</pre>
+              <pre id="forecastRaw" class="forecast-pre">Loading…</pre>
             </section>
           </aside>
         </section>
 
         <footer>
           <span class="sf-meta-text" id="forecastFooterVersion">
-            forecast.html · contract renderer shell
+            forecast.html · compact forecast shell
           </span>
         </footer>
       </section>
@@ -488,6 +644,523 @@
 
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
-  <script src="/js/forecast.js?v=1.0.0-forecast-contract-renderer"></script>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const VERSION = 'v0.2.0-forecast-compact-source-aware';
+
+      const API_FORECAST = '/api/forecast';
+      const API_ACCOUNTS = '/api/accounts';
+      const API_SALARY = '/api/salary';
+      const API_DEBTS = '/api/debts';
+
+      const state = {
+        forecastPayload: null,
+        accountsPayload: null,
+        salaryPayload: null,
+        debtsPayload: null,
+        events: [],
+        selectedId: null,
+        summary: {
+          cashNow: 0,
+          income: 0,
+          outflow: 0,
+          buffer: 0,
+          projectedEnd: 0
+        }
+      };
+
+      const $ = id => document.getElementById(id);
+
+      function esc(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function safeText(value, fallback = '—') {
+        if (value == null || value === '') return fallback;
+        if (typeof value === 'object') {
+          return value.name || value.label || value.title || value.id || value.value || fallback;
+        }
+        return String(value);
+      }
+
+      function num(value, fallback = 0) {
+        if (value == null || value === '') return fallback;
+        if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
+        if (typeof value === 'object') {
+          return num(value.amount ?? value.value ?? value.total ?? value.balance, fallback);
+        }
+        const n = Number(String(value).replace(/rs/ig, '').replace(/,/g, '').trim());
+        return Number.isFinite(n) ? n : fallback;
+      }
+
+      function money(value) {
+        const n = num(value, NaN);
+        if (!Number.isFinite(n)) return '—';
+        const sign = n < 0 ? '-' : '';
+        return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
+          minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
+          maximumFractionDigits: 2
+        });
+      }
+
+      function todayISO() {
+        return new Date().toISOString().slice(0, 10);
+      }
+
+      function addDaysISO(days) {
+        const d = new Date();
+        d.setDate(d.getDate() + Number(days || 0));
+        return d.toISOString().slice(0, 10);
+      }
+
+      function compactDate(value) {
+        const raw = safeText(value, '').slice(0, 10);
+        if (!raw || !/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) return '—';
+
+        const [, month, day] = raw.split('-');
+        const months = {
+          '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
+          '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug',
+          '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
+        };
+
+        return `${Number(day)} ${months[month] || month}`;
+      }
+
+      async function fetchJSON(url, optional) {
+        try {
+          const response = await fetch(url, {
+            cache: 'no-store',
+            headers: { Accept: 'application/json' }
+          });
+
+          const text = await response.text();
+          let payload = null;
+
+          try {
+            payload = text ? JSON.parse(text) : null;
+          } catch {
+            throw new Error(`Non-JSON response from ${url}: HTTP ${response.status}`);
+          }
+
+          if (!response.ok || !payload || payload.ok === false) {
+            throw new Error((payload && payload.error) || `HTTP ${response.status}`);
+          }
+
+          return payload;
+        } catch (err) {
+          if (optional) return { ok: false, error: err.message, optional: true };
+          throw err;
+        }
+      }
+
+      function accountRows(payload) {
+        if (!payload) return [];
+        if (Array.isArray(payload.accounts)) return payload.accounts;
+        if (payload.accounts && typeof payload.accounts === 'object') return Object.values(payload.accounts);
+        if (payload.accounts_by_id && typeof payload.accounts_by_id === 'object') return Object.values(payload.accounts_by_id);
+        if (Array.isArray(payload.account_list)) return payload.account_list;
+        if (Array.isArray(payload.data)) return payload.data;
+        return [];
+      }
+
+      function debtRows(payload) {
+        if (!payload) return [];
+        if (Array.isArray(payload.debts)) return payload.debts;
+        if (Array.isArray(payload.data)) return payload.data;
+        return [];
+      }
+
+      function accountBalance(account) {
+        return num(account.balance ?? account.current_balance ?? account.amount ?? account.available_balance ?? 0);
+      }
+
+      function isForecastAccount(account) {
+        const status = safeText(account.status, '').toLowerCase();
+        if (['archived', 'deleted', 'inactive'].includes(status)) return false;
+
+        const type = safeText(account.type || account.kind, '').toLowerCase();
+        if (['credit_card', 'loan', 'debt'].includes(type)) return false;
+
+        return true;
+      }
+
+      function calculateCashNow(accounts) {
+        return accounts
+          .filter(isForecastAccount)
+          .reduce((sum, account) => sum + accountBalance(account), 0);
+      }
+
+      function salaryForecastSource(payload) {
+        const source = payload && payload.forecast_source;
+        if (source && source.enabled !== false) {
+          return {
+            enabled: true,
+            amount: num(source.monthly_salary_net ?? source.expected_income_amount),
+            date: safeText(source.expected_date, addDaysISO(1)),
+            account_id: safeText(source.payout_account_id, '—'),
+            label: 'Expected salary income',
+            raw: source
+          };
+        }
+
+        const row = Array.isArray(payload?.salary) ? payload.salary[0] : null;
+        if (row) {
+          const amount = num(row.net ?? row.net_payable ?? row.amount);
+          return {
+            enabled: amount > 0,
+            amount,
+            date: safeText(row.expected_date || row.date, addDaysISO(1)),
+            account_id: safeText(row.account_id || row.payout_account_id, '—'),
+            label: 'Expected salary income',
+            raw: row
+          };
+        }
+
+        return {
+          enabled: false,
+          amount: 0,
+          date: '',
+          account_id: '—',
+          label: 'Salary source disabled',
+          raw: null
+        };
+      }
+
+      function inHorizon(date, horizonDays) {
+        const raw = safeText(date, '');
+        if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) return false;
+        return raw >= todayISO() && raw <= addDaysISO(horizonDays);
+      }
+
+      function debtRemaining(debt) {
+        return num(debt.remaining_amount ?? Math.max(0, num(debt.original_amount) - num(debt.paid_amount)));
+      }
+
+      function debtDueDate(debt) {
+        return safeText(debt.next_due_date || debt.due_date, '');
+      }
+
+      function buildEvents() {
+        const horizon = Number($('horizonInput')?.value || 30);
+        const salaryMode = $('salaryModeInput')?.value || 'auto';
+        const debtMode = $('debtModeInput')?.value || 'due';
+        const buffer = num($('bufferInput')?.value);
+
+        const accounts = accountRows(state.accountsPayload);
+        const debts = debtRows(state.debtsPayload);
+        const salary = salaryForecastSource(state.salaryPayload);
+
+        const events = [];
+
+        if (salaryMode !== 'exclude' && salary.enabled && salary.amount > 0 && inHorizon(salary.date, horizon)) {
+          events.push({
+            id: 'salary_income',
+            type: 'income',
+            source: 'salary',
+            title: salary.label,
+            subtitle: `Salary source · ${salary.account_id} · ${salary.date}`,
+            date: salary.date,
+            amount: salary.amount,
+            account_id: salary.account_id,
+            status: 'expected',
+            raw: salary.raw
+          });
+        }
+
+        if (debtMode !== 'exclude') {
+          debts
+            .filter(debt => safeText(debt.status, 'active').toLowerCase() === 'active')
+            .filter(debt => {
+              if (debtMode === 'all') return true;
+              return inHorizon(debtDueDate(debt), horizon);
+            })
+            .forEach(debt => {
+              const remaining = debtRemaining(debt);
+              if (remaining <= 0) return;
+
+              events.push({
+                id: `debt_${safeText(debt.id, Math.random())}`,
+                type: 'outflow',
+                source: 'debt',
+                title: `Debt due: ${safeText(debt.name || debt.id, 'Debt')}`,
+                subtitle: `${safeText(debt.kind, 'debt')} · ${debtDueDate(debt) || 'no due date'} · ${safeText(debt.id, '')}`,
+                date: debtDueDate(debt) || addDaysISO(horizon),
+                amount: -Math.abs(remaining),
+                account_id: safeText(debt.account_id || debt.payout_account_id, '—'),
+                status: debtDueDate(debt) ? 'due' : 'unscheduled',
+                raw: debt
+              });
+            });
+        }
+
+        if (buffer !== 0) {
+          events.push({
+            id: 'manual_buffer',
+            type: buffer > 0 ? 'income' : 'outflow',
+            source: 'scenario',
+            title: buffer > 0 ? 'Manual positive buffer' : 'Manual reserve buffer',
+            subtitle: 'Scenario-only adjustment · no ledger impact',
+            date: addDaysISO(horizon),
+            amount: buffer,
+            account_id: 'scenario',
+            status: 'planning',
+            raw: { buffer }
+          });
+        }
+
+        events.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+
+        state.events = events;
+
+        const cashNow = calculateCashNow(accounts);
+        const income = events.filter(event => event.amount > 0).reduce((sum, event) => sum + event.amount, 0);
+        const outflow = Math.abs(events.filter(event => event.amount < 0).reduce((sum, event) => sum + event.amount, 0));
+        const projectedEnd = cashNow + income - outflow;
+
+        state.summary = {
+          cashNow,
+          income,
+          outflow,
+          buffer,
+          projectedEnd
+        };
+      }
+
+      function toneForAmount(value) {
+        const n = num(value);
+        if (n < 0) return 'danger';
+        if (n === 0) return 'warn';
+        return 'good';
+      }
+
+      function renderKpis() {
+        const summary = state.summary;
+
+        setText('cashNow', money(summary.cashNow));
+        setText('expectedIncome', money(summary.income));
+        setText('expectedOutflow', money(summary.outflow));
+        setText('scenarioBuffer', money(summary.buffer));
+        setText('projectedEnd', money(summary.projectedEnd));
+
+        const projected = $('projectedEnd');
+        if (projected) {
+          projected.classList.remove('good', 'warn', 'danger');
+          projected.classList.add(toneForAmount(summary.projectedEnd));
+        }
+      }
+
+      function eventStatusClass(event) {
+        if (event.type === 'income') return 'good';
+        if (event.type === 'outflow') return 'danger';
+        return 'warn';
+      }
+
+      function renderEvents() {
+        const list = $('forecastList');
+        if (!list) return;
+
+        if (!state.events.length) {
+          list.innerHTML = '<div class="forecast-empty">No forecast events inside this horizon.</div>';
+          return;
+        }
+
+        list.innerHTML = state.events.map(event => {
+          const statusClass = eventStatusClass(event);
+          const amountClass = event.amount >= 0 ? 'income' : 'outflow';
+          const icon = event.type === 'income' ? '📥' : event.type === 'outflow' ? '📤' : '🧮';
+
+          return `
+            <article class="forecast-row" data-forecast-id="${esc(event.id)}">
+              <button class="forecast-row-shell" type="button" data-toggle-forecast="${esc(event.id)}">
+                <div class="forecast-icon">${icon}</div>
+
+                <div>
+                  <div class="forecast-title-line">${esc(event.title)}</div>
+                  <div class="forecast-sub">${esc(event.subtitle)}</div>
+                </div>
+
+                <div class="forecast-cell">${esc(event.source)}</div>
+                <div class="forecast-date">${esc(compactDate(event.date))}</div>
+                <div class="forecast-amount ${amountClass}">${esc(money(event.amount))}</div>
+                <div class="forecast-status-label ${statusClass}">${esc(event.status)}</div>
+                <div class="forecast-caret">▾</div>
+              </button>
+
+              <div class="forecast-detail">
+                <div class="forecast-detail-grid">
+                  ${detail('Source', event.source)}
+                  ${detail('Type', event.type)}
+                  ${detail('Date', event.date || '—')}
+                  ${detail('Amount', money(event.amount))}
+                  ${detail('Account', event.account_id || '—')}
+                  ${detail('Status', event.status)}
+                  ${detail('Ledger impact', 'None · forecast projection only')}
+                  ${detail('Event ID', event.id)}
+                </div>
+              </div>
+            </article>
+          `;
+        }).join('');
+
+        bindEvents();
+      }
+
+      function detail(label, value) {
+        return `
+          <div class="forecast-detail-label">${esc(label)}</div>
+          <div class="forecast-detail-value">${esc(value)}</div>
+        `;
+      }
+
+      function bindEvents() {
+        document.querySelectorAll('[data-toggle-forecast]').forEach(button => {
+          button.addEventListener('click', () => {
+            const id = button.getAttribute('data-toggle-forecast');
+            const row = document.querySelector(`[data-forecast-id="${cssEscape(id)}"]`);
+            if (!row) return;
+
+            row.classList.toggle('is-open');
+            selectEvent(id);
+          });
+        });
+      }
+
+      function cssEscape(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(value);
+        return String(value || '').replace(/"/g, '\\"');
+      }
+
+      function miniRow(label, value) {
+        return `
+          <div class="forecast-detail-grid" style="padding:8px 0;border-bottom:1px solid var(--sf-border-subtle);">
+            <div class="forecast-detail-label">${esc(label)}</div>
+            <div class="forecast-detail-value">${esc(value)}</div>
+          </div>
+        `;
+      }
+
+      function selectEvent(id) {
+        const event = state.events.find(item => String(item.id) === String(id));
+        if (!event) return;
+
+        state.selectedId = id;
+
+        setText('forecastSelectedTitle', event.title);
+        setText('forecastSelectedSub', `${event.source} · ${event.status} · ${event.date || 'no date'}`);
+
+        const panel = $('forecastDetailPanel');
+        if (panel) {
+          panel.innerHTML = `
+            ${miniRow('Amount', money(event.amount))}
+            ${miniRow('Type', event.type)}
+            ${miniRow('Date', event.date || '—')}
+            ${miniRow('Account', event.account_id || '—')}
+            ${miniRow('Source', event.source)}
+            ${miniRow('Ledger impact', 'None · forecast only')}
+          `;
+        }
+      }
+
+      function renderRaw() {
+        const raw = $('forecastRaw');
+        if (!raw) return;
+
+        raw.textContent = JSON.stringify({
+          version: VERSION,
+          summary: state.summary,
+          events: state.events,
+          forecastPayload: state.forecastPayload,
+          accountsPayload: state.accountsPayload,
+          salaryPayload: state.salaryPayload,
+          debtsPayload: state.debtsPayload
+        }, null, 2);
+      }
+
+      function renderAll() {
+        buildEvents();
+        renderKpis();
+        renderEvents();
+        renderRaw();
+
+        const horizon = Number($('horizonInput')?.value || 30);
+        const salary = salaryForecastSource(state.salaryPayload);
+
+        setText('forecastHealth', 'Health OK');
+        setText('forecastHorizonChip', `${horizon}-day horizon`);
+        setText('forecastSalaryChip', salary.enabled ? `Salary ${money(salary.amount)}` : 'Salary excluded/unavailable');
+        setText('forecastStatusDetail', `${state.events.length} forecast event${state.events.length === 1 ? '' : 's'} projected.`);
+        setText('forecastVersion', VERSION);
+        setText('forecastFooterVersion', `forecast.html · ${VERSION}`);
+      }
+
+      async function loadForecast() {
+        setText('forecastHealth', 'Loading forecast');
+        setText('forecastStatusDetail', 'Reading accounts, salary, and debts.');
+
+        const list = $('forecastList');
+        if (list) list.innerHTML = '<div class="forecast-empty">Loading forecast events…</div>';
+
+        try {
+          const [forecastPayload, accountsPayload, salaryPayload, debtsPayload] = await Promise.all([
+            fetchJSON(API_FORECAST, true),
+            fetchJSON(API_ACCOUNTS, true),
+            fetchJSON(API_SALARY, true),
+            fetchJSON(API_DEBTS, true)
+          ]);
+
+          state.forecastPayload = forecastPayload;
+          state.accountsPayload = accountsPayload;
+          state.salaryPayload = salaryPayload;
+          state.debtsPayload = debtsPayload;
+
+          renderAll();
+        } catch (err) {
+          setText('forecastHealth', 'Forecast unavailable');
+          setText('forecastStatusDetail', err.message);
+
+          if (list) {
+            list.innerHTML = `<div class="forecast-empty">Forecast could not load: ${esc(err.message)}</div>`;
+          }
+
+          renderRaw();
+        }
+      }
+
+      function bindControls() {
+        ['horizonInput', 'bufferInput', 'salaryModeInput', 'debtModeInput'].forEach(id => {
+          $(id)?.addEventListener('input', renderAll);
+          $(id)?.addEventListener('change', renderAll);
+        });
+
+        $('refreshForecastBtn')?.addEventListener('click', loadForecast);
+      }
+
+      function init() {
+        bindControls();
+        loadForecast();
+
+        window.SovereignForecast = {
+          version: VERSION,
+          reload: loadForecast,
+          state: () => JSON.parse(JSON.stringify(state))
+        };
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+      } else {
+        init();
+      }
+    })();
+  </script>
 </body>
 </html>
