@@ -1,16 +1,17 @@
 /* Sovereign Finance Debts API
  * /api/debts
- * v0.6.5-debt-payment-main-route
+ * v0.6.6-root-route-payment-check
  *
- * Fix:
- * - Keeps /api/debts/payment support.
- * - Adds canonical fallback: POST /api/debts with { action: "payment" }.
- * - Payment lookup uses TRIM(id) = TRIM(?).
- * - Payment diagnostics remain enabled.
- * - No manual D1 payment writes needed.
+ * Critical route rule:
+ * - Do NOT depend on /api/debts/payment or /api/debts/payment-check.
+ * - Older item route v0.5.0 can shadow those paths.
+ * - Payment check must use:
+ *   GET /api/debts?action=payment_check&debt_id=...&account_id=...&amount=...
+ * - Payment write/dry-run must use:
+ *   POST /api/debts with body.action = "payment"
  */
 
-const VERSION = 'v0.6.5-debt-payment-main-route';
+const VERSION = 'v0.6.6-root-route-payment-check';
 
 const ACTIVE_CONDITION = "(status IS NULL OR status = '' OR status = 'active')";
 const DEFAULT_CATEGORY_ID = 'debt_payment';
@@ -38,6 +39,7 @@ export async function onRequestGet(context) {
     const db = context.env.DB;
     const path = getPath(context);
     const url = new URL(context.request.url);
+    const action = safeText(url.searchParams.get('action'), '', 80).toLowerCase();
 
     if (path[0] === 'health') return getHealth(db);
 
@@ -45,9 +47,13 @@ export async function onRequestGet(context) {
       return json({
         ok: false,
         version: VERSION,
-        error: 'Unsupported debts GET route.',
+        error: 'Unsupported debts GET route. Use root /api/debts with action query params.',
         path
       }, 404);
+    }
+
+    if (action === 'payment_check' || action === 'payment-check') {
+      return paymentCheck(context);
     }
 
     const includeInactive = url.searchParams.get('include_inactive') === '1';
@@ -89,8 +95,8 @@ export async function onRequestGet(context) {
         new_money_moving_debt_requires_account_id: true,
         new_money_moving_debt_atomic_writes: true,
         payment_writes_are_atomic: true,
-        payment_main_route_supported: true,
-        payment_sub_route_supported: true,
+        root_route_payment_check_supported: true,
+        root_route_payment_post_supported: true,
         owed_to_me_origin_type: 'expense',
         i_owe_origin_type: 'income',
         owed_to_me_payment_type: 'income',
@@ -111,27 +117,31 @@ export async function onRequestPost(context) {
     const dryRun = isDryRun(context.request, body);
     const action = safeText(body.action, '', 80).toLowerCase();
 
-    if (path[0] === 'repair-ledger' || path[0] === 'repair-missing-ledger') {
-      return repairLedgerOrigin(context, body, dryRun);
-    }
+    if (path.length > 0) {
+      if (path[0] === 'repair-ledger' || path[0] === 'repair-missing-ledger') {
+        return repairLedgerOrigin(context, body, dryRun);
+      }
 
-    if (path[0] === 'payment' || path[0] === 'pay') {
-      return recordDebtPayment(context, body, dryRun);
+      if (path[0] === 'payment' || path[0] === 'pay') {
+        return recordDebtPayment(context, body, dryRun);
+      }
+
+      return json({
+        ok: false,
+        version: VERSION,
+        error: 'Unsupported debts POST route. Use POST /api/debts with action in body.',
+        path,
+        action,
+        received_body_keys: Object.keys(body || {})
+      }, 404);
     }
 
     if (action === 'payment' || action === 'pay' || action === 'record_payment') {
       return recordDebtPayment(context, body, dryRun);
     }
 
-    if (path.length > 0) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: 'Unsupported debts POST route.',
-        path,
-        action,
-        received_body_keys: Object.keys(body || {})
-      }, 404);
+    if (action === 'repair_ledger' || action === 'repair-ledger') {
+      return repairLedgerOrigin(context, body, dryRun);
     }
 
     return createDebt(context, body, dryRun);
@@ -179,6 +189,149 @@ export async function onRequestPut(context) {
   } catch (err) {
     return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
   }
+}
+
+/* ─────────────────────────────
+ * Root-route payment check
+ * ───────────────────────────── */
+
+async function paymentCheck(context) {
+  const db = context.env.DB;
+  const url = new URL(context.request.url);
+
+  const debtId = safeText(url.searchParams.get('debt_id'), '', 200);
+  const accountId = safeText(url.searchParams.get('account_id'), '', 160);
+  const amount = moneyNumber(url.searchParams.get('amount'), null);
+  const date = normalizeDate(url.searchParams.get('date')) || todayISO();
+
+  if (!debtId) {
+    return json({
+      ok: false,
+      version: VERSION,
+      action: 'debt.payment_check',
+      error: 'debt_id required'
+    }, 400);
+  }
+
+  if (!accountId) {
+    return json({
+      ok: false,
+      version: VERSION,
+      action: 'debt.payment_check',
+      error: 'account_id required',
+      received_debt_id: debtId
+    }, 400);
+  }
+
+  if (amount == null || amount <= 0) {
+    return json({
+      ok: false,
+      version: VERSION,
+      action: 'debt.payment_check',
+      error: 'amount must be greater than 0',
+      received_debt_id: debtId
+    }, 400);
+  }
+
+  const debtRow = await findDebtById(db, debtId);
+
+  if (!debtRow) {
+    return json({
+      ok: false,
+      version: VERSION,
+      action: 'debt.payment_check',
+      error: `Debt not found for received_debt_id="${debtId}"`,
+      received_debt_id: debtId,
+      diagnostics: await debtLookupDiagnostics(db, debtId, { debt_id: debtId, account_id: accountId, amount })
+    }, 404);
+  }
+
+  const debt = normalizeDebt(debtRow);
+  const accountResult = await resolveAccount(db, accountId);
+
+  if (!accountResult.ok) {
+    return json({
+      ok: false,
+      version: VERSION,
+      action: 'debt.payment_check',
+      error: accountResult.error,
+      received_debt_id: debtId,
+      received_account_id: accountId
+    }, accountResult.status || 409);
+  }
+
+  const remaining = round2(debt.original_amount - debt.paid_amount);
+
+  if (!['active', 'paused'].includes(debt.status)) {
+    return json({
+      ok: false,
+      version: VERSION,
+      action: 'debt.payment_check',
+      error: 'Only active or paused debts can record payments.',
+      debt_found: true,
+      debt_status: debt.status,
+      debt
+    }, 409);
+  }
+
+  if (remaining <= 0) {
+    return json({
+      ok: false,
+      version: VERSION,
+      action: 'debt.payment_check',
+      error: 'Debt has no remaining balance.',
+      debt_found: true,
+      remaining_amount: remaining,
+      debt
+    }, 409);
+  }
+
+  if (amount > remaining) {
+    return json({
+      ok: false,
+      version: VERSION,
+      action: 'debt.payment_check',
+      error: 'payment amount cannot exceed remaining debt balance',
+      debt_found: true,
+      amount,
+      remaining_amount: remaining,
+      debt
+    }, 400);
+  }
+
+  const txType = debt.kind === 'owed' ? 'income' : 'expense';
+  const newPaid = round2(Math.min(debt.original_amount, debt.paid_amount + amount));
+  const statusAfter = newPaid >= debt.original_amount ? 'settled' : 'active';
+
+  return json({
+    ok: true,
+    version: VERSION,
+    action: 'debt.payment_check',
+    writes_performed: false,
+    debt_found: true,
+    account_found: true,
+    received_debt_id: debtId,
+    resolved_debt_id: debt.id,
+    received_account_id: accountId,
+    resolved_account_id: accountResult.account.id,
+    amount,
+    date,
+    debt: {
+      id: debt.id,
+      name: debt.name,
+      kind: debt.kind,
+      original_amount: debt.original_amount,
+      paid_amount: debt.paid_amount,
+      remaining_amount: remaining,
+      status: debt.status
+    },
+    would_write_transaction_type: txType,
+    paid_amount_after: newPaid,
+    status_after: statusAfter,
+    rule: debt.kind === 'owed'
+      ? 'owed-to-me payment writes income and increases receiving account'
+      : 'i-owe payment writes expense and decreases paying account'
+  });
 }
 
 /* ─────────────────────────────
@@ -860,7 +1013,8 @@ async function getHealth(db) {
       payment_writes_transaction_debt_update_and_debt_payment_row: true,
       payment_lookup_uses_trimmed_debt_id: true,
       payment_diagnostics_enabled: true,
-      payment_main_route_supported: true
+      root_route_payment_check_supported: true,
+      root_route_payment_post_supported: true
     },
     debts: debts.map(debt => ({
       id: debt.id,
@@ -990,7 +1144,7 @@ function isReversedTransaction(tx) {
 }
 
 /* ─────────────────────────────
- * Load links
+ * Load ledger links
  * ───────────────────────────── */
 
 async function loadDebtLedgerLinks(db, debtIds) {
