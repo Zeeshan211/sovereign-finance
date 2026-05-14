@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html lang="en" data-page="forecast">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#050816">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050816" />
 
   <title>Forecast · Sovereign Finance</title>
 
   <script src="/js/sf-theme-switcher.js"></script>
-  <link rel="stylesheet" href="/css/sf-theme.css">
-  <link rel="stylesheet" href="/css/sf-shell.css">
+  <link rel="stylesheet" href="/css/sf-theme.css" />
+  <link rel="stylesheet" href="/css/sf-shell.css" />
 
   <style>
     .forecast-os {
@@ -175,29 +175,9 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .forecast-kpi-value.good {
-      color: var(--sf-positive);
-    }
-
-    .forecast-kpi-value.warn {
-      color: var(--sf-warning);
-    }
-
-    .forecast-kpi-value.danger {
-      color: var(--sf-danger);
-    }
-
-    .forecast-workspace {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
-      gap: 16px;
-      align-items: start;
-    }
-
-    .forecast-panel-stack {
-      display: grid;
-      gap: 16px;
-    }
+    .forecast-kpi-value.good { color: var(--sf-positive); }
+    .forecast-kpi-value.warn { color: var(--sf-warning); }
+    .forecast-kpi-value.danger { color: var(--sf-danger); }
 
     .forecast-controls {
       display: grid;
@@ -228,6 +208,18 @@
       padding: 11px 12px;
       font: inherit;
       outline: none;
+    }
+
+    .forecast-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .forecast-panel-stack {
+      display: grid;
+      gap: 16px;
     }
 
     .forecast-list {
@@ -325,13 +317,8 @@
       white-space: nowrap;
     }
 
-    .forecast-amount.income {
-      color: var(--sf-positive);
-    }
-
-    .forecast-amount.outflow {
-      color: var(--sf-danger);
-    }
+    .forecast-amount.income { color: var(--sf-positive); }
+    .forecast-amount.outflow { color: var(--sf-danger); }
 
     .forecast-status-label {
       justify-self: end;
@@ -372,11 +359,10 @@
       border-top: 1px solid var(--sf-border-subtle);
       padding: 12px;
       background: rgba(0,0,0,.12);
-      gap: 10px;
     }
 
     .forecast-row.is-open .forecast-detail {
-      display: grid;
+      display: block;
     }
 
     .forecast-detail-grid {
@@ -415,17 +401,9 @@
     }
 
     @media (max-width: 1180px) {
-      .forecast-workspace {
-        grid-template-columns: 1fr;
-      }
-
-      .forecast-kpis {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-
-      .forecast-controls {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
+      .forecast-workspace { grid-template-columns: 1fr; }
+      .forecast-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .forecast-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     @media (max-width: 980px) {
@@ -475,7 +453,7 @@
       <section class="sf-page-content forecast-os">
         <section class="forecast-toolbar">
           <div class="forecast-copy">
-            Forecast combines current account balances, saved salary source, debts due, and optional buffers into a forward cash position.
+            Forecast uses one backend source: balances, saved salary contract, active debts, and scenario buffer.
           </div>
 
           <div class="forecast-actions">
@@ -486,15 +464,15 @@
           </div>
         </section>
 
-        <section class="forecast-status" aria-label="Forecast system status">
+        <section class="forecast-status">
           <div class="forecast-chip-row">
             <span class="forecast-chip strong" id="forecastHealth">Loading forecast</span>
-            <span class="forecast-chip good">Backend truth + local projection</span>
+            <span class="forecast-chip good">Backend forecast source</span>
             <span class="forecast-chip" id="forecastHorizonChip">Horizon loading</span>
             <span class="forecast-chip" id="forecastSalaryChip">Salary source loading</span>
-            <span class="forecast-chip" id="forecastVersion">forecast compact shell</span>
+            <span class="forecast-chip" id="forecastVersion">forecast shell</span>
           </div>
-          <span class="forecast-chip" id="forecastStatusDetail">Reading accounts, salary, and debts.</span>
+          <span class="forecast-chip" id="forecastStatusDetail">Reading forecast source.</span>
         </section>
 
         <details class="forecast-rules">
@@ -502,10 +480,10 @@
           <div class="forecast-rules-body">
             <ul>
               <li>Forecast starts from current account balances.</li>
-              <li>Saved Salary contract contributes expected income if Forecast is enabled on Salary.</li>
+              <li>Saved Salary contract contributes expected income when enabled.</li>
               <li>Active debts due inside the selected horizon are projected as outflows.</li>
-              <li>Forecast does not write to Ledger or mutate account balances.</li>
-              <li>Scenario buffer is a planning adjustment only, not backend money truth.</li>
+              <li>Forecast does not write Ledger rows or mutate account balances.</li>
+              <li>Scenario buffer is planning-only.</li>
             </ul>
           </div>
         </details>
@@ -543,7 +521,7 @@
               <p class="sf-section-kicker">Scenario controls</p>
               <h2 class="sf-section-title">Forecast Scenario</h2>
               <p class="sf-section-subtitle">
-                Adjust planning horizon and manual buffer without changing backend money truth.
+                Adjust planning horizon and manual buffer. No backend write is performed.
               </p>
             </div>
           </div>
@@ -562,7 +540,7 @@
 
             <div class="forecast-field">
               <label for="bufferInput">Manual Buffer</label>
-              <input id="bufferInput" class="forecast-input" type="number" step="0.01" value="0">
+              <input id="bufferInput" class="forecast-input" type="number" step="0.01" value="0" />
             </div>
 
             <div class="forecast-field">
@@ -591,9 +569,7 @@
                 <div>
                   <p class="sf-section-kicker">Projection timeline</p>
                   <h2 class="sf-section-title">Forecast Events</h2>
-                  <p class="sf-section-subtitle">
-                    Compact projected events from salary, debts, and scenario buffer. These are projections, not ledger rows.
-                  </p>
+                  <p class="sf-section-subtitle">Projected events only. They do not change balances.</p>
                 </div>
               </div>
 
@@ -607,11 +583,9 @@
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Forecast source</p>
+                  <p class="sf-section-kicker">Selected event</p>
                   <h2 class="sf-section-title" id="forecastSelectedTitle">No event selected</h2>
-                  <p class="sf-section-subtitle" id="forecastSelectedSub">
-                    Expand an event to inspect source and impact.
-                  </p>
+                  <p class="sf-section-subtitle" id="forecastSelectedSub">Expand an event to inspect it.</p>
                 </div>
               </div>
 
@@ -620,16 +594,10 @@
               </div>
             </section>
 
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Raw payload</p>
-                  <h2 class="sf-section-title">Forecast Inputs</h2>
-                </div>
-              </div>
-
+            <details class="sf-panel">
+              <summary class="sf-section-title">Raw payload</summary>
               <pre id="forecastRaw" class="forecast-pre">Loading…</pre>
-            </section>
+            </details>
           </aside>
         </section>
 
@@ -649,30 +617,21 @@
     (function () {
       'use strict';
 
-      const VERSION = 'v0.2.0-forecast-compact-source-aware';
-
+      const VERSION = 'v0.3.1-forecast-single-api-render-fixed';
       const API_FORECAST = '/api/forecast';
-      const API_ACCOUNTS = '/api/accounts';
-      const API_SALARY = '/api/salary';
-      const API_DEBTS = '/api/debts';
 
       const state = {
-        forecastPayload: null,
-        accountsPayload: null,
-        salaryPayload: null,
-        debtsPayload: null,
+        payload: null,
         events: [],
-        selectedId: null,
-        summary: {
-          cashNow: 0,
-          income: 0,
-          outflow: 0,
-          buffer: 0,
-          projectedEnd: 0
-        }
+        selectedId: null
       };
 
       const $ = id => document.getElementById(id);
+
+      function setText(id, value) {
+        const el = $(id);
+        if (el) el.textContent = safeText(value, '');
+      }
 
       function esc(value) {
         return String(value == null ? '' : value)
@@ -694,9 +653,6 @@
       function num(value, fallback = 0) {
         if (value == null || value === '') return fallback;
         if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
-        if (typeof value === 'object') {
-          return num(value.amount ?? value.value ?? value.total ?? value.balance, fallback);
-        }
         const n = Number(String(value).replace(/rs/ig, '').replace(/,/g, '').trim());
         return Number.isFinite(n) ? n : fallback;
       }
@@ -704,21 +660,12 @@
       function money(value) {
         const n = num(value, NaN);
         if (!Number.isFinite(n)) return '—';
+
         const sign = n < 0 ? '-' : '';
         return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
           minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
           maximumFractionDigits: 2
         });
-      }
-
-      function todayISO() {
-        return new Date().toISOString().slice(0, 10);
-      }
-
-      function addDaysISO(days) {
-        const d = new Date();
-        d.setDate(d.getDate() + Number(days || 0));
-        return d.toISOString().slice(0, 10);
       }
 
       function compactDate(value) {
@@ -735,283 +682,74 @@
         return `${Number(day)} ${months[month] || month}`;
       }
 
-      async function fetchJSON(url, optional) {
+      async function fetchJSON(url) {
+        const response = await fetch(url, {
+          cache: 'no-store',
+          headers: { Accept: 'application/json' }
+        });
+
+        const text = await response.text();
+        let payload = null;
+
         try {
-          const response = await fetch(url, {
-            cache: 'no-store',
-            headers: { Accept: 'application/json' }
-          });
-
-          const text = await response.text();
-          let payload = null;
-
-          try {
-            payload = text ? JSON.parse(text) : null;
-          } catch {
-            throw new Error(`Non-JSON response from ${url}: HTTP ${response.status}`);
-          }
-
-          if (!response.ok || !payload || payload.ok === false) {
-            throw new Error((payload && payload.error) || `HTTP ${response.status}`);
-          }
-
-          return payload;
-        } catch (err) {
-          if (optional) return { ok: false, error: err.message, optional: true };
-          throw err;
-        }
-      }
-
-      function accountRows(payload) {
-        if (!payload) return [];
-        if (Array.isArray(payload.accounts)) return payload.accounts;
-        if (payload.accounts && typeof payload.accounts === 'object') return Object.values(payload.accounts);
-        if (payload.accounts_by_id && typeof payload.accounts_by_id === 'object') return Object.values(payload.accounts_by_id);
-        if (Array.isArray(payload.account_list)) return payload.account_list;
-        if (Array.isArray(payload.data)) return payload.data;
-        return [];
-      }
-
-      function debtRows(payload) {
-        if (!payload) return [];
-        if (Array.isArray(payload.debts)) return payload.debts;
-        if (Array.isArray(payload.data)) return payload.data;
-        return [];
-      }
-
-      function accountBalance(account) {
-        return num(account.balance ?? account.current_balance ?? account.amount ?? account.available_balance ?? 0);
-      }
-
-      function isForecastAccount(account) {
-        const status = safeText(account.status, '').toLowerCase();
-        if (['archived', 'deleted', 'inactive'].includes(status)) return false;
-
-        const type = safeText(account.type || account.kind, '').toLowerCase();
-        if (['credit_card', 'loan', 'debt'].includes(type)) return false;
-
-        return true;
-      }
-
-      function calculateCashNow(accounts) {
-        return accounts
-          .filter(isForecastAccount)
-          .reduce((sum, account) => sum + accountBalance(account), 0);
-      }
-
-      function salaryForecastSource(payload) {
-        const source = payload && payload.forecast_source;
-        if (source && source.enabled !== false) {
-          return {
-            enabled: true,
-            amount: num(source.monthly_salary_net ?? source.expected_income_amount),
-            date: safeText(source.expected_date, addDaysISO(1)),
-            account_id: safeText(source.payout_account_id, '—'),
-            label: 'Expected salary income',
-            raw: source
-          };
+          payload = text ? JSON.parse(text) : null;
+        } catch {
+          throw new Error(`Non-JSON response from ${url}: HTTP ${response.status}`);
         }
 
-        const row = Array.isArray(payload?.salary) ? payload.salary[0] : null;
-        if (row) {
-          const amount = num(row.net ?? row.net_payable ?? row.amount);
-          return {
-            enabled: amount > 0,
-            amount,
-            date: safeText(row.expected_date || row.date, addDaysISO(1)),
-            account_id: safeText(row.account_id || row.payout_account_id, '—'),
-            label: 'Expected salary income',
-            raw: row
-          };
+        if (!response.ok || !payload || payload.ok === false) {
+          throw new Error((payload && payload.error) || `HTTP ${response.status}`);
         }
 
-        return {
-          enabled: false,
-          amount: 0,
-          date: '',
-          account_id: '—',
-          label: 'Salary source disabled',
-          raw: null
-        };
+        return payload;
       }
 
-      function inHorizon(date, horizonDays) {
-        const raw = safeText(date, '');
-        if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) return false;
-        return raw >= todayISO() && raw <= addDaysISO(horizonDays);
-      }
-
-      function debtRemaining(debt) {
-        return num(debt.remaining_amount ?? Math.max(0, num(debt.original_amount) - num(debt.paid_amount)));
-      }
-
-      function debtDueDate(debt) {
-        return safeText(debt.next_due_date || debt.due_date, '');
-      }
-
-      function buildEvents() {
-        const horizon = Number($('horizonInput')?.value || 30);
+      function buildForecastUrl() {
+        const horizon = $('horizonInput')?.value || '30';
+        const buffer = $('bufferInput')?.value || '0';
         const salaryMode = $('salaryModeInput')?.value || 'auto';
         const debtMode = $('debtModeInput')?.value || 'due';
-        const buffer = num($('bufferInput')?.value);
 
-        const accounts = accountRows(state.accountsPayload);
-        const debts = debtRows(state.debtsPayload);
-        const salary = salaryForecastSource(state.salaryPayload);
+        const params = new URLSearchParams();
+        params.set('horizon', horizon);
+        params.set('buffer', buffer);
+        params.set('salary', salaryMode);
+        params.set('debts', debtMode);
 
-        const events = [];
-
-        if (salaryMode !== 'exclude' && salary.enabled && salary.amount > 0 && inHorizon(salary.date, horizon)) {
-          events.push({
-            id: 'salary_income',
-            type: 'income',
-            source: 'salary',
-            title: salary.label,
-            subtitle: `Salary source · ${salary.account_id} · ${salary.date}`,
-            date: salary.date,
-            amount: salary.amount,
-            account_id: salary.account_id,
-            status: 'expected',
-            raw: salary.raw
-          });
-        }
-
-        if (debtMode !== 'exclude') {
-          debts
-            .filter(debt => safeText(debt.status, 'active').toLowerCase() === 'active')
-            .filter(debt => {
-              if (debtMode === 'all') return true;
-              return inHorizon(debtDueDate(debt), horizon);
-            })
-            .forEach(debt => {
-              const remaining = debtRemaining(debt);
-              if (remaining <= 0) return;
-
-              events.push({
-                id: `debt_${safeText(debt.id, Math.random())}`,
-                type: 'outflow',
-                source: 'debt',
-                title: `Debt due: ${safeText(debt.name || debt.id, 'Debt')}`,
-                subtitle: `${safeText(debt.kind, 'debt')} · ${debtDueDate(debt) || 'no due date'} · ${safeText(debt.id, '')}`,
-                date: debtDueDate(debt) || addDaysISO(horizon),
-                amount: -Math.abs(remaining),
-                account_id: safeText(debt.account_id || debt.payout_account_id, '—'),
-                status: debtDueDate(debt) ? 'due' : 'unscheduled',
-                raw: debt
-              });
-            });
-        }
-
-        if (buffer !== 0) {
-          events.push({
-            id: 'manual_buffer',
-            type: buffer > 0 ? 'income' : 'outflow',
-            source: 'scenario',
-            title: buffer > 0 ? 'Manual positive buffer' : 'Manual reserve buffer',
-            subtitle: 'Scenario-only adjustment · no ledger impact',
-            date: addDaysISO(horizon),
-            amount: buffer,
-            account_id: 'scenario',
-            status: 'planning',
-            raw: { buffer }
-          });
-        }
-
-        events.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
-
-        state.events = events;
-
-        const cashNow = calculateCashNow(accounts);
-        const income = events.filter(event => event.amount > 0).reduce((sum, event) => sum + event.amount, 0);
-        const outflow = Math.abs(events.filter(event => event.amount < 0).reduce((sum, event) => sum + event.amount, 0));
-        const projectedEnd = cashNow + income - outflow;
-
-        state.summary = {
-          cashNow,
-          income,
-          outflow,
-          buffer,
-          projectedEnd
-        };
+        return `${API_FORECAST}?${params.toString()}`;
       }
 
-      function toneForAmount(value) {
-        const n = num(value);
-        if (n < 0) return 'danger';
-        if (n === 0) return 'warn';
-        return 'good';
-      }
+      function renderKpis(summary) {
+        summary = summary || {};
 
-      function renderKpis() {
-        const summary = state.summary;
-
-        setText('cashNow', money(summary.cashNow));
-        setText('expectedIncome', money(summary.income));
-        setText('expectedOutflow', money(summary.outflow));
+        setText('cashNow', money(summary.cash_now));
+        setText('expectedIncome', money(summary.expected_income));
+        setText('expectedOutflow', money(summary.expected_outflow));
         setText('scenarioBuffer', money(summary.buffer));
-        setText('projectedEnd', money(summary.projectedEnd));
+        setText('projectedEnd', money(summary.projected_end));
 
         const projected = $('projectedEnd');
         if (projected) {
           projected.classList.remove('good', 'warn', 'danger');
-          projected.classList.add(toneForAmount(summary.projectedEnd));
+          const end = num(summary.projected_end);
+          projected.classList.add(end < 0 ? 'danger' : end === 0 ? 'warn' : 'good');
         }
       }
 
-      function eventStatusClass(event) {
+      function eventClass(event) {
         if (event.type === 'income') return 'good';
         if (event.type === 'outflow') return 'danger';
         return 'warn';
       }
 
-      function renderEvents() {
-        const list = $('forecastList');
-        if (!list) return;
+      function amountClass(event) {
+        return num(event.amount) >= 0 ? 'income' : 'outflow';
+      }
 
-        if (!state.events.length) {
-          list.innerHTML = '<div class="forecast-empty">No forecast events inside this horizon.</div>';
-          return;
-        }
-
-        list.innerHTML = state.events.map(event => {
-          const statusClass = eventStatusClass(event);
-          const amountClass = event.amount >= 0 ? 'income' : 'outflow';
-          const icon = event.type === 'income' ? '📥' : event.type === 'outflow' ? '📤' : '🧮';
-
-          return `
-            <article class="forecast-row" data-forecast-id="${esc(event.id)}">
-              <button class="forecast-row-shell" type="button" data-toggle-forecast="${esc(event.id)}">
-                <div class="forecast-icon">${icon}</div>
-
-                <div>
-                  <div class="forecast-title-line">${esc(event.title)}</div>
-                  <div class="forecast-sub">${esc(event.subtitle)}</div>
-                </div>
-
-                <div class="forecast-cell">${esc(event.source)}</div>
-                <div class="forecast-date">${esc(compactDate(event.date))}</div>
-                <div class="forecast-amount ${amountClass}">${esc(money(event.amount))}</div>
-                <div class="forecast-status-label ${statusClass}">${esc(event.status)}</div>
-                <div class="forecast-caret">▾</div>
-              </button>
-
-              <div class="forecast-detail">
-                <div class="forecast-detail-grid">
-                  ${detail('Source', event.source)}
-                  ${detail('Type', event.type)}
-                  ${detail('Date', event.date || '—')}
-                  ${detail('Amount', money(event.amount))}
-                  ${detail('Account', event.account_id || '—')}
-                  ${detail('Status', event.status)}
-                  ${detail('Ledger impact', 'None · forecast projection only')}
-                  ${detail('Event ID', event.id)}
-                </div>
-              </div>
-            </article>
-          `;
-        }).join('');
-
-        bindEvents();
+      function eventIcon(event) {
+        if (event.type === 'income') return '📥';
+        if (event.type === 'outflow') return '📤';
+        return '🧮';
       }
 
       function detail(label, value) {
@@ -1019,6 +757,52 @@
           <div class="forecast-detail-label">${esc(label)}</div>
           <div class="forecast-detail-value">${esc(value)}</div>
         `;
+      }
+
+      function renderEvents() {
+        const list = $('forecastList');
+        if (!list) return;
+
+        const events = state.events || [];
+
+        if (!events.length) {
+          list.innerHTML = '<div class="forecast-empty">No forecast events inside this horizon.</div>';
+          return;
+        }
+
+        list.innerHTML = events.map(event => `
+          <article class="forecast-row" data-forecast-id="${esc(event.id)}">
+            <button class="forecast-row-shell" type="button" data-toggle-forecast="${esc(event.id)}">
+              <div class="forecast-icon">${eventIcon(event)}</div>
+
+              <div>
+                <div class="forecast-title-line">${esc(event.title)}</div>
+                <div class="forecast-sub">${esc(event.description || event.source || '')}</div>
+              </div>
+
+              <div class="forecast-cell">${esc(event.source)}</div>
+              <div class="forecast-date">${esc(compactDate(event.date))}</div>
+              <div class="forecast-amount ${amountClass(event)}">${esc(money(event.amount))}</div>
+              <div class="forecast-status-label ${eventClass(event)}">${esc(event.status || 'projected')}</div>
+              <div class="forecast-caret">▾</div>
+            </button>
+
+            <div class="forecast-detail">
+              <div class="forecast-detail-grid">
+                ${detail('Source', event.source || '—')}
+                ${detail('Type', event.type || '—')}
+                ${detail('Date', event.date || '—')}
+                ${detail('Amount', money(event.amount))}
+                ${detail('Account', event.account_id || '—')}
+                ${detail('Status', event.status || 'projected')}
+                ${detail('Ledger impact', 'None · forecast projection only')}
+                ${detail('Event ID', event.id)}
+              </div>
+            </div>
+          </article>
+        `).join('');
+
+        bindEvents();
       }
 
       function bindEvents() {
@@ -1055,16 +839,16 @@
         state.selectedId = id;
 
         setText('forecastSelectedTitle', event.title);
-        setText('forecastSelectedSub', `${event.source} · ${event.status} · ${event.date || 'no date'}`);
+        setText('forecastSelectedSub', `${event.source} · ${event.status || 'projected'} · ${event.date || 'no date'}`);
 
         const panel = $('forecastDetailPanel');
         if (panel) {
           panel.innerHTML = `
             ${miniRow('Amount', money(event.amount))}
-            ${miniRow('Type', event.type)}
+            ${miniRow('Type', event.type || '—')}
             ${miniRow('Date', event.date || '—')}
             ${miniRow('Account', event.account_id || '—')}
-            ${miniRow('Source', event.source)}
+            ${miniRow('Source', event.source || '—')}
             ${miniRow('Ledger impact', 'None · forecast only')}
           `;
         }
@@ -1072,57 +856,39 @@
 
       function renderRaw() {
         const raw = $('forecastRaw');
-        if (!raw) return;
-
-        raw.textContent = JSON.stringify({
-          version: VERSION,
-          summary: state.summary,
-          events: state.events,
-          forecastPayload: state.forecastPayload,
-          accountsPayload: state.accountsPayload,
-          salaryPayload: state.salaryPayload,
-          debtsPayload: state.debtsPayload
-        }, null, 2);
+        if (raw) raw.textContent = JSON.stringify(state.payload || {}, null, 2);
       }
 
-      function renderAll() {
-        buildEvents();
-        renderKpis();
+      function renderAll(payload) {
+        state.payload = payload || {};
+        state.events = Array.isArray(payload.events) ? payload.events : [];
+
+        renderKpis(payload.summary || {});
         renderEvents();
         renderRaw();
 
-        const horizon = Number($('horizonInput')?.value || 30);
-        const salary = salaryForecastSource(state.salaryPayload);
-
         setText('forecastHealth', 'Health OK');
-        setText('forecastHorizonChip', `${horizon}-day horizon`);
-        setText('forecastSalaryChip', salary.enabled ? `Salary ${money(salary.amount)}` : 'Salary excluded/unavailable');
+        setText('forecastHorizonChip', `${payload.horizon_days || $('horizonInput')?.value || 30}-day horizon`);
+
+        const salaryAmount = payload.sources && payload.sources.salary_amount;
+        const salaryEnabled = payload.sources && payload.sources.salary_enabled;
+        setText('forecastSalaryChip', salaryEnabled ? `Salary ${money(salaryAmount)}` : 'Salary unavailable/excluded');
+
         setText('forecastStatusDetail', `${state.events.length} forecast event${state.events.length === 1 ? '' : 's'} projected.`);
         setText('forecastVersion', VERSION);
-        setText('forecastFooterVersion', `forecast.html · ${VERSION}`);
+        setText('forecastFooterVersion', `forecast.html · ${VERSION} · backend ${payload.version || 'unknown'}`);
       }
 
       async function loadForecast() {
         setText('forecastHealth', 'Loading forecast');
-        setText('forecastStatusDetail', 'Reading accounts, salary, and debts.');
+        setText('forecastStatusDetail', 'Reading forecast source.');
 
         const list = $('forecastList');
         if (list) list.innerHTML = '<div class="forecast-empty">Loading forecast events…</div>';
 
         try {
-          const [forecastPayload, accountsPayload, salaryPayload, debtsPayload] = await Promise.all([
-            fetchJSON(API_FORECAST, true),
-            fetchJSON(API_ACCOUNTS, true),
-            fetchJSON(API_SALARY, true),
-            fetchJSON(API_DEBTS, true)
-          ]);
-
-          state.forecastPayload = forecastPayload;
-          state.accountsPayload = accountsPayload;
-          state.salaryPayload = salaryPayload;
-          state.debtsPayload = debtsPayload;
-
-          renderAll();
+          const payload = await fetchJSON(buildForecastUrl());
+          renderAll(payload);
         } catch (err) {
           setText('forecastHealth', 'Forecast unavailable');
           setText('forecastStatusDetail', err.message);
@@ -1131,14 +897,17 @@
             list.innerHTML = `<div class="forecast-empty">Forecast could not load: ${esc(err.message)}</div>`;
           }
 
+          state.payload = { error: err.message };
           renderRaw();
         }
       }
 
       function bindControls() {
         ['horizonInput', 'bufferInput', 'salaryModeInput', 'debtModeInput'].forEach(id => {
-          $(id)?.addEventListener('input', renderAll);
-          $(id)?.addEventListener('change', renderAll);
+          const el = $(id);
+          if (!el) return;
+          el.addEventListener('input', loadForecast);
+          el.addEventListener('change', loadForecast);
         });
 
         $('refreshForecastBtn')?.addEventListener('click', loadForecast);
