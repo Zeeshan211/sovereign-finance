@@ -181,6 +181,69 @@
       gap: 16px;
     }
 
+    .salary-form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .salary-field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .salary-field.span-2 {
+      grid-column: span 2;
+    }
+
+    .salary-field.span-3 {
+      grid-column: span 3;
+    }
+
+    .salary-field label {
+      color: var(--sf-text-muted);
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .salary-input,
+    .salary-select,
+    .salary-textarea {
+      width: 100%;
+      border: 1px solid var(--sf-border);
+      border-radius: 14px;
+      background: var(--sf-surface-1);
+      color: var(--sf-text);
+      padding: 11px 12px;
+      font: inherit;
+      outline: none;
+    }
+
+    .salary-textarea {
+      min-height: 88px;
+      resize: vertical;
+    }
+
+    .salary-check-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--sf-text-muted);
+      font-size: 13px;
+      font-weight: 750;
+      min-height: 42px;
+    }
+
+    .salary-form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
     .salary-list {
       display: grid;
       gap: 10px;
@@ -382,6 +445,29 @@
       line-height: 1.5;
     }
 
+    .salary-toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 9999;
+      transform: translateY(18px);
+      opacity: 0;
+      pointer-events: none;
+      transition: .2s ease;
+      border: 1px solid var(--sf-border);
+      border-radius: 16px;
+      padding: 12px 14px;
+      background: var(--sf-card-strong);
+      color: var(--sf-text);
+      box-shadow: var(--sf-shadow-md);
+      font-weight: 800;
+    }
+
+    .salary-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
     @media (max-width: 1180px) {
       .salary-workspace {
         grid-template-columns: 1fr;
@@ -389,6 +475,14 @@
 
       .salary-kpis {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .salary-form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .salary-field.span-3 {
+        grid-column: span 2;
       }
     }
 
@@ -405,8 +499,14 @@
     }
 
     @media (max-width: 640px) {
-      .salary-kpis {
+      .salary-kpis,
+      .salary-form-grid {
         grid-template-columns: 1fr;
+      }
+
+      .salary-field.span-2,
+      .salary-field.span-3 {
+        grid-column: span 1;
       }
 
       .salary-row-shell {
@@ -439,11 +539,12 @@
       <section class="sf-page-content salary-os">
         <section class="salary-toolbar">
           <div class="salary-toolbar-copy">
-            Contract-rendered monthly salary, deductions, payout status, and ledger linkage.
+            Salary contract editor. This saved salary contract becomes the source of expected income for Forecast.
           </div>
 
           <div class="salary-actions">
             <button class="sf-button sf-button--primary" id="refreshSalaryBtn" type="button">Refresh</button>
+            <a class="sf-button" href="/forecast.html">Forecast</a>
             <a class="sf-button" href="/transactions.html">Ledger</a>
             <a class="sf-button" href="/accounts.html">Accounts</a>
           </div>
@@ -453,9 +554,9 @@
           <div class="salary-chip-row">
             <span class="salary-chip strong" id="salaryHealth">Loading salary</span>
             <span class="salary-chip good">Backend truth</span>
-            <span class="salary-chip">Ledger-safe</span>
+            <span class="salary-chip">Forecast source</span>
             <span class="salary-chip" id="salaryCurrentMonth">Current month loading</span>
-            <span class="salary-chip" id="salaryVersion">salary compact shell</span>
+            <span class="salary-chip" id="salaryVersion">salary editor</span>
           </div>
           <span class="salary-chip" id="salaryStatusDetail">Reading salary contract.</span>
         </section>
@@ -464,11 +565,11 @@
           <summary>Salary rules</summary>
           <div class="salary-rules-body">
             <ul>
-              <li>Salary contract defines expected monthly payout and deductions.</li>
-              <li>Posting salary must create a backend ledger income row.</li>
-              <li>Salary UI must not manually adjust account balances.</li>
-              <li>Paid salary should be ledger-linked; expected salary should not affect balances yet.</li>
-              <li>Deductions must remain visible separately from net payout.</li>
+              <li>Salary contract is the source of expected monthly income for Forecast.</li>
+              <li>Saving salary does not change account balance.</li>
+              <li>Posting actual salary later should create a backend ledger income row.</li>
+              <li>Forecast consumes net salary, expected payday, payout account, and include-in-forecast state.</li>
+              <li>WFH allowance is calculated from WFH USD × FX rate when Include WFH is enabled.</li>
             </ul>
           </div>
         </details>
@@ -490,13 +591,13 @@
           </article>
 
           <article class="salary-kpi">
-            <p class="salary-kpi-label">Paid</p>
-            <p class="salary-kpi-value" id="salaryPaid">—</p>
+            <p class="salary-kpi-label">Payday</p>
+            <p class="salary-kpi-value" id="salaryPayday">—</p>
           </article>
 
           <article class="salary-kpi">
-            <p class="salary-kpi-label">Remaining</p>
-            <p class="salary-kpi-value" id="salaryRemaining">—</p>
+            <p class="salary-kpi-label">Forecast</p>
+            <p class="salary-kpi-value" id="salaryForecast">—</p>
           </article>
         </section>
 
@@ -505,10 +606,117 @@
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Salary timeline</p>
-                  <h2 class="sf-section-title">Monthly Salary Rows</h2>
+                  <p class="sf-section-kicker">Source of truth</p>
+                  <h2 class="sf-section-title">Salary Contract Editor</h2>
                   <p class="sf-section-subtitle">
-                    Compact rows expand inline for salary contract, payout state, and ledger linkage.
+                    Save variable salary values here. Forecast reads the saved net salary and expected payday from this contract.
+                  </p>
+                </div>
+              </div>
+
+              <form id="salaryForm" class="salary-form">
+                <div class="salary-form-grid">
+                  <div class="salary-field">
+                    <label for="effectiveMonthInput">Effective Month</label>
+                    <input id="effectiveMonthInput" class="salary-input" type="month">
+                  </div>
+
+                  <div class="salary-field">
+                    <label for="paydayInput">Payday</label>
+                    <input id="paydayInput" class="salary-input" type="number" min="1" max="31">
+                  </div>
+
+                  <div class="salary-field">
+                    <label for="payoutAccountInput">Payout Account</label>
+                    <select id="payoutAccountInput" class="salary-select">
+                      <option value="meezan">Meezan</option>
+                      <option value="cash">Cash</option>
+                      <option value="easypaisa">Easypaisa</option>
+                    </select>
+                  </div>
+
+                  <div class="salary-field">
+                    <label for="basicInput">Basic</label>
+                    <input id="basicInput" class="salary-input" type="number" step="0.01" min="0">
+                  </div>
+
+                  <div class="salary-field">
+                    <label for="hraInput">HRA</label>
+                    <input id="hraInput" class="salary-input" type="number" step="0.01" min="0">
+                  </div>
+
+                  <div class="salary-field">
+                    <label for="medicalInput">Medical</label>
+                    <input id="medicalInput" class="salary-input" type="number" step="0.01" min="0">
+                  </div>
+
+                  <div class="salary-field">
+                    <label for="utilityInput">Utility</label>
+                    <input id="utilityInput" class="salary-input" type="number" step="0.01" min="0">
+                  </div>
+
+                  <div class="salary-field">
+                    <label for="contractBaseInput">Contract Base</label>
+                    <input id="contractBaseInput" class="salary-input" type="number" step="0.01" min="0">
+                  </div>
+
+                  <div class="salary-field">
+                    <label for="otherAllowanceInput">Other Allowance</label>
+                    <input id="otherAllowanceInput" class="salary-input" type="number" step="0.01" min="0">
+                  </div>
+
+                  <div class="salary-field">
+                    <label for="wfhUsdInput">WFH USD</label>
+                    <input id="wfhUsdInput" class="salary-input" type="number" step="0.01" min="0">
+                  </div>
+
+                  <div class="salary-field">
+                    <label for="wfhFxInput">WFH FX Rate</label>
+                    <input id="wfhFxInput" class="salary-input" type="number" step="0.000001" min="0">
+                  </div>
+
+                  <div class="salary-field">
+                    <label for="deductionsInput">Deductions</label>
+                    <input id="deductionsInput" class="salary-input" type="number" step="0.01" min="0">
+                  </div>
+
+                  <div class="salary-field">
+                    <label>Include WFH</label>
+                    <label class="salary-check-row">
+                      <input id="includeWfhInput" type="checkbox">
+                      Include WFH allowance in salary
+                    </label>
+                  </div>
+
+                  <div class="salary-field">
+                    <label>Forecast Source</label>
+                    <label class="salary-check-row">
+                      <input id="includeForecastInput" type="checkbox">
+                      Include salary in Forecast
+                    </label>
+                  </div>
+
+                  <div class="salary-field span-3">
+                    <label for="salaryNotesInput">Notes</label>
+                    <textarea id="salaryNotesInput" class="salary-textarea"></textarea>
+                  </div>
+                </div>
+
+                <div class="salary-form-actions">
+                  <button class="salary-action" id="recalcSalaryBtn" type="button">Recalculate</button>
+                  <button class="salary-action" id="dryRunSalaryBtn" type="button">Dry-run</button>
+                  <button class="salary-action primary" id="saveSalaryBtn" type="button">Save Contract</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Salary timeline</p>
+                  <h2 class="sf-section-title">Computed Salary Row</h2>
+                  <p class="sf-section-subtitle">
+                    This row is the forecast source. It does not affect account balance until actual salary is posted.
                   </p>
                 </div>
               </div>
@@ -523,10 +731,10 @@
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Selected item</p>
+                  <p class="sf-section-kicker">Forecast source</p>
                   <h2 class="sf-section-title" id="salarySelectedTitle">No salary selected</h2>
                   <p class="sf-section-subtitle" id="salarySelectedSub">
-                    Expand a salary row to inspect backend payload and ledger state.
+                    Saved salary contract feeds expected income into Forecast.
                   </p>
                 </div>
               </div>
@@ -551,12 +759,14 @@
 
         <footer>
           <span class="sf-meta-text" id="salaryFooterVersion">
-            salary.html · compact salary shell
+            salary.html · salary contract editor
           </span>
         </footer>
       </section>
     </main>
   </div>
+
+  <div class="salary-toast" id="salaryToast"></div>
 
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
@@ -565,11 +775,16 @@
     (function () {
       'use strict';
 
-      const VERSION = 'v0.1.1-salary-object-safe-compact-shell';
+      const VERSION = 'v0.2.0-salary-contract-editor';
       const API_SALARY = '/api/salary';
+      const API_ACCOUNTS = '/api/accounts';
 
       const state = {
         payload: null,
+        accounts: [],
+        contract: null,
+        computed: null,
+        forecast_source: null,
         rows: [],
         selectedId: null
       };
@@ -621,48 +836,19 @@
 
       function numberValue(value, fallback = 0) {
         if (value == null || value === '') return fallback;
-
         if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
 
         if (isObject(value)) {
-          const candidates = [
-            value.amount,
-            value.value,
-            value.pkr,
-            value.total,
-            value.net,
-            value.gross,
-            value.remaining,
-            value.paid,
-            value.salary
-          ];
-
+          const candidates = [value.amount, value.value, value.pkr, value.total, value.net, value.gross];
           for (const candidate of candidates) {
             const n = numberValue(candidate, NaN);
             if (Number.isFinite(n)) return n;
           }
-
           return fallback;
         }
 
         const n = Number(String(value).replace(/rs/ig, '').replace(/,/g, '').trim());
         return Number.isFinite(n) ? n : fallback;
-      }
-
-      function firstValue(...values) {
-        for (const value of values) {
-          if (value !== undefined && value !== null && value !== '') return value;
-        }
-        return null;
-      }
-
-      function deepGet(obj, path) {
-        let cur = obj;
-        for (const key of path) {
-          if (!cur || typeof cur !== 'object') return undefined;
-          cur = cur[key];
-        }
-        return cur;
       }
 
       function money(value) {
@@ -674,6 +860,10 @@
           minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
           maximumFractionDigits: 2
         });
+      }
+
+      function currentMonth() {
+        return new Date().toISOString().slice(0, 7);
       }
 
       function compactDate(value) {
@@ -690,14 +880,14 @@
         return `${Number(day)} ${months[month] || month}`;
       }
 
-      function currentMonthLabel() {
-        return new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
-      }
-
-      async function fetchJSON(url) {
+      async function fetchJSON(url, options) {
         const response = await fetch(url, {
           cache: 'no-store',
-          headers: { Accept: 'application/json' }
+          headers: {
+            Accept: 'application/json',
+            ...(options && options.headers ? options.headers : {})
+          },
+          ...(options || {})
         });
 
         const text = await response.text();
@@ -716,167 +906,229 @@
         return payload;
       }
 
-      function extractArray(payload) {
-        const candidates = [
-          payload?.rows,
-          payload?.salary_rows,
-          payload?.salaryRows,
-          payload?.months,
-          payload?.salaries,
-          payload?.data,
-          payload?.result,
-          payload?.salary?.rows,
-          payload?.salary?.months,
-          payload?.contract?.rows,
-          payload?.contract?.months,
-          payload?.current_month?.rows,
-          payload?.currentMonth?.rows
+      async function postJSON(url, body) {
+        return fetchJSON(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body || {})
+        });
+      }
+
+      function accountRows(payload) {
+        if (Array.isArray(payload.accounts)) return payload.accounts;
+        if (payload.accounts && typeof payload.accounts === 'object') return Object.values(payload.accounts);
+        if (payload.accounts_by_id && typeof payload.accounts_by_id === 'object') return Object.values(payload.accounts_by_id);
+        if (Array.isArray(payload.account_list)) return payload.account_list;
+        return [];
+      }
+
+      async function loadAccounts() {
+        try {
+          const payload = await fetchJSON(API_ACCOUNTS);
+          state.accounts = accountRows(payload).filter(Boolean);
+        } catch {
+          state.accounts = [];
+        }
+
+        renderAccountOptions();
+      }
+
+      function renderAccountOptions() {
+        const select = $('payoutAccountInput');
+        if (!select) return;
+
+        const current = select.value || 'meezan';
+        const fallback = [
+          { id: 'meezan', name: 'Meezan' },
+          { id: 'cash', name: 'Cash' },
+          { id: 'easypaisa', name: 'Easypaisa' }
         ];
 
-        for (const candidate of candidates) {
-          if (Array.isArray(candidate) && candidate.length) return candidate;
+        const rows = state.accounts.length ? state.accounts : fallback;
+
+        select.innerHTML = rows.map(account => {
+          const id = account.id || account.account_id;
+          const name = account.name || account.label || id;
+          return `<option value="${esc(id)}">${esc(name)}</option>`;
+        }).join('');
+
+        select.value = current;
+      }
+
+      function normalizeRows(payload) {
+        if (Array.isArray(payload.salary) && payload.salary.length) {
+          return payload.salary.map((row, index) => normalizeRow(row, index));
+        }
+
+        if (payload.contract && payload.computed) {
+          return [normalizeRow({
+            id: payload.contract.id,
+            month: payload.contract.effective_month,
+            gross: payload.computed.gross,
+            deductions: payload.computed.deductions,
+            net: payload.computed.net,
+            paid_amount: payload.computed.paid,
+            remaining_amount: payload.computed.remaining,
+            expected_date: payload.computed.expected_date,
+            account_id: payload.computed.payout_account_id,
+            status: payload.forecast_source?.enabled ? 'forecast source' : 'disabled',
+            notes: payload.contract.notes
+          }, 0)];
         }
 
         return [];
       }
 
-      function normalizeRows(payload) {
-        if (!payload) return [];
-
-        const arrayRows = extractArray(payload);
-
-        if (arrayRows.length) {
-          return arrayRows.map((row, index) => normalizeRow(row, index, payload));
-        }
-
-        return [normalizeRow({
-          id: firstValue(payload.id, payload.salary_id, 'salary_current'),
-          month: firstValue(
-            payload.current_month,
-            payload.currentMonth,
-            payload.month,
-            payload.period,
-            payload.label
-          ),
-          gross: firstValue(
-            payload.gross,
-            payload.gross_salary,
-            payload.salary,
-            payload.contract_salary,
-            deepGet(payload, ['contract', 'gross']),
-            deepGet(payload, ['summary', 'gross'])
-          ),
-          deductions: firstValue(
-            payload.deductions,
-            payload.total_deductions,
-            deepGet(payload, ['summary', 'deductions']),
-            deepGet(payload, ['contract', 'deductions'])
-          ),
-          net: firstValue(
-            payload.net,
-            payload.net_salary,
-            payload.net_payable,
-            payload.amount,
-            deepGet(payload, ['summary', 'net']),
-            deepGet(payload, ['contract', 'net'])
-          ),
-          paid: firstValue(
-            payload.paid,
-            payload.paid_amount,
-            deepGet(payload, ['summary', 'paid'])
-          ),
-          remaining: firstValue(
-            payload.remaining,
-            payload.remaining_amount,
-            deepGet(payload, ['summary', 'remaining'])
-          ),
-          expected_date: firstValue(payload.expected_date, payload.pay_date, payload.date),
-          account_id: firstValue(payload.account_id, payload.account, deepGet(payload, ['contract', 'account_id'])),
-          status: firstValue(payload.status, payload.payment_status),
-          ledger_transaction_id: firstValue(payload.ledger_transaction_id, payload.transaction_id, payload.ledger_id),
-          notes: firstValue(payload.notes, payload.summary_text, payload.message)
-        }, 0, payload)];
-      }
-
-      function normalizeRow(row, index, root) {
-        const gross = numberValue(firstValue(
-          row.gross,
-          row.gross_salary,
-          row.salary,
-          row.contract_salary,
-          row.base_salary,
-          row.expected_salary
-        ));
-
-        const deductions = numberValue(firstValue(
-          row.deductions,
-          row.total_deductions,
-          row.deduction_total,
-          0
-        ));
-
-        const netCandidate = firstValue(
-          row.net,
-          row.net_salary,
-          row.net_payable,
-          row.amount,
-          row.expected_amount
-        );
-
-        const net = netCandidate == null ? Math.max(0, gross - deductions) : numberValue(netCandidate);
-        const paid = numberValue(firstValue(row.paid, row.paid_amount, row.received, 0));
-        const remainingCandidate = firstValue(row.remaining, row.remaining_amount);
-        const remaining = remainingCandidate == null ? Math.max(0, net - paid) : numberValue(remainingCandidate);
-
-        const monthValue = firstValue(
-          row.month,
-          row.period,
-          row.label,
-          row.current_month,
-          root?.current_month,
-          root?.currentMonth,
-          currentMonthLabel()
-        );
-
-        const id = safeDisplay(firstValue(row.id, row.salary_id, row.key, `salary_${index}`), `salary_${index}`);
+      function normalizeRow(row, index) {
+        const gross = numberValue(row.gross ?? row.contract_base);
+        const deductions = numberValue(row.deductions ?? row.total_deductions);
+        const net = numberValue(row.net ?? row.net_payable ?? row.amount ?? Math.max(0, gross - deductions));
+        const paid = numberValue(row.paid ?? row.paid_amount);
+        const remaining = numberValue(row.remaining ?? row.remaining_amount ?? Math.max(0, net - paid));
 
         return {
-          id,
-          month: safeDisplay(monthValue, currentMonthLabel()),
+          id: safeDisplay(row.id || row.salary_id || `salary_${index}`, `salary_${index}`),
+          month: safeDisplay(row.month || row.effective_month || currentMonth(), currentMonth()),
           gross,
           deductions,
           net,
           paid,
           remaining,
-          expected_date: safeDisplay(firstValue(row.expected_date, row.pay_date, row.date), ''),
-          account_id: safeDisplay(firstValue(row.account_id, row.account, row.destination_account), '—'),
-          status: safeDisplay(firstValue(row.status, row.payment_status, remaining <= 0 && net > 0 ? 'paid' : 'expected'), 'expected'),
-          ledger_transaction_id: safeDisplay(firstValue(row.ledger_transaction_id, row.transaction_id, row.ledger_id), ''),
-          notes: safeDisplay(firstValue(row.notes, row.summary, row.description), ''),
+          expected_date: safeDisplay(row.expected_date || row.pay_date || row.date, ''),
+          account_id: safeDisplay(row.account_id || row.payout_account_id || row.account, '—'),
+          status: safeDisplay(row.status || row.payment_status || 'forecast source', 'forecast source'),
+          ledger_transaction_id: safeDisplay(row.ledger_transaction_id || row.transaction_id || row.ledger_id, ''),
+          notes: safeDisplay(row.notes || row.summary || '', ''),
           raw: row
         };
       }
 
-      function rowStatusClass(status) {
-        const s = safeDisplay(status, '').toLowerCase();
-        if (['paid', 'posted', 'settled', 'linked'].includes(s)) return 'good';
-        if (['expected', 'pending', 'not posted', 'scheduled'].includes(s)) return 'warn';
-        if (['failed', 'missing', 'blocked'].includes(s)) return 'danger';
-        return '';
+      function buildPayloadFromForm() {
+        return {
+          id: 'salary_contract_current',
+          effective_month: $('effectiveMonthInput')?.value || currentMonth(),
+          payday: numberValue($('paydayInput')?.value, 1),
+          payout_account_id: $('payoutAccountInput')?.value || 'meezan',
+          basic: numberValue($('basicInput')?.value),
+          hra: numberValue($('hraInput')?.value),
+          medical: numberValue($('medicalInput')?.value),
+          utility: numberValue($('utilityInput')?.value),
+          contract_base: numberValue($('contractBaseInput')?.value),
+          wfh_usd: numberValue($('wfhUsdInput')?.value),
+          wfh_fx_rate: numberValue($('wfhFxInput')?.value),
+          include_wfh: Boolean($('includeWfhInput')?.checked),
+          other_allowance: numberValue($('otherAllowanceInput')?.value),
+          deductions: numberValue($('deductionsInput')?.value),
+          include_in_forecast: Boolean($('includeForecastInput')?.checked),
+          notes: $('salaryNotesInput')?.value || ''
+        };
       }
 
-      function renderKpis(rows) {
-        const gross = rows.reduce((sum, row) => sum + numberValue(row.gross), 0);
-        const deductions = rows.reduce((sum, row) => sum + numberValue(row.deductions), 0);
-        const net = rows.reduce((sum, row) => sum + numberValue(row.net), 0);
-        const paid = rows.reduce((sum, row) => sum + numberValue(row.paid), 0);
-        const remaining = rows.reduce((sum, row) => sum + numberValue(row.remaining), 0);
+      function fillForm(contract) {
+        if (!contract) return;
 
-        setText('salaryGross', rows.length ? money(gross) : '—');
-        setText('salaryDeductions', rows.length ? money(deductions) : '—');
-        setText('salaryNet', rows.length ? money(net) : '—');
-        setText('salaryPaid', rows.length ? money(paid) : '—');
-        setText('salaryRemaining', rows.length ? money(remaining) : '—');
+        $('effectiveMonthInput').value = contract.effective_month || currentMonth();
+        $('paydayInput').value = contract.payday || 1;
+        $('payoutAccountInput').value = contract.payout_account_id || 'meezan';
+        $('basicInput').value = numberValue(contract.basic);
+        $('hraInput').value = numberValue(contract.hra);
+        $('medicalInput').value = numberValue(contract.medical);
+        $('utilityInput').value = numberValue(contract.utility);
+        $('contractBaseInput').value = numberValue(contract.contract_base);
+        $('wfhUsdInput').value = numberValue(contract.wfh_usd);
+        $('wfhFxInput').value = numberValue(contract.wfh_fx_rate);
+        $('includeWfhInput').checked = Boolean(contract.include_wfh);
+        $('otherAllowanceInput').value = numberValue(contract.other_allowance);
+        $('deductionsInput').value = numberValue(contract.deductions);
+        $('includeForecastInput').checked = Boolean(contract.include_in_forecast);
+        $('salaryNotesInput').value = contract.notes || '';
+      }
+
+      function localRecalculate() {
+        const payload = buildPayloadFromForm();
+        const wfh = payload.include_wfh ? payload.wfh_usd * payload.wfh_fx_rate : 0;
+        const gross = payload.contract_base + wfh + payload.other_allowance;
+        const net = Math.max(0, gross - payload.deductions);
+
+        const computed = {
+          gross,
+          deductions: payload.deductions,
+          net,
+          paid: 0,
+          remaining: net,
+          payday: payload.payday,
+          expected_date: `${payload.effective_month}-${String(Math.max(1, Math.min(31, payload.payday))).padStart(2, '0')}`,
+          payout_account_id: payload.payout_account_id,
+          include_in_forecast: payload.include_in_forecast,
+          wfh_allowance: wfh
+        };
+
+        applyPayload({
+          ok: true,
+          version: VERSION,
+          contract: payload,
+          computed,
+          forecast_source: {
+            enabled: payload.include_in_forecast,
+            monthly_salary_net: computed.net,
+            expected_payday: payload.payday,
+            expected_date: computed.expected_date,
+            payout_account_id: payload.payout_account_id
+          },
+          salary: [{
+            id: payload.id,
+            month: payload.effective_month,
+            gross: computed.gross,
+            deductions: computed.deductions,
+            net: computed.net,
+            paid_amount: 0,
+            remaining_amount: computed.net,
+            expected_date: computed.expected_date,
+            account_id: payload.payout_account_id,
+            status: payload.include_in_forecast ? 'forecast source' : 'disabled',
+            notes: payload.notes
+          }]
+        }, false);
+      }
+
+      function applyPayload(payload, fillInputs) {
+        state.payload = payload;
+        state.contract = payload.contract || null;
+        state.computed = payload.computed || null;
+        state.forecast_source = payload.forecast_source || null;
+        state.rows = normalizeRows(payload);
+
+        if (fillInputs && payload.contract) fillForm(payload.contract);
+
+        renderKpis();
+        renderRows();
+        renderSidePanel();
+
+        setText('salaryHealth', 'Health OK');
+        setText('salaryCurrentMonth', payload.contract?.effective_month || currentMonth());
+        setText('salaryStatusDetail', payload.forecast_source?.enabled ? 'Forecast source enabled' : 'Forecast source disabled');
+        setText('salaryVersion', VERSION);
+        setText('salaryFooterVersion', `salary.html · ${VERSION} · backend ${safeDisplay(payload.version, 'local')}`);
+
+        const raw = $('salaryRaw');
+        if (raw) raw.textContent = JSON.stringify(payload, null, 2);
+      }
+
+      function renderKpis() {
+        const computed = state.computed || {};
+        setText('salaryGross', money(computed.gross));
+        setText('salaryDeductions', money(computed.deductions));
+        setText('salaryNet', money(computed.net));
+        setText('salaryPayday', computed.payday ? `Day ${computed.payday}` : '—');
+        setText('salaryForecast', state.forecast_source?.enabled ? 'On' : 'Off');
+      }
+
+      function rowStatusClass(status) {
+        const s = safeDisplay(status, '').toLowerCase();
+        if (['paid', 'posted', 'settled', 'linked', 'forecast source'].includes(s)) return 'good';
+        if (['expected', 'pending', 'not posted', 'scheduled', 'disabled'].includes(s)) return 'warn';
+        if (['failed', 'missing', 'blocked'].includes(s)) return 'danger';
+        return '';
       }
 
       function detail(label, value) {
@@ -892,12 +1144,11 @@
 
         if (!state.rows.length) {
           list.innerHTML = '<div class="salary-empty">No salary rows returned by backend.</div>';
-          renderKpis([]);
           return;
         }
 
         list.innerHTML = state.rows.map(row => {
-          const ledgerState = row.ledger_transaction_id ? 'ledger linked' : 'not posted';
+          const ledgerState = row.ledger_transaction_id ? 'ledger linked' : 'forecast only';
           const statusClass = rowStatusClass(row.status);
 
           return `
@@ -906,7 +1157,7 @@
                 <div class="salary-icon">💰</div>
                 <div>
                   <div class="salary-title-line">${esc(row.month)} salary</div>
-                  <div class="salary-sub">${esc(ledgerState)} · ${esc(row.ledger_transaction_id || 'no ledger movement')} · ${esc(row.account_id || '—')}</div>
+                  <div class="salary-sub">${esc(ledgerState)} · ${esc(row.account_id || '—')} · expected ${esc(row.expected_date || '—')}</div>
                 </div>
                 <div class="salary-cell">${esc(row.account_id || '—')}</div>
                 <div class="salary-date">${esc(compactDate(row.expected_date))}</div>
@@ -941,7 +1192,6 @@
           `;
         }).join('');
 
-        renderKpis(state.rows);
         bindRows();
       }
 
@@ -969,7 +1219,10 @@
             const id = button.getAttribute('data-copy-salary');
             try {
               await navigator.clipboard.writeText(id);
-            } catch {}
+              toast('Copied salary ID.');
+            } catch {
+              toast(id);
+            }
           });
         });
       }
@@ -993,19 +1246,30 @@
         if (!row) return;
 
         state.selectedId = id;
+        renderSidePanel(row);
+      }
 
-        setText('salarySelectedTitle', `${row.month} salary`);
-        setText('salarySelectedSub', `${row.status} · ${row.ledger_transaction_id ? 'ledger linked' : 'not posted'}`);
+      function renderSidePanel(row) {
+        const selected = row || state.rows[0];
+
+        if (!selected) {
+          setText('salarySelectedTitle', 'No salary selected');
+          setText('salarySelectedSub', 'Saved salary contract feeds expected income into Forecast.');
+          return;
+        }
+
+        setText('salarySelectedTitle', `${selected.month} salary`);
+        setText('salarySelectedSub', `${selected.status} · ${selected.account_id || '—'}`);
 
         const panel = $('salaryDetailPanel');
         if (panel) {
           panel.innerHTML = `
-            ${miniRow('Net payable', money(row.net))}
-            ${miniRow('Paid', money(row.paid))}
-            ${miniRow('Remaining', money(row.remaining))}
-            ${miniRow('Account', row.account_id || '—')}
-            ${miniRow('Ledger transaction', row.ledger_transaction_id || 'None')}
-            ${miniRow('Expected date', row.expected_date || '—')}
+            ${miniRow('Forecast amount', money(state.forecast_source?.monthly_salary_net || selected.net))}
+            ${miniRow('Expected payday', state.forecast_source?.expected_payday ? `Day ${state.forecast_source.expected_payday}` : '—')}
+            ${miniRow('Expected date', state.forecast_source?.expected_date || selected.expected_date || '—')}
+            ${miniRow('Payout account', state.forecast_source?.payout_account_id || selected.account_id || '—')}
+            ${miniRow('Forecast enabled', state.forecast_source?.enabled ? 'Yes' : 'No')}
+            ${miniRow('WFH allowance', money(state.computed?.wfh_allowance))}
           `;
         }
       }
@@ -1015,53 +1279,94 @@
         setText('salaryStatusDetail', 'Reading salary contract.');
         setText('salaryVersion', VERSION);
 
-        const list = $('salaryList');
-        if (list) list.innerHTML = '<div class="salary-empty">Loading salary rows…</div>';
-
         try {
+          await loadAccounts();
           const payload = await fetchJSON(API_SALARY);
-
-          state.payload = payload;
-          state.rows = normalizeRows(payload);
-
-          const monthLabel = safeDisplay(
-            firstValue(payload.current_month, payload.currentMonth, payload.month, payload.period),
-            currentMonthLabel()
-          );
-
-          setText('salaryHealth', 'Health OK');
-          setText('salaryCurrentMonth', monthLabel);
-          setText('salaryStatusDetail', safeDisplay(payload.summary || payload.message, `${state.rows.length} salary row${state.rows.length === 1 ? '' : 's'} loaded.`));
-          setText('salaryFooterVersion', `salary.html · ${VERSION} · backend ${safeDisplay(payload.version, 'unknown')}`);
-
-          const raw = $('salaryRaw');
-          if (raw) raw.textContent = JSON.stringify(payload, null, 2);
-
-          renderRows();
+          applyPayload(payload, true);
         } catch (err) {
           setText('salaryHealth', 'Salary unavailable');
           setText('salaryStatusDetail', err.message);
-          setText('salaryCurrentMonth', currentMonthLabel());
+          setText('salaryCurrentMonth', currentMonth());
 
           const raw = $('salaryRaw');
           if (raw) raw.textContent = JSON.stringify({ error: err.message }, null, 2);
 
+          const list = $('salaryList');
           if (list) {
-            list.innerHTML = `
-              <div class="salary-empty">
-                Salary API did not return usable data yet. Backend route expected: <strong>/api/salary</strong>.
-                <br><br>
-                Error: ${esc(err.message)}
-              </div>
-            `;
+            list.innerHTML = `<div class="salary-empty">Salary API unavailable: ${esc(err.message)}</div>`;
           }
-
-          renderKpis([]);
         }
+      }
+
+      async function dryRunSalary() {
+        const payload = buildPayloadFromForm();
+
+        try {
+          const result = await postJSON(`${API_SALARY}?dry_run=1`, payload);
+          applyPayload(result, false);
+          toast('Salary dry-run passed.');
+        } catch (err) {
+          toast(`Dry-run failed: ${err.message}`);
+        }
+      }
+
+      async function saveSalary() {
+        const payload = buildPayloadFromForm();
+        const button = $('saveSalaryBtn');
+
+        if (button) {
+          button.disabled = true;
+          button.textContent = 'Saving…';
+        }
+
+        try {
+          const result = await postJSON(API_SALARY, payload);
+          applyPayload(result, true);
+          toast('Salary contract saved.');
+        } catch (err) {
+          toast(`Save failed: ${err.message}`);
+        } finally {
+          if (button) {
+            button.disabled = false;
+            button.textContent = 'Save Contract';
+          }
+        }
+      }
+
+      function toast(message) {
+        const el = $('salaryToast');
+        if (!el) return;
+
+        el.textContent = message;
+        el.classList.add('show');
+
+        clearTimeout(el._timer);
+        el._timer = setTimeout(() => el.classList.remove('show'), 3000);
       }
 
       function init() {
         $('refreshSalaryBtn')?.addEventListener('click', loadSalary);
+        $('recalcSalaryBtn')?.addEventListener('click', localRecalculate);
+        $('dryRunSalaryBtn')?.addEventListener('click', dryRunSalary);
+        $('saveSalaryBtn')?.addEventListener('click', saveSalary);
+
+        ['basicInput', 'hraInput', 'medicalInput', 'utilityInput'].forEach(id => {
+          $(id)?.addEventListener('input', () => {
+            const basic = numberValue($('basicInput')?.value);
+            const hra = numberValue($('hraInput')?.value);
+            const medical = numberValue($('medicalInput')?.value);
+            const utility = numberValue($('utilityInput')?.value);
+            const base = $('contractBaseInput');
+            if (base && !base.dataset.userEdited) {
+              base.value = basic + hra + medical + utility;
+            }
+          });
+        });
+
+        $('contractBaseInput')?.addEventListener('input', event => {
+          event.target.dataset.userEdited = '1';
+        });
+
         loadSalary();
 
         window.SovereignSalary = {
