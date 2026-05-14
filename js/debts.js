@@ -1,16 +1,17 @@
 /* js/debts.js
  * Sovereign Finance · Debts UI
- * v0.6.5-payment-id-locked
+ * v0.6.6-payment-main-route
  *
- * Frontend only.
- * Backend truth stays in /api/debts.
- * Payment route is canonical: POST /api/debts/payment
+ * Payment rule:
+ * - Never call /api/debts/payment.
+ * - That route is shadowed by old item route v0.5.0.
+ * - Use POST /api/debts with body.action = "payment".
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.6.5-payment-id-locked';
+  const VERSION = 'v0.6.6-payment-main-route';
   const API_DEBTS = '/api/debts';
   const API_DEBTS_HEALTH = '/api/debts/health';
   const API_ACCOUNTS = '/api/accounts';
@@ -75,18 +76,9 @@
 
     const [, month, day] = raw.split('-');
     const months = {
-      '01': 'Jan',
-      '02': 'Feb',
-      '03': 'Mar',
-      '04': 'Apr',
-      '05': 'May',
-      '06': 'Jun',
-      '07': 'Jul',
-      '08': 'Aug',
-      '09': 'Sep',
-      '10': 'Oct',
-      '11': 'Nov',
-      '12': 'Dec'
+      '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
+      '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug',
+      '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
     };
 
     return `${Number(day)} ${months[month] || month}`;
@@ -112,11 +104,9 @@
 
   function toneClass(value) {
     const s = String(value || '').toLowerCase();
-
     if (['ok', 'active', 'linked', 'scheduled', 'paid_off', 'settled', 'pass'].includes(s)) return 'good';
     if (['warn', 'due_soon', 'due_today', 'no_schedule', 'missing_ledger', 'paused'].includes(s)) return 'warn';
     if (['overdue', 'missing', 'danger', 'blocked', 'failed', 'closed'].includes(s)) return 'danger';
-
     return '';
   }
 
@@ -291,6 +281,7 @@
         const name = account.name || account.label || id;
         const balance = account.balance ?? account.current_balance ?? account.amount ?? 0;
         const kind = account.type || account.kind || 'account';
+
         return `<option value="${esc(id)}">${esc(name)} · ${esc(kind)} · ${money(balance)}</option>`;
       })
     ).join('');
@@ -366,13 +357,11 @@
 
   function renderMetrics(payload) {
     const totalOwe = payload?.total_owe ??
-      state.debts
-        .filter(debt => debt.kind === 'owe' && debt.status === 'active')
+      state.debts.filter(debt => debt.kind === 'owe' && debt.status === 'active')
         .reduce((sum, debt) => sum + debtRemaining(debt), 0);
 
     const totalOwed = payload?.total_owed ??
-      state.debts
-        .filter(debt => debt.kind === 'owed' && debt.status === 'active')
+      state.debts.filter(debt => debt.kind === 'owed' && debt.status === 'active')
         .reduce((sum, debt) => sum + debtRemaining(debt), 0);
 
     const dueSoon = payload?.due_soon_count ??
@@ -413,7 +402,6 @@
     if (debt.ledger_required) return 'needs repair';
 
     const notes = String(debt.notes || '').toLowerCase();
-
     if (notes.includes('movement_now=0')) return 'debt-only';
     if (debt.origin_state === 'legacy_unknown') return 'legacy/no-origin';
 
@@ -697,7 +685,7 @@
       ${row('I owe', 'Origin ledger type', 'income into selected account', 'positive')}
       ${row('Debt-only', 'No money movement now', 'no account impact', 'warning')}
       ${row('Atomicity', 'Backend contract', 'debt + ledger batch when movement_now=1', 'positive')}
-      ${row('Payment route', 'Canonical endpoint', '/api/debts/payment', 'positive')}
+      ${row('Payment route', 'Canonical endpoint', 'POST /api/debts · action=payment', 'positive')}
     `);
   }
 
@@ -854,7 +842,7 @@
       account_id: movementNow ? clean($('debtAccountInput')?.value) : '',
       movement_date: clean($('debtMovementDateInput')?.value) || todayISO(),
       notes: clean($('debtNotesInput')?.value),
-      created_by: 'web-debts-v0.6.5'
+      created_by: 'web-debts-v0.6.6'
     };
   }
 
@@ -1054,15 +1042,14 @@
       debt_id: id,
       account_id: accountId,
       date: clean($('repairDateInput')?.value) || todayISO(),
-      created_by: 'web-debts-v0.6.5'
+      created_by: 'web-debts-v0.6.6'
     };
 
     try {
-      const url = dryRun
-        ? `${API_DEBTS}/repair-ledger?dry_run=1`
-        : `${API_DEBTS}/repair-ledger`;
-
-      const result = await postJSON(url, body);
+      const result = await postJSON(`${API_DEBTS}${dryRun ? '?dry_run=1' : ''}`, {
+        ...body,
+        action: 'repair_ledger'
+      });
 
       setHTML('debtActionPanel', `
         ${row(dryRun ? 'Dry-run repair' : 'Repair committed', 'Backend result', result.ok ? 'OK' : 'Failed', result.ok ? 'positive' : 'danger')}
@@ -1130,13 +1117,14 @@
     }
 
     const body = {
+      action: 'payment',
       debt_id: debt.id,
       amount: num($('paymentAmountInput')?.value),
       date: clean($('paymentDateInput')?.value) || todayISO(),
       account_id: clean($('paymentAccountInput')?.value),
       direction: $('paymentDirectionInput')?.value || 'auto',
       notes: clean($('paymentNotesInput')?.value),
-      created_by: 'web-debts-v0.6.5'
+      created_by: 'web-debts-v0.6.6'
     };
 
     if (!body.amount || body.amount <= 0) {
@@ -1157,11 +1145,12 @@
     }
 
     try {
-      const result = await postJSON(`${API_DEBTS}/payment${dryRun ? '?dry_run=1' : ''}`, body);
+      const result = await postJSON(`${API_DEBTS}${dryRun ? '?dry_run=1' : ''}`, body);
 
       if (dryRun) {
         setHTML('debtActionPanel', `
           ${row('Dry-run payment', 'Backend route', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
+          ${row('Endpoint', 'Canonical route', 'POST /api/debts')}
           ${row('Debt ID sent', 'Locked backend debt id', body.debt_id)}
           ${row('Payment transaction', 'Expected ledger row', result.payment_transaction?.id || result.proof?.payment_transaction_id || '—')}
           ${row('Transaction type', 'Expected account impact', result.payment_transaction?.type || '—', result.payment_transaction?.type === 'income' ? 'positive' : 'danger')}
