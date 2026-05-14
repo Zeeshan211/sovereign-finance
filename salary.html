@@ -18,252 +18,189 @@
       width: min(100%, 1480px);
       margin: 0 auto;
       display: grid;
-      gap: var(--sf-space-5, 20px);
+      gap: var(--sf-space-4, 16px);
     }
 
     .salary-command {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
-      gap: var(--sf-space-4, 16px);
+      gap: 16px;
       align-items: center;
-      padding: clamp(18px, 3vw, 28px);
+      padding: clamp(16px, 2.4vw, 24px);
       border: 1px solid var(--sf-border);
       border-radius: var(--sf-radius-xl, 24px);
       background: var(--sf-card);
       box-shadow: var(--sf-shadow-sm);
     }
 
-    .salary-hero-title {
+    .salary-title {
       margin: 0;
       color: var(--sf-text);
-      font-size: clamp(34px, 6vw, 62px);
+      font-size: clamp(30px, 4.6vw, 54px);
       line-height: .92;
       font-weight: 950;
       letter-spacing: -.07em;
     }
 
     .salary-copy {
-      margin: 10px 0 0;
+      margin: 8px 0 0;
       color: var(--sf-text-muted);
-      font-size: var(--sf-font-14, 14px);
+      font-size: 14px;
       font-weight: 700;
-      line-height: 1.55;
-      max-width: 900px;
+      line-height: 1.5;
+      max-width: 880px;
     }
 
     .salary-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: var(--sf-space-2, 10px);
+      gap: 10px;
       justify-content: flex-end;
     }
 
-    .salary-insight {
-      position: relative;
-      overflow: hidden;
-      padding: clamp(22px, 4vw, 38px);
-      border-radius: var(--sf-radius-2xl, 30px);
-      color: #f8fafc;
-      background:
-        radial-gradient(circle at 82% 12%, rgba(83, 215, 167, .28), transparent 24rem),
-        linear-gradient(135deg, #06111f, #0f172a 48%, #102a25);
-      border: 1px solid rgba(255, 255, 255, .10);
-      box-shadow: var(--sf-shadow-lg);
-    }
-
-    .salary-insight h2 {
-      margin: 12px 0 0;
-      color: #fff;
-      font-size: clamp(34px, 6vw, 68px);
-      line-height: .92;
-      font-weight: 950;
-      letter-spacing: -.075em;
-    }
-
-    .salary-insight p {
-      max-width: 900px;
-      margin: 14px 0 0;
-      color: #cbd5e1;
-      font-size: var(--sf-font-15, 15px);
-      line-height: 1.6;
-      font-weight: 720;
-    }
-
-    .salary-metrics {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: var(--sf-space-4, 14px);
-    }
-
-    .salary-workspace {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
-      gap: var(--sf-space-4, 16px);
-      align-items: start;
-    }
-
-    .salary-stack {
-      display: grid;
-      gap: var(--sf-space-4, 16px);
-    }
-
-    .salary-grid {
-      display: grid;
-      grid-template-columns: repeat(12, minmax(0, 1fr));
-      gap: var(--sf-space-4, 16px);
-    }
-
-    .salary-span-12 { grid-column: span 12; }
-    .salary-span-8 { grid-column: span 8; }
-    .salary-span-6 { grid-column: span 6; }
-    .salary-span-4 { grid-column: span 4; }
-    .salary-span-3 { grid-column: span 3; }
-
-    .salary-field {
-      display: grid;
-      gap: var(--sf-space-2, 8px);
-    }
-
-    .salary-field label {
-      color: var(--sf-text-muted);
-      font-size: var(--sf-font-12, 12px);
-      font-weight: 850;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-
-    .salary-input,
-    .salary-select,
-    .salary-textarea {
-      width: 100%;
-      border: 1px solid var(--sf-border);
-      border-radius: var(--sf-radius-sm, 14px);
-      background: var(--sf-surface-1);
-      color: var(--sf-text);
-      padding: 12px 13px;
-      font: inherit;
-      outline: none;
-    }
-
-    .salary-textarea {
-      min-height: 92px;
-      resize: vertical;
-    }
-
-    .salary-input:focus,
-    .salary-select:focus,
-    .salary-textarea:focus {
-      border-color: var(--sf-accent);
-      box-shadow: 0 0 0 3px var(--sf-accent-soft);
-    }
-
-    .salary-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
+    .salary-status-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
       align-items: center;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--sf-border-subtle);
+      justify-content: space-between;
+      padding: 12px 14px;
+      border: 1px solid var(--sf-border);
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 90% 20%, rgba(83, 215, 167, .12), transparent 22rem),
+        var(--sf-surface-1);
     }
 
-    .salary-row:last-child {
-      border-bottom: 0;
-      padding-bottom: 0;
+    .salary-status-main {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      min-width: 0;
     }
 
-    .salary-row-title {
-      color: var(--sf-text);
-      font-size: 14px;
-      font-weight: 900;
-      line-height: 1.25;
-    }
-
-    .salary-row-sub {
-      margin-top: 4px;
+    .salary-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 5px 9px;
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 999px;
+      background: var(--sf-surface-2);
       color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.4;
-    }
-
-    .salary-row-value {
-      color: var(--sf-text);
-      font-weight: 950;
-      font-variant-numeric: tabular-nums;
-      text-align: right;
+      font-size: 11px;
+      font-weight: 850;
+      line-height: 1.2;
       white-space: nowrap;
     }
 
-    .salary-proof {
-      display: grid;
-      gap: 10px;
+    .salary-chip.strong {
+      color: var(--sf-text);
+      background: var(--sf-accent-soft);
+      border-color: rgba(241, 184, 87, .28);
     }
 
-    .salary-proof-line {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: start;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--sf-border-subtle);
+    .salary-chip.good {
+      color: var(--sf-positive);
+      border-color: rgba(83, 215, 167, .28);
+      background: var(--sf-positive-soft);
     }
 
-    .salary-proof-line:last-child {
-      border-bottom: 0;
-    }
-
-    .salary-proof-line code,
-    .salary-code {
-      color: var(--sf-info);
-      background: var(--sf-info-soft);
-      border: 1px solid rgba(143, 188, 255, .20);
-      border-radius: 10px;
-      padding: 2px 6px;
-      font-family: var(--sf-font-mono);
-      font-size: 11px;
-    }
-
-    .salary-candidate {
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 16px;
+    .salary-rules {
+      border: 1px solid var(--sf-border);
+      border-radius: 18px;
       background: var(--sf-surface-1);
-      padding: 12px;
-      display: grid;
-      gap: 8px;
+      overflow: hidden;
     }
 
-    .salary-candidate-head {
+    .salary-rules summary {
+      cursor: pointer;
+      list-style: none;
       display: flex;
+      align-items: center;
       justify-content: space-between;
       gap: 12px;
-      align-items: flex-start;
-    }
-
-    .salary-candidate-title {
+      padding: 12px 14px;
       color: var(--sf-text);
-      font-weight: 950;
-      font-size: 14px;
+      font-size: 13px;
+      font-weight: 900;
     }
 
-    .salary-candidate-meta {
+    .salary-rules summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .salary-rules summary::after {
+      content: "▾";
+      color: var(--sf-text-muted);
+      transition: transform .18s ease;
+    }
+
+    .salary-rules[open] summary::after {
+      transform: rotate(180deg);
+    }
+
+    .salary-rules-body {
+      padding: 0 14px 14px;
       color: var(--sf-text-muted);
       font-size: 12px;
       line-height: 1.45;
     }
 
-    .salary-split-bar {
-      display: grid;
-      grid-template-columns: var(--guaranteed, 1fr) var(--variable, 0fr) var(--tax, 0fr);
-      gap: 4px;
-      height: 18px;
-      border-radius: 999px;
-      overflow: hidden;
-      background: var(--sf-surface-2);
-      border: 1px solid var(--sf-border-subtle);
+    .salary-rules-body ul {
+      margin: 0;
+      padding-left: 18px;
     }
 
-    .salary-split-bar span:nth-child(1) { background: var(--sf-positive); }
-    .salary-split-bar span:nth-child(2) { background: var(--sf-warning); }
-    .salary-split-bar span:nth-child(3) { background: var(--sf-danger); }
+    .salary-kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .salary-kpi {
+      border: 1px solid var(--sf-border);
+      border-radius: 18px;
+      background: var(--sf-surface-1);
+      padding: 14px;
+      min-height: unset;
+    }
+
+    .salary-kpi-label {
+      color: var(--sf-text-muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin: 0 0 8px;
+    }
+
+    .salary-kpi-value {
+      color: var(--sf-text);
+      font-size: clamp(22px, 3vw, 34px);
+      font-weight: 950;
+      line-height: 1;
+      margin: 0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .salary-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .salary-panel-stack {
+      display: grid;
+      gap: 16px;
+    }
+
+    .salary-list {
+      display: grid;
+      gap: 10px;
+    }
 
     .salary-empty {
       border: 1px dashed var(--sf-border);
@@ -271,60 +208,194 @@
       padding: 18px;
       color: var(--sf-text-muted);
       background: var(--sf-surface-1);
+      font-size: 13px;
       line-height: 1.5;
     }
 
-    .salary-debug {
+    .salary-row {
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 14px;
+      background: rgba(255,255,255,.025);
+      overflow: hidden;
+    }
+
+    .salary-row-shell {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      display: grid;
+      grid-template-columns: 34px minmax(220px, 1.6fr) minmax(100px, .7fr) 90px 116px 86px 20px;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .salary-row-shell:hover {
+      background: rgba(255,255,255,.035);
+    }
+
+    .salary-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 11px;
+      display: grid;
+      place-items: center;
+      background: var(--sf-accent-soft);
+      color: var(--sf-accent-strong);
+      font-weight: 900;
+      font-size: 15px;
+    }
+
+    .salary-title-line {
+      color: var(--sf-text);
+      font-size: 14px;
+      font-weight: 950;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .salary-sub {
+      margin-top: 3px;
+      color: var(--sf-text-muted);
+      font-size: 11px;
+      font-weight: 750;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .salary-cell,
+    .salary-date,
+    .salary-status {
+      color: var(--sf-text-muted);
+      font-size: 11px;
+      font-weight: 850;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .salary-date {
+      text-align: right;
+    }
+
+    .salary-amount {
+      color: var(--sf-text);
+      text-align: right;
+      font-size: 13px;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .salary-status {
+      justify-self: end;
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: var(--sf-surface-2);
+    }
+
+    .salary-status.good {
+      color: var(--sf-positive);
+      border-color: rgba(83, 215, 167, .22);
+    }
+
+    .salary-status.warn {
+      color: var(--sf-warning);
+      border-color: rgba(241, 184, 87, .28);
+    }
+
+    .salary-status.danger {
+      color: var(--sf-danger);
+      border-color: rgba(255, 127, 138, .28);
+    }
+
+    .salary-caret {
+      color: var(--sf-text-muted);
+      font-size: 13px;
+      justify-self: end;
+      transition: transform .18s ease;
+    }
+
+    .salary-row.is-open .salary-caret {
+      transform: rotate(180deg);
+    }
+
+    .salary-detail {
+      display: none;
+      border-top: 1px solid var(--sf-border-subtle);
+      padding: 12px;
+      gap: 10px;
+      background: rgba(0,0,0,.12);
+    }
+
+    .salary-row.is-open .salary-detail {
+      display: grid;
+    }
+
+    .salary-detail-grid {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 8px 14px;
+      align-items: baseline;
+    }
+
+    .salary-detail-label {
+      color: var(--sf-text-muted);
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-weight: 900;
+    }
+
+    .salary-detail-value {
+      color: var(--sf-text);
+      font-size: 12px;
+      font-weight: 800;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .salary-actions-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-top: 4px;
+    }
+
+    .salary-action {
+      border: 1px solid var(--sf-border);
+      border-radius: 999px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-soft);
+      padding: 7px 11px;
+      font-size: 11px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .salary-action.primary {
+      background: var(--sf-accent-soft);
+      color: var(--sf-text);
+      border-color: rgba(241, 184, 87, .32);
+    }
+
+    .salary-pre {
       white-space: pre-wrap;
       overflow: auto;
-      max-height: 520px;
+      max-height: 460px;
       border-radius: 16px;
       padding: 14px;
       background: var(--sf-surface-2);
       color: var(--sf-text-muted);
       font-size: 12px;
       line-height: 1.5;
-      font-family: var(--sf-font-mono);
-    }
-
-    .salary-pill-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    .salary-pill {
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 999px;
-      background: var(--sf-surface-2);
-      color: var(--sf-text-soft);
-      padding: 7px 10px;
-      font-size: 12px;
-      font-weight: 850;
-    }
-
-    .salary-toast {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      z-index: 9999;
-      transform: translateY(18px);
-      opacity: 0;
-      pointer-events: none;
-      transition: .2s ease;
-      border: 1px solid var(--sf-border);
-      border-radius: 16px;
-      padding: 12px 14px;
-      background: var(--sf-card-strong);
-      color: var(--sf-text);
-      box-shadow: var(--sf-shadow-md);
-      font-weight: 850;
-    }
-
-    .salary-toast.show {
-      transform: translateY(0);
-      opacity: 1;
     }
 
     @media (max-width: 1180px) {
@@ -337,27 +408,45 @@
         justify-content: flex-start;
       }
 
-      .salary-span-8,
-      .salary-span-6,
-      .salary-span-4,
-      .salary-span-3 {
-        grid-column: span 12;
+      .salary-kpi-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
 
-    @media (max-width: 760px) {
-      .salary-actions .sf-button {
+    @media (max-width: 980px) {
+      .salary-row-shell {
+        grid-template-columns: 32px minmax(0, 1fr) 112px 20px;
+      }
+
+      .salary-cell,
+      .salary-date,
+      .salary-status {
+        display: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .salary-actions .sf-button,
+      .salary-action {
         width: 100%;
       }
 
-      .salary-row,
-      .salary-proof-line,
-      .salary-candidate-head {
+      .salary-kpi-strip {
         grid-template-columns: 1fr;
       }
 
-      .salary-row-value {
+      .salary-row-shell {
+        grid-template-columns: 30px minmax(0, 1fr) 20px;
+      }
+
+      .salary-amount {
+        grid-column: 2;
         text-align: left;
+        margin-top: -3px;
+      }
+
+      .salary-detail-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -371,246 +460,128 @@
       <section class="sf-page-content salary-os">
         <section class="salary-command">
           <div>
-            <div class="sf-page-eyebrow">Salary truth engine</div>
-            <h1 class="salary-hero-title">Salary</h1>
+            <div class="sf-page-eyebrow">Contract-rendered payout state</div>
+            <h1 class="salary-title">Salary</h1>
             <p class="salary-copy">
-              Salary is now rendered from the backend contract. This page does not own money truth and does not write ledger transactions.
+              Monthly salary, deductions, payout status, and ledger linkage. Salary posting should create ledger income through backend truth only.
             </p>
           </div>
 
           <div class="salary-actions">
             <button class="sf-button sf-button--primary" id="refreshSalaryBtn" type="button">Refresh</button>
-            <a class="sf-button" id="addSalaryLink" href="/add.html">Add Salary Income</a>
-            <a class="sf-button" href="/forecast.html">Forecast</a>
             <a class="sf-button" href="/transactions.html">Ledger</a>
+            <a class="sf-button" href="/accounts.html">Accounts</a>
           </div>
         </section>
 
-        <section class="salary-insight">
-          <div class="sf-page-eyebrow">Contract-rendered salary</div>
-          <h2 id="salaryHeroAmount">Loading…</h2>
-          <p id="salaryHeroCopy">
-            Reading /api/salary and checking current-month ledger-backed salary detection.
-          </p>
-          <div class="salary-pill-row">
-            <span class="salary-pill" id="salaryVersionPill">version loading</span>
-            <span class="salary-pill" id="salarySchemaPill">schema loading</span>
-            <span class="salary-pill" id="salaryStatusPill">status loading</span>
+        <section class="salary-status-strip" aria-label="Salary system status">
+          <div class="salary-status-main">
+            <span class="salary-chip strong" id="salaryHealth">Loading salary</span>
+            <span class="salary-chip good">Backend truth</span>
+            <span class="salary-chip">Ledger-safe</span>
+            <span class="salary-chip" id="salaryCurrentMonth">Current month loading</span>
+            <span class="salary-chip" id="salaryVersion">salary compact shell</span>
           </div>
+          <div class="salary-chip" id="salaryStatusDetail">Reading salary contract.</div>
         </section>
 
-        <section class="salary-metrics">
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Forecast Eligible</p>
-            <div id="metricForecastEligible" class="sf-metric-value sf-tone-positive">—</div>
-            <p class="sf-card-subtitle">Amount Forecast may consume.</p>
+        <details class="salary-rules">
+          <summary>Salary rules</summary>
+          <div class="salary-rules-body">
+            <ul>
+              <li>Salary contract defines expected monthly payout and deductions.</li>
+              <li>Posting salary must create a backend ledger income row.</li>
+              <li>Salary UI must not manually adjust account balances.</li>
+              <li>Paid salary should be ledger-linked; expected salary should not affect balances yet.</li>
+              <li>Deductions must remain visible separately from net payout.</li>
+            </ul>
+          </div>
+        </details>
+
+        <section class="salary-kpi-strip">
+          <article class="salary-kpi">
+            <p class="salary-kpi-label">Gross</p>
+            <p class="salary-kpi-value" id="salaryGross">—</p>
           </article>
 
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Guaranteed Net</p>
-            <div id="metricGuaranteed" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">Base + WFH after estimated tax.</p>
+          <article class="salary-kpi">
+            <p class="salary-kpi-label">Deductions</p>
+            <p class="salary-kpi-value" id="salaryDeductions">—</p>
           </article>
 
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Variable Net</p>
-            <div id="metricVariable" class="sf-metric-value sf-tone-warning">—</div>
-            <p class="sf-card-subtitle">Included only when confirmed.</p>
+          <article class="salary-kpi">
+            <p class="salary-kpi-label">Net</p>
+            <p class="salary-kpi-value" id="salaryNet">—</p>
           </article>
 
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Current Month</p>
-            <div id="metricCurrentMonth" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle" id="metricCurrentMonthSub">Ledger-backed salary status.</p>
+          <article class="salary-kpi">
+            <p class="salary-kpi-label">Paid</p>
+            <p class="salary-kpi-value" id="salaryPaid">—</p>
+          </article>
+
+          <article class="salary-kpi">
+            <p class="salary-kpi-label">Remaining</p>
+            <p class="salary-kpi-value" id="salaryRemaining">—</p>
           </article>
         </section>
 
         <section class="salary-workspace">
-          <div class="salary-stack">
+          <div class="salary-panel-stack">
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Salary calculation</p>
-                  <h2 class="sf-section-title">Backend Truth</h2>
+                  <p class="sf-section-kicker">Salary timeline</p>
+                  <h2 class="sf-section-title">Monthly Salary Rows</h2>
                   <p class="sf-section-subtitle">
-                    These numbers come from /api/salary. The page does not recalculate separate truth.
+                    Compact rows expand inline for salary contract, payout state, and ledger linkage.
                   </p>
                 </div>
               </div>
 
-              <div id="salaryCalculationPanel" class="salary-stack">
-                <div class="salary-empty">Loading salary calculation…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Current month detection</p>
-                  <h2 class="sf-section-title">Ledger-backed Salary Status</h2>
-                  <p class="sf-section-subtitle">
-                    Salary is considered received only if a matching active ledger income row exists.
-                  </p>
-                </div>
-              </div>
-
-              <div id="salaryDetectionPanel" class="salary-stack">
-                <div class="salary-empty">Loading salary detection…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Forecast bridge</p>
-                  <h2 class="sf-section-title">Forecast Compatibility</h2>
-                  <p class="sf-section-subtitle">
-                    Forecast consumes the same salary endpoint. This panel checks that the bridge still resolves.
-                  </p>
-                </div>
-                <button class="sf-button" id="checkForecastBtn" type="button">Check Forecast</button>
-              </div>
-
-              <div id="forecastBridgePanel">
-                <div class="salary-empty">Forecast check not run yet.</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Tax proof</p>
-                  <h2 class="sf-section-title">Payslip / Tax Audit</h2>
-                  <p class="sf-section-subtitle">
-                    Derived from the backend salary contract and Sheet parity fields.
-                  </p>
-                </div>
-              </div>
-
-              <div id="taxProofPanel" class="salary-proof">
-                <div class="salary-empty">Loading tax proof…</div>
+              <div id="salaryList" class="salary-list">
+                <div class="salary-empty">Loading salary rows…</div>
               </div>
             </section>
           </div>
 
-          <aside class="salary-stack">
+          <aside class="salary-panel-stack">
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Save salary config</p>
-                  <h2 class="sf-section-title">Config Only</h2>
-                  <p class="sf-section-subtitle">
-                    Saving updates salary config. It does not create ledger income.
+                  <p class="sf-section-kicker">Selected item</p>
+                  <h2 class="sf-section-title" id="salarySelectedTitle">No salary selected</h2>
+                  <p class="sf-section-subtitle" id="salarySelectedSub">
+                    Expand a salary row to inspect backend payload and ledger state.
                   </p>
                 </div>
               </div>
 
-              <form id="salaryConfigForm" class="salary-grid">
-                <div class="salary-field salary-span-6">
-                  <label for="basicInput">Basic</label>
-                  <input class="salary-input" id="basicInput" name="basic" type="number" step="0.01">
-                </div>
-
-                <div class="salary-field salary-span-6">
-                  <label for="hraInput">HRA</label>
-                  <input class="salary-input" id="hraInput" name="hra" type="number" step="0.01">
-                </div>
-
-                <div class="salary-field salary-span-6">
-                  <label for="medicalInput">Medical</label>
-                  <input class="salary-input" id="medicalInput" name="medical" type="number" step="0.01">
-                </div>
-
-                <div class="salary-field salary-span-6">
-                  <label for="utilityInput">Utility</label>
-                  <input class="salary-input" id="utilityInput" name="utility" type="number" step="0.01">
-                </div>
-
-                <div class="salary-field salary-span-6">
-                  <label for="wfhInput">WFH Allowance</label>
-                  <input class="salary-input" id="wfhInput" name="wfh_allowance" type="number" step="0.01">
-                </div>
-
-                <div class="salary-field salary-span-6">
-                  <label for="taxRateInput">Tax Rate %</label>
-                  <input class="salary-input" id="taxRateInput" name="tax_rate_pct" type="number" step="0.01">
-                </div>
-
-                <div class="salary-field salary-span-6">
-                  <label for="mboInput">MBO</label>
-                  <input class="salary-input" id="mboInput" name="mbo" type="number" step="0.01">
-                </div>
-
-                <div class="salary-field salary-span-6">
-                  <label for="overtimeDaysInput">Overtime Days</label>
-                  <input class="salary-input" id="overtimeDaysInput" name="overtime_days" type="number" step="0.01">
-                </div>
-
-                <div class="salary-field salary-span-6">
-                  <label for="overtimeRateInput">Overtime Rate</label>
-                  <input class="salary-input" id="overtimeRateInput" name="overtime_rate" type="number" step="0.01">
-                </div>
-
-                <div class="salary-field salary-span-6">
-                  <label for="variableConfirmedInput">Variable Confirmed</label>
-                  <select class="salary-select" id="variableConfirmedInput" name="variable_confirmed">
-                    <option value="false">No — Forecast uses guaranteed only</option>
-                    <option value="true">Yes — Forecast may include variable</option>
-                  </select>
-                </div>
-
-                <div class="salary-field salary-span-12">
-                  <label for="salaryNotesInput">Notes</label>
-                  <textarea class="salary-textarea" id="salaryNotesInput" name="notes"></textarea>
-                </div>
-
-                <div class="salary-span-12 salary-actions" style="justify-content:flex-start;">
-                  <button class="sf-button" id="salaryDryRunBtn" type="button">Dry-run Save</button>
-                  <button class="sf-button sf-button--primary" id="salarySaveBtn" type="button">Save Config</button>
-                </div>
-              </form>
-
-              <div id="salarySavePanel" style="margin-top:16px;">
-                <div class="salary-empty">No salary config save run yet.</div>
+              <div id="salaryDetailPanel">
+                <div class="salary-empty">No salary row selected.</div>
               </div>
             </section>
 
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Contract proof</p>
-                  <h2 class="sf-section-title">Backend Proof</h2>
+                  <p class="sf-section-kicker">Raw contract</p>
+                  <h2 class="sf-section-title">Backend Payload</h2>
                 </div>
               </div>
 
-              <div id="salaryProofPanel" class="salary-proof">
-                <div class="salary-empty">Loading proof…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Debug</p>
-                  <h2 class="sf-section-title">Raw Contract</h2>
-                </div>
-              </div>
-
-              <pre id="salaryDebug" class="salary-debug">Loading…</pre>
+              <pre id="salaryRaw" class="salary-pre">Loading…</pre>
             </section>
           </aside>
         </section>
 
         <footer>
           <span class="sf-meta-text" id="salaryFooterVersion">
-            salary.html · contract renderer
+            salary.html · compact salary shell
           </span>
         </footer>
       </section>
     </main>
   </div>
-
-  <div id="salaryToast" class="salary-toast"></div>
 
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
@@ -619,14 +590,13 @@
     (function () {
       'use strict';
 
-      const VERSION = 'salary-ui-v1.0.0-contract-renderer';
+      const VERSION = 'v0.1.0-salary-compact-shell';
       const API_SALARY = '/api/salary';
-      const API_FORECAST = '/api/forecast';
 
       const state = {
-        salaryPayload: null,
-        forecastPayload: null,
-        saving: false
+        payload: null,
+        rows: [],
+        selectedId: null
       };
 
       const $ = id => document.getElementById(id);
@@ -645,417 +615,319 @@
         if (el) el.textContent = value == null ? '' : String(value);
       }
 
-      function setHTML(id, value) {
-        const el = $(id);
-        if (el) el.innerHTML = value == null ? '' : String(value);
-      }
-
-      function num(value, fallback = 0) {
-        const n = Number(value);
-        return Number.isFinite(n) ? n : fallback;
-      }
-
       function money(value) {
-        const n = num(value, 0);
-        return 'Rs ' + n.toLocaleString('en-PK', {
-          minimumFractionDigits: n % 1 === 0 ? 0 : 2,
+        const n = Number(value || 0);
+        if (!Number.isFinite(n)) return '—';
+        const sign = n < 0 ? '-' : '';
+        return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
+          minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
           maximumFractionDigits: 2
         });
       }
 
-      function pct(value) {
-        return num(value, 0).toLocaleString('en-PK', {
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 2
-        }) + '%';
+      function compactDate(value) {
+        const raw = String(value || '').slice(0, 10);
+        if (!raw || !/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) return '—';
+
+        const [, month, day] = raw.split('-');
+        const months = {
+          '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
+          '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug',
+          '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
+        };
+
+        return `${Number(day)} ${months[month] || month}`;
       }
 
-      function statusTone(status) {
-        const s = String(status || '').toLowerCase();
-        if (['received', 'ready', 'pass', 'ok', 'high'].includes(s)) return 'positive';
-        if (['pending', 'partial', 'ambiguous', 'medium', 'watch'].includes(s)) return 'warning';
-        if (['overpaid', 'failed', 'error', 'low', 'unknown'].includes(s)) return 'danger';
-        return 'info';
+      function currentMonthLabel() {
+        return new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
       }
 
-      function pill(text, tone) {
-        return `<span class="sf-pill sf-pill--${esc(tone || 'info')}">${esc(text)}</span>`;
-      }
-
-      function row(title, sub, value, tone) {
-        return `
-          <div class="salary-row">
-            <div>
-              <div class="salary-row-title">${esc(title)}</div>
-              ${sub ? `<div class="salary-row-sub">${esc(sub)}</div>` : ''}
-            </div>
-            <div class="salary-row-value ${tone ? `sf-tone-${esc(tone)}` : ''}">
-              ${value == null ? '—' : value}
-            </div>
-          </div>
-        `;
-      }
-
-      function proofLine(check, source, detail, status) {
-        return `
-          <div class="salary-proof-line">
-            <div>
-              <div class="salary-row-title">${esc(check || 'check')}</div>
-              <div class="salary-row-sub">${esc(detail || '')}</div>
-              <div class="salary-row-sub"><code>${esc(source || 'source')}</code></div>
-            </div>
-            <div>${pill(status || 'info', statusTone(status))}</div>
-          </div>
-        `;
-      }
-
-      async function fetchJSON(url, options) {
-        const res = await fetch(url, {
+      async function fetchJSON(url) {
+        const response = await fetch(url, {
           cache: 'no-store',
-          headers: {
-            Accept: 'application/json',
-            ...(options && options.headers ? options.headers : {})
-          },
-          ...(options || {})
+          headers: { Accept: 'application/json' }
         });
 
-        const text = await res.text();
+        const text = await response.text();
         let payload = null;
 
         try {
           payload = text ? JSON.parse(text) : null;
         } catch {
-          throw new Error(`Non-JSON response from ${url}: HTTP ${res.status}`);
+          throw new Error(`Non-JSON response from ${url}: HTTP ${response.status}`);
         }
 
-        if (!res.ok || !payload || payload.ok === false) {
-          throw new Error((payload && payload.error) || `HTTP ${res.status}`);
+        if (!response.ok || !payload || payload.ok === false) {
+          throw new Error((payload && payload.error) || `HTTP ${response.status}`);
         }
 
         return payload;
       }
 
-      async function postJSON(url, body) {
-        return fetchJSON(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(body || {})
-        });
+      function normalizeRows(payload) {
+        if (!payload) return [];
+
+        const candidates =
+          payload.rows ||
+          payload.salary_rows ||
+          payload.months ||
+          payload.salaries ||
+          payload.data ||
+          payload.result ||
+          [];
+
+        if (Array.isArray(candidates) && candidates.length) {
+          return candidates.map((row, index) => normalizeRow(row, index));
+        }
+
+        const month = payload.current_month || payload.month || currentMonthLabel();
+
+        return [normalizeRow({
+          id: payload.id || 'salary_current',
+          month,
+          gross: payload.gross || payload.gross_salary || payload.salary || payload.contract_salary,
+          deductions: payload.deductions || payload.total_deductions,
+          net: payload.net || payload.net_salary || payload.net_payable || payload.amount,
+          paid: payload.paid || payload.paid_amount,
+          remaining: payload.remaining || payload.remaining_amount,
+          expected_date: payload.expected_date || payload.pay_date || payload.date,
+          account_id: payload.account_id,
+          status: payload.status || payload.payment_status,
+          ledger_transaction_id: payload.ledger_transaction_id || payload.transaction_id,
+          notes: payload.notes || payload.summary || ''
+        }, 0)];
       }
 
-      function salaryRoot() {
-        return state.salaryPayload || {};
-      }
+      function normalizeRow(row, index) {
+        const gross = Number(row.gross ?? row.gross_salary ?? row.salary ?? row.contract_salary ?? 0);
+        const deductions = Number(row.deductions ?? row.total_deductions ?? 0);
+        const net = Number(row.net ?? row.net_salary ?? row.net_payable ?? row.amount ?? (gross - deductions));
+        const paid = Number(row.paid ?? row.paid_amount ?? 0);
+        const remaining = Number(row.remaining ?? row.remaining_amount ?? Math.max(0, net - paid));
 
-      function salaryObj() {
-        const payload = salaryRoot();
-        return payload.salary || payload.salary_truth || {};
-      }
-
-      function truthObj() {
-        const payload = salaryRoot();
-        return payload.salary_truth || {};
-      }
-
-      function currentMonthObj() {
-        const payload = salaryRoot();
-        return payload.current_month || {};
-      }
-
-      function candidates() {
-        const payload = salaryRoot();
-        return Array.isArray(payload.candidates) ? payload.candidates : [];
-      }
-
-      function renderHero() {
-        const payload = salaryRoot();
-        const salary = salaryObj();
-        const truth = truthObj();
-        const current = currentMonthObj();
-
-        const forecastEligible = num(
-          payload.forecast_eligible_monthly ??
-          salary.forecast_eligible_monthly ??
-          truth.expected_net,
-          0
-        );
-
-        setText('salaryHeroAmount', money(forecastEligible));
-        setText(
-          'salaryHeroCopy',
-          `Forecast eligible salary for ${current.month || 'current month'} is ${money(forecastEligible)}. Current ledger status: ${current.status || 'unknown'}.`
-        );
-
-        setText('salaryVersionPill', payload.version || 'version unknown');
-        setText('salarySchemaPill', payload.schema_version || 'schema unknown');
-        setText('salaryStatusPill', current.status || 'status unknown');
-
-        setText('metricForecastEligible', money(forecastEligible));
-        setText('metricGuaranteed', money(payload.guaranteed_monthly ?? salary.guaranteed_monthly ?? salary.guaranteed_net));
-        setText('metricVariable', money(payload.variable_monthly ?? salary.variable_monthly ?? salary.variable_net));
-        setText('metricCurrentMonth', current.status || 'unknown');
-        setText('metricCurrentMonthSub', `${current.month || '—'} · received ${money(current.received || 0)} · variance ${money(current.variance || 0)}`);
-
-        setText('salaryFooterVersion', `${VERSION} · backend ${payload.version || 'unknown'}`);
-      }
-
-      function renderCalculation() {
-        const salary = salaryObj();
-        const payload = salaryRoot();
-
-        const guaranteedGross = salary.guaranteed_gross_monthly ?? salary.contract_base;
-        const variableGross = salary.variable_gross_monthly;
-        const totalGross = salary.total_gross_monthly;
-        const tax = salary.estimated_tax_monthly;
-        const net = salary.net_landing ?? payload.forecast_eligible_monthly;
-
-        const totalForSplit = Math.max(1, num(totalGross, 0));
-        const guaranteedPct = Math.max(1, num(guaranteedGross, 0) / totalForSplit * 100);
-        const variablePct = Math.max(0, num(variableGross, 0) / totalForSplit * 100);
-        const taxPct = Math.max(0, num(tax, 0) / Math.max(1, num(totalGross, 0)) * 100);
-
-        setHTML('salaryCalculationPanel', `
-          <div class="salary-split-bar" style="--guaranteed:${guaranteedPct}fr;--variable:${variablePct}fr;--tax:${taxPct}fr;">
-            <span title="Guaranteed"></span>
-            <span title="Variable"></span>
-            <span title="Tax"></span>
-          </div>
-
-          ${row('Contract base', 'Basic + HRA + Medical + Utility', money(salary.contract_base), 'info')}
-          ${row('WFH allowance', `${salary.wfh_usd || 0} USD @ ${salary.wfh_fx_rate || 0}`, money(salary.wfh_allowance), 'positive')}
-          ${row('Guaranteed gross', 'Base + WFH', money(guaranteedGross), 'positive')}
-          ${row('Variable gross', 'MBO + overtime + confirmed extras', money(variableGross), salary.variable_confirmed ? 'warning' : 'info')}
-          ${row('Estimated monthly tax', `${pct(salary.tax_rate_pct)} effective input`, money(tax), 'danger')}
-          ${row('Net landing', 'Full expected monthly net if variable is included', money(net), 'positive')}
-          ${row('Forecast eligible', salary.variable_confirmed ? 'Variable confirmed, forecast may include it' : 'Variable not confirmed, forecast uses guaranteed only', money(payload.forecast_eligible_monthly ?? salary.forecast_eligible_monthly), 'positive')}
-        `);
-      }
-
-      function renderDetection() {
-        const current = currentMonthObj();
-        const rows = candidates();
-
-        const cards = rows.length
-          ? rows.map(candidate => `
-              <div class="salary-candidate">
-                <div class="salary-candidate-head">
-                  <div>
-                    <div class="salary-candidate-title">${esc(candidate.id || 'candidate')}</div>
-                    <div class="salary-candidate-meta">${esc(candidate.date || '—')} · ${esc(candidate.account_id || '—')} · ${esc(candidate.category_id || 'no category')}</div>
-                  </div>
-                  <div class="salary-row-value">${money(candidate.amount)}</div>
-                </div>
-                <div class="salary-pill-row">
-                  ${pill(candidate.matched ? 'matched' : 'not matched', candidate.matched ? 'positive' : 'warning')}
-                  ${pill(candidate.confidence || 'none', statusTone(candidate.confidence))}
-                  ${candidate.match ? pill(`${candidate.match.anchor_label}: ${pct(candidate.match.variance_pct)} variance`, 'info') : ''}
-                </div>
-                <div class="salary-row-sub">${esc(candidate.notes || '')}</div>
-              </div>
-            `).join('')
-          : '<div class="salary-empty">No salary candidates found for this month.</div>';
-
-        setHTML('salaryDetectionPanel', `
-          ${row('Status', current.month || 'current month', current.status || 'unknown', statusTone(current.status))}
-          ${row('Expected', 'Forecast eligible amount', money(current.expected), 'info')}
-          ${row('Received', 'Matched active ledger salary income', money(current.received), current.received ? 'positive' : 'warning')}
-          ${row('Variance', 'Received minus expected', money(current.variance), num(current.variance, 0) >= 0 ? 'positive' : 'warning')}
-          <div class="salary-stack">${cards}</div>
-        `);
-      }
-
-      function renderTaxProof() {
-        const salary = salaryObj();
-
-        setHTML('taxProofPanel', `
-          ${proofLine('Basic salary', 'salary.basic', money(salary.basic), 'pass')}
-          ${proofLine('House rent allowance', 'salary.hra', money(salary.hra), 'pass')}
-          ${proofLine('Medical allowance', 'salary.medical', money(salary.medical), 'pass')}
-          ${proofLine('Utility allowance', 'salary.utility', money(salary.utility), 'pass')}
-          ${proofLine('Monthly tax estimate', 'salary.estimated_tax_monthly', money(salary.estimated_tax_monthly), 'pass')}
-          ${proofLine('FY taxable', 'salary.fy_taxable', money(salary.fy_taxable), 'info')}
-          ${proofLine('FY tax total', 'salary.fy_tax_total', money(salary.fy_tax_total), 'info')}
-          ${proofLine('FY tax remaining', 'salary.fy_tax_remaining', money(salary.fy_tax_remaining), 'info')}
-        `);
-      }
-
-      function renderProof() {
-        const proof = salaryRoot().proof || {};
-        const checks = Array.isArray(proof.checks) ? proof.checks : [];
-
-        setHTML('salaryProofPanel', checks.length
-          ? checks.map(check => proofLine(check.check, check.source, check.detail, check.status)).join('')
-          : '<div class="salary-empty">No backend proof checks returned.</div>'
-        );
-      }
-
-      function fillForm() {
-        const salary = salaryObj();
-
-        const pairs = [
-          ['basicInput', salary.basic],
-          ['hraInput', salary.hra],
-          ['medicalInput', salary.medical],
-          ['utilityInput', salary.utility],
-          ['wfhInput', salary.wfh_allowance],
-          ['taxRateInput', salary.tax_rate_pct],
-          ['mboInput', salary.mbo],
-          ['overtimeDaysInput', salary.overtime_days],
-          ['overtimeRateInput', salary.overtime_rate],
-          ['salaryNotesInput', salary.notes || '']
-        ];
-
-        pairs.forEach(([id, value]) => {
-          const el = $(id);
-          if (el) el.value = value == null ? '' : String(value);
-        });
-
-        const confirmed = $('variableConfirmedInput');
-        if (confirmed) confirmed.value = salary.variable_confirmed ? 'true' : 'false';
-      }
-
-      function renderAddLink() {
-        const salary = salaryObj();
-        const payload = salaryRoot();
-        const amount = payload.forecast_eligible_monthly ?? salary.forecast_eligible_monthly ?? salary.net_landing ?? salary.guaranteed_monthly;
-        const accountId = salary.lands_in_account_id || truthObj().expected_account_id || 'meezan';
-        const notes = `Salary · ${currentMonthObj().month || new Date().toISOString().slice(0, 7)} · from salary backend`;
-
-        const url = new URL('/add.html', window.location.origin);
-        url.searchParams.set('mode', 'income');
-        url.searchParams.set('type', 'income');
-        url.searchParams.set('account_id', accountId);
-        url.searchParams.set('category_id', 'salary_income');
-        url.searchParams.set('amount', String(num(amount, 0)));
-        url.searchParams.set('notes', notes);
-
-        const link = $('addSalaryLink');
-        if (link) link.href = url.pathname + url.search;
-      }
-
-      function renderDebug() {
-        setText('salaryDebug', JSON.stringify(state.salaryPayload, null, 2));
-      }
-
-      function renderAll() {
-        renderHero();
-        renderCalculation();
-        renderDetection();
-        renderTaxProof();
-        renderProof();
-        fillForm();
-        renderAddLink();
-        renderDebug();
-      }
-
-      function formPayload() {
         return {
-          basic: num($('basicInput')?.value),
-          hra: num($('hraInput')?.value),
-          medical: num($('medicalInput')?.value),
-          utility: num($('utilityInput')?.value),
-          wfh_allowance: num($('wfhInput')?.value),
-          tax_rate_pct: num($('taxRateInput')?.value),
-          mbo: num($('mboInput')?.value),
-          overtime_days: num($('overtimeDaysInput')?.value),
-          overtime_rate: num($('overtimeRateInput')?.value),
-          variable_confirmed: $('variableConfirmedInput')?.value === 'true',
-          notes: $('salaryNotesInput')?.value || ''
+          id: String(row.id || row.salary_id || row.month || `salary_${index}`),
+          month: row.month || row.period || row.label || currentMonthLabel(),
+          gross,
+          deductions,
+          net,
+          paid,
+          remaining,
+          expected_date: row.expected_date || row.pay_date || row.date || '',
+          account_id: row.account_id || row.account || '—',
+          status: row.status || row.payment_status || (remaining <= 0 && net > 0 ? 'paid' : 'expected'),
+          ledger_transaction_id: row.ledger_transaction_id || row.transaction_id || row.ledger_id || '',
+          notes: row.notes || row.summary || '',
+          raw: row
         };
       }
 
+      function rowStatusClass(status) {
+        const s = String(status || '').toLowerCase();
+        if (['paid', 'posted', 'settled', 'linked'].includes(s)) return 'good';
+        if (['expected', 'pending', 'not posted', 'scheduled'].includes(s)) return 'warn';
+        if (['failed', 'missing', 'blocked'].includes(s)) return 'danger';
+        return '';
+      }
+
+      function renderKpis(rows) {
+        const gross = rows.reduce((sum, row) => sum + Number(row.gross || 0), 0);
+        const deductions = rows.reduce((sum, row) => sum + Number(row.deductions || 0), 0);
+        const net = rows.reduce((sum, row) => sum + Number(row.net || 0), 0);
+        const paid = rows.reduce((sum, row) => sum + Number(row.paid || 0), 0);
+        const remaining = rows.reduce((sum, row) => sum + Number(row.remaining || 0), 0);
+
+        setText('salaryGross', rows.length ? money(gross) : '—');
+        setText('salaryDeductions', rows.length ? money(deductions) : '—');
+        setText('salaryNet', rows.length ? money(net) : '—');
+        setText('salaryPaid', rows.length ? money(paid) : '—');
+        setText('salaryRemaining', rows.length ? money(remaining) : '—');
+      }
+
+      function renderRows() {
+        const list = $('salaryList');
+        if (!list) return;
+
+        if (!state.rows.length) {
+          list.innerHTML = '<div class="salary-empty">No salary rows returned by backend.</div>';
+          renderKpis([]);
+          return;
+        }
+
+        list.innerHTML = state.rows.map(row => {
+          const ledgerState = row.ledger_transaction_id ? 'ledger linked' : 'not posted';
+          const statusClass = rowStatusClass(row.status);
+
+          return `
+            <article class="salary-row" data-salary-id="${esc(row.id)}">
+              <button class="salary-row-shell" type="button" data-toggle-salary="${esc(row.id)}">
+                <div class="salary-icon">💰</div>
+                <div>
+                  <div class="salary-title-line">${esc(row.month)} salary</div>
+                  <div class="salary-sub">${esc(ledgerState)} · ${esc(row.ledger_transaction_id || 'no ledger movement')} · ${esc(row.account_id || '—')}</div>
+                </div>
+                <div class="salary-cell">${esc(row.account_id || '—')}</div>
+                <div class="salary-date">${esc(compactDate(row.expected_date))}</div>
+                <div class="salary-amount">${esc(money(row.net))}</div>
+                <div class="salary-status ${statusClass}">${esc(row.status)}</div>
+                <div class="salary-caret">▾</div>
+              </button>
+
+              <div class="salary-detail">
+                <div class="salary-detail-grid">
+                  ${detail('Month', row.month)}
+                  ${detail('Gross salary', money(row.gross))}
+                  ${detail('Deductions', money(row.deductions))}
+                  ${detail('Net payable', money(row.net))}
+                  ${detail('Paid amount', money(row.paid))}
+                  ${detail('Remaining', money(row.remaining))}
+                  ${detail('Expected date', row.expected_date || '—')}
+                  ${detail('Account', row.account_id || '—')}
+                  ${detail('Ledger state', ledgerState)}
+                  ${detail('Ledger transaction', row.ledger_transaction_id || 'None')}
+                  ${detail('Status', row.status)}
+                  ${detail('Notes', row.notes || '—')}
+                </div>
+
+                <div class="salary-actions-inline">
+                  <button class="salary-action primary" type="button" data-select-salary="${esc(row.id)}">Details</button>
+                  ${row.ledger_transaction_id ? `<a class="salary-action" href="/transactions.html?search=${encodeURIComponent(row.ledger_transaction_id)}">View Ledger</a>` : ''}
+                  <button class="salary-action" type="button" data-copy-salary="${esc(row.id)}">Copy ID</button>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join('');
+
+        renderKpis(state.rows);
+        bindRows();
+      }
+
+      function detail(label, value) {
+        return `
+          <div class="salary-detail-label">${esc(label)}</div>
+          <div class="salary-detail-value">${esc(value)}</div>
+        `;
+      }
+
+      function bindRows() {
+        document.querySelectorAll('[data-toggle-salary]').forEach(button => {
+          button.addEventListener('click', () => {
+            const id = button.getAttribute('data-toggle-salary');
+            const row = document.querySelector(`[data-salary-id="${cssEscape(id)}"]`);
+            if (!row) return;
+            row.classList.toggle('is-open');
+            selectSalary(id);
+          });
+        });
+
+        document.querySelectorAll('[data-select-salary]').forEach(button => {
+          button.addEventListener('click', event => {
+            event.stopPropagation();
+            selectSalary(button.getAttribute('data-select-salary'));
+          });
+        });
+
+        document.querySelectorAll('[data-copy-salary]').forEach(button => {
+          button.addEventListener('click', async event => {
+            event.stopPropagation();
+            const id = button.getAttribute('data-copy-salary');
+            try {
+              await navigator.clipboard.writeText(id);
+            } catch {}
+          });
+        });
+      }
+
+      function cssEscape(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(value);
+        return String(value || '').replace(/"/g, '\\"');
+      }
+
+      function selectSalary(id) {
+        const row = state.rows.find(item => String(item.id) === String(id));
+        if (!row) return;
+
+        state.selectedId = id;
+
+        setText('salarySelectedTitle', `${row.month} salary`);
+        setText('salarySelectedSub', `${row.status} · ${row.ledger_transaction_id ? 'ledger linked' : 'not posted'}`);
+
+        const panel = $('salaryDetailPanel');
+        if (panel) {
+          panel.innerHTML = `
+            ${miniRow('Net payable', money(row.net))}
+            ${miniRow('Paid', money(row.paid))}
+            ${miniRow('Remaining', money(row.remaining))}
+            ${miniRow('Account', row.account_id || '—')}
+            ${miniRow('Ledger transaction', row.ledger_transaction_id || 'None')}
+            ${miniRow('Expected date', row.expected_date || '—')}
+          `;
+        }
+      }
+
+      function miniRow(label, value) {
+        return `
+          <div class="salary-detail-grid" style="padding:8px 0;border-bottom:1px solid var(--sf-border-subtle);">
+            <div class="salary-detail-label">${esc(label)}</div>
+            <div class="salary-detail-value">${esc(value)}</div>
+          </div>
+        `;
+      }
+
       async function loadSalary() {
-        setText('salaryHeroAmount', 'Loading…');
+        setText('salaryHealth', 'Loading salary');
+        setText('salaryStatusDetail', 'Reading salary contract.');
+        setText('salaryVersion', VERSION);
+
+        const list = $('salaryList');
+        if (list) list.innerHTML = '<div class="salary-empty">Loading salary rows…</div>';
 
         try {
-          state.salaryPayload = await fetchJSON(API_SALARY);
-          renderAll();
-          toast('Salary contract loaded.');
+          const payload = await fetchJSON(API_SALARY);
+
+          state.payload = payload;
+          state.rows = normalizeRows(payload);
+
+          setText('salaryHealth', 'Health OK');
+          setText('salaryCurrentMonth', payload.current_month || payload.month || currentMonthLabel());
+          setText('salaryStatusDetail', payload.summary || `${state.rows.length} salary row${state.rows.length === 1 ? '' : 's'} loaded.`);
+          setText('salaryFooterVersion', `salary.html · ${VERSION} · backend ${payload.version || 'unknown'}`);
+
+          const raw = $('salaryRaw');
+          if (raw) raw.textContent = JSON.stringify(payload, null, 2);
+
+          renderRows();
         } catch (err) {
-          setHTML('salaryCalculationPanel', `<div class="salary-empty">Salary load failed: ${esc(err.message)}</div>`);
-          setText('salaryHeroAmount', 'Salary failed');
-          setText('salaryHeroCopy', err.message);
-          setText('salaryDebug', err.stack || err.message);
+          setText('salaryHealth', 'Salary unavailable');
+          setText('salaryStatusDetail', err.message);
+          setText('salaryCurrentMonth', currentMonthLabel());
+
+          const raw = $('salaryRaw');
+          if (raw) raw.textContent = JSON.stringify({ error: err.message }, null, 2);
+
+          if (list) {
+            list.innerHTML = `
+              <div class="salary-empty">
+                Salary API did not return usable data yet. This UI shell is ready; backend route expected: <strong>/api/salary</strong>.
+                <br><br>
+                Error: ${esc(err.message)}
+              </div>
+            `;
+          }
+
+          renderKpis([]);
         }
-      }
-
-      async function dryRunSave() {
-        try {
-          const payload = await postJSON(API_SALARY + '?dry_run=1', formPayload());
-          setHTML('salarySavePanel', `
-            ${row('Dry-run', 'Salary config validation', 'Passed', 'positive')}
-            ${row('Writes performed', 'Must be false', String(payload.writes_performed), payload.writes_performed === false ? 'positive' : 'danger')}
-            ${row('Payload hash', 'Proof hash', payload.payload_hash ? payload.payload_hash.slice(0, 16) + '…' : 'not returned', payload.payload_hash ? 'positive' : 'warning')}
-          `);
-          toast('Salary config dry-run passed.');
-        } catch (err) {
-          setHTML('salarySavePanel', `<div class="salary-empty">Dry-run failed: ${esc(err.message)}</div>`);
-        }
-      }
-
-      async function saveConfig() {
-        try {
-          const payload = await postJSON(API_SALARY, formPayload());
-          state.salaryPayload = payload;
-          setHTML('salarySavePanel', `
-            ${row('Save', 'Salary config update', 'Saved', 'positive')}
-            ${row('Writes performed', 'Salary config only', String(payload.writes_performed), payload.writes_performed ? 'positive' : 'warning')}
-            ${row('Ledger rows', 'Salary API must not write ledger', '0', 'positive')}
-          `);
-          renderAll();
-          toast('Salary config saved.');
-        } catch (err) {
-          setHTML('salarySavePanel', `<div class="salary-empty">Save failed: ${esc(err.message)}</div>`);
-        }
-      }
-
-      async function checkForecast() {
-        setHTML('forecastBridgePanel', '<div class="salary-empty">Checking Forecast…</div>');
-
-        try {
-          state.forecastPayload = await fetchJSON(API_FORECAST);
-          const salary = state.forecastPayload.salary || {};
-          setHTML('forecastBridgePanel', `
-            ${row('Forecast API', 'Bridge status', state.forecastPayload.ok ? 'OK' : 'Failed', state.forecastPayload.ok ? 'positive' : 'danger')}
-            ${row('Forecast salary', 'forecast_eligible_monthly', money(salary.forecast_eligible_monthly), 'positive')}
-            ${row('Guaranteed salary', 'salary.guaranteed_monthly', money(salary.guaranteed_monthly), 'info')}
-            ${row('Variable confirmed', 'salary.variable_confirmed', String(salary.variable_confirmed), salary.variable_confirmed ? 'positive' : 'warning')}
-            ${row('Forecast version', 'backend route', state.forecastPayload.version || 'unknown', 'info')}
-          `);
-          toast('Forecast bridge OK.');
-        } catch (err) {
-          setHTML('forecastBridgePanel', `<div class="salary-empty">Forecast check failed: ${esc(err.message)}</div>`);
-        }
-      }
-
-      function toast(message) {
-        const el = $('salaryToast');
-        if (!el) return;
-
-        el.textContent = message;
-        el.classList.add('show');
-
-        clearTimeout(el._timer);
-        el._timer = setTimeout(() => el.classList.remove('show'), 2500);
-      }
-
-      function bind() {
-        $('refreshSalaryBtn')?.addEventListener('click', loadSalary);
-        $('salaryDryRunBtn')?.addEventListener('click', dryRunSave);
-        $('salarySaveBtn')?.addEventListener('click', saveConfig);
-        $('checkForecastBtn')?.addEventListener('click', checkForecast);
       }
 
       function init() {
-        bind();
+        $('refreshSalaryBtn')?.addEventListener('click', loadSalary);
         loadSalary();
 
         window.SovereignSalary = {
           version: VERSION,
           reload: loadSalary,
-          checkForecast,
           state: () => JSON.parse(JSON.stringify(state))
         };
       }
