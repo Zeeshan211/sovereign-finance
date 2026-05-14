@@ -1,19 +1,21 @@
 /* js/transactions-v084.js
  * Sovereign Finance · Ledger Console
- * v0.8.8-ledger-renderer-style-restored
+ * v0.8.9-ledger-compact-activity
  *
- * Fixes:
- * - Restores scoped ledger card/button styling.
- * - Keeps card title isolated from page hero .ledger-title.
- * - Keeps transfer pair amount as one leg only.
- * - Keeps shortened note titles.
+ * P1 Ledger frontend-only correction:
  * - Does not touch backend.
+ * - Does not write D1.
+ * - Keeps account/debt money truth unchanged.
+ * - Adds compact ledger rows with inline expansion.
+ * - Adds Latest Activity vs Statement sorting.
+ * - Shows debt counterparties in row titles.
+ * - Shows backdated debt-origin repairs clearly.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.8.8-ledger-renderer-style-restored';
+  const VERSION = 'v0.8.9-ledger-compact-activity';
 
   const API_TRANSACTIONS = '/api/transactions?include_reversed=1&limit=500';
   const API_ACCOUNTS = '/api/add/context';
@@ -28,7 +30,8 @@
       account: '',
       type: '',
       status: '',
-      view: 'grouped'
+      view: 'grouped',
+      sort: 'activity'
     }
   };
 
@@ -56,7 +59,6 @@
   function money(value, unsigned = false) {
     const n = Number(value || 0);
     const sign = !unsigned && n < 0 ? '-' : '';
-
     return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
@@ -69,11 +71,9 @@
 
   function amountOf(row) {
     const type = normalizeType(row.type);
-
     if (type === 'transfer') {
       return Number(row.amount ?? row.pkr_amount ?? row.display_amount ?? 0);
     }
-
     return Number(row.pkr_amount ?? row.amount ?? row.display_amount ?? 0);
   }
 
@@ -84,11 +84,9 @@
   function signedAmount(row) {
     const type = normalizeType(row.type);
     const amount = absAmount(row);
-
     if (['income', 'salary', 'opening', 'borrow', 'debt_in'].includes(type)) {
       return amount;
     }
-
     return -amount;
   }
 
@@ -105,7 +103,6 @@
   function accountLabel(id) {
     const account = state.accounts.get(String(id || ''));
     if (!account) return id || '—';
-
     return `${account.icon || ''} ${account.name || account.id || id}`.trim();
   }
 
@@ -114,9 +111,47 @@
     return match ? match[1].trim() : null;
   }
 
+  function extractDebtId(notes) {
+    const match = String(notes || '').match(/debt_id=([A-Za-z0-9_-]+)/i);
+    return match ? match[1] : '';
+  }
+
+  function extractDebtKind(notes) {
+    const match = String(notes || '').match(/kind=([A-Za-z0-9_-]+)/i);
+    return match ? match[1].toLowerCase() : '';
+  }
+
+  function extractDebtCounterparty(notes) {
+    const match = String(notes || '').match(/^(Debt received|Debt payment|Debt given):\s*([^|]+)/i);
+    return match ? match[2].trim() : '';
+  }
+
+  function isDebtOrigin(row) {
+    const notes = String(row.notes || '').toUpperCase();
+    return notes.includes('[DEBT_ORIGIN]') || notes.includes('[DEBT_ORIGIN_REPAIR]');
+  }
+
+  function isDebtPayment(row) {
+    const notes = String(row.notes || '').toUpperCase();
+    return notes.includes('[DEBT_PAYMENT]') || notes.includes('[DEBT_RECEIVE]');
+  }
+
+  function isBackdatedRepair(row) {
+    const notes = String(row.notes || '').toUpperCase();
+    const txDate = String(row.date || '').slice(0, 10);
+    const createdDate = String(row.created_at || '').slice(0, 10);
+    return !!(
+      row.date &&
+      row.created_at &&
+      txDate &&
+      createdDate &&
+      txDate !== createdDate &&
+      notes.includes('[DEBT_ORIGIN_REPAIR]')
+    );
+  }
+
   function isReversalRow(row) {
     const notes = String(row.notes || '').toUpperCase();
-
     return !!(
       row.is_reversal === true ||
       notes.includes('[REVERSAL OF ')
@@ -125,7 +160,6 @@
 
   function isReversedOriginal(row) {
     const notes = String(row.notes || '').toUpperCase();
-
     return !!(
       row.is_reversed === true ||
       row.reversed_by ||
@@ -143,22 +177,75 @@
     if (isReversedOriginal(row)) return 'Reversed original';
 
     const notes = String(row.notes || '').trim();
+    const debtName = extractDebtCounterparty(notes);
+
+    if (/^Debt received:/i.test(notes)) {
+      return debtName ? `Debt received from ${debtName}` : 'Debt received';
+    }
+
+    if (/^Debt payment:/i.test(notes)) {
+      return debtName ? `Debt payment to ${debtName}` : 'Debt payment';
+    }
+
+    if (/^Debt given:/i.test(notes)) {
+      return debtName ? `Debt given to ${debtName}` : 'Debt given';
+    }
 
     if (/^merchant=/i.test(notes)) {
       return truncate(
         notes.replace(/^merchant=/i, '').split('|')[0].trim() || typeLabel(row.type),
-        42
+        52
       );
     }
 
-    if (/^Debt received:/i.test(notes)) return 'Debt received';
-    if (/^Debt payment:/i.test(notes)) return 'Debt payment';
-    if (/^Debt given:/i.test(notes)) return 'Debt given';
     if (/^Bill payment:/i.test(notes)) return 'Bill payment';
     if (/^\[INTL /i.test(notes)) return 'International charge';
     if (/^From:/i.test(notes) || /^To:/i.test(notes)) return 'Transfer';
 
-    return notes ? truncate(notes, 48) : typeLabel(row.type);
+    return notes ? truncate(notes, 56) : typeLabel(row.type);
+  }
+
+  function rowStatusText(row) {
+    if (isReversalRow(row)) return 'Reversal';
+    if (isReversedOriginal(row)) return 'Reversed';
+    if (isBackdatedRepair(row)) return 'Repair';
+    if (row.reverse_eligible === true) return 'Posted';
+    return 'Posted';
+  }
+
+  function rowTone(row) {
+    if (isInactive(row)) return 'voided';
+    if (isBackdatedRepair(row)) return 'repair';
+    if (isDebtOrigin(row)) return 'origin';
+    if (isDebtPayment(row)) return 'payment';
+    return '';
+  }
+
+  function compactDate(value) {
+    const raw = String(value || '').slice(0, 10);
+    if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return '—';
+    const [, month, day] = raw.split('-');
+    const monthNames = {
+      '01': 'Jan',
+      '02': 'Feb',
+      '03': 'Mar',
+      '04': 'Apr',
+      '05': 'May',
+      '06': 'Jun',
+      '07': 'Jul',
+      '08': 'Aug',
+      '09': 'Sep',
+      '10': 'Oct',
+      '11': 'Nov',
+      '12': 'Dec'
+    };
+    return `${Number(day)} ${monthNames[month] || month}`;
+  }
+
+  function formatDateTime(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '—';
+    return raw.replace('T', ' ').replace(/\.\d{3}Z$/, '').replace(/Z$/, '');
   }
 
   async function fetchJSON(url) {
@@ -168,7 +255,6 @@
     });
 
     const text = await response.text();
-
     let payload = null;
 
     try {
@@ -200,24 +286,48 @@
 
   function normalizeAccounts(payload) {
     if (!payload) return [];
-
     if (Array.isArray(payload.accounts)) return payload.accounts;
-
     if (payload.accounts && typeof payload.accounts === 'object') {
       return Object.entries(payload.accounts).map(([id, row]) => ({
         id,
         ...(row || {})
       }));
     }
-
     return [];
+  }
+
+  function compareByChronology(a, b) {
+    const ad = String(a.date || '');
+    const bd = String(b.date || '');
+    if (ad !== bd) return bd.localeCompare(ad);
+
+    const ac = String(a.created_at || '');
+    const bc = String(b.created_at || '');
+    if (ac !== bc) return bc.localeCompare(ac);
+
+    return String(b.id || b.key || '').localeCompare(String(a.id || a.key || ''));
+  }
+
+  function compareByActivity(a, b) {
+    const ac = String(a.created_at || '');
+    const bc = String(b.created_at || '');
+    if (ac !== bc) return bc.localeCompare(ac);
+
+    const ad = String(a.date || '');
+    const bd = String(b.date || '');
+    if (ad !== bd) return bd.localeCompare(ad);
+
+    return String(b.id || b.key || '').localeCompare(String(a.id || a.key || ''));
+  }
+
+  function displayComparator() {
+    return state.filters.sort === 'statement' ? compareByChronology : compareByActivity;
   }
 
   function groupKey(row) {
     if (row.intl_package_id) return `intl:${row.intl_package_id}`;
 
     const linked = row.linked_txn_id || parseLinkedId(row.notes);
-
     if (linked) {
       return `pair:${[String(row.id), String(linked)].sort().join('::')}`;
     }
@@ -248,31 +358,11 @@
 
     return Array.from(map.values())
       .map(decorateGroup)
-      .sort((a, b) => {
-        const ad = String(a.date || '');
-        const bd = String(b.date || '');
-
-        if (ad !== bd) return bd.localeCompare(ad);
-
-        const ac = String(a.created_at || '');
-        const bc = String(b.created_at || '');
-
-        if (ac !== bc) return bc.localeCompare(ac);
-
-        return String(b.key).localeCompare(String(a.key));
-      });
+      .sort(compareByChronology);
   }
 
   function decorateGroup(group) {
-    const rows = group.rows.slice().sort((a, b) => {
-      const ac = String(a.created_at || '');
-      const bc = String(b.created_at || '');
-
-      if (ac !== bc) return bc.localeCompare(ac);
-
-      return String(b.id).localeCompare(String(a.id));
-    });
-
+    const rows = group.rows.slice().sort(compareByActivity);
     const primary = choosePrimaryRow(group.type, rows);
     const amount = groupDisplayAmount(group.type, rows);
     const hasReversal = rows.some(isReversalRow);
@@ -342,7 +432,6 @@
         group.rows.find(row => signedAmount(row) < 0);
 
       const linkedId = out && (out.linked_txn_id || parseLinkedId(out.notes));
-
       const inbound = group.rows.find(row => row.id !== out?.id && (!linkedId || row.id === linkedId)) ||
         group.rows.find(row => row.id !== out?.id);
 
@@ -358,11 +447,11 @@
 
   function groupSubtitle(group) {
     if (group.type === 'single') {
-      const row = group.primary;
-      return `${row.date || '—'} · ${accountLabel(row.account_id)} · ${typeLabel(row.type)} · ${shortId(row.id)}`;
+      return rowSubtitle(group.primary);
     }
 
-    return `${group.date || '—'} · ${group.rows.map(row => row.id).join(', ')}`;
+    const mode = state.filters.sort === 'statement' ? 'Statement' : 'Activity';
+    return `${mode} · ${compactDate(group.date)} · Created ${formatDateTime(group.created_at)} · ${group.rows.length} row${group.rows.length === 1 ? '' : 's'}`;
   }
 
   function groupIcon(group) {
@@ -401,25 +490,48 @@
     return `<span class="ledger-tag ${tone || ''}">${esc(text)}</span>`;
   }
 
+  function rowSubtitle(row) {
+    const bits = [];
+
+    if (isBackdatedRepair(row)) {
+      bits.push(`Tx ${row.date || '—'}`);
+      bits.push(`Created ${formatDateTime(row.created_at)}`);
+    } else {
+      bits.push(compactDate(row.date));
+      if (row.created_at && state.filters.sort === 'activity') {
+        bits.push(`Created ${formatDateTime(row.created_at)}`);
+      }
+    }
+
+    bits.push(accountLabel(row.account_id));
+    bits.push(typeLabel(row.type));
+
+    const debtId = extractDebtId(row.notes);
+    if (debtId) bits.push(debtId);
+
+    return bits.filter(Boolean).join(' · ');
+  }
+
   function rowMatchesFilters(row) {
     const q = state.filters.search.toLowerCase();
-
     const haystack = [
       row.id,
       row.date,
+      row.created_at,
       row.type,
       row.account_id,
       row.transfer_to_account_id,
       row.category_id,
       row.notes,
       row.linked_txn_id,
-      row.intl_package_id
+      row.intl_package_id,
+      rowTitle(row),
+      extractDebtId(row.notes)
     ].join(' ').toLowerCase();
 
     if (q && !haystack.includes(q)) return false;
     if (state.filters.account && row.account_id !== state.filters.account) return false;
     if (state.filters.type && normalizeType(row.type) !== state.filters.type) return false;
-
     if (state.filters.status === 'reverse_eligible' && row.reverse_eligible !== true) return false;
     if (state.filters.status === 'reverse_blocked' && row.reverse_eligible === true) return false;
     if (state.filters.status === 'reversed' && !isInactive(row)) return false;
@@ -433,11 +545,15 @@
   }
 
   function filteredGroups() {
-    return state.groups.filter(groupMatchesFilters);
+    return state.groups
+      .filter(groupMatchesFilters)
+      .sort(displayComparator());
   }
 
   function filteredRows() {
-    return state.rows.filter(rowMatchesFilters);
+    return state.rows
+      .filter(rowMatchesFilters)
+      .sort(displayComparator());
   }
 
   function renderMetrics(items) {
@@ -456,6 +572,7 @@
       }
 
       const row = group.primary;
+
       if (isInactive(row)) continue;
 
       const signed = signedAmount(row);
@@ -489,6 +606,7 @@
         : '<div class="ledger-empty">No ledger rows match current filters.</div>';
 
       bindRowActions(container);
+      updateModeText();
       return;
     }
 
@@ -501,6 +619,7 @@
       : '<div class="ledger-empty">No ledger activity matches current filters.</div>';
 
     bindRowActions(container);
+    updateModeText();
   }
 
   function renderGroupCard(group) {
@@ -509,7 +628,7 @@
     const tags = [
       tag(group.type === 'intl_package' ? 'intl package' : 'linked pair'),
       tag(`${group.rows.length} rows`),
-      tag(group.date || '—')
+      tag(compactDate(group.date))
     ];
 
     if (group.has_reversal || group.has_reversed_original || group.inactive) {
@@ -521,34 +640,35 @@
       tags.push(tag('reverse blocked', 'warn'));
     }
 
-    return `
-      <article class="ledger-group-card ${group.inactive ? 'is-voided' : ''}" data-group-key="${esc(group.key)}">
-        <div class="ledger-main-line">
-          <div class="ledger-icon">${groupIcon(group)}</div>
+    const amountClass = groupAmountClass(group);
 
+    return `
+      <article class="ledger-group-card ledger-compact-row ${group.inactive ? 'is-voided' : ''}" data-group-key="${esc(group.key)}">
+        <button class="ledger-row-shell" type="button" data-toggle-group="${esc(group.key)}">
+          <div class="ledger-icon">${groupIcon(group)}</div>
           <div class="ledger-copy-block">
             <div class="ledger-card-title">${esc(groupTitle(group))}</div>
             <div class="ledger-sub">${esc(groupSubtitle(group))}</div>
           </div>
-
-          <div class="ledger-amount ${groupAmountClass(group)}">${groupAmountText(group)}</div>
-        </div>
+          <div class="ledger-row-account">${esc(group.type === 'linked_pair' ? 'Transfer' : typeLabel(group.primary.type))}</div>
+          <div class="ledger-row-date">${esc(compactDate(group.date))}</div>
+          <div class="ledger-amount ${amountClass}">${groupAmountText(group)}</div>
+          <div class="ledger-expand-caret">▾</div>
+        </button>
 
         <div class="ledger-tags">${tags.join('')}</div>
 
-        <div class="ledger-actions">
-          <button class="ledger-action" type="button" data-toggle-group="${esc(group.key)}">Expand</button>
-          <button
-            class="ledger-action reverse"
-            type="button"
-            data-reverse-id="${esc(group.primary.id)}"
-            ${group.reverse_eligible ? '' : 'disabled'}>
-            ↩ Reverse group
-          </button>
-        </div>
-
         <div class="ledger-children" data-children="${esc(group.key)}">
           ${group.rows.map(renderChildRow).join('')}
+          <div class="ledger-actions">
+            <button
+              class="ledger-action reverse"
+              type="button"
+              data-reverse-id="${esc(group.primary.id)}"
+              ${group.reverse_eligible ? '' : 'disabled'}>
+              Reverse group
+            </button>
+          </div>
         </div>
       </article>
     `;
@@ -557,19 +677,31 @@
   function renderRawRow(row) {
     const inactive = isInactive(row);
     const signed = signedAmount(row);
+    const tone = rowTone(row);
+    const debtId = extractDebtId(row.notes);
+    const tags = [];
 
-    const tags = [
-      tag(typeLabel(row.type)),
-      tag(row.account_id || 'no account'),
-      tag(row.category_id || 'no category')
-    ];
+    if (isDebtOrigin(row)) tags.push(tag('debt origin', 'good'));
+    if (isDebtPayment(row)) tags.push(tag('debt payment', 'good'));
+    if (isBackdatedRepair(row)) tags.push(tag('backdated repair', 'warn'));
+
+    tags.push(tag(typeLabel(row.type)));
+    tags.push(tag(row.account_id || 'no account'));
+
+    if (row.category_id) {
+      tags.push(tag(row.category_id));
+    } else {
+      tags.push(tag('no category'));
+    }
+
+    if (debtId) tags.push(tag(debtId));
 
     if (isReversalRow(row)) {
       tags.push(tag('reversal row', 'warn'));
       tags.push(tag('reverse blocked', 'danger'));
     } else if (isReversedOriginal(row)) {
       tags.push(tag('reversed original', 'warn'));
-      tags.push(tag('already_reversed', 'danger'));
+      tags.push(tag('already reversed', 'danger'));
     } else if (row.reverse_eligible) {
       tags.push(tag('reverse eligible', 'good'));
     } else {
@@ -577,43 +709,87 @@
     }
 
     return `
-      <article class="ledger-row ${inactive ? 'is-voided' : ''}" data-row-id="${esc(row.id)}">
-        <div class="ledger-main-line">
+      <article class="ledger-row ledger-compact-row ${inactive ? 'is-voided' : ''} ${tone ? 'tone-' + esc(tone) : ''}" data-row-id="${esc(row.id)}">
+        <button class="ledger-row-shell" type="button" data-toggle-row="${esc(row.id)}">
           <div class="ledger-icon">${groupIcon({ type: 'single', primary: row })}</div>
-
           <div class="ledger-copy-block">
             <div class="ledger-card-title">${esc(rowTitle(row))}</div>
-            <div class="ledger-sub">${esc(row.date || '—')} · ${esc(accountLabel(row.account_id))} · ${esc(typeLabel(row.type))} · ${esc(shortId(row.id))}</div>
+            <div class="ledger-sub">${esc(rowSubtitle(row))}</div>
           </div>
-
+          <div class="ledger-row-account">${esc(accountLabel(row.account_id))}</div>
+          <div class="ledger-row-date">${esc(compactDate(row.date))}</div>
           <div class="ledger-amount ${signed >= 0 ? 'positive' : 'negative'}">${money(signed)}</div>
-        </div>
+          <div class="ledger-row-status ${inactive ? 'danger' : isBackdatedRepair(row) ? 'warn' : 'good'}">${esc(rowStatusText(row))}</div>
+          <div class="ledger-expand-caret">▾</div>
+        </button>
 
         <div class="ledger-tags">${tags.join('')}</div>
 
-        <div class="ledger-actions">
-          <button
-            class="ledger-action reverse"
-            type="button"
-            data-reverse-id="${esc(row.id)}"
-            ${row.reverse_eligible && !inactive ? '' : 'disabled'}>
-            ↩ Reverse
-          </button>
+        <div class="ledger-inline-detail" data-detail="${esc(row.id)}">
+          ${renderInlineDetail(row)}
         </div>
       </article>
     `;
   }
 
+  function renderInlineDetail(row) {
+    const signed = signedAmount(row);
+    const debtId = extractDebtId(row.notes);
+    const kind = extractDebtKind(row.notes);
+    const detailRows = [
+      ['Movement', `${typeLabel(row.type)} ${signed >= 0 ? 'into' : 'from'} ${accountLabel(row.account_id)}`],
+      ['Amount', money(signed)],
+      ['Account', accountLabel(row.account_id)],
+      ['Category', row.category_id || '—'],
+      ['Transaction date', row.date || '—'],
+      ['Created', formatDateTime(row.created_at)],
+      ['Debt ID', debtId || '—'],
+      ['Debt kind', kind || '—'],
+      ['Ledger ID', row.id || '—'],
+      ['Linked row', row.linked_txn_id || parseLinkedId(row.notes) || '—'],
+      ['Package', row.intl_package_id || '—'],
+      ['Status', rowStatusText(row)]
+    ];
+
+    return `
+      <div class="ledger-detail-grid">
+        ${detailRows.map(([label, value]) => `
+          <div class="ledger-detail-label">${esc(label)}</div>
+          <div class="ledger-detail-value">${esc(value)}</div>
+        `).join('')}
+      </div>
+
+      <div class="ledger-detail-notes">
+        <div class="ledger-detail-label">Notes</div>
+        <div class="ledger-detail-note-text">${esc(row.notes || '—')}</div>
+      </div>
+
+      <div class="ledger-actions inline">
+        <button
+          class="ledger-action reverse"
+          type="button"
+          data-reverse-id="${esc(row.id)}"
+          ${row.reverse_eligible && !isInactive(row) ? '' : 'disabled'}>
+          Reverse
+        </button>
+        <button class="ledger-action" type="button" data-copy-id="${esc(row.id)}">Copy ID</button>
+        <button class="ledger-action" type="button" data-show-raw="${esc(row.id)}">Raw payload</button>
+      </div>
+    `;
+  }
+
   function renderChildRow(row) {
     const signed = signedAmount(row);
+    const debtId = extractDebtId(row.notes);
 
     return `
       <div class="ledger-child-row">
         <div>
-          <strong>${esc(shortId(row.id))}</strong>
+          <strong>${esc(rowTitle(row))}</strong>
           · ${esc(accountLabel(row.account_id))}
           · ${esc(typeLabel(row.type))}
-          · ${esc(truncate(row.notes || '', 90))}
+          ${debtId ? `· ${esc(debtId)}` : ''}
+          · ${esc(truncate(row.notes || '', 110))}
         </div>
         <div>${money(signed)}</div>
       </div>
@@ -629,17 +805,42 @@
       });
     });
 
+    container.querySelectorAll('[data-toggle-row]').forEach(button => {
+      button.addEventListener('click', () => {
+        const id = button.getAttribute('data-toggle-row');
+        const card = container.querySelector(`[data-row-id="${cssEscape(id)}"]`);
+        if (!card) return;
+        card.classList.toggle('is-open');
+        const row = state.rows.find(item => item.id === id);
+        if (row) showDetail(id, false);
+      });
+    });
+
     container.querySelectorAll('[data-reverse-id]').forEach(button => {
       button.addEventListener('click', event => {
+        event.stopPropagation();
         const id = event.currentTarget.getAttribute('data-reverse-id');
         openReversePanel(id);
       });
     });
 
-    container.querySelectorAll('[data-row-id]').forEach(card => {
-      card.addEventListener('click', event => {
-        if (event.target.closest('button')) return;
-        showDetail(card.getAttribute('data-row-id'));
+    container.querySelectorAll('[data-copy-id]').forEach(button => {
+      button.addEventListener('click', async event => {
+        event.stopPropagation();
+        const id = event.currentTarget.getAttribute('data-copy-id');
+        try {
+          await navigator.clipboard.writeText(id);
+          toast('Copied ID.');
+        } catch {
+          toast(id, 'success');
+        }
+      });
+    });
+
+    container.querySelectorAll('[data-show-raw]').forEach(button => {
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        showDetail(event.currentTarget.getAttribute('data-show-raw'), true);
       });
     });
   }
@@ -649,13 +850,20 @@
     return String(value || '').replace(/"/g, '\\"');
   }
 
-  function showDetail(id) {
+  function showDetail(id, scroll) {
     const row = state.rows.find(item => item.id === id);
     const panel = $('detailPanel');
 
     if (!panel || !row) return;
 
     panel.innerHTML = `<pre class="ledger-detail-pre">${esc(JSON.stringify(row, null, 2))}</pre>`;
+
+    if (scroll) {
+      panel.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
   }
 
   function openReversePanel(id) {
@@ -718,7 +926,6 @@
   function closeReversePanel() {
     const panel = $('reversePanel');
     if (!panel) return;
-
     panel.hidden = true;
     panel.innerHTML = '';
   }
@@ -803,10 +1010,10 @@
 
   function renderAccountsFilter() {
     const select = $('accountFilter');
+
     if (!select) return;
 
     const current = select.value;
-
     const options = ['<option value="">All accounts</option>']
       .concat(Array.from(state.accounts.values()).map(account => {
         return `<option value="${esc(account.id)}">${esc(accountLabel(account.id))}</option>`;
@@ -816,7 +1023,31 @@
     select.value = current;
   }
 
+  function ensureSortControl() {
+    if ($('sort_mode')) return;
+
+    const viewSelect = $('filter_view');
+    if (!viewSelect) return;
+
+    const label = viewSelect.closest('label') || viewSelect.parentElement;
+    if (!label || !label.parentElement) return;
+
+    const wrap = document.createElement('label');
+    wrap.className = 'sf-field ledger-sort-field';
+    wrap.innerHTML = `
+      <span>Sort</span>
+      <select id="sort_mode">
+        <option value="activity">Latest Activity</option>
+        <option value="statement">Statement</option>
+      </select>
+    `;
+
+    label.insertAdjacentElement('afterend', wrap);
+  }
+
   function bindFilters() {
+    ensureSortControl();
+
     $('searchInput')?.addEventListener('input', event => {
       state.filters.search = event.target.value.trim();
       renderList();
@@ -839,6 +1070,11 @@
 
     $('filter_view')?.addEventListener('change', event => {
       state.filters.view = event.target.value || 'grouped';
+      renderList();
+    });
+
+    $('sort_mode')?.addEventListener('change', event => {
+      state.filters.sort = event.target.value || 'activity';
       renderList();
     });
 
@@ -883,7 +1119,6 @@
     try {
       const payload = await fetchJSON(API_HEALTH);
       const health = payload.health || payload;
-
       const status = String(health.status || 'ok').toUpperCase();
       const detail = health.summary ||
         `active ${health.active_count ?? health.active ?? '—'} · reversals ${health.reversal_count ?? health.reversals ?? '—'} · orphan links ${health.orphan_link_count ?? health.orphan_links ?? '—'}`;
@@ -895,6 +1130,21 @@
       setText('ledgerHealth', 'Ledger loaded');
       setText('healthStatus', 'Unknown');
       setText('healthDetail', `${state.rows.length} rows loaded. Health endpoint unavailable.`);
+    }
+  }
+
+  function updateModeText() {
+    const sortLabel = state.filters.sort === 'statement'
+      ? 'Statement · transaction date'
+      : 'Latest Activity · created date';
+
+    setText('ledgerSortMode', sortLabel);
+
+    const mode = state.filters.view === 'raw' ? 'Raw rows' : 'Grouped rows';
+    const existing = $('healthDetail');
+
+    if (existing && existing.textContent && !existing.textContent.includes(sortLabel)) {
+      existing.textContent = `${existing.textContent} · ${sortLabel} · ${mode}`;
     }
   }
 
@@ -912,7 +1162,6 @@
       await loadAccounts();
       await loadTransactions();
       await loadHealth();
-
       renderList();
     } catch (err) {
       if (container) {
@@ -954,17 +1203,44 @@
       .ledger-row,
       .ledger-group-card {
         border: 1px solid var(--sf-border-subtle);
-        border-radius: 18px;
-        background: var(--sf-surface-1);
-        padding: 14px;
+        border-radius: 14px;
+        background: rgba(255,255,255,.025);
+        padding: 0;
         display: grid;
-        gap: 10px;
+        gap: 0;
+        overflow: hidden;
       }
 
       .ledger-row.is-voided,
       .ledger-group-card.is-voided {
         opacity: .62;
         border-style: dashed;
+      }
+
+      .ledger-compact-row.tone-repair {
+        border-color: rgba(241, 184, 87, .32);
+      }
+
+      .ledger-compact-row.tone-origin {
+        border-color: rgba(83, 215, 167, .20);
+      }
+
+      .ledger-row-shell {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        display: grid;
+        grid-template-columns: 34px minmax(220px, 1.6fr) minmax(120px, .8fr) 76px 116px 82px 20px;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .ledger-row-shell:hover {
+        background: rgba(255,255,255,.035);
       }
 
       .ledger-main-line {
@@ -979,19 +1255,20 @@
       }
 
       .ledger-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 14px;
+        width: 30px;
+        height: 30px;
+        border-radius: 11px;
         display: grid;
         place-items: center;
         background: var(--sf-accent-soft);
         color: var(--sf-accent-strong);
         font-weight: 900;
+        font-size: 15px;
       }
 
       .ledger-card-title {
         color: var(--sf-text);
-        font-size: 14px;
+        font-size: 13px;
         line-height: 1.25;
         font-weight: 900;
         letter-spacing: normal;
@@ -1001,20 +1278,70 @@
       }
 
       .ledger-sub {
-        margin-top: 4px;
+        margin-top: 3px;
         color: var(--sf-text-muted);
-        font-size: 12px;
+        font-size: 11px;
         line-height: 1.35;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
 
+      .ledger-row-account,
+      .ledger-row-date,
+      .ledger-row-status {
+        color: var(--sf-text-muted);
+        font-size: 11px;
+        font-weight: 850;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .ledger-row-date {
+        text-align: right;
+      }
+
+      .ledger-row-status {
+        justify-self: end;
+        border: 1px solid var(--sf-border-subtle);
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: var(--sf-surface-2);
+      }
+
+      .ledger-row-status.good {
+        color: var(--sf-positive);
+        border-color: rgba(83, 215, 167, .22);
+      }
+
+      .ledger-row-status.warn {
+        color: var(--sf-warning);
+        border-color: rgba(241, 184, 87, .28);
+      }
+
+      .ledger-row-status.danger {
+        color: var(--sf-danger);
+        border-color: rgba(255, 127, 138, .28);
+      }
+
+      .ledger-expand-caret {
+        color: var(--sf-text-muted);
+        font-size: 13px;
+        justify-self: end;
+        transition: transform .18s ease;
+      }
+
+      .ledger-row.is-open .ledger-expand-caret,
+      .ledger-group-card.is-open .ledger-expand-caret {
+        transform: rotate(180deg);
+      }
+
       .ledger-amount {
         color: var(--sf-text);
         text-align: right;
-        font-size: 15px;
-        font-weight: 900;
+        font-size: 13px;
+        font-weight: 950;
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
       }
@@ -1034,7 +1361,8 @@
       .ledger-tags {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 5px;
+        padding: 0 12px 9px 56px;
       }
 
       .ledger-tag {
@@ -1042,8 +1370,9 @@
         border-radius: 999px;
         background: var(--sf-surface-2);
         color: var(--sf-text-muted);
-        padding: 4px 8px;
-        font-size: 11px;
+        padding: 3px 7px;
+        font-size: 10px;
+        line-height: 1.2;
         font-weight: 800;
       }
 
@@ -1072,13 +1401,18 @@
         flex-wrap: wrap;
       }
 
+      .ledger-actions.inline {
+        justify-content: flex-start;
+        padding-top: 4px;
+      }
+
       .ledger-action {
         border: 1px solid var(--sf-border);
         border-radius: 999px;
         background: var(--sf-surface-2);
         color: var(--sf-text-soft);
-        padding: 8px 12px;
-        font-size: 12px;
+        padding: 7px 11px;
+        font-size: 11px;
         font-weight: 900;
         cursor: pointer;
       }
@@ -1094,15 +1428,55 @@
         cursor: not-allowed;
       }
 
+      .ledger-inline-detail,
       .ledger-children {
         display: none;
         border-top: 1px solid var(--sf-border-subtle);
-        padding-top: 10px;
-        gap: 8px;
+        padding: 12px;
+        gap: 10px;
+        background: rgba(0,0,0,.12);
       }
 
+      .ledger-row.is-open .ledger-inline-detail,
       .ledger-group-card.is-open .ledger-children {
         display: grid;
+      }
+
+      .ledger-detail-grid {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 8px 14px;
+        align-items: baseline;
+      }
+
+      .ledger-detail-label {
+        color: var(--sf-text-muted);
+        font-size: 10px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+
+      .ledger-detail-value {
+        color: var(--sf-text);
+        font-size: 12px;
+        font-weight: 800;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .ledger-detail-notes {
+        border-top: 1px solid var(--sf-border-subtle);
+        padding-top: 10px;
+        display: grid;
+        gap: 6px;
+      }
+
+      .ledger-detail-note-text {
+        color: var(--sf-text-muted);
+        font-size: 12px;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
       }
 
       .ledger-child-row {
@@ -1205,14 +1579,45 @@
         border-color: rgba(83, 215, 167, .35);
       }
 
-      @media (max-width: 760px) {
-        .ledger-main-line {
-          grid-template-columns: 38px minmax(0, 1fr);
+      @media (max-width: 980px) {
+        .ledger-row-shell {
+          grid-template-columns: 32px minmax(0, 1fr) 112px 20px;
+        }
+
+        .ledger-row-account,
+        .ledger-row-date,
+        .ledger-row-status {
+          display: none;
+        }
+
+        .ledger-amount {
+          text-align: right;
+        }
+
+        .ledger-tags {
+          padding-left: 54px;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .ledger-row-shell {
+          grid-template-columns: 30px minmax(0, 1fr) 20px;
+          gap: 8px;
         }
 
         .ledger-amount {
           grid-column: 2;
           text-align: left;
+          margin-top: -3px;
+        }
+
+        .ledger-detail-grid {
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
+
+        .ledger-tags {
+          padding-left: 12px;
         }
 
         .ledger-actions {
@@ -1230,10 +1635,8 @@
 
   function init() {
     injectStyles();
-
     setText('ledgerJsVersion', VERSION);
-    setText('ledgerFooterVersion', `v0.8.8 · transactions · ${VERSION}`);
-
+    setText('ledgerFooterVersion', `v0.8.9 · transactions · ${VERSION}`);
     bindFilters();
     loadAll();
 
