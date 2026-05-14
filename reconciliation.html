@@ -4,8 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#050816" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
 
   <title>Reconciliation · Sovereign Finance</title>
 
@@ -18,244 +16,366 @@
       width: min(100%, 1480px);
       margin: 0 auto;
       display: grid;
-      gap: var(--sf-space-5, 20px);
+      gap: 16px;
     }
 
-    .recon-command {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: var(--sf-space-4, 16px);
-      align-items: center;
-      padding: clamp(18px, 3vw, 28px);
+    .recon-toolbar,
+    .recon-status,
+    .recon-rules,
+    .recon-kpi,
+    .recon-row {
       border: 1px solid var(--sf-border);
-      border-radius: var(--sf-radius-xl, 24px);
-      background: var(--sf-card);
-      box-shadow: var(--sf-shadow-sm);
+      background: var(--sf-surface-1);
     }
 
-    .recon-title {
-      margin: 0;
-      color: var(--sf-text);
-      font-size: clamp(34px, 6vw, 62px);
-      line-height: .92;
-      font-weight: 950;
-      letter-spacing: -.07em;
+    .recon-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 12px 14px;
+      border-radius: 18px;
     }
 
     .recon-copy {
-      margin: 10px 0 0;
       color: var(--sf-text-muted);
-      font-size: var(--sf-font-14, 14px);
-      font-weight: 700;
-      line-height: 1.55;
-      max-width: 980px;
+      font-size: 13px;
+      font-weight: 750;
+      line-height: 1.45;
     }
 
     .recon-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: var(--sf-space-2, 10px);
-      justify-content: flex-end;
+      gap: 8px;
     }
 
-    .recon-hero {
-      position: relative;
-      overflow: hidden;
-      padding: clamp(22px, 4vw, 38px);
-      border-radius: var(--sf-radius-2xl, 30px);
-      color: #f8fafc;
+    .recon-status {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 12px 14px;
+      border-radius: 18px;
       background:
-        radial-gradient(circle at 82% 12%, rgba(83, 215, 167, .28), transparent 24rem),
-        linear-gradient(135deg, #06111f, #0f172a 48%, #102a25);
-      border: 1px solid rgba(255, 255, 255, .10);
-      box-shadow: var(--sf-shadow-lg);
+        radial-gradient(circle at 90% 20%, rgba(83, 215, 167, .12), transparent 22rem),
+        var(--sf-surface-1);
     }
 
-    .recon-hero h2 {
-      margin: 12px 0 0;
-      color: #fff;
-      font-size: clamp(34px, 6vw, 68px);
-      line-height: .92;
-      font-weight: 950;
-      letter-spacing: -.075em;
-    }
-
-    .recon-hero p {
-      max-width: 920px;
-      margin: 14px 0 0;
-      color: #cbd5e1;
-      font-size: var(--sf-font-15, 15px);
-      line-height: 1.6;
-      font-weight: 720;
-    }
-
-    .recon-pill-row {
+    .recon-chip-row {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-top: 14px;
+      align-items: center;
     }
 
-    .recon-pill {
-      border: 1px solid rgba(255, 255, 255, .16);
+    .recon-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 5px 9px;
+      border: 1px solid var(--sf-border-subtle);
       border-radius: 999px;
-      background: rgba(255, 255, 255, .08);
-      color: #e5e7eb;
-      padding: 7px 10px;
-      font-size: 12px;
+      background: var(--sf-surface-2);
+      color: var(--sf-text-muted);
+      font-size: 11px;
       font-weight: 850;
+      white-space: nowrap;
     }
 
-    .recon-metrics {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: var(--sf-space-4, 14px);
+    .recon-chip.strong {
+      color: var(--sf-text);
+      background: var(--sf-accent-soft);
+      border-color: rgba(241, 184, 87, .28);
     }
+
+    .recon-chip.good {
+      color: var(--sf-positive);
+      border-color: rgba(83, 215, 167, .28);
+      background: var(--sf-positive-soft);
+    }
+
+    .recon-chip.warn {
+      color: var(--sf-warning);
+      border-color: rgba(241, 184, 87, .28);
+      background: var(--sf-warning-soft);
+    }
+
+    .recon-rules {
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .recon-rules summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 12px 14px;
+      color: var(--sf-text);
+      font-size: 13px;
+      font-weight: 900;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .recon-rules summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .recon-rules summary::after {
+      content: "▾";
+      color: var(--sf-text-muted);
+      transition: transform .18s ease;
+    }
+
+    .recon-rules[open] summary::after {
+      transform: rotate(180deg);
+    }
+
+    .recon-rules-body {
+      padding: 0 14px 14px;
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .recon-rules-body ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .recon-kpis {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .recon-kpi {
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .recon-kpi-label {
+      margin: 0 0 8px;
+      color: var(--sf-text-muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .recon-kpi-value {
+      margin: 0;
+      color: var(--sf-text);
+      font-size: clamp(22px, 3vw, 34px);
+      line-height: 1;
+      font-weight: 950;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .recon-kpi-value.good { color: var(--sf-positive); }
+    .recon-kpi-value.warn { color: var(--sf-warning); }
+    .recon-kpi-value.danger { color: var(--sf-danger); }
 
     .recon-workspace {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
-      gap: var(--sf-space-4, 16px);
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
+      gap: 16px;
       align-items: start;
     }
 
-    .recon-stack {
+    .recon-panel-stack {
       display: grid;
-      gap: var(--sf-space-4, 16px);
+      gap: 16px;
     }
 
-    .recon-toolbar {
+    .recon-list {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
+      gap: 10px;
+    }
+
+    .recon-empty {
+      border: 1px dashed var(--sf-border);
+      border-radius: 18px;
+      padding: 18px;
+      background: var(--sf-surface-1);
+      color: var(--sf-text-muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .recon-row {
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(255,255,255,.025);
+    }
+
+    .recon-row-shell {
+      width: 100%;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      display: grid;
+      grid-template-columns: 34px minmax(220px, 1.4fr) 120px 120px 120px 96px 20px;
+      gap: 10px;
       align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .recon-filters {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .recon-filter {
-      border: 1px solid var(--sf-border);
-      border-radius: 999px;
-      background: var(--sf-surface-2);
-      color: var(--sf-text-soft);
-      padding: 8px 12px;
-      font-size: 12px;
-      font-weight: 900;
+      padding: 10px 12px;
+      text-align: left;
       cursor: pointer;
     }
 
-    .recon-filter.is-active {
-      background: var(--sf-accent);
-      border-color: var(--sf-accent);
-      color: var(--sf-accent-contrast);
-    }
-
-    .recon-account-list {
-      display: grid;
-      gap: 12px;
-    }
-
-    .recon-account-card {
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 18px;
-      background: var(--sf-surface-1);
-      padding: 14px;
-      display: grid;
-      gap: 12px;
-    }
-
-    .recon-account-card.is-selected {
-      border-color: var(--sf-accent);
-      box-shadow: 0 0 0 3px var(--sf-accent-soft);
-    }
-
-    .recon-account-head {
-      display: grid;
-      grid-template-columns: 42px minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: center;
+    .recon-row-shell:hover {
+      background: rgba(255,255,255,.035);
     }
 
     .recon-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 14px;
+      width: 30px;
+      height: 30px;
+      border-radius: 11px;
       display: grid;
       place-items: center;
       background: var(--sf-accent-soft);
       color: var(--sf-accent-strong);
+      font-size: 15px;
       font-weight: 900;
     }
 
-    .recon-account-title {
+    .recon-title-line {
       color: var(--sf-text);
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 950;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .recon-account-sub {
-      margin-top: 4px;
+    .recon-sub {
+      margin-top: 3px;
       color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.35;
+      font-size: 11px;
+      font-weight: 750;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .recon-amount {
       color: var(--sf-text);
-      font-size: 16px;
+      text-align: right;
+      font-size: 13px;
       font-weight: 950;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
-      text-align: right;
     }
 
-    .recon-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
+    .recon-amount.good { color: var(--sf-positive); }
+    .recon-amount.warn { color: var(--sf-warning); }
+    .recon-amount.danger { color: var(--sf-danger); }
 
-    .recon-tag {
+    .recon-status-label {
+      justify-self: end;
       border: 1px solid var(--sf-border-subtle);
       border-radius: 999px;
+      padding: 4px 8px;
       background: var(--sf-surface-2);
       color: var(--sf-text-muted);
-      padding: 4px 8px;
       font-size: 11px;
       font-weight: 850;
+      white-space: nowrap;
     }
 
-    .recon-tag.good {
-      background: var(--sf-positive-soft);
+    .recon-status-label.good {
       color: var(--sf-positive);
-      border-color: rgba(83, 215, 167, .28);
+      border-color: rgba(83, 215, 167, .22);
     }
 
-    .recon-tag.warn {
-      background: var(--sf-warning-soft);
+    .recon-status-label.warn {
       color: var(--sf-warning);
       border-color: rgba(241, 184, 87, .28);
     }
 
-    .recon-tag.danger {
-      background: var(--sf-danger-soft);
-      color: var(--sf-danger);
-      border-color: rgba(255, 127, 138, .28);
+    .recon-caret {
+      color: var(--sf-text-muted);
+      justify-self: end;
+      transition: transform .18s ease;
     }
 
-    .recon-card-actions {
+    .recon-row.is-open .recon-caret {
+      transform: rotate(180deg);
+    }
+
+    .recon-detail {
+      display: none;
+      border-top: 1px solid var(--sf-border-subtle);
+      padding: 12px;
+      background: rgba(0,0,0,.12);
+      gap: 12px;
+    }
+
+    .recon-row.is-open .recon-detail {
+      display: grid;
+    }
+
+    .recon-detail-grid {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr);
+      gap: 8px 14px;
+      align-items: baseline;
+    }
+
+    .recon-detail-label {
+      color: var(--sf-text-muted);
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-weight: 900;
+    }
+
+    .recon-detail-value {
+      color: var(--sf-text);
+      font-size: 12px;
+      font-weight: 800;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .recon-form-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+
+    .recon-field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .recon-field label {
+      color: var(--sf-text-muted);
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      font-weight: 900;
+    }
+
+    .recon-input {
+      width: 100%;
+      border: 1px solid var(--sf-border);
+      border-radius: 14px;
+      background: var(--sf-surface-1);
+      color: var(--sf-text);
+      padding: 10px 11px;
+      font: inherit;
+      outline: none;
+    }
+
+    .recon-inline-actions {
       display: flex;
-      justify-content: flex-end;
-      gap: 8px;
       flex-wrap: wrap;
+      gap: 8px;
     }
 
     .recon-action {
@@ -263,123 +383,29 @@
       border-radius: 999px;
       background: var(--sf-surface-2);
       color: var(--sf-text-soft);
-      padding: 8px 12px;
-      font-size: 12px;
+      padding: 8px 11px;
+      font-size: 11px;
       font-weight: 900;
       cursor: pointer;
+      text-decoration: none;
     }
 
     .recon-action.primary {
-      background: var(--sf-accent);
-      border-color: var(--sf-accent);
-      color: var(--sf-accent-contrast);
-    }
-
-    .recon-action.danger {
-      background: var(--sf-danger-soft);
-      color: var(--sf-danger);
-      border-color: rgba(255, 127, 138, .28);
-    }
-
-    .recon-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: start;
-      padding: 11px 0;
-      border-bottom: 1px solid var(--sf-border-subtle);
-    }
-
-    .recon-row:last-child {
-      border-bottom: 0;
-      padding-bottom: 0;
-    }
-
-    .recon-row-title {
+      background: var(--sf-accent-soft);
       color: var(--sf-text);
-      font-size: 14px;
-      font-weight: 900;
-      line-height: 1.25;
+      border-color: rgba(241, 184, 87, .32);
     }
 
-    .recon-row-sub {
-      margin-top: 4px;
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.4;
-    }
-
-    .recon-row-value {
-      color: var(--sf-text);
-      font-weight: 950;
-      text-align: right;
-      white-space: nowrap;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .recon-form {
-      display: grid;
-      gap: 12px;
-    }
-
-    .recon-field {
-      display: grid;
-      gap: 7px;
-    }
-
-    .recon-field label {
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      font-weight: 850;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-
-    .recon-input,
-    .recon-select,
-    .recon-textarea {
-      width: 100%;
-      border: 1px solid var(--sf-border);
-      border-radius: 14px;
-      background: var(--sf-surface-1);
-      color: var(--sf-text);
-      padding: 12px 13px;
-      font: inherit;
-      outline: none;
-    }
-
-    .recon-textarea {
-      min-height: 88px;
-      resize: vertical;
-    }
-
-    .recon-input:focus,
-    .recon-select:focus,
-    .recon-textarea:focus {
-      border-color: var(--sf-accent);
-      box-shadow: 0 0 0 3px var(--sf-accent-soft);
-    }
-
-    .recon-empty {
-      border: 1px dashed var(--sf-border);
-      border-radius: 18px;
-      padding: 18px;
-      color: var(--sf-text-muted);
-      background: var(--sf-surface-1);
-      line-height: 1.5;
-    }
-
-    .recon-debug {
+    .recon-pre {
       white-space: pre-wrap;
       overflow: auto;
-      max-height: 420px;
+      max-height: 460px;
       border-radius: 16px;
       padding: 14px;
       background: var(--sf-surface-2);
       color: var(--sf-text-muted);
       font-size: 12px;
       line-height: 1.5;
-      font-family: var(--sf-font-mono);
     }
 
     .recon-toast {
@@ -397,7 +423,7 @@
       background: var(--sf-card-strong);
       color: var(--sf-text);
       box-shadow: var(--sf-shadow-md);
-      font-weight: 850;
+      font-weight: 800;
     }
 
     .recon-toast.show {
@@ -406,36 +432,46 @@
     }
 
     @media (max-width: 1180px) {
-      .recon-command,
-      .recon-workspace {
-        grid-template-columns: 1fr;
+      .recon-workspace { grid-template-columns: 1fr; }
+      .recon-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 980px) {
+      .recon-row-shell {
+        grid-template-columns: 32px minmax(0, 1fr) 120px 20px;
       }
 
-      .recon-actions {
-        justify-content: flex-start;
+      .recon-row-shell > .recon-amount:nth-of-type(2),
+      .recon-row-shell > .recon-amount:nth-of-type(3),
+      .recon-status-label {
+        display: none;
+      }
+
+      .recon-form-grid {
+        grid-template-columns: 1fr;
       }
     }
 
-    @media (max-width: 760px) {
-      .recon-actions .sf-button,
-      .recon-action,
-      .recon-filter {
-        width: 100%;
+    @media (max-width: 640px) {
+      .recon-kpis { grid-template-columns: 1fr; }
+
+      .recon-row-shell {
+        grid-template-columns: 30px minmax(0, 1fr) 20px;
       }
 
-      .recon-toolbar,
-      .recon-account-head,
-      .recon-row {
+      .recon-row-shell > .recon-amount {
+        grid-column: 2;
+        text-align: left;
+        margin-top: -3px;
+      }
+
+      .recon-detail-grid {
         grid-template-columns: 1fr;
       }
 
-      .recon-amount,
-      .recon-row-value {
-        text-align: left;
-      }
-
-      .recon-card-actions {
-        justify-content: stretch;
+      .recon-actions .sf-button,
+      .recon-action {
+        width: 100%;
       }
     }
   </style>
@@ -447,215 +483,481 @@
 
     <main class="sf-page-shell">
       <section class="sf-page-content recon-os">
-        <section class="recon-command">
-          <div>
-            <div class="sf-page-eyebrow">Banking-grade reconciliation</div>
-            <h1 class="recon-title">Reconciliation</h1>
-            <p class="recon-copy">
-              Reconciliation compares bank-app declared balances against Accounts truth. It records declarations and drift proof only. It does not mutate ledger or account balances.
-            </p>
+        <section class="recon-toolbar">
+          <div class="recon-copy">
+            Compare app balances with real bank/wallet balances. Reconciliation snapshots do not change ledger or account balances.
           </div>
 
           <div class="recon-actions">
             <button class="sf-button sf-button--primary" id="refreshReconBtn" type="button">Refresh</button>
-            <a class="sf-button" href="/accounts.html">Accounts</a>
             <a class="sf-button" href="/transactions.html">Ledger</a>
+            <a class="sf-button" href="/accounts.html">Accounts</a>
           </div>
         </section>
 
-        <section class="recon-hero">
-          <div class="sf-page-eyebrow">Every rupee accounted for</div>
-          <h2 id="reconHeroStatus">Loading</h2>
-          <p id="reconHeroCopy">
-            Reading /api/reconciliation and validating /api/accounts as the computed balance source.
-          </p>
-          <div class="recon-pill-row">
-            <span class="recon-pill" id="reconVersionPill">version loading</span>
-            <span class="recon-pill" id="reconSourcePill">source loading</span>
-            <span class="recon-pill" id="reconPolicyPill">policy loading</span>
+        <section class="recon-status">
+          <div class="recon-chip-row">
+            <span class="recon-chip strong" id="reconHealth">Loading reconciliation</span>
+            <span class="recon-chip good">Backend truth</span>
+            <span class="recon-chip">No auto-adjustments</span>
+            <span class="recon-chip" id="reconReviewChip">Review loading</span>
+            <span class="recon-chip" id="reconVersion">reconciliation shell</span>
           </div>
+          <span class="recon-chip" id="reconStatusDetail">Reading account balances.</span>
         </section>
 
-        <section class="recon-metrics">
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Accounts</p>
-            <div id="metricAccountCount" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">Accounts returned by source.</p>
+        <details class="recon-rules">
+          <summary>Reconciliation rules</summary>
+          <div class="recon-rules-body">
+            <ul>
+              <li>Reconciliation does not change account balances by itself.</li>
+              <li>Real balance is entered from bank/wallet statement.</li>
+              <li>Difference means app balance and real balance do not match.</li>
+              <li>Adjustments must be reviewed before creating ledger rows.</li>
+              <li>Every saved check remains visible as audit history.</li>
+            </ul>
+          </div>
+        </details>
+
+        <section class="recon-kpis">
+          <article class="recon-kpi">
+            <p class="recon-kpi-label">App Balance</p>
+            <p class="recon-kpi-value" id="kpiAppBalance">—</p>
           </article>
 
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Declared</p>
-            <div id="metricDeclaredCount" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">Accounts with saved declarations.</p>
+          <article class="recon-kpi">
+            <p class="recon-kpi-label">Real Balance</p>
+            <p class="recon-kpi-value" id="kpiRealBalance">—</p>
           </article>
 
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">OK / Check / Investigate</p>
-            <div id="metricSeverityCounts" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">Drift severity split.</p>
+          <article class="recon-kpi">
+            <p class="recon-kpi-label">Difference</p>
+            <p class="recon-kpi-value" id="kpiDifference">—</p>
           </article>
 
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Open Drift</p>
-            <div id="metricOpenDrift" class="sf-metric-value sf-tone-warning">—</div>
-            <p class="sf-card-subtitle">Check + investigate.</p>
+          <article class="recon-kpi">
+            <p class="recon-kpi-label">Matched</p>
+            <p class="recon-kpi-value good" id="kpiMatched">—</p>
           </article>
 
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Total Abs Drift</p>
-            <div id="metricTotalAbsDrift" class="sf-metric-value sf-tone-danger">—</div>
-            <p class="sf-card-subtitle">Sum of absolute deltas.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Ledger Writes</p>
-            <div id="metricLedgerWrites" class="sf-metric-value">Blocked</div>
-            <p class="sf-card-subtitle">Reconciliation never mutates ledger.</p>
+          <article class="recon-kpi">
+            <p class="recon-kpi-label">Review</p>
+            <p class="recon-kpi-value warn" id="kpiReview">—</p>
           </article>
         </section>
 
         <section class="recon-workspace">
-          <div class="recon-stack">
+          <div class="recon-panel-stack">
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Accounts</p>
-                  <h2 class="sf-section-title">Computed vs Declared</h2>
+                  <p class="sf-section-kicker">Account checks</p>
+                  <h2 class="sf-section-title">Reconciliation Rows</h2>
                   <p class="sf-section-subtitle">
-                    Computed balances come from /api/accounts. Declared values are manual bank-app evidence.
+                    Enter real balance from your bank/wallet statement and save a reconciliation snapshot.
                   </p>
                 </div>
               </div>
 
-              <div class="recon-toolbar">
-                <div class="recon-filters" id="reconFilters">
-                  <button class="recon-filter is-active" type="button" data-filter="all">All</button>
-                  <button class="recon-filter" type="button" data-filter="not_reconciled">Not Reconciled</button>
-                  <button class="recon-filter" type="button" data-filter="ok">OK</button>
-                  <button class="recon-filter" type="button" data-filter="check">Check</button>
-                  <button class="recon-filter" type="button" data-filter="investigate">Investigate</button>
-                </div>
-
-                <button class="recon-action" id="reloadReconBtn" type="button">Reload</button>
-              </div>
-
-              <div id="reconAccountList" class="recon-account-list">
-                <div class="recon-empty">Loading reconciliation accounts…</div>
+              <div id="reconList" class="recon-list">
+                <div class="recon-empty">Loading accounts…</div>
               </div>
             </section>
           </div>
 
-          <aside class="recon-stack">
+          <aside class="recon-panel-stack">
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Declaration</p>
-                  <h2 class="sf-section-title" id="selectedReconTitle">No account selected</h2>
-                  <p class="sf-section-subtitle" id="selectedReconSub">
-                    Select an account, enter bank-app balance, dry-run, then save declaration.
+                  <p class="sf-section-kicker">Exception queue</p>
+                  <h2 class="sf-section-title" id="exceptionTitle">No exceptions loaded</h2>
+                  <p class="sf-section-subtitle" id="exceptionSub">
+                    Accounts with non-zero differences appear here.
                   </p>
                 </div>
               </div>
 
-              <div id="selectedReconPanel">
-                <div class="recon-empty">No account selected.</div>
-              </div>
-
-              <form class="recon-form" id="reconDeclarationForm" style="margin-top:16px;">
-                <div class="recon-field">
-                  <label for="reconAccountSelect">Account</label>
-                  <select class="recon-select" id="reconAccountSelect">
-                    <option value="">Select account…</option>
-                  </select>
-                </div>
-
-                <div class="recon-field">
-                  <label for="declaredBalanceInput">Declared balance</label>
-                  <input class="recon-input" id="declaredBalanceInput" type="number" step="0.01" placeholder="Bank app balance" />
-                </div>
-
-                <div class="recon-field">
-                  <label for="declaredAtInput">Declared at</label>
-                  <input class="recon-input" id="declaredAtInput" type="datetime-local" />
-                </div>
-
-                <div class="recon-field">
-                  <label for="reconNotesInput">Notes</label>
-                  <textarea class="recon-textarea" id="reconNotesInput" placeholder="Manual bank app check, screenshot reference, reason, etc."></textarea>
-                </div>
-
-                <div class="recon-card-actions">
-                  <button class="recon-action" id="dryRunReconBtn" type="button">Dry-run Declaration</button>
-                  <button class="recon-action primary" id="saveReconBtn" type="button">Save Declaration</button>
-                </div>
-              </form>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Declaration result</p>
-                  <h2 class="sf-section-title">Proof</h2>
-                </div>
-              </div>
-
-              <div id="declarationResultPanel">
-                <div class="recon-empty">No declaration dry-run/save yet.</div>
+              <div id="exceptionPanel">
+                <div class="recon-empty">No exceptions loaded.</div>
               </div>
             </section>
 
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Health</p>
-                  <h2 class="sf-section-title">Backend Health</h2>
-                </div>
-              </div>
-
-              <div id="reconHealthPanel">
-                <div class="recon-empty">Loading health…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Source + policy</p>
-                  <h2 class="sf-section-title">Truth Contract</h2>
-                </div>
-              </div>
-
-              <div id="reconSourcePanel">
-                <div class="recon-empty">Loading source contract…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Debug</p>
-                  <h2 class="sf-section-title">Raw Contract</h2>
-                </div>
-              </div>
-
-              <pre id="reconDebug" class="recon-debug">Loading…</pre>
-            </section>
+            <details class="sf-panel">
+              <summary class="sf-section-title">Raw payload</summary>
+              <pre id="reconRaw" class="recon-pre">Loading…</pre>
+            </details>
           </aside>
         </section>
 
         <footer>
-          <span class="sf-meta-text" id="reconFooterVersion">
-            reconciliation.html · declaration renderer
-          </span>
+          <span class="sf-meta-text" id="reconFooterVersion">reconciliation.html · manual balance snapshots</span>
         </footer>
       </section>
     </main>
   </div>
 
-  <div id="reconToast" class="recon-toast"></div>
+  <div class="recon-toast" id="reconToast"></div>
 
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
-  <script src="/js/reconciliation.js?v=0.2.0-declaration-ui"></script>
+
+  <script>
+    (function () {
+      'use strict';
+
+      const VERSION = 'v0.1.0-reconciliation-manual-snapshots';
+      const API_RECON = '/api/reconciliation';
+
+      const state = {
+        payload: null,
+        rows: [],
+        exceptions: []
+      };
+
+      const $ = id => document.getElementById(id);
+
+      function setText(id, value) {
+        const el = $(id);
+        if (el) el.textContent = value == null ? '' : String(value);
+      }
+
+      function esc(value) {
+        return String(value == null ? '' : value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function num(value, fallback = 0) {
+        if (value === null || value === undefined || value === '') return fallback;
+        const n = Number(String(value).replace(/rs/ig, '').replace(/,/g, '').trim());
+        return Number.isFinite(n) ? n : fallback;
+      }
+
+      function money(value) {
+        if (value === null || value === undefined || value === '') return '—';
+
+        const n = num(value, NaN);
+        if (!Number.isFinite(n)) return '—';
+
+        const sign = n < 0 ? '-' : '';
+        return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
+          minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
+          maximumFractionDigits: 2
+        });
+      }
+
+      function todayISO() {
+        return new Date().toISOString().slice(0, 10);
+      }
+
+      async function fetchJSON(url, options) {
+        const response = await fetch(url, {
+          cache: 'no-store',
+          headers: {
+            Accept: 'application/json',
+            ...(options && options.headers ? options.headers : {})
+          },
+          ...(options || {})
+        });
+
+        const text = await response.text();
+        let payload = null;
+
+        try {
+          payload = text ? JSON.parse(text) : null;
+        } catch {
+          throw new Error(`Non-JSON response from ${url}: HTTP ${response.status}`);
+        }
+
+        if (!response.ok || !payload || payload.ok === false) {
+          throw new Error((payload && payload.error) || `HTTP ${response.status}`);
+        }
+
+        return payload;
+      }
+
+      async function postJSON(url, body) {
+        return fetchJSON(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body || {})
+        });
+      }
+
+      function diffTone(diff) {
+        const d = num(diff, 0);
+        if (d === 0) return 'good';
+        return 'warn';
+      }
+
+      function statusLabel(status) {
+        if (status === 'needs_review') return 'Review';
+        if (status === 'matched') return 'Matched';
+        return 'Pending';
+      }
+
+      function statusClass(status) {
+        if (status === 'matched') return 'good';
+        return 'warn';
+      }
+
+      function renderKpis(summary) {
+        summary = summary || {};
+        setText('kpiAppBalance', money(summary.app_balance));
+        setText('kpiRealBalance', money(summary.real_balance));
+        setText('kpiDifference', money(summary.difference));
+        setText('kpiMatched', String(summary.matched_count || 0));
+        setText('kpiReview', String(summary.needs_review_count || 0));
+
+        const diff = $('kpiDifference');
+        if (diff) {
+          diff.classList.remove('good', 'warn', 'danger');
+          const d = num(summary.difference, 0);
+          diff.classList.add(d === 0 ? 'good' : 'warn');
+        }
+      }
+
+      function detail(label, value) {
+        return `
+          <div class="recon-detail-label">${esc(label)}</div>
+          <div class="recon-detail-value">${esc(value)}</div>
+        `;
+      }
+
+      function recommendation(row) {
+        const diff = num(row.difference, 0);
+        if (row.real_balance === null || row.real_balance === undefined) return 'Enter real statement balance to compare.';
+        if (diff === 0) return 'Balances match. No action needed.';
+        if (diff < 0) return 'Real balance is lower than app balance. Possible missing expense, fee, withdrawal, transfer out, or duplicate income.';
+        return 'Real balance is higher than app balance. Possible missing income, refund, reversal, transfer in, or duplicate expense.';
+      }
+
+      function renderRows() {
+        const list = $('reconList');
+        if (!list) return;
+
+        if (!state.rows.length) {
+          list.innerHTML = '<div class="recon-empty">No active asset accounts found.</div>';
+          return;
+        }
+
+        list.innerHTML = state.rows.map(row => {
+          const tone = diffTone(row.difference);
+          const realValue = row.real_balance == null ? '' : row.real_balance;
+
+          return `
+            <article class="recon-row" data-account-id="${esc(row.account_id)}">
+              <button class="recon-row-shell" type="button" data-toggle-recon="${esc(row.account_id)}">
+                <div class="recon-icon">🏦</div>
+
+                <div>
+                  <div class="recon-title-line">${esc(row.account_name)}</div>
+                  <div class="recon-sub">statement ${esc(row.statement_date || 'not checked')} · ${esc(recommendation(row))}</div>
+                </div>
+
+                <div class="recon-amount">${esc(money(row.app_balance))}</div>
+                <div class="recon-amount">${esc(row.real_balance == null ? '—' : money(row.real_balance))}</div>
+                <div class="recon-amount ${tone}">${esc(row.difference == null ? '—' : money(row.difference))}</div>
+                <div class="recon-status-label ${statusClass(row.status)}">${esc(statusLabel(row.status))}</div>
+                <div class="recon-caret">▾</div>
+              </button>
+
+              <div class="recon-detail">
+                <div class="recon-detail-grid">
+                  ${detail('Account', row.account_name)}
+                  ${detail('App balance', money(row.app_balance))}
+                  ${detail('Real balance', row.real_balance == null ? '—' : money(row.real_balance))}
+                  ${detail('Difference', row.difference == null ? '—' : money(row.difference))}
+                  ${detail('Status', statusLabel(row.status))}
+                  ${detail('Last checked', row.last_checked_at || 'Never')}
+                  ${detail('Recommendation', recommendation(row))}
+                  ${detail('Notes', row.notes || '—')}
+                </div>
+
+                <div class="recon-form-grid">
+                  <div class="recon-field">
+                    <label>Statement Date</label>
+                    <input class="recon-input" type="date" data-recon-date="${esc(row.account_id)}" value="${esc(row.statement_date || todayISO())}">
+                  </div>
+
+                  <div class="recon-field">
+                    <label>Real Balance</label>
+                    <input class="recon-input" type="number" step="0.01" data-recon-real="${esc(row.account_id)}" value="${esc(realValue)}" placeholder="Enter bank/wallet balance">
+                  </div>
+
+                  <div class="recon-field">
+                    <label>Notes</label>
+                    <input class="recon-input" type="text" data-recon-notes="${esc(row.account_id)}" value="${esc(row.notes || '')}" placeholder="Checked mobile app">
+                  </div>
+                </div>
+
+                <div class="recon-inline-actions">
+                  <button class="recon-action" type="button" data-dry-run-recon="${esc(row.account_id)}">Dry-run</button>
+                  <button class="recon-action primary" type="button" data-save-recon="${esc(row.account_id)}">Save Check</button>
+                  <a class="recon-action" href="/transactions.html?account=${encodeURIComponent(row.account_id)}">Open Ledger</a>
+                </div>
+              </div>
+            </article>
+          `;
+        }).join('');
+
+        bindRows();
+      }
+
+      function bindRows() {
+        document.querySelectorAll('[data-toggle-recon]').forEach(button => {
+          button.addEventListener('click', () => {
+            const id = button.getAttribute('data-toggle-recon');
+            const row = document.querySelector(`[data-account-id="${cssEscape(id)}"]`);
+            if (!row) return;
+            row.classList.toggle('is-open');
+          });
+        });
+
+        document.querySelectorAll('[data-dry-run-recon]').forEach(button => {
+          button.addEventListener('click', () => saveReconciliation(button.getAttribute('data-dry-run-recon'), true));
+        });
+
+        document.querySelectorAll('[data-save-recon]').forEach(button => {
+          button.addEventListener('click', () => saveReconciliation(button.getAttribute('data-save-recon'), false));
+        });
+      }
+
+      function cssEscape(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(value);
+        return String(value || '').replace(/"/g, '\\"');
+      }
+
+      function renderExceptions() {
+        const panel = $('exceptionPanel');
+        if (!panel) return;
+
+        const exceptions = state.exceptions || [];
+
+        setText('exceptionTitle', exceptions.length ? `${exceptions.length} need review` : 'No exceptions');
+        setText('exceptionSub', exceptions.length ? 'Non-zero balance differences.' : 'No account differences found.');
+
+        if (!exceptions.length) {
+          panel.innerHTML = '<div class="recon-empty">No exceptions. Matched accounts or pending statements only.</div>';
+          return;
+        }
+
+        panel.innerHTML = exceptions.map(row => `
+          <div class="recon-empty">
+            <strong>${esc(row.account_name)}</strong><br>
+            Difference: ${esc(money(row.difference))}<br>
+            ${esc(recommendation(row))}
+          </div>
+        `).join('');
+      }
+
+      function renderRaw() {
+        const raw = $('reconRaw');
+        if (raw) raw.textContent = JSON.stringify(state.payload || {}, null, 2);
+      }
+
+      function renderAll(payload) {
+        state.payload = payload || {};
+        state.rows = Array.isArray(payload.rows) ? payload.rows : [];
+        state.exceptions = Array.isArray(payload.exceptions) ? payload.exceptions : [];
+
+        renderKpis(payload.summary || {});
+        renderRows();
+        renderExceptions();
+        renderRaw();
+
+        setText('reconHealth', 'Health OK');
+        setText('reconReviewChip', `${payload.summary?.needs_review_count || 0} need review`);
+        setText('reconStatusDetail', `${state.rows.length} account${state.rows.length === 1 ? '' : 's'} loaded.`);
+        setText('reconVersion', VERSION);
+        setText('reconFooterVersion', `reconciliation.html · ${VERSION} · backend ${payload.version || 'unknown'}`);
+      }
+
+      function payloadForAccount(accountId) {
+        return {
+          account_id: accountId,
+          statement_date: document.querySelector(`[data-recon-date="${cssEscape(accountId)}"]`)?.value || todayISO(),
+          real_balance: num(document.querySelector(`[data-recon-real="${cssEscape(accountId)}"]`)?.value, null),
+          notes: document.querySelector(`[data-recon-notes="${cssEscape(accountId)}"]`)?.value || '',
+          created_by: 'web-reconciliation-v0.1.0'
+        };
+      }
+
+      async function saveReconciliation(accountId, dryRun) {
+        const payload = payloadForAccount(accountId);
+
+        if (payload.real_balance === null || Number.isNaN(payload.real_balance)) {
+          toast('Enter real balance first.');
+          return;
+        }
+
+        try {
+          const result = await postJSON(`${API_RECON}${dryRun ? '?dry_run=1' : ''}`, payload);
+
+          toast(dryRun ? `Dry-run: ${result.recommendation}` : 'Reconciliation saved.');
+
+          if (!dryRun) {
+            await loadReconciliation();
+          }
+        } catch (err) {
+          toast(`${dryRun ? 'Dry-run' : 'Save'} failed: ${err.message}`);
+        }
+      }
+
+      async function loadReconciliation() {
+        setText('reconHealth', 'Loading reconciliation');
+        setText('reconStatusDetail', 'Reading account balances.');
+
+        const list = $('reconList');
+        if (list) list.innerHTML = '<div class="recon-empty">Loading accounts…</div>';
+
+        try {
+          const payload = await fetchJSON(API_RECON);
+          renderAll(payload);
+        } catch (err) {
+          setText('reconHealth', 'Reconciliation unavailable');
+          setText('reconStatusDetail', err.message);
+
+          if (list) {
+            list.innerHTML = `<div class="recon-empty">Reconciliation could not load: ${esc(err.message)}</div>`;
+          }
+
+          state.payload = { error: err.message };
+          renderRaw();
+        }
+      }
+
+      function toast(message) {
+        const el = $('reconToast');
+        if (!el) return;
+
+        el.textContent = message;
+        el.classList.add('show');
+
+        clearTimeout(el._timer);
+        el._timer = setTimeout(() => el.classList.remove('show'), 3500);
+      }
+
+      function init() {
+        $('refreshReconBtn')?.addEventListener('click', loadReconciliation);
+        loadReconciliation();
+
+        window.SovereignReconciliation = {
+          version: VERSION,
+          reload: loadReconciliation,
+          state: () => JSON.parse(JSON.stringify(state))
+        };
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init, { once: true });
+      } else {
+        init();
+      }
+    })();
+  </script>
 </body>
 </html>
