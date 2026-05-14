@@ -1138,73 +1138,73 @@
   }
 
   async function savePayment(dryRun) {
-    const debtId = clean($('paymentDebtIdInput')?.value);
+  const debtId = clean($('paymentDebtIdInput')?.value);
 
-    if (!debtId) {
-      toast('No debt selected.');
+  if (!debtId) {
+    toast('No debt selected.');
+    return;
+  }
+
+  const body = {
+    debt_id: debtId,
+    amount: num($('paymentAmountInput')?.value),
+    date: clean($('paymentDateInput')?.value) || todayISO(),
+    account_id: clean($('paymentAccountInput')?.value),
+    direction: $('paymentDirectionInput')?.value || 'auto',
+    notes: clean($('paymentNotesInput')?.value),
+    created_by: 'web-debts-v0.6.3'
+  };
+
+  if (!body.amount || body.amount <= 0) {
+    toast('Payment amount must be greater than 0.');
+    return;
+  }
+
+  if (!body.account_id) {
+    toast('Select payment account.');
+    return;
+  }
+
+  const button = dryRun ? $('dryRunPaymentBtn') : $('savePaymentBtn');
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = dryRun ? 'Dry-running…' : 'Saving…';
+  }
+
+  try {
+    const result = await postJSON(
+      `${API_DEBTS}/payment${dryRun ? '?dry_run=1' : ''}`,
+      body
+    );
+
+    if (dryRun) {
+      setHTML('debtActionPanel', `
+        ${row('Dry-run payment', 'Backend route', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
+        ${row('Payment transaction', 'Expected ledger row', result.payment_transaction?.id || result.proof?.payment_transaction_id || '—')}
+        ${row('Transaction type', 'Expected account impact', result.payment_transaction?.type || '—', result.payment_transaction?.type === 'income' ? 'positive' : 'danger')}
+        ${row('Account', 'Selected account', result.payment_transaction?.account_id || body.account_id)}
+        ${row('Paid amount after', 'Debt state after payment', money(result.proof?.paid_amount_after || 0))}
+        ${row('Status after', 'Debt status after payment', result.proof?.status_after || '—')}
+      `);
+
+      toast('Payment dry-run passed.');
       return;
     }
 
-    const body = {
-      debt_id: debtId,
-      amount: num($('paymentAmountInput')?.value),
-      date: clean($('paymentDateInput')?.value) || todayISO(),
-      account_id: clean($('paymentAccountInput')?.value),
-      direction: $('paymentDirectionInput')?.value || 'auto',
-      notes: clean($('paymentNotesInput')?.value),
-      created_by: 'web-debts-v0.6.4'
-    };
-
-    if (!body.amount || body.amount <= 0) {
-      toast('Payment amount must be greater than 0.');
-      return;
-    }
-
-    if (!body.account_id) {
-      toast('Select payment account.');
-      return;
-    }
-
-    const button = dryRun ? $('dryRunPaymentBtn') : $('savePaymentBtn');
-
+    toast('Payment saved.');
+    closeModal('paymentModal');
+    await loadDebts();
+    selectDebt(debtId);
+  } catch (err) {
+    toast(`Payment failed: ${err.message}`);
+  } finally {
     if (button) {
-      button.disabled = true;
-      button.textContent = dryRun ? 'Dry-running…' : 'Saving…';
-    }
-
-    try {
-      const result = await postJSON(
-        `${API_DEBTS}/payment${dryRun ? '?dry_run=1' : ''}`,
-        body
-      );
-
-      if (dryRun) {
-        setHTML('debtActionPanel', `
-          ${row('Dry-run payment', 'Backend route', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
-          ${row('Payment transaction', 'Expected ledger row', result.payment_transaction?.id || result.proof?.payment_transaction_id || '—')}
-          ${row('Transaction type', 'Expected account impact', result.payment_transaction?.type || '—', result.payment_transaction?.type === 'income' ? 'positive' : 'danger')}
-          ${row('Account', 'Selected account', result.payment_transaction?.account_id || body.account_id)}
-          ${row('Paid amount after', 'Debt state after payment', money(result.proof?.paid_amount_after || 0))}
-          ${row('Status after', 'Debt status after payment', result.proof?.status_after || '—')}
-        `);
-
-        toast('Payment dry-run passed.');
-        return;
-      }
-
-      toast('Payment saved.');
-      closeModal('paymentModal');
-      await loadDebts();
-      selectDebt(debtId);
-    } catch (err) {
-      toast(`Payment failed: ${err.message}`);
-    } finally {
-      if (button) {
-        button.disabled = false;
-        button.textContent = dryRun ? 'Dry-run Payment' : 'Save Payment';
-      }
+      button.disabled = false;
+      button.textContent = dryRun ? 'Dry-run Payment' : 'Save Payment';
     }
   }
+}
 
   function openDeferModal(id) {
     state.selectedDebtId = id;
