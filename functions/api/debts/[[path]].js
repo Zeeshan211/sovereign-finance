@@ -1,15 +1,16 @@
 /* Sovereign Finance Debts API
  * /api/debts
- * v0.6.4-debt-payment-diagnostics
+ * v0.6.5-debt-payment-main-route
  *
- * Purpose of this version:
- * - Keep existing debt/origin/payment model.
- * - Add hard diagnostics to /api/debts/payment when debt lookup fails.
- * - Use TRIM(id) = TRIM(?) for payment debt lookup.
- * - Return received body, received debt_id, and nearby matching debts.
+ * Fix:
+ * - Keeps /api/debts/payment support.
+ * - Adds canonical fallback: POST /api/debts with { action: "payment" }.
+ * - Payment lookup uses TRIM(id) = TRIM(?).
+ * - Payment diagnostics remain enabled.
+ * - No manual D1 payment writes needed.
  */
 
-const VERSION = 'v0.6.4-debt-payment-diagnostics';
+const VERSION = 'v0.6.5-debt-payment-main-route';
 
 const ACTIVE_CONDITION = "(status IS NULL OR status = '' OR status = 'active')";
 const DEFAULT_CATEGORY_ID = 'debt_payment';
@@ -88,6 +89,8 @@ export async function onRequestGet(context) {
         new_money_moving_debt_requires_account_id: true,
         new_money_moving_debt_atomic_writes: true,
         payment_writes_are_atomic: true,
+        payment_main_route_supported: true,
+        payment_sub_route_supported: true,
         owed_to_me_origin_type: 'expense',
         i_owe_origin_type: 'income',
         owed_to_me_payment_type: 'income',
@@ -106,6 +109,7 @@ export async function onRequestPost(context) {
     const path = getPath(context);
     const body = await readJSON(context.request);
     const dryRun = isDryRun(context.request, body);
+    const action = safeText(body.action, '', 80).toLowerCase();
 
     if (path[0] === 'repair-ledger' || path[0] === 'repair-missing-ledger') {
       return repairLedgerOrigin(context, body, dryRun);
@@ -115,12 +119,17 @@ export async function onRequestPost(context) {
       return recordDebtPayment(context, body, dryRun);
     }
 
+    if (action === 'payment' || action === 'pay' || action === 'record_payment') {
+      return recordDebtPayment(context, body, dryRun);
+    }
+
     if (path.length > 0) {
       return json({
         ok: false,
         version: VERSION,
         error: 'Unsupported debts POST route.',
         path,
+        action,
         received_body_keys: Object.keys(body || {})
       }, 404);
     }
@@ -153,13 +162,10 @@ export async function onRequestPut(context) {
     }
 
     await db.prepare(
-      `UPDATE debts SET ${keys.map(key => `${key} = ?`).join(', ')} WHERE id = ?`
+      `UPDATE debts SET ${keys.map(key => `${key} = ?`).join(', ')} WHERE TRIM(id) = TRIM(?)`
     ).bind(...keys.map(key => update.payload[key]), id).run();
 
-    const row = await db.prepare(
-      `SELECT ${DEBT_COLUMNS} FROM debts WHERE id = ? LIMIT 1`
-    ).bind(id).first();
-
+    const row = await findDebtById(db, id);
     const linkMap = await loadDebtLedgerLinks(db, [id]);
     const debt = attachLedgerState(normalizeDebt(row), linkMap.get(id) || []);
 
@@ -217,10 +223,7 @@ async function createDebt(context, body, dryRun) {
 
   await db.batch(batch);
 
-  const row = await db.prepare(
-    `SELECT ${DEBT_COLUMNS} FROM debts WHERE id = ? LIMIT 1`
-  ).bind(payload.debt_row.id).first();
-
+  const row = await findDebtById(db, payload.debt_row.id);
   const links = payload.origin_transaction ? [sanitizeTransaction(payload.origin_transaction)] : [];
   const debt = attachLedgerState(normalizeDebt(row), links);
 
@@ -703,7 +706,6 @@ async function recordDebtPayment(context, body, dryRun) {
 
 async function findDebtById(db, debtId) {
   const cleanId = safeText(debtId, '', 200);
-
   if (!cleanId) return null;
 
   return db.prepare(
@@ -857,7 +859,8 @@ async function getHealth(db) {
       new_money_moving_create_is_atomic: true,
       payment_writes_transaction_debt_update_and_debt_payment_row: true,
       payment_lookup_uses_trimmed_debt_id: true,
-      payment_diagnostics_enabled: true
+      payment_diagnostics_enabled: true,
+      payment_main_route_supported: true
     },
     debts: debts.map(debt => ({
       id: debt.id,
