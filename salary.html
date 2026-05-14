@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#050816">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
 
   <title>Salary · Sovereign Finance</title>
 
@@ -18,66 +16,59 @@
       width: min(100%, 1480px);
       margin: 0 auto;
       display: grid;
-      gap: var(--sf-space-4, 16px);
-    }
-
-    .salary-command {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
       gap: 16px;
-      align-items: center;
-      padding: clamp(16px, 2.4vw, 24px);
+    }
+
+    .salary-toolbar,
+    .salary-status-strip,
+    .salary-rules,
+    .salary-kpi,
+    .salary-row {
       border: 1px solid var(--sf-border);
-      border-radius: var(--sf-radius-xl, 24px);
-      background: var(--sf-card);
-      box-shadow: var(--sf-shadow-sm);
+      background: var(--sf-surface-1);
     }
 
-    .salary-title {
-      margin: 0;
-      color: var(--sf-text);
-      font-size: clamp(30px, 4.6vw, 54px);
-      line-height: .92;
-      font-weight: 950;
-      letter-spacing: -.07em;
+    .salary-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 12px 14px;
+      border-radius: 18px;
     }
 
-    .salary-copy {
-      margin: 8px 0 0;
+    .salary-toolbar-copy {
       color: var(--sf-text-muted);
-      font-size: 14px;
-      font-weight: 700;
-      line-height: 1.5;
-      max-width: 880px;
+      font-size: 13px;
+      font-weight: 750;
+      line-height: 1.45;
     }
 
     .salary-actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      justify-content: flex-end;
+      gap: 8px;
     }
 
     .salary-status-strip {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
       justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
       padding: 12px 14px;
-      border: 1px solid var(--sf-border);
       border-radius: 18px;
       background:
         radial-gradient(circle at 90% 20%, rgba(83, 215, 167, .12), transparent 22rem),
         var(--sf-surface-1);
     }
 
-    .salary-status-main {
+    .salary-chip-row {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       align-items: center;
-      min-width: 0;
     }
 
     .salary-chip {
@@ -91,7 +82,6 @@
       color: var(--sf-text-muted);
       font-size: 11px;
       font-weight: 850;
-      line-height: 1.2;
       white-space: nowrap;
     }
 
@@ -103,28 +93,25 @@
 
     .salary-chip.good {
       color: var(--sf-positive);
-      border-color: rgba(83, 215, 167, .28);
       background: var(--sf-positive-soft);
+      border-color: rgba(83, 215, 167, .28);
     }
 
     .salary-rules {
-      border: 1px solid var(--sf-border);
       border-radius: 18px;
-      background: var(--sf-surface-1);
       overflow: hidden;
     }
 
     .salary-rules summary {
-      cursor: pointer;
       list-style: none;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      cursor: pointer;
       padding: 12px 14px;
       color: var(--sf-text);
       font-size: 13px;
       font-weight: 900;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     .salary-rules summary::-webkit-details-marker {
@@ -153,35 +140,32 @@
       padding-left: 18px;
     }
 
-    .salary-kpi-strip {
+    .salary-kpis {
       display: grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 12px;
     }
 
     .salary-kpi {
-      border: 1px solid var(--sf-border);
       border-radius: 18px;
-      background: var(--sf-surface-1);
       padding: 14px;
-      min-height: unset;
     }
 
     .salary-kpi-label {
+      margin: 0 0 8px;
       color: var(--sf-text-muted);
       font-size: 11px;
       font-weight: 900;
       letter-spacing: .08em;
       text-transform: uppercase;
-      margin: 0 0 8px;
     }
 
     .salary-kpi-value {
+      margin: 0;
       color: var(--sf-text);
       font-size: clamp(22px, 3vw, 34px);
-      font-weight: 950;
       line-height: 1;
-      margin: 0;
+      font-weight: 950;
       font-variant-numeric: tabular-nums;
     }
 
@@ -206,17 +190,16 @@
       border: 1px dashed var(--sf-border);
       border-radius: 18px;
       padding: 18px;
-      color: var(--sf-text-muted);
       background: var(--sf-surface-1);
+      color: var(--sf-text-muted);
       font-size: 13px;
       line-height: 1.5;
     }
 
     .salary-row {
-      border: 1px solid var(--sf-border-subtle);
       border-radius: 14px;
-      background: rgba(255,255,255,.025);
       overflow: hidden;
+      background: rgba(255,255,255,.025);
     }
 
     .salary-row-shell {
@@ -245,8 +228,8 @@
       place-items: center;
       background: var(--sf-accent-soft);
       color: var(--sf-accent-strong);
-      font-weight: 900;
       font-size: 15px;
+      font-weight: 900;
     }
 
     .salary-title-line {
@@ -280,13 +263,13 @@
       text-overflow: ellipsis;
     }
 
-    .salary-date {
+    .salary-date,
+    .salary-amount {
       text-align: right;
     }
 
     .salary-amount {
       color: var(--sf-text);
-      text-align: right;
       font-size: 13px;
       font-weight: 950;
       font-variant-numeric: tabular-nums;
@@ -331,8 +314,8 @@
       display: none;
       border-top: 1px solid var(--sf-border-subtle);
       padding: 12px;
-      gap: 10px;
       background: rgba(0,0,0,.12);
+      gap: 10px;
     }
 
     .salary-row.is-open .salary-detail {
@@ -362,7 +345,7 @@
       overflow-wrap: anywhere;
     }
 
-    .salary-actions-inline {
+    .salary-inline-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
@@ -378,6 +361,7 @@
       font-size: 11px;
       font-weight: 900;
       cursor: pointer;
+      text-decoration: none;
     }
 
     .salary-action.primary {
@@ -399,16 +383,11 @@
     }
 
     @media (max-width: 1180px) {
-      .salary-command,
       .salary-workspace {
         grid-template-columns: 1fr;
       }
 
-      .salary-actions {
-        justify-content: flex-start;
-      }
-
-      .salary-kpi-strip {
+      .salary-kpis {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
     }
@@ -426,12 +405,7 @@
     }
 
     @media (max-width: 640px) {
-      .salary-actions .sf-button,
-      .salary-action {
-        width: 100%;
-      }
-
-      .salary-kpi-strip {
+      .salary-kpis {
         grid-template-columns: 1fr;
       }
 
@@ -448,6 +422,11 @@
       .salary-detail-grid {
         grid-template-columns: 1fr;
       }
+
+      .salary-actions .sf-button,
+      .salary-action {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -458,13 +437,9 @@
 
     <main class="sf-page-shell">
       <section class="sf-page-content salary-os">
-        <section class="salary-command">
-          <div>
-            <div class="sf-page-eyebrow">Contract-rendered payout state</div>
-            <h1 class="salary-title">Salary</h1>
-            <p class="salary-copy">
-              Monthly salary, deductions, payout status, and ledger linkage. Salary posting should create ledger income through backend truth only.
-            </p>
+        <section class="salary-toolbar">
+          <div class="salary-toolbar-copy">
+            Contract-rendered monthly salary, deductions, payout status, and ledger linkage.
           </div>
 
           <div class="salary-actions">
@@ -475,14 +450,14 @@
         </section>
 
         <section class="salary-status-strip" aria-label="Salary system status">
-          <div class="salary-status-main">
+          <div class="salary-chip-row">
             <span class="salary-chip strong" id="salaryHealth">Loading salary</span>
             <span class="salary-chip good">Backend truth</span>
             <span class="salary-chip">Ledger-safe</span>
             <span class="salary-chip" id="salaryCurrentMonth">Current month loading</span>
             <span class="salary-chip" id="salaryVersion">salary compact shell</span>
           </div>
-          <div class="salary-chip" id="salaryStatusDetail">Reading salary contract.</div>
+          <span class="salary-chip" id="salaryStatusDetail">Reading salary contract.</span>
         </section>
 
         <details class="salary-rules">
@@ -498,7 +473,7 @@
           </div>
         </details>
 
-        <section class="salary-kpi-strip">
+        <section class="salary-kpis">
           <article class="salary-kpi">
             <p class="salary-kpi-label">Gross</p>
             <p class="salary-kpi-value" id="salaryGross">—</p>
@@ -590,7 +565,7 @@
     (function () {
       'use strict';
 
-      const VERSION = 'v0.1.0-salary-compact-shell';
+      const VERSION = 'v0.1.1-salary-object-safe-compact-shell';
       const API_SALARY = '/api/salary';
 
       const state = {
@@ -612,12 +587,88 @@
 
       function setText(id, value) {
         const el = $(id);
-        if (el) el.textContent = value == null ? '' : String(value);
+        if (el) el.textContent = safeDisplay(value);
+      }
+
+      function isObject(value) {
+        return value && typeof value === 'object' && !Array.isArray(value);
+      }
+
+      function safeDisplay(value, fallback = '—') {
+        if (value == null || value === '') return fallback;
+
+        if (Array.isArray(value)) {
+          return value.map(item => safeDisplay(item, '')).filter(Boolean).join(', ') || fallback;
+        }
+
+        if (isObject(value)) {
+          return value.label ||
+            value.name ||
+            value.title ||
+            value.display ||
+            value.display_name ||
+            value.month_label ||
+            value.period_label ||
+            value.current_month_label ||
+            value.month ||
+            value.period ||
+            value.value ||
+            fallback;
+        }
+
+        return String(value);
+      }
+
+      function numberValue(value, fallback = 0) {
+        if (value == null || value === '') return fallback;
+
+        if (typeof value === 'number') return Number.isFinite(value) ? value : fallback;
+
+        if (isObject(value)) {
+          const candidates = [
+            value.amount,
+            value.value,
+            value.pkr,
+            value.total,
+            value.net,
+            value.gross,
+            value.remaining,
+            value.paid,
+            value.salary
+          ];
+
+          for (const candidate of candidates) {
+            const n = numberValue(candidate, NaN);
+            if (Number.isFinite(n)) return n;
+          }
+
+          return fallback;
+        }
+
+        const n = Number(String(value).replace(/rs/ig, '').replace(/,/g, '').trim());
+        return Number.isFinite(n) ? n : fallback;
+      }
+
+      function firstValue(...values) {
+        for (const value of values) {
+          if (value !== undefined && value !== null && value !== '') return value;
+        }
+        return null;
+      }
+
+      function deepGet(obj, path) {
+        let cur = obj;
+        for (const key of path) {
+          if (!cur || typeof cur !== 'object') return undefined;
+          cur = cur[key];
+        }
+        return cur;
       }
 
       function money(value) {
-        const n = Number(value || 0);
+        const n = numberValue(value, NaN);
         if (!Number.isFinite(n)) return '—';
+
         const sign = n < 0 ? '-' : '';
         return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
           minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
@@ -626,7 +677,7 @@
       }
 
       function compactDate(value) {
-        const raw = String(value || '').slice(0, 10);
+        const raw = safeDisplay(value, '').slice(0, 10);
         if (!raw || !/^\\d{4}-\\d{2}-\\d{2}$/.test(raw)) return '—';
 
         const [, month, day] = raw.split('-');
@@ -665,66 +716,149 @@
         return payload;
       }
 
+      function extractArray(payload) {
+        const candidates = [
+          payload?.rows,
+          payload?.salary_rows,
+          payload?.salaryRows,
+          payload?.months,
+          payload?.salaries,
+          payload?.data,
+          payload?.result,
+          payload?.salary?.rows,
+          payload?.salary?.months,
+          payload?.contract?.rows,
+          payload?.contract?.months,
+          payload?.current_month?.rows,
+          payload?.currentMonth?.rows
+        ];
+
+        for (const candidate of candidates) {
+          if (Array.isArray(candidate) && candidate.length) return candidate;
+        }
+
+        return [];
+      }
+
       function normalizeRows(payload) {
         if (!payload) return [];
 
-        const candidates =
-          payload.rows ||
-          payload.salary_rows ||
-          payload.months ||
-          payload.salaries ||
-          payload.data ||
-          payload.result ||
-          [];
+        const arrayRows = extractArray(payload);
 
-        if (Array.isArray(candidates) && candidates.length) {
-          return candidates.map((row, index) => normalizeRow(row, index));
+        if (arrayRows.length) {
+          return arrayRows.map((row, index) => normalizeRow(row, index, payload));
         }
 
-        const month = payload.current_month || payload.month || currentMonthLabel();
-
         return [normalizeRow({
-          id: payload.id || 'salary_current',
-          month,
-          gross: payload.gross || payload.gross_salary || payload.salary || payload.contract_salary,
-          deductions: payload.deductions || payload.total_deductions,
-          net: payload.net || payload.net_salary || payload.net_payable || payload.amount,
-          paid: payload.paid || payload.paid_amount,
-          remaining: payload.remaining || payload.remaining_amount,
-          expected_date: payload.expected_date || payload.pay_date || payload.date,
-          account_id: payload.account_id,
-          status: payload.status || payload.payment_status,
-          ledger_transaction_id: payload.ledger_transaction_id || payload.transaction_id,
-          notes: payload.notes || payload.summary || ''
-        }, 0)];
+          id: firstValue(payload.id, payload.salary_id, 'salary_current'),
+          month: firstValue(
+            payload.current_month,
+            payload.currentMonth,
+            payload.month,
+            payload.period,
+            payload.label
+          ),
+          gross: firstValue(
+            payload.gross,
+            payload.gross_salary,
+            payload.salary,
+            payload.contract_salary,
+            deepGet(payload, ['contract', 'gross']),
+            deepGet(payload, ['summary', 'gross'])
+          ),
+          deductions: firstValue(
+            payload.deductions,
+            payload.total_deductions,
+            deepGet(payload, ['summary', 'deductions']),
+            deepGet(payload, ['contract', 'deductions'])
+          ),
+          net: firstValue(
+            payload.net,
+            payload.net_salary,
+            payload.net_payable,
+            payload.amount,
+            deepGet(payload, ['summary', 'net']),
+            deepGet(payload, ['contract', 'net'])
+          ),
+          paid: firstValue(
+            payload.paid,
+            payload.paid_amount,
+            deepGet(payload, ['summary', 'paid'])
+          ),
+          remaining: firstValue(
+            payload.remaining,
+            payload.remaining_amount,
+            deepGet(payload, ['summary', 'remaining'])
+          ),
+          expected_date: firstValue(payload.expected_date, payload.pay_date, payload.date),
+          account_id: firstValue(payload.account_id, payload.account, deepGet(payload, ['contract', 'account_id'])),
+          status: firstValue(payload.status, payload.payment_status),
+          ledger_transaction_id: firstValue(payload.ledger_transaction_id, payload.transaction_id, payload.ledger_id),
+          notes: firstValue(payload.notes, payload.summary_text, payload.message)
+        }, 0, payload)];
       }
 
-      function normalizeRow(row, index) {
-        const gross = Number(row.gross ?? row.gross_salary ?? row.salary ?? row.contract_salary ?? 0);
-        const deductions = Number(row.deductions ?? row.total_deductions ?? 0);
-        const net = Number(row.net ?? row.net_salary ?? row.net_payable ?? row.amount ?? (gross - deductions));
-        const paid = Number(row.paid ?? row.paid_amount ?? 0);
-        const remaining = Number(row.remaining ?? row.remaining_amount ?? Math.max(0, net - paid));
+      function normalizeRow(row, index, root) {
+        const gross = numberValue(firstValue(
+          row.gross,
+          row.gross_salary,
+          row.salary,
+          row.contract_salary,
+          row.base_salary,
+          row.expected_salary
+        ));
+
+        const deductions = numberValue(firstValue(
+          row.deductions,
+          row.total_deductions,
+          row.deduction_total,
+          0
+        ));
+
+        const netCandidate = firstValue(
+          row.net,
+          row.net_salary,
+          row.net_payable,
+          row.amount,
+          row.expected_amount
+        );
+
+        const net = netCandidate == null ? Math.max(0, gross - deductions) : numberValue(netCandidate);
+        const paid = numberValue(firstValue(row.paid, row.paid_amount, row.received, 0));
+        const remainingCandidate = firstValue(row.remaining, row.remaining_amount);
+        const remaining = remainingCandidate == null ? Math.max(0, net - paid) : numberValue(remainingCandidate);
+
+        const monthValue = firstValue(
+          row.month,
+          row.period,
+          row.label,
+          row.current_month,
+          root?.current_month,
+          root?.currentMonth,
+          currentMonthLabel()
+        );
+
+        const id = safeDisplay(firstValue(row.id, row.salary_id, row.key, `salary_${index}`), `salary_${index}`);
 
         return {
-          id: String(row.id || row.salary_id || row.month || `salary_${index}`),
-          month: row.month || row.period || row.label || currentMonthLabel(),
+          id,
+          month: safeDisplay(monthValue, currentMonthLabel()),
           gross,
           deductions,
           net,
           paid,
           remaining,
-          expected_date: row.expected_date || row.pay_date || row.date || '',
-          account_id: row.account_id || row.account || '—',
-          status: row.status || row.payment_status || (remaining <= 0 && net > 0 ? 'paid' : 'expected'),
-          ledger_transaction_id: row.ledger_transaction_id || row.transaction_id || row.ledger_id || '',
-          notes: row.notes || row.summary || '',
+          expected_date: safeDisplay(firstValue(row.expected_date, row.pay_date, row.date), ''),
+          account_id: safeDisplay(firstValue(row.account_id, row.account, row.destination_account), '—'),
+          status: safeDisplay(firstValue(row.status, row.payment_status, remaining <= 0 && net > 0 ? 'paid' : 'expected'), 'expected'),
+          ledger_transaction_id: safeDisplay(firstValue(row.ledger_transaction_id, row.transaction_id, row.ledger_id), ''),
+          notes: safeDisplay(firstValue(row.notes, row.summary, row.description), ''),
           raw: row
         };
       }
 
       function rowStatusClass(status) {
-        const s = String(status || '').toLowerCase();
+        const s = safeDisplay(status, '').toLowerCase();
         if (['paid', 'posted', 'settled', 'linked'].includes(s)) return 'good';
         if (['expected', 'pending', 'not posted', 'scheduled'].includes(s)) return 'warn';
         if (['failed', 'missing', 'blocked'].includes(s)) return 'danger';
@@ -732,17 +866,24 @@
       }
 
       function renderKpis(rows) {
-        const gross = rows.reduce((sum, row) => sum + Number(row.gross || 0), 0);
-        const deductions = rows.reduce((sum, row) => sum + Number(row.deductions || 0), 0);
-        const net = rows.reduce((sum, row) => sum + Number(row.net || 0), 0);
-        const paid = rows.reduce((sum, row) => sum + Number(row.paid || 0), 0);
-        const remaining = rows.reduce((sum, row) => sum + Number(row.remaining || 0), 0);
+        const gross = rows.reduce((sum, row) => sum + numberValue(row.gross), 0);
+        const deductions = rows.reduce((sum, row) => sum + numberValue(row.deductions), 0);
+        const net = rows.reduce((sum, row) => sum + numberValue(row.net), 0);
+        const paid = rows.reduce((sum, row) => sum + numberValue(row.paid), 0);
+        const remaining = rows.reduce((sum, row) => sum + numberValue(row.remaining), 0);
 
         setText('salaryGross', rows.length ? money(gross) : '—');
         setText('salaryDeductions', rows.length ? money(deductions) : '—');
         setText('salaryNet', rows.length ? money(net) : '—');
         setText('salaryPaid', rows.length ? money(paid) : '—');
         setText('salaryRemaining', rows.length ? money(remaining) : '—');
+      }
+
+      function detail(label, value) {
+        return `
+          <div class="salary-detail-label">${esc(label)}</div>
+          <div class="salary-detail-value">${esc(safeDisplay(value))}</div>
+        `;
       }
 
       function renderRows() {
@@ -790,7 +931,7 @@
                   ${detail('Notes', row.notes || '—')}
                 </div>
 
-                <div class="salary-actions-inline">
+                <div class="salary-inline-actions">
                   <button class="salary-action primary" type="button" data-select-salary="${esc(row.id)}">Details</button>
                   ${row.ledger_transaction_id ? `<a class="salary-action" href="/transactions.html?search=${encodeURIComponent(row.ledger_transaction_id)}">View Ledger</a>` : ''}
                   <button class="salary-action" type="button" data-copy-salary="${esc(row.id)}">Copy ID</button>
@@ -802,13 +943,6 @@
 
         renderKpis(state.rows);
         bindRows();
-      }
-
-      function detail(label, value) {
-        return `
-          <div class="salary-detail-label">${esc(label)}</div>
-          <div class="salary-detail-value">${esc(value)}</div>
-        `;
       }
 
       function bindRows() {
@@ -845,6 +979,15 @@
         return String(value || '').replace(/"/g, '\\"');
       }
 
+      function miniRow(label, value) {
+        return `
+          <div class="salary-detail-grid" style="padding:8px 0;border-bottom:1px solid var(--sf-border-subtle);">
+            <div class="salary-detail-label">${esc(label)}</div>
+            <div class="salary-detail-value">${esc(safeDisplay(value))}</div>
+          </div>
+        `;
+      }
+
       function selectSalary(id) {
         const row = state.rows.find(item => String(item.id) === String(id));
         if (!row) return;
@@ -867,15 +1010,6 @@
         }
       }
 
-      function miniRow(label, value) {
-        return `
-          <div class="salary-detail-grid" style="padding:8px 0;border-bottom:1px solid var(--sf-border-subtle);">
-            <div class="salary-detail-label">${esc(label)}</div>
-            <div class="salary-detail-value">${esc(value)}</div>
-          </div>
-        `;
-      }
-
       async function loadSalary() {
         setText('salaryHealth', 'Loading salary');
         setText('salaryStatusDetail', 'Reading salary contract.');
@@ -890,10 +1024,15 @@
           state.payload = payload;
           state.rows = normalizeRows(payload);
 
+          const monthLabel = safeDisplay(
+            firstValue(payload.current_month, payload.currentMonth, payload.month, payload.period),
+            currentMonthLabel()
+          );
+
           setText('salaryHealth', 'Health OK');
-          setText('salaryCurrentMonth', payload.current_month || payload.month || currentMonthLabel());
-          setText('salaryStatusDetail', payload.summary || `${state.rows.length} salary row${state.rows.length === 1 ? '' : 's'} loaded.`);
-          setText('salaryFooterVersion', `salary.html · ${VERSION} · backend ${payload.version || 'unknown'}`);
+          setText('salaryCurrentMonth', monthLabel);
+          setText('salaryStatusDetail', safeDisplay(payload.summary || payload.message, `${state.rows.length} salary row${state.rows.length === 1 ? '' : 's'} loaded.`));
+          setText('salaryFooterVersion', `salary.html · ${VERSION} · backend ${safeDisplay(payload.version, 'unknown')}`);
 
           const raw = $('salaryRaw');
           if (raw) raw.textContent = JSON.stringify(payload, null, 2);
@@ -910,7 +1049,7 @@
           if (list) {
             list.innerHTML = `
               <div class="salary-empty">
-                Salary API did not return usable data yet. This UI shell is ready; backend route expected: <strong>/api/salary</strong>.
+                Salary API did not return usable data yet. Backend route expected: <strong>/api/salary</strong>.
                 <br><br>
                 Error: ${esc(err.message)}
               </div>
