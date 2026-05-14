@@ -1,19 +1,12 @@
 /* js/debts.js
  * Sovereign Finance · Debts UI
- * v0.6.3-compact-expandable-debt-rows
- *
- * P2 frontend-only correction:
- * - Backend owns debt truth.
- * - UI does not mutate balances directly.
- * - Debt cards now match Ledger compact expandable row pattern.
- * - Debt-only rows are displayed as intentional no-origin movement, not broken.
- * - Missing ledger is only shown when backend says origin is required and absent.
+ * v0.6.4-payment-single-canonical-route
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.6.3-compact-expandable-debt-rows';
+  const VERSION = 'v0.6.4-payment-single-canonical-route';
   const API_DEBTS = '/api/debts';
   const API_DEBTS_HEALTH = '/api/debts/health';
   const API_ACCOUNTS = '/api/accounts';
@@ -748,6 +741,7 @@
       ${row('I owe', 'Origin ledger type', 'income into selected account', 'positive')}
       ${row('Debt-only', 'No money movement now', 'no account impact', 'warning')}
       ${row('Atomicity', 'Backend contract', 'debt + ledger batch when movement_now=1', 'positive')}
+      ${row('Payment route', 'Canonical endpoint', '/api/debts/payment', 'positive')}
     `);
   }
 
@@ -899,7 +893,7 @@
       account_id: movementNow ? clean($('debtAccountInput')?.value) : '',
       movement_date: clean($('debtMovementDateInput')?.value) || todayISO(),
       notes: clean($('debtNotesInput')?.value),
-      created_by: 'web-debts-v0.6.3'
+      created_by: 'web-debts-v0.6.4'
     };
   }
 
@@ -1100,7 +1094,7 @@
       debt_id: id,
       account_id: accountId,
       date: clean($('repairDateInput')?.value) || todayISO(),
-      created_by: 'web-debts-v0.6.3'
+      created_by: 'web-debts-v0.6.4'
     };
 
     try {
@@ -1144,73 +1138,73 @@
   }
 
   async function savePayment(dryRun) {
-  const debtId = clean($('paymentDebtIdInput')?.value);
+    const debtId = clean($('paymentDebtIdInput')?.value);
 
-  if (!debtId) {
-    toast('No debt selected.');
-    return;
-  }
-
-  const body = {
-    debt_id: debtId,
-    amount: num($('paymentAmountInput')?.value),
-    date: clean($('paymentDateInput')?.value) || todayISO(),
-    account_id: clean($('paymentAccountInput')?.value),
-    direction: $('paymentDirectionInput')?.value || 'auto',
-    notes: clean($('paymentNotesInput')?.value),
-    created_by: 'web-debts-v0.6.3'
-  };
-
-  if (!body.amount || body.amount <= 0) {
-    toast('Payment amount must be greater than 0.');
-    return;
-  }
-
-  if (!body.account_id) {
-    toast('Select payment account.');
-    return;
-  }
-
-  const button = dryRun ? $('dryRunPaymentBtn') : $('savePaymentBtn');
-
-  if (button) {
-    button.disabled = true;
-    button.textContent = dryRun ? 'Dry-running…' : 'Saving…';
-  }
-
-  try {
-    const result = await postJSON(
-      `${API_DEBTS}/payment${dryRun ? '?dry_run=1' : ''}`,
-      body
-    );
-
-    if (dryRun) {
-      setHTML('debtActionPanel', `
-        ${row('Dry-run payment', 'Backend route', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
-        ${row('Payment transaction', 'Expected ledger row', result.payment_transaction?.id || result.proof?.payment_transaction_id || '—')}
-        ${row('Transaction type', 'Expected account impact', result.payment_transaction?.type || '—', result.payment_transaction?.type === 'income' ? 'positive' : 'danger')}
-        ${row('Account', 'Selected account', result.payment_transaction?.account_id || body.account_id)}
-        ${row('Paid amount after', 'Debt state after payment', money(result.proof?.paid_amount_after || 0))}
-        ${row('Status after', 'Debt status after payment', result.proof?.status_after || '—')}
-      `);
-
-      toast('Payment dry-run passed.');
+    if (!debtId) {
+      toast('No debt selected.');
       return;
     }
 
-    toast('Payment saved.');
-    closeModal('paymentModal');
-    await loadDebts();
-    selectDebt(debtId);
-  } catch (err) {
-    toast(`Payment failed: ${err.message}`);
-  } finally {
+    const body = {
+      debt_id: debtId,
+      amount: num($('paymentAmountInput')?.value),
+      date: clean($('paymentDateInput')?.value) || todayISO(),
+      account_id: clean($('paymentAccountInput')?.value),
+      direction: $('paymentDirectionInput')?.value || 'auto',
+      notes: clean($('paymentNotesInput')?.value),
+      created_by: 'web-debts-v0.6.4'
+    };
+
+    if (!body.amount || body.amount <= 0) {
+      toast('Payment amount must be greater than 0.');
+      return;
+    }
+
+    if (!body.account_id) {
+      toast('Select payment account.');
+      return;
+    }
+
+    const button = dryRun ? $('dryRunPaymentBtn') : $('savePaymentBtn');
+
     if (button) {
-      button.disabled = false;
-      button.textContent = dryRun ? 'Dry-run Payment' : 'Save Payment';
+      button.disabled = true;
+      button.textContent = dryRun ? 'Dry-running…' : 'Saving…';
+    }
+
+    try {
+      const result = await postJSON(
+        `${API_DEBTS}/payment${dryRun ? '?dry_run=1' : ''}`,
+        body
+      );
+
+      if (dryRun) {
+        setHTML('debtActionPanel', `
+          ${row('Dry-run payment', 'Backend route', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
+          ${row('Payment transaction', 'Expected ledger row', result.payment_transaction?.id || result.proof?.payment_transaction_id || '—')}
+          ${row('Transaction type', 'Expected account impact', result.payment_transaction?.type || '—', result.payment_transaction?.type === 'income' ? 'positive' : 'danger')}
+          ${row('Account', 'Selected account', result.payment_transaction?.account_id || body.account_id)}
+          ${row('Paid amount after', 'Debt state after payment', money(result.proof?.paid_amount_after || 0))}
+          ${row('Status after', 'Debt status after payment', result.proof?.status_after || '—')}
+        `);
+
+        toast('Payment dry-run passed.');
+        return;
+      }
+
+      toast('Payment saved.');
+      closeModal('paymentModal');
+      await loadDebts();
+      selectDebt(debtId);
+    } catch (err) {
+      toast(`Payment failed: ${err.message}`);
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = dryRun ? 'Dry-run Payment' : 'Save Payment';
+      }
     }
   }
-}
 
   function openDeferModal(id) {
     state.selectedDebtId = id;
