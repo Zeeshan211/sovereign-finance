@@ -1,12 +1,16 @@
 /* js/debts.js
  * Sovereign Finance · Debts UI
- * v0.6.4-payment-single-canonical-route
+ * v0.6.5-payment-id-locked
+ *
+ * Frontend only.
+ * Backend truth stays in /api/debts.
+ * Payment route is canonical: POST /api/debts/payment
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.6.4-payment-single-canonical-route';
+  const VERSION = 'v0.6.5-payment-id-locked';
   const API_DEBTS = '/api/debts';
   const API_DEBTS_HEALTH = '/api/debts/health';
   const API_ACCOUNTS = '/api/accounts';
@@ -43,17 +47,8 @@
     if (el) el.innerHTML = value == null ? '' : String(value);
   }
 
-  function money(value) {
-    const n = Number(value || 0);
-    const sign = n < 0 ? '-' : '';
-    return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
-      minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
-      maximumFractionDigits: 2
-    });
-  }
-
-  function todayISO() {
-    return new Date().toISOString().slice(0, 10);
+  function clean(value) {
+    return String(value == null ? '' : value).trim();
   }
 
   function num(value, fallback = 0) {
@@ -61,8 +56,17 @@
     return Number.isFinite(n) ? n : fallback;
   }
 
-  function clean(value) {
-    return String(value == null ? '' : value).trim();
+  function todayISO() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function money(value) {
+    const n = Number(value || 0);
+    const sign = n < 0 ? '-' : '';
+    return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
+      minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
+      maximumFractionDigits: 2
+    });
   }
 
   function compactDate(value) {
@@ -109,17 +113,9 @@
   function toneClass(value) {
     const s = String(value || '').toLowerCase();
 
-    if (['ok', 'active', 'linked', 'scheduled', 'paid_off', 'settled', 'pass'].includes(s)) {
-      return 'good';
-    }
-
-    if (['warn', 'due_soon', 'due_today', 'no_schedule', 'missing_ledger', 'paused'].includes(s)) {
-      return 'warn';
-    }
-
-    if (['overdue', 'missing', 'danger', 'blocked', 'failed', 'closed'].includes(s)) {
-      return 'danger';
-    }
+    if (['ok', 'active', 'linked', 'scheduled', 'paid_off', 'settled', 'pass'].includes(s)) return 'good';
+    if (['warn', 'due_soon', 'due_today', 'no_schedule', 'missing_ledger', 'paused'].includes(s)) return 'warn';
+    if (['overdue', 'missing', 'danger', 'blocked', 'failed', 'closed'].includes(s)) return 'danger';
 
     return '';
   }
@@ -144,20 +140,6 @@
         </div>
       </div>
     `;
-  }
-
-  function modal(id) {
-    return $(id);
-  }
-
-  function openModal(id) {
-    const el = modal(id);
-    if (el) el.hidden = false;
-  }
-
-  function closeModal(id) {
-    const el = modal(id);
-    if (el) el.hidden = true;
   }
 
   async function fetchJSON(url, options) {
@@ -206,6 +188,10 @@
     return state.debts.find(debt => String(debt.id) === String(state.selectedDebtId)) || null;
   }
 
+  function findDebtById(id) {
+    return state.debts.find(debt => String(debt.id) === String(id)) || null;
+  }
+
   function debtRemaining(debt) {
     return num(debt.remaining_amount, Math.max(0, num(debt.original_amount) - num(debt.paid_amount)));
   }
@@ -213,9 +199,7 @@
   function debtPaidPct(debt) {
     const original = num(debt.original_amount);
     const paid = num(debt.paid_amount);
-
     if (!original || original <= 0) return 0;
-
     return Math.max(0, Math.min(100, paid / original * 100));
   }
 
@@ -253,17 +237,9 @@
 
   function accountRowsFromPayload(payload) {
     if (Array.isArray(payload.accounts)) return payload.accounts;
-
-    if (payload.accounts && typeof payload.accounts === 'object') {
-      return Object.values(payload.accounts);
-    }
-
-    if (payload.accounts_by_id && typeof payload.accounts_by_id === 'object') {
-      return Object.values(payload.accounts_by_id);
-    }
-
+    if (payload.accounts && typeof payload.accounts === 'object') return Object.values(payload.accounts);
+    if (payload.accounts_by_id && typeof payload.accounts_by_id === 'object') return Object.values(payload.accounts_by_id);
     if (Array.isArray(payload.account_list)) return payload.account_list;
-
     return [];
   }
 
@@ -307,11 +283,7 @@
   }
 
   function renderAccountOptions() {
-    const ids = [
-      'debtAccountInput',
-      'paymentAccountInput',
-      'repairAccountInput'
-    ];
+    const ids = ['debtAccountInput', 'paymentAccountInput', 'repairAccountInput'];
 
     const options = ['<option value="">Select account…</option>'].concat(
       state.accounts.map(account => {
@@ -319,7 +291,6 @@
         const name = account.name || account.label || id;
         const balance = account.balance ?? account.current_balance ?? account.amount ?? 0;
         const kind = account.type || account.kind || 'account';
-
         return `<option value="${esc(id)}">${esc(name)} · ${esc(kind)} · ${money(balance)}</option>`;
       })
     ).join('');
@@ -330,7 +301,6 @@
 
       const current = select.value;
       select.innerHTML = options;
-
       if (current) select.value = current;
     });
   }
@@ -347,13 +317,7 @@
       debt.notes,
       debt.origin_state,
       debt.ledger_transaction_ids.join(' '),
-      debt.ledger_transactions.map(tx => [
-        tx.id,
-        tx.date,
-        tx.type,
-        tx.account_id,
-        tx.notes
-      ].join(' ')).join(' ')
+      debt.ledger_transactions.map(tx => [tx.id, tx.date, tx.type, tx.account_id, tx.notes].join(' ')).join(' ')
     ].join(' ').toLowerCase();
   }
 
@@ -365,9 +329,7 @@
       return String(a.id).localeCompare(String(b.id));
     }
 
-    if (state.sort === 'amount') {
-      return debtRemaining(b) - debtRemaining(a);
-    }
+    if (state.sort === 'amount') return debtRemaining(b) - debtRemaining(a);
 
     if (state.sort === 'name') {
       return String(a.name || '').localeCompare(String(b.name || '')) ||
@@ -474,10 +436,7 @@
   }
 
   function debtRowSubtitle(debt) {
-    const parts = [
-      debtOriginLabel(debt),
-      debt.id
-    ];
+    const parts = [debtOriginLabel(debt), debt.id];
 
     if (debt.next_due_date || debt.due_date) {
       parts.push(`next ${debt.next_due_date || debt.due_date}`);
@@ -501,9 +460,7 @@
 
     if (debt.next_due_date) tags.push(tag(`next ${debt.next_due_date}`));
     if (debt.days_overdue) tags.push(tag(`${debt.days_overdue}d overdue`, 'danger'));
-    if (debt.days_until_due != null && debt.due_status === 'due_soon') {
-      tags.push(tag(`${debt.days_until_due}d left`, 'warn'));
-    }
+    if (debt.days_until_due != null && debt.due_status === 'due_soon') tags.push(tag(`${debt.days_until_due}d left`, 'warn'));
 
     return tags.join('');
   }
@@ -528,7 +485,6 @@
     }
 
     if (!blocks.length) return '';
-
     return `<div class="debt-blockers">${blocks.join('')}</div>`;
   }
 
@@ -838,8 +794,14 @@
     openModal('debtModal');
   }
 
-  function closeDebtModal() {
-    closeModal('debtModal');
+  function openModal(id) {
+    const el = $(id);
+    if (el) el.hidden = false;
+  }
+
+  function closeModal(id) {
+    const el = $(id);
+    if (el) el.hidden = true;
   }
 
   function resetDebtForm() {
@@ -869,7 +831,6 @@
     }
 
     const enabled = movement ? movement.checked : false;
-
     if (account) account.disabled = !enabled;
   }
 
@@ -893,7 +854,7 @@
       account_id: movementNow ? clean($('debtAccountInput')?.value) : '',
       movement_date: clean($('debtMovementDateInput')?.value) || todayISO(),
       notes: clean($('debtNotesInput')?.value),
-      created_by: 'web-debts-v0.6.4'
+      created_by: 'web-debts-v0.6.5'
     };
   }
 
@@ -904,7 +865,6 @@
     if (!Number.isFinite(payload.paid_amount) || payload.paid_amount < 0) return 'Paid amount must be 0 or greater.';
     if (payload.paid_amount > payload.original_amount) return 'Already paid cannot exceed original amount.';
     if (payload.movement_now && !payload.account_id) return 'Select the account money moved through.';
-
     return null;
   }
 
@@ -956,7 +916,7 @@
         ? 'Debt saved with ledger movement.'
         : 'Debt saved without money movement.');
 
-      closeDebtModal();
+      closeModal('debtModal');
       await loadDebts();
 
       if (result.id) selectDebt(result.id);
@@ -1094,7 +1054,7 @@
       debt_id: id,
       account_id: accountId,
       date: clean($('repairDateInput')?.value) || todayISO(),
-      created_by: 'web-debts-v0.6.4'
+      created_by: 'web-debts-v0.6.5'
     };
 
     try {
@@ -1123,88 +1083,110 @@
   }
 
   function openPaymentModal(id) {
-    state.selectedDebtId = id;
+    const debt = findDebtById(id);
 
-    const debt = selectedDebt();
-    if (!debt) return;
+    if (!debt) {
+      toast(`Cannot open payment. Debt not loaded: ${id}`);
+      return;
+    }
 
-    $('paymentDebtIdInput').value = id;
-    $('paymentAmountInput').value = debt.installment_amount || debt.remaining_amount || '';
-    $('paymentDateInput').value = todayISO();
-    $('paymentNotesInput').value = `${debt.name} · debt payment`;
+    state.selectedDebtId = debt.id;
+    renderSelectedDebt();
+
+    const hidden = $('paymentDebtIdInput');
+    if (hidden) hidden.value = debt.id;
+
+    const amountInput = $('paymentAmountInput');
+    if (amountInput) amountInput.value = debt.installment_amount || debt.remaining_amount || '';
+
+    const dateInput = $('paymentDateInput');
+    if (dateInput) dateInput.value = todayISO();
+
+    const notesInput = $('paymentNotesInput');
+    if (notesInput) notesInput.value = `${debt.name} · debt payment`;
+
+    const subtitle = document.querySelector('#paymentModal .sf-section-subtitle');
+    if (subtitle) {
+      subtitle.textContent = `Debt ID: ${debt.id} · ${kindLabel(debt.kind)} · remaining ${money(debt.remaining_amount)}`;
+    }
 
     renderAccountOptions();
     openModal('paymentModal');
   }
 
   async function savePayment(dryRun) {
-  const debtId = clean($('paymentDebtIdInput')?.value);
+    const hiddenDebtId = clean($('paymentDebtIdInput')?.value);
+    const debtId = hiddenDebtId || state.selectedDebtId;
+    const debt = findDebtById(debtId);
 
-  if (!debtId) {
-    toast('No debt selected.');
-    return;
-  }
-
-  const body = {
-    debt_id: debtId,
-    amount: num($('paymentAmountInput')?.value),
-    date: clean($('paymentDateInput')?.value) || todayISO(),
-    account_id: clean($('paymentAccountInput')?.value),
-    direction: $('paymentDirectionInput')?.value || 'auto',
-    notes: clean($('paymentNotesInput')?.value),
-    created_by: 'web-debts-v0.6.3'
-  };
-
-  if (!body.amount || body.amount <= 0) {
-    toast('Payment amount must be greater than 0.');
-    return;
-  }
-
-  if (!body.account_id) {
-    toast('Select payment account.');
-    return;
-  }
-
-  const button = dryRun ? $('dryRunPaymentBtn') : $('savePaymentBtn');
-
-  if (button) {
-    button.disabled = true;
-    button.textContent = dryRun ? 'Dry-running…' : 'Saving…';
-  }
-
-  try {
-    const result = await postJSON(
-      `${API_DEBTS}/payment${dryRun ? '?dry_run=1' : ''}`,
-      body
-    );
-
-    if (dryRun) {
-      setHTML('debtActionPanel', `
-        ${row('Dry-run payment', 'Backend route', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
-        ${row('Payment transaction', 'Expected ledger row', result.payment_transaction?.id || result.proof?.payment_transaction_id || '—')}
-        ${row('Transaction type', 'Expected account impact', result.payment_transaction?.type || '—', result.payment_transaction?.type === 'income' ? 'positive' : 'danger')}
-        ${row('Account', 'Selected account', result.payment_transaction?.account_id || body.account_id)}
-        ${row('Paid amount after', 'Debt state after payment', money(result.proof?.paid_amount_after || 0))}
-        ${row('Status after', 'Debt status after payment', result.proof?.status_after || '—')}
-      `);
-
-      toast('Payment dry-run passed.');
+    if (!debtId) {
+      toast('No debt selected.');
       return;
     }
 
-    toast('Payment saved.');
-    closeModal('paymentModal');
-    await loadDebts();
-    selectDebt(debtId);
-  } catch (err) {
-    toast(`Payment failed: ${err.message}`);
-  } finally {
+    if (!debt) {
+      toast(`Selected debt is not loaded in UI state: ${debtId}`);
+      return;
+    }
+
+    const body = {
+      debt_id: debt.id,
+      amount: num($('paymentAmountInput')?.value),
+      date: clean($('paymentDateInput')?.value) || todayISO(),
+      account_id: clean($('paymentAccountInput')?.value),
+      direction: $('paymentDirectionInput')?.value || 'auto',
+      notes: clean($('paymentNotesInput')?.value),
+      created_by: 'web-debts-v0.6.5'
+    };
+
+    if (!body.amount || body.amount <= 0) {
+      toast('Payment amount must be greater than 0.');
+      return;
+    }
+
+    if (!body.account_id) {
+      toast('Select payment account.');
+      return;
+    }
+
+    const button = dryRun ? $('dryRunPaymentBtn') : $('savePaymentBtn');
+
     if (button) {
-      button.disabled = false;
-      button.textContent = dryRun ? 'Dry-run Payment' : 'Save Payment';
+      button.disabled = true;
+      button.textContent = dryRun ? 'Dry-running…' : 'Saving…';
+    }
+
+    try {
+      const result = await postJSON(`${API_DEBTS}/payment${dryRun ? '?dry_run=1' : ''}`, body);
+
+      if (dryRun) {
+        setHTML('debtActionPanel', `
+          ${row('Dry-run payment', 'Backend route', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
+          ${row('Debt ID sent', 'Locked backend debt id', body.debt_id)}
+          ${row('Payment transaction', 'Expected ledger row', result.payment_transaction?.id || result.proof?.payment_transaction_id || '—')}
+          ${row('Transaction type', 'Expected account impact', result.payment_transaction?.type || '—', result.payment_transaction?.type === 'income' ? 'positive' : 'danger')}
+          ${row('Account', 'Selected account', result.payment_transaction?.account_id || body.account_id)}
+          ${row('Paid amount after', 'Debt state after payment', money(result.proof?.paid_amount_after || 0))}
+          ${row('Status after', 'Debt status after payment', result.proof?.status_after || '—')}
+        `);
+
+        toast('Payment dry-run passed.');
+        return;
+      }
+
+      toast('Payment saved.');
+      closeModal('paymentModal');
+      await loadDebts();
+      selectDebt(debt.id);
+    } catch (err) {
+      toast(`Payment failed: ${err.message}`);
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = dryRun ? 'Dry-run Payment' : 'Save Payment';
+      }
     }
   }
-}
 
   function openDeferModal(id) {
     state.selectedDebtId = id;
@@ -1249,7 +1231,7 @@
     $('newDebtBtn')?.addEventListener('click', openDebtModal);
     $('refreshDebtsBtn')?.addEventListener('click', loadDebts);
     $('reloadDebtsBtn')?.addEventListener('click', loadDebts);
-    $('closeDebtModalBtn')?.addEventListener('click', closeDebtModal);
+    $('closeDebtModalBtn')?.addEventListener('click', () => closeModal('debtModal'));
     $('dryRunDebtBtn')?.addEventListener('click', dryRunDebtCreate);
     $('saveDebtBtn')?.addEventListener('click', saveNewDebt);
     $('debtKindInput')?.addEventListener('change', updateDebtMovementCopy);
