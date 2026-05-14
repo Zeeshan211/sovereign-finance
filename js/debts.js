@@ -1,21 +1,19 @@
 /* js/debts.js
  * Sovereign Finance · Debts UI
- * v0.6.2-ledger-aware-ui
+ * v0.6.3-compact-expandable-debt-rows
  *
- * Contract:
+ * P2 frontend-only correction:
  * - Backend owns debt truth.
- * - Debt creation with money moved now must send movement_now + account_id.
- * - Owed-to-me writes debt_out through backend and reduces selected source account.
- * - I-owe writes debt_in through backend and increases selected destination account.
- * - Missing origin ledger is repaired through /api/debts/repair-ledger.
- * - UI does not fake amount/account edits unsupported by backend.
+ * - UI does not mutate balances directly.
+ * - Debt cards now match Ledger compact expandable row pattern.
+ * - Debt-only rows are displayed as intentional no-origin movement, not broken.
+ * - Missing ledger is only shown when backend says origin is required and absent.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.6.2-ledger-aware-ui';
-
+  const VERSION = 'v0.6.3-compact-expandable-debt-rows';
   const API_DEBTS = '/api/debts';
   const API_DEBTS_HEALTH = '/api/debts/health';
   const API_ACCOUNTS = '/api/accounts';
@@ -26,6 +24,8 @@
     health: null,
     selectedDebtId: null,
     filter: 'active',
+    search: '',
+    sort: 'due',
     loading: false
   };
 
@@ -53,7 +53,6 @@
   function money(value) {
     const n = Number(value || 0);
     const sign = n < 0 ? '-' : '';
-
     return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
       minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
       maximumFractionDigits: 2
@@ -73,8 +72,41 @@
     return String(value == null ? '' : value).trim();
   }
 
+  function compactDate(value) {
+    const raw = String(value || '').slice(0, 10);
+    if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return '—';
+
+    const [, month, day] = raw.split('-');
+    const months = {
+      '01': 'Jan',
+      '02': 'Feb',
+      '03': 'Mar',
+      '04': 'Apr',
+      '05': 'May',
+      '06': 'Jun',
+      '07': 'Jul',
+      '08': 'Aug',
+      '09': 'Sep',
+      '10': 'Oct',
+      '11': 'Nov',
+      '12': 'Dec'
+    };
+
+    return `${Number(day)} ${months[month] || month}`;
+  }
+
+  function formatDateTime(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '—';
+    return raw.replace('T', ' ').replace(/\.\d{3}Z$/, '').replace(/Z$/, '');
+  }
+
   function kindLabel(kind) {
     return kind === 'owed' ? 'Owed to me' : 'I owe';
+  }
+
+  function kindShort(kind) {
+    return kind === 'owed' ? 'Receivable' : 'Payable';
   }
 
   function kindTone(kind) {
@@ -84,9 +116,17 @@
   function toneClass(value) {
     const s = String(value || '').toLowerCase();
 
-    if (['ok', 'active', 'linked', 'scheduled', 'paid_off', 'pass'].includes(s)) return 'good';
-    if (['warn', 'due_soon', 'no_schedule', 'missing_ledger', 'paused'].includes(s)) return 'warn';
-    if (['overdue', 'missing', 'danger', 'blocked', 'failed', 'closed'].includes(s)) return 'danger';
+    if (['ok', 'active', 'linked', 'scheduled', 'paid_off', 'settled', 'pass'].includes(s)) {
+      return 'good';
+    }
+
+    if (['warn', 'due_soon', 'due_today', 'no_schedule', 'missing_ledger', 'paused'].includes(s)) {
+      return 'warn';
+    }
+
+    if (['overdue', 'missing', 'danger', 'blocked', 'failed', 'closed'].includes(s)) {
+      return 'danger';
+    }
 
     return '';
   }
@@ -138,7 +178,6 @@
     });
 
     const text = await response.text();
-
     let payload = null;
 
     try {
@@ -211,7 +250,10 @@
       ledger_required: Boolean(row.ledger_required),
       ledger_transaction_ids: Array.isArray(row.ledger_transaction_ids) ? row.ledger_transaction_ids : [],
       ledger_transactions: Array.isArray(row.ledger_transactions) ? row.ledger_transactions : [],
+      origin_state: row.origin_state || row.ledger_state || '',
+      origin_required: Boolean(row.origin_required ?? row.ledger_required),
       notes: row.notes || '',
+      created_at: row.created_at || null,
       raw: row
     };
   }
@@ -295,35 +337,100 @@
 
       const current = select.value;
       select.innerHTML = options;
+
       if (current) select.value = current;
     });
   }
 
+  function debtSearchHaystack(debt) {
+    return [
+      debt.id,
+      debt.name,
+      debt.kind,
+      debt.status,
+      debt.due_status,
+      debt.due_date,
+      debt.next_due_date,
+      debt.notes,
+      debt.origin_state,
+      debt.ledger_transaction_ids.join(' '),
+      debt.ledger_transactions.map(tx => [
+        tx.id,
+        tx.date,
+        tx.type,
+        tx.account_id,
+        tx.notes
+      ].join(' ')).join(' ')
+    ].join(' ').toLowerCase();
+  }
+
+  function compareDebts(a, b) {
+    if (state.sort === 'created') {
+      const ac = String(a.created_at || '');
+      const bc = String(b.created_at || '');
+      if (ac !== bc) return bc.localeCompare(ac);
+      return String(a.id).localeCompare(String(b.id));
+    }
+
+    if (state.sort === 'amount') {
+      return debtRemaining(b) - debtRemaining(a);
+    }
+
+    if (state.sort === 'name') {
+      return String(a.name || '').localeCompare(String(b.name || '')) ||
+        String(a.id || '').localeCompare(String(b.id || ''));
+    }
+
+    const ad = String(a.next_due_date || a.due_date || '9999-12-31');
+    const bd = String(b.next_due_date || b.due_date || '9999-12-31');
+
+    if (ad !== bd) return ad.localeCompare(bd);
+
+    return String(a.name || '').localeCompare(String(b.name || '')) ||
+      String(a.id || '').localeCompare(String(b.id || ''));
+  }
+
   function filteredDebts() {
-    return state.debts.filter(debt => {
-      if (state.filter === 'all') return true;
-      if (state.filter === 'active') return debt.status === 'active';
-      if (state.filter === 'owe') return debt.kind === 'owe' && debt.status === 'active';
-      if (state.filter === 'owed') return debt.kind === 'owed' && debt.status === 'active';
-      if (state.filter === 'due') return ['due_today', 'due_soon', 'overdue'].includes(debt.due_status);
-      if (state.filter === 'missing_ledger') return debt.ledger_required && !debt.ledger_linked;
-      return true;
-    });
+    const q = state.search.toLowerCase();
+
+    return state.debts
+      .filter(debt => {
+        if (q && !debtSearchHaystack(debt).includes(q)) return false;
+
+        if (state.filter === 'all') return true;
+        if (state.filter === 'active') return debt.status === 'active';
+        if (state.filter === 'owe') return debt.kind === 'owe' && debt.status === 'active';
+        if (state.filter === 'owed') return debt.kind === 'owed' && debt.status === 'active';
+        if (state.filter === 'due') return ['due_today', 'due_soon', 'overdue'].includes(debt.due_status);
+        if (state.filter === 'missing_ledger') return debt.ledger_required && !debt.ledger_linked;
+
+        return true;
+      })
+      .sort(compareDebts);
   }
 
   function renderMetrics(payload) {
-    const totalOwe = payload?.total_owe ?? state.debts
-      .filter(debt => debt.kind === 'owe' && debt.status === 'active')
-      .reduce((sum, debt) => sum + debtRemaining(debt), 0);
+    const totalOwe = payload?.total_owe ??
+      state.debts
+        .filter(debt => debt.kind === 'owe' && debt.status === 'active')
+        .reduce((sum, debt) => sum + debtRemaining(debt), 0);
 
-    const totalOwed = payload?.total_owed ?? state.debts
-      .filter(debt => debt.kind === 'owed' && debt.status === 'active')
-      .reduce((sum, debt) => sum + debtRemaining(debt), 0);
+    const totalOwed = payload?.total_owed ??
+      state.debts
+        .filter(debt => debt.kind === 'owed' && debt.status === 'active')
+        .reduce((sum, debt) => sum + debtRemaining(debt), 0);
 
-    const dueSoon = payload?.due_soon_count ?? state.debts.filter(debt => debt.due_status === 'due_soon').length;
-    const overdue = payload?.overdue_count ?? state.debts.filter(debt => debt.due_status === 'overdue').length;
-    const missingLedger = payload?.ledger_missing_count ?? state.debts.filter(debt => debt.ledger_required && !debt.ledger_linked).length;
-    const healthStatus = state.health?.status || payload?.health?.status || 'unknown';
+    const dueSoon = payload?.due_soon_count ??
+      state.debts.filter(debt => debt.due_status === 'due_soon').length;
+
+    const overdue = payload?.overdue_count ??
+      state.debts.filter(debt => debt.due_status === 'overdue').length;
+
+    const missingLedger = payload?.ledger_missing_count ??
+      payload?.repair_required_count ??
+      state.debts.filter(debt => debt.ledger_required && !debt.ledger_linked).length;
+
+    const healthStatus = state.health?.status || payload?.health?.status || payload?.status || 'unknown';
 
     setText('metricOwe', money(totalOwe));
     setText('metricOwed', money(totalOwed));
@@ -334,7 +441,7 @@
 
     setText('debtsVersionPill', payload?.version || VERSION);
     setText('debtsHealthPill', `health ${healthStatus}`);
-    setText('debtsLedgerPill', `${missingLedger} missing ledger`);
+    setText('debtsLedgerPill', `${missingLedger} needs repair`);
     setText('debtFooterVersion', `${VERSION} · backend ${payload?.version || 'unknown'}`);
 
     if (missingLedger > 0) {
@@ -346,24 +453,64 @@
     }
   }
 
+  function debtOriginLabel(debt) {
+    if (debt.ledger_linked) return 'ledger linked';
+    if (debt.ledger_required) return 'needs repair';
+
+    const notes = String(debt.notes || '').toLowerCase();
+
+    if (notes.includes('movement_now=0')) return 'debt-only';
+    if (debt.origin_state === 'legacy_unknown') return 'legacy/no-origin';
+
+    return 'no origin movement';
+  }
+
+  function debtOriginTone(debt) {
+    if (debt.ledger_linked) return 'good';
+    if (debt.ledger_required) return 'danger';
+    return 'warn';
+  }
+
+  function debtStatusText(debt) {
+    if (debt.status === 'settled' || debt.status === 'closed') return debt.status;
+    if (debt.due_status === 'overdue') return 'Overdue';
+    if (debt.due_status === 'due_today') return 'Due today';
+    if (debt.due_status === 'due_soon') return 'Due soon';
+    if (debt.ledger_required && !debt.ledger_linked) return 'Repair';
+    return debt.status || 'active';
+  }
+
+  function debtRowSubtitle(debt) {
+    const parts = [
+      debtOriginLabel(debt),
+      debt.id
+    ];
+
+    if (debt.next_due_date || debt.due_date) {
+      parts.push(`next ${debt.next_due_date || debt.due_date}`);
+    } else {
+      parts.push('no due date');
+    }
+
+    if (debt.days_overdue) parts.push(`${debt.days_overdue}d overdue`);
+    if (debt.days_until_due != null && debt.due_status === 'due_soon') parts.push(`${debt.days_until_due}d left`);
+
+    return parts.join(' · ');
+  }
+
   function renderDebtTags(debt) {
     const tags = [];
 
     tags.push(tag(kindLabel(debt.kind), kindTone(debt.kind)));
     tags.push(tag(debt.status || 'active', toneClass(debt.status)));
     tags.push(tag(debt.due_status || 'no schedule', toneClass(debt.due_status)));
-
-    if (debt.ledger_linked) {
-      tags.push(tag('ledger linked', 'good'));
-    } else if (debt.ledger_required) {
-      tags.push(tag('ledger missing', 'danger'));
-    } else {
-      tags.push(tag('no origin movement', 'warn'));
-    }
+    tags.push(tag(debtOriginLabel(debt), debtOriginTone(debt)));
 
     if (debt.next_due_date) tags.push(tag(`next ${debt.next_due_date}`));
     if (debt.days_overdue) tags.push(tag(`${debt.days_overdue}d overdue`, 'danger'));
-    if (debt.days_until_due != null && debt.due_status === 'due_soon') tags.push(tag(`${debt.days_until_due}d left`, 'warn'));
+    if (debt.days_until_due != null && debt.due_status === 'due_soon') {
+      tags.push(tag(`${debt.days_until_due}d left`, 'warn'));
+    }
 
     return tags.join('');
   }
@@ -379,6 +526,10 @@
       blocks.push(blocker('origin ledger missing', 'danger'));
     }
 
+    if (!debt.ledger_required && !debt.ledger_linked) {
+      blocks.push(blocker('debt-only / no account movement', 'warn'));
+    }
+
     if (debt.schedule_missing && debt.status === 'active') {
       blocks.push(blocker('schedule missing', 'warn'));
     }
@@ -388,42 +539,94 @@
     return `<div class="debt-blockers">${blocks.join('')}</div>`;
   }
 
+  function renderDebtInlineDetail(debt) {
+    const rows = [
+      ['Kind', kindLabel(debt.kind)],
+      ['Original', money(debt.original_amount)],
+      ['Paid', money(debt.paid_amount)],
+      ['Remaining', money(debt.remaining_amount)],
+      ['Due date', debt.due_date || '—'],
+      ['Next due', debt.next_due_date || '—'],
+      ['Due status', debt.due_status || '—'],
+      ['Frequency', debt.frequency || '—'],
+      ['Installment', debt.installment_amount == null ? '—' : money(debt.installment_amount)],
+      ['Origin movement', debtOriginLabel(debt)],
+      ['Ledger IDs', debt.ledger_transaction_ids.length ? debt.ledger_transaction_ids.join(', ') : 'None'],
+      ['Created', formatDateTime(debt.created_at)]
+    ];
+
+    return `
+      <div class="debt-inline-grid">
+        ${rows.map(([label, value]) => `
+          <div class="debt-inline-label">${esc(label)}</div>
+          <div class="debt-inline-value">${esc(value)}</div>
+        `).join('')}
+      </div>
+
+      <div class="debt-inline-notes">
+        <div class="debt-inline-label">Notes</div>
+        <div class="debt-inline-note-text">${esc(debt.notes || '—')}</div>
+      </div>
+
+      ${debt.ledger_transactions.length ? `
+        <div class="debt-inline-notes">
+          <div class="debt-inline-label">Ledger transactions</div>
+          <div class="debt-inline-note-text">
+            ${esc(debt.ledger_transactions.map(tx => [
+              tx.id,
+              tx.date,
+              tx.type,
+              tx.account_id,
+              tx.amount
+            ].filter(Boolean).join(' · ')).join('\n'))}
+          </div>
+        </div>
+      ` : ''}
+
+      <div class="debt-card-actions inline">
+        <button class="debt-action" type="button" data-select-debt="${esc(debt.id)}">Details</button>
+        <button class="debt-action primary" type="button" data-edit-debt="${esc(debt.id)}">Edit</button>
+        <button class="debt-action" type="button" data-pay-debt="${esc(debt.id)}">Payment</button>
+        <button class="debt-action" type="button" data-defer-debt="${esc(debt.id)}">Defer</button>
+        ${debt.ledger_required && !debt.ledger_linked
+          ? `<button class="debt-action danger" type="button" data-repair-debt="${esc(debt.id)}">Repair Ledger</button>`
+          : ''}
+      </div>
+    `;
+  }
+
   function renderDebtCard(debt) {
     const selected = String(debt.id) === String(state.selectedDebtId);
     const pct = debtPaidPct(debt);
+    const statusTone = toneClass(debtStatusText(debt));
+    const dueDate = debt.next_due_date || debt.due_date || '';
 
     return `
-      <article class="debt-card ${selected ? 'is-selected' : ''}" data-debt-id="${esc(debt.id)}">
-        <div class="debt-head">
+      <article class="debt-card debt-compact-row ${selected ? 'is-selected' : ''}" data-debt-id="${esc(debt.id)}">
+        <button class="debt-row-shell" type="button" data-toggle-debt="${esc(debt.id)}">
           <div class="debt-icon">${debt.kind === 'owed' ? '📥' : '📤'}</div>
 
-          <div>
+          <div class="debt-copy-block">
             <div class="debt-title">${esc(debt.name)}</div>
-            <div class="debt-sub">${esc(debt.id)} · ${esc(debt.next_due_date || debt.due_date || 'no due date')}</div>
+            <div class="debt-sub">${esc(debtRowSubtitle(debt))}</div>
           </div>
 
+          <div class="debt-row-kind">${esc(kindShort(debt.kind))}</div>
+          <div class="debt-row-date">${esc(dueDate ? compactDate(dueDate) : '—')}</div>
           <div class="debt-amount">${money(debt.remaining_amount)}</div>
-        </div>
+          <div class="debt-row-status ${statusTone}">${esc(debtStatusText(debt))}</div>
+          <div class="debt-expand-caret">▾</div>
+        </button>
 
-        <div>
-          <div class="debt-progress" style="--paid-pct:${pct}%;">
-            <div class="debt-progress-fill"></div>
-          </div>
-          <div class="debt-progress-copy">
-            <span>Paid ${money(debt.paid_amount)}</span>
-            <span>Original ${money(debt.original_amount)}</span>
-          </div>
+        <div class="debt-progress" style="--paid-pct:${pct}%;">
+          <div class="debt-progress-fill"></div>
         </div>
 
         <div class="debt-tags">${renderDebtTags(debt)}</div>
         ${renderDebtBlockers(debt)}
 
-        <div class="debt-card-actions">
-          <button class="debt-action" type="button" data-select-debt="${esc(debt.id)}">Details</button>
-          <button class="debt-action primary" type="button" data-edit-debt="${esc(debt.id)}">Edit</button>
-          <button class="debt-action" type="button" data-pay-debt="${esc(debt.id)}">Payment</button>
-          <button class="debt-action" type="button" data-defer-debt="${esc(debt.id)}">Defer</button>
-          ${debt.ledger_required && !debt.ledger_linked ? `<button class="debt-action danger" type="button" data-repair-debt="${esc(debt.id)}">Repair Ledger</button>` : ''}
+        <div class="debt-inline-detail" data-debt-detail="${esc(debt.id)}">
+          ${renderDebtInlineDetail(debt)}
         </div>
       </article>
     `;
@@ -443,31 +646,71 @@
   }
 
   function bindDebtCardActions() {
+    document.querySelectorAll('[data-toggle-debt]').forEach(button => {
+      button.addEventListener('click', () => {
+        const id = button.getAttribute('data-toggle-debt');
+        const card = document.querySelector(`[data-debt-id="${cssEscape(id)}"]`);
+        if (!card) return;
+
+        card.classList.toggle('is-open');
+        state.selectedDebtId = id;
+        renderSelectedDebt();
+        renderDebug();
+      });
+    });
+
     document.querySelectorAll('[data-select-debt]').forEach(button => {
-      button.addEventListener('click', () => selectDebt(button.getAttribute('data-select-debt')));
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        selectDebt(button.getAttribute('data-select-debt'));
+      });
     });
 
     document.querySelectorAll('[data-edit-debt]').forEach(button => {
-      button.addEventListener('click', () => openEditPanel(button.getAttribute('data-edit-debt')));
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        openEditPanel(button.getAttribute('data-edit-debt'));
+      });
     });
 
     document.querySelectorAll('[data-pay-debt]').forEach(button => {
-      button.addEventListener('click', () => openPaymentModal(button.getAttribute('data-pay-debt')));
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        openPaymentModal(button.getAttribute('data-pay-debt'));
+      });
     });
 
     document.querySelectorAll('[data-defer-debt]').forEach(button => {
-      button.addEventListener('click', () => openDeferModal(button.getAttribute('data-defer-debt')));
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        openDeferModal(button.getAttribute('data-defer-debt'));
+      });
     });
 
     document.querySelectorAll('[data-repair-debt]').forEach(button => {
-      button.addEventListener('click', () => openRepairPanel(button.getAttribute('data-repair-debt')));
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        openRepairPanel(button.getAttribute('data-repair-debt'));
+      });
     });
+  }
+
+  function cssEscape(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(value);
+    return String(value || '').replace(/"/g, '\\"');
   }
 
   function selectDebt(id) {
     state.selectedDebtId = id;
-    renderDebtList();
+
+    document.querySelectorAll('.debt-card').forEach(card => {
+      const selected = card.getAttribute('data-debt-id') === String(id);
+      card.classList.toggle('is-selected', selected);
+      if (selected) card.classList.add('is-open');
+    });
+
     renderSelectedDebt();
+    renderDebug();
   }
 
   function renderSelectedDebt() {
@@ -491,8 +734,8 @@
       ${row('Status', 'Debt row status', debt.status || 'active')}
       ${row('Due status', 'Schedule state', debt.due_status || 'no schedule')}
       ${row('Next due', 'Computed backend due date', debt.next_due_date || '—')}
-      ${row('Installment', 'Planned amount', debt.installment_amount == null ? '—' : money(debt.installment_amount))}
-      ${row('Ledger linked', 'Origin movement', debt.ledger_linked ? 'Yes' : 'No', debt.ledger_linked ? 'positive' : 'danger')}
+      ${row('Origin state', 'Ledger origin classifier', debtOriginLabel(debt), debtOriginTone(debt) === 'good' ? 'positive' : debtOriginTone(debt) === 'danger' ? 'danger' : 'warning')}
+      ${row('Ledger linked', 'Origin movement', debt.ledger_linked ? 'Yes' : 'No', debt.ledger_linked ? 'positive' : 'warning')}
       ${row('Ledger transactions', 'Origin transaction IDs', debt.ledger_transaction_ids.length ? debt.ledger_transaction_ids.join(', ') : 'None')}
       ${debt.notes ? row('Notes', 'Backend notes', debt.notes) : ''}
     `);
@@ -501,9 +744,10 @@
   function renderEnforcement() {
     setHTML('debtEnforcementPanel', `
       ${row('Debt create rule', 'If money moved now', 'account_id required', 'warning')}
-      ${row('Owed to me', 'Backend ledger type', 'debt_out', 'danger')}
-      ${row('I owe', 'Backend ledger type', 'debt_in', 'positive')}
-      ${row('Atomicity', 'Backend contract', 'debt + ledger batch', 'positive')}
+      ${row('Owed to me', 'Origin ledger type', 'expense from selected account', 'danger')}
+      ${row('I owe', 'Origin ledger type', 'income into selected account', 'positive')}
+      ${row('Debt-only', 'No money movement now', 'no account impact', 'warning')}
+      ${row('Atomicity', 'Backend contract', 'debt + ledger batch when movement_now=1', 'positive')}
     `);
   }
 
@@ -511,6 +755,8 @@
     setText('debtDebug', JSON.stringify({
       version: VERSION,
       filter: state.filter,
+      search: state.search,
+      sort: state.sort,
       selectedDebtId: state.selectedDebtId,
       debts: state.debts,
       accounts: state.accounts,
@@ -521,6 +767,7 @@
 
   function renderAll(payload) {
     renderMetrics(payload || {});
+    ensureDebtControls();
     renderDebtList();
     renderSelectedDebt();
     renderEnforcement();
@@ -535,6 +782,49 @@
     });
 
     renderDebtList();
+    renderDebug();
+  }
+
+  function ensureDebtControls() {
+    if ($('debtSearchInput') && $('debtSortInput')) return;
+
+    const filterRow = document.querySelector('.debt-filter-row');
+    if (!filterRow) return;
+
+    const controls = document.createElement('div');
+    controls.className = 'debt-list-controls';
+    controls.innerHTML = `
+      <input
+        id="debtSearchInput"
+        class="debt-mini-input"
+        type="search"
+        placeholder="Search debts, IDs, notes, ledger IDs"
+        value="${esc(state.search)}"
+      >
+      <select id="debtSortInput" class="debt-mini-select">
+        <option value="due">Sort: Due date</option>
+        <option value="created">Sort: Created</option>
+        <option value="amount">Sort: Amount</option>
+        <option value="name">Sort: Name</option>
+      </select>
+    `;
+
+    filterRow.insertAdjacentElement('afterend', controls);
+
+    $('debtSearchInput')?.addEventListener('input', event => {
+      state.search = event.target.value.trim();
+      renderDebtList();
+      renderDebug();
+    });
+
+    $('debtSortInput')?.addEventListener('change', event => {
+      state.sort = event.target.value || 'due';
+      renderDebtList();
+      renderDebug();
+    });
+
+    const sort = $('debtSortInput');
+    if (sort) sort.value = state.sort;
   }
 
   function wireFilters() {
@@ -609,7 +899,7 @@
       account_id: movementNow ? clean($('debtAccountInput')?.value) : '',
       movement_date: clean($('debtMovementDateInput')?.value) || todayISO(),
       notes: clean($('debtNotesInput')?.value),
-      created_by: 'web-debts-v0.6.2'
+      created_by: 'web-debts-v0.6.3'
     };
   }
 
@@ -620,6 +910,7 @@
     if (!Number.isFinite(payload.paid_amount) || payload.paid_amount < 0) return 'Paid amount must be 0 or greater.';
     if (payload.paid_amount > payload.original_amount) return 'Already paid cannot exceed original amount.';
     if (payload.movement_now && !payload.account_id) return 'Select the account money moved through.';
+
     return null;
   }
 
@@ -638,7 +929,7 @@
       setHTML('debtActionPanel', `
         ${row('Dry-run', 'Debt create validation', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
         ${row('Expected debt rows', 'Backend proof', String(result.proof?.expected_debt_rows ?? '—'))}
-        ${row('Expected ledger rows', 'Backend proof', String(result.proof?.expected_ledger_rows ?? '—'), result.proof?.expected_ledger_rows ? 'positive' : 'warning')}
+        ${row('Expected origin rows', 'Backend proof', String(result.proof?.expected_origin_ledger_rows ?? result.proof?.expected_ledger_rows ?? '—'), (result.proof?.expected_origin_ledger_rows || result.proof?.expected_ledger_rows) ? 'positive' : 'warning')}
         ${row('Write model', 'Backend contract', result.proof?.write_model || '—')}
       `);
 
@@ -658,6 +949,7 @@
     }
 
     const button = $('saveDebtBtn');
+
     if (button) {
       button.disabled = true;
       button.textContent = 'Saving…';
@@ -666,7 +958,7 @@
     try {
       const result = await postJSON(API_DEBTS, payload);
 
-      toast(result.ledger_transaction_id
+      toast(result.origin_transaction_id || result.ledger_transaction_id
         ? 'Debt saved with ledger movement.'
         : 'Debt saved without money movement.');
 
@@ -686,6 +978,7 @@
 
   function openEditPanel(id) {
     state.selectedDebtId = id;
+
     const debt = selectedDebt();
     if (!debt) return;
 
@@ -753,6 +1046,7 @@
 
   function openRepairPanel(id) {
     state.selectedDebtId = id;
+
     const debt = selectedDebt();
     if (!debt) return;
 
@@ -760,13 +1054,13 @@
     renderAccountOptions();
 
     const copy = debt.kind === 'owed'
-      ? 'Owed to me: choose the source account money left from. Backend writes debt_out and reduces this account.'
-      : 'I owe: choose the destination account money entered into. Backend writes debt_in and increases this account.';
+      ? 'Owed to me: choose the source account money left from. Backend writes an expense origin and reduces this account.'
+      : 'I owe: choose the destination account money entered into. Backend writes an income origin and increases this account.';
 
     setHTML('debtActionPanel', `
       <form class="debt-form">
         ${row('Debt', debt.id, `${esc(debt.name)} · ${money(debt.original_amount)}`)}
-        ${row('Direction', 'Repair rule', debt.kind === 'owed' ? 'debt_out' : 'debt_in', debt.kind === 'owed' ? 'danger' : 'positive')}
+        ${row('Direction', 'Repair rule', debt.kind === 'owed' ? 'expense' : 'income', debt.kind === 'owed' ? 'danger' : 'positive')}
 
         <div class="debt-field">
           <label for="repairAccountInput">Correct Account</label>
@@ -806,16 +1100,19 @@
       debt_id: id,
       account_id: accountId,
       date: clean($('repairDateInput')?.value) || todayISO(),
-      created_by: 'web-debts-v0.6.2'
+      created_by: 'web-debts-v0.6.3'
     };
 
     try {
-      const url = dryRun ? `${API_DEBTS}/repair-ledger?dry_run=1` : `${API_DEBTS}/repair-ledger`;
+      const url = dryRun
+        ? `${API_DEBTS}/repair-ledger?dry_run=1`
+        : `${API_DEBTS}/repair-ledger`;
+
       const result = await postJSON(url, body);
 
       setHTML('debtActionPanel', `
         ${row(dryRun ? 'Dry-run repair' : 'Repair committed', 'Backend result', result.ok ? 'OK' : 'Failed', result.ok ? 'positive' : 'danger')}
-        ${row('Ledger transaction', 'Origin movement row', result.ledger_transaction_id || result.proof?.ledger_transaction_id || 'pending')}
+        ${row('Ledger transaction', 'Origin movement row', result.origin_transaction_id || result.ledger_transaction_id || result.proof?.origin_transaction_id || result.proof?.ledger_transaction_id || 'pending')}
         ${row('Writes performed', 'Backend truth', String(Boolean(result.writes_performed)), result.writes_performed ? 'positive' : 'warning')}
         ${row('Rule', 'Money model', result.proof?.rule || result.proof?.write_model || '—')}
       `);
@@ -833,16 +1130,16 @@
 
   function openPaymentModal(id) {
     state.selectedDebtId = id;
-    const debt = selectedDebt();
 
+    const debt = selectedDebt();
     if (!debt) return;
 
     $('paymentDebtIdInput').value = id;
     $('paymentAmountInput').value = debt.installment_amount || debt.remaining_amount || '';
     $('paymentDateInput').value = todayISO();
     $('paymentNotesInput').value = `${debt.name} · debt payment`;
-    renderAccountOptions();
 
+    renderAccountOptions();
     openModal('paymentModal');
   }
 
@@ -861,7 +1158,7 @@
       account_id: clean($('paymentAccountInput')?.value),
       direction: $('paymentDirectionInput')?.value || 'auto',
       notes: clean($('paymentNotesInput')?.value),
-      created_by: 'web-debts-v0.6.2'
+      created_by: 'web-debts-v0.6.3'
     };
 
     if (!body.amount || body.amount <= 0) {
@@ -885,12 +1182,15 @@
     for (const url of attempts) {
       try {
         await postJSON(url, body);
+
         toast(dryRun ? 'Payment dry-run passed.' : 'Payment saved.');
+
         if (!dryRun) {
           closeModal('paymentModal');
           await loadDebts();
           selectDebt(debtId);
         }
+
         return;
       } catch (err) {
         lastError = err;
@@ -902,8 +1202,8 @@
 
   function openDeferModal(id) {
     state.selectedDebtId = id;
-    const debt = selectedDebt();
 
+    const debt = selectedDebt();
     if (!debt) return;
 
     $('deferDebtIdInput').value = id;
@@ -943,25 +1243,20 @@
     $('newDebtBtn')?.addEventListener('click', openDebtModal);
     $('refreshDebtsBtn')?.addEventListener('click', loadDebts);
     $('reloadDebtsBtn')?.addEventListener('click', loadDebts);
-
     $('closeDebtModalBtn')?.addEventListener('click', closeDebtModal);
     $('dryRunDebtBtn')?.addEventListener('click', dryRunDebtCreate);
     $('saveDebtBtn')?.addEventListener('click', saveNewDebt);
-
     $('debtKindInput')?.addEventListener('change', updateDebtMovementCopy);
     $('debtMovementNowInput')?.addEventListener('change', updateDebtMovementCopy);
-
     $('closePaymentModalBtn')?.addEventListener('click', () => closeModal('paymentModal'));
     $('dryRunPaymentBtn')?.addEventListener('click', () => savePayment(true));
     $('savePaymentBtn')?.addEventListener('click', () => savePayment(false));
-
     $('closeDeferModalBtn')?.addEventListener('click', () => closeModal('deferModal'));
     $('saveDeferBtn')?.addEventListener('click', saveDefer);
   }
 
   function toast(message) {
     const el = $('debtToast');
-
     if (!el) return;
 
     el.textContent = message;
@@ -971,7 +1266,226 @@
     el._timer = setTimeout(() => el.classList.remove('show'), 3000);
   }
 
+  function injectStyles() {
+    if ($('debt-compact-js-style')) return;
+
+    const style = document.createElement('style');
+    style.id = 'debt-compact-js-style';
+    style.textContent = `
+      .debt-list-controls {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) 180px;
+        gap: 10px;
+        margin: -4px 0 14px;
+      }
+
+      .debt-mini-input,
+      .debt-mini-select {
+        width: 100%;
+        border: 1px solid var(--sf-border);
+        border-radius: 14px;
+        background: var(--sf-surface-1);
+        color: var(--sf-text);
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 13px;
+        outline: none;
+      }
+
+      .debt-card.debt-compact-row {
+        padding: 0;
+        gap: 0;
+      }
+
+      .debt-row-shell {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        display: grid;
+        grid-template-columns: 34px minmax(220px, 1.6fr) minmax(100px, .6fr) 86px 112px 86px 20px;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .debt-row-shell:hover {
+        background: rgba(255,255,255,.035);
+      }
+
+      .debt-copy-block {
+        min-width: 0;
+      }
+
+      .debt-row-kind,
+      .debt-row-date,
+      .debt-row-status {
+        color: var(--sf-text-muted);
+        font-size: 11px;
+        font-weight: 850;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .debt-row-date {
+        text-align: right;
+      }
+
+      .debt-row-status {
+        justify-self: end;
+        border: 1px solid var(--sf-border-subtle);
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: var(--sf-surface-2);
+      }
+
+      .debt-row-status.good {
+        color: var(--sf-positive);
+        border-color: rgba(83, 215, 167, .22);
+      }
+
+      .debt-row-status.warn {
+        color: var(--sf-warning);
+        border-color: rgba(241, 184, 87, .28);
+      }
+
+      .debt-row-status.danger {
+        color: var(--sf-danger);
+        border-color: rgba(255, 127, 138, .28);
+      }
+
+      .debt-expand-caret {
+        color: var(--sf-text-muted);
+        font-size: 13px;
+        justify-self: end;
+        transition: transform .18s ease;
+      }
+
+      .debt-card.is-open .debt-expand-caret {
+        transform: rotate(180deg);
+      }
+
+      .debt-card.debt-compact-row .debt-progress {
+        margin: 0 12px 9px 56px;
+      }
+
+      .debt-card.debt-compact-row .debt-tags,
+      .debt-card.debt-compact-row .debt-blockers {
+        padding: 0 12px 9px 56px;
+      }
+
+      .debt-inline-detail {
+        display: none;
+        border-top: 1px solid var(--sf-border-subtle);
+        padding: 12px;
+        gap: 10px;
+        background: rgba(0,0,0,.12);
+      }
+
+      .debt-card.is-open .debt-inline-detail {
+        display: grid;
+      }
+
+      .debt-inline-grid {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 8px 14px;
+        align-items: baseline;
+      }
+
+      .debt-inline-label {
+        color: var(--sf-text-muted);
+        font-size: 10px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        font-weight: 900;
+      }
+
+      .debt-inline-value {
+        color: var(--sf-text);
+        font-size: 12px;
+        font-weight: 800;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .debt-inline-notes {
+        border-top: 1px solid var(--sf-border-subtle);
+        padding-top: 10px;
+        display: grid;
+        gap: 6px;
+      }
+
+      .debt-inline-note-text {
+        color: var(--sf-text-muted);
+        font-size: 12px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      .debt-card-actions.inline {
+        justify-content: flex-start;
+        padding-top: 4px;
+      }
+
+      @media (max-width: 980px) {
+        .debt-row-shell {
+          grid-template-columns: 32px minmax(0, 1fr) 112px 20px;
+        }
+
+        .debt-row-kind,
+        .debt-row-date,
+        .debt-row-status {
+          display: none;
+        }
+
+        .debt-card.debt-compact-row .debt-progress,
+        .debt-card.debt-compact-row .debt-tags,
+        .debt-card.debt-compact-row .debt-blockers {
+          margin-left: 54px;
+          padding-left: 0;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .debt-list-controls {
+          grid-template-columns: 1fr;
+        }
+
+        .debt-row-shell {
+          grid-template-columns: 30px minmax(0, 1fr) 20px;
+          gap: 8px;
+        }
+
+        .debt-amount {
+          grid-column: 2;
+          text-align: left;
+          margin-top: -3px;
+        }
+
+        .debt-inline-grid {
+          grid-template-columns: 1fr;
+          gap: 4px;
+        }
+
+        .debt-card.debt-compact-row .debt-progress,
+        .debt-card.debt-compact-row .debt-tags,
+        .debt-card.debt-compact-row .debt-blockers {
+          margin-left: 12px;
+          padding-left: 0;
+        }
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
   function init() {
+    injectStyles();
     wireFilters();
     wireModalButtons();
 
