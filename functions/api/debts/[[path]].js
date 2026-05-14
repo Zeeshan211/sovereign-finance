@@ -1,15 +1,16 @@
 /* Sovereign Finance Debts API
  * /api/debts
- * v0.6.7-post-json-payment-fixed
+ * v0.6.8-debt-payment-snapshot-insert
  *
  * Rules:
  * - Do not rely on /api/debts/payment because old item routes can shadow it.
  * - Payment uses POST /api/debts with body.action = "payment".
  * - Payment check uses GET /api/debts?action=payment_check.
- * - POST always returns JSON, including diagnostics on failure.
+ * - POST always returns JSON.
+ * - debt_payments insert includes required snapshot columns.
  */
 
-const VERSION = 'v0.6.7-post-json-payment-fixed';
+const VERSION = 'v0.6.8-debt-payment-snapshot-insert';
 
 const DEFAULT_CATEGORY_ID = 'debt_payment';
 const DUE_SOON_DAYS = 3;
@@ -190,6 +191,7 @@ async function listDebts(db, url) {
       root_route_payment_post_supported: true,
       root_route_payment_check_supported: true,
       payment_subroutes_not_required: true,
+      debt_payments_snapshot_insert_supported: true,
       owed_to_me_payment_type: 'income',
       i_owe_payment_type: 'expense'
     },
@@ -224,22 +226,18 @@ async function health(db) {
     rules: {
       root_route_payment_post_supported: true,
       root_route_payment_check_supported: true,
+      debt_payments_snapshot_insert_supported: true,
       post_returns_json_on_errors: true
     }
   });
 }
 
 async function paymentCheck(db, url) {
-  const debtId = safeText(url.searchParams.get('debt_id'), '', 200);
-  const accountId = safeText(url.searchParams.get('account_id'), '', 160);
-  const amount = moneyNumber(url.searchParams.get('amount'), null);
-  const date = normalizeDate(url.searchParams.get('date')) || todayISO();
-
   return paymentCheckCore(db, {
-    debt_id: debtId,
-    account_id: accountId,
-    amount,
-    date
+    debt_id: url.searchParams.get('debt_id'),
+    account_id: url.searchParams.get('account_id'),
+    amount: moneyNumber(url.searchParams.get('amount'), null),
+    date: normalizeDate(url.searchParams.get('date')) || todayISO()
   });
 }
 
@@ -511,14 +509,31 @@ async function recordDebtPayment(db, body, dryRun) {
     if (paymentCols.size > 0) {
       batch.push(buildDebtPaymentInsert(db, paymentCols, {
         id: paymentId,
+        debt,
         debt_id: debt.id,
-        transaction_id: paymentTx.id,
+        debt_name_snapshot: debt.name,
+        debt_kind_snapshot: debt.kind,
+        original_amount: debt.original_amount,
+        paid_before: debt.paid_amount,
         amount,
+        paid_after: projection.paid_amount_after,
+        remaining_after: round2(debt.original_amount - projection.paid_amount_after),
         account_id: accountResult.account.id,
-        date,
+        category_id: DEFAULT_CATEGORY_ID,
+        paid_date: date,
+        transaction_id: paymentTx.id,
+        status: 'paid',
         notes: userNotes,
         created_at: paymentTx.created_at,
-        created_by: createdBy
+        created_by: createdBy,
+        dry_run_payload_hash: stableHash(JSON.stringify({
+          debt_id: debt.id,
+          amount,
+          account_id: accountResult.account.id,
+          date,
+          dry_run: true
+        })),
+        transaction_payload_hash: stableHash(JSON.stringify(paymentTx))
       }));
     }
 
@@ -1162,30 +1177,79 @@ function buildTransactionInsert(db, txCols, row) {
 }
 
 function buildDebtPaymentInsert(db, cols, row) {
-  const insertable = {};
+  const original = round2(row.original_amount);
+  const paidBefore = round2(row.paid_before);
+  const amount = round2(row.amount);
+  const paidAfter = round2(row.paid_after);
+  const remainingAfter = round2(row.remaining_after);
 
   const mapping = {
     id: row.id,
     debt_id: row.debt_id,
-    transaction_id: row.transaction_id,
-    tx_id: row.transaction_id,
-    amount: row.amount,
-    amount_paisa: Math.round(Number(row.amount || 0) * 100),
-    paid_amount: row.amount,
-    payment_amount: row.amount,
+    debt_name_snapshot: row.debt_name_snapshot || row.debt?.name || '',
+    debt_kind_snapshot: row.debt_kind_snapshot || row.debt?.kind || '',
+    original_amount_paisa: toPaisa(original),
+    paid_before_paisa: toPaisa(paidBefore),
+    amount_paisa: toPaisa(amount),
+    paid_after_paisa: toPaisa(paidAfter),
+    remaining_after_paisa: toPaisa(remainingAfter),
+    original_amount: original,
+    paid_before: paidBefore,
+    amount,
+    paid_after: paidAfter,
+    remaining_after: remainingAfter,
     account_id: row.account_id,
-    date: row.date,
-    paid_at: row.date,
-    payment_date: row.date,
-    notes: buildPaymentNotes(row),
-    created_at: row.created_at,
-    created_by: row.created_by,
+    category_id: row.category_id || DEFAULT_CATEGORY_ID,
+    paid_date: row.paid_date || row.date,
+    transaction_id: row.transaction_id,
+    status: row.status || 'paid',
     reversed_at: null,
-    reversed_by: null
+    reversal_transaction_id: null,
+    reason: null,
+    notes: buildPaymentNotes(row),
+    dry_run_payload_hash: row.dry_run_payload_hash || null,
+    transaction_payload_hash: row.transaction_payload_hash || null,
+    created_by: row.created_by,
+    created_at: row.created_at || nowSQL()
   };
 
+  const insertable = {};
+
   for (const [key, value] of Object.entries(mapping)) {
-    if (cols.has(key)) insertable[key] = value;
+    if (cols.has(key)) {
+      insertable[key] = value;
+    }
+  }
+
+  const required = [
+    'debt_id',
+    'debt_name_snapshot',
+    'debt_kind_snapshot',
+    'original_amount_paisa',
+    'paid_before_paisa',
+    'amount_paisa',
+    'paid_after_paisa',
+    'remaining_after_paisa',
+    'original_amount',
+    'paid_before',
+    'amount',
+    'paid_after',
+    'remaining_after',
+    'account_id',
+    'category_id',
+    'paid_date',
+    'transaction_id',
+    'status'
+  ];
+
+  const missing = required.filter(key => cols.has(key) && (
+    insertable[key] === undefined ||
+    insertable[key] === null ||
+    insertable[key] === ''
+  ));
+
+  if (missing.length) {
+    throw new Error(`debt_payments insert missing required fields: ${missing.join(', ')}`);
   }
 
   const keys = Object.keys(insertable);
@@ -1582,6 +1646,10 @@ function round2(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return 0;
   return Math.round(n * 100) / 100;
+}
+
+function toPaisa(value) {
+  return Math.round(Number(value || 0) * 100);
 }
 
 function safeText(value, fallback = '', max = 500) {
