@@ -1,22 +1,15 @@
 /* Sovereign Finance Debts API
  * /api/debts
- * v0.6.3-debt-payment-route-hardened
+ * v0.6.4-debt-payment-diagnostics
  *
- * Banking-grade debt rules:
- * - Debt table is not money truth by itself.
- * - Ledger origin movement is classified separately from payments.
- * - New money-moving debt requires account_id.
- * - New money-moving debt writes debt row + ledger origin row atomically.
- * - Owed-to-me origin = expense from selected account.
- * - I-owe origin = income into selected account.
- * - Debt payment for owed-to-me = income into selected receiving account.
- * - Debt payment for i-owe = expense from selected paying account.
- * - Payment writes are atomic: transaction + debt update + debt_payments row when table exists.
- * - Existing legacy debts are classified as legacy_unknown, not auto-repaired.
- * - Only explicit movement_now=1 debts with missing origin are repair_required.
+ * Purpose of this version:
+ * - Keep existing debt/origin/payment model.
+ * - Add hard diagnostics to /api/debts/payment when debt lookup fails.
+ * - Use TRIM(id) = TRIM(?) for payment debt lookup.
+ * - Return received body, received debt_id, and nearby matching debts.
  */
 
-const VERSION = 'v0.6.3-debt-payment-route-hardened';
+const VERSION = 'v0.6.4-debt-payment-diagnostics';
 
 const ACTIVE_CONDITION = "(status IS NULL OR status = '' OR status = 'active')";
 const DEFAULT_CATEGORY_ID = 'debt_payment';
@@ -45,28 +38,22 @@ export async function onRequestGet(context) {
     const path = getPath(context);
     const url = new URL(context.request.url);
 
-    if (path[0] === 'health') {
-      return getHealth(db);
-    }
+    if (path[0] === 'health') return getHealth(db);
 
     if (path.length > 0) {
       return json({
         ok: false,
         version: VERSION,
-        error: 'Unsupported debts GET route.'
+        error: 'Unsupported debts GET route.',
+        path
       }, 404);
     }
 
     const includeInactive = url.searchParams.get('include_inactive') === '1';
 
     const sql = includeInactive
-      ? `SELECT ${DEBT_COLUMNS}
-         FROM debts
-         ORDER BY kind, snowball_order, name`
-      : `SELECT ${DEBT_COLUMNS}
-         FROM debts
-         WHERE ${ACTIVE_CONDITION}
-         ORDER BY kind, snowball_order, name`;
+      ? `SELECT ${DEBT_COLUMNS} FROM debts ORDER BY kind, snowball_order, name`
+      : `SELECT ${DEBT_COLUMNS} FROM debts WHERE ${ACTIVE_CONDITION} ORDER BY kind, snowball_order, name`;
 
     const res = await db.prepare(sql).all();
     const rawDebts = res.results || [];
@@ -101,7 +88,6 @@ export async function onRequestGet(context) {
         new_money_moving_debt_requires_account_id: true,
         new_money_moving_debt_atomic_writes: true,
         payment_writes_are_atomic: true,
-        debt_payments_row_written_when_table_exists: true,
         owed_to_me_origin_type: 'expense',
         i_owe_origin_type: 'income',
         owed_to_me_payment_type: 'income',
@@ -111,11 +97,7 @@ export async function onRequestGet(context) {
       debts
     });
   } catch (err) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: err.message || String(err)
-    }, 500);
+    return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
   }
 }
 
@@ -137,17 +119,15 @@ export async function onRequestPost(context) {
       return json({
         ok: false,
         version: VERSION,
-        error: 'Unsupported debts POST route.'
+        error: 'Unsupported debts POST route.',
+        path,
+        received_body_keys: Object.keys(body || {})
       }, 404);
     }
 
     return createDebt(context, body, dryRun);
   } catch (err) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: err.message || String(err)
-    }, 500);
+    return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
   }
 }
 
@@ -157,46 +137,27 @@ export async function onRequestPut(context) {
     const path = getPath(context);
     const id = safeText(path[0], '', 160);
 
-    if (!id) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: 'debt id required'
-      }, 400);
-    }
+    if (!id) return json({ ok: false, version: VERSION, error: 'debt id required' }, 400);
 
     const body = await readJSON(context.request);
     const update = buildDebtUpdate(body);
 
     if (!update.ok) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: update.error
-      }, update.status || 400);
+      return json({ ok: false, version: VERSION, error: update.error }, update.status || 400);
     }
 
     const keys = Object.keys(update.payload);
 
     if (!keys.length) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: 'No supported fields supplied.'
-      }, 400);
+      return json({ ok: false, version: VERSION, error: 'No supported fields supplied.' }, 400);
     }
 
     await db.prepare(
-      `UPDATE debts
-       SET ${keys.map(key => `${key} = ?`).join(', ')}
-       WHERE id = ?`
+      `UPDATE debts SET ${keys.map(key => `${key} = ?`).join(', ')} WHERE id = ?`
     ).bind(...keys.map(key => update.payload[key]), id).run();
 
     const row = await db.prepare(
-      `SELECT ${DEBT_COLUMNS}
-       FROM debts
-       WHERE id = ?
-       LIMIT 1`
+      `SELECT ${DEBT_COLUMNS} FROM debts WHERE id = ? LIMIT 1`
     ).bind(id).first();
 
     const linkMap = await loadDebtLedgerLinks(db, [id]);
@@ -210,11 +171,7 @@ export async function onRequestPut(context) {
       debt
     });
   } catch (err) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: err.message || String(err)
-    }, 500);
+    return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
   }
 }
 
@@ -252,9 +209,7 @@ async function createDebt(context, body, dryRun) {
   }
 
   const txCols = await tableColumns(db, 'transactions');
-  const batch = [
-    buildDebtInsert(db, payload.debt_row)
-  ];
+  const batch = [buildDebtInsert(db, payload.debt_row)];
 
   if (payload.origin_transaction) {
     batch.push(buildTransactionInsert(db, txCols, payload.origin_transaction));
@@ -263,16 +218,10 @@ async function createDebt(context, body, dryRun) {
   await db.batch(batch);
 
   const row = await db.prepare(
-    `SELECT ${DEBT_COLUMNS}
-     FROM debts
-     WHERE id = ?
-     LIMIT 1`
+    `SELECT ${DEBT_COLUMNS} FROM debts WHERE id = ? LIMIT 1`
   ).bind(payload.debt_row.id).first();
 
-  const links = payload.origin_transaction
-    ? [sanitizeTransaction(payload.origin_transaction)]
-    : [];
-
+  const links = payload.origin_transaction ? [sanitizeTransaction(payload.origin_transaction)] : [];
   const debt = attachLedgerState(normalizeDebt(row), links);
 
   return json({
@@ -325,22 +274,10 @@ async function buildCreatePayload(db, body) {
 
   if (!name) return { ok: false, status: 400, error: 'name required' };
   if (!kind) return { ok: false, status: 400, error: 'kind must be owe or owed' };
-
-  if (originalAmount == null || originalAmount <= 0) {
-    return { ok: false, status: 400, error: 'original_amount must be greater than 0' };
-  }
-
-  if (paidAmount == null || paidAmount < 0) {
-    return { ok: false, status: 400, error: 'paid_amount must be 0 or greater' };
-  }
-
-  if (paidAmount > originalAmount) {
-    return { ok: false, status: 400, error: 'paid_amount cannot exceed original_amount' };
-  }
-
-  if (!frequency) {
-    return { ok: false, status: 400, error: 'Invalid frequency' };
-  }
+  if (originalAmount == null || originalAmount <= 0) return { ok: false, status: 400, error: 'original_amount must be greater than 0' };
+  if (paidAmount == null || paidAmount < 0) return { ok: false, status: 400, error: 'paid_amount must be 0 or greater' };
+  if (paidAmount > originalAmount) return { ok: false, status: 400, error: 'paid_amount cannot exceed original_amount' };
+  if (!frequency) return { ok: false, status: 400, error: 'Invalid frequency' };
 
   let account = null;
 
@@ -352,10 +289,7 @@ async function buildCreatePayload(db, body) {
         error: kind === 'owed'
           ? 'source account_id required for owed-to-me money movement'
           : 'destination account_id required for i-owe money movement',
-        details: {
-          kind,
-          movement_now: true
-        }
+        details: { kind, movement_now: true }
       };
     }
 
@@ -366,9 +300,7 @@ async function buildCreatePayload(db, body) {
         ok: false,
         status: accountResult.status || 409,
         error: accountResult.error,
-        details: {
-          account_id: accountId
-        }
+        details: { account_id: accountId }
       };
     }
 
@@ -396,12 +328,7 @@ async function buildCreatePayload(db, body) {
   };
 
   const originTransaction = movementNow
-    ? buildOriginTransaction({
-      debt: debtRow,
-      account,
-      date: movementDate,
-      created_by: createdBy
-    })
+    ? buildOriginTransaction({ debt: debtRow, account, date: movementDate, created_by: createdBy })
     : null;
 
   return {
@@ -468,23 +395,18 @@ async function repairLedgerOrigin(context, body, dryRun) {
   const date = normalizeDate(body.date || body.movement_date) || todayISO();
   const createdBy = safeText(body.created_by, 'debt-origin-repair', 120) || 'debt-origin-repair';
 
-  if (!debtId) {
-    return json({ ok: false, version: VERSION, error: 'debt_id required' }, 400);
-  }
+  if (!debtId) return json({ ok: false, version: VERSION, error: 'debt_id required' }, 400);
+  if (!accountId) return json({ ok: false, version: VERSION, error: 'account_id required' }, 400);
 
-  if (!accountId) {
-    return json({ ok: false, version: VERSION, error: 'account_id required' }, 400);
-  }
-
-  const row = await db.prepare(
-    `SELECT ${DEBT_COLUMNS}
-     FROM debts
-     WHERE id = ?
-     LIMIT 1`
-  ).bind(debtId).first();
+  const row = await findDebtById(db, debtId);
 
   if (!row) {
-    return json({ ok: false, version: VERSION, error: 'debt not found' }, 404);
+    return json({
+      ok: false,
+      version: VERSION,
+      error: `Debt not found for repair: received_debt_id="${debtId}"`,
+      diagnostics: await debtLookupDiagnostics(db, debtId, body)
+    }, 404);
   }
 
   const debt = normalizeDebt(row);
@@ -505,11 +427,7 @@ async function repairLedgerOrigin(context, body, dryRun) {
   const accountResult = await resolveAccount(db, accountId);
 
   if (!accountResult.ok) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: accountResult.error
-    }, accountResult.status || 409);
+    return json({ ok: false, version: VERSION, error: accountResult.error }, accountResult.status || 409);
   }
 
   const originTx = buildOriginTransaction({
@@ -567,25 +485,58 @@ async function repairLedgerOrigin(context, body, dryRun) {
 
 async function recordDebtPayment(context, body, dryRun) {
   const db = context.env.DB;
-  const debtId = safeText(body.debt_id || body.id, '', 160);
+
+  const rawDebtId = body.debt_id ?? body.id ?? body.debtId ?? body.debtID ?? '';
+  const debtId = safeText(rawDebtId, '', 200);
   const amount = moneyNumber(body.amount, null);
   const accountId = safeText(body.account_id, '', 160);
   const date = normalizeDate(body.date || body.paid_at || body.payment_date) || todayISO();
   const createdBy = safeText(body.created_by, 'web-debts-payment', 120) || 'web-debts-payment';
   const userNotes = safeText(body.notes, '', 500);
 
-  if (!debtId) return json({ ok: false, version: VERSION, error: 'debt_id required' }, 400);
-  if (amount == null || amount <= 0) return json({ ok: false, version: VERSION, error: 'amount must be greater than 0' }, 400);
-  if (!accountId) return json({ ok: false, version: VERSION, error: 'account_id required' }, 400);
+  if (!debtId) {
+    return json({
+      ok: false,
+      version: VERSION,
+      error: 'debt_id required',
+      diagnostics: {
+        received_body_keys: Object.keys(body || {}),
+        received_body: redactBody(body)
+      }
+    }, 400);
+  }
 
-  const row = await db.prepare(
-    `SELECT ${DEBT_COLUMNS}
-     FROM debts
-     WHERE id = ?
-     LIMIT 1`
-  ).bind(debtId).first();
+  if (amount == null || amount <= 0) {
+    return json({
+      ok: false,
+      version: VERSION,
+      error: 'amount must be greater than 0',
+      received_debt_id: debtId
+    }, 400);
+  }
 
-  if (!row) return json({ ok: false, version: VERSION, error: 'debt not found' }, 404);
+  if (!accountId) {
+    return json({
+      ok: false,
+      version: VERSION,
+      error: 'account_id required',
+      received_debt_id: debtId
+    }, 400);
+  }
+
+  const row = await findDebtById(db, debtId);
+
+  if (!row) {
+    const diagnostics = await debtLookupDiagnostics(db, debtId, body);
+    return json({
+      ok: false,
+      version: VERSION,
+      error: `Debt not found for received_debt_id="${debtId}"`,
+      received_debt_id: debtId,
+      lookup_mode: 'TRIM(id) = TRIM(?)',
+      diagnostics
+    }, 404);
+  }
 
   const debt = normalizeDebt(row);
 
@@ -594,6 +545,7 @@ async function recordDebtPayment(context, body, dryRun) {
       ok: false,
       version: VERSION,
       error: 'Only active or paused debts can record payments.',
+      received_debt_id: debtId,
       debt_status: debt.status
     }, 409);
   }
@@ -605,6 +557,7 @@ async function recordDebtPayment(context, body, dryRun) {
       ok: false,
       version: VERSION,
       error: 'Debt has no remaining balance.',
+      received_debt_id: debtId,
       remaining_amount: remaining
     }, 409);
   }
@@ -614,6 +567,7 @@ async function recordDebtPayment(context, body, dryRun) {
       ok: false,
       version: VERSION,
       error: 'payment amount cannot exceed remaining debt balance',
+      received_debt_id: debtId,
       remaining_amount: remaining,
       amount
     }, 400);
@@ -622,7 +576,13 @@ async function recordDebtPayment(context, body, dryRun) {
   const accountResult = await resolveAccount(db, accountId);
 
   if (!accountResult.ok) {
-    return json({ ok: false, version: VERSION, error: accountResult.error }, accountResult.status || 409);
+    return json({
+      ok: false,
+      version: VERSION,
+      error: accountResult.error,
+      received_debt_id: debtId,
+      received_account_id: accountId
+    }, accountResult.status || 409);
   }
 
   const paymentId = buildPaymentId(body, {
@@ -635,13 +595,7 @@ async function recordDebtPayment(context, body, dryRun) {
   const existing = await findExistingPayment(db, paymentId, debtId);
 
   if (existing) {
-    const afterRow = await db.prepare(
-      `SELECT ${DEBT_COLUMNS}
-       FROM debts
-       WHERE id = ?
-       LIMIT 1`
-    ).bind(debtId).first();
-
+    const afterRow = await findDebtById(db, debtId);
     const linkMap = await loadDebtLedgerLinks(db, [debtId]);
     const after = attachLedgerState(normalizeDebt(afterRow), linkMap.get(debtId) || []);
 
@@ -693,6 +647,8 @@ async function recordDebtPayment(context, body, dryRun) {
       dry_run: true,
       action: 'debt.payment',
       writes_performed: false,
+      received_debt_id: debtId,
+      resolved_debt_id: debt.id,
       payment_id: paymentId,
       payment_transaction: paymentTx,
       proof
@@ -707,7 +663,7 @@ async function recordDebtPayment(context, body, dryRun) {
     db.prepare(
       `UPDATE debts
        SET paid_amount = ?, status = ?, last_paid_date = ?
-       WHERE id = ?`
+       WHERE TRIM(id) = TRIM(?)`
     ).bind(newPaid, newStatus, date, debtId)
   ];
 
@@ -727,13 +683,7 @@ async function recordDebtPayment(context, body, dryRun) {
 
   await db.batch(batch);
 
-  const afterRow = await db.prepare(
-    `SELECT ${DEBT_COLUMNS}
-     FROM debts
-     WHERE id = ?
-     LIMIT 1`
-  ).bind(debtId).first();
-
+  const afterRow = await findDebtById(db, debtId);
   const linkMap = await loadDebtLedgerLinks(db, [debtId]);
   const after = attachLedgerState(normalizeDebt(afterRow), linkMap.get(debtId) || []);
 
@@ -742,11 +692,94 @@ async function recordDebtPayment(context, body, dryRun) {
     version: VERSION,
     action: 'debt.payment',
     writes_performed: true,
+    received_debt_id: debtId,
+    resolved_debt_id: debt.id,
     payment_id: paymentId,
     payment_transaction_id: paymentTx.id,
     debt: after,
     proof
   });
+}
+
+async function findDebtById(db, debtId) {
+  const cleanId = safeText(debtId, '', 200);
+
+  if (!cleanId) return null;
+
+  return db.prepare(
+    `SELECT ${DEBT_COLUMNS}
+     FROM debts
+     WHERE TRIM(id) = TRIM(?)
+     LIMIT 1`
+  ).bind(cleanId).first();
+}
+
+async function debtLookupDiagnostics(db, debtId, body) {
+  const cleanId = safeText(debtId, '', 200);
+  const lower = cleanId.toLowerCase();
+  const tokenPart = lower.includes('_') ? lower.split('_').slice(-1)[0] : lower;
+
+  let exactCount = null;
+  let trimCount = null;
+  let totalDebtCount = null;
+  let matchingYusraDebts = [];
+  let matchingIdDebts = [];
+
+  try {
+    const exact = await db.prepare(`SELECT COUNT(*) AS c FROM debts WHERE id = ?`).bind(cleanId).first();
+    exactCount = exact?.c ?? null;
+  } catch {}
+
+  try {
+    const trim = await db.prepare(`SELECT COUNT(*) AS c FROM debts WHERE TRIM(id) = TRIM(?)`).bind(cleanId).first();
+    trimCount = trim?.c ?? null;
+  } catch {}
+
+  try {
+    const total = await db.prepare(`SELECT COUNT(*) AS c FROM debts`).first();
+    totalDebtCount = total?.c ?? null;
+  } catch {}
+
+  try {
+    const res = await db.prepare(
+      `SELECT id, name, kind, original_amount, paid_amount, status, due_date, created_at
+       FROM debts
+       WHERE LOWER(name) LIKE '%yusra%'
+          OR LOWER(COALESCE(notes, '')) LIKE '%yusra%'
+       ORDER BY datetime(created_at) DESC, id DESC
+       LIMIT 20`
+    ).all();
+
+    matchingYusraDebts = res.results || [];
+  } catch {}
+
+  try {
+    const likeValue = `%${tokenPart || lower}%`;
+    const res = await db.prepare(
+      `SELECT id, name, kind, original_amount, paid_amount, status, due_date, created_at
+       FROM debts
+       WHERE LOWER(id) LIKE ?
+          OR LOWER(name) LIKE ?
+       ORDER BY datetime(created_at) DESC, id DESC
+       LIMIT 20`
+    ).bind(likeValue, likeValue).all();
+
+    matchingIdDebts = res.results || [];
+  } catch {}
+
+  return {
+    received_debt_id: cleanId,
+    received_debt_id_length: cleanId.length,
+    received_debt_id_json: JSON.stringify(cleanId),
+    received_body_keys: Object.keys(body || {}),
+    received_body: redactBody(body),
+    lookup_mode: 'TRIM(id) = TRIM(?)',
+    exact_count: exactCount,
+    trim_count: trimCount,
+    total_debt_count: totalDebtCount,
+    matching_yusra_debts: matchingYusraDebts,
+    matching_id_debts: matchingIdDebts
+  };
 }
 
 function buildPaymentTransaction({ debt, amount, account, date, notes, created_by, payment_id }) {
@@ -785,9 +818,7 @@ function buildPaymentTransaction({ debt, amount, account, date, notes, created_b
 
 async function getHealth(db) {
   const res = await db.prepare(
-    `SELECT ${DEBT_COLUMNS}
-     FROM debts
-     ORDER BY datetime(created_at) DESC, id DESC`
+    `SELECT ${DEBT_COLUMNS} FROM debts ORDER BY datetime(created_at) DESC, id DESC`
   ).all();
 
   const rawDebts = res.results || [];
@@ -824,7 +855,9 @@ async function getHealth(db) {
       payment_transactions_do_not_count_as_origin: true,
       new_money_moving_create_requires_account_id: true,
       new_money_moving_create_is_atomic: true,
-      payment_writes_transaction_debt_update_and_debt_payment_row: true
+      payment_writes_transaction_debt_update_and_debt_payment_row: true,
+      payment_lookup_uses_trimmed_debt_id: true,
+      payment_diagnostics_enabled: true
     },
     debts: debts.map(debt => ({
       id: debt.id,
@@ -923,13 +956,8 @@ function isOriginTransactionForDebt(debt, tx) {
   if (notes.includes('[DEBT_ORIGIN_REPAIR]')) return true;
   if (!amountMatches) return false;
 
-  if (debt.kind === 'owed') {
-    return ['expense', 'debt_out'].includes(type);
-  }
-
-  if (debt.kind === 'owe') {
-    return ['income', 'borrow', 'debt_in'].includes(type);
-  }
+  if (debt.kind === 'owed') return ['expense', 'debt_out'].includes(type);
+  if (debt.kind === 'owe') return ['income', 'borrow', 'debt_in'].includes(type);
 
   return false;
 }
@@ -941,13 +969,8 @@ function isPaymentTransactionForDebt(debt, tx) {
   if (notes.includes('[DEBT_PAYMENT]')) return true;
   if (notes.includes('[DEBT_RECEIVE]')) return true;
 
-  if (debt.kind === 'owed') {
-    return ['income', 'debt_in'].includes(type);
-  }
-
-  if (debt.kind === 'owe') {
-    return ['expense', 'repay', 'debt_out'].includes(type);
-  }
+  if (debt.kind === 'owed') return ['income', 'debt_in'].includes(type);
+  if (debt.kind === 'owe') return ['expense', 'repay', 'debt_out'].includes(type);
 
   return false;
 }
@@ -970,9 +993,7 @@ function isReversedTransaction(tx) {
 async function loadDebtLedgerLinks(db, debtIds) {
   const map = new Map();
 
-  for (const id of debtIds || []) {
-    map.set(String(id), []);
-  }
+  for (const id of debtIds || []) map.set(String(id), []);
 
   if (!debtIds || !debtIds.length) return map;
 
@@ -1147,10 +1168,7 @@ function buildDebtUpdate(body) {
     payload.notes = safeText(body.notes, '', 1000);
   }
 
-  return {
-    ok: true,
-    payload
-  };
+  return { ok: true, payload };
 }
 
 /* ─────────────────────────────
@@ -1183,16 +1201,12 @@ function buildTransactionInsert(db, txCols, row) {
   const insertable = {};
 
   for (const [key, value] of Object.entries(row)) {
-    if (txCols.has(key)) {
-      insertable[key] = value;
-    }
+    if (txCols.has(key)) insertable[key] = value;
   }
 
   const keys = Object.keys(insertable);
 
-  if (!keys.length) {
-    throw new Error('transactions table has no compatible columns for insert');
-  }
+  if (!keys.length) throw new Error('transactions table has no compatible columns for insert');
 
   return db.prepare(
     `INSERT INTO transactions (${keys.join(', ')})
@@ -1224,16 +1238,12 @@ function buildDebtPaymentInsert(db, cols, row) {
   };
 
   for (const [key, value] of Object.entries(mapping)) {
-    if (cols.has(key)) {
-      insertable[key] = value;
-    }
+    if (cols.has(key)) insertable[key] = value;
   }
 
   const keys = Object.keys(insertable);
 
-  if (!keys.length) {
-    throw new Error('debt_payments table has no compatible columns for insert');
-  }
+  if (!keys.length) throw new Error('debt_payments table has no compatible columns for insert');
 
   return db.prepare(
     `INSERT INTO debt_payments (${keys.join(', ')})
@@ -1298,25 +1308,15 @@ async function findExistingPayment(db, paymentId, debtId) {
   const txCols = await tableColumns(db, 'transactions');
 
   if (txCols.has('notes')) {
-    const select = [
-      'id',
-      txCols.has('notes') ? 'notes' : null
-    ].filter(Boolean).join(', ');
-
     const row = await db.prepare(
-      `SELECT ${select}
+      `SELECT id, notes
        FROM transactions
        WHERE notes LIKE ?
          AND notes LIKE ?
        LIMIT 1`
     ).bind(`%payment_id=${paymentId}%`, `%debt_id=${debtId}%`).first();
 
-    if (row) {
-      return {
-        id: row.id,
-        transaction_id: row.id
-      };
-    }
+    if (row) return { id: row.id, transaction_id: row.id };
   }
 
   return null;
@@ -1329,9 +1329,7 @@ async function findExistingPayment(db, paymentId, debtId) {
 async function resolveAccount(db, input) {
   const id = safeText(input, '', 160);
 
-  if (!id) {
-    return { ok: false, status: 400, error: 'account_id required' };
-  }
+  if (!id) return { ok: false, status: 400, error: 'account_id required' };
 
   const cols = await tableColumns(db, 'accounts');
 
@@ -1344,14 +1342,12 @@ async function resolveAccount(db, input) {
   const exact = await db.prepare(
     `SELECT *
      FROM accounts
-     WHERE id = ?
+     WHERE TRIM(id) = TRIM(?)
      ${where ? 'AND ' + where : ''}
      LIMIT 1`
   ).bind(id).first();
 
-  if (exact?.id) {
-    return { ok: true, account: normalizeAccount(exact) };
-  }
+  if (exact?.id) return { ok: true, account: normalizeAccount(exact) };
 
   const rows = await db.prepare(
     `SELECT *
@@ -1368,9 +1364,7 @@ async function resolveAccount(db, input) {
       String(account.name || '').trim().toLowerCase() === id.toLowerCase();
   });
 
-  if (found?.id) {
-    return { ok: true, account: normalizeAccount(found) };
-  }
+  if (found?.id) return { ok: true, account: normalizeAccount(found) };
 
   return { ok: false, status: 409, error: 'Account not found or inactive' };
 }
@@ -1394,10 +1388,7 @@ function normalizeAccount(row) {
 }
 
 function sanitizeAccount(row) {
-  return {
-    id: row.id,
-    name: row.name || row.id
-  };
+  return { id: row.id, name: row.name || row.id };
 }
 
 function sanitizeTransaction(row) {
@@ -1521,31 +1512,21 @@ function buildCreateProof(payload) {
     action: 'debt.create',
     version: VERSION,
     writes_performed: false,
-    write_model: hasOrigin
-      ? 'atomic_debt_row_plus_origin_ledger'
-      : 'debt_record_only_no_money_moved',
+    write_model: hasOrigin ? 'atomic_debt_row_plus_origin_ledger' : 'debt_record_only_no_money_moved',
     expected_debt_rows: 1,
     expected_origin_ledger_rows: hasOrigin ? 1 : 0,
     expected_payment_ledger_rows: 0,
     checks: [
-      {
-        check: 'debt_amount_valid',
-        status: 'pass',
-        detail: 'original_amount > 0'
-      },
+      { check: 'debt_amount_valid', status: 'pass', detail: 'original_amount > 0' },
       {
         check: 'movement_account_rule',
         status: payload.movement_now && payload.account ? 'pass' : payload.movement_now ? 'fail' : 'pass',
-        detail: payload.movement_now
-          ? 'money moved now requires account_id'
-          : 'money_moved_now=false; no origin ledger expected'
+        detail: payload.movement_now ? 'money moved now requires account_id' : 'money_moved_now=false; no origin ledger expected'
       },
       {
         check: 'origin_type_rule',
         status: 'pass',
-        detail: payload.origin_transaction
-          ? `${payload.debt_row.kind} creates ${payload.origin_transaction.type}`
-          : 'no origin transaction'
+        detail: payload.origin_transaction ? `${payload.debt_row.kind} creates ${payload.origin_transaction.type}` : 'no origin transaction'
       },
       {
         check: 'atomicity',
@@ -1748,6 +1729,14 @@ function stableHash(input) {
   }
 
   return (h >>> 0).toString(36);
+}
+
+function redactBody(body) {
+  const out = { ...(body || {}) };
+  delete out.password;
+  delete out.token;
+  delete out.secret;
+  return out;
 }
 
 function json(payload, status = 200) {
