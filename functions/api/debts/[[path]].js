@@ -1,35 +1,32 @@
 /* Sovereign Finance Debts API
- * /api/debts
- * v0.6.8-debt-payment-snapshot-insert
- *
- * Rules:
- * - Do not rely on /api/debts/payment because old item routes can shadow it.
- * - Payment uses POST /api/debts with body.action = "payment".
- * - Payment check uses GET /api/debts?action=payment_check.
- * - POST always returns JSON.
- * - debt_payments insert includes required snapshot columns.
- */
-
-const VERSION = 'v0.6.8-debt-payment-snapshot-insert';
-
+* /api/debts
+* v0.7.0-debt-reversal-integrity
+*
+* Rules:
+* - Do not rely on /api/debts/payment because old item routes can shadow it.
+* - Payment uses POST /api/debts with body.action = "payment".
+* - Payment check uses GET /api/debts?action=payment_check.
+* - POST always returns JSON.
+* - debt_payments insert includes required snapshot columns.
+*/
+const VERSION = 'v0.7.0-debt-reversal-integrity';
 const DEFAULT_CATEGORY_ID = 'debt_payment';
 const DUE_SOON_DAYS = 3;
-
 const DEBT_COLUMNS = `
-  id,
-  name,
-  kind,
-  original_amount,
-  paid_amount,
-  snowball_order,
-  due_date,
-  due_day,
-  installment_amount,
-  frequency,
-  last_paid_date,
-  status,
-  notes,
-  created_at
+id,
+name,
+kind,
+original_amount,
+paid_amount,
+snowball_order,
+due_date,
+due_day,
+installment_amount,
+frequency,
+last_paid_date,
+status,
+notes,
+created_at
 `;
 
 export async function onRequestGet(context) {
@@ -92,6 +89,10 @@ export async function onRequestPost(context) {
       return repairLedgerOrigin(db, body, dryRun);
     }
 
+    if (action === 'repair_reversed_payments' || action === 'repair-reversed-payments') {
+      return repairReversedPayments(db, body, dryRun);
+    }
+
     return createDebt(db, body, dryRun);
   });
 }
@@ -108,6 +109,7 @@ export async function onRequestPut(context) {
     }
 
     const existing = await findDebtById(db, debtId);
+
     if (!existing) {
       return json({
         ok: false,
@@ -118,11 +120,13 @@ export async function onRequestPut(context) {
     }
 
     const update = buildDebtUpdate(body);
+
     if (!update.ok) {
       return json({ ok: false, version: VERSION, error: update.error }, update.status || 400);
     }
 
     const keys = Object.keys(update.payload);
+
     if (!keys.length) {
       return json({ ok: false, version: VERSION, error: 'No supported fields supplied.' }, 400);
     }
@@ -145,10 +149,6 @@ export async function onRequestPut(context) {
     });
   });
 }
-
-/* ─────────────────────────────
- * GET list / health / payment_check
- * ───────────────────────────── */
 
 async function listDebts(db, url) {
   const includeInactive = url.searchParams.get('include_inactive') === '1';
@@ -257,12 +257,7 @@ async function paymentCheckCore(db, input) {
   const date = normalizeDate(input.date) || todayISO();
 
   if (!debtId) {
-    return json({
-      ok: false,
-      version: VERSION,
-      action: 'debt.payment_check',
-      error: 'debt_id required'
-    }, 400);
+    return json({ ok: false, version: VERSION, action: 'debt.payment_check', error: 'debt_id required' }, 400);
   }
 
   if (!accountId) {
@@ -357,10 +352,6 @@ async function paymentCheckCore(db, input) {
   });
 }
 
-/* ─────────────────────────────
- * POST payment
- * ───────────────────────────── */
-
 async function recordDebtPayment(db, body, dryRun) {
   const debtId = safeText(body.debt_id || body.id || body.debtId || body.debtID, '', 200);
   const accountId = safeText(body.account_id, '', 160);
@@ -380,17 +371,9 @@ async function recordDebtPayment(db, body, dryRun) {
   };
 
   try {
-    if (!debtId) {
-      return json({ ok: false, ...baseDiagnostic, error: 'debt_id required' }, 400);
-    }
-
-    if (!accountId) {
-      return json({ ok: false, ...baseDiagnostic, error: 'account_id required' }, 400);
-    }
-
-    if (amount == null || amount <= 0) {
-      return json({ ok: false, ...baseDiagnostic, error: 'amount must be greater than 0' }, 400);
-    }
+    if (!debtId) return json({ ok: false, ...baseDiagnostic, error: 'debt_id required' }, 400);
+    if (!accountId) return json({ ok: false, ...baseDiagnostic, error: 'account_id required' }, 400);
+    if (amount == null || amount <= 0) return json({ ok: false, ...baseDiagnostic, error: 'amount must be greater than 0' }, 400);
 
     const debtRow = await findDebtById(db, debtId);
 
@@ -436,9 +419,9 @@ async function recordDebtPayment(db, body, dryRun) {
     });
 
     const existing = await findExistingPayment(db, paymentId, debt.id);
+
     if (existing) {
       const after = await decorateDebt(db, normalizeDebt(await findDebtById(db, debt.id)));
-
       return json({
         ok: true,
         ...baseDiagnostic,
@@ -642,10 +625,6 @@ function buildPaymentTransaction({ debt, amount, account, date, notes, created_b
   };
 }
 
-/* ─────────────────────────────
- * Create debt
- * ───────────────────────────── */
-
 async function createDebt(db, body, dryRun) {
   const id = safeText(body.id, '', 160) || makeId('debt');
   const name = safeText(body.name || body.title || body.label, '', 160);
@@ -684,6 +663,7 @@ async function createDebt(db, body, dryRun) {
     }
 
     const accountResult = await resolveAccount(db, accountId);
+
     if (!accountResult.ok) {
       return json({
         ok: false,
@@ -719,11 +699,11 @@ async function createDebt(db, body, dryRun) {
 
   const originTx = movementNow
     ? buildOriginTransaction({
-      debt: debtRow,
-      account,
-      date: movementDate,
-      created_by: createdBy
-    })
+        debt: debtRow,
+        account,
+        date: movementDate,
+        created_by: createdBy
+      })
     : null;
 
   const proof = {
@@ -799,10 +779,6 @@ function buildOriginTransaction({ debt, account, date, created_by }) {
   };
 }
 
-/* ─────────────────────────────
- * Repair origin
- * ───────────────────────────── */
-
 async function repairLedgerOrigin(db, body, dryRun) {
   const debtId = safeText(body.debt_id || body.id, '', 200);
   const accountId = safeText(body.account_id, '', 160);
@@ -813,6 +789,7 @@ async function repairLedgerOrigin(db, body, dryRun) {
   if (!accountId) return json({ ok: false, version: VERSION, action: 'debt.repair_origin', error: 'account_id required' }, 400);
 
   const row = await findDebtById(db, debtId);
+
   if (!row) {
     return json({
       ok: false,
@@ -838,6 +815,7 @@ async function repairLedgerOrigin(db, body, dryRun) {
   }
 
   const accountResult = await resolveAccount(db, accountId);
+
   if (!accountResult.ok) {
     return json({
       ok: false,
@@ -883,9 +861,163 @@ async function repairLedgerOrigin(db, body, dryRun) {
   });
 }
 
-/* ─────────────────────────────
- * Debt decoration / classifiers
- * ───────────────────────────── */
+async function repairReversedPayments(db, body, dryRun) {
+  const baseDiagnostic = {
+    version: VERSION,
+    action: 'debt.repair_reversed_payments',
+    dry_run: Boolean(dryRun),
+    received_body_keys: Object.keys(body || {})
+  };
+
+  try {
+    const paymentCols = await tableColumns(db, 'debt_payments');
+
+    if (!paymentCols.size) {
+      return json({ ok: false, ...baseDiagnostic, error: 'debt_payments table is missing or unreadable' }, 500);
+    }
+
+    const badRes = await db.prepare(`
+      SELECT
+        dp.id AS payment_id,
+        dp.debt_id,
+        dp.transaction_id,
+        ${paymentCols.has('amount') ? 'dp.amount' : 'NULL'} AS amount,
+        ${paymentCols.has('status') ? 'dp.status' : 'NULL'} AS payment_status,
+        t.reversed_by,
+        t.reversed_at
+      FROM debt_payments dp
+      INNER JOIN transactions t ON TRIM(t.id) = TRIM(dp.transaction_id)
+      WHERE (dp.status IS NULL OR dp.status = '' OR dp.status = 'paid' OR dp.status = 'active')
+        AND (t.reversed_by IS NOT NULL OR t.reversed_at IS NOT NULL)
+      ORDER BY dp.debt_id, dp.id
+    `).all();
+
+    const badPayments = badRes.results || [];
+    const affectedDebtIds = [...new Set(badPayments.map(row => row.debt_id).filter(Boolean))];
+
+    if (!badPayments.length) {
+      return json({
+        ok: true,
+        ...baseDiagnostic,
+        writes_performed: false,
+        bad_payments_found: 0,
+        affected_debts_count: 0,
+        message: 'No active debt_payments linked to reversed transactions were found.'
+      });
+    }
+
+    if (dryRun) {
+      return json({
+        ok: true,
+        ...baseDiagnostic,
+        writes_performed: false,
+        bad_payments_found: badPayments.length,
+        affected_debts_count: affectedDebtIds.length,
+        affected_debt_ids: affectedDebtIds,
+        bad_payments: badPayments,
+        repair_plan: {
+          step_1: 'Mark affected debt_payments as reversed',
+          step_2: 'Exclude reversed debt_payments from paid_amount',
+          step_3: 'Recalculate each affected debt remaining amount',
+          step_4: 'Set affected debt status to active when remaining amount is greater than zero'
+        }
+      });
+    }
+
+    const now = new Date().toISOString();
+    const batch = [];
+
+    for (const payment of badPayments) {
+      const updates = { status: 'reversed' };
+
+      if (paymentCols.has('reversed_at')) updates.reversed_at = payment.reversed_at || now;
+      if (paymentCols.has('reversal_transaction_id')) updates.reversal_transaction_id = payment.reversed_by || null;
+      if (paymentCols.has('reason')) updates.reason = 'linked transaction already reversed';
+      if (paymentCols.has('notes')) {
+        updates.notes = safeText(
+          `Auto-repaired by debt.repair_reversed_payments | original_transaction_id=${payment.transaction_id} | reversal_transaction_id=${payment.reversed_by || ''}`,
+          '',
+          1000
+        );
+      }
+
+      const keys = Object.keys(updates).filter(key => paymentCols.has(key));
+
+      if (keys.length) {
+        batch.push(
+          db.prepare(`UPDATE debt_payments SET ${keys.map(key => `${key} = ?`).join(', ')} WHERE id = ?`)
+            .bind(...keys.map(key => updates[key]), payment.payment_id)
+        );
+      }
+    }
+
+    for (const debtId of affectedDebtIds) {
+      const recalc = await recalculateDebtPaidAmount(db, debtId);
+
+      batch.push(
+        db.prepare(`
+          UPDATE debts
+          SET paid_amount = ?, status = ?
+          WHERE TRIM(id) = TRIM(?)
+        `).bind(recalc.paid_amount, recalc.status, debtId)
+      );
+    }
+
+    await db.batch(batch);
+
+    const debts = [];
+
+    for (const debtId of affectedDebtIds) {
+      const row = await findDebtById(db, debtId);
+      if (row) debts.push(await decorateDebt(db, normalizeDebt(row)));
+    }
+
+    return json({
+      ok: true,
+      ...baseDiagnostic,
+      writes_performed: true,
+      bad_payments_found: badPayments.length,
+      bad_payments_repaired: badPayments.length,
+      affected_debts_count: affectedDebtIds.length,
+      affected_debt_ids: affectedDebtIds,
+      debts,
+      health_check_recommended: '/api/debts/health'
+    });
+  } catch (err) {
+    return json({
+      ok: false,
+      ...baseDiagnostic,
+      stage: 'repairReversedPayments.catch',
+      error: err.message || String(err),
+      stack: shortStack(err)
+    }, 500);
+  }
+}
+
+async function recalculateDebtPaidAmount(db, debtId) {
+  const sumRow = await db.prepare(`
+    SELECT COALESCE(SUM(amount), 0) AS active_paid_amount
+    FROM debt_payments
+    WHERE TRIM(debt_id) = TRIM(?)
+      AND (status IS NULL OR status = '' OR status = 'paid' OR status = 'active')
+  `).bind(debtId).first();
+
+  const debtRow = await findDebtById(db, debtId);
+
+  if (!debtRow) {
+    return { paid_amount: 0, remaining_amount: 0, status: 'active' };
+  }
+
+  const originalAmount = round2(debtRow.original_amount || 0);
+  const paidAmount = round2(sumRow?.active_paid_amount || 0);
+  const remainingAmount = Math.max(0, round2(originalAmount - paidAmount));
+
+  return {
+    paid_amount: paidAmount,
+    remaining_amount: remainingAmount,
+    status: remainingAmount > 0 ? 'active' : 'settled'
+  };
+}
 
 async function decorateDebt(db, debt) {
   const txs = await loadTransactionsForDebt(db, debt.id);
@@ -966,6 +1098,7 @@ function isOriginTransactionForDebt(debt, tx) {
 
   if (debt.kind === 'owed') return ['expense', 'debt_out'].includes(type);
   if (debt.kind === 'owe') return ['income', 'borrow', 'debt_in'].includes(type);
+
   return false;
 }
 
@@ -978,11 +1111,13 @@ function isPaymentTransactionForDebt(debt, tx) {
 
   if (debt.kind === 'owed') return ['income', 'debt_in'].includes(type);
   if (debt.kind === 'owe') return ['expense', 'repay', 'debt_out'].includes(type);
+
   return false;
 }
 
 function isReversedTransaction(tx) {
   const notes = String(tx.notes || '').toUpperCase();
+
   return !!(
     tx.reversed_by ||
     tx.reversed_at ||
@@ -990,10 +1125,6 @@ function isReversedTransaction(tx) {
     notes.includes('[REVERSED BY ')
   );
 }
-
-/* ─────────────────────────────
- * DB helpers
- * ───────────────────────────── */
 
 async function findDebtById(db, debtId) {
   const id = safeText(debtId, '', 200);
@@ -1069,6 +1200,7 @@ async function resolveAccount(db, input) {
   if (!id) return { ok: false, status: 400, error: 'account_id required' };
 
   const cols = await tableColumns(db, 'accounts');
+
   if (!cols.has('id')) {
     return { ok: false, status: 500, error: 'accounts table missing id column' };
   }
@@ -1095,6 +1227,7 @@ async function resolveAccount(db, input) {
   ).all();
 
   const target = token(id);
+
   const found = (res.results || []).find(account => {
     return token(account.id) === target ||
       token(account.name) === target ||
@@ -1123,9 +1256,11 @@ async function resolveAccount(db, input) {
 
 function activeAccountWhere(cols) {
   const parts = [];
+
   if (cols.has('deleted_at')) parts.push("(deleted_at IS NULL OR deleted_at = '')");
   if (cols.has('archived_at')) parts.push("(archived_at IS NULL OR archived_at = '')");
   if (cols.has('status')) parts.push("(status IS NULL OR status = '' OR status = 'active')");
+
   return parts.join(' AND ');
 }
 
@@ -1168,6 +1303,7 @@ function buildTransactionInsert(db, txCols, row) {
   }
 
   const keys = Object.keys(insertable);
+
   if (!keys.length) throw new Error('transactions table has no compatible columns for insert');
 
   return db.prepare(
@@ -1216,9 +1352,7 @@ function buildDebtPaymentInsert(db, cols, row) {
   const insertable = {};
 
   for (const [key, value] of Object.entries(mapping)) {
-    if (cols.has(key)) {
-      insertable[key] = value;
-    }
+    if (cols.has(key)) insertable[key] = value;
   }
 
   const required = [
@@ -1253,6 +1387,7 @@ function buildDebtPaymentInsert(db, cols, row) {
   }
 
   const keys = Object.keys(insertable);
+
   if (!keys.length) throw new Error('debt_payments table has no compatible columns for insert');
 
   return db.prepare(
@@ -1291,6 +1426,7 @@ async function findExistingPayment(db, paymentId, debtId) {
   }
 
   const txCols = await tableColumns(db, 'transactions');
+
   if (txCols.has('notes')) {
     const row = await db.prepare(
       `SELECT id, notes
@@ -1305,10 +1441,6 @@ async function findExistingPayment(db, paymentId, debtId) {
 
   return null;
 }
-
-/* ─────────────────────────────
- * Normalizers / summaries
- * ───────────────────────────── */
 
 function normalizeDebt(row) {
   const original = Number(row?.original_amount || 0);
@@ -1376,6 +1508,7 @@ function summarizeDebts(debts) {
     if (debt.origin_state === 'ledger_linked') out.origin_linked_count += 1;
     if (debt.origin_state === 'legacy_unknown') out.legacy_unknown_count += 1;
     if (debt.origin_state === 'payment_linked_only') out.payment_linked_only_count += 1;
+
     if (debt.repair_required) {
       out.repair_required_count += 1;
       out.repair_required_debt_ids.push(debt.id);
@@ -1384,6 +1517,7 @@ function summarizeDebts(debts) {
 
   out.total_owe = round2(out.total_owe);
   out.total_owed = round2(out.total_owed);
+
   return out;
 }
 
@@ -1396,23 +1530,29 @@ function buildDebtUpdate(body) {
 
   if (body.due_day !== undefined) {
     const day = normalizeDueDay(body.due_day);
+
     if (body.due_day !== null && body.due_day !== '' && day == null) {
       return { ok: false, status: 400, error: 'due_day must be 1-31' };
     }
+
     payload.due_day = day;
   }
 
   if (body.installment_amount !== undefined) {
     const amount = normalizeNullableMoney(body.installment_amount);
+
     if (body.installment_amount !== null && body.installment_amount !== '' && amount == null) {
       return { ok: false, status: 400, error: 'installment_amount must be 0 or greater' };
     }
+
     payload.installment_amount = amount;
   }
 
   if (body.frequency !== undefined) {
     const frequency = normalizeFrequency(body.frequency || 'monthly');
+
     if (!frequency) return { ok: false, status: 400, error: 'Invalid frequency' };
+
     payload.frequency = frequency;
   }
 
@@ -1426,10 +1566,6 @@ function buildDebtUpdate(body) {
 
   return { ok: true, payload };
 }
-
-/* ─────────────────────────────
- * Schedule
- * ───────────────────────────── */
 
 function computeSchedule(input) {
   const remaining = Number(input.remaining || 0);
@@ -1522,10 +1658,6 @@ function safeUtcDate(year, monthIndex, day) {
   return new Date(Date.UTC(year, monthIndex, Math.min(day, max)));
 }
 
-/* ─────────────────────────────
- * Generic helpers
- * ───────────────────────────── */
-
 async function withJsonErrors(method, fn) {
   try {
     return await fn();
@@ -1543,8 +1675,10 @@ async function withJsonErrors(method, fn) {
 
 function getPath(context) {
   const raw = context.params && context.params.path;
+
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
+
   return String(raw).split('/').filter(Boolean);
 }
 
@@ -1587,64 +1721,85 @@ function parseMovementNow(body) {
 
 function normalizeKind(value) {
   const raw = String(value || '').trim().toLowerCase();
+
   if (['owe', 'i_owe', 'payable', 'borrowed'].includes(raw)) return 'owe';
   if (['owed', 'owed_to_me', 'owed_me', 'to_me', 'receivable'].includes(raw)) return 'owed';
+
   return null;
 }
 
 function normalizeDate(value) {
   const raw = safeText(value, '', 40);
+
   if (!raw) return null;
   if (!/^\d{4}-\d{2}-\d{2}/.test(raw)) return null;
+
   return raw.slice(0, 10);
 }
 
 function parseDate(value) {
   const raw = normalizeDate(value);
   if (!raw) return null;
+
   const d = new Date(raw + 'T00:00:00.000Z');
+
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
 function normalizeDueDay(value) {
   if (value === undefined || value === null || value === '') return null;
+
   const n = Number(value);
+
   if (!Number.isFinite(n) || n < 1 || n > 31) return null;
+
   return Math.floor(n);
 }
 
 function normalizeNullableMoney(value) {
   if (value === undefined || value === null || value === '') return null;
+
   const n = moneyNumber(value, null);
+
   if (n == null || n < 0) return null;
+
   return n;
 }
 
 function normalizeFrequency(value) {
   const raw = safeText(value, 'monthly', 30).toLowerCase();
+
   return ['monthly', 'weekly', 'yearly', 'custom'].includes(raw) ? raw : null;
 }
 
 function buildDebtNotes(notes, meta) {
   const parts = [];
+
   if (notes) parts.push(notes);
+
   parts.push(meta.movement_now ? 'movement_now=1' : 'movement_now=0');
+
   if (meta.account_id) parts.push('account_id=' + meta.account_id);
   if (meta.created_by) parts.push('created_by=' + meta.created_by);
+
   return safeText(parts.join(' | '), '', 1000);
 }
 
 function moneyNumber(value, fallback) {
   if (value === undefined || value === null || value === '') return fallback;
+
   const n = typeof value === 'number'
     ? value
     : Number(String(value).replace(/rs/ig, '').replace(/,/g, '').trim());
+
   return Number.isFinite(n) ? round2(n) : fallback;
 }
 
 function round2(value) {
   const n = Number(value);
+
   if (!Number.isFinite(n)) return 0;
+
   return Math.round(n * 100) / 100;
 }
 
@@ -1654,6 +1809,7 @@ function toPaisa(value) {
 
 function safeText(value, fallback = '', max = 500) {
   const raw = value == null ? fallback : value;
+
   return String(raw == null ? '' : raw).trim().slice(0, max);
 }
 
@@ -1693,10 +1849,12 @@ function makeId(prefix) {
 function stableHash(input) {
   let h = 2166136261;
   const text = String(input);
+
   for (let i = 0; i < text.length; i += 1) {
     h ^= text.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
+
   return (h >>> 0).toString(36);
 }
 
@@ -1746,9 +1904,11 @@ function buildPaymentId(body, input) {
 
 function redactBody(body) {
   const out = { ...(body || {}) };
+
   delete out.password;
   delete out.token;
   delete out.secret;
+
   return out;
 }
 
