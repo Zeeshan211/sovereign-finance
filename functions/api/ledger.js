@@ -4,7 +4,6 @@
  */
 
 import * as Transactions from './transactions.js';
-import * as TransactionsReverse from './transactions/reverse.js';
 
 const VERSION = 'v0.2.0-linked-reversal-engine';
 
@@ -37,12 +36,6 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   try {
-    const url = new URL(context.request.url);
-
-    if (url.pathname.endsWith('/reverse')) {
-      return await TransactionsReverse.onRequestPost(context);
-    }
-
     const response = await Transactions.onRequestPost(context);
     const body = await response.json();
 
