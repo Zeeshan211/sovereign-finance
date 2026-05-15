@@ -1,695 +1,680 @@
-/* /api/reconciliation
- * Sovereign Finance · Reconciliation Engine
- * v0.2.0-reconciliation-declaration-health
+/* Sovereign Finance Reconciliation API
+ * /api/reconciliation
+ * v0.1.0-manual-balance-snapshots
  *
- * Banking-grade rules:
- * - /api/accounts is the current balance source.
- * - Reconciliation never writes ledger transactions directly.
- * - Declaration records evidence only: declared balance vs computed balance.
- * - Adjustment workflow is blocked until routed through /api/transactions dry-run + commit hash.
- * - Every rupee drift gets severity, proof, source version, and audit trail.
+ * Phase 5 purpose:
+ * - Manual statement balance snapshot source.
+ * - Shows app balance from transactions_canonical.
+ * - Lets user dry-run real statement balance comparisons.
+ * - Saves manual reconciliation snapshots.
+ * - Creates exception records when app balance and real balance differ.
+ * - Does NOT mutate ledger/accounts/balances automatically.
  */
 
-const VERSION = 'v0.2.0-reconciliation-declaration-health';
+const VERSION = 'v0.1.0-manual-balance-snapshots';
 
-const SOURCE_ENDPOINT = '/api/accounts';
-const OK_THRESHOLD = 100;
-const CHECK_THRESHOLD = 1000;
+const POSITIVE_TYPES = new Set([
+  'income',
+  'salary',
+  'opening',
+  'borrow',
+  'debt_in'
+]);
+
+const NEGATIVE_TYPES = new Set([
+  'expense',
+  'transfer',
+  'cc_spend',
+  'repay',
+  'atm',
+  'debt_out',
+  'cc_payment'
+]);
 
 export async function onRequestGet(context) {
   try {
-    const path = getPath(context);
+    const db = context.env.DB;
 
-    if (path[0] === 'health') {
-      return getHealth(context);
+    if (!db) {
+      return json({
+        ok: false,
+        version: VERSION,
+        error: {
+          code: 'DB_BINDING_MISSING',
+          message: 'Cloudflare D1 binding DB is not available.'
+        }
+      }, 500);
     }
 
-    if (path[0] === 'declarations') {
-      return getDeclarations(context);
-    }
+    const rows = await buildRows(db);
+    const exceptions = await loadOpenExceptions(db);
 
-    return getOverview(context);
+    return json({
+      ok: true,
+      version: VERSION,
+      source: 'manual_balance_snapshots',
+      summary: summarizeRows(rows, exceptions),
+      rows,
+      exceptions,
+      contract: {
+        reconciliation_is_manual: true,
+        app_balance_source: 'transactions_canonical',
+        real_balance_source: 'manual_statement_entry',
+        mutates_ledger: false,
+        mutates_accounts: false,
+        auto_adjusts_balances: false,
+        save_snapshot_supported: true,
+        dry_run_supported: true
+      }
+    });
   } catch (err) {
     return json({
       ok: false,
       version: VERSION,
-      error: err.message || String(err)
+      error: {
+        code: 'RECONCILIATION_GET_FAILED',
+        message: err.message || String(err)
+      }
     }, 500);
   }
 }
 
 export async function onRequestPost(context) {
   try {
-    const path = getPath(context);
-    const body = await readJSON(context.request);
-    const dryRun = isDryRun(context.request, body);
+    const db = context.env.DB;
+    const body = await readJson(context.request);
+    const action = clean(body.action || 'dry_run').toLowerCase();
 
-    if (path[0] === 'declare' || path.length === 0) {
-      return declareBalance(context, body, dryRun);
-    }
-
-    if (path[0] === 'adjustment' || path[0] === 'adjust') {
+    if (!db) {
       return json({
         ok: false,
         version: VERSION,
-        error: 'Adjustment commit is intentionally blocked in reconciliation backend.',
-        reason: 'Reconciliation records declarations only. Any ledger adjustment must go through /api/transactions dry-run + payload hash commit.',
-        required_flow: [
-          'Save reconciliation declaration',
-          'Investigate drift',
-          'Prepare /api/transactions dry-run adjustment',
-          'Commit only through transactions payload hash'
-        ]
-      }, 423);
+        error: {
+          code: 'DB_BINDING_MISSING',
+          message: 'Cloudflare D1 binding DB is not available.'
+        }
+      }, 500);
+    }
+
+    if (action === 'dry_run' || action === 'dry-run') {
+      return dryRunReconciliation(db, body);
+    }
+
+    if (
+      action === 'save_snapshot' ||
+      action === 'save-snapshot' ||
+      action === 'save' ||
+      action === 'reconcile'
+    ) {
+      return saveSnapshot(db, body);
     }
 
     return json({
       ok: false,
       version: VERSION,
-      error: 'Unsupported reconciliation POST route.'
-    }, 404);
+      error: {
+        code: 'UNSUPPORTED_ACTION',
+        message: `Unsupported reconciliation action: ${action}`
+      },
+      supported_actions: ['dry_run', 'save_snapshot']
+    }, 400);
   } catch (err) {
     return json({
       ok: false,
       version: VERSION,
-      error: err.message || String(err)
+      error: {
+        code: 'RECONCILIATION_POST_FAILED',
+        message: err.message || String(err)
+      }
     }, 500);
   }
 }
 
-/* ─────────────────────────────
- * GET overview
- * ───────────────────────────── */
-
-async function getOverview(context) {
-  const db = context.env.DB;
-  await ensureTables(db);
-
-  const source = await readAccountsSource(context);
-  if (!source.ok) {
-    return json({
-      ok: false,
-      version: VERSION,
-      status: 'source_error',
-      error: 'Unable to read /api/accounts.',
-      source
-    }, 200);
-  }
-
-  const accounts = normalizeAccounts(source.payload);
-  const latestMap = await loadLatestDeclarations(db);
-
-  const rows = accounts.map(account => {
-    const latest = latestMap.get(account.id) || null;
-    const computed = round2(account.balance);
-    const declared = latest ? round2(latest.declared_balance) : null;
-    const delta = latest ? round2(declared - computed) : null;
-    const severity = latest ? classifyDelta(delta) : 'not_reconciled';
-
-    return {
-      ...account,
-      computed_balance: computed,
-      latest_declaration: latest,
-      declared_balance: declared,
-      delta,
-      drift_abs: delta == null ? null : round2(Math.abs(delta)),
-      severity,
-      reconciled: Boolean(latest)
-    };
-  });
-
-  const summary = summarize(rows);
-
-  return json({
-    ok: true,
-    version: VERSION,
-    status: summary.investigate_count > 0 ? 'investigate' : summary.check_count > 0 ? 'check' : 'ok',
-    source: SOURCE_ENDPOINT,
-    source_version: source.version,
-    generated_at: nowISO(),
-
-    accounts: rows,
-    summary,
-
-    policy: {
-      source_endpoint: SOURCE_ENDPOINT,
-      source_rule: 'Reconciliation must display same computed balances as Accounts.',
-      delta_formula: 'declared_balance - computed_balance',
-      ok_threshold_abs_lt: OK_THRESHOLD,
-      check_threshold_abs_lt: CHECK_THRESHOLD,
-      investigate_threshold_abs_gte: CHECK_THRESHOLD,
-      ledger_write_policy: 'blocked',
-      adjustment_requires_transactions_api: true,
-      direct_transactions_insert_allowed: false,
-      declaration_persists: true
-    },
-
-    sign_policy: {
-      asset_accounts: 'Declare actual positive available balance from bank/wallet/cash.',
-      liability_accounts: 'Declare outstanding as negative balance, matching Accounts display convention.',
-      formula: 'delta = declared - computed'
+export async function onRequestOptions() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
     }
   });
 }
 
 /* ─────────────────────────────
- * GET health
+ * GET rows
  * ───────────────────────────── */
 
-async function getHealth(context) {
-  const db = context.env.DB;
-  await ensureTables(db);
+async function buildRows(db) {
+  const accounts = await loadAccountsWithBalances(db);
+  const latestSnapshots = await loadLatestSnapshotsByAccount(db);
 
-  const source = await readAccountsSource(context);
-  const accounts = source.ok ? normalizeAccounts(source.payload) : [];
-  const latestMap = await loadLatestDeclarations(db);
+  return accounts.map(account => {
+    const snapshot = latestSnapshots.get(account.id) || null;
+    const realBalance = snapshot && snapshot.real_balance != null
+      ? round2(snapshot.real_balance)
+      : null;
 
-  const rows = accounts.map(account => {
-    const latest = latestMap.get(account.id) || null;
-    const delta = latest ? round2(round2(latest.declared_balance) - round2(account.balance)) : null;
+    const difference = realBalance == null
+      ? null
+      : round2(realBalance - account.app_balance);
 
     return {
       account_id: account.id,
       account_name: account.name,
-      computed_balance: round2(account.balance),
-      declared_balance: latest ? round2(latest.declared_balance) : null,
-      delta,
-      severity: latest ? classifyDelta(delta) : 'not_reconciled',
-      declared_at: latest ? latest.declared_at : null
+      account_type: account.type,
+      account_kind: account.kind,
+      currency: account.currency,
+      status: statusForDifference(realBalance, difference),
+      app_balance: account.app_balance,
+      app_balance_source: 'transactions_canonical',
+      real_balance: realBalance,
+      difference,
+      last_snapshot_id: snapshot ? snapshot.id : null,
+      last_snapshot_at: snapshot ? snapshot.created_at : null,
+      last_statement_date: snapshot ? snapshot.statement_date : null,
+      needs_review: realBalance != null && Math.abs(difference) > 0.009,
+      rule: 'Manual reconciliation compares app balance to statement balance and does not mutate ledger/accounts.'
     };
   });
-
-  const summary = summarize(rows);
-  const directWriteBlocked = true;
-
-  return json({
-    ok: true,
-    version: VERSION,
-    status: !source.ok
-      ? 'source_error'
-      : summary.investigate_count > 0
-        ? 'investigate'
-        : summary.check_count > 0
-          ? 'check'
-          : 'ok',
-
-    source: {
-      endpoint: SOURCE_ENDPOINT,
-      ok: source.ok,
-      version: source.version,
-      status: source.status,
-      error: source.error || null
-    },
-
-    checks: {
-      source_available: source.ok,
-      accounts_returned: accounts.length,
-      active_accounts_returned: accounts.filter(a => a.active).length,
-      declaration_rows: await countRows(db, 'reconciliation_declarations'),
-      declared_accounts: summary.declared_count,
-      open_drift_count: summary.check_count + summary.investigate_count,
-      high_drift_count: summary.investigate_count,
-      total_abs_drift: summary.total_abs_drift,
-      direct_transaction_insert_disabled: directWriteBlocked,
-      adjustment_commit_blocked: true
-    },
-
-    summary,
-    rows
-  });
 }
 
-/* ─────────────────────────────
- * GET declarations
- * ───────────────────────────── */
+async function loadAccountsWithBalances(db) {
+  const accountCols = await tableColumns(db, 'accounts');
+  const txCols = await tableColumns(db, 'transactions');
 
-async function getDeclarations(context) {
-  const db = context.env.DB;
-  await ensureTables(db);
+  if (!accountCols.size || !accountCols.has('id')) return [];
 
-  const url = new URL(context.request.url);
-  const accountId = safeText(url.searchParams.get('account_id'), '', 120);
-  const limit = clampInt(url.searchParams.get('limit'), 1, 500, 100);
+  const accountSelect = [
+    'id',
+    accountCols.has('name') ? 'name' : null,
+    accountCols.has('type') ? 'type' : null,
+    accountCols.has('kind') ? 'kind' : null,
+    accountCols.has('currency') ? 'currency' : null,
+    accountCols.has('status') ? 'status' : null,
+    accountCols.has('display_order') ? 'display_order' : null,
+    accountCols.has('deleted_at') ? 'deleted_at' : null,
+    accountCols.has('archived_at') ? 'archived_at' : null
+  ].filter(Boolean);
 
-  const where = accountId ? 'WHERE account_id = ?' : '';
-  const bind = accountId ? [accountId, limit] : [limit];
+  const accountRows = await db.prepare(
+    `SELECT ${accountSelect.join(', ')}
+     FROM accounts
+     ORDER BY ${accountCols.has('display_order') ? 'display_order,' : ''} id`
+  ).all();
 
-  const res = await db.prepare(`
-    SELECT *
-    FROM reconciliation_declarations
-    ${where}
-    ORDER BY datetime(created_at) DESC, id DESC
-    LIMIT ?
-  `).bind(...bind).all();
+  const accounts = (accountRows.results || []).map(row => ({
+    id: clean(row.id),
+    name: clean(row.name || row.id),
+    type: clean(row.type || 'asset'),
+    kind: clean(row.kind || row.type || 'account'),
+    currency: clean(row.currency || 'PKR'),
+    status: clean(row.status || 'active'),
+    deleted_at: row.deleted_at || null,
+    archived_at: row.archived_at || null,
+    app_balance: 0,
+    transaction_count: 0,
+    included_transaction_count: 0,
+    skipped_inactive_transaction_count: 0
+  })).filter(account => isActiveAccount(account));
 
-  return json({
-    ok: true,
-    version: VERSION,
-    count: (res.results || []).length,
-    declarations: (res.results || []).map(normalizeDeclaration)
-  });
-}
-
-/* ─────────────────────────────
- * POST declare
- * ───────────────────────────── */
-
-async function declareBalance(context, body, dryRun) {
-  const db = context.env.DB;
-  await ensureTables(db);
-
-  const accountId = safeText(body.account_id || body.id, '', 120);
-  const declaredBalance = moneyNumber(body.declared_balance ?? body.actual_balance ?? body.balance, null);
-  const declaredAt = normalizeDateTime(body.declared_at || body.date) || nowISO();
-  const notes = safeText(body.notes, '', 1000);
-  const createdBy = safeText(body.created_by, 'web-reconciliation', 120) || 'web-reconciliation';
-
-  if (!accountId) {
-    return json({
-      ok: false,
-      version: VERSION,
-      dry_run: dryRun,
-      error: 'account_id required'
-    }, 400);
+  if (!txCols.size || !txCols.has('account_id') || !txCols.has('amount')) {
+    return accounts;
   }
 
-  if (declaredBalance == null || !Number.isFinite(declaredBalance)) {
-    return json({
-      ok: false,
-      version: VERSION,
-      dry_run: dryRun,
-      error: 'declared_balance must be numeric'
-    }, 400);
-  }
+  const txSelect = [
+    'id',
+    txCols.has('type') ? 'type' : null,
+    txCols.has('transaction_type') ? 'transaction_type' : null,
+    'amount',
+    'account_id',
+    txCols.has('notes') ? 'notes' : null,
+    txCols.has('reversed_by') ? 'reversed_by' : null,
+    txCols.has('reversed_at') ? 'reversed_at' : null
+  ].filter(Boolean);
 
-  const source = await readAccountsSource(context);
-  if (!source.ok) {
-    return json({
-      ok: false,
-      version: VERSION,
-      dry_run: dryRun,
-      error: 'Unable to read /api/accounts for computed balance.',
-      source
-    }, 424);
-  }
+  const txRows = await db.prepare(
+    `SELECT ${txSelect.join(', ')}
+     FROM transactions`
+  ).all();
 
-  const accounts = normalizeAccounts(source.payload);
-  const account = accounts.find(a => String(a.id) === String(accountId));
+  const byId = new Map(accounts.map(account => [account.id, account]));
 
-  if (!account) {
-    return json({
-      ok: false,
-      version: VERSION,
-      dry_run: dryRun,
-      error: 'account_id not found in /api/accounts',
-      account_id: accountId
-    }, 404);
-  }
+  for (const tx of txRows.results || []) {
+    const account = byId.get(clean(tx.account_id));
+    if (!account) continue;
 
-  const computedBalance = round2(account.balance);
-  const delta = round2(declaredBalance - computedBalance);
-  const severity = classifyDelta(delta);
+    account.transaction_count += 1;
 
-  const declaration = {
-    id: makeId('recon'),
-    account_id: account.id,
-    account_name: account.name,
-    account_kind: account.kind || account.type || 'asset',
-    account_type: account.type || account.kind || 'asset',
-    computed_balance: computedBalance,
-    declared_balance: round2(declaredBalance),
-    delta,
-    severity,
-    declared_at: declaredAt,
-    notes,
-    source_endpoint: SOURCE_ENDPOINT,
-    source_version: source.version || '',
-    source_status: String(source.status || ''),
-    created_at: nowISO(),
-    created_by: createdBy,
-    status: severity === 'ok' ? 'matched' : 'drift_detected'
-  };
-
-  const proof = buildDeclarationProof(declaration, account, source);
-
-  if (dryRun) {
-    return json({
-      ok: true,
-      version: VERSION,
-      dry_run: true,
-      action: 'reconciliation.declare',
-      writes_performed: false,
-      ledger_writes_performed: false,
-      declaration,
-      proof
-    });
-  }
-
-  await insertDeclaration(db, declaration);
-
-  return json({
-    ok: true,
-    version: VERSION,
-    dry_run: false,
-    action: 'reconciliation.declare',
-    writes_performed: true,
-    ledger_writes_performed: false,
-    declaration,
-    proof
-  });
-}
-
-/* ─────────────────────────────
- * Source reader
- * ───────────────────────────── */
-
-async function readAccountsSource(context) {
-  const url = new URL(SOURCE_ENDPOINT, context.request.url);
-  const headers = new Headers();
-
-  headers.set('accept', 'application/json');
-
-  const cookie = context.request.headers.get('cookie');
-  if (cookie) headers.set('cookie', cookie);
-
-  const auth = context.request.headers.get('authorization');
-  if (auth) headers.set('authorization', auth);
-
-  const cf = context.request.headers.get('cf-access-jwt-assertion');
-  if (cf) headers.set('cf-access-jwt-assertion', cf);
-
-  try {
-    const res = await fetch(url.toString(), {
-      headers,
-      cache: 'no-store'
-    });
-
-    const text = await res.text();
-
-    let payload = null;
-    try {
-      payload = text ? JSON.parse(text) : null;
-    } catch (err) {
-      return {
-        ok: false,
-        endpoint: SOURCE_ENDPOINT,
-        status: res.status,
-        version: null,
-        error: 'Non-JSON /api/accounts response: ' + err.message,
-        preview: text.slice(0, 500)
-      };
+    if (isInactiveTransaction(tx)) {
+      account.skipped_inactive_transaction_count += 1;
+      continue;
     }
 
-    return {
-      ok: res.ok && payload && payload.ok !== false,
-      endpoint: SOURCE_ENDPOINT,
-      status: res.status,
-      version: payload?.version || payload?.api_version || payload?.meta?.version || null,
-      payload,
-      error: payload?.error || null
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      endpoint: SOURCE_ENDPOINT,
-      status: 0,
-      version: null,
-      error: err.message || String(err)
-    };
+    account.app_balance = round2(account.app_balance + signedAmount(tx));
+    account.included_transaction_count += 1;
   }
+
+  return accounts.map(account => ({
+    ...account,
+    app_balance: round2(account.app_balance)
+  }));
 }
 
-function normalizeAccounts(payload) {
-  const raw = Array.isArray(payload?.accounts)
-    ? payload.accounts
-    : payload?.accounts && typeof payload.accounts === 'object'
-      ? Object.values(payload.accounts)
-      : payload?.accounts_by_id && typeof payload.accounts_by_id === 'object'
-        ? Object.values(payload.accounts_by_id)
-        : Array.isArray(payload?.account_list)
-          ? payload.account_list
-          : [];
-
-  return raw
-    .filter(Boolean)
-    .map(account => {
-      const id = safeText(account.id || account.account_id, '', 120);
-      const type = safeText(account.type || account.kind || account.account_type || 'asset', 'asset', 80).toLowerCase();
-      const kind = safeText(account.kind || account.type || type || 'asset', 'asset', 80).toLowerCase();
-      const status = safeText(account.status || 'active', 'active', 80).toLowerCase();
-
-      return {
-        id,
-        name: safeText(account.name || account.label || id, id, 160),
-        type,
-        kind,
-        status,
-        active: status === 'active' || status === '',
-        currency: safeText(account.currency || 'PKR', 'PKR', 12).toUpperCase(),
-        balance: round2(account.balance ?? account.current_balance ?? account.amount ?? 0),
-        sign_policy: isLiability({ type, kind, id, name: account.name })
-          ? 'liability_declared_as_negative_outstanding'
-          : 'asset_declared_as_positive_available_balance'
-      };
-    })
-    .filter(account => account.id);
-}
-
-/* ─────────────────────────────
- * D1 tables
- * ───────────────────────────── */
-
-async function ensureTables(db) {
-  await db.prepare(`
-    CREATE TABLE IF NOT EXISTS reconciliation_declarations (
-      id TEXT PRIMARY KEY,
-      account_id TEXT NOT NULL,
-      account_name TEXT,
-      account_kind TEXT,
-      account_type TEXT,
-      computed_balance REAL NOT NULL,
-      declared_balance REAL NOT NULL,
-      delta REAL NOT NULL,
-      severity TEXT NOT NULL,
-      declared_at TEXT NOT NULL,
-      notes TEXT,
-      source_endpoint TEXT NOT NULL,
-      source_version TEXT,
-      source_status TEXT,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      created_by TEXT,
-      status TEXT NOT NULL DEFAULT 'drift_detected'
-    )
-  `).run();
-
-  await db.prepare(`
-    CREATE INDEX IF NOT EXISTS idx_reconciliation_declarations_account_created
-    ON reconciliation_declarations(account_id, created_at DESC)
-  `).run();
-
-  await db.prepare(`
-    CREATE INDEX IF NOT EXISTS idx_reconciliation_declarations_severity
-    ON reconciliation_declarations(severity)
-  `).run();
-}
-
-async function insertDeclaration(db, row) {
-  await db.prepare(`
-    INSERT INTO reconciliation_declarations (
-      id,
-      account_id,
-      account_name,
-      account_kind,
-      account_type,
-      computed_balance,
-      declared_balance,
-      delta,
-      severity,
-      declared_at,
-      notes,
-      source_endpoint,
-      source_version,
-      source_status,
-      created_at,
-      created_by,
-      status
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    row.id,
-    row.account_id,
-    row.account_name,
-    row.account_kind,
-    row.account_type,
-    row.computed_balance,
-    row.declared_balance,
-    row.delta,
-    row.severity,
-    row.declared_at,
-    row.notes,
-    row.source_endpoint,
-    row.source_version,
-    row.source_status,
-    row.created_at,
-    row.created_by,
-    row.status
-  ).run();
-}
-
-async function loadLatestDeclarations(db) {
-  const res = await db.prepare(`
-    SELECT d.*
-    FROM reconciliation_declarations d
-    INNER JOIN (
-      SELECT account_id, MAX(datetime(created_at)) AS max_created
-      FROM reconciliation_declarations
-      GROUP BY account_id
-    ) latest
-      ON latest.account_id = d.account_id
-     AND latest.max_created = datetime(d.created_at)
-    ORDER BY d.account_id
-  `).all();
-
+async function loadLatestSnapshotsByAccount(db) {
+  const snapshotsExist = await tableExists(db, 'reconciliation_snapshots');
   const map = new Map();
 
+  if (!snapshotsExist) return map;
+
+  const cols = await tableColumns(db, 'reconciliation_snapshots');
+
+  if (!cols.has('account_id')) return map;
+
+  const realCol = cols.has('real_balance')
+    ? 'real_balance'
+    : cols.has('statement_balance')
+      ? 'statement_balance AS real_balance'
+      : null;
+
+  if (!realCol) return map;
+
+  const select = [
+    cols.has('id') ? 'id' : 'rowid AS id',
+    'account_id',
+    realCol,
+    cols.has('app_balance') ? 'app_balance' : 'NULL AS app_balance',
+    cols.has('difference') ? 'difference' : 'NULL AS difference',
+    cols.has('statement_date') ? 'statement_date' : 'NULL AS statement_date',
+    cols.has('created_at') ? 'created_at' : 'NULL AS created_at'
+  ];
+
+  const orderCol = cols.has('created_at') ? 'datetime(created_at)' : 'rowid';
+
+  const res = await db.prepare(
+    `SELECT ${select.join(', ')}
+     FROM reconciliation_snapshots
+     ORDER BY ${orderCol} DESC`
+  ).all();
+
   for (const row of res.results || []) {
-    map.set(String(row.account_id), normalizeDeclaration(row));
+    const accountId = clean(row.account_id);
+    if (!accountId || map.has(accountId)) continue;
+
+    map.set(accountId, {
+      id: row.id,
+      account_id: accountId,
+      real_balance: row.real_balance == null ? null : number(row.real_balance),
+      app_balance: row.app_balance == null ? null : number(row.app_balance),
+      difference: row.difference == null ? null : number(row.difference),
+      statement_date: row.statement_date || null,
+      created_at: row.created_at || null
+    });
   }
 
   return map;
 }
 
-function normalizeDeclaration(row) {
-  return {
+async function loadOpenExceptions(db) {
+  const exists = await tableExists(db, 'reconciliation_exceptions');
+
+  if (!exists) return [];
+
+  const cols = await tableColumns(db, 'reconciliation_exceptions');
+
+  if (!cols.has('account_id')) return [];
+
+  const select = [
+    cols.has('id') ? 'id' : 'rowid AS id',
+    'account_id',
+    cols.has('account_name') ? 'account_name' : 'NULL AS account_name',
+    cols.has('app_balance') ? 'app_balance' : 'NULL AS app_balance',
+    cols.has('real_balance') ? 'real_balance' : 'NULL AS real_balance',
+    cols.has('difference') ? 'difference' : 'NULL AS difference',
+    cols.has('status') ? 'status' : 'NULL AS status',
+    cols.has('created_at') ? 'created_at' : 'NULL AS created_at'
+  ];
+
+  const where = cols.has('status')
+    ? "WHERE status IS NULL OR status = '' OR status = 'open' OR status = 'needs_review'"
+    : '';
+
+  const res = await db.prepare(
+    `SELECT ${select.join(', ')}
+     FROM reconciliation_exceptions
+     ${where}
+     ORDER BY ${cols.has('created_at') ? 'datetime(created_at) DESC,' : ''} id DESC
+     LIMIT 100`
+  ).all();
+
+  return (res.results || []).map(row => ({
     id: row.id,
-    account_id: row.account_id,
-    account_name: row.account_name,
-    account_kind: row.account_kind,
-    account_type: row.account_type,
-    computed_balance: round2(row.computed_balance),
-    declared_balance: round2(row.declared_balance),
-    delta: round2(row.delta),
-    severity: row.severity,
-    declared_at: row.declared_at,
-    notes: row.notes || '',
-    source_endpoint: row.source_endpoint,
-    source_version: row.source_version || '',
-    source_status: row.source_status || '',
-    created_at: row.created_at,
-    created_by: row.created_by || '',
-    status: row.status || 'drift_detected'
-  };
+    account_id: clean(row.account_id),
+    account_name: row.account_name || null,
+    app_balance: row.app_balance == null ? null : round2(row.app_balance),
+    real_balance: row.real_balance == null ? null : round2(row.real_balance),
+    difference: row.difference == null ? null : round2(row.difference),
+    status: row.status || 'open',
+    created_at: row.created_at || null
+  }));
 }
 
 /* ─────────────────────────────
- * Proof / summary
+ * POST dry-run / save
  * ───────────────────────────── */
 
-function buildDeclarationProof(declaration, account, source) {
-  return {
-    action: 'reconciliation.declare',
-    version: VERSION,
-    writes_performed: false,
-    ledger_writes_performed: false,
-    source_of_truth: SOURCE_ENDPOINT,
-    source_version: source.version || null,
-    formula: 'declared_balance - computed_balance',
-    computed_balance: declaration.computed_balance,
-    declared_balance: declaration.declared_balance,
-    delta: declaration.delta,
-    severity: declaration.severity,
-    checks: [
-      {
-        check: 'source_available',
-        status: source.ok ? 'pass' : 'fail',
-        source: SOURCE_ENDPOINT,
-        detail: 'Computed balance loaded from /api/accounts.'
-      },
-      {
-        check: 'account_found',
-        status: account ? 'pass' : 'fail',
-        source: SOURCE_ENDPOINT,
-        detail: account ? `Account ${account.id} found.` : 'Account missing.'
-      },
-      {
-        check: 'declared_balance_numeric',
-        status: Number.isFinite(declaration.declared_balance) ? 'pass' : 'fail',
-        source: 'request.declared_balance',
-        detail: 'Declared balance is numeric.'
-      },
-      {
-        check: 'severity_assigned',
-        status: 'pass',
-        source: 'reconciliation.policy',
-        detail: `Severity ${declaration.severity} assigned from absolute drift.`
-      },
-      {
-        check: 'ledger_write_blocked',
-        status: 'pass',
-        source: 'api.contract',
-        detail: 'Reconciliation declaration does not mutate transactions or account balances.'
+async function dryRunReconciliation(db, body) {
+  const input = normalizeSnapshotInput(body);
+  const rows = await buildRows(db);
+  const account = rows.find(row => row.account_id === input.account_id);
+
+  if (!account) {
+    return json({
+      ok: false,
+      version: VERSION,
+      action: 'reconciliation.dry_run',
+      error: {
+        code: 'ACCOUNT_NOT_FOUND',
+        message: `Account not found: ${input.account_id}`
       }
-    ]
-  };
-}
-
-function summarize(rows) {
-  let declaredCount = 0;
-  let okCount = 0;
-  let checkCount = 0;
-  let investigateCount = 0;
-  let notReconciledCount = 0;
-  let totalAbsDrift = 0;
-
-  for (const row of rows) {
-    if (!row.reconciled && row.severity === 'not_reconciled') {
-      notReconciledCount += 1;
-      continue;
-    }
-
-    declaredCount += 1;
-
-    const abs = Math.abs(Number(row.delta || 0));
-    totalAbsDrift += abs;
-
-    if (row.severity === 'ok') okCount += 1;
-    else if (row.severity === 'check') checkCount += 1;
-    else if (row.severity === 'investigate') investigateCount += 1;
+    }, 404);
   }
 
+  if (input.real_balance == null) {
+    return json({
+      ok: false,
+      version: VERSION,
+      action: 'reconciliation.dry_run',
+      error: {
+        code: 'REAL_BALANCE_REQUIRED',
+        message: 'real_balance is required.'
+      }
+    }, 400);
+  }
+
+  const result = buildComparison(account, input);
+
+  return json({
+    ok: true,
+    version: VERSION,
+    action: 'reconciliation.dry_run',
+    writes_performed: false,
+    row: result,
+    contract: {
+      mutates_ledger: false,
+      mutates_accounts: false,
+      save_required_for_snapshot: true
+    }
+  });
+}
+
+async function saveSnapshot(db, body) {
+  await ensureReconciliationTables(db);
+
+  const input = normalizeSnapshotInput(body);
+  const rows = await buildRows(db);
+  const account = rows.find(row => row.account_id === input.account_id);
+
+  if (!account) {
+    return json({
+      ok: false,
+      version: VERSION,
+      action: 'reconciliation.save_snapshot',
+      error: {
+        code: 'ACCOUNT_NOT_FOUND',
+        message: `Account not found: ${input.account_id}`
+      }
+    }, 404);
+  }
+
+  if (input.real_balance == null) {
+    return json({
+      ok: false,
+      version: VERSION,
+      action: 'reconciliation.save_snapshot',
+      error: {
+        code: 'REAL_BALANCE_REQUIRED',
+        message: 'real_balance is required.'
+      }
+    }, 400);
+  }
+
+  const result = buildComparison(account, input);
+  const now = nowSql();
+  const snapshotId = `recon_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  const batch = [
+    db.prepare(
+      `INSERT INTO reconciliation_snapshots
+       (id, account_id, account_name, app_balance, real_balance, difference, statement_date, status, notes, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      snapshotId,
+      result.account_id,
+      result.account_name,
+      result.app_balance,
+      result.real_balance,
+      result.difference,
+      input.statement_date,
+      result.status,
+      input.notes,
+      now
+    )
+  ];
+
+  if (result.needs_review) {
+    const exceptionId = `recon_exc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    batch.push(
+      db.prepare(
+        `INSERT INTO reconciliation_exceptions
+         (id, snapshot_id, account_id, account_name, app_balance, real_balance, difference, status, notes, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        exceptionId,
+        snapshotId,
+        result.account_id,
+        result.account_name,
+        result.app_balance,
+        result.real_balance,
+        result.difference,
+        'needs_review',
+        input.notes || 'Manual balance mismatch',
+        now
+      )
+    );
+  }
+
+  await db.batch(batch);
+
+  const updatedRows = await buildRows(db);
+  const exceptions = await loadOpenExceptions(db);
+
+  return json({
+    ok: true,
+    version: VERSION,
+    action: 'reconciliation.save_snapshot',
+    writes_performed: true,
+    snapshot_id: snapshotId,
+    row: {
+      ...result,
+      last_snapshot_id: snapshotId,
+      last_snapshot_at: now
+    },
+    summary: summarizeRows(updatedRows, exceptions),
+    rows: updatedRows,
+    exceptions,
+    contract: {
+      mutates_ledger: false,
+      mutates_accounts: false,
+      snapshot_saved: true,
+      exception_created: result.needs_review
+    }
+  });
+}
+
+function normalizeSnapshotInput(body) {
   return {
-    account_count: rows.length,
-    active_account_count: rows.filter(r => r.active).length,
-    declared_count: declaredCount,
-    not_reconciled_count: notReconciledCount,
-    ok_count: okCount,
-    check_count: checkCount,
-    investigate_count: investigateCount,
-    open_drift_count: checkCount + investigateCount,
-    total_abs_drift: round2(totalAbsDrift)
+    account_id: clean(body.account_id || body.id),
+    real_balance: body.real_balance === undefined || body.real_balance === null || body.real_balance === ''
+      ? null
+      : round2(body.real_balance),
+    statement_date: normalizeDate(body.statement_date || body.date) || todayISO(),
+    notes: clean(body.notes || '')
   };
 }
 
-function classifyDelta(delta) {
-  const abs = Math.abs(Number(delta || 0));
+function buildComparison(account, input) {
+  const realBalance = round2(input.real_balance);
+  const appBalance = round2(account.app_balance);
+  const difference = round2(realBalance - appBalance);
+  const needsReview = Math.abs(difference) > 0.009;
 
-  if (abs < OK_THRESHOLD) return 'ok';
-  if (abs < CHECK_THRESHOLD) return 'check';
-  return 'investigate';
+  return {
+    account_id: account.account_id,
+    account_name: account.account_name,
+    account_type: account.account_type,
+    account_kind: account.account_kind,
+    currency: account.currency,
+    app_balance: appBalance,
+    app_balance_source: 'transactions_canonical',
+    real_balance: realBalance,
+    difference,
+    statement_date: input.statement_date,
+    status: needsReview ? 'needs_review' : 'matched',
+    needs_review: needsReview,
+    rule: 'Difference = real statement balance - app ledger balance. No automatic ledger adjustment is made.'
+  };
 }
 
 /* ─────────────────────────────
- * Helpers
+ * Table setup for snapshots
  * ───────────────────────────── */
 
-function getPath(context) {
-  const raw = context.params && context.params.path;
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw.map(x => String(x)).filter(Boolean);
-  return String(raw).split('/').filter(Boolean);
+async function ensureReconciliationTables(db) {
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS reconciliation_snapshots (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      account_name TEXT,
+      app_balance REAL NOT NULL,
+      real_balance REAL NOT NULL,
+      difference REAL NOT NULL,
+      statement_date TEXT,
+      status TEXT,
+      notes TEXT,
+      created_at TEXT
+    )`
+  ).run();
+
+  await db.prepare(
+    `CREATE TABLE IF NOT EXISTS reconciliation_exceptions (
+      id TEXT PRIMARY KEY,
+      snapshot_id TEXT,
+      account_id TEXT NOT NULL,
+      account_name TEXT,
+      app_balance REAL,
+      real_balance REAL,
+      difference REAL,
+      status TEXT,
+      notes TEXT,
+      created_at TEXT
+    )`
+  ).run();
 }
 
-async function readJSON(request) {
+/* ─────────────────────────────
+ * Summary / rules
+ * ───────────────────────────── */
+
+function summarizeRows(rows, exceptions) {
+  const accountCount = rows.length;
+  const needsReviewCount = rows.filter(row => row.needs_review).length;
+  const matchedCount = rows.filter(row => row.status === 'matched').length;
+  const pendingStatementCount = rows.filter(row => row.status === 'pending_statement').length;
+
+  return {
+    account_count: accountCount,
+    needs_review_count: needsReviewCount,
+    matched_count: matchedCount,
+    pending_statement_count: pendingStatementCount,
+    exception_count: exceptions.length,
+    app_balance_total: round2(rows.reduce((sum, row) => sum + number(row.app_balance, 0), 0)),
+    real_balance_total: rows.some(row => row.real_balance != null)
+      ? round2(rows.reduce((sum, row) => sum + number(row.real_balance, 0), 0))
+      : null,
+    difference_total: rows.some(row => row.difference != null)
+      ? round2(rows.reduce((sum, row) => sum + number(row.difference, 0), 0))
+      : null
+  };
+}
+
+function statusForDifference(realBalance, difference) {
+  if (realBalance == null) return 'pending_statement';
+  if (Math.abs(number(difference, 0)) <= 0.009) return 'matched';
+  return 'needs_review';
+}
+
+/* ─────────────────────────────
+ * Money / transaction helpers
+ * ───────────────────────────── */
+
+function signedAmount(tx) {
+  const type = clean(tx.type || tx.transaction_type).toLowerCase();
+  const amount = Math.abs(number(tx.amount, 0));
+
+  if (POSITIVE_TYPES.has(type)) return amount;
+  if (NEGATIVE_TYPES.has(type)) return -amount;
+
+  return -amount;
+}
+
+function isInactiveTransaction(tx) {
+  const notes = String(tx.notes || '').toUpperCase();
+
+  return Boolean(
+    tx.reversed_by ||
+    tx.reversed_at ||
+    notes.includes('[REVERSAL OF ') ||
+    notes.includes('[REVERSED BY ')
+  );
+}
+
+function isActiveAccount(account) {
+  const status = clean(account.status || 'active').toLowerCase();
+
+  if (['inactive', 'deleted', 'archived'].includes(status)) return false;
+  if (account.deleted_at || account.archived_at) return false;
+
+  return true;
+}
+
+/* ─────────────────────────────
+ * Generic helpers
+ * ───────────────────────────── */
+
+async function tableExists(db, tableName) {
+  try {
+    const row = await db.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1"
+    ).bind(tableName).first();
+
+    return Boolean(row && row.name);
+  } catch {
+    return false;
+  }
+}
+
+async function tableColumns(db, tableName) {
+  try {
+    const res = await db.prepare(`PRAGMA table_info(${tableName})`).all();
+    return new Set((res.results || []).map(row => row.name).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
+async function readJson(request) {
   try {
     return await request.json();
   } catch {
@@ -697,86 +682,40 @@ async function readJSON(request) {
   }
 }
 
-function isDryRun(request, body) {
-  const url = new URL(request.url);
-
-  return url.searchParams.get('dry_run') === '1' ||
-    url.searchParams.get('dry_run') === 'true' ||
-    body.dry_run === true ||
-    body.dry_run === '1' ||
-    body.dry_run === 'true';
-}
-
-function moneyNumber(value, fallback) {
+function number(value, fallback = 0) {
   if (value === undefined || value === null || value === '') return fallback;
 
   const n = typeof value === 'number'
     ? value
     : Number(String(value).replace(/rs/ig, '').replace(/,/g, '').trim());
 
-  return Number.isFinite(n) ? round2(n) : fallback;
+  return Number.isFinite(n) ? n : fallback;
 }
 
 function round2(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 0;
+  const n = number(value, 0);
   return Math.round(n * 100) / 100;
 }
 
-function safeText(value, fallback = '', max = 500) {
-  const raw = value == null ? fallback : value;
-  return String(raw == null ? '' : raw).trim().slice(0, max);
+function clean(value) {
+  return String(value === undefined || value === null ? '' : value).trim();
 }
 
-function normalizeDateTime(value) {
-  const raw = safeText(value, '', 80);
-  if (!raw) return null;
+function normalizeDate(value) {
+  const raw = clean(value);
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-    return raw + 'T00:00:00.000Z';
-  }
+  if (!raw) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
 
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return null;
-
-  return d.toISOString();
+  return '';
 }
 
-function nowISO() {
-  return new Date().toISOString();
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-function makeId(prefix) {
-  return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-}
-
-function clampInt(value, min, max, fallback) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.max(min, Math.min(max, Math.floor(n)));
-}
-
-function isLiability(account) {
-  const joined = [
-    account.kind,
-    account.type,
-    account.name,
-    account.id
-  ].map(v => String(v || '').toLowerCase()).join(' ');
-
-  return joined.includes('liability') ||
-    joined.includes('credit') ||
-    joined.includes('cc') ||
-    joined.includes('card');
-}
-
-async function countRows(db, table) {
-  try {
-    const row = await db.prepare(`SELECT COUNT(*) AS c FROM ${table}`).first();
-    return Number(row?.c || 0);
-  } catch {
-    return 0;
-  }
+function nowSql() {
+  return new Date().toISOString().replace('T', ' ').slice(0, 19);
 }
 
 function json(payload, status = 200) {
