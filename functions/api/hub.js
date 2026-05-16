@@ -123,28 +123,28 @@ export async function onRequestOptions() {
   });
 }
 
-/* ─────────────────────────────
- * Aggregation
- * ───────────────────────────── */
-
 function buildHealth(input) {
   const healthOk = input.healthResult.ok && input.healthResult.json?.ok === true;
   const balancesOk = input.balancesResult.ok && input.balancesResult.json?.ok === true;
+
   const debtsOk =
     input.debtsHealthResult.ok &&
     input.debtsHealthResult.json?.ok === true &&
     normalizeHealthStatus(input.debtsHealthResult.json?.health?.status) === 'pass';
+
   const salaryOk =
     input.salaryResult.ok &&
     input.salaryResult.json?.ok === true &&
     input.salaryResult.json?.forecast_source?.enabled === true &&
     Number(input.salaryResult.json?.forecast_source?.monthly_salary_net || 0) > 0;
+
   const forecastOk =
     input.forecastResult.ok &&
     input.forecastResult.json?.ok === true &&
     Number(input.forecastResult.json?.summary?.cash_now || 0) > 0 &&
     Number(input.forecastResult.json?.summary?.expected_income || 0) > 0 &&
     input.forecastResult.json?.sources?.salary_enabled === true;
+
   const reconciliationOk =
     input.reconciliationResult.ok &&
     input.reconciliationResult.json?.ok === true &&
@@ -160,7 +160,7 @@ function buildHealth(input) {
       ok: balancesOk,
       version: input.balancesResult.json?.version || null,
       endpoint: '/api/balances',
-      balance_source: input.balancesResult.json?.source || input.balancesResult.json?.rules ? 'transactions_canonical' : null
+      balance_source: 'transactions_canonical'
     },
     debts: {
       ok: debtsOk,
@@ -301,8 +301,10 @@ function buildAlerts(health, summary, raw) {
   }
 
   const debtHealth = raw.debtsHealthResult.json?.health || {};
-  if (Array.isArray(debtHealth.payments_with_reversed_transaction_but_active_payment) &&
-      debtHealth.payments_with_reversed_transaction_but_active_payment.length > 0) {
+  if (
+    Array.isArray(debtHealth.payments_with_reversed_transaction_but_active_payment) &&
+    debtHealth.payments_with_reversed_transaction_but_active_payment.length > 0
+  ) {
     alerts.push({
       level: 'critical',
       code: 'DEBT_REVERSED_PAYMENT_ACTIVE',
@@ -314,10 +316,6 @@ function buildAlerts(health, summary, raw) {
 
   return alerts;
 }
-
-/* ─────────────────────────────
- * Fetch helpers
- * ───────────────────────────── */
 
 async function fetchJson(origin, path, headers) {
   const url = origin + path;
@@ -393,10 +391,6 @@ function sourceMeta(endpoint, result) {
   };
 }
 
-/* ─────────────────────────────
- * Generic helpers
- * ───────────────────────────── */
-
 function normalizeHealthStatus(value) {
   const raw = String(value || '').toLowerCase();
 
@@ -419,7 +413,6 @@ function number(value, fallback = 0) {
 
 function wholeRupee(value) {
   const n = number(value, 0);
-
   return Math.round(n);
 }
 
