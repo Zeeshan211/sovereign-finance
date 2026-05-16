@@ -17,7 +17,7 @@
       subtitle: "Current-cycle bill pressure from backend truth. Payments move through ledger; reversed ledger payments are excluded.",
       actions: [
         { label: "Refresh", id: "bills-refresh-btn" },
-        { label: "Add New Bill", href: "#bills-command-title", primary: true },
+        { label: "Add New Bill", href: "#bills-add-title", primary: true },
         { label: "Repair Bills Health", id: "bills-repair-btn" },
         { label: "Forecast", href: "/forecast.html" },
         { label: "Ledger", href: "/transactions.html" }
@@ -75,7 +75,7 @@
         <div>
           <p class="sf-section-kicker">Current Cycle</p>
           <h2 id="bills-summary-title" class="sf-section-title">Bills Summary</h2>
-          <p class="sf-section-subtitle">Backend current_cycle is the money truth. The page only displays it.</p>
+          <p class="sf-section-subtitle">Backend current_cycle is the money truth. This page displays backend values only.</p>
         </div>
         <div class="sf-section-meta">
           <span id="bills-state-pill" class="sf-pill" data-bills-status>Loading</span>
@@ -139,17 +139,17 @@
         <div>
           <p class="sf-section-kicker">Command Center</p>
           <h2 id="bills-command-title" class="sf-section-title">Create Bill / Pay Bill</h2>
-          <p class="sf-section-subtitle">Transaction-style forms using the shared shell. Bill creation does not move money; payment requires an account.</p>
+          <p class="sf-section-subtitle">Transaction-style owner surface. Bill creation creates an obligation only; payment creates ledger movement.</p>
         </div>
       </div>
 
       <div class="sf-panel-grid">
-        <section class="sf-span-6" aria-labelledby="bills-add-title">
+        <section class="sf-panel sf-span-6" aria-labelledby="bills-add-title">
           <div class="sf-section-head">
             <div>
               <p class="sf-section-kicker">Create</p>
               <h3 id="bills-add-title" class="sf-section-title">Add New Bill</h3>
-              <p class="sf-section-subtitle">Create the recurring/manual bill obligation.</p>
+              <p class="sf-section-subtitle">Create the recurring/manual bill obligation. No money moves here.</p>
             </div>
             <div class="sf-section-meta">
               <span id="bills-add-state" class="sf-pill" data-bills-value="add_state">Ready</span>
@@ -205,12 +205,12 @@
           </form>
         </section>
 
-        <section class="sf-span-6" aria-labelledby="bills-payment-title">
+        <section class="sf-panel sf-span-6" aria-labelledby="bills-payment-title">
           <div class="sf-section-head">
             <div>
               <p class="sf-section-kicker">Payment</p>
               <h3 id="bills-payment-title" class="sf-section-title">Pay Selected Bill</h3>
-              <p class="sf-section-subtitle">Creates a ledger expense and links the bill payment snapshot.</p>
+              <p class="sf-section-subtitle">Creates a ledger expense and links the bill payment snapshot. Account is required.</p>
             </div>
             <div class="sf-section-meta">
               <span id="bills-payment-state" class="sf-pill" data-bills-value="payment_state">Select bill</span>
