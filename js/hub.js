@@ -1,22 +1,18 @@
 /* js/hub.js
  * Sovereign Finance · Hub UI Renderer
- * v0.1.9-shell-kpi-final-binding
+ * v0.2.0-exact-shell-hooks
  *
  * Frontend-only.
- * Reads /api/hub and fills existing shared shell + Hub page components.
- * Does not inject custom panels.
- * Does not create page-specific styling.
- * Does not mutate backend data.
+ * Reads /api/hub and fills exact IDs/data hooks.
+ * No broad DOM scanning.
+ * No custom panels.
+ * No custom styling.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.1.9-shell-kpi-final-binding';
-
-  let latestHubData = null;
-  let observerStarted = false;
-  let renderDebounce = null;
+  const VERSION = 'v0.2.0-exact-shell-hooks';
 
   function money(value) {
     const n = Number(value || 0);
@@ -37,14 +33,6 @@
     return String(value == null ? '' : value);
   }
 
-  function clean(value) {
-    return text(value).trim();
-  }
-
-  function lower(value) {
-    return clean(value).toLowerCase();
-  }
-
   function escapeHtml(value) {
     return text(value)
       .replace(/&/g, '&amp;')
@@ -52,19 +40,6 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
-  }
-
-  function isHubPage() {
-    const path = lower(location.pathname);
-    const body = lower(document.body ? document.body.textContent : '');
-
-    return (
-      path === '/' ||
-      path.endsWith('/index.html') ||
-      body.includes('finance hub') ||
-      body.includes('money position') ||
-      body.includes('liquid now')
-    );
   }
 
   async function fetchJSON(url) {
@@ -89,7 +64,7 @@
     return json;
   }
 
-  function setTextById(id, value) {
+  function setText(id, value) {
     const el = document.getElementById(id);
     if (!el) return false;
 
@@ -99,26 +74,18 @@
     return true;
   }
 
-  function setValue(key, value) {
-    const selectors = [
-      `[data-hub-value="${key}"]`,
-      `[data-hub-metric="${key}"]`,
-      `[data-metric="${key}"]`,
-      `[data-kpi="${key}"]`
-    ];
+  function setDataValue(key, value) {
+    document.querySelectorAll(`[data-hub-value="${key}"]`).forEach(el => {
+      el.textContent = value;
+      el.setAttribute('data-loaded', 'true');
+      el.setAttribute('data-hub-rendered', VERSION);
+    });
 
-    let updated = false;
-
-    for (const selector of selectors) {
-      document.querySelectorAll(selector).forEach(el => {
-        el.textContent = value;
-        el.setAttribute('data-loaded', 'true');
-        el.setAttribute('data-hub-rendered', VERSION);
-        updated = true;
-      });
-    }
-
-    return updated;
+    document.querySelectorAll(`[data-kpi-value="${key}"]`).forEach(el => {
+      el.textContent = value;
+      el.setAttribute('data-loaded', 'true');
+      el.setAttribute('data-hub-rendered', VERSION);
+    });
   }
 
   function setList(key, html) {
@@ -153,113 +120,7 @@
     `;
   }
 
-  function getLeafNodes(root) {
-    return Array.from(root.querySelectorAll('*')).filter(el => {
-      return el.children.length === 0 && clean(el.textContent);
-    });
-  }
-
-  function ancestorContainsLabel(el, label, maxDepth) {
-    let node = el;
-    let depth = 0;
-    const wanted = lower(label);
-
-    while (node && depth <= maxDepth) {
-      if (lower(node.textContent).includes(wanted)) return true;
-      node = node.parentElement;
-      depth += 1;
-    }
-
-    return false;
-  }
-
-  function setLoadingNearTitle(title, value) {
-    let count = 0;
-
-    for (const leaf of getLeafNodes(document.body)) {
-      const current = lower(leaf.textContent);
-
-      const isReplaceable =
-        current === 'loading' ||
-        current === 'loaded' ||
-        current === 'unavailable' ||
-        current === 'available' ||
-        current === '—' ||
-        current === '--';
-
-      if (!isReplaceable) continue;
-      if (!ancestorContainsLabel(leaf, title, 8)) continue;
-
-      leaf.textContent = value;
-      leaf.setAttribute('data-loaded', 'true');
-      leaf.setAttribute('data-hub-rendered', VERSION);
-      count += 1;
-    }
-
-    return count;
-  }
-
-  function setExactShellKpi(title, value) {
-    /*
-     * Shared shell generates KPI cards before/after page JS.
-     * We do not edit sf-shell.js. Instead, we update any shell/body placeholder
-     * still showing Loading near the KPI title.
-     */
-    const updated = setLoadingNearTitle(title, value);
-
-    const possibleContainers = Array.from(document.querySelectorAll('section, article, div, li'))
-      .filter(node => lower(node.textContent).includes(lower(title)))
-      .sort((a, b) => clean(a.textContent).length - clean(b.textContent).length);
-
-    for (const container of possibleContainers.slice(0, 4)) {
-      const leaves = getLeafNodes(container);
-
-      const valueNode = leaves.find(el => {
-        const v = lower(el.textContent);
-        return (
-          v === 'loading' ||
-          v === 'loaded' ||
-          v === 'unavailable' ||
-          v === 'available' ||
-          v === '—' ||
-          v === '--' ||
-          v.startsWith('rs ') ||
-          v.startsWith('-rs ') ||
-          v.includes('alert') ||
-          /^-?\d[\d,]*(\.\d+)?$/.test(v)
-        );
-      });
-
-      if (valueNode && !lower(valueNode.textContent).includes(lower(title))) {
-        valueNode.textContent = value;
-        valueNode.setAttribute('data-loaded', 'true');
-        valueNode.setAttribute('data-hub-rendered', VERSION);
-      }
-    }
-
-    return updated;
-  }
-
-  function updateWindowKpis(values) {
-    if (!window.SF_PAGE || !Array.isArray(window.SF_PAGE.kpis)) return;
-
-    const map = {
-      'Liquid Now': values.cash_now,
-      'Bills Remaining': values.forecast_expected_outflow,
-      'Debt Payable': values.total_owe,
-      'Forecast Risk': values.forecast_risk
-    };
-
-    window.SF_PAGE.kpis = window.SF_PAGE.kpis.map(kpi => {
-      if (!kpi || !map[kpi.title]) return kpi;
-      return {
-        ...kpi,
-        value: map[kpi.title]
-      };
-    });
-  }
-
-  function renderPrimaryValues(data) {
+  function renderValues(data) {
     const s = data.summary || {};
     const alerts = Array.isArray(data.alerts) ? data.alerts : [];
 
@@ -278,52 +139,33 @@
       source_overall: data.health?.overall || 'unknown'
     };
 
-    Object.entries(values).forEach(([key, value]) => setValue(key, value));
+    for (const [key, value] of Object.entries(values)) {
+      setDataValue(key, value);
+    }
 
-    setTextById('hub-liquid-now', values.cash_now);
-    setTextById('hub-net-worth', values.net_worth);
-    setTextById('hub-bills-remaining', values.forecast_expected_outflow);
-    setTextById('hub-debt-payable', values.total_owe);
-    setTextById('hub-receivables', values.total_owed);
-    setTextById('hub-cc-outstanding', values.liabilities_total);
-    setTextById('hub-next-salary', values.salary_amount);
-    setTextById('hub-lowest-liquid', values.forecast_projected_end);
-    setTextById('hub-attention-count', values.attention_count);
-    setTextById('hub-forecast-status', values.forecast_status);
-    setTextById('hub-source-overall', values.source_overall);
+    setText('hub-liquid-now', values.cash_now);
+    setText('hub-net-worth', values.net_worth);
+    setText('hub-bills-remaining', values.forecast_expected_outflow);
+    setText('hub-debt-payable', values.total_owe);
+    setText('hub-receivables', values.total_owed);
+    setText('hub-cc-outstanding', values.liabilities_total);
+    setText('hub-next-salary', values.salary_amount);
+    setText('hub-lowest-liquid', values.forecast_projected_end);
 
-    setTextById('hub-kpi-liquid-now', values.cash_now);
-    setTextById('hub-kpi-bills-remaining', values.forecast_expected_outflow);
-    setTextById('hub-kpi-debt-payable', values.total_owe);
-    setTextById('hub-kpi-forecast-risk', values.forecast_risk);
+    setText('hub-attention-count', values.attention_count);
+    setText('hub-forecast-status', values.forecast_status);
+    setText('hub-source-overall', values.source_overall);
 
-    updateWindowKpis(values);
-
-    setExactShellKpi('Liquid Now', values.cash_now);
-    setExactShellKpi('Bills Remaining', values.forecast_expected_outflow);
-    setExactShellKpi('Debt Payable', values.total_owe);
-    setExactShellKpi('Forecast Risk', values.forecast_risk);
+    setText('hub-kpi-liquid-now', values.cash_now);
+    setText('hub-kpi-bills-remaining', values.forecast_expected_outflow);
+    setText('hub-kpi-debt-payable', values.total_owe);
+    setText('hub-kpi-forecast-risk', values.forecast_risk);
 
     const statusText = `${data.version || 'Hub'} · ${data.health?.overall || 'unknown'} · alerts ${alerts.length}`;
-    setValue('status', statusText);
-    setTextById('hub-state-pill', statusText);
-
-    const statusEl = document.querySelector('[data-hub-status]');
-    if (statusEl) {
-      statusEl.textContent = statusText;
-      statusEl.setAttribute('data-loaded', 'true');
-      statusEl.setAttribute('data-hub-rendered', VERSION);
-    }
+    setText('hub-state-pill', statusText);
 
     const loadedText = 'Last loaded: ' + new Date().toLocaleTimeString();
-    setTextById('hub-last-loaded', loadedText);
-
-    const loadedEl = document.querySelector('[data-hub-last-loaded]');
-    if (loadedEl) {
-      loadedEl.textContent = loadedText;
-      loadedEl.setAttribute('data-loaded', 'true');
-      loadedEl.setAttribute('data-hub-rendered', VERSION);
-    }
+    setText('hub-last-loaded', loadedText);
   }
 
   function renderAttention(data) {
@@ -356,11 +198,7 @@
     const s = data.summary || {};
 
     setList('readiness', [
-      row(
-        'Reconciliation',
-        `${number(s.reconciliation_matched_count)} matched · ${number(s.reconciliation_pending_statement_count)} pending`,
-        `${number(s.reconciliation_exception_count)} exceptions`
-      ),
+      row('Reconciliation', `${number(s.reconciliation_matched_count)} matched · ${number(s.reconciliation_pending_statement_count)} pending`, `${number(s.reconciliation_exception_count)} exceptions`),
       row('Backend health', 'Hub contract aggregate', data.health?.overall || 'unknown'),
       row('Alerts', 'Current backend contract alerts', Array.isArray(data.alerts) && data.alerts.length ? `${data.alerts.length}` : '0')
     ].join(''));
@@ -439,9 +277,7 @@
   }
 
   function render(data) {
-    latestHubData = data;
-
-    renderPrimaryValues(data);
+    renderValues(data);
     renderAttention(data);
     renderForecast(data);
     renderReadiness(data);
@@ -450,15 +286,11 @@
     renderActivity(data);
     renderSources(data);
     renderDebug(data);
-    startShellObserver();
 
     window.SovereignHub = {
       ui_version: VERSION,
       api: data,
-      reload: load,
-      rerender: function () {
-        if (latestHubData) render(latestHubData);
-      }
+      reload: load
     };
 
     console.log('[Hub rendered]', VERSION, data.version, data.health?.overall, data.summary);
@@ -467,10 +299,10 @@
   function renderError(error) {
     const message = error.message || String(error);
 
-    setTextById('hub-state-pill', 'Hub failed');
-    setTextById('hub-attention-count', 'Error');
-    setTextById('hub-forecast-status', 'Error');
-    setTextById('hub-source-overall', 'Error');
+    setText('hub-state-pill', 'Hub failed');
+    setText('hub-attention-count', 'Error');
+    setText('hub-forecast-status', 'Error');
+    setText('hub-source-overall', 'Error');
 
     setList('attention', empty('Hub failed to load', message));
     setList('forecast', empty('Forecast unavailable', message));
@@ -480,36 +312,10 @@
     console.error('[Hub error]', error);
   }
 
-  function startShellObserver() {
-    if (observerStarted) return;
-    observerStarted = true;
-
-    const observer = new MutationObserver(() => {
-      if (!latestHubData) return;
-
-      clearTimeout(renderDebounce);
-      renderDebounce = setTimeout(() => {
-        renderPrimaryValues(latestHubData);
-      }, 50);
-    });
-
-    observer.observe(document.body, {
-      childList: true,
-      subtree: true,
-      characterData: true
-    });
-
-    setTimeout(() => observer.disconnect(), 15000);
-  }
-
   async function load() {
     try {
       const data = await fetchJSON('/api/hub');
       render(data);
-
-      setTimeout(() => latestHubData && renderPrimaryValues(latestHubData), 250);
-      setTimeout(() => latestHubData && renderPrimaryValues(latestHubData), 750);
-      setTimeout(() => latestHubData && renderPrimaryValues(latestHubData), 1500);
     } catch (error) {
       renderError(error);
     }
