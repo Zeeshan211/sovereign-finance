@@ -467,30 +467,25 @@
     console.error('[Bills UI error]', err);
   }
 
-  function bindStaticActions() {
-    const refresh = document.getElementById('bills-refresh-btn');
-    if (refresh) refresh.addEventListener('click', loadAll);
+  const addNew = document.getElementById('bills-add-new-btn');
+if (addNew) {
+  addNew.addEventListener('click', () => {
+    const drawer = document.getElementById('bills-add-drawer');
+    const form = document.getElementById('bills-add-form');
+    const name = document.getElementById('bill-add-name');
 
-    const repair = document.getElementById('bills-repair-btn');
-    if (repair) repair.addEventListener('click', repairBills);
-
-    const addNew = document.getElementById('bills-add-new-btn');
-    if (addNew) {
-      addNew.addEventListener('click', () => {
-        const form = document.getElementById('bills-add-form');
-        if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-        const name = document.getElementById('bill-add-name');
-        if (name) name.focus();
-      });
+    if (drawer) {
+      drawer.open = true;
+      drawer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (form) {
+      form.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    const addForm = document.getElementById('bills-add-form');
-    if (addForm) addForm.addEventListener('submit', submitAddBill);
-
-    const paymentForm = document.getElementById('bills-payment-form');
-    if (paymentForm) paymentForm.addEventListener('submit', submitPayment);
-  }
+    setTimeout(() => {
+      if (name) name.focus();
+    }, 150);
+  });
+}
 
   function bindDynamicActions() {
     document.querySelectorAll('[data-bill-select]').forEach(buttonEl => {
