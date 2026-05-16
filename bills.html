@@ -17,48 +17,17 @@
       subtitle: "Current-cycle bill pressure from backend truth. Payments move through ledger; reversed ledger payments are excluded.",
       actions: [
         { label: "Refresh", id: "bills-refresh-btn" },
-        { label: "Add New Bill", href: "#bills-add-title", primary: true },
+        { label: "Add New Bill", id: "bills-open-add-modal-btn", primary: true },
+        { label: "Pay Selected", id: "bills-open-pay-modal-btn" },
         { label: "Repair Bills Health", id: "bills-repair-btn" },
         { label: "Forecast", href: "/forecast.html" },
         { label: "Ledger", href: "/transactions.html" }
       ],
       kpis: [
-        {
-          title: "Expected This Cycle",
-          kicker: "Bills",
-          value: "Loading",
-          valueId: "bills-kpi-expected",
-          valueKey: "expected_this_cycle",
-          subtitle: "Total expected bills for current cycle",
-          foot: "From /api/bills"
-        },
-        {
-          title: "Paid This Cycle",
-          kicker: "Ledger-linked",
-          value: "Loading",
-          valueId: "bills-kpi-paid",
-          valueKey: "paid_this_cycle",
-          subtitle: "Valid active bill payments",
-          foot: "Reversed ledger payments excluded"
-        },
-        {
-          title: "Remaining",
-          kicker: "Pressure",
-          value: "Loading",
-          valueId: "bills-kpi-remaining",
-          valueKey: "remaining",
-          subtitle: "Still due in the current cycle",
-          foot: "Backend current_cycle truth"
-        },
-        {
-          title: "Bills Health",
-          kicker: "Integrity",
-          value: "Loading",
-          valueId: "bills-kpi-health",
-          valueKey: "health_status",
-          subtitle: "Payment and ledger consistency",
-          foot: "From /api/bills/health"
-        }
+        { title: "Expected This Cycle", kicker: "Bills",         value: "Loading", valueId: "bills-kpi-expected",  valueKey: "expected_this_cycle", subtitle: "Total expected bills for current cycle", foot: "From /api/bills" },
+        { title: "Paid This Cycle",     kicker: "Ledger-linked", value: "Loading", valueId: "bills-kpi-paid",      valueKey: "paid_this_cycle",     subtitle: "Valid active bill payments",              foot: "Reversed ledger payments excluded" },
+        { title: "Remaining",           kicker: "Pressure",      value: "Loading", valueId: "bills-kpi-remaining", valueKey: "remaining",           subtitle: "Still due in the current cycle",          foot: "Backend current_cycle truth" },
+        { title: "Bills Health",        kicker: "Integrity",     value: "Loading", valueId: "bills-kpi-health",    valueKey: "health_status",       subtitle: "Payment and ledger consistency",          foot: "From /api/bills/health" }
       ]
     };
   </script>
@@ -70,16 +39,60 @@
 <body>
   <section class="sf-panel-grid" aria-label="Bills workspace">
 
-    <!-- 1. PRIMARY CONTENT: Bills list + selected bill detail (above the fold) -->
+    <!-- ============================================================ -->
+    <!-- 1. TOOLBAR · filter / search / sort  (v0.10 wires; v0.9.0 ignores) -->
+    <!-- ============================================================ -->
+    <section id="bills-toolbar" class="sf-panel sf-span-12" aria-labelledby="bills-toolbar-title" hidden>
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Filter</p>
+          <h2 id="bills-toolbar-title" class="sf-section-title">Find a Bill</h2>
+          <p class="sf-section-subtitle">Filter by cycle status, search by name or ID, or sort the list.</p>
+        </div>
+      </div>
+
+      <div class="sf-form-grid" data-bills-toolbar>
+        <div class="sf-field sf-span-12" id="bills-filter-chips" data-bills-filter-chips>
+          <button class="sf-button sf-button--chip is-active" type="button" data-bills-filter="all">All</button>
+          <button class="sf-button sf-button--chip" type="button" data-bills-filter="unpaid">Unpaid</button>
+          <button class="sf-button sf-button--chip" type="button" data-bills-filter="partial">Partial</button>
+          <button class="sf-button sf-button--chip" type="button" data-bills-filter="paid">Paid</button>
+          <button class="sf-button sf-button--chip" type="button" data-bills-filter="due_this_week">Due this week</button>
+          <button class="sf-button sf-button--chip" type="button" data-bills-filter="ledger_reversed">Ledger reversed</button>
+          <button class="sf-button sf-button--chip" type="button" data-bills-filter="deleted">Deleted</button>
+        </div>
+
+        <label class="sf-field sf-span-8">
+          <span>Search</span>
+          <input id="bills-search-input" type="search" autocomplete="off" placeholder="Search bills, IDs, notes, accounts…" data-bills-search>
+        </label>
+
+        <label class="sf-field sf-span-4">
+          <span>Sort</span>
+          <select id="bills-sort-select" data-bills-sort>
+            <option value="due_day_asc">Due day · ascending</option>
+            <option value="amount_desc">Amount · highest first</option>
+            <option value="name_asc">Name · A → Z</option>
+            <option value="last_paid_desc">Last paid · most recent</option>
+            <option value="created_desc">Created · newest</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <!-- ============================================================ -->
+    <!-- 2. BILLS LIST · primary content -->
+    <!-- ============================================================ -->
     <section class="sf-panel sf-span-8" aria-labelledby="bills-list-title">
       <div class="sf-section-head">
         <div>
           <p class="sf-section-kicker">Bills</p>
           <h2 id="bills-list-title" class="sf-section-title">Current Cycle Bills</h2>
-          <p class="sf-section-subtitle">Select a bill to inspect payment state and ignored/reversed rows.</p>
+          <p class="sf-section-subtitle">Click a row to inspect payment state and reversed/ignored rows.</p>
         </div>
         <div class="sf-section-meta">
           <span id="bills-count-pill" class="sf-pill" data-bills-value="bill_count">Loading</span>
+          <span id="bills-filter-pill" class="sf-pill" data-bills-value="filter">All</span>
         </div>
       </div>
 
@@ -93,6 +106,9 @@
       </div>
     </section>
 
+    <!-- ============================================================ -->
+    <!-- 3. SELECTED BILL · sidebar detail (v0.9.0 still writes here; v0.10 uses inline expand AND keeps sidebar as deep detail) -->
+    <!-- ============================================================ -->
     <section class="sf-panel sf-span-4" aria-labelledby="bills-selected-title">
       <div class="sf-section-head">
         <div>
@@ -110,10 +126,15 @@
           </div>
         </div>
       </div>
+
+      <!-- v0.10 inline action panel (edit / defer) lives here; v0.9.0 ignores -->
+      <div id="bills-action-panel" class="sf-dense-grid" data-bills-action-panel hidden></div>
     </section>
 
-    <!-- 2. PRIMARY ACTIONS: Pay (selected bill) + Add (new bill) -->
-    <section class="sf-panel sf-span-12" aria-labelledby="bills-command-title">
+    <!-- ============================================================ -->
+    <!-- 4. COMMAND CENTER · Pay + Add (kept inline for v0.9.0 compatibility; v0.10 will hide and route through modals) -->
+    <!-- ============================================================ -->
+    <section class="sf-panel sf-span-12" id="bills-inline-forms-section" aria-labelledby="bills-command-title">
       <div class="sf-section-head">
         <div>
           <p class="sf-section-kicker">Command Center</p>
@@ -140,29 +161,24 @@
               <span>Selected bill</span>
               <input id="bill-payment-name" name="bill_name" type="text" readonly placeholder="Select a bill from the list">
             </label>
-
             <label class="sf-field sf-span-6">
               <span>Payment amount</span>
               <input id="bill-payment-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
             </label>
-
             <label class="sf-field sf-span-6">
               <span>Payment date</span>
               <input id="bill-payment-date" name="paid_date" type="date">
             </label>
-
             <label class="sf-field sf-span-12">
               <span>Pay from account</span>
               <select id="bill-payment-account" name="account_id" data-bills-account-select required>
                 <option value="">Choose account</option>
               </select>
             </label>
-
             <label class="sf-field sf-span-12">
               <span>Payment note</span>
               <textarea id="bill-payment-notes" name="notes" rows="2" placeholder="Optional payment note"></textarea>
             </label>
-
             <div class="sf-form-actions sf-span-12">
               <button id="bill-payment-submit" class="sf-button sf-button--primary" type="submit">Pay Bill</button>
               <button id="bill-payment-clear" class="sf-button" type="reset">Clear</button>
@@ -187,17 +203,14 @@
               <span>Bill name</span>
               <input id="bill-add-name" name="name" type="text" autocomplete="off" placeholder="Internet Bill, Rent, School Fee">
             </label>
-
             <label class="sf-field sf-span-6">
               <span>Expected amount</span>
               <input id="bill-add-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
             </label>
-
             <label class="sf-field sf-span-6">
               <span>Due day</span>
               <input id="bill-add-due-day" name="due_day" type="number" inputmode="numeric" min="1" max="31" placeholder="1">
             </label>
-
             <label class="sf-field sf-span-6">
               <span>Frequency</span>
               <select id="bill-add-frequency" name="frequency">
@@ -206,24 +219,20 @@
                 <option value="custom">Custom</option>
               </select>
             </label>
-
             <label class="sf-field sf-span-6">
               <span>Default payment account</span>
               <select id="bill-add-default-account" name="default_account_id" data-bills-account-select>
                 <option value="">Choose when paying</option>
               </select>
             </label>
-
             <label class="sf-field sf-span-12">
               <span>Category</span>
               <input id="bill-add-category" name="category_id" type="text" autocomplete="off" value="bills_utilities">
             </label>
-
             <label class="sf-field sf-span-12">
               <span>Notes</span>
               <textarea id="bill-add-notes" name="notes" rows="2" placeholder="Optional note"></textarea>
             </label>
-
             <div class="sf-form-actions sf-span-12">
               <button id="bill-add-submit" class="sf-button sf-button--primary" type="submit">Add New Bill</button>
               <button id="bill-add-reset" class="sf-button" type="reset">Clear</button>
@@ -233,7 +242,9 @@
       </div>
     </section>
 
-    <!-- 3. REFERENCE: Backend cycle truth (KPI hero already shows headline totals) -->
+    <!-- ============================================================ -->
+    <!-- 5. BILLS SUMMARY · backend cycle truth -->
+    <!-- ============================================================ -->
     <section class="sf-panel sf-panel--accent sf-span-12" aria-labelledby="bills-summary-title">
       <div class="sf-section-head">
         <div>
@@ -249,56 +260,35 @@
 
       <div class="sf-secondary-grid">
         <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Expected This Cycle</div>
-            <div class="sf-row-subtitle">Total bills expected this month</div>
-          </div>
+          <div class="sf-row-left"><div class="sf-row-title">Expected This Cycle</div><div class="sf-row-subtitle">Total bills expected this month</div></div>
           <div id="bills-expected-this-cycle" class="sf-row-right" data-bills-value="expected_this_cycle">Loading</div>
         </div>
-
         <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Paid This Cycle</div>
-            <div class="sf-row-subtitle">Only valid active payments count</div>
-          </div>
+          <div class="sf-row-left"><div class="sf-row-title">Paid This Cycle</div><div class="sf-row-subtitle">Only valid active payments count</div></div>
           <div id="bills-paid-this-cycle" class="sf-row-right" data-bills-value="paid_this_cycle">Loading</div>
         </div>
-
         <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Remaining</div>
-            <div class="sf-row-subtitle">Current unpaid bill pressure</div>
-          </div>
+          <div class="sf-row-left"><div class="sf-row-title">Remaining</div><div class="sf-row-subtitle">Current unpaid bill pressure</div></div>
           <div id="bills-remaining" class="sf-row-right" data-bills-value="remaining">Loading</div>
         </div>
-
         <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Paid / Partial / Unpaid</div>
-            <div class="sf-row-subtitle">Backend current_cycle status counts</div>
-          </div>
+          <div class="sf-row-left"><div class="sf-row-title">Paid / Partial / Unpaid</div><div class="sf-row-subtitle">Backend current_cycle status counts</div></div>
           <div id="bills-status-counts" class="sf-row-right" data-bills-value="status_counts">Loading</div>
         </div>
-
         <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Ledger Reversed Excluded</div>
-            <div class="sf-row-subtitle">Ignored because linked ledger transaction is reversed</div>
-          </div>
+          <div class="sf-row-left"><div class="sf-row-title">Ledger Reversed Excluded</div><div class="sf-row-subtitle">Ignored because linked ledger transaction is reversed</div></div>
           <div id="bills-ledger-reversed-excluded" class="sf-row-right" data-bills-value="ledger_reversed_excluded_count">Loading</div>
         </div>
-
         <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Health</div>
-            <div class="sf-row-subtitle">Bills payment and ledger integrity</div>
-          </div>
+          <div class="sf-row-left"><div class="sf-row-title">Health</div><div class="sf-row-subtitle">Bills payment and ledger integrity</div></div>
           <div id="bills-health-status" class="sf-row-right" data-bills-value="health_status">Loading</div>
         </div>
       </div>
     </section>
 
-    <!-- 4. INTEGRITY: Bills health -->
+    <!-- ============================================================ -->
+    <!-- 6. BILLS HEALTH · integrity -->
+    <!-- ============================================================ -->
     <section class="sf-panel sf-span-12" aria-labelledby="bills-health-title">
       <div class="sf-section-head">
         <div>
@@ -321,7 +311,9 @@
       </div>
     </section>
 
-    <!-- 5. REFERENCE: Engine contract / rules -->
+    <!-- ============================================================ -->
+    <!-- 7. ENGINE CONTRACT · rules reference -->
+    <!-- ============================================================ -->
     <section class="sf-panel sf-span-12" aria-labelledby="bills-rules-title">
       <div class="sf-section-head">
         <div>
@@ -333,32 +325,23 @@
 
       <div class="sf-secondary-grid" id="bills-rules-list" data-bills-list="rules">
         <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Bill creation</div>
-            <div class="sf-row-subtitle">Creates obligation only. No account balance movement.</div>
-          </div>
+          <div class="sf-row-left"><div class="sf-row-title">Bill creation</div><div class="sf-row-subtitle">Creates obligation only. No account balance movement.</div></div>
           <div class="sf-row-right">No ledger write</div>
         </div>
-
         <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Bill payment</div>
-            <div class="sf-row-subtitle">Creates an expense transaction and bill payment snapshot.</div>
-          </div>
+          <div class="sf-row-left"><div class="sf-row-title">Bill payment</div><div class="sf-row-subtitle">Creates an expense transaction and bill payment snapshot.</div></div>
           <div class="sf-row-right">Ledger-linked</div>
         </div>
-
         <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Reversal</div>
-            <div class="sf-row-subtitle">A reversed ledger payment must not count as paid.</div>
-          </div>
+          <div class="sf-row-left"><div class="sf-row-title">Reversal</div><div class="sf-row-subtitle">A reversed ledger payment must not count as paid.</div></div>
           <div class="sf-row-right">Excluded</div>
         </div>
       </div>
     </section>
 
-    <!-- 6. DEBUG: ?debug=1 only -->
+    <!-- ============================================================ -->
+    <!-- 8. DEBUG · ?debug=1 only -->
+    <!-- ============================================================ -->
     <section id="bills-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
       <div class="sf-section-head">
         <div>
@@ -367,11 +350,80 @@
           <p class="sf-section-subtitle">Visible only with ?debug=1.</p>
         </div>
       </div>
-
       <pre id="bills-debug-output" class="sf-debug-text" data-bills-debug>Waiting for js/bills.js.</pre>
     </section>
 
   </section>
+
+  <!-- ============================================================ -->
+  <!-- MODAL CONTAINERS · empty until v0.10 populates and opens them -->
+  <!-- v0.9.0 ignores entirely (hidden + no listeners) -->
+  <!-- ============================================================ -->
+
+  <div id="bills-add-modal" class="sf-modal" data-bills-modal="add" hidden aria-hidden="true" role="dialog" aria-labelledby="bills-add-modal-title">
+    <div class="sf-modal-backdrop" data-bills-modal-close="add"></div>
+    <div class="sf-modal-card" role="document">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Create</p>
+          <h2 id="bills-add-modal-title" class="sf-section-title">Add New Bill</h2>
+          <p class="sf-section-subtitle">Creates the obligation. No money moves until you pay it.</p>
+        </div>
+        <button class="sf-button" type="button" data-bills-modal-close="add" aria-label="Close">Close</button>
+      </div>
+      <div id="bills-add-modal-body" data-bills-modal-body="add"></div>
+    </div>
+  </div>
+
+  <div id="bills-pay-modal" class="sf-modal" data-bills-modal="pay" hidden aria-hidden="true" role="dialog" aria-labelledby="bills-pay-modal-title">
+    <div class="sf-modal-backdrop" data-bills-modal-close="pay"></div>
+    <div class="sf-modal-card" role="document">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Payment</p>
+          <h2 id="bills-pay-modal-title" class="sf-section-title">Pay Bill</h2>
+          <p class="sf-section-subtitle">Creates a ledger expense and links a bill payment snapshot.</p>
+        </div>
+        <button class="sf-button" type="button" data-bills-modal-close="pay" aria-label="Close">Close</button>
+      </div>
+      <div id="bills-pay-modal-body" data-bills-modal-body="pay"></div>
+    </div>
+  </div>
+
+  <div id="bills-edit-modal" class="sf-modal" data-bills-modal="edit" hidden aria-hidden="true" role="dialog" aria-labelledby="bills-edit-modal-title">
+    <div class="sf-modal-backdrop" data-bills-modal-close="edit"></div>
+    <div class="sf-modal-card" role="document">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Edit</p>
+          <h2 id="bills-edit-modal-title" class="sf-section-title">Edit Bill</h2>
+          <p class="sf-section-subtitle">Update obligation. No ledger movement.</p>
+        </div>
+        <button class="sf-button" type="button" data-bills-modal-close="edit" aria-label="Close">Close</button>
+      </div>
+      <div id="bills-edit-modal-body" data-bills-modal-body="edit"></div>
+    </div>
+  </div>
+
+  <div id="bills-defer-modal" class="sf-modal" data-bills-modal="defer" hidden aria-hidden="true" role="dialog" aria-labelledby="bills-defer-modal-title">
+    <div class="sf-modal-backdrop" data-bills-modal-close="defer"></div>
+    <div class="sf-modal-card" role="document">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Defer</p>
+          <h2 id="bills-defer-modal-title" class="sf-section-title">Defer Bill</h2>
+          <p class="sf-section-subtitle">Push the due date. Requires backend support.</p>
+        </div>
+        <button class="sf-button" type="button" data-bills-modal-close="defer" aria-label="Close">Close</button>
+      </div>
+      <div id="bills-defer-modal-body" data-bills-modal-body="defer"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- TOAST · v0.10 uses; v0.9.0 ignores -->
+  <!-- ============================================================ -->
+  <div id="bills-toast" class="sf-toast" role="status" aria-live="polite" hidden></div>
 
   <script src="/js/bills.js"></script>
 </body>
