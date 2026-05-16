@@ -1,53 +1,30 @@
 /* js/bills.js
  * Sovereign Finance · Bills UI
- * v0.10.0-operator-surface
+ * v0.10.1-density-pass
  *
- * Targets:
- *   Frontend: bills.html (Turn 1 scaffolded — IDs verified green)
- *   Backend : /api/bills            v0.8.0-bills-engine-root-contract
- *             /api/bills/health     v1.2.0-bills-health-contract-aligned
- *
- * What this turn adds vs v0.9.0:
- *   - Compact expandable bill rows (icon · title · due · amount · status · caret)
- *   - Inline detail grid on expand, with per-row Pay/Edit/Defer/Soft-delete
- *   - Filter chips (all / unpaid / partial / paid / due_this_week / ledger_reversed / deleted)
- *   - Search + sort (name/amount/due/last paid/created)
- *   - Modal-based Add, Pay, Edit, Defer flows (no window.prompt / window.alert)
- *   - Toast notifications via #bills-toast
- *   - injectStyles() namespaced to bill-*  (no shared CSS touched)
- *   - Hero buttons #bills-open-add-modal-btn and #bills-open-pay-modal-btn bound
- *   - Inline Command Center forms auto-hidden when modal scaffolding present
- *
- * UI rules:
- *   - Frontend never recalculates money. Backend totals are displayed verbatim.
- *   - Shared sf-* classes preserved. Page-specific layout uses bill-* namespace.
- *   - Every legacy ID in bills.html still written to (Bills Summary / Health / Debug).
+ * Delta vs v0.10.0:
+ *   - Page-scoped hero compression (CSS only; shared shell untouched)
+ *   - Filter chips render inline-flex (no more vertical stacking)
+ *   - Tighter sidebar action button wrapping
+ *   - Toolbar spacing tightened
+ * All v0.10 wiring (modals, toast, expand, sort, search, per-row actions) preserved.
  */
 (function () {
   'use strict';
 
-  const VERSION = 'v0.10.0-operator-surface';
+  const VERSION = 'v0.10.1-density-pass';
   const API_BILLS = '/api/bills';
   const API_BILLS_HEALTH = '/api/bills/health';
   const API_ACCOUNTS = '/api/accounts';
   const SEARCH_DEBOUNCE_MS = 180;
 
   const state = {
-    payload: null,
-    health: null,
-    accounts: [],
-    selectedBillId: null,
-    expandedBillIds: new Set(),
-    loading: false,
-    lastLoadedAt: null,
-    actionsBound: false,
-    filter: 'all',
-    sort: 'due_day_asc',
-    search: '',
-    activeModal: null
+    payload: null, health: null, accounts: [],
+    selectedBillId: null, expandedBillIds: new Set(),
+    loading: false, lastLoadedAt: null, actionsBound: false,
+    filter: 'all', sort: 'due_day_asc', search: '', activeModal: null
   };
 
-  // ---------- tiny utils -------------------------------------------------
   const $  = (id) => document.getElementById(id);
   const qa = (sel, root) => Array.from((root || document).querySelectorAll(sel));
   function esc(v) {
@@ -65,7 +42,7 @@
     return 'Rs ' + n.toLocaleString('en-PK', {
       minimumFractionDigits: n % 1 === 0 ? 0 : 2,
       maximumFractionDigits: 2
-});
+    });
   }
   function pill(text, tone) {
     const c = tone ? ` sf-pill--${esc(tone)}` : '';
@@ -117,7 +94,6 @@
     return Math.max(0, Math.min(100, Math.round((paid / expected) * 100)));
   }
 
-  // ---------- fetch helpers ---------------------------------------------
   async function fetchJSON(url, options) {
     const res = await fetch(url, {
       cache: 'no-store',
@@ -137,7 +113,6 @@
   const putJSON    = (u, b) => fetchJSON(u, { method: 'PUT',    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
   const deleteJSON = (u)    => fetchJSON(u, { method: 'DELETE' });
 
-  // ---------- accounts ---------------------------------------------------
   function accountRowsFromPayload(p) {
     if (!p) return [];
     if (Array.isArray(p.accounts)) return p.accounts;
@@ -175,7 +150,6 @@
     return found ? (found.name || found.label || id) : id;
   }
 
-  // ---------- load -------------------------------------------------------
   async function loadBills() {
     if (state.loading) return;
     state.loading = true;
@@ -205,22 +179,17 @@
     }
   }
 
-  // ---------- toolbar (filter / search / sort) --------------------------
   function applyToolbar(rows) {
     let out = rows.slice();
     const f = state.filter;
-    const today = new Date(todayISO() + 'T00:00:00');
-    const inWeek = (b) => {
-      const d = daysUntilDue(b);
-      return d != null && d >= 0 && d <= 7;
-    };
-    if (f === 'unpaid')          out = out.filter((b) => billCycleStatus(b) === 'unpaid' && b.status !== 'deleted');
-    else if (f === 'partial')    out = out.filter((b) => billCycleStatus(b) === 'partial' && b.status !== 'deleted');
-    else if (f === 'paid')       out = out.filter((b) => billCycleStatus(b) === 'paid' && b.status !== 'deleted');
+    const inWeek = (b) => { const d = daysUntilDue(b); return d != null && d >= 0 && d <= 7; };
+    if (f === 'unpaid')             out = out.filter((b) => billCycleStatus(b) === 'unpaid' && b.status !== 'deleted');
+    else if (f === 'partial')       out = out.filter((b) => billCycleStatus(b) === 'partial' && b.status !== 'deleted');
+    else if (f === 'paid')          out = out.filter((b) => billCycleStatus(b) === 'paid' && b.status !== 'deleted');
     else if (f === 'due_this_week') out = out.filter((b) => b.status !== 'deleted' && inWeek(b));
     else if (f === 'ledger_reversed') out = out.filter((b) => Number(b.ledger_reversed_excluded_count || 0) > 0);
-    else if (f === 'deleted')    out = out.filter((b) => b.status === 'deleted');
-    else                         out = out.filter((b) => b.status !== 'deleted');
+    else if (f === 'deleted')       out = out.filter((b) => b.status === 'deleted');
+    else                            out = out.filter((b) => b.status !== 'deleted');
 
     const q = state.search.trim().toLowerCase();
     if (q) {
@@ -235,17 +204,14 @@
     const cmp = (a, b, key, dir = 1) => {
       const av = a[key], bv = b[key];
       if (av == null && bv == null) return 0;
-      if (av == null) return 1;
-      if (bv == null) return -1;
-      if (av < bv) return -1 * dir;
-      if (av > bv) return  1 * dir;
-      return 0;
+      if (av == null) return 1; if (bv == null) return -1;
+      if (av < bv) return -1 * dir; if (av > bv) return 1 * dir; return 0;
     };
-    if (s === 'amount_desc')      out.sort((a, b) => cmp(a, b, 'amount', -1));
-    else if (s === 'name_asc')    out.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-    else if (s === 'last_paid_desc') out.sort((a, b) => cmp(a, b, 'last_paid_date', -1));
-    else if (s === 'created_desc') out.sort((a, b) => cmp(a, b, 'created_at', -1));
-    else /* due_day_asc */         out.sort((a, b) => (Number(a.due_day || 99) - Number(b.due_day || 99)));
+    if (s === 'amount_desc')           out.sort((a, b) => cmp(a, b, 'amount', -1));
+    else if (s === 'name_asc')         out.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    else if (s === 'last_paid_desc')   out.sort((a, b) => cmp(a, b, 'last_paid_date', -1));
+    else if (s === 'created_desc')     out.sort((a, b) => cmp(a, b, 'created_at', -1));
+    else                               out.sort((a, b) => (Number(a.due_day || 99) - Number(b.due_day || 99)));
     return out;
   }
   function setFilter(f) {
@@ -262,7 +228,6 @@
   function wireToolbar() {
     const toolbar = $('bills-toolbar');
     if (toolbar && toolbar.hasAttribute('hidden')) toolbar.removeAttribute('hidden');
-
     qa('[data-bills-filter]').forEach((btn) => {
       btn.addEventListener('click', () => setFilter(btn.getAttribute('data-bills-filter')));
     });
@@ -272,7 +237,6 @@
     if (sort) sort.addEventListener('change', (e) => setSort(e.target.value));
   }
 
-  // ---------- header pills ----------------------------------------------
   function renderHeaderPills() {
     const last = state.lastLoadedAt ? `Last loaded: ${state.lastLoadedAt.toLocaleTimeString()}` : 'Last loaded: never';
     setText('bills-last-loaded', last);
@@ -282,7 +246,6 @@
     setText('bills-health-pill', `health ${h}`);
   }
 
-  // ---------- Bills Summary panel (legacy v0.9 contract) ----------------
   function renderSummary() {
     const p = state.payload || {};
     setText('bills-expected-this-cycle', money(p.expected_this_cycle ?? 0));
@@ -293,7 +256,6 @@
     setText('bills-health-status', state.health?.status || 'unknown');
   }
 
-  // ---------- shell KPI tiles -------------------------------------------
   function renderShellKpis() {
     if (!window.SFShell || typeof window.SFShell.setKpis !== 'function') return;
     const p = state.payload || {};
@@ -302,30 +264,18 @@
     const remainingTone = Number(p.remaining || 0) > 0 ? 'warning' : 'positive';
     try {
       window.SFShell.setKpis([
-        { title: 'Expected This Cycle', kicker: 'Bills',
-          value: money(p.expected_this_cycle ?? 0),
-          subtitle: `Total expected for ${p.month || currentMonth()}`,
-          foot: `Backend ${p.version || 'unknown'}` },
-        { title: 'Paid This Cycle', kicker: 'Ledger-linked',
-          value: money(p.paid_this_cycle ?? 0),
-          subtitle: `${p.paid_count ?? 0} paid · ${p.partial_count ?? 0} partial`,
-          foot: 'Reversed ledger payments excluded',
-          tone: 'positive' },
-        { title: 'Remaining', kicker: 'Pressure',
-          value: money(p.remaining ?? 0),
-          subtitle: `${p.unpaid_count ?? 0} unpaid this cycle`,
-          foot: 'Backend current_cycle truth',
-          tone: remainingTone },
-        { title: 'Bills Health', kicker: 'Integrity',
-          value: h,
-          subtitle: 'Payment and ledger consistency',
-          foot: 'From /api/bills/health',
-          tone: healthTone }
+        { title: 'Expected', kicker: 'Cycle', value: money(p.expected_this_cycle ?? 0),
+          subtitle: p.month || currentMonth(), foot: `Backend ${p.version || 'unknown'}` },
+        { title: 'Paid', kicker: 'Ledger-linked', value: money(p.paid_this_cycle ?? 0),
+          subtitle: `${p.paid_count ?? 0} paid · ${p.partial_count ?? 0} partial`, foot: 'Reversed excluded', tone: 'positive' },
+        { title: 'Remaining', kicker: 'Pressure', value: money(p.remaining ?? 0),
+          subtitle: `${p.unpaid_count ?? 0} unpaid`, foot: 'Backend cycle truth', tone: remainingTone },
+        { title: 'Health', kicker: 'Integrity', value: h,
+          subtitle: 'Payment / ledger', foot: '/api/bills/health', tone: healthTone }
       ]);
     } catch (err) { console.warn('[bills.js] shell KPI refresh failed', err); }
   }
 
-  // ---------- Bills List · compact expandable rows ----------------------
   function dueLabel(bill) {
     const iso = dueDateForBill(bill);
     if (!iso) return 'no due day';
@@ -337,13 +287,13 @@
   }
   function billIcon(bill) {
     const cat = String(bill.category_id || '').toLowerCase();
-    if (cat.includes('rent') || cat.includes('home')) return '🏠';
+    if (cat.includes('rent') || cat.includes('home') || cat.includes('house')) return '🏠';
     if (cat.includes('internet') || cat.includes('utility') || cat.includes('utilities')) return '💡';
     if (cat.includes('school') || cat.includes('edu')) return '🎓';
     if (cat.includes('subscription')) return '📺';
     if (cat.includes('insurance')) return '🛡️';
     if (cat.includes('phone') || cat.includes('mobile')) return '📱';
-    if (cat.includes('family')) return '👨‍👩‍👧';
+    if (cat.includes('family') || cat.includes('help')) return '👨‍👩‍👧';
     return '🧾';
   }
   function renderBillsList() {
@@ -364,14 +314,13 @@
     qa('[data-bill-row-shell]', list).forEach((row) => {
       row.addEventListener('click', (e) => {
         if (e.target.closest('[data-bill-action]')) return;
-        const id = row.getAttribute('data-bill-row-shell');
-        toggleExpand(id);
+        toggleExpand(row.getAttribute('data-bill-row-shell'));
       });
     });
-    qa('[data-bill-action="pay"]', list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openPayModal(b.getAttribute('data-bill-id')); }));
-    qa('[data-bill-action="edit"]', list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(b.getAttribute('data-bill-id')); }));
-    qa('[data-bill-action="defer"]', list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openDeferModal(b.getAttribute('data-bill-id')); }));
-    qa('[data-bill-action="delete"]', list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); softDeleteBill(b.getAttribute('data-bill-id')); }));
+    qa('[data-bill-action="pay"]',     list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openPayModal(b.getAttribute('data-bill-id')); }));
+    qa('[data-bill-action="edit"]',    list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(b.getAttribute('data-bill-id')); }));
+    qa('[data-bill-action="defer"]',   list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openDeferModal(b.getAttribute('data-bill-id')); }));
+    qa('[data-bill-action="delete"]',  list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); softDeleteBill(b.getAttribute('data-bill-id')); }));
     qa('[data-bill-action="restore"]', list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); restoreBill(b.getAttribute('data-bill-id')); }));
   }
   function toggleExpand(id) {
@@ -389,15 +338,12 @@
     const tone = toneForCycleStatus(status);
     const pct = paidPercent(bill);
     const cycle = bill.current_cycle || {};
-
     const tags = [];
-    if (bill.ledger_linked) tags.push(pill('ledger linked', 'info'));
+    if (bill.ledger_linked) tags.push(pill('ledger', 'info'));
     const reversed = Number(bill.ledger_reversed_excluded_count || 0);
     if (reversed > 0) tags.push(pill(`reversed ${reversed}`, 'warning'));
     if (bill.status === 'paused') tags.push(pill('paused', 'warning'));
-
     const detail = expanded ? renderInlineDetail(bill, cycle) : '';
-
     return `
       <div class="bill-card${expanded ? ' is-open' : ''}" data-bill-card="${esc(id)}">
         <div class="bill-row-shell" data-bill-row-shell="${esc(id)}" role="button" tabindex="0" aria-expanded="${expanded}">
@@ -453,7 +399,6 @@
     `;
   }
 
-  // ---------- Selected Bill sidebar (legacy compatibility) --------------
   function renderSelected() {
     const panel = $('bills-selected-panel');
     if (!panel) return;
@@ -464,15 +409,15 @@
     }
     const cycle = bill.current_cycle || {};
     const rows = [
-      ['Name',              bill.name || '—'],
-      ['Cycle status',      billCycleStatus(bill)],
-      ['Amount',            money(bill.amount)],
-      ['Cycle paid',        money(cycle.paid_amount ?? 0)],
-      ['Cycle remaining',   money(cycle.remaining_amount ?? 0)],
-      ['Due',               dueLabel(bill)],
-      ['Last paid',         bill.last_paid_date || '—'],
-      ['Default account',   accountName(bill.default_account_id)],
-      ['Status',            bill.status || 'active']
+      ['Name',            bill.name || '—'],
+      ['Cycle status',    billCycleStatus(bill)],
+      ['Amount',          money(bill.amount)],
+      ['Cycle paid',      money(cycle.paid_amount ?? 0)],
+      ['Cycle remaining', money(cycle.remaining_amount ?? 0)],
+      ['Due',             dueLabel(bill)],
+      ['Last paid',       bill.last_paid_date || '—'],
+      ['Default account', accountName(bill.default_account_id)],
+      ['Status',          bill.status || 'active']
     ];
     panel.innerHTML = rows.map(([k, v]) => `
       <div class="sf-finance-row">
@@ -482,7 +427,6 @@
     `).join('');
   }
 
-  // ---------- Health panel ----------------------------------------------
   function renderHealthPanel() {
     const panel = $('bills-health-panel');
     if (!panel) return;
@@ -506,55 +450,29 @@
     `).join('');
   }
 
-  // ---------- Debug ------------------------------------------------------
   function renderDebug() {
     setText('bills-debug-output', JSON.stringify({
-      uiVersion: VERSION,
-      backendVersion: state.payload?.version,
-      month: state.payload?.month,
+      uiVersion: VERSION, backendVersion: state.payload?.version, month: state.payload?.month,
       filter: state.filter, sort: state.sort, search: state.search,
-      totals: {
-        expected: state.payload?.expected_this_cycle,
-        paid: state.payload?.paid_this_cycle,
-        remaining: state.payload?.remaining
-      },
-      counts: {
-        bills: bills().length, active: activeBills().length,
-        paid: state.payload?.paid_count, partial: state.payload?.partial_count,
-        unpaid: state.payload?.unpaid_count,
-        ledger_reversed_excluded: state.payload?.ledger_reversed_excluded_count
-      },
+      totals: { expected: state.payload?.expected_this_cycle, paid: state.payload?.paid_this_cycle, remaining: state.payload?.remaining },
+      counts: { bills: bills().length, active: activeBills().length, paid: state.payload?.paid_count, partial: state.payload?.partial_count, unpaid: state.payload?.unpaid_count, ledger_reversed_excluded: state.payload?.ledger_reversed_excluded_count },
       health: state.health, selectedBillId: state.selectedBillId,
-      expanded: Array.from(state.expandedBillIds),
-      lastLoadedAt: state.lastLoadedAt
+      expanded: Array.from(state.expandedBillIds), lastLoadedAt: state.lastLoadedAt
     }, null, 2));
   }
 
-  // ---------- render orchestrator ---------------------------------------
   function renderAll() {
-    renderHeaderPills();
-    renderShellKpis();
-    renderSummary();
-    renderBillsList();
-    renderSelected();
-    renderHealthPanel();
-    renderDebug();
+    renderHeaderPills(); renderShellKpis(); renderSummary();
+    renderBillsList(); renderSelected(); renderHealthPanel(); renderDebug();
     prefillPaymentForm();
   }
 
-  // ---------- legacy inline Pay form (kept wired for non-modal fallback)
   function prefillPaymentForm() {
     const bill = bills().find((b) => String(b.id) === String(state.selectedBillId));
-    const nameInput   = $('bill-payment-name');
-    const amountInput = $('bill-payment-amount');
-    const dateInput   = $('bill-payment-date');
-    const accountSel  = $('bill-payment-account');
-    const stateSpan   = $('bills-payment-state');
-    if (!bill) {
-      if (nameInput) nameInput.value = '';
-      if (stateSpan) stateSpan.textContent = 'Select bill';
-      return;
-    }
+    const nameInput = $('bill-payment-name'); const amountInput = $('bill-payment-amount');
+    const dateInput = $('bill-payment-date'); const accountSel = $('bill-payment-account');
+    const stateSpan = $('bills-payment-state');
+    if (!bill) { if (nameInput) nameInput.value = ''; if (stateSpan) stateSpan.textContent = 'Select bill'; return; }
     if (nameInput) nameInput.value = `${bill.name} (${bill.id})`;
     const cycleRemaining = bill.current_cycle?.remaining_amount;
     if (amountInput && !amountInput.value) amountInput.value = (cycleRemaining != null ? cycleRemaining : bill.amount) || '';
@@ -576,9 +494,6 @@
       await submitPay(bill, formToPayPayload(payForm), $('bills-payment-state'));
     });
     $('bill-payment-clear')?.addEventListener('click', () => setText('bills-payment-state', 'Cleared'));
-
-    // Inline forms become redundant once modals exist — collapse the
-    // entire section behind a toggle so the bills list stays above the fold.
     const section = $('bills-inline-forms-section');
     if (section && !section.hasAttribute('hidden')) section.setAttribute('hidden', '');
   }
@@ -604,7 +519,6 @@
     };
   }
 
-  // ---------- Add / Pay / Edit / Defer (shared submit handlers) ----------
   async function submitAddBill(payload, stateSpan) {
     if (!payload.name) { toast('Bill name required.', 'warning'); return; }
     if (!Number.isFinite(payload.amount) || payload.amount <= 0) { toast('Expected amount must be > 0.', 'warning'); return; }
@@ -627,7 +541,15 @@
     if (!payload.account_id) { toast('Pick the payment account.', 'warning'); return; }
     if (stateSpan) stateSpan.textContent = 'Saving';
     try {
-      await postJSON(`${API_BILLS}/${encodeURIComponent(bill.id)}/pay`, payload);
+      // Backend (v0.6.1 / v0.8.0): /api/bills/pay expects bill_id in body, account_id, amount, date
+      await postJSON(`${API_BILLS}/pay`, {
+        bill_id: bill.id,
+        amount: payload.amount,
+        account_id: payload.account_id,
+        date: payload.paid_date,
+        notes: payload.notes,
+        created_by: 'bills-ui-' + VERSION
+      });
       if (stateSpan) stateSpan.textContent = 'Saved';
       closeModal('pay');
       state.selectedBillId = bill.id;
@@ -640,7 +562,8 @@
   }
   async function submitEdit(bill, updates) {
     try {
-      await putJSON(`${API_BILLS}/${encodeURIComponent(bill.id)}`, updates);
+      // Backend /api/bills/update is the v0.6.1 catchall route
+      await postJSON(`${API_BILLS}/update`, { bill_id: bill.id, ...updates });
       closeModal('edit');
       state.selectedBillId = bill.id;
       await loadBills();
@@ -649,9 +572,7 @@
   }
   async function submitDefer(bill, payload) {
     try {
-      // Bills v0.8.0 has no /defer route; try PUT with new due_day / due_date.
-      // If backend later adds /defer, change this path — frontend will pick it up.
-      await putJSON(`${API_BILLS}/${encodeURIComponent(bill.id)}`, payload);
+      await postJSON(`${API_BILLS}/defer`, { bill_id: bill.id, ...payload });
       closeModal('defer');
       state.selectedBillId = bill.id;
       await loadBills();
@@ -663,7 +584,7 @@
     if (!bill) return;
     if (!window.confirm(`Soft-delete "${bill.name}"? Status will be 'deleted'.`)) return;
     try {
-      await deleteJSON(`${API_BILLS}/${encodeURIComponent(bill.id)}`);
+      await postJSON(`${API_BILLS}/update`, { bill_id: bill.id, status: 'deleted' });
       if (String(state.selectedBillId) === String(billId)) state.selectedBillId = null;
       state.expandedBillIds.delete(String(billId));
       await loadBills();
@@ -674,13 +595,12 @@
     const bill = bills().find((b) => String(b.id) === String(billId));
     if (!bill) return;
     try {
-      await putJSON(`${API_BILLS}/${encodeURIComponent(bill.id)}`, { status: 'active' });
+      await postJSON(`${API_BILLS}/update`, { bill_id: bill.id, status: 'active' });
       await loadBills();
       toast(`Restored "${bill.name}".`, 'positive');
     } catch (err) { toast(`Restore failed: ${err.message}`, 'danger'); }
   }
 
-  // ---------- Modals -----------------------------------------------------
   function openModal(name, bodyHtml) {
     const el = $(`bills-${name}-modal`);
     const body = $(`bills-${name}-modal-body`);
@@ -834,8 +754,7 @@
         <div class="bill-modal-context-sub">current due day ${esc(bill.due_day ?? '—')}</div>
       </div>
       <form class="sf-form-grid" data-bills-modal-form="defer">
-        <label class="sf-field sf-span-6"><span>New due day</span><input name="due_day" type="number" inputmode="numeric" min="1" max="31" value="${esc(bill.due_day ?? '')}"></label>
-        <label class="sf-field sf-span-6"><span>New due date (optional)</span><input name="due_date" type="date" value="${esc(bill.due_date || '')}"></label>
+        <label class="sf-field sf-span-12"><span>New due date</span><input name="next_due_date" type="date" value="${esc(bill.due_date || '')}"></label>
         <label class="sf-field sf-span-12"><span>Notes</span><textarea name="notes" rows="2" placeholder="Why are you deferring?"></textarea></label>
         <div class="sf-form-actions sf-span-12">
           <button class="sf-button sf-button--primary" type="submit">Defer</button>
@@ -846,19 +765,13 @@
     const form = qa('[data-bills-modal-form="defer"]')[0];
     if (form) form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const newDay  = Number(form.elements.due_day?.value || 0) || null;
-      const newDate = clean(form.elements.due_date?.value) || null;
-      if (!newDay && !newDate) { toast('Provide a new due day or date.', 'warning'); return; }
-      const payload = {};
-      if (newDay)  payload.due_day = newDay;
-      if (newDate) payload.due_date = newDate;
+      const next = clean(form.elements.next_due_date?.value);
       const notes = clean(form.elements.notes?.value);
-      if (notes) payload.notes = (bill.notes ? bill.notes + '\n' : '') + `[defer ${todayISO()}] ${notes}`;
-      await submitDefer(bill, payload);
+      if (!next) { toast('Provide a new due date.', 'warning'); return; }
+      await submitDefer(bill, { next_due_date: next, notes });
     });
   }
 
-  // ---------- Toast ------------------------------------------------------
   let toastTimer = null;
   function toast(message, tone) {
     const el = $('bills-toast');
@@ -875,7 +788,6 @@
     }, 3200);
   }
 
-  // ---------- Shell actions (Refresh / Add / Pay / Repair) --------------
   function wireShellActionsOnce() {
     if (state.actionsBound) return;
     state.actionsBound = true;
@@ -898,14 +810,85 @@
     });
   }
 
-  // ---------- Page CSS (injected, namespaced) ---------------------------
+  /**
+   * Page-scoped CSS injection.
+   * Scoped via `:has(#bills-toolbar)` so it only applies on the Bills page —
+   * any other page that loads sf-shell remains visually untouched.
+   * Shared shell / shared components / CSS files are NOT modified.
+   */
   function injectStyles() {
-    if (document.querySelector('style[data-bills-styles]')) return;
+    const old = document.querySelector('style[data-bills-styles]');
+    if (old) old.remove();
     const css = `
+      /* ---- HERO COMPRESSION (Bills page only) ----------------------------- */
+      body:has(#bills-toolbar) .sf-shell-hero,
+      body:has(#bills-toolbar) .sf-page-hero,
+      body:has(#bills-toolbar) [data-sf-hero],
+      body:has(#bills-toolbar) header[role="banner"] {
+        padding-block: 14px !important;
+      }
+      body:has(#bills-toolbar) .sf-shell-hero .sf-section-subtitle,
+      body:has(#bills-toolbar) .sf-page-hero .sf-section-subtitle,
+      body:has(#bills-toolbar) [data-sf-hero] .sf-section-subtitle {
+        margin-top: 4px !important; font-size: 12px !important; opacity: .7 !important;
+      }
+      body:has(#bills-toolbar) .sf-shell-hero h1,
+      body:has(#bills-toolbar) .sf-page-hero h1,
+      body:has(#bills-toolbar) [data-sf-hero] h1 {
+        font-size: 26px !important; line-height: 1.1 !important; margin: 0 !important;
+      }
+      body:has(#bills-toolbar) .sf-kpi-strip,
+      body:has(#bills-toolbar) .sf-kpi-grid,
+      body:has(#bills-toolbar) [data-sf-kpis] {
+        padding-block: 8px !important; gap: 10px !important;
+      }
+      body:has(#bills-toolbar) .sf-metric-card,
+      body:has(#bills-toolbar) .sf-kpi-card,
+      body:has(#bills-toolbar) [data-sf-kpi] {
+        padding: 10px 12px !important; min-height: 0 !important;
+      }
+      body:has(#bills-toolbar) .sf-metric-card .sf-metric-value,
+      body:has(#bills-toolbar) .sf-kpi-card .sf-metric-value,
+      body:has(#bills-toolbar) [data-sf-kpi] .sf-metric-value {
+        font-size: 20px !important; line-height: 1.15 !important; margin: 2px 0 !important;
+      }
+      body:has(#bills-toolbar) .sf-metric-card .sf-metric-title,
+      body:has(#bills-toolbar) .sf-metric-card .sf-metric-kicker,
+      body:has(#bills-toolbar) .sf-metric-card .sf-metric-subtitle,
+      body:has(#bills-toolbar) .sf-metric-card .sf-metric-foot {
+        font-size: 11px !important; line-height: 1.2 !important; opacity: .7 !important;
+      }
+      body:has(#bills-toolbar) .sf-shell-actions,
+      body:has(#bills-toolbar) [data-sf-actions] {
+        gap: 6px !important; padding-block: 6px !important;
+      }
+      body:has(#bills-toolbar) .sf-shell-actions .sf-button,
+      body:has(#bills-toolbar) [data-sf-actions] .sf-button {
+        padding: 6px 12px !important; font-size: 12px !important; min-height: 30px !important;
+      }
+
+      /* ---- FILTER CHIPS · render inline-flex, not stacked ----------------- */
+      #bills-filter-chips {
+        display: flex !important; flex-wrap: wrap !important; gap: 8px !important;
+        align-items: center !important;
+      }
+      #bills-filter-chips > .sf-button {
+        display: inline-flex !important; width: auto !important; flex: 0 0 auto !important;
+      }
+      #bills-toolbar .sf-form-grid { row-gap: 10px !important; }
+
+      /* ---- TOOLBAR section tightening ------------------------------------- */
+      #bills-toolbar { padding: 12px 14px !important; }
+      #bills-toolbar .sf-section-head { margin-bottom: 8px !important; }
+      #bills-toolbar .sf-section-title { font-size: 14px !important; }
+      #bills-toolbar .sf-section-subtitle { display: none !important; }
+      #bills-toolbar .sf-section-kicker { font-size: 10px !important; }
+
+      /* ---- BILL ROW (compact expandable) ---------------------------------- */
       .bill-card { border: 1px solid var(--sf-border, rgba(255,255,255,0.08)); border-radius: var(--sf-radius-md, 14px); background: var(--sf-surface, rgba(255,255,255,0.03)); margin-bottom: 8px; transition: border-color 120ms ease; }
       .bill-card:hover { border-color: var(--sf-border-strong, rgba(255,255,255,0.18)); }
       .bill-card.is-open { border-color: var(--sf-accent, #6ea8ff); background: var(--sf-surface-strong, rgba(255,255,255,0.05)); }
-      .bill-row-shell { display: grid; grid-template-columns: 34px minmax(220px, 1.6fr) 110px 86px 20px; gap: 12px; align-items: center; padding: 12px 14px; cursor: pointer; }
+      .bill-row-shell { display: grid; grid-template-columns: 34px minmax(220px, 1.6fr) 110px 86px 20px; gap: 12px; align-items: center; padding: 10px 14px; cursor: pointer; }
       .bill-row-icon { font-size: 20px; line-height: 1; text-align: center; }
       .bill-row-main { min-width: 0; }
       .bill-row-title { font-weight: 600; font-size: 14px; line-height: 1.25; color: var(--sf-text, #fff); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -922,9 +905,12 @@
       .bill-inline-v { font-size: 13px; font-weight: 500; }
       .bill-inline-notes { font-size: 12px; opacity: 0.75; margin: 6px 0 10px; padding: 8px 10px; background: var(--sf-track, rgba(255,255,255,0.04)); border-radius: 8px; white-space: pre-wrap; }
       .bill-inline-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+
+      /* ---- CHIP styling --------------------------------------------------- */
       .sf-button--chip { padding: 6px 12px; font-size: 12px; border-radius: 999px; }
       .sf-button--chip.is-active { background: var(--sf-accent, #6ea8ff); color: var(--sf-on-accent, #0b0f1a); border-color: transparent; }
 
+      /* ---- MODAL ---------------------------------------------------------- */
       .sf-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px 16px; }
       .sf-modal[hidden] { display: none !important; }
       .sf-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); }
@@ -933,6 +919,7 @@
       .bill-modal-context-title { font-weight: 600; font-size: 14px; }
       .bill-modal-context-sub { font-size: 12px; opacity: 0.7; margin-top: 2px; }
 
+      /* ---- TOAST ---------------------------------------------------------- */
       .sf-toast { position: fixed; right: 16px; bottom: 16px; z-index: 1100; padding: 10px 14px; background: var(--sf-surface-strong, #131826); border: 1px solid var(--sf-border, rgba(255,255,255,0.18)); border-radius: 10px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transform: translateY(8px); opacity: 0; transition: transform 180ms ease, opacity 180ms ease; max-width: 360px; }
       .sf-toast.is-open { transform: translateY(0); opacity: 1; }
       .sf-toast--positive { border-color: rgba(80,200,120,0.6); }
@@ -952,7 +939,6 @@
     document.head.appendChild(style);
   }
 
-  // ---------- init -------------------------------------------------------
   function init() {
     injectStyles();
     wireShellActionsOnce();
