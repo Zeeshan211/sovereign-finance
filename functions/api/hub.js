@@ -1,288 +1,444 @@
-/* js/hub.js
- * Sovereign Finance · Hub UI Loader
- * v0.1.2-hub-ui-contract-reader
- *
- * Frontend-only file.
- * Reads /api/hub and renders Hub dashboard values.
- * Does not mutate backend data.
- * Does not calculate financial truth.
- */
+/* Sovereign Finance Hub API
+* /api/hub
+* v0.1.0-hub-contract-health
+*
+* Phase 6 purpose:
+* - Backend-only Hub aggregator.
+* - Reads already-hardened API contracts.
+* - Does NOT mutate ledger/accounts/debts/salary/forecast/reconciliation.
+* - Gives the Hub page one stable health/dashboard source.
+*/
 
-(function () {
-  'use strict';
+const VERSION = 'v0.1.0-hub-contract-health';
 
-  const VERSION = 'v0.1.2-hub-ui-contract-reader';
+export async function onRequestGet(context) {
+const checkedAt = new Date().toISOString();
 
-  const SELECTORS = {
-    debug: ['#hubDebug', '#debugPanel', '[data-hub-debug]'],
-    status: ['[data-hub-status]', '#hubStatus'],
-    lastLoaded: ['[data-hub-last-loaded]', '#hubLastLoaded']
-  };
+try {
+const origin = new URL(context.request.url).origin;
+const headers = forwardHeaders(context.request);
 
-  const METRIC_LABEL_MAP = [
-    ['Liquid Now', s => money(s.cash_now)],
-    ['Net Worth', s => money(s.net_worth)],
-    ['Bills Remaining', s => money(s.forecast_expected_outflow)],
-    ['Debt Payable', s => money(s.total_owe)],
-    ['Receivables', s => money(s.total_owed)],
-    ['Credit Card Outstanding', s => money(s.liabilities_total)],
-    ['Next Salary', s => money(s.salary_amount)],
-    ['Lowest Forecast Liquid', s => money(s.forecast_projected_end)],
-    ['Forecast Risk', (s, data) => {
-      const alerts = Array.isArray(data.alerts) ? data.alerts : [];
-      return alerts.length ? `${alerts.length} alert(s)` : 'OK';
-    }]
-  ];
+const [
+healthResult,
+balancesResult,
+debtsHealthResult,
+debtsResult,
+salaryResult,
+forecastResult,
+reconciliationResult
+] = await Promise.all([
+fetchJson(origin, '/api/health', headers),
+fetchJson(origin, '/api/balances', headers),
+fetchJson(origin, '/api/debts/health', headers),
+fetchJson(origin, '/api/debts', headers),
+fetchJson(origin, '/api/salary', headers),
+fetchJson(origin, '/api/forecast?horizon=30', headers),
+fetchJson(origin, '/api/reconciliation', headers)
+]);
 
-  function money(value) {
-    const n = Number(value || 0);
-    const sign = n < 0 ? '-' : '';
+const health = buildHealth({
+healthResult,
+balancesResult,
+debtsHealthResult,
+debtsResult,
+salaryResult,
+forecastResult,
+reconciliationResult
+});
 
-    return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
-      minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
-      maximumFractionDigits: 2
-    });
-  }
+const summary = buildSummary({
+balances: balancesResult.json,
+debts: debtsResult.json,
+salary: salaryResult.json,
+forecast: forecastResult.json,
+reconciliation: reconciliationResult.json
+});
 
-  function text(value) {
-    return String(value == null ? '' : value);
-  }
+const alerts = buildAlerts(health, summary, {
+healthResult,
+balancesResult,
+debtsHealthResult,
+salaryResult,
+forecastResult,
+reconciliationResult
+});
 
-  async function fetchJSON(url) {
-    const finalUrl = url + (url.includes('?') ? '&' : '?') + 'ts=' + Date.now();
+return json({
+ok: health.overall === 'pass',
+version: VERSION,
+checked_at: checkedAt,
+phase: 'Phase 6 — Hub health/dashboard aggregator',
+health,
+summary,
+alerts,
+sources: {
+health: sourceMeta('/api/health', healthResult),
+balances: sourceMeta('/api/balances', balancesResult),
+debts_health: sourceMeta('/api/debts/health', debtsHealthResult),
+debts: sourceMeta('/api/debts', debtsResult),
+salary: sourceMeta('/api/salary', salaryResult),
+forecast: sourceMeta('/api/forecast?horizon=30', forecastResult),
+reconciliation: sourceMeta('/api/reconciliation', reconciliationResult)
+},
+contract: {
+hub_is_read_only: true,
+mutates_ledger: false,
+mutates_accounts: false,
+mutates_debts: false,
+mutates_salary: false,
+mutates_forecast: false,
+mutates_reconciliation: false,
+dashboard_source: 'backend_contract_aggregator',
+required_phase_order: [
+'Phase 1 Ledger / Accounts / Health',
+'Phase 2 Debts payment + reversal integrity',
+'Phase 3 Salary contract source',
+'Phase 4 Forecast aggregate source',
+'Phase 5 Reconciliation manual snapshot source',
+'Phase 6 Hub health/dashboard aggregator'
+]
+}
+});
+} catch (err) {
+return json({
+ok: false,
+version: VERSION,
+checked_at: checkedAt,
+error: {
+code: 'HUB_AGGREGATE_FAILED',
+message: err.message || String(err)
+}
+}, 500);
+}
+}
 
-    const res = await fetch(finalUrl, {
-      cache: 'no-store',
-      headers: {
-        Accept: 'application/json'
-      }
-    });
+export async function onRequestOptions() {
+return new Response(null, {
+status: 204,
+headers: {
+'Access-Control-Allow-Origin': '*',
+'Access-Control-Allow-Methods': 'GET, OPTIONS',
+'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie'
+}
+});
+}
 
-    const raw = await res.text();
+/* ─────────────────────────────
+ * Aggregation
+ * ───────────────────────────── */
 
-    let data;
-    try {
-      data = JSON.parse(raw);
-    } catch (err) {
-      throw new Error(`Expected JSON from ${url}, received: ${raw.slice(0, 120)}`);
-    }
+function buildHealth(input) {
+const healthOk = input.healthResult.ok && input.healthResult.json?.ok === true;
+const balancesOk = input.balancesResult.ok && input.balancesResult.json?.ok === true;
 
-    if (!res.ok || data.ok === false) {
-      const message =
-        data.error?.message ||
-        data.error ||
-        data.message ||
-        `HTTP ${res.status}`;
+const debtsOk =
+input.debtsHealthResult.ok &&
+input.debtsHealthResult.json?.ok === true &&
+normalizeHealthStatus(input.debtsHealthResult.json?.health?.status) === 'pass';
 
-      throw new Error(message);
-    }
+const salaryOk =
+input.salaryResult.ok &&
+input.salaryResult.json?.ok === true &&
+input.salaryResult.json?.forecast_source?.enabled === true &&
+Number(input.salaryResult.json?.forecast_source?.monthly_salary_net || 0) > 0;
 
-    return data;
-  }
+const forecastOk =
+input.forecastResult.ok &&
+input.forecastResult.json?.ok === true &&
+Number(input.forecastResult.json?.summary?.cash_now || 0) > 0 &&
+Number(input.forecastResult.json?.summary?.expected_income || 0) > 0 &&
+input.forecastResult.json?.sources?.salary_enabled === true;
 
-  function queryFirst(selectors) {
-    for (const selector of selectors) {
-      const found = document.querySelector(selector);
-      if (found) return found;
-    }
+const reconciliationOk =
+input.reconciliationResult.ok &&
+input.reconciliationResult.json?.ok === true &&
+Array.isArray(input.reconciliationResult.json?.rows);
 
-    return null;
-  }
+const services = {
+health: {
+ok: healthOk,
+version: input.healthResult.json?.version || null,
+endpoint: '/api/health'
+},
+accounts: {
+ok: balancesOk,
+version: input.balancesResult.json?.version || null,
+endpoint: '/api/balances',
+      balance_source: input.balancesResult.json?.source || input.balancesResult.json?.rules ? 'transactions_canonical' : null
+      balance_source: 'transactions_canonical'
+},
+debts: {
+ok: debtsOk,
+version: input.debtsResult.json?.version || input.debtsHealthResult.json?.version || null,
+endpoint: '/api/debts',
+health_status: input.debtsHealthResult.json?.health?.status || null
+},
+salary: {
+ok: salaryOk,
+version: input.salaryResult.json?.version || null,
+endpoint: '/api/salary',
+forecast_enabled: input.salaryResult.json?.forecast_source?.enabled || false
+},
+forecast: {
+ok: forecastOk,
+version: input.forecastResult.json?.version || null,
+endpoint: '/api/forecast?horizon=30',
+salary_enabled: input.forecastResult.json?.sources?.salary_enabled || false
+},
+reconciliation: {
+ok: reconciliationOk,
+version: input.reconciliationResult.json?.version || null,
+endpoint: '/api/reconciliation',
+rows_loaded: Array.isArray(input.reconciliationResult.json?.rows)
+? input.reconciliationResult.json.rows.length
+: 0
+}
+};
 
-  function leafNodes() {
-    return Array.from(document.querySelectorAll('body *')).filter(el => {
-      return el.children.length === 0 && text(el.textContent).trim();
-    });
-  }
+const overall = Object.values(services).every(service => service.ok) ? 'pass' : 'warn';
 
-  function findCompactContainerByLabel(label) {
-    const lower = label.toLowerCase();
+return {
+overall,
+services,
+invariants: {
+ledger_accounts_health_passed: healthOk && balancesOk,
+debt_reversal_integrity_passed: debtsOk,
+salary_contract_source_passed: salaryOk,
+forecast_aggregate_source_passed: forecastOk,
+reconciliation_snapshot_source_passed: reconciliationOk,
+hub_read_only: true
+}
+};
+}
 
-    const candidates = Array.from(document.querySelectorAll('section, article, div, li'))
-      .filter(node => text(node.textContent).toLowerCase().includes(lower))
-      .sort((a, b) => text(a.textContent).length - text(b.textContent).length);
+function buildSummary(input) {
+const balances = input.balances || {};
+const debts = input.debts || {};
+const salary = input.salary || {};
+const forecast = input.forecast || {};
+const reconciliation = input.reconciliation || {};
 
-    return candidates[0] || null;
-  }
+const forecastSummary = forecast.summary || {};
+const forecastSources = forecast.sources || {};
+const salarySource = salary.forecast_source || {};
+const reconciliationSummary = reconciliation.summary || {};
 
-  function setValueNearLabel(label, value) {
-    const container = findCompactContainerByLabel(label);
+return {
+cash_now: number(
+forecastSummary.cash_now,
+number(balances.total_liquid, number(balances.totals?.liquid, 0))
+),
+total_assets: number(balances.total_assets, number(balances.totals?.assets, 0)),
+total_liquid: number(balances.total_liquid, number(balances.totals?.liquid, 0)),
+liabilities_total: number(balances.liabilities_total, number(balances.totals?.liabilities, 0)),
+net_worth: number(balances.net_worth, number(balances.totals?.net_worth, 0)),
 
-    if (!container) return false;
+active_debts_count: Array.isArray(debts.debts) ? debts.debts.length : number(debts.count, 0),
+total_owe: number(debts.total_owe, 0),
+total_owed: number(debts.total_owed, 0),
 
-    const leaves = Array.from(container.querySelectorAll('*')).filter(el => {
-      if (el.children.length) return false;
+salary_enabled: salarySource.enabled === true,
+salary_amount: wholeRupee(
+salarySource.monthly_salary_net ||
+salarySource.expected_income_amount ||
+forecastSources.salary_amount ||
+0
+),
+salary_payday: salarySource.expected_payday || null,
+salary_payout_account_id: salarySource.payout_account_id || null,
 
-      const current = text(el.textContent).trim();
-      return current === 'Loading' ||
-        current === 'Unavailable' ||
-        current === '—' ||
-        current === '--' ||
-        current === '0' ||
-        current.startsWith('Rs ');
-    });
+forecast_horizon_days: number(forecast.horizon_days, 30),
+forecast_expected_income: wholeRupee(forecastSummary.expected_income || 0),
+forecast_expected_outflow: wholeRupee(forecastSummary.expected_outflow || 0),
+forecast_projected_end: wholeRupee(forecastSummary.projected_end || 0),
+forecast_event_count: Array.isArray(forecast.events) ? forecast.events.length : 0,
 
-    const target = leaves[leaves.length - 1];
+reconciliation_account_count: number(reconciliationSummary.account_count, 0),
+reconciliation_matched_count: number(reconciliationSummary.matched_count, 0),
+reconciliation_pending_statement_count: number(reconciliationSummary.pending_statement_count, 0),
+reconciliation_exception_count: number(reconciliationSummary.exception_count, 0)
+};
+}
 
-    if (!target) return false;
+function buildAlerts(health, summary, raw) {
+const alerts = [];
 
-    target.textContent = value;
-    target.classList.add('sf-hub-loaded-value');
-    return true;
-  }
+for (const [name, service] of Object.entries(health.services)) {
+if (!service.ok) {
+alerts.push({
+level: 'warn',
+code: `SERVICE_${name.toUpperCase()}_NOT_PASSING`,
+title: `${name} contract is not passing`,
+detail: `${service.endpoint} did not meet the Phase 6 Hub health requirement.`,
+endpoint: service.endpoint
+});
+}
+}
 
-  function replaceExactText(oldText, newText) {
-    for (const el of leafNodes()) {
-      if (text(el.textContent).trim() === oldText) {
-        el.textContent = newText;
-      }
-    }
-  }
+if (summary.salary_enabled && summary.salary_amount <= 0) {
+alerts.push({
+level: 'warn',
+code: 'SALARY_ENABLED_WITH_ZERO_AMOUNT',
+title: 'Salary is enabled but amount is zero',
+detail: 'Salary forecast source must emit a positive monthly net amount.',
+endpoint: '/api/salary'
+});
+}
 
-  function replaceTextContaining(fragment, newText) {
-    for (const el of leafNodes()) {
-      if (text(el.textContent).includes(fragment)) {
-        el.textContent = newText;
-      }
-    }
-  }
+if (summary.forecast_expected_income <= 0 && summary.salary_amount > 0) {
+alerts.push({
+level: 'warn',
+code: 'FORECAST_MISSING_SALARY_INCOME',
+title: 'Forecast income does not include salary',
+detail: 'Forecast should include saved salary contract income.',
+endpoint: '/api/forecast?horizon=30'
+});
+}
 
-  function renderStatus(data) {
-    const status = data.health?.overall || 'unknown';
-    const alerts = Array.isArray(data.alerts) ? data.alerts.length : 0;
-    const value = `Hub ${data.version || 'unknown'} · ${status} · alerts ${alerts}`;
+if (summary.cash_now <= 0 && summary.total_liquid > 0) {
+alerts.push({
+level: 'warn',
+code: 'FORECAST_CASH_MISMATCH',
+title: 'Forecast cash does not match liquid balances',
+detail: 'Forecast cash_now should use canonical transaction balances.',
+endpoint: '/api/forecast?horizon=30'
+});
+}
 
-    const statusEl = queryFirst(SELECTORS.status);
-    if (statusEl) statusEl.textContent = value;
+const debtHealth = raw.debtsHealthResult.json?.health || {};
+  if (Array.isArray(debtHealth.payments_with_reversed_transaction_but_active_payment) &&
+      debtHealth.payments_with_reversed_transaction_but_active_payment.length > 0) {
+  if (
+    Array.isArray(debtHealth.payments_with_reversed_transaction_but_active_payment) &&
+    debtHealth.payments_with_reversed_transaction_but_active_payment.length > 0
+  ) {
+alerts.push({
+level: 'critical',
+code: 'DEBT_REVERSED_PAYMENT_ACTIVE',
+title: 'Debt payment reversal integrity issue',
+detail: 'A debt payment linked to a reversed transaction is still active.',
+endpoint: '/api/debts/health'
+});
+}
 
-    const lastLoadedEl = queryFirst(SELECTORS.lastLoaded);
-    if (lastLoadedEl) {
-      lastLoadedEl.textContent = 'Last loaded: ' + new Date().toLocaleTimeString();
-    }
+return alerts;
+}
 
-    replaceTextContaining('Loading source status', value);
-    replaceTextContaining('Last loaded:', 'Last loaded: ' + new Date().toLocaleTimeString());
-  }
+/* ─────────────────────────────
+ * Fetch helpers
+ * ───────────────────────────── */
 
-  function renderMetrics(data) {
-    const summary = data.summary || {};
+async function fetchJson(origin, path, headers) {
+const url = origin + path;
 
-    for (const [label, formatter] of METRIC_LABEL_MAP) {
-      setValueNearLabel(label, formatter(summary, data));
-    }
+try {
+const response = await fetch(url, {
+method: 'GET',
+headers
+});
 
-    replaceExactText('Unavailable', 'Available');
-    replaceExactText('Loading', 'Loaded');
-  }
+const text = await response.text();
+let parsed = null;
 
-  function renderServices(data) {
-    const services = data.health?.services || {};
+try {
+parsed = JSON.parse(text);
+} catch {
+return {
+ok: false,
+status: response.status,
+url,
+json: null,
+error: {
+code: 'NON_JSON_RESPONSE',
+message: `Expected JSON from ${path}, received ${text.slice(0, 40)}`
+}
+};
+}
 
-    for (const [name, service] of Object.entries(services)) {
-      const label = name.charAt(0).toUpperCase() + name.slice(1);
-      const value = service.ok ? 'OK' : 'Check';
-      setValueNearLabel(label, value);
-    }
-  }
+return {
+ok: response.ok,
+status: response.status,
+url,
+json: parsed,
+error: null
+};
+} catch (err) {
+return {
+ok: false,
+status: 0,
+url,
+json: null,
+error: {
+code: 'FETCH_FAILED',
+message: err.message || String(err)
+}
+};
+}
+}
 
-  function renderAlerts(data) {
-    const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+function forwardHeaders(request) {
+const headers = new Headers();
 
-    const alertContainer =
-      document.querySelector('[data-hub-alerts]') ||
-      document.querySelector('#hubAlerts');
+const cookie = request.headers.get('Cookie');
+const authorization = request.headers.get('Authorization');
+const cfAccessJwt = request.headers.get('Cf-Access-Jwt-Assertion');
 
-    if (!alertContainer) return;
+if (cookie) headers.set('Cookie', cookie);
+if (authorization) headers.set('Authorization', authorization);
+if (cfAccessJwt) headers.set('Cf-Access-Jwt-Assertion', cfAccessJwt);
 
-    if (!alerts.length) {
-      alertContainer.innerHTML = '<div class="muted">No active backend alerts.</div>';
-      return;
-    }
+headers.set('Accept', 'application/json');
 
-    alertContainer.innerHTML = alerts.map(alert => {
-      const level = escapeHtml(alert.level || 'warn');
-      const title = escapeHtml(alert.title || alert.code || 'Alert');
-      const detail = escapeHtml(alert.detail || '');
-      const endpoint = escapeHtml(alert.endpoint || '');
+return headers;
+}
 
-      return `
-        <div class="hub-alert hub-alert-${level}">
-          <div class="hub-alert-title">${title}</div>
-          <div class="hub-alert-detail">${detail}</div>
-          ${endpoint ? `<div class="hub-alert-endpoint">${endpoint}</div>` : ''}
-        </div>
-      `;
-    }).join('');
-  }
+function sourceMeta(endpoint, result) {
+return {
+endpoint,
+ok: result.ok,
+status: result.status,
+version: result.json?.version || null,
+error: result.error || null
+};
+}
 
-  function renderDebug(data) {
-    const debug = queryFirst(SELECTORS.debug);
+/* ─────────────────────────────
+ * Generic helpers
+ * ───────────────────────────── */
 
-    if (!debug) return;
+function normalizeHealthStatus(value) {
+const raw = String(value || '').toLowerCase();
 
-    debug.textContent = JSON.stringify({
-      ui_version: VERSION,
-      api_version: data.version,
-      health: data.health,
-      summary: data.summary,
-      alerts: data.alerts
-    }, null, 2);
-  }
+if (raw === 'pass' || raw === 'ok' || raw === 'healthy') return 'pass';
+if (raw === 'warn' || raw === 'warning') return 'warn';
+if (raw === 'fail' || raw === 'failed' || raw === 'error') return 'fail';
 
-  function renderHub(data) {
-    renderStatus(data);
-    renderMetrics(data);
-    renderServices(data);
-    renderAlerts(data);
-    renderDebug(data);
+return raw || 'unknown';
+}
 
-    window.SovereignHub = {
-      ui_version: VERSION,
-      api: data,
-      reload: loadHub
-    };
-  }
+function number(value, fallback = 0) {
+if (value === undefined || value === null || value === '') return fallback;
 
-  function renderError(err) {
-    replaceExactText('Loading', 'Failed');
+const n = typeof value === 'number'
+? value
+: Number(String(value).replace(/rs/ig, '').replace(/,/g, '').trim());
 
-    const statusEl = queryFirst(SELECTORS.status);
-    if (statusEl) {
-      statusEl.textContent = 'Hub failed · ' + (err.message || String(err));
-    }
+return Number.isFinite(n) ? n : fallback;
+}
 
-    const debug = queryFirst(SELECTORS.debug);
-    if (debug) {
-      debug.textContent = JSON.stringify({
-        ui_version: VERSION,
-        error: err.message || String(err)
-      }, null, 2);
-    }
+function wholeRupee(value) {
+const n = number(value, 0);
 
-    console.error('[Sovereign Hub UI]', err);
-  }
+return Math.round(n);
+}
 
-  async function loadHub() {
-    try {
-      const data = await fetchJSON('/api/hub');
-      renderHub(data);
-    } catch (err) {
-      renderError(err);
-    }
-  }
-
-  function escapeHtml(value) {
-    return String(value == null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadHub, { once: true });
-  } else {
-    loadHub();
-  }
-})();
+function json(payload, status = 200) {
+return new Response(JSON.stringify(payload, null, 2), {
+status,
+headers: {
+'Content-Type': 'application/json; charset=utf-8',
+'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+Pragma: 'no-cache'
+}
+});
+}
