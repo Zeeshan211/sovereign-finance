@@ -13,12 +13,6 @@
 
   const VERSION = 'v0.1.2-hub-ui-contract-reader';
 
-  const SELECTORS = {
-    debug: ['#hubDebug', '#debugPanel', '[data-hub-debug]'],
-    status: ['[data-hub-status]', '#hubStatus'],
-    lastLoaded: ['[data-hub-last-loaded]', '#hubLastLoaded']
-  };
-
   const METRIC_LABEL_MAP = [
     ['Liquid Now', s => money(s.cash_now)],
     ['Net Worth', s => money(s.net_worth)],
@@ -53,9 +47,7 @@
 
     const res = await fetch(finalUrl, {
       cache: 'no-store',
-      headers: {
-        Accept: 'application/json'
-      }
+      headers: { Accept: 'application/json' }
     });
 
     const raw = await res.text();
@@ -63,30 +55,15 @@
     let data;
     try {
       data = JSON.parse(raw);
-    } catch (err) {
+    } catch {
       throw new Error(`Expected JSON from ${url}, received: ${raw.slice(0, 120)}`);
     }
 
     if (!res.ok || data.ok === false) {
-      const message =
-        data.error?.message ||
-        data.error ||
-        data.message ||
-        `HTTP ${res.status}`;
-
-      throw new Error(message);
+      throw new Error(data.error?.message || data.error || data.message || `HTTP ${res.status}`);
     }
 
     return data;
-  }
-
-  function queryFirst(selectors) {
-    for (const selector of selectors) {
-      const found = document.querySelector(selector);
-      if (found) return found;
-    }
-
-    return null;
   }
 
   function leafNodes() {
@@ -95,19 +72,16 @@
     });
   }
 
-  function findCompactContainerByLabel(label) {
+  function findContainerByLabel(label) {
     const lower = label.toLowerCase();
 
-    const candidates = Array.from(document.querySelectorAll('section, article, div, li'))
+    return Array.from(document.querySelectorAll('section, article, div, li'))
       .filter(node => text(node.textContent).toLowerCase().includes(lower))
-      .sort((a, b) => text(a.textContent).length - text(b.textContent).length);
-
-    return candidates[0] || null;
+      .sort((a, b) => text(a.textContent).length - text(b.textContent).length)[0] || null;
   }
 
   function setValueNearLabel(label, value) {
-    const container = findCompactContainerByLabel(label);
-
+    const container = findContainerByLabel(label);
     if (!container) return false;
 
     const leaves = Array.from(container.querySelectorAll('*')).filter(el => {
@@ -123,7 +97,6 @@
     });
 
     const target = leaves[leaves.length - 1];
-
     if (!target) return false;
 
     target.textContent = value;
@@ -152,10 +125,16 @@
     const alerts = Array.isArray(data.alerts) ? data.alerts.length : 0;
     const value = `Hub ${data.version || 'unknown'} · ${status} · alerts ${alerts}`;
 
-    const statusEl = queryFirst(SELECTORS.status);
+    const statusEl =
+      document.querySelector('[data-hub-status]') ||
+      document.querySelector('#hubStatus');
+
     if (statusEl) statusEl.textContent = value;
 
-    const lastLoadedEl = queryFirst(SELECTORS.lastLoaded);
+    const lastLoadedEl =
+      document.querySelector('[data-hub-last-loaded]') ||
+      document.querySelector('#hubLastLoaded');
+
     if (lastLoadedEl) {
       lastLoadedEl.textContent = 'Last loaded: ' + new Date().toLocaleTimeString();
     }
@@ -180,8 +159,7 @@
 
     for (const [name, service] of Object.entries(services)) {
       const label = name.charAt(0).toUpperCase() + name.slice(1);
-      const value = service.ok ? 'OK' : 'Check';
-      setValueNearLabel(label, value);
+      setValueNearLabel(label, service.ok ? 'OK' : 'Check');
     }
   }
 
@@ -216,7 +194,10 @@
   }
 
   function renderDebug(data) {
-    const debug = queryFirst(SELECTORS.debug);
+    const debug =
+      document.querySelector('#hubDebug') ||
+      document.querySelector('#debugPanel') ||
+      document.querySelector('[data-hub-debug]');
 
     if (!debug) return;
 
@@ -246,12 +227,19 @@
   function renderError(err) {
     replaceExactText('Loading', 'Failed');
 
-    const statusEl = queryFirst(SELECTORS.status);
+    const statusEl =
+      document.querySelector('[data-hub-status]') ||
+      document.querySelector('#hubStatus');
+
     if (statusEl) {
       statusEl.textContent = 'Hub failed · ' + (err.message || String(err));
     }
 
-    const debug = queryFirst(SELECTORS.debug);
+    const debug =
+      document.querySelector('#hubDebug') ||
+      document.querySelector('#debugPanel') ||
+      document.querySelector('[data-hub-debug]');
+
     if (debug) {
       debug.textContent = JSON.stringify({
         ui_version: VERSION,
