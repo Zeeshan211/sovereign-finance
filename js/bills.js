@@ -1,125 +1,143 @@
 /* js/bills.js
  * Sovereign Finance · Bills UI
- * v0.8.0-shell-aligned-simple-backend
+ * v0.9.0-cycle-aware
  *
- * Honesty check — this file targets the backend that ACTUALLY exists:
- *   /api/bills/[[path]].js v0.2.0  (Ship 5)
- *     GET    /api/bills              → { ok, version, bills: [...] }
- *     GET    /api/bills/:id          → { ok, version, bill }
- *     PUT    /api/bills/:id          → update bill config (amount, due_day, …)
- *     POST   /api/bills/:id/pay      → mark paid (paid_date, account_id)
- *     DELETE /api/bills/:id          → soft-delete (status='deleted')
- *   /api/bills/health.js v1.0.1
- *     GET    /api/bills/health       → integrity report over bill_payments table
+ * Live backend contract (consumed verbatim):
+ *   /api/bills            v0.8.0-bills-engine-root-contract
+ *     top:   ok, version, month, expected_this_cycle, paid_this_cycle,
+ *            remaining, paid_count, partial_count, unpaid_count,
+ *            ledger_reversed_excluded_count, count, bills,
+ *            current_cycle, health, rules, contract
+ *     bill:  id, name, amount, due_day, due_date, frequency,
+ *            category_id, default_account_id, last_paid_date,
+ *            last_paid_account_id, status, deleted_at, notes,
+ *            created_at, updated_at, current_cycle, ledger_linked,
+ *            ledger_reversed_excluded_count
+ *   /api/bills/health     v1.2.0-bills-health-contract-aligned
+ *     health: status, payment_rows, orphan_count,
+ *             active_payment_reversed_txn_mismatch_count,
+ *             missing_reversal_txn_count,
+ *             duplicate_bill_month_amount_count,
+ *             amount_mismatch_count, table_state, columns
  *
- * Backend does NOT compute current-cycle math (expected / paid / remaining).
- * Backend does NOT expose create / defer / repair / history routes.
- * This UI reflects backend truth and clearly states what is unsupported.
+ * UI rules:
+ *   - Frontend displays backend truth; no money recalculation.
+ *   - Shared sf-* vocabulary only; no foreign panels.
+ *   - All static HTML IDs in bills.html honored exactly.
  *
- * UI rules followed:
- *   - Shared shell vocabulary only (sf-finance-row, sf-pill, sf-button, …).
- *   - No foreign panels, no page-specific visual system.
- *   - Frontend does not recalculate money totals.
- *   - All static HTML IDs in bills.html are honored.
+ * Behaviour for unknown backend support:
+ *   - "Add New Bill" submits to POST /api/bills and shows backend's real reply.
+ *   - "Repair Bills Health" submits to POST /api/bills/repair likewise.
+ *   - If backend rejects, the user sees the verbatim backend error — no
+ *     hardcoded "not supported" message. Honest contract probing.
  */
 (function () {
   'use strict';
 
-  const VERSION = 'v0.8.0-shell-aligned-simple-backend';
+  const VERSION = 'v0.9.0-cycle-aware';
   const API_BILLS = '/api/bills';
   const API_BILLS_HEALTH = '/api/bills/health';
   const API_ACCOUNTS = '/api/accounts';
 
   const state = {
-    bills: [],
-    accounts: [],
+    payload: null,
     health: null,
-    backendVersion: null,
+    accounts: [],
     selectedBillId: null,
     loading: false,
     lastLoadedAt: null,
     actionsBound: false
   };
 
-  const $ = (id) => document.getElementById(id);
+  const $  = (id) => document.getElementById(id);
   const qa = (sel, root) => Array.from((root || document).querySelectorAll(sel));
 
-  function esc(value) {
-    return String(value == null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+  function esc(v) {
+    return String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
-  function setText(id, value) { const el = $(id); if (el) el.textContent = value == null ? '' : String(value); }
-  function setHTML(id, value) { const el = $(id); if (el) el.innerHTML  = value == null ? '' : String(value); }
-  function clean(value, fallback = '') { return String((value == null ? fallback : value)).trim(); }
+  function setText(id, v) { const el = $(id); if (el) el.textContent = v == null ? '' : String(v); }
+  function setHTML(id, v) { const el = $(id); if (el) el.innerHTML  = v == null ? '' : String(v); }
+  function clean(v, fb = '') { return String(v == null ? fb : v).trim(); }
   function todayISO() { return new Date().toISOString().slice(0, 10); }
   function currentMonth() { return new Date().toISOString().slice(0, 7); }
-  function money(value) {
-    const n = Number(value || 0);
+  function money(v) {
+    const n = Number(v || 0);
     return 'Rs ' + n.toLocaleString('en-PK', {
       minimumFractionDigits: n % 1 === 0 ? 0 : 2,
       maximumFractionDigits: 2
     });
   }
   function pill(text, tone) {
-    const cls = tone ? ` sf-pill--${esc(tone)}` : '';
-    return `<span class="sf-pill${cls}">${esc(text)}</span>`;
+    const c = tone ? ` sf-pill--${esc(tone)}` : '';
+    return `<span class="sf-pill${c}">${esc(text)}</span>`;
   }
-  function paidThisMonth(bill) {
-    if (!bill || !bill.last_paid_date) return false;
-    return String(bill.last_paid_date).slice(0, 7) === currentMonth();
+  function toneForCycleStatus(s) {
+    const v = String(s || '').toLowerCase();
+    if (v === 'paid') return 'positive';
+    if (v === 'partial') return 'warning';
+    if (v === 'unpaid' || v === 'overdue') return 'danger';
+    if (v === 'deleted') return 'danger';
+    if (v === 'paused') return 'warning';
+    return 'info';
+  }
+  function bills() {
+    const arr = state.payload?.bills;
+    return Array.isArray(arr) ? arr : [];
   }
   function activeBills() {
-    return state.bills.filter((b) => b.status !== 'deleted');
+    return bills().filter((b) => b.status !== 'deleted');
+  }
+  function billCycleStatus(bill) {
+    if (bill?.current_cycle?.status) return bill.current_cycle.status;
+    if (bill?.payment_status) return bill.payment_status;
+    if (bill?.last_paid_date && String(bill.last_paid_date).slice(0, 7) === currentMonth()) return 'paid';
+    return 'unpaid';
   }
 
   async function fetchJSON(url, options) {
-    const response = await fetch(url, {
+    const res = await fetch(url, {
       cache: 'no-store',
       headers: { Accept: 'application/json', ...(options?.headers || {}) },
       ...(options || {})
     });
-    const text = await response.text();
+    const text = await res.text();
     let payload = null;
     try { payload = text ? JSON.parse(text) : null; }
-    catch { throw new Error(`Non-JSON from ${url}: HTTP ${response.status}`); }
-    if (!response.ok || !payload || payload.ok === false) {
-      throw new Error((payload && payload.error) || `HTTP ${response.status}`);
+    catch { throw new Error(`Non-JSON from ${url}: HTTP ${res.status}`); }
+    if (!res.ok || !payload || payload.ok === false) {
+      throw new Error((payload && payload.error) || `HTTP ${res.status}`);
     }
     return payload;
   }
-  const postJSON   = (url, body) => fetchJSON(url, { method: 'POST',   headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
-  const putJSON    = (url, body) => fetchJSON(url, { method: 'PUT',    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
-  const deleteJSON = (url)       => fetchJSON(url, { method: 'DELETE' });
+  const postJSON   = (u, b) => fetchJSON(u, { method: 'POST',   headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
+  const putJSON    = (u, b) => fetchJSON(u, { method: 'PUT',    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
+  const deleteJSON = (u)    => fetchJSON(u, { method: 'DELETE' });
 
-  function accountRowsFromPayload(payload) {
-    if (!payload) return [];
-    if (Array.isArray(payload.accounts)) return payload.accounts;
-    if (payload.accounts && typeof payload.accounts === 'object') return Object.values(payload.accounts);
-    if (Array.isArray(payload.account_list)) return payload.account_list;
+  function accountRowsFromPayload(p) {
+    if (!p) return [];
+    if (Array.isArray(p.accounts)) return p.accounts;
+    if (p.accounts && typeof p.accounts === 'object') return Object.values(p.accounts);
+    if (Array.isArray(p.account_list)) return p.account_list;
     return [];
   }
-
   async function loadAccounts() {
     try {
-      const payload = await fetchJSON(API_ACCOUNTS);
-      state.accounts = accountRowsFromPayload(payload).filter(Boolean);
+      const p = await fetchJSON(API_ACCOUNTS);
+      state.accounts = accountRowsFromPayload(p).filter(Boolean);
     } catch {
       state.accounts = [];
     }
     populateAccountSelects();
   }
-
   function populateAccountSelects() {
     const selects = qa('[data-bills-account-select]');
     if (!selects.length) return;
     const opts = ['<option value="">Choose account</option>'].concat(
-      state.accounts.map((acc) => {
-        const id = acc.id || acc.account_id || '';
-        const name = acc.name || acc.label || id;
+      state.accounts.map((a) => {
+        const id = a.id || a.account_id || '';
+        const name = a.name || a.label || id;
         return `<option value="${esc(id)}">${esc(name)}</option>`;
       })
     ).join('');
@@ -136,12 +154,11 @@
     setText('bills-state-pill', 'Loading');
     try {
       await loadAccounts();
-      const payload = await fetchJSON(API_BILLS);
-      state.bills = Array.isArray(payload.bills) ? payload.bills : [];
-      state.backendVersion = payload.version || null;
+      const month = currentMonth();
+      state.payload = await fetchJSON(`${API_BILLS}?month=${encodeURIComponent(month)}`);
       try {
-        const healthPayload = await fetchJSON(API_BILLS_HEALTH);
-        state.health = healthPayload.health || null;
+        const hp = await fetchJSON(API_BILLS_HEALTH);
+        state.health = hp.health || null;
       } catch (err) {
         state.health = { status: 'unavailable', error: err.message };
       }
@@ -152,7 +169,6 @@
       setText('bills-state-pill', 'Failed');
       setHTML('bills-list', `<div class="sf-empty-state sf-tone-danger"><div><h3 class="sf-card-title">Bills failed to load</h3><p class="sf-card-subtitle">${esc(err.message)}</p></div></div>`);
       setHTML('bills-health-panel', `<div class="sf-empty-state sf-tone-danger"><div><h3 class="sf-card-title">Health unavailable</h3><p class="sf-card-subtitle">${esc(err.message)}</p></div></div>`);
-      state.lastLoadedAt = new Date();
       renderHeaderPills();
       renderDebug();
     } finally {
@@ -165,72 +181,50 @@
       ? `Last loaded: ${state.lastLoadedAt.toLocaleTimeString()}`
       : 'Last loaded: never';
     setText('bills-last-loaded', last);
-    setText('bills-count-pill', `${activeBills().length} active bills`);
-    const healthStatus = state.health?.status || 'unknown';
-    setText('bills-health-pill', `health ${healthStatus}`);
+    setText('bills-count-pill', `${state.payload?.count ?? activeBills().length} active bills`);
+    const h = state.health?.status || 'unknown';
+    setText('bills-health-pill', `health ${h}`);
   }
 
-  /**
-   * Static summary panel — only fields backend actually supports.
-   * Backend has NO cycle math, so Expected/Paid/Remaining are honestly "—".
-   * Paid/Partial/Unpaid is shown as "{paid_this_month} / 0 / {unpaid}" because
-   * backend has no concept of partial payment.
-   */
+  // In-page Bills Summary — backend truth only.
   function renderSummary() {
-    const noMath = '<span title="Backend v0.2.0 does not compute cycle math">—</span>';
-    setHTML('bills-expected-this-cycle', noMath);
-    setHTML('bills-paid-this-cycle', noMath);
-    setHTML('bills-remaining', noMath);
-
-    const active = activeBills();
-    const paid = active.filter(paidThisMonth).length;
-    const unpaid = Math.max(0, active.length - paid);
-    setText('bills-status-counts', `${paid} / 0 / ${unpaid}`);
-
-    const reversedList = state.health?.payments_with_reversed_transaction_but_active_payment;
-    const reversedCount = Array.isArray(reversedList) ? reversedList.length : (Number(reversedList) || 0);
-    setText('bills-ledger-reversed-excluded', String(reversedCount));
-
+    const p = state.payload || {};
+    setText('bills-expected-this-cycle', money(p.expected_this_cycle ?? 0));
+    setText('bills-paid-this-cycle', money(p.paid_this_cycle ?? 0));
+    setText('bills-remaining', money(p.remaining ?? 0));
+    setText('bills-status-counts', `${p.paid_count ?? 0} / ${p.partial_count ?? 0} / ${p.unpaid_count ?? 0}`);
+    setText('bills-ledger-reversed-excluded', String(p.ledger_reversed_excluded_count ?? 0));
     setText('bills-health-status', state.health?.status || 'unknown');
   }
 
-  /**
-   * Refresh the shared shell KPI tiles with backend truth.
-   * SF_PAGE.kpis declares static "Loading" placeholders; the shell does not
-   * render `id` for `valueId`, so we use the canonical SFShell.setKpis API
-   * to inject live values into the same tiles.
-   */
+  // Shell KPI tiles — refresh via SFShell.setKpis (canonical pattern).
   function renderShellKpis() {
     if (!window.SFShell || typeof window.SFShell.setKpis !== 'function') return;
-    const active = activeBills();
-    const paid = active.filter(paidThisMonth).length;
-    const unpaid = Math.max(0, active.length - paid);
-    const healthStatus = state.health?.status || 'unknown';
-    const tone =
-      healthStatus === 'pass' ? 'positive' :
-      healthStatus === 'warn' ? 'warning' :
-      healthStatus === 'unavailable' ? 'danger' : 'info';
+    const p = state.payload || {};
+    const h = state.health?.status || 'unknown';
+    const healthTone = h === 'pass' ? 'positive' : h === 'warn' ? 'warning' : h === 'unavailable' ? 'danger' : 'info';
+    const remainingTone = Number(p.remaining || 0) > 0 ? 'warning' : 'positive';
     try {
       window.SFShell.setKpis([
         { title: 'Expected This Cycle', kicker: 'Bills',
-          value: '—',
-          subtitle: 'Backend v0.2.0 does not compute cycle math',
-          foot: `backend ${state.backendVersion || 'unknown'}` },
-        { title: 'Paid This Month', kicker: 'last_paid_date in current month',
-          value: String(paid),
-          subtitle: `${paid} of ${active.length} active bills`,
-          foot: 'derived from bills.last_paid_date',
-          tone: active.length && paid === active.length ? 'positive' : 'info' },
-        { title: 'Unpaid (active)', kicker: 'Pressure',
-          value: String(unpaid),
-          subtitle: 'Active bills without last_paid_date this month',
-          foot: 'derived from bills',
-          tone: unpaid > 0 ? 'warning' : 'positive' },
+          value: money(p.expected_this_cycle ?? 0),
+          subtitle: `Total expected bills for ${p.month || currentMonth()}`,
+          foot: `From /api/bills · backend ${p.version || 'unknown'}` },
+        { title: 'Paid This Cycle', kicker: 'Ledger-linked',
+          value: money(p.paid_this_cycle ?? 0),
+          subtitle: `${p.paid_count ?? 0} paid · ${p.partial_count ?? 0} partial`,
+          foot: 'Reversed ledger payments excluded',
+          tone: 'positive' },
+        { title: 'Remaining', kicker: 'Pressure',
+          value: money(p.remaining ?? 0),
+          subtitle: `${p.unpaid_count ?? 0} unpaid bills this cycle`,
+          foot: 'Backend current_cycle truth',
+          tone: remainingTone },
         { title: 'Bills Health', kicker: 'Integrity',
-          value: healthStatus,
-          subtitle: 'From /api/bills/health',
-          foot: state.health?.payment_count != null ? `${state.health.payment_count} payment rows scanned` : '',
-          tone }
+          value: h,
+          subtitle: 'Payment and ledger consistency',
+          foot: 'From /api/bills/health',
+          tone: healthTone }
       ]);
     } catch (err) {
       console.warn('[bills.js] shell KPI refresh failed', err);
@@ -240,7 +234,7 @@
   function renderBillsList() {
     const list = $('bills-list');
     if (!list) return;
-    const rows = state.bills;
+    const rows = bills();
     if (!rows.length) {
       list.innerHTML = `<div class="sf-empty-state"><div><h3 class="sf-card-title">No bills</h3><p class="sf-card-subtitle">Backend returned an empty bills array.</p></div></div>`;
       return;
@@ -258,12 +252,9 @@
 
   function renderBillRow(bill) {
     const selected = String(bill.id) === String(state.selectedBillId);
-    const status = String(bill.status || 'active');
-    const paidNow = paidThisMonth(bill);
-    const tone = paidNow ? 'positive'
-      : status === 'deleted' ? 'danger'
-      : status === 'paused'  ? 'warning'
-      : 'info';
+    const cycle = bill.current_cycle || {};
+    const status = bill.status === 'deleted' ? 'deleted' : billCycleStatus(bill);
+    const tone = toneForCycleStatus(status);
     const subBits = [
       `Due day ${bill.due_day || '—'}`,
       bill.frequency || 'monthly',
@@ -271,14 +262,21 @@
       `cat ${bill.category_id || '—'}`
     ];
     if (bill.last_paid_date) subBits.push(`last paid ${bill.last_paid_date}`);
+    if (bill.ledger_linked) subBits.push('ledger linked');
+    const cyclePaid = cycle.paid_amount;
+    const cycleRem  = cycle.remaining_amount;
+    const cycleLine = (cyclePaid != null || cycleRem != null)
+      ? `<div class="sf-row-subtitle">${esc(`paid ${money(cyclePaid ?? 0)} · remaining ${money(cycleRem ?? 0)}`)}</div>`
+      : '';
     return `
       <div class="sf-finance-row${selected ? ' is-selected' : ''}" data-bill-row="${esc(bill.id)}" role="button" tabindex="0">
         <div class="sf-row-left">
           <div class="sf-row-title">${esc(bill.name || bill.id)}</div>
           <div class="sf-row-subtitle">${esc(subBits.join(' · '))}</div>
+          ${cycleLine}
         </div>
         <div class="sf-row-right">
-          ${money(bill.amount)} &middot; ${pill(paidNow ? 'paid this month' : status, tone)}
+          ${money(bill.amount)} &middot; ${pill(status, tone)}
         </div>
       </div>
     `;
@@ -287,23 +285,29 @@
   function renderSelected() {
     const panel = $('bills-selected-panel');
     if (!panel) return;
-    const bill = state.bills.find((b) => String(b.id) === String(state.selectedBillId));
+    const bill = bills().find((b) => String(b.id) === String(state.selectedBillId));
     if (!bill) {
       panel.innerHTML = `<div class="sf-loading-state"><div><h3 class="sf-card-title">No bill selected</h3><p class="sf-card-subtitle">Select a bill from the list.</p></div></div>`;
       return;
     }
+    const cycle = bill.current_cycle || {};
     const rows = [
-      ['Bill ID',              bill.id],
-      ['Name',                 bill.name || '—'],
-      ['Amount',               money(bill.amount)],
-      ['Due day',              bill.due_day != null ? String(bill.due_day) : '—'],
-      ['Frequency',            bill.frequency || '—'],
-      ['Category',             bill.category_id || '—'],
-      ['Default account',      bill.default_account_id || '—'],
-      ['Last paid date',       bill.last_paid_date || '—'],
-      ['Last paid account',    bill.last_paid_account_id || '—'],
-      ['Auto-post',            bill.auto_post == null ? '—' : String(bill.auto_post)],
-      ['Status',               bill.status || 'active']
+      ['Bill ID',           bill.id],
+      ['Name',              bill.name || '—'],
+      ['Amount',            money(bill.amount)],
+      ['Cycle status',      billCycleStatus(bill)],
+      ['Cycle paid',        money(cycle.paid_amount ?? 0)],
+      ['Cycle remaining',   money(cycle.remaining_amount ?? 0)],
+      ['Due day',           bill.due_day != null ? String(bill.due_day) : '—'],
+      ['Due date',          bill.due_date || '—'],
+      ['Frequency',         bill.frequency || '—'],
+      ['Category',          bill.category_id || '—'],
+      ['Default account',   bill.default_account_id || '—'],
+      ['Last paid date',    bill.last_paid_date || '—'],
+      ['Last paid account', bill.last_paid_account_id || '—'],
+      ['Ledger linked',     bill.ledger_linked ? 'Yes' : 'No'],
+      ['Reversed excluded', String(bill.ledger_reversed_excluded_count ?? 0)],
+      ['Status',            bill.status || 'active']
     ];
     const rowsHtml = rows.map(([label, value]) => `
       <div class="sf-finance-row">
@@ -332,46 +336,39 @@
     const next = window.prompt(`Edit amount for "${bill.name}" (current: ${bill.amount}):`, String(bill.amount ?? ''));
     if (next == null) return;
     const numeric = Number(next);
-    if (!Number.isFinite(numeric) || numeric < 0) {
-      window.alert('Amount must be a non-negative number.');
-      return;
-    }
+    if (!Number.isFinite(numeric) || numeric < 0) { window.alert('Amount must be a non-negative number.'); return; }
     try {
       await putJSON(`${API_BILLS}/${encodeURIComponent(bill.id)}`, { amount: numeric });
       state.selectedBillId = bill.id;
       await loadBills();
-    } catch (err) {
-      window.alert(`Edit failed: ${err.message}`);
-    }
+    } catch (err) { window.alert(`Edit failed: ${err.message}`); }
   }
-
   async function softDeleteBill(bill) {
     if (!window.confirm(`Soft-delete bill "${bill.name}"? Status will be set to 'deleted'.`)) return;
     try {
       await deleteJSON(`${API_BILLS}/${encodeURIComponent(bill.id)}`);
       state.selectedBillId = null;
       await loadBills();
-    } catch (err) {
-      window.alert(`Delete failed: ${err.message}`);
-    }
+    } catch (err) { window.alert(`Delete failed: ${err.message}`); }
   }
 
   function prefillPaymentForm() {
-    const bill = state.bills.find((b) => String(b.id) === String(state.selectedBillId));
-    const nameInput   = $('bill-payment-name');
+    const bill = bills().find((b) => String(b.id) === String(state.selectedBillId));
+    const nameInput = $('bill-payment-name');
     const amountInput = $('bill-payment-amount');
-    const dateInput   = $('bill-payment-date');
-    const accountSel  = $('bill-payment-account');
-    const stateSpan   = $('bills-payment-state');
+    const dateInput = $('bill-payment-date');
+    const accountSel = $('bill-payment-account');
+    const stateSpan = $('bills-payment-state');
     if (!bill) {
       if (nameInput) nameInput.value = '';
       if (stateSpan) stateSpan.textContent = 'Select bill';
       return;
     }
-    if (nameInput)   nameInput.value = `${bill.name} (${bill.id})`;
-    if (amountInput && !amountInput.value) amountInput.value = bill.amount || '';
-    if (dateInput   && !dateInput.value)   dateInput.value   = todayISO();
-    if (accountSel  && !accountSel.value)  accountSel.value  = bill.default_account_id || '';
+    if (nameInput) nameInput.value = `${bill.name} (${bill.id})`;
+    const cycleRemaining = bill.current_cycle?.remaining_amount;
+    if (amountInput && !amountInput.value) amountInput.value = (cycleRemaining != null ? cycleRemaining : bill.amount) || '';
+    if (dateInput && !dateInput.value) dateInput.value = todayISO();
+    if (accountSel && !accountSel.value) accountSel.value = bill.default_account_id || '';
     if (stateSpan) stateSpan.textContent = 'Ready';
   }
 
@@ -379,21 +376,16 @@
     const panel = $('bills-health-panel');
     if (!panel) return;
     const h = state.health || {};
-    const len = (arr) => Array.isArray(arr) ? arr.length : 0;
     const rows = [
-      ['Status',                                 String(h.status || 'unknown'),
+      ['Status',                          String(h.status || 'unknown'),
         h.status === 'pass' ? 'positive' : h.status === 'warn' ? 'warning' : 'danger'],
-      ['Payment rows scanned',                   String(h.payment_count ?? '—')],
-      ['Orphan payments (no txn)',               String(len(h.orphan_payments_without_transaction)),
-        len(h.orphan_payments_without_transaction) ? 'danger' : 'positive'],
-      ['Active payments w/ reversed txn',        String(len(h.payments_with_reversed_transaction_but_active_payment)),
-        len(h.payments_with_reversed_transaction_but_active_payment) ? 'danger' : 'positive'],
-      ['Reversed payments missing reversal txn', String(len(h.reversed_payments_without_reversal_transaction)),
-        len(h.reversed_payments_without_reversal_transaction) ? 'danger' : 'positive'],
-      ['Duplicate bill/month/amount rows',       String(len(h.duplicate_payments_same_month)),
-        len(h.duplicate_payments_same_month) ? 'warning' : 'positive'],
-      ['Payment amount mismatches',              String(len(h.payment_amount_mismatches)),
-        len(h.payment_amount_mismatches) ? 'danger' : 'positive']
+      ['Payment rows scanned',            String(h.payment_rows ?? h.payment_count ?? '—')],
+      ['Orphan payments (no txn)',        String(h.orphan_count ?? 0), Number(h.orphan_count) ? 'danger' : 'positive'],
+      ['Active payments w/ reversed txn', String(h.active_payment_reversed_txn_mismatch_count ?? 0), Number(h.active_payment_reversed_txn_mismatch_count) ? 'danger' : 'positive'],
+      ['Reversed missing reversal txn',   String(h.missing_reversal_txn_count ?? 0), Number(h.missing_reversal_txn_count) ? 'danger' : 'positive'],
+      ['Duplicate bill/month/amount',     String(h.duplicate_bill_month_amount_count ?? 0), Number(h.duplicate_bill_month_amount_count) ? 'warning' : 'positive'],
+      ['Amount mismatches',               String(h.amount_mismatch_count ?? 0), Number(h.amount_mismatch_count) ? 'danger' : 'positive'],
+      ['Table state',                     String(h.table_state ?? '—')]
     ];
     panel.innerHTML = rows.map(([label, value, tone]) => `
       <div class="sf-finance-row">
@@ -405,12 +397,24 @@
 
   function renderDebug() {
     setText('bills-debug-output', JSON.stringify({
-      version: VERSION,
-      backendVersion: state.backendVersion,
-      bill_count: state.bills.length,
-      active_bill_count: activeBills().length,
-      selectedBillId: state.selectedBillId,
+      uiVersion: VERSION,
+      backendVersion: state.payload?.version,
+      month: state.payload?.month,
+      totals: {
+        expected: state.payload?.expected_this_cycle,
+        paid: state.payload?.paid_this_cycle,
+        remaining: state.payload?.remaining
+      },
+      counts: {
+        bills: bills().length,
+        active: activeBills().length,
+        paid: state.payload?.paid_count,
+        partial: state.payload?.partial_count,
+        unpaid: state.payload?.unpaid_count,
+        ledger_reversed_excluded: state.payload?.ledger_reversed_excluded_count
+      },
       health: state.health,
+      selectedBillId: state.selectedBillId,
       lastLoadedAt: state.lastLoadedAt
     }, null, 2));
   }
@@ -426,58 +430,63 @@
     prefillPaymentForm();
   }
 
-  // ---- Add New Bill form -------------------------------------------------
-  // Backend v0.2.0 has NO create-bill endpoint. We wire the form so it
-  // surfaces a clear "not supported" message instead of silently failing.
-  // Replace with a real POST when a create endpoint exists.
+  // ---- Add New Bill — POST /api/bills, let backend decide -----------------
   function wireAddForm() {
     const form = $('bills-add-form');
     if (!form) return;
-    form.addEventListener('submit', (event) => {
+    form.addEventListener('submit', async (event) => {
       event.preventDefault();
       const stateSpan = $('bills-add-state');
-      if (stateSpan) stateSpan.textContent = 'Not supported';
-      window.alert(
-        'Add New Bill is not yet supported by the backend.\n\n' +
-        'Backend /api/bills v0.2.0 only exposes GET, PUT, POST /:id/pay and DELETE.\n' +
-        'A create-bill endpoint must be added before this form can save.'
-      );
+      const payload = {
+        name: clean($('bill-add-name')?.value),
+        amount: Number($('bill-add-amount')?.value || 0),
+        due_day: Number($('bill-add-due-day')?.value || 0) || null,
+        frequency: clean($('bill-add-frequency')?.value) || 'monthly',
+        default_account_id: clean($('bill-add-default-account')?.value) || null,
+        category_id: clean($('bill-add-category')?.value) || 'bills_utilities',
+        notes: clean($('bill-add-notes')?.value) || null,
+        created_by: 'bills-ui-' + VERSION
+      };
+      if (!payload.name) { if (stateSpan) stateSpan.textContent = 'Name required'; window.alert('Bill name is required.'); return; }
+      if (!Number.isFinite(payload.amount) || payload.amount <= 0) { if (stateSpan) stateSpan.textContent = 'Bad amount'; window.alert('Expected amount must be greater than zero.'); return; }
+      if (stateSpan) stateSpan.textContent = 'Saving';
+      try {
+        const res = await postJSON(API_BILLS, payload);
+        if (stateSpan) stateSpan.textContent = 'Saved';
+        form.reset();
+        const newId = res?.bill?.id || res?.id || null;
+        if (newId) state.selectedBillId = newId;
+        await loadBills();
+      } catch (err) {
+        if (stateSpan) stateSpan.textContent = 'Failed';
+        window.alert(`Add Bill failed:\n\n${err.message}\n\nThis message is the backend's verbatim response. If the route does not accept POST /api/bills yet, that's a backend-phase task.`);
+      }
     });
   }
 
-  // ---- Pay Selected Bill form -------------------------------------------
+  // ---- Pay Selected Bill — POST /api/bills/:id/pay ------------------------
   function wirePaymentForm() {
     const form = $('bills-payment-form');
     if (!form) return;
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
-      const bill = state.bills.find((b) => String(b.id) === String(state.selectedBillId));
+      const bill = bills().find((b) => String(b.id) === String(state.selectedBillId));
       const stateSpan = $('bills-payment-state');
-      if (!bill) {
-        if (stateSpan) stateSpan.textContent = 'Select a bill';
-        window.alert('Select a bill from the list before recording a payment.');
-        return;
-      }
-      const amount    = Number($('bill-payment-amount')?.value || 0);
+      if (!bill) { if (stateSpan) stateSpan.textContent = 'Select a bill'; window.alert('Select a bill from the list before recording a payment.'); return; }
+      const amount = Number($('bill-payment-amount')?.value || 0);
       const paid_date = clean($('bill-payment-date')?.value) || todayISO();
-      const account   = clean($('bill-payment-account')?.value);
-      const notes     = clean($('bill-payment-notes')?.value);
-      if (!Number.isFinite(amount) || amount <= 0) {
-        if (stateSpan) stateSpan.textContent = 'Bad amount';
-        window.alert('Payment amount must be greater than zero.');
-        return;
-      }
-      if (!account) {
-        if (stateSpan) stateSpan.textContent = 'Account required';
-        window.alert('Pick the account the payment was made from.');
-        return;
-      }
+      const account = clean($('bill-payment-account')?.value);
+      const notes = clean($('bill-payment-notes')?.value);
+      if (!Number.isFinite(amount) || amount <= 0) { if (stateSpan) stateSpan.textContent = 'Bad amount'; window.alert('Payment amount must be greater than zero.'); return; }
+      if (!account) { if (stateSpan) stateSpan.textContent = 'Account required'; window.alert('Pick the account the payment was made from.'); return; }
       if (stateSpan) stateSpan.textContent = 'Saving';
       try {
         await postJSON(`${API_BILLS}/${encodeURIComponent(bill.id)}/pay`, {
           paid_date,
+          amount,
           account_id: account,
-          notes
+          notes,
+          created_by: 'bills-ui-' + VERSION
         });
         if (stateSpan) stateSpan.textContent = 'Saved';
         form.reset();
@@ -485,7 +494,7 @@
         await loadBills();
       } catch (err) {
         if (stateSpan) stateSpan.textContent = 'Failed';
-        window.alert(`Pay Bill failed: ${err.message}`);
+        window.alert(`Pay Bill failed:\n\n${err.message}`);
       }
     });
     $('bill-payment-clear')?.addEventListener('click', () => {
@@ -494,27 +503,23 @@
     });
   }
 
-  // ---- Shell-rendered actions (Refresh / Repair) ------------------------
-  // The shell rebuilds the hero region whenever setKpis() runs, so direct
-  // listeners on those buttons would be lost. Use document-level delegation.
+  // ---- Shell actions — delegated, survive shell re-mounts -----------------
   function wireShellActionsOnce() {
     if (state.actionsBound) return;
     state.actionsBound = true;
-    document.addEventListener('click', (event) => {
+    document.addEventListener('click', async (event) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
-      if (target.closest('#bills-refresh-btn')) {
-        event.preventDefault();
-        loadBills();
-        return;
-      }
+      if (target.closest('#bills-refresh-btn')) { event.preventDefault(); loadBills(); return; }
       if (target.closest('#bills-repair-btn')) {
         event.preventDefault();
-        window.alert(
-          'Bills Repair is not yet supported by the backend.\n\n' +
-          'No /api/bills/repair endpoint exists in v0.2.0.\n' +
-          'Health is read-only via /api/bills/health.'
-        );
+        try {
+          const res = await postJSON(`${API_BILLS}/repair`, {});
+          window.alert(`Repair OK:\n\n${JSON.stringify(res, null, 2)}`);
+          await loadBills();
+        } catch (err) {
+          window.alert(`Repair failed:\n\n${err.message}\n\nIf the backend has no /api/bills/repair endpoint at v0.8.0, this is the verbatim backend reply.`);
+        }
       }
     });
   }
