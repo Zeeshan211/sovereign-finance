@@ -7,7 +7,7 @@
   <title>Finance Hub · Sovereign Finance</title>
 
   <script src="/js/sf-theme-switcher.js"></script>
-<link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-theme.css">
   <link rel="stylesheet" href="/css/sf-shell.css">
 
   <script>
@@ -26,6 +26,7 @@
           title: "Liquid Now",
           kicker: "At a glance",
           value: "Loading",
+          valueId: "hub-kpi-liquid-now",
           subtitle: "Spendable current position",
           foot: "From /api/balances"
         },
@@ -33,6 +34,7 @@
           title: "Bills Remaining",
           kicker: "Pressure",
           value: "Loading",
+          valueId: "hub-kpi-bills-remaining",
           subtitle: "Current-month bill pressure",
           foot: "From /api/forecast"
         },
@@ -40,6 +42,7 @@
           title: "Debt Payable",
           kicker: "Pressure",
           value: "Loading",
+          valueId: "hub-kpi-debt-payable",
           subtitle: "Outstanding payable side",
           foot: "Forecast / balances"
         },
@@ -47,6 +50,7 @@
           title: "Forecast Risk",
           kicker: "Runway",
           value: "Loading",
+          valueId: "hub-kpi-forecast-risk",
           subtitle: "Lowest cash / unsafe date",
           foot: "From /api/forecast"
         }
@@ -69,8 +73,8 @@
           <p class="sf-section-subtitle">The first screen should answer: what do I have, what is due, and what can hurt me.</p>
         </div>
         <div class="sf-section-meta">
-          <span id="hub-state-pill" class="sf-pill">Loading</span>
-          <span id="hub-last-loaded" class="sf-pill">Last loaded: —</span>
+          <span id="hub-state-pill" class="sf-pill" data-hub-status>Loading</span>
+          <span id="hub-last-loaded" class="sf-pill" data-hub-last-loaded>Last loaded: —</span>
         </div>
       </div>
 
@@ -80,7 +84,7 @@
             <div class="sf-row-title">Liquid Now</div>
             <div class="sf-row-subtitle">Spendable liquid position</div>
           </div>
-          <div id="hub-liquid-now" class="sf-row-right">Loading</div>
+          <div id="hub-liquid-now" class="sf-row-right" data-hub-value="cash_now">Loading</div>
         </div>
 
         <div class="sf-finance-row">
@@ -88,7 +92,7 @@
             <div class="sf-row-title">Net Worth</div>
             <div class="sf-row-subtitle">Formula-layer net position</div>
           </div>
-          <div id="hub-net-worth" class="sf-row-right">Loading</div>
+          <div id="hub-net-worth" class="sf-row-right" data-hub-value="net_worth">Loading</div>
         </div>
 
         <div class="sf-finance-row">
@@ -96,7 +100,7 @@
             <div class="sf-row-title">Bills Remaining</div>
             <div class="sf-row-subtitle">Current-month bill pressure</div>
           </div>
-          <div id="hub-bills-remaining" class="sf-row-right">Loading</div>
+          <div id="hub-bills-remaining" class="sf-row-right" data-hub-value="forecast_expected_outflow">Loading</div>
         </div>
 
         <div class="sf-finance-row">
@@ -104,7 +108,7 @@
             <div class="sf-row-title">Debt Payable</div>
             <div class="sf-row-subtitle">Outstanding payable side</div>
           </div>
-          <div id="hub-debt-payable" class="sf-row-right">Loading</div>
+          <div id="hub-debt-payable" class="sf-row-right" data-hub-value="total_owe">Loading</div>
         </div>
 
         <div class="sf-finance-row">
@@ -112,7 +116,7 @@
             <div class="sf-row-title">Receivables</div>
             <div class="sf-row-subtitle">Expected incoming receivable side</div>
           </div>
-          <div id="hub-receivables" class="sf-row-right">Loading</div>
+          <div id="hub-receivables" class="sf-row-right" data-hub-value="total_owed">Loading</div>
         </div>
 
         <div class="sf-finance-row">
@@ -120,7 +124,7 @@
             <div class="sf-row-title">Credit Card Outstanding</div>
             <div class="sf-row-subtitle">Card liability pressure</div>
           </div>
-          <div id="hub-cc-outstanding" class="sf-row-right">Loading</div>
+          <div id="hub-cc-outstanding" class="sf-row-right" data-hub-value="liabilities_total">Loading</div>
         </div>
 
         <div class="sf-finance-row">
@@ -128,7 +132,7 @@
             <div class="sf-row-title">Next Salary</div>
             <div class="sf-row-subtitle">Forecast-eligible salary input</div>
           </div>
-          <div id="hub-next-salary" class="sf-row-right">Loading</div>
+          <div id="hub-next-salary" class="sf-row-right" data-hub-value="salary_amount">Loading</div>
         </div>
 
         <div class="sf-finance-row">
@@ -136,7 +140,7 @@
             <div class="sf-row-title">Lowest Forecast Liquid</div>
             <div class="sf-row-subtitle" id="hub-lowest-liquid-sub">Forecast low point</div>
           </div>
-          <div id="hub-lowest-liquid" class="sf-row-right">Loading</div>
+          <div id="hub-lowest-liquid" class="sf-row-right" data-hub-value="forecast_projected_end">Loading</div>
         </div>
       </div>
     </section>
@@ -149,11 +153,11 @@
           <p class="sf-section-subtitle">This section should surface risk, not implementation details.</p>
         </div>
         <div class="sf-section-meta">
-          <span id="hub-attention-count" class="sf-pill">Loading</span>
+          <span id="hub-attention-count" class="sf-pill" data-hub-value="attention_count">Loading</span>
         </div>
       </div>
 
-      <div id="hub-attention-list" class="sf-dense-grid">
+      <div id="hub-attention-list" class="sf-dense-grid" data-hub-list="attention">
         <div class="sf-loading-state">
           <div>
             <h3 class="sf-card-title">Loading attention items</h3>
@@ -171,11 +175,11 @@
           <p class="sf-section-subtitle">Read-only forecast summary. Hub does not rebuild forecast logic.</p>
         </div>
         <div class="sf-section-meta">
-          <span id="hub-forecast-status" class="sf-pill">Loading</span>
+          <span id="hub-forecast-status" class="sf-pill" data-hub-value="forecast_status">Loading</span>
         </div>
       </div>
 
-      <div id="hub-cash-path" class="sf-dense-grid">
+      <div id="hub-cash-path" class="sf-dense-grid" data-hub-list="forecast">
         <div class="sf-loading-state">
           <div>
             <h3 class="sf-card-title">Loading forecast</h3>
@@ -194,7 +198,7 @@
         </div>
       </div>
 
-      <div id="hub-readiness-panel" class="sf-dense-grid">
+      <div id="hub-readiness-panel" class="sf-dense-grid" data-hub-list="readiness">
         <div class="sf-loading-state">
           <div>
             <h3 class="sf-card-title">Loading QA status</h3>
@@ -224,7 +228,7 @@
               <a class="sf-button" href="/bills.html">Open Bills</a>
             </div>
           </div>
-          <div id="hub-bills-list" class="sf-dense-grid">
+          <div id="hub-bills-list" class="sf-dense-grid" data-hub-list="bills">
             <div class="sf-loading-state">
               <div>
                 <h3 class="sf-card-title">Loading bills</h3>
@@ -244,7 +248,7 @@
               <a class="sf-button" href="/debts.html">Open Debts</a>
             </div>
           </div>
-          <div id="hub-debts-list" class="sf-dense-grid">
+          <div id="hub-debts-list" class="sf-dense-grid" data-hub-list="debts">
             <div class="sf-loading-state">
               <div>
                 <h3 class="sf-card-title">Loading debts</h3>
@@ -268,7 +272,7 @@
         </div>
       </div>
 
-      <div id="hub-accounts-preview" class="sf-secondary-grid">
+      <div id="hub-accounts-preview" class="sf-secondary-grid" data-hub-list="accounts">
         <div class="sf-loading-state">
           <div>
             <h3 class="sf-card-title">Loading accounts</h3>
@@ -290,7 +294,7 @@
         </div>
       </div>
 
-      <div id="hub-card-pressure" class="sf-dense-grid">
+      <div id="hub-card-pressure" class="sf-dense-grid" data-hub-list="card">
         <div class="sf-loading-state">
           <div>
             <h3 class="sf-card-title">Loading card pressure</h3>
@@ -312,7 +316,7 @@
         </div>
       </div>
 
-      <div id="hub-recent-activity" class="sf-dense-grid">
+      <div id="hub-recent-activity" class="sf-dense-grid" data-hub-list="activity">
         <div class="sf-loading-state">
           <div>
             <h3 class="sf-card-title">Loading activity</h3>
@@ -382,11 +386,11 @@
           <p class="sf-section-subtitle">Useful, but intentionally lower on the page. Numbers and attention come first.</p>
         </div>
         <div class="sf-section-meta">
-          <span id="hub-source-overall" class="sf-pill">Loading</span>
+          <span id="hub-source-overall" class="sf-pill" data-hub-value="source_overall">Loading</span>
         </div>
       </div>
 
-      <div id="hub-source-list" class="sf-secondary-grid">
+      <div id="hub-source-list" class="sf-secondary-grid" data-hub-list="sources">
         <div class="sf-loading-state">
           <div>
             <h3 class="sf-card-title">Loading source status</h3>
@@ -405,7 +409,7 @@
         </div>
       </div>
 
-      <pre id="hub-debug-output" class="sf-debug-text">Waiting for js/hub.js.</pre>
+      <pre id="hub-debug-output" class="sf-debug-text" data-hub-debug>Waiting for js/hub.js.</pre>
     </section>
 
   </section>
