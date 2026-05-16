@@ -1,30 +1,17 @@
 /* js/hub.js
- * Sovereign Finance · Hub UI Loader
- * v0.1.3-hub-ui-value-render-fix
+ * Sovereign Finance · Hub UI Safe Renderer
+ * v0.1.4-hub-safe-panel-render
  *
- * Frontend-only file.
- * Reads /api/hub and renders real Hub dashboard values.
+ * Frontend-only.
+ * Reads /api/hub and renders a compact status panel.
+ * Does not mutate backend data.
+ * Does not touch other finance pages.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.1.3-hub-ui-value-render-fix';
-
-  const METRICS = [
-    ['Liquid Now', s => money(s.cash_now)],
-    ['Net Worth', s => money(s.net_worth)],
-    ['Bills Remaining', s => money(s.forecast_expected_outflow)],
-    ['Debt Payable', s => money(s.total_owe)],
-    ['Receivables', s => money(s.total_owed)],
-    ['Credit Card Outstanding', s => money(s.liabilities_total)],
-    ['Next Salary', s => money(s.salary_amount)],
-    ['Lowest Forecast Liquid', s => money(s.forecast_projected_end)],
-    ['Forecast Risk', (s, data) => {
-      const alerts = Array.isArray(data.alerts) ? data.alerts : [];
-      return alerts.length ? `${alerts.length} alert(s)` : 'OK';
-    }]
-  ];
+  const VERSION = 'v0.1.4-hub-safe-panel-render';
 
   function money(value) {
     const n = Number(value || 0);
@@ -36,14 +23,25 @@
     });
   }
 
-  function txt(value) {
-    return String(value == null ? '' : value).trim();
+  function safeText(value) {
+    return String(value == null ? '' : value);
   }
 
-  async function fetchJSON(url) {
-    const finalUrl = url + (url.includes('?') ? '&' : '?') + 'ts=' + Date.now();
+  function isHubPage() {
+    const path = location.pathname.toLowerCase();
+    const bodyText = safeText(document.body?.textContent).toLowerCase();
 
-    const res = await fetch(finalUrl, {
+    return (
+      path === '/' ||
+      path.endsWith('/index.html') ||
+      bodyText.includes('finance hub') ||
+      bodyText.includes('liquid now') ||
+      bodyText.includes('money position')
+    );
+  }
+
+  async function fetchHub() {
+    const res = await fetch('/api/hub?ts=' + Date.now(), {
       cache: 'no-store',
       headers: { Accept: 'application/json' }
     });
@@ -53,219 +51,229 @@
     let data;
     try {
       data = JSON.parse(raw);
-    } catch {
-      throw new Error(`Expected JSON from ${url}, received: ${raw.slice(0, 120)}`);
+    } catch (err) {
+      throw new Error('Expected JSON from /api/hub, received: ' + raw.slice(0, 120));
     }
 
     if (!res.ok || data.ok === false) {
-      throw new Error(data.error?.message || data.error || data.message || `HTTP ${res.status}`);
+      throw new Error(data.error?.message || data.error || data.message || 'Hub API failed');
     }
 
     return data;
   }
 
-  function getLeafNodes(root) {
-    return Array.from(root.querySelectorAll('*')).filter(el => {
-      return el.children.length === 0 && txt(el.textContent);
-    });
+  function ensureStyles() {
+    if (document.getElementById('sf-hub-safe-style')) return;
+
+    const style = document.createElement('style');
+    style.id = 'sf-hub-safe-style';
+    style.textContent = `
+      .sf-hub-safe-panel {
+        margin: 12px 0 16px;
+        padding: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.72);
+        color: #e5e7eb;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+      }
+
+      .sf-hub-safe-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+
+      .sf-hub-safe-title {
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+      }
+
+      .sf-hub-safe-status {
+        font-size: 12px;
+        color: #cbd5e1;
+      }
+
+      .sf-hub-safe-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 8px;
+      }
+
+      .sf-hub-safe-card {
+        padding: 10px;
+        border-radius: 12px;
+        background: rgba(30, 41, 59, 0.74);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+      }
+
+      .sf-hub-safe-label {
+        font-size: 11px;
+        color: #94a3b8;
+        margin-bottom: 4px;
+      }
+
+      .sf-hub-safe-value {
+        font-size: 15px;
+        font-weight: 750;
+        color: #f8fafc;
+      }
+
+      .sf-hub-safe-alert-ok {
+        color: #86efac;
+      }
+
+      .sf-hub-safe-alert-warn {
+        color: #fbbf24;
+      }
+
+      .sf-hub-safe-error {
+        padding: 12px;
+        border-radius: 12px;
+        background: rgba(127, 29, 29, 0.32);
+        border: 1px solid rgba(248, 113, 113, 0.35);
+        color: #fecaca;
+        font-size: 13px;
+      }
+    `;
+    document.head.appendChild(style);
   }
 
-  function findBestContainer(label) {
-    const lower = label.toLowerCase();
+  function findMountPoint() {
+    const existing = document.getElementById('sfHubSafePanel');
+    if (existing) return existing;
 
-    return Array.from(document.querySelectorAll('section, article, div, li'))
-      .filter(node => txt(node.textContent).toLowerCase().includes(lower))
-      .sort((a, b) => txt(a.textContent).length - txt(b.textContent).length)[0] || null;
-  }
+    const panel = document.createElement('section');
+    panel.id = 'sfHubSafePanel';
+    panel.className = 'sf-hub-safe-panel';
+    panel.setAttribute('data-hub-ui-version', VERSION);
 
-  function looksLikeValueNode(el) {
-    const value = txt(el.textContent);
+    const main =
+      document.querySelector('main') ||
+      document.querySelector('[role="main"]') ||
+      document.body;
 
-    if (!value) return false;
-    if (value === 'Loading') return true;
-    if (value === 'Loaded') return true;
-    if (value === 'Unavailable') return true;
-    if (value === 'Available') return true;
-    if (value === '—') return true;
-    if (value === '--') return true;
-    if (value === '0') return true;
-    if (value === 'OK') return true;
-    if (value.includes('alert')) return true;
-    if (value.startsWith('Rs ')) return true;
-    if (value.startsWith('-Rs ')) return true;
+    const firstLargeBlock =
+      main.querySelector('section') ||
+      main.querySelector('article') ||
+      main.firstElementChild;
 
-    return false;
-  }
-
-  function setValueNearLabel(label, value) {
-    const container = findBestContainer(label);
-    if (!container) return false;
-
-    const leaves = getLeafNodes(container);
-    const valueNodes = leaves.filter(looksLikeValueNode);
-
-    let target = valueNodes[valueNodes.length - 1];
-
-    if (!target) {
-      target = leaves.find(el => txt(el.textContent) !== label);
+    if (firstLargeBlock && firstLargeBlock.parentNode) {
+      firstLargeBlock.parentNode.insertBefore(panel, firstLargeBlock.nextSibling);
+    } else {
+      main.prepend(panel);
     }
 
-    if (!target) return false;
-
-    target.textContent = value;
-    target.classList.add('sf-hub-loaded-value');
-    target.setAttribute('data-hub-rendered', 'true');
-
-    return true;
+    return panel;
   }
 
-  function renderMetrics(data) {
-    const summary = data.summary || {};
+  function renderPanel(data) {
+    ensureStyles();
 
-    for (const [label, formatter] of METRICS) {
-      setValueNearLabel(label, formatter(summary, data));
-    }
-  }
-
-  function renderStatus(data) {
-    const status = data.health?.overall || 'unknown';
-    const alertCount = Array.isArray(data.alerts) ? data.alerts.length : 0;
-    const statusText = `Hub ${data.version || 'unknown'} · ${status} · alerts ${alertCount}`;
-    const loadedText = 'Last loaded: ' + new Date().toLocaleTimeString();
-
-    const statusEl =
-      document.querySelector('[data-hub-status]') ||
-      document.querySelector('#hubStatus');
-
-    if (statusEl) statusEl.textContent = statusText;
-
-    const lastLoadedEl =
-      document.querySelector('[data-hub-last-loaded]') ||
-      document.querySelector('#hubLastLoaded');
-
-    if (lastLoadedEl) lastLoadedEl.textContent = loadedText;
-
-    replaceLeafContaining('Loading source status', statusText);
-    replaceLeafContaining('Last loaded:', loadedText);
-  }
-
-  function renderServices(data) {
-    const services = data.health?.services || {};
-
-    for (const [name, service] of Object.entries(services)) {
-      const label = name.charAt(0).toUpperCase() + name.slice(1);
-      setValueNearLabel(label, service.ok ? 'OK' : 'Check');
-    }
-  }
-
-  function renderAlerts(data) {
+    const s = data.summary || {};
+    const h = data.health || {};
     const alerts = Array.isArray(data.alerts) ? data.alerts : [];
 
-    const alertContainer =
-      document.querySelector('[data-hub-alerts]') ||
-      document.querySelector('#hubAlerts');
+    const panel = findMountPoint();
 
-    if (!alertContainer) return;
-
-    if (!alerts.length) {
-      alertContainer.innerHTML = '<div class="muted">No active backend alerts.</div>';
-      return;
-    }
-
-    alertContainer.innerHTML = alerts.map(alert => {
-      const level = escapeHtml(alert.level || 'warn');
-      const title = escapeHtml(alert.title || alert.code || 'Alert');
-      const detail = escapeHtml(alert.detail || '');
-      const endpoint = escapeHtml(alert.endpoint || '');
-
-      return `
-        <div class="hub-alert hub-alert-${level}">
-          <div class="hub-alert-title">${title}</div>
-          <div class="hub-alert-detail">${detail}</div>
-          ${endpoint ? `<div class="hub-alert-endpoint">${endpoint}</div>` : ''}
+    panel.innerHTML = `
+      <div class="sf-hub-safe-top">
+        <div>
+          <div class="sf-hub-safe-title">Backend Contract Hub</div>
+          <div class="sf-hub-safe-status">
+            ${escapeHtml(data.version || 'unknown')} · overall ${escapeHtml(h.overall || 'unknown')} · ${new Date().toLocaleTimeString()}
+          </div>
         </div>
-      `;
-    }).join('');
-  }
+        <div class="${alerts.length ? 'sf-hub-safe-alert-warn' : 'sf-hub-safe-alert-ok'}">
+          ${alerts.length ? `${alerts.length} alert(s)` : 'No backend alerts'}
+        </div>
+      </div>
 
-  function renderDebug(data) {
-    const debug =
-      document.querySelector('#hubDebug') ||
-      document.querySelector('#debugPanel') ||
-      document.querySelector('[data-hub-debug]');
+      <div class="sf-hub-safe-grid">
+        ${metric('Liquid Now', money(s.cash_now))}
+        ${metric('Net Worth', money(s.net_worth))}
+        ${metric('Forecast End', money(s.forecast_projected_end))}
+        ${metric('Next Salary', money(s.salary_amount))}
+        ${metric('Expected Income', money(s.forecast_expected_income))}
+        ${metric('Expected Outflow', money(s.forecast_expected_outflow))}
+        ${metric('Debt Payable', money(s.total_owe))}
+        ${metric('Receivables', money(s.total_owed))}
+        ${metric('Reconciliation', `${Number(s.reconciliation_matched_count || 0)} matched / ${Number(s.reconciliation_pending_statement_count || 0)} pending`)}
+      </div>
+    `;
 
-    if (!debug) return;
-
-    debug.textContent = JSON.stringify({
-      ui_version: VERSION,
-      api_version: data.version,
-      health: data.health,
-      summary: data.summary,
-      alerts: data.alerts
-    }, null, 2);
-  }
-
-  function replaceLeafContaining(fragment, value) {
-    for (const el of getLeafNodes(document.body)) {
-      if (txt(el.textContent).includes(fragment)) {
-        el.textContent = value;
-      }
-    }
-  }
-
-  function replaceExactLeaf(oldValue, newValue) {
-    for (const el of getLeafNodes(document.body)) {
-      if (txt(el.textContent) === oldValue) {
-        el.textContent = newValue;
-      }
-    }
-  }
-
-  function renderHub(data) {
-    renderMetrics(data);
-    renderStatus(data);
-    renderServices(data);
-    renderAlerts(data);
-    renderDebug(data);
+    replaceOldLoadingText(data);
 
     window.SovereignHub = {
       ui_version: VERSION,
       api: data,
-      reload: loadHub
+      reload: load
     };
   }
 
-  function renderError(err) {
-    replaceExactLeaf('Loading', 'Failed');
-    replaceExactLeaf('Loaded', 'Failed');
-
-    const statusEl =
-      document.querySelector('[data-hub-status]') ||
-      document.querySelector('#hubStatus');
-
-    if (statusEl) {
-      statusEl.textContent = 'Hub failed · ' + (err.message || String(err));
-    }
-
-    const debug =
-      document.querySelector('#hubDebug') ||
-      document.querySelector('#debugPanel') ||
-      document.querySelector('[data-hub-debug]');
-
-    if (debug) {
-      debug.textContent = JSON.stringify({
-        ui_version: VERSION,
-        error: err.message || String(err)
-      }, null, 2);
-    }
-
-    console.error('[Sovereign Hub UI]', err);
+  function metric(label, value) {
+    return `
+      <div class="sf-hub-safe-card">
+        <div class="sf-hub-safe-label">${escapeHtml(label)}</div>
+        <div class="sf-hub-safe-value">${escapeHtml(value)}</div>
+      </div>
+    `;
   }
 
-  async function loadHub() {
+  function replaceOldLoadingText(data) {
+    const summary = data.summary || {};
+    const replacements = [
+      ['Loading source status', `Hub ${data.version} · ${data.health?.overall || 'unknown'} · alerts ${(data.alerts || []).length}`],
+      ['Last loaded:', 'Last loaded: ' + new Date().toLocaleTimeString()]
+    ];
+
+    for (const el of Array.from(document.querySelectorAll('body *'))) {
+      if (el.children.length) continue;
+
+      const value = safeText(el.textContent).trim();
+
+      if (value === 'Loading') el.textContent = 'Loaded';
+      if (value === 'Unavailable') el.textContent = 'Available';
+
+      for (const [find, replace] of replacements) {
+        if (value.includes(find)) el.textContent = replace;
+      }
+    }
+
+    // Expose values for manual console verification.
+    console.log('[Hub UI Rendered]', {
+      ui_version: VERSION,
+      api_version: data.version,
+      cash_now: summary.cash_now,
+      salary_amount: summary.salary_amount,
+      forecast_projected_end: summary.forecast_projected_end,
+      alerts: data.alerts
+    });
+  }
+
+  function renderError(err) {
+    ensureStyles();
+
+    const panel = findMountPoint();
+    panel.innerHTML = `
+      <div class="sf-hub-safe-error">
+        Hub UI failed: ${escapeHtml(err.message || String(err))}
+      </div>
+    `;
+
+    console.error('[Hub UI Error]', err);
+  }
+
+  async function load() {
+    if (!isHubPage()) return;
+
     try {
-      const data = await fetchJSON('/api/hub');
-      renderHub(data);
+      const data = await fetchHub();
+      renderPanel(data);
     } catch (err) {
       renderError(err);
     }
@@ -281,8 +289,8 @@
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadHub, { once: true });
+    document.addEventListener('DOMContentLoaded', load, { once: true });
   } else {
-    loadHub();
+    load();
   }
 })();
