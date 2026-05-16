@@ -17,7 +17,7 @@
       subtitle: "Current-cycle bill pressure from backend truth. Payments move through ledger; reversed ledger payments are excluded.",
       actions: [
         { label: "Refresh", id: "bills-refresh-btn" },
-        { label: "Add New Bill", id: "bills-add-new-btn", primary: true },
+        { label: "Add New Bill", href: "#bills-add-title", primary: true },
         { label: "Repair Bills Health", id: "bills-repair-btn" },
         { label: "Forecast", href: "/forecast.html" },
         { label: "Ledger", href: "/transactions.html" }
@@ -139,19 +139,22 @@
         <div>
           <p class="sf-section-kicker">Actions</p>
           <h2 id="bills-actions-title" class="sf-section-title">Create and Pay</h2>
-          <p class="sf-section-subtitle">Forms stay collapsed until needed. Bill creation does not move money; payment requires an account.</p>
+          <p class="sf-section-subtitle">Clean shared-shell forms. Bill creation does not move money; payment requires an account.</p>
         </div>
       </div>
 
-      <div class="sf-dense-grid">
-        <details id="bills-add-drawer">
-          <summary class="sf-finance-row">
-            <div class="sf-row-left">
-              <div class="sf-row-title">Add New Bill</div>
-              <div class="sf-row-subtitle">Create a recurring/manual bill obligation. No ledger movement.</div>
+      <div class="sf-panel-grid">
+        <section class="sf-span-6" aria-labelledby="bills-add-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Create</p>
+              <h3 id="bills-add-title" class="sf-section-title">Add New Bill</h3>
+              <p class="sf-section-subtitle">Create the bill obligation only. No ledger movement.</p>
             </div>
-            <div id="bills-add-state" class="sf-row-right" data-bills-value="add_state">Ready</div>
-          </summary>
+            <div class="sf-section-meta">
+              <span id="bills-add-state" class="sf-pill" data-bills-value="add_state">Ready</span>
+            </div>
+          </div>
 
           <form id="bills-add-form" class="sf-form-grid" data-bills-form="add">
             <label class="sf-field">
@@ -200,16 +203,19 @@
               <button id="bill-add-reset" class="sf-button" type="reset">Clear</button>
             </div>
           </form>
-        </details>
+        </section>
 
-        <details id="bills-payment-drawer">
-          <summary class="sf-finance-row">
-            <div class="sf-row-left">
-              <div class="sf-row-title">Pay Selected Bill</div>
-              <div class="sf-row-subtitle">Creates a ledger expense and bill payment snapshot. Account is required.</div>
+        <section class="sf-span-6" aria-labelledby="bills-payment-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Payment</p>
+              <h3 id="bills-payment-title" class="sf-section-title">Pay Selected Bill</h3>
+              <p class="sf-section-subtitle">Creates a ledger expense and bill payment snapshot. Account is required.</p>
             </div>
-            <div id="bills-payment-state" class="sf-row-right" data-bills-value="payment_state">Select bill</div>
-          </summary>
+            <div class="sf-section-meta">
+              <span id="bills-payment-state" class="sf-pill" data-bills-value="payment_state">Select bill</span>
+            </div>
+          </div>
 
           <form id="bills-payment-form" class="sf-form-grid" data-bills-form="payment">
             <label class="sf-field">
@@ -244,7 +250,7 @@
               <button id="bill-payment-clear" class="sf-button" type="reset">Clear</button>
             </div>
           </form>
-        </details>
+        </section>
       </div>
     </section>
 
@@ -312,41 +318,39 @@
     </section>
 
     <section class="sf-panel sf-span-12" aria-labelledby="bills-rules-title">
-      <details id="bills-rules-drawer">
-        <summary class="sf-section-head">
-          <div>
-            <p class="sf-section-kicker">Rules</p>
-            <h2 id="bills-rules-title" class="sf-section-title">Bills Engine Contract</h2>
-            <p class="sf-section-subtitle">Collapsed by default. Ledger owns money movement; Bills owns bill state.</p>
-          </div>
-        </summary>
-
-        <div class="sf-secondary-grid" id="bills-rules-list" data-bills-list="rules">
-          <div class="sf-finance-row">
-            <div class="sf-row-left">
-              <div class="sf-row-title">Bill creation</div>
-              <div class="sf-row-subtitle">Creates obligation only. No account balance movement.</div>
-            </div>
-            <div class="sf-row-right">No ledger write</div>
-          </div>
-
-          <div class="sf-finance-row">
-            <div class="sf-row-left">
-              <div class="sf-row-title">Bill payment</div>
-              <div class="sf-row-subtitle">Creates an expense transaction and bill payment snapshot.</div>
-            </div>
-            <div class="sf-row-right">Ledger-linked</div>
-          </div>
-
-          <div class="sf-finance-row">
-            <div class="sf-row-left">
-              <div class="sf-row-title">Reversal</div>
-              <div class="sf-row-subtitle">A reversed ledger payment must not count as paid.</div>
-            </div>
-            <div class="sf-row-right">Excluded</div>
-          </div>
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Rules</p>
+          <h2 id="bills-rules-title" class="sf-section-title">Bills Engine Contract</h2>
+          <p class="sf-section-subtitle">Ledger owns money movement; Bills owns bill state. This page does not recalculate totals.</p>
         </div>
-      </details>
+      </div>
+
+      <div class="sf-secondary-grid" id="bills-rules-list" data-bills-list="rules">
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Bill creation</div>
+            <div class="sf-row-subtitle">Creates obligation only. No account balance movement.</div>
+          </div>
+          <div class="sf-row-right">No ledger write</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Bill payment</div>
+            <div class="sf-row-subtitle">Creates an expense transaction and bill payment snapshot.</div>
+          </div>
+          <div class="sf-row-right">Ledger-linked</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Reversal</div>
+            <div class="sf-row-subtitle">A reversed ledger payment must not count as paid.</div>
+          </div>
+          <div class="sf-row-right">Excluded</div>
+        </div>
+      </div>
     </section>
 
     <section id="bills-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
