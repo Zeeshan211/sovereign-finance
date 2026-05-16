@@ -1,64 +1,128 @@
 /* js/hub.js
  * Sovereign Finance · Hub UI Loader
- * v0.1.1-hub-ui-contract-reader
+ * v0.1.2-hub-ui-contract-reader
  *
  * Frontend-only file.
- * Reads /api/hub and renders compact dashboard values.
+ * Reads /api/hub and renders Hub dashboard values.
  * Does not mutate backend data.
+ * Does not calculate financial truth.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.1.1-hub-ui-contract-reader';
+  const VERSION = 'v0.1.2-hub-ui-contract-reader';
 
-  const money = value => {
+  const SELECTORS = {
+    debug: ['#hubDebug', '#debugPanel', '[data-hub-debug]'],
+    status: ['[data-hub-status]', '#hubStatus'],
+    lastLoaded: ['[data-hub-last-loaded]', '#hubLastLoaded']
+  };
+
+  const METRIC_LABEL_MAP = [
+    ['Liquid Now', s => money(s.cash_now)],
+    ['Net Worth', s => money(s.net_worth)],
+    ['Bills Remaining', s => money(s.forecast_expected_outflow)],
+    ['Debt Payable', s => money(s.total_owe)],
+    ['Receivables', s => money(s.total_owed)],
+    ['Credit Card Outstanding', s => money(s.liabilities_total)],
+    ['Next Salary', s => money(s.salary_amount)],
+    ['Lowest Forecast Liquid', s => money(s.forecast_projected_end)],
+    ['Forecast Risk', (s, data) => {
+      const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+      return alerts.length ? `${alerts.length} alert(s)` : 'OK';
+    }]
+  ];
+
+  function money(value) {
     const n = Number(value || 0);
     const sign = n < 0 ? '-' : '';
+
     return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
       minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
       maximumFractionDigits: 2
     });
-  };
+  }
 
-  const text = value => String(value == null ? '' : value);
+  function text(value) {
+    return String(value == null ? '' : value);
+  }
 
   async function fetchJSON(url) {
-    const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'ts=' + Date.now(), {
+    const finalUrl = url + (url.includes('?') ? '&' : '?') + 'ts=' + Date.now();
+
+    const res = await fetch(finalUrl, {
       cache: 'no-store',
-      headers: { Accept: 'application/json' }
+      headers: {
+        Accept: 'application/json'
+      }
     });
 
     const raw = await res.text();
 
+    let data;
     try {
-      const data = JSON.parse(raw);
-      if (!res.ok || data.ok === false) {
-        throw new Error(data.error?.message || data.error || `HTTP ${res.status}`);
-      }
-      return data;
+      data = JSON.parse(raw);
     } catch (err) {
-      throw new Error(`Non-JSON response from ${url}: ${raw.slice(0, 80)}`);
+      throw new Error(`Expected JSON from ${url}, received: ${raw.slice(0, 120)}`);
     }
+
+    if (!res.ok || data.ok === false) {
+      const message =
+        data.error?.message ||
+        data.error ||
+        data.message ||
+        `HTTP ${res.status}`;
+
+      throw new Error(message);
+    }
+
+    return data;
   }
 
-  function findSectionByLabel(label) {
+  function queryFirst(selectors) {
+    for (const selector of selectors) {
+      const found = document.querySelector(selector);
+      if (found) return found;
+    }
+
+    return null;
+  }
+
+  function leafNodes() {
+    return Array.from(document.querySelectorAll('body *')).filter(el => {
+      return el.children.length === 0 && text(el.textContent).trim();
+    });
+  }
+
+  function findCompactContainerByLabel(label) {
     const lower = label.toLowerCase();
-    const nodes = Array.from(document.querySelectorAll('section, article, div'));
 
-    return nodes
-      .filter(node => node.textContent && node.textContent.toLowerCase().includes(lower))
-      .sort((a, b) => a.textContent.length - b.textContent.length)[0] || null;
+    const candidates = Array.from(document.querySelectorAll('section, article, div, li'))
+      .filter(node => text(node.textContent).toLowerCase().includes(lower))
+      .sort((a, b) => text(a.textContent).length - text(b.textContent).length);
+
+    return candidates[0] || null;
   }
 
-  function setLoadingNear(label, value) {
-    const section = findSectionByLabel(label);
-    if (!section) return false;
+  function setValueNearLabel(label, value) {
+    const container = findCompactContainerByLabel(label);
 
-    const candidates = Array.from(section.querySelectorAll('*'))
-      .filter(el => text(el.textContent).trim() === 'Loading' || text(el.textContent).trim() === 'Unavailable');
+    if (!container) return false;
 
-    const target = candidates[candidates.length - 1];
+    const leaves = Array.from(container.querySelectorAll('*')).filter(el => {
+      if (el.children.length) return false;
+
+      const current = text(el.textContent).trim();
+      return current === 'Loading' ||
+        current === 'Unavailable' ||
+        current === '—' ||
+        current === '--' ||
+        current === '0' ||
+        current.startsWith('Rs ');
+    });
+
+    const target = leaves[leaves.length - 1];
 
     if (!target) return false;
 
@@ -67,73 +131,127 @@
     return true;
   }
 
-  function setAllTextContains(oldText, newText) {
-    Array.from(document.querySelectorAll('*')).forEach(el => {
-      if (el.children.length) return;
+  function replaceExactText(oldText, newText) {
+    for (const el of leafNodes()) {
       if (text(el.textContent).trim() === oldText) {
         el.textContent = newText;
       }
-    });
+    }
   }
 
-  function setStatusPills(data) {
-    setAllTextContains('Loading', 'Loaded');
+  function replaceTextContaining(fragment, newText) {
+    for (const el of leafNodes()) {
+      if (text(el.textContent).includes(fragment)) {
+        el.textContent = newText;
+      }
+    }
+  }
 
-    const lastLoadedCandidates = Array.from(document.querySelectorAll('*'))
-      .filter(el => text(el.textContent).includes('Last loaded:'));
+  function renderStatus(data) {
+    const status = data.health?.overall || 'unknown';
+    const alerts = Array.isArray(data.alerts) ? data.alerts.length : 0;
+    const value = `Hub ${data.version || 'unknown'} · ${status} · alerts ${alerts}`;
 
-    lastLoadedCandidates.forEach(el => {
-      el.textContent = 'Last loaded: ' + new Date().toLocaleTimeString();
-    });
+    const statusEl = queryFirst(SELECTORS.status);
+    if (statusEl) statusEl.textContent = value;
 
-    const sourceCandidates = Array.from(document.querySelectorAll('*'))
-      .filter(el => text(el.textContent).includes('Loading source status'));
+    const lastLoadedEl = queryFirst(SELECTORS.lastLoaded);
+    if (lastLoadedEl) {
+      lastLoadedEl.textContent = 'Last loaded: ' + new Date().toLocaleTimeString();
+    }
 
-    sourceCandidates.forEach(el => {
-      el.textContent = `Hub ${data.version} · ${data.health?.overall || 'unknown'} · alerts ${data.alerts?.length || 0}`;
-    });
+    replaceTextContaining('Loading source status', value);
+    replaceTextContaining('Last loaded:', 'Last loaded: ' + new Date().toLocaleTimeString());
+  }
+
+  function renderMetrics(data) {
+    const summary = data.summary || {};
+
+    for (const [label, formatter] of METRIC_LABEL_MAP) {
+      setValueNearLabel(label, formatter(summary, data));
+    }
+
+    replaceExactText('Unavailable', 'Available');
+    replaceExactText('Loading', 'Loaded');
+  }
+
+  function renderServices(data) {
+    const services = data.health?.services || {};
+
+    for (const [name, service] of Object.entries(services)) {
+      const label = name.charAt(0).toUpperCase() + name.slice(1);
+      const value = service.ok ? 'OK' : 'Check';
+      setValueNearLabel(label, value);
+    }
+  }
+
+  function renderAlerts(data) {
+    const alerts = Array.isArray(data.alerts) ? data.alerts : [];
+
+    const alertContainer =
+      document.querySelector('[data-hub-alerts]') ||
+      document.querySelector('#hubAlerts');
+
+    if (!alertContainer) return;
+
+    if (!alerts.length) {
+      alertContainer.innerHTML = '<div class="muted">No active backend alerts.</div>';
+      return;
+    }
+
+    alertContainer.innerHTML = alerts.map(alert => {
+      const level = escapeHtml(alert.level || 'warn');
+      const title = escapeHtml(alert.title || alert.code || 'Alert');
+      const detail = escapeHtml(alert.detail || '');
+      const endpoint = escapeHtml(alert.endpoint || '');
+
+      return `
+        <div class="hub-alert hub-alert-${level}">
+          <div class="hub-alert-title">${title}</div>
+          <div class="hub-alert-detail">${detail}</div>
+          ${endpoint ? `<div class="hub-alert-endpoint">${endpoint}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderDebug(data) {
+    const debug = queryFirst(SELECTORS.debug);
+
+    if (!debug) return;
+
+    debug.textContent = JSON.stringify({
+      ui_version: VERSION,
+      api_version: data.version,
+      health: data.health,
+      summary: data.summary,
+      alerts: data.alerts
+    }, null, 2);
   }
 
   function renderHub(data) {
-    const s = data.summary || {};
-    const h = data.health || {};
-    const alerts = Array.isArray(data.alerts) ? data.alerts : [];
-
-    setLoadingNear('Liquid Now', money(s.cash_now));
-    setLoadingNear('Net Worth', money(s.net_worth));
-    setLoadingNear('Bills Remaining', money(s.forecast_expected_outflow));
-    setLoadingNear('Debt Payable', money(s.total_owe));
-    setLoadingNear('Receivables', money(s.total_owed));
-    setLoadingNear('Credit Card Outstanding', money(s.liabilities_total));
-    setLoadingNear('Next Salary', money(s.salary_amount));
-    setLoadingNear('Lowest Forecast Liquid', money(s.forecast_projected_end));
-    setLoadingNear('Forecast Risk', alerts.length ? `${alerts.length} alert(s)` : 'OK');
-
-    setStatusPills(data);
-
-    const debug = document.getElementById('hubDebug') || document.getElementById('debugPanel');
-    if (debug) {
-      debug.textContent = JSON.stringify({
-        ui_version: VERSION,
-        api_version: data.version,
-        health: h,
-        summary: s,
-        alerts
-      }, null, 2);
-    }
+    renderStatus(data);
+    renderMetrics(data);
+    renderServices(data);
+    renderAlerts(data);
+    renderDebug(data);
 
     window.SovereignHub = {
-      version: VERSION,
+      ui_version: VERSION,
       api: data,
       reload: loadHub
     };
   }
 
   function renderError(err) {
-    setAllTextContains('Loading', 'Failed');
+    replaceExactText('Loading', 'Failed');
 
-    const debug = document.getElementById('hubDebug') || document.getElementById('debugPanel');
+    const statusEl = queryFirst(SELECTORS.status);
+    if (statusEl) {
+      statusEl.textContent = 'Hub failed · ' + (err.message || String(err));
+    }
 
+    const debug = queryFirst(SELECTORS.debug);
     if (debug) {
       debug.textContent = JSON.stringify({
         ui_version: VERSION,
@@ -141,7 +259,7 @@
       }, null, 2);
     }
 
-    console.error('[Hub UI]', err);
+    console.error('[Sovereign Hub UI]', err);
   }
 
   async function loadHub() {
@@ -151,6 +269,15 @@
     } catch (err) {
       renderError(err);
     }
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   if (document.readyState === 'loading') {
