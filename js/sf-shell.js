@@ -123,10 +123,28 @@
     };
   }
 
+  function datasetAttrs(dataset) {
+    if (!dataset || typeof dataset !== "object") return "";
+
+    return Object.entries(dataset)
+      .filter(([key, value]) => key && value != null)
+      .map(([key, value]) => {
+        const attr = "data-" + String(key)
+          .replace(/[A-Z]/g, (m) => "-" + m.toLowerCase())
+          .replace(/[^a-z0-9_-]/gi, "-")
+          .toLowerCase();
+
+        return `${attr}="${escapeHtml(value)}"`;
+      })
+      .join(" ");
+  }
+
   function applyDebugMode() {
     const params = new URLSearchParams(window.location.search);
     const debugOn = params.get("debug") === "1";
+
     document.body.classList.toggle("sf-debug-mode", debugOn);
+
     return debugOn;
   }
 
@@ -171,6 +189,9 @@
     if (o.id) attrs.push(`id="${escapeHtml(o.id)}"`);
     if (o.ariaLabel) attrs.push(`aria-label="${escapeHtml(o.ariaLabel)}"`);
 
+    const data = datasetAttrs(o.dataset);
+    if (data) attrs.push(data);
+
     return `<${tag} ${attrs.join(" ")}>${o.labelHtml != null ? String(o.labelHtml) : escapeHtml(o.label || "Action")}</${tag}>`;
   }
 
@@ -189,6 +210,9 @@
 
     if (o.disabled) attrs.push("disabled");
     if (o.id) attrs.push(`id="${escapeHtml(o.id)}"`);
+
+    const data = datasetAttrs(o.dataset);
+    if (data) attrs.push(data);
 
     return `<${tag} ${attrs.join(" ")}>${o.labelHtml != null ? String(o.labelHtml) : escapeHtml(o.label || "Option")}</${tag}>`;
   }
@@ -210,11 +234,33 @@
         ? escapeHtml(o.foot)
         : "";
 
+    const cardAttrs = [
+      `class="${classNames("sf-metric-card", o.accent && "sf-metric-card--accent", o.className)}"`
+    ];
+
+    if (o.id) cardAttrs.push(`id="${escapeHtml(o.id)}"`);
+    if (o.key) cardAttrs.push(`data-kpi="${escapeHtml(o.key)}"`);
+    if (o.valueKey) cardAttrs.push(`data-kpi-key="${escapeHtml(o.valueKey)}"`);
+
+    const cardData = datasetAttrs(o.dataset);
+    if (cardData) cardAttrs.push(cardData);
+
+    const valueAttrs = [
+      `class="${classNames("sf-metric-value", o.tone && "sf-tone-" + o.tone)}"`
+    ];
+
+    if (o.valueId) valueAttrs.push(`id="${escapeHtml(o.valueId)}"`);
+    if (o.valueKey) valueAttrs.push(`data-kpi-value="${escapeHtml(o.valueKey)}"`);
+    if (o.key) valueAttrs.push(`data-kpi-value="${escapeHtml(o.key)}"`);
+
+    const valueData = datasetAttrs(o.valueDataset);
+    if (valueData) valueAttrs.push(valueData);
+
     return `
-      <section class="${classNames("sf-metric-card", o.accent && "sf-metric-card--accent", o.className)}">
+      <section ${cardAttrs.join(" ")}>
         ${o.kicker ? `<p class="sf-card-kicker">${escapeHtml(o.kicker)}</p>` : ""}
         ${o.title ? `<h3 class="sf-card-title">${escapeHtml(o.title)}</h3>` : ""}
-        <div class="${classNames("sf-metric-value", o.tone && "sf-tone-" + o.tone)}">${value}</div>
+        <div ${valueAttrs.join(" ")}>${value}</div>
         ${subtitle ? `<p class="sf-card-subtitle">${subtitle}</p>` : ""}
         ${foot ? `<div class="sf-metric-foot">${foot}</div>` : ""}
       </section>
@@ -254,7 +300,6 @@
             </span>
           </a>
         </div>
-
         <div class="sf-nav-scroll">
           ${groups}
         </div>
@@ -264,7 +309,6 @@
 
   function ensureAppShell() {
     let appShell = q("." + SHELL_CLASS);
-
     if (appShell) return appShell;
 
     appShell = document.createElement("main");
@@ -281,7 +325,6 @@
 
   function ensureMobileNavButton() {
     let button = q(".sf-nav-mobile-toggle");
-
     if (button) return button;
 
     button = document.createElement("button");
@@ -298,24 +341,24 @@
     });
 
     document.body.appendChild(button);
+
     return button;
   }
 
   function ensureNavOverlay() {
     let overlay = q(".sf-nav-overlay");
-
     if (overlay) return overlay;
 
     overlay = document.createElement("button");
     overlay.className = "sf-nav-overlay";
     overlay.type = "button";
     overlay.setAttribute("aria-label", "Close finance navigation");
-
     overlay.addEventListener("click", function () {
       closeMobileNav();
     });
 
     document.body.appendChild(overlay);
+
     return overlay;
   }
 
@@ -331,12 +374,16 @@
 
     if (!enabled) {
       if (sidebar) sidebar.remove();
+
       const button = q(".sf-nav-mobile-toggle");
       const overlay = q(".sf-nav-overlay");
+
       if (button) button.remove();
       if (overlay) overlay.remove();
+
       appShell.classList.remove("sf-app-shell--with-nav");
       closeMobileNav();
+
       return null;
     }
 
@@ -351,7 +398,6 @@
     }
 
     appShell.classList.add("sf-app-shell--with-nav");
-
     ensureMobileNavButton();
     ensureNavOverlay();
 
@@ -364,7 +410,6 @@
 
   function ensurePageShell(appShell) {
     let pageShell = q("." + PAGE_CLASS, appShell);
-
     if (pageShell) return pageShell;
 
     pageShell = document.createElement("div");
@@ -378,6 +423,7 @@
     existing.forEach((node) => {
       if (node === pageShell) return;
       if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains(SIDEBAR_CLASS)) return;
+
       contentSlot.appendChild(node);
     });
 
@@ -413,6 +459,7 @@
     }
 
     const next = create();
+
     region.innerHTML = next;
     region.hidden = !String(next || "").trim();
 
@@ -447,7 +494,6 @@
                 : ""
           }
         </div>
-
         ${actionHtml ? `<div class="sf-page-actions">${actionHtml}</div>` : ""}
       </header>
     `;
@@ -474,11 +520,12 @@
     applyDebugMode();
 
     const appShell = ensureAppShell();
+
     ensureFinanceNav(appShell, c.nav !== false);
 
     const pageShell = ensurePageShell(appShell);
-    ensureContentSlot(pageShell);
 
+    ensureContentSlot(pageShell);
     ensureRegion(pageShell, "sf-page-hero-region", () => renderHero(c));
     ensureRegion(pageShell, "sf-control-region", () => renderControls(c));
     ensureRegion(pageShell, "sf-kpi-region", () => renderKpis(c));
@@ -499,7 +546,9 @@
 
   function refresh(nextConfig) {
     const merged = Object.assign({}, currentConfig, nextConfig || {});
+
     window.SF_PAGE = Object.assign({}, window.SF_PAGE || {}, merged);
+
     return mount(merged);
   }
 
