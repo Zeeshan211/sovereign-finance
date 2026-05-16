@@ -1,18 +1,19 @@
 /* js/bills.js
  * Sovereign Finance · Bills UI
- * v0.10.1-density-pass
+ * v0.10.2-honest-errors
  *
- * Delta vs v0.10.0:
- *   - Page-scoped hero compression (CSS only; shared shell untouched)
- *   - Filter chips render inline-flex (no more vertical stacking)
- *   - Tighter sidebar action button wrapping
- *   - Toolbar spacing tightened
- * All v0.10 wiring (modals, toast, expand, sort, search, per-row actions) preserved.
+ * Delta vs v0.10.1:
+ *   - fetchJSON extracts payload.error.message verbatim from backend
+ *   - On failure, raw response body logged to console for diagnostics
+ *   - Add modal: due_day defaults to today's day (no nulls into NOT NULL columns)
+ *   - Add modal: category_id always sent, notes never null
+ *   - submitAddBill logs payload + raw error
+ * All v0.10.1 hero compression, chip flex, modal/toast/expand/sort/search preserved.
  */
 (function () {
   'use strict';
 
-  const VERSION = 'v0.10.1-density-pass';
+  const VERSION = 'v0.10.2-honest-errors';
   const API_BILLS = '/api/bills';
   const API_BILLS_HEALTH = '/api/bills/health';
   const API_ACCOUNTS = '/api/accounts';
@@ -36,6 +37,7 @@
   function setHTML(id, v) { const el = $(id); if (el) el.innerHTML  = v == null ? '' : String(v); }
   function clean(v, fb = '') { return String(v == null ? fb : v).trim(); }
   function todayISO()   { return new Date().toISOString().slice(0, 10); }
+  function todayDay()   { return new Date().getDate(); }
   function currentMonth() { return new Date().toISOString().slice(0, 7); }
   function money(v) {
     const n = Number(v || 0);
@@ -94,6 +96,24 @@
     return Math.max(0, Math.min(100, Math.round((paid / expected) * 100)));
   }
 
+  /**
+   * ─── HONEST ERROR EXTRACTION ───
+   * Backend always wraps errors as { ok:false, version, error:{ code, message } }.
+   * Pull the human-readable message verbatim. Log raw response on failure so the
+   * user can see exactly what came back.
+   */
+  function extractErrorMessage(payload, status, rawText) {
+    if (payload && payload.error) {
+      const e = payload.error;
+      if (typeof e === 'string') return e;
+      if (e.message) return e.code ? `${e.code}: ${e.message}` : e.message;
+      if (e.code) return e.code;
+      try { return JSON.stringify(e); } catch (_) { return String(e); }
+    }
+    if (payload && payload.message) return payload.message;
+    if (rawText && rawText.length && rawText.length < 400) return `HTTP ${status}: ${rawText}`;
+    return `HTTP ${status}`;
+  }
   async function fetchJSON(url, options) {
     const res = await fetch(url, {
       cache: 'no-store',
@@ -102,10 +122,15 @@
     });
     const text = await res.text();
     let payload = null;
-    try { payload = text ? JSON.parse(text) : null; }
-    catch { throw new Error(`Non-JSON from ${url}: HTTP ${res.status}`); }
+    try { payload = text ? JSON.parse(text) : null; } catch { /* non-JSON */ }
     if (!res.ok || !payload || payload.ok === false) {
-      throw new Error((payload && payload.error) || `HTTP ${res.status}`);
+      // Console diagnostic so user can paste exact backend response
+      try {
+        console.error('[bills.js] fetch failed', {
+          url, status: res.status, payload, rawText: text.slice(0, 800)
+        });
+      } catch (_) {}
+      throw new Error(extractErrorMessage(payload, res.status, text));
     }
     return payload;
   }
@@ -497,15 +522,24 @@
     const section = $('bills-inline-forms-section');
     if (section && !section.hasAttribute('hidden')) section.setAttribute('hidden', '');
   }
+
+  /**
+   * ─── ADD-BILL PAYLOAD: SAFE DEFAULTS ───
+   * Backend createBill writes the row through filterToColumns(), so unknown
+   * keys are stripped — safe. But it does NOT null-coalesce against NOT NULL
+   * columns. We send safe defaults so a blank due_day / category does not
+   * collide with NOT NULL constraints in production.
+   */
   function formToAddPayload(form) {
+    const name = clean(form.elements.name?.value);
+    const amount = Number(form.elements.amount?.value || 0);
+    const due_day = Number(form.elements.due_day?.value || 0) || todayDay();
+    const frequency = clean(form.elements.frequency?.value) || 'monthly';
+    const default_account_id = clean(form.elements.default_account_id?.value) || null;
+    const category_id = clean(form.elements.category_id?.value) || 'bills_utilities';
+    const notes = clean(form.elements.notes?.value) || '';
     return {
-      name: clean(form.elements.name?.value),
-      amount: Number(form.elements.amount?.value || 0),
-      due_day: Number(form.elements.due_day?.value || 0) || null,
-      frequency: clean(form.elements.frequency?.value) || 'monthly',
-      default_account_id: clean(form.elements.default_account_id?.value) || null,
-      category_id: clean(form.elements.category_id?.value) || 'bills_utilities',
-      notes: clean(form.elements.notes?.value) || null,
+      name, amount, due_day, frequency, default_account_id, category_id, notes,
       created_by: 'bills-ui-' + VERSION
     };
   }
@@ -514,7 +548,7 @@
       amount: Number(form.elements.amount?.value || 0),
       paid_date: clean(form.elements.paid_date?.value) || todayISO(),
       account_id: clean(form.elements.account_id?.value),
-      notes: clean(form.elements.notes?.value) || null,
+      notes: clean(form.elements.notes?.value) || '',
       created_by: 'bills-ui-' + VERSION
     };
   }
@@ -524,13 +558,15 @@
     if (!Number.isFinite(payload.amount) || payload.amount <= 0) { toast('Expected amount must be > 0.', 'warning'); return; }
     if (stateSpan) stateSpan.textContent = 'Saving';
     try {
+      console.log('[bills.js] add payload', payload);
       const res = await postJSON(API_BILLS, payload);
+      console.log('[bills.js] add response', res);
       const newId = res?.bill?.id || res?.id || null;
       if (newId) state.selectedBillId = newId;
       if (stateSpan) stateSpan.textContent = 'Saved';
       closeModal('add');
       await loadBills();
-      toast('Bill added.', 'positive');
+      toast(`Bill added: ${payload.name}`, 'positive');
     } catch (err) {
       if (stateSpan) stateSpan.textContent = 'Failed';
       toast(`Add failed: ${err.message}`, 'danger');
@@ -541,7 +577,6 @@
     if (!payload.account_id) { toast('Pick the payment account.', 'warning'); return; }
     if (stateSpan) stateSpan.textContent = 'Saving';
     try {
-      // Backend (v0.6.1 / v0.8.0): /api/bills/pay expects bill_id in body, account_id, amount, date
       await postJSON(`${API_BILLS}/pay`, {
         bill_id: bill.id,
         amount: payload.amount,
@@ -562,7 +597,6 @@
   }
   async function submitEdit(bill, updates) {
     try {
-      // Backend /api/bills/update is the v0.6.1 catchall route
       await postJSON(`${API_BILLS}/update`, { bill_id: bill.id, ...updates });
       closeModal('edit');
       state.selectedBillId = bill.id;
@@ -636,18 +670,19 @@
     });
   }
   function openAddModal() {
+    const dDay = todayDay();
     openModal('add', `
       <form class="sf-form-grid" data-bills-modal-form="add">
         <label class="sf-field sf-span-12"><span>Bill name</span><input name="name" type="text" autocomplete="off" placeholder="Internet Bill, Rent, School Fee" required></label>
-        <label class="sf-field sf-span-6"><span>Expected amount</span><input name="amount" type="number" inputmode="decimal" min="0" step="0.01" required></label>
-        <label class="sf-field sf-span-6"><span>Due day</span><input name="due_day" type="number" inputmode="numeric" min="1" max="31"></label>
+        <label class="sf-field sf-span-6"><span>Expected amount (Rs)</span><input name="amount" type="number" inputmode="decimal" min="0" step="0.01" required></label>
+        <label class="sf-field sf-span-6"><span>Due day (1–31)</span><input name="due_day" type="number" inputmode="numeric" min="1" max="31" value="${dDay}" required></label>
         <label class="sf-field sf-span-6"><span>Frequency</span>
           <select name="frequency"><option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="custom">Custom</option></select>
         </label>
         <label class="sf-field sf-span-6"><span>Default account</span>
           <select name="default_account_id" data-bills-account-select><option value="">Choose when paying</option></select>
         </label>
-        <label class="sf-field sf-span-12"><span>Category</span><input name="category_id" type="text" value="bills_utilities"></label>
+        <label class="sf-field sf-span-12"><span>Category</span><input name="category_id" type="text" value="bills_utilities" required></label>
         <label class="sf-field sf-span-12"><span>Notes</span><textarea name="notes" rows="2" placeholder="Optional note"></textarea></label>
         <div class="sf-form-actions sf-span-12">
           <button class="sf-button sf-button--primary" type="submit">Add Bill</button>
@@ -739,7 +774,7 @@
         frequency: clean(form.elements.frequency?.value) || 'monthly',
         default_account_id: clean(form.elements.default_account_id?.value) || null,
         category_id: clean(form.elements.category_id?.value) || null,
-        notes: clean(form.elements.notes?.value) || null,
+        notes: clean(form.elements.notes?.value) || '',
         status: clean(form.elements.status?.value) || 'active'
       };
       await submitEdit(bill, updates);
@@ -754,7 +789,7 @@
         <div class="bill-modal-context-sub">current due day ${esc(bill.due_day ?? '—')}</div>
       </div>
       <form class="sf-form-grid" data-bills-modal-form="defer">
-        <label class="sf-field sf-span-12"><span>New due date</span><input name="next_due_date" type="date" value="${esc(bill.due_date || '')}"></label>
+        <label class="sf-field sf-span-12"><span>New due day</span><input name="due_day" type="number" inputmode="numeric" min="1" max="31" value="${esc(bill.due_day ?? '')}"></label>
         <label class="sf-field sf-span-12"><span>Notes</span><textarea name="notes" rows="2" placeholder="Why are you deferring?"></textarea></label>
         <div class="sf-form-actions sf-span-12">
           <button class="sf-button sf-button--primary" type="submit">Defer</button>
@@ -765,10 +800,10 @@
     const form = qa('[data-bills-modal-form="defer"]')[0];
     if (form) form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const next = clean(form.elements.next_due_date?.value);
+      const due_day = Number(form.elements.due_day?.value || 0) || null;
       const notes = clean(form.elements.notes?.value);
-      if (!next) { toast('Provide a new due date.', 'warning'); return; }
-      await submitDefer(bill, { next_due_date: next, notes });
+      if (!due_day) { toast('Provide a new due day (1–31).', 'warning'); return; }
+      await submitDefer(bill, { due_day, notes });
     });
   }
 
@@ -785,7 +820,7 @@
     toastTimer = setTimeout(() => {
       el.classList.remove('is-open');
       setTimeout(() => el.setAttribute('hidden', ''), 220);
-    }, 3200);
+    }, 4500);
   }
 
   function wireShellActionsOnce() {
@@ -810,81 +845,47 @@
     });
   }
 
-  /**
-   * Page-scoped CSS injection.
-   * Scoped via `:has(#bills-toolbar)` so it only applies on the Bills page —
-   * any other page that loads sf-shell remains visually untouched.
-   * Shared shell / shared components / CSS files are NOT modified.
-   */
   function injectStyles() {
     const old = document.querySelector('style[data-bills-styles]');
     if (old) old.remove();
     const css = `
-      /* ---- HERO COMPRESSION (Bills page only) ----------------------------- */
       body:has(#bills-toolbar) .sf-shell-hero,
       body:has(#bills-toolbar) .sf-page-hero,
       body:has(#bills-toolbar) [data-sf-hero],
-      body:has(#bills-toolbar) header[role="banner"] {
-        padding-block: 14px !important;
-      }
+      body:has(#bills-toolbar) header[role="banner"] { padding-block: 14px !important; }
       body:has(#bills-toolbar) .sf-shell-hero .sf-section-subtitle,
       body:has(#bills-toolbar) .sf-page-hero .sf-section-subtitle,
-      body:has(#bills-toolbar) [data-sf-hero] .sf-section-subtitle {
-        margin-top: 4px !important; font-size: 12px !important; opacity: .7 !important;
-      }
+      body:has(#bills-toolbar) [data-sf-hero] .sf-section-subtitle { margin-top: 4px !important; font-size: 12px !important; opacity: .7 !important; }
       body:has(#bills-toolbar) .sf-shell-hero h1,
       body:has(#bills-toolbar) .sf-page-hero h1,
-      body:has(#bills-toolbar) [data-sf-hero] h1 {
-        font-size: 26px !important; line-height: 1.1 !important; margin: 0 !important;
-      }
+      body:has(#bills-toolbar) [data-sf-hero] h1 { font-size: 26px !important; line-height: 1.1 !important; margin: 0 !important; }
       body:has(#bills-toolbar) .sf-kpi-strip,
       body:has(#bills-toolbar) .sf-kpi-grid,
-      body:has(#bills-toolbar) [data-sf-kpis] {
-        padding-block: 8px !important; gap: 10px !important;
-      }
+      body:has(#bills-toolbar) [data-sf-kpis] { padding-block: 8px !important; gap: 10px !important; }
       body:has(#bills-toolbar) .sf-metric-card,
       body:has(#bills-toolbar) .sf-kpi-card,
-      body:has(#bills-toolbar) [data-sf-kpi] {
-        padding: 10px 12px !important; min-height: 0 !important;
-      }
+      body:has(#bills-toolbar) [data-sf-kpi] { padding: 10px 12px !important; min-height: 0 !important; }
       body:has(#bills-toolbar) .sf-metric-card .sf-metric-value,
       body:has(#bills-toolbar) .sf-kpi-card .sf-metric-value,
-      body:has(#bills-toolbar) [data-sf-kpi] .sf-metric-value {
-        font-size: 20px !important; line-height: 1.15 !important; margin: 2px 0 !important;
-      }
+      body:has(#bills-toolbar) [data-sf-kpi] .sf-metric-value { font-size: 20px !important; line-height: 1.15 !important; margin: 2px 0 !important; }
       body:has(#bills-toolbar) .sf-metric-card .sf-metric-title,
       body:has(#bills-toolbar) .sf-metric-card .sf-metric-kicker,
       body:has(#bills-toolbar) .sf-metric-card .sf-metric-subtitle,
-      body:has(#bills-toolbar) .sf-metric-card .sf-metric-foot {
-        font-size: 11px !important; line-height: 1.2 !important; opacity: .7 !important;
-      }
+      body:has(#bills-toolbar) .sf-metric-card .sf-metric-foot { font-size: 11px !important; line-height: 1.2 !important; opacity: .7 !important; }
       body:has(#bills-toolbar) .sf-shell-actions,
-      body:has(#bills-toolbar) [data-sf-actions] {
-        gap: 6px !important; padding-block: 6px !important;
-      }
+      body:has(#bills-toolbar) [data-sf-actions] { gap: 6px !important; padding-block: 6px !important; }
       body:has(#bills-toolbar) .sf-shell-actions .sf-button,
-      body:has(#bills-toolbar) [data-sf-actions] .sf-button {
-        padding: 6px 12px !important; font-size: 12px !important; min-height: 30px !important;
-      }
+      body:has(#bills-toolbar) [data-sf-actions] .sf-button { padding: 6px 12px !important; font-size: 12px !important; min-height: 30px !important; }
 
-      /* ---- FILTER CHIPS · render inline-flex, not stacked ----------------- */
-      #bills-filter-chips {
-        display: flex !important; flex-wrap: wrap !important; gap: 8px !important;
-        align-items: center !important;
-      }
-      #bills-filter-chips > .sf-button {
-        display: inline-flex !important; width: auto !important; flex: 0 0 auto !important;
-      }
+      #bills-filter-chips { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; align-items: center !important; }
+      #bills-filter-chips > .sf-button { display: inline-flex !important; width: auto !important; flex: 0 0 auto !important; }
       #bills-toolbar .sf-form-grid { row-gap: 10px !important; }
-
-      /* ---- TOOLBAR section tightening ------------------------------------- */
       #bills-toolbar { padding: 12px 14px !important; }
       #bills-toolbar .sf-section-head { margin-bottom: 8px !important; }
       #bills-toolbar .sf-section-title { font-size: 14px !important; }
       #bills-toolbar .sf-section-subtitle { display: none !important; }
       #bills-toolbar .sf-section-kicker { font-size: 10px !important; }
 
-      /* ---- BILL ROW (compact expandable) ---------------------------------- */
       .bill-card { border: 1px solid var(--sf-border, rgba(255,255,255,0.08)); border-radius: var(--sf-radius-md, 14px); background: var(--sf-surface, rgba(255,255,255,0.03)); margin-bottom: 8px; transition: border-color 120ms ease; }
       .bill-card:hover { border-color: var(--sf-border-strong, rgba(255,255,255,0.18)); }
       .bill-card.is-open { border-color: var(--sf-accent, #6ea8ff); background: var(--sf-surface-strong, rgba(255,255,255,0.05)); }
@@ -905,12 +906,8 @@
       .bill-inline-v { font-size: 13px; font-weight: 500; }
       .bill-inline-notes { font-size: 12px; opacity: 0.75; margin: 6px 0 10px; padding: 8px 10px; background: var(--sf-track, rgba(255,255,255,0.04)); border-radius: 8px; white-space: pre-wrap; }
       .bill-inline-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
-
-      /* ---- CHIP styling --------------------------------------------------- */
       .sf-button--chip { padding: 6px 12px; font-size: 12px; border-radius: 999px; }
       .sf-button--chip.is-active { background: var(--sf-accent, #6ea8ff); color: var(--sf-on-accent, #0b0f1a); border-color: transparent; }
-
-      /* ---- MODAL ---------------------------------------------------------- */
       .sf-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px 16px; }
       .sf-modal[hidden] { display: none !important; }
       .sf-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); }
@@ -918,14 +915,11 @@
       .bill-modal-context { padding: 10px 12px; margin-bottom: 12px; background: var(--sf-track, rgba(255,255,255,0.04)); border-radius: 10px; }
       .bill-modal-context-title { font-weight: 600; font-size: 14px; }
       .bill-modal-context-sub { font-size: 12px; opacity: 0.7; margin-top: 2px; }
-
-      /* ---- TOAST ---------------------------------------------------------- */
-      .sf-toast { position: fixed; right: 16px; bottom: 16px; z-index: 1100; padding: 10px 14px; background: var(--sf-surface-strong, #131826); border: 1px solid var(--sf-border, rgba(255,255,255,0.18)); border-radius: 10px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transform: translateY(8px); opacity: 0; transition: transform 180ms ease, opacity 180ms ease; max-width: 360px; }
+      .sf-toast { position: fixed; right: 16px; bottom: 16px; z-index: 1100; padding: 10px 14px; background: var(--sf-surface-strong, #131826); border: 1px solid var(--sf-border, rgba(255,255,255,0.18)); border-radius: 10px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transform: translateY(8px); opacity: 0; transition: transform 180ms ease, opacity 180ms ease; max-width: 380px; white-space: pre-wrap; }
       .sf-toast.is-open { transform: translateY(0); opacity: 1; }
       .sf-toast--positive { border-color: rgba(80,200,120,0.6); }
       .sf-toast--warning  { border-color: rgba(240,180,80,0.6); }
       .sf-toast--danger   { border-color: rgba(240,90,90,0.7); }
-
       @media (max-width: 640px) {
         .bill-row-shell { grid-template-columns: 28px 1fr 92px 18px; row-gap: 4px; }
         .bill-row-amount { grid-column: 3 / 4; }
