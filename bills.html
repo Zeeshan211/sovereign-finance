@@ -1,11 +1,8 @@
 <!DOCTYPE html>
-<html lang="en" data-page="bills">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#050816">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <title>Bills · Sovereign Finance</title>
 
@@ -13,605 +10,353 @@
   <link rel="stylesheet" href="/css/sf-theme.css">
   <link rel="stylesheet" href="/css/sf-shell.css">
 
-  <style>
-    .bills-os {
-      width: min(100%, 1480px);
-      margin: 0 auto;
-      display: grid;
-      gap: var(--sf-space-5, 20px);
-    }
-
-    .bills-command {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: var(--sf-space-4, 16px);
-      align-items: center;
-      padding: clamp(18px, 3vw, 28px);
-      border: 1px solid var(--sf-border);
-      border-radius: var(--sf-radius-xl, 24px);
-      background: var(--sf-card);
-      box-shadow: var(--sf-shadow-sm);
-    }
-
-    .bills-title {
-      margin: 0;
-      color: var(--sf-text);
-      font-size: clamp(34px, 6vw, 62px);
-      line-height: .92;
-      font-weight: 950;
-      letter-spacing: -.07em;
-    }
-
-    .bills-copy {
-      margin: 10px 0 0;
-      color: var(--sf-text-muted);
-      font-size: var(--sf-font-14, 14px);
-      font-weight: 700;
-      line-height: 1.55;
-      max-width: 900px;
-    }
-
-    .bills-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--sf-space-2, 10px);
-      justify-content: flex-end;
-    }
-
-    .bills-insight {
-      position: relative;
-      overflow: hidden;
-      padding: clamp(22px, 4vw, 38px);
-      border-radius: var(--sf-radius-2xl, 30px);
-      color: #f8fafc;
-      background:
-        radial-gradient(circle at 82% 12%, rgba(83, 215, 167, .28), transparent 24rem),
-        linear-gradient(135deg, #06111f, #0f172a 48%, #102a25);
-      border: 1px solid rgba(255, 255, 255, .10);
-      box-shadow: var(--sf-shadow-lg);
-    }
-
-    .bills-insight h2 {
-      margin: 12px 0 0;
-      color: #fff;
-      font-size: clamp(34px, 6vw, 68px);
-      line-height: .92;
-      font-weight: 950;
-      letter-spacing: -.075em;
-    }
-
-    .bills-insight p {
-      max-width: 900px;
-      margin: 14px 0 0;
-      color: #cbd5e1;
-      font-size: var(--sf-font-15, 15px);
-      line-height: 1.6;
-      font-weight: 720;
-    }
-
-    .bills-metrics {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: var(--sf-space-4, 14px);
-    }
-
-    .bills-workspace {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
-      gap: var(--sf-space-4, 16px);
-      align-items: start;
-    }
-
-    .bills-stack {
-      display: grid;
-      gap: var(--sf-space-4, 16px);
-    }
-
-    .bills-list {
-      display: grid;
-      gap: 12px;
-    }
-
-    .bill-card {
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 18px;
-      background: var(--sf-surface-1);
-      padding: 14px;
-      display: grid;
-      gap: 12px;
-    }
-
-    .bill-card.is-selected {
-      border-color: var(--sf-accent);
-      box-shadow: 0 0 0 3px var(--sf-accent-soft);
-    }
-
-    .bill-card-head {
-      display: grid;
-      grid-template-columns: 42px minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: center;
-    }
-
-    .bill-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 14px;
-      display: grid;
-      place-items: center;
-      background: var(--sf-accent-soft);
-      color: var(--sf-accent-strong);
-      font-weight: 900;
-    }
-
-    .bill-title {
-      color: var(--sf-text);
-      font-size: 15px;
-      line-height: 1.25;
-      font-weight: 950;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .bill-sub {
-      margin-top: 4px;
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.35;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .bill-amount {
-      color: var(--sf-text);
-      font-size: 16px;
-      font-weight: 950;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      text-align: right;
-    }
-
-    .bill-bars {
-      display: grid;
-      gap: 8px;
-    }
-
-    .bill-progress {
-      overflow: hidden;
-      height: 12px;
-      border-radius: 999px;
-      border: 1px solid var(--sf-border-subtle);
-      background: var(--sf-surface-2);
-    }
-
-    .bill-progress-fill {
-      height: 100%;
-      width: var(--paid-pct, 0%);
-      background: linear-gradient(90deg, var(--sf-positive), var(--sf-accent));
-      border-radius: inherit;
-    }
-
-    .bill-progress-copy {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      font-weight: 750;
-    }
-
-    .bill-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .bill-tag {
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 999px;
-      background: var(--sf-surface-2);
-      color: var(--sf-text-muted);
-      padding: 4px 8px;
-      font-size: 11px;
-      font-weight: 850;
-    }
-
-    .bill-tag.good {
-      background: var(--sf-positive-soft);
-      color: var(--sf-positive);
-      border-color: rgba(83, 215, 167, .28);
-    }
-
-    .bill-tag.warn {
-      background: var(--sf-warning-soft);
-      color: var(--sf-warning);
-      border-color: rgba(241, 184, 87, .28);
-    }
-
-    .bill-tag.danger {
-      background: var(--sf-danger-soft);
-      color: var(--sf-danger);
-      border-color: rgba(255, 127, 138, .28);
-    }
-
-    .bill-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .bill-action {
-      border: 1px solid var(--sf-border);
-      border-radius: 999px;
-      background: var(--sf-surface-2);
-      color: var(--sf-text-soft);
-      padding: 8px 12px;
-      font-size: 12px;
-      font-weight: 900;
-      cursor: pointer;
-    }
-
-    .bill-action.primary {
-      background: var(--sf-accent);
-      border-color: var(--sf-accent);
-      color: var(--sf-accent-contrast);
-    }
-
-    .bill-action.danger {
-      background: var(--sf-danger-soft);
-      color: var(--sf-danger);
-      border-color: rgba(255, 127, 138, .28);
-    }
-
-    .bill-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: start;
-      padding: 11px 0;
-      border-bottom: 1px solid var(--sf-border-subtle);
-    }
-
-    .bill-row:last-child {
-      border-bottom: 0;
-      padding-bottom: 0;
-    }
-
-    .bill-row-title {
-      color: var(--sf-text);
-      font-size: 14px;
-      font-weight: 900;
-      line-height: 1.25;
-    }
-
-    .bill-row-sub {
-      margin-top: 4px;
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.4;
-    }
-
-    .bill-row-value {
-      color: var(--sf-text);
-      font-weight: 950;
-      text-align: right;
-      white-space: nowrap;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .bill-payment {
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 16px;
-      background: var(--sf-surface-1);
-      padding: 12px;
-      display: grid;
-      gap: 8px;
-    }
-
-    .bill-payment-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: flex-start;
-    }
-
-    .bill-payment-title {
-      color: var(--sf-text);
-      font-weight: 950;
-      font-size: 14px;
-    }
-
-    .bill-payment-meta {
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.45;
-    }
-
-    .bill-form {
-      display: grid;
-      gap: 12px;
-    }
-
-    .bill-field {
-      display: grid;
-      gap: 7px;
-    }
-
-    .bill-field label {
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      font-weight: 850;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-
-    .bill-input,
-    .bill-select,
-    .bill-textarea {
-      width: 100%;
-      border: 1px solid var(--sf-border);
-      border-radius: 14px;
-      background: var(--sf-surface-1);
-      color: var(--sf-text);
-      padding: 12px 13px;
-      font: inherit;
-      outline: none;
-    }
-
-    .bill-textarea {
-      min-height: 88px;
-      resize: vertical;
-    }
-
-    .bill-input:focus,
-    .bill-select:focus,
-    .bill-textarea:focus {
-      border-color: var(--sf-accent);
-      box-shadow: 0 0 0 3px var(--sf-accent-soft);
-    }
-
-    .bill-empty {
-      border: 1px dashed var(--sf-border);
-      border-radius: 18px;
-      padding: 18px;
-      color: var(--sf-text-muted);
-      background: var(--sf-surface-1);
-      line-height: 1.5;
-    }
-
-    .bill-debug {
-      white-space: pre-wrap;
-      overflow: auto;
-      max-height: 420px;
-      border-radius: 16px;
-      padding: 14px;
-      background: var(--sf-surface-2);
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.5;
-      font-family: var(--sf-font-mono);
-    }
-
-    .bill-toast {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      z-index: 9999;
-      transform: translateY(18px);
-      opacity: 0;
-      pointer-events: none;
-      transition: .2s ease;
-      border: 1px solid var(--sf-border);
-      border-radius: 16px;
-      padding: 12px 14px;
-      background: var(--sf-card-strong);
-      color: var(--sf-text);
-      box-shadow: var(--sf-shadow-md);
-      font-weight: 850;
-    }
-
-    .bill-toast.show {
-      transform: translateY(0);
-      opacity: 1;
-    }
-
-    @media (max-width: 1180px) {
-      .bills-command,
-      .bills-workspace {
-        grid-template-columns: 1fr;
-      }
-
-      .bills-actions {
-        justify-content: flex-start;
-      }
-    }
-
-    @media (max-width: 760px) {
-      .bills-actions .sf-button,
-      .bill-action {
-        width: 100%;
-      }
-
-      .bill-card-head,
-      .bill-row,
-      .bill-payment-head {
-        grid-template-columns: 1fr;
-      }
-
-      .bill-amount,
-      .bill-row-value {
-        text-align: left;
-      }
-
-      .bill-actions {
-        justify-content: stretch;
-      }
-    }
-  </style>
-</head>
-
-<body class="sf-shell-body">
-  <div class="sf-app-shell sf-app-shell--with-nav">
-    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
-
-    <main class="sf-page-shell">
-      <section class="sf-page-content bills-os">
-        <section class="bills-command">
-          <div>
-            <div class="sf-page-eyebrow">Bills command center</div>
-            <h1 class="bills-title">Bills</h1>
-            <p class="bills-copy">
-              Bills uses backend current_cycle as money truth. Frontend displays paid, remaining, ledger-reversed payments, and health state without recalculating totals.
-            </p>
-          </div>
-
-          <div class="bills-actions">
-            <button class="sf-button sf-button--primary" id="refreshBillsBtn" type="button">Refresh</button>
-            <button class="sf-button" id="repairBillsBtn" type="button">Repair Reversed Payments</button>
-            <a class="sf-button" href="/add.html">Add Entry</a>
-            <a class="sf-button" href="/transactions.html">Ledger</a>
-          </div>
-        </section>
-
-        <section class="bills-insight">
-          <div class="sf-page-eyebrow">Backend effective payment state</div>
-          <h2 id="billsHeroAmount">Loading…</h2>
-          <p id="billsHeroCopy">
-            Reading /api/bills. Ledger-reversed bill payments are excluded from paid totals by backend current_cycle.
-          </p>
-          <div class="bill-tags" style="margin-top:12px;">
-            <span class="bill-tag" id="billsVersionPill">version loading</span>
-            <span class="bill-tag" id="billsMonthPill">month loading</span>
-            <span class="bill-tag" id="billsHealthPill">health loading</span>
-          </div>
-        </section>
-
-        <section class="bills-metrics">
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Expected This Cycle</p>
-            <div id="metricExpected" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">Backend sum of active bill amounts.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Paid This Cycle</p>
-            <div id="metricPaid" class="sf-metric-value sf-tone-positive">—</div>
-            <p class="sf-card-subtitle">Backend effective paid total.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Remaining</p>
-            <div id="metricRemaining" class="sf-metric-value sf-tone-warning">—</div>
-            <p class="sf-card-subtitle">Backend remaining balance.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Paid / Partial / Unpaid</p>
-            <div id="metricCounts" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">Current cycle state.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Ledger Reversed Excluded</p>
-            <div id="metricExcluded" class="sf-metric-value sf-tone-danger">—</div>
-            <p class="sf-card-subtitle">Payments ignored by effective status.</p>
-          </article>
-        </section>
-
-        <section class="bills-workspace">
-          <div class="bills-stack">
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Current Cycle</p>
-                  <h2 class="sf-section-title">Bills</h2>
-                  <p class="sf-section-subtitle">
-                    Payment state comes from backend current_cycle. Stored payment status is displayed separately from effective status.
-                  </p>
-                </div>
-              </div>
-
-              <div id="billsList" class="bills-list">
-                <div class="bill-empty">Loading bills…</div>
-              </div>
-            </section>
-          </div>
-
-          <aside class="bills-stack">
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Selected Bill</p>
-                  <h2 class="sf-section-title" id="selectedBillTitle">No bill selected</h2>
-                  <p class="sf-section-subtitle" id="selectedBillSub">
-                    Select a bill to view linked payments and ledger transaction IDs.
-                  </p>
-                </div>
-              </div>
-
-              <div id="selectedBillPanel">
-                <div class="bill-empty">No bill selected.</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Payment Action</p>
-                  <h2 class="sf-section-title">Pay / Edit / Defer</h2>
-                  <p class="sf-section-subtitle">
-                    Payment calls backend Bills API. Totals still come back from backend after refresh.
-                  </p>
-                </div>
-              </div>
-
-              <div id="billActionPanel">
-                <div class="bill-empty">Choose Pay, Edit, or Defer from a bill card.</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Health</p>
-                  <h2 class="sf-section-title">Bills Verification</h2>
-                </div>
-              </div>
-
-              <div id="billsHealthPanel">
-                <div class="bill-empty">Loading health…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Debug</p>
-                  <h2 class="sf-section-title">Raw Contract</h2>
-                </div>
-              </div>
-
-              <pre id="billsDebug" class="bill-debug">Loading…</pre>
-            </section>
-          </aside>
-        </section>
-
-        <footer>
-          <span class="sf-meta-text" id="billsFooterVersion">
-            bills.html · backend current_cycle renderer
-          </span>
-        </footer>
-      </section>
-    </main>
-  </div>
-
-  <div id="billToast" class="bill-toast"></div>
+  <script>
+    window.SF_PAGE = {
+      title: "Bills",
+      eyebrow: "Sovereign Finance",
+      subtitle: "Current-cycle bill pressure from backend truth. Payments move through ledger; reversed ledger payments are excluded.",
+      actions: [
+        { label: "Refresh", id: "bills-refresh-btn" },
+        { label: "Add New Bill", id: "bills-add-new-btn", primary: true },
+        { label: "Repair Bills Health", id: "bills-repair-btn" },
+        { label: "Forecast", href: "/forecast.html" },
+        { label: "Ledger", href: "/transactions.html" }
+      ],
+      kpis: [
+        {
+          title: "Expected This Cycle",
+          kicker: "Bills",
+          value: "Loading",
+          valueId: "bills-kpi-expected",
+          valueKey: "expected_this_cycle",
+          subtitle: "Total expected bills for current cycle",
+          foot: "From /api/bills"
+        },
+        {
+          title: "Paid This Cycle",
+          kicker: "Ledger-linked",
+          value: "Loading",
+          valueId: "bills-kpi-paid",
+          valueKey: "paid_this_cycle",
+          subtitle: "Valid active bill payments",
+          foot: "Reversed ledger payments excluded"
+        },
+        {
+          title: "Remaining",
+          kicker: "Pressure",
+          value: "Loading",
+          valueId: "bills-kpi-remaining",
+          valueKey: "remaining",
+          subtitle: "Still due in the current cycle",
+          foot: "Backend current_cycle truth"
+        },
+        {
+          title: "Bills Health",
+          kicker: "Integrity",
+          value: "Loading",
+          valueId: "bills-kpi-health",
+          valueKey: "health_status",
+          subtitle: "Payment and ledger consistency",
+          foot: "From /api/bills/health"
+        }
+      ]
+    };
+  </script>
 
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
-  <script src="/js/bills.js?v=0.7.0-effective-state-ui"></script>
+</head>
+
+<body>
+  <section class="sf-panel-grid" aria-label="Bills workspace">
+
+    <section class="sf-panel sf-panel--accent sf-span-12" aria-labelledby="bills-summary-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Current Cycle</p>
+          <h2 id="bills-summary-title" class="sf-section-title">Bills Summary</h2>
+          <p class="sf-section-subtitle">
+            Bills are read from the backend current-cycle engine. The page does not recalculate paid or remaining totals.
+          </p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="bills-state-pill" class="sf-pill" data-bills-status>Loading</span>
+          <span id="bills-last-loaded" class="sf-pill" data-bills-last-loaded>Last loaded: —</span>
+        </div>
+      </div>
+
+      <div class="sf-secondary-grid">
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Expected This Cycle</div>
+            <div class="sf-row-subtitle">Total bills expected this month</div>
+          </div>
+          <div id="bills-expected-this-cycle" class="sf-row-right" data-bills-value="expected_this_cycle">Loading</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Paid This Cycle</div>
+            <div class="sf-row-subtitle">Only valid active payments count</div>
+          </div>
+          <div id="bills-paid-this-cycle" class="sf-row-right" data-bills-value="paid_this_cycle">Loading</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Remaining</div>
+            <div class="sf-row-subtitle">Current unpaid bill pressure</div>
+          </div>
+          <div id="bills-remaining" class="sf-row-right" data-bills-value="remaining">Loading</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Paid / Partial / Unpaid</div>
+            <div class="sf-row-subtitle">Backend current_cycle status counts</div>
+          </div>
+          <div id="bills-status-counts" class="sf-row-right" data-bills-value="status_counts">Loading</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Ledger Reversed Excluded</div>
+            <div class="sf-row-subtitle">Payments ignored because linked ledger transaction is reversed</div>
+          </div>
+          <div id="bills-ledger-reversed-excluded" class="sf-row-right" data-bills-value="ledger_reversed_excluded_count">Loading</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Health</div>
+            <div class="sf-row-subtitle">Bills payment and ledger integrity</div>
+          </div>
+          <div id="bills-health-status" class="sf-row-right" data-bills-value="health_status">Loading</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-12" aria-labelledby="bills-rules-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Rules</p>
+          <h2 id="bills-rules-title" class="sf-section-title">Bills Engine Contract</h2>
+          <p class="sf-section-subtitle">The page displays backend truth. Ledger owns money movement; Bills owns bill state.</p>
+        </div>
+      </div>
+
+      <div class="sf-secondary-grid" id="bills-rules-list" data-bills-list="rules">
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Bill creation</div>
+            <div class="sf-row-subtitle">Creates obligation only. No account balance movement.</div>
+          </div>
+          <div class="sf-row-right">No ledger write</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Bill payment</div>
+            <div class="sf-row-subtitle">Creates an expense transaction and bill payment snapshot.</div>
+          </div>
+          <div class="sf-row-right">Ledger-linked</div>
+        </div>
+
+        <div class="sf-finance-row">
+          <div class="sf-row-left">
+            <div class="sf-row-title">Reversal</div>
+            <div class="sf-row-subtitle">A reversed ledger payment must not count as paid.</div>
+          </div>
+          <div class="sf-row-right">Excluded</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-8" aria-labelledby="bills-list-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Bills</p>
+          <h2 id="bills-list-title" class="sf-section-title">Current Cycle Bills</h2>
+          <p class="sf-section-subtitle">Compact bill rows. Select a bill to inspect payments, ignored rows, and actions.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="bills-count-pill" class="sf-pill" data-bills-value="bill_count">Loading</span>
+        </div>
+      </div>
+
+      <div id="bills-list" class="sf-dense-grid" data-bills-list="bills">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">Loading bills</h3>
+            <p class="sf-card-subtitle">Reading /api/bills current_cycle.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-4" aria-labelledby="bills-selected-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Selected Bill</p>
+          <h2 id="bills-selected-title" class="sf-section-title">Bill Detail</h2>
+          <p class="sf-section-subtitle">Payment history, ignored payments, and linked ledger state.</p>
+        </div>
+      </div>
+
+      <div id="bills-selected-panel" class="sf-dense-grid" data-bills-list="selected">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">No bill selected</h3>
+            <p class="sf-card-subtitle">Select a bill from the current cycle list.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-6" aria-labelledby="bills-add-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Create</p>
+          <h2 id="bills-add-title" class="sf-section-title">Add New Bill</h2>
+          <p class="sf-section-subtitle">Create the bill obligation only. Paying it later creates ledger movement.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="bills-add-state" class="sf-pill" data-bills-value="add_state">Ready</span>
+        </div>
+      </div>
+
+      <form id="bills-add-form" class="sf-form-grid" data-bills-form="add">
+        <label class="sf-field">
+          <span>Bill name</span>
+          <input id="bill-add-name" name="name" type="text" autocomplete="off" placeholder="e.g. Internet Bill">
+        </label>
+
+        <label class="sf-field">
+          <span>Expected amount</span>
+          <input id="bill-add-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
+        </label>
+
+        <label class="sf-field">
+          <span>Due day</span>
+          <input id="bill-add-due-day" name="due_day" type="number" inputmode="numeric" min="1" max="31" placeholder="1">
+        </label>
+
+        <label class="sf-field">
+          <span>Frequency</span>
+          <select id="bill-add-frequency" name="frequency">
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+
+        <label class="sf-field">
+          <span>Default account optional</span>
+          <select id="bill-add-default-account" name="default_account_id" data-bills-account-select>
+            <option value="">Select when paying</option>
+          </select>
+        </label>
+
+        <label class="sf-field">
+          <span>Category</span>
+          <input id="bill-add-category" name="category_id" type="text" autocomplete="off" value="bills_utilities">
+        </label>
+
+        <label class="sf-field sf-span-12">
+          <span>Notes</span>
+          <textarea id="bill-add-notes" name="notes" rows="3" placeholder="Optional note"></textarea>
+        </label>
+
+        <div class="sf-form-actions sf-span-12">
+          <button id="bill-add-submit" class="sf-button sf-button--primary" type="submit">Add New Bill</button>
+          <button id="bill-add-reset" class="sf-button" type="reset">Clear</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="sf-panel sf-span-6" aria-labelledby="bills-payment-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Payment Action</p>
+          <h2 id="bills-payment-title" class="sf-section-title">Pay Selected Bill</h2>
+          <p class="sf-section-subtitle">Account is required. Bills no longer silently default to Cash.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="bills-payment-state" class="sf-pill" data-bills-value="payment_state">Select bill</span>
+        </div>
+      </div>
+
+      <form id="bills-payment-form" class="sf-form-grid" data-bills-form="payment">
+        <label class="sf-field">
+          <span>Selected bill</span>
+          <input id="bill-payment-name" name="bill_name" type="text" readonly placeholder="No bill selected">
+        </label>
+
+        <label class="sf-field">
+          <span>Amount</span>
+          <input id="bill-payment-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
+        </label>
+
+        <label class="sf-field">
+          <span>Payment account required</span>
+          <select id="bill-payment-account" name="account_id" data-bills-account-select required>
+            <option value="">Choose account</option>
+          </select>
+        </label>
+
+        <label class="sf-field">
+          <span>Payment date</span>
+          <input id="bill-payment-date" name="paid_date" type="date">
+        </label>
+
+        <label class="sf-field sf-span-12">
+          <span>Notes</span>
+          <textarea id="bill-payment-notes" name="notes" rows="3" placeholder="Optional payment note"></textarea>
+        </label>
+
+        <div class="sf-form-actions sf-span-12">
+          <button id="bill-payment-submit" class="sf-button sf-button--primary" type="submit">Pay Bill</button>
+          <button id="bill-payment-clear" class="sf-button" type="reset">Clear</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="sf-panel sf-span-12" aria-labelledby="bills-health-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Verification</p>
+          <h2 id="bills-health-title" class="sf-section-title">Bills Health</h2>
+          <p class="sf-section-subtitle">Detects orphan payments, reversed-ledger mismatches, duplicates, and amount mismatches.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="bills-health-pill" class="sf-pill" data-bills-value="health_status">Loading</span>
+        </div>
+      </div>
+
+      <div id="bills-health-panel" class="sf-secondary-grid" data-bills-list="health">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">Loading Bills health</h3>
+            <p class="sf-card-subtitle">Reading /api/bills/health.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="bills-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Debug</p>
+          <h2 class="sf-section-title">Bills Raw Contract</h2>
+          <p class="sf-section-subtitle">Visible only with ?debug=1.</p>
+        </div>
+      </div>
+
+      <pre id="bills-debug-output" class="sf-debug-text" data-bills-debug>Waiting for js/bills.js.</pre>
+    </section>
+
+  </section>
+
+  <script src="/js/bills.js"></script>
 </body>
 </html>
