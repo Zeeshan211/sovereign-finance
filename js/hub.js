@@ -1,9 +1,9 @@
 /* js/hub.js
  * Sovereign Finance · Hub UI Renderer
- * v0.1.5-shared-shell-compatible
+ * v0.1.6-existing-shell-deterministic
  *
  * Frontend-only.
- * Reads /api/hub and fills the existing Hub shell/components.
+ * Reads /api/hub and fills the existing Hub shell.
  * Does not inject standalone panels.
  * Does not create custom styling.
  * Does not mutate backend data.
@@ -12,60 +12,60 @@
 (function () {
   'use strict';
 
-  const VERSION = 'v0.1.5-shared-shell-compatible';
+  const VERSION = 'v0.1.6-existing-shell-deterministic';
 
   const METRICS = [
     {
       key: 'cash_now',
       labels: ['Liquid Now', 'Cash Now', 'Liquid'],
-      value: summary => money(summary.cash_now)
+      value: s => money(s.cash_now)
     },
     {
       key: 'net_worth',
       labels: ['Net Worth'],
-      value: summary => money(summary.net_worth)
+      value: s => money(s.net_worth)
     },
     {
       key: 'forecast_expected_outflow',
       labels: ['Bills Remaining', 'Expected Outflow', 'Outflow'],
-      value: summary => money(summary.forecast_expected_outflow)
+      value: s => money(s.forecast_expected_outflow)
     },
     {
       key: 'total_owe',
       labels: ['Debt Payable', 'Payable', 'Total Owe'],
-      value: summary => money(summary.total_owe)
+      value: s => money(s.total_owe)
     },
     {
       key: 'total_owed',
       labels: ['Receivables', 'Total Owed'],
-      value: summary => money(summary.total_owed)
+      value: s => money(s.total_owed)
     },
     {
       key: 'liabilities_total',
       labels: ['Credit Card Outstanding', 'Liabilities', 'CC Outstanding'],
-      value: summary => money(summary.liabilities_total)
+      value: s => money(s.liabilities_total)
     },
     {
       key: 'salary_amount',
       labels: ['Next Salary', 'Salary'],
-      value: summary => money(summary.salary_amount)
+      value: s => money(s.salary_amount)
     },
     {
       key: 'forecast_projected_end',
       labels: ['Lowest Forecast Liquid', 'Forecast End', 'Projected End'],
-      value: summary => money(summary.forecast_projected_end)
+      value: s => money(s.forecast_projected_end)
     },
     {
       key: 'forecast_risk',
       labels: ['Forecast Risk', 'Risk'],
-      value: (summary, data) => {
+      value: (s, data) => {
         const alerts = Array.isArray(data.alerts) ? data.alerts : [];
         return alerts.length ? `${alerts.length} alert(s)` : 'OK';
       }
     }
   ];
 
-  const SERVICE_LABELS = {
+  const SERVICES = {
     health: ['Health'],
     accounts: ['Accounts'],
     debts: ['Debts'],
@@ -110,9 +110,7 @@
 
     const response = await fetch(finalUrl, {
       cache: 'no-store',
-      headers: {
-        Accept: 'application/json'
-      }
+      headers: { Accept: 'application/json' }
     });
 
     const raw = await response.text();
@@ -120,80 +118,104 @@
     let data;
     try {
       data = JSON.parse(raw);
-    } catch (err) {
+    } catch {
       throw new Error(`Expected JSON from ${url}, received: ${raw.slice(0, 120)}`);
     }
 
     if (!response.ok || data.ok === false) {
-      const message =
-        data.error?.message ||
-        data.error ||
-        data.message ||
-        `HTTP ${response.status}`;
-
-      throw new Error(message);
+      throw new Error(data.error?.message || data.error || data.message || `HTTP ${response.status}`);
     }
 
     return data;
   }
 
-  function getLeaves(root) {
+  function allElements() {
+    return Array.from(document.querySelectorAll('body *'));
+  }
+
+  function leaves(root) {
     return Array.from(root.querySelectorAll('*')).filter(el => {
       return el.children.length === 0 && clean(el.textContent);
     });
   }
 
-  function textIncludesAny(node, labels) {
+  function findByDataHook(key) {
+    return document.querySelector(
+      [
+        `[data-hub-value="${key}"]`,
+        `[data-hub-metric="${key}"]`,
+        `[data-metric="${key}"]`,
+        `[data-kpi="${key}"]`,
+        `#hub-${key}`,
+        `#hub_${key}`,
+        `#${key}`
+      ].join(',')
+    );
+  }
+
+  function nodeContainsAnyLabel(node, labels) {
     const value = lower(node.textContent);
     return labels.some(label => value.includes(lower(label)));
   }
 
   function findSmallestContainer(labels) {
-    const containers = Array.from(document.querySelectorAll(
-      '[data-card], [data-kpi], [data-metric], .card, .kpi, .metric, .stat, section, article, div, li'
-    ));
+    const selectors = [
+      '[data-card]',
+      '[data-kpi]',
+      '[data-metric]',
+      '.card',
+      '.kpi',
+      '.metric',
+      '.stat',
+      '.panel',
+      '.tile',
+      'section',
+      'article',
+      'li',
+      'div'
+    ].join(',');
 
-    return containers
-      .filter(node => textIncludesAny(node, labels))
+    return Array.from(document.querySelectorAll(selectors))
+      .filter(node => nodeContainsAnyLabel(node, labels))
       .sort((a, b) => clean(a.textContent).length - clean(b.textContent).length)[0] || null;
   }
 
-  function looksLikeValue(el, labels) {
+  function isLikelyValueNode(el, labels) {
     const value = clean(el.textContent);
-    const valueLower = lower(value);
+    const l = lower(value);
 
     if (!value) return false;
-    if (labels.some(label => valueLower === lower(label))) return false;
+    if (labels.some(label => l === lower(label))) return false;
 
-    if (valueLower === 'loading') return true;
-    if (valueLower === 'loaded') return true;
-    if (valueLower === 'unavailable') return true;
-    if (valueLower === 'available') return true;
-    if (valueLower === '—') return true;
-    if (valueLower === '--') return true;
-    if (valueLower === '0') return true;
-    if (valueLower === 'ok') return true;
-    if (valueLower.includes('alert')) return true;
-    if (valueLower.startsWith('rs ')) return true;
-    if (valueLower.startsWith('-rs ')) return true;
-    if (/^-?\d[\d,]*(\.\d+)?$/.test(valueLower)) return true;
+    if (l === 'loading') return true;
+    if (l === 'loaded') return true;
+    if (l === 'unavailable') return true;
+    if (l === 'available') return true;
+    if (l === '—') return true;
+    if (l === '--') return true;
+    if (l === '0') return true;
+    if (l === 'ok') return true;
+    if (l.includes('alert')) return true;
+    if (l.startsWith('rs ')) return true;
+    if (l.startsWith('-rs ')) return true;
+    if (/^-?\d[\d,]*(\.\d+)?$/.test(l)) return true;
 
     return false;
   }
 
   function findValueTarget(container, labels) {
-    const preferred = container.querySelector(
+    const explicit = container.querySelector(
       '[data-value], [data-hub-value], [data-metric-value], [data-kpi-value], .value, .metric-value, .kpi-value, .stat-value, .amount'
     );
 
-    if (preferred) return preferred;
+    if (explicit) return explicit;
 
-    const leaves = getLeaves(container);
-    const candidates = leaves.filter(el => looksLikeValue(el, labels));
+    const leafNodes = leaves(container);
+    const valueNodes = leafNodes.filter(el => isLikelyValueNode(el, labels));
 
-    if (candidates.length) return candidates[candidates.length - 1];
+    if (valueNodes.length) return valueNodes[valueNodes.length - 1];
 
-    return leaves
+    return leafNodes
       .filter(el => !labels.some(label => lower(el.textContent) === lower(label)))
       .slice(-1)[0] || null;
   }
@@ -202,22 +224,11 @@
     const summary = data.summary || {};
     const value = metric.value(summary, data);
 
-    const directSelectors = [
-      `[data-hub-metric="${metric.key}"]`,
-      `[data-metric="${metric.key}"]`,
-      `[data-kpi="${metric.key}"]`,
-      `#${metric.key}`,
-      `#hub-${metric.key}`,
-      `#hub_${metric.key}`
-    ];
-
-    for (const selector of directSelectors) {
-      const el = document.querySelector(selector);
-      if (el) {
-        el.textContent = value;
-        el.setAttribute('data-hub-rendered', 'true');
-        return true;
-      }
+    const direct = findByDataHook(metric.key);
+    if (direct) {
+      direct.textContent = value;
+      direct.setAttribute('data-hub-rendered', 'true');
+      return true;
     }
 
     const container = findSmallestContainer(metric.labels);
@@ -231,8 +242,8 @@
     return true;
   }
 
-  function setServiceStatus(name, service) {
-    const labels = SERVICE_LABELS[name] || [name];
+  function setService(name, service) {
+    const labels = SERVICES[name] || [name];
     const value = service && service.ok ? 'OK' : 'Check';
 
     const direct = document.querySelector(
@@ -259,7 +270,8 @@
   function replaceLeafContaining(fragment, value) {
     const wanted = lower(fragment);
 
-    for (const el of getLeaves(document.body)) {
+    for (const el of allElements()) {
+      if (el.children.length) continue;
       if (lower(el.textContent).includes(wanted)) {
         el.textContent = value;
         el.setAttribute('data-hub-rendered', 'true');
@@ -269,8 +281,8 @@
 
   function renderStatus(data) {
     const status = data.health?.overall || 'unknown';
-    const alerts = Array.isArray(data.alerts) ? data.alerts.length : 0;
-    const statusText = `Hub ${data.version || 'unknown'} · ${status} · alerts ${alerts}`;
+    const alertCount = Array.isArray(data.alerts) ? data.alerts.length : 0;
+    const statusText = `Hub ${data.version || 'unknown'} · ${status} · alerts ${alertCount}`;
     const lastLoadedText = 'Last loaded: ' + new Date().toLocaleTimeString();
 
     const statusEl =
@@ -305,30 +317,24 @@
     const services = data.health?.services || {};
 
     for (const [name, service] of Object.entries(services)) {
-      setServiceStatus(name, service);
+      setService(name, service);
     }
   }
 
   function renderAlerts(data) {
     const alerts = Array.isArray(data.alerts) ? data.alerts : [];
 
-    const alertContainer =
+    const target =
       document.querySelector('[data-hub-alerts]') ||
       document.querySelector('#hubAlerts');
 
-    if (!alertContainer) return;
+    if (!target) return;
 
-    if (!alerts.length) {
-      alertContainer.textContent = 'No active backend alerts.';
-      alertContainer.setAttribute('data-hub-rendered', 'true');
-      return;
-    }
+    target.textContent = alerts.length
+      ? alerts.map(alert => `${alert.level || 'warn'}: ${alert.title || alert.code || 'Alert'}`).join('\n')
+      : 'No active backend alerts.';
 
-    alertContainer.textContent = alerts
-      .map(alert => `${alert.level || 'warn'}: ${alert.title || alert.code || 'Alert'}${alert.endpoint ? ' · ' + alert.endpoint : ''}`)
-      .join('\n');
-
-    alertContainer.setAttribute('data-hub-rendered', 'true');
+    target.setAttribute('data-hub-rendered', 'true');
   }
 
   function renderDebug(data) {
@@ -372,15 +378,15 @@
   }
 
   function renderError(err) {
-    const statusText = 'Hub failed · ' + (err.message || String(err));
+    const message = 'Hub failed · ' + (err.message || String(err));
 
     const statusEl =
       document.querySelector('[data-hub-status]') ||
       document.querySelector('#hubStatus');
 
-    if (statusEl) statusEl.textContent = statusText;
+    if (statusEl) statusEl.textContent = message;
 
-    replaceLeafContaining('Loading source status', statusText);
+    replaceLeafContaining('Loading source status', message);
 
     const debug =
       document.querySelector('[data-hub-debug]') ||
