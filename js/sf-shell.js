@@ -60,7 +60,10 @@
 
   function escapeHtml(value) {
     const c = comp();
-    if (typeof c.escapeHtml === "function") return c.escapeHtml(value);
+
+    if (typeof c.escapeHtml === "function") {
+      return c.escapeHtml(value);
+    }
 
     return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
@@ -174,7 +177,10 @@
 
   function buttonHTML(opts) {
     const c = comp();
-    if (typeof c.button === "function") return c.button(opts);
+
+    if (typeof c.button === "function") {
+      return c.button(opts);
+    }
 
     const o = opts || {};
     const tag = o.href ? "a" : "button";
@@ -197,7 +203,10 @@
 
   function chipHTML(opts) {
     const c = comp();
-    if (typeof c.chip === "function") return c.chip(opts);
+
+    if (typeof c.chip === "function") {
+      return c.chip(opts);
+    }
 
     const o = opts || {};
     const tag = o.href ? "a" : "button";
@@ -219,15 +228,20 @@
 
   function metricCardHTML(opts) {
     const c = comp();
-    if (typeof c.metricCard === "function") return c.metricCard(opts);
+
+    if (typeof c.metricCard === "function") {
+      return c.metricCard(opts);
+    }
 
     const o = opts || {};
     const value = o.valueHtml != null ? String(o.valueHtml) : escapeHtml(o.value || "—");
+
     const subtitle = o.subtitleHtml != null
       ? String(o.subtitleHtml)
       : o.subtitle
         ? escapeHtml(o.subtitle)
         : "";
+
     const foot = o.footHtml != null
       ? String(o.footHtml)
       : o.foot
@@ -249,6 +263,13 @@
       `class="${classNames("sf-metric-value", o.tone && "sf-tone-" + o.tone)}"`
     ];
 
+    /*
+     * Backward-compatible KPI value hooks.
+     *
+     * Existing pages without valueId/valueKey render exactly as before.
+     * Pages that provide valueId/valueKey can update shell KPI values
+     * deterministically without text-scanning the DOM.
+     */
     if (o.valueId) valueAttrs.push(`id="${escapeHtml(o.valueId)}"`);
     if (o.valueKey) valueAttrs.push(`data-kpi-value="${escapeHtml(o.valueKey)}"`);
     if (o.key) valueAttrs.push(`data-kpi-value="${escapeHtml(o.key)}"`);
@@ -353,6 +374,7 @@
     overlay.className = "sf-nav-overlay";
     overlay.type = "button";
     overlay.setAttribute("aria-label", "Close finance navigation");
+
     overlay.addEventListener("click", function () {
       closeMobileNav();
     });
