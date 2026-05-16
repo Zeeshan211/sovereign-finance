@@ -75,9 +75,7 @@
         <div>
           <p class="sf-section-kicker">Current Cycle</p>
           <h2 id="bills-summary-title" class="sf-section-title">Bills Summary</h2>
-          <p class="sf-section-subtitle">
-            Bills are read from the backend current-cycle engine. The page does not recalculate paid or remaining totals.
-          </p>
+          <p class="sf-section-subtitle">Backend current_cycle is the money truth. The page only displays it.</p>
         </div>
         <div class="sf-section-meta">
           <span id="bills-state-pill" class="sf-pill" data-bills-status>Loading</span>
@@ -121,7 +119,7 @@
         <div class="sf-finance-row">
           <div class="sf-row-left">
             <div class="sf-row-title">Ledger Reversed Excluded</div>
-            <div class="sf-row-subtitle">Payments ignored because linked ledger transaction is reversed</div>
+            <div class="sf-row-subtitle">Ignored because linked ledger transaction is reversed</div>
           </div>
           <div id="bills-ledger-reversed-excluded" class="sf-row-right" data-bills-value="ledger_reversed_excluded_count">Loading</div>
         </div>
@@ -136,39 +134,117 @@
       </div>
     </section>
 
-    <section class="sf-panel sf-span-12" aria-labelledby="bills-rules-title">
+    <section class="sf-panel sf-span-12" aria-labelledby="bills-actions-title">
       <div class="sf-section-head">
         <div>
-          <p class="sf-section-kicker">Rules</p>
-          <h2 id="bills-rules-title" class="sf-section-title">Bills Engine Contract</h2>
-          <p class="sf-section-subtitle">The page displays backend truth. Ledger owns money movement; Bills owns bill state.</p>
+          <p class="sf-section-kicker">Actions</p>
+          <h2 id="bills-actions-title" class="sf-section-title">Create and Pay</h2>
+          <p class="sf-section-subtitle">Forms stay collapsed until needed. Bill creation does not move money; payment requires an account.</p>
         </div>
       </div>
 
-      <div class="sf-secondary-grid" id="bills-rules-list" data-bills-list="rules">
-        <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Bill creation</div>
-            <div class="sf-row-subtitle">Creates obligation only. No account balance movement.</div>
-          </div>
-          <div class="sf-row-right">No ledger write</div>
-        </div>
+      <div class="sf-dense-grid">
+        <details id="bills-add-drawer">
+          <summary class="sf-finance-row">
+            <div class="sf-row-left">
+              <div class="sf-row-title">Add New Bill</div>
+              <div class="sf-row-subtitle">Create a recurring/manual bill obligation. No ledger movement.</div>
+            </div>
+            <div id="bills-add-state" class="sf-row-right" data-bills-value="add_state">Ready</div>
+          </summary>
 
-        <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Bill payment</div>
-            <div class="sf-row-subtitle">Creates an expense transaction and bill payment snapshot.</div>
-          </div>
-          <div class="sf-row-right">Ledger-linked</div>
-        </div>
+          <form id="bills-add-form" class="sf-form-grid" data-bills-form="add">
+            <label class="sf-field">
+              <span>Bill name</span>
+              <input id="bill-add-name" name="name" type="text" autocomplete="off" placeholder="e.g. Internet Bill">
+            </label>
 
-        <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Reversal</div>
-            <div class="sf-row-subtitle">A reversed ledger payment must not count as paid.</div>
-          </div>
-          <div class="sf-row-right">Excluded</div>
-        </div>
+            <label class="sf-field">
+              <span>Expected amount</span>
+              <input id="bill-add-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
+            </label>
+
+            <label class="sf-field">
+              <span>Due day</span>
+              <input id="bill-add-due-day" name="due_day" type="number" inputmode="numeric" min="1" max="31" placeholder="1">
+            </label>
+
+            <label class="sf-field">
+              <span>Frequency</span>
+              <select id="bill-add-frequency" name="frequency">
+                <option value="monthly">Monthly</option>
+                <option value="weekly">Weekly</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+
+            <label class="sf-field">
+              <span>Default account optional</span>
+              <select id="bill-add-default-account" name="default_account_id" data-bills-account-select>
+                <option value="">Select when paying</option>
+              </select>
+            </label>
+
+            <label class="sf-field">
+              <span>Category</span>
+              <input id="bill-add-category" name="category_id" type="text" autocomplete="off" value="bills_utilities">
+            </label>
+
+            <label class="sf-field sf-span-12">
+              <span>Notes</span>
+              <textarea id="bill-add-notes" name="notes" rows="3" placeholder="Optional note"></textarea>
+            </label>
+
+            <div class="sf-form-actions sf-span-12">
+              <button id="bill-add-submit" class="sf-button sf-button--primary" type="submit">Add New Bill</button>
+              <button id="bill-add-reset" class="sf-button" type="reset">Clear</button>
+            </div>
+          </form>
+        </details>
+
+        <details id="bills-payment-drawer">
+          <summary class="sf-finance-row">
+            <div class="sf-row-left">
+              <div class="sf-row-title">Pay Selected Bill</div>
+              <div class="sf-row-subtitle">Creates a ledger expense and bill payment snapshot. Account is required.</div>
+            </div>
+            <div id="bills-payment-state" class="sf-row-right" data-bills-value="payment_state">Select bill</div>
+          </summary>
+
+          <form id="bills-payment-form" class="sf-form-grid" data-bills-form="payment">
+            <label class="sf-field">
+              <span>Selected bill</span>
+              <input id="bill-payment-name" name="bill_name" type="text" readonly placeholder="No bill selected">
+            </label>
+
+            <label class="sf-field">
+              <span>Amount</span>
+              <input id="bill-payment-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
+            </label>
+
+            <label class="sf-field">
+              <span>Payment account required</span>
+              <select id="bill-payment-account" name="account_id" data-bills-account-select required>
+                <option value="">Choose account</option>
+              </select>
+            </label>
+
+            <label class="sf-field">
+              <span>Payment date</span>
+              <input id="bill-payment-date" name="paid_date" type="date">
+            </label>
+
+            <label class="sf-field sf-span-12">
+              <span>Notes</span>
+              <textarea id="bill-payment-notes" name="notes" rows="3" placeholder="Optional payment note"></textarea>
+            </label>
+
+            <div class="sf-form-actions sf-span-12">
+              <button id="bill-payment-submit" class="sf-button sf-button--primary" type="submit">Pay Bill</button>
+              <button id="bill-payment-clear" class="sf-button" type="reset">Clear</button>
+            </div>
+          </form>
+        </details>
       </div>
     </section>
 
@@ -177,7 +253,7 @@
         <div>
           <p class="sf-section-kicker">Bills</p>
           <h2 id="bills-list-title" class="sf-section-title">Current Cycle Bills</h2>
-          <p class="sf-section-subtitle">Compact bill rows. Select a bill to inspect payments, ignored rows, and actions.</p>
+          <p class="sf-section-subtitle">Compact bill rows. Select a bill to inspect payment state and ignored rows.</p>
         </div>
         <div class="sf-section-meta">
           <span id="bills-count-pill" class="sf-pill" data-bills-value="bill_count">Loading</span>
@@ -213,114 +289,6 @@
       </div>
     </section>
 
-    <section class="sf-panel sf-span-6" aria-labelledby="bills-add-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Create</p>
-          <h2 id="bills-add-title" class="sf-section-title">Add New Bill</h2>
-          <p class="sf-section-subtitle">Create the bill obligation only. Paying it later creates ledger movement.</p>
-        </div>
-        <div class="sf-section-meta">
-          <span id="bills-add-state" class="sf-pill" data-bills-value="add_state">Ready</span>
-        </div>
-      </div>
-
-      <form id="bills-add-form" class="sf-form-grid" data-bills-form="add">
-        <label class="sf-field">
-          <span>Bill name</span>
-          <input id="bill-add-name" name="name" type="text" autocomplete="off" placeholder="e.g. Internet Bill">
-        </label>
-
-        <label class="sf-field">
-          <span>Expected amount</span>
-          <input id="bill-add-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
-        </label>
-
-        <label class="sf-field">
-          <span>Due day</span>
-          <input id="bill-add-due-day" name="due_day" type="number" inputmode="numeric" min="1" max="31" placeholder="1">
-        </label>
-
-        <label class="sf-field">
-          <span>Frequency</span>
-          <select id="bill-add-frequency" name="frequency">
-            <option value="monthly">Monthly</option>
-            <option value="weekly">Weekly</option>
-            <option value="custom">Custom</option>
-          </select>
-        </label>
-
-        <label class="sf-field">
-          <span>Default account optional</span>
-          <select id="bill-add-default-account" name="default_account_id" data-bills-account-select>
-            <option value="">Select when paying</option>
-          </select>
-        </label>
-
-        <label class="sf-field">
-          <span>Category</span>
-          <input id="bill-add-category" name="category_id" type="text" autocomplete="off" value="bills_utilities">
-        </label>
-
-        <label class="sf-field sf-span-12">
-          <span>Notes</span>
-          <textarea id="bill-add-notes" name="notes" rows="3" placeholder="Optional note"></textarea>
-        </label>
-
-        <div class="sf-form-actions sf-span-12">
-          <button id="bill-add-submit" class="sf-button sf-button--primary" type="submit">Add New Bill</button>
-          <button id="bill-add-reset" class="sf-button" type="reset">Clear</button>
-        </div>
-      </form>
-    </section>
-
-    <section class="sf-panel sf-span-6" aria-labelledby="bills-payment-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Payment Action</p>
-          <h2 id="bills-payment-title" class="sf-section-title">Pay Selected Bill</h2>
-          <p class="sf-section-subtitle">Account is required. Bills no longer silently default to Cash.</p>
-        </div>
-        <div class="sf-section-meta">
-          <span id="bills-payment-state" class="sf-pill" data-bills-value="payment_state">Select bill</span>
-        </div>
-      </div>
-
-      <form id="bills-payment-form" class="sf-form-grid" data-bills-form="payment">
-        <label class="sf-field">
-          <span>Selected bill</span>
-          <input id="bill-payment-name" name="bill_name" type="text" readonly placeholder="No bill selected">
-        </label>
-
-        <label class="sf-field">
-          <span>Amount</span>
-          <input id="bill-payment-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
-        </label>
-
-        <label class="sf-field">
-          <span>Payment account required</span>
-          <select id="bill-payment-account" name="account_id" data-bills-account-select required>
-            <option value="">Choose account</option>
-          </select>
-        </label>
-
-        <label class="sf-field">
-          <span>Payment date</span>
-          <input id="bill-payment-date" name="paid_date" type="date">
-        </label>
-
-        <label class="sf-field sf-span-12">
-          <span>Notes</span>
-          <textarea id="bill-payment-notes" name="notes" rows="3" placeholder="Optional payment note"></textarea>
-        </label>
-
-        <div class="sf-form-actions sf-span-12">
-          <button id="bill-payment-submit" class="sf-button sf-button--primary" type="submit">Pay Bill</button>
-          <button id="bill-payment-clear" class="sf-button" type="reset">Clear</button>
-        </div>
-      </form>
-    </section>
-
     <section class="sf-panel sf-span-12" aria-labelledby="bills-health-title">
       <div class="sf-section-head">
         <div>
@@ -341,6 +309,44 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <section class="sf-panel sf-span-12" aria-labelledby="bills-rules-title">
+      <details id="bills-rules-drawer">
+        <summary class="sf-section-head">
+          <div>
+            <p class="sf-section-kicker">Rules</p>
+            <h2 id="bills-rules-title" class="sf-section-title">Bills Engine Contract</h2>
+            <p class="sf-section-subtitle">Collapsed by default. Ledger owns money movement; Bills owns bill state.</p>
+          </div>
+        </summary>
+
+        <div class="sf-secondary-grid" id="bills-rules-list" data-bills-list="rules">
+          <div class="sf-finance-row">
+            <div class="sf-row-left">
+              <div class="sf-row-title">Bill creation</div>
+              <div class="sf-row-subtitle">Creates obligation only. No account balance movement.</div>
+            </div>
+            <div class="sf-row-right">No ledger write</div>
+          </div>
+
+          <div class="sf-finance-row">
+            <div class="sf-row-left">
+              <div class="sf-row-title">Bill payment</div>
+              <div class="sf-row-subtitle">Creates an expense transaction and bill payment snapshot.</div>
+            </div>
+            <div class="sf-row-right">Ledger-linked</div>
+          </div>
+
+          <div class="sf-finance-row">
+            <div class="sf-row-left">
+              <div class="sf-row-title">Reversal</div>
+              <div class="sf-row-subtitle">A reversed ledger payment must not count as paid.</div>
+            </div>
+            <div class="sf-row-right">Excluded</div>
+          </div>
+        </div>
+      </details>
     </section>
 
     <section id="bills-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
