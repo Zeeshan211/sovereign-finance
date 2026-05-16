@@ -1,19 +1,17 @@
 /* js/hub.js
  * Sovereign Finance · Hub UI Loader
- * v0.1.2-hub-ui-contract-reader
+ * v0.1.3-hub-ui-value-render-fix
  *
  * Frontend-only file.
- * Reads /api/hub and renders Hub dashboard values.
- * Does not mutate backend data.
- * Does not calculate financial truth.
+ * Reads /api/hub and renders real Hub dashboard values.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.1.2-hub-ui-contract-reader';
+  const VERSION = 'v0.1.3-hub-ui-value-render-fix';
 
-  const METRIC_LABEL_MAP = [
+  const METRICS = [
     ['Liquid Now', s => money(s.cash_now)],
     ['Net Worth', s => money(s.net_worth)],
     ['Bills Remaining', s => money(s.forecast_expected_outflow)],
@@ -38,8 +36,8 @@
     });
   }
 
-  function text(value) {
-    return String(value == null ? '' : value);
+  function txt(value) {
+    return String(value == null ? '' : value).trim();
   }
 
   async function fetchJSON(url) {
@@ -66,92 +64,89 @@
     return data;
   }
 
-  function leafNodes() {
-    return Array.from(document.querySelectorAll('body *')).filter(el => {
-      return el.children.length === 0 && text(el.textContent).trim();
+  function getLeafNodes(root) {
+    return Array.from(root.querySelectorAll('*')).filter(el => {
+      return el.children.length === 0 && txt(el.textContent);
     });
   }
 
-  function findContainerByLabel(label) {
+  function findBestContainer(label) {
     const lower = label.toLowerCase();
 
     return Array.from(document.querySelectorAll('section, article, div, li'))
-      .filter(node => text(node.textContent).toLowerCase().includes(lower))
-      .sort((a, b) => text(a.textContent).length - text(b.textContent).length)[0] || null;
+      .filter(node => txt(node.textContent).toLowerCase().includes(lower))
+      .sort((a, b) => txt(a.textContent).length - txt(b.textContent).length)[0] || null;
+  }
+
+  function looksLikeValueNode(el) {
+    const value = txt(el.textContent);
+
+    if (!value) return false;
+    if (value === 'Loading') return true;
+    if (value === 'Loaded') return true;
+    if (value === 'Unavailable') return true;
+    if (value === 'Available') return true;
+    if (value === '—') return true;
+    if (value === '--') return true;
+    if (value === '0') return true;
+    if (value === 'OK') return true;
+    if (value.includes('alert')) return true;
+    if (value.startsWith('Rs ')) return true;
+    if (value.startsWith('-Rs ')) return true;
+
+    return false;
   }
 
   function setValueNearLabel(label, value) {
-    const container = findContainerByLabel(label);
+    const container = findBestContainer(label);
     if (!container) return false;
 
-    const leaves = Array.from(container.querySelectorAll('*')).filter(el => {
-      if (el.children.length) return false;
+    const leaves = getLeafNodes(container);
+    const valueNodes = leaves.filter(looksLikeValueNode);
 
-      const current = text(el.textContent).trim();
-      return current === 'Loading' ||
-        current === 'Unavailable' ||
-        current === '—' ||
-        current === '--' ||
-        current === '0' ||
-        current.startsWith('Rs ');
-    });
+    let target = valueNodes[valueNodes.length - 1];
 
-    const target = leaves[leaves.length - 1];
+    if (!target) {
+      target = leaves.find(el => txt(el.textContent) !== label);
+    }
+
     if (!target) return false;
 
     target.textContent = value;
     target.classList.add('sf-hub-loaded-value');
+    target.setAttribute('data-hub-rendered', 'true');
+
     return true;
-  }
-
-  function replaceExactText(oldText, newText) {
-    for (const el of leafNodes()) {
-      if (text(el.textContent).trim() === oldText) {
-        el.textContent = newText;
-      }
-    }
-  }
-
-  function replaceTextContaining(fragment, newText) {
-    for (const el of leafNodes()) {
-      if (text(el.textContent).includes(fragment)) {
-        el.textContent = newText;
-      }
-    }
-  }
-
-  function renderStatus(data) {
-    const status = data.health?.overall || 'unknown';
-    const alerts = Array.isArray(data.alerts) ? data.alerts.length : 0;
-    const value = `Hub ${data.version || 'unknown'} · ${status} · alerts ${alerts}`;
-
-    const statusEl =
-      document.querySelector('[data-hub-status]') ||
-      document.querySelector('#hubStatus');
-
-    if (statusEl) statusEl.textContent = value;
-
-    const lastLoadedEl =
-      document.querySelector('[data-hub-last-loaded]') ||
-      document.querySelector('#hubLastLoaded');
-
-    if (lastLoadedEl) {
-      lastLoadedEl.textContent = 'Last loaded: ' + new Date().toLocaleTimeString();
-    }
-
-    replaceTextContaining('Loading source status', value);
-    replaceTextContaining('Last loaded:', 'Last loaded: ' + new Date().toLocaleTimeString());
   }
 
   function renderMetrics(data) {
     const summary = data.summary || {};
 
-    for (const [label, formatter] of METRIC_LABEL_MAP) {
+    for (const [label, formatter] of METRICS) {
       setValueNearLabel(label, formatter(summary, data));
     }
+  }
 
-    replaceExactText('Unavailable', 'Available');
-    replaceExactText('Loading', 'Loaded');
+  function renderStatus(data) {
+    const status = data.health?.overall || 'unknown';
+    const alertCount = Array.isArray(data.alerts) ? data.alerts.length : 0;
+    const statusText = `Hub ${data.version || 'unknown'} · ${status} · alerts ${alertCount}`;
+    const loadedText = 'Last loaded: ' + new Date().toLocaleTimeString();
+
+    const statusEl =
+      document.querySelector('[data-hub-status]') ||
+      document.querySelector('#hubStatus');
+
+    if (statusEl) statusEl.textContent = statusText;
+
+    const lastLoadedEl =
+      document.querySelector('[data-hub-last-loaded]') ||
+      document.querySelector('#hubLastLoaded');
+
+    if (lastLoadedEl) lastLoadedEl.textContent = loadedText;
+
+    replaceLeafContaining('Loading source status', statusText);
+    replaceLeafContaining('Last loaded:', loadedText);
   }
 
   function renderServices(data) {
@@ -210,9 +205,25 @@
     }, null, 2);
   }
 
+  function replaceLeafContaining(fragment, value) {
+    for (const el of getLeafNodes(document.body)) {
+      if (txt(el.textContent).includes(fragment)) {
+        el.textContent = value;
+      }
+    }
+  }
+
+  function replaceExactLeaf(oldValue, newValue) {
+    for (const el of getLeafNodes(document.body)) {
+      if (txt(el.textContent) === oldValue) {
+        el.textContent = newValue;
+      }
+    }
+  }
+
   function renderHub(data) {
-    renderStatus(data);
     renderMetrics(data);
+    renderStatus(data);
     renderServices(data);
     renderAlerts(data);
     renderDebug(data);
@@ -225,7 +236,8 @@
   }
 
   function renderError(err) {
-    replaceExactText('Loading', 'Failed');
+    replaceExactLeaf('Loading', 'Failed');
+    replaceExactLeaf('Loaded', 'Failed');
 
     const statusEl =
       document.querySelector('[data-hub-status]') ||
