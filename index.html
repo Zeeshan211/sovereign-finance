@@ -27,6 +27,7 @@
           kicker: "At a glance",
           value: "Loading",
           valueId: "hub-kpi-liquid-now",
+          valueKey: "cash_now",
           subtitle: "Spendable current position",
           foot: "From /api/balances"
         },
@@ -35,7 +36,8 @@
           kicker: "Pressure",
           value: "Loading",
           valueId: "hub-kpi-bills-remaining",
-          subtitle: "Current-month bill pressure",
+          valueKey: "forecast_expected_outflow",
+          subtitle: "Forecast horizon pressure",
           foot: "From /api/forecast"
         },
         {
@@ -43,16 +45,18 @@
           kicker: "Pressure",
           value: "Loading",
           valueId: "hub-kpi-debt-payable",
+          valueKey: "total_owe",
           subtitle: "Outstanding payable side",
-          foot: "Forecast / balances"
+          foot: "From /api/debts"
         },
         {
           title: "Forecast Risk",
           kicker: "Runway",
           value: "Loading",
           valueId: "hub-kpi-forecast-risk",
-          subtitle: "Lowest cash / unsafe date",
-          foot: "From /api/forecast"
+          valueKey: "forecast_risk",
+          subtitle: "Backend alerts and low-point risk",
+          foot: "From /api/hub"
         }
       ]
     };
@@ -98,7 +102,7 @@
         <div class="sf-finance-row">
           <div class="sf-row-left">
             <div class="sf-row-title">Bills Remaining</div>
-            <div class="sf-row-subtitle">Current-month bill pressure</div>
+            <div class="sf-row-subtitle">Forecast horizon pressure</div>
           </div>
           <div id="hub-bills-remaining" class="sf-row-right" data-hub-value="forecast_expected_outflow">Loading</div>
         </div>
