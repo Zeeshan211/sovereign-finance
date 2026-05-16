@@ -70,6 +70,170 @@
 <body>
   <section class="sf-panel-grid" aria-label="Bills workspace">
 
+    <!-- 1. PRIMARY CONTENT: Bills list + selected bill detail (above the fold) -->
+    <section class="sf-panel sf-span-8" aria-labelledby="bills-list-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Bills</p>
+          <h2 id="bills-list-title" class="sf-section-title">Current Cycle Bills</h2>
+          <p class="sf-section-subtitle">Select a bill to inspect payment state and ignored/reversed rows.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="bills-count-pill" class="sf-pill" data-bills-value="bill_count">Loading</span>
+        </div>
+      </div>
+
+      <div id="bills-list" class="sf-dense-grid" data-bills-list="bills">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">Loading bills</h3>
+            <p class="sf-card-subtitle">Reading /api/bills current_cycle.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sf-panel sf-span-4" aria-labelledby="bills-selected-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Selected Bill</p>
+          <h2 id="bills-selected-title" class="sf-section-title">Bill Detail</h2>
+          <p class="sf-section-subtitle">Payment history, ignored rows, and linked ledger state.</p>
+        </div>
+      </div>
+
+      <div id="bills-selected-panel" class="sf-dense-grid" data-bills-list="selected">
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">No bill selected</h3>
+            <p class="sf-card-subtitle">Select a bill from the current cycle list.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. PRIMARY ACTIONS: Pay (selected bill) + Add (new bill) -->
+    <section class="sf-panel sf-span-12" aria-labelledby="bills-command-title">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Command Center</p>
+          <h2 id="bills-command-title" class="sf-section-title">Pay Bill / Create Bill</h2>
+          <p class="sf-section-subtitle">Transaction-style owner surface. Bill creation creates an obligation only; payment creates ledger movement.</p>
+        </div>
+      </div>
+
+      <div class="sf-panel-grid">
+        <section class="sf-panel sf-span-6" aria-labelledby="bills-payment-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Payment</p>
+              <h3 id="bills-payment-title" class="sf-section-title">Pay Selected Bill</h3>
+              <p class="sf-section-subtitle">Creates a ledger expense and links the bill payment snapshot. Account is required.</p>
+            </div>
+            <div class="sf-section-meta">
+              <span id="bills-payment-state" class="sf-pill" data-bills-value="payment_state">Select bill</span>
+            </div>
+          </div>
+
+          <form id="bills-payment-form" class="sf-form-grid" data-bills-form="payment">
+            <label class="sf-field sf-span-12">
+              <span>Selected bill</span>
+              <input id="bill-payment-name" name="bill_name" type="text" readonly placeholder="Select a bill from the list">
+            </label>
+
+            <label class="sf-field sf-span-6">
+              <span>Payment amount</span>
+              <input id="bill-payment-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
+            </label>
+
+            <label class="sf-field sf-span-6">
+              <span>Payment date</span>
+              <input id="bill-payment-date" name="paid_date" type="date">
+            </label>
+
+            <label class="sf-field sf-span-12">
+              <span>Pay from account</span>
+              <select id="bill-payment-account" name="account_id" data-bills-account-select required>
+                <option value="">Choose account</option>
+              </select>
+            </label>
+
+            <label class="sf-field sf-span-12">
+              <span>Payment note</span>
+              <textarea id="bill-payment-notes" name="notes" rows="2" placeholder="Optional payment note"></textarea>
+            </label>
+
+            <div class="sf-form-actions sf-span-12">
+              <button id="bill-payment-submit" class="sf-button sf-button--primary" type="submit">Pay Bill</button>
+              <button id="bill-payment-clear" class="sf-button" type="reset">Clear</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="sf-panel sf-span-6" aria-labelledby="bills-add-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Create</p>
+              <h3 id="bills-add-title" class="sf-section-title">Add New Bill</h3>
+              <p class="sf-section-subtitle">Create the recurring/manual bill obligation. No money moves here.</p>
+            </div>
+            <div class="sf-section-meta">
+              <span id="bills-add-state" class="sf-pill" data-bills-value="add_state">Ready</span>
+            </div>
+          </div>
+
+          <form id="bills-add-form" class="sf-form-grid" data-bills-form="add">
+            <label class="sf-field sf-span-12">
+              <span>Bill name</span>
+              <input id="bill-add-name" name="name" type="text" autocomplete="off" placeholder="Internet Bill, Rent, School Fee">
+            </label>
+
+            <label class="sf-field sf-span-6">
+              <span>Expected amount</span>
+              <input id="bill-add-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
+            </label>
+
+            <label class="sf-field sf-span-6">
+              <span>Due day</span>
+              <input id="bill-add-due-day" name="due_day" type="number" inputmode="numeric" min="1" max="31" placeholder="1">
+            </label>
+
+            <label class="sf-field sf-span-6">
+              <span>Frequency</span>
+              <select id="bill-add-frequency" name="frequency">
+                <option value="monthly">Monthly</option>
+                <option value="weekly">Weekly</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+
+            <label class="sf-field sf-span-6">
+              <span>Default payment account</span>
+              <select id="bill-add-default-account" name="default_account_id" data-bills-account-select>
+                <option value="">Choose when paying</option>
+              </select>
+            </label>
+
+            <label class="sf-field sf-span-12">
+              <span>Category</span>
+              <input id="bill-add-category" name="category_id" type="text" autocomplete="off" value="bills_utilities">
+            </label>
+
+            <label class="sf-field sf-span-12">
+              <span>Notes</span>
+              <textarea id="bill-add-notes" name="notes" rows="2" placeholder="Optional note"></textarea>
+            </label>
+
+            <div class="sf-form-actions sf-span-12">
+              <button id="bill-add-submit" class="sf-button sf-button--primary" type="submit">Add New Bill</button>
+              <button id="bill-add-reset" class="sf-button" type="reset">Clear</button>
+            </div>
+          </form>
+        </section>
+      </div>
+    </section>
+
+    <!-- 3. REFERENCE: Backend cycle truth (KPI hero already shows headline totals) -->
     <section class="sf-panel sf-panel--accent sf-span-12" aria-labelledby="bills-summary-title">
       <div class="sf-section-head">
         <div>
@@ -134,167 +298,7 @@
       </div>
     </section>
 
-    <section class="sf-panel sf-span-12" aria-labelledby="bills-command-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Command Center</p>
-          <h2 id="bills-command-title" class="sf-section-title">Create Bill / Pay Bill</h2>
-          <p class="sf-section-subtitle">Transaction-style owner surface. Bill creation creates an obligation only; payment creates ledger movement.</p>
-        </div>
-      </div>
-
-      <div class="sf-panel-grid">
-        <section class="sf-panel sf-span-6" aria-labelledby="bills-add-title">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Create</p>
-              <h3 id="bills-add-title" class="sf-section-title">Add New Bill</h3>
-              <p class="sf-section-subtitle">Create the recurring/manual bill obligation. No money moves here.</p>
-            </div>
-            <div class="sf-section-meta">
-              <span id="bills-add-state" class="sf-pill" data-bills-value="add_state">Ready</span>
-            </div>
-          </div>
-
-          <form id="bills-add-form" class="sf-form-grid" data-bills-form="add">
-            <label class="sf-field sf-span-12">
-              <span>Bill name</span>
-              <input id="bill-add-name" name="name" type="text" autocomplete="off" placeholder="Internet Bill, Rent, School Fee">
-            </label>
-
-            <label class="sf-field sf-span-6">
-              <span>Expected amount</span>
-              <input id="bill-add-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
-            </label>
-
-            <label class="sf-field sf-span-6">
-              <span>Due day</span>
-              <input id="bill-add-due-day" name="due_day" type="number" inputmode="numeric" min="1" max="31" placeholder="1">
-            </label>
-
-            <label class="sf-field sf-span-6">
-              <span>Frequency</span>
-              <select id="bill-add-frequency" name="frequency">
-                <option value="monthly">Monthly</option>
-                <option value="weekly">Weekly</option>
-                <option value="custom">Custom</option>
-              </select>
-            </label>
-
-            <label class="sf-field sf-span-6">
-              <span>Default payment account</span>
-              <select id="bill-add-default-account" name="default_account_id" data-bills-account-select>
-                <option value="">Choose when paying</option>
-              </select>
-            </label>
-
-            <label class="sf-field sf-span-12">
-              <span>Category</span>
-              <input id="bill-add-category" name="category_id" type="text" autocomplete="off" value="bills_utilities">
-            </label>
-
-            <label class="sf-field sf-span-12">
-              <span>Notes</span>
-              <textarea id="bill-add-notes" name="notes" rows="2" placeholder="Optional note"></textarea>
-            </label>
-
-            <div class="sf-form-actions sf-span-12">
-              <button id="bill-add-submit" class="sf-button sf-button--primary" type="submit">Add New Bill</button>
-              <button id="bill-add-reset" class="sf-button" type="reset">Clear</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="sf-panel sf-span-6" aria-labelledby="bills-payment-title">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Payment</p>
-              <h3 id="bills-payment-title" class="sf-section-title">Pay Selected Bill</h3>
-              <p class="sf-section-subtitle">Creates a ledger expense and links the bill payment snapshot. Account is required.</p>
-            </div>
-            <div class="sf-section-meta">
-              <span id="bills-payment-state" class="sf-pill" data-bills-value="payment_state">Select bill</span>
-            </div>
-          </div>
-
-          <form id="bills-payment-form" class="sf-form-grid" data-bills-form="payment">
-            <label class="sf-field sf-span-12">
-              <span>Selected bill</span>
-              <input id="bill-payment-name" name="bill_name" type="text" readonly placeholder="Select a bill from the list">
-            </label>
-
-            <label class="sf-field sf-span-6">
-              <span>Payment amount</span>
-              <input id="bill-payment-amount" name="amount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0">
-            </label>
-
-            <label class="sf-field sf-span-6">
-              <span>Payment date</span>
-              <input id="bill-payment-date" name="paid_date" type="date">
-            </label>
-
-            <label class="sf-field sf-span-12">
-              <span>Pay from account</span>
-              <select id="bill-payment-account" name="account_id" data-bills-account-select required>
-                <option value="">Choose account</option>
-              </select>
-            </label>
-
-            <label class="sf-field sf-span-12">
-              <span>Payment note</span>
-              <textarea id="bill-payment-notes" name="notes" rows="2" placeholder="Optional payment note"></textarea>
-            </label>
-
-            <div class="sf-form-actions sf-span-12">
-              <button id="bill-payment-submit" class="sf-button sf-button--primary" type="submit">Pay Bill</button>
-              <button id="bill-payment-clear" class="sf-button" type="reset">Clear</button>
-            </div>
-          </form>
-        </section>
-      </div>
-    </section>
-
-    <section class="sf-panel sf-span-8" aria-labelledby="bills-list-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Bills</p>
-          <h2 id="bills-list-title" class="sf-section-title">Current Cycle Bills</h2>
-          <p class="sf-section-subtitle">Select a bill to inspect payment state and ignored/reversed rows.</p>
-        </div>
-        <div class="sf-section-meta">
-          <span id="bills-count-pill" class="sf-pill" data-bills-value="bill_count">Loading</span>
-        </div>
-      </div>
-
-      <div id="bills-list" class="sf-dense-grid" data-bills-list="bills">
-        <div class="sf-loading-state">
-          <div>
-            <h3 class="sf-card-title">Loading bills</h3>
-            <p class="sf-card-subtitle">Reading /api/bills current_cycle.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="sf-panel sf-span-4" aria-labelledby="bills-selected-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Selected Bill</p>
-          <h2 id="bills-selected-title" class="sf-section-title">Bill Detail</h2>
-          <p class="sf-section-subtitle">Payment history, ignored rows, and linked ledger state.</p>
-        </div>
-      </div>
-
-      <div id="bills-selected-panel" class="sf-dense-grid" data-bills-list="selected">
-        <div class="sf-loading-state">
-          <div>
-            <h3 class="sf-card-title">No bill selected</h3>
-            <p class="sf-card-subtitle">Select a bill from the current cycle list.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
+    <!-- 4. INTEGRITY: Bills health -->
     <section class="sf-panel sf-span-12" aria-labelledby="bills-health-title">
       <div class="sf-section-head">
         <div>
@@ -317,6 +321,7 @@
       </div>
     </section>
 
+    <!-- 5. REFERENCE: Engine contract / rules -->
     <section class="sf-panel sf-span-12" aria-labelledby="bills-rules-title">
       <div class="sf-section-head">
         <div>
@@ -353,6 +358,7 @@
       </div>
     </section>
 
+    <!-- 6. DEBUG: ?debug=1 only -->
     <section id="bills-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
       <div class="sf-section-head">
         <div>
