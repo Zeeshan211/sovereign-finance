@@ -7,6 +7,531 @@
 
   <link rel="stylesheet" href="/css/styles.css" />
   <link rel="stylesheet" href="/css/app.css" />
+
+  <style>
+    :root {
+      --atm-bg: #080b12;
+      --atm-panel: rgba(255,255,255,.045);
+      --atm-panel-strong: rgba(255,255,255,.075);
+      --atm-border: rgba(255,255,255,.11);
+      --atm-border-strong: rgba(255,255,255,.18);
+      --atm-text: #f4f7fb;
+      --atm-muted: rgba(244,247,251,.62);
+      --atm-soft: rgba(244,247,251,.42);
+      --atm-positive: #53d7a7;
+      --atm-warning: #f1b857;
+      --atm-danger: #ff7f8a;
+      --atm-info: #7db8ff;
+      --atm-accent: #8fb7ff;
+      --atm-shadow: 0 18px 60px rgba(0,0,0,.36);
+      --atm-radius: 18px;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(83,215,167,.10), transparent 28rem),
+        radial-gradient(circle at top right, rgba(125,184,255,.10), transparent 30rem),
+        var(--atm-bg);
+      color: var(--atm-text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .sf-app-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+    }
+
+    .sf-sidebar {
+      border-right: 1px solid var(--atm-border);
+      background: rgba(5,8,14,.72);
+      backdrop-filter: blur(18px);
+      padding: 22px 16px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+
+    .sf-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .sf-brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-weight: 950;
+      background: linear-gradient(135deg, rgba(83,215,167,.28), rgba(125,184,255,.22));
+      border: 1px solid var(--atm-border-strong);
+    }
+
+    .sf-brand-title {
+      font-size: 14px;
+      font-weight: 950;
+      letter-spacing: .01em;
+    }
+
+    .sf-brand-subtitle {
+      margin-top: 2px;
+      color: var(--atm-muted);
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .sf-nav {
+      display: grid;
+      gap: 7px;
+    }
+
+    .sf-nav-link {
+      color: var(--atm-muted);
+      text-decoration: none;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      padding: 10px 11px;
+      font-size: 13px;
+      font-weight: 850;
+      transition: .16s ease;
+    }
+
+    .sf-nav-link:hover,
+    .sf-nav-link--active {
+      color: var(--atm-text);
+      background: rgba(255,255,255,.06);
+      border-color: var(--atm-border);
+    }
+
+    .sf-main {
+      min-width: 0;
+      padding: 26px;
+      box-sizing: border-box;
+      display: grid;
+      gap: 18px;
+    }
+
+    .atm-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 20px;
+      border: 1px solid var(--atm-border);
+      border-radius: 22px;
+      background: linear-gradient(135deg, rgba(255,255,255,.07), rgba(255,255,255,.035));
+      box-shadow: var(--atm-shadow);
+    }
+
+    .atm-kicker {
+      margin: 0 0 6px;
+      color: var(--atm-accent);
+      font-size: 11px;
+      line-height: 1.2;
+      font-weight: 950;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .atm-title {
+      margin: 0;
+      color: var(--atm-text);
+      font-size: clamp(26px, 4vw, 42px);
+      line-height: 1.02;
+      letter-spacing: -.04em;
+      font-weight: 950;
+    }
+
+    .atm-subtitle {
+      margin: 10px 0 0;
+      color: var(--atm-muted);
+      font-size: 14px;
+      line-height: 1.55;
+      max-width: 780px;
+    }
+
+    .atm-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .sf-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid var(--atm-border);
+      background: rgba(255,255,255,.055);
+      color: var(--atm-muted);
+      font-size: 11px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .sf-pill--positive { color: var(--atm-positive); border-color: rgba(83,215,167,.32); background: rgba(83,215,167,.10); }
+    .sf-pill--warning { color: var(--atm-warning); border-color: rgba(241,184,87,.32); background: rgba(241,184,87,.10); }
+    .sf-pill--danger { color: var(--atm-danger); border-color: rgba(255,127,138,.32); background: rgba(255,127,138,.10); }
+    .sf-pill--info { color: var(--atm-info); border-color: rgba(125,184,255,.32); background: rgba(125,184,255,.10); }
+
+    .sf-button {
+      border: 1px solid var(--atm-border-strong);
+      border-radius: 999px;
+      color: var(--atm-text);
+      background: var(--atm-panel-strong);
+      min-height: 38px;
+      padding: 0 15px;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 950;
+      cursor: pointer;
+      transition: .16s ease;
+    }
+
+    .sf-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,.28);
+      background: rgba(255,255,255,.10);
+    }
+
+    .sf-button:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .sf-button--primary {
+      background: linear-gradient(135deg, rgba(83,215,167,.34), rgba(125,184,255,.20));
+      border-color: rgba(83,215,167,.42);
+    }
+
+    .atm-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .atm-kpi-card,
+    .atm-panel {
+      border: 1px solid var(--atm-border);
+      border-radius: var(--atm-radius);
+      background: var(--atm-panel);
+      box-shadow: 0 12px 32px rgba(0,0,0,.18);
+    }
+
+    .atm-kpi-card {
+      padding: 15px;
+      min-height: 104px;
+      display: grid;
+      align-content: space-between;
+      gap: 8px;
+    }
+
+    .atm-kpi-kicker {
+      margin: 0;
+      color: var(--atm-muted);
+      font-size: 10px;
+      font-weight: 950;
+      letter-spacing: .11em;
+      text-transform: uppercase;
+    }
+
+    .atm-kpi-value {
+      color: var(--atm-text);
+      font-size: 25px;
+      line-height: 1.05;
+      font-weight: 950;
+      letter-spacing: -.035em;
+    }
+
+    .atm-kpi-foot {
+      margin: 0;
+      color: var(--atm-soft);
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .atm-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(360px, .95fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .atm-panel {
+      padding: 17px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .atm-section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .atm-section-title {
+      margin: 0;
+      color: var(--atm-text);
+      font-size: 18px;
+      line-height: 1.2;
+      font-weight: 950;
+      letter-spacing: -.02em;
+    }
+
+    .atm-section-subtitle {
+      margin: 6px 0 0;
+      color: var(--atm-muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .atm-form {
+      display: grid;
+      gap: 13px;
+    }
+
+    .atm-form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .atm-field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .atm-field span {
+      color: var(--atm-muted);
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .atm-field input,
+    .atm-field select {
+      width: 100%;
+      min-height: 42px;
+      box-sizing: border-box;
+      border: 1px solid var(--atm-border);
+      border-radius: 13px;
+      background: rgba(0,0,0,.22);
+      color: var(--atm-text);
+      padding: 0 12px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 780;
+      outline: none;
+    }
+
+    .atm-field input:focus,
+    .atm-field select:focus {
+      border-color: rgba(125,184,255,.52);
+      box-shadow: 0 0 0 3px rgba(125,184,255,.10);
+    }
+
+    .atm-field option {
+      color: #111827;
+    }
+
+    .atm-action-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .sf-row-subtitle {
+      color: var(--atm-muted);
+      font-size: 11px;
+      line-height: 1.45;
+      margin: 0;
+    }
+
+    .sf-callout {
+      border: 1px solid var(--atm-border);
+      border-radius: 14px;
+      padding: 11px 12px;
+      color: var(--atm-muted);
+      background: rgba(255,255,255,.05);
+      font-size: 12px;
+      font-weight: 850;
+      line-height: 1.45;
+    }
+
+    .sf-callout--success {
+      color: var(--atm-positive);
+      border-color: rgba(83,215,167,.32);
+      background: rgba(83,215,167,.09);
+    }
+
+    .sf-callout--danger {
+      color: var(--atm-danger);
+      border-color: rgba(255,127,138,.32);
+      background: rgba(255,127,138,.09);
+    }
+
+    .atm-stack {
+      display: grid;
+      gap: 9px;
+    }
+
+    .sf-finance-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      border: 1px solid var(--atm-border);
+      border-radius: 14px;
+      background: rgba(0,0,0,.14);
+      padding: 11px 12px;
+    }
+
+    .sf-row-title {
+      color: var(--atm-text);
+      font-size: 13px;
+      font-weight: 950;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    .sf-row-left {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    .sf-row-right {
+      text-align: right;
+      color: var(--atm-muted);
+      font-size: 12px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .sf-tone-positive { color: var(--atm-positive); }
+    .sf-tone-warning { color: var(--atm-warning); }
+    .sf-tone-danger { color: var(--atm-danger); }
+    .sf-tone-info { color: var(--atm-info); }
+
+    .sf-empty-state,
+    .sf-loading-state {
+      border: 1px dashed var(--atm-border);
+      border-radius: 15px;
+      padding: 16px;
+      background: rgba(255,255,255,.025);
+    }
+
+    .sf-card-title {
+      margin: 0;
+      color: var(--atm-text);
+      font-size: 14px;
+      font-weight: 950;
+    }
+
+    .sf-card-subtitle {
+      margin: 6px 0 0;
+      color: var(--atm-muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .atm-debug-panel {
+      display: none;
+    }
+
+    .atm-debug-panel:not([hidden]) {
+      display: grid;
+    }
+
+    .sf-debug-output {
+      margin: 0;
+      max-height: 460px;
+      overflow: auto;
+      white-space: pre-wrap;
+      border: 1px solid var(--atm-border);
+      border-radius: 14px;
+      background: rgba(0,0,0,.24);
+      color: var(--atm-muted);
+      padding: 14px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .sf-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      color: var(--atm-soft);
+      font-size: 11px;
+      padding: 4px 2px 12px;
+    }
+
+    @media (max-width: 1100px) {
+      .sf-app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sf-sidebar {
+        position: relative;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--atm-border);
+      }
+
+      .sf-nav {
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      }
+
+      .atm-kpi-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .atm-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .sf-main {
+        padding: 14px;
+      }
+
+      .atm-header {
+        display: grid;
+      }
+
+      .atm-actions {
+        justify-content: flex-start;
+      }
+
+      .atm-kpi-grid,
+      .atm-form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .sf-finance-row {
+        grid-template-columns: 1fr;
+      }
+
+      .sf-row-right {
+        text-align: left;
+      }
+    }
+  </style>
 </head>
 
 <body>
@@ -33,91 +558,91 @@
     </aside>
 
     <main class="sf-main">
-      <header class="sf-page-header">
+      <header class="atm-header">
         <div>
-          <p class="sf-section-kicker">Cash movement engine</p>
-          <h1 class="sf-page-title">ATM Withdrawals</h1>
-          <p class="sf-page-subtitle">
+          <p class="atm-kicker">Cash movement engine</p>
+          <h1 class="atm-title">ATM Withdrawals</h1>
+          <p class="atm-subtitle">
             Record bank-to-cash withdrawals with clean linked transfer rows and a separate ATM fee row.
           </p>
         </div>
 
-        <div class="sf-header-actions">
+        <div class="atm-actions">
           <span id="atm-source-status" class="sf-pill sf-pill--info">Loading</span>
-          <button id="atm-refresh" class="sf-button sf-button--secondary" type="button">Refresh</button>
+          <button id="atm-refresh" class="sf-button" type="button">Refresh</button>
         </div>
       </header>
 
-      <section class="sf-kpi-grid" aria-label="ATM KPIs">
-        <article class="sf-kpi-card">
-          <p class="sf-kpi-kicker">Pending Fees</p>
-          <div id="atm-kpi-pending-count" class="sf-kpi-value">—</div>
-          <p id="atm-kpi-pending-total" class="sf-kpi-foot">—</p>
+      <section class="atm-kpi-grid" aria-label="ATM KPIs">
+        <article class="atm-kpi-card">
+          <p class="atm-kpi-kicker">Pending Fees</p>
+          <div id="atm-kpi-pending-count" class="atm-kpi-value">—</div>
+          <p id="atm-kpi-pending-total" class="atm-kpi-foot">—</p>
         </article>
 
-        <article class="sf-kpi-card">
-          <p class="sf-kpi-kicker">Fees Paid 30d</p>
-          <div id="atm-kpi-fees-paid" class="sf-kpi-value">—</div>
-          <p class="sf-kpi-foot">Gross ATM fee rows</p>
+        <article class="atm-kpi-card">
+          <p class="atm-kpi-kicker">Fees Paid 30d</p>
+          <div id="atm-kpi-fees-paid" class="atm-kpi-value">—</div>
+          <p class="atm-kpi-foot">Gross ATM fee rows</p>
         </article>
 
-        <article class="sf-kpi-card">
-          <p class="sf-kpi-kicker">Fees Reversed</p>
-          <div id="atm-kpi-fees-reversed" class="sf-kpi-value">—</div>
-          <p class="sf-kpi-foot">Bank refunded fees</p>
+        <article class="atm-kpi-card">
+          <p class="atm-kpi-kicker">Fees Reversed</p>
+          <div id="atm-kpi-fees-reversed" class="atm-kpi-value">—</div>
+          <p class="atm-kpi-foot">Bank refunded fees</p>
         </article>
 
-        <article class="sf-kpi-card">
-          <p class="sf-kpi-kicker">Net ATM Fees</p>
-          <div id="atm-kpi-fees-net" class="sf-kpi-value">—</div>
-          <p id="atm-kpi-default-fee" class="sf-kpi-foot">—</p>
+        <article class="atm-kpi-card">
+          <p class="atm-kpi-kicker">Net ATM Fees</p>
+          <div id="atm-kpi-fees-net" class="atm-kpi-value">—</div>
+          <p id="atm-kpi-default-fee" class="atm-kpi-foot">—</p>
         </article>
       </section>
 
-      <section class="sf-grid sf-grid--two">
-        <article class="sf-panel">
-          <div class="sf-section-head">
+      <section class="atm-grid">
+        <article class="atm-panel">
+          <div class="atm-section-head">
             <div>
-              <p class="sf-section-kicker">New ATM withdrawal</p>
-              <h2 class="sf-section-title">Bank → Cash</h2>
-              <p class="sf-section-subtitle">
-                Backend creates the source transfer, cash receipt, and optional standalone fee row.
+              <p class="atm-kicker">New ATM withdrawal</p>
+              <h2 class="atm-section-title">Bank → Cash</h2>
+              <p class="atm-section-subtitle">
+                Backend creates source transfer, cash receipt, and optional standalone fee row.
               </p>
             </div>
           </div>
 
-          <form id="atm-form" class="sf-form">
-            <div class="sf-form-grid">
-              <label class="sf-field">
+          <form id="atm-form" class="atm-form">
+            <div class="atm-form-grid">
+              <label class="atm-field">
                 <span>Source account</span>
                 <select id="atm-source-account" required>
                   <option value="">Loading accounts…</option>
                 </select>
               </label>
 
-              <label class="sf-field">
-                <span>Cash / destination account</span>
+              <label class="atm-field">
+                <span>Cash / destination</span>
                 <select id="atm-destination-account" required>
                   <option value="">Loading accounts…</option>
                 </select>
               </label>
 
-              <label class="sf-field">
+              <label class="atm-field">
                 <span>Withdrawal amount</span>
                 <input id="atm-amount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="2000" required />
               </label>
 
-              <label class="sf-field">
+              <label class="atm-field">
                 <span>ATM fee</span>
                 <input id="atm-fee" type="number" inputmode="decimal" min="0" step="0.01" placeholder="35" />
               </label>
 
-              <label class="sf-field">
+              <label class="atm-field">
                 <span>Date</span>
                 <input id="atm-date" type="date" required />
               </label>
 
-              <label class="sf-field">
+              <label class="atm-field">
                 <span>Notes</span>
                 <input id="atm-notes" type="text" maxlength="300" placeholder="[CATCHUP] Mashreq ATM withdrawal for gas cylinder" />
               </label>
@@ -125,7 +650,7 @@
 
             <div id="atm-result" class="sf-callout" hidden></div>
 
-            <div class="sf-action-row">
+            <div class="atm-action-row">
               <button id="atm-submit" class="sf-button sf-button--primary" type="submit">
                 <span id="atm-submit-label">Record ATM withdrawal</span>
               </button>
@@ -136,18 +661,16 @@
           </form>
         </article>
 
-        <article class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Contract rules</p>
-              <h2 class="sf-section-title">Banking-grade behavior</h2>
-              <p class="sf-section-subtitle">
-                ATM fee stays separate from the withdrawal pair to avoid linked amount mismatches.
-              </p>
-            </div>
+        <article class="atm-panel">
+          <div>
+            <p class="atm-kicker">Contract rules</p>
+            <h2 class="atm-section-title">Banking-grade behavior</h2>
+            <p class="atm-section-subtitle">
+              ATM fee stays separate from the withdrawal pair to avoid linked amount mismatches.
+            </p>
           </div>
 
-          <div class="sf-stack">
+          <div class="atm-stack">
             <div class="sf-finance-row">
               <div class="sf-row-left">
                 <div class="sf-row-title">Withdrawal pair</div>
@@ -159,7 +682,7 @@
             <div class="sf-finance-row">
               <div class="sf-row-left">
                 <div class="sf-row-title">ATM fee</div>
-                <div class="sf-row-subtitle">Standalone source-account expense. Not linked to the transfer pair.</div>
+                <div class="sf-row-subtitle">Standalone source-account expense. Not linked to the pair.</div>
               </div>
               <div class="sf-row-right sf-tone-warning">Separate</div>
             </div>
@@ -167,7 +690,7 @@
             <div class="sf-finance-row">
               <div class="sf-row-left">
                 <div class="sf-row-title">Cash proof</div>
-                <div class="sf-row-subtitle">Cash balance is ledger-derived; physical cash count correction comes later.</div>
+                <div class="sf-row-subtitle">Cash is ledger-derived; physical count correction comes later.</div>
               </div>
               <div class="sf-row-right sf-tone-info">Auditable</div>
             </div>
@@ -175,19 +698,17 @@
         </article>
       </section>
 
-      <section class="sf-grid sf-grid--two">
-        <article class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Pending fees</p>
-              <h2 class="sf-section-title">Awaiting fee reversal</h2>
-              <p class="sf-section-subtitle">
-                These are real pending fee rows unless the bank later refunds them.
-              </p>
-            </div>
+      <section class="atm-grid">
+        <article class="atm-panel">
+          <div>
+            <p class="atm-kicker">Pending fees</p>
+            <h2 class="atm-section-title">Awaiting fee reversal</h2>
+            <p class="atm-section-subtitle">
+              Real pending fee rows remain until the bank refunds them or they are accepted as final cost.
+            </p>
           </div>
 
-          <div id="atm-pending-fees-list" class="sf-stack">
+          <div id="atm-pending-fees-list" class="atm-stack">
             <div class="sf-loading-state">
               <div>
                 <h3 class="sf-card-title">Loading ATM fees</h3>
@@ -197,18 +718,16 @@
           </div>
         </article>
 
-        <article class="sf-panel">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Recent rows</p>
-              <h2 class="sf-section-title">ATM ledger activity</h2>
-              <p class="sf-section-subtitle">
-                Recent withdrawal rows, cash rows, fee rows, and fee reversals.
-              </p>
-            </div>
+        <article class="atm-panel">
+          <div>
+            <p class="atm-kicker">Recent rows</p>
+            <h2 class="atm-section-title">ATM ledger activity</h2>
+            <p class="atm-section-subtitle">
+              Recent withdrawal rows, cash rows, fee rows, and fee reversals.
+            </p>
           </div>
 
-          <div id="atm-recent-list" class="sf-stack">
+          <div id="atm-recent-list" class="atm-stack">
             <div class="sf-loading-state">
               <div>
                 <h3 class="sf-card-title">Loading ATM rows</h3>
@@ -219,12 +738,10 @@
         </article>
       </section>
 
-      <section class="sf-panel sf-debug-panel" data-debug-panel hidden>
-        <div class="sf-section-head">
-          <div>
-            <p class="sf-section-kicker">Debug</p>
-            <h2 class="sf-section-title">ATM payload</h2>
-          </div>
+      <section class="atm-panel atm-debug-panel" data-debug-panel hidden>
+        <div>
+          <p class="atm-kicker">Debug</p>
+          <h2 class="atm-section-title">ATM payload</h2>
         </div>
 
         <pre id="atm-debug-output" class="sf-debug-output"></pre>
