@@ -1,25 +1,26 @@
 /* js/transactions-v084.js
  * Sovereign Finance · Ledger Console
- * v0.8.9-ledger-compact-activity
+ * v0.9.0-canonical-reverse-route
  *
- * P1 Ledger frontend-only correction:
- * - Does not touch backend.
- * - Does not write D1.
- * - Keeps account/debt money truth unchanged.
- * - Adds compact ledger rows with inline expansion.
- * - Adds Latest Activity vs Statement sorting.
- * - Shows debt counterparties in row titles.
- * - Shows backdated debt-origin repairs clearly.
+ * Contract:
+ * - Frontend renders backend ledger truth.
+ * - Frontend does not edit/delete transactions.
+ * - Frontend does not calculate authoritative account balances.
+ * - Reversal requires reason.
+ * - Reversal calls canonical backend route only:
+ *     POST /api/transactions/reverse
+ * - No fallback route chaos.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.8.9-ledger-compact-activity';
+  const VERSION = 'v0.9.0-canonical-reverse-route';
 
   const API_TRANSACTIONS = '/api/transactions?include_reversed=1&limit=500';
   const API_ACCOUNTS = '/api/add/context';
   const API_HEALTH = '/api/transactions/health';
+  const API_REVERSE = '/api/transactions/reverse';
 
   const state = {
     rows: [],
@@ -59,6 +60,7 @@
   function money(value, unsigned = false) {
     const n = Number(value || 0);
     const sign = !unsigned && n < 0 ? '-' : '';
+
     return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
@@ -70,10 +72,6 @@
   }
 
   function amountOf(row) {
-    const type = normalizeType(row.type);
-    if (type === 'transfer') {
-      return Number(row.amount ?? row.pkr_amount ?? row.display_amount ?? 0);
-    }
     return Number(row.pkr_amount ?? row.amount ?? row.display_amount ?? 0);
   }
 
@@ -84,9 +82,18 @@
   function signedAmount(row) {
     const type = normalizeType(row.type);
     const amount = absAmount(row);
-    if (['income', 'salary', 'opening', 'borrow', 'debt_in'].includes(type)) {
+
+    if ([
+      'income',
+      'salary',
+      'opening',
+      'borrow',
+      'debt_in',
+      'adjustment_positive'
+    ].includes(type)) {
       return amount;
     }
+
     return -amount;
   }
 
@@ -95,14 +102,11 @@
     return raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : 'Transaction';
   }
 
-  function shortId(id) {
-    const value = String(id || '');
-    return value.length <= 14 ? value : value.slice(-12);
-  }
-
   function accountLabel(id) {
     const account = state.accounts.get(String(id || ''));
+
     if (!account) return id || '—';
+
     return `${account.icon || ''} ${account.name || account.id || id}`.trim();
   }
 
@@ -136,10 +140,16 @@
     return notes.includes('[DEBT_PAYMENT]') || notes.includes('[DEBT_RECEIVE]');
   }
 
+  function isBillPayment(row) {
+    const notes = String(row.notes || '').toUpperCase();
+    return notes.includes('[BILL_PAYMENT]') || notes.includes('BILL_ID=');
+  }
+
   function isBackdatedRepair(row) {
     const notes = String(row.notes || '').toUpperCase();
     const txDate = String(row.date || '').slice(0, 10);
     const createdDate = String(row.created_at || '').slice(0, 10);
+
     return !!(
       row.date &&
       row.created_at &&
@@ -152,6 +162,7 @@
 
   function isReversalRow(row) {
     const notes = String(row.notes || '').toUpperCase();
+
     return !!(
       row.is_reversal === true ||
       notes.includes('[REVERSAL OF ')
@@ -160,6 +171,7 @@
 
   function isReversedOriginal(row) {
     const notes = String(row.notes || '').toUpperCase();
+
     return !!(
       row.is_reversed === true ||
       row.reversed_by ||
@@ -218,12 +230,15 @@
     if (isBackdatedRepair(row)) return 'repair';
     if (isDebtOrigin(row)) return 'origin';
     if (isDebtPayment(row)) return 'payment';
+    if (isBillPayment(row)) return 'bill';
     return '';
   }
 
   function compactDate(value) {
     const raw = String(value || '').slice(0, 10);
+
     if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return '—';
+
     const [, month, day] = raw.split('-');
     const monthNames = {
       '01': 'Jan',
@@ -239,19 +254,26 @@
       '11': 'Nov',
       '12': 'Dec'
     };
+
     return `${Number(day)} ${monthNames[month] || month}`;
   }
 
   function formatDateTime(value) {
     const raw = String(value || '').trim();
     if (!raw) return '—';
-    return raw.replace('T', ' ').replace(/\.\d{3}Z$/, '').replace(/Z$/, '');
+
+    return raw
+      .replace('T', ' ')
+      .replace(/\.\d{3}Z$/, '')
+      .replace(/Z$/, '');
   }
 
   async function fetchJSON(url) {
     const response = await fetch(url, {
       cache: 'no-store',
-      headers: { Accept: 'application/json' }
+      headers: {
+        Accept: 'application/json'
+      }
     });
 
     const text = await response.text();
@@ -287,22 +309,26 @@
   function normalizeAccounts(payload) {
     if (!payload) return [];
     if (Array.isArray(payload.accounts)) return payload.accounts;
+
     if (payload.accounts && typeof payload.accounts === 'object') {
       return Object.entries(payload.accounts).map(([id, row]) => ({
         id,
         ...(row || {})
       }));
     }
+
     return [];
   }
 
   function compareByChronology(a, b) {
     const ad = String(a.date || '');
     const bd = String(b.date || '');
+
     if (ad !== bd) return bd.localeCompare(ad);
 
     const ac = String(a.created_at || '');
     const bc = String(b.created_at || '');
+
     if (ac !== bc) return bc.localeCompare(ac);
 
     return String(b.id || b.key || '').localeCompare(String(a.id || a.key || ''));
@@ -311,10 +337,12 @@
   function compareByActivity(a, b) {
     const ac = String(a.created_at || '');
     const bc = String(b.created_at || '');
+
     if (ac !== bc) return bc.localeCompare(ac);
 
     const ad = String(a.date || '');
     const bd = String(b.date || '');
+
     if (ad !== bd) return bd.localeCompare(ad);
 
     return String(b.id || b.key || '').localeCompare(String(a.id || a.key || ''));
@@ -328,6 +356,7 @@
     if (row.intl_package_id) return `intl:${row.intl_package_id}`;
 
     const linked = row.linked_txn_id || parseLinkedId(row.notes);
+
     if (linked) {
       return `pair:${[String(row.id), String(linked)].sort().join('::')}`;
     }
@@ -451,6 +480,7 @@
     }
 
     const mode = state.filters.sort === 'statement' ? 'Statement' : 'Activity';
+
     return `${mode} · ${compactDate(group.date)} · Created ${formatDateTime(group.created_at)} · ${group.rows.length} row${group.rows.length === 1 ? '' : 's'}`;
   }
 
@@ -464,6 +494,7 @@
     if (type === 'transfer') return '⇄';
     if (type === 'atm') return '🏧';
     if (type === 'repay' || type === 'debt_out') return '📤';
+    if (type === 'salary') return '🏦';
 
     return '💸';
   }
@@ -498,6 +529,7 @@
       bits.push(`Created ${formatDateTime(row.created_at)}`);
     } else {
       bits.push(compactDate(row.date));
+
       if (row.created_at && state.filters.sort === 'activity') {
         bits.push(`Created ${formatDateTime(row.created_at)}`);
       }
@@ -586,7 +618,7 @@
     setText('moneyOut', items.length ? money(moneyOut, true) : '—');
     setText('netMovement', items.length ? money(moneyIn - moneyOut) : '—');
     setText('reverseEligible', items.length ? String(reverseEligible) : '—');
-    setText('t_reversed', `${state.rows.filter(isReversalRow).length} hidden reversal rows.`);
+    setText('t_reversed', `${state.rows.filter(isReversalRow).length} reversal rows.`);
   }
 
   function renderList() {
@@ -683,6 +715,7 @@
 
     if (isDebtOrigin(row)) tags.push(tag('debt origin', 'good'));
     if (isDebtPayment(row)) tags.push(tag('debt payment', 'good'));
+    if (isBillPayment(row)) tags.push(tag('bill payment', 'good'));
     if (isBackdatedRepair(row)) tags.push(tag('backdated repair', 'warn'));
 
     tags.push(tag(typeLabel(row.type)));
@@ -810,7 +843,9 @@
         const id = button.getAttribute('data-toggle-row');
         const card = container.querySelector(`[data-row-id="${cssEscape(id)}"]`);
         if (!card) return;
+
         card.classList.toggle('is-open');
+
         const row = state.rows.find(item => item.id === id);
         if (row) showDetail(id, false);
       });
@@ -827,7 +862,9 @@
     container.querySelectorAll('[data-copy-id]').forEach(button => {
       button.addEventListener('click', async event => {
         event.stopPropagation();
+
         const id = event.currentTarget.getAttribute('data-copy-id');
+
         try {
           await navigator.clipboard.writeText(id);
           toast('Copied ID.');
@@ -888,7 +925,7 @@
           <div>
             <p class="sf-section-kicker">Append-only reversal</p>
             <h2 class="sf-section-title">Reverse ledger movement</h2>
-            <p class="sf-section-subtitle">This creates reversal rows. It does not delete history.</p>
+            <p class="sf-section-subtitle">This calls the canonical reversal route and does not delete history.</p>
           </div>
         </div>
 
@@ -896,6 +933,7 @@
           <div class="ledger-reverse-title">${esc(rowTitle(row))}</div>
           <div class="ledger-reverse-meta">${esc(accountLabel(row.account_id))} · ${money(absAmount(row), true)} · ${esc(row.date || '')}</div>
           <div class="ledger-reverse-meta">Transaction ID: <strong>${esc(id)}</strong></div>
+          <div class="ledger-reverse-meta">Route: <strong>${esc(API_REVERSE)}</strong></div>
         </div>
 
         <div>
@@ -925,7 +963,9 @@
 
   function closeReversePanel() {
     const panel = $('reversePanel');
+
     if (!panel) return;
+
     panel.hidden = true;
     panel.innerHTML = '';
   }
@@ -940,6 +980,7 @@
         error.hidden = false;
         error.textContent = 'Reason is required.';
       }
+
       return;
     }
 
@@ -949,9 +990,13 @@
     }
 
     try {
-      await reverseTransaction(id, reason);
+      const payload = await reverseTransaction(id, reason);
+
       closeReversePanel();
-      toast('Reversed.');
+
+      const ids = payload.reversal_transaction_ids || payload.reversal_ids || [];
+      toast(ids.length ? `Reversed · ${ids.join(', ')}` : 'Reversed.');
+
       await loadAll();
     } catch (err) {
       if (error) {
@@ -967,45 +1012,27 @@
   }
 
   async function reverseTransaction(id, reason) {
-    const attempts = [
-      {
-        url: `/api/transactions/${encodeURIComponent(id)}/reverse`,
-        body: { reason, created_by: 'web-ledger' }
+    const response = await fetch(API_REVERSE, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
       },
-      {
-        url: '/api/transactions/reverse',
-        body: { id, reason, created_by: 'web-ledger' }
-      },
-      {
-        url: `/api/transactions/${encodeURIComponent(id)}`,
-        body: { action: 'reverse', reason, created_by: 'web-ledger' }
-      }
-    ];
+      body: JSON.stringify({
+        transaction_id: id,
+        id,
+        reason,
+        created_by: 'web-ledger'
+      })
+    });
 
-    let lastError = null;
+    const payload = await response.json().catch(() => null);
 
-    for (const attempt of attempts) {
-      try {
-        const response = await fetch(attempt.url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json'
-          },
-          body: JSON.stringify(attempt.body)
-        });
-
-        const payload = await response.json().catch(() => null);
-
-        if (response.ok && payload && payload.ok !== false) return payload;
-
-        lastError = new Error((payload && payload.error) || ('HTTP ' + response.status));
-      } catch (err) {
-        lastError = err;
-      }
+    if (!response.ok || !payload || payload.ok === false) {
+      throw new Error((payload && payload.error) || `HTTP ${response.status}`);
     }
 
-    throw lastError || new Error('Reverse failed.');
+    return payload;
   }
 
   function renderAccountsFilter() {
@@ -1162,6 +1189,7 @@
       await loadAccounts();
       await loadTransactions();
       await loadHealth();
+
       renderList();
     } catch (err) {
       if (container) {
@@ -1225,6 +1253,14 @@
         border-color: rgba(83, 215, 167, .20);
       }
 
+      .ledger-compact-row.tone-payment {
+        border-color: rgba(83, 215, 167, .20);
+      }
+
+      .ledger-compact-row.tone-bill {
+        border-color: rgba(87, 167, 241, .24);
+      }
+
       .ledger-row-shell {
         width: 100%;
         border: 0;
@@ -1241,13 +1277,6 @@
 
       .ledger-row-shell:hover {
         background: rgba(255,255,255,.035);
-      }
-
-      .ledger-main-line {
-        display: grid;
-        grid-template-columns: 42px minmax(0, 1fr) auto;
-        gap: 12px;
-        align-items: center;
       }
 
       .ledger-copy-block {
@@ -1635,13 +1664,16 @@
 
   function init() {
     injectStyles();
+
     setText('ledgerJsVersion', VERSION);
-    setText('ledgerFooterVersion', `v0.8.9 · transactions · ${VERSION}`);
+    setText('ledgerFooterVersion', `v0.9.0 · transactions · ${VERSION}`);
+
     bindFilters();
     loadAll();
 
     window.SovereignLedger = {
       version: VERSION,
+      reverse_route: API_REVERSE,
       reload: loadAll,
       state: () => JSON.parse(JSON.stringify({
         rows: state.rows,
@@ -1652,7 +1684,9 @@
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
+    document.addEventListener('DOMContentLoaded', init, {
+      once: true
+    });
   } else {
     init();
   }
