@@ -1,5 +1,5 @@
 /* ─── /api/atm/[[path]] · Sovereign Finance ATM Engine ───
- * v0.2.0-atm-catchall-contract
+ * v0.2.1-atm-catchall-schema-safe
  *
  * Contract:
  * - ATM withdrawal is bank/wallet/prepaid → cash.
@@ -19,9 +19,7 @@
  * - POST /api/atm/reverse
  */
 
-import { json, audit } from '../_lib.js';
-
-const VERSION = 'v0.2.0-atm-catchall-contract';
+const VERSION = 'v0.2.1-atm-catchall-schema-safe';
 const CONTRACT_VERSION = 'atm-v1';
 
 const DEFAULT_SOURCE_ACCOUNT_ID = 'mashreq';
@@ -29,8 +27,6 @@ const DEFAULT_DEST_ACCOUNT_ID = 'cash';
 const DEFAULT_FEE_PKR = 35;
 const REVERSAL_WINDOW_DAYS = 10;
 const MONTHLY_CAP_HINT = 15;
-
-const ACTIVE_ACCOUNT_CONDITION = "(deleted_at IS NULL OR deleted_at = '') AND (archived_at IS NULL OR archived_at = '') AND (status IS NULL OR status = '' OR LOWER(TRIM(status)) = 'active')";
 
 export async function onRequestGet(context) {
   try {
@@ -43,21 +39,25 @@ export async function onRequestGet(context) {
       return atmHealth(db);
     }
 
-    const [accountsRes, pendingFees, recentRows, feeStats] = await Promise.all([
-      db.prepare(
-        `SELECT id, name, icon, type, kind, display_order
-         FROM accounts
-         WHERE ${ACTIVE_ACCOUNT_CONDITION}
-         ORDER BY display_order, name`
-      ).all(),
-      loadPendingFees(db),
-      loadRecentATMRows(db),
-      loadFeeStats30d(db)
+    const [accountCols, txCols] = await Promise.all([
+      tableColumns(db, 'accounts'),
+      tableColumns(db, 'transactions')
     ]);
 
-    const accounts = accountsRes.results || [];
-    const sourceAccounts = accounts.filter(a => String(a.type || '').toLowerCase() === 'asset' && String(a.kind || '').toLowerCase() !== 'cc');
-    const destinationAccounts = accounts.filter(a => String(a.type || '').toLowerCase() === 'asset' && String(a.kind || '').toLowerCase() !== 'cc');
+    const accounts = await loadAccounts(db, accountCols);
+    const pendingFees = await loadPendingFees(db, txCols);
+    const recentRows = await loadRecentATMRows(db, txCols);
+    const feeStats = await loadFeeStats30d(db, txCols);
+
+    const sourceAccounts = accounts.filter(account => {
+      return String(account.type || '').toLowerCase() === 'asset' &&
+        String(account.kind || '').toLowerCase() !== 'cc';
+    });
+
+    const destinationAccounts = accounts.filter(account => {
+      return String(account.type || '').toLowerCase() === 'asset' &&
+        String(account.kind || '').toLowerCase() !== 'cc';
+    });
 
     const totalPending = pendingFees.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
     const overdueCount = pendingFees.filter(row => Number(row.age_days) > REVERSAL_WINDOW_DAYS).length;
@@ -104,7 +104,8 @@ export async function onRequestGet(context) {
       ok: false,
       version: VERSION,
       contract_version: CONTRACT_VERSION,
-      error: err.message || String(err)
+      error: err.message || String(err),
+      stage: 'onRequestGet'
     }, 500);
   }
 }
@@ -137,7 +138,8 @@ export async function onRequestPost(context) {
       ok: false,
       version: VERSION,
       contract_version: CONTRACT_VERSION,
-      error: err.message || String(err)
+      error: err.message || String(err),
+      stage: 'onRequestPost'
     }, 500);
   }
 }
@@ -149,11 +151,11 @@ async function createATMWithdraw(context, body) {
   const feeAmount = body.no_fee ? 0 : moneyNumber(body.fee_amount ?? body.fee ?? DEFAULT_FEE_PKR, DEFAULT_FEE_PKR);
   const sourceId = cleanId(body.source_account_id || body.from_account_id || body.account_id || DEFAULT_SOURCE_ACCOUNT_ID);
   const destId = cleanId(body.cash_account_id || body.destination_account_id || body.to_account_id || DEFAULT_DEST_ACCOUNT_ID);
-  const atmName = cleanText(body.atm_name || body.atm || 'ATM', 80);
+  const atmName = cleanText(body.atm_name || body.atm || 'ATM', '', 80);
   const date = cleanDate(body.date || body.withdrawal_date);
-  const notes = cleanText(body.notes || `ATM withdrawal at ${atmName}`, 300);
-  const createdBy = cleanText(body.created_by || 'web-atm', 100);
-  const idempotencyKey = cleanText(body.idempotency_key || body.client_request_id || '', 180);
+  const notes = cleanText(body.notes || `ATM withdrawal at ${atmName}`, '', 300);
+  const createdBy = cleanText(body.created_by || 'web-atm', '', 100);
+  const idempotencyKey = cleanText(body.idempotency_key || body.client_request_id || '', '', 180);
 
   if (amount == null || amount <= 0) {
     return json({
@@ -232,7 +234,7 @@ async function createATMWithdraw(context, body) {
     }, 500);
   }
 
-  const accounts = await loadAccountMap(db, [sourceId, destId]);
+  const accounts = await loadAccountMap(db, accountCols, [sourceId, destId]);
 
   if (!accounts[sourceId]) {
     return json({
@@ -282,9 +284,6 @@ async function createATMWithdraw(context, body) {
   const feeId = shouldCreateFee ? makeTxnId('atmfee') : null;
   const createdAt = nowISO();
 
-  const outNotes = `[ATM_WITHDRAWAL] atm_id=${atmId} side=source source_account_id=${sourceId} cash_account_id=${destId} ${notes} [linked: ${inId}]`.slice(0, 240);
-  const inNotes = `[ATM_WITHDRAWAL] atm_id=${atmId} side=cash source_account_id=${sourceId} cash_account_id=${destId} ${notes} [linked: ${outId}]`.slice(0, 240);
-
   const outRow = filterToCols(txCols, {
     id: outId,
     date,
@@ -297,7 +296,7 @@ async function createATMWithdraw(context, body) {
     category_id: null,
     merchant_id: null,
     merchant: atmName,
-    notes: outNotes,
+    notes: `[ATM_WITHDRAWAL] atm_id=${atmId} side=source source_account_id=${sourceId} cash_account_id=${destId} ${notes} [linked: ${inId}]`.slice(0, 240),
     fee_amount: 0,
     pra_amount: 0,
     currency: 'PKR',
@@ -324,7 +323,7 @@ async function createATMWithdraw(context, body) {
     category_id: null,
     merchant_id: null,
     merchant: atmName,
-    notes: inNotes,
+    notes: `[ATM_WITHDRAWAL] atm_id=${atmId} side=cash source_account_id=${sourceId} cash_account_id=${destId} ${notes} [linked: ${outId}]`.slice(0, 240),
     fee_amount: 0,
     pra_amount: 0,
     currency: 'PKR',
@@ -381,28 +380,6 @@ async function createATMWithdraw(context, body) {
 
   await db.batch(statements);
 
-  const auditResult = await safeAudit(context.env, {
-    action: 'ATM_WITHDRAW',
-    entity: 'transaction',
-    entity_id: outId,
-    kind: 'mutation',
-    detail: {
-      atm_id: atmId,
-      amount,
-      fee_amount: shouldCreateFee ? feeAmount : 0,
-      source_account_id: sourceId,
-      destination_account_id: destId,
-      atm_name: atmName,
-      out_id: outId,
-      in_id: inId,
-      fee_id: feeId,
-      fee_pending: shouldCreateFee,
-      fee_linked_to_pair: false,
-      date
-    },
-    created_by: createdBy
-  });
-
   return json({
     ok: true,
     version: VERSION,
@@ -438,19 +415,19 @@ async function createATMWithdraw(context, body) {
       fee_row_created: shouldCreateFee,
       fee_row_linked_to_pair: false
     },
-    audited: auditResult.ok,
-    audit_error: auditResult.error || null,
     warnings: []
   });
 }
 
 async function reverseATMFee(context, body) {
   const db = context.env.DB;
-  const createdBy = cleanText(body.created_by || 'web-atm-reverse', 100);
-  const feeTxnId = cleanText(body.fee_txn_id || body.id || '', 160);
+  const createdBy = cleanText(body.created_by || 'web-atm-reverse', '', 100);
+  const feeTxnId = cleanText(body.fee_txn_id || body.id || '', '', 160);
   const amount = body.amount != null ? Number(body.amount) : null;
 
-  const pending = await loadPendingFees(db);
+  const txCols = await tableColumns(db, 'transactions');
+  const pending = await loadPendingFees(db, txCols);
+
   let target = null;
 
   if (feeTxnId) {
@@ -473,13 +450,9 @@ async function reverseATMFee(context, body) {
     }, 404);
   }
 
-  const txCols = await tableColumns(db, 'transactions');
   const reversalId = makeTxnId('atmrev');
   const date = cleanDate(body.date);
   const createdAt = nowISO();
-
-  const reverseNotes = `[ATM_FEE_REVERSAL] fee_txn_id=${target.id} Reversal of ATM fee`.slice(0, 240);
-  const updatedOriginalNotes = `${target.notes || ''} [ATM_FEE_REVERSED_BY: ${reversalId}]`.slice(0, 240);
 
   const reversalRow = filterToCols(txCols, {
     id: reversalId,
@@ -493,7 +466,7 @@ async function reverseATMFee(context, body) {
     category_id: target.category_id || null,
     merchant_id: null,
     merchant: 'ATM',
-    notes: reverseNotes,
+    notes: `[ATM_FEE_REVERSAL] fee_txn_id=${target.id} Reversal of ATM fee`.slice(0, 240),
     fee_amount: 0,
     pra_amount: 0,
     currency: 'PKR',
@@ -507,15 +480,14 @@ async function reverseATMFee(context, body) {
     updated_at: createdAt
   });
 
-  const updates = [];
-  updates.push(buildInsert(db, 'transactions', reversalRow));
+  const statements = [buildInsert(db, 'transactions', reversalRow)];
 
   const updateParts = [];
   const values = [];
 
   if (txCols.has('notes')) {
     updateParts.push('notes = ?');
-    values.push(updatedOriginalNotes);
+    values.push(`${target.notes || ''} [ATM_FEE_REVERSED_BY: ${reversalId}]`.slice(0, 240));
   }
 
   if (txCols.has('updated_at')) {
@@ -525,28 +497,12 @@ async function reverseATMFee(context, body) {
 
   if (updateParts.length) {
     values.push(target.id);
-    updates.push(
+    statements.push(
       db.prepare(`UPDATE transactions SET ${updateParts.join(', ')} WHERE id = ?`).bind(...values)
     );
   }
 
-  await db.batch(updates);
-
-  const auditResult = await safeAudit(context.env, {
-    action: 'ATM_FEE_REVERSED',
-    entity: 'transaction',
-    entity_id: reversalId,
-    kind: 'mutation',
-    detail: {
-      fee_txn_id: target.id,
-      reversal_id: reversalId,
-      amount: Number(target.amount) || 0,
-      account_id: target.account_id,
-      date,
-      fee_reversal_linked_to_pair: false
-    },
-    created_by: createdBy
-  });
+  await db.batch(statements);
 
   return json({
     ok: true,
@@ -558,61 +514,33 @@ async function reverseATMFee(context, body) {
     reversal_id: reversalId,
     amount: Number(target.amount) || 0,
     account_id: target.account_id,
-    linked_to_withdrawal_pair: false,
-    audited: auditResult.ok,
-    audit_error: auditResult.error || null
+    linked_to_withdrawal_pair: false
   });
 }
 
 async function atmHealth(db) {
   const txCols = await tableColumns(db, 'transactions');
 
-  const wanted = [
-    'id',
-    'date',
-    'type',
-    'amount',
-    'pkr_amount',
-    'account_id',
-    'transfer_to_account_id',
-    'category_id',
-    'notes',
-    'created_at',
-    'linked_txn_id',
-    'reversed_by',
-    'reversed_at',
-    'source_module',
-    'source_id',
-    'source_action'
-  ].filter(col => txCols.has(col));
+  if (!txCols.has('id')) {
+    return json({
+      ok: false,
+      version: VERSION,
+      contract_version: CONTRACT_VERSION,
+      action: 'atm.health',
+      error: 'transactions table missing id column'
+    }, 500);
+  }
 
-  const rows = await db.prepare(
-    `SELECT ${wanted.join(', ')}
-     FROM transactions
-     WHERE source_module = 'atm'
-        OR notes LIKE '%[ATM_WITHDRAWAL]%'
-        OR notes LIKE '%[ATM_WITHDRAW]%'
-        OR notes LIKE '%[ATM_FEE_PENDING]%'
-        OR notes LIKE '%[ATM_FEE_REVERSAL]%'
-     ORDER BY ${txCols.has('date') ? 'date DESC,' : ''} ${txCols.has('created_at') ? 'datetime(created_at) DESC,' : ''} id DESC
-     LIMIT 500`
-  ).all();
+  const rows = await loadRecentATMRows(db, txCols, 500);
+  const byId = new Map(rows.map(row => [String(row.id), row]));
 
-  const scanRows = rows.results || [];
-  const byId = new Map(scanRows.map(row => [String(row.id), row]));
+  const withdrawalRows = rows.filter(row => {
+    const notes = String(row.notes || '');
+    return notes.includes('[ATM_WITHDRAWAL]') || notes.includes('[ATM_WITHDRAW]');
+  });
 
-  const withdrawalRows = scanRows.filter(row =>
-    String(row.notes || '').includes('[ATM_WITHDRAWAL]') ||
-    String(row.notes || '').includes('[ATM_WITHDRAW]')
-  );
-
-  const feeRows = scanRows.filter(row =>
-    String(row.notes || '').includes('[ATM_FEE_PENDING]')
-  );
-
-  const reversalRows = scanRows.filter(row =>
-    String(row.notes || '').includes('[ATM_FEE_REVERSAL]')
-  );
+  const feeRows = rows.filter(row => String(row.notes || '').includes('[ATM_FEE_PENDING]'));
+  const reversalRows = rows.filter(row => String(row.notes || '').includes('[ATM_FEE_REVERSAL]'));
 
   const orphanPairs = [];
   const amountMismatches = [];
@@ -675,7 +603,7 @@ async function atmHealth(db) {
     action: 'atm.health',
     status,
     counts: {
-      scanned_rows: scanRows.length,
+      scanned_rows: rows.length,
       withdrawal_rows: withdrawalRows.length,
       fee_rows: feeRows.length,
       fee_reversal_rows: reversalRows.length,
@@ -703,65 +631,136 @@ async function atmHealth(db) {
   });
 }
 
-async function loadPendingFees(db) {
+async function loadAccounts(db, cols) {
+  if (!cols.has('id')) return [];
+
+  const wanted = [
+    'id',
+    'name',
+    'icon',
+    'type',
+    'kind',
+    'status',
+    'display_order',
+    'deleted_at',
+    'archived_at'
+  ].filter(col => cols.has(col));
+
+  const where = activeAccountWhere(cols);
+  const orderBy = cols.has('display_order')
+    ? 'display_order, name'
+    : (cols.has('name') ? 'name' : 'id');
+
   const rows = await db.prepare(
-    `SELECT
-        id,
-        date,
-        type,
-        amount,
-        account_id,
-        category_id,
-        notes,
-        created_at,
-        linked_txn_id,
-        CAST(julianday('now') - julianday(date) AS INTEGER) AS age_days
+    `SELECT ${wanted.join(', ')}
+     FROM accounts
+     ${where ? 'WHERE ' + where : ''}
+     ORDER BY ${orderBy}`
+  ).all();
+
+  return (rows.results || []).map(row => ({
+    id: row.id,
+    name: row.name || row.id,
+    icon: row.icon || '',
+    type: row.type || 'asset',
+    kind: row.kind || row.type || 'asset',
+    display_order: row.display_order == null ? 999 : Number(row.display_order)
+  }));
+}
+
+async function loadPendingFees(db, txCols) {
+  if (!txCols.has('id')) return [];
+
+  const wanted = [
+    'id',
+    'date',
+    'type',
+    'amount',
+    'account_id',
+    'category_id',
+    'notes',
+    'created_at',
+    'linked_txn_id',
+    'reversed_by',
+    'reversed_at'
+  ].filter(col => txCols.has(col));
+
+  const rows = await db.prepare(
+    `SELECT ${wanted.join(', ')}
      FROM transactions
      WHERE (
-        (notes LIKE '%[ATM_FEE_PENDING]%')
-        OR
-        (notes LIKE '%PENDING reversal%' AND notes LIKE '%ATM%')
+        notes LIKE '%[ATM_FEE_PENDING]%'
+        OR (notes LIKE '%PENDING reversal%' AND notes LIKE '%ATM%')
      )
      AND (notes IS NULL OR notes NOT LIKE '%[ATM_FEE_REVERSED%')
-     AND (reversed_by IS NULL OR reversed_by = '')
-     AND (reversed_at IS NULL OR reversed_at = '')
-     ORDER BY date DESC, datetime(created_at) DESC, id DESC
+     ${txCols.has('reversed_by') ? "AND (reversed_by IS NULL OR reversed_by = '')" : ''}
+     ${txCols.has('reversed_at') ? "AND (reversed_at IS NULL OR reversed_at = '')" : ''}
+     ORDER BY ${buildOrderBy(txCols)}
      LIMIT 50`
   ).all();
 
-  return rows.results || [];
+  return (rows.results || []).map(row => ({
+    ...row,
+    age_days: daysSince(row.date)
+  }));
 }
 
-async function loadRecentATMRows(db) {
+async function loadRecentATMRows(db, txCols, limit = 40) {
+  if (!txCols.has('id')) return [];
+
+  const wanted = [
+    'id',
+    'date',
+    'type',
+    'amount',
+    'pkr_amount',
+    'account_id',
+    'category_id',
+    'notes',
+    'created_at',
+    'linked_txn_id',
+    'reversed_by',
+    'reversed_at',
+    'source_module',
+    'source_id',
+    'source_action'
+  ].filter(col => txCols.has(col));
+
+  const predicates = [
+    "type = 'atm'",
+    "notes LIKE '%[ATM_WITHDRAWAL]%'",
+    "notes LIKE '%[ATM_WITHDRAW]%'",
+    "notes LIKE '%[ATM_FEE_PENDING]%'",
+    "notes LIKE '%[ATM_FEE_REVERSAL]%'",
+    "notes LIKE '%ATM withdraw%'",
+    "notes LIKE '%ATM fee%'",
+    "notes LIKE '%PENDING reversal%'"
+  ];
+
+  if (txCols.has('source_module')) {
+    predicates.unshift("source_module = 'atm'");
+  }
+
   const rows = await db.prepare(
-    `SELECT
-        id,
-        date,
-        type,
-        amount,
-        account_id,
-        category_id,
-        notes,
-        created_at,
-        linked_txn_id
+    `SELECT ${wanted.join(', ')}
      FROM transactions
-     WHERE source_module = 'atm'
-        OR type = 'atm'
-        OR notes LIKE '%[ATM_WITHDRAWAL]%'
-        OR notes LIKE '%[ATM_WITHDRAW]%'
-        OR notes LIKE '%[ATM_FEE_PENDING]%'
-        OR notes LIKE '%[ATM_FEE_REVERSAL]%'
-        OR notes LIKE '%ATM withdraw%'
-        OR notes LIKE '%ATM fee%'
-        OR notes LIKE '%PENDING reversal%'
-     ORDER BY date DESC, datetime(created_at) DESC, id DESC
-     LIMIT 40`
-  ).all();
+     WHERE ${predicates.join(' OR ')}
+     ORDER BY ${buildOrderBy(txCols)}
+     LIMIT ?`
+  ).bind(limit).all();
 
   return rows.results || [];
 }
 
-async function loadFeeStats30d(db) {
+async function loadFeeStats30d(db, txCols) {
+  if (!txCols.has('id')) {
+    return {
+      paid: 0,
+      reversed: 0,
+      net: 0
+    };
+  }
+
   const paidRows = await db.prepare(
     `SELECT COALESCE(SUM(amount), 0) AS total
      FROM transactions
@@ -779,8 +778,8 @@ async function loadFeeStats30d(db) {
        AND notes LIKE '%[ATM_FEE_REVERSAL]%'`
   ).first();
 
-  const paid = Number(paidRows?.total) || 0;
-  const reversed = Number(reversedRows?.total) || 0;
+  const paid = Number(paidRows && paidRows.total) || 0;
+  const reversed = Number(reversedRows && reversedRows.total) || 0;
 
   return {
     paid: round2(paid),
@@ -789,17 +788,33 @@ async function loadFeeStats30d(db) {
   };
 }
 
-async function loadAccountMap(db, ids) {
+async function loadAccountMap(db, cols, ids) {
   const out = {};
+
+  if (!cols.has('id')) return out;
+
+  const where = activeAccountWhere(cols);
 
   for (const id of ids) {
     if (!id) continue;
 
+    const wanted = [
+      'id',
+      'name',
+      'icon',
+      'type',
+      'kind',
+      'status',
+      'deleted_at',
+      'archived_at'
+    ].filter(col => cols.has(col));
+
     const row = await db.prepare(
-      `SELECT id, name, icon, type, kind, status, deleted_at, archived_at
+      `SELECT ${wanted.join(', ')}
        FROM accounts
        WHERE id = ?
-       AND ${ACTIVE_ACCOUNT_CONDITION}`
+       ${where ? 'AND ' + where : ''}
+       LIMIT 1`
     ).bind(id).first();
 
     if (row && row.id) out[row.id] = row;
@@ -832,22 +847,14 @@ async function resolveCategoryId(db, preferredId) {
   return fallback && fallback.id ? fallback.id : null;
 }
 
-function getPath(context) {
-  const raw = context.params && context.params.path;
+function activeAccountWhere(cols) {
+  const clauses = [];
 
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
+  if (cols.has('deleted_at')) clauses.push("(deleted_at IS NULL OR deleted_at = '')");
+  if (cols.has('archived_at')) clauses.push("(archived_at IS NULL OR archived_at = '')");
+  if (cols.has('status')) clauses.push("(status IS NULL OR status = '' OR LOWER(TRIM(status)) = 'active')");
 
-  return String(raw).split('/').filter(Boolean);
-}
-
-function isOwnATM(sourceId, atmName, noFee) {
-  if (noFee) return true;
-
-  const source = String(sourceId || '').toLowerCase();
-  const atm = String(atmName || '').toLowerCase();
-
-  return source === 'mashreq' && atm.includes('mashreq');
+  return clauses.join(' AND ');
 }
 
 async function tableColumns(db, table) {
@@ -886,6 +893,16 @@ function buildInsert(db, table, row) {
     `INSERT INTO ${table} (${keys.join(', ')})
      VALUES (${keys.map(() => '?').join(', ')})`
   ).bind(...keys.map(key => row[key]));
+}
+
+function buildOrderBy(cols) {
+  const parts = [];
+
+  if (cols.has('date')) parts.push('date DESC');
+  if (cols.has('created_at')) parts.push('datetime(created_at) DESC');
+  if (cols.has('id')) parts.push('id DESC');
+
+  return parts.length ? parts.join(', ') : 'rowid DESC';
 }
 
 function rowAmount(row) {
@@ -973,6 +990,27 @@ function round2(value) {
   return Math.round(n * 100) / 100;
 }
 
+function daysSince(dateValue) {
+  const raw = String(dateValue || '').slice(0, 10);
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+
+  const then = new Date(raw + 'T00:00:00.000Z').getTime();
+  const now = new Date();
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+
+  return Math.floor((today - then) / 86400000);
+}
+
+function getPath(context) {
+  const raw = context.params && context.params.path;
+
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
+
+  return String(raw).split('/').filter(Boolean);
+}
+
 async function readJSON(request) {
   try {
     return await request.json();
@@ -981,23 +1019,22 @@ async function readJSON(request) {
   }
 }
 
-async function safeAudit(env, event) {
-  try {
-    const result = await audit(env, {
-      ...event,
-      detail: typeof event.detail === 'string'
-        ? event.detail
-        : JSON.stringify(event.detail || {})
-    });
+function isOwnATM(sourceId, atmName, noFee) {
+  if (noFee) return true;
 
-    return {
-      ok: !!(result && result.ok),
-      error: result && result.error ? result.error : null
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      error: err.message || String(err)
-    };
-  }
+  const source = String(sourceId || '').toLowerCase();
+  const atm = String(atmName || '').toLowerCase();
+
+  return source === 'mashreq' && atm.includes('mashreq');
+}
+
+function json(payload, status = 200) {
+  return new Response(JSON.stringify(payload, null, 2), {
+    status,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      Pragma: 'no-cache'
+    }
+  });
 }
