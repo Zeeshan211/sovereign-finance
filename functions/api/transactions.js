@@ -1,19 +1,27 @@
 /* /api/transactions
  * Sovereign Finance · Transactions Engine
- * v0.5.5-read-write-unblock
+ * v0.6.0-transactions-add-contract
  *
- * Purpose:
- * - Restore POST writes after recovery route disabled them.
- * - Keep GET returning JSON for Ledger.
- * - Support dry-run + payload hash commit.
- * - Support expense, income, transfer.
- * - Transfer writes 2 linked rows.
- * - Balance projection skips reversal rows and reversed originals.
+ * Contract:
+ * - Backend owns transaction truth.
+ * - Accounts are ledger-derived.
+ * - Frontend may submit income, expense, transfer, and catch-up entries.
+ * - Direct edit/delete is not supported here.
+ * - Reversal lives in /api/transactions/reverse.
+ * - Dry-run + payload hash is supported.
+ * - Direct commit is also supported for daily ledger recovery.
  */
 
-const VERSION = 'v0.5.5-read-write-unblock';
+const VERSION = 'v0.6.0-transactions-add-contract';
+const CONTRACT_VERSION = 'transactions-add-v1';
 
-const FRONTEND_ADD_TYPES = ['expense', 'income', 'transfer'];
+const FRONTEND_ADD_TYPES = [
+  'expense',
+  'income',
+  'transfer',
+  'adjustment_positive',
+  'adjustment_negative'
+];
 
 const SYSTEM_TYPES = [
   'cc_payment',
@@ -28,6 +36,26 @@ const SYSTEM_TYPES = [
 ];
 
 const ALLOWED_TYPES = FRONTEND_ADD_TYPES.concat(SYSTEM_TYPES);
+
+const IN_TYPES = new Set([
+  'income',
+  'salary',
+  'opening',
+  'borrow',
+  'debt_in',
+  'adjustment_positive'
+]);
+
+const OUT_TYPES = new Set([
+  'expense',
+  'transfer',
+  'cc_payment',
+  'cc_spend',
+  'repay',
+  'atm',
+  'debt_out',
+  'adjustment_negative'
+]);
 
 const CATEGORY_ALIASES = {
   grocery: 'groceries',
@@ -64,6 +92,9 @@ const CATEGORY_ALIASES = {
   manual_income: 'manual_income',
   manual: 'manual_income',
   transfer: 'transfer',
+  adjustment: 'misc',
+  adjustment_positive: 'misc',
+  adjustment_negative: 'misc',
   misc: 'misc',
   miscellaneous: 'misc',
   other: 'misc',
@@ -92,6 +123,7 @@ export async function onRequestGet(context) {
       return json({
         ok: false,
         version: VERSION,
+        contract_version: CONTRACT_VERSION,
         error: 'transactions table missing id column'
       }, 500);
     }
@@ -117,6 +149,7 @@ export async function onRequestGet(context) {
     return json({
       ok: true,
       version: VERSION,
+      contract_version: CONTRACT_VERSION,
       include_reversed: includeReversed,
       count: visible.length,
       fetched_count: decorated.length,
@@ -124,10 +157,11 @@ export async function onRequestGet(context) {
       contract: {
         frontend_add_types: FRONTEND_ADD_TYPES,
         backend_system_types: SYSTEM_TYPES,
-        unsupported_types: ['adjustment'],
-        dry_run_required: true,
-        commit_requires_payload_hash: true,
-        category_aliases: CATEGORY_ALIASES
+        dry_run_supported: true,
+        direct_commit_supported: true,
+        commit_hash_supported: true,
+        account_balance_source: 'ledger',
+        reversal_route: '/api/transactions/reverse'
       },
       transactions: visible
     });
@@ -135,6 +169,7 @@ export async function onRequestGet(context) {
     return json({
       ok: false,
       version: VERSION,
+      contract_version: CONTRACT_VERSION,
       error: err.message
     }, 500);
   }
@@ -152,9 +187,14 @@ export async function onRequestPost(context) {
       return json({
         ok: false,
         version: VERSION,
+        contract_version: CONTRACT_VERSION,
         dry_run: dryRun,
+        action: 'transaction_create',
         error: validation.error,
-        details: validation.details || null
+        code: validation.code || 'VALIDATION_FAILED',
+        committed: false,
+        details: validation.details || null,
+        warnings: validation.warnings || []
       }, validation.status || 400);
     }
 
@@ -162,9 +202,11 @@ export async function onRequestPost(context) {
       return json({
         ok: true,
         version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        action: 'transaction_create',
         dry_run: true,
         writes_performed: false,
-        audit_performed: false,
+        committed: false,
         payload_hash: validation.payload_hash,
         override_token: validation.override_token,
         requires_override: validation.requires_override,
@@ -175,17 +217,21 @@ export async function onRequestPost(context) {
       });
     }
 
-    const hashCheck = checkCommitHash(body, validation);
+    const hashCheck = checkCommitHashIfSupplied(body, validation);
 
     if (!hashCheck.ok) {
       return json({
         ok: false,
         version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        action: 'transaction_create',
         error: hashCheck.error,
+        code: hashCheck.code,
+        committed: false,
         supplied_hash: hashCheck.supplied_hash,
         expected_hash: validation.payload_hash,
         normalized_payload: validation.normalized_payload,
-        next_step: 'Run dry-run first, then commit with dry_run_payload_hash.'
+        next_step: 'Run dry-run again or submit without stale dry_run_payload_hash.'
       }, hashCheck.status);
     }
 
@@ -195,7 +241,11 @@ export async function onRequestPost(context) {
       return json({
         ok: false,
         version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        action: 'transaction_create',
         error: overrideCheck.error,
+        code: overrideCheck.code,
+        committed: false,
         requires_override: validation.requires_override,
         override_reason: validation.override_reason,
         override_token_required: true
@@ -211,7 +261,10 @@ export async function onRequestPost(context) {
     return json({
       ok: false,
       version: VERSION,
-      error: err.message
+      contract_version: CONTRACT_VERSION,
+      action: 'transaction_create',
+      error: err.message,
+      committed: false
     }, 500);
   }
 }
@@ -221,13 +274,14 @@ async function validatePayload(context, body) {
   const warnings = [];
 
   const amount = roundMoney(Number(body.amount));
-  const requestedType = text(body.type || body.transaction_type, '', 40).toLowerCase();
+  const requestedType = text(body.type || body.transaction_type, '', 60).toLowerCase();
   const type = normalizeType(requestedType);
 
   if (!Number.isFinite(amount) || amount <= 0) {
     return {
       ok: false,
       status: 400,
+      code: 'INVALID_AMOUNT',
       error: 'Amount must be greater than 0'
     };
   }
@@ -236,19 +290,8 @@ async function validatePayload(context, body) {
     return {
       ok: false,
       status: 400,
+      code: 'TYPE_REQUIRED',
       error: 'type required'
-    };
-  }
-
-  if (requestedType === 'adjustment' || type === 'adjustment') {
-    return {
-      ok: false,
-      status: 400,
-      error: 'Unsupported transaction type',
-      details: {
-        rejected_type: requestedType,
-        allowed_frontend_types: FRONTEND_ADD_TYPES
-      }
     };
   }
 
@@ -256,9 +299,11 @@ async function validatePayload(context, body) {
     return {
       ok: false,
       status: 400,
+      code: 'INVALID_TYPE',
       error: 'Invalid type',
       details: {
         rejected_type: requestedType,
+        normalized_type: type,
         allowed_types: ALLOWED_TYPES
       }
     };
@@ -270,6 +315,7 @@ async function validatePayload(context, body) {
     return {
       ok: false,
       status: 400,
+      code: 'ACCOUNT_REQUIRED',
       error: 'account_id required'
     };
   }
@@ -280,6 +326,7 @@ async function validatePayload(context, body) {
     return {
       ok: false,
       status: sourceResult.status || 409,
+      code: 'ACCOUNT_NOT_FOUND',
       error: sourceResult.error,
       details: {
         account_input: text(sourceInput, '', 160)
@@ -290,44 +337,44 @@ async function validatePayload(context, body) {
   const sourceAccount = sourceResult.account;
 
   let transferToAccount = null;
-
   const transferTargetInput =
     body.transfer_to_account_id ||
     body.to_account_id ||
     body.destination_account_id;
 
-  if (type === 'transfer' || type === 'cc_payment' || transferTargetInput) {
-    if ((type === 'transfer' || type === 'cc_payment') && !transferTargetInput) {
+  if (type === 'transfer' || transferTargetInput) {
+    if (!transferTargetInput) {
       return {
         ok: false,
         status: 400,
-        error: 'transfer_to_account_id required for ' + type
+        code: 'TRANSFER_TARGET_REQUIRED',
+        error: 'transfer_to_account_id required for transfer'
       };
     }
 
-    if (transferTargetInput) {
-      const targetResult = await resolveAccount(db, transferTargetInput);
+    const targetResult = await resolveAccount(db, transferTargetInput);
 
-      if (!targetResult.ok) {
-        return {
-          ok: false,
-          status: targetResult.status || 409,
-          error: targetResult.error,
-          details: {
-            transfer_to_account_input: text(transferTargetInput, '', 160)
-          }
-        };
-      }
+    if (!targetResult.ok) {
+      return {
+        ok: false,
+        status: targetResult.status || 409,
+        code: 'TRANSFER_TARGET_NOT_FOUND',
+        error: targetResult.error,
+        details: {
+          transfer_to_account_input: text(transferTargetInput, '', 160)
+        }
+      };
+    }
 
-      transferToAccount = targetResult.account;
+    transferToAccount = targetResult.account;
 
-      if (sourceAccount.id === transferToAccount.id) {
-        return {
-          ok: false,
-          status: 400,
-          error: 'source and destination accounts cannot match'
-        };
-      }
+    if (sourceAccount.id === transferToAccount.id) {
+      return {
+        ok: false,
+        status: 400,
+        code: 'TRANSFER_SAME_ACCOUNT',
+        error: 'source and destination accounts cannot match'
+      };
     }
   }
 
@@ -341,6 +388,7 @@ async function validatePayload(context, body) {
       return {
         ok: false,
         status: categoryResult.status || 409,
+        code: 'CATEGORY_NOT_FOUND',
         error: categoryResult.error,
         details: {
           category_input: text(categoryInput, '', 160)
@@ -353,10 +401,21 @@ async function validatePayload(context, body) {
 
   const currency = normalizeCurrency(body.currency || body.currency_code || 'PKR');
   const fxRate = normalizeFxRate(body.fx_rate_at_commit || body.fx_rate, currency);
+
+  if (currency !== 'PKR' && fxRate <= 0) {
+    return {
+      ok: false,
+      status: 400,
+      code: 'FX_RATE_REQUIRED',
+      error: 'fx_rate required for non-PKR transaction'
+    };
+  }
+
   const pkrAmount = roundMoney(currency === 'PKR' ? amount : amount * fxRate);
+  const date = normalizeDate(body.date);
 
   const normalized = {
-    date: normalizeDate(body.date),
+    date,
     type,
     requested_type: requestedType,
     amount,
@@ -369,11 +428,25 @@ async function validatePayload(context, body) {
     transfer_to_account_id: transferToAccount ? transferToAccount.id : null,
     transfer_to_account_name: transferToAccount ? (transferToAccount.name || transferToAccount.id) : null,
     category_id: categoryId,
+    merchant_id: text(body.merchant_id, '', 160) || null,
+    merchant: text(body.merchant || body.payee, '', 160) || null,
     notes: cleanNotes(body.notes || body.description || body.memo),
     fee_amount: cleanAmount(body.fee_amount),
     pra_amount: cleanAmount(body.pra_amount),
+    source_module: text(body.source_module, 'manual', 80) || 'manual',
+    source_id: text(body.source_id, '', 160) || null,
+    source_action: text(body.source_action, 'manual_create', 80) || 'manual_create',
+    idempotency_key: text(body.idempotency_key || body.client_request_id, '', 200) || null,
     created_by: text(body.created_by, 'web-ledger', 80) || 'web-ledger'
   };
+
+  if (normalized.notes.includes('[CATCHUP]')) {
+    warnings.push({
+      code: 'CATCHUP_ENTRY',
+      severity: 'info',
+      message: 'Catch-up transaction will be inserted using the supplied transaction date.'
+    });
+  }
 
   const balanceProof = await buildBalanceProof(db, normalized, sourceAccount, transferToAccount);
   const duplicateProof = await buildDuplicateProof(db, normalized);
@@ -387,12 +460,14 @@ async function validatePayload(context, body) {
 
   const payloadHash = await hashPayload({
     route: 'transactions',
+    contract_version: CONTRACT_VERSION,
     normalized_payload: normalized
   });
 
   const overrideToken = requiresOverride
     ? await hashPayload({
       route: 'transactions',
+      contract_version: CONTRACT_VERSION,
       override_reason: overrideReason,
       normalized_payload: normalized
     })
@@ -418,23 +493,35 @@ async function validatePayload(context, body) {
 
 function buildProof(payload, checks) {
   const isTransfer = payload.type === 'transfer';
+  const delta = accountDelta(payload.type, payload.pkr_amount, 'source');
 
   return {
-    action: 'transaction.save',
+    action: 'transaction_create',
     version: VERSION,
+    contract_version: CONTRACT_VERSION,
     writes_performed: false,
     validation_status: checks.balance.blocked ? 'blocked' : 'pass',
     write_model: isTransfer ? 'linked_transfer_pair' : 'single_transaction_row',
     expected_transaction_rows: isTransfer ? 2 : 1,
     expected_audit_rows: 0,
+    transaction: {
+      type: payload.type,
+      amount: payload.amount,
+      pkr_amount: payload.pkr_amount,
+      account_id: payload.account_id,
+      account_delta: delta,
+      date: payload.date,
+      source_module: payload.source_module,
+      source_action: payload.source_action
+    },
     contract: {
       frontend_add_types: FRONTEND_ADD_TYPES,
-      unsupported_types: ['adjustment'],
       requested_type: payload.requested_type,
       normalized_type: payload.type,
       canonical_category_id: payload.category_id,
-      dry_run_required: true,
-      commit_requires_payload_hash: true
+      dry_run_supported: true,
+      direct_commit_supported: true,
+      commit_hash_supported: true
     },
     checks: [
       {
@@ -457,7 +544,7 @@ function buildProof(payload, checks) {
       },
       {
         check: 'destination_account_valid',
-        status: payload.type === 'transfer' || payload.type === 'cc_payment' ? 'pass' : 'not_required',
+        status: payload.type === 'transfer' ? 'pass' : 'not_required',
         source: 'accounts',
         detail: payload.transfer_to_account_id
           ? 'Destination account resolved to active account_id ' + payload.transfer_to_account_id + '.'
@@ -483,6 +570,7 @@ async function createSingleTransaction(context, validation) {
   const payload = validation.normalized_payload;
   const txCols = await tableColumns(db, 'transactions');
   const id = makeTxnId('tx');
+  const delta = accountDelta(payload.type, payload.pkr_amount, 'source');
 
   const row = filterToCols(txCols, {
     id,
@@ -493,6 +581,8 @@ async function createSingleTransaction(context, validation) {
     transfer_to_account_id: payload.transfer_to_account_id,
     linked_txn_id: null,
     category_id: payload.category_id,
+    merchant_id: payload.merchant_id,
+    merchant: payload.merchant,
     notes: payload.notes,
     fee_amount: payload.fee_amount,
     pra_amount: payload.pra_amount,
@@ -500,8 +590,13 @@ async function createSingleTransaction(context, validation) {
     pkr_amount: payload.pkr_amount,
     fx_rate_at_commit: payload.fx_rate_at_commit,
     fx_source: payload.fx_source,
+    source_module: payload.source_module,
+    source_id: payload.source_id,
+    source_action: payload.source_action,
+    idempotency_key: payload.idempotency_key,
     created_by: payload.created_by,
-    created_at: nowISO()
+    created_at: nowISO(),
+    updated_at: nowISO()
   });
 
   try {
@@ -511,7 +606,11 @@ async function createSingleTransaction(context, validation) {
       return json({
         ok: false,
         version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        action: 'transaction_create',
         error: 'Transaction failed account/category foreign-key guard.',
+        code: 'FOREIGN_KEY_GUARD',
+        committed: false,
         normalized_payload: payload,
         d1_error: err.message
       }, 409);
@@ -523,16 +622,44 @@ async function createSingleTransaction(context, validation) {
   return json({
     ok: true,
     version: VERSION,
+    contract_version: CONTRACT_VERSION,
+    action: 'transaction_create',
+    committed: true,
+    writes_performed: true,
     id,
-    account_id: payload.account_id,
-    account_name: payload.account_name,
-    transfer_to_account_id: payload.transfer_to_account_id,
-    transfer_to_account_name: payload.transfer_to_account_name,
+    transaction: {
+      created: true,
+      id,
+      type: payload.type,
+      amount: payload.amount,
+      pkr_amount: payload.pkr_amount,
+      account_id: payload.account_id,
+      account_delta: delta,
+      date: payload.date,
+      source_module: payload.source_module,
+      source_action: payload.source_action
+    },
+    ledger: {
+      visible: true,
+      reversed: false,
+      reversal_route: '/api/transactions/reverse'
+    },
+    account: {
+      balance_source: 'ledger',
+      impacted: true,
+      account_id: payload.account_id,
+      account_delta: delta
+    },
+    forecast: {
+      should_reflect: true,
+      source: 'accounts-ledger-derived'
+    },
     category_id: payload.category_id,
     audited: false,
     audit_error: null,
     payload_hash: validation.payload_hash,
-    proof: validation.proof
+    proof: validation.proof,
+    warnings: validation.warnings
   });
 }
 
@@ -548,6 +675,8 @@ async function createTransferPair(context, validation) {
   const outNotes = `To: ${payload.transfer_to_account_name || payload.transfer_to_account_id} ${baseNotes} (OUT) [linked: ${inId}]`.slice(0, 240);
   const inNotes = `From: ${payload.account_name || payload.account_id} ${baseNotes} (IN) [linked: ${outId}]`.slice(0, 240);
 
+  const createdAt = nowISO();
+
   const outRow = filterToCols(txCols, {
     id: outId,
     date: payload.date,
@@ -557,6 +686,8 @@ async function createTransferPair(context, validation) {
     transfer_to_account_id: payload.transfer_to_account_id,
     linked_txn_id: inId,
     category_id: null,
+    merchant_id: payload.merchant_id,
+    merchant: payload.merchant,
     notes: outNotes,
     fee_amount: payload.fee_amount,
     pra_amount: payload.pra_amount,
@@ -564,8 +695,13 @@ async function createTransferPair(context, validation) {
     pkr_amount: payload.pkr_amount,
     fx_rate_at_commit: payload.fx_rate_at_commit,
     fx_source: payload.fx_source,
+    source_module: payload.source_module,
+    source_id: payload.source_id,
+    source_action: 'transfer_out',
+    idempotency_key: payload.idempotency_key,
     created_by: payload.created_by,
-    created_at: nowISO()
+    created_at: createdAt,
+    updated_at: createdAt
   });
 
   const inRow = filterToCols(txCols, {
@@ -577,6 +713,8 @@ async function createTransferPair(context, validation) {
     transfer_to_account_id: payload.account_id,
     linked_txn_id: outId,
     category_id: null,
+    merchant_id: payload.merchant_id,
+    merchant: payload.merchant,
     notes: inNotes,
     fee_amount: 0,
     pra_amount: 0,
@@ -584,8 +722,13 @@ async function createTransferPair(context, validation) {
     pkr_amount: payload.pkr_amount,
     fx_rate_at_commit: payload.fx_rate_at_commit,
     fx_source: payload.fx_source,
+    source_module: payload.source_module,
+    source_id: payload.source_id,
+    source_action: 'transfer_in',
+    idempotency_key: payload.idempotency_key ? payload.idempotency_key + ':in' : null,
     created_by: payload.created_by,
-    created_at: nowISO()
+    created_at: createdAt,
+    updated_at: createdAt
   });
 
   try {
@@ -598,7 +741,11 @@ async function createTransferPair(context, validation) {
       return json({
         ok: false,
         version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        action: 'transaction_create',
         error: 'Transfer failed account foreign-key guard.',
+        code: 'FOREIGN_KEY_GUARD',
+        committed: false,
         normalized_payload: payload,
         d1_error: err.message
       }, 409);
@@ -610,24 +757,55 @@ async function createTransferPair(context, validation) {
   return json({
     ok: true,
     version: VERSION,
+    contract_version: CONTRACT_VERSION,
+    action: 'transaction_create',
+    committed: true,
+    writes_performed: true,
     id: outId,
     linked_id: inId,
     ids: [outId, inId],
-    from_account_id: payload.account_id,
-    from_account_name: payload.account_name,
-    to_account_id: payload.transfer_to_account_id,
-    to_account_name: payload.transfer_to_account_name,
-    transfer_model: 'linked_pair',
+    transaction: {
+      created: true,
+      id: outId,
+      linked_id: inId,
+      type: 'transfer',
+      amount: payload.amount,
+      pkr_amount: payload.pkr_amount,
+      account_id: payload.account_id,
+      account_delta: -Math.abs(payload.pkr_amount),
+      date: payload.date,
+      source_module: payload.source_module,
+      source_action: 'transfer_pair'
+    },
+    ledger: {
+      visible: true,
+      reversed: false,
+      transfer_model: 'linked_pair',
+      row_count: 2
+    },
+    account: {
+      balance_source: 'ledger',
+      impacted: true,
+      from_account_id: payload.account_id,
+      from_account_delta: -Math.abs(payload.pkr_amount),
+      to_account_id: payload.transfer_to_account_id,
+      to_account_delta: Math.abs(payload.pkr_amount)
+    },
+    forecast: {
+      should_reflect: true,
+      source: 'accounts-ledger-derived'
+    },
     audited: false,
     audit_error: null,
     payload_hash: validation.payload_hash,
-    proof: validation.proof
+    proof: validation.proof,
+    warnings: validation.warnings
   });
 }
 
 async function buildBalanceProof(db, payload, sourceAccount, transferToAccount) {
   const sourceBalance = await computeAccountBalance(db, payload.account_id);
-  const sourceProjection = projectBalance(sourceBalance.balance, payload.type, payload.pkr_amount, 'source');
+  const sourceProjection = sourceBalance.balance + accountDelta(payload.type, payload.pkr_amount, 'source');
 
   const sourceKind = classifyAccount(sourceAccount);
   const sourceLimit = accountCreditLimit(sourceAccount);
@@ -673,7 +851,7 @@ async function buildBalanceProof(db, payload, sourceAccount, transferToAccount) 
 
   if (payload.type === 'transfer' && transferToAccount) {
     const targetBalance = await computeAccountBalance(db, payload.transfer_to_account_id);
-    const targetProjection = projectBalance(targetBalance.balance, 'income', payload.pkr_amount, 'target');
+    const targetProjection = targetBalance.balance + Math.abs(payload.pkr_amount);
 
     proof.transfer_target = {
       account_id: payload.transfer_to_account_id,
@@ -724,7 +902,7 @@ async function computeAccountBalance(db, accountId) {
       continue;
     }
 
-    const amount = Number(row.pkr_amount || row.amount || 0);
+    const amount = Math.abs(Number(row.pkr_amount || row.amount || 0));
     balance += signedAmount(row.type, amount);
     txnCount += 1;
   }
@@ -757,7 +935,8 @@ async function buildDuplicateProof(db, payload) {
     'category_id',
     'notes',
     'reversed_by',
-    'reversed_at'
+    'reversed_at',
+    'created_at'
   ].filter(col => txCols.has(col));
 
   const rows = await db.prepare(
@@ -766,7 +945,7 @@ async function buildDuplicateProof(db, payload) {
      WHERE date = ?
        AND type = ?
        AND account_id = ?
-       AND ROUND(amount, 2) = ROUND(?, 2)
+       AND ROUND(ABS(amount), 2) = ROUND(ABS(?), 2)
      ORDER BY ${buildOrderBy(txCols)}
      LIMIT 5`
   ).bind(payload.date, payload.type, payload.account_id, payload.amount).all();
@@ -822,7 +1001,7 @@ async function resolveAccount(db, input) {
   const exact = await db.prepare(
     `SELECT *
      FROM accounts
-     WHERE id = ?
+     WHERE TRIM(id) = TRIM(?)
      ${where ? 'AND ' + where : ''}
      LIMIT 1`
   ).bind(raw).first();
@@ -878,6 +1057,10 @@ async function resolveCategory(db, input, type) {
   if (!raw) {
     if (type === 'income' || type === 'salary') {
       return resolveCategory(db, type === 'salary' ? 'salary_income' : 'manual_income', type);
+    }
+
+    if (type === 'adjustment_positive' || type === 'adjustment_negative') {
+      return resolveCategory(db, 'misc', type);
     }
 
     return resolveCategory(db, 'misc', type);
@@ -946,6 +1129,8 @@ function selectTransactionColumns(cols) {
     'account_id',
     'transfer_to_account_id',
     'category_id',
+    'merchant_id',
+    'merchant',
     'notes',
     'fee_amount',
     'pra_amount',
@@ -957,8 +1142,13 @@ function selectTransactionColumns(cols) {
     'reversed_by',
     'reversed_at',
     'linked_txn_id',
+    'source_module',
+    'source_id',
+    'source_action',
+    'idempotency_key',
     'created_by',
-    'created_at'
+    'created_at',
+    'updated_at'
   ].filter(col => cols.has(col));
 }
 
@@ -1013,16 +1203,26 @@ function extractLinkedId(notes) {
   return match ? match[1].trim() : null;
 }
 
-function projectBalance(current, type, amount, side) {
-  if (side === 'target') return current + amount;
-  return current + signedAmount(type, amount);
+function accountDelta(type, amount, side) {
+  if (side === 'target') return Math.abs(amount);
+
+  const normalized = normalizeType(type);
+  const n = Math.abs(Number(amount) || 0);
+
+  if (IN_TYPES.has(normalized)) return n;
+  if (OUT_TYPES.has(normalized)) return -n;
+
+  return n;
 }
 
 function signedAmount(type, amount) {
   const normalized = normalizeType(type);
+  const n = Math.abs(Number(amount) || 0);
 
-  if (['income', 'salary', 'opening', 'borrow', 'debt_in'].includes(normalized)) return amount;
-  return -amount;
+  if (IN_TYPES.has(normalized)) return n;
+  if (OUT_TYPES.has(normalized)) return -n;
+
+  return n;
 }
 
 function classifyAccount(account) {
@@ -1062,15 +1262,12 @@ function accountCreditLimit(account) {
   return DEFAULT_CC_LIMIT;
 }
 
-function checkCommitHash(body, validation) {
+function checkCommitHashIfSupplied(body, validation) {
   const supplied = text(body.dry_run_payload_hash || body.payload_hash, '', 200);
 
   if (!supplied) {
     return {
-      ok: false,
-      status: 428,
-      error: 'dry_run_payload_hash required before commit',
-      supplied_hash: ''
+      ok: true
     };
   }
 
@@ -1078,7 +1275,8 @@ function checkCommitHash(body, validation) {
     return {
       ok: false,
       status: 409,
-      error: 'Payload changed after dry-run. Run dry-run again.',
+      code: 'PAYLOAD_HASH_MISMATCH',
+      error: 'Payload changed after dry-run.',
       supplied_hash: supplied
     };
   }
@@ -1097,6 +1295,7 @@ function checkOverrideToken(body, validation) {
     return {
       ok: false,
       status: 428,
+      code: 'OVERRIDE_TOKEN_REQUIRED',
       error: 'override_token required for blocked balance projection'
     };
   }
@@ -1105,6 +1304,7 @@ function checkOverrideToken(body, validation) {
     return {
       ok: false,
       status: 409,
+      code: 'INVALID_OVERRIDE_TOKEN',
       error: 'Invalid override_token.'
     };
   }
@@ -1115,13 +1315,14 @@ function checkOverrideToken(body, validation) {
 }
 
 function normalizeType(type) {
-  const raw = text(type, '', 40).toLowerCase();
+  const raw = text(type, '', 60).toLowerCase();
 
   if (raw === 'manual_income') return 'income';
   if (raw === 'salary_income') return 'salary';
   if (raw === 'debt_payment') return 'repay';
   if (raw === 'credit_card') return 'cc_spend';
   if (raw === 'international' || raw === 'international_purchase') return 'expense';
+  if (raw === 'adjustment') return 'adjustment_positive';
 
   return raw;
 }
@@ -1176,7 +1377,7 @@ function activeAccountWhere(cols) {
 
   if (cols.has('deleted_at')) clauses.push("(deleted_at IS NULL OR deleted_at = '')");
   if (cols.has('archived_at')) clauses.push("(archived_at IS NULL OR archived_at = '')");
-  if (cols.has('status')) clauses.push("(status IS NULL OR status = '' OR status = 'active')");
+  if (cols.has('status')) clauses.push("(status IS NULL OR status = '' OR LOWER(TRIM(status)) = 'active')");
 
   return clauses.join(' AND ');
 }
@@ -1297,11 +1498,12 @@ async function readJSON(request) {
 }
 
 function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
+  return new Response(JSON.stringify(obj, null, 2), {
     status,
     headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache'
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      Pragma: 'no-cache'
     }
   });
 }
