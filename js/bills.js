@@ -1,19 +1,22 @@
 /* js/bills.js
  * Sovereign Finance · Bills UI
- * v0.10.2-honest-errors
+ * v0.11.0-advance-aware
  *
- * Delta vs v0.10.1:
- *   - fetchJSON extracts payload.error.message verbatim from backend
- *   - On failure, raw response body logged to console for diagnostics
- *   - Add modal: due_day defaults to today's day (no nulls into NOT NULL columns)
- *   - Add modal: category_id always sent, notes never null
- *   - submitAddBill logs payload + raw error
- * All v0.10.1 hero compression, chip flex, modal/toast/expand/sort/search preserved.
+ * Delta vs v0.10.2:
+ *   - Pay modal: "Bill cycle" select (current month + next 3 months).
+ *     Sends `bill_month` so backend can file it as on-cycle or advance.
+ *   - Bill row: adds an "advance" pill when advance_paid_amount > 0.
+ *   - Inline detail grid: adds Advance paid + Advance count cells and a
+ *     per-future-month breakdown block.
+ *   - New "Paid in Advance" page section injected dynamically above the
+ *     Bills Health section. Hidden when totals are zero.
+ *   - Current-cycle display logic unchanged.
+ *   - Honest errors, hero compression, chip flex, modal/toast/expand/sort/search preserved.
  */
 (function () {
   'use strict';
 
-  const VERSION = 'v0.10.2-honest-errors';
+  const VERSION = 'v0.11.0-advance-aware';
   const API_BILLS = '/api/bills';
   const API_BILLS_HEALTH = '/api/bills/health';
   const API_ACCOUNTS = '/api/accounts';
@@ -38,7 +41,30 @@
   function clean(v, fb = '') { return String(v == null ? fb : v).trim(); }
   function todayISO()   { return new Date().toISOString().slice(0, 10); }
   function todayDay()   { return new Date().getDate(); }
-  function currentMonth() { return new Date().toISOString().slice(0, 7); }
+  function currentMonth() {
+    // Local-time current month (avoid Lahore UTC roll-back).
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+  function addMonths(monthStr, n) {
+    const [y, m] = monthStr.split('-').map(Number);
+    const d = new Date(y, (m - 1) + n, 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+  function monthLabel(monthStr) {
+    const [y, m] = monthStr.split('-').map(Number);
+    const d = new Date(y, m - 1, 1);
+    return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  }
+  function nextCycleOptions(count) {
+    const out = [];
+    const cur = currentMonth();
+    for (let i = 0; i <= count; i++) {
+      const m = addMonths(cur, i);
+      out.push({ value: m, label: i === 0 ? `${monthLabel(m)} · current cycle` : `${monthLabel(m)} · advance +${i}` });
+    }
+    return out;
+  }
   function money(v) {
     const n = Number(v || 0);
     return 'Rs ' + n.toLocaleString('en-PK', {
@@ -78,9 +104,11 @@
     if (bill?.due_date) return bill.due_date;
     const day = Number(bill?.due_day || 0);
     if (!day) return null;
-    const now = new Date();
-    const d = new Date(now.getFullYear(), now.getMonth(), Math.min(day, 28));
-    return d.toISOString().slice(0, 10);
+    const cur = currentMonth();
+    const [y, m] = cur.split('-').map(Number);
+    const maxDay = new Date(y, m, 0).getDate();
+    const safe = Math.min(day, maxDay);
+    return `${cur}-${String(safe).padStart(2, '0')}`;
   }
   function daysUntilDue(bill) {
     const iso = dueDateForBill(bill);
@@ -96,12 +124,6 @@
     return Math.max(0, Math.min(100, Math.round((paid / expected) * 100)));
   }
 
-  /**
-   * ─── HONEST ERROR EXTRACTION ───
-   * Backend always wraps errors as { ok:false, version, error:{ code, message } }.
-   * Pull the human-readable message verbatim. Log raw response on failure so the
-   * user can see exactly what came back.
-   */
   function extractErrorMessage(payload, status, rawText) {
     if (payload && payload.error) {
       const e = payload.error;
@@ -124,12 +146,7 @@
     let payload = null;
     try { payload = text ? JSON.parse(text) : null; } catch { /* non-JSON */ }
     if (!res.ok || !payload || payload.ok === false) {
-      // Console diagnostic so user can paste exact backend response
-      try {
-        console.error('[bills.js] fetch failed', {
-          url, status: res.status, payload, rawText: text.slice(0, 800)
-        });
-      } catch (_) {}
+      try { console.error('[bills.js] fetch failed', { url, status: res.status, payload, rawText: text.slice(0, 800) }); } catch (_) {}
       throw new Error(extractErrorMessage(payload, res.status, text));
     }
     return payload;
@@ -186,9 +203,7 @@
       try {
         const hp = await fetchJSON(API_BILLS_HEALTH);
         state.health = hp.health || null;
-      } catch (err) {
-        state.health = { status: 'unavailable', error: err.message };
-      }
+      } catch (err) { state.health = { status: 'unavailable', error: err.message }; }
       state.lastLoadedAt = new Date();
       renderAll();
       setText('bills-state-pill', 'Loaded');
@@ -199,22 +214,20 @@
       renderHeaderPills();
       renderDebug();
       toast(`Load failed: ${err.message}`, 'danger');
-    } finally {
-      state.loading = false;
-    }
+    } finally { state.loading = false; }
   }
 
   function applyToolbar(rows) {
     let out = rows.slice();
     const f = state.filter;
     const inWeek = (b) => { const d = daysUntilDue(b); return d != null && d >= 0 && d <= 7; };
-    if (f === 'unpaid')             out = out.filter((b) => billCycleStatus(b) === 'unpaid' && b.status !== 'deleted');
-    else if (f === 'partial')       out = out.filter((b) => billCycleStatus(b) === 'partial' && b.status !== 'deleted');
-    else if (f === 'paid')          out = out.filter((b) => billCycleStatus(b) === 'paid' && b.status !== 'deleted');
-    else if (f === 'due_this_week') out = out.filter((b) => b.status !== 'deleted' && inWeek(b));
+    if (f === 'unpaid')              out = out.filter((b) => billCycleStatus(b) === 'unpaid' && b.status !== 'deleted');
+    else if (f === 'partial')        out = out.filter((b) => billCycleStatus(b) === 'partial' && b.status !== 'deleted');
+    else if (f === 'paid')           out = out.filter((b) => billCycleStatus(b) === 'paid' && b.status !== 'deleted');
+    else if (f === 'due_this_week')  out = out.filter((b) => b.status !== 'deleted' && inWeek(b));
     else if (f === 'ledger_reversed') out = out.filter((b) => Number(b.ledger_reversed_excluded_count || 0) > 0);
-    else if (f === 'deleted')       out = out.filter((b) => b.status === 'deleted');
-    else                            out = out.filter((b) => b.status !== 'deleted');
+    else if (f === 'deleted')        out = out.filter((b) => b.status === 'deleted');
+    else                             out = out.filter((b) => b.status !== 'deleted');
 
     const q = state.search.trim().toLowerCase();
     if (q) {
@@ -365,6 +378,9 @@
     const cycle = bill.current_cycle || {};
     const tags = [];
     if (bill.ledger_linked) tags.push(pill('ledger', 'info'));
+    if (Number(bill.advance_paid_amount || 0) > 0) {
+      tags.push(pill(`advance ${money(bill.advance_paid_amount).replace('Rs ', 'Rs ')}`, 'positive'));
+    }
     const reversed = Number(bill.ledger_reversed_excluded_count || 0);
     if (reversed > 0) tags.push(pill(`reversed ${reversed}`, 'warning'));
     if (bill.status === 'paused') tags.push(pill('paused', 'warning'));
@@ -392,6 +408,8 @@
       ['Amount',          money(bill.amount)],
       ['Cycle paid',      money(cycle.paid_amount ?? 0)],
       ['Cycle remaining', money(cycle.remaining_amount ?? 0)],
+      ['Advance paid',    money(bill.advance_paid_amount ?? 0)],
+      ['Advance count',   String(bill.advance_payment_count ?? 0)],
       ['Due day',         bill.due_day != null ? String(bill.due_day) : '—'],
       ['Due date',        esc(bill.due_date || dueDateForBill(bill) || '—')],
       ['Frequency',       esc(bill.frequency || '—')],
@@ -413,11 +431,25 @@
         <button class="sf-button"                    type="button" data-bill-action="delete" data-bill-id="${esc(bill.id)}">Soft-delete</button>
       `;
     const notes = bill.notes ? `<div class="bill-inline-notes">${esc(bill.notes)}</div>` : '';
+    const future = Array.isArray(bill.next_paid_cycles) ? bill.next_paid_cycles : [];
+    const advanceBlock = future.length ? `
+      <div class="bill-inline-advance">
+        <div class="bill-inline-advance-title">Future cycles paid in advance</div>
+        ${future.map(fc => `
+          <div class="bill-advance-row">
+            <div class="bill-advance-month">${esc(monthLabel(fc.month))}</div>
+            <div class="bill-advance-amount">${money(fc.paid_amount)}</div>
+            <div class="bill-advance-count">${esc(fc.payment_count)} payment${fc.payment_count === 1 ? '' : 's'}</div>
+          </div>
+        `).join('')}
+      </div>
+    ` : '';
     return `
       <div class="bill-inline-detail">
         <div class="bill-inline-grid">
           ${cells.map(([k, v]) => `<div class="bill-inline-cell"><span class="bill-inline-k">${esc(k)}</span><span class="bill-inline-v">${v}</span></div>`).join('')}
         </div>
+        ${advanceBlock}
         ${notes}
         <div class="bill-inline-actions">${actions}</div>
       </div>
@@ -434,15 +466,17 @@
     }
     const cycle = bill.current_cycle || {};
     const rows = [
-      ['Name',            bill.name || '—'],
-      ['Cycle status',    billCycleStatus(bill)],
-      ['Amount',          money(bill.amount)],
-      ['Cycle paid',      money(cycle.paid_amount ?? 0)],
-      ['Cycle remaining', money(cycle.remaining_amount ?? 0)],
-      ['Due',             dueLabel(bill)],
-      ['Last paid',       bill.last_paid_date || '—'],
-      ['Default account', accountName(bill.default_account_id)],
-      ['Status',          bill.status || 'active']
+      ['Name',             bill.name || '—'],
+      ['Cycle status',     billCycleStatus(bill)],
+      ['Amount',           money(bill.amount)],
+      ['Cycle paid',       money(cycle.paid_amount ?? 0)],
+      ['Cycle remaining',  money(cycle.remaining_amount ?? 0)],
+      ['Advance paid',     money(bill.advance_paid_amount ?? 0)],
+      ['Advance cycles',   String((bill.next_paid_cycles || []).length)],
+      ['Due',              dueLabel(bill)],
+      ['Last paid',        bill.last_paid_date || '—'],
+      ['Default account',  accountName(bill.default_account_id)],
+      ['Status',           bill.status || 'active']
     ];
     panel.innerHTML = rows.map(([k, v]) => `
       <div class="sf-finance-row">
@@ -475,11 +509,82 @@
     `).join('');
   }
 
+  /* ─── NEW: Paid in Advance section (injected dynamically) ─── */
+  function ensureAdvanceSection() {
+    let section = $('bills-advance-section');
+    if (section) return section;
+    // Anchor before Bills Health section.
+    const healthSection = document.querySelector('[aria-labelledby="bills-health-title"]');
+    if (!healthSection || !healthSection.parentNode) return null;
+    section = document.createElement('section');
+    section.id = 'bills-advance-section';
+    section.className = 'sf-panel sf-span-12';
+    section.setAttribute('aria-labelledby', 'bills-advance-title');
+    section.hidden = true;
+    section.innerHTML = `
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Pre-paid</p>
+          <h2 id="bills-advance-title" class="sf-section-title">Paid in Advance</h2>
+          <p class="sf-section-subtitle">Bills with payments filed against a future cycle. Reversed payments are excluded.</p>
+        </div>
+        <div class="sf-section-meta">
+          <span id="bills-advance-pill" class="sf-pill sf-pill--positive">Rs 0</span>
+        </div>
+      </div>
+      <div id="bills-advance-body" class="sf-dense-grid"></div>
+    `;
+    healthSection.parentNode.insertBefore(section, healthSection);
+    return section;
+  }
+  function renderAdvanceSection() {
+    const section = ensureAdvanceSection();
+    if (!section) return;
+    const total = Number(state.payload?.advance_paid_total || 0);
+    const countTotal = Number(state.payload?.advance_payment_count_total || 0);
+    const billsWithAdvance = bills().filter(b => Number(b.advance_paid_amount || 0) > 0);
+
+    if (total <= 0 || !billsWithAdvance.length) {
+      section.hidden = true;
+      const body = $('bills-advance-body');
+      if (body) body.innerHTML = '';
+      return;
+    }
+    section.hidden = false;
+    setText('bills-advance-pill', `${money(total)} · ${countTotal} payments`);
+
+    const body = $('bills-advance-body');
+    if (!body) return;
+    body.innerHTML = billsWithAdvance.map(bill => {
+      const future = bill.next_paid_cycles || [];
+      const cycles = future.map(fc => `
+        <div class="bill-advance-row">
+          <div class="bill-advance-month">${esc(monthLabel(fc.month))}</div>
+          <div class="bill-advance-amount">${money(fc.paid_amount)}</div>
+          <div class="bill-advance-count">${esc(fc.payment_count)} payment${fc.payment_count === 1 ? '' : 's'}</div>
+        </div>
+      `).join('');
+      return `
+        <div class="bill-advance-card">
+          <div class="bill-advance-head">
+            <div>
+              <div class="bill-advance-bill">${esc(bill.name)}</div>
+              <div class="bill-advance-sub">Expected per cycle ${money(bill.amount)} · default ${esc(accountName(bill.default_account_id))}</div>
+            </div>
+            <div class="bill-advance-total">${money(bill.advance_paid_amount)}</div>
+          </div>
+          <div class="bill-advance-cycles">${cycles || '<div class="bill-advance-row"><div class="bill-advance-month">—</div></div>'}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
   function renderDebug() {
     setText('bills-debug-output', JSON.stringify({
       uiVersion: VERSION, backendVersion: state.payload?.version, month: state.payload?.month,
       filter: state.filter, sort: state.sort, search: state.search,
       totals: { expected: state.payload?.expected_this_cycle, paid: state.payload?.paid_this_cycle, remaining: state.payload?.remaining },
+      advance: { total: state.payload?.advance_paid_total, count: state.payload?.advance_payment_count_total },
       counts: { bills: bills().length, active: activeBills().length, paid: state.payload?.paid_count, partial: state.payload?.partial_count, unpaid: state.payload?.unpaid_count, ledger_reversed_excluded: state.payload?.ledger_reversed_excluded_count },
       health: state.health, selectedBillId: state.selectedBillId,
       expanded: Array.from(state.expandedBillIds), lastLoadedAt: state.lastLoadedAt
@@ -488,7 +593,8 @@
 
   function renderAll() {
     renderHeaderPills(); renderShellKpis(); renderSummary();
-    renderBillsList(); renderSelected(); renderHealthPanel(); renderDebug();
+    renderBillsList(); renderSelected(); renderHealthPanel();
+    renderAdvanceSection(); renderDebug();
     prefillPaymentForm();
   }
 
@@ -522,14 +628,6 @@
     const section = $('bills-inline-forms-section');
     if (section && !section.hasAttribute('hidden')) section.setAttribute('hidden', '');
   }
-
-  /**
-   * ─── ADD-BILL PAYLOAD: SAFE DEFAULTS ───
-   * Backend createBill writes the row through filterToColumns(), so unknown
-   * keys are stripped — safe. But it does NOT null-coalesce against NOT NULL
-   * columns. We send safe defaults so a blank due_day / category does not
-   * collide with NOT NULL constraints in production.
-   */
   function formToAddPayload(form) {
     const name = clean(form.elements.name?.value);
     const amount = Number(form.elements.amount?.value || 0);
@@ -538,15 +636,13 @@
     const default_account_id = clean(form.elements.default_account_id?.value) || null;
     const category_id = clean(form.elements.category_id?.value) || 'bills_utilities';
     const notes = clean(form.elements.notes?.value) || '';
-    return {
-      name, amount, due_day, frequency, default_account_id, category_id, notes,
-      created_by: 'bills-ui-' + VERSION
-    };
+    return { name, amount, due_day, frequency, default_account_id, category_id, notes, created_by: 'bills-ui-' + VERSION };
   }
   function formToPayPayload(form) {
     return {
       amount: Number(form.elements.amount?.value || 0),
       paid_date: clean(form.elements.paid_date?.value) || todayISO(),
+      bill_month: clean(form.elements.bill_month?.value) || currentMonth(),
       account_id: clean(form.elements.account_id?.value),
       notes: clean(form.elements.notes?.value) || '',
       created_by: 'bills-ui-' + VERSION
@@ -558,14 +654,11 @@
     if (!Number.isFinite(payload.amount) || payload.amount <= 0) { toast('Expected amount must be > 0.', 'warning'); return; }
     if (stateSpan) stateSpan.textContent = 'Saving';
     try {
-      console.log('[bills.js] add payload', payload);
       const res = await postJSON(API_BILLS, payload);
-      console.log('[bills.js] add response', res);
       const newId = res?.bill?.id || res?.id || null;
       if (newId) state.selectedBillId = newId;
       if (stateSpan) stateSpan.textContent = 'Saved';
-      closeModal('add');
-      await loadBills();
+      closeModal('add'); await loadBills();
       toast(`Bill added: ${payload.name}`, 'positive');
     } catch (err) {
       if (stateSpan) stateSpan.textContent = 'Failed';
@@ -582,6 +675,7 @@
         amount: payload.amount,
         account_id: payload.account_id,
         date: payload.paid_date,
+        bill_month: payload.bill_month,
         notes: payload.notes,
         created_by: 'bills-ui-' + VERSION
       });
@@ -589,7 +683,8 @@
       closeModal('pay');
       state.selectedBillId = bill.id;
       await loadBills();
-      toast(`Paid ${money(payload.amount)} on "${bill.name}".`, 'positive');
+      const isAdvance = payload.bill_month && payload.bill_month !== currentMonth();
+      toast(`${isAdvance ? 'Advance' : 'Cycle'} payment ${money(payload.amount)} on "${bill.name}" for ${monthLabel(payload.bill_month || currentMonth())}.`, 'positive');
     } catch (err) {
       if (stateSpan) stateSpan.textContent = 'Failed';
       toast(`Pay failed: ${err.message}`, 'danger');
@@ -598,18 +693,14 @@
   async function submitEdit(bill, updates) {
     try {
       await postJSON(`${API_BILLS}/update`, { bill_id: bill.id, ...updates });
-      closeModal('edit');
-      state.selectedBillId = bill.id;
-      await loadBills();
+      closeModal('edit'); state.selectedBillId = bill.id; await loadBills();
       toast(`Updated "${bill.name}".`, 'positive');
     } catch (err) { toast(`Edit failed: ${err.message}`, 'danger'); }
   }
   async function submitDefer(bill, payload) {
     try {
       await postJSON(`${API_BILLS}/defer`, { bill_id: bill.id, ...payload });
-      closeModal('defer');
-      state.selectedBillId = bill.id;
-      await loadBills();
+      closeModal('defer'); state.selectedBillId = bill.id; await loadBills();
       toast(`Deferred "${bill.name}".`, 'positive');
     } catch (err) { toast(`Defer failed: ${err.message}`, 'danger'); }
   }
@@ -691,10 +782,7 @@
       </form>
     `);
     const form = qa('[data-bills-modal-form="add"]')[0];
-    if (form) form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      await submitAddBill(formToAddPayload(form), null);
-    });
+    if (form) form.addEventListener('submit', async (e) => { e.preventDefault(); await submitAddBill(formToAddPayload(form), null); });
   }
   function openPayModal(billIdOverride) {
     const targetId = billIdOverride != null ? billIdOverride : state.selectedBillId;
@@ -702,13 +790,18 @@
     if (!bill) { toast('Select a bill first.', 'warning'); return; }
     state.selectedBillId = bill.id;
     const cycle = bill.current_cycle || {};
-    const defaultAmount = cycle.remaining_amount != null ? cycle.remaining_amount : bill.amount;
+    const defaultAmount = cycle.remaining_amount != null && cycle.remaining_amount > 0 ? cycle.remaining_amount : bill.amount;
+    const cycleOpts = nextCycleOptions(3)
+      .map(o => `<option value="${o.value}"${o.value === currentMonth() ? ' selected' : ''}>${esc(o.label)}</option>`).join('');
     openModal('pay', `
       <div class="bill-modal-context">
         <div class="bill-modal-context-title">${esc(bill.name)}</div>
-        <div class="bill-modal-context-sub">${esc(dueLabel(bill))} · expected ${money(bill.amount)} · remaining ${money(cycle.remaining_amount ?? 0)}</div>
+        <div class="bill-modal-context-sub">${esc(dueLabel(bill))} · expected ${money(bill.amount)} · current remaining ${money(cycle.remaining_amount ?? 0)}${Number(bill.advance_paid_amount || 0) > 0 ? ` · advance ${money(bill.advance_paid_amount)}` : ''}</div>
       </div>
       <form class="sf-form-grid" data-bills-modal-form="pay">
+        <label class="sf-field sf-span-12"><span>Pay for cycle</span>
+          <select name="bill_month" required>${cycleOpts}</select>
+        </label>
         <label class="sf-field sf-span-6"><span>Payment amount</span><input name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(defaultAmount ?? '')}" required></label>
         <label class="sf-field sf-span-6"><span>Payment date</span><input name="paid_date" type="date" value="${esc(todayISO())}"></label>
         <label class="sf-field sf-span-12"><span>Pay from account</span>
@@ -724,10 +817,18 @@
     const sel = $('bills-pay-modal-body').querySelector('select[name="account_id"]');
     if (sel) sel.value = bill.default_account_id || '';
     const form = qa('[data-bills-modal-form="pay"]')[0];
-    if (form) form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      await submitPay(bill, formToPayPayload(form), null);
-    });
+    if (form) {
+      // When cycle changes to a future month, auto-suggest full expected amount.
+      const cycleSel = form.querySelector('select[name="bill_month"]');
+      const amtInput = form.querySelector('input[name="amount"]');
+      if (cycleSel && amtInput) {
+        cycleSel.addEventListener('change', () => {
+          if (cycleSel.value !== currentMonth()) amtInput.value = bill.amount || '';
+          else amtInput.value = defaultAmount || '';
+        });
+      }
+      form.addEventListener('submit', async (e) => { e.preventDefault(); await submitPay(bill, formToPayPayload(form), null); });
+    }
   }
   function openEditModal(billId) {
     const bill = bills().find((b) => String(b.id) === String(billId));
@@ -838,9 +939,7 @@
           const res = await postJSON(`${API_BILLS}/repair`, {});
           toast(`Repair OK · ${JSON.stringify(res?.summary || res || {}).slice(0, 120)}`, 'positive');
           await loadBills();
-        } catch (err) {
-          toast(`Repair: ${err.message}`, 'danger');
-        }
+        } catch (err) { toast(`Repair: ${err.message}`, 'danger'); }
       }
     });
   }
@@ -906,6 +1005,21 @@
       .bill-inline-v { font-size: 13px; font-weight: 500; }
       .bill-inline-notes { font-size: 12px; opacity: 0.75; margin: 6px 0 10px; padding: 8px 10px; background: var(--sf-track, rgba(255,255,255,0.04)); border-radius: 8px; white-space: pre-wrap; }
       .bill-inline-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+
+      .bill-inline-advance { margin-top: 6px; padding: 10px 12px; background: var(--sf-track, rgba(110, 168, 255, 0.06)); border: 1px solid rgba(110, 168, 255, 0.25); border-radius: 8px; }
+      .bill-inline-advance-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.75; margin-bottom: 6px; }
+      .bill-advance-row { display: grid; grid-template-columns: minmax(120px, 1fr) 110px auto; gap: 10px; padding: 5px 0; font-size: 13px; align-items: center; }
+      .bill-advance-month { font-weight: 600; }
+      .bill-advance-amount { text-align: right; font-weight: 600; }
+      .bill-advance-count { font-size: 11px; opacity: 0.7; }
+
+      .bill-advance-card { padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--sf-border, rgba(255,255,255,0.08)); border-radius: var(--sf-radius-md, 14px); background: var(--sf-surface, rgba(255,255,255,0.03)); }
+      .bill-advance-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--sf-border, rgba(255,255,255,0.06)); margin-bottom: 6px; }
+      .bill-advance-bill { font-weight: 600; font-size: 14px; }
+      .bill-advance-sub { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+      .bill-advance-total { font-weight: 700; font-size: 16px; color: var(--sf-accent, #6ea8ff); white-space: nowrap; }
+      .bill-advance-cycles { padding-top: 4px; }
+
       .sf-button--chip { padding: 6px 12px; font-size: 12px; border-radius: 999px; }
       .sf-button--chip.is-active { background: var(--sf-accent, #6ea8ff); color: var(--sf-on-accent, #0b0f1a); border-color: transparent; }
       .sf-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px 16px; }
@@ -951,7 +1065,5 @@
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, { once: true });
-  } else {
-    init();
-  }
+  } else { init(); }
 })();
