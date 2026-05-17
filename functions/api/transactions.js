@@ -1,18 +1,20 @@
 /* /api/transactions
  * Sovereign Finance · Transactions Engine
- * v0.6.0-transactions-add-contract
+ * v0.6.1-hide-reversed-originals
  *
  * Contract:
  * - Backend owns transaction truth.
  * - Accounts are ledger-derived.
- * - Frontend may submit income, expense, transfer, and catch-up entries.
+ * - Frontend may submit income, expense, transfer, adjustment, and catch-up entries.
  * - Direct edit/delete is not supported here.
  * - Reversal lives in /api/transactions/reverse.
  * - Dry-run + payload hash is supported.
  * - Direct commit is also supported for daily ledger recovery.
+ * - Default GET hides both reversal rows and reversed originals.
+ * - Full audit history is available with include_reversed=1.
  */
 
-const VERSION = 'v0.6.0-transactions-add-contract';
+const VERSION = 'v0.6.1-hide-reversed-originals';
 const CONTRACT_VERSION = 'transactions-add-v1';
 
 const FRONTEND_ADD_TYPES = [
@@ -129,9 +131,10 @@ export async function onRequestGet(context) {
     }
 
     const select = selectTransactionColumns(txCols);
+
     const fetchLimit = includeReversed
       ? limit
-      : Math.min(500, Math.max(limit * 5, limit + 100));
+      : Math.min(500, Math.max(limit * 8, limit + 150));
 
     const result = await db.prepare(
       `SELECT ${select.join(', ')}
@@ -142,9 +145,11 @@ export async function onRequestGet(context) {
 
     const decorated = (result.results || []).map(decorateTransaction);
 
+    const activeOnly = decorated.filter(row => !row.is_reversal && !row.is_reversed);
+
     const visible = includeReversed
       ? decorated.slice(0, limit)
-      : decorated.filter(row => !row.is_reversal).slice(0, limit);
+      : activeOnly.slice(0, limit);
 
     return json({
       ok: true,
@@ -154,6 +159,10 @@ export async function onRequestGet(context) {
       count: visible.length,
       fetched_count: decorated.length,
       hidden_reversal_count: includeReversed ? 0 : decorated.filter(row => row.is_reversal).length,
+      hidden_reversed_original_count: includeReversed ? 0 : decorated.filter(row => row.is_reversed && !row.is_reversal).length,
+      active_visible_policy: includeReversed
+        ? 'full_audit_history'
+        : 'hide_reversal_rows_and_reversed_originals',
       contract: {
         frontend_add_types: FRONTEND_ADD_TYPES,
         backend_system_types: SYSTEM_TYPES,
@@ -161,7 +170,9 @@ export async function onRequestGet(context) {
         direct_commit_supported: true,
         commit_hash_supported: true,
         account_balance_source: 'ledger',
-        reversal_route: '/api/transactions/reverse'
+        reversal_route: '/api/transactions/reverse',
+        default_list_hides_reversal_rows: true,
+        default_list_hides_reversed_originals: true
       },
       transactions: visible
     });
