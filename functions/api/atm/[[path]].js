@@ -1,25 +1,18 @@
 /* ─── /api/atm/[[path]] · Sovereign Finance ATM Engine ───
- * v0.2.1-atm-catchall-schema-safe
+ * v0.2.2-atm-health-legacy-filter
  *
  * Contract:
  * - ATM withdrawal is bank/wallet/prepaid → cash.
  * - Source account decreases through ledger.
  * - Cash account increases through ledger.
  * - ATM fee is a separate source-account expense row.
- * - ATM fee must NOT be linked to the withdrawal transfer pair.
+ * - New ATM fee rows must NOT be linked to the withdrawal transfer pair.
+ * - Legacy reversed fee rows are filtered out of pending health.
  * - No direct account balance mutation.
  * - Accounts remain ledger-derived from transactions_canonical.
- *
- * Supported:
- * - GET  /api/atm
- * - GET  /api/atm?action=health
- * - GET  /api/atm/health
- * - POST /api/atm
- * - POST /api/atm/withdraw
- * - POST /api/atm/reverse
  */
 
-const VERSION = 'v0.2.1-atm-catchall-schema-safe';
+const VERSION = 'v0.2.2-atm-health-legacy-filter';
 const CONTRACT_VERSION = 'atm-v1';
 
 const DEFAULT_SOURCE_ACCOUNT_ID = 'mashreq';
@@ -96,7 +89,9 @@ export async function onRequestGet(context) {
         fee_account_impact: 'negative',
         fee_is_linked_to_withdrawal_pair: false,
         no_direct_balance_mutation: true,
-        balance_source: 'transactions_canonical'
+        balance_source: 'transactions_canonical',
+        pending_fee_filter_excludes_reversal_rows: true,
+        pending_fee_filter_excludes_reversed_fee_rows: true
       }
     });
   } catch (err) {
@@ -539,7 +534,7 @@ async function atmHealth(db) {
     return notes.includes('[ATM_WITHDRAWAL]') || notes.includes('[ATM_WITHDRAW]');
   });
 
-  const feeRows = rows.filter(row => String(row.notes || '').includes('[ATM_FEE_PENDING]'));
+  const activeFeeRows = rows.filter(row => isActivePendingFeeRow(row));
   const reversalRows = rows.filter(row => String(row.notes || '').includes('[ATM_FEE_REVERSAL]'));
 
   const orphanPairs = [];
@@ -584,12 +579,12 @@ async function atmHealth(db) {
     }
   }
 
-  for (const row of feeRows) {
+  for (const row of activeFeeRows) {
     if (row.linked_txn_id || extractLinkedId(row.notes)) {
       badFeeLinks.push({
         id: row.id,
         linked_id: row.linked_txn_id || extractLinkedId(row.notes),
-        error: 'ATM fee must not be linked to withdrawal pair'
+        error: 'Active ATM fee must not be linked to withdrawal pair'
       });
     }
   }
@@ -605,7 +600,7 @@ async function atmHealth(db) {
     counts: {
       scanned_rows: rows.length,
       withdrawal_rows: withdrawalRows.length,
-      fee_rows: feeRows.length,
+      active_fee_rows: activeFeeRows.length,
       fee_reversal_rows: reversalRows.length,
       orphan_pairs: orphanPairs.length,
       amount_mismatches: amountMismatches.length,
@@ -614,7 +609,9 @@ async function atmHealth(db) {
     checks: {
       withdrawal_pairs_complete: orphanPairs.length === 0,
       withdrawal_pair_amounts_match: amountMismatches.length === 0,
-      fee_rows_not_linked_to_pairs: badFeeLinks.length === 0,
+      active_fee_rows_not_linked_to_pairs: badFeeLinks.length === 0,
+      legacy_reversed_fee_rows_filtered: true,
+      fee_reversal_rows_not_counted_as_pending: true,
       health_is_read_only: true
     },
     orphan_pairs: orphanPairs,
@@ -671,38 +668,15 @@ async function loadAccounts(db, cols) {
 async function loadPendingFees(db, txCols) {
   if (!txCols.has('id')) return [];
 
-  const wanted = [
-    'id',
-    'date',
-    'type',
-    'amount',
-    'account_id',
-    'category_id',
-    'notes',
-    'created_at',
-    'linked_txn_id',
-    'reversed_by',
-    'reversed_at'
-  ].filter(col => txCols.has(col));
+  const rows = await loadRecentATMRows(db, txCols, 500);
 
-  const rows = await db.prepare(
-    `SELECT ${wanted.join(', ')}
-     FROM transactions
-     WHERE (
-        notes LIKE '%[ATM_FEE_PENDING]%'
-        OR (notes LIKE '%PENDING reversal%' AND notes LIKE '%ATM%')
-     )
-     AND (notes IS NULL OR notes NOT LIKE '%[ATM_FEE_REVERSED%')
-     ${txCols.has('reversed_by') ? "AND (reversed_by IS NULL OR reversed_by = '')" : ''}
-     ${txCols.has('reversed_at') ? "AND (reversed_at IS NULL OR reversed_at = '')" : ''}
-     ORDER BY ${buildOrderBy(txCols)}
-     LIMIT 50`
-  ).all();
-
-  return (rows.results || []).map(row => ({
-    ...row,
-    age_days: daysSince(row.date)
-  }));
+  return rows
+    .filter(row => isActivePendingFeeRow(row))
+    .slice(0, 50)
+    .map(row => ({
+      ...row,
+      age_days: daysSince(row.date)
+    }));
 }
 
 async function loadRecentATMRows(db, txCols, limit = 40) {
@@ -761,25 +735,21 @@ async function loadFeeStats30d(db, txCols) {
     };
   }
 
-  const paidRows = await db.prepare(
-    `SELECT COALESCE(SUM(amount), 0) AS total
-     FROM transactions
-     WHERE date >= date('now', '-30 day')
-       AND (
-        notes LIKE '%[ATM_FEE_PENDING]%'
-        OR (notes LIKE '%PENDING reversal%' AND notes LIKE '%ATM%')
-       )`
-  ).first();
+  const rows = await loadRecentATMRows(db, txCols, 500);
 
-  const reversedRows = await db.prepare(
-    `SELECT COALESCE(SUM(amount), 0) AS total
-     FROM transactions
-     WHERE date >= date('now', '-30 day')
-       AND notes LIKE '%[ATM_FEE_REVERSAL]%'`
-  ).first();
+  const paid = rows
+    .filter(row => {
+      const d = String(row.date || '').slice(0, 10);
+      return d >= daysAgoISO(30) && String(row.notes || '').includes('[ATM_FEE_PENDING]');
+    })
+    .reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
 
-  const paid = Number(paidRows && paidRows.total) || 0;
-  const reversed = Number(reversedRows && reversedRows.total) || 0;
+  const reversed = rows
+    .filter(row => {
+      const d = String(row.date || '').slice(0, 10);
+      return d >= daysAgoISO(30) && String(row.notes || '').includes('[ATM_FEE_REVERSAL]');
+    })
+    .reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
 
   return {
     paid: round2(paid),
@@ -845,6 +815,20 @@ async function resolveCategoryId(db, preferredId) {
   ).first();
 
   return fallback && fallback.id ? fallback.id : null;
+}
+
+function isActivePendingFeeRow(row) {
+  const notes = String(row.notes || '').toUpperCase();
+
+  if (!notes.includes('[ATM_FEE_PENDING]') && !(notes.includes('PENDING REVERSAL') && notes.includes('ATM'))) {
+    return false;
+  }
+
+  if (notes.includes('[ATM_FEE_REVERSAL]')) return false;
+  if (notes.includes('[ATM_FEE_REVERSED_BY:')) return false;
+  if (row.reversed_by || row.reversed_at) return false;
+
+  return true;
 }
 
 function activeAccountWhere(cols) {
@@ -1000,6 +984,12 @@ function daysSince(dateValue) {
   const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 
   return Math.floor((today - then) / 86400000);
+}
+
+function daysAgoISO(days) {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
 }
 
 function getPath(context) {
