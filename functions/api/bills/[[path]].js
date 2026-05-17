@@ -1,18 +1,21 @@
 /* Sovereign Finance Bills API
  * /api/bills
- * v0.8.1-defensive-pay-and-honest-stack
+ * v0.8.2-advance-payments-additive
  *
- * Delta vs v0.8.0:
- *   - isReversedTxn() nil-guards tx
- *   - classifyPayment() defends payment-shape before dereferencing
- *   - All top-level catches include stack[0..3] in error.message so the
- *     frontend toast surfaces the actual failing line
- *   - payBill: post-write overview re-fetch is non-fatal; pay reports OK
- *     even if the overview re-fetch throws (write succeeded)
- *   - No money logic / SQL / route / field-name changes
+ * Delta vs v0.8.1:
+ *   - NEW helper buildAdvanceSummary(): per-bill, scans payments with
+ *     bill_month > current_month, applies the same reversal/exclusion
+ *     rules via classifyPayment, returns
+ *       { advance_paid_amount, advance_payment_count, next_cycles: [{ month, paid_amount, payment_count, payments }] }
+ *   - getOverview attaches advance fields to each bill row AND adds
+ *     top-level advance_paid_total + advance_payment_count_total.
+ *   - getBillDetail attaches advance fields to the bill response.
+ *   - NOTHING else changes. Current-cycle math, writes, single-bill GET,
+ *     pay/update/defer/repair/health — byte-identical.
+ *   - Frontend v0.10.2 ignores unknown fields; UI for advance lands next turn.
  */
 
-const VERSION = 'v0.8.1-defensive-pay-and-honest-stack';
+const VERSION = 'v0.8.2-advance-payments-additive';
 const DEFAULT_CATEGORY_ID = 'bills_utilities';
 
 export async function onRequestGet(context) {
@@ -106,7 +109,9 @@ export async function onRequestDelete(context) {
   }
 }
 
-/* Overview */
+/* ─────────────────────────────
+ * Overview (advance-payment fields added; current-cycle math UNCHANGED)
+ * ───────────────────────────── */
 
 async function getOverview(db, url) {
   const month = normalizeMonth(url.searchParams.get('month')) || currentMonth();
@@ -118,9 +123,15 @@ async function getOverview(db, url) {
   let expectedThisCycle = 0, paidThisCycle = 0, remaining = 0;
   let paidCount = 0, partialCount = 0, unpaidCount = 0, ledgerReversedExcludedCount = 0;
 
+  // NEW (additive): advance-payment totals across all active bills.
+  let advancePaidTotal = 0;
+  let advancePaymentCountTotal = 0;
+
   for (const bill of bills) {
     if (!isActiveBill(bill)) continue;
+
     const cycle = buildCurrentCycle({ bill, month, payments, txnsById });
+
     expectedThisCycle = round2(expectedThisCycle + cycle.amount);
     paidThisCycle = round2(paidThisCycle + cycle.paid_amount);
     remaining = round2(remaining + cycle.remaining_amount);
@@ -128,11 +139,22 @@ async function getOverview(db, url) {
     if (cycle.status === 'paid') paidCount += 1;
     else if (cycle.status === 'partial') partialCount += 1;
     else unpaidCount += 1;
+
+    // NEW: advance-payment summary for this bill (future cycles only).
+    const advance = buildAdvanceSummary({ bill, month, payments, txnsById });
+    advancePaidTotal = round2(advancePaidTotal + advance.advance_paid_amount);
+    advancePaymentCountTotal += advance.advance_payment_count;
+
     rows.push({
       ...bill,
       current_cycle: cycle,
       ledger_linked: cycle.payments.some(p => Boolean(p.transaction_id)),
-      ledger_reversed_excluded_count: cycle.ignored_payments.filter(p => p.ignore_reason === 'linked_transaction_reversed').length
+      ledger_reversed_excluded_count: cycle.ignored_payments.filter(p => p.ignore_reason === 'linked_transaction_reversed').length,
+
+      // NEW additive fields — safe to ignore on the frontend.
+      advance_paid_amount: advance.advance_paid_amount,
+      advance_payment_count: advance.advance_payment_count,
+      next_paid_cycles: advance.next_cycles
     });
   }
 
@@ -145,6 +167,11 @@ async function getOverview(db, url) {
     remaining: round2(remaining),
     paid_count: paidCount, partial_count: partialCount, unpaid_count: unpaidCount,
     ledger_reversed_excluded_count: ledgerReversedExcludedCount,
+
+    // NEW top-level additive fields.
+    advance_paid_total: advancePaidTotal,
+    advance_payment_count_total: advancePaymentCountTotal,
+
     count: rows.length, bills: rows, current_cycle: rows, health,
     rules: {
       bills_engine_source: '/api/bills',
@@ -153,7 +180,9 @@ async function getOverview(db, url) {
       active_payment_linked_to_reversed_transaction_is_excluded: true,
       no_silent_cash_fallback_for_payments: true,
       bill_creation_does_not_move_money: true,
-      bill_payment_moves_money_through_ledger: true
+      bill_payment_moves_money_through_ledger: true,
+      advance_payment_is_a_payment_with_bill_month_greater_than_current_month: true,
+      reversed_advance_payment_does_not_count: true
     },
     contract: {
       endpoint: '/api/bills', health_endpoint: '/api/bills/health',
@@ -172,7 +201,17 @@ async function getBillDetail(db, billId, url) {
   const payments = await loadBillPayments(db);
   const txnsById = await loadTransactionsById(db);
   const current_cycle = buildCurrentCycle({ bill, month, payments, txnsById });
-  return json({ ok: true, version: VERSION, bill: { ...bill, current_cycle } });
+  const advance = buildAdvanceSummary({ bill, month, payments, txnsById });
+  return json({
+    ok: true, version: VERSION,
+    bill: {
+      ...bill,
+      current_cycle,
+      advance_paid_amount: advance.advance_paid_amount,
+      advance_payment_count: advance.advance_payment_count,
+      next_paid_cycles: advance.next_cycles
+    }
+  });
 }
 
 async function getHistory(db, url) {
@@ -194,7 +233,9 @@ async function getHistory(db, url) {
   return json({ ok: true, version: VERSION, bill, payments: history, count: history.length });
 }
 
-/* Cycle engine */
+/* ─────────────────────────────
+ * Cycle engine (UNCHANGED from v0.8.1)
+ * ───────────────────────────── */
 
 function buildCurrentCycle(input) {
   const { bill, month, payments, txnsById } = input;
@@ -233,8 +274,57 @@ function buildCurrentCycle(input) {
   };
 }
 
+/* ─────────────────────────────
+ * NEW: Advance-payment summary (read-only, additive)
+ *
+ * Scans every payment for this bill where bill_month > current month and
+ * the payment passes classifyPayment (i.e. not reversed, linked txn live).
+ * Groups by month, returns totals + a per-month breakdown.
+ * ───────────────────────────── */
+function buildAdvanceSummary({ bill, month, payments, txnsById }) {
+  const futureByMonth = new Map();
+  let advancePaidAmount = 0;
+  let advancePaymentCount = 0;
+
+  for (const payment of payments || []) {
+    if (!payment || payment.bill_id !== bill.id) continue;
+    const paymentMonth = payment.bill_month || monthFromDate(payment.paid_date);
+    if (!paymentMonth || paymentMonth <= month) continue; // current or past cycle, skip
+
+    const tx = payment.transaction_id ? txnsById.get(payment.transaction_id) : null;
+    const classified = classifyPayment(payment, tx || null);
+    if (!classified.effective_paid) continue;
+
+    const amt = Number((payment && payment.amount) || 0);
+    advancePaidAmount = round2(advancePaidAmount + amt);
+    advancePaymentCount += 1;
+
+    const bucket = futureByMonth.get(paymentMonth) || {
+      month: paymentMonth, paid_amount: 0, payment_count: 0, payments: []
+    };
+    bucket.paid_amount = round2(bucket.paid_amount + amt);
+    bucket.payment_count += 1;
+    bucket.payments.push({
+      id: payment.id,
+      amount: amt,
+      account_id: payment.account_id,
+      paid_date: payment.paid_date,
+      transaction_id: payment.transaction_id,
+      notes: payment.notes
+    });
+    futureByMonth.set(paymentMonth, bucket);
+  }
+
+  const next_cycles = Array.from(futureByMonth.values()).sort((a, b) => (a.month < b.month ? -1 : 1));
+
+  return {
+    advance_paid_amount: advancePaidAmount,
+    advance_payment_count: advancePaymentCount,
+    next_cycles
+  };
+}
+
 function classifyPayment(payment, tx) {
-  // Defend against undefined/null payment shape — never dereference blindly.
   const p = payment || {};
   const status = clean(p.status).toLowerCase();
   const notes  = clean(p.notes).toUpperCase();
@@ -260,7 +350,9 @@ function classifyPayment(payment, tx) {
   return { effective_paid: true, ignore_reason: null };
 }
 
-/* Mutations */
+/* ─────────────────────────────
+ * Mutations (UNCHANGED from v0.8.1)
+ * ───────────────────────────── */
 
 async function createBill(db, body, dryRun) {
   const cols = await tableColumns(db, 'bills');
@@ -376,13 +468,8 @@ async function payBill(db, body, dryRun) {
   const updateStmt = prepareUpdate(db, 'bills', billCols, billUpdate, 'id = ?', [bill.id]);
   if (updateStmt) batch.push(updateStmt);
 
-  // CRITICAL WRITE — must succeed for pay to count.
   await db.batch(batch);
 
-  // Non-fatal: re-fetch overview to include the updated bill in the response.
-  // If the re-fetch throws (e.g., a downstream null in classifyPayment),
-  // the pay is still OK — the write completed. We surface the overview error
-  // separately so the user is not told their payment failed when it did not.
   let overview = null;
   let overview_error = null;
   try {
@@ -521,7 +608,9 @@ async function repairReversedPayments(db, body, dryRun) {
   });
 }
 
-/* Loaders (UNCHANGED from v0.8.0) */
+/* ─────────────────────────────
+ * Loaders / Normalizers / Health / Helpers (UNCHANGED from v0.8.1)
+ * ───────────────────────────── */
 
 async function loadBills(db) {
   const cols = await tableColumns(db, 'bills');
@@ -604,8 +693,6 @@ async function loadTransactionsById(db) {
   return map;
 }
 
-/* Normalizers (UNCHANGED) */
-
 function normalizeBill(row) {
   return {
     id: clean(row.id), name: clean(row.name),
@@ -651,8 +738,6 @@ function normalizeTxn(row) {
   };
 }
 
-/* Health */
-
 function buildEmbeddedHealth(input) {
   const { payments, txnsById } = input;
   const active_payment_reversed_txn_mismatch = [];
@@ -687,8 +772,6 @@ function buildEmbeddedHealth(input) {
   };
 }
 
-/* Rules / helpers */
-
 function isReservedPath(value) {
   return ['history', 'cycle', 'pay', 'payment', 'update', 'defer', 'repair', 'health'].includes(clean(value).toLowerCase());
 }
@@ -700,12 +783,6 @@ function isActivePaymentStatus(statusValue) {
   const status = clean(statusValue).toLowerCase();
   return status === '' || status === 'paid' || status === 'active' || status === 'posted';
 }
-
-/**
- * Nil-guarded. tx may be null/undefined; in that case the txn is not
- * considered reversed (caller is responsible for treating missing tx
- * as its own classification result).
- */
 function isReversedTxn(tx) {
   if (!tx) return false;
   const notes = clean(tx.notes).toUpperCase();
@@ -822,12 +899,6 @@ function appendNote(existing, addition) {
 }
 function makeId(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
 function errorPayload(code, message) { return { ok: false, version: VERSION, error: { code, message } }; }
-
-/**
- * NEW: extract stack from a real Error so the frontend toast can show
- * file:line, not just the error class. The first 4 stack frames are
- * usually enough to pinpoint the failing function in this single-file API.
- */
 function errorPayloadFromException(code, err) {
   const message = err && err.message ? err.message : String(err);
   const stack = err && err.stack ? String(err.stack).split('\n').slice(0, 4).join(' | ') : null;
