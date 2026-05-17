@@ -1,758 +1,538 @@
-/* /api/transactions/reverse — POST
- * Sovereign Finance
- * v0.4.0-bill-and-debt-payment-reversal-integrity
+/* Sovereign Finance · Transactions API · POST /api/transactions/reverse
+ * v0.5.0-debt-origin-reversal-integrity
  *
- * Purpose:
- * - Reverse a ledger transaction.
- * - Preserve schema-safe transaction writes.
- * - Keep account balances ledger-derived.
- * - If reversing a [DEBT_PAYMENT], mark linked debt_payment as reversed.
- * - If reversing a [BILL_PAYMENT], mark linked bill_payment as reversed.
- * - Prevent future ledger/domain mismatches.
+ * Delta vs v0.4.0:
+ *   - NEW: repairDebtOriginForReversedTransaction()
+ *       When a transaction carrying [DEBT_ORIGIN] or [DEBT_ORIGIN_REPAIR] marker
+ *       is reversed, the linked debt is reverted:
+ *         - cached paid_amount recalculated from active debt_payments
+ *         - status flipped to 'archived' with audit note appended
+ *         - if no other active origin tx exists for that debt
+ *       The reverse routes already revert money + ledger; this closes the
+ *       last gap where the debts row was left orphaned as "active".
+ *   - reverseSingle + reverseLinkedPair call the new function alongside
+ *     existing debt_payment + bill_payment repair hooks.
+ *   - Response gains debt_origin_repair field.
+ *   - No SQL / route / money-logic changes elsewhere.
  */
 
-const VERSION = 'v0.4.0-bill-and-debt-payment-reversal-integrity';
+const VERSION = 'v0.5.0-debt-origin-reversal-integrity';
 
 export async function onRequestPost(context) {
   try {
-    const db = context.env.DB;
+    const db = database(context.env);
+    if (!db) return json(errorPayload('DB_BINDING_MISSING', 'D1 binding DB is missing.'), 500);
+
     const body = await readJson(context.request);
+    const dryRun = isDryRun(body);
+    const txId = clean(body.transaction_id || body.id || body.txn_id);
+    if (!txId) return json(errorPayload('TRANSACTION_ID_REQUIRED', 'transaction_id is required.'), 400);
 
-    const id = clean(body.id);
-    const reason = clean(body.reason);
-    const createdBy = clean(body.created_by || 'web-ledger');
+    const cols = await tableColumns(db, 'transactions');
+    if (!cols.size) return json(errorPayload('TRANSACTIONS_TABLE_MISSING', 'transactions table is missing.'), 500);
 
-    if (!db) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: 'DB binding missing'
-      }, 500);
+    const original = await findTransaction(db, txId);
+    if (!original) return json(errorPayload('TRANSACTION_NOT_FOUND', `Transaction not found: ${txId}`), 404);
+
+    const reasonGuard = preReverseGuard(original);
+    if (reasonGuard) return json(errorPayload(reasonGuard.code, reasonGuard.message), 409);
+
+    if (isLinkedPair(original)) {
+      return reverseLinkedPair(db, original, body, dryRun);
     }
-
-    if (!id) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: 'id required'
-      }, 400);
-    }
-
-    if (!reason) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: 'reason required'
-      }, 400);
-    }
-
-    const columns = await getColumns(db, 'transactions');
-    const original = await db.prepare('SELECT * FROM transactions WHERE id = ?').bind(id).first();
-
-    if (!original) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: 'Original transaction not found'
-      }, 404);
-    }
-
-    const guard = guardReversible(original);
-
-    if (!guard.ok) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: guard.error
-      }, 400);
-    }
-
-    const linked = await findLinkedTransaction(db, original);
-
-    if (linked) {
-      const linkedGuard = guardReversible(linked);
-
-      if (!linkedGuard.ok) {
-        return json({
-          ok: false,
-          version: VERSION,
-          error: 'Linked transaction cannot be reversed: ' + linkedGuard.error
-        }, 400);
-      }
-
-      return reverseLinkedPair({
-        db,
-        columns,
-        original,
-        linked,
-        reason,
-        createdBy
-      });
-    }
-
-    return reverseSingle({
-      db,
-      columns,
-      original,
-      reason,
-      createdBy
-    });
+    return reverseSingle(db, original, body, dryRun);
   } catch (err) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: err && err.message ? err.message : String(err)
-    }, 500);
+    return json(errorPayloadFromException('REVERSE_FAILED', err), 500);
   }
 }
 
 /* ─────────────────────────────
- * Single transaction reversal
+ * Single-tx reverse path
  * ───────────────────────────── */
 
-async function reverseSingle(input) {
-  const { db, columns, original, reason, createdBy } = input;
+async function reverseSingle(db, original, body, dryRun) {
+  const cols = await tableColumns(db, 'transactions');
+  const reversalId = clean(body.reversal_id) || makeId('tx_reversal');
+  const reversalDate = normalizeDate(body.date) || todayISO();
+  const reason = clean(body.reason || body.notes);
+  const createdAt = nowSql();
+  const reversalAmount = Number(original.amount || 0);
+  const reversalType = inverseType(original.type);
+  const reversalAccount = original.account_id;
 
-  const now = new Date().toISOString();
-  const today = now.slice(0, 10);
-  const originalId = clean(original.id);
-  const originalType = clean(original.type || original.transaction_type || original.kind || 'expense').toLowerCase();
-  const amount = Math.abs(Number(original.amount || 0));
-
-  if (!Number.isFinite(amount) || amount <= 0) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: 'Original amount is invalid'
-    }, 400);
+  if (!reversalType) {
+    return json(errorPayload('UNSUPPORTED_TYPE', `Cannot infer reversal type for: ${original.type}`), 400);
   }
 
-  const reversalId = makeId('rev');
-  const reversalType = oppositeType(originalType);
-
-  const reversalText = `[REVERSAL OF ${originalId}] Reason: ${reason}`;
-
-  const reversalRow = {
+  const reversal = {
     id: reversalId,
-    date: today,
+    date: reversalDate,
     type: reversalType,
     transaction_type: reversalType,
-    amount,
-    account_id: original.account_id || null,
-    transfer_to_account_id: null,
-    category_id: original.category_id || null,
-    category: original.category || null,
-    notes: reversalText,
-    description: reversalText,
-    memo: reversalText,
-    linked_txn_id: originalId,
-    reversed_of: originalId,
-    created_by: createdBy,
-    created_at: now,
-    updated_at: now,
-    status: 'active',
+    amount: reversalAmount,
+    account_id: reversalAccount,
+    category_id: original.category_id,
+    notes: buildReversalNote(original, reason),
+    description: `Reversal of ${original.id}`,
+    memo: `Reversal of ${original.id}`,
     fee_amount: 0,
-    pra_amount: 0
+    pra_amount: 0,
+    created_at: createdAt,
+    updated_at: createdAt,
+    reversed_by: null,
+    reversed_at: null,
+    linked_txn_id: original.id,
+    status: 'active'
   };
 
-  const insert = buildInsert('transactions', columns, reversalRow);
+  if (dryRun) {
+    return json({
+      ok: true, version: VERSION, action: 'transaction.reverse.dry_run',
+      dry_run: true, writes_performed: false,
+      original, reversal,
+      rule: 'Single reverse: inserts inverse-type tx and marks original reversed.'
+    });
+  }
 
-  const markOriginal = buildUpdate('transactions', columns, {
+  const insertStmt = prepareInsert(db, 'transactions', cols, reversal);
+  const markStmt = prepareUpdate(db, 'transactions', cols, {
     reversed_by: reversalId,
-    reversed_at: now,
-    reversal_reason: reason,
-    updated_at: now
-  }, 'id = ?', [originalId]);
+    reversed_at: nowIso(),
+    updated_at: createdAt,
+    status: 'reversed'
+  }, 'id = ?', [original.id]);
 
-  const statements = [
-    db.prepare(insert.sql).bind(...insert.values)
-  ];
+  const batch = [insertStmt];
+  if (markStmt) batch.push(markStmt);
+  await db.batch(batch);
 
-  if (markOriginal) {
-    statements.push(db.prepare(markOriginal.sql).bind(...markOriginal.values));
-  }
-
-  await db.batch(statements);
-
-  const debtIntegrity = await repairDebtPaymentForReversedTransaction({
-    db,
-    original,
-    originalId,
-    reversalId,
-    reversedAt: now,
-    reason
-  });
-
-  const billIntegrity = await repairBillPaymentForReversedTransaction({
-    db,
-    original,
-    originalId,
-    reversalId,
-    reversedAt: now,
-    reason
-  });
+  // ─── REPAIR HOOKS (cascading domain integrity) ───
+  const billRepair = await safeRepair(() => repairBillPaymentForReversedTransaction(db, original, reversalId));
+  const debtPaymentRepair = await safeRepair(() => repairDebtPaymentForReversedTransaction(db, original, reversalId));
+  const debtOriginRepair = await safeRepair(() => repairDebtOriginForReversedTransaction(db, original, reversalId));
 
   return json({
-    ok: true,
-    version: VERSION,
-    mode: 'single',
-    original_id: originalId,
-    reversal_id: reversalId,
-    original_type: originalType,
-    reversal_type: reversalType,
-    amount,
-    account_id: original.account_id || null,
-    reason,
-    marked_original_reversed: Boolean(markOriginal),
-    debt_payment_integrity: debtIntegrity,
-    bill_payment_integrity: billIntegrity
+    ok: true, version: VERSION, action: 'transaction.reverse',
+    writes_performed: true,
+    original_id: original.id, reversal_id: reversalId,
+    reversal,
+    bill_payment_repair: billRepair,
+    debt_payment_repair: debtPaymentRepair,
+    debt_origin_repair: debtOriginRepair,
+    rule: 'Single transaction reversed. Domain repair hooks attempted for bills, debt payments, and debt origins.'
   });
 }
 
 /* ─────────────────────────────
- * Linked transfer reversal
+ * Linked-pair reverse path
  * ───────────────────────────── */
 
-async function reverseLinkedPair(input) {
-  const { db, columns, original, linked, reason, createdBy } = input;
+async function reverseLinkedPair(db, original, body, dryRun) {
+  const cols = await tableColumns(db, 'transactions');
+  const partner = await findTransaction(db, original.linked_txn_id);
 
-  const now = new Date().toISOString();
-  const today = now.slice(0, 10);
-  const pair = normalizeTransferPair(original, linked);
-
-  if (!pair.ok) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: pair.error
-    }, 400);
+  if (!partner) {
+    return reverseSingle(db, original, body, dryRun);
+  }
+  const partnerGuard = preReverseGuard(partner);
+  if (partnerGuard) {
+    return json(errorPayload(partnerGuard.code, `Linked partner not reversible: ${partnerGuard.message}`), 409);
   }
 
-  const amount = Math.abs(Number(pair.amount || 0));
+  const createdAt = nowSql();
+  const reversalDate = normalizeDate(body.date) || todayISO();
+  const reason = clean(body.reason || body.notes);
+  const reversalAId = clean(body.reversal_a_id) || makeId('tx_reversal_a');
+  const reversalBId = clean(body.reversal_b_id) || makeId('tx_reversal_b');
 
-  if (!Number.isFinite(amount) || amount <= 0) {
+  const reversalA = buildPartnerReversal(original, reversalAId, reversalDate, createdAt, reason);
+  const reversalB = buildPartnerReversal(partner, reversalBId, reversalDate, createdAt, reason);
+
+  if (dryRun) {
     return json({
-      ok: false,
-      version: VERSION,
-      error: 'Linked transfer amount is invalid'
-    }, 400);
+      ok: true, version: VERSION, action: 'transaction.reverse_linked_pair.dry_run',
+      dry_run: true, writes_performed: false,
+      original, partner, reversal_a: reversalA, reversal_b: reversalB,
+      rule: 'Linked-pair reverse: inserts two inverse rows and marks both originals reversed.'
+    });
   }
 
-  const reversalSourceId = makeId('revsrc');
-  const reversalDestId = makeId('revdst');
+  const batch = [
+    prepareInsert(db, 'transactions', cols, reversalA),
+    prepareInsert(db, 'transactions', cols, reversalB),
+    prepareUpdate(db, 'transactions', cols, { reversed_by: reversalAId, reversed_at: nowIso(), updated_at: createdAt, status: 'reversed' }, 'id = ?', [original.id]),
+    prepareUpdate(db, 'transactions', cols, { reversed_by: reversalBId, reversed_at: nowIso(), updated_at: createdAt, status: 'reversed' }, 'id = ?', [partner.id])
+  ].filter(Boolean);
+  await db.batch(batch);
 
-  const sourceReversalNotes = `[REVERSAL OF ${pair.outRow.id}] [linked: ${reversalDestId}] Reason: ${reason}`;
-  const destinationReversalNotes = `[REVERSAL OF ${pair.inRow.id}] [linked: ${reversalSourceId}] Reason: ${reason}`;
-
-  const sourceReversalRow = {
-    id: reversalSourceId,
-    date: today,
-    type: 'income',
-    transaction_type: 'income',
-    amount,
-    account_id: pair.sourceAccount,
-    transfer_to_account_id: null,
-    category_id: null,
-    category: null,
-    notes: sourceReversalNotes,
-    description: sourceReversalNotes,
-    memo: sourceReversalNotes,
-    linked_txn_id: reversalDestId,
-    reversed_of: pair.outRow.id,
-    created_by: createdBy,
-    created_at: now,
-    updated_at: now,
-    status: 'active',
-    fee_amount: 0,
-    pra_amount: 0
-  };
-
-  const destinationReversalRow = {
-    id: reversalDestId,
-    date: today,
-    type: 'expense',
-    transaction_type: 'expense',
-    amount,
-    account_id: pair.destinationAccount,
-    transfer_to_account_id: null,
-    category_id: null,
-    category: null,
-    notes: destinationReversalNotes,
-    description: destinationReversalNotes,
-    memo: destinationReversalNotes,
-    linked_txn_id: reversalSourceId,
-    reversed_of: pair.inRow.id,
-    created_by: createdBy,
-    created_at: now,
-    updated_at: now,
-    status: 'active',
-    fee_amount: 0,
-    pra_amount: 0
-  };
-
-  const insertSource = buildInsert('transactions', columns, sourceReversalRow);
-  const insertDestination = buildInsert('transactions', columns, destinationReversalRow);
-
-  const markOut = buildUpdate('transactions', columns, {
-    reversed_by: reversalSourceId,
-    reversed_at: now,
-    reversal_reason: reason,
-    updated_at: now
-  }, 'id = ?', [pair.outRow.id]);
-
-  const markIn = buildUpdate('transactions', columns, {
-    reversed_by: reversalDestId,
-    reversed_at: now,
-    reversal_reason: reason,
-    updated_at: now
-  }, 'id = ?', [pair.inRow.id]);
-
-  const statements = [
-    db.prepare(insertSource.sql).bind(...insertSource.values),
-    db.prepare(insertDestination.sql).bind(...insertDestination.values)
-  ];
-
-  if (markOut) statements.push(db.prepare(markOut.sql).bind(...markOut.values));
-  if (markIn) statements.push(db.prepare(markIn.sql).bind(...markIn.values));
-
-  await db.batch(statements);
+  // Repair hooks on both halves
+  const billRepairA = await safeRepair(() => repairBillPaymentForReversedTransaction(db, original, reversalAId));
+  const billRepairB = await safeRepair(() => repairBillPaymentForReversedTransaction(db, partner, reversalBId));
+  const debtPayRepairA = await safeRepair(() => repairDebtPaymentForReversedTransaction(db, original, reversalAId));
+  const debtPayRepairB = await safeRepair(() => repairDebtPaymentForReversedTransaction(db, partner, reversalBId));
+  const debtOriginRepairA = await safeRepair(() => repairDebtOriginForReversedTransaction(db, original, reversalAId));
+  const debtOriginRepairB = await safeRepair(() => repairDebtOriginForReversedTransaction(db, partner, reversalBId));
 
   return json({
-    ok: true,
-    version: VERSION,
-    mode: 'linked_transfer',
-    original_out_id: pair.outRow.id,
-    original_in_id: pair.inRow.id,
-    reversal_source_id: reversalSourceId,
-    reversal_destination_id: reversalDestId,
-    amount,
-    source_account: pair.sourceAccount,
-    destination_account: pair.destinationAccount,
-    reason,
-    marked_originals_reversed: Boolean(markOut && markIn)
+    ok: true, version: VERSION, action: 'transaction.reverse_linked_pair',
+    writes_performed: true,
+    original_id: original.id, partner_id: partner.id,
+    reversal_a_id: reversalAId, reversal_b_id: reversalBId,
+    bill_payment_repair: { a: billRepairA, b: billRepairB },
+    debt_payment_repair: { a: debtPayRepairA, b: debtPayRepairB },
+    debt_origin_repair:  { a: debtOriginRepairA, b: debtOriginRepairB }
   });
 }
 
 /* ─────────────────────────────
- * Debt payment reversal integrity
+ * Repair: bill payments (UNCHANGED from v0.4.0)
  * ───────────────────────────── */
 
-async function repairDebtPaymentForReversedTransaction(input) {
-  const { db, original, originalId, reversalId, reversedAt, reason } = input;
-  const markerText = clean(original.notes || original.description || original.memo);
+async function repairBillPaymentForReversedTransaction(db, original, reversalId) {
+  const exists = await tableExists(db, 'bill_payments');
+  if (!exists) return { applicable: false, reason: 'bill_payments_table_missing' };
 
-  const paymentCols = await getColumns(db, 'debt_payments');
+  const cols = await tableColumns(db, 'bill_payments');
+  if (!cols.size) return { applicable: false, reason: 'bill_payments_no_columns' };
 
-  if (!paymentCols.size || !paymentCols.has('transaction_id')) {
-    return {
-      checked: true,
-      applicable: false,
-      reason: 'debt_payments table or transaction_id column missing'
-    };
+  const txIdCol = pickColumn(cols, ['transaction_id', 'txn_id', 'ledger_transaction_id']);
+  if (!txIdCol) return { applicable: false, reason: 'no_transaction_id_column_in_bill_payments' };
+
+  const row = await db.prepare(`SELECT * FROM bill_payments WHERE TRIM(${txIdCol}) = TRIM(?) LIMIT 1`).bind(original.id).first();
+  const markerText = String(original.notes || '').toUpperCase();
+  if (!row && !markerText.includes('[BILL_PAYMENT]')) return { applicable: false };
+  if (!row) return { applicable: false, reason: 'marker_present_but_no_row' };
+
+  const updates = {};
+  if (cols.has('status')) updates.status = 'reversed';
+  if (cols.has('reversed_at')) updates.reversed_at = nowIso();
+  if (cols.has('reversal_transaction_id')) updates.reversal_transaction_id = reversalId;
+  if (cols.has('reversed_by')) updates.reversed_by = reversalId;
+  if (cols.has('updated_at')) updates.updated_at = nowSql();
+  if (cols.has('notes')) updates.notes = appendNote(row.notes, `Auto-reversed: linked ledger ${original.id} reversed by ${reversalId}.`);
+
+  const stmt = prepareUpdate(db, 'bill_payments', cols, updates, 'id = ?', [row.id]);
+  if (stmt) await stmt.run();
+
+  // Bill cached last_paid fields: if this was the last payment, clear them.
+  const billCols = await tableColumns(db, 'bills');
+  if (billCols.has('last_paid_date') && row.bill_id) {
+    const stillActive = await db.prepare(
+      `SELECT COUNT(*) AS c FROM bill_payments WHERE bill_id = ? AND COALESCE(status,'paid') NOT IN ('reversed','voided','cancelled')`
+    ).bind(row.bill_id).first();
+    if (stillActive && Number(stillActive.c) === 0) {
+      const clear = {};
+      if (billCols.has('last_paid_date')) clear.last_paid_date = null;
+      if (billCols.has('last_paid_account_id')) clear.last_paid_account_id = null;
+      if (billCols.has('updated_at')) clear.updated_at = nowSql();
+      const billStmt = prepareUpdate(db, 'bills', billCols, clear, 'id = ?', [row.bill_id]);
+      if (billStmt) await billStmt.run();
+    }
   }
 
-  const payment = await db.prepare(
-    'SELECT * FROM debt_payments WHERE TRIM(transaction_id) = TRIM(?) LIMIT 1'
-  ).bind(originalId).first();
+  return { applicable: true, payment_id: row.id, bill_id: row.bill_id || null };
+}
 
-  if (!payment && !markerText.includes('[DEBT_PAYMENT]')) {
-    return {
-      checked: true,
-      applicable: false,
-      reason: 'transaction is not linked to a debt payment'
-    };
-  }
+/* ─────────────────────────────
+ * Repair: debt payments (UNCHANGED from v0.4.0)
+ * ───────────────────────────── */
 
-  if (!payment) {
+async function repairDebtPaymentForReversedTransaction(db, original, reversalId) {
+  const exists = await tableExists(db, 'debt_payments');
+  if (!exists) return { applicable: false, reason: 'debt_payments_table_missing' };
+
+  const cols = await tableColumns(db, 'debt_payments');
+  if (!cols.size) return { applicable: false, reason: 'debt_payments_no_columns' };
+
+  const txIdCol = pickColumn(cols, ['transaction_id', 'txn_id', 'ledger_transaction_id']);
+  if (!txIdCol) return { applicable: false, reason: 'no_transaction_id_column_in_debt_payments' };
+
+  const row = await db.prepare(`SELECT * FROM debt_payments WHERE TRIM(${txIdCol}) = TRIM(?) LIMIT 1`).bind(original.id).first();
+  const markerText = String(original.notes || '').toUpperCase();
+  if (!row && !markerText.includes('[DEBT_PAYMENT]')) return { applicable: false };
+  if (!row) return { applicable: false, reason: 'marker_present_but_no_row' };
+
+  const updates = {};
+  if (cols.has('status')) updates.status = 'reversed';
+  if (cols.has('reversed_at')) updates.reversed_at = nowIso();
+  if (cols.has('reversal_transaction_id')) updates.reversal_transaction_id = reversalId;
+  if (cols.has('reversed_by')) updates.reversed_by = reversalId;
+  if (cols.has('updated_at')) updates.updated_at = nowSql();
+  if (cols.has('notes')) updates.notes = appendNote(row.notes, `Auto-reversed: linked ledger ${original.id} reversed by ${reversalId}.`);
+  const stmt = prepareUpdate(db, 'debt_payments', cols, updates, 'id = ?', [row.id]);
+  if (stmt) await stmt.run();
+
+  // Recalculate cached debt.paid_amount and flip status back to active if needed.
+  const debtId = row.debt_id;
+  let recalc = null;
+  if (debtId) recalc = await recalculateDebtFromPayments(db, debtId);
+
+  return { applicable: true, payment_id: row.id, debt_id: debtId || null, recalc };
+}
+
+/* ─────────────────────────────
+ * NEW: Repair debt origin (CLOSES THE BUG)
+ * ───────────────────────────── */
+
+async function repairDebtOriginForReversedTransaction(db, original, reversalId) {
+  const markerText = String(original.notes || '').toUpperCase();
+  const isOriginMarker = markerText.includes('[DEBT_ORIGIN]') || markerText.includes('[DEBT_ORIGIN_REPAIR]');
+  if (!isOriginMarker) return { applicable: false };
+
+  // Extract debt_id token from notes — same format used by debts/[[path]].js when writing origin txs.
+  const m = String(original.notes || '').match(/debt_id=([A-Za-z0-9_\-]+)/);
+  const debtId = m ? m[1] : null;
+  if (!debtId) return { applicable: false, reason: 'no_debt_id_token_in_notes' };
+
+  const debtsExists = await tableExists(db, 'debts');
+  if (!debtsExists) return { applicable: false, reason: 'debts_table_missing' };
+
+  const debtCols = await tableColumns(db, 'debts');
+  if (!debtCols.size || !debtCols.has('id')) return { applicable: false, reason: 'debts_no_columns' };
+
+  const debt = await db.prepare(`SELECT * FROM debts WHERE id = ? LIMIT 1`).bind(debtId).first();
+  if (!debt) return { applicable: false, reason: 'debt_not_found', debt_id: debtId };
+
+  // Is there ANOTHER active origin tx for this debt? If yes, do not archive — only recalc payments.
+  const txCols = await tableColumns(db, 'transactions');
+  const otherActiveOriginCount = await countOtherActiveOriginsForDebt(db, txCols, debtId, original.id);
+
+  // Always recalculate paid_amount from surviving active debt_payments.
+  const recalc = await recalculateDebtFromPayments(db, debtId);
+
+  if (otherActiveOriginCount > 0) {
     return {
-      checked: true,
       applicable: true,
-      repaired: false,
-      warning: 'transaction has [DEBT_PAYMENT] marker but no debt_payment row was found'
+      debt_id: debtId,
+      action: 'origin_reversed_but_other_origins_exist',
+      other_active_origin_count: otherActiveOriginCount,
+      recalc
     };
   }
 
-  const paymentStatus = clean(payment.status).toLowerCase();
-
-  if (paymentStatus === 'reversed') {
-    return {
-      checked: true,
-      applicable: true,
-      repaired: false,
-      already_reversed: true,
-      debt_payment_id: payment.id || null,
-      debt_id: payment.debt_id || null
-    };
-  }
-
-  const statements = [];
-
-  const paymentUpdates = { status: 'reversed' };
-
-  if (paymentCols.has('reversed_at')) paymentUpdates.reversed_at = reversedAt;
-  if (paymentCols.has('reversal_transaction_id')) paymentUpdates.reversal_transaction_id = reversalId;
-  if (paymentCols.has('reversed_by')) paymentUpdates.reversed_by = reversalId;
-  if (paymentCols.has('reason')) paymentUpdates.reason = reason || 'linked ledger transaction reversed';
-  if (paymentCols.has('updated_at')) paymentUpdates.updated_at = reversedAt;
-  if (paymentCols.has('notes')) {
-    paymentUpdates.notes = appendNote(
-      payment.notes,
-      `Reversed by ${reversalId} because linked ledger transaction ${originalId} was reversed.`
+  // No other active origins → revert the debt to a clean archived state.
+  const updates = {};
+  if (debtCols.has('status')) updates.status = 'archived';
+  if (debtCols.has('archived_at')) updates.archived_at = nowIso();
+  if (debtCols.has('updated_at')) updates.updated_at = nowSql();
+  if (debtCols.has('notes')) {
+    updates.notes = appendNote(
+      debt.notes,
+      `Auto-archived ${nowIso()}: origin ledger tx ${original.id} was reversed by ${reversalId}. Linked debt reverted.`
     );
   }
 
-  const paymentUpdate = buildUpdate('debt_payments', paymentCols, paymentUpdates, 'id = ?', [payment.id]);
-
-  if (paymentUpdate) {
-    statements.push(db.prepare(paymentUpdate.sql).bind(...paymentUpdate.values));
-  }
-
-  const recalc = await recalculateDebtFromPayments(db, payment.debt_id);
-  const debtCols = await getColumns(db, 'debts');
-  const debtUpdates = {};
-
-  if (debtCols.has('paid_amount')) debtUpdates.paid_amount = recalc.paid_amount;
-  if (debtCols.has('status')) debtUpdates.status = recalc.status;
-  if (debtCols.has('last_paid_date')) debtUpdates.last_paid_date = recalc.last_paid_date;
-
-  const debtUpdate = buildUpdate('debts', debtCols, debtUpdates, 'TRIM(id) = TRIM(?)', [payment.debt_id]);
-
-  if (debtUpdate) {
-    statements.push(db.prepare(debtUpdate.sql).bind(...debtUpdate.values));
-  }
-
-  if (statements.length) {
-    await db.batch(statements);
-  }
+  const stmt = prepareUpdate(db, 'debts', debtCols, updates, 'id = ?', [debtId]);
+  if (stmt) await stmt.run();
 
   return {
-    checked: true,
     applicable: true,
-    repaired: true,
-    debt_payment_id: payment.id || null,
-    debt_id: payment.debt_id || null,
-    paid_amount_after: recalc.paid_amount,
-    remaining_amount_after: recalc.remaining_amount,
-    status_after: recalc.status
+    debt_id: debtId,
+    action: 'debt_archived_origin_reversed',
+    recalc,
+    debt_name: debt.name || null,
+    original_amount: Number(debt.original_amount || 0)
   };
 }
+
+async function countOtherActiveOriginsForDebt(db, txCols, debtId, excludeTxId) {
+  if (!txCols || !txCols.size) return 0;
+  // Look up txs whose notes contain debt_id=<debtId> AND [DEBT_ORIGIN]/[DEBT_ORIGIN_REPAIR] markers and are NOT reversed.
+  // SQLite LIKE is case-insensitive for ASCII; markers are uppercase ASCII.
+  try {
+    const rows = await db.prepare(
+      `SELECT id, notes, reversed_by, reversed_at, status
+         FROM transactions
+        WHERE id <> ?
+          AND notes LIKE ?
+          AND (notes LIKE '%[DEBT_ORIGIN]%' OR notes LIKE '%[DEBT_ORIGIN_REPAIR]%')`
+    ).bind(excludeTxId, `%debt_id=${debtId}%`).all();
+    return (rows.results || []).filter(t => {
+      if (t.reversed_by || t.reversed_at) return false;
+      if (String(t.status || '').toLowerCase() === 'reversed') return false;
+      return true;
+    }).length;
+  } catch (_) {
+    return 0;
+  }
+}
+
+/* ─────────────────────────────
+ * Shared: recalculate debt from payments (UNCHANGED from v0.4.0)
+ * ───────────────────────────── */
 
 async function recalculateDebtFromPayments(db, debtId) {
-  const debt = await db.prepare(
-    'SELECT id, original_amount FROM debts WHERE TRIM(id) = TRIM(?) LIMIT 1'
+  const debtsExists = await tableExists(db, 'debts');
+  const paymentsExists = await tableExists(db, 'debt_payments');
+  if (!debtsExists || !paymentsExists) return { ok: false, reason: 'tables_missing' };
+  const debtCols = await tableColumns(db, 'debts');
+  const paymentCols = await tableColumns(db, 'debt_payments');
+  if (!debtCols.size || !paymentCols.size) return { ok: false, reason: 'no_columns' };
+  const amountCol = pickColumn(paymentCols, ['amount', 'paid_amount']);
+  if (!amountCol) return { ok: false, reason: 'no_amount_column' };
+
+  const sumRow = await db.prepare(
+    `SELECT COALESCE(SUM(${amountCol}), 0) AS total
+       FROM debt_payments
+      WHERE debt_id = ?
+        AND COALESCE(status,'paid') NOT IN ('reversed','voided','cancelled','canceled')`
   ).bind(debtId).first();
 
-  if (!debt) {
-    return {
-      paid_amount: 0,
-      remaining_amount: 0,
-      status: 'active',
-      last_paid_date: null
-    };
+  const paid = Number((sumRow && sumRow.total) || 0);
+  const debt = await db.prepare(`SELECT id, original_amount, status, paid_amount FROM debts WHERE id = ? LIMIT 1`).bind(debtId).first();
+  if (!debt) return { ok: false, reason: 'debt_not_found' };
+
+  const original = Number(debt.original_amount || 0);
+  const remaining = Math.max(0, round2(original - paid));
+  let nextStatus = debt.status;
+  if (['archived','settled','deleted'].includes(String(debt.status || '').toLowerCase())) {
+    nextStatus = debt.status;
+  } else {
+    nextStatus = remaining <= 0 ? 'settled' : 'active';
   }
 
-  const active = await db.prepare(`
-    SELECT COALESCE(SUM(amount), 0) AS paid_amount, MAX(paid_date) AS last_paid_date
-    FROM debt_payments
-    WHERE TRIM(debt_id) = TRIM(?)
-      AND (status IS NULL OR status = '' OR status = 'paid' OR status = 'active')
-  `).bind(debtId).first();
+  const updates = {};
+  if (debtCols.has('paid_amount')) updates.paid_amount = round2(paid);
+  if (debtCols.has('status')) updates.status = nextStatus;
+  if (debtCols.has('updated_at')) updates.updated_at = nowSql();
+  const stmt = prepareUpdate(db, 'debts', debtCols, updates, 'id = ?', [debtId]);
+  if (stmt) await stmt.run();
 
-  const originalAmount = round2(debt.original_amount || 0);
-  const paidAmount = round2(active && active.paid_amount ? active.paid_amount : 0);
-  const remainingAmount = Math.max(0, round2(originalAmount - paidAmount));
-
-  return {
-    paid_amount: paidAmount,
-    remaining_amount: remainingAmount,
-    status: remainingAmount > 0 ? 'active' : 'settled',
-    last_paid_date: active && active.last_paid_date ? active.last_paid_date : null
-  };
+  return { ok: true, debt_id: debtId, paid_amount: round2(paid), original_amount: original, remaining_amount: remaining, status: nextStatus };
 }
 
 /* ─────────────────────────────
- * Bill payment reversal integrity — B4
+ * Helpers (UNCHANGED)
  * ───────────────────────────── */
 
-async function repairBillPaymentForReversedTransaction(input) {
-  const { db, original, originalId, reversalId, reversedAt, reason } = input;
-  const markerText = clean(original.notes || original.description || original.memo);
-
-  const paymentCols = await getColumns(db, 'bill_payments');
-
-  if (!paymentCols.size || !paymentCols.has('transaction_id')) {
-    return {
-      checked: true,
-      applicable: false,
-      reason: 'bill_payments table or transaction_id column missing'
-    };
+function preReverseGuard(tx) {
+  if (!tx) return { code: 'NOT_FOUND', message: 'Transaction not found.' };
+  if (tx.reversed_by || tx.reversed_at) return { code: 'ALREADY_REVERSED', message: 'Transaction is already reversed.' };
+  if (String(tx.status || '').toLowerCase() === 'reversed') return { code: 'ALREADY_REVERSED', message: 'Transaction is already reversed.' };
+  const notes = String(tx.notes || '').toUpperCase();
+  if (notes.includes('[REVERSAL OF ') || notes.includes('[REVERSED BY ')) {
+    return { code: 'REVERSAL_ROW', message: 'Cannot reverse a reversal row.' };
   }
-
-  const payment = await db.prepare(
-    'SELECT * FROM bill_payments WHERE TRIM(transaction_id) = TRIM(?) LIMIT 1'
-  ).bind(originalId).first();
-
-  if (!payment && !markerText.includes('[BILL_PAYMENT]')) {
-    return {
-      checked: true,
-      applicable: false,
-      reason: 'transaction is not linked to a bill payment'
-    };
-  }
-
-  if (!payment) {
-    return {
-      checked: true,
-      applicable: true,
-      repaired: false,
-      warning: 'transaction has [BILL_PAYMENT] marker but no bill_payment row was found'
-    };
-  }
-
-  const paymentStatus = clean(payment.status).toLowerCase();
-
-  if (paymentStatus === 'reversed') {
-    return {
-      checked: true,
-      applicable: true,
-      repaired: false,
-      already_reversed: true,
-      bill_payment_id: payment.id || null,
-      bill_id: payment.bill_id || null
-    };
-  }
-
-  const updates = { status: 'reversed' };
-
-  if (paymentCols.has('reversed_at')) updates.reversed_at = reversedAt;
-  if (paymentCols.has('reversal_transaction_id')) updates.reversal_transaction_id = reversalId;
-  if (paymentCols.has('reversed_by')) updates.reversed_by = reversalId;
-  if (paymentCols.has('updated_at')) updates.updated_at = reversedAt;
-  if (paymentCols.has('reason')) updates.reason = reason || 'linked ledger transaction reversed';
-  if (paymentCols.has('notes')) {
-    updates.notes = appendNote(
-      payment.notes,
-      `Reversed by ${reversalId} because linked ledger transaction ${originalId} was reversed.`
-    );
-  }
-
-  const statements = [];
-
-  const paymentUpdate = buildUpdate('bill_payments', paymentCols, updates, 'id = ?', [payment.id]);
-
-  if (paymentUpdate) {
-    statements.push(db.prepare(paymentUpdate.sql).bind(...paymentUpdate.values));
-  }
-
-  const billCols = await getColumns(db, 'bills');
-
-  if (payment.bill_id && billCols.size) {
-    const billUpdates = {};
-
-    if (billCols.has('updated_at')) billUpdates.updated_at = reversedAt;
-
-    const billUpdate = buildUpdate('bills', billCols, billUpdates, 'TRIM(id) = TRIM(?)', [payment.bill_id]);
-
-    if (billUpdate) {
-      statements.push(db.prepare(billUpdate.sql).bind(...billUpdate.values));
-    }
-  }
-
-  if (statements.length) {
-    await db.batch(statements);
-  }
-
-  return {
-    checked: true,
-    applicable: true,
-    repaired: true,
-    bill_payment_id: payment.id || null,
-    bill_id: payment.bill_id || null,
-    bill_month: payment.bill_month || payment.month || payment.cycle_month || null,
-    status_after: 'reversed',
-    current_cycle_rule: 'Bills current_cycle is derived dynamically and will exclude this reversed payment.'
-  };
+  return null;
 }
 
-/* ─────────────────────────────
- * Shared transaction helpers
- * ───────────────────────────── */
-
-async function getColumns(db, table) {
-  try {
-    const result = await db.prepare(`PRAGMA table_info(${table})`).all();
-    const rows = result && result.results ? result.results : [];
-
-    return new Set(rows.map(row => row.name).filter(Boolean));
-  } catch {
-    return new Set();
-  }
-}
-
-function buildInsert(table, columns, row) {
-  const keys = Object.keys(row).filter(key => columns.has(key));
-
-  if (!keys.includes('id')) {
-    throw new Error(`${table} table missing id column`);
-  }
-
-  if (table === 'transactions') {
-    if (!keys.includes('type') && !keys.includes('transaction_type')) {
-      throw new Error('transactions table missing type column');
-    }
-
-    if (!keys.includes('amount')) {
-      throw new Error('transactions table missing amount column');
-    }
-  }
-
-  const placeholders = keys.map(() => '?').join(', ');
-  const sql = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${placeholders})`;
-  const values = keys.map(key => row[key]);
-
-  return { sql, values };
-}
-
-function buildUpdate(table, columns, updates, whereSql, whereValues) {
-  const keys = Object.keys(updates).filter(key => columns.has(key));
-
-  if (!keys.length) return null;
-
-  const setSql = keys.map(key => `${key} = ?`).join(', ');
-  const sql = `UPDATE ${table} SET ${setSql} WHERE ${whereSql}`;
-  const values = keys.map(key => updates[key]).concat(whereValues || []);
-
-  return { sql, values };
-}
-
-async function findLinkedTransaction(db, tx) {
-  const direct = clean(tx.linked_txn_id);
-  const fromNotes = extractLinkedId(tx.notes || tx.description || tx.memo);
-  const linkedId = direct || fromNotes;
-
-  if (!linkedId || linkedId === tx.id) return null;
-
-  try {
-    return await db.prepare('SELECT * FROM transactions WHERE id = ?').bind(linkedId).first();
-  } catch {
-    return null;
-  }
-}
-
-function normalizeTransferPair(a, b) {
-  const aType = clean(a.type || a.transaction_type).toLowerCase();
-  const bType = clean(b.type || b.transaction_type).toLowerCase();
-
-  if (aType === 'transfer' && bType === 'income') {
-    return {
-      ok: true,
-      outRow: a,
-      inRow: b,
-      amount: Number(a.amount || b.amount || 0),
-      sourceAccount: a.account_id,
-      destinationAccount: b.account_id
-    };
-  }
-
-  if (bType === 'transfer' && aType === 'income') {
-    return {
-      ok: true,
-      outRow: b,
-      inRow: a,
-      amount: Number(b.amount || a.amount || 0),
-      sourceAccount: b.account_id,
-      destinationAccount: a.account_id
-    };
-  }
-
-  return {
-    ok: false,
-    error: 'Linked rows are not a recognized transfer pair'
-  };
-}
-
-function guardReversible(tx) {
-  if (!tx) {
-    return { ok: false, error: 'Transaction not found' };
-  }
-
-  if (clean(tx.reversed_by) || clean(tx.reversed_at)) {
-    return { ok: false, error: 'Transaction is already reversed' };
-  }
-
-  const notes = clean(tx.notes || tx.description || tx.memo).toUpperCase();
-
-  if (notes.includes('[REVERSAL OF ')) {
-    return { ok: false, error: 'Cannot reverse a reversal row' };
-  }
-
-  return { ok: true };
-}
-
-function oppositeType(type) {
-  const t = clean(type).toLowerCase();
-
+function inverseType(type) {
+  const t = String(type || '').toLowerCase();
   if (t === 'expense') return 'income';
   if (t === 'income') return 'expense';
-  if (t === 'transfer') return 'income';
-  if (t === 'cc_payment') return 'cc_spend';
-  if (t === 'cc_spend') return 'cc_payment';
-  if (t === 'borrow') return 'repay';
-  if (t === 'repay') return 'borrow';
-  if (t === 'debt_in') return 'debt_out';
-  if (t === 'debt_out') return 'debt_in';
-  if (t === 'atm') return 'income';
-  if (t === 'salary') return 'expense';
-  if (t === 'opening') return 'expense';
-
-  return t || 'expense';
+  if (t === 'transfer') return 'transfer';
+  return null;
 }
 
-function extractLinkedId(value) {
-  const match = clean(value).match(/\[linked:\s*([^\]\s]+)\]/i);
-  return match ? clean(match[1]) : '';
+function isLinkedPair(tx) {
+  if (!tx) return false;
+  if (String(tx.type || '').toLowerCase() !== 'transfer') return false;
+  return Boolean(tx.linked_txn_id);
 }
 
-function appendNote(existing, addition) {
-  const base = clean(existing);
-  const next = clean(addition);
-
-  if (!base) return next;
-  if (!next) return base;
-
-  return `${base} | ${next}`.slice(0, 1000);
+function buildReversalNote(original, reason) {
+  const base = `[REVERSAL OF ${original.id}]`;
+  const why = reason ? ` ${reason}` : '';
+  return `${base} ${String(original.notes || '').slice(0, 400)}${why}`.slice(0, 1000);
 }
 
-function round2(value) {
-  const n = Number(value);
-
-  if (!Number.isFinite(n)) return 0;
-
-  return Math.round(n * 100) / 100;
+function buildPartnerReversal(tx, id, date, createdAt, reason) {
+  return {
+    id, date,
+    type: inverseType(tx.type) || tx.type,
+    transaction_type: inverseType(tx.type) || tx.type,
+    amount: Number(tx.amount || 0),
+    account_id: tx.account_id,
+    category_id: tx.category_id,
+    notes: buildReversalNote(tx, reason),
+    description: `Reversal of ${tx.id}`,
+    memo: `Reversal of ${tx.id}`,
+    fee_amount: 0, pra_amount: 0,
+    created_at: createdAt, updated_at: createdAt,
+    reversed_by: null, reversed_at: null,
+    linked_txn_id: tx.id,
+    status: 'active'
+  };
 }
 
-function makeId(prefix) {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+async function findTransaction(db, id) {
+  const cols = await tableColumns(db, 'transactions');
+  if (!cols.size || !cols.has('id')) return null;
+  const row = await db.prepare(`SELECT * FROM transactions WHERE id = ? LIMIT 1`).bind(id).first();
+  return row || null;
 }
 
-async function readJson(request) {
+async function safeRepair(fn) {
   try {
-    return await request.json();
-  } catch {
-    return {};
+    return await fn();
+  } catch (err) {
+    return { applicable: false, error: err && err.message ? err.message : String(err) };
   }
 }
 
-function clean(value) {
-  return String(value == null ? '' : value).trim();
+function database(env) { return env.DB || env.SOVEREIGN_DB || env.FINANCE_DB; }
+async function readJson(request) { try { return await request.json(); } catch { return {}; } }
+function isDryRun(body) { return body.dry_run === true || body.dry_run === '1' || body.dry_run === 'true'; }
+async function tableExists(db, t) {
+  try {
+    const row = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1").bind(t).first();
+    return Boolean(row && row.name);
+  } catch { return false; }
 }
-
+async function tableColumns(db, t) {
+  try {
+    const res = await db.prepare(`PRAGMA table_info(${t})`).all();
+    return new Set((res.results || []).map(r => r.name).filter(Boolean));
+  } catch { return new Set(); }
+}
+function pickColumn(cols, candidates) { for (const c of candidates) if (cols.has(c)) return c; return null; }
+function filterToColumns(row, cols) {
+  const out = {};
+  for (const [k, v] of Object.entries(row)) if (cols.has(k)) out[k] = v;
+  return out;
+}
+function prepareInsert(db, table, cols, row) {
+  const f = filterToColumns(row, cols);
+  const keys = Object.keys(f);
+  if (!keys.length) throw new Error(`${table} has no compatible insert columns.`);
+  return db.prepare(`INSERT INTO ${table} (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`).bind(...keys.map(k => f[k]));
+}
+function prepareUpdate(db, table, cols, updates, whereSql, whereValues) {
+  const f = filterToColumns(updates, cols);
+  const keys = Object.keys(f);
+  if (!keys.length) return null;
+  return db.prepare(`UPDATE ${table} SET ${keys.map(k => `${k} = ?`).join(', ')} WHERE ${whereSql}`).bind(...keys.map(k => f[k]), ...(whereValues || []));
+}
+function clean(v) { return String(v == null ? '' : v).trim(); }
+function round2(v) { const n = Number(v); if (!Number.isFinite(n)) return 0; return Math.round(n * 100) / 100; }
+function normalizeDate(v) {
+  const r = clean(v); if (!r) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(r)) return r.slice(0, 10);
+  const d = new Date(r); if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+function nowIso() { return new Date().toISOString(); }
+function nowSql() { return new Date().toISOString().replace('T', ' ').slice(0, 19); }
+function appendNote(existing, addition) {
+  const b = clean(existing); const n = clean(addition);
+  if (!b) return n; if (!n) return b;
+  return `${b} | ${n}`.slice(0, 1000);
+}
+function makeId(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
+function errorPayload(code, message) { return { ok: false, version: VERSION, error: { code, message } }; }
+function errorPayloadFromException(code, err) {
+  const message = err && err.message ? err.message : String(err);
+  const stack = err && err.stack ? String(err.stack).split('\n').slice(0, 4).join(' | ') : null;
+  return { ok: false, version: VERSION, error: { code, message, stack } };
+}
 function json(payload, status = 200) {
   return new Response(JSON.stringify(payload, null, 2), {
     status,
     headers: {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store'
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      Pragma: 'no-cache'
     }
   });
 }
