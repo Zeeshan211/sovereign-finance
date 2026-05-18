@@ -21,34 +21,30 @@
       gap: var(--sf-space-4, 16px);
     }
 
-    .debt-command {
+    .debt-page-head {
       display: grid;
       grid-template-columns: minmax(0, 1fr) auto;
       gap: var(--sf-space-4, 16px);
-      align-items: center;
-      padding: clamp(16px, 2.4vw, 24px);
-      border: 1px solid var(--sf-border);
-      border-radius: var(--sf-radius-xl, 24px);
-      background: var(--sf-card);
-      box-shadow: var(--sf-shadow-sm);
+      align-items: end;
+      padding: 4px 0 2px;
     }
 
     .debt-title-main {
       margin: 0;
       color: var(--sf-text);
-      font-size: clamp(30px, 4.6vw, 54px);
-      line-height: .92;
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: .9;
       font-weight: 950;
-      letter-spacing: -.07em;
+      letter-spacing: -.075em;
     }
 
     .debt-copy {
-      margin: 8px 0 0;
+      margin: 10px 0 0;
       color: var(--sf-text-muted);
       font-size: var(--sf-font-14, 14px);
       font-weight: 700;
       line-height: 1.5;
-      max-width: 880px;
+      max-width: 920px;
     }
 
     .debt-actions {
@@ -56,6 +52,23 @@
       flex-wrap: wrap;
       gap: var(--sf-space-2, 10px);
       justify-content: flex-end;
+      align-items: center;
+    }
+
+    .debt-metrics {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: var(--sf-space-3, 12px);
+    }
+
+    .debt-metrics .sf-metric-card {
+      min-height: unset;
+      padding: 14px;
+    }
+
+    .debt-metrics .sf-metric-value {
+      font-size: clamp(22px, 3vw, 34px);
+      line-height: 1;
     }
 
     .debt-status-strip {
@@ -64,12 +77,10 @@
       gap: 8px;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 14px;
+      padding: 10px 12px;
       border: 1px solid var(--sf-border);
       border-radius: 18px;
-      background:
-        radial-gradient(circle at 90% 20%, rgba(83, 215, 167, .12), transparent 22rem),
-        var(--sf-surface-1);
+      background: var(--sf-surface-1);
     }
 
     .debt-status-main {
@@ -159,22 +170,6 @@
     .debt-rules-body ul {
       margin: 0;
       padding-left: 18px;
-    }
-
-    .debt-metrics {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: var(--sf-space-3, 12px);
-    }
-
-    .debt-metrics .sf-metric-card {
-      min-height: unset;
-      padding: 14px;
-    }
-
-    .debt-metrics .sf-metric-value {
-      font-size: clamp(22px, 3vw, 34px);
-      line-height: 1;
     }
 
     .debt-workspace {
@@ -387,6 +382,7 @@
       font-size: 11px;
       font-weight: 900;
       cursor: pointer;
+      text-decoration: none;
     }
 
     .debt-action.primary {
@@ -557,7 +553,7 @@
     }
 
     @media (max-width: 1180px) {
-      .debt-command,
+      .debt-page-head,
       .debt-workspace {
         grid-template-columns: 1fr;
       }
@@ -618,13 +614,13 @@
 
     <main class="sf-page-shell">
       <section class="sf-page-content debts-os">
-        <section class="debt-command">
+        <section class="debt-page-head">
           <div>
             <div class="sf-page-eyebrow">Debt command center</div>
             <h1 class="debt-title-main">Debts</h1>
             <p class="debt-copy">
-              Debt creation is ledger-aware. If money moved now, the backend must write the debt
-              and the origin ledger row atomically. Debt-only entries do not change account balances.
+              Track what you owe and what is owed to you. Debt rows are not money truth by themselves;
+              ledger movements remain backend-owned and account balances stay ledger-derived.
             </p>
           </div>
 
@@ -636,31 +632,6 @@
             <a class="sf-button" href="/accounts.html">Accounts</a>
           </div>
         </section>
-
-        <section class="debt-status-strip" aria-label="Debt system status">
-          <div class="debt-status-main">
-            <span class="debt-status-chip strong" id="debtsHeroStatus">Debt truth</span>
-            <span class="debt-status-chip" id="debtsVersionPill">version loading</span>
-            <span class="debt-status-chip" id="debtsHealthPill">health loading</span>
-            <span class="debt-status-chip good" id="debtsLedgerPill">ledger state loading</span>
-          </div>
-          <div class="debt-status-chip" id="debtsHeroCopy">
-            Debt rows and origin ledger links are loaded from backend truth.
-          </div>
-        </section>
-
-        <details class="debt-rules">
-          <summary>Debt rules</summary>
-          <div class="debt-rules-body">
-            <ul>
-              <li>Debt rows are not money truth by themselves.</li>
-              <li>If money moved now, the backend must create the debt and origin ledger row together.</li>
-              <li>Debt-only rows are valid when the account movement already exists or should not be duplicated.</li>
-              <li>Repayments are separate money movements and must be recorded through the payment flow.</li>
-              <li>Missing ledger repair must be explicit; no legacy debt is auto-repaired blindly.</li>
-            </ul>
-          </div>
-        </details>
 
         <section class="debt-metrics">
           <article class="sf-metric-card">
@@ -700,15 +671,40 @@
           </article>
         </section>
 
+        <section class="debt-status-strip" aria-label="Debt system status">
+          <div class="debt-status-main">
+            <span class="debt-status-chip strong" id="debtsHeroStatus">Debt truth</span>
+            <span class="debt-status-chip" id="debtsVersionPill">version loading</span>
+            <span class="debt-status-chip" id="debtsHealthPill">health loading</span>
+            <span class="debt-status-chip good" id="debtsLedgerPill">ledger state loading</span>
+          </div>
+          <div class="debt-status-chip" id="debtsHeroCopy">
+            Debt rows and origin ledger links are loaded from backend truth.
+          </div>
+        </section>
+
+        <details class="debt-rules">
+          <summary>Debt rules</summary>
+          <div class="debt-rules-body">
+            <ul>
+              <li>Debt rows are not money truth by themselves.</li>
+              <li>If money moved now, the backend must create the debt and origin ledger row together.</li>
+              <li>Debt-only rows are valid when account movement already exists or should not be duplicated.</li>
+              <li>Repayments are separate money movements and must use the canonical payment flow.</li>
+              <li>Missing ledger repair must be explicit; no legacy debt is auto-repaired blindly.</li>
+            </ul>
+          </div>
+        </details>
+
         <section class="debt-workspace">
           <div class="debt-panel-stack">
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
                   <p class="sf-section-kicker">Debt ledger</p>
-                  <h2 class="sf-section-title">Active Debts</h2>
+                  <h2 class="sf-section-title">Debt Register</h2>
                   <p class="sf-section-subtitle">
-                    Filtered backend debt rows. Ledger linkage is shown per debt when returned by the API.
+                    Backend debt rows with origin, payment, schedule, and repair state returned by the canonical Debts API.
                   </p>
                 </div>
               </div>
@@ -765,8 +761,8 @@
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Backend enforcement</p>
-                  <h2 class="sf-section-title">Command Centre</h2>
+                  <p class="sf-section-kicker">Backend rules</p>
+                  <h2 class="sf-section-title">Contract Enforcement</h2>
                 </div>
               </div>
 
@@ -784,7 +780,7 @@
 
         <footer>
           <span class="sf-meta-text" id="debtFooterVersion">
-            debts.html · compact ledger-aware UI shell
+            debts.html · v0.7.0 · contract-aligned layout
           </span>
         </footer>
       </section>
@@ -912,7 +908,7 @@
           <p class="sf-section-kicker">Record Payment</p>
           <h2 class="sf-section-title">Debt payment</h2>
           <p class="sf-section-subtitle">
-            Payment movement must be handled by backend debt payment flow.
+            Payment movement must be handled by the canonical backend debt payment flow.
           </p>
         </div>
         <button class="debt-action" id="closePaymentModalBtn" type="button">Close</button>
@@ -969,7 +965,7 @@
           <p class="sf-section-kicker">Defer Debt</p>
           <h2 class="sf-section-title">Update schedule</h2>
           <p class="sf-section-subtitle">
-            Update due date / schedule without changing money truth.
+            Update due date or schedule without changing money truth.
           </p>
         </div>
         <button class="debt-action" id="closeDeferModalBtn" type="button">Close</button>
