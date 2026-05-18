@@ -1,24 +1,26 @@
 /* ─── /api/atm/[[path]] · Sovereign Finance ATM Engine ───
- * v0.2.2-atm-health-legacy-filter
+ * v0.2.3-atm-fee-refund-truth
  *
  * Contract:
  * - ATM withdrawal is bank/wallet/prepaid → cash.
- * - Source account decreases through ledger.
- * - Cash account increases through ledger.
- * - ATM fee is a separate source-account expense row.
- * - New ATM fee rows must NOT be linked to the withdrawal transfer pair.
- * - Legacy reversed fee rows are filtered out of pending health.
+ * - Source account decreases by withdrawal amount immediately.
+ * - Cash account increases by withdrawal amount immediately.
+ * - ATM fee, if entered, decreases the source account immediately.
+ * - ATM fee is a standalone source-account expense row.
+ * - ATM fee is NOT linked to the withdrawal transfer pair.
+ * - Pending fee list means "awaiting possible bank refund", not "already reversed".
+ * - Fee refund action creates a separate income row back into the source account.
  * - No direct account balance mutation.
  * - Accounts remain ledger-derived from transactions_canonical.
  */
 
-const VERSION = 'v0.2.2-atm-health-legacy-filter';
+const VERSION = 'v0.2.3-atm-fee-refund-truth';
 const CONTRACT_VERSION = 'atm-v1';
 
 const DEFAULT_SOURCE_ACCOUNT_ID = 'mashreq';
 const DEFAULT_DEST_ACCOUNT_ID = 'cash';
 const DEFAULT_FEE_PKR = 35;
-const REVERSAL_WINDOW_DAYS = 10;
+const REFUND_WINDOW_DAYS = 10;
 const MONTHLY_CAP_HINT = 15;
 
 export async function onRequestGet(context) {
@@ -53,7 +55,7 @@ export async function onRequestGet(context) {
     });
 
     const totalPending = pendingFees.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-    const overdueCount = pendingFees.filter(row => Number(row.age_days) > REVERSAL_WINDOW_DAYS).length;
+    const overdueCount = pendingFees.filter(row => Number(row.age_days) > REFUND_WINDOW_DAYS).length;
 
     return json({
       ok: true,
@@ -65,13 +67,14 @@ export async function onRequestGet(context) {
         'GET /api/atm?action=health',
         'POST /api/atm',
         'POST /api/atm/withdraw',
-        'POST /api/atm/reverse'
+        'POST /api/atm/reverse',
+        'POST /api/atm/refund'
       ],
       defaults: {
         source_account_id: DEFAULT_SOURCE_ACCOUNT_ID,
         destination_account_id: DEFAULT_DEST_ACCOUNT_ID,
-        fee_pkr: DEFAULT_FEE_PKR,
-        reversal_window_days: REVERSAL_WINDOW_DAYS,
+        fee_pkr_hint: DEFAULT_FEE_PKR,
+        refund_window_days: REFUND_WINDOW_DAYS,
         monthly_cap_hint: MONTHLY_CAP_HINT
       },
       accounts,
@@ -79,19 +82,30 @@ export async function onRequestGet(context) {
       destination_accounts: destinationAccounts,
       pending_fees: pendingFees,
       pending_count: pendingFees.length,
+      pending_fee_count: pendingFees.length,
       total_pending_pkr: round2(totalPending),
+      pending_fee_total: round2(totalPending),
       overdue_count: overdueCount,
       fees_30d: feeStats,
+      fees_paid: feeStats.paid,
+      fees_reversed: feeStats.refunded,
+      fees_refunded: feeStats.refunded,
+      fees_net: feeStats.net,
+      default_fee: DEFAULT_FEE_PKR,
       recent_atm_rows: recentRows,
+      recent_rows: recentRows,
       rules: {
         source_account_impact: 'negative',
         cash_account_impact: 'positive',
-        fee_account_impact: 'negative',
+        fee_account_impact: 'negative_immediate',
+        fee_refund_account_impact: 'positive_when_bank_refunds',
         fee_is_linked_to_withdrawal_pair: false,
+        pending_fee_meaning: 'fee already charged, awaiting possible bank refund',
+        refund_action_creates_income_row: true,
         no_direct_balance_mutation: true,
         balance_source: 'transactions_canonical',
-        pending_fee_filter_excludes_reversal_rows: true,
-        pending_fee_filter_excludes_reversed_fee_rows: true
+        pending_fee_filter_excludes_refund_rows: true,
+        pending_fee_filter_excludes_refunded_fee_rows: true
       }
     });
   } catch (err) {
@@ -115,8 +129,8 @@ export async function onRequestPost(context) {
       return createATMWithdraw(context, body);
     }
 
-    if (['reverse', 'fee_reverse', 'reverse_fee'].includes(action)) {
-      return reverseATMFee(context, body);
+    if (['reverse', 'fee_reverse', 'reverse_fee', 'refund', 'fee_refund', 'refund_fee'].includes(action)) {
+      return refundATMFee(context, body);
     }
 
     return json({
@@ -126,7 +140,7 @@ export async function onRequestPost(context) {
       error: 'Unsupported ATM action',
       code: 'UNSUPPORTED_ATM_ACTION',
       action,
-      supported: ['/api/atm', '/api/atm/withdraw', '/api/atm/reverse']
+      supported: ['/api/atm', '/api/atm/withdraw', '/api/atm/reverse', '/api/atm/refund']
     }, 400);
   } catch (err) {
     return json({
@@ -143,10 +157,10 @@ async function createATMWithdraw(context, body) {
   const db = context.env.DB;
 
   const amount = moneyNumber(body.amount, null);
-  const feeAmount = body.no_fee ? 0 : moneyNumber(body.fee_amount ?? body.fee ?? DEFAULT_FEE_PKR, DEFAULT_FEE_PKR);
+  const feeAmount = body.no_fee ? 0 : moneyNumber(body.fee_amount ?? body.fee, 0);
   const sourceId = cleanId(body.source_account_id || body.from_account_id || body.account_id || DEFAULT_SOURCE_ACCOUNT_ID);
   const destId = cleanId(body.cash_account_id || body.destination_account_id || body.to_account_id || DEFAULT_DEST_ACCOUNT_ID);
-  const atmName = cleanText(body.atm_name || body.atm || 'ATM', '', 80);
+  const atmName = cleanText(body.atm_name || body.atm || 'ATM', 'ATM', 80);
   const date = cleanDate(body.date || body.withdrawal_date);
   const notes = cleanText(body.notes || `ATM withdrawal at ${atmName}`, '', 300);
   const createdBy = cleanText(body.created_by || 'web-atm', '', 100);
@@ -272,7 +286,7 @@ async function createATMWithdraw(context, body) {
     }, 400);
   }
 
-  const shouldCreateFee = feeAmount > 0 && !isOwnATM(sourceId, atmName, body.no_fee);
+  const shouldCreateFee = feeAmount > 0;
   const atmId = makeTxnId('atm');
   const outId = makeTxnId('atmout');
   const inId = makeTxnId('atmin');
@@ -355,7 +369,7 @@ async function createATMWithdraw(context, body) {
       category_id: feeCategoryId,
       merchant_id: null,
       merchant: atmName,
-      notes: `[ATM_FEE_PENDING] atm_id=${atmId} source_account_id=${sourceId} ${atmName} ATM fee auto-flag if not reversed in ${REVERSAL_WINDOW_DAYS} days`.slice(0, 240),
+      notes: `[ATM_FEE_AWAITING_REFUND] [ATM_FEE_PENDING] atm_id=${atmId} source_account_id=${sourceId} ${atmName} ATM fee charged now; refund only if bank returns it within ${REFUND_WINDOW_DAYS} days`.slice(0, 240),
       fee_amount: 0,
       pra_amount: 0,
       currency: 'PKR',
@@ -363,7 +377,7 @@ async function createATMWithdraw(context, body) {
       fx_source: 'PKR-base',
       source_module: 'atm',
       source_id: atmId,
-      source_action: 'withdrawal_fee',
+      source_action: 'withdrawal_fee_charged',
       idempotency_key: idempotencyKey ? `${idempotencyKey}:fee` : null,
       created_by: createdBy,
       created_at: createdAt,
@@ -394,30 +408,39 @@ async function createATMWithdraw(context, body) {
       ? {
         id: feeId,
         amount: feeAmount,
+        account_id: sourceId,
+        type: 'atm',
+        charged_now: true,
+        awaiting_possible_refund: true,
         linked_to_transfer_pair: false
       }
       : null,
     account_impact: {
       balance_source: 'transactions_canonical',
       source_account_id: sourceId,
+      source_withdrawal_delta: round2(-amount),
+      source_fee_delta: shouldCreateFee ? round2(-feeAmount) : 0,
       source_account_delta: round2(-amount - (shouldCreateFee ? feeAmount : 0)),
       cash_account_id: destId,
-      cash_account_delta: amount
+      cash_account_delta: amount,
+      liquid_total_delta: shouldCreateFee ? round2(-feeAmount) : 0
     },
     ledger: {
       rows_created: shouldCreateFee ? 3 : 2,
       withdrawal_pair_created: true,
       fee_row_created: shouldCreateFee,
-      fee_row_linked_to_pair: false
+      fee_row_charged_now: shouldCreateFee,
+      fee_row_linked_to_pair: false,
+      refund_requires_separate_action: shouldCreateFee
     },
     warnings: []
   });
 }
 
-async function reverseATMFee(context, body) {
+async function refundATMFee(context, body) {
   const db = context.env.DB;
-  const createdBy = cleanText(body.created_by || 'web-atm-reverse', '', 100);
-  const feeTxnId = cleanText(body.fee_txn_id || body.id || '', '', 160);
+  const createdBy = cleanText(body.created_by || 'web-atm-refund', '', 100);
+  const feeTxnId = cleanText(body.fee_txn_id || body.id || body.transaction_id || '', '', 160);
   const amount = body.amount != null ? Number(body.amount) : null;
 
   const txCols = await tableColumns(db, 'transactions');
@@ -438,51 +461,65 @@ async function reverseATMFee(context, body) {
       ok: false,
       version: VERSION,
       contract_version: CONTRACT_VERSION,
-      action: 'atm_fee_reverse',
-      error: 'No matching pending ATM fee found',
+      action: 'atm_fee_refund',
+      error: 'No matching ATM fee awaiting refund found',
       code: 'NO_PENDING_ATM_FEE_FOUND',
       committed: false
     }, 404);
   }
 
-  const reversalId = makeTxnId('atmrev');
+  const refundId = makeTxnId('atmrefund');
   const date = cleanDate(body.date);
   const createdAt = nowISO();
+  const refundAmount = round2(Number(target.amount) || 0);
 
-  const reversalRow = filterToCols(txCols, {
-    id: reversalId,
+  if (refundAmount <= 0) {
+    return json({
+      ok: false,
+      version: VERSION,
+      contract_version: CONTRACT_VERSION,
+      action: 'atm_fee_refund',
+      error: 'ATM fee amount is invalid',
+      code: 'INVALID_PENDING_FEE_AMOUNT',
+      committed: false,
+      fee_txn_id: target.id
+    }, 400);
+  }
+
+  const refundRow = filterToCols(txCols, {
+    id: refundId,
     date,
     type: 'income',
-    amount: Number(target.amount) || 0,
-    pkr_amount: Number(target.amount) || 0,
+    amount: refundAmount,
+    pkr_amount: refundAmount,
     account_id: target.account_id,
     transfer_to_account_id: null,
     linked_txn_id: null,
     category_id: target.category_id || null,
     merchant_id: null,
-    merchant: 'ATM',
-    notes: `[ATM_FEE_REVERSAL] fee_txn_id=${target.id} Reversal of ATM fee`.slice(0, 240),
+    merchant: target.merchant || 'ATM',
+    notes: `[ATM_FEE_REFUND] fee_txn_id=${target.id} Bank refunded ATM fee`.slice(0, 240),
     fee_amount: 0,
     pra_amount: 0,
     currency: 'PKR',
     fx_rate_at_commit: 1,
     fx_source: 'PKR-base',
     source_module: 'atm',
-    source_id: extractAtmId(target.notes) || target.id,
-    source_action: 'fee_reversal',
+    source_id: extractAtmId(target.notes) || target.source_id || target.id,
+    source_action: 'fee_refund',
     created_by: createdBy,
     created_at: createdAt,
     updated_at: createdAt
   });
 
-  const statements = [buildInsert(db, 'transactions', reversalRow)];
+  const statements = [buildInsert(db, 'transactions', refundRow)];
 
   const updateParts = [];
   const values = [];
 
   if (txCols.has('notes')) {
     updateParts.push('notes = ?');
-    values.push(`${target.notes || ''} [ATM_FEE_REVERSED_BY: ${reversalId}]`.slice(0, 240));
+    values.push(`${target.notes || ''} [ATM_FEE_REFUNDED_BY: ${refundId}]`.slice(0, 240));
   }
 
   if (txCols.has('updated_at')) {
@@ -503,13 +540,18 @@ async function reverseATMFee(context, body) {
     ok: true,
     version: VERSION,
     contract_version: CONTRACT_VERSION,
-    action: 'atm_fee_reverse',
+    action: 'atm_fee_refund',
     committed: true,
     fee_txn_id: target.id,
-    reversal_id: reversalId,
-    amount: Number(target.amount) || 0,
+    refund_id: refundId,
+    amount: refundAmount,
     account_id: target.account_id,
-    linked_to_withdrawal_pair: false
+    linked_to_withdrawal_pair: false,
+    account_impact: {
+      account_id: target.account_id,
+      refund_delta: refundAmount,
+      balance_source: 'transactions_canonical'
+    }
   });
 }
 
@@ -535,7 +577,10 @@ async function atmHealth(db) {
   });
 
   const activeFeeRows = rows.filter(row => isActivePendingFeeRow(row));
-  const reversalRows = rows.filter(row => String(row.notes || '').includes('[ATM_FEE_REVERSAL]'));
+  const refundRows = rows.filter(row => {
+    const notes = String(row.notes || '');
+    return notes.includes('[ATM_FEE_REFUND]') || notes.includes('[ATM_FEE_REVERSAL]');
+  });
 
   const orphanPairs = [];
   const amountMismatches = [];
@@ -600,8 +645,8 @@ async function atmHealth(db) {
     counts: {
       scanned_rows: rows.length,
       withdrawal_rows: withdrawalRows.length,
-      active_fee_rows: activeFeeRows.length,
-      fee_reversal_rows: reversalRows.length,
+      active_fee_rows_awaiting_refund: activeFeeRows.length,
+      fee_refund_rows: refundRows.length,
       orphan_pairs: orphanPairs.length,
       amount_mismatches: amountMismatches.length,
       bad_fee_links: badFeeLinks.length
@@ -610,8 +655,8 @@ async function atmHealth(db) {
       withdrawal_pairs_complete: orphanPairs.length === 0,
       withdrawal_pair_amounts_match: amountMismatches.length === 0,
       active_fee_rows_not_linked_to_pairs: badFeeLinks.length === 0,
-      legacy_reversed_fee_rows_filtered: true,
-      fee_reversal_rows_not_counted_as_pending: true,
+      charged_fee_rows_count_as_expense_immediately: true,
+      fee_refund_rows_not_counted_as_pending: true,
       health_is_read_only: true
     },
     orphan_pairs: orphanPairs,
@@ -621,9 +666,12 @@ async function atmHealth(db) {
       withdrawal_source_type: 'transfer',
       withdrawal_cash_type: 'income',
       fee_type: 'atm',
+      fee_refund_type: 'income',
       fee_link_policy: 'fee row is separate and not linked to withdrawal pair',
-      legacy_atm_withdraw_marker_supported: true,
-      canonical_marker: '[ATM_WITHDRAWAL]'
+      pending_fee_meaning: 'fee charged now, awaiting possible bank refund',
+      canonical_withdrawal_marker: '[ATM_WITHDRAWAL]',
+      canonical_fee_marker: '[ATM_FEE_AWAITING_REFUND]',
+      canonical_refund_marker: '[ATM_FEE_REFUND]'
     }
   });
 }
@@ -675,6 +723,8 @@ async function loadPendingFees(db, txCols) {
     .slice(0, 50)
     .map(row => ({
       ...row,
+      status: 'awaiting_possible_bank_refund',
+      action_label: 'Mark refunded when bank returns fee',
       age_days: daysSince(row.date)
     }));
 }
@@ -690,6 +740,7 @@ async function loadRecentATMRows(db, txCols, limit = 40) {
     'pkr_amount',
     'account_id',
     'category_id',
+    'merchant',
     'notes',
     'created_at',
     'linked_txn_id',
@@ -704,7 +755,9 @@ async function loadRecentATMRows(db, txCols, limit = 40) {
     "type = 'atm'",
     "notes LIKE '%[ATM_WITHDRAWAL]%'",
     "notes LIKE '%[ATM_WITHDRAW]%'",
+    "notes LIKE '%[ATM_FEE_AWAITING_REFUND]%'",
     "notes LIKE '%[ATM_FEE_PENDING]%'",
+    "notes LIKE '%[ATM_FEE_REFUND]%'",
     "notes LIKE '%[ATM_FEE_REVERSAL]%'",
     "notes LIKE '%ATM withdraw%'",
     "notes LIKE '%ATM fee%'",
@@ -730,6 +783,7 @@ async function loadFeeStats30d(db, txCols) {
   if (!txCols.has('id')) {
     return {
       paid: 0,
+      refunded: 0,
       reversed: 0,
       net: 0
     };
@@ -740,21 +794,32 @@ async function loadFeeStats30d(db, txCols) {
   const paid = rows
     .filter(row => {
       const d = String(row.date || '').slice(0, 10);
-      return d >= daysAgoISO(30) && String(row.notes || '').includes('[ATM_FEE_PENDING]');
+      const notes = String(row.notes || '');
+      return d >= daysAgoISO(30) &&
+        (
+          notes.includes('[ATM_FEE_AWAITING_REFUND]') ||
+          notes.includes('[ATM_FEE_PENDING]')
+        );
     })
     .reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
 
-  const reversed = rows
+  const refunded = rows
     .filter(row => {
       const d = String(row.date || '').slice(0, 10);
-      return d >= daysAgoISO(30) && String(row.notes || '').includes('[ATM_FEE_REVERSAL]');
+      const notes = String(row.notes || '');
+      return d >= daysAgoISO(30) &&
+        (
+          notes.includes('[ATM_FEE_REFUND]') ||
+          notes.includes('[ATM_FEE_REVERSAL]')
+        );
     })
     .reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
 
   return {
     paid: round2(paid),
-    reversed: round2(reversed),
-    net: round2(paid - reversed)
+    refunded: round2(refunded),
+    reversed: round2(refunded),
+    net: round2(paid - refunded)
   };
 }
 
@@ -820,11 +885,16 @@ async function resolveCategoryId(db, preferredId) {
 function isActivePendingFeeRow(row) {
   const notes = String(row.notes || '').toUpperCase();
 
-  if (!notes.includes('[ATM_FEE_PENDING]') && !(notes.includes('PENDING REVERSAL') && notes.includes('ATM'))) {
-    return false;
-  }
+  const isFeePending =
+    notes.includes('[ATM_FEE_AWAITING_REFUND]') ||
+    notes.includes('[ATM_FEE_PENDING]') ||
+    (notes.includes('PENDING REVERSAL') && notes.includes('ATM'));
 
+  if (!isFeePending) return false;
+
+  if (notes.includes('[ATM_FEE_REFUND]')) return false;
   if (notes.includes('[ATM_FEE_REVERSAL]')) return false;
+  if (notes.includes('[ATM_FEE_REFUNDED_BY:')) return false;
   if (notes.includes('[ATM_FEE_REVERSED_BY:')) return false;
   if (row.reversed_by || row.reversed_at) return false;
 
@@ -1007,15 +1077,6 @@ async function readJSON(request) {
   } catch {
     return {};
   }
-}
-
-function isOwnATM(sourceId, atmName, noFee) {
-  if (noFee) return true;
-
-  const source = String(sourceId || '').toLowerCase();
-  const atm = String(atmName || '').toLowerCase();
-
-  return source === 'mashreq' && atm.includes('mashreq');
 }
 
 function json(payload, status = 200) {
