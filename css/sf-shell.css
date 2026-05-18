@@ -926,3 +926,162 @@ button.sf-finance-row.is-active {
     text-align: left;
   }
 }
+/* Shared modal/dialog system
+ * Safe append-only block.
+ * Only affects dialogs using class="sf-dialog".
+ * Existing pages/forms are untouched until their HTML uses sf-dialog.
+ */
+
+dialog.sf-dialog {
+  width: min(760px, calc(100vw - 28px));
+  max-height: min(88vh, 860px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--sf-border);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025)),
+    var(--sf-card);
+  color: var(--sf-text);
+  box-shadow: var(--sf-shadow-lg);
+  overflow: hidden;
+}
+
+dialog.sf-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(12px);
+}
+
+.sf-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sf-space-4, 16px);
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--sf-border-subtle);
+  background:
+    radial-gradient(circle at top right, rgba(241, 184, 87, 0.14), transparent 280px),
+    var(--sf-surface-1);
+}
+
+.sf-dialog-body {
+  padding: 22px 24px;
+  overflow: auto;
+  max-height: calc(88vh - 156px);
+  display: grid;
+  gap: 18px;
+}
+
+.sf-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sf-space-3, 12px);
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--sf-border-subtle);
+  background: var(--sf-surface-1);
+}
+
+.sf-dialog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.sf-dialog-grid .sf-field {
+  min-width: 0;
+}
+
+.sf-dialog .sf-field--wide {
+  grid-column: 1 / -1;
+}
+
+.sf-dialog-note {
+  grid-column: 1 / -1;
+  border: 1px solid rgba(241, 184, 87, 0.22);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(241, 184, 87, 0.08);
+  color: var(--sf-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.sf-dialog-proof-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sf-dialog-proof-card {
+  border: 1px solid var(--sf-border-subtle);
+  border-radius: 16px;
+  padding: 12px;
+  background: var(--sf-surface-1);
+}
+
+.sf-dialog-proof-card span {
+  display: block;
+  color: var(--sf-text-muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.sf-dialog-proof-card strong {
+  color: var(--sf-text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.sf-dialog-footer-copy {
+  color: var(--sf-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.sf-dialog .sf-section-title {
+  margin: 0;
+}
+
+.sf-dialog .sf-section-subtitle {
+  max-width: 580px;
+}
+
+@media (max-width: 720px) {
+  dialog.sf-dialog {
+    width: calc(100vw - 18px);
+    max-height: 92vh;
+    border-radius: 20px;
+  }
+
+  .sf-dialog-head,
+  .sf-dialog-body,
+  .sf-dialog-footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .sf-dialog-head,
+  .sf-dialog-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sf-dialog-grid,
+  .sf-dialog-proof-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sf-dialog .sf-field--wide,
+  .sf-dialog-note {
+    grid-column: auto;
+  }
+
+  .sf-dialog-footer .sf-section-actions,
+  .sf-dialog-footer .sf-button {
+    width: 100%;
+  }
+}
