@@ -501,46 +501,54 @@
   }
 
   function bindDebtRowActions() {
-    document.querySelectorAll('[data-select-debt]').forEach(button => {
-      button.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        selectDebt(button.getAttribute('data-select-debt'));
-      });
-    });
+  const list = $('debtList');
+  if (!list || list._debtActionsBound) return;
 
-    document.querySelectorAll('[data-edit-debt]').forEach(button => {
-      button.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        openEditPanel(button.getAttribute('data-edit-debt'));
-      });
-    });
+  list._debtActionsBound = true;
 
-    document.querySelectorAll('[data-pay-debt]').forEach(button => {
-      button.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        openPaymentModal(button.getAttribute('data-pay-debt'));
-      });
-    });
+  list.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button) return;
 
-    document.querySelectorAll('[data-defer-debt]').forEach(button => {
-      button.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        openDeferModal(button.getAttribute('data-defer-debt'));
-      });
-    });
+    const selectId = button.getAttribute('data-select-debt');
+    const editId = button.getAttribute('data-edit-debt');
+    const payId = button.getAttribute('data-pay-debt');
+    const deferId = button.getAttribute('data-defer-debt');
+    const repairId = button.getAttribute('data-repair-debt');
 
-    document.querySelectorAll('[data-repair-debt]').forEach(button => {
-      button.addEventListener('click', event => {
-        event.preventDefault();
-        event.stopPropagation();
-        openRepairPanel(button.getAttribute('data-repair-debt'));
-      });
-    });
-  }
+    if (!selectId && !editId && !payId && !deferId && !repairId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (selectId) {
+      selectDebt(selectId);
+      scrollToId('selectedDebtPanel');
+      return;
+    }
+
+    if (editId) {
+      openEditPanel(editId);
+      scrollToId('debtActionPanel');
+      return;
+    }
+
+    if (payId) {
+      openPaymentModal(payId);
+      return;
+    }
+
+    if (deferId) {
+      openDeferModal(deferId);
+      return;
+    }
+
+    if (repairId) {
+      openRepairPanel(repairId);
+      scrollToId('debtActionPanel');
+    }
+  });
+}
 
   function selectDebt(id) {
     state.selectedDebtId = id;
@@ -679,12 +687,38 @@
 
   function openModal(id) {
     const el = $(id);
-    if (el) el.hidden = false;
+    if (!el) return;
+
+    el.hidden = false;
+
+    requestAnimationFrame(() => {
+      el.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+
+      const firstInput = el.querySelector('input:not([type="hidden"]), select, textarea, button');
+      if (firstInput && typeof firstInput.focus === 'function') {
+        firstInput.focus({ preventScroll: true });
+      }
+    });
   }
 
   function closeModal(id) {
     const el = $(id);
     if (el) el.hidden = true;
+  }
+
+  function scrollToId(id) {
+    const el = $(id);
+    if (!el) return;
+
+    requestAnimationFrame(() => {
+      el.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    });
   }
 
   function resetDebtForm() {
