@@ -350,6 +350,36 @@
         <textarea class="sf-textarea" id="paymentNotesInput"></textarea>
       </label>
 
+      <label class="sf-field" for="paymentNextDueDateInput">
+        <span>New Due Date After Partial Payment</span>
+        <input class="sf-input" id="paymentNextDueDateInput" type="date">
+      </label>
+
+      <label class="sf-field" for="paymentDueDayInput">
+        <span>New Due Day</span>
+        <input class="sf-input" id="paymentDueDayInput" type="number" min="1" max="31">
+      </label>
+
+      <label class="sf-field" for="paymentInstallmentInput">
+        <span>Next Installment Amount</span>
+        <input class="sf-input" id="paymentInstallmentInput" type="number" step="0.01" min="0">
+      </label>
+
+      <label class="sf-field" for="paymentFrequencyInput">
+        <span>Next Frequency</span>
+        <select class="sf-select" id="paymentFrequencyInput">
+          <option value="">Keep current</option>
+          <option value="monthly">Monthly</option>
+          <option value="weekly">Weekly</option>
+          <option value="yearly">Yearly</option>
+          <option value="custom">Custom</option>
+        </select>
+      </label>
+
+      <div class="sf-empty-state">
+        Optional: use these fields only when the partial payment also changes the deadline or next installment plan.
+      </div>
+
       <div class="sf-section-actions">
         <button class="sf-button" id="dryRunPaymentBtn" type="button">Dry-run Payment</button>
         <button class="sf-button sf-button--primary" id="savePaymentBtn" type="button">Save Payment</button>

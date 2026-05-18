@@ -970,111 +970,143 @@
   }
 
   function openPaymentModal(id) {
-    const debt = findDebtById(id);
+  const debt = findDebtById(id);
 
-    if (!debt) {
-      toast(`Cannot open payment. Debt not loaded: ${id}`);
-      return;
-    }
-
-    state.selectedDebtId = debt.id;
-    renderSelectedDebt();
-
-    const hidden = $('paymentDebtIdInput');
-    if (hidden) hidden.value = debt.id;
-
-    const amountInput = $('paymentAmountInput');
-    if (amountInput) amountInput.value = debt.installment_amount || debt.remaining_amount || '';
-
-    const dateInput = $('paymentDateInput');
-    if (dateInput) dateInput.value = todayISO();
-
-    const notesInput = $('paymentNotesInput');
-    if (notesInput) notesInput.value = `${debt.name} · debt payment`;
-
-    const subtitle = document.querySelector('#paymentModal .sf-section-subtitle');
-    if (subtitle) {
-      subtitle.textContent = `Debt ID: ${debt.id} · ${kindLabel(debt.kind)} · remaining ${money(debt.remaining_amount)}`;
-    }
-
-    renderAccountOptions();
-    openModal('paymentModal');
+  if (!debt) {
+    toast(`Cannot open payment. Debt not loaded: ${id}`);
+    return;
   }
+
+  state.selectedDebtId = debt.id;
+  renderSelectedDebt();
+
+  const hidden = $('paymentDebtIdInput');
+  if (hidden) hidden.value = debt.id;
+
+  const amountInput = $('paymentAmountInput');
+  if (amountInput) amountInput.value = debt.installment_amount || debt.remaining_amount || '';
+
+  const dateInput = $('paymentDateInput');
+  if (dateInput) dateInput.value = todayISO();
+
+  const accountInput = $('paymentAccountInput');
+  if (accountInput) accountInput.value = '';
+
+  const notesInput = $('paymentNotesInput');
+  if (notesInput) notesInput.value = `${debt.name} · partial payment`;
+
+  const nextDueInput = $('paymentNextDueDateInput');
+  if (nextDueInput) nextDueInput.value = '';
+
+  const dueDayInput = $('paymentDueDayInput');
+  if (dueDayInput) dueDayInput.value = debt.due_day || '';
+
+  const installmentInput = $('paymentInstallmentInput');
+  if (installmentInput) installmentInput.value = debt.installment_amount || '';
+
+  const frequencyInput = $('paymentFrequencyInput');
+  if (frequencyInput) frequencyInput.value = '';
+
+  const subtitle = document.querySelector('#paymentModal .sf-section-subtitle');
+  if (subtitle) {
+    subtitle.textContent = `Debt ID: ${debt.id} · ${kindLabel(debt.kind)} · remaining ${money(debt.remaining_amount)}. Optional schedule fields apply only if this is a partial payment.`;
+  }
+
+  renderAccountOptions();
+  openModal('paymentModal');
+}
 
   async function savePayment(dryRun) {
-    const hiddenDebtId = clean($('paymentDebtIdInput')?.value);
-    const debtId = hiddenDebtId || state.selectedDebtId;
-    const debt = findDebtById(debtId);
+  const hiddenDebtId = clean($('paymentDebtIdInput')?.value);
+  const debtId = hiddenDebtId || state.selectedDebtId;
+  const debt = findDebtById(debtId);
 
-    if (!debtId) {
-      toast('No debt selected.');
+  if (!debtId) {
+    toast('No debt selected.');
+    return;
+  }
+
+  if (!debt) {
+    toast(`Selected debt is not loaded in UI state: ${debtId}`);
+    return;
+  }
+
+  const schedulePayload = {};
+
+  const nextDueDate = clean($('paymentNextDueDateInput')?.value);
+  const dueDay = clean($('paymentDueDayInput')?.value);
+  const installment = clean($('paymentInstallmentInput')?.value);
+  const frequency = clean($('paymentFrequencyInput')?.value);
+
+  if (nextDueDate) schedulePayload.next_due_date = nextDueDate;
+  if (dueDay) schedulePayload.due_day = dueDay;
+  if (installment) schedulePayload.installment_amount = installment;
+  if (frequency) schedulePayload.frequency = frequency;
+
+  const body = {
+    action: 'payment',
+    debt_id: debt.id,
+    amount: num($('paymentAmountInput')?.value),
+    date: clean($('paymentDateInput')?.value) || todayISO(),
+    account_id: clean($('paymentAccountInput')?.value),
+    notes: clean($('paymentNotesInput')?.value),
+    ...schedulePayload,
+    idempotency_key: `debtpay_${debt.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    created_by: VERSION
+  };
+
+  if (!body.amount || body.amount <= 0) {
+    toast('Payment amount must be greater than 0.');
+    return;
+  }
+
+  if (!body.account_id) {
+    toast('Select payment account.');
+    return;
+  }
+
+  const button = dryRun ? $('dryRunPaymentBtn') : $('savePaymentBtn');
+
+  if (button) {
+    button.disabled = true;
+    button.textContent = dryRun ? 'Dry-running…' : 'Saving…';
+  }
+
+  try {
+    const result = await postJSON(`${API_DEBTS}${dryRun ? '?dry_run=1' : ''}`, body);
+
+    if (dryRun) {
+      setHTML('debtActionPanel', `
+        ${fieldRow('Dry-run payment', 'Backend route', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
+        ${fieldRow('Endpoint', 'Canonical route', 'POST /api/debts')}
+        ${fieldRow('Marker', 'Debt transaction marker', esc(result.ledger?.marker || '—'))}
+        ${fieldRow('Transaction type', 'Expected account impact', esc(result.ledger?.type || '—'), result.ledger?.type === 'income' ? 'positive' : 'danger')}
+        ${fieldRow('Account delta', 'Ledger-derived account impact', result.ledger?.account_delta == null ? '—' : String(result.ledger.account_delta))}
+        ${fieldRow('Paid after', 'Debt state after payment', money(result.proof?.paid_amount_after || result.debt?.paid_amount || 0))}
+        ${fieldRow('Remaining after', 'Debt remaining after payment', money(result.proof?.remaining_after || result.debt?.remaining_amount || 0))}
+        ${fieldRow('Status after', 'Debt status after payment', esc(result.proof?.status_after || result.debt?.status || '—'))}
+        ${fieldRow('Schedule update', 'Deadline/installment update', result.schedule?.updated ? 'Included' : 'Not included', result.schedule?.updated ? 'positive' : 'warning')}
+        ${result.schedule?.updated ? fieldRow('New due date', 'After partial payment', esc(result.schedule?.due_date_after || '—')) : ''}
+        ${result.schedule?.updated ? fieldRow('Next installment', 'After partial payment', result.schedule?.installment_amount_after == null ? '—' : money(result.schedule.installment_amount_after)) : ''}
+      `);
+
+      toast('Payment dry-run passed.');
       return;
     }
 
-    if (!debt) {
-      toast(`Selected debt is not loaded in UI state: ${debtId}`);
-      return;
-    }
-
-    const body = {
-      action: 'payment',
-      debt_id: debt.id,
-      amount: num($('paymentAmountInput')?.value),
-      date: clean($('paymentDateInput')?.value) || todayISO(),
-      account_id: clean($('paymentAccountInput')?.value),
-      notes: clean($('paymentNotesInput')?.value),
-      idempotency_key: `debtpay_${debt.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      created_by: VERSION
-    };
-
-    if (!body.amount || body.amount <= 0) {
-      toast('Payment amount must be greater than 0.');
-      return;
-    }
-
-    if (!body.account_id) {
-      toast('Select payment account.');
-      return;
-    }
-
-    const button = dryRun ? $('dryRunPaymentBtn') : $('savePaymentBtn');
-
+    toast(result.schedule?.updated ? 'Payment saved with new deadline.' : 'Payment saved.');
+    closeModal('paymentModal');
+    await loadDebts();
+    selectDebt(debt.id);
+  } catch (err) {
+    toast(`Payment failed: ${err.message}`);
+  } finally {
     if (button) {
-      button.disabled = true;
-      button.textContent = dryRun ? 'Dry-running…' : 'Saving…';
-    }
-
-    try {
-      const result = await postJSON(`${API_DEBTS}${dryRun ? '?dry_run=1' : ''}`, body);
-
-      if (dryRun) {
-        setHTML('debtActionPanel', `
-          ${fieldRow('Dry-run payment', 'Backend route', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
-          ${fieldRow('Endpoint', 'Canonical route', 'POST /api/debts')}
-          ${fieldRow('Marker', 'Debt transaction marker', esc(result.ledger?.marker || '—'))}
-          ${fieldRow('Transaction type', 'Expected account impact', esc(result.ledger?.type || '—'), result.ledger?.type === 'income' ? 'positive' : 'danger')}
-          ${fieldRow('Account delta', 'Ledger-derived account impact', result.ledger?.account_delta == null ? '—' : String(result.ledger.account_delta))}
-          ${fieldRow('Paid after', 'Debt state after payment', money(result.proof?.paid_amount_after || result.debt?.paid_amount || 0))}
-          ${fieldRow('Status after', 'Debt status after payment', esc(result.proof?.status_after || result.debt?.status || '—'))}
-        `);
-
-        toast('Payment dry-run passed.');
-        return;
-      }
-
-      toast('Payment saved.');
-      closeModal('paymentModal');
-      await loadDebts();
-      selectDebt(debt.id);
-    } catch (err) {
-      toast(`Payment failed: ${err.message}`);
-    } finally {
-      if (button) {
-        button.disabled = false;
-        button.textContent = dryRun ? 'Dry-run Payment' : 'Save Payment';
-      }
+      button.disabled = false;
+      button.textContent = dryRun ? 'Dry-run Payment' : 'Save Payment';
     }
   }
+}
 
   function openDeferModal(id) {
     state.selectedDebtId = id;

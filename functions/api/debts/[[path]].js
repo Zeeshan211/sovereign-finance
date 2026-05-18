@@ -709,6 +709,7 @@ async function recordDebtPayment(db, body, dryRun) {
     }), projection.status || 400);
   }
 
+  const schedulePatch = buildPaymentSchedulePatch(body, debt, projection);
   const paymentId = buildPaymentId(body, {
     debt,
     amount,
@@ -739,6 +740,10 @@ async function recordDebtPayment(db, body, dryRun) {
         created: false,
         payment_id: paymentId
       },
+      schedule: {
+        updated: false,
+        reason: 'payment_already_recorded'
+      },
       account: {
         balance_source: 'ledger',
         impacted: false
@@ -765,13 +770,16 @@ async function recordDebtPayment(db, body, dryRun) {
     projection
   });
 
-  const projectedDebt = {
+  const projectedDebtBase = {
     ...debt,
     paid_amount: projection.paid_amount_after,
     remaining_amount: round2(debt.original_amount - projection.paid_amount_after),
     status: projection.status_after,
     last_paid_date: date
   };
+
+  const projectedDebt = applySchedulePatchToProjectedDebt(projectedDebtBase, schedulePatch);
+  const schedule = scheduleProof(debt, schedulePatch, projection);
 
   const responseBase = {
     ok: true,
@@ -787,6 +795,7 @@ async function recordDebtPayment(db, body, dryRun) {
       created: !dryRun,
       payment_id: paymentId
     },
+    schedule,
     account: {
       balance_source: 'ledger',
       impacted: true
@@ -800,6 +809,7 @@ async function recordDebtPayment(db, body, dryRun) {
       expected_transaction_rows: 1,
       expected_debt_rows_updated: 1,
       expected_debt_payment_rows: 1,
+      schedule_update_included: schedule.updated,
       paid_amount_before: debt.paid_amount,
       paid_amount_after: projection.paid_amount_after,
       remaining_before: projection.remaining_before,
@@ -808,7 +818,7 @@ async function recordDebtPayment(db, body, dryRun) {
       status_after: projection.status_after,
       rule: projection.rule
     },
-    warnings: []
+    warnings: schedule.warning ? [schedule.warning] : []
   };
 
   if (dryRun) {
@@ -823,13 +833,22 @@ async function recordDebtPayment(db, body, dryRun) {
   const txCols = await tableColumns(db, 'transactions');
   const paymentCols = await tableColumns(db, 'debt_payments');
 
+  const debtUpdates = {
+    paid_amount: projection.paid_amount_after,
+    status: projection.status_after,
+    last_paid_date: date,
+    ...schedulePatch.payload
+  };
+
+  const debtUpdateKeys = Object.keys(debtUpdates);
+
   const batch = [
     buildTransactionInsert(db, txCols, paymentTx),
     db.prepare(
       `UPDATE debts
-          SET paid_amount = ?, status = ?, last_paid_date = ?
+          SET ${debtUpdateKeys.map(key => `${key} = ?`).join(', ')}
         WHERE TRIM(id) = TRIM(?)`
-    ).bind(projection.paid_amount_after, projection.status_after, date, debt.id)
+    ).bind(...debtUpdateKeys.map(key => debtUpdates[key]), debt.id)
   ];
 
   if (paymentCols.size > 0) {
@@ -857,6 +876,7 @@ async function recordDebtPayment(db, body, dryRun) {
         amount,
         account_id: accountResult.account.id,
         date,
+        schedule_patch: schedulePatch.payload,
         dry_run: true
       })),
       transaction_payload_hash: stableHash(JSON.stringify(paymentTx))
@@ -877,6 +897,7 @@ async function recordDebtPayment(db, body, dryRun) {
       created: true,
       payment_id: paymentId
     },
+    schedule,
     payment_id: paymentId,
     payment_transaction_id: paymentTx.id
   });
@@ -918,11 +939,13 @@ function buildPaymentProjection(debt, account, amount, date) {
   const marker = isReceivable ? '[DEBT_RECEIVE]' : '[DEBT_PAYMENT]';
   const accountDelta = isReceivable ? round2(amount) : round2(-amount);
   const newPaid = round2(Math.min(debt.original_amount, debt.paid_amount + amount));
-  const statusAfter = newPaid >= debt.original_amount ? CANONICAL_TERMINAL : 'active';
+  const remainingAfter = Math.max(0, round2(debt.original_amount - newPaid));
+  const statusAfter = remainingAfter <= 0 ? CANONICAL_TERMINAL : 'active';
 
   return {
     ok: true,
     remaining_before: remaining,
+    remaining_after: remainingAfter,
     paid_amount_after: newPaid,
     status_after: statusAfter,
     transaction_type: transactionType,
@@ -934,6 +957,129 @@ function buildPaymentProjection(debt, account, amount, date) {
       : 'i-owe payment writes expense and decreases paying account',
     account_id: account.id,
     date
+  };
+}
+
+function buildPaymentSchedulePatch(body, debt, projection) {
+  const payload = {};
+  const supplied = {};
+
+  const requestedDueDate = normalizeDate(
+    body.next_due_date ||
+    body.new_due_date ||
+    body.payment_next_due_date ||
+    body.due_date_after ||
+    null
+  );
+
+  const requestedDueDay = body.due_day === undefined && body.next_due_day === undefined
+    ? undefined
+    : normalizeDueDay(body.next_due_day ?? body.due_day);
+
+  const requestedInstallment = body.installment_amount === undefined && body.next_installment_amount === undefined
+    ? undefined
+    : normalizeNullableMoney(body.next_installment_amount ?? body.installment_amount);
+
+  const requestedFrequency = body.frequency === undefined && body.next_frequency === undefined
+    ? undefined
+    : normalizeFrequency(body.next_frequency ?? body.frequency);
+
+  if (requestedDueDate) {
+    payload.due_date = requestedDueDate;
+    supplied.due_date = true;
+  }
+
+  if (requestedDueDay !== undefined) {
+    payload.due_day = requestedDueDay;
+    supplied.due_day = true;
+  }
+
+  if (requestedInstallment !== undefined) {
+    payload.installment_amount = requestedInstallment;
+    supplied.installment_amount = true;
+  }
+
+  if (requestedFrequency !== undefined) {
+    payload.frequency = requestedFrequency;
+    supplied.frequency = true;
+  }
+
+  const hasRequestedSchedule = Object.keys(payload).length > 0;
+
+  if (!hasRequestedSchedule) {
+    return {
+      requested: false,
+      applicable: false,
+      payload: {},
+      ignored_reason: null
+    };
+  }
+
+  if (projection.remaining_after <= 0 || projection.status_after === CANONICAL_TERMINAL) {
+    return {
+      requested: true,
+      applicable: false,
+      payload: {},
+      ignored_reason: 'debt_settled_by_this_payment',
+      requested_payload: payload,
+      supplied
+    };
+  }
+
+  return {
+    requested: true,
+    applicable: true,
+    payload,
+    ignored_reason: null,
+    supplied
+  };
+}
+
+function scheduleProof(beforeDebt, schedulePatch, projection) {
+  if (!schedulePatch.requested) {
+    return {
+      updated: false,
+      requested: false,
+      reason: 'no_schedule_update_requested'
+    };
+  }
+
+  if (!schedulePatch.applicable) {
+    return {
+      updated: false,
+      requested: true,
+      reason: schedulePatch.ignored_reason || 'schedule_update_not_applicable',
+      warning: {
+        code: 'PAYMENT_SCHEDULE_UPDATE_IGNORED',
+        message: 'Schedule update was ignored because this payment settles the debt.',
+        requested_payload: schedulePatch.requested_payload || {}
+      }
+    };
+  }
+
+  const payload = schedulePatch.payload || {};
+
+  return {
+    updated: true,
+    requested: true,
+    due_date_before: beforeDebt.due_date || null,
+    due_date_after: payload.due_date !== undefined ? payload.due_date : beforeDebt.due_date || null,
+    due_day_before: beforeDebt.due_day == null ? null : beforeDebt.due_day,
+    due_day_after: payload.due_day !== undefined ? payload.due_day : beforeDebt.due_day == null ? null : beforeDebt.due_day,
+    installment_amount_before: beforeDebt.installment_amount == null ? null : beforeDebt.installment_amount,
+    installment_amount_after: payload.installment_amount !== undefined ? payload.installment_amount : beforeDebt.installment_amount == null ? null : beforeDebt.installment_amount,
+    frequency_before: beforeDebt.frequency || null,
+    frequency_after: payload.frequency !== undefined ? payload.frequency : beforeDebt.frequency || null,
+    remaining_after_payment: projection.remaining_after
+  };
+}
+
+function applySchedulePatchToProjectedDebt(debt, schedulePatch) {
+  if (!schedulePatch || !schedulePatch.applicable) return debt;
+
+  return {
+    ...debt,
+    ...schedulePatch.payload
   };
 }
 
