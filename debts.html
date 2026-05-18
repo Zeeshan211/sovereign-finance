@@ -7,605 +7,11 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
 
-  <title>Debts · Sovereign Finance</title>
+  <title>Debts</title>
 
   <script src="/js/sf-theme-switcher.js"></script>
   <link rel="stylesheet" href="/css/sf-theme.css">
   <link rel="stylesheet" href="/css/sf-shell.css">
-
-  <style>
-    .debts-os {
-      width: min(100%, 1480px);
-      margin: 0 auto;
-      display: grid;
-      gap: var(--sf-space-4, 16px);
-    }
-
-    .debt-page-head {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: var(--sf-space-4, 16px);
-      align-items: end;
-      padding: 4px 0 2px;
-    }
-
-    .debt-title-main {
-      margin: 0;
-      color: var(--sf-text);
-      font-size: clamp(34px, 5vw, 64px);
-      line-height: .9;
-      font-weight: 950;
-      letter-spacing: -.075em;
-    }
-
-    .debt-copy {
-      margin: 10px 0 0;
-      color: var(--sf-text-muted);
-      font-size: var(--sf-font-14, 14px);
-      font-weight: 700;
-      line-height: 1.5;
-      max-width: 920px;
-    }
-
-    .debt-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--sf-space-2, 10px);
-      justify-content: flex-end;
-      align-items: center;
-    }
-
-    .debt-metrics {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: var(--sf-space-3, 12px);
-    }
-
-    .debt-metrics .sf-metric-card {
-      min-height: unset;
-      padding: 14px;
-    }
-
-    .debt-metrics .sf-metric-value {
-      font-size: clamp(22px, 3vw, 34px);
-      line-height: 1;
-    }
-
-    .debt-status-strip {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 12px;
-      border: 1px solid var(--sf-border);
-      border-radius: 18px;
-      background: var(--sf-surface-1);
-    }
-
-    .debt-status-main {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      min-width: 0;
-    }
-
-    .debt-status-chip {
-      display: inline-flex;
-      align-items: center;
-      min-height: 28px;
-      padding: 5px 9px;
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 999px;
-      background: var(--sf-surface-2);
-      color: var(--sf-text-muted);
-      font-size: 11px;
-      font-weight: 850;
-      line-height: 1.2;
-      white-space: nowrap;
-    }
-
-    .debt-status-chip.strong {
-      color: var(--sf-text);
-      background: var(--sf-accent-soft);
-      border-color: rgba(241, 184, 87, .28);
-    }
-
-    .debt-status-chip.good {
-      color: var(--sf-positive);
-      border-color: rgba(83, 215, 167, .28);
-      background: var(--sf-positive-soft);
-    }
-
-    .debt-status-chip.warn {
-      color: var(--sf-warning);
-      border-color: rgba(241, 184, 87, .28);
-      background: var(--sf-warning-soft);
-    }
-
-    .debt-rules {
-      border: 1px solid var(--sf-border);
-      border-radius: 18px;
-      background: var(--sf-surface-1);
-      overflow: hidden;
-    }
-
-    .debt-rules summary {
-      cursor: pointer;
-      list-style: none;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 12px 14px;
-      color: var(--sf-text);
-      font-size: 13px;
-      font-weight: 900;
-    }
-
-    .debt-rules summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .debt-rules summary::after {
-      content: "▾";
-      color: var(--sf-text-muted);
-      transition: transform .18s ease;
-    }
-
-    .debt-rules[open] summary::after {
-      transform: rotate(180deg);
-    }
-
-    .debt-rules-body {
-      display: grid;
-      gap: 8px;
-      padding: 0 14px 14px;
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.45;
-    }
-
-    .debt-rules-body ul {
-      margin: 0;
-      padding-left: 18px;
-    }
-
-    .debt-workspace {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
-      gap: var(--sf-space-4, 16px);
-      align-items: start;
-    }
-
-    .debt-panel-stack {
-      display: grid;
-      gap: var(--sf-space-4, 16px);
-    }
-
-    .debt-filter-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      margin-bottom: 14px;
-    }
-
-    .debt-filter {
-      border: 1px solid var(--sf-border);
-      border-radius: 999px;
-      background: var(--sf-surface-2);
-      color: var(--sf-text-soft);
-      padding: 8px 12px;
-      font-size: 12px;
-      font-weight: 900;
-      cursor: pointer;
-    }
-
-    .debt-filter.is-active {
-      background: var(--sf-accent-soft);
-      color: var(--sf-text);
-      border-color: rgba(241, 184, 87, .34);
-    }
-
-    .debt-list {
-      display: grid;
-      gap: 10px;
-    }
-
-    .debt-empty {
-      border: 1px dashed var(--sf-border);
-      border-radius: 18px;
-      padding: 18px;
-      color: var(--sf-text-muted);
-      background: var(--sf-surface-1);
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .debt-card {
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 14px;
-      background: rgba(255,255,255,.025);
-      padding: 12px;
-      display: grid;
-      gap: 10px;
-      overflow: hidden;
-    }
-
-    .debt-card.is-selected {
-      border-color: rgba(241, 184, 87, .42);
-      box-shadow: 0 0 0 3px rgba(241, 184, 87, .08);
-    }
-
-    .debt-head {
-      display: grid;
-      grid-template-columns: 34px minmax(0, 1fr) auto;
-      gap: 10px;
-      align-items: center;
-    }
-
-    .debt-icon {
-      width: 30px;
-      height: 30px;
-      border-radius: 11px;
-      display: grid;
-      place-items: center;
-      background: var(--sf-accent-soft);
-      color: var(--sf-accent-strong);
-      font-weight: 900;
-      font-size: 15px;
-    }
-
-    .debt-title {
-      color: var(--sf-text);
-      font-size: 14px;
-      font-weight: 950;
-      line-height: 1.2;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .debt-sub {
-      margin-top: 3px;
-      color: var(--sf-text-muted);
-      font-size: 11px;
-      font-weight: 750;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .debt-amount {
-      color: var(--sf-text);
-      font-size: 15px;
-      font-weight: 950;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-
-    .debt-progress {
-      height: 8px;
-      border-radius: 999px;
-      overflow: hidden;
-      background: var(--sf-surface-2);
-      border: 1px solid var(--sf-border-subtle);
-    }
-
-    .debt-progress-fill {
-      width: var(--paid-pct, 0%);
-      height: 100%;
-      background: linear-gradient(90deg, var(--sf-positive), var(--sf-accent));
-    }
-
-    .debt-progress-copy {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      margin-top: 5px;
-      color: var(--sf-text-muted);
-      font-size: 11px;
-      font-weight: 750;
-    }
-
-    .debt-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-    }
-
-    .debt-tag {
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 999px;
-      background: var(--sf-surface-2);
-      color: var(--sf-text-muted);
-      padding: 3px 7px;
-      font-size: 10px;
-      line-height: 1.2;
-      font-weight: 800;
-    }
-
-    .debt-tag.good {
-      background: var(--sf-positive-soft);
-      color: var(--sf-positive);
-      border-color: rgba(83, 215, 167, .28);
-    }
-
-    .debt-tag.warn {
-      background: var(--sf-warning-soft);
-      color: var(--sf-warning);
-      border-color: rgba(241, 184, 87, .28);
-    }
-
-    .debt-tag.danger {
-      background: var(--sf-danger-soft);
-      color: var(--sf-danger);
-      border-color: rgba(255, 127, 138, .28);
-    }
-
-    .debt-blockers {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      color: var(--sf-text-muted);
-      font-size: 11px;
-      font-weight: 850;
-    }
-
-    .debt-blockers .good {
-      color: var(--sf-positive);
-    }
-
-    .debt-blockers .warn {
-      color: var(--sf-warning);
-    }
-
-    .debt-blockers .danger {
-      color: var(--sf-danger);
-    }
-
-    .debt-card-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      justify-content: flex-end;
-    }
-
-    .debt-action {
-      border: 1px solid var(--sf-border);
-      border-radius: 999px;
-      background: var(--sf-surface-2);
-      color: var(--sf-text-soft);
-      padding: 7px 11px;
-      font-size: 11px;
-      font-weight: 900;
-      cursor: pointer;
-      text-decoration: none;
-    }
-
-    .debt-action.primary {
-      background: var(--sf-accent-soft);
-      color: var(--sf-text);
-      border-color: rgba(241, 184, 87, .32);
-    }
-
-    .debt-action.danger {
-      background: var(--sf-danger-soft);
-      color: var(--sf-danger);
-      border-color: rgba(255, 127, 138, .28);
-    }
-
-    .debt-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: start;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--sf-border-subtle);
-    }
-
-    .debt-row-title {
-      color: var(--sf-text);
-      font-size: 13px;
-      font-weight: 900;
-      line-height: 1.25;
-    }
-
-    .debt-row-sub {
-      margin-top: 3px;
-      color: var(--sf-text-muted);
-      font-size: 11px;
-      line-height: 1.45;
-    }
-
-    .debt-row-value {
-      color: var(--sf-text);
-      font-size: 13px;
-      font-weight: 900;
-      text-align: right;
-      max-width: 210px;
-      overflow-wrap: anywhere;
-    }
-
-    .debt-form {
-      display: grid;
-      gap: 14px;
-    }
-
-    .debt-form-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    .debt-field {
-      display: grid;
-      gap: 7px;
-    }
-
-    .debt-span-2 {
-      grid-column: span 2;
-    }
-
-    .debt-field label {
-      color: var(--sf-text-muted);
-      font-size: 11px;
-      font-weight: 850;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-
-    .debt-input,
-    .debt-select,
-    .debt-textarea {
-      width: 100%;
-      border: 1px solid var(--sf-border);
-      border-radius: var(--sf-radius-sm, 14px);
-      background: var(--sf-surface-1);
-      color: var(--sf-text);
-      padding: 12px 13px;
-      font: inherit;
-      outline: none;
-    }
-
-    .debt-textarea {
-      min-height: 92px;
-      resize: vertical;
-    }
-
-    .debt-input:focus,
-    .debt-select:focus,
-    .debt-textarea:focus {
-      border-color: var(--sf-accent);
-      box-shadow: 0 0 0 3px var(--sf-accent-soft);
-    }
-
-    .debt-debug-pre {
-      white-space: pre-wrap;
-      overflow: auto;
-      max-height: 420px;
-      border-radius: 16px;
-      padding: 14px;
-      background: var(--sf-surface-2);
-      color: var(--sf-text-muted);
-      font-size: 11px;
-      line-height: 1.45;
-    }
-
-    .debt-modal {
-      position: fixed;
-      inset: 0;
-      z-index: 9998;
-      display: grid;
-      place-items: center;
-      padding: 18px;
-      background: rgba(0,0,0,.58);
-      backdrop-filter: blur(10px);
-    }
-
-    .debt-modal[hidden] {
-      display: none;
-    }
-
-    .debt-modal-card {
-      width: min(100%, 760px);
-      max-height: min(92vh, 900px);
-      overflow: auto;
-      border: 1px solid var(--sf-border);
-      border-radius: 24px;
-      background: var(--sf-card);
-      box-shadow: var(--sf-shadow-lg);
-      padding: 18px;
-      display: grid;
-      gap: 16px;
-    }
-
-    .debt-modal-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 14px;
-    }
-
-    .debt-toast {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      z-index: 9999;
-      transform: translateY(18px);
-      opacity: 0;
-      pointer-events: none;
-      transition: .2s ease;
-      border: 1px solid var(--sf-border);
-      border-radius: 16px;
-      padding: 12px 14px;
-      background: var(--sf-card-strong);
-      color: var(--sf-text);
-      box-shadow: var(--sf-shadow-md);
-      font-weight: 800;
-    }
-
-    .debt-toast.show {
-      transform: translateY(0);
-      opacity: 1;
-    }
-
-    @media (max-width: 1180px) {
-      .debt-page-head,
-      .debt-workspace {
-        grid-template-columns: 1fr;
-      }
-
-      .debt-actions {
-        justify-content: flex-start;
-      }
-
-      .debt-metrics {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 760px) {
-      .debt-actions .sf-button,
-      .debt-action {
-        width: 100%;
-      }
-
-      .debt-status-main,
-      .debt-status-strip {
-        width: 100%;
-        align-items: stretch;
-      }
-
-      .debt-status-chip {
-        flex: 1;
-        justify-content: center;
-      }
-
-      .debt-metrics,
-      .debt-form-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .debt-span-2 {
-        grid-column: span 1;
-      }
-
-      .debt-head {
-        grid-template-columns: 30px minmax(0, 1fr);
-      }
-
-      .debt-amount {
-        grid-column: 2;
-      }
-
-      .debt-card-actions {
-        justify-content: stretch;
-      }
-    }
-  </style>
 </head>
 
 <body class="sf-shell-body">
@@ -613,27 +19,29 @@
     <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
 
     <main class="sf-page-shell">
-      <section class="sf-page-content debts-os">
-        <section class="debt-page-head">
-          <div>
-            <div class="sf-page-eyebrow">Debt command center</div>
-            <h1 class="debt-title-main">Debts</h1>
-            <p class="debt-copy">
-              Track what you owe and what is owed to you. Debt rows are not money truth by themselves;
-              ledger movements remain backend-owned and account balances stay ledger-derived.
-            </p>
-          </div>
+      <section class="sf-page-content">
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Debt command center</p>
+              <h2 class="sf-section-title">Actions</h2>
+              <p class="sf-section-subtitle">
+                Track what you owe and what is owed to you. Debt rows are not money truth by themselves;
+                ledger movements remain backend-owned and account balances stay ledger-derived.
+              </p>
+            </div>
 
-          <div class="debt-actions">
-            <button class="sf-button sf-button--primary" id="addDebtBtn" type="button">Add Debt</button>
-            <button class="sf-button" id="newDebtBtn" type="button">New Debt</button>
-            <button class="sf-button" id="refreshDebtsBtn" type="button">Refresh</button>
-            <a class="sf-button" href="/transactions.html">Ledger</a>
-            <a class="sf-button" href="/accounts.html">Accounts</a>
+            <div class="sf-section-actions">
+              <button class="sf-button sf-button--primary" id="addDebtBtn" type="button">Add Debt</button>
+              <button class="sf-button" id="newDebtBtn" type="button">New Debt</button>
+              <button class="sf-button" id="refreshDebtsBtn" type="button">Refresh</button>
+              <a class="sf-button" href="/transactions.html">Ledger</a>
+              <a class="sf-button" href="/accounts.html">Accounts</a>
+            </div>
           </div>
         </section>
 
-        <section class="debt-metrics">
+        <section class="sf-metric-grid">
           <article class="sf-metric-card">
             <p class="sf-card-kicker">I Owe</p>
             <div id="metricOwe" class="sf-metric-value sf-tone-danger">—</div>
@@ -671,21 +79,27 @@
           </article>
         </section>
 
-        <section class="debt-status-strip" aria-label="Debt system status">
-          <div class="debt-status-main">
-            <span class="debt-status-chip strong" id="debtsHeroStatus">Debt truth</span>
-            <span class="debt-status-chip" id="debtsVersionPill">version loading</span>
-            <span class="debt-status-chip" id="debtsHealthPill">health loading</span>
-            <span class="debt-status-chip good" id="debtsLedgerPill">ledger state loading</span>
-          </div>
-          <div class="debt-status-chip" id="debtsHeroCopy">
-            Debt rows and origin ledger links are loaded from backend truth.
+        <section class="sf-panel">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">System status</p>
+              <h2 class="sf-section-title" id="debtsHeroStatus">Debt truth</h2>
+              <p class="sf-section-subtitle" id="debtsHeroCopy">
+                Debt rows and origin ledger links are loaded from backend truth.
+              </p>
+            </div>
+
+            <div class="sf-section-actions">
+              <span class="sf-pill" id="debtsVersionPill">version loading</span>
+              <span class="sf-pill" id="debtsHealthPill">health loading</span>
+              <span class="sf-pill sf-pill--positive" id="debtsLedgerPill">ledger state loading</span>
+            </div>
           </div>
         </section>
 
-        <details class="debt-rules">
-          <summary>Debt rules</summary>
-          <div class="debt-rules-body">
+        <details class="sf-panel">
+          <summary class="sf-section-title">Debt rules</summary>
+          <div class="sf-section-subtitle">
             <ul>
               <li>Debt rows are not money truth by themselves.</li>
               <li>If money moved now, the backend must create the debt and origin ledger row together.</li>
@@ -696,36 +110,34 @@
           </div>
         </details>
 
-        <section class="debt-workspace">
-          <div class="debt-panel-stack">
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Debt ledger</p>
-                  <h2 class="sf-section-title">Debt Register</h2>
-                  <p class="sf-section-subtitle">
-                    Backend debt rows with origin, payment, schedule, and repair state returned by the canonical Debts API.
-                  </p>
-                </div>
+        <section class="sf-grid-2">
+          <section class="sf-panel">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Debt ledger</p>
+                <h2 class="sf-section-title">Debt Register</h2>
+                <p class="sf-section-subtitle">
+                  Backend debt rows with origin, payment, schedule, and repair state returned by the canonical Debts API.
+                </p>
               </div>
+            </div>
 
-              <div class="debt-filter-row">
-                <button class="debt-filter is-active" type="button" data-filter="active">Active</button>
-                <button class="debt-filter" type="button" data-filter="owe">I Owe</button>
-                <button class="debt-filter" type="button" data-filter="owed">Owed To Me</button>
-                <button class="debt-filter" type="button" data-filter="due">Due / Overdue</button>
-                <button class="debt-filter" type="button" data-filter="missing_ledger">Missing Ledger</button>
-                <button class="debt-filter" type="button" data-filter="all">All</button>
-                <button class="debt-filter" type="button" id="reloadDebtsBtn">Reload</button>
-              </div>
+            <div class="sf-section-actions">
+              <button class="sf-button sf-button--primary debt-filter is-active" type="button" data-filter="active">Active</button>
+              <button class="sf-button debt-filter" type="button" data-filter="owe">I Owe</button>
+              <button class="sf-button debt-filter" type="button" data-filter="owed">Owed To Me</button>
+              <button class="sf-button debt-filter" type="button" data-filter="due">Due / Overdue</button>
+              <button class="sf-button debt-filter" type="button" data-filter="missing_ledger">Missing Ledger</button>
+              <button class="sf-button debt-filter" type="button" data-filter="all">All</button>
+              <button class="sf-button debt-filter" type="button" id="reloadDebtsBtn">Reload</button>
+            </div>
 
-              <div id="debtList" class="debt-list">
-                <div class="debt-empty">Loading debts…</div>
-              </div>
-            </section>
-          </div>
+            <div id="debtList">
+              <div class="sf-empty-state">Loading debts…</div>
+            </div>
+          </section>
 
-          <aside class="debt-panel-stack">
+          <aside>
             <section class="sf-panel">
               <div class="sf-section-head">
                 <div>
@@ -738,7 +150,7 @@
               </div>
 
               <div id="selectedDebtPanel">
-                <div class="debt-empty">No debt selected.</div>
+                <div class="sf-empty-state">No debt selected.</div>
               </div>
             </section>
 
@@ -754,7 +166,7 @@
               </div>
 
               <div id="debtActionPanel">
-                <div class="debt-empty">Choose an action from a debt card.</div>
+                <div class="sf-empty-state">Choose an action from a debt card.</div>
               </div>
             </section>
 
@@ -767,238 +179,228 @@
               </div>
 
               <div id="debtEnforcementPanel">
-                <div class="debt-empty">Loading enforcement…</div>
+                <div class="sf-empty-state">Loading enforcement…</div>
               </div>
             </section>
 
             <details class="sf-panel">
               <summary class="sf-section-title">Debug · Raw Contract</summary>
-              <pre id="debtDebug" class="debt-debug-pre">Loading…</pre>
+              <pre id="debtDebug" class="sf-code-block">Loading…</pre>
             </details>
           </aside>
         </section>
 
         <footer>
           <span class="sf-meta-text" id="debtFooterVersion">
-            debts.html · v0.7.0 · contract-aligned layout
+            debts.html · shared shell layout
           </span>
         </footer>
       </section>
     </main>
   </div>
 
-  <section class="debt-modal" id="debtModal" hidden>
-    <div class="debt-modal-card">
-      <div class="debt-modal-head">
-        <div>
-          <p class="sf-section-kicker">Add Debt</p>
-          <h2 class="sf-section-title">Create debt</h2>
-          <p class="sf-section-subtitle">
-            If money moved now, select the account it hit. Backend must create debt and ledger origin atomically.
+  <section class="sf-panel" id="debtModal" hidden>
+    <div class="sf-section-head">
+      <div>
+        <p class="sf-section-kicker">Add Debt</p>
+        <h2 class="sf-section-title">Create debt</h2>
+        <p class="sf-section-subtitle">
+          If money moved now, select the account it hit. Backend must create debt and ledger origin atomically.
+        </p>
+      </div>
+      <button class="sf-button" id="closeDebtModalBtn" type="button">Close</button>
+    </div>
+
+    <form id="addDebtForm">
+      <div class="sf-form-grid">
+        <label class="sf-field" for="debtNameInput">
+          <span>Name / Person</span>
+          <input class="sf-input" id="debtNameInput" type="text" autocomplete="off">
+        </label>
+
+        <label class="sf-field" for="debtKindInput">
+          <span>Direction</span>
+          <select class="sf-select" id="debtKindInput">
+            <option value="owed">Owed to me</option>
+            <option value="owe">I owe</option>
+          </select>
+        </label>
+
+        <label class="sf-field" for="debtOriginalInput">
+          <span>Original Amount</span>
+          <input class="sf-input" id="debtOriginalInput" type="number" step="0.01" min="0">
+        </label>
+
+        <label class="sf-field" for="debtPaidInput">
+          <span>Already Paid</span>
+          <input class="sf-input" id="debtPaidInput" type="number" step="0.01" min="0" value="0">
+        </label>
+
+        <label class="sf-field" for="debtDueDateInput">
+          <span>Due Date</span>
+          <input class="sf-input" id="debtDueDateInput" type="date">
+        </label>
+
+        <label class="sf-field" for="debtDueDayInput">
+          <span>Due Day</span>
+          <input class="sf-input" id="debtDueDayInput" type="number" min="1" max="31">
+        </label>
+
+        <label class="sf-field" for="debtInstallmentInput">
+          <span>Installment Amount</span>
+          <input class="sf-input" id="debtInstallmentInput" type="number" step="0.01" min="0">
+        </label>
+
+        <label class="sf-field" for="debtFrequencyInput">
+          <span>Frequency</span>
+          <select class="sf-select" id="debtFrequencyInput">
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="yearly">Yearly</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+
+        <label class="sf-field" for="debtStatusInput">
+          <span>Status</span>
+          <select class="sf-select" id="debtStatusInput">
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="closed">Closed</option>
+          </select>
+        </label>
+
+        <label class="sf-field" for="debtSnowballInput">
+          <span>Snowball Order</span>
+          <input class="sf-input" id="debtSnowballInput" type="number" step="1">
+        </label>
+
+        <div class="sf-field">
+          <span>Ledger movement now</span>
+          <label class="sf-meta-text" for="debtMovementNowInput">
+            <input id="debtMovementNowInput" type="checkbox" checked>
+            Money moved now
+          </label>
+          <p class="sf-card-subtitle" id="debtMovementCopy">
+            Owed to me means money leaves the selected account now.
           </p>
         </div>
-        <button class="debt-action" id="closeDebtModalBtn" type="button">Close</button>
+
+        <label class="sf-field" for="debtAccountInput">
+          <span>Account money hit</span>
+          <select class="sf-select" id="debtAccountInput">
+            <option value="">Select account…</option>
+          </select>
+        </label>
+
+        <label class="sf-field" for="debtMovementDateInput">
+          <span>Movement Date</span>
+          <input class="sf-input" id="debtMovementDateInput" type="date">
+        </label>
+
+        <label class="sf-field" for="debtNotesInput">
+          <span>Notes</span>
+          <textarea class="sf-textarea" id="debtNotesInput"></textarea>
+        </label>
       </div>
 
-      <form class="debt-form" id="addDebtForm">
-        <div class="debt-form-grid">
-          <div class="debt-field">
-            <label for="debtNameInput">Name / Person</label>
-            <input class="debt-input" id="debtNameInput" type="text" autocomplete="off">
-          </div>
+      <div class="sf-section-actions">
+        <button class="sf-button" id="dryRunDebtBtn" type="button">Dry-run</button>
+        <button class="sf-button sf-button--primary" id="saveDebtBtn" type="button">Save Debt</button>
+      </div>
+    </form>
+  </section>
 
-          <div class="debt-field">
-            <label for="debtKindInput">Direction</label>
-            <select class="debt-select" id="debtKindInput">
-              <option value="owed">Owed to me</option>
-              <option value="owe">I owe</option>
-            </select>
-          </div>
+  <section class="sf-panel" id="paymentModal" hidden>
+    <div class="sf-section-head">
+      <div>
+        <p class="sf-section-kicker">Record Payment</p>
+        <h2 class="sf-section-title">Debt payment</h2>
+        <p class="sf-section-subtitle">
+          Payment movement must be handled by the canonical backend debt payment flow.
+        </p>
+      </div>
+      <button class="sf-button" id="closePaymentModalBtn" type="button">Close</button>
+    </div>
 
-          <div class="debt-field">
-            <label for="debtOriginalInput">Original Amount</label>
-            <input class="debt-input" id="debtOriginalInput" type="number" step="0.01" min="0">
-          </div>
+    <input id="paymentDebtIdInput" type="hidden">
 
-          <div class="debt-field">
-            <label for="debtPaidInput">Already Paid</label>
-            <input class="debt-input" id="debtPaidInput" type="number" step="0.01" min="0" value="0">
-          </div>
+    <div class="sf-form-grid">
+      <label class="sf-field" for="paymentAmountInput">
+        <span>Amount</span>
+        <input class="sf-input" id="paymentAmountInput" type="number" step="0.01" min="0">
+      </label>
 
-          <div class="debt-field">
-            <label for="debtDueDateInput">Due Date</label>
-            <input class="debt-input" id="debtDueDateInput" type="date">
-          </div>
+      <label class="sf-field" for="paymentDateInput">
+        <span>Date</span>
+        <input class="sf-input" id="paymentDateInput" type="date">
+      </label>
 
-          <div class="debt-field">
-            <label for="debtDueDayInput">Due Day</label>
-            <input class="debt-input" id="debtDueDayInput" type="number" min="1" max="31">
-          </div>
+      <label class="sf-field" for="paymentAccountInput">
+        <span>Account</span>
+        <select class="sf-select" id="paymentAccountInput">
+          <option value="">Select account…</option>
+        </select>
+      </label>
 
-          <div class="debt-field">
-            <label for="debtInstallmentInput">Installment Amount</label>
-            <input class="debt-input" id="debtInstallmentInput" type="number" step="0.01" min="0">
-          </div>
+      <label class="sf-field" for="paymentDirectionInput">
+        <span>Payment Direction</span>
+        <select class="sf-select" id="paymentDirectionInput">
+          <option value="auto">Auto from debt kind</option>
+          <option value="paid_out">Paid out</option>
+          <option value="received_in">Received in</option>
+        </select>
+      </label>
 
-          <div class="debt-field">
-            <label for="debtFrequencyInput">Frequency</label>
-            <select class="debt-select" id="debtFrequencyInput">
-              <option value="monthly">Monthly</option>
-              <option value="weekly">Weekly</option>
-              <option value="yearly">Yearly</option>
-              <option value="custom">Custom</option>
-            </select>
-          </div>
+      <label class="sf-field" for="paymentNotesInput">
+        <span>Notes</span>
+        <textarea class="sf-textarea" id="paymentNotesInput"></textarea>
+      </label>
+    </div>
 
-          <div class="debt-field">
-            <label for="debtStatusInput">Status</label>
-            <select class="debt-select" id="debtStatusInput">
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="closed">Closed</option>
-            </select>
-          </div>
-
-          <div class="debt-field">
-            <label for="debtSnowballInput">Snowball Order</label>
-            <input class="debt-input" id="debtSnowballInput" type="number" step="1">
-          </div>
-
-          <div class="debt-field debt-span-2">
-            <label for="debtMovementNowInput">Ledger movement now</label>
-            <label class="debt-row-sub" style="display:flex;gap:10px;align-items:center;">
-              <input id="debtMovementNowInput" type="checkbox" checked>
-              Money moved now
-            </label>
-            <div class="debt-row-sub" id="debtMovementCopy">
-              Owed to me means money leaves the selected account now.
-            </div>
-          </div>
-
-          <div class="debt-field">
-            <label for="debtAccountInput">Account money hit</label>
-            <select class="debt-select" id="debtAccountInput">
-              <option value="">Select account…</option>
-            </select>
-          </div>
-
-          <div class="debt-field">
-            <label for="debtMovementDateInput">Movement Date</label>
-            <input class="debt-input" id="debtMovementDateInput" type="date">
-          </div>
-
-          <div class="debt-field debt-span-2">
-            <label for="debtNotesInput">Notes</label>
-            <textarea class="debt-textarea" id="debtNotesInput"></textarea>
-          </div>
-        </div>
-
-        <div class="debt-card-actions">
-          <button class="debt-action" id="dryRunDebtBtn" type="button">Dry-run</button>
-          <button class="debt-action primary" id="saveDebtBtn" type="button">Save Debt</button>
-        </div>
-      </form>
+    <div class="sf-section-actions">
+      <button class="sf-button" id="dryRunPaymentBtn" type="button">Dry-run Payment</button>
+      <button class="sf-button sf-button--primary" id="savePaymentBtn" type="button">Save Payment</button>
     </div>
   </section>
 
-  <section class="debt-modal" id="paymentModal" hidden>
-    <div class="debt-modal-card">
-      <div class="debt-modal-head">
-        <div>
-          <p class="sf-section-kicker">Record Payment</p>
-          <h2 class="sf-section-title">Debt payment</h2>
-          <p class="sf-section-subtitle">
-            Payment movement must be handled by the canonical backend debt payment flow.
-          </p>
-        </div>
-        <button class="debt-action" id="closePaymentModalBtn" type="button">Close</button>
+  <section class="sf-panel" id="deferModal" hidden>
+    <div class="sf-section-head">
+      <div>
+        <p class="sf-section-kicker">Defer Debt</p>
+        <h2 class="sf-section-title">Update schedule</h2>
+        <p class="sf-section-subtitle">
+          Update due date or schedule without changing money truth.
+        </p>
       </div>
+      <button class="sf-button" id="closeDeferModalBtn" type="button">Close</button>
+    </div>
 
-      <input id="paymentDebtIdInput" type="hidden">
+    <input id="deferDebtIdInput" type="hidden">
 
-      <div class="debt-form">
-        <div class="debt-form-grid">
-          <div class="debt-field">
-            <label for="paymentAmountInput">Amount</label>
-            <input class="debt-input" id="paymentAmountInput" type="number" step="0.01" min="0">
-          </div>
+    <div class="sf-form-grid">
+      <label class="sf-field" for="deferDueDateInput">
+        <span>New Due Date</span>
+        <input class="sf-input" id="deferDueDateInput" type="date">
+      </label>
 
-          <div class="debt-field">
-            <label for="paymentDateInput">Date</label>
-            <input class="debt-input" id="paymentDateInput" type="date">
-          </div>
+      <label class="sf-field" for="deferDueDayInput">
+        <span>New Due Day</span>
+        <input class="sf-input" id="deferDueDayInput" type="number" min="1" max="31">
+      </label>
 
-          <div class="debt-field">
-            <label for="paymentAccountInput">Account</label>
-            <select class="debt-select" id="paymentAccountInput">
-              <option value="">Select account…</option>
-            </select>
-          </div>
+      <label class="sf-field" for="deferNotesInput">
+        <span>Notes</span>
+        <textarea class="sf-textarea" id="deferNotesInput"></textarea>
+      </label>
+    </div>
 
-          <div class="debt-field">
-            <label for="paymentDirectionInput">Payment Direction</label>
-            <select class="debt-select" id="paymentDirectionInput">
-              <option value="auto">Auto from debt kind</option>
-              <option value="paid_out">Paid out</option>
-              <option value="received_in">Received in</option>
-            </select>
-          </div>
-
-          <div class="debt-field debt-span-2">
-            <label for="paymentNotesInput">Notes</label>
-            <textarea class="debt-textarea" id="paymentNotesInput"></textarea>
-          </div>
-        </div>
-
-        <div class="debt-card-actions">
-          <button class="debt-action" id="dryRunPaymentBtn" type="button">Dry-run Payment</button>
-          <button class="debt-action primary" id="savePaymentBtn" type="button">Save Payment</button>
-        </div>
-      </div>
+    <div class="sf-section-actions">
+      <button class="sf-button sf-button--primary" id="saveDeferBtn" type="button">Save Defer</button>
     </div>
   </section>
 
-  <section class="debt-modal" id="deferModal" hidden>
-    <div class="debt-modal-card">
-      <div class="debt-modal-head">
-        <div>
-          <p class="sf-section-kicker">Defer Debt</p>
-          <h2 class="sf-section-title">Update schedule</h2>
-          <p class="sf-section-subtitle">
-            Update due date or schedule without changing money truth.
-          </p>
-        </div>
-        <button class="debt-action" id="closeDeferModalBtn" type="button">Close</button>
-      </div>
-
-      <input id="deferDebtIdInput" type="hidden">
-
-      <div class="debt-form">
-        <div class="debt-form-grid">
-          <div class="debt-field">
-            <label for="deferDueDateInput">New Due Date</label>
-            <input class="debt-input" id="deferDueDateInput" type="date">
-          </div>
-
-          <div class="debt-field">
-            <label for="deferDueDayInput">New Due Day</label>
-            <input class="debt-input" id="deferDueDayInput" type="number" min="1" max="31">
-          </div>
-
-          <div class="debt-field debt-span-2">
-            <label for="deferNotesInput">Notes</label>
-            <textarea class="debt-textarea" id="deferNotesInput"></textarea>
-          </div>
-        </div>
-
-        <div class="debt-card-actions">
-          <button class="debt-action primary" id="saveDeferBtn" type="button">Save Defer</button>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <div class="debt-toast" id="debtToast"></div>
+  <div id="debtToast" class="sf-toast"></div>
 
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
