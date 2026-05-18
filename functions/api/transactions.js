@@ -1,20 +1,23 @@
 /* /api/transactions
  * Sovereign Finance · Transactions Engine
- * v0.6.1-hide-reversed-originals
+ * v0.7.0-transactions-add-contract-proof
  *
  * Contract:
  * - Backend owns transaction truth.
  * - Accounts are ledger-derived.
- * - Frontend may submit income, expense, transfer, adjustment, and catch-up entries.
+ * - Add Transaction submits normal income, expense, transfer, adjustment, and catch-up entries here.
  * - Direct edit/delete is not supported here.
  * - Reversal lives in /api/transactions/reverse.
  * - Dry-run + payload hash is supported.
- * - Direct commit is also supported for daily ledger recovery.
+ * - Direct commit is supported for daily ledger recovery.
+ * - Idempotency is supported when idempotency_key column exists.
+ * - Duplicate suspicion is surfaced before commit.
+ * - Merchant text and merchant_id are preserved when supplied.
  * - Default GET hides both reversal rows and reversed originals.
  * - Full audit history is available with include_reversed=1.
  */
 
-const VERSION = 'v0.6.1-hide-reversed-originals';
+const VERSION = 'v0.7.0-transactions-add-contract-proof';
 const CONTRACT_VERSION = 'transactions-add-v1';
 
 const FRONTEND_ADD_TYPES = [
@@ -144,7 +147,6 @@ export async function onRequestGet(context) {
     ).bind(fetchLimit).all();
 
     const decorated = (result.results || []).map(decorateTransaction);
-
     const activeOnly = decorated.filter(row => !row.is_reversal && !row.is_reversed);
 
     const visible = includeReversed
@@ -169,6 +171,8 @@ export async function onRequestGet(context) {
         dry_run_supported: true,
         direct_commit_supported: true,
         commit_hash_supported: true,
+        idempotency_supported: txCols.has('idempotency_key'),
+        merchant_preservation_supported: txCols.has('merchant') || txCols.has('merchant_id'),
         account_balance_source: 'ledger',
         reversal_route: '/api/transactions/reverse',
         default_list_hides_reversal_rows: true,
@@ -226,6 +230,10 @@ export async function onRequestPost(context) {
         proof: validation.proof,
         normalized_payload: validation.normalized_payload
       });
+    }
+
+    if (validation.idempotency_proof && validation.idempotency_proof.status === 'duplicate_same_payload') {
+      return existingIdempotentResponse(validation);
     }
 
     const hashCheck = checkCommitHashIfSupplied(body, validation);
@@ -459,11 +467,46 @@ async function validatePayload(context, body) {
     });
   }
 
+  const merchantProof = await buildMerchantProof(db, normalized);
+
+  if (merchantProof.status === 'warn') {
+    warnings.push(merchantProof);
+  }
+
   const balanceProof = await buildBalanceProof(db, normalized, sourceAccount, transferToAccount);
   const duplicateProof = await buildDuplicateProof(db, normalized);
+  const idempotencyProof = await buildIdempotencyProof(db, normalized);
 
   if (duplicateProof.status === 'warn') {
     warnings.push(duplicateProof);
+  }
+
+  if (idempotencyProof.status === 'duplicate_conflict') {
+    return {
+      ok: false,
+      status: 409,
+      code: 'IDEMPOTENCY_CONFLICT',
+      error: 'idempotency_key already exists for a different payload',
+      details: idempotencyProof,
+      warnings
+    };
+  }
+
+  if (idempotencyProof.status === 'duplicate_same_payload') {
+    warnings.push({
+      code: 'IDEMPOTENCY_DUPLICATE',
+      severity: 'info',
+      message: 'Existing transaction found for idempotency_key. Commit will return existing transaction instead of creating a duplicate.',
+      existing_transaction_ids: idempotencyProof.existing_transaction_ids
+    });
+  }
+
+  if (idempotencyProof.status === 'not_supported') {
+    warnings.push({
+      code: 'IDEMPOTENCY_COLUMN_MISSING',
+      severity: 'warn',
+      message: 'idempotency_key was supplied but transactions table has no idempotency_key column.'
+    });
   }
 
   const requiresOverride = balanceProof.requires_override === true;
@@ -487,6 +530,8 @@ async function validatePayload(context, body) {
   const proof = buildProof(normalized, {
     balance: balanceProof,
     duplicate: duplicateProof,
+    idempotency: idempotencyProof,
+    merchant: merchantProof,
     warnings
   });
 
@@ -498,7 +543,8 @@ async function validatePayload(context, body) {
     override_reason: overrideReason,
     override_token: overrideToken,
     warnings,
-    proof
+    proof,
+    idempotency_proof: idempotencyProof
   };
 }
 
@@ -522,8 +568,11 @@ function buildProof(payload, checks) {
       account_id: payload.account_id,
       account_delta: delta,
       date: payload.date,
+      merchant_id: payload.merchant_id,
+      merchant: payload.merchant,
       source_module: payload.source_module,
-      source_action: payload.source_action
+      source_action: payload.source_action,
+      idempotency_key: payload.idempotency_key
     },
     contract: {
       frontend_add_types: FRONTEND_ADD_TYPES,
@@ -532,7 +581,9 @@ function buildProof(payload, checks) {
       canonical_category_id: payload.category_id,
       dry_run_supported: true,
       direct_commit_supported: true,
-      commit_hash_supported: true
+      commit_hash_supported: true,
+      idempotency_supported: checks.idempotency.status !== 'not_supported',
+      merchant_preservation_supported: true
     },
     checks: [
       {
@@ -569,8 +620,10 @@ function buildProof(payload, checks) {
           ? 'Category resolved to canonical category_id ' + payload.category_id + '.'
           : 'Category is empty or not required.'
       },
+      checks.merchant,
       checks.balance,
-      checks.duplicate
+      checks.duplicate,
+      checks.idempotency
     ],
     warnings: checks.warnings
   };
@@ -582,6 +635,7 @@ async function createSingleTransaction(context, validation) {
   const txCols = await tableColumns(db, 'transactions');
   const id = makeTxnId('tx');
   const delta = accountDelta(payload.type, payload.pkr_amount, 'source');
+  const createdAt = nowISO();
 
   const row = filterToCols(txCols, {
     id,
@@ -606,8 +660,8 @@ async function createSingleTransaction(context, validation) {
     source_action: payload.source_action,
     idempotency_key: payload.idempotency_key,
     created_by: payload.created_by,
-    created_at: nowISO(),
-    updated_at: nowISO()
+    created_at: createdAt,
+    updated_at: createdAt
   });
 
   try {
@@ -638,6 +692,8 @@ async function createSingleTransaction(context, validation) {
     committed: true,
     writes_performed: true,
     id,
+    ids: [id],
+    transaction_id: id,
     transaction: {
       created: true,
       id,
@@ -647,13 +703,17 @@ async function createSingleTransaction(context, validation) {
       account_id: payload.account_id,
       account_delta: delta,
       date: payload.date,
+      merchant_id: payload.merchant_id,
+      merchant: payload.merchant,
       source_module: payload.source_module,
-      source_action: payload.source_action
+      source_action: payload.source_action,
+      idempotency_key: payload.idempotency_key
     },
     ledger: {
       visible: true,
       reversed: false,
-      reversal_route: '/api/transactions/reverse'
+      reversal_route: '/api/transactions/reverse',
+      row_count: 1
     },
     account: {
       balance_source: 'ledger',
@@ -775,6 +835,8 @@ async function createTransferPair(context, validation) {
     id: outId,
     linked_id: inId,
     ids: [outId, inId],
+    transaction_id: outId,
+    linked_transaction_id: inId,
     transaction: {
       created: true,
       id: outId,
@@ -784,9 +846,14 @@ async function createTransferPair(context, validation) {
       pkr_amount: payload.pkr_amount,
       account_id: payload.account_id,
       account_delta: -Math.abs(payload.pkr_amount),
+      transfer_to_account_id: payload.transfer_to_account_id,
+      transfer_to_account_delta: Math.abs(payload.pkr_amount),
       date: payload.date,
+      merchant_id: payload.merchant_id,
+      merchant: payload.merchant,
       source_module: payload.source_module,
-      source_action: 'transfer_pair'
+      source_action: 'transfer_pair',
+      idempotency_key: payload.idempotency_key
     },
     ledger: {
       visible: true,
@@ -808,6 +875,60 @@ async function createTransferPair(context, validation) {
     },
     audited: false,
     audit_error: null,
+    payload_hash: validation.payload_hash,
+    proof: validation.proof,
+    warnings: validation.warnings
+  });
+}
+
+function existingIdempotentResponse(validation) {
+  const payload = validation.normalized_payload;
+  const proof = validation.idempotency_proof || {};
+  const rows = proof.existing_rows || [];
+  const first = rows[0] || {};
+  const ids = rows.map(row => row.id).filter(Boolean);
+
+  return json({
+    ok: true,
+    version: VERSION,
+    contract_version: CONTRACT_VERSION,
+    action: 'transaction_create',
+    committed: false,
+    writes_performed: false,
+    idempotent_replay: true,
+    id: first.id || null,
+    linked_id: rows[1] ? rows[1].id : null,
+    ids,
+    transaction_id: first.id || null,
+    transaction: {
+      created: false,
+      id: first.id || null,
+      type: payload.type,
+      amount: payload.amount,
+      pkr_amount: payload.pkr_amount,
+      account_id: payload.account_id,
+      account_delta: accountDelta(payload.type, payload.pkr_amount, 'source'),
+      date: payload.date,
+      merchant_id: payload.merchant_id,
+      merchant: payload.merchant,
+      source_module: payload.source_module,
+      source_action: payload.source_action,
+      idempotency_key: payload.idempotency_key
+    },
+    ledger: {
+      visible: true,
+      reversed: false,
+      replayed_existing_rows: ids
+    },
+    account: {
+      balance_source: 'ledger',
+      impacted: false,
+      reason: 'idempotent replay returned existing transaction'
+    },
+    forecast: {
+      should_reflect: false,
+      reason: 'no new write performed'
+    },
     payload_hash: validation.payload_hash,
     proof: validation.proof,
     warnings: validation.warnings
@@ -942,8 +1063,11 @@ async function buildDuplicateProof(db, payload) {
     'date',
     'type',
     'amount',
+    'pkr_amount',
     'account_id',
     'category_id',
+    'merchant_id',
+    'merchant',
     'notes',
     'reversed_by',
     'reversed_at',
@@ -958,12 +1082,25 @@ async function buildDuplicateProof(db, payload) {
        AND account_id = ?
        AND ROUND(ABS(amount), 2) = ROUND(ABS(?), 2)
      ORDER BY ${buildOrderBy(txCols)}
-     LIMIT 5`
+     LIMIT 8`
   ).bind(payload.date, payload.type, payload.account_id, payload.amount).all();
+
+  const normalizedMerchant = token(payload.merchant || '');
+  const normalizedNotes = token(payload.notes || '');
 
   const matches = (rows.results || []).filter(row => {
     if (isInactiveForBalance(row)) return false;
     if (payload.category_id && row.category_id && payload.category_id !== row.category_id) return false;
+
+    const rowMerchant = token(row.merchant || '');
+    const rowNotes = token(row.notes || '');
+
+    if (normalizedMerchant && rowMerchant && normalizedMerchant !== rowMerchant) return false;
+
+    if (normalizedNotes && rowNotes && normalizedNotes !== rowNotes) {
+      if (!rowNotes.includes(normalizedNotes) && !normalizedNotes.includes(rowNotes)) return false;
+    }
+
     return true;
   });
 
@@ -984,6 +1121,161 @@ async function buildDuplicateProof(db, payload) {
     possible_duplicate_ids: matches.map(row => row.id),
     detail: 'Possible duplicate transaction.'
   };
+}
+
+async function buildIdempotencyProof(db, payload) {
+  if (!payload.idempotency_key) {
+    return {
+      check: 'idempotency',
+      status: 'not_supplied',
+      source: 'request.idempotency_key',
+      detail: 'No idempotency_key supplied.'
+    };
+  }
+
+  const txCols = await tableColumns(db, 'transactions');
+
+  if (!txCols.has('idempotency_key')) {
+    return {
+      check: 'idempotency',
+      status: 'not_supported',
+      source: 'transactions',
+      detail: 'transactions.idempotency_key column not available.'
+    };
+  }
+
+  const select = selectTransactionColumns(txCols);
+  const keys = payload.type === 'transfer'
+    ? [payload.idempotency_key, payload.idempotency_key + ':in']
+    : [payload.idempotency_key];
+
+  const placeholders = keys.map(() => '?').join(', ');
+
+  const result = await db.prepare(
+    `SELECT ${select.join(', ')}
+     FROM transactions
+     WHERE idempotency_key IN (${placeholders})
+     ORDER BY ${buildOrderBy(txCols)}
+     LIMIT 4`
+  ).bind(...keys).all();
+
+  const rows = (result.results || []).map(decorateTransaction);
+
+  if (!rows.length) {
+    return {
+      check: 'idempotency',
+      status: 'pass',
+      source: 'transactions.idempotency_key',
+      detail: 'No existing transaction found for idempotency_key.'
+    };
+  }
+
+  const samePayload = rows.every(row => idempotentRowMatchesPayload(row, payload));
+
+  if (!samePayload) {
+    return {
+      check: 'idempotency',
+      status: 'duplicate_conflict',
+      source: 'transactions.idempotency_key',
+      existing_transaction_ids: rows.map(row => row.id),
+      existing_rows: rows,
+      detail: 'Existing idempotency_key rows do not match current payload.'
+    };
+  }
+
+  return {
+    check: 'idempotency',
+    status: 'duplicate_same_payload',
+    source: 'transactions.idempotency_key',
+    existing_transaction_ids: rows.map(row => row.id),
+    existing_rows: rows,
+    detail: 'Existing transaction found for same idempotency_key and compatible payload.'
+  };
+}
+
+function idempotentRowMatchesPayload(row, payload) {
+  if (!row) return false;
+
+  const rowType = normalizeType(row.type);
+  const rowAmount = roundMoney(Math.abs(Number(row.pkr_amount || row.amount || 0)));
+  const payloadAmount = roundMoney(Math.abs(Number(payload.pkr_amount || payload.amount || 0)));
+
+  if (row.date !== payload.date) return false;
+  if (rowAmount !== payloadAmount) return false;
+
+  if (payload.type === 'transfer') {
+    if (rowType !== 'transfer' && rowType !== 'income') return false;
+
+    const isOut = rowType === 'transfer';
+    if (isOut && row.account_id !== payload.account_id) return false;
+    if (!isOut && row.account_id !== payload.transfer_to_account_id) return false;
+
+    return true;
+  }
+
+  if (rowType !== payload.type) return false;
+  if (row.account_id !== payload.account_id) return false;
+
+  if (payload.category_id && row.category_id && row.category_id !== payload.category_id) return false;
+
+  return true;
+}
+
+async function buildMerchantProof(db, payload) {
+  if (!payload.merchant_id && !payload.merchant) {
+    return {
+      check: 'merchant_preservation',
+      status: 'not_supplied',
+      source: 'request.merchant / request.merchant_id',
+      detail: 'No merchant metadata supplied.'
+    };
+  }
+
+  const txCols = await tableColumns(db, 'transactions');
+
+  const proof = {
+    check: 'merchant_preservation',
+    status: 'pass',
+    source: 'request.merchant / request.merchant_id',
+    merchant_id: payload.merchant_id,
+    merchant: payload.merchant,
+    detail: 'Merchant metadata will be preserved where transaction schema supports it.'
+  };
+
+  if (!txCols.has('merchant') && payload.merchant) {
+    proof.status = 'warn';
+    proof.detail = 'Merchant text supplied but transactions.merchant column is missing.';
+  }
+
+  if (!txCols.has('merchant_id') && payload.merchant_id) {
+    proof.status = 'warn';
+    proof.detail = 'merchant_id supplied but transactions.merchant_id column is missing.';
+  }
+
+  if (payload.merchant_id) {
+    const merchantCols = await tableColumns(db, 'merchants');
+
+    if (merchantCols.has('id')) {
+      const merchant = await db.prepare(
+        `SELECT id, name
+         FROM merchants
+         WHERE id = ?
+         LIMIT 1`
+      ).bind(payload.merchant_id).first();
+
+      if (!merchant) {
+        proof.status = 'warn';
+        proof.detail = 'merchant_id supplied but no matching merchant row was found. Transaction can still preserve the id.';
+      } else {
+        proof.matched_merchant = {
+          id: merchant.id,
+          name: merchant.name || merchant.id
+        };
+      }
+    }
+  }
+
+  return proof;
 }
 
 async function resolveAccount(db, input) {
