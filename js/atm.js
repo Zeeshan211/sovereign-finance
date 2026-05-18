@@ -1,12 +1,13 @@
 (() => {
   "use strict";
 
-  const VERSION = "v0.2.0-atm-frontend-binding";
+  const VERSION = "v0.2.1-atm-fee-refund-ui";
 
   const ROUTES = {
     atm: "/api/atm",
     atmHealth: "/api/atm?action=health",
     atmWithdraw: "/api/atm/withdraw",
+    atmRefund: "/api/atm/refund",
     balances: "/api/balances",
     reverse: "/api/transactions/reverse"
   };
@@ -136,9 +137,14 @@
 
     const submit = el(id.submit);
     const refresh = el(id.refresh);
+    const refundButtons = document.querySelectorAll("[data-atm-refund-id]");
 
     if (submit) submit.disabled = state.busy;
     if (refresh) refresh.disabled = state.busy;
+
+    refundButtons.forEach((button) => {
+      button.disabled = state.busy;
+    });
 
     setText(id.submitLabel, state.busy ? "Recording…" : "Record ATM withdrawal");
   }
@@ -246,6 +252,7 @@
   function extractAccounts(payload) {
     const rawAccounts = [];
 
+    if (Array.isArray(payload?.account_list)) rawAccounts.push(...payload.account_list);
     if (Array.isArray(payload?.accounts)) rawAccounts.push(...payload.accounts);
     if (Array.isArray(payload?.rows)) rawAccounts.push(...payload.rows);
     if (Array.isArray(payload?.items)) rawAccounts.push(...payload.items);
@@ -257,13 +264,19 @@
 
     if (payload?.accounts && !Array.isArray(payload.accounts) && typeof payload.accounts === "object") {
       Object.entries(payload.accounts).forEach(([accountId, account]) => {
-        rawAccounts.push({ id: accountId, ...(typeof account === "object" ? account : { balance: account }) });
+        rawAccounts.push({
+          id: accountId,
+          ...(typeof account === "object" ? account : { balance: account })
+        });
       });
     }
 
     if (payload?.balances && !Array.isArray(payload.balances) && typeof payload.balances === "object") {
       Object.entries(payload.balances).forEach(([accountId, account]) => {
-        rawAccounts.push({ id: accountId, ...(typeof account === "object" ? account : { balance: account }) });
+        rawAccounts.push({
+          id: accountId,
+          ...(typeof account === "object" ? account : { balance: account })
+        });
       });
     }
 
@@ -300,9 +313,10 @@
   function extractRecentRows(payload) {
     const rows = [];
 
-    if (Array.isArray(payload?.recent)) rows.push(...payload.recent);
+    if (Array.isArray(payload?.recent_atm_rows)) rows.push(...payload.recent_atm_rows);
     if (Array.isArray(payload?.recent_rows)) rows.push(...payload.recent_rows);
     if (Array.isArray(payload?.recentRows)) rows.push(...payload.recentRows);
+    if (Array.isArray(payload?.recent)) rows.push(...payload.recent);
     if (Array.isArray(payload?.recent_activity)) rows.push(...payload.recent_activity);
     if (Array.isArray(payload?.transactions)) rows.push(...payload.transactions);
     if (Array.isArray(payload?.rows)) rows.push(...payload.rows);
@@ -342,6 +356,7 @@
     return asNumber(
       state.atm?.fees_paid_30d ??
         state.atm?.fees_paid ??
+        state.atm?.fees_30d?.paid ??
         state.atm?.summary?.fees_paid_30d ??
         state.atm?.summary?.fees_paid ??
         state.atm?.stats?.fees_paid_30d ??
@@ -351,12 +366,20 @@
     );
   }
 
-  function getFeesReversed() {
+  function getFeesRefunded() {
     return asNumber(
-      state.atm?.fees_reversed_30d ??
+      state.atm?.fees_refunded_30d ??
+        state.atm?.fees_refunded ??
+        state.atm?.fees_reversed_30d ??
         state.atm?.fees_reversed ??
+        state.atm?.fees_30d?.refunded ??
+        state.atm?.fees_30d?.reversed ??
+        state.atm?.summary?.fees_refunded_30d ??
+        state.atm?.summary?.fees_refunded ??
         state.atm?.summary?.fees_reversed_30d ??
         state.atm?.summary?.fees_reversed ??
+        state.atm?.stats?.fees_refunded_30d ??
+        state.atm?.stats?.fees_refunded ??
         state.atm?.stats?.fees_reversed_30d ??
         state.atm?.stats?.fees_reversed ??
         0,
@@ -368,6 +391,8 @@
     return asNumber(
       state.atm?.default_fee ??
         state.atm?.default_atm_fee ??
+        state.atm?.defaults?.fee_pkr_hint ??
+        state.atm?.defaults?.fee_pkr ??
         state.atm?.contract?.default_fee ??
         state.atm?.rules?.default_fee ??
         0,
@@ -379,25 +404,26 @@
     const pendingCount = getPendingCount();
     const pendingTotal = getPendingTotal();
     const feesPaid = getFeesPaid();
-    const feesReversed = getFeesReversed();
+    const feesRefunded = getFeesRefunded();
 
     const apiNet =
       state.atm?.fees_net ??
       state.atm?.net_fees ??
+      state.atm?.fees_30d?.net ??
       state.atm?.summary?.fees_net ??
       state.atm?.summary?.net_fees ??
       state.atm?.stats?.fees_net;
 
     const feesNet = apiNet === undefined || apiNet === null
-      ? feesPaid - feesReversed
+      ? feesPaid - feesRefunded
       : asNumber(apiNet, 0);
 
     setText(id.pendingCount, pendingCount);
-    setText(id.pendingTotal, money(pendingTotal));
+    setText(id.pendingTotal, `${money(pendingTotal)} awaiting possible refund`);
     setText(id.feesPaid, money(feesPaid));
-    setText(id.feesReversed, money(feesReversed));
+    setText(id.feesReversed, money(feesRefunded));
     setText(id.feesNet, money(feesNet));
-    setText(id.defaultFee, `Default ${money(getDefaultFee())}`);
+    setText(id.defaultFee, `Fee hint ${money(getDefaultFee())}`);
   }
 
   function renderAccounts() {
@@ -438,7 +464,7 @@
   function financeRowHtml(options) {
     const title = escapeHtml(options.title || "—");
     const subtitle = escapeHtml(options.subtitle || "—");
-    const right = escapeHtml(options.right || "—");
+    const right = options.rightHtml || escapeHtml(options.right || "—");
     const tone = options.tone || "info";
 
     let rightClass = "sf-row-right";
@@ -492,8 +518,8 @@
 
     if (!state.pendingFees.length) {
       node.innerHTML = emptyHtml(
-        "No pending ATM fees",
-        "No active ATM fee rows are waiting for reversal or acceptance."
+        "No ATM fees awaiting refund",
+        "Charged ATM fee rows will appear here only while they are waiting for a possible bank refund."
       );
       return;
     }
@@ -503,12 +529,30 @@
       const accountId = cleanText(fee.account_id || fee.account || fee.source_account_id, "Unknown account");
       const amount = fee.amount ?? fee.fee ?? fee.value ?? 0;
       const date = cleanText(fee.date || fee.transaction_date || fee.created_at, "");
-      const notes = cleanText(fee.notes || fee.description || fee.memo, "ATM fee pending review");
+      const age = fee.age_days === null || fee.age_days === undefined ? "" : `${fee.age_days}d old`;
+      const notes = cleanText(fee.notes || fee.description || fee.memo, "ATM fee charged; awaiting possible bank refund");
+
+      const subtitle = [
+        date,
+        accountId,
+        age,
+        notes.replace("[ATM_FEE_PENDING]", "").replace("[ATM_FEE_AWAITING_REFUND]", "").trim()
+      ].filter(Boolean).join(" · ");
+
+      const rightHtml = `
+        <div>${escapeHtml(money(amount))}</div>
+        <button
+          type="button"
+          class="sf-button"
+          data-atm-refund-id="${escapeHtml(feeId)}"
+          data-atm-refund-amount="${escapeHtml(amount)}"
+        >Mark refunded</button>
+      `;
 
       return financeRowHtml({
-        title: `${accountId} · ${feeId}`,
-        subtitle: [date, notes].filter(Boolean).join(" · "),
-        right: money(amount),
+        title: "Awaiting bank refund",
+        subtitle,
+        rightHtml,
         tone: "warning"
       });
     }).join("");
@@ -521,14 +565,14 @@
     if (!state.recentRows.length) {
       node.innerHTML = emptyHtml(
         "No ATM rows yet",
-        "ATM withdrawals, cash receipt rows, fee rows, and reversals will appear here."
+        "ATM withdrawals, cash receipt rows, charged fee rows, and fee refund rows will appear here."
       );
       return;
     }
 
     node.innerHTML = state.recentRows.map((row) => {
       const rowId = cleanText(row.id || row.transaction_id || row.txn_id || row.row_id, "atm-row");
-      const type = cleanText(row.type || row.kind || row.action || row.category, "ATM");
+      const type = cleanText(row.type || row.kind || row.action || row.source_action || row.category, "ATM");
       const accountId = cleanText(row.account_id || row.account || row.source_account_id || row.destination_account_id, "");
       const amount = row.amount ?? row.value ?? row.fee ?? 0;
       const date = cleanText(row.date || row.transaction_date || row.created_at, "");
@@ -536,21 +580,38 @@
 
       let tone = "info";
       let label = money(amount);
+      let title = [type, accountId].filter(Boolean).join(" · ");
 
-      if (row.is_reversal || row.reversal_of || String(rowId).startsWith("rv_")) {
+      if (notes.includes("[ATM_FEE_REFUND]") || notes.includes("[ATM_FEE_REVERSAL]") || type === "fee_refund") {
+        tone = "positive";
+        label = `Refund ${money(amount)}`;
+        title = ["ATM fee refund", accountId].filter(Boolean).join(" · ");
+      } else if (notes.includes("[ATM_FEE_AWAITING_REFUND]") || notes.includes("[ATM_FEE_PENDING]") || type === "atm") {
+        tone = "warning";
+        label = `Fee ${money(amount)}`;
+        title = ["ATM fee charged", accountId].filter(Boolean).join(" · ");
+      } else if (notes.includes("[ATM_WITHDRAWAL]") && type === "transfer") {
+        tone = "warning";
+        label = `Out ${money(amount)}`;
+        title = ["ATM source out", accountId].filter(Boolean).join(" · ");
+      } else if (notes.includes("[ATM_WITHDRAWAL]") && type === "income") {
+        tone = "positive";
+        label = `Cash ${money(amount)}`;
+        title = ["ATM cash in", accountId].filter(Boolean).join(" · ");
+      } else if (row.is_reversal || row.reversal_of || String(rowId).startsWith("rv_")) {
         tone = "positive";
         label = "Reversal";
       } else if (row.is_reversed) {
         tone = "warning";
         label = "Reversed";
-      } else if (type === "expense" || type === "atm" || type === "transfer") {
+      } else if (type === "expense" || type === "transfer") {
         tone = "warning";
       } else if (type === "income" || type === "opening") {
         tone = "positive";
       }
 
       return financeRowHtml({
-        title: [type, accountId].filter(Boolean).join(" · "),
+        title,
         subtitle: [rowId, date, notes].filter(Boolean).join(" · "),
         right: label,
         tone
@@ -588,6 +649,7 @@
       atm_route: ROUTES.atm,
       health_route: ROUTES.atmHealth,
       withdraw_route: ROUTES.atmWithdraw,
+      refund_route: ROUTES.atmRefund,
       reverse_route: ROUTES.reverse,
       contract_version: state.atm?.contract_version || state.health?.contract_version || "atm-v1",
       loaded_at: new Date().toISOString()
@@ -664,7 +726,8 @@
         route: atmPayload?.route,
         supported_routes: atmPayload?.supported_routes,
         pending_count: getPendingCount(),
-        pending_total: getPendingTotal()
+        pending_total: getPendingTotal(),
+        fee_meaning: atmPayload?.rules?.pending_fee_meaning || "fee charged now, awaiting possible bank refund"
       },
       health: healthPayload,
       balances: {
@@ -684,7 +747,12 @@
       setBusy(true);
       setStatus("info", "Refreshing");
       await loadAll();
-      renderResult("positive", "ATM data refreshed", "Latest ATM contract, health, balances, pending fees, and recent rows loaded.", null);
+      renderResult(
+        "positive",
+        "ATM data refreshed",
+        "Latest ATM contract, health, balances, fee refund queue, and recent rows loaded.",
+        null
+      );
     } catch (error) {
       state.lastError = error;
       setStatus("danger", "Refresh failed");
@@ -747,10 +815,18 @@
         body: JSON.stringify(payload)
       });
 
+      const sourceDelta = result?.account_impact?.source_account_delta;
+      const cashDelta = result?.account_impact?.cash_account_delta;
+      const liquidDelta = result?.account_impact?.liquid_total_delta;
+
       renderResult(
         "positive",
         "ATM withdrawal recorded",
-        "Source transfer row, cash receipt row, and optional standalone fee row were created.",
+        [
+          `Source account impact: ${money(sourceDelta)}`,
+          `Cash impact: +${money(cashDelta).replace("Rs ", "Rs ")}`,
+          `Liquid total impact: ${money(liquidDelta)}`
+        ].join(" · "),
         result
       );
 
@@ -768,6 +844,38 @@
       state.lastError = error;
       setStatus("danger", "Record failed");
       renderResult("danger", "ATM withdrawal failed", error.message, error.payload || { error: error.message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function refundFee(feeTxnId, amount) {
+    try {
+      setBusy(true);
+      setStatus("info", "Recording refund");
+
+      const result = await requestJson(ROUTES.atmRefund, {
+        method: "POST",
+        body: JSON.stringify({
+          fee_txn_id: feeTxnId,
+          amount: asNumber(amount, null),
+          date: todayISO(),
+          created_by: "web-atm-refund"
+        })
+      });
+
+      renderResult(
+        "positive",
+        "ATM fee refund recorded",
+        `Refund returned ${money(result?.amount || amount)} to ${cleanText(result?.account_id, "source account")}.`,
+        result
+      );
+
+      await loadAll();
+    } catch (error) {
+      state.lastError = error;
+      setStatus("danger", "Refund failed");
+      renderResult("danger", "ATM fee refund failed", error.message, error.payload || { error: error.message });
     } finally {
       setBusy(false);
     }
@@ -825,6 +933,21 @@
     const refreshButton = el(id.refresh);
     if (refreshButton) {
       refreshButton.addEventListener("click", refresh);
+    }
+
+    const pendingList = el(id.pendingFeesList);
+    if (pendingList) {
+      pendingList.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-atm-refund-id]");
+        if (!button) return;
+
+        const feeTxnId = button.getAttribute("data-atm-refund-id");
+        const amount = button.getAttribute("data-atm-refund-amount");
+
+        if (!feeTxnId) return;
+
+        refundFee(feeTxnId, amount);
+      });
     }
 
     const dateInput = el(id.date);
