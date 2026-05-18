@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "v0.3.0-atm-provider-refundable-ui";
+  const VERSION = "v0.3.1-atm-banking-grade-ui";
 
   const ROUTES = {
     atm: "/api/atm",
@@ -15,6 +15,7 @@
 
   const CASH_ACCOUNT_ID = "cash";
   const DEFAULT_FEE = 35;
+  const FALLBACK_MIN_WITHDRAWAL = 500;
 
   const state = {
     atm: null,
@@ -458,52 +459,6 @@
     return rows.slice(0, 25);
   }
 
-  function ensureProviderControls() {
-    const formGrid = document.querySelector(`#${id.form} .sf-form-grid`);
-    const amountInput = el(id.amount);
-
-    if (!formGrid || !amountInput) return;
-
-    if (!el(id.provider)) {
-      const providerField = document.createElement("label");
-      providerField.className = "sf-field sf-span-6";
-      providerField.innerHTML = `
-        <span class="sf-label">ATM used / provider bank</span>
-        <select id="${id.provider}" class="sf-select" required>
-          <option value="">Loading ATM providers…</option>
-        </select>
-      `;
-
-      const amountField = amountInput.closest(".sf-field");
-      if (amountField && amountField.parentNode === formGrid) {
-        formGrid.insertBefore(providerField, amountField);
-      } else {
-        formGrid.appendChild(providerField);
-      }
-    }
-
-    if (!el(id.feeRefundable)) {
-      const refundableField = document.createElement("label");
-      refundableField.className = "sf-field sf-span-6";
-      refundableField.innerHTML = `
-        <span class="sf-label">Fee refund status</span>
-        <select id="${id.feeRefundable}" class="sf-select">
-          <option value="0">Fee is final / not refundable</option>
-          <option value="1">Fee is refundable / show refund button</option>
-        </select>
-      `;
-
-      const feeInput = el(id.fee);
-      const feeField = feeInput ? feeInput.closest(".sf-field") : null;
-
-      if (feeField && feeField.parentNode === formGrid && feeField.nextSibling) {
-        formGrid.insertBefore(refundableField, feeField.nextSibling);
-      } else {
-        formGrid.appendChild(refundableField);
-      }
-    }
-  }
-
   function getSelectedSourceAccount() {
     const sourceId = el(id.sourceAccount)?.value || "";
     return state.sourceAccounts.find((account) => account.id === sourceId) ||
@@ -528,6 +483,87 @@
     return !!sourceProviderId && !!atmProviderId && sourceProviderId === atmProviderId;
   }
 
+  function minimumWithdrawal() {
+    return asNumber(
+      state.atm?.minimum_withdrawal_pkr ??
+        state.atm?.defaults?.minimum_withdrawal_pkr ??
+        state.atm?.rules?.minimum_withdrawal_pkr ??
+        state.providersPayload?.rules?.minimum_withdrawal_pkr,
+      FALLBACK_MIN_WITHDRAWAL
+    );
+  }
+
+  function currentDraftAmounts() {
+    const amount = asNumber(el(id.amount)?.value, 0);
+    const sameBank = isSameBankSelection();
+    const fee = sameBank ? 0 : asNumber(el(id.fee)?.value, 0);
+    const required = amount + fee;
+
+    return {
+      amount,
+      fee,
+      required,
+      sameBank
+    };
+  }
+
+  function validateDraft(showMessage) {
+    const source = getSelectedSourceAccount();
+    const provider = getSelectedProvider();
+    const min = minimumWithdrawal();
+    const values = currentDraftAmounts();
+
+    if (!source || !provider || values.amount <= 0) {
+      return true;
+    }
+
+    if (values.amount < min) {
+      if (showMessage) {
+        renderResult(
+          "danger",
+          "ATM minimum withdrawal not met",
+          `ATM withdrawal amount must be at least ${money(min)}.`,
+          {
+            code: "ATM_MIN_WITHDRAWAL_NOT_MET",
+            minimum_withdrawal_pkr: min,
+            attempted_amount: values.amount
+          }
+        );
+      }
+
+      setStatus("danger", `Minimum ${money(min)}`);
+      return false;
+    }
+
+    if (values.required > source.balance) {
+      if (showMessage) {
+        renderResult(
+          "danger",
+          "Insufficient source balance",
+          `Required ${money(values.required)}, available ${money(source.balance)}. Transaction not possible.`,
+          {
+            code: "INSUFFICIENT_SOURCE_BALANCE",
+            source_account_id: source.id,
+            available_balance: source.balance,
+            required_amount: values.required,
+            shortfall: values.required - source.balance
+          }
+        );
+      }
+
+      setStatus("danger", `Low balance · need ${money(values.required)}`);
+      return false;
+    }
+
+    if (values.sameBank) {
+      setStatus("positive", "Same-bank ATM · no fee row");
+    } else {
+      setStatus("warning", `Different-bank ATM · requires ${money(values.required)}`);
+    }
+
+    return true;
+  }
+
   function updateFeeBehavior() {
     const feeInput = el(id.fee);
     const refundableSelect = el(id.feeRefundable);
@@ -544,6 +580,7 @@
       refundableSelect.disabled = true;
       feeInput.placeholder = "0";
       setStatus("positive", "Same-bank ATM · no fee row");
+      validateDraft(false);
       return;
     }
 
@@ -555,7 +592,7 @@
     }
 
     if (source && provider) {
-      setStatus("warning", "Different-bank ATM · enter fee");
+      validateDraft(false);
     }
   }
 
@@ -655,7 +692,7 @@
     setText(id.feesPaid, money(feesPaid));
     setText(id.feesReversed, money(feesRefunded));
     setText(id.feesNet, money(feesNet));
-    setText(id.defaultFee, `Fee hint ${money(getDefaultFee())}`);
+    setText(id.defaultFee, `Min ${money(minimumWithdrawal())} · Fee hint ${money(getDefaultFee())}`);
   }
 
   function renderAccounts() {
@@ -889,7 +926,7 @@
     node.innerHTML = financeRowHtml({
       title,
       subtitle: message,
-      right: tone === "danger" ? "Failed" : tone === "warning" ? "Check" : "Done",
+      right: tone === "danger" ? "Blocked" : tone === "warning" ? "Check" : "Done",
       tone
     });
 
@@ -913,6 +950,7 @@
       withdraw_route: ROUTES.atmWithdraw,
       refund_route: ROUTES.atmRefund,
       reverse_route: ROUTES.reverse,
+      minimum_withdrawal_pkr: minimumWithdrawal(),
       contract_version: state.atm?.contract_version || state.health?.contract_version || "atm-v1",
       loaded_at: new Date().toISOString()
     };
@@ -946,7 +984,6 @@
   }
 
   function renderAll() {
-    ensureProviderControls();
     renderVersions();
     renderKpis();
     renderAccounts();
@@ -1007,6 +1044,7 @@
         contract_version: atmPayload?.contract_version,
         route: atmPayload?.route,
         supported_routes: atmPayload?.supported_routes,
+        minimum_withdrawal_pkr: minimumWithdrawal(),
         pending_count: getPendingCount(),
         pending_total: getPendingTotal(),
         fee_meaning: atmPayload?.rules?.pending_fee_meaning || "refundable fee charged now, awaiting possible bank refund"
@@ -1054,10 +1092,8 @@
 
     const sourceAccountId = el(id.sourceAccount)?.value || "";
     const destinationAccountId = el(id.destinationAccount)?.value || CASH_ACCOUNT_ID;
-    const amount = asNumber(el(id.amount)?.value, 0);
-    const sameBank = isSameBankSelection();
-    const fee = sameBank ? 0 : asNumber(el(id.fee)?.value, 0);
-    const feeRefundable = sameBank ? false : el(id.feeRefundable)?.value === "1";
+    const values = currentDraftAmounts();
+    const feeRefundable = values.sameBank ? false : el(id.feeRefundable)?.value === "1";
     const date = el(id.date)?.value || todayISO();
     const notes = (el(id.notes)?.value || "").trim();
 
@@ -1077,12 +1113,25 @@
       throw new Error("Source account and destination account cannot be the same.");
     }
 
-    if (!(amount > 0)) {
+    if (!(values.amount > 0)) {
       throw new Error("Withdrawal amount must be greater than zero.");
     }
 
-    if (fee < 0) {
+    const min = minimumWithdrawal();
+    if (values.amount < min) {
+      const error = new Error(`ATM withdrawal amount must be at least ${money(min)}.`);
+      error.code = "ATM_MIN_WITHDRAWAL_NOT_MET";
+      throw error;
+    }
+
+    if (values.fee < 0) {
       throw new Error("ATM fee cannot be negative.");
+    }
+
+    if (sourceAccount && values.required > sourceAccount.balance) {
+      const error = new Error(`Insufficient source balance. Required ${money(values.required)}, available ${money(sourceAccount.balance)}.`);
+      error.code = "INSUFFICIENT_SOURCE_BALANCE";
+      throw error;
     }
 
     return {
@@ -1092,13 +1141,13 @@
       cash_account_id: destinationAccountId,
       atm_provider_id: provider.id,
       atm_provider_name: provider.name,
-      amount,
-      fee,
-      fee_amount: fee,
+      amount: values.amount,
+      fee: values.fee,
+      fee_amount: values.fee,
       fee_refundable: feeRefundable,
       refundable: feeRefundable,
       reversible: feeRefundable,
-      no_fee: sameBank || fee === 0,
+      no_fee: values.sameBank || values.fee === 0,
       date,
       notes
     };
@@ -1108,6 +1157,8 @@
     event.preventDefault();
 
     try {
+      if (!validateDraft(true)) return;
+
       setBusy(true);
       setStatus("info", "Recording");
 
@@ -1153,8 +1204,8 @@
       await loadAll();
     } catch (error) {
       state.lastError = error;
-      setStatus("danger", "Record failed");
-      renderResult("danger", "ATM withdrawal failed", error.message, error.payload || { error: error.message });
+      setStatus("danger", error.code || "Record failed");
+      renderResult("danger", "ATM withdrawal blocked", error.message, error.payload || { error: error.message, code: error.code|| null });
     } finally {
       setBusy(false);
     }
@@ -1193,8 +1244,6 @@
   }
 
   function verifyRequiredNodes() {
-    ensureProviderControls();
-
     const required = [
       id.sourceStatus,
       id.pendingCount,
@@ -1260,6 +1309,18 @@
       providerSelect.addEventListener("change", updateFeeBehavior);
     }
 
+    const amountInput = el(id.amount);
+    if (amountInput) {
+      amountInput.addEventListener("input", () => validateDraft(false));
+      amountInput.addEventListener("blur", () => validateDraft(true));
+    }
+
+    const feeInput = el(id.fee);
+    if (feeInput) {
+      feeInput.addEventListener("input", () => validateDraft(false));
+      feeInput.addEventListener("blur", () => validateDraft(true));
+    }
+
     const pendingList = el(id.pendingFeesList);
     if (pendingList) {
       pendingList.addEventListener("click", (event) => {
@@ -1282,7 +1343,6 @@
   }
 
   async function init() {
-    ensureProviderControls();
     renderVersions();
 
     if (!verifyRequiredNodes()) {
