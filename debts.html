@@ -20,6 +20,7 @@
 
     <main class="sf-page-shell">
       <section class="sf-page-content">
+
         <section class="sf-panel" aria-label="Debt command panel">
           <div class="sf-section-head">
             <div>
@@ -185,7 +186,7 @@
 
         <details class="sf-panel">
           <summary class="sf-section-title">Debug · Raw Contract</summary>
-          <pre id="debtDebug" class="sf-code-block">Loading…</pre>
+          <pre id="debtDebug" class="sf-debug-text">Loading…</pre>
         </details>
 
         <footer>
@@ -197,121 +198,131 @@
     </main>
   </div>
 
-    <dialog class="sf-panel" id="debtModal">
-    <div class="sf-section-head">
+  <dialog class="sf-dialog" id="debtModal">
+    <div class="sf-dialog-head">
       <div>
         <p class="sf-section-kicker">Add Debt</p>
         <h2 class="sf-section-title">Create debt</h2>
         <p class="sf-section-subtitle">
-          If money moved now, select the account it hit. If money did not move now, leave movement unchecked so no ledger row is created.
+          Create a debt record safely. If money moved now, select the account so the backend can create the linked ledger origin row.
         </p>
       </div>
 
-      <div class="sf-section-actions">
-        <button class="sf-button" id="closeDebtModalBtn" type="button">Close</button>
-      </div>
+      <button class="sf-button" id="closeDebtModalBtn" type="button">Close</button>
     </div>
 
-    <form class="sf-form-grid" id="addDebtForm">
-      <label class="sf-field" for="debtNameInput">
-        <span>Name / Person</span>
-        <input class="sf-input" id="debtNameInput" type="text" autocomplete="off">
-      </label>
+    <div class="sf-dialog-body">
+      <form class="sf-dialog-grid" id="addDebtForm">
+        <label class="sf-field" for="debtNameInput">
+          <span class="sf-label">Name / Person</span>
+          <input class="sf-input" id="debtNameInput" type="text" autocomplete="off">
+        </label>
 
-      <label class="sf-field" for="debtKindInput">
-        <span>Direction</span>
-        <select class="sf-select" id="debtKindInput">
-          <option value="owed">Owed to me</option>
-          <option value="owe">I owe</option>
-        </select>
-      </label>
+        <label class="sf-field" for="debtKindInput">
+          <span class="sf-label">Direction</span>
+          <select class="sf-select" id="debtKindInput">
+            <option value="owed">Owed to me</option>
+            <option value="owe">I owe</option>
+          </select>
+        </label>
 
-      <label class="sf-field" for="debtOriginalInput">
-        <span>Original Amount</span>
-        <input class="sf-input" id="debtOriginalInput" type="number" step="0.01" min="0">
-      </label>
+        <label class="sf-field" for="debtOriginalInput">
+          <span class="sf-label">Original Amount</span>
+          <input class="sf-input" id="debtOriginalInput" type="number" step="0.01" min="0">
+        </label>
 
-      <label class="sf-field" for="debtPaidInput">
-        <span>Already Paid</span>
-        <input class="sf-input" id="debtPaidInput" type="number" step="0.01" min="0" value="0">
-      </label>
+        <label class="sf-field" for="debtPaidInput">
+          <span class="sf-label">Already Paid</span>
+          <input class="sf-input" id="debtPaidInput" type="number" step="0.01" min="0" value="0">
+        </label>
 
-      <label class="sf-field" for="debtDueDateInput">
-        <span>Due Date</span>
-        <input class="sf-input" id="debtDueDateInput" type="date">
-      </label>
+        <label class="sf-field" for="debtDueDateInput">
+          <span class="sf-label">Due Date</span>
+          <input class="sf-input" id="debtDueDateInput" type="date">
+        </label>
 
-      <label class="sf-field" for="debtDueDayInput">
-        <span>Due Day</span>
-        <input class="sf-input" id="debtDueDayInput" type="number" min="1" max="31">
-      </label>
+        <label class="sf-field" for="debtDueDayInput">
+          <span class="sf-label">Due Day</span>
+          <input class="sf-input" id="debtDueDayInput" type="number" min="1" max="31">
+        </label>
 
-      <label class="sf-field" for="debtInstallmentInput">
-        <span>Installment Amount</span>
-        <input class="sf-input" id="debtInstallmentInput" type="number" step="0.01" min="0">
-      </label>
+        <label class="sf-field" for="debtInstallmentInput">
+          <span class="sf-label">Installment Amount</span>
+          <input class="sf-input" id="debtInstallmentInput" type="number" step="0.01" min="0">
+        </label>
 
-      <label class="sf-field" for="debtFrequencyInput">
-        <span>Frequency</span>
-        <select class="sf-select" id="debtFrequencyInput">
-          <option value="monthly">Monthly</option>
-          <option value="weekly">Weekly</option>
-          <option value="yearly">Yearly</option>
-          <option value="custom">Custom</option>
-        </select>
-      </label>
+        <label class="sf-field" for="debtFrequencyInput">
+          <span class="sf-label">Frequency</span>
+          <select class="sf-select" id="debtFrequencyInput">
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="yearly">Yearly</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
 
-      <label class="sf-field" for="debtStatusInput">
-        <span>Status</span>
-        <select class="sf-select" id="debtStatusInput">
-          <option value="active">Active</option>
-          <option value="paused">Paused</option>
-          <option value="closed">Closed</option>
-        </select>
-      </label>
+        <label class="sf-field" for="debtStatusInput">
+          <span class="sf-label">Status</span>
+          <select class="sf-select" id="debtStatusInput">
+            <option value="active">Active</option>
+            <option value="paused">Paused</option>
+            <option value="closed">Closed</option>
+          </select>
+        </label>
 
-      <label class="sf-field" for="debtSnowballInput">
-        <span>Snowball Order</span>
-        <input class="sf-input" id="debtSnowballInput" type="number" step="1">
-      </label>
+        <label class="sf-field" for="debtSnowballInput">
+          <span class="sf-label">Snowball Order</span>
+          <input class="sf-input" id="debtSnowballInput" type="number" step="1">
+        </label>
 
-      <label class="sf-field" for="debtMovementNowInput">
-        <span>Ledger movement now</span>
-        <span class="sf-row-subtitle">
-          <input id="debtMovementNowInput" type="checkbox">
-          Money moved now
-        </span>
-        <span class="sf-row-subtitle" id="debtMovementCopy">
-          Owed to me means money leaves the selected account now.
-        </span>
-      </label>
+        <label class="sf-field sf-field--wide" for="debtMovementNowInput">
+          <span class="sf-label">Ledger movement now</span>
+          <span class="sf-row-subtitle">
+            <input id="debtMovementNowInput" type="checkbox">
+            Money moved now
+          </span>
+          <span class="sf-row-subtitle" id="debtMovementCopy">
+            Owed to me means money leaves the selected account now.
+          </span>
+        </label>
 
-      <label class="sf-field" for="debtAccountInput">
-        <span>Account money hit</span>
-        <select class="sf-select" id="debtAccountInput">
-          <option value="">Select account…</option>
-        </select>
-      </label>
+        <label class="sf-field" for="debtAccountInput">
+          <span class="sf-label">Account money hit</span>
+          <select class="sf-select" id="debtAccountInput">
+            <option value="">Select account…</option>
+          </select>
+        </label>
 
-      <label class="sf-field" for="debtMovementDateInput">
-        <span>Movement Date</span>
-        <input class="sf-input" id="debtMovementDateInput" type="date">
-      </label>
+        <label class="sf-field" for="debtMovementDateInput">
+          <span class="sf-label">Movement Date</span>
+          <input class="sf-input" id="debtMovementDateInput" type="date">
+        </label>
 
-      <label class="sf-field" for="debtNotesInput">
-        <span>Notes</span>
-        <textarea class="sf-textarea" id="debtNotesInput"></textarea>
-      </label>
+        <label class="sf-field sf-field--wide" for="debtNotesInput">
+          <span class="sf-label">Notes</span>
+          <textarea class="sf-textarea" id="debtNotesInput"></textarea>
+        </label>
+
+        <div class="sf-dialog-note">
+          Leave “Money moved now” unchecked when this is only a debt record and no account balance should be affected.
+        </div>
+      </form>
+    </div>
+
+    <div class="sf-dialog-footer">
+      <div class="sf-dialog-footer-copy">
+        Dry-run first when adding a debt with ledger movement.
+      </div>
 
       <div class="sf-section-actions">
         <button class="sf-button" id="dryRunDebtBtn" type="button">Dry-run</button>
         <button class="sf-button sf-button--primary" id="saveDebtBtn" type="button">Save Debt</button>
       </div>
-    </form>
+    </div>
   </dialog>
 
-  <dialog class="sf-panel" id="paymentModal">
-    <div class="sf-section-head">
+  <dialog class="sf-dialog" id="paymentModal">
+    <div class="sf-dialog-head">
       <div>
         <p class="sf-section-kicker">Record Payment</p>
         <h2 class="sf-section-title">Debt payment</h2>
@@ -320,64 +331,91 @@
         </p>
       </div>
 
-      <div class="sf-section-actions">
-        <button class="sf-button" id="closePaymentModalBtn" type="button">Close</button>
+      <button class="sf-button" id="closePaymentModalBtn" type="button">Close</button>
+    </div>
+
+    <div class="sf-dialog-body">
+      <input id="paymentDebtIdInput" type="hidden">
+
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Payment details</p>
+          <h3 class="sf-section-title">Money movement</h3>
+        </div>
+        <span class="sf-pill sf-tone-positive">POST /api/debts</span>
+      </div>
+
+      <div class="sf-dialog-grid">
+        <label class="sf-field" for="paymentAmountInput">
+          <span class="sf-label">Amount</span>
+          <input class="sf-input" id="paymentAmountInput" type="number" step="0.01" min="0">
+        </label>
+
+        <label class="sf-field" for="paymentDateInput">
+          <span class="sf-label">Date</span>
+          <input class="sf-input" id="paymentDateInput" type="date">
+        </label>
+
+        <label class="sf-field sf-field--wide" for="paymentAccountInput">
+          <span class="sf-label">Account</span>
+          <select class="sf-select" id="paymentAccountInput">
+            <option value="">Select account…</option>
+          </select>
+        </label>
+
+        <label class="sf-field sf-field--wide" for="paymentNotesInput">
+          <span class="sf-label">Notes</span>
+          <textarea class="sf-textarea" id="paymentNotesInput"></textarea>
+        </label>
+      </div>
+
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Remaining balance schedule</p>
+          <h3 class="sf-section-title">Optional new deadline</h3>
+          <p class="sf-section-subtitle">
+            Use this only when a partial payment changes the next due date or installment plan.
+          </p>
+        </div>
+        <span class="sf-pill">Optional</span>
+      </div>
+
+      <div class="sf-dialog-grid">
+        <label class="sf-field" for="paymentNextDueDateInput">
+          <span class="sf-label">New Due Date</span>
+          <input class="sf-input" id="paymentNextDueDateInput" type="date">
+        </label>
+
+        <label class="sf-field" for="paymentDueDayInput">
+          <span class="sf-label">New Due Day</span>
+          <input class="sf-input" id="paymentDueDayInput" type="number" min="1" max="31">
+        </label>
+
+        <label class="sf-field" for="paymentInstallmentInput">
+          <span class="sf-label">Next Installment Amount</span>
+          <input class="sf-input" id="paymentInstallmentInput" type="number" step="0.01" min="0">
+        </label>
+
+        <label class="sf-field" for="paymentFrequencyInput">
+          <span class="sf-label">Next Frequency</span>
+          <select class="sf-select" id="paymentFrequencyInput">
+            <option value="">Keep current</option>
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="yearly">Yearly</option>
+            <option value="custom">Custom</option>
+          </select>
+        </label>
+
+        <div class="sf-dialog-note">
+          Partial payment and schedule change commit together through the backend. If the payment settles the debt, schedule fields are ignored.
+        </div>
       </div>
     </div>
 
-    <input id="paymentDebtIdInput" type="hidden">
-
-    <div class="sf-form-grid">
-      <label class="sf-field" for="paymentAmountInput">
-        <span>Amount</span>
-        <input class="sf-input" id="paymentAmountInput" type="number" step="0.01" min="0">
-      </label>
-
-      <label class="sf-field" for="paymentDateInput">
-        <span>Date</span>
-        <input class="sf-input" id="paymentDateInput" type="date">
-      </label>
-
-      <label class="sf-field" for="paymentAccountInput">
-        <span>Account</span>
-        <select class="sf-select" id="paymentAccountInput">
-          <option value="">Select account…</option>
-        </select>
-      </label>
-
-      <label class="sf-field" for="paymentNotesInput">
-        <span>Notes</span>
-        <textarea class="sf-textarea" id="paymentNotesInput"></textarea>
-      </label>
-
-      <label class="sf-field" for="paymentNextDueDateInput">
-        <span>New Due Date After Partial Payment</span>
-        <input class="sf-input" id="paymentNextDueDateInput" type="date">
-      </label>
-
-      <label class="sf-field" for="paymentDueDayInput">
-        <span>New Due Day</span>
-        <input class="sf-input" id="paymentDueDayInput" type="number" min="1" max="31">
-      </label>
-
-      <label class="sf-field" for="paymentInstallmentInput">
-        <span>Next Installment Amount</span>
-        <input class="sf-input" id="paymentInstallmentInput" type="number" step="0.01" min="0">
-      </label>
-
-      <label class="sf-field" for="paymentFrequencyInput">
-        <span>Next Frequency</span>
-        <select class="sf-select" id="paymentFrequencyInput">
-          <option value="">Keep current</option>
-          <option value="monthly">Monthly</option>
-          <option value="weekly">Weekly</option>
-          <option value="yearly">Yearly</option>
-          <option value="custom">Custom</option>
-        </select>
-      </label>
-
-      <div class="sf-empty-state">
-        Optional: use the deadline fields only when the partial payment also changes the next deadline or installment plan.
+    <div class="sf-dialog-footer">
+      <div class="sf-dialog-footer-copy">
+        Dry-run first, then save only after backend proof is clean.
       </div>
 
       <div class="sf-section-actions">
@@ -387,8 +425,8 @@
     </div>
   </dialog>
 
-  <dialog class="sf-panel" id="deferModal">
-    <div class="sf-section-head">
+  <dialog class="sf-dialog" id="deferModal">
+    <div class="sf-dialog-head">
       <div>
         <p class="sf-section-kicker">Defer Debt</p>
         <h2 class="sf-section-title">Update schedule</h2>
@@ -397,34 +435,45 @@
         </p>
       </div>
 
-      <div class="sf-section-actions">
-        <button class="sf-button" id="closeDeferModalBtn" type="button">Close</button>
+      <button class="sf-button" id="closeDeferModalBtn" type="button">Close</button>
+    </div>
+
+    <div class="sf-dialog-body">
+      <input id="deferDebtIdInput" type="hidden">
+
+      <div class="sf-dialog-grid">
+        <label class="sf-field" for="deferDueDateInput">
+          <span class="sf-label">New Due Date</span>
+          <input class="sf-input" id="deferDueDateInput" type="date">
+        </label>
+
+        <label class="sf-field" for="deferDueDayInput">
+          <span class="sf-label">New Due Day</span>
+          <input class="sf-input" id="deferDueDayInput" type="number" min="1" max="31">
+        </label>
+
+        <label class="sf-field sf-field--wide" for="deferNotesInput">
+          <span class="sf-label">Notes</span>
+          <textarea class="sf-textarea" id="deferNotesInput"></textarea>
+        </label>
+
+        <div class="sf-dialog-note">
+          Defer only changes schedule fields. It does not create payment, receive money, or touch account balances.
+        </div>
       </div>
     </div>
 
-    <input id="deferDebtIdInput" type="hidden">
-
-    <div class="sf-form-grid">
-      <label class="sf-field" for="deferDueDateInput">
-        <span>New Due Date</span>
-        <input class="sf-input" id="deferDueDateInput" type="date">
-      </label>
-
-      <label class="sf-field" for="deferDueDayInput">
-        <span>New Due Day</span>
-        <input class="sf-input" id="deferDueDayInput" type="number" min="1" max="31">
-      </label>
-
-      <label class="sf-field" for="deferNotesInput">
-        <span>Notes</span>
-        <textarea class="sf-textarea" id="deferNotesInput"></textarea>
-      </label>
+    <div class="sf-dialog-footer">
+      <div class="sf-dialog-footer-copy">
+        Use Payment when money moved. Use Defer only for deadline changes.
+      </div>
 
       <div class="sf-section-actions">
         <button class="sf-button sf-button--primary" id="saveDeferBtn" type="button">Save Defer</button>
       </div>
     </div>
   </dialog>
+
   <div class="sf-toast" id="debtToast"></div>
 
   <script src="/js/sf-components.js"></script>
