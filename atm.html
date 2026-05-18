@@ -1,226 +1,230 @@
 <!doctype html>
-<html lang="en" data-page="atm">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ATM Withdrawals</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sovereign Finance · ATM</title>
 
   <link rel="stylesheet" href="/css/sf-theme.css" />
   <link rel="stylesheet" href="/css/sf-shell.css" />
 
   <script>
     window.SF_PAGE = {
-      eyebrow: "Cash movement engine",
+      eyebrow: "ATM / Cash Movement",
       title: "ATM Withdrawals",
-      subtitle: "Record bank-to-cash withdrawals using linked ledger rows, with ATM fees kept as separate source-account expenses.",
+      subtitle: "Move money from bank accounts into Cash with fee tracking, clean ledger pairs, and reversal-safe transaction trails.",
       actions: [
         {
+          label: "Refresh",
           id: "atm-refresh",
-          label: "Refresh"
+          variant: "secondary"
         }
       ],
       kpis: [
         {
-          title: "Pending Fees",
-          valueHtml: '<span id="atm-kpi-pending-count">—</span>',
-          subtitleHtml: '<span id="atm-kpi-pending-total">—</span>',
-          foot: "Awaiting reversal or acceptance",
-          tone: "info"
+          label: "Pending Fees",
+          value: "—",
+          id: "atm-kpi-pending-count"
         },
         {
-          title: "Fees Paid 30d",
-          valueHtml: '<span id="atm-kpi-fees-paid">—</span>',
-          subtitle: "Gross ATM fee rows",
-          foot: "Statement-backed",
-          tone: "warning"
+          label: "Pending Total",
+          value: "—",
+          id: "atm-kpi-pending-total"
         },
         {
-          title: "Fees Reversed",
-          valueHtml: '<span id="atm-kpi-fees-reversed">—</span>',
-          subtitle: "Bank refunded fees",
-          foot: "Refund tracking",
-          tone: "positive"
+          label: "Fees Paid",
+          value: "—",
+          id: "atm-kpi-fees-paid"
         },
         {
-          title: "Net ATM Fees",
-          valueHtml: '<span id="atm-kpi-fees-net">—</span>',
-          subtitleHtml: '<span id="atm-kpi-default-fee">—</span>',
-          foot: "Fee pressure",
-          tone: "info"
+          label: "Fees Reversed",
+          value: "—",
+          id: "atm-kpi-fees-reversed"
+        },
+        {
+          label: "Net Fees",
+          value: "—",
+          id: "atm-kpi-fees-net"
+        },
+        {
+          label: "Default Fee",
+          value: "—",
+          id: "atm-kpi-default-fee"
         }
       ]
     };
   </script>
 </head>
 
-<body>
-  <section class="sf-panel-grid">
-    <article class="sf-panel sf-span-8">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">New ATM withdrawal</p>
-          <h2 class="sf-section-title">Bank → Cash</h2>
-          <p class="sf-section-subtitle">
-            Backend creates the source transfer row, cash receipt row, and optional standalone fee row.
-          </p>
+<body class="sf-shell-body">
+  <main>
+    <section class="sf-panel-grid">
+      <article class="sf-panel sf-span-8">
+        <div class="sf-section-head">
+          <div>
+            <p class="sf-pill" id="atm-source-status">Loading ATM contract…</p>
+            <h2>Record ATM Withdrawal</h2>
+            <p>
+              Creates the withdrawal pair only: source account decreases, Cash increases.
+              ATM fee is stored separately and never linked into the withdrawal pair.
+            </p>
+          </div>
         </div>
 
-        <div class="sf-section-meta">
-          <span id="atm-source-status" class="sf-pill sf-pill--info">Loading</span>
-        </div>
-      </div>
-
-      <form id="atm-form">
-        <div class="sf-form-grid">
-          <label class="sf-field sf-span-6">
+        <form id="atm-form" class="sf-form-grid">
+          <label class="sf-field">
             <span class="sf-label">Source account</span>
             <select id="atm-source-account" class="sf-select" required>
-              <option value="">Loading accounts…</option>
+              <option value="">Select source account</option>
             </select>
           </label>
 
-          <label class="sf-field sf-span-6">
-            <span class="sf-label">Cash / destination account</span>
+          <label class="sf-field">
+            <span class="sf-label">Destination account</span>
             <select id="atm-destination-account" class="sf-select" required>
-              <option value="">Loading accounts…</option>
+              <option value="cash">Cash</option>
             </select>
           </label>
 
-          <label class="sf-field sf-span-6">
-            <span class="sf-label">Withdrawal amount</span>
-            <input id="atm-amount" class="sf-input" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="2000" required />
+          <label class="sf-field">
+            <span class="sf-label">Amount</span>
+            <input id="atm-amount" class="sf-input" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="0.00" required />
           </label>
 
-          <label class="sf-field sf-span-6">
+          <label class="sf-field">
             <span class="sf-label">ATM fee</span>
-            <input id="atm-fee" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="35" />
+            <input id="atm-fee" class="sf-input" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" />
           </label>
 
-          <label class="sf-field sf-span-6">
+          <label class="sf-field">
             <span class="sf-label">Date</span>
             <input id="atm-date" class="sf-input" type="date" required />
           </label>
 
-          <label class="sf-field sf-span-6">
+          <label class="sf-field sf-span-12">
             <span class="sf-label">Notes</span>
-            <input id="atm-notes" class="sf-input" type="text" maxlength="300" placeholder="[CATCHUP] Mashreq ATM withdrawal for gas cylinder" />
+            <input id="atm-notes" class="sf-input" type="text" placeholder="Example: Mashreq ATM withdrawal for cash spending" />
           </label>
-        </div>
 
-        <div id="atm-result" class="sf-debug-text" hidden></div>
-
-        <div class="sf-section-head" style="margin-top: var(--sf-space-5); margin-bottom: 0;">
-          <div>
-            <p class="sf-section-subtitle">
-              No direct balance mutation. Balances update from transactions_canonical.
-            </p>
-          </div>
-
-          <div class="sf-section-meta">
-            <button id="atm-submit" class="sf-button sf-button--primary" type="submit">
-              <span id="atm-submit-label">Record ATM withdrawal</span>
+          <div class="sf-span-12">
+            <button id="atm-submit" class="sf-button" type="submit">
+              <span id="atm-submit-label">Record withdrawal</span>
             </button>
           </div>
-        </div>
-      </form>
-    </article>
+        </form>
 
-    <aside class="sf-panel sf-span-4">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Contract rules</p>
-          <h2 class="sf-section-title">ATM ledger behavior</h2>
-          <p class="sf-section-subtitle">
-            Withdrawal pairs are linked. Fee rows stay separate to prevent linked amount mismatches.
-          </p>
-        </div>
-      </div>
+        <div id="atm-result" class="sf-list" aria-live="polite"></div>
+      </article>
 
-      <div class="sf-list">
-        <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Withdrawal pair</div>
-            <div class="sf-row-subtitle">Source account transfer out and cash income in must match.</div>
-          </div>
-          <div class="sf-row-right sf-tone-positive">Linked</div>
-        </div>
-
-        <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">ATM fee</div>
-            <div class="sf-row-subtitle">Standalone source-account expense. Not linked to the transfer pair.</div>
-          </div>
-          <div class="sf-row-right sf-tone-warning">Separate</div>
-        </div>
-
-        <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Cash proof</div>
-            <div class="sf-row-subtitle">Cash is ledger-derived; physical cash count correction comes last.</div>
-          </div>
-          <div class="sf-row-right sf-tone-info">Auditable</div>
-        </div>
-      </div>
-    </aside>
-
-    <article class="sf-panel sf-span-6">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Pending fees</p>
-          <h2 class="sf-section-title">Awaiting fee reversal</h2>
-          <p class="sf-section-subtitle">
-            Pending fee rows remain until the bank refunds them or they are accepted as final cost.
-          </p>
-        </div>
-      </div>
-
-      <div id="atm-pending-fees-list" class="sf-list">
-        <div class="sf-loading-state">
+      <aside class="sf-panel sf-span-4">
+        <div class="sf-section-head">
           <div>
-            <h3 class="sf-card-title">Loading ATM fees</h3>
-            <p class="sf-card-subtitle">Reading /api/atm.</p>
+            <p class="sf-pill">Contract</p>
+            <h2>ATM Rules</h2>
           </div>
         </div>
-      </div>
-    </article>
 
-    <article class="sf-panel sf-span-6">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Recent rows</p>
-          <h2 class="sf-section-title">ATM ledger activity</h2>
-          <p class="sf-section-subtitle">
-            Recent withdrawal rows, cash rows, fee rows, and fee reversals.
-          </p>
+        <div class="sf-list">
+          <div class="sf-finance-row">
+            <div>
+              <strong>Source impact</strong>
+              <p>Bank account decreases.</p>
+            </div>
+            <span class="sf-pill">Negative</span>
+          </div>
+
+          <div class="sf-finance-row">
+            <div>
+              <strong>Cash impact</strong>
+              <p>Cash account increases.</p>
+            </div>
+            <span class="sf-pill">Positive</span>
+          </div>
+
+          <div class="sf-finance-row">
+            <div>
+              <strong>Fee handling</strong>
+              <p>Fee is separate and not linked to the withdrawal pair.</p>
+            </div>
+            <span class="sf-pill">Separate</span>
+          </div>
+
+          <div class="sf-finance-row">
+            <div>
+              <strong>Balance source</strong>
+              <p>Balances come from canonical transactions only.</p>
+            </div>
+            <span class="sf-pill">Ledger</span>
+          </div>
         </div>
-      </div>
+      </aside>
 
-      <div id="atm-recent-list" class="sf-list">
-        <div class="sf-loading-state">
+      <article class="sf-panel sf-span-6">
+        <div class="sf-section-head">
           <div>
-            <h3 class="sf-card-title">Loading ATM rows</h3>
-            <p class="sf-card-subtitle">Reading /api/atm.</p>
+            <p class="sf-pill">Review</p>
+            <h2>Pending ATM Fees</h2>
+            <p>Fees still awaiting refund, reversal, or final confirmation.</p>
           </div>
         </div>
-      </div>
-    </article>
 
-    <section class="sf-debug-panel sf-span-12" data-debug-panel hidden>
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Debug</p>
-          <h2 class="sf-section-title">ATM payload</h2>
+        <div id="atm-pending-fees-list" class="sf-list">
+          <div class="sf-finance-row">
+            <div>
+              <strong>Loading pending fees…</strong>
+              <p>Waiting for ATM data.</p>
+            </div>
+          </div>
         </div>
-      </div>
+      </article>
 
-      <pre id="atm-debug-output" class="sf-debug-text"></pre>
+      <article class="sf-panel sf-span-6">
+        <div class="sf-section-head">
+          <div>
+            <p class="sf-pill">Ledger</p>
+            <h2>Recent ATM Activity</h2>
+            <p>Latest ATM withdrawals, cash entries, fee rows, and reversals.</p>
+          </div>
+        </div>
+
+        <div id="atm-recent-list" class="sf-list">
+          <div class="sf-finance-row">
+            <div>
+              <strong>Loading recent activity…</strong>
+              <p>Waiting for ATM data.</p>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <section class="sf-debug-panel sf-span-12" data-debug-panel hidden>
+        <div class="sf-section-head">
+          <div>
+            <p class="sf-pill">Debug</p>
+            <h2>ATM Runtime</h2>
+          </div>
+        </div>
+
+        <pre id="atm-debug-output"></pre>
+
+        <div class="sf-list">
+          <div class="sf-finance-row">
+            <div>
+              <strong>ATM JS Version</strong>
+              <p id="atm-js-version">—</p>
+            </div>
+          </div>
+
+          <div class="sf-finance-row">
+            <div>
+              <strong>Footer Version</strong>
+              <p id="atm-footer-version">—</p>
+            </div>
+          </div>
+        </div>
+      </section>
     </section>
-
-    <footer class="sf-span-12 sf-meta-text">
-      <span id="atm-js-version">ATM UI loading…</span>
-      <span id="atm-footer-version">ATM</span>
-    </footer>
-  </section>
+  </main>
 
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
