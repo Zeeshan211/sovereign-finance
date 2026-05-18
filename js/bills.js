@@ -1,487 +1,744 @@
 /* js/bills.js
  * Sovereign Finance · Bills UI
- * v0.11.0-advance-aware
+ * v0.12.0-shared-dialog-contract-ui
  *
- * Delta vs v0.10.2:
- *   - Pay modal: "Bill cycle" select (current month + next 3 months).
- *     Sends `bill_month` so backend can file it as on-cycle or advance.
- *   - Bill row: adds an "advance" pill when advance_paid_amount > 0.
- *   - Inline detail grid: adds Advance paid + Advance count cells and a
- *     per-future-month breakdown block.
- *   - New "Paid in Advance" page section injected dynamically above the
- *     Bills Health section. Hidden when totals are zero.
- *   - Current-cycle display logic unchanged.
- *   - Honest errors, hero compression, chip flex, modal/toast/expand/sort/search preserved.
+ * Banking-grade frontend rules:
+ * - No injected CSS.
+ * - No page-owned modal system.
+ * - Use shared sf-dialog modals from bills.html.
+ * - Frontend displays backend truth only.
+ * - Bill create = obligation only.
+ * - Bill payment = POST /api/bills action=payment.
+ * - Advance payment = selected future bill_month.
+ * - Account balance remains ledger-derived.
  */
+
 (function () {
   'use strict';
 
-  const VERSION = 'v0.11.0-advance-aware';
+  const VERSION = 'v0.12.0-shared-dialog-contract-ui';
+
   const API_BILLS = '/api/bills';
   const API_BILLS_HEALTH = '/api/bills/health';
   const API_ACCOUNTS = '/api/accounts';
   const SEARCH_DEBOUNCE_MS = 180;
 
   const state = {
-    payload: null, health: null, accounts: [],
-    selectedBillId: null, expandedBillIds: new Set(),
-    loading: false, lastLoadedAt: null, actionsBound: false,
-    filter: 'all', sort: 'due_day_asc', search: '', activeModal: null
+    payload: null,
+    health: null,
+    accounts: [],
+    selectedBillId: null,
+    expandedBillIds: new Set(),
+    loading: false,
+    lastLoadedAt: null,
+    actionsBound: false,
+    listActionsBound: false,
+    filter: 'all',
+    sort: 'due_day_asc',
+    search: '',
+    activeModal: null
   };
 
-  const $  = (id) => document.getElementById(id);
+  const $ = id => document.getElementById(id);
   const qa = (sel, root) => Array.from((root || document).querySelectorAll(sel));
-  function esc(v) {
-    return String(v == null ? '' : v)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
-  function setText(id, v) { const el = $(id); if (el) el.textContent = v == null ? '' : String(v); }
-  function setHTML(id, v) { const el = $(id); if (el) el.innerHTML  = v == null ? '' : String(v); }
-  function clean(v, fb = '') { return String(v == null ? fb : v).trim(); }
-  function todayISO()   { return new Date().toISOString().slice(0, 10); }
-  function todayDay()   { return new Date().getDate(); }
+
+  function clean(value, fallback = '') {
+    return String(value == null ? fallback : value).trim();
+  }
+
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value == null ? '' : String(value);
+  }
+
+  function setHTML(id, value) {
+    const el = $(id);
+    if (el) el.innerHTML = value == null ? '' : String(value);
+  }
+
+  function todayISO() {
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
   function currentMonth() {
-    // Local-time current month (avoid Lahore UTC roll-back).
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
   }
-  function addMonths(monthStr, n) {
-    const [y, m] = monthStr.split('-').map(Number);
-    const d = new Date(y, (m - 1) + n, 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+  function addMonths(monthText, offset) {
+    const [year, month] = String(monthText).split('-').map(Number);
+    const date = new Date(year, month - 1 + offset, 1);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
   }
-  function monthLabel(monthStr) {
-    const [y, m] = monthStr.split('-').map(Number);
-    const d = new Date(y, m - 1, 1);
-    return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+
+  function monthLabel(monthText) {
+    const [year, month] = String(monthText).split('-').map(Number);
+    if (!year || !month) return monthText || '—';
+    return new Date(year, month - 1, 1).toLocaleDateString(undefined, {
+      month: 'short',
+      year: 'numeric'
+    });
   }
+
   function nextCycleOptions(count) {
+    const current = currentMonth();
     const out = [];
-    const cur = currentMonth();
-    for (let i = 0; i <= count; i++) {
-      const m = addMonths(cur, i);
-      out.push({ value: m, label: i === 0 ? `${monthLabel(m)} · current cycle` : `${monthLabel(m)} · advance +${i}` });
+
+    for (let i = 0; i <= count; i += 1) {
+      const value = addMonths(current, i);
+      out.push({
+        value,
+        label: i === 0 ? `${monthLabel(value)} · current cycle` : `${monthLabel(value)} · advance +${i}`
+      });
     }
+
     return out;
   }
-  function money(v) {
-    const n = Number(v || 0);
-    return 'Rs ' + n.toLocaleString('en-PK', {
-      minimumFractionDigits: n % 1 === 0 ? 0 : 2,
+
+  function money(value) {
+    const n = Number(value || 0);
+    const sign = n < 0 ? '-' : '';
+
+    return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
+      minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
       maximumFractionDigits: 2
     });
   }
-  function pill(text, tone) {
-    const c = tone ? ` sf-pill--${esc(tone)}` : '';
-    return `<span class="sf-pill${c}">${esc(text)}</span>`;
+
+  function num(value, fallback = 0) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
   }
-  function toneForCycleStatus(s) {
-    const v = String(s || '').toLowerCase();
-    if (v === 'paid') return 'positive';
-    if (v === 'partial') return 'warning';
-    if (v === 'unpaid' || v === 'overdue') return 'danger';
-    if (v === 'deleted') return 'danger';
-    if (v === 'paused') return 'warning';
+
+  function pill(text, tone) {
+    const cls = ['sf-pill'];
+    if (tone) cls.push(`sf-pill--${tone}`);
+    return `<span class="${cls.join(' ')}">${esc(text)}</span>`;
+  }
+
+  function toneForCycleStatus(status) {
+    const value = String(status || '').toLowerCase();
+
+    if (value === 'paid') return 'positive';
+    if (value === 'partial') return 'warning';
+    if (value === 'unpaid' || value === 'overdue') return 'danger';
+    if (value === 'deleted' || value === 'archived') return 'danger';
+    if (value === 'paused') return 'warning';
+
     return 'info';
   }
+
   function debounce(fn, ms) {
-    let t = null;
-    return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), ms); };
+    let timer = null;
+
+    return function debounced(...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn.apply(this, args), ms);
+    };
   }
+
   function bills() {
-    const arr = state.payload?.bills;
-    return Array.isArray(arr) ? arr : [];
+    return Array.isArray(state.payload?.bills) ? state.payload.bills : [];
   }
-  function activeBills() { return bills().filter((b) => b.status !== 'deleted'); }
+
+  function activeBills() {
+    return bills().filter(bill => bill.status !== 'deleted' && bill.status !== 'archived');
+  }
+
+  function selectedBill() {
+    return bills().find(bill => String(bill.id) === String(state.selectedBillId)) || null;
+  }
+
   function billCycleStatus(bill) {
-    if (bill?.current_cycle?.status) return bill.current_cycle.status;
-    if (bill?.payment_status) return bill.payment_status;
-    if (bill?.last_paid_date && String(bill.last_paid_date).slice(0, 7) === currentMonth()) return 'paid';
-    return 'unpaid';
+    return bill?.current_cycle?.status || bill?.payment_status || 'unpaid';
   }
+
   function dueDateForBill(bill) {
     if (bill?.due_date) return bill.due_date;
+
     const day = Number(bill?.due_day || 0);
     if (!day) return null;
-    const cur = currentMonth();
-    const [y, m] = cur.split('-').map(Number);
-    const maxDay = new Date(y, m, 0).getDate();
-    const safe = Math.min(day, maxDay);
-    return `${cur}-${String(safe).padStart(2, '0')}`;
+
+    const [year, month] = currentMonth().split('-').map(Number);
+    const maxDay = new Date(year, month, 0).getDate();
+    const safeDay = Math.min(day, maxDay);
+
+    return `${year}-${String(month).padStart(2, '0')}-${String(safeDay).padStart(2, '0')}`;
   }
+
   function daysUntilDue(bill) {
-    const iso = dueDateForBill(bill);
-    if (!iso) return null;
-    const due = new Date(iso + 'T00:00:00');
+    const due = dueDateForBill(bill);
+    if (!due) return null;
+
+    const dueDate = new Date(due + 'T00:00:00');
     const today = new Date(todayISO() + 'T00:00:00');
-    return Math.round((due - today) / 86400000);
+
+    return Math.round((dueDate - today) / 86400000);
   }
+
+  function dueLabel(bill) {
+    const due = dueDateForBill(bill);
+    if (!due) return 'no due day';
+
+    const days = daysUntilDue(bill);
+    if (days == null) return due;
+    if (days === 0) return 'due today';
+    if (days > 0) return `in ${days}d · ${due.slice(5)}`;
+
+    return `${Math.abs(days)}d overdue · ${due.slice(5)}`;
+  }
+
   function paidPercent(bill) {
-    const expected = Number(bill?.amount || bill?.current_cycle?.expected_amount || 0);
-    const paid = Number(bill?.current_cycle?.paid_amount || 0);
+    const expected = Number(bill?.current_cycle?.expected ?? bill?.current_cycle?.amount ?? bill?.amount ?? 0);
+    const paid = Number(bill?.current_cycle?.paid ?? bill?.current_cycle?.paid_amount ?? 0);
+
     if (!expected || expected <= 0) return 0;
+
     return Math.max(0, Math.min(100, Math.round((paid / expected) * 100)));
   }
 
   function extractErrorMessage(payload, status, rawText) {
-    if (payload && payload.error) {
-      const e = payload.error;
-      if (typeof e === 'string') return e;
-      if (e.message) return e.code ? `${e.code}: ${e.message}` : e.message;
-      if (e.code) return e.code;
-      try { return JSON.stringify(e); } catch (_) { return String(e); }
+    if (payload?.error) {
+      if (typeof payload.error === 'string') return payload.error;
+      if (payload.error.message) return payload.error.code ? `${payload.error.code}: ${payload.error.message}` : payload.error.message;
+      if (payload.error.code) return payload.error.code;
     }
-    if (payload && payload.message) return payload.message;
-    if (rawText && rawText.length && rawText.length < 400) return `HTTP ${status}: ${rawText}`;
+
+    if (payload?.message) return payload.message;
+    if (payload?.code && payload?.error) return `${payload.code}: ${payload.error}`;
+    if (payload?.error) return String(payload.error);
+    if (rawText && rawText.length < 400) return `HTTP ${status}: ${rawText}`;
+
     return `HTTP ${status}`;
   }
+
   async function fetchJSON(url, options) {
-    const res = await fetch(url, {
+    const response = await fetch(url, {
       cache: 'no-store',
-      headers: { Accept: 'application/json', ...(options?.headers || {}) },
+      headers: {
+        Accept: 'application/json',
+        ...(options?.headers || {})
+      },
       ...(options || {})
     });
-    const text = await res.text();
+
+    const rawText = await response.text();
     let payload = null;
-    try { payload = text ? JSON.parse(text) : null; } catch { /* non-JSON */ }
-    if (!res.ok || !payload || payload.ok === false) {
-      try { console.error('[bills.js] fetch failed', { url, status: res.status, payload, rawText: text.slice(0, 800) }); } catch (_) {}
-      throw new Error(extractErrorMessage(payload, res.status, text));
+
+    try {
+      payload = rawText ? JSON.parse(rawText) : null;
+    } catch {
+      payload = null;
     }
+
+    if (!response.ok || !payload || payload.ok === false) {
+      throw new Error(extractErrorMessage(payload, response.status, rawText));
+    }
+
     return payload;
   }
-  const postJSON   = (u, b) => fetchJSON(u, { method: 'POST',   headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
-  const putJSON    = (u, b) => fetchJSON(u, { method: 'PUT',    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b || {}) });
-  const deleteJSON = (u)    => fetchJSON(u, { method: 'DELETE' });
 
-  function accountRowsFromPayload(p) {
-    if (!p) return [];
-    if (Array.isArray(p.accounts)) return p.accounts;
-    if (p.accounts && typeof p.accounts === 'object') return Object.values(p.accounts);
-    if (Array.isArray(p.account_list)) return p.account_list;
-    return [];
-  }
-  async function loadAccounts() {
-    try {
-      const p = await fetchJSON(API_ACCOUNTS);
-      state.accounts = accountRowsFromPayload(p).filter(Boolean);
-    } catch { state.accounts = []; }
-    populateAccountSelects();
-  }
-  function accountOptionsHtml(selectedId) {
-    return ['<option value="">Choose account</option>'].concat(
-      state.accounts.map((a) => {
-        const id = a.id || a.account_id || '';
-        const name = a.name || a.label || id;
-        const sel = String(id) === String(selectedId || '') ? ' selected' : '';
-        return `<option value="${esc(id)}"${sel}>${esc(name)}</option>`;
-      })
-    ).join('');
-  }
-  function populateAccountSelects() {
-    qa('[data-bills-account-select]').forEach((sel) => {
-      const current = sel.value;
-      sel.innerHTML = accountOptionsHtml(current);
-      if (current) sel.value = current;
+  function postJSON(url, body) {
+    return fetchJSON(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {})
     });
   }
-  function accountName(id) {
-    if (!id) return '—';
-    const found = state.accounts.find((a) => String(a.id || a.account_id) === String(id));
-    return found ? (found.name || found.label || id) : id;
+
+  function accountRowsFromPayload(payload) {
+    if (!payload) return [];
+    if (Array.isArray(payload.accounts)) return payload.accounts;
+    if (payload.accounts && typeof payload.accounts === 'object') return Object.values(payload.accounts);
+    if (payload.accounts_by_id && typeof payload.accounts_by_id === 'object') return Object.values(payload.accounts_by_id);
+    if (Array.isArray(payload.account_list)) return payload.account_list;
+    return [];
+  }
+
+  async function loadAccounts() {
+    try {
+      const payload = await fetchJSON(API_ACCOUNTS);
+      state.accounts = accountRowsFromPayload(payload).filter(Boolean);
+    } catch {
+      state.accounts = [];
+    }
+
+    populateAccountSelects();
   }
 
   async function loadBills() {
     if (state.loading) return;
+
     state.loading = true;
     setText('bills-state-pill', 'Loading');
+
     try {
       await loadAccounts();
+
       const month = currentMonth();
-      state.payload = await fetchJSON(`${API_BILLS}?month=${encodeURIComponent(month)}`);
+      state.payload = await fetchJSON(`${API_BILLS}?month=${encodeURIComponent(month)}&include_inactive=1`);
+
       try {
-        const hp = await fetchJSON(API_BILLS_HEALTH);
-        state.health = hp.health || null;
-      } catch (err) { state.health = { status: 'unavailable', error: err.message }; }
+        const healthPayload = await fetchJSON(API_BILLS_HEALTH);
+        state.health = healthPayload.health || healthPayload || null;
+      } catch (err) {
+        state.health = { status: 'unavailable', error: err.message };
+      }
+
       state.lastLoadedAt = new Date();
+
       renderAll();
       setText('bills-state-pill', 'Loaded');
     } catch (err) {
       setText('bills-state-pill', 'Failed');
-      setHTML('bills-list', `<div class="sf-empty-state sf-tone-danger"><div><h3 class="sf-card-title">Bills failed to load</h3><p class="sf-card-subtitle">${esc(err.message)}</p></div></div>`);
-      setHTML('bills-health-panel', `<div class="sf-empty-state sf-tone-danger"><div><h3 class="sf-card-title">Health unavailable</h3><p class="sf-card-subtitle">${esc(err.message)}</p></div></div>`);
+      setHTML('bills-list', `
+        <div class="sf-empty-state sf-tone-danger">
+          <div>
+            <h3 class="sf-card-title">Bills failed to load</h3>
+            <p class="sf-card-subtitle">${esc(err.message)}</p>
+          </div>
+        </div>
+      `);
+      setHTML('bills-health-panel', `
+        <div class="sf-empty-state sf-tone-danger">
+          <div>
+            <h3 class="sf-card-title">Health unavailable</h3>
+            <p class="sf-card-subtitle">${esc(err.message)}</p>
+          </div>
+        </div>
+      `);
       renderHeaderPills();
       renderDebug();
       toast(`Load failed: ${err.message}`, 'danger');
-    } finally { state.loading = false; }
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  function accountOptionsHtml(selectedId) {
+    return ['<option value="">Choose account</option>'].concat(
+      state.accounts.map(account => {
+        const id = account.id || account.account_id || '';
+        const name = account.name || account.label || id;
+        const balance = account.balance ?? account.current_balance ?? account.amount ?? 0;
+        const selected = String(id) === String(selectedId || '') ? ' selected' : '';
+
+        return `<option value="${esc(id)}"${selected}>${esc(name)} · ${money(balance)}</option>`;
+      })
+    ).join('');
+  }
+
+  function populateAccountSelects() {
+    qa('[data-bills-account-select]').forEach(select => {
+      const current = select.value;
+      select.innerHTML = accountOptionsHtml(current);
+      if (current) select.value = current;
+    });
+  }
+
+  function accountName(id) {
+    if (!id) return '—';
+
+    const found = state.accounts.find(account => String(account.id || account.account_id) === String(id));
+
+    return found ? (found.name || found.label || id) : id;
   }
 
   function applyToolbar(rows) {
     let out = rows.slice();
-    const f = state.filter;
-    const inWeek = (b) => { const d = daysUntilDue(b); return d != null && d >= 0 && d <= 7; };
-    if (f === 'unpaid')              out = out.filter((b) => billCycleStatus(b) === 'unpaid' && b.status !== 'deleted');
-    else if (f === 'partial')        out = out.filter((b) => billCycleStatus(b) === 'partial' && b.status !== 'deleted');
-    else if (f === 'paid')           out = out.filter((b) => billCycleStatus(b) === 'paid' && b.status !== 'deleted');
-    else if (f === 'due_this_week')  out = out.filter((b) => b.status !== 'deleted' && inWeek(b));
-    else if (f === 'ledger_reversed') out = out.filter((b) => Number(b.ledger_reversed_excluded_count || 0) > 0);
-    else if (f === 'deleted')        out = out.filter((b) => b.status === 'deleted');
-    else                             out = out.filter((b) => b.status !== 'deleted');
+    const filter = state.filter;
 
-    const q = state.search.trim().toLowerCase();
-    if (q) {
-      out = out.filter((b) => {
-        const fields = [b.id, b.name, b.notes, b.category_id, b.default_account_id, b.last_paid_account_id]
-          .map((v) => String(v == null ? '' : v).toLowerCase());
-        return fields.some((s) => s.includes(q));
+    const inWeek = bill => {
+      const days = daysUntilDue(bill);
+      return days != null && days >= 0 && days <= 7;
+    };
+
+    if (filter === 'unpaid') out = out.filter(bill => billCycleStatus(bill) === 'unpaid' && bill.status !== 'deleted');
+    else if (filter === 'partial') out = out.filter(bill => billCycleStatus(bill) === 'partial' && bill.status !== 'deleted');
+    else if (filter === 'paid') out = out.filter(bill => billCycleStatus(bill) === 'paid' && bill.status !== 'deleted');
+    else if (filter === 'due_this_week') out = out.filter(bill => bill.status !== 'deleted' && inWeek(bill));
+    else if (filter === 'ledger_reversed') out = out.filter(bill => Number(bill.ledger_reversed_excluded_count || 0) > 0);
+    else if (filter === 'deleted') out = out.filter(bill => bill.status === 'deleted');
+    else out = out.filter(bill => bill.status !== 'deleted');
+
+    const query = state.search.trim().toLowerCase();
+
+    if (query) {
+      out = out.filter(bill => {
+        const fields = [
+          bill.id,
+          bill.name,
+          bill.notes,
+          bill.category_id,
+          bill.default_account_id,
+          bill.last_paid_account_id
+        ].map(value => String(value == null ? '' : value).toLowerCase());
+
+        return fields.some(value => value.includes(query));
       });
     }
 
-    const s = state.sort;
-    const cmp = (a, b, key, dir = 1) => {
-      const av = a[key], bv = b[key];
-      if (av == null && bv == null) return 0;
-      if (av == null) return 1; if (bv == null) return -1;
-      if (av < bv) return -1 * dir; if (av > bv) return 1 * dir; return 0;
-    };
-    if (s === 'amount_desc')           out.sort((a, b) => cmp(a, b, 'amount', -1));
-    else if (s === 'name_asc')         out.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-    else if (s === 'last_paid_desc')   out.sort((a, b) => cmp(a, b, 'last_paid_date', -1));
-    else if (s === 'created_desc')     out.sort((a, b) => cmp(a, b, 'created_at', -1));
-    else                               out.sort((a, b) => (Number(a.due_day || 99) - Number(b.due_day || 99)));
+    const sort = state.sort;
+
+    if (sort === 'amount_desc') {
+      out.sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0));
+    } else if (sort === 'name_asc') {
+      out.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    } else if (sort === 'last_paid_desc') {
+      out.sort((a, b) => String(b.last_paid_date || '').localeCompare(String(a.last_paid_date || '')));
+    } else if (sort === 'created_desc') {
+      out.sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+    } else {
+      out.sort((a, b) => Number(a.due_day || 99) - Number(b.due_day || 99));
+    }
+
     return out;
   }
-  function setFilter(f) {
-    state.filter = f;
-    qa('[data-bills-filter]').forEach((btn) => {
-      btn.classList.toggle('is-active', btn.getAttribute('data-bills-filter') === f);
-    });
-    setText('bills-filter-pill', f.replace(/_/g, ' '));
-    renderBillsList();
-  }
-  function setSort(s)   { state.sort = s; renderBillsList(); }
-  function setSearch(q) { state.search = q || ''; renderBillsList(); }
 
-  function wireToolbar() {
-    const toolbar = $('bills-toolbar');
-    if (toolbar && toolbar.hasAttribute('hidden')) toolbar.removeAttribute('hidden');
-    qa('[data-bills-filter]').forEach((btn) => {
-      btn.addEventListener('click', () => setFilter(btn.getAttribute('data-bills-filter')));
+  function setFilter(filter) {
+    state.filter = filter;
+
+    qa('[data-bills-filter]').forEach(button => {
+      button.classList.toggle('is-active', button.getAttribute('data-bills-filter') === filter);
     });
-    const search = $('bills-search-input');
-    if (search) search.addEventListener('input', debounce((e) => setSearch(e.target.value), SEARCH_DEBOUNCE_MS));
-    const sort = $('bills-sort-select');
-    if (sort) sort.addEventListener('change', (e) => setSort(e.target.value));
+
+    setText('bills-filter-pill', filter.replace(/_/g, ' '));
+    renderBillsList();
+    renderDebug();
+  }
+
+  function setSort(sort) {
+    state.sort = sort;
+    renderBillsList();
+    renderDebug();
+  }
+
+  function setSearch(query) {
+    state.search = query || '';
+    renderBillsList();
+    renderDebug();
   }
 
   function renderHeaderPills() {
-    const last = state.lastLoadedAt ? `Last loaded: ${state.lastLoadedAt.toLocaleTimeString()}` : 'Last loaded: never';
-    setText('bills-last-loaded', last);
+    const lastLoaded = state.lastLoadedAt ? `Last loaded: ${state.lastLoadedAt.toLocaleTimeString()}` : 'Last loaded: never';
+    const health = state.health?.status || 'unknown';
     const total = state.payload?.count ?? activeBills().length;
+
+    setText('bills-last-loaded', lastLoaded);
     setText('bills-count-pill', `${total} bills`);
-    const h = state.health?.status || 'unknown';
-    setText('bills-health-pill', `health ${h}`);
+    setText('bills-health-pill', `health ${health}`);
   }
 
   function renderSummary() {
-    const p = state.payload || {};
-    setText('bills-expected-this-cycle', money(p.expected_this_cycle ?? 0));
-    setText('bills-paid-this-cycle', money(p.paid_this_cycle ?? 0));
-    setText('bills-remaining', money(p.remaining ?? 0));
-    setText('bills-status-counts', `${p.paid_count ?? 0} / ${p.partial_count ?? 0} / ${p.unpaid_count ?? 0}`);
-    setText('bills-ledger-reversed-excluded', String(p.ledger_reversed_excluded_count ?? 0));
+    const payload = state.payload || {};
+
+    setText('bills-expected-this-cycle', money(payload.expected_this_cycle ?? 0));
+    setText('bills-paid-this-cycle', money(payload.paid_this_cycle ?? 0));
+    setText('bills-remaining', money(payload.remaining ?? 0));
+    setText('bills-status-counts', `${payload.paid_count ?? 0} / ${payload.partial_count ?? 0} / ${payload.unpaid_count ?? 0}`);
+    setText('bills-ledger-reversed-excluded', String(payload.ledger_reversed_excluded_count ?? 0));
     setText('bills-health-status', state.health?.status || 'unknown');
   }
 
   function renderShellKpis() {
     if (!window.SFShell || typeof window.SFShell.setKpis !== 'function') return;
-    const p = state.payload || {};
-    const h = state.health?.status || 'unknown';
-    const healthTone   = h === 'pass' ? 'positive' : h === 'warn' ? 'warning' : h === 'unavailable' ? 'danger' : 'info';
-    const remainingTone = Number(p.remaining || 0) > 0 ? 'warning' : 'positive';
+
+    const payload = state.payload || {};
+    const health = state.health?.status || 'unknown';
+    const healthTone = health === 'pass' ? 'positive' : health === 'warn' ? 'warning' : health === 'unavailable' ? 'danger' : 'info';
+    const remainingTone = Number(payload.remaining || 0) > 0 ? 'warning' : 'positive';
+
     try {
       window.SFShell.setKpis([
-        { title: 'Expected', kicker: 'Cycle', value: money(p.expected_this_cycle ?? 0),
-          subtitle: p.month || currentMonth(), foot: `Backend ${p.version || 'unknown'}` },
-        { title: 'Paid', kicker: 'Ledger-linked', value: money(p.paid_this_cycle ?? 0),
-          subtitle: `${p.paid_count ?? 0} paid · ${p.partial_count ?? 0} partial`, foot: 'Reversed excluded', tone: 'positive' },
-        { title: 'Remaining', kicker: 'Pressure', value: money(p.remaining ?? 0),
-          subtitle: `${p.unpaid_count ?? 0} unpaid`, foot: 'Backend cycle truth', tone: remainingTone },
-        { title: 'Health', kicker: 'Integrity', value: h,
-          subtitle: 'Payment / ledger', foot: '/api/bills/health', tone: healthTone }
+        {
+          title: 'Expected',
+          kicker: 'Cycle',
+          value: money(payload.expected_this_cycle ?? 0),
+          subtitle: payload.month || currentMonth(),
+          foot: `Backend ${payload.version || 'unknown'}`
+        },
+        {
+          title: 'Paid',
+          kicker: 'Ledger-linked',
+          value: money(payload.paid_this_cycle ?? 0),
+          subtitle: `${payload.paid_count ?? 0} paid · ${payload.partial_count ?? 0} partial`,
+          foot: 'Reversed excluded',
+          tone: 'positive'
+        },
+        {
+          title: 'Remaining',
+          kicker: 'Pressure',
+          value: money(payload.remaining ?? 0),
+          subtitle: `${payload.unpaid_count ?? 0} unpaid`,
+          foot: 'Backend cycle truth',
+          tone: remainingTone
+        },
+        {
+          title: 'Health',
+          kicker: 'Integrity',
+          value: health,
+          subtitle: 'Payment / ledger',
+          foot: '/api/bills/health',
+          tone: healthTone
+        }
       ]);
-    } catch (err) { console.warn('[bills.js] shell KPI refresh failed', err); }
+    } catch (err) {
+      console.warn('[bills.js] shell KPI refresh failed', err);
+    }
   }
 
-  function dueLabel(bill) {
-    const iso = dueDateForBill(bill);
-    if (!iso) return 'no due day';
-    const d = daysUntilDue(bill);
-    if (d == null) return iso;
-    if (d === 0) return 'due today';
-    if (d > 0)   return `in ${d}d · ${iso.slice(5)}`;
-    return `${Math.abs(d)}d overdue · ${iso.slice(5)}`;
-  }
-  function billIcon(bill) {
-    const cat = String(bill.category_id || '').toLowerCase();
-    if (cat.includes('rent') || cat.includes('home') || cat.includes('house')) return '🏠';
-    if (cat.includes('internet') || cat.includes('utility') || cat.includes('utilities')) return '💡';
-    if (cat.includes('school') || cat.includes('edu')) return '🎓';
-    if (cat.includes('subscription')) return '📺';
-    if (cat.includes('insurance')) return '🛡️';
-    if (cat.includes('phone') || cat.includes('mobile')) return '📱';
-    if (cat.includes('family') || cat.includes('help')) return '👨‍👩‍👧';
-    return '🧾';
-  }
   function renderBillsList() {
     const list = $('bills-list');
     if (!list) return;
-    const all = bills();
-    if (!all.length) {
-      list.innerHTML = `<div class="sf-empty-state"><div><h3 class="sf-card-title">No bills</h3><p class="sf-card-subtitle">Backend returned an empty bills array.</p></div></div>`;
-      return;
-    }
-    const filtered = applyToolbar(all);
-    if (!filtered.length) {
-      list.innerHTML = `<div class="sf-empty-state"><div><h3 class="sf-card-title">No bills match</h3><p class="sf-card-subtitle">Filter “${esc(state.filter)}”${state.search ? ` + search “${esc(state.search)}”` : ''} returned 0 of ${all.length}.</p></div></div>`;
-      return;
-    }
-    list.innerHTML = filtered.map(renderBillRow).join('');
 
-    qa('[data-bill-row-shell]', list).forEach((row) => {
-      row.addEventListener('click', (e) => {
-        if (e.target.closest('[data-bill-action]')) return;
-        toggleExpand(row.getAttribute('data-bill-row-shell'));
-      });
-    });
-    qa('[data-bill-action="pay"]',     list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openPayModal(b.getAttribute('data-bill-id')); }));
-    qa('[data-bill-action="edit"]',    list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openEditModal(b.getAttribute('data-bill-id')); }));
-    qa('[data-bill-action="defer"]',   list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openDeferModal(b.getAttribute('data-bill-id')); }));
-    qa('[data-bill-action="delete"]',  list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); softDeleteBill(b.getAttribute('data-bill-id')); }));
-    qa('[data-bill-action="restore"]', list).forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); restoreBill(b.getAttribute('data-bill-id')); }));
+    const all = bills();
+
+    if (!all.length) {
+      list.innerHTML = `
+        <div class="sf-empty-state">
+          <div>
+            <h3 class="sf-card-title">No bills</h3>
+            <p class="sf-card-subtitle">Backend returned an empty bills array.</p>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const filtered = applyToolbar(all);
+
+    if (!filtered.length) {
+      list.innerHTML = `
+        <div class="sf-empty-state">
+          <div>
+            <h3 class="sf-card-title">No bills match</h3>
+            <p class="sf-card-subtitle">Filter “${esc(state.filter)}”${state.search ? ` + search “${esc(state.search)}”` : ''} returned 0 of ${all.length}.</p>
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    list.innerHTML = filtered.map(renderBillRow).join('');
+    bindListActions();
   }
-  function toggleExpand(id) {
-    if (state.expandedBillIds.has(String(id))) state.expandedBillIds.delete(String(id));
-    else state.expandedBillIds.add(String(id));
-    state.selectedBillId = id;
-    renderBillsList();
-    renderSelected();
-    prefillPaymentForm();
-  }
+
   function renderBillRow(bill) {
     const id = String(bill.id);
     const expanded = state.expandedBillIds.has(id);
     const status = bill.status === 'deleted' ? 'deleted' : billCycleStatus(bill);
     const tone = toneForCycleStatus(status);
-    const pct = paidPercent(bill);
+    const percent = paidPercent(bill);
     const cycle = bill.current_cycle || {};
-    const tags = [];
-    if (bill.ledger_linked) tags.push(pill('ledger', 'info'));
-    if (Number(bill.advance_paid_amount || 0) > 0) {
-      tags.push(pill(`advance ${money(bill.advance_paid_amount).replace('Rs ', 'Rs ')}`, 'positive'));
-    }
     const reversed = Number(bill.ledger_reversed_excluded_count || 0);
+    const advance = Number(bill.advance_paid_amount || 0);
+
+    const tags = [
+      pill(status, tone)
+    ];
+
+    if (bill.ledger_linked) tags.push(pill('ledger', 'info'));
+    if (advance > 0) tags.push(pill(`advance ${money(advance)}`, 'positive'));
     if (reversed > 0) tags.push(pill(`reversed ${reversed}`, 'warning'));
     if (bill.status === 'paused') tags.push(pill('paused', 'warning'));
-    const detail = expanded ? renderInlineDetail(bill, cycle) : '';
+
     return `
-      <div class="bill-card${expanded ? ' is-open' : ''}" data-bill-card="${esc(id)}">
-        <div class="bill-row-shell" data-bill-row-shell="${esc(id)}" role="button" tabindex="0" aria-expanded="${expanded}">
-          <div class="bill-row-icon">${billIcon(bill)}</div>
-          <div class="bill-row-main">
-            <div class="bill-row-title">${esc(bill.name || bill.id)}</div>
-            <div class="bill-row-sub">${esc(dueLabel(bill))} · ${esc(bill.frequency || 'monthly')} · ${esc(accountName(bill.last_paid_account_id || bill.default_account_id))}</div>
-            <div class="bill-progress"><div class="bill-progress-fill" style="width:${pct}%"></div></div>
+      <article class="sf-finance-row ${expanded ? 'is-open' : ''}" data-bill-row="${esc(id)}">
+        <div class="sf-row-left">
+          <div class="sf-row-title">${esc(bill.name || bill.id)}</div>
+          <div class="sf-row-subtitle">
+            ${esc(dueLabel(bill))} · ${esc(bill.frequency || 'monthly')} · ${esc(accountName(bill.last_paid_account_id || bill.default_account_id))}
           </div>
-          <div class="bill-row-amount">${money(bill.amount)}</div>
-          <div class="bill-row-status">${pill(status, tone)}${tags.length ? ' ' + tags.join(' ') : ''}</div>
-          <div class="bill-row-caret" aria-hidden="true">${expanded ? '▾' : '▸'}</div>
+          <div class="sf-section-actions">
+            ${tags.join('')}
+            ${pill(`${percent}% paid`, percent >= 100 ? 'positive' : percent > 0 ? 'warning' : 'danger')}
+          </div>
         </div>
-        ${detail}
-      </div>
+
+        <div class="sf-row-right">
+          <div class="sf-metric-value">${money(bill.amount)}</div>
+          <div class="sf-card-subtitle">Expected</div>
+          <div class="sf-section-actions">
+            <button class="sf-button" type="button" data-bill-action="details" data-bill-id="${esc(id)}">${expanded ? 'Hide' : 'Details'}</button>
+            ${bill.status === 'deleted'
+              ? `<button class="sf-button sf-button--primary" type="button" data-bill-action="restore" data-bill-id="${esc(id)}">Restore</button>`
+              : `
+                <button class="sf-button sf-button--primary" type="button" data-bill-action="pay" data-bill-id="${esc(id)}">Pay</button>
+                <button class="sf-button" type="button" data-bill-action="edit" data-bill-id="${esc(id)}">Edit</button>
+                <button class="sf-button" type="button" data-bill-action="defer" data-bill-id="${esc(id)}">Defer</button>
+                <button class="sf-button" type="button" data-bill-action="delete" data-bill-id="${esc(id)}">Soft-delete</button>
+              `}
+          </div>
+        </div>
+      </article>
+
+      ${expanded ? renderInlineDetail(bill, cycle) : ''}
     `;
   }
+
   function renderInlineDetail(bill, cycle) {
-    const cells = [
-      ['Bill ID',         esc(bill.id)],
-      ['Amount',          money(bill.amount)],
-      ['Cycle paid',      money(cycle.paid_amount ?? 0)],
-      ['Cycle remaining', money(cycle.remaining_amount ?? 0)],
-      ['Advance paid',    money(bill.advance_paid_amount ?? 0)],
-      ['Advance count',   String(bill.advance_payment_count ?? 0)],
-      ['Due day',         bill.due_day != null ? String(bill.due_day) : '—'],
-      ['Due date',        esc(bill.due_date || dueDateForBill(bill) || '—')],
-      ['Frequency',       esc(bill.frequency || '—')],
-      ['Category',        esc(bill.category_id || '—')],
-      ['Default account', esc(accountName(bill.default_account_id))],
-      ['Last paid',       esc(bill.last_paid_date || '—')],
-      ['Last paid acct',  esc(accountName(bill.last_paid_account_id))],
-      ['Ledger linked',   bill.ledger_linked ? 'Yes' : 'No'],
-      ['Reversed excl',   String(bill.ledger_reversed_excluded_count ?? 0)],
-      ['Status',          esc(bill.status || 'active')]
+    const rows = [
+      ['Bill ID', bill.id],
+      ['Amount', money(bill.amount)],
+      ['Cycle paid', money(cycle.paid ?? cycle.paid_amount ?? 0)],
+      ['Cycle remaining', money(cycle.remaining ?? cycle.remaining_amount ?? 0)],
+      ['Advance paid', money(bill.advance_paid_amount ?? 0)],
+      ['Advance count', String(bill.advance_payment_count ?? 0)],
+      ['Due day', bill.due_day != null ? String(bill.due_day) : '—'],
+      ['Due date', bill.due_date || dueDateForBill(bill) || '—'],
+      ['Frequency', bill.frequency || '—'],
+      ['Category', bill.category_id || '—'],
+      ['Default account', accountName(bill.default_account_id)],
+      ['Last paid', bill.last_paid_date || '—'],
+      ['Last paid acct', accountName(bill.last_paid_account_id)],
+      ['Ledger linked', bill.ledger_linked ? 'Yes' : 'No'],
+      ['Reversed excl', String(bill.ledger_reversed_excluded_count ?? 0)],
+      ['Status', bill.status || 'active']
     ];
-    const isDeleted = bill.status === 'deleted';
-    const actions = isDeleted
-      ? `<button class="sf-button" type="button" data-bill-action="restore" data-bill-id="${esc(bill.id)}">Restore</button>`
-      : `
-        <button class="sf-button sf-button--primary" type="button" data-bill-action="pay"    data-bill-id="${esc(bill.id)}">Pay</button>
-        <button class="sf-button"                    type="button" data-bill-action="edit"   data-bill-id="${esc(bill.id)}">Edit</button>
-        <button class="sf-button"                    type="button" data-bill-action="defer"  data-bill-id="${esc(bill.id)}">Defer</button>
-        <button class="sf-button"                    type="button" data-bill-action="delete" data-bill-id="${esc(bill.id)}">Soft-delete</button>
-      `;
-    const notes = bill.notes ? `<div class="bill-inline-notes">${esc(bill.notes)}</div>` : '';
+
     const future = Array.isArray(bill.next_paid_cycles) ? bill.next_paid_cycles : [];
+
     const advanceBlock = future.length ? `
-      <div class="bill-inline-advance">
-        <div class="bill-inline-advance-title">Future cycles paid in advance</div>
-        ${future.map(fc => `
-          <div class="bill-advance-row">
-            <div class="bill-advance-month">${esc(monthLabel(fc.month))}</div>
-            <div class="bill-advance-amount">${money(fc.paid_amount)}</div>
-            <div class="bill-advance-count">${esc(fc.payment_count)} payment${fc.payment_count === 1 ? '' : 's'}</div>
+      <div class="sf-panel">
+        <div class="sf-section-head">
+          <div>
+            <p class="sf-section-kicker">Future cycles</p>
+            <h3 class="sf-section-title">Paid in advance</h3>
           </div>
-        `).join('')}
+        </div>
+        <div class="sf-dense-grid">
+          ${future.map(cycleRow => `
+            <div class="sf-finance-row">
+              <div class="sf-row-left">
+                <div class="sf-row-title">${esc(monthLabel(cycleRow.month))}</div>
+                <div class="sf-row-subtitle">${esc(cycleRow.payment_count)} payment${cycleRow.payment_count === 1 ? '' : 's'}</div>
+              </div>
+              <div class="sf-row-right">${money(cycleRow.paid_amount)}</div>
+            </div>
+          `).join('')}
+        </div>
       </div>
     ` : '';
+
     return `
-      <div class="bill-inline-detail">
-        <div class="bill-inline-grid">
-          ${cells.map(([k, v]) => `<div class="bill-inline-cell"><span class="bill-inline-k">${esc(k)}</span><span class="bill-inline-v">${v}</span></div>`).join('')}
+      <section class="sf-panel" data-bill-detail="${esc(bill.id)}">
+        <div class="sf-secondary-grid">
+          ${rows.map(([key, value]) => `
+            <div class="sf-finance-row">
+              <div class="sf-row-left">
+                <div class="sf-row-title">${esc(key)}</div>
+              </div>
+              <div class="sf-row-right">${esc(value)}</div>
+            </div>
+          `).join('')}
         </div>
+
+        ${bill.notes ? `
+          <div class="sf-empty-state">${esc(bill.notes)}</div>
+        ` : ''}
+
         ${advanceBlock}
-        ${notes}
-        <div class="bill-inline-actions">${actions}</div>
-      </div>
+      </section>
     `;
+  }
+
+  function bindListActions() {
+    const list = $('bills-list');
+    if (!list || state.listActionsBound) return;
+
+    state.listActionsBound = true;
+
+    list.addEventListener('click', event => {
+      const actionButton = event.target.closest('[data-bill-action]');
+      const row = event.target.closest('[data-bill-row]');
+
+      if (actionButton) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const action = actionButton.getAttribute('data-bill-action');
+        const billId = actionButton.getAttribute('data-bill-id');
+
+        if (action === 'details') toggleExpand(billId);
+        if (action === 'pay') openPayModal(billId);
+        if (action === 'edit') openEditModal(billId);
+        if (action === 'defer') openDeferModal(billId);
+        if (action === 'delete') softDeleteBill(billId);
+        if (action === 'restore') restoreBill(billId);
+
+        return;
+      }
+
+      if (row) {
+        toggleExpand(row.getAttribute('data-bill-row'));
+      }
+    });
+  }
+
+  function toggleExpand(id) {
+    const key = String(id);
+
+    if (state.expandedBillIds.has(key)) state.expandedBillIds.delete(key);
+    else state.expandedBillIds.add(key);
+
+    state.selectedBillId = id;
+
+    renderBillsList();
+    renderSelected();
+    prefillPaymentForm();
+    renderDebug();
   }
 
   function renderSelected() {
     const panel = $('bills-selected-panel');
     if (!panel) return;
-    const bill = bills().find((b) => String(b.id) === String(state.selectedBillId));
+
+    const bill = selectedBill();
+
     if (!bill) {
-      panel.innerHTML = `<div class="sf-loading-state"><div><h3 class="sf-card-title">No bill selected</h3><p class="sf-card-subtitle">Click a bill to expand its detail. The sidebar tracks the last selection.</p></div></div>`;
+      panel.innerHTML = `
+        <div class="sf-loading-state">
+          <div>
+            <h3 class="sf-card-title">No bill selected</h3>
+            <p class="sf-card-subtitle">Click a bill to expand its detail.</p>
+          </div>
+        </div>
+      `;
       return;
     }
+
     const cycle = bill.current_cycle || {};
+
     const rows = [
-      ['Name',             bill.name || '—'],
-      ['Cycle status',     billCycleStatus(bill)],
-      ['Amount',           money(bill.amount)],
-      ['Cycle paid',       money(cycle.paid_amount ?? 0)],
-      ['Cycle remaining',  money(cycle.remaining_amount ?? 0)],
-      ['Advance paid',     money(bill.advance_paid_amount ?? 0)],
-      ['Advance cycles',   String((bill.next_paid_cycles || []).length)],
-      ['Due',              dueLabel(bill)],
-      ['Last paid',        bill.last_paid_date || '—'],
-      ['Default account',  accountName(bill.default_account_id)],
-      ['Status',           bill.status || 'active']
+      ['Name', bill.name || '—'],
+      ['Cycle status', billCycleStatus(bill)],
+      ['Amount', money(bill.amount)],
+      ['Cycle paid', money(cycle.paid ?? cycle.paid_amount ?? 0)],
+      ['Cycle remaining', money(cycle.remaining ?? cycle.remaining_amount ?? 0)],
+      ['Advance paid', money(bill.advance_paid_amount ?? 0)],
+      ['Advance cycles', String((bill.next_paid_cycles || []).length)],
+      ['Due', dueLabel(bill)],
+      ['Last paid', bill.last_paid_date || '—'],
+      ['Default account', accountName(bill.default_account_id)],
+      ['Status', bill.status || 'active']
     ];
-    panel.innerHTML = rows.map(([k, v]) => `
+
+    panel.innerHTML = rows.map(([key, value]) => `
       <div class="sf-finance-row">
-        <div class="sf-row-left"><div class="sf-row-title">${esc(k)}</div></div>
-        <div class="sf-row-right">${esc(v)}</div>
+        <div class="sf-row-left">
+          <div class="sf-row-title">${esc(key)}</div>
+        </div>
+        <div class="sf-row-right">${esc(value)}</div>
       </div>
     `).join('');
   }
@@ -489,91 +746,74 @@
   function renderHealthPanel() {
     const panel = $('bills-health-panel');
     if (!panel) return;
-    const h = state.health || {};
+
+    const health = state.health || {};
+
     const rows = [
-      ['Status',                          String(h.status || 'unknown'),
-        h.status === 'pass' ? 'positive' : h.status === 'warn' ? 'warning' : 'danger'],
-      ['Payment rows scanned',            String(h.payment_rows ?? '—')],
-      ['Orphan payments (no txn)',        String(h.orphan_count ?? 0), Number(h.orphan_count) ? 'danger' : 'positive'],
-      ['Active payments w/ reversed txn', String(h.active_payment_reversed_txn_mismatch_count ?? 0), Number(h.active_payment_reversed_txn_mismatch_count) ? 'danger' : 'positive'],
-      ['Reversed missing reversal txn',   String(h.missing_reversal_txn_count ?? 0), Number(h.missing_reversal_txn_count) ? 'danger' : 'positive'],
-      ['Duplicate bill/month/amount',     String(h.duplicate_bill_month_amount_count ?? 0), Number(h.duplicate_bill_month_amount_count) ? 'warning' : 'positive'],
-      ['Amount mismatches',               String(h.amount_mismatch_count ?? 0), Number(h.amount_mismatch_count) ? 'danger' : 'positive'],
-      ['Table state',                     String(h.table_state ?? '—')]
+      ['Status', String(health.status || 'unknown'), health.status === 'pass' ? 'positive' : health.status === 'warn' ? 'warning' : 'danger'],
+      ['Payment rows scanned', String(health.payment_rows ?? '—')],
+      ['Orphan payments', String(health.orphan_count ?? health.orphans?.length ?? 0), Number(health.orphan_count ?? health.orphans?.length ?? 0) ? 'danger' : 'positive'],
+      ['Active payments w/ reversed txn', String(health.active_payment_reversed_txn_mismatch_count ?? health.active_payment_reversed_txn_mismatch?.length ?? 0), Number(health.active_payment_reversed_txn_mismatch_count ?? health.active_payment_reversed_txn_mismatch?.length ?? 0) ? 'danger' : 'positive'],
+      ['Missing reversal txn', String(health.missing_reversal_txn_count ?? health.missing_reversal_txn?.length ?? 0), Number(health.missing_reversal_txn_count ?? health.missing_reversal_txn?.length ?? 0) ? 'danger' : 'positive'],
+      ['Duplicate bill/month/amount', String(health.duplicate_bill_month_amount_count ?? health.duplicate_bill_month_amount?.length ?? 0), Number(health.duplicate_bill_month_amount_count ?? health.duplicate_bill_month_amount?.length ?? 0) ? 'warning' : 'positive'],
+      ['Amount mismatches', String(health.amount_mismatch_count ?? health.amount_mismatches?.length ?? 0), Number(health.amount_mismatch_count ?? health.amount_mismatches?.length ?? 0) ? 'danger' : 'positive']
     ];
-    panel.innerHTML = rows.map(([k, v, t]) => `
+
+    panel.innerHTML = rows.map(([key, value, tone]) => `
       <div class="sf-finance-row">
-        <div class="sf-row-left"><div class="sf-row-title">${esc(k)}</div></div>
-        <div class="sf-row-right${t ? ' sf-tone-' + esc(t) : ''}">${esc(v)}</div>
+        <div class="sf-row-left">
+          <div class="sf-row-title">${esc(key)}</div>
+        </div>
+        <div class="sf-row-right${tone ? ` sf-tone-${esc(tone)}` : ''}">${esc(value)}</div>
       </div>
     `).join('');
   }
 
-  /* ─── NEW: Paid in Advance section (injected dynamically) ─── */
-  function ensureAdvanceSection() {
-    let section = $('bills-advance-section');
-    if (section) return section;
-    // Anchor before Bills Health section.
-    const healthSection = document.querySelector('[aria-labelledby="bills-health-title"]');
-    if (!healthSection || !healthSection.parentNode) return null;
-    section = document.createElement('section');
-    section.id = 'bills-advance-section';
-    section.className = 'sf-panel sf-span-12';
-    section.setAttribute('aria-labelledby', 'bills-advance-title');
-    section.hidden = true;
-    section.innerHTML = `
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Pre-paid</p>
-          <h2 id="bills-advance-title" class="sf-section-title">Paid in Advance</h2>
-          <p class="sf-section-subtitle">Bills with payments filed against a future cycle. Reversed payments are excluded.</p>
-        </div>
-        <div class="sf-section-meta">
-          <span id="bills-advance-pill" class="sf-pill sf-pill--positive">Rs 0</span>
-        </div>
-      </div>
-      <div id="bills-advance-body" class="sf-dense-grid"></div>
-    `;
-    healthSection.parentNode.insertBefore(section, healthSection);
-    return section;
-  }
   function renderAdvanceSection() {
-    const section = ensureAdvanceSection();
-    if (!section) return;
+    const section = $('bills-advance-section');
+    const body = $('bills-advance-body');
+    if (!section || !body) return;
+
     const total = Number(state.payload?.advance_paid_total || 0);
     const countTotal = Number(state.payload?.advance_payment_count_total || 0);
-    const billsWithAdvance = bills().filter(b => Number(b.advance_paid_amount || 0) > 0);
+    const billsWithAdvance = bills().filter(bill => Number(bill.advance_paid_amount || 0) > 0);
 
     if (total <= 0 || !billsWithAdvance.length) {
       section.hidden = true;
-      const body = $('bills-advance-body');
-      if (body) body.innerHTML = '';
+      body.innerHTML = '';
       return;
     }
+
     section.hidden = false;
     setText('bills-advance-pill', `${money(total)} · ${countTotal} payments`);
 
-    const body = $('bills-advance-body');
-    if (!body) return;
     body.innerHTML = billsWithAdvance.map(bill => {
-      const future = bill.next_paid_cycles || [];
-      const cycles = future.map(fc => `
-        <div class="bill-advance-row">
-          <div class="bill-advance-month">${esc(monthLabel(fc.month))}</div>
-          <div class="bill-advance-amount">${money(fc.paid_amount)}</div>
-          <div class="bill-advance-count">${esc(fc.payment_count)} payment${fc.payment_count === 1 ? '' : 's'}</div>
-        </div>
-      `).join('');
+      const future = Array.isArray(bill.next_paid_cycles) ? bill.next_paid_cycles : [];
+
       return `
-        <div class="bill-advance-card">
-          <div class="bill-advance-head">
+        <div class="sf-panel">
+          <div class="sf-section-head">
             <div>
-              <div class="bill-advance-bill">${esc(bill.name)}</div>
-              <div class="bill-advance-sub">Expected per cycle ${money(bill.amount)} · default ${esc(accountName(bill.default_account_id))}</div>
+              <p class="sf-section-kicker">Advance bill</p>
+              <h3 class="sf-section-title">${esc(bill.name)}</h3>
+              <p class="sf-section-subtitle">Expected per cycle ${money(bill.amount)} · default ${esc(accountName(bill.default_account_id))}</p>
             </div>
-            <div class="bill-advance-total">${money(bill.advance_paid_amount)}</div>
+            <div class="sf-section-meta">
+              ${pill(money(bill.advance_paid_amount), 'positive')}
+            </div>
           </div>
-          <div class="bill-advance-cycles">${cycles || '<div class="bill-advance-row"><div class="bill-advance-month">—</div></div>'}</div>
+
+          <div class="sf-dense-grid">
+            ${future.map(cycleRow => `
+              <div class="sf-finance-row">
+                <div class="sf-row-left">
+                  <div class="sf-row-title">${esc(monthLabel(cycleRow.month))}</div>
+                  <div class="sf-row-subtitle">${esc(cycleRow.payment_count)} payment${cycleRow.payment_count === 1 ? '' : 's'}</div>
+                </div>
+                <div class="sf-row-right">${money(cycleRow.paid_amount)}</div>
+              </div>
+            `).join('')}
+          </div>
         </div>
       `;
     }).join('');
@@ -581,108 +821,202 @@
 
   function renderDebug() {
     setText('bills-debug-output', JSON.stringify({
-      uiVersion: VERSION, backendVersion: state.payload?.version, month: state.payload?.month,
-      filter: state.filter, sort: state.sort, search: state.search,
-      totals: { expected: state.payload?.expected_this_cycle, paid: state.payload?.paid_this_cycle, remaining: state.payload?.remaining },
-      advance: { total: state.payload?.advance_paid_total, count: state.payload?.advance_payment_count_total },
-      counts: { bills: bills().length, active: activeBills().length, paid: state.payload?.paid_count, partial: state.payload?.partial_count, unpaid: state.payload?.unpaid_count, ledger_reversed_excluded: state.payload?.ledger_reversed_excluded_count },
-      health: state.health, selectedBillId: state.selectedBillId,
-      expanded: Array.from(state.expandedBillIds), lastLoadedAt: state.lastLoadedAt
+      uiVersion: VERSION,
+      backendVersion: state.payload?.version,
+      contractVersion: state.payload?.contract_version,
+      month: state.payload?.month,
+      filter: state.filter,
+      sort: state.sort,
+      search: state.search,
+      totals: {
+        expected: state.payload?.expected_this_cycle,
+        paid: state.payload?.paid_this_cycle,
+        remaining: state.payload?.remaining
+      },
+      advance: {
+        total: state.payload?.advance_paid_total,
+        count: state.payload?.advance_payment_count_total
+      },
+      counts: {
+        bills: bills().length,
+        active: activeBills().length,
+        paid: state.payload?.paid_count,
+        partial: state.payload?.partial_count,
+        unpaid: state.payload?.unpaid_count,
+        ledger_reversed_excluded: state.payload?.ledger_reversed_excluded_count
+      },
+      health: state.health,
+      selectedBillId: state.selectedBillId,
+      expanded: Array.from(state.expandedBillIds),
+      lastLoadedAt: state.lastLoadedAt
     }, null, 2));
   }
 
   function renderAll() {
-    renderHeaderPills(); renderShellKpis(); renderSummary();
-    renderBillsList(); renderSelected(); renderHealthPanel();
-    renderAdvanceSection(); renderDebug();
+    renderHeaderPills();
+    renderShellKpis();
+    renderSummary();
+    renderBillsList();
+    renderSelected();
+    renderHealthPanel();
+    renderAdvanceSection();
+    renderDebug();
     prefillPaymentForm();
   }
 
   function prefillPaymentForm() {
-    const bill = bills().find((b) => String(b.id) === String(state.selectedBillId));
-    const nameInput = $('bill-payment-name'); const amountInput = $('bill-payment-amount');
-    const dateInput = $('bill-payment-date'); const accountSel = $('bill-payment-account');
+    const bill = selectedBill();
+
+    const nameInput = $('bill-payment-name');
+    const amountInput = $('bill-payment-amount');
+    const dateInput = $('bill-payment-date');
+    const accountSelect = $('bill-payment-account');
     const stateSpan = $('bills-payment-state');
-    if (!bill) { if (nameInput) nameInput.value = ''; if (stateSpan) stateSpan.textContent = 'Select bill'; return; }
+
+    if (!bill) {
+      if (nameInput) nameInput.value = '';
+      if (stateSpan) stateSpan.textContent = 'Select bill';
+      return;
+    }
+
+    const cycle = bill.current_cycle || {};
+    const remaining = cycle.remaining ?? cycle.remaining_amount;
+
     if (nameInput) nameInput.value = `${bill.name} (${bill.id})`;
-    const cycleRemaining = bill.current_cycle?.remaining_amount;
-    if (amountInput && !amountInput.value) amountInput.value = (cycleRemaining != null ? cycleRemaining : bill.amount) || '';
-    if (dateInput && !dateInput.value)   dateInput.value = todayISO();
-    if (accountSel && !accountSel.value) accountSel.value = bill.default_account_id || '';
+    if (amountInput && !amountInput.value) amountInput.value = remaining != null ? remaining : bill.amount || '';
+    if (dateInput && !dateInput.value) dateInput.value = todayISO();
+    if (accountSelect && !accountSelect.value) accountSelect.value = bill.default_account_id || '';
     if (stateSpan) stateSpan.textContent = 'Ready';
   }
-  function wireInlineForms() {
-    const addForm = $('bills-add-form');
-    if (addForm) addForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      await submitAddBill(formToAddPayload(addForm), $('bills-add-state'));
+
+  function openDialog(name, bodyHtml) {
+    const dialog = $(`bills-${name}-modal`);
+    const body = $(`bills-${name}-modal-body`);
+
+    if (!dialog || !body) return false;
+
+    body.innerHTML = bodyHtml;
+    state.activeModal = name;
+    populateAccountSelects();
+
+    if (typeof dialog.showModal === 'function') {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.removeAttribute('hidden');
+    }
+
+    requestAnimationFrame(() => {
+      const first = body.querySelector('input, select, textarea, button');
+      if (first && typeof first.focus === 'function') {
+        first.focus({ preventScroll: true });
+      }
     });
-    const payForm = $('bills-payment-form');
-    if (payForm) payForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const bill = bills().find((b) => String(b.id) === String(state.selectedBillId));
-      if (!bill) { toast('Select a bill first.', 'warning'); return; }
-      await submitPay(bill, formToPayPayload(payForm), $('bills-payment-state'));
-    });
-    $('bill-payment-clear')?.addEventListener('click', () => setText('bills-payment-state', 'Cleared'));
-    const section = $('bills-inline-forms-section');
-    if (section && !section.hasAttribute('hidden')) section.setAttribute('hidden', '');
+
+    return true;
   }
+
+  function closeModal(name) {
+    const target = name || state.activeModal;
+    if (!target) return;
+
+    const dialog = $(`bills-${target}-modal`);
+    if (!dialog) return;
+
+    if (typeof dialog.close === 'function' && dialog.open) {
+      dialog.close();
+    } else {
+      dialog.setAttribute('hidden', '');
+    }
+
+    const body = $(`bills-${target}-modal-body`);
+    if (body) body.innerHTML = '';
+
+    state.activeModal = null;
+  }
+
   function formToAddPayload(form) {
-    const name = clean(form.elements.name?.value);
-    const amount = Number(form.elements.amount?.value || 0);
-    const due_day = Number(form.elements.due_day?.value || 0) || todayDay();
-    const frequency = clean(form.elements.frequency?.value) || 'monthly';
-    const default_account_id = clean(form.elements.default_account_id?.value) || null;
-    const category_id = clean(form.elements.category_id?.value) || 'bills_utilities';
-    const notes = clean(form.elements.notes?.value) || '';
-    return { name, amount, due_day, frequency, default_account_id, category_id, notes, created_by: 'bills-ui-' + VERSION };
+    return {
+      action: 'create',
+      name: clean(form.elements.name?.value),
+      amount: num(form.elements.amount?.value),
+      due_day: num(form.elements.due_day?.value, 0) || null,
+      frequency: clean(form.elements.frequency?.value) || 'monthly',
+      default_account_id: clean(form.elements.default_account_id?.value) || null,
+      category_id: clean(form.elements.category_id?.value) || 'bills_utilities',
+      notes: clean(form.elements.notes?.value) || '',
+      idempotency_key: `bill_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      created_by: 'bills-ui-' + VERSION
+    };
   }
+
   function formToPayPayload(form) {
     return {
-      amount: Number(form.elements.amount?.value || 0),
-      paid_date: clean(form.elements.paid_date?.value) || todayISO(),
+      action: 'payment',
+      amount: num(form.elements.amount?.value),
+      date: clean(form.elements.paid_date?.value) || todayISO(),
       bill_month: clean(form.elements.bill_month?.value) || currentMonth(),
       account_id: clean(form.elements.account_id?.value),
       notes: clean(form.elements.notes?.value) || '',
+      idempotency_key: `billpay_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       created_by: 'bills-ui-' + VERSION
     };
   }
 
   async function submitAddBill(payload, stateSpan) {
-    if (!payload.name) { toast('Bill name required.', 'warning'); return; }
-    if (!Number.isFinite(payload.amount) || payload.amount <= 0) { toast('Expected amount must be > 0.', 'warning'); return; }
+    if (!payload.name) {
+      toast('Bill name required.', 'warning');
+      return;
+    }
+
+    if (!Number.isFinite(payload.amount) || payload.amount <= 0) {
+      toast('Expected amount must be greater than 0.', 'warning');
+      return;
+    }
+
     if (stateSpan) stateSpan.textContent = 'Saving';
+
     try {
-      const res = await postJSON(API_BILLS, payload);
-      const newId = res?.bill?.id || res?.id || null;
+      const result = await postJSON(API_BILLS, payload);
+      const newId = result?.bill?.id || result?.id || null;
+
       if (newId) state.selectedBillId = newId;
       if (stateSpan) stateSpan.textContent = 'Saved';
-      closeModal('add'); await loadBills();
+
+      closeModal('add');
+      await loadBills();
+
       toast(`Bill added: ${payload.name}`, 'positive');
     } catch (err) {
       if (stateSpan) stateSpan.textContent = 'Failed';
       toast(`Add failed: ${err.message}`, 'danger');
     }
   }
+
   async function submitPay(bill, payload, stateSpan) {
-    if (!Number.isFinite(payload.amount) || payload.amount <= 0) { toast('Payment amount must be > 0.', 'warning'); return; }
-    if (!payload.account_id) { toast('Pick the payment account.', 'warning'); return; }
+    if (!Number.isFinite(payload.amount) || payload.amount <= 0) {
+      toast('Payment amount must be greater than 0.', 'warning');
+      return;
+    }
+
+    if (!payload.account_id) {
+      toast('Pick the payment account.', 'warning');
+      return;
+    }
+
     if (stateSpan) stateSpan.textContent = 'Saving';
+
     try {
-      await postJSON(`${API_BILLS}/pay`, {
-        bill_id: bill.id,
-        amount: payload.amount,
-        account_id: payload.account_id,
-        date: payload.paid_date,
-        bill_month: payload.bill_month,
-        notes: payload.notes,
-        created_by: 'bills-ui-' + VERSION
+      await postJSON(API_BILLS, {
+        ...payload,
+        bill_id: bill.id
       });
+
       if (stateSpan) stateSpan.textContent = 'Saved';
+
       closeModal('pay');
       state.selectedBillId = bill.id;
       await loadBills();
+
       const isAdvance = payload.bill_month && payload.bill_month !== currentMonth();
       toast(`${isAdvance ? 'Advance' : 'Cycle'} payment ${money(payload.amount)} on "${bill.name}" for ${monthLabel(payload.bill_month || currentMonth())}.`, 'positive');
     } catch (err) {
@@ -690,233 +1024,503 @@
       toast(`Pay failed: ${err.message}`, 'danger');
     }
   }
+
   async function submitEdit(bill, updates) {
     try {
-      await postJSON(`${API_BILLS}/update`, { bill_id: bill.id, ...updates });
-      closeModal('edit'); state.selectedBillId = bill.id; await loadBills();
-      toast(`Updated "${bill.name}".`, 'positive');
-    } catch (err) { toast(`Edit failed: ${err.message}`, 'danger'); }
-  }
-  async function submitDefer(bill, payload) {
-    try {
-      await postJSON(`${API_BILLS}/defer`, { bill_id: bill.id, ...payload });
-      closeModal('defer'); state.selectedBillId = bill.id; await loadBills();
-      toast(`Deferred "${bill.name}".`, 'positive');
-    } catch (err) { toast(`Defer failed: ${err.message}`, 'danger'); }
-  }
-  async function softDeleteBill(billId) {
-    const bill = bills().find((b) => String(b.id) === String(billId));
-    if (!bill) return;
-    if (!window.confirm(`Soft-delete "${bill.name}"? Status will be 'deleted'.`)) return;
-    try {
-      await postJSON(`${API_BILLS}/update`, { bill_id: bill.id, status: 'deleted' });
-      if (String(state.selectedBillId) === String(billId)) state.selectedBillId = null;
-      state.expandedBillIds.delete(String(billId));
-      await loadBills();
-      toast(`Soft-deleted "${bill.name}".`, 'positive');
-    } catch (err) { toast(`Delete failed: ${err.message}`, 'danger'); }
-  }
-  async function restoreBill(billId) {
-    const bill = bills().find((b) => String(b.id) === String(billId));
-    if (!bill) return;
-    try {
-      await postJSON(`${API_BILLS}/update`, { bill_id: bill.id, status: 'active' });
-      await loadBills();
-      toast(`Restored "${bill.name}".`, 'positive');
-    } catch (err) { toast(`Restore failed: ${err.message}`, 'danger'); }
-  }
+      await postJSON(API_BILLS, {
+        action: 'update',
+        bill_id: bill.id,
+        ...updates
+      });
 
-  function openModal(name, bodyHtml) {
-    const el = $(`bills-${name}-modal`);
-    const body = $(`bills-${name}-modal-body`);
-    if (!el || !body) return false;
-    body.innerHTML = bodyHtml;
-    el.removeAttribute('hidden');
-    el.classList.add('is-open');
-    el.setAttribute('aria-hidden', 'false');
-    state.activeModal = name;
-    populateAccountSelects();
-    const focusable = body.querySelector('input, select, textarea, button');
-    if (focusable) try { focusable.focus(); } catch (_) {}
-    return true;
-  }
-  function closeModal(name) {
-    const target = name || state.activeModal;
-    if (!target) return;
-    const el = $(`bills-${target}-modal`);
-    if (!el) return;
-    el.setAttribute('hidden', '');
-    el.classList.remove('is-open');
-    el.setAttribute('aria-hidden', 'true');
-    const body = $(`bills-${target}-modal-body`);
-    if (body) body.innerHTML = '';
-    state.activeModal = null;
-  }
-  function wireModalChrome() {
-    qa('[data-bills-modal-close]').forEach((btn) => {
-      btn.addEventListener('click', () => closeModal(btn.getAttribute('data-bills-modal-close')));
-    });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && state.activeModal) closeModal();
-    });
-  }
-  function openAddModal() {
-    const dDay = todayDay();
-    openModal('add', `
-      <form class="sf-form-grid" data-bills-modal-form="add">
-        <label class="sf-field sf-span-12"><span>Bill name</span><input name="name" type="text" autocomplete="off" placeholder="Internet Bill, Rent, School Fee" required></label>
-        <label class="sf-field sf-span-6"><span>Expected amount (Rs)</span><input name="amount" type="number" inputmode="decimal" min="0" step="0.01" required></label>
-        <label class="sf-field sf-span-6"><span>Due day (1–31)</span><input name="due_day" type="number" inputmode="numeric" min="1" max="31" value="${dDay}" required></label>
-        <label class="sf-field sf-span-6"><span>Frequency</span>
-          <select name="frequency"><option value="monthly">Monthly</option><option value="weekly">Weekly</option><option value="custom">Custom</option></select>
-        </label>
-        <label class="sf-field sf-span-6"><span>Default account</span>
-          <select name="default_account_id" data-bills-account-select><option value="">Choose when paying</option></select>
-        </label>
-        <label class="sf-field sf-span-12"><span>Category</span><input name="category_id" type="text" value="bills_utilities" required></label>
-        <label class="sf-field sf-span-12"><span>Notes</span><textarea name="notes" rows="2" placeholder="Optional note"></textarea></label>
-        <div class="sf-form-actions sf-span-12">
-          <button class="sf-button sf-button--primary" type="submit">Add Bill</button>
-          <button class="sf-button" type="button" data-bills-modal-close="add">Cancel</button>
-        </div>
-      </form>
-    `);
-    const form = qa('[data-bills-modal-form="add"]')[0];
-    if (form) form.addEventListener('submit', async (e) => { e.preventDefault(); await submitAddBill(formToAddPayload(form), null); });
-  }
-  function openPayModal(billIdOverride) {
-    const targetId = billIdOverride != null ? billIdOverride : state.selectedBillId;
-    const bill = bills().find((b) => String(b.id) === String(targetId));
-    if (!bill) { toast('Select a bill first.', 'warning'); return; }
-    state.selectedBillId = bill.id;
-    const cycle = bill.current_cycle || {};
-    const defaultAmount = cycle.remaining_amount != null && cycle.remaining_amount > 0 ? cycle.remaining_amount : bill.amount;
-    const cycleOpts = nextCycleOptions(3)
-      .map(o => `<option value="${o.value}"${o.value === currentMonth() ? ' selected' : ''}>${esc(o.label)}</option>`).join('');
-    openModal('pay', `
-      <div class="bill-modal-context">
-        <div class="bill-modal-context-title">${esc(bill.name)}</div>
-        <div class="bill-modal-context-sub">${esc(dueLabel(bill))} · expected ${money(bill.amount)} · current remaining ${money(cycle.remaining_amount ?? 0)}${Number(bill.advance_paid_amount || 0) > 0 ? ` · advance ${money(bill.advance_paid_amount)}` : ''}</div>
-      </div>
-      <form class="sf-form-grid" data-bills-modal-form="pay">
-        <label class="sf-field sf-span-12"><span>Pay for cycle</span>
-          <select name="bill_month" required>${cycleOpts}</select>
-        </label>
-        <label class="sf-field sf-span-6"><span>Payment amount</span><input name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(defaultAmount ?? '')}" required></label>
-        <label class="sf-field sf-span-6"><span>Payment date</span><input name="paid_date" type="date" value="${esc(todayISO())}"></label>
-        <label class="sf-field sf-span-12"><span>Pay from account</span>
-          <select name="account_id" data-bills-account-select required><option value="">Choose account</option></select>
-        </label>
-        <label class="sf-field sf-span-12"><span>Notes</span><textarea name="notes" rows="2" placeholder="Optional payment note"></textarea></label>
-        <div class="sf-form-actions sf-span-12">
-          <button class="sf-button sf-button--primary" type="submit">Confirm Payment</button>
-          <button class="sf-button" type="button" data-bills-modal-close="pay">Cancel</button>
-        </div>
-      </form>
-    `);
-    const sel = $('bills-pay-modal-body').querySelector('select[name="account_id"]');
-    if (sel) sel.value = bill.default_account_id || '';
-    const form = qa('[data-bills-modal-form="pay"]')[0];
-    if (form) {
-      // When cycle changes to a future month, auto-suggest full expected amount.
-      const cycleSel = form.querySelector('select[name="bill_month"]');
-      const amtInput = form.querySelector('input[name="amount"]');
-      if (cycleSel && amtInput) {
-        cycleSel.addEventListener('change', () => {
-          if (cycleSel.value !== currentMonth()) amtInput.value = bill.amount || '';
-          else amtInput.value = defaultAmount || '';
-        });
-      }
-      form.addEventListener('submit', async (e) => { e.preventDefault(); await submitPay(bill, formToPayPayload(form), null); });
+      closeModal('edit');
+      state.selectedBillId = bill.id;
+      await loadBills();
+
+      toast(`Updated "${bill.name}".`, 'positive');
+    } catch (err) {
+      toast(`Edit failed: ${err.message}`, 'danger');
     }
   }
-  function openEditModal(billId) {
-    const bill = bills().find((b) => String(b.id) === String(billId));
+
+  async function submitDefer(bill, payload) {
+    try {
+      await postJSON(API_BILLS, {
+        action: 'defer',
+        bill_id: bill.id,
+        ...payload
+      });
+
+      closeModal('defer');
+      state.selectedBillId = bill.id;
+      await loadBills();
+
+      toast(`Deferred "${bill.name}".`, 'positive');
+    } catch (err) {
+      toast(`Defer failed: ${err.message}`, 'danger');
+    }
+  }
+
+  async function softDeleteBill(billId) {
+    const bill = bills().find(row => String(row.id) === String(billId));
     if (!bill) return;
-    openModal('edit', `
-      <div class="bill-modal-context">
-        <div class="bill-modal-context-title">${esc(bill.name)}</div>
-        <div class="bill-modal-context-sub">id ${esc(bill.id)} · status ${esc(bill.status || 'active')}</div>
-      </div>
-      <form class="sf-form-grid" data-bills-modal-form="edit">
-        <label class="sf-field sf-span-12"><span>Bill name</span><input name="name" type="text" value="${esc(bill.name || '')}"></label>
-        <label class="sf-field sf-span-6"><span>Expected amount</span><input name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(bill.amount ?? '')}"></label>
-        <label class="sf-field sf-span-6"><span>Due day</span><input name="due_day" type="number" inputmode="numeric" min="1" max="31" value="${esc(bill.due_day ?? '')}"></label>
-        <label class="sf-field sf-span-6"><span>Frequency</span>
-          <select name="frequency">
-            ${['monthly','weekly','custom'].map((f) => `<option value="${f}"${f === (bill.frequency || 'monthly') ? ' selected' : ''}>${f}</option>`).join('')}
+
+    if (!window.confirm(`Soft-delete "${bill.name}"? Status will become deleted.`)) return;
+
+    try {
+      await postJSON(API_BILLS, {
+        action: 'update',
+        bill_id: bill.id,
+        status: 'deleted'
+      });
+
+      if (String(state.selectedBillId) === String(billId)) state.selectedBillId = null;
+      state.expandedBillIds.delete(String(billId));
+
+      await loadBills();
+      toast(`Soft-deleted "${bill.name}".`, 'positive');
+    } catch (err) {
+      toast(`Delete failed: ${err.message}`, 'danger');
+    }
+  }
+
+  async function restoreBill(billId) {
+    const bill = bills().find(row => String(row.id) === String(billId));
+    if (!bill) return;
+
+    try {
+      await postJSON(API_BILLS, {
+        action: 'update',
+        bill_id: bill.id,
+        status: 'active'
+      });
+
+      await loadBills();
+      toast(`Restored "${bill.name}".`, 'positive');
+    } catch (err) {
+      toast(`Restore failed: ${err.message}`, 'danger');
+    }
+  }
+
+  function openAddModal() {
+    openDialog('add', `
+      <form class="sf-dialog-grid" data-bills-modal-form="add">
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">Bill name</span>
+          <input class="sf-input" name="name" type="text" autocomplete="off" placeholder="Internet Bill, Rent, School Fee" required>
+        </label>
+
+        <label class="sf-field">
+          <span class="sf-label">Expected amount</span>
+          <input class="sf-input" name="amount" type="number" inputmode="decimal" min="0" step="0.01" required>
+        </label>
+
+        <label class="sf-field">
+          <span class="sf-label">Due day</span>
+          <input class="sf-input" name="due_day" type="number" inputmode="numeric" min="1" max="31" value="${new Date().getDate()}" required>
+        </label>
+
+        <label class="sf-field">
+          <span class="sf-label">Frequency</span>
+          <select class="sf-select" name="frequency">
+            <option value="monthly">Monthly</option>
+            <option value="weekly">Weekly</option>
+            <option value="custom">Custom</option>
           </select>
         </label>
-        <label class="sf-field sf-span-6"><span>Default account</span>
-          <select name="default_account_id" data-bills-account-select><option value="">Choose when paying</option></select>
-        </label>
-        <label class="sf-field sf-span-12"><span>Category</span><input name="category_id" type="text" value="${esc(bill.category_id || '')}"></label>
-        <label class="sf-field sf-span-12"><span>Notes</span><textarea name="notes" rows="2">${esc(bill.notes || '')}</textarea></label>
-        <label class="sf-field sf-span-12"><span>Status</span>
-          <select name="status">
-            ${['active','paused','deleted'].map((s) => `<option value="${s}"${s === (bill.status || 'active') ? ' selected' : ''}>${s}</option>`).join('')}
+
+        <label class="sf-field">
+          <span class="sf-label">Default account</span>
+          <select class="sf-select" name="default_account_id" data-bills-account-select>
+            <option value="">Choose when paying</option>
           </select>
         </label>
-        <div class="sf-form-actions sf-span-12">
-          <button class="sf-button sf-button--primary" type="submit">Save Changes</button>
-          <button class="sf-button" type="button" data-bills-modal-close="edit">Cancel</button>
+
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">Category</span>
+          <input class="sf-input" name="category_id" type="text" value="bills_utilities" required>
+        </label>
+
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">Notes</span>
+          <textarea class="sf-textarea" name="notes" rows="2" placeholder="Optional note"></textarea>
+        </label>
+
+        <div class="sf-dialog-note">
+          Bill creation creates the obligation only. No ledger row and no account movement happens here.
+        </div>
+
+        <div class="sf-dialog-footer sf-field--wide">
+          <div class="sf-dialog-footer-copy">Save creates the bill obligation.</div>
+          <div class="sf-section-actions">
+            <button class="sf-button" type="button" data-bills-modal-close="add">Cancel</button>
+            <button class="sf-button sf-button--primary" type="submit">Add Bill</button>
+          </div>
         </div>
       </form>
     `);
-    const sel = $('bills-edit-modal-body').querySelector('select[name="default_account_id"]');
-    if (sel) sel.value = bill.default_account_id || '';
+
+    const form = qa('[data-bills-modal-form="add"]')[0];
+    if (form) {
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        await submitAddBill(formToAddPayload(form), null);
+      });
+    }
+  }
+
+  function openPayModal(billIdOverride) {
+    const targetId = billIdOverride != null ? billIdOverride : state.selectedBillId;
+    const bill = bills().find(row => String(row.id) === String(targetId));
+
+    if (!bill) {
+      toast('Select a bill first.', 'warning');
+      return;
+    }
+
+    state.selectedBillId = bill.id;
+
+    const cycle = bill.current_cycle || {};
+    const remaining = cycle.remaining ?? cycle.remaining_amount;
+    const defaultAmount = remaining != null && remaining > 0 ? remaining : bill.amount;
+    const cycleOptions = nextCycleOptions(3)
+      .map(option => `<option value="${option.value}"${option.value === currentMonth() ? ' selected' : ''}>${esc(option.label)}</option>`)
+      .join('');
+
+    openDialog('pay', `
+      <div class="sf-dialog-note">
+        <strong>${esc(bill.name)}</strong><br>
+        ${esc(dueLabel(bill))} · expected ${money(bill.amount)} · current remaining ${money(remaining ?? 0)}
+        ${Number(bill.advance_paid_amount || 0) > 0 ? ` · advance ${money(bill.advance_paid_amount)}` : ''}
+      </div>
+
+      <form class="sf-dialog-grid" data-bills-modal-form="pay">
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">Pay for cycle</span>
+          <select class="sf-select" name="bill_month" required>${cycleOptions}</select>
+        </label>
+
+        <label class="sf-field">
+          <span class="sf-label">Payment amount</span>
+          <input class="sf-input" name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(defaultAmount ?? '')}" required>
+        </label>
+
+        <label class="sf-field">
+          <span class="sf-label">Payment date</span>
+          <input class="sf-input" name="paid_date" type="date" value="${esc(todayISO())}">
+        </label>
+
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">Pay from account</span>
+          <select class="sf-select" name="account_id" data-bills-account-select required>
+            <option value="">Choose account</option>
+          </select>
+        </label>
+
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">Notes</span>
+          <textarea class="sf-textarea" name="notes" rows="2" placeholder="Optional payment note"></textarea>
+        </label>
+
+        <div class="sf-dialog-note">
+          Current cycle payment reduces this month’s remaining bill pressure. Future cycle payment becomes paid in advance.
+        </div>
+
+        <div class="sf-dialog-footer sf-field--wide">
+          <div class="sf-dialog-footer-copy">Backend creates ledger expense + bill payment proof.</div>
+          <div class="sf-section-actions">
+            <button class="sf-button" type="button" data-bills-modal-close="pay">Cancel</button>
+            <button class="sf-button sf-button--primary" type="submit">Confirm Payment</button>
+          </div>
+        </div>
+      </form>
+    `);
+
+    const form = qa('[data-bills-modal-form="pay"]')[0];
+
+    if (form) {
+      const accountSelect = form.querySelector('select[name="account_id"]');
+      if (accountSelect) accountSelect.value = bill.default_account_id || '';
+
+      const cycleSelect = form.querySelector('select[name="bill_month"]');
+      const amountInput = form.querySelector('input[name="amount"]');
+
+      if (cycleSelect && amountInput) {
+        cycleSelect.addEventListener('change', () => {
+          amountInput.value = cycleSelect.value !== currentMonth() ? bill.amount || '' : defaultAmount || '';
+        });
+      }
+
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        await submitPay(bill, formToPayPayload(form), null);
+      });
+    }
+  }
+
+  function openEditModal(billId) {
+    const bill = bills().find(row => String(row.id) === String(billId));
+    if (!bill) return;
+
+    openDialog('edit', `
+      <div class="sf-dialog-note">
+        Editing updates the bill obligation only. It does not rewrite historical payment rows.
+      </div>
+
+      <form class="sf-dialog-grid" data-bills-modal-form="edit">
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">Bill name</span>
+          <input class="sf-input" name="name" type="text" value="${esc(bill.name || '')}">
+        </label>
+
+        <label class="sf-field">
+          <span class="sf-label">Expected amount</span>
+          <input class="sf-input" name="amount" type="number" inputmode="decimal" min="0" step="0.01" value="${esc(bill.amount ?? '')}">
+        </label>
+
+        <label class="sf-field">
+          <span class="sf-label">Due day</span>
+          <input class="sf-input" name="due_day" type="number" inputmode="numeric" min="1" max="31" value="${esc(bill.due_day ?? '')}">
+        </label>
+
+        <label class="sf-field">
+          <span class="sf-label">Frequency</span>
+          <select class="sf-select" name="frequency">
+            ${['monthly', 'weekly', 'custom'].map(freq => `<option value="${freq}"${freq === (bill.frequency || 'monthly') ? ' selected' : ''}>${freq}</option>`).join('')}
+          </select>
+        </label>
+
+        <label class="sf-field">
+          <span class="sf-label">Default account</span>
+          <select class="sf-select" name="default_account_id" data-bills-account-select>
+            <option value="">Choose when paying</option>
+          </select>
+        </label>
+
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">Category</span>
+          <input class="sf-input" name="category_id" type="text" value="${esc(bill.category_id || '')}">
+        </label>
+
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">Notes</span>
+          <textarea class="sf-textarea" name="notes" rows="2">${esc(bill.notes || '')}</textarea>
+        </label>
+
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">Status</span>
+          <select class="sf-select" name="status">
+            ${['active', 'paused', 'deleted'].map(status => `<option value="${status}"${status === (bill.status || 'active') ? ' selected' : ''}>${status}</option>`).join('')}
+          </select>
+        </label>
+
+        <div class="sf-dialog-footer sf-field--wide">
+          <div class="sf-dialog-footer-copy">No ledger movement occurs during edit.</div>
+          <div class="sf-section-actions">
+            <button class="sf-button" type="button" data-bills-modal-close="edit">Cancel</button>
+            <button class="sf-button sf-button--primary" type="submit">Save Changes</button>
+          </div>
+        </div>
+      </form>
+    `);
+
     const form = qa('[data-bills-modal-form="edit"]')[0];
-    if (form) form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const updates = {
-        name: clean(form.elements.name?.value),
-        amount: Number(form.elements.amount?.value || 0),
-        due_day: Number(form.elements.due_day?.value || 0) || null,
-        frequency: clean(form.elements.frequency?.value) || 'monthly',
-        default_account_id: clean(form.elements.default_account_id?.value) || null,
-        category_id: clean(form.elements.category_id?.value) || null,
-        notes: clean(form.elements.notes?.value) || '',
-        status: clean(form.elements.status?.value) || 'active'
-      };
-      await submitEdit(bill, updates);
+
+    if (form) {
+      const accountSelect = form.querySelector('select[name="default_account_id"]');
+      if (accountSelect) accountSelect.value = bill.default_account_id || '';
+
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+
+        await submitEdit(bill, {
+          name: clean(form.elements.name?.value),
+          amount: num(form.elements.amount?.value),
+          due_day: num(form.elements.due_day?.value, 0) || null,
+          frequency: clean(form.elements.frequency?.value) || 'monthly',
+          default_account_id: clean(form.elements.default_account_id?.value) || null,
+          category_id: clean(form.elements.category_id?.value) || null,
+          notes: clean(form.elements.notes?.value) || '',
+          status: clean(form.elements.status?.value) || 'active'
+        });
+      });
+    }
+  }
+
+  function openDeferModal(billId) {
+    const bill = bills().find(row => String(row.id) === String(billId));
+    if (!bill) return;
+
+    openDialog('defer', `
+      <div class="sf-dialog-note">
+        <strong>${esc(bill.name)}</strong><br>
+        Current due day: ${esc(bill.due_day ?? '—')}. Defer only updates schedule fields.
+      </div>
+
+      <form class="sf-dialog-grid" data-bills-modal-form="defer">
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">New due day</span>
+          <input class="sf-input" name="due_day" type="number" inputmode="numeric" min="1" max="31" value="${esc(bill.due_day ?? '')}">
+        </label>
+
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">Notes</span>
+          <textarea class="sf-textarea" name="notes" rows="2" placeholder="Why are you deferring?"></textarea>
+        </label>
+
+        <div class="sf-dialog-footer sf-field--wide">
+          <div class="sf-dialog-footer-copy">Use Pay when money moved. Use Defer only for deadline changes.</div>
+          <div class="sf-section-actions">
+            <button class="sf-button" type="button" data-bills-modal-close="defer">Cancel</button>
+            <button class="sf-button sf-button--primary" type="submit">Defer</button>
+          </div>
+        </div>
+      </form>
+    `);
+
+    const form = qa('[data-bills-modal-form="defer"]')[0];
+
+    if (form) {
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+
+        const dueDay = num(form.elements.due_day?.value, 0) || null;
+        const notes = clean(form.elements.notes?.value);
+
+        if (!dueDay) {
+          toast('Provide a new due day between 1 and 31.', 'warning');
+          return;
+        }
+
+        await submitDefer(bill, {
+          due_day: dueDay,
+          notes
+        });
+      });
+    }
+  }
+
+  function wireToolbar() {
+    qa('[data-bills-filter]').forEach(button => {
+      button.addEventListener('click', () => setFilter(button.getAttribute('data-bills-filter')));
+    });
+
+    const search = $('bills-search-input');
+    if (search) {
+      search.addEventListener('input', debounce(event => setSearch(event.target.value), SEARCH_DEBOUNCE_MS));
+    }
+
+    const sort = $('bills-sort-select');
+    if (sort) {
+      sort.addEventListener('change', event => setSort(event.target.value));
+    }
+  }
+
+  function wireInlineForms() {
+    const section = $('bills-inline-forms-section');
+    if (section && !section.hasAttribute('hidden')) section.setAttribute('hidden', '');
+
+    const addForm = $('bills-add-form');
+    if (addForm) {
+      addForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        await submitAddBill(formToAddPayload(addForm), $('bills-add-state'));
+      });
+    }
+
+    const payForm = $('bills-payment-form');
+    if (payForm) {
+      payForm.addEventListener('submit', async event => {
+        event.preventDefault();
+
+        const bill = selectedBill();
+        if (!bill) {
+          toast('Select a bill first.', 'warning');
+          return;
+        }
+
+        await submitPay(bill, formToPayPayload(payForm), $('bills-payment-state'));
+      });
+    }
+
+    $('bill-payment-clear')?.addEventListener('click', () => setText('bills-payment-state', 'Cleared'));
+  }
+
+  function wireModalChrome() {
+    document.addEventListener('click', event => {
+      const closeButton = event.target.closest('[data-bills-modal-close]');
+      if (!closeButton) return;
+
+      event.preventDefault();
+      closeModal(closeButton.getAttribute('data-bills-modal-close'));
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && state.activeModal) closeModal();
     });
   }
-  function openDeferModal(billId) {
-    const bill = bills().find((b) => String(b.id) === String(billId));
-    if (!bill) return;
-    openModal('defer', `
-      <div class="bill-modal-context">
-        <div class="bill-modal-context-title">${esc(bill.name)}</div>
-        <div class="bill-modal-context-sub">current due day ${esc(bill.due_day ?? '—')}</div>
-      </div>
-      <form class="sf-form-grid" data-bills-modal-form="defer">
-        <label class="sf-field sf-span-12"><span>New due day</span><input name="due_day" type="number" inputmode="numeric" min="1" max="31" value="${esc(bill.due_day ?? '')}"></label>
-        <label class="sf-field sf-span-12"><span>Notes</span><textarea name="notes" rows="2" placeholder="Why are you deferring?"></textarea></label>
-        <div class="sf-form-actions sf-span-12">
-          <button class="sf-button sf-button--primary" type="submit">Defer</button>
-          <button class="sf-button" type="button" data-bills-modal-close="defer">Cancel</button>
-        </div>
-      </form>
-    `);
-    const form = qa('[data-bills-modal-form="defer"]')[0];
-    if (form) form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const due_day = Number(form.elements.due_day?.value || 0) || null;
-      const notes = clean(form.elements.notes?.value);
-      if (!due_day) { toast('Provide a new due day (1–31).', 'warning'); return; }
-      await submitDefer(bill, { due_day, notes });
+
+  function wireShellActionsOnce() {
+    if (state.actionsBound) return;
+    state.actionsBound = true;
+
+    document.addEventListener('click', async event => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      if (target.closest('#bills-refresh-btn')) {
+        event.preventDefault();
+        loadBills();
+        return;
+      }
+
+      if (target.closest('#bills-open-add-modal-btn')) {
+        event.preventDefault();
+        openAddModal();
+        return;
+      }
+
+      if (target.closest('#bills-open-pay-modal-btn')) {
+        event.preventDefault();
+        openPayModal();
+        return;
+      }
+
+      if (target.closest('#bills-repair-btn')) {
+        event.preventDefault();
+
+        try {
+          const result = await postJSON(API_BILLS, {
+            action: 'repair_reversed_payments'
+          });
+
+          toast(`Repair OK · ${(result?.bad_payments_repaired ?? result?.bad_payments_found ?? 0)} repaired`, 'positive');
+          await loadBills();
+        } catch (err) {
+          toast(`Repair failed: ${err.message}`, 'danger');
+        }
+      }
     });
   }
 
   let toastTimer = null;
+
   function toast(message, tone) {
     const el = $('bills-toast');
-    if (!el) { console.log('[bills-toast]', message); return; }
+
+    if (!el) {
+      console.log('[bills-toast]', message);
+      return;
+    }
+
     el.textContent = message;
     el.className = 'sf-toast';
+
     if (tone) el.classList.add(`sf-toast--${tone}`);
+
     el.removeAttribute('hidden');
     requestAnimationFrame(() => el.classList.add('is-open'));
+
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => {
       el.classList.remove('is-open');
@@ -924,146 +1528,25 @@
     }, 4500);
   }
 
-  function wireShellActionsOnce() {
-    if (state.actionsBound) return;
-    state.actionsBound = true;
-    document.addEventListener('click', async (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (target.closest('#bills-refresh-btn'))         { event.preventDefault(); loadBills(); return; }
-      if (target.closest('#bills-open-add-modal-btn'))  { event.preventDefault(); openAddModal(); return; }
-      if (target.closest('#bills-open-pay-modal-btn'))  { event.preventDefault(); openPayModal(); return; }
-      if (target.closest('#bills-repair-btn')) {
-        event.preventDefault();
-        try {
-          const res = await postJSON(`${API_BILLS}/repair`, {});
-          toast(`Repair OK · ${JSON.stringify(res?.summary || res || {}).slice(0, 120)}`, 'positive');
-          await loadBills();
-        } catch (err) { toast(`Repair: ${err.message}`, 'danger'); }
-      }
-    });
-  }
-
-  function injectStyles() {
-    const old = document.querySelector('style[data-bills-styles]');
-    if (old) old.remove();
-    const css = `
-      body:has(#bills-toolbar) .sf-shell-hero,
-      body:has(#bills-toolbar) .sf-page-hero,
-      body:has(#bills-toolbar) [data-sf-hero],
-      body:has(#bills-toolbar) header[role="banner"] { padding-block: 14px !important; }
-      body:has(#bills-toolbar) .sf-shell-hero .sf-section-subtitle,
-      body:has(#bills-toolbar) .sf-page-hero .sf-section-subtitle,
-      body:has(#bills-toolbar) [data-sf-hero] .sf-section-subtitle { margin-top: 4px !important; font-size: 12px !important; opacity: .7 !important; }
-      body:has(#bills-toolbar) .sf-shell-hero h1,
-      body:has(#bills-toolbar) .sf-page-hero h1,
-      body:has(#bills-toolbar) [data-sf-hero] h1 { font-size: 26px !important; line-height: 1.1 !important; margin: 0 !important; }
-      body:has(#bills-toolbar) .sf-kpi-strip,
-      body:has(#bills-toolbar) .sf-kpi-grid,
-      body:has(#bills-toolbar) [data-sf-kpis] { padding-block: 8px !important; gap: 10px !important; }
-      body:has(#bills-toolbar) .sf-metric-card,
-      body:has(#bills-toolbar) .sf-kpi-card,
-      body:has(#bills-toolbar) [data-sf-kpi] { padding: 10px 12px !important; min-height: 0 !important; }
-      body:has(#bills-toolbar) .sf-metric-card .sf-metric-value,
-      body:has(#bills-toolbar) .sf-kpi-card .sf-metric-value,
-      body:has(#bills-toolbar) [data-sf-kpi] .sf-metric-value { font-size: 20px !important; line-height: 1.15 !important; margin: 2px 0 !important; }
-      body:has(#bills-toolbar) .sf-metric-card .sf-metric-title,
-      body:has(#bills-toolbar) .sf-metric-card .sf-metric-kicker,
-      body:has(#bills-toolbar) .sf-metric-card .sf-metric-subtitle,
-      body:has(#bills-toolbar) .sf-metric-card .sf-metric-foot { font-size: 11px !important; line-height: 1.2 !important; opacity: .7 !important; }
-      body:has(#bills-toolbar) .sf-shell-actions,
-      body:has(#bills-toolbar) [data-sf-actions] { gap: 6px !important; padding-block: 6px !important; }
-      body:has(#bills-toolbar) .sf-shell-actions .sf-button,
-      body:has(#bills-toolbar) [data-sf-actions] .sf-button { padding: 6px 12px !important; font-size: 12px !important; min-height: 30px !important; }
-
-      #bills-filter-chips { display: flex !important; flex-wrap: wrap !important; gap: 8px !important; align-items: center !important; }
-      #bills-filter-chips > .sf-button { display: inline-flex !important; width: auto !important; flex: 0 0 auto !important; }
-      #bills-toolbar .sf-form-grid { row-gap: 10px !important; }
-      #bills-toolbar { padding: 12px 14px !important; }
-      #bills-toolbar .sf-section-head { margin-bottom: 8px !important; }
-      #bills-toolbar .sf-section-title { font-size: 14px !important; }
-      #bills-toolbar .sf-section-subtitle { display: none !important; }
-      #bills-toolbar .sf-section-kicker { font-size: 10px !important; }
-
-      .bill-card { border: 1px solid var(--sf-border, rgba(255,255,255,0.08)); border-radius: var(--sf-radius-md, 14px); background: var(--sf-surface, rgba(255,255,255,0.03)); margin-bottom: 8px; transition: border-color 120ms ease; }
-      .bill-card:hover { border-color: var(--sf-border-strong, rgba(255,255,255,0.18)); }
-      .bill-card.is-open { border-color: var(--sf-accent, #6ea8ff); background: var(--sf-surface-strong, rgba(255,255,255,0.05)); }
-      .bill-row-shell { display: grid; grid-template-columns: 34px minmax(220px, 1.6fr) 110px 86px 20px; gap: 12px; align-items: center; padding: 10px 14px; cursor: pointer; }
-      .bill-row-icon { font-size: 20px; line-height: 1; text-align: center; }
-      .bill-row-main { min-width: 0; }
-      .bill-row-title { font-weight: 600; font-size: 14px; line-height: 1.25; color: var(--sf-text, #fff); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .bill-row-sub { font-size: 12px; opacity: 0.7; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .bill-row-amount { font-weight: 600; font-size: 14px; text-align: right; }
-      .bill-row-status { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
-      .bill-row-caret { font-size: 12px; opacity: 0.5; text-align: center; }
-      .bill-progress { margin-top: 6px; height: 4px; background: var(--sf-track, rgba(255,255,255,0.08)); border-radius: 999px; overflow: hidden; }
-      .bill-progress-fill { height: 100%; background: var(--sf-accent, #6ea8ff); transition: width 200ms ease; }
-      .bill-inline-detail { padding: 0 14px 14px; border-top: 1px solid var(--sf-border, rgba(255,255,255,0.08)); }
-      .bill-inline-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; padding: 12px 0; }
-      .bill-inline-cell { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; background: var(--sf-track, rgba(255,255,255,0.04)); border-radius: 8px; }
-      .bill-inline-k { font-size: 11px; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.04em; }
-      .bill-inline-v { font-size: 13px; font-weight: 500; }
-      .bill-inline-notes { font-size: 12px; opacity: 0.75; margin: 6px 0 10px; padding: 8px 10px; background: var(--sf-track, rgba(255,255,255,0.04)); border-radius: 8px; white-space: pre-wrap; }
-      .bill-inline-actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
-
-      .bill-inline-advance { margin-top: 6px; padding: 10px 12px; background: var(--sf-track, rgba(110, 168, 255, 0.06)); border: 1px solid rgba(110, 168, 255, 0.25); border-radius: 8px; }
-      .bill-inline-advance-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.75; margin-bottom: 6px; }
-      .bill-advance-row { display: grid; grid-template-columns: minmax(120px, 1fr) 110px auto; gap: 10px; padding: 5px 0; font-size: 13px; align-items: center; }
-      .bill-advance-month { font-weight: 600; }
-      .bill-advance-amount { text-align: right; font-weight: 600; }
-      .bill-advance-count { font-size: 11px; opacity: 0.7; }
-
-      .bill-advance-card { padding: 12px 14px; margin-bottom: 8px; border: 1px solid var(--sf-border, rgba(255,255,255,0.08)); border-radius: var(--sf-radius-md, 14px); background: var(--sf-surface, rgba(255,255,255,0.03)); }
-      .bill-advance-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--sf-border, rgba(255,255,255,0.06)); margin-bottom: 6px; }
-      .bill-advance-bill { font-weight: 600; font-size: 14px; }
-      .bill-advance-sub { font-size: 12px; opacity: 0.7; margin-top: 2px; }
-      .bill-advance-total { font-weight: 700; font-size: 16px; color: var(--sf-accent, #6ea8ff); white-space: nowrap; }
-      .bill-advance-cycles { padding-top: 4px; }
-
-      .sf-button--chip { padding: 6px 12px; font-size: 12px; border-radius: 999px; }
-      .sf-button--chip.is-active { background: var(--sf-accent, #6ea8ff); color: var(--sf-on-accent, #0b0f1a); border-color: transparent; }
-      .sf-modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px 16px; }
-      .sf-modal[hidden] { display: none !important; }
-      .sf-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(2px); }
-      .sf-modal-card { position: relative; width: min(560px, 100%); max-height: 88vh; overflow: auto; background: var(--sf-surface-strong, #131826); border: 1px solid var(--sf-border, rgba(255,255,255,0.12)); border-radius: var(--sf-radius-lg, 16px); padding: 18px 18px 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-      .bill-modal-context { padding: 10px 12px; margin-bottom: 12px; background: var(--sf-track, rgba(255,255,255,0.04)); border-radius: 10px; }
-      .bill-modal-context-title { font-weight: 600; font-size: 14px; }
-      .bill-modal-context-sub { font-size: 12px; opacity: 0.7; margin-top: 2px; }
-      .sf-toast { position: fixed; right: 16px; bottom: 16px; z-index: 1100; padding: 10px 14px; background: var(--sf-surface-strong, #131826); border: 1px solid var(--sf-border, rgba(255,255,255,0.18)); border-radius: 10px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); transform: translateY(8px); opacity: 0; transition: transform 180ms ease, opacity 180ms ease; max-width: 380px; white-space: pre-wrap; }
-      .sf-toast.is-open { transform: translateY(0); opacity: 1; }
-      .sf-toast--positive { border-color: rgba(80,200,120,0.6); }
-      .sf-toast--warning  { border-color: rgba(240,180,80,0.6); }
-      .sf-toast--danger   { border-color: rgba(240,90,90,0.7); }
-      @media (max-width: 640px) {
-        .bill-row-shell { grid-template-columns: 28px 1fr 92px 18px; row-gap: 4px; }
-        .bill-row-amount { grid-column: 3 / 4; }
-        .bill-row-status { grid-column: 1 / 4; justify-content: flex-start; }
-        .bill-row-caret  { grid-column: 4 / 5; }
-      }
-    `;
-    const style = document.createElement('style');
-    style.setAttribute('data-bills-styles', VERSION);
-    style.textContent = css;
-    document.head.appendChild(style);
-  }
-
   function init() {
-    injectStyles();
     wireShellActionsOnce();
     wireModalChrome();
     wireToolbar();
     wireInlineForms();
     loadBills();
+
     window.SovereignBills = {
       version: VERSION,
       reload: loadBills,
       openAdd: openAddModal,
       openPay: () => openPayModal(),
-      state: () => JSON.parse(JSON.stringify(state, (k, v) => v instanceof Set ? Array.from(v) : v))
+      state: () => JSON.parse(JSON.stringify(state, (key, value) => value instanceof Set ? Array.from(value) : value))
     };
   }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init, { once: true });
-  } else { init(); }
+  } else {
+    init();
+  }
 })();
