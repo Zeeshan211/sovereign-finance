@@ -20,14 +20,13 @@
 
     <main class="sf-page-shell">
       <section class="sf-page-content">
-
-        <section class="sf-panel">
+        <section class="sf-panel" aria-label="Debt command panel">
           <div class="sf-section-head">
             <div>
-              <p class="sf-section-kicker">Debt actions</p>
-              <h2 class="sf-section-title">Manage debts</h2>
+              <p class="sf-section-kicker">Debt command center</p>
+              <h2 class="sf-section-title">Ledger-backed debt control</h2>
               <p class="sf-section-subtitle">
-                Create debt records, record payments, repair missing origin ledger rows, and keep money movement backend-owned.
+                Debts are not account-balance truth by themselves. If money moved, the backend must create the linked ledger row and return proof.
               </p>
             </div>
 
@@ -39,160 +38,159 @@
               <a class="sf-button" href="/accounts.html">Accounts</a>
             </div>
           </div>
+
+          <div class="sf-section-actions" aria-label="Debt backend status">
+            <span class="sf-pill" id="debtsHeroStatus">Debt truth</span>
+            <span class="sf-pill" id="debtsVersionPill">version loading</span>
+            <span class="sf-pill" id="debtsHealthPill">health loading</span>
+            <span class="sf-pill" id="debtsLedgerPill">ledger state loading</span>
+          </div>
+
+          <div class="sf-empty-state" id="debtsHeroCopy">
+            Debt rows and ledger links are loaded from backend truth.
+          </div>
         </section>
 
-        <section class="sf-grid-2">
-          <section class="sf-panel">
-            <div class="sf-section-head">
-              <div>
-                <p class="sf-section-kicker">Debt register</p>
-                <h2 class="sf-section-title">Entries</h2>
-                <p class="sf-section-subtitle">
-                  Active and historical debts from the canonical Debts API.
-                </p>
-              </div>
+        <section class="sf-panel" aria-label="Active debt list">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Debt ledger</p>
+              <h2 class="sf-section-title">Active Debts</h2>
+              <p class="sf-section-subtitle">
+                Entries are listed from the canonical Debts API. Use Details, Payment, Defer, or Repair from the row actions.
+              </p>
             </div>
+          </div>
 
-            <div class="sf-section-actions">
-              <button class="sf-button sf-button--primary debt-filter is-active" type="button" data-filter="active">Active</button>
-              <button class="sf-button debt-filter" type="button" data-filter="owe">I Owe</button>
-              <button class="sf-button debt-filter" type="button" data-filter="owed">Owed To Me</button>
-              <button class="sf-button debt-filter" type="button" data-filter="due">Due / Overdue</button>
-              <button class="sf-button debt-filter" type="button" data-filter="missing_ledger">Missing Ledger</button>
-              <button class="sf-button debt-filter" type="button" data-filter="all">All</button>
-              <button class="sf-button debt-filter" type="button" id="reloadDebtsBtn">Reload</button>
-            </div>
+          <div class="sf-section-actions debt-filter-row" aria-label="Debt filters">
+            <button class="sf-button is-active" type="button" data-filter="active">Active</button>
+            <button class="sf-button" type="button" data-filter="owe">I Owe</button>
+            <button class="sf-button" type="button" data-filter="owed">Owed To Me</button>
+            <button class="sf-button" type="button" data-filter="due">Due / Overdue</button>
+            <button class="sf-button" type="button" data-filter="missing_ledger">Missing Ledger</button>
+            <button class="sf-button" type="button" data-filter="all">All</button>
+            <button class="sf-button" type="button" id="reloadDebtsBtn">Reload</button>
+          </div>
 
-            <div id="debtList">
-              <div class="sf-empty-state">Loading debts…</div>
-            </div>
-          </section>
-
-          <aside>
-            <section class="sf-metric-grid">
-              <article class="sf-metric-card">
-                <p class="sf-card-kicker">I Owe</p>
-                <div id="metricOwe" class="sf-metric-value sf-tone-danger">—</div>
-                <p class="sf-card-subtitle">Payable remaining.</p>
-              </article>
-
-              <article class="sf-metric-card">
-                <p class="sf-card-kicker">Owed To Me</p>
-                <div id="metricOwed" class="sf-metric-value sf-tone-positive">—</div>
-                <p class="sf-card-subtitle">Receivable remaining.</p>
-              </article>
-
-              <article class="sf-metric-card">
-                <p class="sf-card-kicker">Due Soon</p>
-                <div id="metricDueSoon" class="sf-metric-value sf-tone-warning">—</div>
-                <p class="sf-card-subtitle">Upcoming.</p>
-              </article>
-
-              <article class="sf-metric-card">
-                <p class="sf-card-kicker">Overdue</p>
-                <div id="metricOverdue" class="sf-metric-value sf-tone-danger">—</div>
-                <p class="sf-card-subtitle">Past due.</p>
-              </article>
-
-              <article class="sf-metric-card">
-                <p class="sf-card-kicker">Missing Ledger</p>
-                <div id="metricMissingLedger" class="sf-metric-value sf-tone-warning">—</div>
-                <p class="sf-card-subtitle">Needs repair.</p>
-              </article>
-
-              <article class="sf-metric-card">
-                <p class="sf-card-kicker">Health</p>
-                <div id="metricHealth" class="sf-metric-value">—</div>
-                <p class="sf-card-subtitle">Backend.</p>
-              </article>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">System status</p>
-                  <h2 class="sf-section-title" id="debtsHeroStatus">Debt truth</h2>
-                  <p class="sf-section-subtitle" id="debtsHeroCopy">
-                    Debt rows and origin ledger links are loaded from backend truth.
-                  </p>
-                </div>
-              </div>
-
-              <div class="sf-section-actions">
-                <span class="sf-pill" id="debtsVersionPill">version loading</span>
-                <span class="sf-pill" id="debtsHealthPill">health loading</span>
-                <span class="sf-pill sf-pill--positive" id="debtsLedgerPill">ledger state loading</span>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Selected debt</p>
-                  <h2 class="sf-section-title" id="selectedDebtTitle">No debt selected</h2>
-                  <p class="sf-section-subtitle" id="selectedDebtSub">
-                    Select a debt to inspect schedule, linked ledger rows, and repair options.
-                  </p>
-                </div>
-              </div>
-
-              <div id="selectedDebtPanel">
-                <div class="sf-empty-state">No debt selected.</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Action</p>
-                  <h2 class="sf-section-title">Edit / Payment / Repair</h2>
-                  <p class="sf-section-subtitle">
-                    Schedule edits are separate from ledger-origin repairs.
-                  </p>
-                </div>
-              </div>
-
-              <div id="debtActionPanel">
-                <div class="sf-empty-state">Choose an action from a debt card.</div>
-              </div>
-            </section>
-
-            <details class="sf-panel">
-              <summary class="sf-section-title">Debt rules</summary>
-              <div class="sf-section-subtitle">
-                <ul>
-                  <li>Debt rows are not money truth by themselves.</li>
-                  <li>If money moved now, backend must create the debt and origin ledger row together.</li>
-                  <li>Debt-only rows are valid when account movement already exists or should not be duplicated.</li>
-                  <li>Payments must use the canonical Debts payment flow.</li>
-                  <li>Missing ledger repair must be explicit.</li>
-                </ul>
-              </div>
-            </details>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Backend rules</p>
-                  <h2 class="sf-section-title">Contract Enforcement</h2>
-                </div>
-              </div>
-
-              <div id="debtEnforcementPanel">
-                <div class="sf-empty-state">Loading enforcement…</div>
-              </div>
-            </section>
-
-            <details class="sf-panel">
-              <summary class="sf-section-title">Debug · Raw Contract</summary>
-              <pre id="debtDebug" class="sf-code-block">Loading…</pre>
-            </details>
-          </aside>
+          <div id="debtList">
+            <div class="sf-empty-state">Loading debts…</div>
+          </div>
         </section>
+
+        <section class="sf-panel" aria-label="Selected debt">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Selected debt</p>
+              <h2 class="sf-section-title" id="selectedDebtTitle">No debt selected</h2>
+              <p class="sf-section-subtitle" id="selectedDebtSub">
+                Select a debt to inspect backend state, linked ledger rows, and repair eligibility.
+              </p>
+            </div>
+          </div>
+
+          <div id="selectedDebtPanel">
+            <div class="sf-empty-state">No debt selected.</div>
+          </div>
+        </section>
+
+        <section class="sf-panel" aria-label="Debt action proof">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Action / Proof</p>
+              <h2 class="sf-section-title">Backend result</h2>
+              <p class="sf-section-subtitle">
+                Dry-runs, payment proof, repair proof, and edit forms appear here. Account impact must come from backend ledger proof.
+              </p>
+            </div>
+          </div>
+
+          <div id="debtActionPanel">
+            <div class="sf-empty-state">Choose an action from a debt row.</div>
+          </div>
+        </section>
+
+        <section class="sf-panel" aria-label="Debt metrics">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Debt summary</p>
+              <h2 class="sf-section-title">Backend totals</h2>
+              <p class="sf-section-subtitle">
+                Totals are read from backend truth where available. Terminal debts are excluded from active totals.
+              </p>
+            </div>
+          </div>
+
+          <div class="sf-metric-grid">
+            <article class="sf-metric-card">
+              <p class="sf-card-kicker">I Owe</p>
+              <div id="metricOwe" class="sf-metric-value sf-tone-danger">—</div>
+              <p class="sf-card-subtitle">Payable remaining.</p>
+            </article>
+
+            <article class="sf-metric-card">
+              <p class="sf-card-kicker">Owed To Me</p>
+              <div id="metricOwed" class="sf-metric-value sf-tone-positive">—</div>
+              <p class="sf-card-subtitle">Receivable remaining.</p>
+            </article>
+
+            <article class="sf-metric-card">
+              <p class="sf-card-kicker">Due Soon</p>
+              <div id="metricDueSoon" class="sf-metric-value sf-tone-warning">—</div>
+              <p class="sf-card-subtitle">Due in the next few days.</p>
+            </article>
+
+            <article class="sf-metric-card">
+              <p class="sf-card-kicker">Overdue</p>
+              <div id="metricOverdue" class="sf-metric-value sf-tone-danger">—</div>
+              <p class="sf-card-subtitle">Past due date.</p>
+            </article>
+
+            <article class="sf-metric-card">
+              <p class="sf-card-kicker">Missing Ledger</p>
+              <div id="metricMissingLedger" class="sf-metric-value sf-tone-warning">—</div>
+              <p class="sf-card-subtitle">Origin movement needs repair.</p>
+            </article>
+
+            <article class="sf-metric-card">
+              <p class="sf-card-kicker">Health</p>
+              <div id="metricHealth" class="sf-metric-value">—</div>
+              <p class="sf-card-subtitle">Backend health status.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="sf-panel" aria-label="Backend enforcement">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Backend enforcement</p>
+              <h2 class="sf-section-title">Canonical route rules</h2>
+              <p class="sf-section-subtitle">
+                Debt money movement must stay centralized. Stale pay, receive, and debt-payment reverse routes are not used by this page.
+              </p>
+            </div>
+          </div>
+
+          <div id="debtEnforcementPanel">
+            <div class="sf-empty-state">Loading enforcement…</div>
+          </div>
+        </section>
+
+        <details class="sf-panel">
+          <summary class="sf-section-title">Debt rules</summary>
+          <div class="sf-empty-state">
+            Debt rows are not account balance truth. If money moved now, the backend creates the debt and the origin ledger row together.
+            Debt-only entries do not change account balances. Payments must use the canonical backend payment action. Missing origin repair must be explicit.
+          </div>
+        </details>
+
+        <details class="sf-panel">
+          <summary class="sf-section-title">Debug · Raw Contract</summary>
+          <pre id="debtDebug" class="sf-code-block">Loading…</pre>
+        </details>
 
         <footer>
           <span class="sf-meta-text" id="debtFooterVersion">
-            debts.html · shared shell slim layout
+            debts.html · shared-shell debts contract UI
           </span>
         </footer>
       </section>
@@ -205,104 +203,105 @@
         <p class="sf-section-kicker">Add Debt</p>
         <h2 class="sf-section-title">Create debt</h2>
         <p class="sf-section-subtitle">
-          If money moved now, select the account it hit. Backend must create debt and ledger origin atomically.
+          If money moved now, select the account it hit. If money did not move now, leave movement unchecked so no ledger row is created.
         </p>
       </div>
-      <button class="sf-button" id="closeDebtModalBtn" type="button">Close</button>
+
+      <div class="sf-section-actions">
+        <button class="sf-button" id="closeDebtModalBtn" type="button">Close</button>
+      </div>
     </div>
 
-    <form id="addDebtForm">
-      <div class="sf-form-grid">
-        <label class="sf-field" for="debtNameInput">
-          <span>Name / Person</span>
-          <input class="sf-input" id="debtNameInput" type="text" autocomplete="off">
-        </label>
+    <form class="sf-form-grid" id="addDebtForm">
+      <label class="sf-field" for="debtNameInput">
+        <span>Name / Person</span>
+        <input class="sf-input" id="debtNameInput" type="text" autocomplete="off">
+      </label>
 
-        <label class="sf-field" for="debtKindInput">
-          <span>Direction</span>
-          <select class="sf-select" id="debtKindInput">
-            <option value="owed">Owed to me</option>
-            <option value="owe">I owe</option>
-          </select>
-        </label>
+      <label class="sf-field" for="debtKindInput">
+        <span>Direction</span>
+        <select class="sf-select" id="debtKindInput">
+          <option value="owed">Owed to me</option>
+          <option value="owe">I owe</option>
+        </select>
+      </label>
 
-        <label class="sf-field" for="debtOriginalInput">
-          <span>Original Amount</span>
-          <input class="sf-input" id="debtOriginalInput" type="number" step="0.01" min="0">
-        </label>
+      <label class="sf-field" for="debtOriginalInput">
+        <span>Original Amount</span>
+        <input class="sf-input" id="debtOriginalInput" type="number" step="0.01" min="0">
+      </label>
 
-        <label class="sf-field" for="debtPaidInput">
-          <span>Already Paid</span>
-          <input class="sf-input" id="debtPaidInput" type="number" step="0.01" min="0" value="0">
-        </label>
+      <label class="sf-field" for="debtPaidInput">
+        <span>Already Paid</span>
+        <input class="sf-input" id="debtPaidInput" type="number" step="0.01" min="0" value="0">
+      </label>
 
-        <label class="sf-field" for="debtDueDateInput">
-          <span>Due Date</span>
-          <input class="sf-input" id="debtDueDateInput" type="date">
-        </label>
+      <label class="sf-field" for="debtDueDateInput">
+        <span>Due Date</span>
+        <input class="sf-input" id="debtDueDateInput" type="date">
+      </label>
 
-        <label class="sf-field" for="debtDueDayInput">
-          <span>Due Day</span>
-          <input class="sf-input" id="debtDueDayInput" type="number" min="1" max="31">
-        </label>
+      <label class="sf-field" for="debtDueDayInput">
+        <span>Due Day</span>
+        <input class="sf-input" id="debtDueDayInput" type="number" min="1" max="31">
+      </label>
 
-        <label class="sf-field" for="debtInstallmentInput">
-          <span>Installment Amount</span>
-          <input class="sf-input" id="debtInstallmentInput" type="number" step="0.01" min="0">
-        </label>
+      <label class="sf-field" for="debtInstallmentInput">
+        <span>Installment Amount</span>
+        <input class="sf-input" id="debtInstallmentInput" type="number" step="0.01" min="0">
+      </label>
 
-        <label class="sf-field" for="debtFrequencyInput">
-          <span>Frequency</span>
-          <select class="sf-select" id="debtFrequencyInput">
-            <option value="monthly">Monthly</option>
-            <option value="weekly">Weekly</option>
-            <option value="yearly">Yearly</option>
-            <option value="custom">Custom</option>
-          </select>
-        </label>
+      <label class="sf-field" for="debtFrequencyInput">
+        <span>Frequency</span>
+        <select class="sf-select" id="debtFrequencyInput">
+          <option value="monthly">Monthly</option>
+          <option value="weekly">Weekly</option>
+          <option value="yearly">Yearly</option>
+          <option value="custom">Custom</option>
+        </select>
+      </label>
 
-        <label class="sf-field" for="debtStatusInput">
-          <span>Status</span>
-          <select class="sf-select" id="debtStatusInput">
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="closed">Closed</option>
-          </select>
-        </label>
+      <label class="sf-field" for="debtStatusInput">
+        <span>Status</span>
+        <select class="sf-select" id="debtStatusInput">
+          <option value="active">Active</option>
+          <option value="paused">Paused</option>
+          <option value="closed">Closed</option>
+        </select>
+      </label>
 
-        <label class="sf-field" for="debtSnowballInput">
-          <span>Snowball Order</span>
-          <input class="sf-input" id="debtSnowballInput" type="number" step="1">
-        </label>
+      <label class="sf-field" for="debtSnowballInput">
+        <span>Snowball Order</span>
+        <input class="sf-input" id="debtSnowballInput" type="number" step="1">
+      </label>
 
-        <div class="sf-field">
-          <span>Ledger movement now</span>
-          <label class="sf-meta-text" for="debtMovementNowInput">
-            <input id="debtMovementNowInput" type="checkbox" checked>
-            Money moved now
-          </label>
-          <p class="sf-card-subtitle" id="debtMovementCopy">
-            Owed to me means money leaves the selected account now.
-          </p>
-        </div>
+      <label class="sf-field" for="debtMovementNowInput">
+        <span>Ledger movement now</span>
+        <span class="sf-row-subtitle">
+          <input id="debtMovementNowInput" type="checkbox">
+          Money moved now
+        </span>
+        <span class="sf-row-subtitle" id="debtMovementCopy">
+          Owed to me means money leaves the selected account now.
+        </span>
+      </label>
 
-        <label class="sf-field" for="debtAccountInput">
-          <span>Account money hit</span>
-          <select class="sf-select" id="debtAccountInput">
-            <option value="">Select account…</option>
-          </select>
-        </label>
+      <label class="sf-field" for="debtAccountInput">
+        <span>Account money hit</span>
+        <select class="sf-select" id="debtAccountInput">
+          <option value="">Select account…</option>
+        </select>
+      </label>
 
-        <label class="sf-field" for="debtMovementDateInput">
-          <span>Movement Date</span>
-          <input class="sf-input" id="debtMovementDateInput" type="date">
-        </label>
+      <label class="sf-field" for="debtMovementDateInput">
+        <span>Movement Date</span>
+        <input class="sf-input" id="debtMovementDateInput" type="date">
+      </label>
 
-        <label class="sf-field" for="debtNotesInput">
-          <span>Notes</span>
-          <textarea class="sf-textarea" id="debtNotesInput"></textarea>
-        </label>
-      </div>
+      <label class="sf-field" for="debtNotesInput">
+        <span>Notes</span>
+        <textarea class="sf-textarea" id="debtNotesInput"></textarea>
+      </label>
 
       <div class="sf-section-actions">
         <button class="sf-button" id="dryRunDebtBtn" type="button">Dry-run</button>
@@ -317,10 +316,13 @@
         <p class="sf-section-kicker">Record Payment</p>
         <h2 class="sf-section-title">Debt payment</h2>
         <p class="sf-section-subtitle">
-          Payment movement must be handled by the canonical backend debt payment flow.
+          Backend decides whether this is an expense payment or income receipt from the selected debt kind.
         </p>
       </div>
-      <button class="sf-button" id="closePaymentModalBtn" type="button">Close</button>
+
+      <div class="sf-section-actions">
+        <button class="sf-button" id="closePaymentModalBtn" type="button">Close</button>
+      </div>
     </div>
 
     <input id="paymentDebtIdInput" type="hidden">
@@ -343,24 +345,15 @@
         </select>
       </label>
 
-      <label class="sf-field" for="paymentDirectionInput">
-        <span>Payment Direction</span>
-        <select class="sf-select" id="paymentDirectionInput">
-          <option value="auto">Auto from debt kind</option>
-          <option value="paid_out">Paid out</option>
-          <option value="received_in">Received in</option>
-        </select>
-      </label>
-
       <label class="sf-field" for="paymentNotesInput">
         <span>Notes</span>
         <textarea class="sf-textarea" id="paymentNotesInput"></textarea>
       </label>
-    </div>
 
-    <div class="sf-section-actions">
-      <button class="sf-button" id="dryRunPaymentBtn" type="button">Dry-run Payment</button>
-      <button class="sf-button sf-button--primary" id="savePaymentBtn" type="button">Save Payment</button>
+      <div class="sf-section-actions">
+        <button class="sf-button" id="dryRunPaymentBtn" type="button">Dry-run Payment</button>
+        <button class="sf-button sf-button--primary" id="savePaymentBtn" type="button">Save Payment</button>
+      </div>
     </div>
   </section>
 
@@ -370,10 +363,13 @@
         <p class="sf-section-kicker">Defer Debt</p>
         <h2 class="sf-section-title">Update schedule</h2>
         <p class="sf-section-subtitle">
-          Update due date or schedule without changing money truth.
+          Schedule changes do not create ledger movement and do not alter account balances.
         </p>
       </div>
-      <button class="sf-button" id="closeDeferModalBtn" type="button">Close</button>
+
+      <div class="sf-section-actions">
+        <button class="sf-button" id="closeDeferModalBtn" type="button">Close</button>
+      </div>
     </div>
 
     <input id="deferDebtIdInput" type="hidden">
@@ -393,14 +389,14 @@
         <span>Notes</span>
         <textarea class="sf-textarea" id="deferNotesInput"></textarea>
       </label>
-    </div>
 
-    <div class="sf-section-actions">
-      <button class="sf-button sf-button--primary" id="saveDeferBtn" type="button">Save Defer</button>
+      <div class="sf-section-actions">
+        <button class="sf-button sf-button--primary" id="saveDeferBtn" type="button">Save Defer</button>
+      </div>
     </div>
   </section>
 
-  <div id="debtToast" class="sf-toast"></div>
+  <div class="sf-toast" id="debtToast"></div>
 
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
