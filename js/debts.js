@@ -452,40 +452,40 @@
   }
 
   function renderDebtRow(debt) {
-    const selected = String(debt.id) === String(state.selectedDebtId);
-    const pct = debtPaidPct(debt);
-    const originTone = debt.origin_linked ? 'positive' : ((debt.repair_required || debt.origin_required) ? 'danger' : 'warning');
+  const selected = String(debt.id) === String(state.selectedDebtId);
+  const pct = debtPaidPct(debt);
+  const originTone = debt.origin_linked ? 'positive' : ((debt.repair_required || debt.origin_required) ? 'danger' : 'warning');
 
-    return `
-      <article class="sf-finance-row ${selected ? 'is-selected' : ''}" data-debt-id="${esc(debt.id)}">
-        <button class="sf-row-left" type="button" data-select-debt="${esc(debt.id)}">
-          <div class="sf-row-title">${esc(debt.name)}</div>
-          <div class="sf-row-subtitle">${esc(subtitleForDebt(debt))}</div>
-          <div class="sf-section-actions">
-            ${pill(kindLabel(debt.kind), debt.kind === 'owed' ? 'positive' : 'danger')}
-            ${pill(statusLabel(debt), tone(statusLabel(debt)))}
-            ${pill(originLabel(debt), originTone)}
-            ${debt.due_status ? pill(debt.due_status.replace(/_/g, ' '), tone(debt.due_status)) : ''}
-            ${pill(`${pct}% paid`, pct >= 100 ? 'positive' : 'warning')}
-          </div>
-        </button>
-
-        <div class="sf-row-right">
-          <div class="sf-metric-value">${money(debt.remaining_amount)}</div>
-          <div class="sf-card-subtitle">Remaining</div>
-          <div class="sf-section-actions">
-            <button class="sf-button" type="button" data-select-debt="${esc(debt.id)}">Details</button>
-            <button class="sf-button" type="button" data-edit-debt="${esc(debt.id)}">Edit</button>
-            <button class="sf-button sf-button--primary" type="button" data-pay-debt="${esc(debt.id)}">Payment</button>
-            <button class="sf-button" type="button" data-defer-debt="${esc(debt.id)}">Defer</button>
-            ${(debt.repair_required || (debt.origin_required && !debt.origin_linked))
-              ? `<button class="sf-button" type="button" data-repair-debt="${esc(debt.id)}">Repair</button>`
-              : ''}
-          </div>
+  return `
+    <article class="sf-finance-row ${selected ? 'is-selected' : ''}" data-debt-id="${esc(debt.id)}">
+      <div class="sf-row-left">
+        <div class="sf-row-title">${esc(debt.name)}</div>
+        <div class="sf-row-subtitle">${esc(subtitleForDebt(debt))}</div>
+        <div class="sf-section-actions">
+          ${pill(kindLabel(debt.kind), debt.kind === 'owed' ? 'positive' : 'danger')}
+          ${pill(statusLabel(debt), tone(statusLabel(debt)))}
+          ${pill(originLabel(debt), originTone)}
+          ${debt.due_status ? pill(debt.due_status.replace(/_/g, ' '), tone(debt.due_status)) : ''}
+          ${pill(`${pct}% paid`, pct >= 100 ? 'positive' : 'warning')}
         </div>
-      </article>
-    `;
-  }
+      </div>
+
+      <div class="sf-row-right">
+        <div class="sf-metric-value">${money(debt.remaining_amount)}</div>
+        <div class="sf-card-subtitle">Remaining</div>
+        <div class="sf-section-actions">
+          <button class="sf-button" type="button" data-select-debt="${esc(debt.id)}">Details</button>
+          <button class="sf-button" type="button" data-edit-debt="${esc(debt.id)}">Edit</button>
+          <button class="sf-button sf-button--primary" type="button" data-pay-debt="${esc(debt.id)}">Payment</button>
+          <button class="sf-button" type="button" data-defer-debt="${esc(debt.id)}">Defer</button>
+          ${(debt.repair_required || (debt.origin_required && !debt.origin_linked))
+            ? `<button class="sf-button" type="button" data-repair-debt="${esc(debt.id)}">Repair</button>`
+            : ''}
+        </div>
+      </div>
+    </article>
+  `;
+}
 
   function renderDebtList() {
     const list = $('debtList');
