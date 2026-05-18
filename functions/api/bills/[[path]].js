@@ -5,13 +5,13 @@
  * Contract:
  *   contract_version = bills-v1
  *
- * Rules:
- * - Bill create = obligation only. No ledger/account movement.
- * - Bill payment = ledger expense + bill_payments link row + cycle proof.
- * - Account balance is ledger-derived only.
- * - Current-cycle and advance-cycle math is backend truth.
- * - Reversed ledger payments are excluded from paid totals.
- * - Overpayment is rejected unless the user explicitly chooses another bill_month/cycle.
+ * Banking-grade rules:
+ *   - Bill create creates obligation only. No ledger/account movement.
+ *   - Bill payment creates ledger expense + bill_payments link row.
+ *   - Current-cycle and advance-cycle math is backend truth.
+ *   - Reversed ledger payments are excluded from paid totals.
+ *   - Account balance remains ledger-derived.
+ *   - Frontend must display backend totals/proof only.
  */
 
 const VERSION = 'v0.9.0-bills-contract-owner';
@@ -28,25 +28,6 @@ const INACTIVE_STATUSES = new Set([
   'closed',
   'inactive'
 ]);
-
-const BILL_COLUMNS = `
-  id,
-  name,
-  amount,
-  due_day,
-  due_date,
-  frequency,
-  category_id,
-  default_account_id,
-  account_id,
-  last_paid_date,
-  last_paid_account_id,
-  status,
-  deleted_at,
-  notes,
-  created_at,
-  updated_at
-`;
 
 export async function onRequestGet(context) {
   return withJsonErrors('GET', async () => {
@@ -228,6 +209,7 @@ async function getOverview(db, url) {
     canonical_routes: {
       create: 'POST /api/bills action=create',
       payment: 'POST /api/bills action=payment',
+      compatibility_payment: 'POST /api/bills/pay',
       update: 'POST /api/bills action=update',
       defer: 'POST /api/bills action=defer',
       repair: 'POST /api/bills action=repair_reversed_payments',
@@ -328,7 +310,7 @@ async function getHistory(db, url) {
 }
 
 /* ─────────────────────────────
- * Create
+ * Create bill: obligation only
  * ───────────────────────────── */
 
 async function createBill(db, body, dryRun) {
@@ -414,6 +396,10 @@ async function createBill(db, body, dryRun) {
         transaction_id: null,
         account_delta: 0
       },
+      account: {
+        balance_source: 'ledger',
+        impacted: false
+      },
       forecast: {
         should_reflect: isActiveBill(existing)
       },
@@ -494,7 +480,7 @@ async function createBill(db, body, dryRun) {
 }
 
 /* ─────────────────────────────
- * Payment
+ * Pay bill: ledger + bill payment link
  * ───────────────────────────── */
 
 async function payBill(db, body, dryRun) {
@@ -591,6 +577,10 @@ async function payBill(db, body, dryRun) {
       payment: {
         created: false,
         payment_id: paymentId
+      },
+      account: {
+        balance_source: 'ledger',
+        impacted: false
       },
       forecast: {
         should_reflect: true
@@ -714,7 +704,6 @@ async function payBill(db, body, dryRun) {
     dry_run: Boolean(dryRun),
 
     bill: billSummary(bill),
-
     cycle: projectedCycle,
 
     ledger: {
@@ -803,6 +792,7 @@ async function payBill(db, body, dryRun) {
   const paymentsAfter = await loadBillPayments(db);
   const txnsAfter = await loadTransactionsById(db);
   const cycleAfter = buildCycle({ bill: freshBill, month: billMonth, payments: paymentsAfter, txnsById: txnsAfter });
+  const currentCycleAfter = buildCycle({ bill: freshBill, month: current, payments: paymentsAfter, txnsById: txnsAfter });
   const advanceAfter = buildAdvanceSummary({ bill: freshBill, month: current, payments: paymentsAfter, txnsById: txnsAfter });
 
   return json({
@@ -811,7 +801,8 @@ async function payBill(db, body, dryRun) {
     writes_performed: true,
     bill: {
       ...freshBill,
-      current_cycle: buildCycle({ bill: freshBill, month: current, payments: paymentsAfter, txnsById: txnsAfter }),
+      current_cycle: currentCycleAfter,
+      payment_status: currentCycleAfter.status,
       advance_paid_amount: advanceAfter.advance_paid_amount,
       advance_payment_count: advanceAfter.advance_payment_count,
       next_paid_cycles: advanceAfter.next_cycles
