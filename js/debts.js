@@ -1,27 +1,26 @@
 /* js/debts.js
  * Sovereign Finance · Debts UI
- * v0.7.0-debts-contract-ui
+ * v0.8.0-shared-shell-rows
  *
  * Contract:
- * - Frontend calls canonical route only:
+ * - Uses shared shell/components only.
+ * - No injected page-owned CSS.
+ * - No custom clipped debt-row grid.
+ * - Canonical debt writes only:
  *     POST /api/debts
- * - No /api/debts/:id/pay
- * - No /api/debts/:id/receive
- * - No debt payment reversal route from Debts UI.
- * - Reversal remains canonical through Ledger:
+ * - Reversal remains owned by Ledger:
  *     POST /api/transactions/reverse
- * - Frontend displays backend proof; it does not calculate authoritative money truth.
  */
 
 (function () {
   "use strict";
 
-  const VERSION = "v0.7.0-debts-contract-ui";
+  const VERSION = "v0.8.0-shared-shell-rows";
 
   const API_DEBTS = "/api/debts";
   const API_DEBTS_LIST = "/api/debts?include_inactive=1";
   const API_DEBTS_HEALTH = "/api/debts?action=health";
-  const API_ACCOUNTS_PRIMARY = "/api/add/context";
+  const API_ADD_CONTEXT = "/api/add/context";
   const API_ACCOUNTS_FALLBACK = "/api/accounts";
 
   const TERMINAL_STATUSES = new Set([
@@ -122,10 +121,7 @@
     const raw = String(value || "").trim();
     if (!raw) return "—";
 
-    return raw
-      .replace("T", " ")
-      .replace(/\.\d{3}Z$/, "")
-      .replace(/Z$/, "");
+    return raw.replace("T", " ").replace(/\.\d{3}Z$/, "").replace(/Z$/, "");
   }
 
   function kindLabel(kind) {
@@ -136,40 +132,39 @@
     return kind === "owed" ? "Receivable" : "Payable";
   }
 
-  function kindTone(kind) {
-    return kind === "owed" ? "good" : "danger";
-  }
-
   function toneClass(value) {
     const s = String(value || "").toLowerCase();
 
-    if (["ok", "active", "linked", "scheduled", "paid_off", "settled", "pass"].includes(s)) return "good";
-    if (["warn", "due_soon", "due_today", "no_schedule", "missing_ledger", "paused"].includes(s)) return "warn";
+    if (["ok", "active", "linked", "scheduled", "paid_off", "settled", "pass"].includes(s)) return "positive";
+    if (["warn", "due_soon", "due_today", "no_schedule", "missing_ledger", "paused"].includes(s)) return "warning";
     if (["overdue", "missing", "danger", "blocked", "failed", "closed"].includes(s)) return "danger";
 
     return "";
   }
 
-  function tag(text, tone) {
-    return `<span class="debt-tag ${tone || ""}">${esc(text)}</span>`;
-  }
-
-  function blocker(text, tone) {
-    return `<span class="${tone || ""}">${esc(text)}</span>`;
+  function pill(label, tone) {
+    const cls = tone ? ` sf-pill--${esc(tone)}` : "";
+    return `<span class="sf-pill${cls}">${esc(label)}</span>`;
   }
 
   function row(title, sub, value, tone) {
+    const cls = tone ? ` sf-tone-${esc(tone)}` : "";
+
     return `
-      <div class="debt-row">
-        <div>
-          <div class="debt-row-title">${esc(title)}</div>
-          ${sub ? `<div class="debt-row-sub">${esc(sub)}</div>` : ""}
+      <div class="sf-finance-row">
+        <div class="sf-row-left">
+          <div class="sf-row-title">${esc(title)}</div>
+          ${sub ? `<div class="sf-row-subtitle">${esc(sub)}</div>` : ""}
         </div>
-        <div class="debt-row-value ${tone ? `sf-tone-${esc(tone)}` : ""}">
+        <div class="sf-row-right${cls}">
           ${value == null ? "—" : value}
         </div>
       </div>
     `;
+  }
+
+  function empty(message) {
+    return `<div class="sf-empty-state">${esc(message)}</div>`;
   }
 
   async function fetchJSON(url, options) {
@@ -192,10 +187,7 @@
     }
 
     if (!response.ok || !payload || payload.ok === false) {
-      const message = payload && (payload.error || payload.message)
-        ? payload.error || payload.message
-        : `HTTP ${response.status}`;
-      throw new Error(message);
+      throw new Error((payload && (payload.error || payload.message)) || `HTTP ${response.status}`);
     }
 
     return payload;
@@ -217,47 +209,47 @@
     });
   }
 
-  function normalizeDebt(row) {
-    const original = num(row.original_amount ?? row.amount);
-    const paid = num(row.paid_amount);
-    const remaining = num(row.remaining_amount, Math.max(0, original - paid));
+  function normalizeDebt(rowData) {
+    const original = num(rowData.original_amount ?? rowData.amount);
+    const paid = num(rowData.paid_amount);
+    const remaining = num(rowData.remaining_amount, Math.max(0, original - paid));
 
     return {
-      ...row,
-      id: row.id || "",
-      name: row.name || row.title || row.label || row.id || "Debt",
-      kind: row.kind === "owed" ? "owed" : "owe",
+      ...rowData,
+      id: rowData.id || "",
+      name: rowData.name || rowData.title || rowData.label || rowData.id || "Debt",
+      kind: rowData.kind === "owed" ? "owed" : "owe",
       original_amount: original,
       paid_amount: paid,
       remaining_amount: remaining,
-      status: row.status || "active",
-      due_status: row.due_status || "no_schedule",
-      due_date: row.due_date || null,
-      due_day: row.due_day == null ? null : row.due_day,
-      installment_amount: row.installment_amount == null ? null : num(row.installment_amount),
-      frequency: row.frequency || "monthly",
-      last_paid_date: row.last_paid_date || null,
-      next_due_date: row.next_due_date || null,
-      days_until_due: row.days_until_due == null ? null : row.days_until_due,
-      days_overdue: row.days_overdue == null ? null : row.days_overdue,
-      schedule_missing: Boolean(row.schedule_missing),
-      ledger_linked: Boolean(row.ledger_linked),
-      ledger_required: Boolean(row.ledger_required),
-      ledger_transaction_ids: Array.isArray(row.ledger_transaction_ids) ? row.ledger_transaction_ids : [],
-      ledger_transactions: Array.isArray(row.ledger_transactions) ? row.ledger_transactions : [],
-      origin_state: row.origin_state || row.ledger_state || "",
-      origin_required: Boolean(row.origin_required ?? row.ledger_required),
-      origin_linked: Boolean(row.origin_linked ?? row.ledger_linked),
-      origin_transaction_ids: Array.isArray(row.origin_transaction_ids) ? row.origin_transaction_ids : [],
-      origin_transactions: Array.isArray(row.origin_transactions) ? row.origin_transactions : [],
-      payment_transaction_ids: Array.isArray(row.payment_transaction_ids) ? row.payment_transaction_ids : [],
-      payment_transactions: Array.isArray(row.payment_transactions) ? row.payment_transactions : [],
-      repair_required: Boolean(row.repair_required),
-      notes: row.notes || "",
-      created_at: row.created_at || null,
-      updated_at: row.updated_at || null,
-      settled_at: row.settled_at || null,
-      raw: row
+      status: rowData.status || "active",
+      due_status: rowData.due_status || "no_schedule",
+      due_date: rowData.due_date || null,
+      due_day: rowData.due_day == null ? null : rowData.due_day,
+      installment_amount: rowData.installment_amount == null ? null : num(rowData.installment_amount),
+      frequency: rowData.frequency || "monthly",
+      last_paid_date: rowData.last_paid_date || null,
+      next_due_date: rowData.next_due_date || null,
+      days_until_due: rowData.days_until_due == null ? null : rowData.days_until_due,
+      days_overdue: rowData.days_overdue == null ? null : rowData.days_overdue,
+      schedule_missing: Boolean(rowData.schedule_missing),
+      ledger_linked: Boolean(rowData.ledger_linked),
+      ledger_required: Boolean(rowData.ledger_required),
+      ledger_transaction_ids: Array.isArray(rowData.ledger_transaction_ids) ? rowData.ledger_transaction_ids : [],
+      ledger_transactions: Array.isArray(rowData.ledger_transactions) ? rowData.ledger_transactions : [],
+      origin_state: rowData.origin_state || rowData.ledger_state || "",
+      origin_required: Boolean(rowData.origin_required ?? rowData.ledger_required),
+      origin_linked: Boolean(rowData.origin_linked ?? rowData.ledger_linked),
+      origin_transaction_ids: Array.isArray(rowData.origin_transaction_ids) ? rowData.origin_transaction_ids : [],
+      origin_transactions: Array.isArray(rowData.origin_transactions) ? rowData.origin_transactions : [],
+      payment_transaction_ids: Array.isArray(rowData.payment_transaction_ids) ? rowData.payment_transaction_ids : [],
+      payment_transactions: Array.isArray(rowData.payment_transactions) ? rowData.payment_transactions : [],
+      repair_required: Boolean(rowData.repair_required),
+      notes: rowData.notes || "",
+      created_at: rowData.created_at || null,
+      updated_at: rowData.updated_at || null,
+      settled_at: rowData.settled_at || null,
+      raw: rowData
     };
   }
 
@@ -272,12 +264,12 @@
 
   async function loadAccounts() {
     try {
-      const payload = await fetchJSON(API_ACCOUNTS_PRIMARY);
+      const payload = await fetchJSON(API_ADD_CONTEXT);
       state.accounts = accountRowsFromPayload(payload).filter(Boolean);
     } catch {
       try {
-        const payload = await fetchJSON(API_ACCOUNTS_FALLBACK);
-        state.accounts = accountRowsFromPayload(payload).filter(Boolean);
+        const fallback = await fetchJSON(API_ACCOUNTS_FALLBACK);
+        state.accounts = accountRowsFromPayload(fallback).filter(Boolean);
       } catch {
         state.accounts = [];
       }
@@ -290,7 +282,7 @@
     if (state.loading) return;
 
     state.loading = true;
-    setHTML("debtList", '<div class="debt-empty">Loading debts…</div>');
+    setHTML("debtList", empty("Loading debts…"));
 
     try {
       await loadAccounts();
@@ -307,7 +299,7 @@
 
       renderAll(payload);
     } catch (err) {
-      setHTML("debtList", `<div class="debt-empty">Failed to load debts: ${esc(err.message)}</div>`);
+      setHTML("debtList", empty(`Failed to load debts: ${err.message}`));
       setText("metricHealth", "failed");
       renderDebug({ error: err.message });
     } finally {
@@ -360,6 +352,27 @@
     return Math.max(0, Math.min(100, (paid / original) * 100));
   }
 
+  function debtOriginLabel(debt) {
+    if (debt.ledger_linked) return "Ledger linked";
+    if (debt.ledger_required) return "Needs origin repair";
+
+    const notes = String(debt.notes || "").toLowerCase();
+    if (notes.includes("movement_now=0")) return "Debt-only";
+    if (debt.origin_state === "payment_linked_only") return "Payment-linked only";
+    if (debt.origin_state === "legacy_unknown") return "Legacy / no origin";
+
+    return "No origin movement";
+  }
+
+  function debtStatusText(debt) {
+    if (isTerminal(debt.status)) return debt.status;
+    if (debt.due_status === "overdue") return "Overdue";
+    if (debt.due_status === "due_today") return "Due today";
+    if (debt.due_status === "due_soon") return "Due soon";
+    if (debt.ledger_required && !debt.ledger_linked) return "Repair";
+    return debt.status || "active";
+  }
+
   function debtSearchHaystack(debt) {
     return [
       debt.id,
@@ -403,11 +416,11 @@
   }
 
   function filteredDebts() {
-    const q = state.search.toLowerCase();
+    const query = state.search.toLowerCase();
 
     return state.debts
       .filter(debt => {
-        if (q && !debtSearchHaystack(debt).includes(q)) return false;
+        if (query && !debtSearchHaystack(debt).includes(query)) return false;
 
         const terminal = isTerminal(debt.status);
 
@@ -471,200 +484,65 @@
     }
   }
 
-  function debtOriginLabel(debt) {
-    if (debt.ledger_linked) return "ledger linked";
-    if (debt.ledger_required) return "needs repair";
+  function renderDebtCard(debt) {
+    const selected = String(debt.id) === String(state.selectedDebtId);
+    const terminal = isTerminal(debt.status);
+    const pct = Math.round(debtPaidPct(debt));
+    const tone = toneClass(debtStatusText(debt));
+    const dueDate = debt.next_due_date || debt.due_date || "";
 
-    const notes = String(debt.notes || "").toLowerCase();
-    if (notes.includes("movement_now=0")) return "debt-only";
-    if (debt.origin_state === "legacy_unknown") return "legacy/no-origin";
-    if (debt.origin_state === "payment_linked_only") return "payment-linked only";
-
-    return "no origin movement";
-  }
-
-  function debtOriginTone(debt) {
-    if (debt.ledger_linked) return "good";
-    if (debt.ledger_required) return "danger";
-    return "warn";
-  }
-
-  function debtStatusText(debt) {
-    if (isTerminal(debt.status)) return debt.status;
-    if (debt.due_status === "overdue") return "Overdue";
-    if (debt.due_status === "due_today") return "Due today";
-    if (debt.due_status === "due_soon") return "Due soon";
-    if (debt.ledger_required && !debt.ledger_linked) return "Repair";
-    return debt.status || "active";
-  }
-
-  function debtRowSubtitle(debt) {
-    const parts = [debtOriginLabel(debt), debt.id];
-
-    if (debt.next_due_date || debt.due_date) {
-      parts.push(`next ${debt.next_due_date || debt.due_date}`);
-    } else {
-      parts.push("no due date");
-    }
-
-    if (debt.days_overdue) parts.push(`${debt.days_overdue}d overdue`);
-    if (debt.days_until_due != null && debt.due_status === "due_soon") parts.push(`${debt.days_until_due}d left`);
-
-    return parts.join(" · ");
-  }
-
-  function renderDebtTags(debt) {
-    const tags = [];
-
-    tags.push(tag(kindLabel(debt.kind), kindTone(debt.kind)));
-    tags.push(tag(debt.status || "active", toneClass(debt.status)));
-    tags.push(tag(debt.due_status || "no schedule", toneClass(debt.due_status)));
-    tags.push(tag(debtOriginLabel(debt), debtOriginTone(debt)));
-
-    if (isTerminal(debt.status)) tags.push(tag("inactive", "warn"));
-    if (debt.next_due_date) tags.push(tag(`next ${debt.next_due_date}`));
-    if (debt.days_overdue) tags.push(tag(`${debt.days_overdue}d overdue`, "danger"));
-    if (debt.days_until_due != null && debt.due_status === "due_soon") tags.push(tag(`${debt.days_until_due}d left`, "warn"));
-
-    return tags.join("");
-  }
-
-  function renderDebtBlockers(debt) {
-    const blocks = [];
-
-    if (debt.ledger_linked && debt.ledger_transaction_ids.length) {
-      blocks.push(blocker(`origin ${debt.ledger_transaction_ids.join(", ")}`, "good"));
-    }
-
-    if (debt.payment_transaction_ids.length) {
-      blocks.push(blocker(`payments ${debt.payment_transaction_ids.length}`, "good"));
-    }
-
-    if (debt.ledger_required && !debt.ledger_linked) {
-      blocks.push(blocker("origin ledger missing", "danger"));
-    }
-
-    if (!debt.ledger_required && !debt.ledger_linked) {
-      blocks.push(blocker("debt-only / no account movement", "warn"));
-    }
-
-    if (debt.schedule_missing && !isTerminal(debt.status)) {
-      blocks.push(blocker("schedule missing", "warn"));
-    }
-
-    if (!blocks.length) return "";
-
-    return `<div class="debt-blockers">${blocks.join("")}</div>`;
-  }
-
-  function renderDebtInlineDetail(debt) {
-    const rows = [
-      ["Kind", kindLabel(debt.kind)],
-      ["Original", money(debt.original_amount)],
-      ["Paid", money(debt.paid_amount)],
-      ["Remaining", money(debt.remaining_amount)],
-      ["Due date", debt.due_date || "—"],
-      ["Next due", debt.next_due_date || "—"],
-      ["Due status", debt.due_status || "—"],
-      ["Frequency", debt.frequency || "—"],
-      ["Installment", debt.installment_amount == null ? "—" : money(debt.installment_amount)],
-      ["Origin movement", debtOriginLabel(debt)],
-      ["Origin IDs", debt.ledger_transaction_ids.length ? debt.ledger_transaction_ids.join(", ") : "None"],
-      ["Payment IDs", debt.payment_transaction_ids.length ? debt.payment_transaction_ids.join(", ") : "None"],
-      ["Created", formatDateTime(debt.created_at)]
-    ];
+    const detailId = `debt-detail-${String(debt.id).replace(/[^a-zA-Z0-9_-]/g, "_")}`;
 
     return `
-      <div class="debt-inline-grid">
-        ${rows.map(([label, value]) => `
-          <div class="debt-inline-label">${esc(label)}</div>
-          <div class="debt-inline-value">${esc(value)}</div>
-        `).join("")}
-      </div>
+      <article class="sf-panel ${selected ? "is-selected" : ""}" data-debt-id="${esc(debt.id)}">
+        <div class="sf-section-head">
+          <div>
+            <p class="sf-section-kicker">${esc(kindShort(debt.kind))} · ${esc(debt.id)}</p>
+            <h2 class="sf-section-title">${esc(debt.name)}</h2>
+            <p class="sf-section-subtitle">
+              ${esc(debtOriginLabel(debt))}
+              ${dueDate ? ` · next ${esc(compactDate(dueDate))}` : " · no due date"}
+              ${debt.days_overdue ? ` · ${esc(debt.days_overdue)}d overdue` : ""}
+            </p>
+          </div>
 
-      <div class="debt-inline-notes">
-        <div class="debt-inline-label">Notes</div>
-        <div class="debt-inline-note-text">${esc(debt.notes || "—")}</div>
-      </div>
-
-      ${debt.ledger_transactions.length ? `
-        <div class="debt-inline-notes">
-          <div class="debt-inline-label">Origin ledger transactions</div>
-          <div class="debt-inline-note-text">
-            ${esc(debt.ledger_transactions.map(tx => [
-              tx.id,
-              tx.date,
-              tx.type,
-              tx.account_id,
-              tx.amount
-            ].filter(Boolean).join(" · ")).join("\n"))}
+          <div class="sf-section-actions">
+            ${pill(debtStatusText(debt), tone)}
+            ${pill(`${pct}% paid`, "positive")}
+            ${pill(money(debt.remaining_amount), debt.kind === "owed" ? "positive" : "danger")}
           </div>
         </div>
-      ` : ""}
 
-      ${debt.payment_transactions.length ? `
-        <div class="debt-inline-notes">
-          <div class="debt-inline-label">Payment ledger transactions</div>
-          <div class="debt-inline-note-text">
-            ${esc(debt.payment_transactions.map(tx => [
-              tx.id,
-              tx.date,
-              tx.type,
-              tx.account_id,
-              tx.amount,
-              tx.notes
-            ].filter(Boolean).join(" · ")).join("\n"))}
-          </div>
+        <div class="sf-section-actions">
+          <button class="sf-button" type="button" data-select-debt="${esc(debt.id)}">Details</button>
+          <button class="sf-button" type="button" data-toggle-debt="${esc(debt.id)}" aria-controls="${esc(detailId)}">Expand</button>
+          <button class="sf-button" type="button" data-edit-debt="${esc(debt.id)}">Edit</button>
+          ${!terminal ? `<button class="sf-button sf-button--primary" type="button" data-pay-debt="${esc(debt.id)}">Payment</button>` : ""}
+          ${!terminal ? `<button class="sf-button" type="button" data-defer-debt="${esc(debt.id)}">Defer</button>` : ""}
+          ${debt.ledger_required && !debt.ledger_linked
+            ? `<button class="sf-button" type="button" data-repair-debt="${esc(debt.id)}">Repair Ledger</button>`
+            : ""}
+          <a class="sf-button" href="/transactions.html">Ledger</a>
         </div>
-      ` : ""}
 
-      <div class="debt-card-actions inline">
-        <button class="debt-action" type="button" data-select-debt="${esc(debt.id)}">Details</button>
-        <button class="debt-action primary" type="button" data-edit-debt="${esc(debt.id)}">Edit</button>
-        ${!isTerminal(debt.status) ? `<button class="debt-action" type="button" data-pay-debt="${esc(debt.id)}">Payment</button>` : ""}
-        ${!isTerminal(debt.status) ? `<button class="debt-action" type="button" data-defer-debt="${esc(debt.id)}">Defer</button>` : ""}
-        ${debt.ledger_required && !debt.ledger_linked
-          ? `<button class="debt-action danger" type="button" data-repair-debt="${esc(debt.id)}">Repair Ledger</button>`
-          : ""}
-        <a class="debt-action" href="/transactions.html">Open Ledger</a>
-      </div>
+        <div id="${esc(detailId)}" data-debt-detail="${esc(debt.id)}" hidden>
+          ${renderDebtDetailRows(debt)}
+        </div>
+      </article>
     `;
   }
 
-  function renderDebtCard(debt) {
-    const selected = String(debt.id) === String(state.selectedDebtId);
-    const pct = debtPaidPct(debt);
-    const statusTone = toneClass(debtStatusText(debt));
-    const dueDate = debt.next_due_date || debt.due_date || "";
-
+  function renderDebtDetailRows(debt) {
     return `
-      <article class="debt-card debt-compact-row ${selected ? "is-selected" : ""}" data-debt-id="${esc(debt.id)}">
-        <button class="debt-row-shell" type="button" data-toggle-debt="${esc(debt.id)}">
-          <div class="debt-icon">${debt.kind === "owed" ? "📥" : "📤"}</div>
-
-          <div class="debt-copy-block">
-            <div class="debt-title">${esc(debt.name)}</div>
-            <div class="debt-sub">${esc(debtRowSubtitle(debt))}</div>
-          </div>
-
-          <div class="debt-row-kind">${esc(kindShort(debt.kind))}</div>
-          <div class="debt-row-date">${esc(dueDate ? compactDate(dueDate) : "—")}</div>
-          <div class="debt-amount">${money(debt.remaining_amount)}</div>
-          <div class="debt-row-status ${statusTone}">${esc(debtStatusText(debt))}</div>
-          <div class="debt-expand-caret">▾</div>
-        </button>
-
-        <div class="debt-progress" style="--paid-pct:${pct}%;">
-          <div class="debt-progress-fill"></div>
-        </div>
-
-        <div class="debt-tags">${renderDebtTags(debt)}</div>
-        ${renderDebtBlockers(debt)}
-
-        <div class="debt-inline-detail" data-debt-detail="${esc(debt.id)}">
-          ${renderDebtInlineDetail(debt)}
-        </div>
-      </article>
+      ${row("Original", "Debt principal", money(debt.original_amount))}
+      ${row("Paid", "Backend paid amount", money(debt.paid_amount))}
+      ${row("Remaining", "Backend remaining", money(debt.remaining_amount), debt.remaining_amount > 0 ? "warning" : "positive")}
+      ${row("Due", "Schedule", debt.next_due_date || debt.due_date || "—")}
+      ${row("Origin", "Ledger origin state", debtOriginLabel(debt), debt.ledger_linked ? "positive" : debt.ledger_required ? "danger" : "warning")}
+      ${row("Origin IDs", "Origin ledger transactions", debt.ledger_transaction_ids.length ? debt.ledger_transaction_ids.join(", ") : "None")}
+      ${row("Payment IDs", "Payment ledger transactions", debt.payment_transaction_ids.length ? debt.payment_transaction_ids.join(", ") : "None")}
+      ${row("Created", "Backend timestamp", formatDateTime(debt.created_at))}
+      ${debt.notes ? row("Notes", "Backend notes", debt.notes) : ""}
     `;
   }
 
@@ -676,7 +554,7 @@
 
     list.innerHTML = rows.length
       ? rows.map(renderDebtCard).join("")
-      : '<div class="debt-empty">No debts match this filter.</div>';
+      : empty("No debts match this filter.");
 
     bindDebtCardActions();
   }
@@ -685,10 +563,10 @@
     document.querySelectorAll("[data-toggle-debt]").forEach(button => {
       button.addEventListener("click", () => {
         const id = button.getAttribute("data-toggle-debt");
-        const card = document.querySelector(`[data-debt-id="${cssEscape(id)}"]`);
-        if (!card) return;
+        const detail = document.querySelector(`[data-debt-detail="${cssEscape(id)}"]`);
 
-        card.classList.toggle("is-open");
+        if (detail) detail.hidden = !detail.hidden;
+
         state.selectedDebtId = id;
         renderSelectedDebt();
         renderDebug();
@@ -696,38 +574,23 @@
     });
 
     document.querySelectorAll("[data-select-debt]").forEach(button => {
-      button.addEventListener("click", event => {
-        event.stopPropagation();
-        selectDebt(button.getAttribute("data-select-debt"));
-      });
+      button.addEventListener("click", () => selectDebt(button.getAttribute("data-select-debt")));
     });
 
     document.querySelectorAll("[data-edit-debt]").forEach(button => {
-      button.addEventListener("click", event => {
-        event.stopPropagation();
-        openEditPanel(button.getAttribute("data-edit-debt"));
-      });
+      button.addEventListener("click", () => openEditPanel(button.getAttribute("data-edit-debt")));
     });
 
     document.querySelectorAll("[data-pay-debt]").forEach(button => {
-      button.addEventListener("click", event => {
-        event.stopPropagation();
-        openPaymentModal(button.getAttribute("data-pay-debt"));
-      });
+      button.addEventListener("click", () => openPaymentModal(button.getAttribute("data-pay-debt")));
     });
 
     document.querySelectorAll("[data-defer-debt]").forEach(button => {
-      button.addEventListener("click", event => {
-        event.stopPropagation();
-        openDeferModal(button.getAttribute("data-defer-debt"));
-      });
+      button.addEventListener("click", () => openDeferModal(button.getAttribute("data-defer-debt")));
     });
 
     document.querySelectorAll("[data-repair-debt]").forEach(button => {
-      button.addEventListener("click", event => {
-        event.stopPropagation();
-        openRepairPanel(button.getAttribute("data-repair-debt"));
-      });
+      button.addEventListener("click", () => openRepairPanel(button.getAttribute("data-repair-debt")));
     });
   }
 
@@ -739,10 +602,8 @@
   function selectDebt(id) {
     state.selectedDebtId = id;
 
-    document.querySelectorAll(".debt-card").forEach(card => {
-      const selected = card.getAttribute("data-debt-id") === String(id);
-      card.classList.toggle("is-selected", selected);
-      if (selected) card.classList.add("is-open");
+    document.querySelectorAll("[data-debt-id]").forEach(card => {
+      card.classList.toggle("is-selected", card.getAttribute("data-debt-id") === String(id));
     });
 
     renderSelectedDebt();
@@ -755,7 +616,7 @@
     if (!debt) {
       setText("selectedDebtTitle", "No debt selected");
       setText("selectedDebtSub", "Select a debt to inspect schedule, linked ledger rows, and repair options.");
-      setHTML("selectedDebtPanel", '<div class="debt-empty">No debt selected.</div>');
+      setHTML("selectedDebtPanel", empty("No debt selected."));
       return;
     }
 
@@ -770,8 +631,7 @@
       ${row("Status", "Debt row status", debt.status || "active")}
       ${row("Due status", "Schedule state", debt.due_status || "no schedule")}
       ${row("Next due", "Computed backend due date", debt.next_due_date || "—")}
-      ${row("Origin state", "Ledger origin classifier", debtOriginLabel(debt), debtOriginTone(debt) === "good" ? "positive" : debtOriginTone(debt) === "danger" ? "danger" : "warning")}
-      ${row("Ledger linked", "Origin movement", debt.ledger_linked ? "Yes" : "No", debt.ledger_linked ? "positive" : "warning")}
+      ${row("Origin state", "Ledger origin classifier", debtOriginLabel(debt), debt.ledger_linked ? "positive" : debt.ledger_required ? "danger" : "warning")}
       ${row("Origin transactions", "Origin transaction IDs", debt.ledger_transaction_ids.length ? debt.ledger_transaction_ids.join(", ") : "None")}
       ${row("Payment transactions", "Payment transaction IDs", debt.payment_transaction_ids.length ? debt.payment_transaction_ids.join(", ") : "None")}
       ${debt.notes ? row("Notes", "Backend notes", debt.notes) : ""}
@@ -818,7 +678,9 @@
     state.filter = filter;
 
     document.querySelectorAll("[data-filter]").forEach(button => {
-      button.classList.toggle("is-active", button.getAttribute("data-filter") === filter);
+      const isActive = button.getAttribute("data-filter") === filter;
+      button.classList.toggle("is-active", isActive);
+      button.classList.toggle("sf-button--primary", isActive);
     });
 
     renderDebtList();
@@ -828,20 +690,20 @@
   function ensureDebtControls() {
     if ($("debtSearchInput") && $("debtSortInput")) return;
 
-    const filterRow = document.querySelector(".debt-filter-row");
-    if (!filterRow) return;
+    const list = $("debtList");
+    if (!list || !list.parentElement) return;
 
     const controls = document.createElement("div");
-    controls.className = "debt-list-controls";
+    controls.className = "sf-section-actions";
     controls.innerHTML = `
       <input
         id="debtSearchInput"
-        class="debt-mini-input"
+        class="sf-input"
         type="search"
         placeholder="Search debts, IDs, notes, ledger IDs"
         value="${esc(state.search)}"
       >
-      <select id="debtSortInput" class="debt-mini-select">
+      <select id="debtSortInput" class="sf-select">
         <option value="due">Sort: Due date</option>
         <option value="created">Sort: Created</option>
         <option value="amount">Sort: Amount</option>
@@ -849,7 +711,7 @@
       </select>
     `;
 
-    filterRow.insertAdjacentElement("afterend", controls);
+    list.parentElement.insertBefore(controls, list);
 
     $("debtSearchInput")?.addEventListener("input", event => {
       state.search = event.target.value.trim();
@@ -949,7 +811,7 @@
       movement_date: movementDate,
       notes: clean($("debtNotesInput")?.value),
       idempotency_key: buildClientKey(["debt_create", name, kind, amount, movementNow, movementDate]),
-      created_by: "web-debts-v0.7.0"
+      created_by: "web-debts-v0.8.0"
     };
   }
 
@@ -974,7 +836,6 @@
 
     try {
       const result = await postJSON(`${API_DEBTS}?dry_run=1`, payload);
-
       renderActionResult("Debt create dry-run", result);
       toast("Debt dry-run passed.");
     } catch (err) {
@@ -1028,42 +889,40 @@
     renderSelectedDebt();
 
     setHTML("debtActionPanel", `
-      <form class="debt-form">
-        ${row("Amount", "Amount mutation is blocked here. Use reversal/re-entry for money correction.", money(debt.original_amount), "warning")}
+      ${row("Amount", "Amount mutation is blocked here. Use reversal/re-entry for money correction.", money(debt.original_amount), "warning")}
 
-        <div class="debt-form-grid">
-          <div class="debt-field">
-            <label for="editDueDateInput">Due Date</label>
-            <input class="debt-input" id="editDueDateInput" type="date" value="${esc(debt.due_date || "")}" />
-          </div>
+      <div class="sf-form-grid">
+        <label class="sf-field" for="editDueDateInput">
+          <span>Due Date</span>
+          <input class="sf-input" id="editDueDateInput" type="date" value="${esc(debt.due_date || "")}">
+        </label>
 
-          <div class="debt-field">
-            <label for="editDueDayInput">Due Day</label>
-            <input class="debt-input" id="editDueDayInput" type="number" min="1" max="31" value="${esc(debt.due_day || "")}" />
-          </div>
+        <label class="sf-field" for="editDueDayInput">
+          <span>Due Day</span>
+          <input class="sf-input" id="editDueDayInput" type="number" min="1" max="31" value="${esc(debt.due_day || "")}">
+        </label>
 
-          <div class="debt-field">
-            <label for="editInstallmentInput">Installment Amount</label>
-            <input class="debt-input" id="editInstallmentInput" type="number" step="0.01" min="0" value="${esc(debt.installment_amount || "")}" />
-          </div>
+        <label class="sf-field" for="editInstallmentInput">
+          <span>Installment Amount</span>
+          <input class="sf-input" id="editInstallmentInput" type="number" step="0.01" min="0" value="${esc(debt.installment_amount || "")}">
+        </label>
 
-          <div class="debt-field">
-            <label for="editFrequencyInput">Frequency</label>
-            <select class="debt-select" id="editFrequencyInput">
-              ${["monthly", "weekly", "yearly", "custom"].map(f => `<option value="${f}" ${debt.frequency === f ? "selected" : ""}>${f}</option>`).join("")}
-            </select>
-          </div>
+        <label class="sf-field" for="editFrequencyInput">
+          <span>Frequency</span>
+          <select class="sf-select" id="editFrequencyInput">
+            ${["monthly", "weekly", "yearly", "custom"].map(f => `<option value="${f}" ${debt.frequency === f ? "selected" : ""}>${f}</option>`).join("")}
+          </select>
+        </label>
 
-          <div class="debt-field debt-span-2">
-            <label for="editNotesInput">Notes</label>
-            <textarea class="debt-textarea" id="editNotesInput">${esc(debt.notes || "")}</textarea>
-          </div>
-        </div>
+        <label class="sf-field" for="editNotesInput">
+          <span>Notes</span>
+          <textarea class="sf-textarea" id="editNotesInput">${esc(debt.notes || "")}</textarea>
+        </label>
+      </div>
 
-        <div class="debt-card-actions">
-          <button class="debt-action primary" type="button" id="saveDebtEditBtn">Save Edit</button>
-        </div>
-      </form>
+      <div class="sf-section-actions">
+        <button class="sf-button sf-button--primary" type="button" id="saveDebtEditBtn">Save Edit</button>
+      </div>
     `);
 
     $("saveDebtEditBtn")?.addEventListener("click", () => submitEditDebt(id));
@@ -1084,7 +943,7 @@
       await loadDebts();
       selectDebt(id);
     } catch (err) {
-      setHTML("debtActionPanel", `<div class="debt-empty">Edit failed: ${esc(err.message)}</div>`);
+      setHTML("debtActionPanel", empty(`Edit failed: ${err.message}`));
     }
   }
 
@@ -1095,35 +954,34 @@
     if (!debt) return;
 
     renderSelectedDebt();
-    renderAccountOptions();
 
     const copy = debt.kind === "owed"
       ? "Owed to me: choose the source account money left from. Backend writes an expense origin."
       : "I owe: choose the destination account money entered into. Backend writes an income origin.";
 
     setHTML("debtActionPanel", `
-      <form class="debt-form">
-        ${row("Debt", debt.id, `${esc(debt.name)} · ${money(debt.original_amount)}`)}
-        ${row("Direction", "Repair rule", debt.kind === "owed" ? "expense" : "income", debt.kind === "owed" ? "danger" : "positive")}
+      ${row("Debt", debt.id, `${esc(debt.name)} · ${money(debt.original_amount)}`)}
+      ${row("Direction", "Repair rule", debt.kind === "owed" ? "expense" : "income", debt.kind === "owed" ? "danger" : "positive")}
 
-        <div class="debt-field">
-          <label for="repairAccountInput">Correct Account</label>
-          <select class="debt-select" id="repairAccountInput">
+      <div class="sf-form-grid">
+        <label class="sf-field" for="repairAccountInput">
+          <span>Correct Account</span>
+          <select class="sf-select" id="repairAccountInput">
             <option value="">Select account…</option>
           </select>
-          <div class="debt-row-sub">${esc(copy)}</div>
-        </div>
+          <small class="sf-meta-text">${esc(copy)}</small>
+        </label>
 
-        <div class="debt-field">
-          <label for="repairDateInput">Movement Date</label>
-          <input class="debt-input" id="repairDateInput" type="date" value="${todayISO()}" />
-        </div>
+        <label class="sf-field" for="repairDateInput">
+          <span>Movement Date</span>
+          <input class="sf-input" id="repairDateInput" type="date" value="${todayISO()}">
+        </label>
+      </div>
 
-        <div class="debt-card-actions">
-          <button class="debt-action" type="button" id="dryRunRepairBtn">Dry-run Repair</button>
-          <button class="debt-action primary" type="button" id="commitRepairBtn">Commit Repair</button>
-        </div>
-      </form>
+      <div class="sf-section-actions">
+        <button class="sf-button" type="button" id="dryRunRepairBtn">Dry-run Repair</button>
+        <button class="sf-button sf-button--primary" type="button" id="commitRepairBtn">Commit Repair</button>
+      </div>
     `);
 
     renderAccountOptions();
@@ -1140,13 +998,15 @@
       return;
     }
 
+    const date = clean($("repairDateInput")?.value) || todayISO();
+
     const body = {
       action: "repair_ledger",
       debt_id: id,
       account_id: accountId,
-      date: clean($("repairDateInput")?.value) || todayISO(),
-      idempotency_key: buildClientKey(["repair_ledger", id, accountId, clean($("repairDateInput")?.value) || todayISO()]),
-      created_by: "web-debts-v0.7.0"
+      date,
+      idempotency_key: buildClientKey(["repair_ledger", id, accountId, date]),
+      created_by: "web-debts-v0.8.0"
     };
 
     try {
@@ -1160,7 +1020,7 @@
         selectDebt(id);
       }
     } catch (err) {
-      setHTML("debtActionPanel", `<div class="debt-empty">Repair failed: ${esc(err.message)}</div>`);
+      setHTML("debtActionPanel", empty(`Repair failed: ${err.message}`));
     }
   }
 
@@ -1227,7 +1087,7 @@
       direction: $("paymentDirectionInput")?.value || "auto",
       notes: clean($("paymentNotesInput")?.value),
       idempotency_key: buildClientKey(["debt_payment", debt.id, amount, accountId, date]),
-      created_by: "web-debts-v0.7.0"
+      created_by: "web-debts-v0.8.0"
     };
 
     if (!body.amount || body.amount <= 0) {
@@ -1276,10 +1136,10 @@
     const debt = selectedDebt();
     if (!debt) return;
 
-    $("deferDebtIdInput").value = id;
-    $("deferDueDateInput").value = debt.due_date || "";
-    $("deferDueDayInput").value = debt.due_day || "";
-    $("deferNotesInput").value = debt.notes || "";
+    if ($("deferDebtIdInput")) $("deferDebtIdInput").value = id;
+    if ($("deferDueDateInput")) $("deferDueDateInput").value = debt.due_date || "";
+    if ($("deferDueDayInput")) $("deferDueDayInput").value = debt.due_day || "";
+    if ($("deferNotesInput")) $("deferNotesInput").value = debt.notes || "";
 
     openModal("deferModal");
   }
@@ -1374,233 +1234,12 @@
       .slice(0, 180);
   }
 
-  function injectStyles() {
-    if ($("debt-compact-js-style")) return;
-
-    const style = document.createElement("style");
-    style.id = "debt-compact-js-style";
-    style.textContent = `
-      .debt-list-controls {
-        display: grid;
-        grid-template-columns: minmax(220px, 1fr) 180px;
-        gap: 10px;
-        margin: -4px 0 14px;
-      }
-
-      .debt-mini-input,
-      .debt-mini-select {
-        width: 100%;
-        border: 1px solid var(--sf-border);
-        border-radius: 14px;
-        background: var(--sf-surface-1);
-        color: var(--sf-text);
-        padding: 10px 12px;
-        font: inherit;
-        font-size: 13px;
-        outline: none;
-      }
-
-      .debt-card.debt-compact-row {
-        padding: 0;
-        gap: 0;
-      }
-
-      .debt-row-shell {
-        width: 100%;
-        border: 0;
-        background: transparent;
-        color: inherit;
-        display: grid;
-        grid-template-columns: 34px minmax(220px, 1.6fr) minmax(100px, .6fr) 86px 112px 86px 20px;
-        gap: 10px;
-        align-items: center;
-        padding: 10px 12px;
-        text-align: left;
-        cursor: pointer;
-      }
-
-      .debt-row-shell:hover {
-        background: rgba(255,255,255,.035);
-      }
-
-      .debt-copy-block {
-        min-width: 0;
-      }
-
-      .debt-row-kind,
-      .debt-row-date,
-      .debt-row-status {
-        color: var(--sf-text-muted);
-        font-size: 11px;
-        font-weight: 850;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .debt-row-date {
-        text-align: right;
-      }
-
-      .debt-row-status {
-        justify-self: end;
-        border: 1px solid var(--sf-border-subtle);
-        border-radius: 999px;
-        padding: 4px 8px;
-        background: var(--sf-surface-2);
-      }
-
-      .debt-row-status.good {
-        color: var(--sf-positive);
-        border-color: rgba(83, 215, 167, .22);
-      }
-
-      .debt-row-status.warn {
-        color: var(--sf-warning);
-        border-color: rgba(241, 184, 87, .28);
-      }
-
-      .debt-row-status.danger {
-        color: var(--sf-danger);
-        border-color: rgba(255, 127, 138, .28);
-      }
-
-      .debt-expand-caret {
-        color: var(--sf-text-muted);
-        font-size: 13px;
-        justify-self: end;
-        transition: transform .18s ease;
-      }
-
-      .debt-card.is-open .debt-expand-caret {
-        transform: rotate(180deg);
-      }
-
-      .debt-card.debt-compact-row .debt-progress {
-        margin: 0 12px 9px 56px;
-      }
-
-      .debt-card.debt-compact-row .debt-tags,
-      .debt-card.debt-compact-row .debt-blockers {
-        padding: 0 12px 9px 56px;
-      }
-
-      .debt-inline-detail {
-        display: none;
-        border-top: 1px solid var(--sf-border-subtle);
-        padding: 12px;
-        gap: 10px;
-        background: rgba(0,0,0,.12);
-      }
-
-      .debt-card.is-open .debt-inline-detail {
-        display: grid;
-      }
-
-      .debt-inline-grid {
-        display: grid;
-        grid-template-columns: 150px minmax(0, 1fr);
-        gap: 8px 14px;
-        align-items: baseline;
-      }
-
-      .debt-inline-label {
-        color: var(--sf-text-muted);
-        font-size: 10px;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-        font-weight: 900;
-      }
-
-      .debt-inline-value {
-        color: var(--sf-text);
-        font-size: 12px;
-        font-weight: 800;
-        min-width: 0;
-        overflow-wrap: anywhere;
-      }
-
-      .debt-inline-notes {
-        border-top: 1px solid var(--sf-border-subtle);
-        padding-top: 10px;
-        display: grid;
-        gap: 6px;
-      }
-
-      .debt-inline-note-text {
-        color: var(--sf-text-muted);
-        font-size: 12px;
-        line-height: 1.45;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-      }
-
-      .debt-card-actions.inline {
-        justify-content: flex-start;
-        padding-top: 4px;
-      }
-
-      @media (max-width: 980px) {
-        .debt-row-shell {
-          grid-template-columns: 32px minmax(0, 1fr) 112px 20px;
-        }
-
-        .debt-row-kind,
-        .debt-row-date,
-        .debt-row-status {
-          display: none;
-        }
-
-        .debt-card.debt-compact-row .debt-progress,
-        .debt-card.debt-compact-row .debt-tags,
-        .debt-card.debt-compact-row .debt-blockers {
-          margin-left: 54px;
-          padding-left: 0;
-        }
-      }
-
-      @media (max-width: 640px) {
-        .debt-list-controls {
-          grid-template-columns: 1fr;
-        }
-
-        .debt-row-shell {
-          grid-template-columns: 30px minmax(0, 1fr) 20px;
-          gap: 8px;
-        }
-
-        .debt-amount {
-          grid-column: 2;
-          text-align: left;
-          margin-top: -3px;
-        }
-
-        .debt-inline-grid {
-          grid-template-columns: 1fr;
-          gap: 4px;
-        }
-
-        .debt-card.debt-compact-row .debt-progress,
-        .debt-card.debt-compact-row .debt-tags,
-        .debt-card.debt-compact-row .debt-blockers {
-          margin-left: 12px;
-          padding-left: 0;
-        }
-      }
-    `;
-
-    document.head.appendChild(style);
-  }
-
   function init() {
-    injectStyles();
     wireFilters();
     wireModalButtons();
 
     const movementDate = $("debtMovementDateInput");
     if (movementDate && !movementDate.value) movementDate.value = todayISO();
-
-    loadDebts();
 
     window.SovereignDebts = {
       version: VERSION,
@@ -1608,6 +1247,8 @@
       reload: loadDebts,
       state: () => JSON.parse(JSON.stringify(state))
     };
+
+    loadDebts();
   }
 
   if (document.readyState === "loading") {
