@@ -21,13 +21,13 @@
     <main class="sf-page-shell">
       <section class="sf-page-content">
 
-        <section class="sf-panel" aria-label="Debt command panel">
+                <section class="sf-panel" aria-label="Debt command panel">
           <div class="sf-section-head">
             <div>
               <p class="sf-section-kicker">Debt command center</p>
               <h2 class="sf-section-title">Ledger-backed debt control</h2>
-              <p class="sf-section-subtitle">
-                Debts are not account-balance truth by themselves. If money moved, the backend must create the linked ledger row and return proof.
+              <p class="sf-section-subtitle" id="debtsHeroCopy">
+                Debt rows and ledger links are loaded from backend truth. If money moved, the backend must create the linked ledger row and return proof.
               </p>
             </div>
 
@@ -40,15 +40,11 @@
             </div>
           </div>
 
-          <div class="sf-section-actions" aria-label="Debt backend status">
+          <div class="sf-control-row" aria-label="Debt backend status">
             <span class="sf-pill" id="debtsHeroStatus">Debt truth</span>
             <span class="sf-pill" id="debtsVersionPill">version loading</span>
             <span class="sf-pill" id="debtsHealthPill">health loading</span>
             <span class="sf-pill" id="debtsLedgerPill">ledger state loading</span>
-          </div>
-
-          <div class="sf-empty-state" id="debtsHeroCopy">
-            Debt rows and ledger links are loaded from backend truth.
           </div>
         </section>
 
