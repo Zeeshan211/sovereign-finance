@@ -1,15 +1,21 @@
 /* /api/add/[[path]]
  * Sovereign Finance · Add Orchestrator
- * v1.2.5-add-context-inline-balances
+ * v1.3.0-add-context-merchant-contract
  *
- * Fix:
- * - /api/add/context no longer depends on internal /api/balances fetch.
- * - Account balances are computed inline from transactions with reversal-safe rules.
- * - Dropdown balances should no longer show Rs 0 unless the real computed balance is 0.
- * - Keeps /api/transactions dry-run + commit hash forwarding.
+ * Contract:
+ * - Add context provides accounts, categories, merchants, and merchant-match metadata.
+ * - Normal Expense / Income / Transfer writes are forwarded to /api/transactions.
+ * - /api/transactions remains canonical owner for direct transaction creation.
+ * - International preview/commit remains owned by /api/add.
+ * - Merchant rules are classification-only and never mutate money.
+ * - Account balances in context are computed inline from transactions with reversal-safe rules.
  */
 
-const VERSION = 'v1.2.5-add-context-inline-balances';
+const VERSION = 'v1.3.0-add-context-merchant-contract';
+
+const TRANSACTIONS_CONTRACT_EXPECTED = 'transactions-add-v1';
+const TRANSACTIONS_VERSION_EXPECTED = 'v0.7.0-transactions-add-contract-proof';
+const MERCHANT_MATCH_ROUTE = '/api/merchants/match';
 
 const CATEGORY_ALIASES = {
   grocery: 'groceries',
@@ -110,28 +116,87 @@ export async function onRequestPost(context) {
 async function getContext(context) {
   const db = context.env.DB;
 
-  const [accounts, categories, merchants, intlConfig] = await Promise.all([
+  const [accounts, categories, merchants, intlConfig, addSchema] = await Promise.all([
     loadAccountsWithInlineBalances(db),
     loadCategoriesDirect(db),
     loadMerchantsDirect(db),
-    getIntlConfig(db).catch(() => null)
+    getIntlConfig(db).catch(() => null),
+    loadAddSchema(db)
   ]);
 
   return json({
     ok: true,
     version: VERSION,
+    contract_version: 'add-context-v1',
     can_direct_write: accounts.length > 0 && categories.length > 0,
     source_status: {
       accounts: accounts.length ? 'ok' : 'failed',
       categories: categories.length ? 'ok' : 'failed',
       merchants: merchants.length ? 'ok' : 'optional',
-      intl_rates: intlConfig ? 'ok' : 'optional'
+      merchant_match: 'available',
+      intl_rates: intlConfig ? 'ok' : 'optional',
+      transactions_contract: 'expected'
     },
     accounts,
     categories,
     merchants,
-    intl_rate_config: intlConfig
+    intl_rate_config: intlConfig,
+    merchant_match: {
+      available: true,
+      route: MERCHANT_MATCH_ROUTE,
+      method: 'POST',
+      classification_only: true,
+      money_mutation_allowed: false,
+      usage: 'Send merchant/reference/notes text and receive module/category/account/PRA/review suggestions.'
+    },
+    transactions_contract: {
+      canonical_route: '/api/transactions',
+      expected_version: TRANSACTIONS_VERSION_EXPECTED,
+      expected_contract_version: TRANSACTIONS_CONTRACT_EXPECTED,
+      direct_types: Array.from(DIRECT_TYPES),
+      dry_run_route: '/api/transactions?dry_run=1',
+      commit_route: '/api/transactions',
+      reversal_route: '/api/transactions/reverse'
+    },
+    add_contract: {
+      direct_write_owner: '/api/transactions',
+      international_owner: '/api/add',
+      merchant_suggestions_owner: '/api/merchants/match',
+      account_balance_source: 'inline_transactions',
+      frontend_should_not_mutate_balances: true
+    },
+    schema: addSchema
   });
+}
+
+async function loadAddSchema(db) {
+  const [accountCols, categoryCols, merchantCols, transactionCols] = await Promise.all([
+    tableColumns(db, 'accounts'),
+    tableColumns(db, 'categories'),
+    tableColumns(db, 'merchants'),
+    tableColumns(db, 'transactions')
+  ]);
+
+  return {
+    accounts_columns: Array.from(accountCols),
+    categories_columns: Array.from(categoryCols),
+    merchants_columns: Array.from(merchantCols),
+    transactions_columns: Array.from(transactionCols),
+    transactions_supports: {
+      merchant: transactionCols.has('merchant'),
+      merchant_id: transactionCols.has('merchant_id'),
+      idempotency_key: transactionCols.has('idempotency_key'),
+      source_module: transactionCols.has('source_module'),
+      source_action: transactionCols.has('source_action')
+    },
+    merchants_supports: {
+      aliases: merchantCols.has('aliases'),
+      default_category_id: merchantCols.has('default_category_id'),
+      default_account_id: merchantCols.has('default_account_id'),
+      is_pra_required: merchantCols.has('is_pra_required'),
+      learned_count: merchantCols.has('learned_count')
+    }
+  };
 }
 
 async function loadAccountsWithInlineBalances(db) {
@@ -168,7 +233,6 @@ async function loadAccountsWithInlineBalances(db) {
   ).all();
 
   const accounts = rows.results || [];
-
   const out = [];
 
   for (const account of accounts) {
@@ -211,7 +275,7 @@ function buildActiveAccountWhere(cols) {
   }
 
   if (cols.has('status')) {
-    clauses.push("(status IS NULL OR status = '' OR status = 'active')");
+    clauses.push("(status IS NULL OR status = '' OR LOWER(TRIM(status)) = 'active')");
   }
 
   return clauses.join(' AND ');
@@ -282,20 +346,21 @@ function isInactiveForBalance(row) {
 
 function signedAmount(type, amount) {
   const t = normalizeMode(type);
+  const n = Math.abs(Number(amount || 0));
 
-  if (['income', 'salary', 'opening', 'borrow', 'debt_in'].includes(t)) {
-    return amount;
+  if (['income', 'salary', 'opening', 'borrow', 'debt_in', 'adjustment_positive'].includes(t)) {
+    return n;
   }
 
-  if (['expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out'].includes(t)) {
-    return -amount;
+  if (['expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out', 'adjustment_negative'].includes(t)) {
+    return -n;
   }
 
   if (t === 'cc_payment') {
-    return -amount;
+    return -n;
   }
 
-  return -amount;
+  return -n;
 }
 
 async function loadCategoriesDirect(db) {
@@ -341,23 +406,68 @@ async function loadMerchantsDirect(db) {
     const wanted = [
       'id',
       'name',
+      'aliases',
       'default_category_id',
       'default_account_id',
       'default_intl_pra',
-      'aliases'
+      'is_pra_required',
+      'learned_count',
+      'created_at',
+      'updated_at'
     ].filter(col => cols.has(col));
+
+    const order = cols.has('learned_count')
+      ? 'learned_count DESC, name, id'
+      : (cols.has('name') ? 'name, id' : 'id');
 
     const rows = await db.prepare(
       `SELECT ${wanted.join(', ')}
        FROM merchants
-       ORDER BY name, id
-       LIMIT 500`
+       ORDER BY ${order}
+       LIMIT 750`
     ).all();
 
-    return rows.results || [];
+    return (rows.results || []).map(row => ({
+      id: row.id,
+      name: row.name || row.id,
+      aliases: parseAliases(row.aliases),
+      default_category_id: row.default_category_id || null,
+      default_account_id: row.default_account_id || null,
+      default_intl_pra: booleanBool(row.default_intl_pra),
+      is_pra_required: booleanBool(row.is_pra_required ?? row.default_intl_pra),
+      learned_count: Number(row.learned_count || 0),
+      created_at: row.created_at || null,
+      updated_at: row.updated_at || null
+    }));
   } catch {
     return [];
   }
+}
+
+function parseAliases(value) {
+  if (Array.isArray(value)) {
+    return value.map(v => cleanText(v, '', 120)).filter(Boolean);
+  }
+
+  if (value == null || value === '') return [];
+
+  const raw = String(value).trim();
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parseAliases(parsed);
+  } catch {
+    /* fall back */
+  }
+
+  return raw.split(',').map(v => cleanText(v, '', 120)).filter(Boolean);
+}
+
+function booleanBool(value) {
+  return value === true ||
+    value === 1 ||
+    value === '1' ||
+    String(value || '').toLowerCase() === 'true';
 }
 
 /* ─────────────────────────────
@@ -376,7 +486,12 @@ async function preview(context, body) {
       route: 'intl-package',
       package_preview: packagePreview,
       fx_lookup: packagePreview.fx_lookup || null,
-      normalized_payload: normalized
+      normalized_payload: normalized,
+      merchant_match: {
+        available: true,
+        route: MERCHANT_MATCH_ROUTE,
+        classification_only: true
+      }
     });
   }
 
@@ -385,9 +500,14 @@ async function preview(context, body) {
     version: VERSION,
     route: 'transactions',
     normalized_payload: normalized,
+    merchant_match: {
+      available: true,
+      route: MERCHANT_MATCH_ROUTE,
+      classification_only: true
+    },
     expected_writes: normalized.type === 'transfer'
-      ? [{ model: 'transactions', rows: 2 }, { model: 'audit', rows: 1 }]
-      : [{ model: 'transactions', rows: 1 }, { model: 'audit', rows: 1 }]
+      ? [{ model: 'transactions', rows: 2 }, { model: 'audit', rows: 0 }]
+      : [{ model: 'transactions', rows: 1 }, { model: 'audit', rows: 0 }]
   });
 }
 
@@ -413,10 +533,15 @@ async function dryRun(context, body) {
       requires_override: false,
       override_reason: null,
       override_token: null,
+      merchant_match: {
+        available: true,
+        route: MERCHANT_MATCH_ROUTE,
+        classification_only: true
+      },
       expected_writes: [
         { model: 'intl_package', rows: 1 },
         { model: 'transactions', rows: packagePreview.components.length },
-        { model: 'audit', rows: 1 }
+        { model: 'audit', rows: 0 }
       ],
       package_preview: packagePreview,
       normalized_payload: normalized
@@ -466,6 +591,11 @@ async function commit(context, body) {
     version: VERSION,
     route: 'transactions',
     written: normalizeWrittenResult(result),
+    merchant_match: {
+      available: true,
+      route: MERCHANT_MATCH_ROUTE,
+      classification_only: true
+    },
     ...result
   });
 }
@@ -513,9 +643,14 @@ function normalizeAddPayload(body) {
       120
     ),
     category_id: canonicalCategory(body.category_id || body.category || ''),
-    merchant: cleanText(body.merchant, '', 160),
+    merchant_id: cleanText(body.merchant_id || body.merchant_rule_id, '', 160),
+    merchant: cleanText(body.merchant || body.payee || body.counterparty, '', 160),
     reference: cleanText(body.reference, '', 160),
     notes: cleanText(body.notes || body.description || body.memo, '', 240),
+    source_module: cleanText(body.source_module, 'manual', 80) || 'manual',
+    source_id: cleanText(body.source_id, '', 160),
+    source_action: cleanText(body.source_action, 'manual_create', 80) || 'manual_create',
+    idempotency_key: cleanText(body.idempotency_key || body.client_request_id, '', 220),
     created_by: cleanText(body.created_by, 'web-add', 80) || 'web-add',
 
     subtype: cleanText(body.subtype, 'foreign', 40),
@@ -553,8 +688,14 @@ function directTransactionPayload(payload) {
     amount: payload.amount,
     account_id: payload.account_id,
     category_id: payload.type === 'transfer' ? null : payload.category_id,
+    merchant_id: payload.merchant_id || null,
+    merchant: payload.merchant || null,
     notes: buildDirectNotes(payload),
-    created_by: payload.created_by
+    source_module: payload.source_module || 'manual',
+    source_id: payload.source_id || null,
+    source_action: payload.source_action || 'manual_create',
+    idempotency_key: payload.idempotency_key || null,
+    created_by: payload.created_by || 'web-add'
   };
 
   if (payload.type === 'transfer') {
@@ -568,6 +709,7 @@ function buildDirectNotes(payload) {
   const parts = [];
 
   if (payload.merchant) parts.push('merchant=' + payload.merchant);
+  if (payload.merchant_id) parts.push('merchant_id=' + payload.merchant_id);
   if (payload.reference) parts.push('ref=' + payload.reference);
   if (payload.notes) parts.push(payload.notes);
 
@@ -646,6 +788,8 @@ async function buildIntlPreview(db, payload) {
     bank_charge_pkr: bankChargePkr,
     total_pkr: totalPkr,
     include_pra: !!payload.include_pra,
+    merchant_id: payload.merchant_id || null,
+    merchant: payload.merchant || null,
     components,
     config_snapshot: cfg,
     fx_lookup: payload.fx_rate
@@ -673,6 +817,8 @@ function compactPackageForHash(preview) {
     fx_rate: preview.fx_rate,
     total_pkr: preview.total_pkr,
     include_pra: preview.include_pra,
+    merchant_id: preview.merchant_id,
+    merchant: preview.merchant,
     components: preview.components
   };
 }
@@ -716,6 +862,7 @@ async function commitInternational(context, payload, suppliedHash) {
     id: packageId,
     account_id: payload.account_id,
     category_id: categoryId,
+    merchant_id: payload.merchant_id || null,
     merchant: payload.merchant,
     reference: payload.reference,
     subtype: preview.subtype,
@@ -749,6 +896,8 @@ async function commitInternational(context, payload, suppliedHash) {
       account_id: payload.account_id,
       transfer_to_account_id: null,
       category_id: categoryId,
+      merchant_id: payload.merchant_id || null,
+      merchant: payload.merchant,
       notes: `[INTL ${label}] ${payload.merchant || 'International'}${payload.notes ? ' | ' + payload.notes : ''}`.slice(0, 240),
       fee_amount: 0,
       pra_amount: 0,
@@ -757,6 +906,10 @@ async function commitInternational(context, payload, suppliedHash) {
       fx_rate_at_commit: preview.fx_rate || 1,
       fx_source: preview.subtype === 'foreign' ? 'intl-package' : 'PKR-base',
       intl_package_id: packageId,
+      source_module: 'add',
+      source_id: packageId,
+      source_action: 'international_package',
+      idempotency_key: payload.idempotency_key ? payload.idempotency_key + ':intl:' + row.component : null,
       created_by: payload.created_by,
       created_at: now
     });
@@ -929,11 +1082,12 @@ async function readJSON(request) {
 }
 
 function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
+  return new Response(JSON.stringify(obj, null, 2), {
     status,
     headers: {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'no-cache'
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      Pragma: 'no-cache'
     }
   });
 }
