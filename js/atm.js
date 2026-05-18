@@ -1,583 +1,865 @@
-/* js/atm.js
- * Sovereign Finance · ATM Frontend Binding
- * v0.2.0-atm-frontend-binding
- *
- * Contract:
- * - Frontend does not calculate authoritative balances.
- * - Frontend submits ATM withdrawal intent only.
- * - Backend creates source transfer row, cash income row, and optional fee row.
- * - Fee row is separate and not linked to transfer pair.
- * - UI uses existing shared shell/components where available.
- */
+(() => {
+  "use strict";
 
-(function () {
-  'use strict';
+  const VERSION = "v0.2.0-atm-frontend-binding";
 
-  if (window.SovereignATM && window.SovereignATM.initialized) return;
-
-  const VERSION = 'v0.2.0-atm-frontend-binding';
-
-  const API_ATM = '/api/atm';
-  const API_BALANCES = '/api/balances';
-
-  const state = {
-    context: null,
-    balances: null,
-    submitting: false
+  const ROUTES = {
+    atm: "/api/atm",
+    atmHealth: "/api/atm?action=health",
+    atmWithdraw: "/api/atm/withdraw",
+    balances: "/api/balances",
+    reverse: "/api/transactions/reverse"
   };
 
-  const $ = id => document.getElementById(id);
+  const CASH_ACCOUNT_ID = "cash";
 
-  function components() {
-    return window.SFComponents || {};
+  const state = {
+    atm: null,
+    health: null,
+    balances: null,
+    accounts: [],
+    pendingFees: [],
+    recentRows: [],
+    busy: false,
+    lastError: null
+  };
+
+  const id = {
+    refresh: "atm-refresh",
+    sourceStatus: "atm-source-status",
+
+    pendingCount: "atm-kpi-pending-count",
+    pendingTotal: "atm-kpi-pending-total",
+    feesPaid: "atm-kpi-fees-paid",
+    feesReversed: "atm-kpi-fees-reversed",
+    feesNet: "atm-kpi-fees-net",
+    defaultFee: "atm-kpi-default-fee",
+
+    form: "atm-form",
+    sourceAccount: "atm-source-account",
+    destinationAccount: "atm-destination-account",
+    amount: "atm-amount",
+    fee: "atm-fee",
+    date: "atm-date",
+    notes: "atm-notes",
+    result: "atm-result",
+    submit: "atm-submit",
+    submitLabel: "atm-submit-label",
+
+    pendingFeesList: "atm-pending-fees-list",
+    recentList: "atm-recent-list",
+
+    debugOutput: "atm-debug-output",
+    jsVersion: "atm-js-version",
+    footerVersion: "atm-footer-version"
+  };
+
+  function el(nodeId) {
+    return document.getElementById(nodeId);
   }
 
-  function esc(value) {
-    const c = components();
+  function setText(nodeId, value) {
+    const node = el(nodeId);
+    if (!node) return;
+    node.textContent = value === undefined || value === null || value === "" ? "—" : String(value);
+  }
 
-    if (typeof c.escapeHtml === 'function') return c.escapeHtml(value);
+  function setHtml(nodeId, value) {
+    const node = el(nodeId);
+    if (!node) return;
+    node.innerHTML = value || "";
+  }
 
-    return String(value == null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+  function asNumber(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
   }
 
   function money(value) {
-    const c = components();
+    const amount = asNumber(value, 0);
 
-    if (typeof c.money === 'function') {
-      return c.money(value, {
-        maximumFractionDigits: 2
-      });
-    }
-
-    const n = Number(value);
-
-    if (!Number.isFinite(n)) return '—';
-
-    return 'Rs ' + n.toLocaleString('en-PK', {
-      minimumFractionDigits: n % 1 === 0 ? 0 : 2,
+    return `Rs ${amount.toLocaleString("en-PK", {
+      minimumFractionDigits: Number.isInteger(amount) ? 0 : 2,
       maximumFractionDigits: 2
-    });
+    })}`;
   }
 
-  function asNumber(value, fallback) {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : (fallback || 0);
+  function cleanText(value, fallback = "—") {
+    if (value === undefined || value === null || value === "") return fallback;
+    return String(value);
+  }
+
+  function escapeHtml(value) {
+    return String(value === undefined || value === null ? "" : value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
   }
 
   function todayISO() {
-    return new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
   }
 
-  function setText(id, value) {
-    const el = $(id);
-    if (el) el.textContent = value == null ? '' : String(value);
+  function setHidden(nodeId, hidden) {
+    const node = el(nodeId);
+    if (!node) return;
+    node.hidden = Boolean(hidden);
   }
 
-  function setHTML(id, value) {
-    const el = $(id);
-    if (el) el.innerHTML = value == null ? '' : String(value);
+  function setStatus(tone, label) {
+    const node = el(id.sourceStatus);
+    if (!node) return;
+
+    node.className = "sf-pill";
+
+    if (tone === "positive" || tone === "success") {
+      node.classList.add("sf-pill--positive");
+    } else if (tone === "warning") {
+      node.classList.add("sf-pill--warning");
+    } else if (tone === "danger" || tone === "error") {
+      node.classList.add("sf-pill--danger");
+    } else {
+      node.classList.add("sf-pill--info");
+    }
+
+    node.textContent = label;
   }
 
-  function setValue(id, value) {
-    const el = $(id);
-    if (el && !el.value) el.value = value == null ? '' : String(value);
+  function setBusy(nextBusy) {
+    state.busy = Boolean(nextBusy);
+
+    const submit = el(id.submit);
+    const refresh = el(id.refresh);
+
+    if (submit) submit.disabled = state.busy;
+    if (refresh) refresh.disabled = state.busy;
+
+    setText(id.submitLabel, state.busy ? "Recording…" : "Record ATM withdrawal");
   }
 
-  function setDisabled(id, disabled) {
-    const el = $(id);
-    if (el) el.disabled = !!disabled;
-  }
-
-  function setPill(id, label, tone) {
-    const el = $(id);
-    if (!el) return;
-
-    el.textContent = label == null ? '' : String(label);
-    el.className = 'sf-pill' + (tone ? ' sf-pill--' + tone : '');
-  }
-
-  async function fetchJSON(url, options) {
+  async function requestJson(url, options = {}) {
     const response = await fetch(url, {
-      cache: 'no-store',
+      ...options,
       headers: {
-        Accept: 'application/json',
-        ...(options && options.headers ? options.headers : {})
-      },
-      ...(options || {})
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      }
     });
 
-    const data = await response.json().catch(() => null);
+    let payload;
 
-    if (!response.ok || !data || data.ok === false) {
-      throw new Error((data && data.error) || ('HTTP ' + response.status));
+    try {
+      payload = await response.json();
+    } catch (_) {
+      payload = {
+        ok: false,
+        error: `Non-JSON response from ${url}`
+      };
     }
 
-    return data;
-  }
+    if (!response.ok || payload?.ok === false) {
+      const error = new Error(
+        payload?.error ||
+          payload?.message ||
+          `Request failed: ${response.status} ${response.statusText}`
+      );
 
-  function accountId(account) {
-    return account && (account.id || account.account_id) || '';
-  }
-
-  function accountName(account) {
-    return account && (account.name || account.account_name || account.label || accountId(account)) || 'Account';
-  }
-
-  function accountLabel(account) {
-    if (!account) return '—';
-    return `${account.icon || ''} ${accountName(account)}`.trim();
-  }
-
-  function normalizeAccounts(payload) {
-    if (!payload) return [];
-
-    if (Array.isArray(payload.accounts)) return payload.accounts;
-    if (Array.isArray(payload.source_accounts)) return payload.source_accounts;
-
-    if (payload.accounts && typeof payload.accounts === 'object') {
-      return Object.entries(payload.accounts).map(([id, row]) => ({
-        id,
-        ...(row || {})
-      }));
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
     }
 
-    if (Array.isArray(payload.account_list)) return payload.account_list;
-
-    return [];
+    return payload;
   }
 
-  function sourceAccounts() {
-    if (!state.context) return [];
+  function normalizeAccount(raw, forcedId) {
+    if (!raw || typeof raw !== "object") {
+      if (!forcedId) return null;
 
-    if (Array.isArray(state.context.source_accounts)) {
-      return state.context.source_accounts;
+      return {
+        id: String(forcedId),
+        name: String(forcedId),
+        type: "",
+        balance: asNumber(raw, 0),
+        active: true
+      };
     }
 
-    return normalizeAccounts(state.context)
-      .filter(account => String(account.kind || account.type || '').toLowerCase() !== 'cash')
-      .filter(account => String(account.type || '').toLowerCase() !== 'liability');
+    const accountId =
+      raw.id ||
+      raw.account_id ||
+      raw.accountId ||
+      raw.key ||
+      raw.slug ||
+      forcedId;
+
+    if (!accountId) return null;
+
+    const name =
+      raw.name ||
+      raw.label ||
+      raw.account_name ||
+      raw.accountName ||
+      raw.title ||
+      accountId;
+
+    const balance =
+      raw.balance ??
+      raw.current_balance ??
+      raw.currentBalance ??
+      raw.computed_balance ??
+      raw.computedBalance ??
+      raw.amount ??
+      raw.value ??
+      0;
+
+    const type =
+      raw.type ||
+      raw.account_type ||
+      raw.accountType ||
+      raw.kind ||
+      "";
+
+    const active =
+      raw.active !== false &&
+      raw.is_active !== false &&
+      raw.isActive !== false &&
+      raw.archived !== true &&
+      raw.hidden !== true;
+
+    return {
+      id: String(accountId),
+      name: String(name),
+      type: String(type || ""),
+      balance: asNumber(balance, 0),
+      active
+    };
   }
 
-  function destinationAccounts() {
-    if (!state.context) return [];
+  function extractAccounts(payload) {
+    const rawAccounts = [];
 
-    if (Array.isArray(state.context.destination_accounts)) {
-      return state.context.destination_accounts;
+    if (Array.isArray(payload?.accounts)) rawAccounts.push(...payload.accounts);
+    if (Array.isArray(payload?.rows)) rawAccounts.push(...payload.rows);
+    if (Array.isArray(payload?.items)) rawAccounts.push(...payload.items);
+    if (Array.isArray(payload?.balances)) rawAccounts.push(...payload.balances);
+    if (Array.isArray(payload?.account_balances)) rawAccounts.push(...payload.account_balances);
+    if (Array.isArray(payload?.accountBalances)) rawAccounts.push(...payload.accountBalances);
+    if (Array.isArray(payload?.data?.accounts)) rawAccounts.push(...payload.data.accounts);
+    if (Array.isArray(payload?.data?.rows)) rawAccounts.push(...payload.data.rows);
+
+    if (payload?.accounts && !Array.isArray(payload.accounts) && typeof payload.accounts === "object") {
+      Object.entries(payload.accounts).forEach(([accountId, account]) => {
+        rawAccounts.push({ id: accountId, ...(typeof account === "object" ? account : { balance: account }) });
+      });
     }
 
-    return normalizeAccounts(state.context)
-      .filter(account => String(account.type || '').toLowerCase() !== 'liability');
+    if (payload?.balances && !Array.isArray(payload.balances) && typeof payload.balances === "object") {
+      Object.entries(payload.balances).forEach(([accountId, account]) => {
+        rawAccounts.push({ id: accountId, ...(typeof account === "object" ? account : { balance: account }) });
+      });
+    }
+
+    const seen = new Set();
+
+    return rawAccounts
+      .map((account) => normalizeAccount(account))
+      .filter(Boolean)
+      .filter((account) => {
+        if (!account.active) return false;
+        if (seen.has(account.id)) return false;
+        seen.add(account.id);
+        return true;
+      })
+      .sort((a, b) => {
+        if (a.id === CASH_ACCOUNT_ID) return 1;
+        if (b.id === CASH_ACCOUNT_ID) return -1;
+        return a.name.localeCompare(b.name);
+      });
   }
 
-  function getAccountBalance(accountIdValue) {
-    if (!state.balances) return null;
+  function extractPendingFees(payload) {
+    const rows = [];
 
-    const accounts = state.balances.accounts || {};
-    const row = accounts[accountIdValue];
+    if (Array.isArray(payload?.pending_fees)) rows.push(...payload.pending_fees);
+    if (Array.isArray(payload?.pendingFees)) rows.push(...payload.pendingFees);
+    if (Array.isArray(payload?.fees?.pending)) rows.push(...payload.fees.pending);
+    if (Array.isArray(payload?.summary?.pending_fees)) rows.push(...payload.summary.pending_fees);
+    if (Array.isArray(payload?.data?.pending_fees)) rows.push(...payload.data.pending_fees);
 
-    if (!row) return null;
-
-    return row.balance ?? row.current_balance ?? row.amount ?? null;
+    return rows;
   }
 
-  function fillSelect(id, accounts, fallbackLabel) {
-    const select = $(id);
-    if (!select) return;
+  function extractRecentRows(payload) {
+    const rows = [];
 
-    const current = select.value;
+    if (Array.isArray(payload?.recent)) rows.push(...payload.recent);
+    if (Array.isArray(payload?.recent_rows)) rows.push(...payload.recent_rows);
+    if (Array.isArray(payload?.recentRows)) rows.push(...payload.recentRows);
+    if (Array.isArray(payload?.recent_activity)) rows.push(...payload.recent_activity);
+    if (Array.isArray(payload?.transactions)) rows.push(...payload.transactions);
+    if (Array.isArray(payload?.rows)) rows.push(...payload.rows);
+    if (Array.isArray(payload?.data?.recent)) rows.push(...payload.data.recent);
+    if (Array.isArray(payload?.data?.transactions)) rows.push(...payload.data.transactions);
 
-    select.innerHTML = [
-      `<option value="">${esc(fallbackLabel || 'Select account')}</option>`
-    ].concat(accounts.map(account => {
-      const idValue = accountId(account);
-      const balance = getAccountBalance(idValue);
-      const suffix = balance == null ? '' : ` · ${money(balance)}`;
-
-      return `<option value="${esc(idValue)}">${esc(accountLabel(account) + suffix)}</option>`;
-    })).join('');
-
-    if (current) select.value = current;
+    return rows.slice(0, 25);
   }
 
-  function applyDefaults() {
-    const defaults = state.context && state.context.defaults || {};
+  function getPendingCount() {
+    return (
+      state.atm?.pending_count ??
+      state.atm?.pending_fee_count ??
+      state.atm?.summary?.pending_count ??
+      state.atm?.summary?.pending_fee_count ??
+      state.pendingFees.length
+    );
+  }
 
-    setValue('atm-source-account', defaults.source_account_id || 'mashreq');
-    setValue('atm-destination-account', defaults.destination_account_id || 'cash');
-    setValue('atm-fee', defaults.fee_pkr == null ? 35 : defaults.fee_pkr);
-    setValue('atm-date', todayISO());
+  function getPendingTotal() {
+    const apiValue =
+      state.atm?.total_pending_pkr ??
+      state.atm?.pending_total ??
+      state.atm?.pending_fee_total ??
+      state.atm?.summary?.total_pending_pkr ??
+      state.atm?.summary?.pending_total ??
+      state.atm?.summary?.pending_fee_total;
+
+    if (apiValue !== undefined && apiValue !== null) return asNumber(apiValue, 0);
+
+    return state.pendingFees.reduce((sum, fee) => {
+      return sum + asNumber(fee.amount ?? fee.fee ?? fee.value ?? fee.total, 0);
+    }, 0);
+  }
+
+  function getFeesPaid() {
+    return asNumber(
+      state.atm?.fees_paid_30d ??
+        state.atm?.fees_paid ??
+        state.atm?.summary?.fees_paid_30d ??
+        state.atm?.summary?.fees_paid ??
+        state.atm?.stats?.fees_paid_30d ??
+        state.atm?.stats?.fees_paid ??
+        0,
+      0
+    );
+  }
+
+  function getFeesReversed() {
+    return asNumber(
+      state.atm?.fees_reversed_30d ??
+        state.atm?.fees_reversed ??
+        state.atm?.summary?.fees_reversed_30d ??
+        state.atm?.summary?.fees_reversed ??
+        state.atm?.stats?.fees_reversed_30d ??
+        state.atm?.stats?.fees_reversed ??
+        0,
+      0
+    );
+  }
+
+  function getDefaultFee() {
+    return asNumber(
+      state.atm?.default_fee ??
+        state.atm?.default_atm_fee ??
+        state.atm?.contract?.default_fee ??
+        state.atm?.rules?.default_fee ??
+        0,
+      0
+    );
   }
 
   function renderKpis() {
-    const context = state.context || {};
-    const pendingCount = Number(context.pending_count || 0);
-    const pendingTotal = Number(context.total_pending_pkr || 0);
-    const fees30 = context.fees_30d || {};
-    const defaults = context.defaults || {};
+    const pendingCount = getPendingCount();
+    const pendingTotal = getPendingTotal();
+    const feesPaid = getFeesPaid();
+    const feesReversed = getFeesReversed();
 
-    setText('atm-kpi-pending-count', String(pendingCount));
-    setText('atm-kpi-pending-total', money(pendingTotal));
-    setText('atm-kpi-fees-paid', money(fees30.paid || 0));
-    setText('atm-kpi-fees-reversed', money(fees30.reversed || 0));
-    setText('atm-kpi-fees-net', money(fees30.net || 0));
-    setText('atm-kpi-default-fee', money(defaults.fee_pkr == null ? 35 : defaults.fee_pkr));
+    const apiNet =
+      state.atm?.fees_net ??
+      state.atm?.net_fees ??
+      state.atm?.summary?.fees_net ??
+      state.atm?.summary?.net_fees ??
+      state.atm?.stats?.fees_net;
 
-    setPill(
-      'atm-source-status',
-      context.version ? `ATM API ${context.version}` : 'ATM API loaded',
-      'positive'
-    );
+    const feesNet = apiNet === undefined || apiNet === null
+      ? feesPaid - feesReversed
+      : asNumber(apiNet, 0);
 
-    if (window.SFShell && typeof window.SFShell.setKpis === 'function') {
-      window.SFShell.setKpis([
-        {
-          title: 'Pending ATM Fees',
-          kicker: 'ATM',
-          valueHtml: String(pendingCount),
-          subtitle: money(pendingTotal),
-          foot: 'Awaiting reversal or expiry',
-          tone: pendingCount ? 'warning' : 'positive'
-        },
-        {
-          title: 'Fees 30d',
-          kicker: 'ATM',
-          valueHtml: money(fees30.net || 0),
-          subtitle: `Paid ${money(fees30.paid || 0)} · Reversed ${money(fees30.reversed || 0)}`,
-          foot: 'Net fee pressure',
-          tone: Number(fees30.net || 0) > 0 ? 'warning' : 'positive'
-        },
-        {
-          title: 'Default Source',
-          kicker: 'ATM',
-          valueHtml: defaults.source_account_id || '—',
-          subtitle: `Destination ${defaults.destination_account_id || 'cash'}`,
-          foot: 'Backend defaults',
-          tone: 'info'
-        },
-        {
-          title: 'Balance Source',
-          kicker: 'Accounts',
-          valueHtml: 'Ledger',
-          subtitle: 'No direct balance mutation',
-          foot: 'transactions_canonical',
-          tone: 'positive'
-        }
-      ]);
+    setText(id.pendingCount, pendingCount);
+    setText(id.pendingTotal, money(pendingTotal));
+    setText(id.feesPaid, money(feesPaid));
+    setText(id.feesReversed, money(feesReversed));
+    setText(id.feesNet, money(feesNet));
+    setText(id.defaultFee, `Default ${money(getDefaultFee())}`);
+  }
+
+  function renderAccounts() {
+    const sourceSelect = el(id.sourceAccount);
+    const destinationSelect = el(id.destinationAccount);
+
+    if (!sourceSelect || !destinationSelect) return;
+
+    const previousSource = sourceSelect.value;
+    const previousDestination = destinationSelect.value || CASH_ACCOUNT_ID;
+
+    const accounts = state.accounts;
+    const cashAccount =
+      accounts.find((account) => account.id === CASH_ACCOUNT_ID) ||
+      normalizeAccount({ id: CASH_ACCOUNT_ID, name: "Cash", type: "cash", balance: 0 });
+
+    const sourceAccounts = accounts.filter((account) => account.id !== CASH_ACCOUNT_ID);
+
+    sourceSelect.innerHTML = [
+      '<option value="">Select source account</option>',
+      ...sourceAccounts.map((account) => {
+        const selected = account.id === previousSource ? " selected" : "";
+        return `<option value="${escapeHtml(account.id)}"${selected}>${escapeHtml(account.name)} · ${escapeHtml(money(account.balance))}</option>`;
+      })
+    ].join("");
+
+    destinationSelect.innerHTML = [
+      `<option value="${escapeHtml(cashAccount.id)}">${escapeHtml(cashAccount.name)} · ${escapeHtml(money(cashAccount.balance))}</option>`
+    ].join("");
+
+    destinationSelect.value = previousDestination || CASH_ACCOUNT_ID;
+
+    if (!destinationSelect.value) {
+      destinationSelect.value = CASH_ACCOUNT_ID;
     }
   }
 
-  function renderPendingFees() {
-    const rows = state.context && Array.isArray(state.context.pending_fees)
-      ? state.context.pending_fees
-      : [];
+  function financeRowHtml(options) {
+    const title = escapeHtml(options.title || "—");
+    const subtitle = escapeHtml(options.subtitle || "—");
+    const right = escapeHtml(options.right || "—");
+    const tone = options.tone || "info";
 
-    if (!rows.length) {
-      setHTML('atm-pending-fees-list', emptyState(
-        'No pending ATM fees',
-        'No ATM fee rows are currently waiting for reversal.'
-      ));
-      return;
-    }
+    let rightClass = "sf-row-right";
 
-    setHTML('atm-pending-fees-list', rows.map(row => `
-      <div class="sf-finance-row">
-        <div class="sf-row-left">
-          <div class="sf-row-title">${esc(row.id || 'ATM fee')}</div>
-          <div class="sf-row-subtitle">${esc(row.date || '—')} · ${esc(row.account_id || '—')} · age ${esc(row.age_days ?? '—')}d</div>
-          <div class="sf-row-subtitle">${esc(row.notes || '')}</div>
-        </div>
-        <div class="sf-row-right">
-          <div class="sf-tone-warning">${money(row.amount)}</div>
-          <div class="sf-row-subtitle">pending</div>
-        </div>
-      </div>
-    `).join(''));
-  }
-
-  function renderRecentRows() {
-    const rows = state.context && Array.isArray(state.context.recent_atm_rows)
-      ? state.context.recent_atm_rows
-      : [];
-
-    if (!rows.length) {
-      setHTML('atm-recent-list', emptyState(
-        'No recent ATM rows',
-        'ATM rows will appear here after withdrawal activity.'
-      ));
-      return;
-    }
-
-    setHTML('atm-recent-list', rows.slice(0, 20).map(row => {
-      const type = String(row.type || '').toLowerCase();
-      const tone = type === 'income'
-        ? 'positive'
-        : type === 'transfer'
-          ? 'info'
-          : 'warning';
-
-      return `
-        <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">${esc(row.id || 'ATM row')}</div>
-            <div class="sf-row-subtitle">${esc(row.date || '—')} · ${esc(row.type || '—')} · ${esc(row.account_id || '—')}</div>
-            <div class="sf-row-subtitle">${esc(row.notes || '')}</div>
-          </div>
-          <div class="sf-row-right">
-            <div class="sf-tone-${tone}">${money(row.amount)}</div>
-            <div class="sf-row-subtitle">${esc(row.linked_txn_id || 'unlinked')}</div>
-          </div>
-        </div>
-      `;
-    }).join(''));
-  }
-
-  function renderDebug() {
-    const debug = {
-      page_version: VERSION,
-      endpoint: API_ATM,
-      balance_endpoint: API_BALANCES,
-      contract: {
-        frontend_money_truth: false,
-        backend_write_owner: '/api/atm',
-        account_balance_source: 'transactions_canonical',
-        fee_link_policy: 'fee row is separate, not linked to withdrawal pair'
-      },
-      context: state.context,
-      balances: state.balances
-    };
-
-    setText('atm-debug-output', JSON.stringify(debug, null, 2));
-
-    if (window.SFShell && typeof window.SFShell.revealDebugIfNeeded === 'function') {
-      window.SFShell.revealDebugIfNeeded();
-    }
-  }
-
-  function emptyState(title, subtitle) {
-    const c = components();
-
-    if (typeof c.emptyState === 'function') {
-      return c.emptyState({ title, subtitle });
+    if (tone === "positive" || tone === "success") {
+      rightClass += " sf-tone-positive";
+    } else if (tone === "warning") {
+      rightClass += " sf-tone-warning";
+    } else if (tone === "danger" || tone === "error") {
+      rightClass += " sf-tone-danger";
+    } else {
+      rightClass += " sf-tone-info";
     }
 
     return `
-      <div class="sf-empty-state">
-        <div>
-          <h3 class="sf-card-title">${esc(title)}</h3>
-          <p class="sf-card-subtitle">${esc(subtitle || '')}</p>
+      <div class="sf-finance-row">
+        <div class="sf-row-left">
+          <div class="sf-row-title">${title}</div>
+          <div class="sf-row-subtitle">${subtitle}</div>
         </div>
+        <div class="${rightClass}">${right}</div>
       </div>
     `;
   }
 
-  function loadingState(title, subtitle) {
-    const c = components();
-
-    if (typeof c.loadingState === 'function') {
-      return c.loadingState({ title, subtitle });
-    }
-
+  function loadingHtml(title, subtitle) {
     return `
       <div class="sf-loading-state">
         <div>
-          <h3 class="sf-card-title">${esc(title)}</h3>
-          <p class="sf-card-subtitle">${esc(subtitle || '')}</p>
+          <h3 class="sf-card-title">${escapeHtml(title)}</h3>
+          <p class="sf-card-subtitle">${escapeHtml(subtitle)}</p>
         </div>
       </div>
     `;
   }
 
-  function errorState(title, message) {
-    const c = components();
-
-    if (typeof c.errorState === 'function') {
-      return c.errorState({ title, message });
-    }
-
+  function emptyHtml(title, subtitle) {
     return `
-      <div class="sf-empty-state sf-tone-danger">
+      <div class="sf-loading-state">
         <div>
-          <h3 class="sf-card-title">${esc(title)}</h3>
-          <p class="sf-card-subtitle">${esc(message || '')}</p>
+          <h3 class="sf-card-title">${escapeHtml(title)}</h3>
+          <p class="sf-card-subtitle">${escapeHtml(subtitle)}</p>
         </div>
       </div>
     `;
   }
 
-  function readForm() {
-    const source = $('atm-source-account');
-    const destination = $('atm-destination-account');
-    const amount = $('atm-amount');
-    const fee = $('atm-fee');
-    const date = $('atm-date');
-    const notes = $('atm-notes');
+  function renderPendingFees() {
+    const node = el(id.pendingFeesList);
+    if (!node) return;
 
-    return {
-      action: 'withdrawal',
-      source_account_id: source ? source.value : '',
-      cash_account_id: destination ? destination.value : 'cash',
-      amount: amount ? asNumber(amount.value, 0) : 0,
-      fee_amount: fee ? asNumber(fee.value, 0) : 0,
-      date: date && date.value ? date.value : todayISO(),
-      notes: notes ? notes.value.trim() : '',
-      created_by: 'web-atm',
-      idempotency_key: 'atm_' + Date.now()
-    };
-  }
-
-  function validateForm(payload) {
-    if (!payload.source_account_id) return 'Select source account.';
-    if (!payload.cash_account_id) return 'Select cash/destination account.';
-    if (payload.source_account_id === payload.cash_account_id) return 'Source and destination cannot be same.';
-    if (!Number.isFinite(Number(payload.amount)) || Number(payload.amount) <= 0) return 'Amount must be greater than 0.';
-    if (!Number.isFinite(Number(payload.fee_amount)) || Number(payload.fee_amount) < 0) return 'Fee cannot be negative.';
-    if (!payload.date) return 'Date required.';
-    return '';
-  }
-
-  async function submitWithdrawal(event) {
-    if (event) event.preventDefault();
-
-    if (state.submitting) return;
-
-    const payload = readForm();
-    const error = validateForm(payload);
-
-    if (error) {
-      showResult(false, error);
+    if (!state.pendingFees.length) {
+      node.innerHTML = emptyHtml(
+        "No pending ATM fees",
+        "No active ATM fee rows are waiting for reversal or acceptance."
+      );
       return;
     }
 
-    state.submitting = true;
-    setDisabled('atm-submit', true);
-    setText('atm-submit-label', 'Saving…');
-    showResult(true, 'Submitting ATM withdrawal…');
+    node.innerHTML = state.pendingFees.map((fee) => {
+      const feeId = cleanText(fee.id || fee.transaction_id || fee.txn_id || fee.row_id, "pending-fee");
+      const accountId = cleanText(fee.account_id || fee.account || fee.source_account_id, "Unknown account");
+      const amount = fee.amount ?? fee.fee ?? fee.value ?? 0;
+      const date = cleanText(fee.date || fee.transaction_date || fee.created_at, "");
+      const notes = cleanText(fee.notes || fee.description || fee.memo, "ATM fee pending review");
 
-    try {
-      const response = await fetchJSON(API_ATM, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
+      return financeRowHtml({
+        title: `${accountId} · ${feeId}`,
+        subtitle: [date, notes].filter(Boolean).join(" · "),
+        right: money(amount),
+        tone: "warning"
       });
+    }).join("");
+  }
 
-      showResult(true, buildSuccessMessage(response));
-      clearAmountFields();
-      await loadAll();
-    } catch (err) {
-      showResult(false, err.message || String(err));
-    } finally {
-      state.submitting = false;
-      setDisabled('atm-submit', false);
-      setText('atm-submit-label', 'Record ATM withdrawal');
+  function renderRecentRows() {
+    const node = el(id.recentList);
+    if (!node) return;
+
+    if (!state.recentRows.length) {
+      node.innerHTML = emptyHtml(
+        "No ATM rows yet",
+        "ATM withdrawals, cash receipt rows, fee rows, and reversals will appear here."
+      );
+      return;
+    }
+
+    node.innerHTML = state.recentRows.map((row) => {
+      const rowId = cleanText(row.id || row.transaction_id || row.txn_id || row.row_id, "atm-row");
+      const type = cleanText(row.type || row.kind || row.action || row.category, "ATM");
+      const accountId = cleanText(row.account_id || row.account || row.source_account_id || row.destination_account_id, "");
+      const amount = row.amount ?? row.value ?? row.fee ?? 0;
+      const date = cleanText(row.date || row.transaction_date || row.created_at, "");
+      const notes = cleanText(row.notes || row.description || row.memo, "");
+
+      let tone = "info";
+      let label = money(amount);
+
+      if (row.is_reversal || row.reversal_of || String(rowId).startsWith("rv_")) {
+        tone = "positive";
+        label = "Reversal";
+      } else if (row.is_reversed) {
+        tone = "warning";
+        label = "Reversed";
+      } else if (type === "expense" || type === "atm" || type === "transfer") {
+        tone = "warning";
+      } else if (type === "income" || type === "opening") {
+        tone = "positive";
+      }
+
+      return financeRowHtml({
+        title: [type, accountId].filter(Boolean).join(" · "),
+        subtitle: [rowId, date, notes].filter(Boolean).join(" · "),
+        right: label,
+        tone
+      });
+    }).join("");
+  }
+
+  function renderResult(tone, title, message, payload) {
+    const node = el(id.result);
+    if (!node) return;
+
+    node.hidden = false;
+
+    node.innerHTML = financeRowHtml({
+      title,
+      subtitle: message,
+      right: tone === "danger" ? "Failed" : tone === "warning" ? "Check" : "Done",
+      tone
+    });
+
+    if (payload) {
+      renderDebug(payload);
     }
   }
 
-  function buildSuccessMessage(response) {
-    const ids = response.transaction_ids || [];
-    const sourceDelta = response.account_impact && response.account_impact.source_account_delta;
-    const cashDelta = response.account_impact && response.account_impact.cash_account_delta;
-
-    return [
-      'ATM withdrawal recorded.',
-      ids.length ? `Rows: ${ids.join(', ')}` : '',
-      sourceDelta != null ? `Source impact: ${money(sourceDelta)}` : '',
-      cashDelta != null ? `Cash impact: +${money(cashDelta).replace(/^Rs /, 'Rs ')}` : ''
-    ].filter(Boolean).join(' ');
+  function renderDebug(payload) {
+    const node = el(id.debugOutput);
+    if (!node) return;
+    node.textContent = JSON.stringify(payload, null, 2);
   }
 
-  function clearAmountFields() {
-    const amount = $('atm-amount');
-    const notes = $('atm-notes');
+  function renderVersions() {
+    window.SovereignATM = {
+      version: VERSION,
+      atm_route: ROUTES.atm,
+      health_route: ROUTES.atmHealth,
+      withdraw_route: ROUTES.atmWithdraw,
+      reverse_route: ROUTES.reverse,
+      contract_version: state.atm?.contract_version || state.health?.contract_version || "atm-v1",
+      loaded_at: new Date().toISOString()
+    };
 
-    if (amount) amount.value = '';
-    if (notes) notes.value = '';
+    setText(id.jsVersion, `ATM UI ${VERSION}`);
+    setText(id.footerVersion, `ATM · ${state.atm?.version || VERSION}`);
   }
 
-  function showResult(ok, message) {
-    const el = $('atm-result');
-    if (!el) return;
-
-    el.hidden = false;
-    el.className = 'sf-callout ' + (ok ? 'sf-callout--success' : 'sf-callout--danger');
-    el.textContent = message;
-  }
-
-  function bindEvents() {
-    const form = $('atm-form');
-
-    if (form) {
-      form.addEventListener('submit', submitWithdrawal);
+  function renderStatus() {
+    if (state.health?.status === "pass") {
+      setStatus("positive", `Healthy · ${state.health.version || state.atm?.version || "ATM"}`);
+      return;
     }
 
-    $('atm-submit')?.addEventListener('click', submitWithdrawal);
-    $('atm-refresh')?.addEventListener('click', loadAll);
+    if (state.health?.status && state.health.status !== "pass") {
+      setStatus("warning", `Health ${state.health.status}`);
+      return;
+    }
+
+    if (state.atm?.version) {
+      setStatus("positive", `Loaded · ${state.atm.version}`);
+      return;
+    }
+
+    setStatus("info", "Loaded");
+  }
+
+  function renderAll() {
+    renderVersions();
+    renderKpis();
+    renderAccounts();
+    renderPendingFees();
+    renderRecentRows();
+    renderStatus();
   }
 
   async function loadAll() {
-    setPill('atm-source-status', 'Loading', 'info');
-    setHTML('atm-pending-fees-list', loadingState('Loading ATM fees', 'Reading /api/atm.'));
-    setHTML('atm-recent-list', loadingState('Loading ATM rows', 'Reading /api/atm.'));
+    const [atmPayload, healthPayload, balancesPayload] = await Promise.all([
+      requestJson(ROUTES.atm),
+      requestJson(ROUTES.atmHealth).catch((error) => ({
+        ok: false,
+        status: "unknown",
+        error: error.message,
+        payload: error.payload || null
+      })),
+      requestJson(ROUTES.balances)
+    ]);
 
+    state.atm = atmPayload;
+    state.health = healthPayload;
+    state.balances = balancesPayload;
+    state.accounts = extractAccounts(balancesPayload);
+    state.pendingFees = extractPendingFees(atmPayload);
+    state.recentRows = extractRecentRows(atmPayload);
+
+    if (!state.accounts.some((account) => account.id === CASH_ACCOUNT_ID)) {
+      state.accounts.push({
+        id: CASH_ACCOUNT_ID,
+        name: "Cash",
+        type: "cash",
+        balance: 0,
+        active: true
+      });
+    }
+
+    renderAll();
+
+    renderDebug({
+      atm: {
+        ok: atmPayload?.ok,
+        version: atmPayload?.version,
+        contract_version: atmPayload?.contract_version,
+        route: atmPayload?.route,
+        supported_routes: atmPayload?.supported_routes,
+        pending_count: getPendingCount(),
+        pending_total: getPendingTotal()
+      },
+      health: healthPayload,
+      balances: {
+        ok: balancesPayload?.ok,
+        version: balancesPayload?.version,
+        contract_version: balancesPayload?.contract_version,
+        source: balancesPayload?.source,
+        balance_source: balancesPayload?.balance_source,
+        account_count: balancesPayload?.account_count,
+        active_account_count: balancesPayload?.active_account_count
+      }
+    });
+  }
+
+  async function refresh() {
     try {
-      const [contextResult, balancesResult] = await Promise.allSettled([
-        fetchJSON(API_ATM),
-        fetchJSON(API_BALANCES)
-      ]);
-
-      if (contextResult.status === 'fulfilled') {
-        state.context = contextResult.value;
-      } else {
-        throw contextResult.reason;
-      }
-
-      if (balancesResult.status === 'fulfilled') {
-        state.balances = balancesResult.value;
-      } else {
-        state.balances = null;
-      }
-
-      fillSelect('atm-source-account', sourceAccounts(), 'Source account');
-      fillSelect('atm-destination-account', destinationAccounts(), 'Destination account');
-      applyDefaults();
-      renderKpis();
-      renderPendingFees();
-      renderRecentRows();
-      renderDebug();
-    } catch (err) {
-      setPill('atm-source-status', 'ATM API failed', 'danger');
-      setHTML('atm-pending-fees-list', errorState('ATM API failed', err.message || String(err)));
-      setHTML('atm-recent-list', errorState('ATM rows unavailable', 'Could not load ATM context.'));
+      setBusy(true);
+      setStatus("info", "Refreshing");
+      await loadAll();
+      renderResult("positive", "ATM data refreshed", "Latest ATM contract, health, balances, pending fees, and recent rows loaded.", null);
+    } catch (error) {
+      state.lastError = error;
+      setStatus("danger", "Refresh failed");
+      renderResult("danger", "ATM refresh failed", error.message, error.payload || { error: error.message });
+    } finally {
+      setBusy(false);
     }
   }
 
-  function init() {
-    window.SovereignATM = {
-      initialized: true,
-      version: VERSION,
-      reload: loadAll,
-      submitWithdrawal,
-      context: () => state.context,
-      balances: () => state.balances
+  function buildWithdrawPayload() {
+    const sourceAccountId = el(id.sourceAccount)?.value || "";
+    const destinationAccountId = el(id.destinationAccount)?.value || CASH_ACCOUNT_ID;
+    const amount = asNumber(el(id.amount)?.value, 0);
+    const fee = asNumber(el(id.fee)?.value, 0);
+    const date = el(id.date)?.value || todayISO();
+    const notes = (el(id.notes)?.value || "").trim();
+
+    if (!sourceAccountId) {
+      throw new Error("Select a source account.");
+    }
+
+    if (!destinationAccountId) {
+      throw new Error("Select a cash destination account.");
+    }
+
+    if (sourceAccountId === destinationAccountId) {
+      throw new Error("Source account and destination account cannot be the same.");
+    }
+
+    if (!(amount > 0)) {
+      throw new Error("Withdrawal amount must be greater than zero.");
+    }
+
+    if (fee < 0) {
+      throw new Error("ATM fee cannot be negative.");
+    }
+
+    return {
+      source_account_id: sourceAccountId,
+      destination_account_id: destinationAccountId,
+      cash_account_id: destinationAccountId,
+      amount,
+      fee,
+      date,
+      notes
     };
-
-    setText('atm-js-version', VERSION);
-    setText('atm-footer-version', `v0.2.0 · ATM · ${VERSION}`);
-
-    bindEvents();
-    loadAll();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, {
-      once: true
-    });
+  async function submitWithdrawal(event) {
+    event.preventDefault();
+
+    try {
+      setBusy(true);
+      setStatus("info", "Recording");
+
+      const payload = buildWithdrawPayload();
+
+      const result = await requestJson(ROUTES.atmWithdraw, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+
+      renderResult(
+        "positive",
+        "ATM withdrawal recorded",
+        "Source transfer row, cash receipt row, and optional standalone fee row were created.",
+        result
+      );
+
+      const form = el(id.form);
+      if (form) form.reset();
+
+      const dateInput = el(id.date);
+      if (dateInput) dateInput.value = todayISO();
+
+      const destinationSelect = el(id.destinationAccount);
+      if (destinationSelect) destinationSelect.value = CASH_ACCOUNT_ID;
+
+      await loadAll();
+    } catch (error) {
+      state.lastError = error;
+      setStatus("danger", "Record failed");
+      renderResult("danger", "ATM withdrawal failed", error.message, error.payload || { error: error.message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function verifyRequiredNodes() {
+    const required = [
+      id.sourceStatus,
+      id.pendingCount,
+      id.pendingTotal,
+      id.feesPaid,
+      id.feesReversed,
+      id.feesNet,
+      id.defaultFee,
+      id.form,
+      id.sourceAccount,
+      id.destinationAccount,
+      id.amount,
+      id.fee,
+      id.date,
+      id.notes,
+      id.result,
+      id.submit,
+      id.submitLabel,
+      id.pendingFeesList,
+      id.recentList,
+      id.debugOutput,
+      id.jsVersion,
+      id.footerVersion
+    ];
+
+    const missing = required.filter((nodeId) => !el(nodeId));
+
+    if (missing.length) {
+      renderDebug({
+        ok: false,
+        version: VERSION,
+        missing
+      });
+
+      setStatus("danger", "Missing page nodes");
+
+      return false;
+    }
+
+    return true;
+  }
+
+  function bindEvents() {
+    const form = el(id.form);
+    if (form) {
+      form.addEventListener("submit", submitWithdrawal);
+    }
+
+    const refreshButton = el(id.refresh);
+    if (refreshButton) {
+      refreshButton.addEventListener("click", refresh);
+    }
+
+    const dateInput = el(id.date);
+    if (dateInput && !dateInput.value) {
+      dateInput.value = todayISO();
+    }
+  }
+
+  async function init() {
+    renderVersions();
+    bindEvents();
+
+    if (!verifyRequiredNodes()) {
+      return;
+    }
+
+    setHtml(id.pendingFeesList, loadingHtml("Loading ATM fees", "Reading /api/atm."));
+    setHtml(id.recentList, loadingHtml("Loading ATM rows", "Reading /api/atm."));
+    setHidden(id.result, true);
+
+    try {
+      setBusy(true);
+      setStatus("info", "Loading");
+      await loadAll();
+    } catch (error) {
+      state.lastError = error;
+      setStatus("danger", "Load failed");
+      renderResult("danger", "ATM module failed to load", error.message, error.payload || { error: error.message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
   } else {
     init();
   }
