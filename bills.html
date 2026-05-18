@@ -44,27 +44,27 @@
         <div>
           <p class="sf-section-kicker">Filter</p>
           <h2 id="bills-toolbar-title" class="sf-section-title">Find a Bill</h2>
-          <p class="sf-section-subtitle">Filter by cycle status, search by name or ID, or sort the list.</p>
+          <p class="sf-section-subtitle">Filter, search, and sort without blocking the bills list.</p>
         </div>
       </div>
 
-      <div class="sf-form-grid" data-bills-toolbar>
-        <div class="sf-field sf-span-12" id="bills-filter-chips" data-bills-filter-chips>
-          <button class="sf-button sf-button--chip is-active" type="button" data-bills-filter="all">All</button>
-          <button class="sf-button sf-button--chip" type="button" data-bills-filter="unpaid">Unpaid</button>
-          <button class="sf-button sf-button--chip" type="button" data-bills-filter="partial">Partial</button>
-          <button class="sf-button sf-button--chip" type="button" data-bills-filter="paid">Paid</button>
-          <button class="sf-button sf-button--chip" type="button" data-bills-filter="due_this_week">Due this week</button>
-          <button class="sf-button sf-button--chip" type="button" data-bills-filter="ledger_reversed">Ledger reversed</button>
-          <button class="sf-button sf-button--chip" type="button" data-bills-filter="deleted">Deleted</button>
-        </div>
+      <div id="bills-filter-chips" class="sf-control-row" data-bills-filter-chips>
+        <button class="sf-button sf-button--chip is-active" type="button" data-bills-filter="all">All</button>
+        <button class="sf-button sf-button--chip" type="button" data-bills-filter="unpaid">Unpaid</button>
+        <button class="sf-button sf-button--chip" type="button" data-bills-filter="partial">Partial</button>
+        <button class="sf-button sf-button--chip" type="button" data-bills-filter="paid">Paid</button>
+        <button class="sf-button sf-button--chip" type="button" data-bills-filter="due_this_week">Due this week</button>
+        <button class="sf-button sf-button--chip" type="button" data-bills-filter="ledger_reversed">Ledger reversed</button>
+        <button class="sf-button sf-button--chip" type="button" data-bills-filter="deleted">Deleted</button>
+      </div>
 
-        <label class="sf-field sf-span-8">
+      <div class="sf-secondary-grid" data-bills-toolbar>
+        <label class="sf-field">
           <span class="sf-label">Search</span>
           <input id="bills-search-input" class="sf-input" type="search" autocomplete="off" placeholder="Search bills, IDs, notes, accounts…" data-bills-search>
         </label>
 
-        <label class="sf-field sf-span-4">
+        <label class="sf-field">
           <span class="sf-label">Sort</span>
           <select id="bills-sort-select" class="sf-select" data-bills-sort>
             <option value="due_day_asc">Due day · ascending</option>
