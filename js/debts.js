@@ -685,18 +685,26 @@
     });
   }
 
-  function openModal(id) {
+    function openModal(id) {
     const el = $(id);
     if (!el) return;
+
+    if (typeof el.showModal === 'function') {
+      if (!el.open) el.showModal();
+
+      requestAnimationFrame(() => {
+        const firstInput = el.querySelector('input:not([type="hidden"]), select, textarea, button');
+        if (firstInput && typeof firstInput.focus === 'function') {
+          firstInput.focus({ preventScroll: true });
+        }
+      });
+
+      return;
+    }
 
     el.hidden = false;
 
     requestAnimationFrame(() => {
-      el.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-      });
-
       const firstInput = el.querySelector('input:not([type="hidden"]), select, textarea, button');
       if (firstInput && typeof firstInput.focus === 'function') {
         firstInput.focus({ preventScroll: true });
@@ -706,7 +714,14 @@
 
   function closeModal(id) {
     const el = $(id);
-    if (el) el.hidden = true;
+    if (!el) return;
+
+    if (typeof el.close === 'function' && el.open) {
+      el.close();
+      return;
+    }
+
+    el.hidden = true;
   }
 
   function scrollToId(id) {

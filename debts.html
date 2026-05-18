@@ -197,7 +197,7 @@
     </main>
   </div>
 
-  <section class="sf-panel" id="debtModal" hidden>
+    <dialog class="sf-panel" id="debtModal">
     <div class="sf-section-head">
       <div>
         <p class="sf-section-kicker">Add Debt</p>
@@ -308,9 +308,9 @@
         <button class="sf-button sf-button--primary" id="saveDebtBtn" type="button">Save Debt</button>
       </div>
     </form>
-  </section>
+  </dialog>
 
-  <section class="sf-panel" id="paymentModal" hidden>
+  <dialog class="sf-panel" id="paymentModal">
     <div class="sf-section-head">
       <div>
         <p class="sf-section-kicker">Record Payment</p>
@@ -377,7 +377,7 @@
       </label>
 
       <div class="sf-empty-state">
-        Optional: use these fields only when the partial payment also changes the deadline or next installment plan.
+        Optional: use the deadline fields only when the partial payment also changes the next deadline or installment plan.
       </div>
 
       <div class="sf-section-actions">
@@ -385,9 +385,9 @@
         <button class="sf-button sf-button--primary" id="savePaymentBtn" type="button">Save Payment</button>
       </div>
     </div>
-  </section>
+  </dialog>
 
-  <section class="sf-panel" id="deferModal" hidden>
+  <dialog class="sf-panel" id="deferModal">
     <div class="sf-section-head">
       <div>
         <p class="sf-section-kicker">Defer Debt</p>
@@ -424,8 +424,7 @@
         <button class="sf-button sf-button--primary" id="saveDeferBtn" type="button">Save Defer</button>
       </div>
     </div>
-  </section>
-
+  </dialog>
   <div class="sf-toast" id="debtToast"></div>
 
   <script src="/js/sf-components.js"></script>
