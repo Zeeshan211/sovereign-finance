@@ -1,55 +1,75 @@
 /* js/debts.js
  * Sovereign Finance · Debts UI
- * v0.6.6-payment-main-route
+ * v0.7.0-debts-contract-ui
  *
- * Payment rule:
- * - Never call /api/debts/payment.
- * - That route is shadowed by old item route v0.5.0.
- * - Use POST /api/debts with body.action = "payment".
+ * Contract:
+ * - Frontend calls canonical route only:
+ *     POST /api/debts
+ * - No /api/debts/:id/pay
+ * - No /api/debts/:id/receive
+ * - No debt payment reversal route from Debts UI.
+ * - Reversal remains canonical through Ledger:
+ *     POST /api/transactions/reverse
+ * - Frontend displays backend proof; it does not calculate authoritative money truth.
  */
 
 (function () {
-  'use strict';
+  "use strict";
 
-  const VERSION = 'v0.6.6-payment-main-route';
-  const API_DEBTS = '/api/debts';
-  const API_DEBTS_HEALTH = '/api/debts/health';
-  const API_ACCOUNTS = '/api/accounts';
+  const VERSION = "v0.7.0-debts-contract-ui";
+
+  const API_DEBTS = "/api/debts";
+  const API_DEBTS_LIST = "/api/debts?include_inactive=1";
+  const API_DEBTS_HEALTH = "/api/debts?action=health";
+  const API_ACCOUNTS_PRIMARY = "/api/add/context";
+  const API_ACCOUNTS_FALLBACK = "/api/accounts";
+
+  const TERMINAL_STATUSES = new Set([
+    "settled",
+    "archived",
+    "closed",
+    "deleted",
+    "paid",
+    "finished",
+    "completed",
+    "done"
+  ]);
 
   const state = {
     debts: [],
     accounts: [],
     health: null,
+    lastPayload: null,
     selectedDebtId: null,
-    filter: 'active',
-    search: '',
-    sort: 'due',
+    filter: "active",
+    search: "",
+    sort: "due",
     loading: false
   };
 
-  const $ = id => document.getElementById(id);
+  const $ = (id) => document.getElementById(id);
 
   function esc(value) {
-    return String(value == null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   function setText(id, value) {
     const el = $(id);
-    if (el) el.textContent = value == null ? '' : String(value);
+    if (el) el.textContent = value == null ? "" : String(value);
   }
 
   function setHTML(id, value) {
     const el = $(id);
-    if (el) el.innerHTML = value == null ? '' : String(value);
+    if (el) el.innerHTML = value == null ? "" : String(value);
   }
 
   function clean(value) {
-    return String(value == null ? '' : value).trim();
+    return String(value == null ? "" : value).trim();
   }
 
   function num(value, fallback = 0) {
@@ -61,61 +81,81 @@
     return new Date().toISOString().slice(0, 10);
   }
 
+  function isTerminal(status) {
+    return TERMINAL_STATUSES.has(String(status || "").trim().toLowerCase());
+  }
+
   function money(value) {
     const n = Number(value || 0);
-    const sign = n < 0 ? '-' : '';
-    return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
+    const sign = n < 0 ? "-" : "";
+
+    return sign + "Rs " + Math.abs(n).toLocaleString("en-PK", {
       minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
       maximumFractionDigits: 2
     });
   }
 
   function compactDate(value) {
-    const raw = String(value || '').slice(0, 10);
-    if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return '—';
+    const raw = String(value || "").slice(0, 10);
+    if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return "—";
 
-    const [, month, day] = raw.split('-');
+    const [, month, day] = raw.split("-");
     const months = {
-      '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
-      '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug',
-      '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
+      "01": "Jan",
+      "02": "Feb",
+      "03": "Mar",
+      "04": "Apr",
+      "05": "May",
+      "06": "Jun",
+      "07": "Jul",
+      "08": "Aug",
+      "09": "Sep",
+      "10": "Oct",
+      "11": "Nov",
+      "12": "Dec"
     };
 
     return `${Number(day)} ${months[month] || month}`;
   }
 
   function formatDateTime(value) {
-    const raw = String(value || '').trim();
-    if (!raw) return '—';
-    return raw.replace('T', ' ').replace(/\.\d{3}Z$/, '').replace(/Z$/, '');
+    const raw = String(value || "").trim();
+    if (!raw) return "—";
+
+    return raw
+      .replace("T", " ")
+      .replace(/\.\d{3}Z$/, "")
+      .replace(/Z$/, "");
   }
 
   function kindLabel(kind) {
-    return kind === 'owed' ? 'Owed to me' : 'I owe';
+    return kind === "owed" ? "Owed to me" : "I owe";
   }
 
   function kindShort(kind) {
-    return kind === 'owed' ? 'Receivable' : 'Payable';
+    return kind === "owed" ? "Receivable" : "Payable";
   }
 
   function kindTone(kind) {
-    return kind === 'owed' ? 'good' : 'danger';
+    return kind === "owed" ? "good" : "danger";
   }
 
   function toneClass(value) {
-    const s = String(value || '').toLowerCase();
-    if (['ok', 'active', 'linked', 'scheduled', 'paid_off', 'settled', 'pass'].includes(s)) return 'good';
-    if (['warn', 'due_soon', 'due_today', 'no_schedule', 'missing_ledger', 'paused'].includes(s)) return 'warn';
-    if (['overdue', 'missing', 'danger', 'blocked', 'failed', 'closed'].includes(s)) return 'danger';
-    return '';
+    const s = String(value || "").toLowerCase();
+
+    if (["ok", "active", "linked", "scheduled", "paid_off", "settled", "pass"].includes(s)) return "good";
+    if (["warn", "due_soon", "due_today", "no_schedule", "missing_ledger", "paused"].includes(s)) return "warn";
+    if (["overdue", "missing", "danger", "blocked", "failed", "closed"].includes(s)) return "danger";
+
+    return "";
   }
 
   function tag(text, tone) {
-    return `<span class="debt-tag ${tone || ''}">${esc(text)}</span>`;
+    return `<span class="debt-tag ${tone || ""}">${esc(text)}</span>`;
   }
 
   function blocker(text, tone) {
-    return `<span class="${tone || ''}">${esc(text)}</span>`;
+    return `<span class="${tone || ""}">${esc(text)}</span>`;
   }
 
   function row(title, sub, value, tone) {
@@ -123,10 +163,10 @@
       <div class="debt-row">
         <div>
           <div class="debt-row-title">${esc(title)}</div>
-          ${sub ? `<div class="debt-row-sub">${esc(sub)}</div>` : ''}
+          ${sub ? `<div class="debt-row-sub">${esc(sub)}</div>` : ""}
         </div>
-        <div class="debt-row-value ${tone ? `sf-tone-${esc(tone)}` : ''}">
-          ${value == null ? '—' : value}
+        <div class="debt-row-value ${tone ? `sf-tone-${esc(tone)}` : ""}">
+          ${value == null ? "—" : value}
         </div>
       </div>
     `;
@@ -134,9 +174,9 @@
 
   async function fetchJSON(url, options) {
     const response = await fetch(url, {
-      cache: 'no-store',
+      cache: "no-store",
       headers: {
-        Accept: 'application/json',
+        Accept: "application/json",
         ...(options && options.headers ? options.headers : {})
       },
       ...(options || {})
@@ -152,7 +192,10 @@
     }
 
     if (!response.ok || !payload || payload.ok === false) {
-      throw new Error((payload && payload.error) || `HTTP ${response.status}`);
+      const message = payload && (payload.error || payload.message)
+        ? payload.error || payload.message
+        : `HTTP ${response.status}`;
+      throw new Error(message);
     }
 
     return payload;
@@ -160,17 +203,139 @@
 
   async function postJSON(url, body) {
     return fetchJSON(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body || {})
     });
   }
 
   async function putJSON(url, body) {
     return fetchJSON(url, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body || {})
+    });
+  }
+
+  function normalizeDebt(row) {
+    const original = num(row.original_amount ?? row.amount);
+    const paid = num(row.paid_amount);
+    const remaining = num(row.remaining_amount, Math.max(0, original - paid));
+
+    return {
+      ...row,
+      id: row.id || "",
+      name: row.name || row.title || row.label || row.id || "Debt",
+      kind: row.kind === "owed" ? "owed" : "owe",
+      original_amount: original,
+      paid_amount: paid,
+      remaining_amount: remaining,
+      status: row.status || "active",
+      due_status: row.due_status || "no_schedule",
+      due_date: row.due_date || null,
+      due_day: row.due_day == null ? null : row.due_day,
+      installment_amount: row.installment_amount == null ? null : num(row.installment_amount),
+      frequency: row.frequency || "monthly",
+      last_paid_date: row.last_paid_date || null,
+      next_due_date: row.next_due_date || null,
+      days_until_due: row.days_until_due == null ? null : row.days_until_due,
+      days_overdue: row.days_overdue == null ? null : row.days_overdue,
+      schedule_missing: Boolean(row.schedule_missing),
+      ledger_linked: Boolean(row.ledger_linked),
+      ledger_required: Boolean(row.ledger_required),
+      ledger_transaction_ids: Array.isArray(row.ledger_transaction_ids) ? row.ledger_transaction_ids : [],
+      ledger_transactions: Array.isArray(row.ledger_transactions) ? row.ledger_transactions : [],
+      origin_state: row.origin_state || row.ledger_state || "",
+      origin_required: Boolean(row.origin_required ?? row.ledger_required),
+      origin_linked: Boolean(row.origin_linked ?? row.ledger_linked),
+      origin_transaction_ids: Array.isArray(row.origin_transaction_ids) ? row.origin_transaction_ids : [],
+      origin_transactions: Array.isArray(row.origin_transactions) ? row.origin_transactions : [],
+      payment_transaction_ids: Array.isArray(row.payment_transaction_ids) ? row.payment_transaction_ids : [],
+      payment_transactions: Array.isArray(row.payment_transactions) ? row.payment_transactions : [],
+      repair_required: Boolean(row.repair_required),
+      notes: row.notes || "",
+      created_at: row.created_at || null,
+      updated_at: row.updated_at || null,
+      settled_at: row.settled_at || null,
+      raw: row
+    };
+  }
+
+  function accountRowsFromPayload(payload) {
+    if (!payload) return [];
+    if (Array.isArray(payload.accounts)) return payload.accounts;
+    if (payload.accounts && typeof payload.accounts === "object") return Object.values(payload.accounts);
+    if (payload.accounts_by_id && typeof payload.accounts_by_id === "object") return Object.values(payload.accounts_by_id);
+    if (Array.isArray(payload.account_list)) return payload.account_list;
+    return [];
+  }
+
+  async function loadAccounts() {
+    try {
+      const payload = await fetchJSON(API_ACCOUNTS_PRIMARY);
+      state.accounts = accountRowsFromPayload(payload).filter(Boolean);
+    } catch {
+      try {
+        const payload = await fetchJSON(API_ACCOUNTS_FALLBACK);
+        state.accounts = accountRowsFromPayload(payload).filter(Boolean);
+      } catch {
+        state.accounts = [];
+      }
+    }
+
+    renderAccountOptions();
+  }
+
+  async function loadDebts() {
+    if (state.loading) return;
+
+    state.loading = true;
+    setHTML("debtList", '<div class="debt-empty">Loading debts…</div>');
+
+    try {
+      await loadAccounts();
+
+      const payload = await fetchJSON(API_DEBTS_LIST);
+      state.lastPayload = payload;
+      state.debts = (Array.isArray(payload.debts) ? payload.debts : []).map(normalizeDebt);
+
+      try {
+        state.health = await fetchJSON(API_DEBTS_HEALTH);
+      } catch {
+        state.health = null;
+      }
+
+      renderAll(payload);
+    } catch (err) {
+      setHTML("debtList", `<div class="debt-empty">Failed to load debts: ${esc(err.message)}</div>`);
+      setText("metricHealth", "failed");
+      renderDebug({ error: err.message });
+    } finally {
+      state.loading = false;
+    }
+  }
+
+  function renderAccountOptions() {
+    const ids = ["debtAccountInput", "paymentAccountInput", "repairAccountInput"];
+
+    const options = ['<option value="">Select account…</option>'].concat(
+      state.accounts.map(account => {
+        const id = account.id || account.account_id;
+        const name = account.name || account.label || id;
+        const balance = account.balance ?? account.current_balance ?? account.amount ?? 0;
+        const kind = account.type || account.kind || "account";
+
+        return `<option value="${esc(id)}">${esc(name)} · ${esc(kind)} · ${money(balance)}</option>`;
+      })
+    ).join("");
+
+    ids.forEach(id => {
+      const select = $(id);
+      if (!select) return;
+
+      const current = select.value;
+      select.innerHTML = options;
+      if (current) select.value = current;
     });
   }
 
@@ -189,111 +354,10 @@
   function debtPaidPct(debt) {
     const original = num(debt.original_amount);
     const paid = num(debt.paid_amount);
+
     if (!original || original <= 0) return 0;
-    return Math.max(0, Math.min(100, paid / original * 100));
-  }
 
-  function normalizeDebt(row) {
-    return {
-      ...row,
-      id: row.id || '',
-      name: row.name || row.title || row.label || row.id || 'Debt',
-      kind: row.kind === 'owed' ? 'owed' : 'owe',
-      original_amount: num(row.original_amount ?? row.amount),
-      paid_amount: num(row.paid_amount),
-      remaining_amount: num(row.remaining_amount, Math.max(0, num(row.original_amount ?? row.amount) - num(row.paid_amount))),
-      status: row.status || 'active',
-      due_status: row.due_status || 'no_schedule',
-      due_date: row.due_date || null,
-      due_day: row.due_day == null ? null : row.due_day,
-      installment_amount: row.installment_amount == null ? null : num(row.installment_amount),
-      frequency: row.frequency || 'monthly',
-      last_paid_date: row.last_paid_date || null,
-      next_due_date: row.next_due_date || null,
-      days_until_due: row.days_until_due == null ? null : row.days_until_due,
-      days_overdue: row.days_overdue == null ? null : row.days_overdue,
-      schedule_missing: Boolean(row.schedule_missing),
-      ledger_linked: Boolean(row.ledger_linked),
-      ledger_required: Boolean(row.ledger_required),
-      ledger_transaction_ids: Array.isArray(row.ledger_transaction_ids) ? row.ledger_transaction_ids : [],
-      ledger_transactions: Array.isArray(row.ledger_transactions) ? row.ledger_transactions : [],
-      origin_state: row.origin_state || row.ledger_state || '',
-      origin_required: Boolean(row.origin_required ?? row.ledger_required),
-      notes: row.notes || '',
-      created_at: row.created_at || null,
-      raw: row
-    };
-  }
-
-  function accountRowsFromPayload(payload) {
-    if (Array.isArray(payload.accounts)) return payload.accounts;
-    if (payload.accounts && typeof payload.accounts === 'object') return Object.values(payload.accounts);
-    if (payload.accounts_by_id && typeof payload.accounts_by_id === 'object') return Object.values(payload.accounts_by_id);
-    if (Array.isArray(payload.account_list)) return payload.account_list;
-    return [];
-  }
-
-  async function loadAccounts() {
-    try {
-      const payload = await fetchJSON(API_ACCOUNTS);
-      state.accounts = accountRowsFromPayload(payload).filter(Boolean);
-    } catch {
-      state.accounts = [];
-    }
-
-    renderAccountOptions();
-  }
-
-  async function loadDebts() {
-    if (state.loading) return;
-
-    state.loading = true;
-    setHTML('debtList', '<div class="debt-empty">Loading debts…</div>');
-
-    try {
-      await loadAccounts();
-
-      const payload = await fetchJSON(API_DEBTS);
-      state.debts = (Array.isArray(payload.debts) ? payload.debts : []).map(normalizeDebt);
-
-      try {
-        state.health = await fetchJSON(API_DEBTS_HEALTH);
-      } catch {
-        state.health = null;
-      }
-
-      renderAll(payload);
-    } catch (err) {
-      setHTML('debtList', `<div class="debt-empty">Failed to load debts: ${esc(err.message)}</div>`);
-      setText('metricHealth', 'failed');
-      renderDebug({ error: err.message });
-    } finally {
-      state.loading = false;
-    }
-  }
-
-  function renderAccountOptions() {
-    const ids = ['debtAccountInput', 'paymentAccountInput', 'repairAccountInput'];
-
-    const options = ['<option value="">Select account…</option>'].concat(
-      state.accounts.map(account => {
-        const id = account.id || account.account_id;
-        const name = account.name || account.label || id;
-        const balance = account.balance ?? account.current_balance ?? account.amount ?? 0;
-        const kind = account.type || account.kind || 'account';
-
-        return `<option value="${esc(id)}">${esc(name)} · ${esc(kind)} · ${money(balance)}</option>`;
-      })
-    ).join('');
-
-    ids.forEach(id => {
-      const select = $(id);
-      if (!select) return;
-
-      const current = select.value;
-      select.innerHTML = options;
-      if (current) select.value = current;
-    });
+    return Math.max(0, Math.min(100, (paid / original) * 100));
   }
 
   function debtSearchHaystack(debt) {
@@ -307,33 +371,35 @@
       debt.next_due_date,
       debt.notes,
       debt.origin_state,
-      debt.ledger_transaction_ids.join(' '),
-      debt.ledger_transactions.map(tx => [tx.id, tx.date, tx.type, tx.account_id, tx.notes].join(' ')).join(' ')
-    ].join(' ').toLowerCase();
+      debt.ledger_transaction_ids.join(" "),
+      debt.payment_transaction_ids.join(" "),
+      debt.ledger_transactions.map(tx => [tx.id, tx.date, tx.type, tx.account_id, tx.notes].join(" ")).join(" "),
+      debt.payment_transactions.map(tx => [tx.id, tx.date, tx.type, tx.account_id, tx.notes].join(" ")).join(" ")
+    ].join(" ").toLowerCase();
   }
 
   function compareDebts(a, b) {
-    if (state.sort === 'created') {
-      const ac = String(a.created_at || '');
-      const bc = String(b.created_at || '');
+    if (state.sort === "created") {
+      const ac = String(a.created_at || "");
+      const bc = String(b.created_at || "");
       if (ac !== bc) return bc.localeCompare(ac);
       return String(a.id).localeCompare(String(b.id));
     }
 
-    if (state.sort === 'amount') return debtRemaining(b) - debtRemaining(a);
+    if (state.sort === "amount") return debtRemaining(b) - debtRemaining(a);
 
-    if (state.sort === 'name') {
-      return String(a.name || '').localeCompare(String(b.name || '')) ||
-        String(a.id || '').localeCompare(String(b.id || ''));
+    if (state.sort === "name") {
+      return String(a.name || "").localeCompare(String(b.name || "")) ||
+        String(a.id || "").localeCompare(String(b.id || ""));
     }
 
-    const ad = String(a.next_due_date || a.due_date || '9999-12-31');
-    const bd = String(b.next_due_date || b.due_date || '9999-12-31');
+    const ad = String(a.next_due_date || a.due_date || "9999-12-31");
+    const bd = String(b.next_due_date || b.due_date || "9999-12-31");
 
     if (ad !== bd) return ad.localeCompare(bd);
 
-    return String(a.name || '').localeCompare(String(b.name || '')) ||
-      String(a.id || '').localeCompare(String(b.id || ''));
+    return String(a.name || "").localeCompare(String(b.name || "")) ||
+      String(a.id || "").localeCompare(String(b.id || ""));
   }
 
   function filteredDebts() {
@@ -343,12 +409,14 @@
       .filter(debt => {
         if (q && !debtSearchHaystack(debt).includes(q)) return false;
 
-        if (state.filter === 'all') return true;
-        if (state.filter === 'active') return debt.status === 'active';
-        if (state.filter === 'owe') return debt.kind === 'owe' && debt.status === 'active';
-        if (state.filter === 'owed') return debt.kind === 'owed' && debt.status === 'active';
-        if (state.filter === 'due') return ['due_today', 'due_soon', 'overdue'].includes(debt.due_status);
-        if (state.filter === 'missing_ledger') return debt.ledger_required && !debt.ledger_linked;
+        const terminal = isTerminal(debt.status);
+
+        if (state.filter === "all") return true;
+        if (state.filter === "active") return !terminal;
+        if (state.filter === "owe") return debt.kind === "owe" && !terminal;
+        if (state.filter === "owed") return debt.kind === "owed" && !terminal;
+        if (state.filter === "due") return !terminal && ["due_today", "due_soon", "overdue"].includes(debt.due_status);
+        if (state.filter === "missing_ledger") return !terminal && debt.ledger_required && !debt.ledger_linked;
 
         return true;
       })
@@ -356,71 +424,78 @@
   }
 
   function renderMetrics(payload) {
-    const totalOwe = payload?.total_owe ??
-      state.debts.filter(debt => debt.kind === 'owe' && debt.status === 'active')
+    const totals = payload?.totals || {};
+
+    const totalOwe = payload?.total_owe ?? totals.total_owe ??
+      state.debts.filter(debt => debt.kind === "owe" && !isTerminal(debt.status))
         .reduce((sum, debt) => sum + debtRemaining(debt), 0);
 
-    const totalOwed = payload?.total_owed ??
-      state.debts.filter(debt => debt.kind === 'owed' && debt.status === 'active')
+    const totalOwed = payload?.total_owed ?? totals.total_owed ??
+      state.debts.filter(debt => debt.kind === "owed" && !isTerminal(debt.status))
         .reduce((sum, debt) => sum + debtRemaining(debt), 0);
 
-    const dueSoon = payload?.due_soon_count ??
-      state.debts.filter(debt => debt.due_status === 'due_soon').length;
+    const dueSoon = payload?.due_soon_count ?? totals.due_soon_count ??
+      state.debts.filter(debt => !isTerminal(debt.status) && debt.due_status === "due_soon").length;
 
-    const overdue = payload?.overdue_count ??
-      state.debts.filter(debt => debt.due_status === 'overdue').length;
+    const overdue = payload?.overdue_count ?? totals.overdue_count ??
+      state.debts.filter(debt => !isTerminal(debt.status) && debt.due_status === "overdue").length;
 
-    const missingLedger = payload?.ledger_missing_count ??
-      payload?.repair_required_count ??
-      state.debts.filter(debt => debt.ledger_required && !debt.ledger_linked).length;
+    const missingLedger = payload?.repair_required_count ?? totals.repair_required_count ??
+      state.debts.filter(debt => !isTerminal(debt.status) && debt.ledger_required && !debt.ledger_linked).length;
 
-    const healthStatus = state.health?.status || payload?.health?.status || payload?.status || 'unknown';
+    const healthStatus =
+      state.health?.status ||
+      state.health?.health?.status ||
+      payload?.health?.status ||
+      payload?.status ||
+      "unknown";
 
-    setText('metricOwe', money(totalOwe));
-    setText('metricOwed', money(totalOwed));
-    setText('metricDueSoon', String(dueSoon));
-    setText('metricOverdue', String(overdue));
-    setText('metricMissingLedger', String(missingLedger));
-    setText('metricHealth', healthStatus);
+    setText("metricOwe", money(totalOwe));
+    setText("metricOwed", money(totalOwed));
+    setText("metricDueSoon", String(dueSoon));
+    setText("metricOverdue", String(overdue));
+    setText("metricMissingLedger", String(missingLedger));
+    setText("metricHealth", healthStatus);
 
-    setText('debtsVersionPill', payload?.version || VERSION);
-    setText('debtsHealthPill', `health ${healthStatus}`);
-    setText('debtsLedgerPill', `${missingLedger} needs repair`);
-    setText('debtFooterVersion', `${VERSION} · backend ${payload?.version || 'unknown'}`);
+    setText("debtsVersionPill", payload?.version || VERSION);
+    setText("debtsHealthPill", `health ${healthStatus}`);
+    setText("debtsLedgerPill", `${missingLedger} needs repair`);
+    setText("debtFooterVersion", `${VERSION} · backend ${payload?.version || "unknown"}`);
 
     if (missingLedger > 0) {
-      setText('debtsHeroStatus', 'Ledger repair needed');
-      setText('debtsHeroCopy', `${missingLedger} debt origin movement is missing a ledger row. Use Repair Ledger on the affected debt.`);
+      setText("debtsHeroStatus", "Ledger repair needed");
+      setText("debtsHeroCopy", `${missingLedger} debt origin movement is missing a ledger row. Use Repair Ledger on the affected debt.`);
     } else {
-      setText('debtsHeroStatus', 'Debt truth');
-      setText('debtsHeroCopy', 'Debt rows and origin ledger links are loaded from backend truth.');
+      setText("debtsHeroStatus", "Debt truth");
+      setText("debtsHeroCopy", "Debt rows and origin ledger links are loaded from backend truth.");
     }
   }
 
   function debtOriginLabel(debt) {
-    if (debt.ledger_linked) return 'ledger linked';
-    if (debt.ledger_required) return 'needs repair';
+    if (debt.ledger_linked) return "ledger linked";
+    if (debt.ledger_required) return "needs repair";
 
-    const notes = String(debt.notes || '').toLowerCase();
-    if (notes.includes('movement_now=0')) return 'debt-only';
-    if (debt.origin_state === 'legacy_unknown') return 'legacy/no-origin';
+    const notes = String(debt.notes || "").toLowerCase();
+    if (notes.includes("movement_now=0")) return "debt-only";
+    if (debt.origin_state === "legacy_unknown") return "legacy/no-origin";
+    if (debt.origin_state === "payment_linked_only") return "payment-linked only";
 
-    return 'no origin movement';
+    return "no origin movement";
   }
 
   function debtOriginTone(debt) {
-    if (debt.ledger_linked) return 'good';
-    if (debt.ledger_required) return 'danger';
-    return 'warn';
+    if (debt.ledger_linked) return "good";
+    if (debt.ledger_required) return "danger";
+    return "warn";
   }
 
   function debtStatusText(debt) {
-    if (debt.status === 'settled' || debt.status === 'closed') return debt.status;
-    if (debt.due_status === 'overdue') return 'Overdue';
-    if (debt.due_status === 'due_today') return 'Due today';
-    if (debt.due_status === 'due_soon') return 'Due soon';
-    if (debt.ledger_required && !debt.ledger_linked) return 'Repair';
-    return debt.status || 'active';
+    if (isTerminal(debt.status)) return debt.status;
+    if (debt.due_status === "overdue") return "Overdue";
+    if (debt.due_status === "due_today") return "Due today";
+    if (debt.due_status === "due_soon") return "Due soon";
+    if (debt.ledger_required && !debt.ledger_linked) return "Repair";
+    return debt.status || "active";
   }
 
   function debtRowSubtitle(debt) {
@@ -429,67 +504,74 @@
     if (debt.next_due_date || debt.due_date) {
       parts.push(`next ${debt.next_due_date || debt.due_date}`);
     } else {
-      parts.push('no due date');
+      parts.push("no due date");
     }
 
     if (debt.days_overdue) parts.push(`${debt.days_overdue}d overdue`);
-    if (debt.days_until_due != null && debt.due_status === 'due_soon') parts.push(`${debt.days_until_due}d left`);
+    if (debt.days_until_due != null && debt.due_status === "due_soon") parts.push(`${debt.days_until_due}d left`);
 
-    return parts.join(' · ');
+    return parts.join(" · ");
   }
 
   function renderDebtTags(debt) {
     const tags = [];
 
     tags.push(tag(kindLabel(debt.kind), kindTone(debt.kind)));
-    tags.push(tag(debt.status || 'active', toneClass(debt.status)));
-    tags.push(tag(debt.due_status || 'no schedule', toneClass(debt.due_status)));
+    tags.push(tag(debt.status || "active", toneClass(debt.status)));
+    tags.push(tag(debt.due_status || "no schedule", toneClass(debt.due_status)));
     tags.push(tag(debtOriginLabel(debt), debtOriginTone(debt)));
 
+    if (isTerminal(debt.status)) tags.push(tag("inactive", "warn"));
     if (debt.next_due_date) tags.push(tag(`next ${debt.next_due_date}`));
-    if (debt.days_overdue) tags.push(tag(`${debt.days_overdue}d overdue`, 'danger'));
-    if (debt.days_until_due != null && debt.due_status === 'due_soon') tags.push(tag(`${debt.days_until_due}d left`, 'warn'));
+    if (debt.days_overdue) tags.push(tag(`${debt.days_overdue}d overdue`, "danger"));
+    if (debt.days_until_due != null && debt.due_status === "due_soon") tags.push(tag(`${debt.days_until_due}d left`, "warn"));
 
-    return tags.join('');
+    return tags.join("");
   }
 
   function renderDebtBlockers(debt) {
     const blocks = [];
 
     if (debt.ledger_linked && debt.ledger_transaction_ids.length) {
-      blocks.push(blocker(`ledger ${debt.ledger_transaction_ids.join(', ')}`, 'good'));
+      blocks.push(blocker(`origin ${debt.ledger_transaction_ids.join(", ")}`, "good"));
+    }
+
+    if (debt.payment_transaction_ids.length) {
+      blocks.push(blocker(`payments ${debt.payment_transaction_ids.length}`, "good"));
     }
 
     if (debt.ledger_required && !debt.ledger_linked) {
-      blocks.push(blocker('origin ledger missing', 'danger'));
+      blocks.push(blocker("origin ledger missing", "danger"));
     }
 
     if (!debt.ledger_required && !debt.ledger_linked) {
-      blocks.push(blocker('debt-only / no account movement', 'warn'));
+      blocks.push(blocker("debt-only / no account movement", "warn"));
     }
 
-    if (debt.schedule_missing && debt.status === 'active') {
-      blocks.push(blocker('schedule missing', 'warn'));
+    if (debt.schedule_missing && !isTerminal(debt.status)) {
+      blocks.push(blocker("schedule missing", "warn"));
     }
 
-    if (!blocks.length) return '';
-    return `<div class="debt-blockers">${blocks.join('')}</div>`;
+    if (!blocks.length) return "";
+
+    return `<div class="debt-blockers">${blocks.join("")}</div>`;
   }
 
   function renderDebtInlineDetail(debt) {
     const rows = [
-      ['Kind', kindLabel(debt.kind)],
-      ['Original', money(debt.original_amount)],
-      ['Paid', money(debt.paid_amount)],
-      ['Remaining', money(debt.remaining_amount)],
-      ['Due date', debt.due_date || '—'],
-      ['Next due', debt.next_due_date || '—'],
-      ['Due status', debt.due_status || '—'],
-      ['Frequency', debt.frequency || '—'],
-      ['Installment', debt.installment_amount == null ? '—' : money(debt.installment_amount)],
-      ['Origin movement', debtOriginLabel(debt)],
-      ['Ledger IDs', debt.ledger_transaction_ids.length ? debt.ledger_transaction_ids.join(', ') : 'None'],
-      ['Created', formatDateTime(debt.created_at)]
+      ["Kind", kindLabel(debt.kind)],
+      ["Original", money(debt.original_amount)],
+      ["Paid", money(debt.paid_amount)],
+      ["Remaining", money(debt.remaining_amount)],
+      ["Due date", debt.due_date || "—"],
+      ["Next due", debt.next_due_date || "—"],
+      ["Due status", debt.due_status || "—"],
+      ["Frequency", debt.frequency || "—"],
+      ["Installment", debt.installment_amount == null ? "—" : money(debt.installment_amount)],
+      ["Origin movement", debtOriginLabel(debt)],
+      ["Origin IDs", debt.ledger_transaction_ids.length ? debt.ledger_transaction_ids.join(", ") : "None"],
+      ["Payment IDs", debt.payment_transaction_ids.length ? debt.payment_transaction_ids.join(", ") : "None"],
+      ["Created", formatDateTime(debt.created_at)]
     ];
 
     return `
@@ -497,17 +579,17 @@
         ${rows.map(([label, value]) => `
           <div class="debt-inline-label">${esc(label)}</div>
           <div class="debt-inline-value">${esc(value)}</div>
-        `).join('')}
+        `).join("")}
       </div>
 
       <div class="debt-inline-notes">
         <div class="debt-inline-label">Notes</div>
-        <div class="debt-inline-note-text">${esc(debt.notes || '—')}</div>
+        <div class="debt-inline-note-text">${esc(debt.notes || "—")}</div>
       </div>
 
       ${debt.ledger_transactions.length ? `
         <div class="debt-inline-notes">
-          <div class="debt-inline-label">Ledger transactions</div>
+          <div class="debt-inline-label">Origin ledger transactions</div>
           <div class="debt-inline-note-text">
             ${esc(debt.ledger_transactions.map(tx => [
               tx.id,
@@ -515,19 +597,36 @@
               tx.type,
               tx.account_id,
               tx.amount
-            ].filter(Boolean).join(' · ')).join('\n'))}
+            ].filter(Boolean).join(" · ")).join("\n"))}
           </div>
         </div>
-      ` : ''}
+      ` : ""}
+
+      ${debt.payment_transactions.length ? `
+        <div class="debt-inline-notes">
+          <div class="debt-inline-label">Payment ledger transactions</div>
+          <div class="debt-inline-note-text">
+            ${esc(debt.payment_transactions.map(tx => [
+              tx.id,
+              tx.date,
+              tx.type,
+              tx.account_id,
+              tx.amount,
+              tx.notes
+            ].filter(Boolean).join(" · ")).join("\n"))}
+          </div>
+        </div>
+      ` : ""}
 
       <div class="debt-card-actions inline">
         <button class="debt-action" type="button" data-select-debt="${esc(debt.id)}">Details</button>
         <button class="debt-action primary" type="button" data-edit-debt="${esc(debt.id)}">Edit</button>
-        <button class="debt-action" type="button" data-pay-debt="${esc(debt.id)}">Payment</button>
-        <button class="debt-action" type="button" data-defer-debt="${esc(debt.id)}">Defer</button>
+        ${!isTerminal(debt.status) ? `<button class="debt-action" type="button" data-pay-debt="${esc(debt.id)}">Payment</button>` : ""}
+        ${!isTerminal(debt.status) ? `<button class="debt-action" type="button" data-defer-debt="${esc(debt.id)}">Defer</button>` : ""}
         ${debt.ledger_required && !debt.ledger_linked
           ? `<button class="debt-action danger" type="button" data-repair-debt="${esc(debt.id)}">Repair Ledger</button>`
-          : ''}
+          : ""}
+        <a class="debt-action" href="/transactions.html">Open Ledger</a>
       </div>
     `;
   }
@@ -536,12 +635,12 @@
     const selected = String(debt.id) === String(state.selectedDebtId);
     const pct = debtPaidPct(debt);
     const statusTone = toneClass(debtStatusText(debt));
-    const dueDate = debt.next_due_date || debt.due_date || '';
+    const dueDate = debt.next_due_date || debt.due_date || "";
 
     return `
-      <article class="debt-card debt-compact-row ${selected ? 'is-selected' : ''}" data-debt-id="${esc(debt.id)}">
+      <article class="debt-card debt-compact-row ${selected ? "is-selected" : ""}" data-debt-id="${esc(debt.id)}">
         <button class="debt-row-shell" type="button" data-toggle-debt="${esc(debt.id)}">
-          <div class="debt-icon">${debt.kind === 'owed' ? '📥' : '📤'}</div>
+          <div class="debt-icon">${debt.kind === "owed" ? "📥" : "📤"}</div>
 
           <div class="debt-copy-block">
             <div class="debt-title">${esc(debt.name)}</div>
@@ -549,7 +648,7 @@
           </div>
 
           <div class="debt-row-kind">${esc(kindShort(debt.kind))}</div>
-          <div class="debt-row-date">${esc(dueDate ? compactDate(dueDate) : '—')}</div>
+          <div class="debt-row-date">${esc(dueDate ? compactDate(dueDate) : "—")}</div>
           <div class="debt-amount">${money(debt.remaining_amount)}</div>
           <div class="debt-row-status ${statusTone}">${esc(debtStatusText(debt))}</div>
           <div class="debt-expand-caret">▾</div>
@@ -570,80 +669,80 @@
   }
 
   function renderDebtList() {
-    const list = $('debtList');
+    const list = $("debtList");
     if (!list) return;
 
     const rows = filteredDebts();
 
     list.innerHTML = rows.length
-      ? rows.map(renderDebtCard).join('')
+      ? rows.map(renderDebtCard).join("")
       : '<div class="debt-empty">No debts match this filter.</div>';
 
     bindDebtCardActions();
   }
 
   function bindDebtCardActions() {
-    document.querySelectorAll('[data-toggle-debt]').forEach(button => {
-      button.addEventListener('click', () => {
-        const id = button.getAttribute('data-toggle-debt');
+    document.querySelectorAll("[data-toggle-debt]").forEach(button => {
+      button.addEventListener("click", () => {
+        const id = button.getAttribute("data-toggle-debt");
         const card = document.querySelector(`[data-debt-id="${cssEscape(id)}"]`);
         if (!card) return;
 
-        card.classList.toggle('is-open');
+        card.classList.toggle("is-open");
         state.selectedDebtId = id;
         renderSelectedDebt();
         renderDebug();
       });
     });
 
-    document.querySelectorAll('[data-select-debt]').forEach(button => {
-      button.addEventListener('click', event => {
+    document.querySelectorAll("[data-select-debt]").forEach(button => {
+      button.addEventListener("click", event => {
         event.stopPropagation();
-        selectDebt(button.getAttribute('data-select-debt'));
+        selectDebt(button.getAttribute("data-select-debt"));
       });
     });
 
-    document.querySelectorAll('[data-edit-debt]').forEach(button => {
-      button.addEventListener('click', event => {
+    document.querySelectorAll("[data-edit-debt]").forEach(button => {
+      button.addEventListener("click", event => {
         event.stopPropagation();
-        openEditPanel(button.getAttribute('data-edit-debt'));
+        openEditPanel(button.getAttribute("data-edit-debt"));
       });
     });
 
-    document.querySelectorAll('[data-pay-debt]').forEach(button => {
-      button.addEventListener('click', event => {
+    document.querySelectorAll("[data-pay-debt]").forEach(button => {
+      button.addEventListener("click", event => {
         event.stopPropagation();
-        openPaymentModal(button.getAttribute('data-pay-debt'));
+        openPaymentModal(button.getAttribute("data-pay-debt"));
       });
     });
 
-    document.querySelectorAll('[data-defer-debt]').forEach(button => {
-      button.addEventListener('click', event => {
+    document.querySelectorAll("[data-defer-debt]").forEach(button => {
+      button.addEventListener("click", event => {
         event.stopPropagation();
-        openDeferModal(button.getAttribute('data-defer-debt'));
+        openDeferModal(button.getAttribute("data-defer-debt"));
       });
     });
 
-    document.querySelectorAll('[data-repair-debt]').forEach(button => {
-      button.addEventListener('click', event => {
+    document.querySelectorAll("[data-repair-debt]").forEach(button => {
+      button.addEventListener("click", event => {
         event.stopPropagation();
-        openRepairPanel(button.getAttribute('data-repair-debt'));
+        openRepairPanel(button.getAttribute("data-repair-debt"));
       });
     });
   }
 
   function cssEscape(value) {
-    if (window.CSS && typeof window.CSS.escape === 'function') return window.CSS.escape(value);
-    return String(value || '').replace(/"/g, '\\"');
+    if (window.CSS && typeof window.CSS.escape === "function") return window.CSS.escape(value);
+    return String(value || "").replace(/"/g, '\\"');
   }
 
   function selectDebt(id) {
     state.selectedDebtId = id;
 
-    document.querySelectorAll('.debt-card').forEach(card => {
-      const selected = card.getAttribute('data-debt-id') === String(id);
-      card.classList.toggle('is-selected', selected);
-      if (selected) card.classList.add('is-open');
+    document.querySelectorAll(".debt-card").forEach(card => {
+      const selected = card.getAttribute("data-debt-id") === String(id);
+      card.classList.toggle("is-selected", selected);
+      if (selected) card.classList.add("is-open");
     });
 
     renderSelectedDebt();
@@ -654,43 +753,45 @@
     const debt = selectedDebt();
 
     if (!debt) {
-      setText('selectedDebtTitle', 'No debt selected');
-      setText('selectedDebtSub', 'Select a debt to inspect schedule, linked ledger rows, and repair options.');
-      setHTML('selectedDebtPanel', '<div class="debt-empty">No debt selected.</div>');
+      setText("selectedDebtTitle", "No debt selected");
+      setText("selectedDebtSub", "Select a debt to inspect schedule, linked ledger rows, and repair options.");
+      setHTML("selectedDebtPanel", '<div class="debt-empty">No debt selected.</div>');
       return;
     }
 
-    setText('selectedDebtTitle', debt.name);
-    setText('selectedDebtSub', `${kindLabel(debt.kind)} · ${debt.id}`);
+    setText("selectedDebtTitle", debt.name);
+    setText("selectedDebtSub", `${kindLabel(debt.kind)} · ${debt.id}`);
 
-    setHTML('selectedDebtPanel', `
-      ${row('Kind', 'Money direction', kindLabel(debt.kind), debt.kind === 'owed' ? 'positive' : 'danger')}
-      ${row('Original amount', 'Debt principal', money(debt.original_amount))}
-      ${row('Paid amount', 'Settled so far', money(debt.paid_amount))}
-      ${row('Remaining', 'Backend remaining', money(debt.remaining_amount), debt.remaining_amount > 0 ? 'warning' : 'positive')}
-      ${row('Status', 'Debt row status', debt.status || 'active')}
-      ${row('Due status', 'Schedule state', debt.due_status || 'no schedule')}
-      ${row('Next due', 'Computed backend due date', debt.next_due_date || '—')}
-      ${row('Origin state', 'Ledger origin classifier', debtOriginLabel(debt), debtOriginTone(debt) === 'good' ? 'positive' : debtOriginTone(debt) === 'danger' ? 'danger' : 'warning')}
-      ${row('Ledger linked', 'Origin movement', debt.ledger_linked ? 'Yes' : 'No', debt.ledger_linked ? 'positive' : 'warning')}
-      ${row('Ledger transactions', 'Origin transaction IDs', debt.ledger_transaction_ids.length ? debt.ledger_transaction_ids.join(', ') : 'None')}
-      ${debt.notes ? row('Notes', 'Backend notes', debt.notes) : ''}
+    setHTML("selectedDebtPanel", `
+      ${row("Kind", "Money direction", kindLabel(debt.kind), debt.kind === "owed" ? "positive" : "danger")}
+      ${row("Original amount", "Debt principal", money(debt.original_amount))}
+      ${row("Paid amount", "Settled so far", money(debt.paid_amount))}
+      ${row("Remaining", "Backend remaining", money(debt.remaining_amount), debt.remaining_amount > 0 ? "warning" : "positive")}
+      ${row("Status", "Debt row status", debt.status || "active")}
+      ${row("Due status", "Schedule state", debt.due_status || "no schedule")}
+      ${row("Next due", "Computed backend due date", debt.next_due_date || "—")}
+      ${row("Origin state", "Ledger origin classifier", debtOriginLabel(debt), debtOriginTone(debt) === "good" ? "positive" : debtOriginTone(debt) === "danger" ? "danger" : "warning")}
+      ${row("Ledger linked", "Origin movement", debt.ledger_linked ? "Yes" : "No", debt.ledger_linked ? "positive" : "warning")}
+      ${row("Origin transactions", "Origin transaction IDs", debt.ledger_transaction_ids.length ? debt.ledger_transaction_ids.join(", ") : "None")}
+      ${row("Payment transactions", "Payment transaction IDs", debt.payment_transaction_ids.length ? debt.payment_transaction_ids.join(", ") : "None")}
+      ${debt.notes ? row("Notes", "Backend notes", debt.notes) : ""}
     `);
   }
 
   function renderEnforcement() {
-    setHTML('debtEnforcementPanel', `
-      ${row('Debt create rule', 'If money moved now', 'account_id required', 'warning')}
-      ${row('Owed to me', 'Origin ledger type', 'expense from selected account', 'danger')}
-      ${row('I owe', 'Origin ledger type', 'income into selected account', 'positive')}
-      ${row('Debt-only', 'No money movement now', 'no account impact', 'warning')}
-      ${row('Atomicity', 'Backend contract', 'debt + ledger batch when movement_now=1', 'positive')}
-      ${row('Payment route', 'Canonical endpoint', 'POST /api/debts · action=payment', 'positive')}
+    setHTML("debtEnforcementPanel", `
+      ${row("Canonical route", "All debt writes", "POST /api/debts", "positive")}
+      ${row("Debt create rule", "If money moved now", "account_id required", "warning")}
+      ${row("I owe", "Origin ledger type", "income into selected account", "positive")}
+      ${row("Owed to me", "Origin ledger type", "expense from selected account", "danger")}
+      ${row("Payment marker", "I owe payment", "[DEBT_PAYMENT]", "danger")}
+      ${row("Receive marker", "Owed-to-me payment", "[DEBT_RECEIVE]", "positive")}
+      ${row("Reversal owner", "Only canonical ledger reversal", "POST /api/transactions/reverse", "positive")}
     `);
   }
 
   function renderDebug(extra) {
-    setText('debtDebug', JSON.stringify({
+    setText("debtDebug", JSON.stringify({
       version: VERSION,
       filter: state.filter,
       search: state.search,
@@ -699,6 +800,7 @@
       debts: state.debts,
       accounts: state.accounts,
       health: state.health,
+      lastPayload: state.lastPayload,
       extra: extra || null
     }, null, 2));
   }
@@ -715,8 +817,8 @@
   function setFilter(filter) {
     state.filter = filter;
 
-    document.querySelectorAll('[data-filter]').forEach(button => {
-      button.classList.toggle('is-active', button.getAttribute('data-filter') === filter);
+    document.querySelectorAll("[data-filter]").forEach(button => {
+      button.classList.toggle("is-active", button.getAttribute("data-filter") === filter);
     });
 
     renderDebtList();
@@ -724,13 +826,13 @@
   }
 
   function ensureDebtControls() {
-    if ($('debtSearchInput') && $('debtSortInput')) return;
+    if ($("debtSearchInput") && $("debtSortInput")) return;
 
-    const filterRow = document.querySelector('.debt-filter-row');
+    const filterRow = document.querySelector(".debt-filter-row");
     if (!filterRow) return;
 
-    const controls = document.createElement('div');
-    controls.className = 'debt-list-controls';
+    const controls = document.createElement("div");
+    controls.className = "debt-list-controls";
     controls.innerHTML = `
       <input
         id="debtSearchInput"
@@ -747,39 +849,39 @@
       </select>
     `;
 
-    filterRow.insertAdjacentElement('afterend', controls);
+    filterRow.insertAdjacentElement("afterend", controls);
 
-    $('debtSearchInput')?.addEventListener('input', event => {
+    $("debtSearchInput")?.addEventListener("input", event => {
       state.search = event.target.value.trim();
       renderDebtList();
       renderDebug();
     });
 
-    $('debtSortInput')?.addEventListener('change', event => {
-      state.sort = event.target.value || 'due';
+    $("debtSortInput")?.addEventListener("change", event => {
+      state.sort = event.target.value || "due";
       renderDebtList();
       renderDebug();
     });
 
-    const sort = $('debtSortInput');
+    const sort = $("debtSortInput");
     if (sort) sort.value = state.sort;
   }
 
   function wireFilters() {
-    document.querySelectorAll('[data-filter]').forEach(button => {
-      button.addEventListener('click', () => setFilter(button.getAttribute('data-filter')));
+    document.querySelectorAll("[data-filter]").forEach(button => {
+      button.addEventListener("click", () => setFilter(button.getAttribute("data-filter")));
     });
   }
 
   function openDebtModal() {
     resetDebtForm();
 
-    const date = $('debtMovementDateInput');
+    const date = $("debtMovementDateInput");
     if (date && !date.value) date.value = todayISO();
 
     renderAccountOptions();
     updateDebtMovementCopy();
-    openModal('debtModal');
+    openModal("debtModal");
   }
 
   function openModal(id) {
@@ -793,29 +895,29 @@
   }
 
   function resetDebtForm() {
-    const form = $('addDebtForm');
+    const form = $("addDebtForm");
     if (form) form.reset();
 
-    const paid = $('debtPaidInput');
-    if (paid) paid.value = '0';
+    const paid = $("debtPaidInput");
+    if (paid) paid.value = "0";
 
-    const movement = $('debtMovementNowInput');
+    const movement = $("debtMovementNowInput");
     if (movement) movement.checked = true;
 
-    const date = $('debtMovementDateInput');
+    const date = $("debtMovementDateInput");
     if (date) date.value = todayISO();
   }
 
   function updateDebtMovementCopy() {
-    const kind = $('debtKindInput')?.value || 'owed';
-    const movement = $('debtMovementNowInput');
-    const account = $('debtAccountInput');
-    const copy = $('debtMovementCopy');
+    const kind = $("debtKindInput")?.value || "owed";
+    const movement = $("debtMovementNowInput");
+    const account = $("debtAccountInput");
+    const copy = $("debtMovementCopy");
 
     if (copy) {
-      copy.textContent = kind === 'owed'
-        ? 'Owed to me means money leaves the selected account now.'
-        : 'I owe means money enters the selected account now.';
+      copy.textContent = kind === "owed"
+        ? "Owed to me means money leaves the selected account now."
+        : "I owe means money enters the selected account now.";
     }
 
     const enabled = movement ? movement.checked : false;
@@ -823,36 +925,41 @@
   }
 
   function buildDebtCreatePayload() {
-    const movementNow = Boolean($('debtMovementNowInput')?.checked);
-    const kind = $('debtKindInput')?.value || 'owed';
+    const movementNow = Boolean($("debtMovementNowInput")?.checked);
+    const kind = $("debtKindInput")?.value || "owed";
+    const name = clean($("debtNameInput")?.value);
+    const amount = num($("debtOriginalInput")?.value);
+    const movementDate = clean($("debtMovementDateInput")?.value) || todayISO();
 
     return {
-      name: clean($('debtNameInput')?.value),
+      action: "create",
+      name,
       kind,
-      original_amount: num($('debtOriginalInput')?.value),
-      paid_amount: num($('debtPaidInput')?.value),
-      due_date: clean($('debtDueDateInput')?.value) || null,
-      due_day: clean($('debtDueDayInput')?.value) || null,
-      installment_amount: clean($('debtInstallmentInput')?.value) || null,
-      frequency: $('debtFrequencyInput')?.value || 'monthly',
-      status: $('debtStatusInput')?.value || 'active',
-      snowball_order: clean($('debtSnowballInput')?.value) || null,
+      original_amount: amount,
+      paid_amount: num($("debtPaidInput")?.value),
+      due_date: clean($("debtDueDateInput")?.value) || null,
+      due_day: clean($("debtDueDayInput")?.value) || null,
+      installment_amount: clean($("debtInstallmentInput")?.value) || null,
+      frequency: $("debtFrequencyInput")?.value || "monthly",
+      status: $("debtStatusInput")?.value || "active",
+      snowball_order: clean($("debtSnowballInput")?.value) || null,
       movement_now: movementNow,
       money_moved_now: movementNow,
-      account_id: movementNow ? clean($('debtAccountInput')?.value) : '',
-      movement_date: clean($('debtMovementDateInput')?.value) || todayISO(),
-      notes: clean($('debtNotesInput')?.value),
-      created_by: 'web-debts-v0.6.6'
+      account_id: movementNow ? clean($("debtAccountInput")?.value) : "",
+      movement_date: movementDate,
+      notes: clean($("debtNotesInput")?.value),
+      idempotency_key: buildClientKey(["debt_create", name, kind, amount, movementNow, movementDate]),
+      created_by: "web-debts-v0.7.0"
     };
   }
 
   function validateDebtCreatePayload(payload) {
-    if (!payload.name) return 'Debt name required.';
-    if (!payload.kind) return 'Debt direction required.';
-    if (!Number.isFinite(payload.original_amount) || payload.original_amount <= 0) return 'Original amount must be greater than 0.';
-    if (!Number.isFinite(payload.paid_amount) || payload.paid_amount < 0) return 'Paid amount must be 0 or greater.';
-    if (payload.paid_amount > payload.original_amount) return 'Already paid cannot exceed original amount.';
-    if (payload.movement_now && !payload.account_id) return 'Select the account money moved through.';
+    if (!payload.name) return "Debt name required.";
+    if (!payload.kind) return "Debt direction required.";
+    if (!Number.isFinite(payload.original_amount) || payload.original_amount <= 0) return "Original amount must be greater than 0.";
+    if (!Number.isFinite(payload.paid_amount) || payload.paid_amount < 0) return "Paid amount must be 0 or greater.";
+    if (payload.paid_amount > payload.original_amount) return "Already paid cannot exceed original amount.";
+    if (payload.movement_now && !payload.account_id) return "Select the account money moved through.";
     return null;
   }
 
@@ -868,14 +975,8 @@
     try {
       const result = await postJSON(`${API_DEBTS}?dry_run=1`, payload);
 
-      setHTML('debtActionPanel', `
-        ${row('Dry-run', 'Debt create validation', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
-        ${row('Expected debt rows', 'Backend proof', String(result.proof?.expected_debt_rows ?? '—'))}
-        ${row('Expected origin rows', 'Backend proof', String(result.proof?.expected_origin_ledger_rows ?? result.proof?.expected_ledger_rows ?? '—'), (result.proof?.expected_origin_ledger_rows || result.proof?.expected_ledger_rows) ? 'positive' : 'warning')}
-        ${row('Write model', 'Backend contract', result.proof?.write_model || '—')}
-      `);
-
-      toast('Debt dry-run passed.');
+      renderActionResult("Debt create dry-run", result);
+      toast("Debt dry-run passed.");
     } catch (err) {
       toast(`Dry-run failed: ${err.message}`);
     }
@@ -890,21 +991,21 @@
       return;
     }
 
-    const button = $('saveDebtBtn');
+    const button = $("saveDebtBtn");
 
     if (button) {
       button.disabled = true;
-      button.textContent = 'Saving…';
+      button.textContent = "Saving…";
     }
 
     try {
       const result = await postJSON(API_DEBTS, payload);
 
-      toast(result.origin_transaction_id || result.ledger_transaction_id
-        ? 'Debt saved with ledger movement.'
-        : 'Debt saved without money movement.');
+      toast(result.origin_transaction_id || result.ledger?.transaction_id
+        ? "Debt saved with ledger movement."
+        : "Debt saved without money movement.");
 
-      closeModal('debtModal');
+      closeModal("debtModal");
       await loadDebts();
 
       if (result.id) selectDebt(result.id);
@@ -913,7 +1014,7 @@
     } finally {
       if (button) {
         button.disabled = false;
-        button.textContent = 'Save Debt';
+        button.textContent = "Save Debt";
       }
     }
   }
@@ -926,36 +1027,36 @@
 
     renderSelectedDebt();
 
-    setHTML('debtActionPanel', `
+    setHTML("debtActionPanel", `
       <form class="debt-form">
-        ${row('Amount', 'Amount mutation is intentionally blocked in UI until backend supports safe amount+ledger correction.', money(debt.original_amount), 'warning')}
+        ${row("Amount", "Amount mutation is blocked here. Use reversal/re-entry for money correction.", money(debt.original_amount), "warning")}
 
         <div class="debt-form-grid">
           <div class="debt-field">
             <label for="editDueDateInput">Due Date</label>
-            <input class="debt-input" id="editDueDateInput" type="date" value="${esc(debt.due_date || '')}" />
+            <input class="debt-input" id="editDueDateInput" type="date" value="${esc(debt.due_date || "")}" />
           </div>
 
           <div class="debt-field">
             <label for="editDueDayInput">Due Day</label>
-            <input class="debt-input" id="editDueDayInput" type="number" min="1" max="31" value="${esc(debt.due_day || '')}" />
+            <input class="debt-input" id="editDueDayInput" type="number" min="1" max="31" value="${esc(debt.due_day || "")}" />
           </div>
 
           <div class="debt-field">
             <label for="editInstallmentInput">Installment Amount</label>
-            <input class="debt-input" id="editInstallmentInput" type="number" step="0.01" min="0" value="${esc(debt.installment_amount || '')}" />
+            <input class="debt-input" id="editInstallmentInput" type="number" step="0.01" min="0" value="${esc(debt.installment_amount || "")}" />
           </div>
 
           <div class="debt-field">
             <label for="editFrequencyInput">Frequency</label>
             <select class="debt-select" id="editFrequencyInput">
-              ${['monthly', 'weekly', 'yearly', 'custom'].map(f => `<option value="${f}" ${debt.frequency === f ? 'selected' : ''}>${f}</option>`).join('')}
+              ${["monthly", "weekly", "yearly", "custom"].map(f => `<option value="${f}" ${debt.frequency === f ? "selected" : ""}>${f}</option>`).join("")}
             </select>
           </div>
 
           <div class="debt-field debt-span-2">
             <label for="editNotesInput">Notes</label>
-            <textarea class="debt-textarea" id="editNotesInput">${esc(debt.notes || '')}</textarea>
+            <textarea class="debt-textarea" id="editNotesInput">${esc(debt.notes || "")}</textarea>
           </div>
         </div>
 
@@ -965,24 +1066,25 @@
       </form>
     `);
 
-    $('saveDebtEditBtn')?.addEventListener('click', () => submitEditDebt(id));
+    $("saveDebtEditBtn")?.addEventListener("click", () => submitEditDebt(id));
   }
 
   async function submitEditDebt(id) {
     try {
-      await putJSON(`${API_DEBTS}/${encodeURIComponent(id)}`, {
-        due_date: clean($('editDueDateInput')?.value) || null,
-        due_day: clean($('editDueDayInput')?.value) || null,
-        installment_amount: clean($('editInstallmentInput')?.value) || null,
-        frequency: $('editFrequencyInput')?.value || 'custom',
-        notes: clean($('editNotesInput')?.value)
+      const result = await putJSON(`${API_DEBTS}/${encodeURIComponent(id)}`, {
+        due_date: clean($("editDueDateInput")?.value) || null,
+        due_day: clean($("editDueDayInput")?.value) || null,
+        installment_amount: clean($("editInstallmentInput")?.value) || null,
+        frequency: $("editFrequencyInput")?.value || "custom",
+        notes: clean($("editNotesInput")?.value)
       });
 
-      toast('Debt schedule updated.');
+      renderActionResult("Debt schedule updated", result);
+      toast("Debt schedule updated.");
       await loadDebts();
       selectDebt(id);
     } catch (err) {
-      setHTML('debtActionPanel', `<div class="debt-empty">Edit failed: ${esc(err.message)}</div>`);
+      setHTML("debtActionPanel", `<div class="debt-empty">Edit failed: ${esc(err.message)}</div>`);
     }
   }
 
@@ -995,14 +1097,14 @@
     renderSelectedDebt();
     renderAccountOptions();
 
-    const copy = debt.kind === 'owed'
-      ? 'Owed to me: choose the source account money left from. Backend writes an expense origin and reduces this account.'
-      : 'I owe: choose the destination account money entered into. Backend writes an income origin and increases this account.';
+    const copy = debt.kind === "owed"
+      ? "Owed to me: choose the source account money left from. Backend writes an expense origin."
+      : "I owe: choose the destination account money entered into. Backend writes an income origin.";
 
-    setHTML('debtActionPanel', `
+    setHTML("debtActionPanel", `
       <form class="debt-form">
-        ${row('Debt', debt.id, `${esc(debt.name)} · ${money(debt.original_amount)}`)}
-        ${row('Direction', 'Repair rule', debt.kind === 'owed' ? 'expense' : 'income', debt.kind === 'owed' ? 'danger' : 'positive')}
+        ${row("Debt", debt.id, `${esc(debt.name)} · ${money(debt.original_amount)}`)}
+        ${row("Direction", "Repair rule", debt.kind === "owed" ? "expense" : "income", debt.kind === "owed" ? "danger" : "positive")}
 
         <div class="debt-field">
           <label for="repairAccountInput">Correct Account</label>
@@ -1026,46 +1128,39 @@
 
     renderAccountOptions();
 
-    $('dryRunRepairBtn')?.addEventListener('click', () => submitRepairLedger(id, true));
-    $('commitRepairBtn')?.addEventListener('click', () => submitRepairLedger(id, false));
+    $("dryRunRepairBtn")?.addEventListener("click", () => submitRepairLedger(id, true));
+    $("commitRepairBtn")?.addEventListener("click", () => submitRepairLedger(id, false));
   }
 
   async function submitRepairLedger(id, dryRun) {
-    const accountId = clean($('repairAccountInput')?.value);
+    const accountId = clean($("repairAccountInput")?.value);
 
     if (!accountId) {
-      toast('Select account first.');
+      toast("Select account first.");
       return;
     }
 
     const body = {
+      action: "repair_ledger",
       debt_id: id,
       account_id: accountId,
-      date: clean($('repairDateInput')?.value) || todayISO(),
-      created_by: 'web-debts-v0.6.6'
+      date: clean($("repairDateInput")?.value) || todayISO(),
+      idempotency_key: buildClientKey(["repair_ledger", id, accountId, clean($("repairDateInput")?.value) || todayISO()]),
+      created_by: "web-debts-v0.7.0"
     };
 
     try {
-      const result = await postJSON(`${API_DEBTS}${dryRun ? '?dry_run=1' : ''}`, {
-        ...body,
-        action: 'repair_ledger'
-      });
+      const result = await postJSON(`${API_DEBTS}${dryRun ? "?dry_run=1" : ""}`, body);
 
-      setHTML('debtActionPanel', `
-        ${row(dryRun ? 'Dry-run repair' : 'Repair committed', 'Backend result', result.ok ? 'OK' : 'Failed', result.ok ? 'positive' : 'danger')}
-        ${row('Ledger transaction', 'Origin movement row', result.origin_transaction_id || result.ledger_transaction_id || result.proof?.origin_transaction_id || result.proof?.ledger_transaction_id || 'pending')}
-        ${row('Writes performed', 'Backend truth', String(Boolean(result.writes_performed)), result.writes_performed ? 'positive' : 'warning')}
-        ${row('Rule', 'Money model', result.proof?.rule || result.proof?.write_model || '—')}
-      `);
-
-      toast(dryRun ? 'Repair dry-run passed.' : 'Repair committed.');
+      renderActionResult(dryRun ? "Repair dry-run" : "Repair committed", result);
+      toast(dryRun ? "Repair dry-run passed." : "Repair committed.");
 
       if (!dryRun) {
         await loadDebts();
         selectDebt(id);
       }
     } catch (err) {
-      setHTML('debtActionPanel', `<div class="debt-empty">Repair failed: ${esc(err.message)}</div>`);
+      setHTML("debtActionPanel", `<div class="debt-empty">Repair failed: ${esc(err.message)}</div>`);
     }
   }
 
@@ -1080,34 +1175,37 @@
     state.selectedDebtId = debt.id;
     renderSelectedDebt();
 
-    const hidden = $('paymentDebtIdInput');
+    const hidden = $("paymentDebtIdInput");
     if (hidden) hidden.value = debt.id;
 
-    const amountInput = $('paymentAmountInput');
-    if (amountInput) amountInput.value = debt.installment_amount || debt.remaining_amount || '';
+    const amountInput = $("paymentAmountInput");
+    if (amountInput) amountInput.value = debt.installment_amount || debt.remaining_amount || "";
 
-    const dateInput = $('paymentDateInput');
+    const dateInput = $("paymentDateInput");
     if (dateInput) dateInput.value = todayISO();
 
-    const notesInput = $('paymentNotesInput');
+    const notesInput = $("paymentNotesInput");
     if (notesInput) notesInput.value = `${debt.name} · debt payment`;
 
-    const subtitle = document.querySelector('#paymentModal .sf-section-subtitle');
+    const direction = $("paymentDirectionInput");
+    if (direction) direction.value = "auto";
+
+    const subtitle = document.querySelector("#paymentModal .sf-section-subtitle");
     if (subtitle) {
       subtitle.textContent = `Debt ID: ${debt.id} · ${kindLabel(debt.kind)} · remaining ${money(debt.remaining_amount)}`;
     }
 
     renderAccountOptions();
-    openModal('paymentModal');
+    openModal("paymentModal");
   }
 
   async function savePayment(dryRun) {
-    const hiddenDebtId = clean($('paymentDebtIdInput')?.value);
+    const hiddenDebtId = clean($("paymentDebtIdInput")?.value);
     const debtId = hiddenDebtId || state.selectedDebtId;
     const debt = findDebtById(debtId);
 
     if (!debtId) {
-      toast('No debt selected.');
+      toast("No debt selected.");
       return;
     }
 
@@ -1116,55 +1214,50 @@
       return;
     }
 
+    const amount = num($("paymentAmountInput")?.value);
+    const date = clean($("paymentDateInput")?.value) || todayISO();
+    const accountId = clean($("paymentAccountInput")?.value);
+
     const body = {
-      action: 'payment',
+      action: "payment",
       debt_id: debt.id,
-      amount: num($('paymentAmountInput')?.value),
-      date: clean($('paymentDateInput')?.value) || todayISO(),
-      account_id: clean($('paymentAccountInput')?.value),
-      direction: $('paymentDirectionInput')?.value || 'auto',
-      notes: clean($('paymentNotesInput')?.value),
-      created_by: 'web-debts-v0.6.6'
+      amount,
+      date,
+      account_id: accountId,
+      direction: $("paymentDirectionInput")?.value || "auto",
+      notes: clean($("paymentNotesInput")?.value),
+      idempotency_key: buildClientKey(["debt_payment", debt.id, amount, accountId, date]),
+      created_by: "web-debts-v0.7.0"
     };
 
     if (!body.amount || body.amount <= 0) {
-      toast('Payment amount must be greater than 0.');
+      toast("Payment amount must be greater than 0.");
       return;
     }
 
     if (!body.account_id) {
-      toast('Select payment account.');
+      toast("Select payment account.");
       return;
     }
 
-    const button = dryRun ? $('dryRunPaymentBtn') : $('savePaymentBtn');
+    const button = dryRun ? $("dryRunPaymentBtn") : $("savePaymentBtn");
 
     if (button) {
       button.disabled = true;
-      button.textContent = dryRun ? 'Dry-running…' : 'Saving…';
+      button.textContent = dryRun ? "Dry-running…" : "Saving…";
     }
 
     try {
-      const result = await postJSON(`${API_DEBTS}${dryRun ? '?dry_run=1' : ''}`, body);
+      const result = await postJSON(`${API_DEBTS}${dryRun ? "?dry_run=1" : ""}`, body);
 
       if (dryRun) {
-        setHTML('debtActionPanel', `
-          ${row('Dry-run payment', 'Backend route', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
-          ${row('Endpoint', 'Canonical route', 'POST /api/debts')}
-          ${row('Debt ID sent', 'Locked backend debt id', body.debt_id)}
-          ${row('Payment transaction', 'Expected ledger row', result.payment_transaction?.id || result.proof?.payment_transaction_id || '—')}
-          ${row('Transaction type', 'Expected account impact', result.payment_transaction?.type || '—', result.payment_transaction?.type === 'income' ? 'positive' : 'danger')}
-          ${row('Account', 'Selected account', result.payment_transaction?.account_id || body.account_id)}
-          ${row('Paid amount after', 'Debt state after payment', money(result.proof?.paid_amount_after || 0))}
-          ${row('Status after', 'Debt status after payment', result.proof?.status_after || '—')}
-        `);
-
-        toast('Payment dry-run passed.');
+        renderActionResult("Payment dry-run", result);
+        toast("Payment dry-run passed.");
         return;
       }
 
-      toast('Payment saved.');
-      closeModal('paymentModal');
+      toast("Payment saved.");
+      closeModal("paymentModal");
       await loadDebts();
       selectDebt(debt.id);
     } catch (err) {
@@ -1172,7 +1265,7 @@
     } finally {
       if (button) {
         button.disabled = false;
-        button.textContent = dryRun ? 'Dry-run Payment' : 'Save Payment';
+        button.textContent = dryRun ? "Dry-run Payment" : "Save Payment";
       }
     }
   }
@@ -1183,31 +1276,32 @@
     const debt = selectedDebt();
     if (!debt) return;
 
-    $('deferDebtIdInput').value = id;
-    $('deferDueDateInput').value = debt.due_date || '';
-    $('deferDueDayInput').value = debt.due_day || '';
-    $('deferNotesInput').value = debt.notes || '';
+    $("deferDebtIdInput").value = id;
+    $("deferDueDateInput").value = debt.due_date || "";
+    $("deferDueDayInput").value = debt.due_day || "";
+    $("deferNotesInput").value = debt.notes || "";
 
-    openModal('deferModal');
+    openModal("deferModal");
   }
 
   async function saveDefer() {
-    const id = clean($('deferDebtIdInput')?.value);
+    const id = clean($("deferDebtIdInput")?.value);
 
     if (!id) {
-      toast('No debt selected.');
+      toast("No debt selected.");
       return;
     }
 
     try {
-      await putJSON(`${API_DEBTS}/${encodeURIComponent(id)}`, {
-        due_date: clean($('deferDueDateInput')?.value) || null,
-        due_day: clean($('deferDueDayInput')?.value) || null,
-        notes: clean($('deferNotesInput')?.value)
+      const result = await putJSON(`${API_DEBTS}/${encodeURIComponent(id)}`, {
+        due_date: clean($("deferDueDateInput")?.value) || null,
+        due_day: clean($("deferDueDayInput")?.value) || null,
+        notes: clean($("deferNotesInput")?.value)
       });
 
-      toast('Debt deferred.');
-      closeModal('deferModal');
+      renderActionResult("Debt deferred", result);
+      toast("Debt deferred.");
+      closeModal("deferModal");
       await loadDebts();
       selectDebt(id);
     } catch (err) {
@@ -1215,39 +1309,76 @@
     }
   }
 
+  function renderActionResult(title, result) {
+    const ledger = result.ledger || result.proof?.ledger || {};
+    const account = result.account || result.proof?.account || {};
+    const forecast = result.forecast || result.proof?.forecast || {};
+    const payment = result.payment || {};
+    const proof = result.proof || {};
+
+    setHTML("debtActionPanel", `
+      ${row(title, "Backend result", result.ok ? "OK" : "Failed", result.ok ? "positive" : "danger")}
+      ${row("Contract", "Backend contract version", result.contract_version || "—")}
+      ${row("Writes performed", "Backend truth", String(Boolean(result.writes_performed)), result.writes_performed ? "positive" : "warning")}
+      ${row("Ledger created", "Money movement", String(Boolean(ledger.created)), ledger.created ? "positive" : "warning")}
+      ${row("Ledger transaction", "Transaction ID", ledger.transaction_id || result.transaction_id || result.origin_transaction_id || result.payment_transaction_id || "—")}
+      ${row("Ledger type", "Expected movement", ledger.type || result.payment_transaction?.type || "—", ledger.type === "income" ? "positive" : ledger.type === "expense" ? "danger" : "")}
+      ${row("Marker", "Debt ledger marker", ledger.marker || proof.marker || "—")}
+      ${row("Account delta", "Ledger-derived impact", account.account_delta == null ? "—" : money(account.account_delta), account.account_delta > 0 ? "positive" : account.account_delta < 0 ? "danger" : "")}
+      ${row("Payment", "Payment row", payment.payment_id || result.payment_id || "—")}
+      ${row("Forecast", "Should reflect", String(Boolean(forecast.should_reflect)), forecast.should_reflect ? "positive" : "warning")}
+      ${row("Proof action", "Backend proof", proof.action || result.action || "—")}
+    `);
+
+    renderDebug({ lastActionResult: result });
+  }
+
   function wireModalButtons() {
-    $('addDebtBtn')?.addEventListener('click', openDebtModal);
-    $('newDebtBtn')?.addEventListener('click', openDebtModal);
-    $('refreshDebtsBtn')?.addEventListener('click', loadDebts);
-    $('reloadDebtsBtn')?.addEventListener('click', loadDebts);
-    $('closeDebtModalBtn')?.addEventListener('click', () => closeModal('debtModal'));
-    $('dryRunDebtBtn')?.addEventListener('click', dryRunDebtCreate);
-    $('saveDebtBtn')?.addEventListener('click', saveNewDebt);
-    $('debtKindInput')?.addEventListener('change', updateDebtMovementCopy);
-    $('debtMovementNowInput')?.addEventListener('change', updateDebtMovementCopy);
-    $('closePaymentModalBtn')?.addEventListener('click', () => closeModal('paymentModal'));
-    $('dryRunPaymentBtn')?.addEventListener('click', () => savePayment(true));
-    $('savePaymentBtn')?.addEventListener('click', () => savePayment(false));
-    $('closeDeferModalBtn')?.addEventListener('click', () => closeModal('deferModal'));
-    $('saveDeferBtn')?.addEventListener('click', saveDefer);
+    $("addDebtBtn")?.addEventListener("click", openDebtModal);
+    $("newDebtBtn")?.addEventListener("click", openDebtModal);
+    $("refreshDebtsBtn")?.addEventListener("click", loadDebts);
+    $("reloadDebtsBtn")?.addEventListener("click", loadDebts);
+
+    $("closeDebtModalBtn")?.addEventListener("click", () => closeModal("debtModal"));
+    $("dryRunDebtBtn")?.addEventListener("click", dryRunDebtCreate);
+    $("saveDebtBtn")?.addEventListener("click", saveNewDebt);
+
+    $("debtKindInput")?.addEventListener("change", updateDebtMovementCopy);
+    $("debtMovementNowInput")?.addEventListener("change", updateDebtMovementCopy);
+
+    $("closePaymentModalBtn")?.addEventListener("click", () => closeModal("paymentModal"));
+    $("dryRunPaymentBtn")?.addEventListener("click", () => savePayment(true));
+    $("savePaymentBtn")?.addEventListener("click", () => savePayment(false));
+
+    $("closeDeferModalBtn")?.addEventListener("click", () => closeModal("deferModal"));
+    $("saveDeferBtn")?.addEventListener("click", saveDefer);
   }
 
   function toast(message) {
-    const el = $('debtToast');
+    const el = $("debtToast");
     if (!el) return;
 
     el.textContent = message;
-    el.classList.add('show');
+    el.classList.add("show");
 
     clearTimeout(el._timer);
-    el._timer = setTimeout(() => el.classList.remove('show'), 3000);
+    el._timer = setTimeout(() => el.classList.remove("show"), 3000);
+  }
+
+  function buildClientKey(parts) {
+    return parts
+      .concat(Date.now())
+      .join("|")
+      .toLowerCase()
+      .replace(/[^a-z0-9|._-]+/g, "_")
+      .slice(0, 180);
   }
 
   function injectStyles() {
-    if ($('debt-compact-js-style')) return;
+    if ($("debt-compact-js-style")) return;
 
-    const style = document.createElement('style');
-    style.id = 'debt-compact-js-style';
+    const style = document.createElement("style");
+    style.id = "debt-compact-js-style";
     style.textContent = `
       .debt-list-controls {
         display: grid;
@@ -1466,20 +1597,21 @@
     wireFilters();
     wireModalButtons();
 
-    const movementDate = $('debtMovementDateInput');
+    const movementDate = $("debtMovementDateInput");
     if (movementDate && !movementDate.value) movementDate.value = todayISO();
 
     loadDebts();
 
     window.SovereignDebts = {
       version: VERSION,
+      canonical_route: API_DEBTS,
       reload: loadDebts,
       state: () => JSON.parse(JSON.stringify(state))
     };
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
   } else {
     init();
   }
