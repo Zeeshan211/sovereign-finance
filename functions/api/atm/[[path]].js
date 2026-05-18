@@ -1,8 +1,10 @@
 /* ─── /api/atm/[[path]] · Sovereign Finance ATM Engine ───
- * v0.3.0-atm-provider-refundable-fees
+ * v0.3.1-atm-banking-grade-guards
  *
  * Contract:
  * - ATM withdrawal is source bank/wallet/prepaid/card account → cash.
+ * - Minimum ATM withdrawal amount is Rs 500.
+ * - Source account must have enough available balance for withdrawal + fee.
  * - Source account decreases by withdrawal amount immediately.
  * - Cash account increases by withdrawal amount immediately.
  * - If same-bank ATM is used, fee is forced to 0 and no fee ledger row is created.
@@ -15,14 +17,35 @@
  * - Accounts remain ledger-derived from transactions_canonical.
  */
 
-const VERSION = 'v0.3.0-atm-provider-refundable-fees';
+const VERSION = 'v0.3.1-atm-banking-grade-guards';
 const CONTRACT_VERSION = 'atm-v1';
 
 const DEFAULT_SOURCE_ACCOUNT_ID = 'mashreq';
 const DEFAULT_DEST_ACCOUNT_ID = 'cash';
 const DEFAULT_FEE_PKR = 35;
+const MIN_WITHDRAWAL_PKR = 500;
 const REFUND_WINDOW_DAYS = 10;
 const MONTHLY_CAP_HINT = 15;
+
+const POSITIVE_TYPES = [
+  'income',
+  'salary',
+  'opening',
+  'borrow',
+  'debt_in',
+  'adjustment_positive'
+];
+
+const NEGATIVE_TYPES = [
+  'expense',
+  'transfer',
+  'cc_payment',
+  'cc_spend',
+  'repay',
+  'atm',
+  'debt_out',
+  'adjustment_negative'
+];
 
 const ATM_PROVIDERS = [
   { id: 'mashreq', name: 'Mashreq', aliases: ['mashreq', 'mashreq bank'] },
@@ -72,8 +95,10 @@ export async function onRequestGet(context) {
           name: provider.name
         })),
         rules: {
+          minimum_withdrawal_pkr: MIN_WITHDRAWAL_PKR,
           same_bank_fee_policy: 'same source provider and ATM provider forces fee to 0 and creates no fee row',
           different_bank_fee_policy: 'fee amount must be supplied by user; backend records it as final or refundable',
+          insufficient_balance_guard: true,
           provider_matching: 'source account id/name/kind aliases matched against provider aliases'
         }
       });
@@ -120,6 +145,7 @@ export async function onRequestGet(context) {
         source_account_id: DEFAULT_SOURCE_ACCOUNT_ID,
         destination_account_id: DEFAULT_DEST_ACCOUNT_ID,
         fee_pkr_hint: DEFAULT_FEE_PKR,
+        minimum_withdrawal_pkr: MIN_WITHDRAWAL_PKR,
         refund_window_days: REFUND_WINDOW_DAYS,
         monthly_cap_hint: MONTHLY_CAP_HINT
       },
@@ -144,6 +170,7 @@ export async function onRequestGet(context) {
       fees_final: feeStats.final,
       fees_net: feeStats.net,
       default_fee: DEFAULT_FEE_PKR,
+      minimum_withdrawal_pkr: MIN_WITHDRAWAL_PKR,
       recent_atm_rows: recentRows,
       recent_rows: recentRows,
       rules: {
@@ -151,6 +178,10 @@ export async function onRequestGet(context) {
         cash_account_impact: 'positive',
         fee_account_impact: 'negative_immediate',
         fee_refund_account_impact: 'positive_when_bank_refunds',
+        minimum_withdrawal_guard: true,
+        minimum_withdrawal_pkr: MIN_WITHDRAWAL_PKR,
+        insufficient_balance_guard: true,
+        source_required_amount: 'withdrawal_amount + effective_fee_amount',
         same_bank_fee_policy: 'force_fee_zero_and_create_no_fee_row',
         different_bank_fee_policy: 'user_supplied_fee_recorded_immediately',
         fee_is_linked_to_withdrawal_pair: false,
@@ -235,6 +266,20 @@ async function createATMWithdraw(context, body) {
       action: 'atm_withdrawal',
       error: 'amount must be greater than 0',
       code: 'INVALID_AMOUNT',
+      committed: false
+    }, 400);
+  }
+
+  if (amount < MIN_WITHDRAWAL_PKR) {
+    return json({
+      ok: false,
+      version: VERSION,
+      contract_version: CONTRACT_VERSION,
+      action: 'atm_withdrawal',
+      error: `ATM withdrawal amount must be at least Rs ${MIN_WITHDRAWAL_PKR}`,
+      code: 'ATM_MIN_WITHDRAWAL_NOT_MET',
+      minimum_withdrawal_pkr: MIN_WITHDRAWAL_PKR,
+      attempted_amount: amount,
       committed: false
     }, 400);
   }
@@ -355,6 +400,27 @@ async function createATMWithdraw(context, body) {
   }
 
   const feeAmount = sameBank ? 0 : requestedFee;
+  const requiredSourceAmount = round2(amount + feeAmount);
+  const sourceCurrentBalance = await computeAccountBalance(db, txCols, sourceId);
+
+  if (sourceCurrentBalance < requiredSourceAmount) {
+    return json({
+      ok: false,
+      version: VERSION,
+      contract_version: CONTRACT_VERSION,
+      action: 'atm_withdrawal',
+      error: 'Insufficient source account balance for ATM withdrawal and fee',
+      code: 'INSUFFICIENT_SOURCE_BALANCE',
+      source_account_id: sourceId,
+      available_balance: sourceCurrentBalance,
+      withdrawal_amount: amount,
+      fee_amount: feeAmount,
+      required_amount: requiredSourceAmount,
+      shortfall: round2(requiredSourceAmount - sourceCurrentBalance),
+      committed: false
+    }, 400);
+  }
+
   const shouldCreateFee = feeAmount > 0;
   const shouldQueueRefund = shouldCreateFee && feeRefundable;
   const atmId = makeTxnId('atm');
@@ -481,6 +547,13 @@ async function createATMWithdraw(context, body) {
     atm_provider_id: atmProviderId || null,
     atm_provider_name: atmName,
     same_bank_atm: sameBank,
+    minimum_withdrawal_pkr: MIN_WITHDRAWAL_PKR,
+    balance_guard: {
+      source_account_id: sourceId,
+      available_balance_before: sourceCurrentBalance,
+      required_amount: requiredSourceAmount,
+      passed: true
+    },
     transfer_pair: {
       source_transaction_id: outId,
       cash_transaction_id: inId,
@@ -764,6 +837,9 @@ async function atmHealth(db) {
       fee_refund_rows_not_counted_as_pending: true,
       same_bank_fee_policy_declared: true,
       provider_model_declared: true,
+      minimum_withdrawal_guard: true,
+      minimum_withdrawal_pkr: MIN_WITHDRAWAL_PKR,
+      insufficient_balance_guard: true,
       health_is_read_only: true
     },
     orphan_pairs: orphanPairs,
@@ -777,6 +853,8 @@ async function atmHealth(db) {
       fee_refund_type: 'income',
       same_bank_fee_policy: 'no fee row',
       different_bank_fee_policy: 'fee row created only when fee amount > 0',
+      minimum_withdrawal_pkr: MIN_WITHDRAWAL_PKR,
+      source_required_amount: 'withdrawal_amount + effective_fee_amount',
       refundable_fee_marker: '[ATM_FEE_REFUNDABLE]',
       final_fee_marker: '[ATM_FEE_FINAL]',
       fee_refund_marker: '[ATM_FEE_REFUND]',
@@ -988,6 +1066,39 @@ async function loadAccountMap(db, cols, ids) {
   return out;
 }
 
+async function computeAccountBalance(db, txCols, accountId) {
+  if (!txCols.has('account_id')) return 0;
+
+  const wanted = [
+    'id',
+    'type',
+    'amount',
+    'pkr_amount',
+    'account_id',
+    'notes',
+    'reversed_by',
+    'reversed_at',
+    'created_at'
+  ].filter(col => txCols.has(col));
+
+  const rows = await db.prepare(
+    `SELECT ${wanted.join(', ')}
+     FROM transactions
+     WHERE account_id = ?`
+  ).bind(accountId).all();
+
+  let balance = 0;
+
+  for (const row of rows.results || []) {
+    if (isInactive(row)) continue;
+
+    const amount = rowAmount(row);
+    balance = round2(balance + signedAmount(row.type, amount));
+  }
+
+  return round2(balance);
+}
+
 async function resolveCategoryId(db, preferredId) {
   const cols = await tableColumns(db, 'categories');
 
@@ -1010,6 +1121,29 @@ async function resolveCategoryId(db, preferredId) {
   ).first();
 
   return fallback && fallback.id ? fallback.id : null;
+}
+
+function signedAmount(type, amount) {
+  const t = normalizeType(type);
+  const n = round2(Math.abs(amount));
+
+  if (POSITIVE_TYPES.includes(t)) return n;
+  if (NEGATIVE_TYPES.includes(t)) return -n;
+
+  return -n;
+}
+
+function normalizeType(type) {
+  const raw = String(type || '').trim().toLowerCase();
+
+  if (raw === 'manual_income') return 'income';
+  if (raw === 'salary_income') return 'salary';
+  if (raw === 'debt_payment') return 'repay';
+  if (raw === 'credit_card') return 'cc_spend';
+  if (raw === 'international' || raw === 'international_purchase') return 'expense';
+  if (raw === 'adjustment') return 'adjustment_positive';
+
+  return raw;
 }
 
 function isActivePendingFeeRow(row) {
