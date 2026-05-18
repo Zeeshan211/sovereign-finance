@@ -3,7 +3,9 @@
 
   if (window.SovereignAdd && window.SovereignAdd.initialized) return;
 
-  const VERSION = "v1.5.3-add-direct-transactions-fix";
+  const VERSION = "v1.6.0-add-merchant-smart-assist";
+
+  const MERCHANT_MATCH_API = "/api/merchants/match";
 
   const MODES = {
     expense: {
@@ -37,6 +39,32 @@
     bank_charge: "Bank charge"
   };
 
+  const MODULE_ROUTES = {
+    bills: "/bills.html",
+    nano_loans: "/nano-loans.html",
+    atm: "/atm.html",
+    credit_card: "/cc.html",
+    cc: "/cc.html",
+    debts: "/debts.html",
+    debt: "/debts.html",
+    transfer: "/transactions.html",
+    review: "/merchants.html",
+    transactions: ""
+  };
+
+  const MODULE_LABELS = {
+    bills: "Bills",
+    nano_loans: "Nano Loans",
+    atm: "ATM",
+    credit_card: "Credit Card",
+    cc: "Credit Card",
+    debts: "Debts",
+    debt: "Debts",
+    transfer: "Transfer / Ledger",
+    review: "Review Required",
+    transactions: "Add Transaction"
+  };
+
   const state = {
     context: null,
     accounts: [],
@@ -48,6 +76,10 @@
     preview: null,
     intlPreview: null,
     fxLookup: null,
+    merchantMatch: null,
+    merchantMatchLoading: false,
+    merchantMatchError: "",
+    merchantMatchText: "",
     dryRun: null,
     save: null,
     dirtySinceDryRun: false,
@@ -214,6 +246,15 @@
     return category ? categoryName(category) : id || "—";
   }
 
+  function moduleLabel(value) {
+    const key = String(value || "transactions");
+    return MODULE_LABELS[key] || key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  function moduleRoute(value) {
+    return MODULE_ROUTES[String(value || "transactions")] || "";
+  }
+
   function readForm() {
     const base = {
       mode: backendMode(),
@@ -280,6 +321,9 @@
     const parts = [];
 
     if (form.merchant) parts.push("merchant=" + form.merchant);
+    if (state.merchantMatch?.matched && state.merchantMatch?.merchant?.id) {
+      parts.push("merchant_id=" + state.merchantMatch.merchant.id);
+    }
     if (form.reference) parts.push("ref=" + form.reference);
     if (form.notes) parts.push(form.notes);
 
@@ -460,6 +504,7 @@
     }
 
     renderAll();
+    scheduleMerchantMatch();
     await runPreview(false);
   }
 
@@ -594,7 +639,8 @@
     setHTML("add-source-list", [
       row("Accounts", "Loaded for form", `${state.accounts.length} loaded`, state.accounts.length ? "positive" : "danger"),
       row("Categories", "Loaded for form", `${state.categories.length} loaded`, state.categories.length ? "positive" : "danger"),
-      row("Merchants", "Optional", `${state.merchants.length} loaded`, "info"),
+      row("Merchants", "Optional classification rules", `${state.merchants.length} loaded`, state.merchants.length ? "positive" : "info"),
+      row("Merchant match", "Smart Assist uses /api/merchants/match", state.merchantMatch?.matched ? "Matched" : state.merchantMatchLoading ? "Checking" : "Ready", state.merchantMatch?.matched ? "positive" : "info"),
       row("Intl rates", "Optional", state.intlRateConfig ? "Loaded" : "Not loaded", state.intlRateConfig ? "positive" : "info")
     ].join(""));
   }
@@ -695,8 +741,267 @@
     setText("add-intl-package-total", money(preview.total_pkr));
   }
 
+  function merchantMatchInputText() {
+    const form = readForm();
+
+    return [
+      form.merchant,
+      form.reference,
+      form.notes
+    ].filter(Boolean).join(" ").trim();
+  }
+
+  function shouldRunMerchantMatch(text) {
+    return String(text || "").trim().length >= 2;
+  }
+
+  let merchantMatchTimer = null;
+
+  function scheduleMerchantMatch() {
+    clearTimeout(merchantMatchTimer);
+
+    merchantMatchTimer = setTimeout(() => {
+      runMerchantMatch(true);
+    }, 260);
+  }
+
+  async function runMerchantMatch(renderAfter = true) {
+    const text = merchantMatchInputText();
+
+    state.merchantMatchText = text;
+
+    if (!shouldRunMerchantMatch(text)) {
+      state.merchantMatch = null;
+      state.merchantMatchError = "";
+      state.merchantMatchLoading = false;
+      if (renderAfter) renderAll();
+      return;
+    }
+
+    state.merchantMatchLoading = true;
+    state.merchantMatchError = "";
+    if (renderAfter) renderAll();
+
+    try {
+      state.merchantMatch = await postJSON(MERCHANT_MATCH_API, { text });
+      state.merchantMatchError = "";
+    } catch (err) {
+      state.merchantMatch = null;
+      state.merchantMatchError = err.message || String(err);
+    } finally {
+      state.merchantMatchLoading = false;
+      if (renderAfter) renderAll();
+    }
+  }
+
+  function merchantMatchTone(match) {
+    if (!match || !match.matched) return "info";
+    if (match.review_required) return "warning";
+
+    const module = match.merchant?.default_module || "transactions";
+
+    if (module === "nano_loans") return "danger";
+    if (module === "bills" || module === "atm") return "warning";
+
+    return "positive";
+  }
+
+  function merchantMatchTitle(match) {
+    if (state.merchantMatchLoading) return "Checking merchant rules…";
+    if (state.merchantMatchError) return "Merchant match failed";
+    if (!state.merchantMatchText) return "No merchant text yet";
+    if (!match || !match.matched) return "No confident merchant match";
+
+    const merchant = match.merchant || {};
+    return `Matched: ${merchant.name || "Merchant"}`;
+  }
+
+  function merchantMatchSubtitle(match) {
+    if (state.merchantMatchLoading) return "Calling /api/merchants/match.";
+    if (state.merchantMatchError) return state.merchantMatchError;
+    if (!state.merchantMatchText) return "Type a merchant, biller, payee, loan app, ATM text, or statement description.";
+    if (!match || !match.matched) return "No safe match found. Review manually before posting.";
+
+    const merchant = match.merchant || {};
+    const parts = [
+      merchant.counterparty_type || "merchant",
+      `module ${moduleLabel(merchant.default_module)}`,
+      `confidence ${match.confidence || "—"}`,
+      match.review_required ? "review required" : "safe suggestion"
+    ];
+
+    return parts.join(" · ");
+  }
+
+  function renderMerchantActions(match) {
+    if (!match || !match.matched || !match.merchant) return "";
+
+    const merchant = match.merchant;
+    const module = merchant.default_module || "transactions";
+    const route = moduleRoute(module);
+
+    const buttons = [];
+
+    if (module === "transactions" && !match.review_required) {
+      buttons.push(`<button class="sf-button sf-button--primary" type="button" data-merchant-assist-action="apply-defaults">Apply defaults</button>`);
+    }
+
+    if (route) {
+      buttons.push(`<a class="sf-button" href="${esc(route)}">Open ${esc(moduleLabel(module))}</a>`);
+    }
+
+    buttons.push(`<a class="sf-button" href="/merchants.html">Open Merchants</a>`);
+
+    return buttons.length
+      ? `<div class="sf-section-meta" style="margin-top: var(--sf-space-3);">${buttons.join("")}</div>`
+      : "";
+  }
+
+  function renderMerchantWarning(match) {
+    if (!match || !match.matched || !match.merchant) return "";
+
+    const merchant = match.merchant;
+    const module = merchant.default_module || "transactions";
+    const type = merchant.counterparty_type || "merchant";
+
+    if (type === "person" || match.review_required) {
+      return row(
+        "Review required",
+        "This looks like a person/payee. It may be a transfer, debt, repayment, or expense. Do not auto-post blindly.",
+        "Review",
+        "warning"
+      );
+    }
+
+    if (module === "nano_loans") {
+      return row(
+        "Use Nano Loans",
+        "Loan provider detected. Principal received is borrowed money, not income.",
+        "Nano Loans",
+        "danger"
+      );
+    }
+
+    if (module === "bills") {
+      return row(
+        "Use Bills",
+        "Biller detected. Bill payments should preserve bill cycle/payment state.",
+        "Bills",
+        "warning"
+      );
+    }
+
+    if (module === "atm") {
+      return row(
+        "Use ATM",
+        "ATM or payment rail detected. ATM withdrawals need linked movement and separate fee behavior.",
+        "ATM",
+        "warning"
+      );
+    }
+
+    return "";
+  }
+
+  function renderMerchantMatchCard() {
+    const match = state.merchantMatch;
+    const merchant = match?.merchant || null;
+    const tone = merchantMatchTone(match);
+
+    const defaultRows = merchant
+      ? [
+        denseRow("Counterparty", merchant.counterparty_type || "merchant", tone),
+        denseRow("Module", moduleLabel(merchant.default_module), tone),
+        denseRow("Category", merchant.default_category_id || "—", "info"),
+        denseRow("Account", merchant.default_account_id || "—", "info"),
+        denseRow("PRA", merchant.is_pra_required ? "Yes" : "No", merchant.is_pra_required ? "warning" : "info")
+      ].join("")
+      : "";
+
+    return `
+      <div class="sf-finance-row">
+        <div class="sf-row-left">
+          <div class="sf-row-title">${esc(merchantMatchTitle(match))}</div>
+          <div class="sf-row-subtitle">${esc(merchantMatchSubtitle(match))}</div>
+        </div>
+        <div class="sf-row-right sf-tone-${esc(tone)}">
+          ${merchant ? esc(match.review_required ? "Review" : "Suggest") : "—"}
+        </div>
+      </div>
+      ${defaultRows ? `<div class="sf-dense-grid" style="margin-top: var(--sf-space-3);">${defaultRows}</div>` : ""}
+      ${renderMerchantWarning(match)}
+      ${renderMerchantActions(match)}
+    `;
+  }
+
   function renderSmartAssist() {
-    setHTML("add-smart-assist", empty("No suggestions yet", "Enter merchant, amount, or choose International."));
+    const cards = [];
+
+    cards.push(renderMerchantMatchCard());
+
+    if (isInternational()) {
+      cards.push(row(
+        "International mode",
+        "International purchases stay owned by /api/add package writer and use package dry-run.",
+        "Package",
+        "info"
+      ));
+    }
+
+    if (!state.merchantMatchText && !isInternational()) {
+      cards.push(row(
+        "Merchant tips",
+        "Try MEPCO, JINGLECRED, UBL ATM, Foodpanda, or a person name. Suggestions do not write money.",
+        "Ready",
+        "info"
+      ));
+    }
+
+    setHTML("add-smart-assist", cards.join(""));
+  }
+
+  function applyMerchantDefaults() {
+    const match = state.merchantMatch;
+    const merchant = match?.merchant;
+
+    if (!match || !match.matched || !merchant) return;
+
+    if (match.review_required) {
+      state.errors.merchantApply = "Cannot auto-apply a review-required merchant.";
+      renderAll();
+      return;
+    }
+
+    const module = merchant.default_module || "transactions";
+
+    if (module !== "transactions") {
+      state.errors.merchantApply = `${moduleLabel(module)} matches must be opened in their owner page.`;
+      renderAll();
+      return;
+    }
+
+    let changed = false;
+
+    if (merchant.default_category_id && $("add-category") && state.selectedMode !== "transfer") {
+      $("add-category").value = merchant.default_category_id;
+      changed = true;
+    }
+
+    if (merchant.default_account_id && $("add-account")) {
+      $("add-account").value = merchant.default_account_id;
+      changed = true;
+    }
+
+    if (merchant.is_pra_required && $("add-intl-include-pra")) {
+      $("add-intl-include-pra").checked = true;
+      changed = true;
+    }
+
+    if (changed) {
+      invalidateDryRun();
+    } else {
+      renderAll();
+    }
   }
 
   function renderReview() {
@@ -720,6 +1025,16 @@
       } else {
         rows.push(row("Category", payload.category_id || "missing", categoryLabel(payload.category_id), payload.category_id ? "info" : "danger"));
       }
+    }
+
+    if (state.merchantMatch?.matched) {
+      const merchant = state.merchantMatch.merchant || {};
+      rows.push(row(
+        "Merchant match",
+        `${merchant.counterparty_type || "merchant"} · ${moduleLabel(merchant.default_module)}`,
+        merchant.name || "Matched",
+        state.merchantMatch.review_required ? "warning" : "positive"
+      ));
     }
 
     rows.push(row("Expected ledger shape", "Backend remains final truth", payload.mode === "transfer" ? "linked transfer movement" : isInternational() ? "intl package" : "1 transaction row", "info"));
@@ -830,6 +1145,10 @@
       preview: state.preview,
       intlPreview: state.intlPreview,
       fxLookup: state.fxLookup,
+      merchantMatch: state.merchantMatch,
+      merchantMatchLoading: state.merchantMatchLoading,
+      merchantMatchError: state.merchantMatchError,
+      merchantMatchText: state.merchantMatchText,
       dryRun: state.dryRun,
       save: state.save,
       dirtySinceDryRun: state.dirtySinceDryRun,
@@ -1019,6 +1338,11 @@
     schedulePreview();
   }
 
+  function invalidateMerchantAndDryRun() {
+    invalidateDryRun();
+    scheduleMerchantMatch();
+  }
+
   function setMode(nextMode) {
     if (!MODES[nextMode]) nextMode = "expense";
 
@@ -1032,6 +1356,7 @@
 
     renderAll();
     schedulePreview();
+    scheduleMerchantMatch();
   }
 
   function setIntlSubtype(nextSubtype) {
@@ -1058,6 +1383,10 @@
     state.preview = null;
     state.intlPreview = null;
     state.fxLookup = null;
+    state.merchantMatch = null;
+    state.merchantMatchLoading = false;
+    state.merchantMatchError = "";
+    state.merchantMatchText = "";
     state.dryRun = null;
     state.save = null;
     state.dirtySinceDryRun = false;
@@ -1081,9 +1410,6 @@
       "add-account",
       "add-destination-account",
       "add-category",
-      "add-merchant",
-      "add-reference",
-      "add-notes",
       "add-intl-foreign-amount",
       "add-intl-currency",
       "add-intl-fx-rate",
@@ -1095,6 +1421,25 @@
       if (!el) return;
       el.addEventListener("input", invalidateDryRun);
       el.addEventListener("change", invalidateDryRun);
+    });
+
+    [
+      "add-merchant",
+      "add-reference",
+      "add-notes"
+    ].forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      el.addEventListener("input", invalidateMerchantAndDryRun);
+      el.addEventListener("change", invalidateMerchantAndDryRun);
+    });
+
+    document.addEventListener("click", function (event) {
+      const action = event.target.closest("[data-merchant-assist-action]")?.getAttribute("data-merchant-assist-action");
+
+      if (action === "apply-defaults") {
+        applyMerchantDefaults();
+      }
     });
 
     const fxFetch = $("add-intl-fx-fetch");
@@ -1122,7 +1467,9 @@
       confirmSave,
       fetchFxRate,
       setMode,
-      setIntlSubtype
+      setIntlSubtype,
+      runMerchantMatch,
+      applyMerchantDefaults
     };
 
     initDefaults();
