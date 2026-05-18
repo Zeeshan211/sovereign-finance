@@ -314,7 +314,39 @@
       payload.category_id = form.category_id;
     }
 
+    if (state.merchantMatch?.matched && state.merchantMatch?.merchant) {
+      payload.merchant_id = state.merchantMatch.merchant.id || null;
+      payload.merchant = state.merchantMatch.merchant.name || form.merchant || null;
+    } else if (form.merchant) {
+      payload.merchant = form.merchant;
+    }
+
+    payload.source_module = "manual";
+    payload.source_action = "manual_create";
+    payload.idempotency_key = buildIdempotencyKey(form);
+
     return payload;
+  }
+
+  function buildIdempotencyKey(form) {
+    const raw = [
+      "add",
+      form.type,
+      form.date,
+      form.account_id,
+      form.transfer_to_account_id,
+      form.category_id,
+      form.amount,
+      form.merchant,
+      form.reference,
+      form.notes,
+      Date.now()
+    ].join("|");
+
+    return raw
+      .toLowerCase()
+      .replace(/[^a-z0-9|._-]+/g, "_")
+      .slice(0, 180);
   }
 
   function buildNotes(form) {
