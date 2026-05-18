@@ -534,89 +534,118 @@
   }
 
   function renderBillRow(bill) {
-    const id = String(bill.id);
-    const expanded = state.expandedBillIds.has(id);
-    const status = bill.status === 'deleted' ? 'deleted' : billCycleStatus(bill);
-    const tone = toneForCycleStatus(status);
-    const percent = paidPercent(bill);
-    const cycle = bill.current_cycle || {};
-    const reversed = Number(bill.ledger_reversed_excluded_count || 0);
-    const advance = Number(bill.advance_paid_amount || 0);
+  const id = String(bill.id);
+  const expanded = state.expandedBillIds.has(id);
+  const status = bill.status === 'deleted' ? 'deleted' : billCycleStatus(bill);
+  const tone = toneForCycleStatus(status);
+  const percent = paidPercent(bill);
+  const cycle = bill.current_cycle || {};
+  const reversed = Number(bill.ledger_reversed_excluded_count || 0);
+  const advance = Number(bill.advance_paid_amount || 0);
+  const remaining = cycle.remaining ?? cycle.remaining_amount ?? 0;
+  const paid = cycle.paid ?? cycle.paid_amount ?? 0;
 
-    const tags = [
-      pill(status, tone)
-    ];
+  const tags = [
+    pill(status, tone)
+  ];
 
-    if (bill.ledger_linked) tags.push(pill('ledger', 'info'));
-    if (advance > 0) tags.push(pill(`advance ${money(advance)}`, 'positive'));
-    if (reversed > 0) tags.push(pill(`reversed ${reversed}`, 'warning'));
-    if (bill.status === 'paused') tags.push(pill('paused', 'warning'));
+  if (bill.ledger_linked) tags.push(pill('ledger', 'info'));
+  if (advance > 0) tags.push(pill(`advance ${money(advance)}`, 'positive'));
+  if (reversed > 0) tags.push(pill(`reversed ${reversed}`, 'warning'));
+  if (bill.status === 'paused') tags.push(pill('paused', 'warning'));
 
-    return `
-      <article class="sf-finance-row ${expanded ? 'is-open' : ''}" data-bill-row="${esc(id)}">
-        <div class="sf-row-left">
-          <div class="sf-row-title">${esc(bill.name || bill.id)}</div>
-          <div class="sf-row-subtitle">
-            ${esc(dueLabel(bill))} · ${esc(bill.frequency || 'monthly')} · ${esc(accountName(bill.last_paid_account_id || bill.default_account_id))}
-          </div>
-          <div class="sf-section-actions">
-            ${tags.join('')}
-            ${pill(`${percent}% paid`, percent >= 100 ? 'positive' : percent > 0 ? 'warning' : 'danger')}
-          </div>
+  return `
+    <article class="sf-finance-row ${expanded ? 'is-open' : ''}" data-bill-row="${esc(id)}">
+      <div class="sf-row-left">
+        <div class="sf-row-title">${esc(bill.name || bill.id)}</div>
+        <div class="sf-row-subtitle">
+          ${esc(dueLabel(bill))} · ${esc(bill.frequency || 'monthly')} · ${esc(accountName(bill.last_paid_account_id || bill.default_account_id))}
         </div>
 
-        <div class="sf-row-right">
-          <div class="sf-metric-value">${money(bill.amount)}</div>
-          <div class="sf-card-subtitle">Expected</div>
-          <div class="sf-section-actions">
-            <button class="sf-button" type="button" data-bill-action="details" data-bill-id="${esc(id)}">${expanded ? 'Hide' : 'Details'}</button>
-            ${bill.status === 'deleted'
-              ? `<button class="sf-button sf-button--primary" type="button" data-bill-action="restore" data-bill-id="${esc(id)}">Restore</button>`
-              : `
-                <button class="sf-button sf-button--primary" type="button" data-bill-action="pay" data-bill-id="${esc(id)}">Pay</button>
-                <button class="sf-button" type="button" data-bill-action="edit" data-bill-id="${esc(id)}">Edit</button>
-                <button class="sf-button" type="button" data-bill-action="defer" data-bill-id="${esc(id)}">Defer</button>
-                <button class="sf-button" type="button" data-bill-action="delete" data-bill-id="${esc(id)}">Soft-delete</button>
-              `}
-          </div>
+        <div class="sf-section-actions">
+          ${tags.join('')}
+          ${pill(`${percent}% paid`, percent >= 100 ? 'positive' : percent > 0 ? 'warning' : 'danger')}
         </div>
-      </article>
+      </div>
 
-      ${expanded ? renderInlineDetail(bill, cycle) : ''}
-    `;
-  }
+      <div class="sf-row-right">
+        <div>${money(bill.amount)}</div>
+        <div class="sf-row-subtitle">Paid ${money(paid)} · Remaining ${money(remaining)}</div>
+
+        <div class="sf-section-actions">
+          <button class="sf-button" type="button" data-bill-action="details" data-bill-id="${esc(id)}">${expanded ? 'Hide' : 'Details'}</button>
+          ${bill.status === 'deleted'
+            ? `<button class="sf-button sf-button--primary" type="button" data-bill-action="restore" data-bill-id="${esc(id)}">Restore</button>`
+            : `
+              <button class="sf-button sf-button--primary" type="button" data-bill-action="pay" data-bill-id="${esc(id)}">Pay</button>
+              <button class="sf-button" type="button" data-bill-action="edit" data-bill-id="${esc(id)}">Edit</button>
+              <button class="sf-button" type="button" data-bill-action="defer" data-bill-id="${esc(id)}">Defer</button>
+              <button class="sf-button" type="button" data-bill-action="delete" data-bill-id="${esc(id)}">Soft-delete</button>
+            `}
+        </div>
+      </div>
+    </article>
+
+    ${expanded ? renderInlineDetail(bill, cycle) : ''}
+  `;
+}
 
   function renderInlineDetail(bill, cycle) {
-    const rows = [
-      ['Bill ID', bill.id],
-      ['Amount', money(bill.amount)],
-      ['Cycle paid', money(cycle.paid ?? cycle.paid_amount ?? 0)],
-      ['Cycle remaining', money(cycle.remaining ?? cycle.remaining_amount ?? 0)],
-      ['Advance paid', money(bill.advance_paid_amount ?? 0)],
-      ['Advance count', String(bill.advance_payment_count ?? 0)],
-      ['Due day', bill.due_day != null ? String(bill.due_day) : '—'],
-      ['Due date', bill.due_date || dueDateForBill(bill) || '—'],
-      ['Frequency', bill.frequency || '—'],
-      ['Category', bill.category_id || '—'],
-      ['Default account', accountName(bill.default_account_id)],
-      ['Last paid', bill.last_paid_date || '—'],
-      ['Last paid acct', accountName(bill.last_paid_account_id)],
-      ['Ledger linked', bill.ledger_linked ? 'Yes' : 'No'],
-      ['Reversed excl', String(bill.ledger_reversed_excluded_count ?? 0)],
-      ['Status', bill.status || 'active']
-    ];
+  const rows = [
+    ['Bill ID', bill.id],
+    ['Expected', money(bill.amount)],
+    ['Cycle paid', money(cycle.paid ?? cycle.paid_amount ?? 0)],
+    ['Remaining', money(cycle.remaining ?? cycle.remaining_amount ?? 0)],
+    ['Advance paid', money(bill.advance_paid_amount ?? 0)],
+    ['Advance count', String(bill.advance_payment_count ?? 0)],
+    ['Due day', bill.due_day != null ? String(bill.due_day) : '—'],
+    ['Due date', bill.due_date || dueDateForBill(bill) || '—'],
+    ['Frequency', bill.frequency || '—'],
+    ['Category', bill.category_id || '—'],
+    ['Default account', accountName(bill.default_account_id)],
+    ['Last paid', bill.last_paid_date || '—'],
+    ['Last paid acct', accountName(bill.last_paid_account_id)],
+    ['Ledger linked', bill.ledger_linked ? 'Yes' : 'No'],
+    ['Reversed excluded', String(bill.ledger_reversed_excluded_count ?? 0)],
+    ['Status', bill.status || 'active']
+  ];
 
-    const future = Array.isArray(bill.next_paid_cycles) ? bill.next_paid_cycles : [];
+  const future = Array.isArray(bill.next_paid_cycles) ? bill.next_paid_cycles : [];
 
-    const advanceBlock = future.length ? `
-      <div class="sf-panel">
-        <div class="sf-section-head">
-          <div>
-            <p class="sf-section-kicker">Future cycles</p>
-            <h3 class="sf-section-title">Paid in advance</h3>
-          </div>
+  return `
+    <section class="sf-panel" data-bill-detail="${esc(bill.id)}">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Bill detail</p>
+          <h3 class="sf-section-title">${esc(bill.name || bill.id)}</h3>
+          <p class="sf-section-subtitle">Backend cycle proof and linked ledger state.</p>
         </div>
+      </div>
+
+      <div class="sf-secondary-grid">
+        ${rows.map(([key, value]) => `
+          <div class="sf-dense-row">
+            <span class="sf-row-subtitle">${esc(key)}</span>
+            <strong>${esc(value)}</strong>
+          </div>
+        `).join('')}
+      </div>
+
+      ${bill.notes ? `
+        <div class="sf-empty-state">
+          ${esc(bill.notes)}
+        </div>
+      ` : ''}
+
+      ${future.length ? `
         <div class="sf-dense-grid">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Future cycles</p>
+              <h3 class="sf-section-title">Paid in advance</h3>
+            </div>
+          </div>
+
           ${future.map(cycleRow => `
             <div class="sf-finance-row">
               <div class="sf-row-left">
@@ -627,30 +656,10 @@
             </div>
           `).join('')}
         </div>
-      </div>
-    ` : '';
-
-    return `
-      <section class="sf-panel" data-bill-detail="${esc(bill.id)}">
-        <div class="sf-secondary-grid">
-          ${rows.map(([key, value]) => `
-            <div class="sf-finance-row">
-              <div class="sf-row-left">
-                <div class="sf-row-title">${esc(key)}</div>
-              </div>
-              <div class="sf-row-right">${esc(value)}</div>
-            </div>
-          `).join('')}
-        </div>
-
-        ${bill.notes ? `
-          <div class="sf-empty-state">${esc(bill.notes)}</div>
-        ` : ''}
-
-        ${advanceBlock}
-      </section>
-    `;
-  }
+      ` : ''}
+    </section>
+  `;
+}
 
   function bindListActions() {
     const list = $('bills-list');
