@@ -21,13 +21,13 @@
     <main class="sf-page-shell">
       <section class="sf-page-content sf-debts-v2">
 
-        <section class="sf-debts-v2-topbar sf-panel" aria-label="Debt command center">
+        <section class="sf-panel sf-debts-v2-topbar" aria-label="Debt command center">
           <div class="sf-section-head">
             <div>
-              <p class="sf-section-kicker">Debts · canonical ledger owner</p>
-              <h2 class="sf-section-title">Debt Control</h2>
+              <p class="sf-section-kicker">Debts</p>
+              <h1 class="sf-section-title">Debt Control</h1>
               <p class="sf-section-subtitle" id="debtsHeroCopy">
-                Fast debt review with floating approval forms. Money actions stay routed through POST /api/debts.
+                Track what you owe, what is owed to you, and record payments through the verified ledger flow.
               </p>
             </div>
 
@@ -40,11 +40,11 @@
             </div>
           </div>
 
-          <div class="sf-control-row sf-debts-v2-status-row">
-            <span class="sf-pill" id="debtsHeroStatus">Debt truth</span>
+          <div class="sf-control-row sf-debts-v2-status-row" aria-label="Debt system status">
+            <span class="sf-pill" id="debtsHeroStatus">Loading</span>
             <span class="sf-pill" id="debtsVersionPill">version loading</span>
             <span class="sf-pill" id="debtsHealthPill">health loading</span>
-            <span class="sf-pill" id="debtsLedgerPill">ledger state loading</span>
+            <span class="sf-pill" id="debtsLedgerPill">ledger loading</span>
           </div>
         </section>
 
@@ -75,9 +75,9 @@
             </article>
 
             <article class="sf-metric-card">
-              <p class="sf-card-kicker">Missing Ledger</p>
+              <p class="sf-card-kicker">Needs Repair</p>
               <div id="metricMissingLedger" class="sf-metric-value">—</div>
-              <p class="sf-card-subtitle">Repair needed</p>
+              <p class="sf-card-subtitle">Ledger origin issues</p>
             </article>
 
             <article class="sf-metric-card">
@@ -89,21 +89,23 @@
         </section>
 
         <section class="sf-debts-v2-grid">
-          <section class="sf-panel" aria-label="Debt ledger">
+          <section class="sf-panel" aria-label="Debt list">
             <div class="sf-section-head">
               <div>
                 <p class="sf-section-kicker">Debt ledger</p>
-                <h2 class="sf-section-title">Active Debts</h2>
-                <p class="sf-section-subtitle">Click Payment to open the floating approval form.</p>
+                <h2 class="sf-section-title">Debts</h2>
+                <p class="sf-section-subtitle">
+                  Select a debt to inspect details, record a payment, update the schedule, or repair ledger origin.
+                </p>
               </div>
             </div>
 
-            <div class="sf-section-actions debt-filter-row">
+            <div class="sf-section-actions debt-filter-row" aria-label="Debt filters">
               <button class="sf-button is-active" type="button" data-filter="active">Active</button>
               <button class="sf-button" type="button" data-filter="owe">I Owe</button>
               <button class="sf-button" type="button" data-filter="owed">Owed To Me</button>
               <button class="sf-button" type="button" data-filter="due">Due / Overdue</button>
-              <button class="sf-button" type="button" data-filter="missing_ledger">Missing Ledger</button>
+              <button class="sf-button" type="button" data-filter="missing_ledger">Needs Repair</button>
               <button class="sf-button" type="button" data-filter="all">All</button>
               <button class="sf-button" type="button" id="reloadDebtsBtn">Reload</button>
             </div>
@@ -114,7 +116,7 @@
           </section>
 
           <aside class="sf-debts-v2-side">
-            <section class="sf-panel" aria-label="Selected debt">
+            <section class="sf-panel" aria-label="Selected debt details">
               <div class="sf-section-head">
                 <div>
                   <p class="sf-section-kicker">Selected debt</p>
@@ -128,12 +130,12 @@
               </div>
             </section>
 
-            <section class="sf-panel" aria-label="Debt action proof">
+            <section class="sf-panel" aria-label="Latest backend proof">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Backend proof</p>
+                  <p class="sf-section-kicker">Proof</p>
                   <h2 class="sf-section-title">Latest action</h2>
-                  <p class="sf-section-subtitle">Dry-run and commit proof appears here.</p>
+                  <p class="sf-section-subtitle">Dry-run and saved-payment proof appears here.</p>
                 </div>
               </div>
 
@@ -142,16 +144,16 @@
               </div>
             </section>
 
-            <section class="sf-panel" aria-label="Backend enforcement">
+            <section class="sf-panel" aria-label="Debt backend rules">
               <div class="sf-section-head">
                 <div>
-                  <p class="sf-section-kicker">Backend enforcement</p>
-                  <h2 class="sf-section-title">Route rules</h2>
+                  <p class="sf-section-kicker">Rules</p>
+                  <h2 class="sf-section-title">Ledger flow</h2>
                 </div>
               </div>
 
               <div id="debtEnforcementPanel">
-                <div class="sf-empty-state">Loading enforcement…</div>
+                <div class="sf-empty-state">Loading rules…</div>
               </div>
             </section>
           </aside>
@@ -164,7 +166,7 @@
 
         <footer>
           <span class="sf-meta-text" id="debtFooterVersion">
-            debts.html · floating v2 shell
+            debts.html · final v2 shell
           </span>
         </footer>
 
