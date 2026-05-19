@@ -12,7 +12,7 @@
  * - skip reversal rows and reversed originals
  */
 
-const VERSION = 'v0.2.7-accounts-canonical-transfer-sign-fix';
+const VERSION = 'v0.2.8-accounts-sql-balance-aggregation';
 
 export async function onRequestGet(context) {
   try {
@@ -174,162 +174,97 @@ async function loadAccounts(db, cols) {
 }
 
 async function computeTransactionBalances(db, txCols) {
-  const wanted = [
-    'id',
-    'date',
-    'type',
-    'amount',
-    'pkr_amount',
-    'account_id',
-    'notes',
-    'reversed_by',
-    'reversed_at',
-    'linked_txn_id',
-    'intl_package_id',
-    'created_at'
-  ].filter(col => txCols.has(col));
+  if (!txCols.has('account_id')) {
+    return new Map();
+  }
 
-  const orderBy = txCols.has('date')
-    ? 'date ASC'
-    : (txCols.has('created_at') ? 'datetime(created_at) ASC' : 'rowid ASC');
+  const amountExpr = txCols.has('pkr_amount')
+    ? `
+      CASE
+        WHEN pkr_amount IS NOT NULL
+         AND CAST(pkr_amount AS REAL) != 0
+        THEN CAST(pkr_amount AS REAL)
+        ELSE CAST(amount AS REAL)
+      END
+    `
+    : `CAST(amount AS REAL)`;
 
-  const result = await db.prepare(
-    `SELECT ${wanted.join(', ')}
-     FROM transactions
-     ORDER BY ${orderBy}`
-  ).all();
+  const typeExpr = txCols.has('type')
+    ? `LOWER(TRIM(COALESCE(type, ''))) `
+    : `''`;
+
+  const notesExpr = txCols.has('notes')
+    ? `UPPER(COALESCE(notes, ''))`
+    : `''`;
+
+  const inactiveParts = [];
+
+  if (txCols.has('reversed_by')) {
+    inactiveParts.push(`reversed_by IS NOT NULL AND TRIM(COALESCE(reversed_by, '')) != ''`);
+  }
+
+  if (txCols.has('reversed_at')) {
+    inactiveParts.push(`reversed_at IS NOT NULL AND TRIM(COALESCE(reversed_at, '')) != ''`);
+  }
+
+  if (txCols.has('notes')) {
+    inactiveParts.push(`${notesExpr} LIKE '%[REVERSAL OF %'`);
+    inactiveParts.push(`${notesExpr} LIKE '%[REVERSED BY %'`);
+  }
+
+  const inactiveExpr = inactiveParts.length
+    ? `(${inactiveParts.map(part => `(${part})`).join(' OR ')})`
+    : `0`;
+
+  const normalizedTypeExpr = `
+    CASE
+      WHEN ${typeExpr} = 'manual_income' THEN 'income'
+      WHEN ${typeExpr} = 'salary_income' THEN 'salary'
+      WHEN ${typeExpr} = 'debt_payment' THEN 'repay'
+      WHEN ${typeExpr} = 'credit_card' THEN 'cc_spend'
+      WHEN ${typeExpr} = 'international' THEN 'expense'
+      WHEN ${typeExpr} = 'international_purchase' THEN 'expense'
+      ELSE ${typeExpr}
+    END
+  `;
+
+  const signedExpr = `
+    CASE
+      WHEN ${normalizedTypeExpr} IN ('income', 'salary', 'opening', 'borrow', 'debt_in')
+        THEN ROUND(COALESCE(${amountExpr}, 0), 2)
+
+      WHEN ${normalizedTypeExpr} IN ('expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out', 'cc_payment')
+        THEN ROUND(-COALESCE(${amountExpr}, 0), 2)
+
+      ELSE ROUND(-COALESCE(${amountExpr}, 0), 2)
+    END
+  `;
+
+  const result = await db.prepare(`
+    SELECT
+      account_id,
+      COUNT(*) AS transaction_count,
+      SUM(CASE WHEN ${inactiveExpr} THEN 1 ELSE 0 END) AS skipped_inactive_transaction_count,
+      SUM(CASE WHEN ${inactiveExpr} THEN 0 ELSE 1 END) AS included_transaction_count,
+      ROUND(SUM(CASE WHEN ${inactiveExpr} THEN 0 ELSE ${signedExpr} END), 2) AS balance
+    FROM transactions
+    WHERE account_id IS NOT NULL
+      AND TRIM(COALESCE(account_id, '')) != ''
+    GROUP BY account_id
+  `).all();
 
   const map = new Map();
 
   for (const row of result.results || []) {
-    const accountId = row.account_id;
-    if (!accountId) continue;
-
-    if (!map.has(accountId)) {
-      map.set(accountId, emptyBalanceBucket());
-    }
-
-    const bucket = map.get(accountId);
-    bucket.transaction_count += 1;
-
-    if (isInactiveForBalance(row)) {
-      bucket.skipped_inactive_transaction_count += 1;
-      continue;
-    }
-
-    const amount = rowAmount(row);
-    const signed = signedAmount(row.type, amount);
-
-    bucket.balance = roundMoney(bucket.balance + signed);
-    bucket.included_transaction_count += 1;
+    map.set(row.account_id, {
+      balance: roundMoney(row.balance || 0),
+      transaction_count: Number(row.transaction_count || 0),
+      included_transaction_count: Number(row.included_transaction_count || 0),
+      skipped_inactive_transaction_count: Number(row.skipped_inactive_transaction_count || 0)
+    });
   }
 
   return map;
-}
-
-function emptyBalanceBucket() {
-  return {
-    balance: 0,
-    transaction_count: 0,
-    included_transaction_count: 0,
-    skipped_inactive_transaction_count: 0
-  };
-}
-
-function rowAmount(row) {
-  const pkr = Number(row.pkr_amount);
-
-  if (Number.isFinite(pkr) && pkr !== 0) {
-    return roundMoney(pkr);
-  }
-
-  const amount = Number(row.amount);
-
-  if (Number.isFinite(amount)) {
-    return roundMoney(amount);
-  }
-
-  return 0;
-}
-
-function signedAmount(type, amount) {
-  const t = normalizeType(type);
-
-  if ([
-    'income',
-    'salary',
-    'opening',
-    'borrow',
-    'debt_in'
-  ].includes(t)) {
-    return roundMoney(amount);
-  }
-
-  if ([
-    'expense',
-    'transfer',
-    'cc_spend',
-    'repay',
-    'atm',
-    'debt_out',
-    'cc_payment'
-  ].includes(t)) {
-    return roundMoney(-amount);
-  }
-
-  return roundMoney(-amount);
-}
-
-function normalizeType(type) {
-  const raw = String(type || '').trim().toLowerCase();
-
-  if (raw === 'manual_income') return 'income';
-  if (raw === 'salary_income') return 'salary';
-  if (raw === 'debt_payment') return 'repay';
-  if (raw === 'credit_card') return 'cc_spend';
-  if (raw === 'international' || raw === 'international_purchase') return 'expense';
-
-  return raw;
-}
-
-function isInactiveForBalance(row) {
-  const notes = String(row.notes || '').toUpperCase();
-
-  return !!(
-    row.reversed_by ||
-    row.reversed_at ||
-    notes.includes('[REVERSAL OF ') ||
-    notes.includes('[REVERSED BY ')
-  );
-}
-
-function classifyAccount(account) {
-  const joined = [
-    account.kind,
-    account.type,
-    account.name,
-    account.id
-  ].map(value => String(value || '').toLowerCase()).join(' ');
-
-  if (
-    joined.includes('liability') ||
-    joined.includes('credit') ||
-    joined.includes('cc') ||
-    joined.includes('card')
-  ) {
-    return 'liability';
-  }
-
-  return 'asset';
-}
-
-function isActiveAccount(account) {
-  if (account.deleted_at) return false;
-  if (account.archived_at) return false;
-
-  const status = String(account.status || 'active').toLowerCase();
-
-  return !status || status === 'active';
 }
 
 async function tableColumns(db, table) {
