@@ -1,9 +1,11 @@
 /* js/debts.js
  * Sovereign Finance · Debts UI
- * v1.0.0-floating-actions
+ * v1.0.1-floating-actions-stable
  *
  * Rules:
- * - Floating action forms. No inline page-drag forms.
+ * - All action forms open in floating overlay.
+ * - Clicking inside the form never closes it.
+ * - Only Close, Escape, or outside backdrop closes it.
  * - Canonical create/payment/repair route: POST /api/debts
  * - Canonical schedule/status update route: PUT /api/debts/:id
  * - Health route: GET /api/debts?action=health
@@ -12,7 +14,7 @@
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.0-floating-actions';
+  const VERSION = 'v1.0.1-floating-actions-stable';
 
   const API_DEBTS = '/api/debts';
   const API_DEBTS_HEALTH = '/api/debts?action=health';
@@ -554,7 +556,7 @@
 
     if (!debt) {
       setText('selectedDebtTitle', 'No debt selected');
-      setText('selectedDebtSub', 'Select a debt to inspect schedule, linked ledger rows, and repair options.');
+      setText('selectedDebtSub', 'Backend state summary');
       setHTML('selectedDebtPanel', `<div class="sf-empty-state">No debt selected.</div>`);
       return;
     }
@@ -645,7 +647,7 @@
   function ensureDebtControls() {
     if ($('debtSearchInput') && $('debtSortInput')) return;
 
-    const filterRow = document.querySelector('.debt-filter-row') || document.querySelector('.sf-section-actions');
+    const filterRow = document.querySelector('.debt-filter-row');
     if (!filterRow) return;
 
     const controls = document.createElement('div');
@@ -687,7 +689,9 @@
   function closeFloatingForm() {
     const existing = $('debtFloatingOverlay');
     if (existing) existing.remove();
+
     document.body.classList.remove('sf-debt-floating-open');
+    document.removeEventListener('keydown', closeOnEscape);
   }
 
   function openFloatingForm(title, subtitle, bodyHTML, options) {
@@ -699,35 +703,15 @@
     overlay.setAttribute('aria-modal', 'true');
 
     overlay.innerHTML = `
-      <div class="sf-debt-floating-backdrop" data-floating-close="1" style="
-        position: fixed;
-        inset: 0;
-        z-index: 99999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 16px;
-        background: rgba(0, 0, 0, 0.52);
-        backdrop-filter: blur(10px);
-      ">
-        <section class="sf-debt-floating-card" style="
-          width: min(${options?.width || '840px'}, 100%);
-          max-height: 90vh;
-          overflow: auto;
-          padding: 20px;
-          border: 1px solid var(--sf-border, #e5e7eb);
-          border-radius: 28px;
-          background: var(--sf-card, var(--sf-surface, #ffffff));
-          color: var(--sf-text, #111827);
-          box-shadow: 0 28px 90px rgba(0, 0, 0, 0.36);
-        ">
+      <div class="sf-debt-floating-backdrop">
+        <section class="sf-debt-floating-card" style="${options?.width ? `width: min(${options.width}, 100%);` : ''}">
           <div class="sf-section-head" style="margin-bottom: 14px;">
             <div>
               <p class="sf-section-kicker">Debt action</p>
               <h2 class="sf-section-title">${esc(title)}</h2>
               <p class="sf-section-subtitle">${esc(subtitle || '')}</p>
             </div>
-            <button class="sf-button" type="button" data-floating-close="1">Close</button>
+            <button class="sf-button" type="button" data-floating-close="button">Close</button>
           </div>
 
           ${bodyHTML}
@@ -738,12 +722,24 @@
     document.body.appendChild(overlay);
     document.body.classList.add('sf-debt-floating-open');
 
+    const backdrop = overlay.querySelector('.sf-debt-floating-backdrop');
+
     overlay.addEventListener('click', event => {
-      const close = event.target.closest('[data-floating-close]');
-      if (close) closeFloatingForm();
+      const closeButton = event.target.closest('[data-floating-close="button"]');
+
+      if (closeButton) {
+        event.preventDefault();
+        closeFloatingForm();
+        return;
+      }
+
+      if (event.target === backdrop) {
+        closeFloatingForm();
+      }
     });
 
-    document.addEventListener('keydown', closeOnEscape, { once: true });
+    document.removeEventListener('keydown', closeOnEscape);
+    document.addEventListener('keydown', closeOnEscape);
 
     requestAnimationFrame(() => {
       const firstInput = overlay.querySelector('input:not([type="hidden"]), select, textarea, button');
@@ -757,12 +753,8 @@
     if (event.key === 'Escape') closeFloatingForm();
   }
 
-  function floatingProofTarget() {
-    return $('floatingProofPanel');
-  }
-
   function setFloatingProof(html) {
-    const el = floatingProofTarget();
+    const el = $('floatingProofPanel');
     if (el) el.innerHTML = html || '';
   }
 
