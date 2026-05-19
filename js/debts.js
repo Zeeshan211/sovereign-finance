@@ -1,6 +1,6 @@
 /* js/debts.js
  * Sovereign Finance · Debts UI
- * v0.9.0-inline-actions-no-modal-payment
+ * v0.9.1-parallel-data-load
  *
  * Rules:
  * - No injected CSS.
@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  const VERSION = 'v0.9.0-inline-actions-no-modal-payment';
+  const VERSION = 'v0.9.1-parallel-data-load';
 
   const API_DEBTS = '/api/debts';
   const API_DEBTS_HEALTH = '/api/debts?action=health';
@@ -260,44 +260,119 @@
       })
     ).join('');
   }
+  function refreshAccountSelects() {
+  const ids = [
+    'inlineDebtAccountInput',
+    'inlinePaymentAccountInput',
+    'inlineRepairAccountInput'
+  ];
+
+  ids.forEach(id => {
+    const select = $(id);
+    if (!select) return;
+
+    const current = select.value;
+    select.innerHTML = accountOptions(current);
+
+    if (current) {
+      select.value = current;
+    }
+  });
+}
 
   async function loadAccounts() {
-    try {
-      const payload = await fetchJSON(API_ACCOUNTS);
-      state.accounts = accountRowsFromPayload(payload).filter(Boolean);
-    } catch {
-      state.accounts = [];
-    }
+  try {
+    const payload = await fetchJSON(API_ACCOUNTS);
+    state.accounts = accountRowsFromPayload(payload).filter(Boolean);
+  } catch {
+    state.accounts = [];
   }
+
+  refreshAccountSelects();
+}
 
   async function loadDebts() {
-    if (state.loading) return;
+  if (state.loading) return;
 
-    state.loading = true;
-    setHTML('debtList', `<div class="sf-empty-state">Loading debts…</div>`);
+  state.loading = true;
+  setHTML('debtList', `<div class="sf-empty-state">Loading debts…</div>`);
+  setText('metricHealth', 'loading');
 
-    try {
-      await loadAccounts();
+  const startedAt = Date.now();
 
-      const payload = await fetchJSON(API_DEBTS);
-      state.lastPayload = payload;
-      state.debts = (Array.isArray(payload.debts) ? payload.debts : []).map(normalizeDebt);
+  const accountsPromise = fetchJSON(API_ACCOUNTS)
+    .then(payload => {
+      state.accounts = accountRowsFromPayload(payload).filter(Boolean);
+      refreshAccountSelects();
+      renderDebug({
+        accounts_loaded: true,
+        accounts_count: state.accounts.length,
+        elapsed_ms: Date.now() - startedAt
+      });
+      return payload;
+    })
+    .catch(err => {
+      state.accounts = [];
+      refreshAccountSelects();
+      renderDebug({
+        accounts_loaded: false,
+        accounts_error: err.message,
+        elapsed_ms: Date.now() - startedAt
+      });
+      return null;
+    });
 
-      try {
-        state.health = await fetchJSON(API_DEBTS_HEALTH);
-      } catch {
-        state.health = null;
-      }
+  const healthPromise = fetchJSON(API_DEBTS_HEALTH)
+    .then(payload => {
+      state.health = payload;
+      renderMetrics();
+      renderDebug({
+        health_loaded: true,
+        health_status: payload?.status || payload?.health?.status || 'unknown',
+        elapsed_ms: Date.now() - startedAt
+      });
+      return payload;
+    })
+    .catch(err => {
+      state.health = null;
+      renderMetrics();
+      renderDebug({
+        health_loaded: false,
+        health_error: err.message,
+        elapsed_ms: Date.now() - startedAt
+      });
+      return null;
+    });
 
-      renderAll();
-    } catch (err) {
-      setHTML('debtList', `<div class="sf-empty-state">Failed to load debts: ${esc(err.message)}</div>`);
-      setText('metricHealth', 'failed');
-      renderDebug({ error: err.message });
-    } finally {
-      state.loading = false;
-    }
+  try {
+    const payload = await fetchJSON(API_DEBTS);
+
+    state.lastPayload = payload;
+    state.debts = (Array.isArray(payload.debts) ? payload.debts : []).map(normalizeDebt);
+
+    renderAll();
+
+    renderDebug({
+      debts_loaded: true,
+      debts_count: state.debts.length,
+      elapsed_ms: Date.now() - startedAt,
+      loading_mode: 'parallel_debts_accounts_health'
+    });
+  } catch (err) {
+    setHTML('debtList', `<div class="sf-empty-state">Failed to load debts: ${esc(err.message)}</div>`);
+    setText('metricHealth', 'failed');
+    renderDebug({
+      debts_loaded: false,
+      error: err.message,
+      elapsed_ms: Date.now() - startedAt
+    });
+  } finally {
+    state.loading = false;
   }
+
+  void accountsPromise;
+  void healthPromise;
+}
 
   function debtSearchHaystack(debt) {
     return [
