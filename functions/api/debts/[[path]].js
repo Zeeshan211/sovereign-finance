@@ -1,6 +1,6 @@
 /* Sovereign Finance Debts API
  * /api/debts
- * v0.9.0-debts-contract-owner
+ * v0.9.1-debts-batched-decoration
  *
  * Contract:
  *   contract_version = debts-v1
@@ -15,7 +15,7 @@
  *   - Canonical reversal route is POST /api/transactions/reverse.
  */
 
-const VERSION = 'v0.9.0-debts-contract-owner';
+const VERSION = 'v0.9.1-debts-batched-decoration';
 const CONTRACT_VERSION = 'debts-v1';
 
 const DEFAULT_CATEGORY_ID = 'debt_payment';
@@ -214,13 +214,10 @@ async function listDebts(db, url) {
 
   const allRows = res.results || [];
   const raw = includeInactive ? allRows : allRows.filter(row => !isTerminalStatus(row.status));
+  const normalized = raw.map(normalizeDebt);
+  const txMap = await loadTransactionsForDebts(db, normalized.map(debt => debt.id));
 
-  const debts = [];
-
-  for (const row of raw) {
-    debts.push(await decorateDebt(db, normalizeDebt(row)));
-  }
-
+  const debts = normalized.map(debt => decorateDebtFromTransactions(debt, txMap.get(debt.id) || []));
   const totals = summarizeDebts(debts);
 
   return json({
@@ -269,6 +266,10 @@ async function listDebts(db, url) {
       terminal_statuses: Array.from(TERMINAL_STATUSES),
       canonical_terminal_status: CANONICAL_TERMINAL
     },
+    performance: {
+      decoration: 'batched_transactions',
+      n_plus_one_removed: true
+    },
     warnings: [],
     debts
   });
@@ -276,11 +277,9 @@ async function listDebts(db, url) {
 
 async function health(db) {
   const rows = (await db.prepare(`SELECT ${DEBT_COLUMNS} FROM debts`).all()).results || [];
-  const debts = [];
-
-  for (const row of rows) {
-    debts.push(await decorateDebt(db, normalizeDebt(row)));
-  }
+  const normalized = rows.map(normalizeDebt);
+  const txMap = await loadTransactionsForDebts(db, normalized.map(debt => debt.id));
+  const debts = normalized.map(debt => decorateDebtFromTransactions(debt, txMap.get(debt.id) || []));
 
   const active = debts.filter(isActiveDebt);
   const terminal = debts.filter(d => isTerminalStatus(d.status));
@@ -335,6 +334,10 @@ async function health(db) {
     totals: {
       payable_remaining: totals.total_owe,
       receivable_remaining: totals.total_owed
+    },
+    performance: {
+      decoration: 'batched_transactions',
+      n_plus_one_removed: true
     },
     warnings
   });
@@ -1524,8 +1527,12 @@ function ledgerSummary(tx) {
  * ───────────────────────────── */
 
 async function decorateDebt(db, debt) {
-  const txs = await loadTransactionsForDebt(db, debt.id);
-  const activeTxs = txs.filter(tx => !isReversedTransaction(tx));
+  const txMap = await loadTransactionsForDebts(db, [debt.id]);
+  return decorateDebtFromTransactions(debt, txMap.get(debt.id) || []);
+}
+
+function decorateDebtFromTransactions(debt, txs) {
+  const activeTxs = (txs || []).filter(tx => !isReversedTransaction(tx));
   const originTxs = activeTxs.filter(tx => isOriginTransactionForDebt(debt, tx));
   const paymentTxs = activeTxs.filter(tx => isPaymentTransactionForDebt(debt, tx));
 
@@ -1562,13 +1569,18 @@ async function decorateDebt(db, debt) {
   };
 }
 
-async function loadTransactionsForDebt(db, debtId) {
+async function loadTransactionsForDebts(db, debtIds) {
+  const ids = [...new Set((debtIds || []).map(id => safeText(id, '', 200)).filter(Boolean))];
+  const map = new Map(ids.map(id => [id, []]));
+
+  if (!ids.length) return map;
+
   const cols = await tableColumns(db, 'transactions');
 
   const hasNotes = cols.has('notes');
   const hasSourceFields = cols.has('source_module') && cols.has('source_id');
 
-  if (!hasNotes && !hasSourceFields) return [];
+  if (!hasNotes && !hasSourceFields) return map;
 
   const wanted = [
     'id',
@@ -1586,26 +1598,60 @@ async function loadTransactionsForDebt(db, debtId) {
     'source_action'
   ].filter(col => cols.has(col));
 
-  let sql = `SELECT ${wanted.join(', ')} FROM transactions WHERE `;
-  const binds = [];
+  const whereParts = [];
 
-  if (hasNotes && hasSourceFields) {
-    sql += `(notes LIKE ? OR (source_module = 'debts' AND TRIM(source_id) = TRIM(?)))`;
-    binds.push(`%debt_id=${debtId}%`, debtId);
-  } else if (hasNotes) {
-    sql += `notes LIKE ?`;
-    binds.push(`%debt_id=${debtId}%`);
-  } else {
-    sql += `source_module = 'debts' AND TRIM(source_id) = TRIM(?)`;
-    binds.push(debtId);
+  if (hasNotes) {
+    whereParts.push(`notes LIKE '%debt_id=%'`);
   }
 
-  sql += ` ORDER BY ${cols.has('created_at') ? 'datetime(created_at) DESC,' : ''} id DESC`;
+  if (hasSourceFields) {
+    whereParts.push(`source_module = 'debts'`);
+  }
 
-  const res = await db.prepare(sql).bind(...binds).all();
-  return (res.results || []).map(sanitizeTransaction);
+  const orderBy = cols.has('created_at')
+    ? 'datetime(created_at) DESC, id DESC'
+    : 'id DESC';
+
+  const res = await db.prepare(
+    `SELECT ${wanted.join(', ')}
+       FROM transactions
+      WHERE ${whereParts.join(' OR ')}
+      ORDER BY ${orderBy}`
+  ).all();
+
+  for (const row of res.results || []) {
+    const tx = sanitizeTransaction(row);
+    const linkedIds = debtIdsFromTransaction(tx);
+
+    for (const debtId of linkedIds) {
+      if (!map.has(debtId)) continue;
+      map.get(debtId).push(tx);
+    }
+  }
+
+  return map;
 }
 
+function debtIdsFromTransaction(tx) {
+  const out = new Set();
+
+  if (
+    String(tx.source_module || '').toLowerCase() === 'debts' &&
+    tx.source_id
+  ) {
+    out.add(safeText(tx.source_id, '', 200));
+  }
+
+  const notes = String(tx.notes || '');
+  const matches = notes.matchAll(/debt_id=([^|,\]\s]+)/gi);
+
+  for (const match of matches) {
+    const id = safeText(match[1], '', 200);
+    if (id) out.add(id);
+  }
+
+  return Array.from(out);
+}
 function isOriginTransactionForDebt(debt, tx) {
   const notes = String(tx.notes || '').toUpperCase();
   const sourceAction = String(tx.source_action || '').toLowerCase();
@@ -1648,11 +1694,6 @@ function isReversedTransaction(tx) {
     notes.includes('[REVERSED BY ')
   );
 }
-
-/* ─────────────────────────────
- * Data helpers
- * ───────────────────────────── */
-
 async function findDebtById(db, debtId) {
   const id = safeText(debtId, '', 200);
   if (!id) return null;
