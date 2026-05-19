@@ -808,47 +808,80 @@
   }
 
   function openPaymentForm(id) {
-    const debt = findDebtById(id);
+  const debt = findDebtById(id);
 
-    if (!debt) {
-      toast(`Debt not loaded: ${id}`);
-      return;
-    }
+  if (!debt) {
+    toast(`Debt not loaded: ${id}`);
+    return;
+  }
 
-    selectDebt(debt.id);
+  selectDebt(debt.id);
 
-    const defaultNotes = debt.kind === 'owe'
-      ? `${debt.name} · debt repayment`
-      : `${debt.name} · debt received`;
+  const defaultNotes = debt.kind === 'owe'
+    ? `${debt.name} · debt repayment`
+    : `${debt.name} · debt received`;
 
-    setHTML('debtActionPanel', `
-      <form class="sf-form-grid" id="inlineDebtPaymentForm">
-        ${fieldRow('Action', 'Inline form, no dialog/modal involved', 'Debt Payment', 'positive')}
-        ${fieldRow('Debt', debt.id, `${esc(debt.name)} · ${kindLabel(debt.kind)}`)}
-        ${fieldRow('Remaining', 'Current backend remaining amount', money(debt.remaining_amount), debt.remaining_amount > 0 ? 'warning' : 'positive')}
-        ${fieldRow('Backend route', 'Canonical money owner', 'POST /api/debts action=payment', 'positive')}
+  setHTML('debtActionPanel', `
+    <div class="sf-inline-action">
+      <div class="sf-section-head">
+        <div>
+          <p class="sf-section-kicker">Debt payment</p>
+          <h3 class="sf-section-title">${esc(debt.name)} · Payment</h3>
+          <p class="sf-section-subtitle">
+            Inline payment form. No dialog, no modal footer, no shared modal CTA path.
+          </p>
+        </div>
+        <span class="sf-pill sf-tone-positive">POST /api/debts action=payment</span>
+      </div>
 
+      <div class="sf-metric-grid">
+        <article class="sf-metric-card">
+          <p class="sf-card-kicker">Debt</p>
+          <div class="sf-card-title">${esc(debt.name)}</div>
+          <p class="sf-card-subtitle">${esc(debt.id)}</p>
+        </article>
+
+        <article class="sf-metric-card">
+          <p class="sf-card-kicker">Direction</p>
+          <div class="sf-card-title">${esc(kindLabel(debt.kind))}</div>
+          <p class="sf-card-subtitle">${esc(kindBucket(debt.kind))}</p>
+        </article>
+
+        <article class="sf-metric-card">
+          <p class="sf-card-kicker">Remaining</p>
+          <div class="sf-metric-value sf-tone-warning">${money(debt.remaining_amount)}</div>
+          <p class="sf-card-subtitle">Current backend remaining amount.</p>
+        </article>
+
+        <article class="sf-metric-card">
+          <p class="sf-card-kicker">Money Rule</p>
+          <div class="sf-card-title">${debt.kind === 'owe' ? 'Expense' : 'Income'}</div>
+          <p class="sf-card-subtitle">${debt.kind === 'owe' ? 'Paying someone back.' : 'Receiving money back.'}</p>
+        </article>
+      </div>
+
+      <form id="inlineDebtPaymentForm" class="sf-form-grid">
         <input id="inlinePaymentDebtIdInput" type="hidden" value="${esc(debt.id)}">
 
         <label class="sf-field">
-          <span>Amount</span>
+          <span class="sf-label">Amount</span>
           <input class="sf-input" id="inlinePaymentAmountInput" type="number" step="0.01" min="0" value="${esc(debt.installment_amount || debt.remaining_amount || '')}">
         </label>
 
         <label class="sf-field">
-          <span>Date</span>
+          <span class="sf-label">Date</span>
           <input class="sf-input" id="inlinePaymentDateInput" type="date" value="${todayISO()}">
         </label>
 
         <label class="sf-field sf-field--wide">
-          <span>Account</span>
+          <span class="sf-label">Account</span>
           <select class="sf-select" id="inlinePaymentAccountInput">
             ${accountOptions('')}
           </select>
         </label>
 
         <label class="sf-field sf-field--wide">
-          <span>Notes</span>
+          <span class="sf-label">Notes</span>
           <textarea class="sf-textarea" id="inlinePaymentNotesInput">${esc(defaultNotes)}</textarea>
         </label>
 
@@ -856,15 +889,16 @@
           For Mama repayment from ATM cash: Amount 1000, Date 2026-05-15, Account Cash.
         </div>
 
-        <div class="sf-section-actions">
+        <div class="sf-section-actions sf-field--wide">
           <button class="sf-button" type="button" data-inline-action="payment-dry-run">Dry-run Payment</button>
           <button class="sf-button sf-button--primary" type="button" data-inline-action="payment-save">Save Payment</button>
         </div>
       </form>
-    `);
+    </div>
+  `);
 
-    scrollToActionPanel();
-  }
+  scrollToActionPanel();
+}
 
   function buildPaymentPayload() {
     const debtId = clean($('inlinePaymentDebtIdInput')?.value) || state.selectedDebtId;
