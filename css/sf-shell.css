@@ -1134,7 +1134,251 @@ dialog.sf-dialog::backdrop {
     grid-column: 1 / -1;
   }
 }
-/* Debts payment form · end-user polish */
+/* =========================================================
+   Sovereign Finance · Debts Final v2
+   Scope: Debts page only
+   Marker: DEBTS_FINAL_V2_START
+   ========================================================= */
+
+html[data-page="debts"] .sf-page-content.sf-debts-v2 {
+  width: min(1260px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}
+
+/* Panels */
+
+html[data-page="debts"] .sf-debts-v2 .sf-panel {
+  border-radius: 24px;
+  box-shadow: 0 12px 34px rgba(15, 23, 42, 0.07);
+}
+
+html[data-page="debts"] .sf-debts-v2 .sf-section-head {
+  margin-bottom: 0;
+}
+
+html[data-page="debts"] .sf-section-title {
+  letter-spacing: -0.025em;
+}
+
+html[data-page="debts"] .sf-section-subtitle {
+  max-width: 78ch;
+}
+
+/* Topbar */
+
+html[data-page="debts"] .sf-debts-v2-topbar {
+  background:
+    radial-gradient(circle at top left, rgba(91, 162, 255, 0.10), transparent 30rem),
+    linear-gradient(180deg, var(--sf-card-strong) 0%, var(--sf-card) 100%);
+}
+
+html[data-page="debts"] .sf-debts-v2-topbar .sf-section-head {
+  align-items: center;
+}
+
+html[data-page="debts"] .sf-debts-v2-status-row {
+  padding-top: 12px;
+}
+
+/* Metrics */
+
+html[data-page="debts"] .sf-debts-v2-metrics .sf-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+html[data-page="debts"] .sf-debts-v2-metrics .sf-metric-card {
+  min-height: auto;
+  padding: 14px;
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+html[data-page="debts"] .sf-debts-v2-metrics .sf-metric-value,
+html[data-page="debts"] .sf-debts-v2-metrics .sf-metric-value.sf-tone-danger,
+html[data-page="debts"] .sf-debts-v2-metrics .sf-metric-value.sf-tone-positive,
+html[data-page="debts"] .sf-debts-v2-metrics .sf-metric-value.sf-tone-warning {
+  color: var(--sf-text) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+  font-size: clamp(22px, 2.4vw, 30px);
+  text-shadow: none !important;
+}
+
+/* Main layout */
+
+html[data-page="debts"] .sf-debts-v2-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  gap: 14px;
+  align-items: start;
+}
+
+html[data-page="debts"] .sf-debts-v2-side {
+  display: grid;
+  gap: 14px;
+  position: sticky;
+  top: 18px;
+}
+
+/* Filters/search */
+
+html[data-page="debts"] .debt-filter-row {
+  margin-bottom: 12px;
+}
+
+html[data-page="debts"] .sf-debt-search-row,
+html[data-page="debts"] .debt-filter-row + .sf-section-actions {
+  margin-bottom: 12px;
+}
+
+html[data-page="debts"] #debtSearchInput {
+  min-width: min(420px, 100%);
+}
+
+html[data-page="debts"] #debtSortInput {
+  min-width: 180px;
+}
+
+/* Debt list */
+
+html[data-page="debts"] #debtList {
+  display: grid;
+  gap: 10px;
+}
+
+html[data-page="debts"] .sf-debt-row,
+html[data-page="debts"] .sf-finance-row.sf-debt-row {
+  border-radius: 18px;
+  box-shadow: none;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+html[data-page="debts"] .sf-debt-row:hover {
+  transform: translateY(-1px);
+  border-color: var(--sf-border-strong);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+}
+
+html[data-page="debts"] .sf-debt-row.is-selected {
+  border-color: rgba(91, 162, 255, 0.44);
+  background: rgba(91, 162, 255, 0.07);
+}
+
+html[data-page="debts"] .sf-row-title {
+  font-weight: 850;
+  letter-spacing: -0.015em;
+}
+
+html[data-page="debts"] .sf-debt-row-amount {
+  font-size: 1.02rem;
+  font-weight: 900;
+  color: var(--sf-text);
+}
+
+html[data-page="debts"] .sf-row-right.sf-tone-danger,
+html[data-page="debts"] .sf-row-right.sf-tone-positive,
+html[data-page="debts"] .sf-row-right.sf-tone-warning {
+  color: var(--sf-text) !important;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+/* Detail/proof rows */
+
+html[data-page="debts"] #selectedDebtPanel,
+html[data-page="debts"] #debtActionPanel,
+html[data-page="debts"] #debtEnforcementPanel {
+  display: grid;
+  gap: 10px;
+}
+
+html[data-page="debts"] .sf-debt-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--sf-border-subtle);
+  border-radius: 16px;
+  background: var(--sf-surface-1);
+}
+
+html[data-page="debts"] .sf-debt-detail-row .sf-row-right {
+  max-width: 52%;
+  overflow-wrap: anywhere;
+}
+
+html[data-page="debts"] .sf-empty-state {
+  border: 1px dashed var(--sf-border-strong);
+  border-radius: 16px;
+  background: var(--sf-surface-1);
+}
+
+/* Floating overlay */
+
+html[data-page="debts"] .sf-debt-floating-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(10px);
+}
+
+html[data-page="debts"] .sf-debt-floating-card {
+  width: min(760px, 100%);
+  max-height: 90vh;
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--sf-border);
+  border-radius: 28px;
+  background: var(--sf-card);
+  color: var(--sf-text);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.36);
+}
+
+html[data-page="debts"] .sf-debt-floating-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+body.sf-debt-floating-open {
+  overflow: hidden;
+}
+
+/* Floating forms */
+
+html[data-page="debts"] .sf-debt-floating-card .sf-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+html[data-page="debts"] .sf-debt-floating-card .sf-form-grid .sf-field--wide,
+html[data-page="debts"] .sf-debt-floating-card .sf-form-grid .sf-section-actions,
+html[data-page="debts"] .sf-debt-floating-card .sf-form-grid .sf-dialog-note,
+html[data-page="debts"] .sf-debt-floating-card .sf-form-grid .sf-debt-pay-help {
+  grid-column: 1 / -1;
+}
+
+html[data-page="debts"] .sf-input,
+html[data-page="debts"] .sf-select,
+html[data-page="debts"] .sf-textarea {
+  border-radius: 14px;
+}
+
 html[data-page="debts"] .sf-debt-pay-card {
   display: grid;
   gap: 16px;
@@ -1172,10 +1416,6 @@ html[data-page="debts"] .sf-debt-pay-amount strong {
   color: var(--sf-text);
 }
 
-html[data-page="debts"] .sf-debt-pay-form {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 html[data-page="debts"] .sf-debt-pay-help {
   padding: 11px 13px;
   border: 1px solid rgba(91, 162, 255, 0.22);
@@ -1185,9 +1425,11 @@ html[data-page="debts"] .sf-debt-pay-help {
   font-size: 13px;
 }
 
-html[data-page="debts"] .sf-debt-pay-proof {
+html[data-page="debts"] .sf-debt-pay-proof,
+html[data-page="debts"] .sf-debt-proof-card {
   display: grid;
   gap: 10px;
+  margin-top: 14px;
 }
 
 html[data-page="debts"] .sf-field-help {
@@ -1196,7 +1438,74 @@ html[data-page="debts"] .sf-field-help {
   font-size: 12px;
 }
 
+/* Toast/debug */
+
+html[data-page="debts"] .sf-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 100000;
+  transform: translateX(-50%) translateY(20px);
+  opacity: 0;
+  pointer-events: none;
+  padding: 12px 16px;
+  border-radius: 999px;
+  background: #111827;
+  color: #ffffff;
+  font-weight: 850;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.25);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+html[data-page="debts"] .sf-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+html[data-page="debts"] .sf-debug-text {
+  max-height: 420px;
+  overflow: auto;
+}
+
+/* Responsive */
+
+@media (max-width: 1100px) {
+  html[data-page="debts"] .sf-debts-v2-metrics .sf-metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  html[data-page="debts"] .sf-debts-v2-grid {
+    grid-template-columns: 1fr;
+  }
+
+  html[data-page="debts"] .sf-debts-v2-side {
+    position: static;
+  }
+}
+
 @media (max-width: 720px) {
+  html[data-page="debts"] .sf-debts-v2-metrics .sf-metric-grid,
+  html[data-page="debts"] .sf-debt-floating-card .sf-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  html[data-page="debts"] .sf-section-actions .sf-button,
+  html[data-page="debts"] .debt-filter-row .sf-button {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  html[data-page="debts"] .sf-debt-floating-backdrop {
+    align-items: flex-end;
+    padding: 10px;
+  }
+
+  html[data-page="debts"] .sf-debt-floating-card {
+    max-height: 92vh;
+    border-radius: 24px 24px 16px 16px;
+  }
+
+  html[data-page="debts"] .sf-debt-floating-head,
   html[data-page="debts"] .sf-debt-pay-summary {
     display: grid;
   }
@@ -1205,7 +1514,14 @@ html[data-page="debts"] .sf-field-help {
     text-align: left;
   }
 
-  html[data-page="debts"] .sf-debt-pay-form {
-    grid-template-columns: 1fr;
+  html[data-page="debts"] .sf-debt-detail-row {
+    display: grid;
+  }
+
+  html[data-page="debts"] .sf-debt-detail-row .sf-row-right {
+    max-width: 100%;
+    text-align: left;
   }
 }
+
+/* Marker: DEBTS_FINAL_V2_END */
