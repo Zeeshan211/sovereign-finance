@@ -1040,10 +1040,9 @@
   if (!button) return false;
 
   const id = button.id || '';
-
   if (!id) return false;
 
-  const handledIds = new Set([
+  const handledIds = [
     'addDebtBtn',
     'newDebtBtn',
     'refreshDebtsBtn',
@@ -1056,9 +1055,29 @@
     'savePaymentBtn',
     'closeDeferModalBtn',
     'saveDeferBtn'
-  ]);
+  ];
 
-  if (!handledIds.has(id)) return false;
+  if (!handledIds.includes(id)) return false;
+
+  const now = Date.now();
+  const dedupeKey = `${id}:${event.type}`;
+
+  if (
+    document._sovereignDebtLastCta &&
+    document._sovereignDebtLastCta.id === id &&
+    now - document._sovereignDebtLastCta.at < 650
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    return true;
+  }
+
+  document._sovereignDebtLastCta = {
+    id,
+    type: event.type,
+    key: dedupeKey,
+    at: now
+  };
 
   event.preventDefault();
   event.stopPropagation();
@@ -1066,6 +1085,16 @@
   if (typeof event.stopImmediatePropagation === 'function') {
     event.stopImmediatePropagation();
   }
+
+  console.log('[Sovereign Debts CTA]', {
+    id,
+    eventType: event.type,
+    phase: event.eventPhase,
+    target: target.id || target.tagName,
+    currentTarget: event.currentTarget === window ? 'window' : event.currentTarget === document ? 'document' : 'direct',
+    selectedDebtId: state.selectedDebtId,
+    paymentDebtId: clean($('paymentDebtIdInput')?.value)
+  });
 
   if (id === 'addDebtBtn' || id === 'newDebtBtn') {
     openDebtModal();
@@ -1136,7 +1165,11 @@ function bindPaymentModalDirectButtons() {
 
     button.addEventListener('click', event => {
       handleDebtModalButtonClick(event);
-    });
+    }, true);
+
+    button.addEventListener('pointerup', event => {
+      handleDebtModalButtonClick(event);
+    }, true);
   });
 }
   function openPaymentModal(id) {
@@ -1355,6 +1388,14 @@ function bindPaymentModalDirectButtons() {
   if (document._sovereignDebtModalButtonsBound) return;
   document._sovereignDebtModalButtonsBound = true;
 
+  window.addEventListener('click', event => {
+    handleDebtModalButtonClick(event);
+  }, true);
+
+  window.addEventListener('pointerup', event => {
+    handleDebtModalButtonClick(event);
+  }, true);
+
   document.addEventListener('click', event => {
     handleDebtModalButtonClick(event);
   }, true);
@@ -1364,7 +1405,6 @@ function bindPaymentModalDirectButtons() {
   $('debtKindInput')?.addEventListener('change', updateDebtMovementCopy);
   $('debtMovementNowInput')?.addEventListener('change', updateDebtMovementCopy);
 }
-
   function toast(message) {
     const el = $('debtToast');
 
