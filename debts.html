@@ -21,13 +21,13 @@
     <main class="sf-page-shell">
       <section class="sf-page-content">
 
-        <section class="sf-panel" aria-label="Debt command panel">
+        <section class="sf-panel" aria-label="Debt command center">
           <div class="sf-section-head">
             <div>
-              <p class="sf-section-kicker">Debt command center</p>
-              <h2 class="sf-section-title">Ledger-backed debt control</h2>
+              <p class="sf-section-kicker">Debts · canonical ledger owner</p>
+              <h2 class="sf-section-title">Debt Control</h2>
               <p class="sf-section-subtitle" id="debtsHeroCopy">
-                Debt rows and ledger links are loaded from backend truth. Debt create, payment, repair, edit, and defer actions render inline on this page.
+                Fast debt review with payment, defer, edit, and repair actions routed through the canonical Debts backend.
               </p>
             </div>
 
@@ -48,13 +48,53 @@
           </div>
         </section>
 
-        <section class="sf-panel" aria-label="Active debt list">
+        <section class="sf-panel" aria-label="Debt summary">
+          <div class="sf-metric-grid">
+            <article class="sf-metric-card">
+              <p class="sf-card-kicker">I Owe</p>
+              <div id="metricOwe" class="sf-metric-value sf-tone-danger">—</div>
+              <p class="sf-card-subtitle">Payable remaining.</p>
+            </article>
+
+            <article class="sf-metric-card">
+              <p class="sf-card-kicker">Owed To Me</p>
+              <div id="metricOwed" class="sf-metric-value sf-tone-positive">—</div>
+              <p class="sf-card-subtitle">Receivable remaining.</p>
+            </article>
+
+            <article class="sf-metric-card">
+              <p class="sf-card-kicker">Due Soon</p>
+              <div id="metricDueSoon" class="sf-metric-value sf-tone-warning">—</div>
+              <p class="sf-card-subtitle">Upcoming scheduled debts.</p>
+            </article>
+
+            <article class="sf-metric-card">
+              <p class="sf-card-kicker">Overdue</p>
+              <div id="metricOverdue" class="sf-metric-value sf-tone-danger">—</div>
+              <p class="sf-card-subtitle">Past due date.</p>
+            </article>
+
+            <article class="sf-metric-card">
+              <p class="sf-card-kicker">Missing Ledger</p>
+              <div id="metricMissingLedger" class="sf-metric-value sf-tone-warning">—</div>
+              <p class="sf-card-subtitle">Origin movement repair needed.</p>
+            </article>
+
+            <article class="sf-metric-card">
+              <p class="sf-card-kicker">Health</p>
+              <div id="metricHealth" class="sf-metric-value">—</div>
+              <p class="sf-card-subtitle">Backend contract status.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="sf-panel" aria-label="Debt ledger">
           <div class="sf-section-head">
             <div>
               <p class="sf-section-kicker">Debt ledger</p>
               <h2 class="sf-section-title">Active Debts</h2>
               <p class="sf-section-subtitle">
-                Entries are listed from the canonical Debts API. Use Details, Payment, Defer, Edit, or Repair from the row actions.
+                Select a row action to inspect, pay, defer, edit, or repair a debt.
               </p>
             </div>
           </div>
@@ -80,7 +120,7 @@
               <p class="sf-section-kicker">Selected debt</p>
               <h2 class="sf-section-title" id="selectedDebtTitle">No debt selected</h2>
               <p class="sf-section-subtitle" id="selectedDebtSub">
-                Select a debt to inspect backend state, linked ledger rows, and repair eligibility.
+                Select a debt to inspect backend state, schedule, linked ledger rows, and repair eligibility.
               </p>
             </div>
           </div>
@@ -96,7 +136,7 @@
               <p class="sf-section-kicker">Action / Proof</p>
               <h2 class="sf-section-title">Backend result</h2>
               <p class="sf-section-subtitle">
-                All Debts actions render inline here. No payment modal is used. Account impact must come from backend ledger proof.
+                Dry-run and commit results appear here. Backend proof remains the source of truth.
               </p>
             </div>
           </div>
@@ -106,63 +146,13 @@
           </div>
         </section>
 
-        <section class="sf-panel" aria-label="Debt metrics">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Debt summary</p>
-              <h2 class="sf-section-title">Backend totals</h2>
-              <p class="sf-section-subtitle">
-                Totals are read from backend truth where available. Terminal debts are excluded from active totals.
-              </p>
-            </div>
-          </div>
-
-          <div class="sf-metric-grid">
-            <article class="sf-metric-card">
-              <p class="sf-card-kicker">I Owe</p>
-              <div id="metricOwe" class="sf-metric-value sf-tone-danger">—</div>
-              <p class="sf-card-subtitle">Payable remaining.</p>
-            </article>
-
-            <article class="sf-metric-card">
-              <p class="sf-card-kicker">Owed To Me</p>
-              <div id="metricOwed" class="sf-metric-value sf-tone-positive">—</div>
-              <p class="sf-card-subtitle">Receivable remaining.</p>
-            </article>
-
-            <article class="sf-metric-card">
-              <p class="sf-card-kicker">Due Soon</p>
-              <div id="metricDueSoon" class="sf-metric-value sf-tone-warning">—</div>
-              <p class="sf-card-subtitle">Due in the next few days.</p>
-            </article>
-
-            <article class="sf-metric-card">
-              <p class="sf-card-kicker">Overdue</p>
-              <div id="metricOverdue" class="sf-metric-value sf-tone-danger">—</div>
-              <p class="sf-card-subtitle">Past due date.</p>
-            </article>
-
-            <article class="sf-metric-card">
-              <p class="sf-card-kicker">Missing Ledger</p>
-              <div id="metricMissingLedger" class="sf-metric-value sf-tone-warning">—</div>
-              <p class="sf-card-subtitle">Origin movement needs repair.</p>
-            </article>
-
-            <article class="sf-metric-card">
-              <p class="sf-card-kicker">Health</p>
-              <div id="metricHealth" class="sf-metric-value">—</div>
-              <p class="sf-card-subtitle">Backend health status.</p>
-            </article>
-          </div>
-        </section>
-
         <section class="sf-panel" aria-label="Backend enforcement">
           <div class="sf-section-head">
             <div>
               <p class="sf-section-kicker">Backend enforcement</p>
               <h2 class="sf-section-title">Canonical route rules</h2>
               <p class="sf-section-subtitle">
-                Debt money movement must stay centralized. Stale pay, receive, and debt-payment reverse routes are not used by this page.
+                Debt money movement must remain centralized through the Debts API.
               </p>
             </div>
           </div>
@@ -173,23 +163,16 @@
         </section>
 
         <details class="sf-panel">
-          <summary class="sf-section-title">Debt rules</summary>
-          <div class="sf-empty-state">
-            Debt rows are not account balance truth. If money moved now, the backend creates the debt and the origin ledger row together.
-            Debt-only entries do not change account balances. Payments must use the canonical backend payment action. Missing origin repair must be explicit.
-          </div>
-        </details>
-
-        <details class="sf-panel">
           <summary class="sf-section-title">Debug · Raw Contract</summary>
           <pre id="debtDebug" class="sf-debug-text">Loading…</pre>
         </details>
 
         <footer>
           <span class="sf-meta-text" id="debtFooterVersion">
-            debts.html · inline debts contract UI
+            debts.html · clean compatibility shell
           </span>
         </footer>
+
       </section>
     </main>
   </div>
