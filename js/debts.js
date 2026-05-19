@@ -22,18 +22,21 @@
   const API_ACCOUNTS = '/api/accounts';
 
   const state = {
-    debts: [],
-    accounts: [],
-    lastPayload: null,
-    health: null,
-    selectedDebtId: null,
-    filter: 'active',
-    search: '',
-    sort: 'due',
-    loading: false,
-    lastProofHTML: '',
-    lastProofTitle: 'Backend proof'
-  };
+  debts: [],
+  accounts: [],
+  accountsLoading: false,
+  accountsLoaded: false,
+  accountsError: null,
+  lastPayload: null,
+  health: null,
+  selectedDebtId: null,
+  filter: 'active',
+  search: '',
+  sort: 'due',
+  loading: false,
+  lastProofHTML: '',
+  lastProofTitle: 'Backend proof'
+};
 
   const $ = id => document.getElementById(id);
 
@@ -231,26 +234,63 @@
   }
 
   function accountRowsFromPayload(payload) {
-    if (Array.isArray(payload.accounts)) return payload.accounts;
-    if (payload.accounts && typeof payload.accounts === 'object') return Object.values(payload.accounts);
-    if (payload.accounts_by_id && typeof payload.accounts_by_id === 'object') return Object.values(payload.accounts_by_id);
-    if (Array.isArray(payload.account_list)) return payload.account_list;
-    return [];
-  }
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.accounts)) return payload.accounts;
+  if (payload.accounts && typeof payload.accounts === 'object') return Object.values(payload.accounts);
+  if (payload.accounts_by_id && typeof payload.accounts_by_id === 'object') return Object.values(payload.accounts_by_id);
+  if (Array.isArray(payload.account_list)) return payload.account_list;
+  if (Array.isArray(payload.results)) return payload.results;
+  if (Array.isArray(payload.data)) return payload.data;
+  if (payload.data && typeof payload.data === 'object') return Object.values(payload.data);
+  return [];
+}
 
   function normalizeAccount(row) {
-    const id = row.id || row.account_id || row.key || '';
-    const name = row.name || row.label || id || 'Account';
+  const id = row.id || row.account_id || row.key || row.slug || row.name || '';
+  const name = row.name || row.label || row.display_name || id || 'Account';
 
-    return {
-      ...row,
-      id,
-      name,
-      type: row.type || row.kind || 'account',
-      balance: num(row.balance ?? row.current_balance ?? row.amount, 0),
-      status: row.status || 'active'
-    };
+  return {
+    ...row,
+    id: clean(id),
+    name: clean(name),
+    type: row.type || row.kind || 'account',
+    balance: num(row.balance ?? row.current_balance ?? row.available_balance ?? row.amount, 0),
+    status: row.status || 'active'
+  };
+}
+async function loadAccounts(force) {
+  if (state.accountsLoading) return state.accounts;
+  if (state.accountsLoaded && !force) return state.accounts;
+
+  state.accountsLoading = true;
+  state.accountsError = null;
+  refreshAccountSelects();
+
+  try {
+    const payload = await fetchJSON(API_ACCOUNTS);
+    state.accounts = accountRowsFromPayload(payload)
+      .filter(Boolean)
+      .map(normalizeAccount)
+      .filter(account => account.id);
+
+    state.accountsLoaded = true;
+    state.accountsError = state.accounts.length ? null : 'No accounts returned by /api/accounts';
+  } catch (err) {
+    state.accounts = [];
+    state.accountsLoaded = false;
+    state.accountsError = err.message || 'Failed to load accounts';
+  } finally {
+    state.accountsLoading = false;
+    refreshAccountSelects();
+    renderDebug({
+      accounts_loaded: state.accountsLoaded,
+      accounts_count: state.accounts.length,
+      accounts_error: state.accountsError
+    });
   }
+
+  return state.accounts;
+}
 
   function selectedDebt() {
     return findDebtById(state.selectedDebtId);
@@ -277,129 +317,137 @@
   }
 
   function accountOptions(selectedValue, placeholder) {
-    if (!state.accounts.length) {
-      return '<option value="">Loading accounts…</option>';
-    }
-
-    return [`<option value="">${esc(placeholder || 'Choose account…')}</option>`].concat(
-      state.accounts.map(account => {
-        const selected = String(account.id) === String(selectedValue || '') ? ' selected' : '';
-        return `<option value="${esc(account.id)}"${selected}>${esc(account.name)} · ${money(account.balance)}</option>`;
-      })
-    ).join('');
+  if (state.accountsLoading) {
+    return '<option value="">Loading accounts…</option>';
   }
+
+  if (state.accountsError) {
+    return `<option value="">Accounts unavailable: ${esc(state.accountsError)}</option>`;
+  }
+
+  if (!state.accounts.length) {
+    return '<option value="">No accounts found</option>';
+  }
+
+  return [`<option value="">${esc(placeholder || 'Choose account…')}</option>`].concat(
+    state.accounts.map(account => {
+      const selected = String(account.id) === String(selectedValue || '') ? ' selected' : '';
+      return `<option value="${esc(account.id)}"${selected}>${esc(account.name)} · ${money(account.balance)}</option>`;
+    })
+  ).join('');
+}
 
   function refreshAccountSelects() {
-    [
-      ['floatingDebtAccountInput', 'Choose account…'],
-      ['floatingRepairAccountInput', 'Choose account…'],
-      ['floatingPaymentAccountInput', 'Choose payment account…']
-    ].forEach(([id, placeholder]) => {
-      const select = $(id);
-      if (!select) return;
+  [
+    ['floatingDebtAccountInput', 'Choose account…'],
+    ['floatingRepairAccountInput', 'Choose account…'],
+    ['floatingPaymentAccountInput', 'Choose payment account…']
+  ].forEach(([id, placeholder]) => {
+    const select = $(id);
+    if (!select) return;
 
-      const current = select.value;
-      select.innerHTML = accountOptions(current, placeholder);
-      select.disabled = !state.accounts.length;
+    const current = select.value;
+    select.innerHTML = accountOptions(current, placeholder);
 
-      if (current) select.value = current;
-    });
+    const unavailable = state.accountsLoading || state.accountsError || !state.accounts.length;
+    select.disabled = Boolean(unavailable);
 
-    updatePaymentButtons();
-    updateRepairButtons();
-    updateCreateButtons();
+    if (current && !unavailable) {
+      select.value = current;
+    }
+  });
+
+  updatePaymentButtons();
+  updateRepairButtons();
+  updateCreateButtons();
+
+  const paymentHelp = $('floatingPaymentAccountHelp');
+  if (paymentHelp) {
+    paymentHelp.textContent = state.accounts.length
+      ? 'Choose the account this money moved through.'
+      : (state.accountsError || (state.accountsLoading ? 'Accounts are loading…' : 'No accounts found.'));
   }
+}
 
   async function loadDebts() {
-    if (state.loading) return;
+  if (state.loading) return;
 
-    state.loading = true;
-    setHTML('debtList', `<div class="sf-empty-state">Loading debts…</div>`);
-    setText('metricHealth', 'loading');
+  state.loading = true;
+  setHTML('debtList', `<div class="sf-empty-state">Loading debts…</div>`);
+  setText('metricHealth', 'loading');
 
-    const startedAt = Date.now();
+  const startedAt = Date.now();
 
-    const accountsPromise = fetchJSON(API_ACCOUNTS)
-      .then(payload => {
-        state.accounts = accountRowsFromPayload(payload).filter(Boolean).map(normalizeAccount);
-        refreshAccountSelects();
-        renderDebug({
-          accounts_loaded: true,
-          accounts_count: state.accounts.length,
-          elapsed_ms: Date.now() - startedAt
-        });
-        return payload;
-      })
-      .catch(err => {
-        state.accounts = [];
-        refreshAccountSelects();
-        renderDebug({
-          accounts_loaded: false,
-          accounts_error: err.message,
-          elapsed_ms: Date.now() - startedAt
-        });
-        return null;
-      });
-
-    const healthPromise = fetchJSON(API_DEBTS_HEALTH)
-      .then(payload => {
-        state.health = payload;
-        renderMetrics();
-        renderDebug({
-          health_loaded: true,
-          health_status: payload?.status || payload?.health?.status || 'unknown',
-          elapsed_ms: Date.now() - startedAt
-        });
-        return payload;
-      })
-      .catch(err => {
-        state.health = null;
-        renderMetrics();
-        renderDebug({
-          health_loaded: false,
-          health_error: err.message,
-          elapsed_ms: Date.now() - startedAt
-        });
-        return null;
-      });
-
-    try {
-      const payload = await fetchJSON(API_DEBTS);
-
-      state.lastPayload = payload;
-      state.debts = (Array.isArray(payload.debts) ? payload.debts : []).map(normalizeDebt);
-
-      if (state.selectedDebtId && !findDebtById(state.selectedDebtId)) {
-        state.selectedDebtId = null;
-      }
-
-      if (!state.selectedDebtId && state.debts.length) {
-        state.selectedDebtId = state.debts[0].id;
-      }
-
-      renderAll();
-
+  const accountsPromise = loadAccounts(true)
+    .then(accounts => {
       renderDebug({
-        debts_loaded: true,
-        debts_count: state.debts.length,
-        elapsed_ms: Date.now() - startedAt,
-        loading_mode: 'parallel_debts_accounts_health'
-      });
-    } catch (err) {
-      setHTML('debtList', `<div class="sf-empty-state">Failed to load debts: ${esc(err.message)}</div>`);
-      setText('metricHealth', 'failed');
-      renderDebug({
-        debts_loaded: false,
-        error: err.message,
+        accounts_loaded: state.accountsLoaded,
+        accounts_count: accounts.length,
+        accounts_error: state.accountsError,
         elapsed_ms: Date.now() - startedAt
       });
-    } finally {
-      state.loading = false;
+      return accounts;
+    });
+
+  const healthPromise = fetchJSON(API_DEBTS_HEALTH)
+    .then(payload => {
+      state.health = payload;
+      renderMetrics();
+      renderDebug({
+        health_loaded: true,
+        health_status: payload?.status || payload?.health?.status || 'unknown',
+        elapsed_ms: Date.now() - startedAt
+      });
+      return payload;
+    })
+    .catch(err => {
+      state.health = null;
+      renderMetrics();
+      renderDebug({
+        health_loaded: false,
+        health_error: err.message,
+        elapsed_ms: Date.now() - startedAt
+      });
+      return null;
+    });
+
+  try {
+    const payload = await fetchJSON(API_DEBTS);
+
+    state.lastPayload = payload;
+    state.debts = (Array.isArray(payload.debts) ? payload.debts : []).map(normalizeDebt);
+
+    if (state.selectedDebtId && !findDebtById(state.selectedDebtId)) {
+      state.selectedDebtId = null;
     }
 
-    void accountsPromise;
-    void healthPromise;
+    if (!state.selectedDebtId && state.debts.length) {
+      state.selectedDebtId = state.debts[0].id;
+    }
+
+    renderAll();
+
+    renderDebug({
+      debts_loaded: true,
+      debts_count: state.debts.length,
+      elapsed_ms: Date.now() - startedAt,
+      loading_mode: 'parallel_debts_accounts_health'
+    });
+  } catch (err) {
+    setHTML('debtList', `<div class="sf-empty-state">Failed to load debts: ${esc(err.message)}</div>`);
+    setText('metricHealth', 'failed');
+    renderDebug({
+      debts_loaded: false,
+      error: err.message,
+      elapsed_ms: Date.now() - startedAt
+    });
+  } finally {
+    state.loading = false;
   }
+
+  void accountsPromise;
+  void healthPromise;
+}
 
   function debtSearchHaystack(debt) {
     return [
@@ -1008,113 +1056,127 @@
   }
 
   function paymentAccountOptions(selectedValue) {
-    return accountOptions(selectedValue, 'Choose payment account…');
-  }
+  return accountOptions(selectedValue, 'Choose payment account…');
+}
 
   function updatePaymentButtons() {
-    const amount = num($('floatingPaymentAmountInput')?.value);
-    const accountId = clean($('floatingPaymentAccountInput')?.value);
-    const disabled = !amount || amount <= 0 || !accountId || !state.accounts.length;
+  const amount = num($('floatingPaymentAmountInput')?.value);
+  const accountId = clean($('floatingPaymentAccountInput')?.value);
+  const disabled = !amount || amount <= 0 || !accountId || !state.accounts.length || state.accountsLoading || Boolean(state.accountsError);
 
-    ['floatingPaymentDryRunBtn', 'floatingPaymentSaveBtn'].forEach(id => {
-      const button = $(id);
-      if (button) button.disabled = disabled;
-    });
-  }
+  ['floatingPaymentDryRunBtn', 'floatingPaymentSaveBtn'].forEach(id => {
+    const button = $(id);
+    if (button) button.disabled = disabled;
+  });
+}
 
   function openPaymentForm(id) {
-    const debt = findDebtById(id);
+  const debt = findDebtById(id);
 
-    if (!debt) {
-      toast(`Debt not loaded: ${id}`);
-      return;
-    }
+  if (!debt) {
+    toast(`Debt not loaded: ${id}`);
+    return;
+  }
 
-    selectDebt(debt.id);
+  selectDebt(debt.id);
 
-    const defaultNotes = debt.kind === 'owe'
-      ? `${debt.name} · debt repayment`
-      : `${debt.name} · debt received`;
+  if (!state.accounts.length && !state.accountsLoading) {
+    void loadAccounts(true);
+  }
 
-    const actionLabel = debt.kind === 'owe' ? 'Record payment' : 'Record money received';
-    const accountLabel = debt.kind === 'owe' ? 'Paid from' : 'Received into';
-    const amountLabel = debt.kind === 'owe' ? 'Amount paid' : 'Amount received';
-    const accountHelp = state.accounts.length
-      ? 'Choose the account this money moved through.'
-      : 'Accounts are still loading. Wait a moment before saving.';
+  const defaultNotes = debt.kind === 'owe'
+    ? `${debt.name} · debt repayment`
+    : `${debt.name} · debt received`;
 
-    const body = `
-      <div class="sf-debt-pay-card">
-        <div class="sf-debt-pay-summary">
-          <div>
-            <p class="sf-section-kicker">${esc(kindLabel(debt.kind))}</p>
-            <h3 class="sf-section-title">${esc(debt.name)}</h3>
-            <p class="sf-section-subtitle">Remaining balance: ${money(debt.remaining_amount)}</p>
-          </div>
+  const actionLabel = debt.kind === 'owe' ? 'Record payment' : 'Record money received';
+  const accountLabel = debt.kind === 'owe' ? 'Paid from' : 'Received into';
+  const amountLabel = debt.kind === 'owe' ? 'Amount paid' : 'Amount received';
 
-          <div class="sf-debt-pay-amount">
-            <span>Remaining</span>
-            <strong>${money(debt.remaining_amount)}</strong>
-          </div>
+  const accountHelp = state.accounts.length
+    ? 'Choose the account this money moved through.'
+    : (state.accountsError || (state.accountsLoading ? 'Accounts are loading…' : 'Accounts are still loading. Wait a moment before saving.'));
+
+  const accountDisabled = state.accounts.length && !state.accountsError && !state.accountsLoading ? '' : 'disabled';
+
+  const body = `
+    <div class="sf-debt-pay-card">
+      <div class="sf-debt-pay-summary">
+        <div>
+          <p class="sf-section-kicker">${esc(kindLabel(debt.kind))}</p>
+          <h3 class="sf-section-title">${esc(debt.name)}</h3>
+          <p class="sf-section-subtitle">Remaining balance: ${money(debt.remaining_amount)}</p>
         </div>
 
-        <form class="sf-form-grid sf-debt-pay-form">
-          <input id="floatingPaymentDebtIdInput" type="hidden" value="${esc(debt.id)}">
-
-          <label class="sf-field">
-            <span class="sf-label">${esc(amountLabel)}</span>
-            <input
-              class="sf-input"
-              id="floatingPaymentAmountInput"
-              type="number"
-              step="0.01"
-              min="0"
-              value="${esc(debt.installment_amount || debt.remaining_amount || '')}"
-              autocomplete="off"
-            >
-          </label>
-
-          <label class="sf-field">
-            <span class="sf-label">Payment date</span>
-            <input class="sf-input" id="floatingPaymentDateInput" type="date" value="${todayISO()}">
-          </label>
-
-          <label class="sf-field sf-field--wide">
-            <span class="sf-label">${esc(accountLabel)}</span>
-            <select class="sf-select" id="floatingPaymentAccountInput" ${state.accounts.length ? '' : 'disabled'}>
-              ${paymentAccountOptions('')}
-            </select>
-            <p class="sf-field-help">${esc(accountHelp)}</p>
-          </label>
-
-          <label class="sf-field sf-field--wide">
-            <span class="sf-label">Note</span>
-            <textarea class="sf-textarea" id="floatingPaymentNotesInput">${esc(defaultNotes)}</textarea>
-          </label>
-
-          <div class="sf-debt-pay-help sf-field--wide">
-            Run dry-run first to confirm the ledger impact before saving.
-          </div>
-
-          <div class="sf-section-actions sf-field--wide">
-            <button class="sf-button" id="floatingPaymentDryRunBtn" type="button" data-floating-action="payment-dry-run" disabled>Dry-run</button>
-            <button class="sf-button sf-button--primary" id="floatingPaymentSaveBtn" type="button" data-floating-action="payment-save" disabled>Save payment</button>
-          </div>
-        </form>
-
-        <div id="floatingProofPanel" class="sf-debt-pay-proof">
-          <div class="sf-empty-state">Dry-run proof will appear here.</div>
+        <div class="sf-debt-pay-amount">
+          <span>Remaining</span>
+          <strong>${money(debt.remaining_amount)}</strong>
         </div>
       </div>
-    `;
 
-    openFloatingForm(actionLabel, 'Confirm the account and amount before saving.', body, { width: '620px' });
+      <form class="sf-form-grid sf-debt-pay-form">
+        <input id="floatingPaymentDebtIdInput" type="hidden" value="${esc(debt.id)}">
 
-    $('floatingPaymentAmountInput')?.addEventListener('input', updatePaymentButtons);
-    $('floatingPaymentAccountInput')?.addEventListener('change', updatePaymentButtons);
+        <label class="sf-field">
+          <span class="sf-label">${esc(amountLabel)}</span>
+          <input
+            class="sf-input"
+            id="floatingPaymentAmountInput"
+            type="number"
+            step="0.01"
+            min="0"
+            value="${esc(debt.installment_amount || debt.remaining_amount || '')}"
+            autocomplete="off"
+          >
+        </label>
 
-    updatePaymentButtons();
+        <label class="sf-field">
+          <span class="sf-label">Payment date</span>
+          <input class="sf-input" id="floatingPaymentDateInput" type="date" value="${todayISO()}">
+        </label>
+
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">${esc(accountLabel)}</span>
+          <select class="sf-select" id="floatingPaymentAccountInput" ${accountDisabled}>
+            ${paymentAccountOptions('')}
+          </select>
+          <p class="sf-field-help" id="floatingPaymentAccountHelp">${esc(accountHelp)}</p>
+        </label>
+
+        <label class="sf-field sf-field--wide">
+          <span class="sf-label">Note</span>
+          <textarea class="sf-textarea" id="floatingPaymentNotesInput">${esc(defaultNotes)}</textarea>
+        </label>
+
+        <div class="sf-debt-pay-help sf-field--wide">
+          Run dry-run first to confirm the ledger impact before saving.
+        </div>
+
+        <div class="sf-section-actions sf-field--wide">
+          <button class="sf-button" id="floatingPaymentDryRunBtn" type="button" data-floating-action="payment-dry-run" disabled>Dry-run</button>
+          <button class="sf-button sf-button--primary" id="floatingPaymentSaveBtn" type="button" data-floating-action="payment-save" disabled>Save payment</button>
+        </div>
+      </form>
+
+      <div id="floatingProofPanel" class="sf-debt-pay-proof">
+        <div class="sf-empty-state">Dry-run proof will appear here.</div>
+      </div>
+    </div>
+  `;
+
+  openFloatingForm(actionLabel, 'Confirm the account and amount before saving.', body, { width: '620px' });
+
+  $('floatingPaymentAmountInput')?.addEventListener('input', updatePaymentButtons);
+  $('floatingPaymentAccountInput')?.addEventListener('change', updatePaymentButtons);
+
+  updatePaymentButtons();
+
+  if (!state.accounts.length && !state.accountsLoading) {
+    loadAccounts(true).then(() => {
+      refreshAccountSelects();
+      updatePaymentButtons();
+    });
   }
+}
 
   function buildPaymentPayload() {
     const debtId = clean($('floatingPaymentDebtIdInput')?.value) || state.selectedDebtId;
