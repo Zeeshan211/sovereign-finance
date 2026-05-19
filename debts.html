@@ -19,15 +19,15 @@
     <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
 
     <main class="sf-page-shell">
-      <section class="sf-page-content">
+      <section class="sf-page-content sf-debts-v2">
 
-        <section class="sf-panel" aria-label="Debt command center">
+        <section class="sf-debts-v2-topbar sf-panel" aria-label="Debt command center">
           <div class="sf-section-head">
             <div>
               <p class="sf-section-kicker">Debts · canonical ledger owner</p>
               <h2 class="sf-section-title">Debt Control</h2>
               <p class="sf-section-subtitle" id="debtsHeroCopy">
-                Fast debt review with payment, defer, edit, and repair actions routed through the canonical Debts backend.
+                Fast debt review with floating approval forms. Money actions stay routed through POST /api/debts.
               </p>
             </div>
 
@@ -40,7 +40,7 @@
             </div>
           </div>
 
-          <div class="sf-control-row" aria-label="Debt backend status">
+          <div class="sf-control-row sf-debts-v2-status-row">
             <span class="sf-pill" id="debtsHeroStatus">Debt truth</span>
             <span class="sf-pill" id="debtsVersionPill">version loading</span>
             <span class="sf-pill" id="debtsHealthPill">health loading</span>
@@ -48,128 +48,123 @@
           </div>
         </section>
 
-        <section class="sf-panel" aria-label="Debt summary">
+        <section class="sf-panel sf-debts-v2-metrics" aria-label="Debt summary">
           <div class="sf-metric-grid">
             <article class="sf-metric-card">
               <p class="sf-card-kicker">I Owe</p>
-              <div id="metricOwe" class="sf-metric-value sf-tone-danger">—</div>
-              <p class="sf-card-subtitle">Payable remaining.</p>
+              <div id="metricOwe" class="sf-metric-value">—</div>
+              <p class="sf-card-subtitle">Payable remaining</p>
             </article>
 
             <article class="sf-metric-card">
               <p class="sf-card-kicker">Owed To Me</p>
-              <div id="metricOwed" class="sf-metric-value sf-tone-positive">—</div>
-              <p class="sf-card-subtitle">Receivable remaining.</p>
+              <div id="metricOwed" class="sf-metric-value">—</div>
+              <p class="sf-card-subtitle">Receivable remaining</p>
             </article>
 
             <article class="sf-metric-card">
               <p class="sf-card-kicker">Due Soon</p>
-              <div id="metricDueSoon" class="sf-metric-value sf-tone-warning">—</div>
-              <p class="sf-card-subtitle">Upcoming scheduled debts.</p>
+              <div id="metricDueSoon" class="sf-metric-value">—</div>
+              <p class="sf-card-subtitle">Upcoming scheduled debts</p>
             </article>
 
             <article class="sf-metric-card">
               <p class="sf-card-kicker">Overdue</p>
-              <div id="metricOverdue" class="sf-metric-value sf-tone-danger">—</div>
-              <p class="sf-card-subtitle">Past due date.</p>
+              <div id="metricOverdue" class="sf-metric-value">—</div>
+              <p class="sf-card-subtitle">Past due date</p>
             </article>
 
             <article class="sf-metric-card">
               <p class="sf-card-kicker">Missing Ledger</p>
-              <div id="metricMissingLedger" class="sf-metric-value sf-tone-warning">—</div>
-              <p class="sf-card-subtitle">Origin movement repair needed.</p>
+              <div id="metricMissingLedger" class="sf-metric-value">—</div>
+              <p class="sf-card-subtitle">Repair needed</p>
             </article>
 
             <article class="sf-metric-card">
               <p class="sf-card-kicker">Health</p>
               <div id="metricHealth" class="sf-metric-value">—</div>
-              <p class="sf-card-subtitle">Backend contract status.</p>
+              <p class="sf-card-subtitle">Backend contract</p>
             </article>
           </div>
         </section>
 
-        <section class="sf-panel" aria-label="Debt ledger">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Debt ledger</p>
-              <h2 class="sf-section-title">Active Debts</h2>
-              <p class="sf-section-subtitle">
-                Select a row action to inspect, pay, defer, edit, or repair a debt.
-              </p>
+        <section class="sf-debts-v2-grid">
+          <section class="sf-panel" aria-label="Debt ledger">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Debt ledger</p>
+                <h2 class="sf-section-title">Active Debts</h2>
+                <p class="sf-section-subtitle">Click Payment to open the floating approval form.</p>
+              </div>
             </div>
-          </div>
 
-          <div class="sf-section-actions debt-filter-row" aria-label="Debt filters">
-            <button class="sf-button is-active" type="button" data-filter="active">Active</button>
-            <button class="sf-button" type="button" data-filter="owe">I Owe</button>
-            <button class="sf-button" type="button" data-filter="owed">Owed To Me</button>
-            <button class="sf-button" type="button" data-filter="due">Due / Overdue</button>
-            <button class="sf-button" type="button" data-filter="missing_ledger">Missing Ledger</button>
-            <button class="sf-button" type="button" data-filter="all">All</button>
-            <button class="sf-button" type="button" id="reloadDebtsBtn">Reload</button>
-          </div>
+            <div class="sf-section-actions debt-filter-row">
+              <button class="sf-button is-active" type="button" data-filter="active">Active</button>
+              <button class="sf-button" type="button" data-filter="owe">I Owe</button>
+              <button class="sf-button" type="button" data-filter="owed">Owed To Me</button>
+              <button class="sf-button" type="button" data-filter="due">Due / Overdue</button>
+              <button class="sf-button" type="button" data-filter="missing_ledger">Missing Ledger</button>
+              <button class="sf-button" type="button" data-filter="all">All</button>
+              <button class="sf-button" type="button" id="reloadDebtsBtn">Reload</button>
+            </div>
 
-          <div id="debtList">
-            <div class="sf-empty-state">Loading debts…</div>
-          </div>
+            <div id="debtList">
+              <div class="sf-empty-state">Loading debts…</div>
+            </div>
+          </section>
+
+          <aside class="sf-debts-v2-side">
+            <section class="sf-panel" aria-label="Selected debt">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Selected debt</p>
+                  <h2 class="sf-section-title" id="selectedDebtTitle">No debt selected</h2>
+                  <p class="sf-section-subtitle" id="selectedDebtSub">Backend state summary</p>
+                </div>
+              </div>
+
+              <div id="selectedDebtPanel">
+                <div class="sf-empty-state">No debt selected.</div>
+              </div>
+            </section>
+
+            <section class="sf-panel" aria-label="Debt action proof">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Backend proof</p>
+                  <h2 class="sf-section-title">Latest action</h2>
+                  <p class="sf-section-subtitle">Dry-run and commit proof appears here.</p>
+                </div>
+              </div>
+
+              <div id="debtActionPanel">
+                <div class="sf-empty-state">No backend proof yet. Run a dry-run first.</div>
+              </div>
+            </section>
+
+            <section class="sf-panel" aria-label="Backend enforcement">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Backend enforcement</p>
+                  <h2 class="sf-section-title">Route rules</h2>
+                </div>
+              </div>
+
+              <div id="debtEnforcementPanel">
+                <div class="sf-empty-state">Loading enforcement…</div>
+              </div>
+            </section>
+          </aside>
         </section>
 
-        <section class="sf-panel" aria-label="Selected debt">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Selected debt</p>
-              <h2 class="sf-section-title" id="selectedDebtTitle">No debt selected</h2>
-              <p class="sf-section-subtitle" id="selectedDebtSub">
-                Select a debt to inspect backend state, schedule, linked ledger rows, and repair eligibility.
-              </p>
-            </div>
-          </div>
-
-          <div id="selectedDebtPanel">
-            <div class="sf-empty-state">No debt selected.</div>
-          </div>
-        </section>
-
-        <section class="sf-panel" aria-label="Debt action proof">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Action / Proof</p>
-              <h2 class="sf-section-title">Backend result</h2>
-              <p class="sf-section-subtitle">
-                Dry-run and commit results appear here. Backend proof remains the source of truth.
-              </p>
-            </div>
-          </div>
-
-          <div id="debtActionPanel">
-            <div class="sf-empty-state">Choose an action from a debt row.</div>
-          </div>
-        </section>
-
-        <section class="sf-panel" aria-label="Backend enforcement">
-          <div class="sf-section-head">
-            <div>
-              <p class="sf-section-kicker">Backend enforcement</p>
-              <h2 class="sf-section-title">Canonical route rules</h2>
-              <p class="sf-section-subtitle">
-                Debt money movement must remain centralized through the Debts API.
-              </p>
-            </div>
-          </div>
-
-          <div id="debtEnforcementPanel">
-            <div class="sf-empty-state">Loading enforcement…</div>
-          </div>
-        </section>
-
-        <details class="sf-panel">
+        <details class="sf-panel sf-debts-v2-debug">
           <summary class="sf-section-title">Debug · Raw Contract</summary>
           <pre id="debtDebug" class="sf-debug-text">Loading…</pre>
         </details>
 
         <footer>
           <span class="sf-meta-text" id="debtFooterVersion">
-            debts.html · clean compatibility shell
+            debts.html · floating v2 shell
           </span>
         </footer>
 
