@@ -355,3 +355,21 @@ html[data-page="debts"] .sf-debug-text {
     flex: 1 1 auto;
   }
 }
+/* Debts v2 neutral metric override */
+html[data-page="debts"] .sf-metric-card {
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.045);
+}
+
+html[data-page="debts"] .sf-metric-value,
+html[data-page="debts"] .sf-metric-value.sf-tone-danger,
+html[data-page="debts"] .sf-metric-value.sf-tone-positive,
+html[data-page="debts"] .sf-metric-value.sf-tone-warning {
+  color: var(--sf-text, #111827) !important;
+}
+
+html[data-page="debts"] .sf-metric-card:has(.sf-tone-danger),
+html[data-page="debts"] .sf-metric-card:has(.sf-tone-positive),
+html[data-page="debts"] .sf-metric-card:has(.sf-tone-warning) {
+  border-color: var(--sf-border, #e5e7eb);
+  background: var(--sf-surface, #ffffff);
+}
