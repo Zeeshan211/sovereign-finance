@@ -1,22 +1,20 @@
 /* /api/accounts
  * Sovereign Finance · Accounts API
- * v0.2.7-accounts-canonical-transfer-sign-fix
+ * v0.2.9-accounts-active-helper-fix
  *
- * RCA fixed:
- * - Accounts page was stale/wrong while Add page showed correct balances.
- * - Accounts endpoint was not applying transfer source rows as negative.
- *
- * Balance rules:
- * - income / salary / opening / borrow / debt_in = +
- * - expense / transfer / cc_spend / repay / atm / debt_out / cc_payment = -
- * - skip reversal rows and reversed originals
+ * Contract:
+ * - GET is read-only.
+ * - Account balances are ledger-derived from transactions.
+ * - Source account movement is signed by transaction type.
+ * - Transfer destination account is counted as positive when transfer_to_account_id exists.
+ * - Reversal rows and reversed originals are excluded from balances.
  */
 
-const VERSION = 'v0.2.8-accounts-sql-balance-aggregation';
+const VERSION = 'v0.2.9-accounts-active-helper-fix';
 
 export async function onRequestGet(context) {
   try {
-    const db = context.env.DB;
+    const db = requireDb(context.env);
 
     const [accountCols, txCols] = await Promise.all([
       tableColumns(db, 'accounts'),
@@ -44,20 +42,23 @@ export async function onRequestGet(context) {
     let activeCount = 0;
 
     for (const account of accounts) {
-      const id = account.id;
+      const id = safeText(account.id, '', 160);
+      if (!id) continue;
+
       const computed = balanceMap.get(id) || emptyBalanceBucket();
       const balance = roundMoney(computed.balance);
 
-      const kind = account.kind || account.type || classifyAccount(account);
-      const type = account.type || kind || classifyAccount(account);
+      const classified = classifyAccount(account);
+      const kind = safeText(account.kind || account.type || classified, classified, 80);
+      const type = safeText(account.type || kind || classified, classified, 80);
 
       const row = {
         ...account,
         id,
-        name: account.name || id,
+        name: safeText(account.name || id, id, 160),
         type,
         kind,
-        currency: account.currency || 'PKR',
+        currency: safeText(account.currency || 'PKR', 'PKR', 20),
         balance,
         current_balance: balance,
         amount: balance,
@@ -88,6 +89,7 @@ export async function onRequestGet(context) {
     return json({
       ok: true,
       version: VERSION,
+      read_only: true,
 
       count: rows.length,
       active_count: activeCount,
@@ -109,8 +111,10 @@ export async function onRequestGet(context) {
       net_worth: roundMoney(totalAssets + totalLiabilities),
 
       rules: {
-        positive_types: ['income', 'salary', 'opening', 'borrow', 'debt_in'],
-        negative_types: ['expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out', 'cc_payment'],
+        balance_source: 'transactions',
+        source_positive_types: ['income', 'salary', 'opening', 'borrow', 'debt_in'],
+        source_negative_types: ['expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out', 'cc_payment'],
+        destination_positive_types: ['transfer'],
         inactive_filters: ['reversed_by', 'reversed_at', '[REVERSAL OF ...]', '[REVERSED BY ...]']
       }
     });
@@ -118,7 +122,7 @@ export async function onRequestGet(context) {
     return json({
       ok: false,
       version: VERSION,
-      error: err.message
+      error: err.message || String(err)
     }, 500);
   }
 }
@@ -144,7 +148,10 @@ async function loadAccounts(db, cols) {
     'display_order',
     'credit_limit',
     'deleted_at',
-    'archived_at'
+    'archived_at',
+    'is_active',
+    'is_deleted',
+    'is_archived'
   ].filter(col => cols.has(col));
 
   const orderBy = cols.has('display_order')
@@ -153,129 +160,258 @@ async function loadAccounts(db, cols) {
 
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
-     FROM accounts
-     ORDER BY ${orderBy}`
+       FROM accounts
+      ORDER BY ${orderBy}`
   ).all();
 
-  return (result.results || []).map(row => ({
-    id: row.id,
-    name: row.name || row.id,
-    type: row.type || row.kind || classifyAccount(row),
-    kind: row.kind || row.type || classifyAccount(row),
-    currency: row.currency || 'PKR',
-    color: row.color || null,
-    icon: row.icon || '',
-    status: row.status || 'active',
-    display_order: row.display_order == null ? 999 : Number(row.display_order),
-    credit_limit: row.credit_limit == null ? null : Number(row.credit_limit),
-    deleted_at: row.deleted_at || null,
-    archived_at: row.archived_at || null
-  }));
+  return (result.results || []).map(row => {
+    const classified = classifyAccount(row);
+
+    return {
+      id: safeText(row.id, '', 160),
+      name: safeText(row.name || row.id, row.id || 'Account', 160),
+      type: safeText(row.type || row.kind || classified, classified, 80),
+      kind: safeText(row.kind || row.type || classified, classified, 80),
+      currency: safeText(row.currency || 'PKR', 'PKR', 20),
+      color: row.color || null,
+      icon: row.icon || '',
+      status: safeText(row.status || 'active', 'active', 80),
+      display_order: row.display_order == null ? 999 : Number(row.display_order),
+      credit_limit: row.credit_limit == null ? null : Number(row.credit_limit),
+      deleted_at: row.deleted_at || null,
+      archived_at: row.archived_at || null,
+      is_active: row.is_active,
+      is_deleted: row.is_deleted,
+      is_archived: row.is_archived
+    };
+  });
 }
 
 async function computeTransactionBalances(db, txCols) {
-  if (!txCols.has('account_id')) {
-    return new Map();
-  }
+  const map = new Map();
 
-  const amountExpr = txCols.has('pkr_amount')
-    ? `
-      CASE
-        WHEN pkr_amount IS NOT NULL
-         AND CAST(pkr_amount AS REAL) != 0
-        THEN CAST(pkr_amount AS REAL)
-        ELSE CAST(amount AS REAL)
-      END
-    `
-    : `CAST(amount AS REAL)`;
+  if (!txCols.has('account_id')) return map;
 
-  const typeExpr = txCols.has('type')
-    ? `LOWER(TRIM(COALESCE(type, ''))) `
-    : `''`;
+  const amountExpr = amountSql(txCols);
+  const typeExpr = normalizedTypeSql(txCols);
+  const inactiveExpr = inactiveSql(txCols);
 
-  const notesExpr = txCols.has('notes')
-    ? `UPPER(COALESCE(notes, ''))`
-    : `''`;
-
-  const inactiveParts = [];
-
-  if (txCols.has('reversed_by')) {
-    inactiveParts.push(`reversed_by IS NOT NULL AND TRIM(COALESCE(reversed_by, '')) != ''`);
-  }
-
-  if (txCols.has('reversed_at')) {
-    inactiveParts.push(`reversed_at IS NOT NULL AND TRIM(COALESCE(reversed_at, '')) != ''`);
-  }
-
-  if (txCols.has('notes')) {
-    inactiveParts.push(`${notesExpr} LIKE '%[REVERSAL OF %'`);
-    inactiveParts.push(`${notesExpr} LIKE '%[REVERSED BY %'`);
-  }
-
-  const inactiveExpr = inactiveParts.length
-    ? `(${inactiveParts.map(part => `(${part})`).join(' OR ')})`
-    : `0`;
-
-  const normalizedTypeExpr = `
+  const sourceSignedExpr = `
     CASE
-      WHEN ${typeExpr} = 'manual_income' THEN 'income'
-      WHEN ${typeExpr} = 'salary_income' THEN 'salary'
-      WHEN ${typeExpr} = 'debt_payment' THEN 'repay'
-      WHEN ${typeExpr} = 'credit_card' THEN 'cc_spend'
-      WHEN ${typeExpr} = 'international' THEN 'expense'
-      WHEN ${typeExpr} = 'international_purchase' THEN 'expense'
-      ELSE ${typeExpr}
-    END
-  `;
-
-  const signedExpr = `
-    CASE
-      WHEN ${normalizedTypeExpr} IN ('income', 'salary', 'opening', 'borrow', 'debt_in')
+      WHEN ${typeExpr} IN ('income', 'salary', 'opening', 'borrow', 'debt_in')
         THEN ROUND(COALESCE(${amountExpr}, 0), 2)
 
-      WHEN ${normalizedTypeExpr} IN ('expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out', 'cc_payment')
+      WHEN ${typeExpr} IN ('expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out', 'cc_payment')
         THEN ROUND(-COALESCE(${amountExpr}, 0), 2)
 
       ELSE ROUND(-COALESCE(${amountExpr}, 0), 2)
     END
   `;
 
-  const result = await db.prepare(`
+  const sourceResult = await db.prepare(`
     SELECT
-      account_id,
+      TRIM(account_id) AS account_id,
       COUNT(*) AS transaction_count,
       SUM(CASE WHEN ${inactiveExpr} THEN 1 ELSE 0 END) AS skipped_inactive_transaction_count,
       SUM(CASE WHEN ${inactiveExpr} THEN 0 ELSE 1 END) AS included_transaction_count,
-      ROUND(SUM(CASE WHEN ${inactiveExpr} THEN 0 ELSE ${signedExpr} END), 2) AS balance
+      ROUND(SUM(CASE WHEN ${inactiveExpr} THEN 0 ELSE ${sourceSignedExpr} END), 2) AS balance
     FROM transactions
     WHERE account_id IS NOT NULL
       AND TRIM(COALESCE(account_id, '')) != ''
-    GROUP BY account_id
+    GROUP BY TRIM(account_id)
   `).all();
 
-  const map = new Map();
-
-  for (const row of result.results || []) {
-    map.set(row.account_id, {
-      balance: roundMoney(row.balance || 0),
-      transaction_count: Number(row.transaction_count || 0),
-      included_transaction_count: Number(row.included_transaction_count || 0),
-      skipped_inactive_transaction_count: Number(row.skipped_inactive_transaction_count || 0)
+  for (const row of sourceResult.results || []) {
+    addBalanceBucket(map, row.account_id, {
+      balance: row.balance,
+      transaction_count: row.transaction_count,
+      included_transaction_count: row.included_transaction_count,
+      skipped_inactive_transaction_count: row.skipped_inactive_transaction_count
     });
+  }
+
+  if (txCols.has('transfer_to_account_id')) {
+    const destinationResult = await db.prepare(`
+      SELECT
+        TRIM(transfer_to_account_id) AS account_id,
+        COUNT(*) AS transaction_count,
+        SUM(CASE WHEN ${inactiveExpr} THEN 1 ELSE 0 END) AS skipped_inactive_transaction_count,
+        SUM(CASE WHEN ${inactiveExpr} THEN 0 ELSE 1 END) AS included_transaction_count,
+        ROUND(SUM(CASE
+          WHEN ${inactiveExpr} THEN 0
+          WHEN ${typeExpr} IN ('transfer') THEN ROUND(COALESCE(${amountExpr}, 0), 2)
+          ELSE 0
+        END), 2) AS balance
+      FROM transactions
+      WHERE transfer_to_account_id IS NOT NULL
+        AND TRIM(COALESCE(transfer_to_account_id, '')) != ''
+      GROUP BY TRIM(transfer_to_account_id)
+    `).all();
+
+    for (const row of destinationResult.results || []) {
+      addBalanceBucket(map, row.account_id, {
+        balance: row.balance,
+        transaction_count: row.transaction_count,
+        included_transaction_count: row.included_transaction_count,
+        skipped_inactive_transaction_count: row.skipped_inactive_transaction_count
+      });
+    }
   }
 
   return map;
 }
 
-async function tableColumns(db, table) {
-  const result = await db.prepare(`PRAGMA table_info(${table})`).all();
-  const set = new Set();
-
-  for (const row of result.results || []) {
-    if (row.name) set.add(row.name);
+function amountSql(txCols) {
+  if (txCols.has('pkr_amount') && txCols.has('amount')) {
+    return `
+      CASE
+        WHEN pkr_amount IS NOT NULL
+         AND CAST(pkr_amount AS REAL) != 0
+        THEN CAST(pkr_amount AS REAL)
+        ELSE CAST(amount AS REAL)
+      END
+    `;
   }
 
-  return set;
+  if (txCols.has('pkr_amount')) return `CAST(pkr_amount AS REAL)`;
+  if (txCols.has('amount')) return `CAST(amount AS REAL)`;
+
+  return `0`;
+}
+
+function normalizedTypeSql(txCols) {
+  const rawType = txCols.has('type')
+    ? `LOWER(TRIM(COALESCE(type, '')))`
+    : `''`;
+
+  return `
+    CASE
+      WHEN ${rawType} = 'manual_income' THEN 'income'
+      WHEN ${rawType} = 'salary_income' THEN 'salary'
+      WHEN ${rawType} = 'debt_payment' THEN 'repay'
+      WHEN ${rawType} = 'credit_card' THEN 'cc_spend'
+      WHEN ${rawType} = 'international' THEN 'expense'
+      WHEN ${rawType} = 'international_purchase' THEN 'expense'
+      ELSE ${rawType}
+    END
+  `;
+}
+
+function inactiveSql(txCols) {
+  const parts = [];
+
+  if (txCols.has('reversed_by')) {
+    parts.push(`reversed_by IS NOT NULL AND TRIM(COALESCE(reversed_by, '')) != ''`);
+  }
+
+  if (txCols.has('reversed_at')) {
+    parts.push(`reversed_at IS NOT NULL AND TRIM(COALESCE(reversed_at, '')) != ''`);
+  }
+
+  if (txCols.has('notes')) {
+    const notesExpr = `UPPER(COALESCE(notes, ''))`;
+    parts.push(`${notesExpr} LIKE '%[REVERSAL OF %'`);
+    parts.push(`${notesExpr} LIKE '%[REVERSED BY %'`);
+  }
+
+  return parts.length
+    ? `(${parts.map(part => `(${part})`).join(' OR ')})`
+    : `0`;
+}
+
+function addBalanceBucket(map, accountId, values) {
+  const id = safeText(accountId, '', 160);
+  if (!id) return;
+
+  const existing = map.get(id) || emptyBalanceBucket();
+
+  map.set(id, {
+    balance: roundMoney(existing.balance + roundMoney(values.balance || 0)),
+    transaction_count: existing.transaction_count + Number(values.transaction_count || 0),
+    included_transaction_count: existing.included_transaction_count + Number(values.included_transaction_count || 0),
+    skipped_inactive_transaction_count: existing.skipped_inactive_transaction_count + Number(values.skipped_inactive_transaction_count || 0)
+  });
+}
+
+function emptyBalanceBucket() {
+  return {
+    balance: 0,
+    transaction_count: 0,
+    included_transaction_count: 0,
+    skipped_inactive_transaction_count: 0
+  };
+}
+
+function classifyAccount(account) {
+  const text = [
+    account?.type,
+    account?.kind,
+    account?.name,
+    account?.id
+  ].map(value => String(value || '').toLowerCase()).join(' ');
+
+  if (
+    text.includes('liability') ||
+    text.includes('credit') ||
+    text.includes('card') ||
+    text.includes('loan') ||
+    text.includes('debt') ||
+    text.includes('payable')
+  ) {
+    return 'liability';
+  }
+
+  return 'asset';
+}
+
+function isActiveAccount(account) {
+  if (!account) return false;
+
+  const status = String(account.status || '').trim().toLowerCase();
+
+  if (status && ['archived', 'closed', 'deleted', 'inactive', 'disabled'].includes(status)) {
+    return false;
+  }
+
+  if (account.deleted_at != null && String(account.deleted_at).trim() !== '') return false;
+  if (account.archived_at != null && String(account.archived_at).trim() !== '') return false;
+
+  if (isTruthy(account.is_deleted)) return false;
+  if (isTruthy(account.is_archived)) return false;
+  if (isExplicitFalse(account.is_active)) return false;
+
+  return true;
+}
+
+function isTruthy(value) {
+  return value === true ||
+    value === 1 ||
+    value === '1' ||
+    String(value).trim().toLowerCase() === 'true' ||
+    String(value).trim().toLowerCase() === 'yes';
+}
+
+function isExplicitFalse(value) {
+  return value === false ||
+    value === 0 ||
+    value === '0' ||
+    String(value).trim().toLowerCase() === 'false' ||
+    String(value).trim().toLowerCase() === 'no';
+}
+
+async function tableColumns(db, table) {
+  try {
+    const result = await db.prepare(`PRAGMA table_info(${table})`).all();
+    const set = new Set();
+
+    for (const row of result.results || []) {
+      if (row.name) set.add(row.name);
+    }
+
+    return set;
+  } catch {
+    return new Set();
+  }
 }
 
 function roundMoney(value) {
@@ -284,13 +420,23 @@ function roundMoney(value) {
   return Math.round(n * 100) / 100;
 }
 
+function safeText(value, fallback = '', max = 500) {
+  const raw = value == null ? fallback : value;
+  return String(raw == null ? '' : raw).trim().slice(0, max);
+}
+
+function requireDb(env) {
+  if (!env?.DB) throw new Error('D1 binding DB is missing.');
+  return env.DB;
+}
+
 function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
+  return new Response(JSON.stringify(obj, null, 2), {
     status,
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-      'Pragma': 'no-cache'
+      Pragma: 'no-cache'
     }
   });
 }
