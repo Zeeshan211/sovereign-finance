@@ -1,9 +1,23 @@
+/* js/add.js
+ * Sovereign Finance · Add Transaction
+ * v1.7.0-banking-grade-approved-payload
+ *
+ * Contract:
+ * - Frontend never owns money truth.
+ * - Dry-run validates a canonical payload.
+ * - Confirm Save commits the exact payload that passed dry-run.
+ * - No payload rebuild during commit.
+ * - No unstable Date.now() idempotency key.
+ * - If backend returns intent_id + commit_token, frontend can use v2 commit.
+ * - If backend only returns payload_hash, frontend uses old v1 hash safely.
+ */
+
 (function () {
   "use strict";
 
   if (window.SovereignAdd && window.SovereignAdd.initialized) return;
 
-  const VERSION = "v1.6.0-add-merchant-smart-assist";
+  const VERSION = "v1.7.0-banking-grade-approved-payload";
 
   const MERCHANT_MATCH_API = "/api/merchants/match";
 
@@ -71,18 +85,24 @@
     categories: [],
     merchants: [],
     intlRateConfig: null,
+
     selectedMode: "expense",
     intlSubtype: "foreign",
+
     preview: null,
     intlPreview: null,
     fxLookup: null,
+
     merchantMatch: null,
     merchantMatchLoading: false,
     merchantMatchError: "",
     merchantMatchText: "",
+
     dryRun: null,
+    dryRunPayload: null,
     save: null,
     dirtySinceDryRun: false,
+
     loading: false,
     fxLoading: false,
     errors: {}
@@ -96,6 +116,7 @@
 
   function esc(value) {
     if (typeof sf().escapeHtml === "function") return sf().escapeHtml(value);
+
     return String(value == null ? "" : value)
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
@@ -106,8 +127,10 @@
 
   function money(value) {
     const n = Number(value);
+
     if (!Number.isFinite(n)) return "—";
     if (typeof sf().money === "function") return sf().money(n, { maximumFractionDigits: 2 });
+
     return "Rs " + n.toLocaleString("en-PK", {
       maximumFractionDigits: 2,
       minimumFractionDigits: n % 1 === 0 ? 0 : 2
@@ -123,6 +146,19 @@
     return Number.isFinite(n) ? n : fallback;
   }
 
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value || null));
+  }
+
+  function stableToken(value) {
+    return String(value == null ? "" : value)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9|._-]+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  }
+
   function setText(id, value) {
     const el = $(id);
     if (el) el.textContent = value == null ? "" : String(value);
@@ -136,6 +172,7 @@
   function setHidden(id, hidden) {
     const el = $(id);
     if (!el) return;
+
     el.hidden = !!hidden;
     el.style.display = hidden ? "none" : "";
     el.setAttribute("aria-hidden", String(!!hidden));
@@ -149,6 +186,7 @@
   function setPill(id, label, tone) {
     const el = $(id);
     if (!el) return;
+
     el.textContent = label || "";
     el.className = "sf-pill" + (tone ? " sf-pill--" + tone : "");
     el.hidden = false;
@@ -276,6 +314,7 @@
       base.include_pra = !!$("add-intl-include-pra")?.checked;
 
       const bankChargeRaw = $("add-intl-bank-charge")?.value;
+
       if (bankChargeRaw !== undefined && bankChargeRaw !== "") {
         base.bank_charge_override = num(bankChargeRaw, 0);
       }
@@ -285,6 +324,7 @@
         base.foreign_currency = ($("add-intl-currency")?.value || "USD").toUpperCase();
 
         const fxRateRaw = $("add-intl-fx-rate")?.value;
+
         if (fxRateRaw !== undefined && fxRateRaw !== "") {
           base.fx_rate = num(fxRateRaw, 0);
         }
@@ -305,7 +345,10 @@
       amount: form.amount,
       account_id: form.account_id,
       notes: buildNotes(form),
-      created_by: form.created_by
+      created_by: form.created_by,
+      source_module: "manual_ledger",
+      source_action: inferSourceAction(form),
+      idempotency_key: buildIdempotencyKey(form)
     };
 
     if (form.type === "transfer") {
@@ -321,41 +364,49 @@
       payload.merchant = form.merchant;
     }
 
-    payload.source_module = "manual";
-    payload.source_action = "manual_create";
-    payload.idempotency_key = buildIdempotencyKey(form);
-
     return payload;
+  }
+
+  function inferSourceAction(form) {
+    const joined = [
+      form.notes,
+      form.reference,
+      form.merchant
+    ].join(" ").toLowerCase();
+
+    if (joined.includes("statement-backed") || joined.includes("statement backed")) return "statement_replay";
+    if (joined.includes("opening alignment")) return "opening_alignment";
+    if (joined.includes("cash true-up") || joined.includes("cash true up")) return "cash_true_up";
+
+    return "manual_create";
   }
 
   function buildIdempotencyKey(form) {
     const raw = [
-      "add",
+      "add-v2",
       form.type,
       form.date,
       form.account_id,
       form.transfer_to_account_id,
       form.category_id,
-      form.amount,
+      Number(form.amount || 0).toFixed(2),
       form.merchant,
       form.reference,
-      form.notes,
-      Date.now()
+      form.notes
     ].join("|");
 
-    return raw
-      .toLowerCase()
-      .replace(/[^a-z0-9|._-]+/g, "_")
-      .slice(0, 180);
+    return stableToken(raw).slice(0, 180);
   }
 
   function buildNotes(form) {
     const parts = [];
 
     if (form.merchant) parts.push("merchant=" + form.merchant);
+
     if (state.merchantMatch?.matched && state.merchantMatch?.merchant?.id) {
       parts.push("merchant_id=" + state.merchantMatch.merchant.id);
     }
+
     if (form.reference) parts.push("ref=" + form.reference);
     if (form.notes) parts.push(form.notes);
 
@@ -368,6 +419,14 @@
 
   function dryRunPayloadHash() {
     return state.dryRun && state.dryRun.payload_hash ? String(state.dryRun.payload_hash) : "";
+  }
+
+  function dryRunCommitToken() {
+    return state.dryRun && state.dryRun.commit_token ? String(state.dryRun.commit_token) : "";
+  }
+
+  function dryRunIntentId() {
+    return state.dryRun && state.dryRun.intent_id ? String(state.dryRun.intent_id) : "";
   }
 
   function getProofCheck(name) {
@@ -401,8 +460,12 @@
       return `Package ${written.intl_package_id || state.save.intl_package_id || "—"} · ${written.row_count || state.save.row_count || 0} rows`;
     }
 
+    if (Array.isArray(state.save.transaction_ids) && state.save.transaction_ids.length) {
+      return `tx ${state.save.transaction_ids.join(" → ")}`;
+    }
+
     if (Array.isArray(state.save.ids) && state.save.ids.length) {
-      return `transfer ${state.save.ids.join(" → ")}`;
+      return `tx ${state.save.ids.join(" → ")}`;
     }
 
     if (state.save.id && state.save.linked_id) {
@@ -428,6 +491,7 @@
         if (!Number.isFinite(payload.foreign_amount) || payload.foreign_amount <= 0) {
           errors.push("Foreign amount must be greater than zero.");
         }
+
         if (!payload.foreign_currency || !/^[A-Z]{3}$/.test(payload.foreign_currency)) {
           errors.push("Valid currency code is required.");
         }
@@ -448,6 +512,7 @@
 
     if (payload.mode === "transfer" || payload.type === "transfer") {
       if (!payload.transfer_to_account_id) errors.push("Destination account is required for transfer.");
+
       if (payload.account_id && payload.transfer_to_account_id && payload.account_id === payload.transfer_to_account_id) {
         errors.push("Source and destination accounts cannot match.");
       }
@@ -483,6 +548,7 @@
 
   function empty(title, subtitle) {
     if (typeof sf().emptyState === "function") return sf().emptyState({ title, subtitle });
+
     return `
       <div class="sf-empty-state">
         <div>
@@ -495,6 +561,7 @@
 
   function errorBlock(title, message) {
     if (typeof sf().errorState === "function") return sf().errorState({ title, message });
+
     return `
       <div class="sf-empty-state sf-tone-danger">
         <div>
@@ -510,6 +577,7 @@
 
     try {
       const context = await getJSON("/api/add/context");
+
       state.context = context;
       state.accounts = Array.isArray(context.accounts) ? context.accounts : [];
       state.categories = Array.isArray(context.categories) ? context.categories : [];
@@ -530,7 +598,14 @@
       populateSelects();
       populateIntlCurrencyFromConfig();
     } catch (err) {
-      state.context = { can_direct_write: false, source_status: { accounts: "failed", categories: "failed" } };
+      state.context = {
+        can_direct_write: false,
+        source_status: {
+          accounts: "failed",
+          categories: "failed"
+        }
+      };
+
       state.errors.context = err.message;
       setHTML("add-source-list", errorBlock("Add context failed", err.message));
     }
@@ -542,7 +617,6 @@
 
   function normalizeAccountsFromBalances(payload) {
     if (!payload || !payload.accounts) return [];
-
     if (Array.isArray(payload.accounts)) return payload.accounts;
 
     return Object.entries(payload.accounts).map(([id, account]) => ({
@@ -558,7 +632,10 @@
     if (Array.isArray(payload.data)) return payload.data;
 
     if (payload.categories && typeof payload.categories === "object") {
-      return Object.entries(payload.categories).map(([id, category]) => ({ id, ...(category || {}) }));
+      return Object.entries(payload.categories).map(([id, category]) => ({
+        id,
+        ...(category || {})
+      }));
     }
 
     return [];
@@ -601,14 +678,16 @@
     if (!select) return;
 
     const cfg = state.intlRateConfig;
+
     if (cfg && cfg.default_currency) {
-      const found = Array.from(select.options).find((o) => o.value === cfg.default_currency);
+      const found = Array.from(select.options).find((option) => option.value === cfg.default_currency);
       if (found && !select.value) select.value = cfg.default_currency;
     }
   }
 
   function applyIntlSubtypeFields() {
     const isForeign = state.intlSubtype === "foreign";
+
     setHidden("add-intl-foreign-fields", !isForeign);
     setHidden("add-intl-pkr-fields", isForeign);
 
@@ -628,10 +707,9 @@
     setHidden("add-destination-field", !transfer);
     setHidden("add-category-field", transfer);
     setHidden("add-international-fields", !international);
-    setHidden("add-amount", international);
-    setHidden("add-amount-field", international);
 
     const destination = $("add-destination-account");
+
     if (destination) {
       destination.disabled = !transfer;
       destination.required = transfer;
@@ -639,6 +717,7 @@
     }
 
     const category = $("add-category");
+
     if (category) {
       category.disabled = transfer;
       category.required = !transfer;
@@ -647,7 +726,6 @@
 
     setText("add-account-label", transfer ? "Source account" : income ? "Receiving account" : "Source account");
     setText("add-account-help", transfer ? "Money leaves this account." : income ? "Money enters this account." : "Money leaves this account.");
-
     setText("add-merchant-label", income ? "Source / payer" : transfer ? "Transfer label" : international ? "Merchant" : "Merchant / person");
     setText("add-form-copy", mode().copy);
 
@@ -694,6 +772,7 @@
         row("Package total", "All components combined", "- " + money(totalPkr), "warning"),
         row("After", "Preview only", money(accountBalance(source) - totalPkr), "warning")
       ].join(""));
+
       return;
     }
 
@@ -703,6 +782,7 @@
     }
 
     const source = findAccount(payload.account_id);
+
     if (!source) {
       setHTML("add-live-impact", errorBlock("Source account not found", "Reload the page."));
       return;
@@ -718,6 +798,7 @@
           row("After", "Source after transfer", money(accountBalance(source) - payload.amount), "warning"),
           row("Destination", "Select destination account", "Missing", "danger")
         ].join(""));
+
         return;
       }
 
@@ -729,6 +810,7 @@
         row("Destination change", "Money enters destination", "+ " + money(payload.amount), "positive"),
         row("Destination after", "Preview only", money(accountBalance(destination) + payload.amount), "positive")
       ].join(""));
+
       return;
     }
 
@@ -738,6 +820,7 @@
         row("Change", "Income increases account", "+ " + money(payload.amount), "positive"),
         row("After", "Preview only", money(accountBalance(source) + payload.amount), "positive")
       ].join(""));
+
       return;
     }
 
@@ -763,9 +846,9 @@
 
     setHidden("add-intl-package-preview", false);
 
-    const rowsHtml = preview.components.map((c) => {
-      const label = COMPONENT_LABELS[c.component] || c.component;
-      return denseRow(label, money(c.amount), c.component === "base" ? "info" : "warning");
+    const rowsHtml = preview.components.map((component) => {
+      const label = COMPONENT_LABELS[component.component] || component.component;
+      return denseRow(label, money(component.amount), component.component === "base" ? "info" : "warning");
     }).join("");
 
     setHTML("add-intl-package-rows", rowsHtml);
@@ -812,6 +895,7 @@
 
     state.merchantMatchLoading = true;
     state.merchantMatchError = "";
+
     if (renderAfter) renderAll();
 
     try {
@@ -855,6 +939,7 @@
     if (!match || !match.matched) return "No safe match found. Review manually before posting.";
 
     const merchant = match.merchant || {};
+
     const parts = [
       merchant.counterparty_type || "merchant",
       `module ${moduleLabel(merchant.default_module)}`,
@@ -1061,6 +1146,7 @@
 
     if (state.merchantMatch?.matched) {
       const merchant = state.merchantMatch.merchant || {};
+
       rows.push(row(
         "Merchant match",
         `${merchant.counterparty_type || "merchant"} · ${moduleLabel(merchant.default_module)}`,
@@ -1099,9 +1185,15 @@
     const lines = [
       row("Dry-run", "Backend validation", blocked ? "Blocked" : "Passed", blocked ? "danger" : "positive"),
       row("Writes performed", "Must be false", String(state.dryRun.writes_performed), state.dryRun.writes_performed === false ? "positive" : "danger"),
-      row("Payload hash", "Required for commit", state.dryRun.payload_hash ? state.dryRun.payload_hash.slice(0, 12) + "…" : "Missing", state.dryRun.payload_hash ? "positive" : "danger"),
+      row("Commit model", dryRunCommitToken() ? "v2 token" : "v1 payload hash", dryRunCommitToken() ? "Token" : "Hash", dryRunCommitToken() || dryRunPayloadHash() ? "positive" : "danger"),
+      row("Payload hash", "Used by current backend if v2 token absent", dryRunPayloadHash() ? dryRunPayloadHash().slice(0, 12) + "…" : "Missing", dryRunPayloadHash() ? "positive" : "warning"),
+      row("Approved payload", "Commit will reuse exact dry-run payload snapshot", state.dryRunPayload ? "Locked" : "Missing", state.dryRunPayload ? "positive" : "danger"),
       row("Route", "Owner writer", isInternational() ? "add intl package" : "transactions", "info")
     ];
+
+    if (dryRunIntentId()) {
+      lines.push(row("Intent ID", "Backend approved intent", dryRunIntentId().slice(0, 18) + "…", "positive"));
+    }
 
     if (blocked) {
       lines.push(row("Override required", state.dryRun.override_reason || "Backend requires override", "Save disabled", "danger"));
@@ -1119,8 +1211,8 @@
       }
     }
 
-    expected.forEach((w) => {
-      lines.push(row(`Write: ${w.model}`, "Expected by backend", String(w.rows ?? w.transaction_rows ?? "?"), "info"));
+    expected.forEach((write) => {
+      lines.push(row(`Write: ${write.model}`, "Expected by backend", String(write.rows ?? write.transaction_rows ?? "?"), "info"));
     });
 
     setHTML("add-dryrun-panel", lines.join(""));
@@ -1137,11 +1229,13 @@
 
       const again = $("add-another");
       if (again) again.addEventListener("click", resetForm);
+
       return;
     }
 
     if (state.save && state.save.ok === false) {
       const response = state.save.response;
+
       const detail = response
         ? `${state.save.error || "Save failed"}${response.next_step ? " · " + response.next_step : ""}`
         : state.save.error || "Backend rejected commit.";
@@ -1152,9 +1246,10 @@
 
     if (canSave()) {
       setHTML("add-save-panel", [
-        row("Save ready", "Dry-run passed and payload is unchanged", "Ready", "positive"),
-        row("Commit rule", "Commit requires payload hash", "Locked", "positive")
+        row("Save ready", "Dry-run passed and approved payload is locked", "Ready", "positive"),
+        row("Commit rule", dryRunCommitToken() ? "Commit token available" : "Payload hash available", dryRunCommitToken() ? "v2-ready" : "v1-safe", "positive")
       ].join(""));
+
       return;
     }
 
@@ -1182,9 +1277,11 @@
       merchantMatchError: state.merchantMatchError,
       merchantMatchText: state.merchantMatchText,
       dryRun: state.dryRun,
+      dryRunPayload: state.dryRunPayload,
       save: state.save,
       dirtySinceDryRun: state.dirtySinceDryRun,
       form: readForm(),
+      directPayload: isInternational() ? null : directTransactionPayload(),
       errors: state.errors
     }, null, 2));
 
@@ -1200,8 +1297,11 @@
   }
 
   function canSave() {
+    const hasV2 = !!dryRunCommitToken() && !!dryRunIntentId();
+    const hasV1 = !!dryRunPayloadHash() && !!state.dryRunPayload;
+
     return state.dryRun?.ok === true &&
-      !!dryRunPayloadHash() &&
+      (hasV2 || hasV1) &&
       !dryRunRequiresOverride() &&
       !state.dirtySinceDryRun;
   }
@@ -1236,9 +1336,15 @@
 
   async function runPreview(renderAfter = true) {
     if (!isInternational()) {
-      state.preview = { ok: true, route: "transactions", normalized_payload: readForm() };
+      state.preview = {
+        ok: true,
+        route: "transactions",
+        normalized_payload: readForm()
+      };
+
       state.intlPreview = null;
       state.fxLookup = null;
+
       if (renderAfter) renderAll();
       return;
     }
@@ -1262,6 +1368,7 @@
     if (state.fxLoading) return;
 
     const currency = ($("add-intl-currency")?.value || "USD").toUpperCase();
+
     state.fxLoading = true;
     updateButtons();
 
@@ -1299,19 +1406,40 @@
 
     state.loading = true;
     state.dryRun = null;
+    state.dryRunPayload = null;
     state.save = null;
     state.dirtySinceDryRun = false;
-    setHTML("add-dryrun-panel", empty("Running dry-run", isInternational() ? "Calling /api/add/dry-run." : "Calling /api/transactions?dry_run=1."));
+
+    const approvedPayload = isInternational()
+      ? clone(readForm())
+      : clone(directTransactionPayload());
+
+    state.dryRunPayload = approvedPayload;
+
+    setHTML(
+      "add-dryrun-panel",
+      empty(
+        "Running dry-run",
+        isInternational() ? "Calling /api/add/dry-run." : "Calling /api/transactions?dry_run=1."
+      )
+    );
+
     updateButtons();
 
     try {
       state.dryRun = isInternational()
-        ? await postJSON("/api/add/dry-run", readForm())
-        : await postJSON("/api/transactions?dry_run=1", directTransactionPayload());
+        ? await postJSON("/api/add/dry-run", approvedPayload)
+        : await postJSON("/api/transactions?dry_run=1", approvedPayload);
 
       delete state.errors.dryRun;
     } catch (err) {
-      state.dryRun = { ok: false, error: err.message, response: err.payload || null };
+      state.dryRun = {
+        ok: false,
+        error: err.message,
+        response: err.payload || null
+      };
+
+      state.dryRunPayload = null;
       state.errors.dryRun = err.message;
     } finally {
       state.loading = false;
@@ -1325,21 +1453,48 @@
       return;
     }
 
+    const approvedPayload = state.dryRunPayload ? clone(state.dryRunPayload) : null;
+
+    if (!approvedPayload && !dryRunCommitToken()) {
+      state.save = {
+        ok: false,
+        error: "Missing approved dry-run payload. Run dry-run again.",
+        response: null
+      };
+
+      renderAll();
+      return;
+    }
+
     state.loading = true;
     state.save = null;
-    setHTML("add-save-panel", empty("Saving", isInternational() ? "Calling /api/add/commit." : "Calling /api/transactions."));
+
+    setHTML(
+      "add-save-panel",
+      empty(
+        "Saving",
+        isInternational() ? "Calling /api/add/commit." : "Calling /api/transactions."
+      )
+    );
+
     updateButtons();
 
     try {
       if (isInternational()) {
         state.save = await postJSON("/api/add/commit", {
-          ...readForm(),
+          ...approvedPayload,
           dry_run_payload_hash: dryRunPayloadHash(),
           payload_hash: dryRunPayloadHash()
         });
+      } else if (dryRunCommitToken() && dryRunIntentId()) {
+        state.save = await postJSON("/api/transactions", {
+          action: "commit",
+          intent_id: dryRunIntentId(),
+          commit_token: dryRunCommitToken()
+        });
       } else {
         state.save = await postJSON("/api/transactions", {
-          ...directTransactionPayload(),
+          ...approvedPayload,
           dry_run_payload_hash: dryRunPayloadHash(),
           payload_hash: dryRunPayloadHash()
         });
@@ -1347,8 +1502,14 @@
 
       delete state.errors.save;
       state.dirtySinceDryRun = false;
+      state.dryRunPayload = null;
     } catch (err) {
-      state.save = { ok: false, error: err.message, response: err.payload || null };
+      state.save = {
+        ok: false,
+        error: err.message,
+        response: err.payload || null
+      };
+
       state.errors.save = err.message;
     } finally {
       state.loading = false;
@@ -1364,8 +1525,13 @@
   }
 
   function invalidateDryRun() {
-    if (state.dryRun && !state.save?.ok) state.dirtySinceDryRun = true;
+    if (state.dryRun && !state.save?.ok) {
+      state.dirtySinceDryRun = true;
+    }
+
+    state.dryRunPayload = null;
     state.save = null;
+
     renderAll();
     schedulePreview();
   }
@@ -1383,6 +1549,7 @@
     state.intlPreview = null;
     state.fxLookup = null;
     state.dryRun = null;
+    state.dryRunPayload = null;
     state.save = null;
     state.dirtySinceDryRun = false;
 
@@ -1398,6 +1565,7 @@
     state.intlPreview = null;
     state.fxLookup = null;
     state.dryRun = null;
+    state.dryRunPayload = null;
     state.save = null;
     state.dirtySinceDryRun = false;
 
@@ -1420,6 +1588,7 @@
     state.merchantMatchError = "";
     state.merchantMatchText = "";
     state.dryRun = null;
+    state.dryRunPayload = null;
     state.save = null;
     state.dirtySinceDryRun = false;
     state.intlSubtype = "foreign";
@@ -1451,6 +1620,7 @@
     ].forEach((id) => {
       const el = $(id);
       if (!el) return;
+
       el.addEventListener("input", invalidateDryRun);
       el.addEventListener("change", invalidateDryRun);
     });
@@ -1462,6 +1632,7 @@
     ].forEach((id) => {
       const el = $(id);
       if (!el) return;
+
       el.addEventListener("input", invalidateMerchantAndDryRun);
       el.addEventListener("change", invalidateMerchantAndDryRun);
     });
