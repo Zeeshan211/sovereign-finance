@@ -1,20 +1,19 @@
 /* js/debts.js
  * Sovereign Finance · Debts UI
- * v0.8.0-shared-shell-rows
+ * v0.8.1-payment-cta-delegated
  *
  * Rules:
  * - No injected CSS.
- * - No custom debt row grid.
- * - No stale money routes.
  * - Canonical create/payment/repair route: POST /api/debts
  * - Canonical schedule/status update route: PUT /api/debts/:id
  * - Health route: GET /api/debts?action=health
+ * - Modal CTA buttons use delegated click handling so dialog/footer layout cannot break actions.
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v0.8.0-shared-shell-rows';
+  const VERSION = 'v0.8.1-payment-cta-delegated';
 
   const API_DEBTS = '/api/debts';
   const API_DEBTS_HEALTH = '/api/debts?action=health';
@@ -64,6 +63,10 @@
 
   function todayISO() {
     return new Date().toISOString().slice(0, 10);
+  }
+
+  function bodySafeDate() {
+    return new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
   }
 
   function money(value) {
@@ -452,40 +455,40 @@
   }
 
   function renderDebtRow(debt) {
-  const selected = String(debt.id) === String(state.selectedDebtId);
-  const pct = debtPaidPct(debt);
-  const originTone = debt.origin_linked ? 'positive' : ((debt.repair_required || debt.origin_required) ? 'danger' : 'warning');
+    const selected = String(debt.id) === String(state.selectedDebtId);
+    const pct = debtPaidPct(debt);
+    const originTone = debt.origin_linked ? 'positive' : ((debt.repair_required || debt.origin_required) ? 'danger' : 'warning');
 
-  return `
-    <article class="sf-finance-row ${selected ? 'is-selected' : ''}" data-debt-id="${esc(debt.id)}">
-      <div class="sf-row-left">
-        <div class="sf-row-title">${esc(debt.name)}</div>
-        <div class="sf-row-subtitle">${esc(subtitleForDebt(debt))}</div>
-        <div class="sf-section-actions">
-          ${pill(kindLabel(debt.kind), debt.kind === 'owed' ? 'positive' : 'danger')}
-          ${pill(statusLabel(debt), tone(statusLabel(debt)))}
-          ${pill(originLabel(debt), originTone)}
-          ${debt.due_status ? pill(debt.due_status.replace(/_/g, ' '), tone(debt.due_status)) : ''}
-          ${pill(`${pct}% paid`, pct >= 100 ? 'positive' : 'warning')}
+    return `
+      <article class="sf-finance-row ${selected ? 'is-selected' : ''}" data-debt-id="${esc(debt.id)}">
+        <div class="sf-row-left">
+          <div class="sf-row-title">${esc(debt.name)}</div>
+          <div class="sf-row-subtitle">${esc(subtitleForDebt(debt))}</div>
+          <div class="sf-section-actions">
+            ${pill(kindLabel(debt.kind), debt.kind === 'owed' ? 'positive' : 'danger')}
+            ${pill(statusLabel(debt), tone(statusLabel(debt)))}
+            ${pill(originLabel(debt), originTone)}
+            ${debt.due_status ? pill(debt.due_status.replace(/_/g, ' '), tone(debt.due_status)) : ''}
+            ${pill(`${pct}% paid`, pct >= 100 ? 'positive' : 'warning')}
+          </div>
         </div>
-      </div>
 
-      <div class="sf-row-right">
-        <div class="sf-metric-value">${money(debt.remaining_amount)}</div>
-        <div class="sf-card-subtitle">Remaining</div>
-        <div class="sf-section-actions">
-          <button class="sf-button" type="button" data-select-debt="${esc(debt.id)}">Details</button>
-          <button class="sf-button" type="button" data-edit-debt="${esc(debt.id)}">Edit</button>
-          <button class="sf-button sf-button--primary" type="button" data-pay-debt="${esc(debt.id)}">Payment</button>
-          <button class="sf-button" type="button" data-defer-debt="${esc(debt.id)}">Defer</button>
-          ${(debt.repair_required || (debt.origin_required && !debt.origin_linked))
-            ? `<button class="sf-button" type="button" data-repair-debt="${esc(debt.id)}">Repair</button>`
-            : ''}
+        <div class="sf-row-right">
+          <div>${money(debt.remaining_amount)}</div>
+          <div class="sf-card-subtitle">Remaining</div>
+          <div class="sf-section-actions">
+            <button class="sf-button" type="button" data-select-debt="${esc(debt.id)}">Details</button>
+            <button class="sf-button" type="button" data-edit-debt="${esc(debt.id)}">Edit</button>
+            <button class="sf-button sf-button--primary" type="button" data-pay-debt="${esc(debt.id)}">Payment</button>
+            <button class="sf-button" type="button" data-defer-debt="${esc(debt.id)}">Defer</button>
+            ${(debt.repair_required || (debt.origin_required && !debt.origin_linked))
+              ? `<button class="sf-button" type="button" data-repair-debt="${esc(debt.id)}">Repair</button>`
+              : ''}
+          </div>
         </div>
-      </div>
-    </article>
-  `;
-}
+      </article>
+    `;
+  }
 
   function renderDebtList() {
     const list = $('debtList');
@@ -501,54 +504,54 @@
   }
 
   function bindDebtRowActions() {
-  const list = $('debtList');
-  if (!list || list._debtActionsBound) return;
+    const list = $('debtList');
+    if (!list || list._debtActionsBound) return;
 
-  list._debtActionsBound = true;
+    list._debtActionsBound = true;
 
-  list.addEventListener('click', event => {
-    const button = event.target.closest('button');
-    if (!button) return;
+    list.addEventListener('click', event => {
+      const button = event.target.closest('button');
+      if (!button) return;
 
-    const selectId = button.getAttribute('data-select-debt');
-    const editId = button.getAttribute('data-edit-debt');
-    const payId = button.getAttribute('data-pay-debt');
-    const deferId = button.getAttribute('data-defer-debt');
-    const repairId = button.getAttribute('data-repair-debt');
+      const selectId = button.getAttribute('data-select-debt');
+      const editId = button.getAttribute('data-edit-debt');
+      const payId = button.getAttribute('data-pay-debt');
+      const deferId = button.getAttribute('data-defer-debt');
+      const repairId = button.getAttribute('data-repair-debt');
 
-    if (!selectId && !editId && !payId && !deferId && !repairId) return;
+      if (!selectId && !editId && !payId && !deferId && !repairId) return;
 
-    event.preventDefault();
-    event.stopPropagation();
+      event.preventDefault();
+      event.stopPropagation();
 
-    if (selectId) {
-      selectDebt(selectId);
-      scrollToId('selectedDebtPanel');
-      return;
-    }
+      if (selectId) {
+        selectDebt(selectId);
+        scrollToId('selectedDebtPanel');
+        return;
+      }
 
-    if (editId) {
-      openEditPanel(editId);
-      scrollToId('debtActionPanel');
-      return;
-    }
+      if (editId) {
+        openEditPanel(editId);
+        scrollToId('debtActionPanel');
+        return;
+      }
 
-    if (payId) {
-      openPaymentModal(payId);
-      return;
-    }
+      if (payId) {
+        openPaymentModal(payId);
+        return;
+      }
 
-    if (deferId) {
-      openDeferModal(deferId);
-      return;
-    }
+      if (deferId) {
+        openDeferModal(deferId);
+        return;
+      }
 
-    if (repairId) {
-      openRepairPanel(repairId);
-      scrollToId('debtActionPanel');
-    }
-  });
-}
+      if (repairId) {
+        openRepairPanel(repairId);
+        scrollToId('debtActionPanel');
+      }
+    });
+  }
 
   function selectDebt(id) {
     state.selectedDebtId = id;
@@ -685,7 +688,7 @@
     });
   }
 
-    function openModal(id) {
+  function openModal(id) {
     const el = $(id);
     if (!el) return;
 
@@ -693,7 +696,7 @@
       if (!el.open) el.showModal();
 
       requestAnimationFrame(() => {
-        const firstInput = el.querySelector('input:not([type="hidden"]), select, textarea, button');
+        const firstInput = el.querySelector('input:not([type="hidden"]), select, textarea');
         if (firstInput && typeof firstInput.focus === 'function') {
           firstInput.focus({ preventScroll: true });
         }
@@ -705,7 +708,7 @@
     el.hidden = false;
 
     requestAnimationFrame(() => {
-      const firstInput = el.querySelector('input:not([type="hidden"]), select, textarea, button');
+      const firstInput = el.querySelector('input:not([type="hidden"]), select, textarea');
       if (firstInput && typeof firstInput.focus === 'function') {
         firstInput.focus({ preventScroll: true });
       }
@@ -793,7 +796,7 @@
       account_id: movementNow ? clean($('debtAccountInput')?.value) : '',
       movement_date: clean($('debtMovementDateInput')?.value) || todayISO(),
       notes: clean($('debtNotesInput')?.value),
-      idempotency_key: `debt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      idempotency_key: `debt_${bodySafeDate()}_${clean($('debtNameInput')?.value).toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
       created_by: VERSION
     };
   }
@@ -817,6 +820,8 @@
       return;
     }
 
+    toast('Running debt dry-run…');
+
     try {
       const result = await postJSON(`${API_DEBTS}?dry_run=1`, payload);
 
@@ -831,6 +836,9 @@
       toast('Debt dry-run passed.');
     } catch (err) {
       toast(`Dry-run failed: ${err.message}`);
+      setHTML('debtActionPanel', `
+        ${fieldRow('Dry-run failed', 'Backend rejected debt create dry-run', esc(err.message), 'danger')}
+      `);
     }
   }
 
@@ -850,6 +858,8 @@
       button.textContent = 'Saving…';
     }
 
+    toast('Saving debt…');
+
     try {
       const result = await postJSON(API_DEBTS, payload);
 
@@ -863,6 +873,9 @@
       if (result.debt?.id || result.id) selectDebt(result.debt?.id || result.id);
     } catch (err) {
       toast(`Debt save failed: ${err.message}`);
+      setHTML('debtActionPanel', `
+        ${fieldRow('Debt save failed', 'Backend rejected debt create', esc(err.message), 'danger')}
+      `);
     } finally {
       if (button) {
         button.disabled = false;
@@ -993,7 +1006,7 @@
       debt_id: id,
       account_id: accountId,
       date: clean($('repairDateInput')?.value) || todayISO(),
-      idempotency_key: `debt_repair_${id}_${Date.now()}`,
+      idempotency_key: `debt_repair_${id}_${bodySafeDate()}`,
       created_by: VERSION
     };
 
@@ -1019,143 +1032,172 @@
   }
 
   function openPaymentModal(id) {
-  const debt = findDebtById(id);
+    const debt = findDebtById(id);
 
-  if (!debt) {
-    toast(`Cannot open payment. Debt not loaded: ${id}`);
-    return;
-  }
-
-  state.selectedDebtId = debt.id;
-  renderSelectedDebt();
-
-  const hidden = $('paymentDebtIdInput');
-  if (hidden) hidden.value = debt.id;
-
-  const amountInput = $('paymentAmountInput');
-  if (amountInput) amountInput.value = debt.installment_amount || debt.remaining_amount || '';
-
-  const dateInput = $('paymentDateInput');
-  if (dateInput) dateInput.value = todayISO();
-
-  const accountInput = $('paymentAccountInput');
-  if (accountInput) accountInput.value = '';
-
-  const notesInput = $('paymentNotesInput');
-  if (notesInput) notesInput.value = `${debt.name} · partial payment`;
-
-  const nextDueInput = $('paymentNextDueDateInput');
-  if (nextDueInput) nextDueInput.value = '';
-
-  const dueDayInput = $('paymentDueDayInput');
-  if (dueDayInput) dueDayInput.value = debt.due_day || '';
-
-  const installmentInput = $('paymentInstallmentInput');
-  if (installmentInput) installmentInput.value = debt.installment_amount || '';
-
-  const frequencyInput = $('paymentFrequencyInput');
-  if (frequencyInput) frequencyInput.value = '';
-
-  const subtitle = document.querySelector('#paymentModal .sf-section-subtitle');
-  if (subtitle) {
-    subtitle.textContent = `Debt ID: ${debt.id} · ${kindLabel(debt.kind)} · remaining ${money(debt.remaining_amount)}. Optional schedule fields apply only if this is a partial payment.`;
-  }
-
-  renderAccountOptions();
-  openModal('paymentModal');
-}
-
-  async function savePayment(dryRun) {
-  const hiddenDebtId = clean($('paymentDebtIdInput')?.value);
-  const debtId = hiddenDebtId || state.selectedDebtId;
-  const debt = findDebtById(debtId);
-
-  if (!debtId) {
-    toast('No debt selected.');
-    return;
-  }
-
-  if (!debt) {
-    toast(`Selected debt is not loaded in UI state: ${debtId}`);
-    return;
-  }
-
-  const schedulePayload = {};
-
-  const nextDueDate = clean($('paymentNextDueDateInput')?.value);
-  const dueDay = clean($('paymentDueDayInput')?.value);
-  const installment = clean($('paymentInstallmentInput')?.value);
-  const frequency = clean($('paymentFrequencyInput')?.value);
-
-  if (nextDueDate) schedulePayload.next_due_date = nextDueDate;
-  if (dueDay) schedulePayload.due_day = dueDay;
-  if (installment) schedulePayload.installment_amount = installment;
-  if (frequency) schedulePayload.frequency = frequency;
-
-  const body = {
-    action: 'payment',
-    debt_id: debt.id,
-    amount: num($('paymentAmountInput')?.value),
-    date: clean($('paymentDateInput')?.value) || todayISO(),
-    account_id: clean($('paymentAccountInput')?.value),
-    notes: clean($('paymentNotesInput')?.value),
-    ...schedulePayload,
-    idempotency_key: `debtpay_${debt.id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    created_by: VERSION
-  };
-
-  if (!body.amount || body.amount <= 0) {
-    toast('Payment amount must be greater than 0.');
-    return;
-  }
-
-  if (!body.account_id) {
-    toast('Select payment account.');
-    return;
-  }
-
-  const button = dryRun ? $('dryRunPaymentBtn') : $('savePaymentBtn');
-
-  if (button) {
-    button.disabled = true;
-    button.textContent = dryRun ? 'Dry-running…' : 'Saving…';
-  }
-
-  try {
-    const result = await postJSON(`${API_DEBTS}${dryRun ? '?dry_run=1' : ''}`, body);
-
-    if (dryRun) {
-      setHTML('debtActionPanel', `
-        ${fieldRow('Dry-run payment', 'Backend route', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
-        ${fieldRow('Endpoint', 'Canonical route', 'POST /api/debts')}
-        ${fieldRow('Marker', 'Debt transaction marker', esc(result.ledger?.marker || '—'))}
-        ${fieldRow('Transaction type', 'Expected account impact', esc(result.ledger?.type || '—'), result.ledger?.type === 'income' ? 'positive' : 'danger')}
-        ${fieldRow('Account delta', 'Ledger-derived account impact', result.ledger?.account_delta == null ? '—' : String(result.ledger.account_delta))}
-        ${fieldRow('Paid after', 'Debt state after payment', money(result.proof?.paid_amount_after || result.debt?.paid_amount || 0))}
-        ${fieldRow('Remaining after', 'Debt remaining after payment', money(result.proof?.remaining_after || result.debt?.remaining_amount || 0))}
-        ${fieldRow('Status after', 'Debt status after payment', esc(result.proof?.status_after || result.debt?.status || '—'))}
-        ${fieldRow('Schedule update', 'Deadline/installment update', result.schedule?.updated ? 'Included' : 'Not included', result.schedule?.updated ? 'positive' : 'warning')}
-        ${result.schedule?.updated ? fieldRow('New due date', 'After partial payment', esc(result.schedule?.due_date_after || '—')) : ''}
-        ${result.schedule?.updated ? fieldRow('Next installment', 'After partial payment', result.schedule?.installment_amount_after == null ? '—' : money(result.schedule.installment_amount_after)) : ''}
-      `);
-
-      toast('Payment dry-run passed.');
+    if (!debt) {
+      toast(`Cannot open payment. Debt not loaded: ${id}`);
       return;
     }
 
-    toast(result.schedule?.updated ? 'Payment saved with new deadline.' : 'Payment saved.');
-    closeModal('paymentModal');
-    await loadDebts();
-    selectDebt(debt.id);
-  } catch (err) {
-    toast(`Payment failed: ${err.message}`);
-  } finally {
+    state.selectedDebtId = debt.id;
+    renderSelectedDebt();
+
+    const hidden = $('paymentDebtIdInput');
+    if (hidden) hidden.value = debt.id;
+
+    const amountInput = $('paymentAmountInput');
+    if (amountInput) amountInput.value = debt.installment_amount || debt.remaining_amount || '';
+
+    const dateInput = $('paymentDateInput');
+    if (dateInput) dateInput.value = todayISO();
+
+    const accountInput = $('paymentAccountInput');
+    if (accountInput) accountInput.value = '';
+
+    const notesInput = $('paymentNotesInput');
+    if (notesInput) {
+      notesInput.value = debt.kind === 'owe'
+        ? `${debt.name} · debt repayment`
+        : `${debt.name} · debt received`;
+    }
+
+    const nextDueInput = $('paymentNextDueDateInput');
+    if (nextDueInput) nextDueInput.value = '';
+
+    const dueDayInput = $('paymentDueDayInput');
+    if (dueDayInput) dueDayInput.value = debt.due_day || '';
+
+    const installmentInput = $('paymentInstallmentInput');
+    if (installmentInput) installmentInput.value = debt.installment_amount || '';
+
+    const frequencyInput = $('paymentFrequencyInput');
+    if (frequencyInput) frequencyInput.value = '';
+
+    const dryRunButton = $('dryRunPaymentBtn');
+    if (dryRunButton) {
+      dryRunButton.disabled = false;
+      dryRunButton.textContent = 'Dry-run Payment';
+    }
+
+    const saveButton = $('savePaymentBtn');
+    if (saveButton) {
+      saveButton.disabled = false;
+      saveButton.textContent = 'Save Payment';
+    }
+
+    const subtitle = document.querySelector('#paymentModal .sf-section-subtitle');
+    if (subtitle) {
+      subtitle.textContent = `Debt ID: ${debt.id} · ${kindLabel(debt.kind)} · remaining ${money(debt.remaining_amount)}. Optional schedule fields apply only if this is a partial payment.`;
+    }
+
+    renderAccountOptions();
+    openModal('paymentModal');
+  }
+
+  async function savePayment(dryRun) {
+    const hiddenDebtId = clean($('paymentDebtIdInput')?.value);
+    const debtId = hiddenDebtId || state.selectedDebtId;
+    const debt = findDebtById(debtId);
+
+    if (!debtId) {
+      toast('No debt selected.');
+      return;
+    }
+
+    if (!debt) {
+      toast(`Selected debt is not loaded in UI state: ${debtId}`);
+      return;
+    }
+
+    const amount = num($('paymentAmountInput')?.value);
+    const accountId = clean($('paymentAccountInput')?.value);
+
+    if (!amount || amount <= 0) {
+      toast('Payment amount must be greater than 0.');
+      return;
+    }
+
+    if (!accountId) {
+      toast('Select payment account.');
+      return;
+    }
+
+    const schedulePayload = {};
+
+    const nextDueDate = clean($('paymentNextDueDateInput')?.value);
+    const dueDay = clean($('paymentDueDayInput')?.value);
+    const installment = clean($('paymentInstallmentInput')?.value);
+    const frequency = clean($('paymentFrequencyInput')?.value);
+
+    if (nextDueDate) schedulePayload.next_due_date = nextDueDate;
+    if (dueDay) schedulePayload.due_day = dueDay;
+    if (installment) schedulePayload.installment_amount = installment;
+    if (frequency) schedulePayload.frequency = frequency;
+
+    const body = {
+      action: 'payment',
+      debt_id: debt.id,
+      amount,
+      date: clean($('paymentDateInput')?.value) || todayISO(),
+      account_id: accountId,
+      notes: clean($('paymentNotesInput')?.value),
+      ...schedulePayload,
+      idempotency_key: `debtpay_${debt.id}_${bodySafeDate()}_${amount.toFixed(2)}_${accountId}`,
+      created_by: VERSION
+    };
+
+    const button = dryRun ? $('dryRunPaymentBtn') : $('savePaymentBtn');
+
     if (button) {
-      button.disabled = false;
-      button.textContent = dryRun ? 'Dry-run Payment' : 'Save Payment';
+      button.disabled = true;
+      button.textContent = dryRun ? 'Dry-running…' : 'Saving…';
+    }
+
+    toast(dryRun ? 'Running payment dry-run…' : 'Saving payment…');
+
+    try {
+      const result = await postJSON(`${API_DEBTS}${dryRun ? '?dry_run=1' : ''}`, body);
+
+      if (dryRun) {
+        setHTML('debtActionPanel', `
+          ${fieldRow('Dry-run payment', 'Backend route', result.ok ? 'Passed' : 'Failed', result.ok ? 'positive' : 'danger')}
+          ${fieldRow('Debt', debt.id, esc(debt.name))}
+          ${fieldRow('Endpoint', 'Canonical route', 'POST /api/debts')}
+          ${fieldRow('Marker', 'Debt transaction marker', esc(result.ledger?.marker || '—'))}
+          ${fieldRow('Transaction type', 'Expected account impact', esc(result.ledger?.type || '—'), result.ledger?.type === 'income' ? 'positive' : 'danger')}
+          ${fieldRow('Account delta', 'Ledger-derived account impact', result.ledger?.account_delta == null ? '—' : String(result.ledger.account_delta))}
+          ${fieldRow('Paid after', 'Debt state after payment', money(result.proof?.paid_amount_after || result.debt?.paid_amount || 0))}
+          ${fieldRow('Remaining after', 'Debt remaining after payment', money(result.proof?.remaining_after || result.debt?.remaining_amount || 0))}
+          ${fieldRow('Status after', 'Debt status after payment', esc(result.proof?.status_after || result.debt?.status || '—'))}
+          ${fieldRow('Schedule update', 'Deadline/installment update', result.schedule?.updated ? 'Included' : 'Not included', result.schedule?.updated ? 'positive' : 'warning')}
+          ${result.schedule?.updated ? fieldRow('New due date', 'After partial payment', esc(result.schedule?.due_date_after || '—')) : ''}
+          ${result.schedule?.updated ? fieldRow('Next installment', 'After partial payment', result.schedule?.installment_amount_after == null ? '—' : money(result.schedule.installment_amount_after)) : ''}
+        `);
+
+        toast('Payment dry-run passed.');
+        return;
+      }
+
+      toast(result.schedule?.updated ? 'Payment saved with new deadline.' : 'Payment saved.');
+      closeModal('paymentModal');
+      await loadDebts();
+      selectDebt(debt.id);
+    } catch (err) {
+      toast(`Payment failed: ${err.message}`);
+
+      setHTML('debtActionPanel', `
+        ${fieldRow('Payment failed', 'Backend rejected payment', esc(err.message), 'danger')}
+        ${fieldRow('Debt', debt.id, esc(debt.name))}
+        ${fieldRow('Amount', 'Attempted payment amount', money(amount))}
+        ${fieldRow('Account', 'Attempted payment account', esc(accountId))}
+      `);
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent = dryRun ? 'Dry-run Payment' : 'Save Payment';
+      }
     }
   }
-}
 
   function openDeferModal(id) {
     state.selectedDebtId = id;
@@ -1201,24 +1243,80 @@
   }
 
   function wireModalButtons() {
-    $('addDebtBtn')?.addEventListener('click', openDebtModal);
-    $('newDebtBtn')?.addEventListener('click', openDebtModal);
-    $('refreshDebtsBtn')?.addEventListener('click', loadDebts);
-    $('reloadDebtsBtn')?.addEventListener('click', loadDebts);
+    if (document._sovereignDebtModalButtonsBound) return;
+    document._sovereignDebtModalButtonsBound = true;
 
-    $('closeDebtModalBtn')?.addEventListener('click', () => closeModal('debtModal'));
-    $('dryRunDebtBtn')?.addEventListener('click', dryRunDebtCreate);
-    $('saveDebtBtn')?.addEventListener('click', saveNewDebt);
+    document.addEventListener('click', event => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+
+      const button = target.closest('button, a');
+      if (!button) return;
+
+      const id = button.id || '';
+
+      if (id === 'addDebtBtn' || id === 'newDebtBtn') {
+        event.preventDefault();
+        openDebtModal();
+        return;
+      }
+
+      if (id === 'refreshDebtsBtn' || id === 'reloadDebtsBtn') {
+        event.preventDefault();
+        loadDebts();
+        return;
+      }
+
+      if (id === 'closeDebtModalBtn') {
+        event.preventDefault();
+        closeModal('debtModal');
+        return;
+      }
+
+      if (id === 'dryRunDebtBtn') {
+        event.preventDefault();
+        dryRunDebtCreate();
+        return;
+      }
+
+      if (id === 'saveDebtBtn') {
+        event.preventDefault();
+        saveNewDebt();
+        return;
+      }
+
+      if (id === 'closePaymentModalBtn') {
+        event.preventDefault();
+        closeModal('paymentModal');
+        return;
+      }
+
+      if (id === 'dryRunPaymentBtn') {
+        event.preventDefault();
+        savePayment(true);
+        return;
+      }
+
+      if (id === 'savePaymentBtn') {
+        event.preventDefault();
+        savePayment(false);
+        return;
+      }
+
+      if (id === 'closeDeferModalBtn') {
+        event.preventDefault();
+        closeModal('deferModal');
+        return;
+      }
+
+      if (id === 'saveDeferBtn') {
+        event.preventDefault();
+        saveDefer();
+      }
+    });
 
     $('debtKindInput')?.addEventListener('change', updateDebtMovementCopy);
     $('debtMovementNowInput')?.addEventListener('change', updateDebtMovementCopy);
-
-    $('closePaymentModalBtn')?.addEventListener('click', () => closeModal('paymentModal'));
-    $('dryRunPaymentBtn')?.addEventListener('click', () => savePayment(true));
-    $('savePaymentBtn')?.addEventListener('click', () => savePayment(false));
-
-    $('closeDeferModalBtn')?.addEventListener('click', () => closeModal('deferModal'));
-    $('saveDeferBtn')?.addEventListener('click', saveDefer);
   }
 
   function toast(message) {
