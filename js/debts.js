@@ -1,20 +1,21 @@
 /* js/debts.js
  * Sovereign Finance · Debts UI
- * v1.0.1-floating-actions-stable
+ * v2.0.0-end-user-floating
  *
- * Rules:
- * - All action forms open in floating overlay.
- * - Clicking inside the form never closes it.
- * - Only Close, Escape, or outside backdrop closes it.
+ * Contract:
+ * - Loads debts, accounts, and health in parallel.
+ * - All forms open in a floating overlay.
+ * - Forms never drag the page down.
+ * - Clicking inside floating forms never closes them.
+ * - Payment save is disabled until amount + account are valid.
  * - Canonical create/payment/repair route: POST /api/debts
- * - Canonical schedule/status update route: PUT /api/debts/:id
- * - Health route: GET /api/debts?action=health
+ * - Canonical schedule/status route: PUT /api/debts/:id
  */
 
 (function () {
   'use strict';
 
-  const VERSION = 'v1.0.1-floating-actions-stable';
+  const VERSION = 'v2.0.0-end-user-floating';
 
   const API_DEBTS = '/api/debts';
   const API_DEBTS_HEALTH = '/api/debts?action=health';
@@ -30,7 +31,8 @@
     search: '',
     sort: 'due',
     loading: false,
-    lastProofHTML: ''
+    lastProofHTML: '',
+    lastProofTitle: 'Backend proof'
   };
 
   const $ = id => document.getElementById(id);
@@ -93,6 +95,15 @@
     return raw.replace('T', ' ').replace(/\.\d{3}Z$/, '').replace(/Z$/, '');
   }
 
+  function safeIdPart(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 80);
+  }
+
   function kindLabel(kind) {
     return kind === 'owed' ? 'Owed to me' : 'I owe';
   }
@@ -104,9 +115,9 @@
   function tone(value) {
     const s = String(value || '').toLowerCase();
 
-    if (['pass', 'ok', 'active', 'settled', 'linked', 'scheduled', 'paid_off'].includes(s)) return 'positive';
-    if (['warn', 'paused', 'due_today', 'due_soon', 'no_schedule', 'payment_linked_only'].includes(s)) return 'warning';
-    if (['overdue', 'failed', 'danger', 'blocked', 'ledger_missing'].includes(s)) return 'danger';
+    if (['pass', 'ok', 'active', 'settled', 'linked', 'scheduled', 'paid_off', 'committed', 'passed'].includes(s)) return 'positive';
+    if (['warn', 'paused', 'due_today', 'due_soon', 'no_schedule', 'payment_linked_only', 'pending'].includes(s)) return 'warning';
+    if (['overdue', 'failed', 'danger', 'blocked', 'ledger_missing', 'needs repair'].includes(s)) return 'danger';
 
     return '';
   }
@@ -117,18 +128,22 @@
     return `<span class="${cls.join(' ')}">${esc(text)}</span>`;
   }
 
-  function fieldRow(label, sub, value, toneName) {
+  function detailRow(label, value, sub, toneName) {
     const valueClass = toneName ? ` sf-tone-${toneName}` : '';
 
     return `
-      <div class="sf-finance-row">
-        <div class="sf-row-left">
+      <div class="sf-debt-detail-row">
+        <div>
           <div class="sf-row-title">${esc(label)}</div>
           ${sub ? `<div class="sf-row-subtitle">${esc(sub)}</div>` : ''}
         </div>
         <div class="sf-row-right${valueClass}">${value == null ? '—' : value}</div>
       </div>
     `;
+  }
+
+  function proofRow(label, value, sub, toneName) {
+    return detailRow(label, value, sub, toneName);
   }
 
   async function fetchJSON(url, options) {
@@ -215,6 +230,28 @@
     };
   }
 
+  function accountRowsFromPayload(payload) {
+    if (Array.isArray(payload.accounts)) return payload.accounts;
+    if (payload.accounts && typeof payload.accounts === 'object') return Object.values(payload.accounts);
+    if (payload.accounts_by_id && typeof payload.accounts_by_id === 'object') return Object.values(payload.accounts_by_id);
+    if (Array.isArray(payload.account_list)) return payload.account_list;
+    return [];
+  }
+
+  function normalizeAccount(row) {
+    const id = row.id || row.account_id || row.key || '';
+    const name = row.name || row.label || id || 'Account';
+
+    return {
+      ...row,
+      id,
+      name,
+      type: row.type || row.kind || 'account',
+      balance: num(row.balance ?? row.current_balance ?? row.amount, 0),
+      status: row.status || 'active'
+    };
+  }
+
   function selectedDebt() {
     return findDebtById(state.selectedDebtId);
   }
@@ -239,51 +276,39 @@
     return Math.max(0, Math.min(100, Math.round((paid / original) * 100)));
   }
 
-  function accountRowsFromPayload(payload) {
-    if (Array.isArray(payload.accounts)) return payload.accounts;
-    if (payload.accounts && typeof payload.accounts === 'object') return Object.values(payload.accounts);
-    if (payload.accounts_by_id && typeof payload.accounts_by_id === 'object') return Object.values(payload.accounts_by_id);
-    if (Array.isArray(payload.account_list)) return payload.account_list;
-    return [];
-  }
+  function accountOptions(selectedValue, placeholder) {
+    if (!state.accounts.length) {
+      return '<option value="">Loading accounts…</option>';
+    }
 
-  function accountOptions(selectedValue) {
-    return ['<option value="">Select account…</option>'].concat(
+    return [`<option value="">${esc(placeholder || 'Choose account…')}</option>`].concat(
       state.accounts.map(account => {
-        const id = account.id || account.account_id;
-        const name = account.name || account.label || id;
-        const balance = account.balance ?? account.current_balance ?? account.amount ?? 0;
-        const kind = account.type || account.kind || 'account';
-        const selected = String(id) === String(selectedValue || '') ? ' selected' : '';
-
-        return `<option value="${esc(id)}"${selected}>${esc(name)} · ${esc(kind)} · ${money(balance)}</option>`;
+        const selected = String(account.id) === String(selectedValue || '') ? ' selected' : '';
+        return `<option value="${esc(account.id)}"${selected}>${esc(account.name)} · ${money(account.balance)}</option>`;
       })
     ).join('');
   }
 
   function refreshAccountSelects() {
-  [
-    'floatingDebtAccountInput',
-    'floatingRepairAccountInput'
-  ].forEach(id => {
-    const select = $(id);
-    if (!select) return;
+    [
+      ['floatingDebtAccountInput', 'Choose account…'],
+      ['floatingRepairAccountInput', 'Choose account…'],
+      ['floatingPaymentAccountInput', 'Choose payment account…']
+    ].forEach(([id, placeholder]) => {
+      const select = $(id);
+      if (!select) return;
 
-    const current = select.value;
-    select.innerHTML = accountOptions(current);
-    if (current) select.value = current;
-  });
+      const current = select.value;
+      select.innerHTML = accountOptions(current, placeholder);
+      select.disabled = !state.accounts.length;
 
-  const paymentSelect = $('floatingPaymentAccountInput');
-  if (paymentSelect) {
-    const current = paymentSelect.value;
-    paymentSelect.innerHTML = paymentAccountOptions(current);
-    paymentSelect.disabled = !state.accounts.length;
+      if (current) select.value = current;
+    });
 
-    if (current) paymentSelect.value = current;
     updatePaymentButtons();
+    updateRepairButtons();
+    updateCreateButtons();
   }
-}
 
   async function loadDebts() {
     if (state.loading) return;
@@ -296,7 +321,7 @@
 
     const accountsPromise = fetchJSON(API_ACCOUNTS)
       .then(payload => {
-        state.accounts = accountRowsFromPayload(payload).filter(Boolean);
+        state.accounts = accountRowsFromPayload(payload).filter(Boolean).map(normalizeAccount);
         refreshAccountSelects();
         renderDebug({
           accounts_loaded: true,
@@ -343,6 +368,10 @@
 
       state.lastPayload = payload;
       state.debts = (Array.isArray(payload.debts) ? payload.debts : []).map(normalizeDebt);
+
+      if (state.selectedDebtId && !findDebtById(state.selectedDebtId)) {
+        state.selectedDebtId = null;
+      }
 
       if (!state.selectedDebtId && state.debts.length) {
         state.selectedDebtId = state.debts[0].id;
@@ -478,7 +507,7 @@
     const originTone = debt.origin_linked ? 'positive' : ((debt.repair_required || debt.origin_required) ? 'danger' : 'warning');
 
     return `
-      <article class="sf-finance-row ${selected ? 'is-selected' : ''}" data-debt-id="${esc(debt.id)}">
+      <article class="sf-finance-row sf-debt-row ${selected ? 'is-selected' : ''}" data-debt-id="${esc(debt.id)}">
         <div class="sf-row-left">
           <div class="sf-row-title">${esc(debt.name)}</div>
           <div class="sf-row-subtitle">${esc(subtitleForDebt(debt))}</div>
@@ -492,7 +521,7 @@
         </div>
 
         <div class="sf-row-right">
-          <div>${money(debt.remaining_amount)}</div>
+          <div class="sf-debt-row-amount">${money(debt.remaining_amount)}</div>
           <div class="sf-card-subtitle">Remaining</div>
           <div class="sf-section-actions">
             <button class="sf-button" type="button" data-action="details" data-debt-id="${esc(debt.id)}">Details</button>
@@ -574,31 +603,35 @@
     setText('selectedDebtSub', `${kindLabel(debt.kind)} · ${debt.id}`);
 
     setHTML('selectedDebtPanel', `
-      ${fieldRow('Kind', 'Debt direction', kindLabel(debt.kind), debt.kind === 'owed' ? 'positive' : 'danger')}
-      ${fieldRow('Original amount', 'Principal', money(debt.original_amount))}
-      ${fieldRow('Paid amount', 'Backend paid amount', money(debt.paid_amount))}
-      ${fieldRow('Remaining', 'Backend remaining amount', money(debt.remaining_amount), debt.remaining_amount > 0 ? 'warning' : 'positive')}
-      ${fieldRow('Status', 'Debt row status', esc(debt.status || 'active'), tone(debt.status))}
-      ${fieldRow('Due status', 'Schedule state', esc(debt.due_status || 'no schedule'), tone(debt.due_status))}
-      ${fieldRow('Next due', 'Computed due date', esc(formatDate(debt.next_due_date || debt.due_date)))}
-      ${fieldRow('Origin state', 'Ledger origin classifier', esc(originLabel(debt)), debt.origin_linked ? 'positive' : ((debt.repair_required || debt.origin_required) ? 'danger' : 'warning'))}
-      ${fieldRow('Origin ledger IDs', 'Linked origin transaction IDs', esc(debt.origin_transaction_ids.length ? debt.origin_transaction_ids.join(', ') : 'None'))}
-      ${fieldRow('Payment ledger IDs', 'Linked payment transaction IDs', esc(debt.payment_transaction_ids.length ? debt.payment_transaction_ids.join(', ') : 'None'))}
-      ${fieldRow('Created', 'Debt created timestamp', esc(formatDateTime(debt.created_at)))}
-      ${debt.notes ? fieldRow('Notes', 'Backend notes', esc(debt.notes)) : ''}
+      ${detailRow('Kind', kindLabel(debt.kind), 'Debt direction', debt.kind === 'owed' ? 'positive' : 'danger')}
+      ${detailRow('Original', money(debt.original_amount), 'Principal')}
+      ${detailRow('Paid', money(debt.paid_amount), 'Recorded paid amount')}
+      ${detailRow('Remaining', money(debt.remaining_amount), 'Current balance', debt.remaining_amount > 0 ? 'warning' : 'positive')}
+      ${detailRow('Status', esc(debt.status || 'active'), 'Debt row status', tone(debt.status))}
+      ${detailRow('Due status', esc(debt.due_status || 'no schedule'), 'Schedule state', tone(debt.due_status))}
+      ${detailRow('Next due', esc(formatDate(debt.next_due_date || debt.due_date)), 'Computed due date')}
+      ${detailRow('Origin state', esc(originLabel(debt)), 'Ledger origin classifier', debt.origin_linked ? 'positive' : ((debt.repair_required || debt.origin_required) ? 'danger' : 'warning'))}
+      ${detailRow('Origin ledger IDs', esc(debt.origin_transaction_ids.length ? debt.origin_transaction_ids.join(', ') : 'None'), 'Linked origin rows')}
+      ${detailRow('Payment ledger IDs', esc(debt.payment_transaction_ids.length ? debt.payment_transaction_ids.join(', ') : 'None'), 'Linked payment rows')}
+      ${detailRow('Created', esc(formatDateTime(debt.created_at)), 'Debt created timestamp')}
+      ${debt.notes ? detailRow('Notes', esc(debt.notes), 'Backend notes') : ''}
     `);
   }
 
   function renderEnforcement() {
     setHTML('debtEnforcementPanel', `
-      ${fieldRow('Canonical backend', 'Money owner', 'POST /api/debts', 'positive')}
-      ${fieldRow('Create action', 'Create debt record', 'action=create')}
-      ${fieldRow('Payment action', 'Pay/receive through one route', 'action=payment', 'positive')}
-      ${fieldRow('Owe payment', 'User pays someone back', '[DEBT_PAYMENT] · expense', 'danger')}
-      ${fieldRow('Owed receive', 'Someone pays user back', '[DEBT_RECEIVE] · income', 'positive')}
-      ${fieldRow('Repair action', 'Explicit only', 'action=repair_ledger', 'warning')}
-      ${fieldRow('Reversal owner', 'Do not reverse from Debts stale route', 'POST /api/transactions/reverse', 'warning')}
+      ${detailRow('Money owner', 'POST /api/debts', 'Canonical backend', 'positive')}
+      ${detailRow('Create', 'action=create', 'Debt record creation')}
+      ${detailRow('Payment', 'action=payment', 'Pay/receive through one route', 'positive')}
+      ${detailRow('Repair', 'action=repair_ledger', 'Explicit only', 'warning')}
+      ${detailRow('Reversal owner', 'POST /api/transactions/reverse', 'Do not reverse from Debts')}
     `);
+  }
+
+  function setProof(title, html) {
+    state.lastProofTitle = title || 'Backend proof';
+    state.lastProofHTML = html || '';
+    renderProof();
   }
 
   function renderProof(html) {
@@ -660,7 +693,7 @@
     if (!filterRow) return;
 
     const controls = document.createElement('div');
-    controls.className = 'sf-section-actions';
+    controls.className = 'sf-section-actions sf-debt-search-row';
     controls.innerHTML = `
       <input
         id="debtSearchInput"
@@ -714,7 +747,7 @@
     overlay.innerHTML = `
       <div class="sf-debt-floating-backdrop">
         <section class="sf-debt-floating-card" style="${options?.width ? `width: min(${options.width}, 100%);` : ''}">
-          <div class="sf-section-head" style="margin-bottom: 14px;">
+          <div class="sf-debt-floating-head">
             <div>
               <p class="sf-section-kicker">Debt action</p>
               <h2 class="sf-section-title">${esc(title)}</h2>
@@ -751,7 +784,7 @@
     document.addEventListener('keydown', closeOnEscape);
 
     requestAnimationFrame(() => {
-      const firstInput = overlay.querySelector('input:not([type="hidden"]), select, textarea, button');
+      const firstInput = overlay.querySelector('input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled])');
       if (firstInput && typeof firstInput.focus === 'function') {
         firstInput.focus({ preventScroll: true });
       }
@@ -767,9 +800,23 @@
     if (el) el.innerHTML = html || '';
   }
 
+  function updateCreateButtons() {
+    const name = clean($('floatingDebtNameInput')?.value);
+    const amount = num($('floatingDebtOriginalInput')?.value);
+    const movementNow = Boolean($('floatingDebtMovementNowInput')?.checked);
+    const accountId = clean($('floatingDebtAccountInput')?.value);
+
+    const disabled = !name || !amount || amount <= 0 || (movementNow && !accountId);
+
+    ['floatingCreateDryRunBtn', 'floatingCreateSaveBtn'].forEach(id => {
+      const button = $(id);
+      if (button) button.disabled = disabled;
+    });
+  }
+
   function openCreateForm() {
     const body = `
-      <form class="sf-form-grid">
+      <form class="sf-form-grid sf-debt-create-form">
         <label class="sf-field">
           <span>Name / Person</span>
           <input class="sf-input" id="floatingDebtNameInput" type="text" autocomplete="off">
@@ -784,27 +831,27 @@
         </label>
 
         <label class="sf-field">
-          <span>Original Amount</span>
+          <span>Original amount</span>
           <input class="sf-input" id="floatingDebtOriginalInput" type="number" step="0.01" min="0">
         </label>
 
         <label class="sf-field">
-          <span>Already Paid</span>
+          <span>Already paid</span>
           <input class="sf-input" id="floatingDebtPaidInput" type="number" step="0.01" min="0" value="0">
         </label>
 
         <label class="sf-field">
-          <span>Due Date</span>
+          <span>Due date</span>
           <input class="sf-input" id="floatingDebtDueDateInput" type="date">
         </label>
 
         <label class="sf-field">
-          <span>Due Day</span>
+          <span>Due day</span>
           <input class="sf-input" id="floatingDebtDueDayInput" type="number" min="1" max="31">
         </label>
 
         <label class="sf-field">
-          <span>Installment Amount</span>
+          <span>Installment amount</span>
           <input class="sf-input" id="floatingDebtInstallmentInput" type="number" step="0.01" min="0">
         </label>
 
@@ -827,7 +874,7 @@
         </label>
 
         <label class="sf-field">
-          <span>Snowball Order</span>
+          <span>Snowball order</span>
           <input class="sf-input" id="floatingDebtSnowballInput" type="number" step="1">
         </label>
 
@@ -835,19 +882,19 @@
           <span>Ledger movement now</span>
           <span class="sf-row-subtitle">
             <input id="floatingDebtMovementNowInput" type="checkbox">
-            Money moved now
+            Money already moved for this debt
           </span>
         </label>
 
         <label class="sf-field">
-          <span>Account money hit</span>
+          <span>Account</span>
           <select class="sf-select" id="floatingDebtAccountInput" disabled>
-            ${accountOptions('')}
+            ${accountOptions('', 'Choose account…')}
           </select>
         </label>
 
         <label class="sf-field">
-          <span>Movement Date</span>
+          <span>Movement date</span>
           <input class="sf-input" id="floatingDebtMovementDateInput" type="date" value="${todayISO()}">
         </label>
 
@@ -857,20 +904,30 @@
         </label>
 
         <div class="sf-section-actions sf-field--wide">
-          <button class="sf-button" type="button" data-floating-action="create-dry-run">Dry-run Debt</button>
-          <button class="sf-button sf-button--primary" type="button" data-floating-action="create-save">Save Debt</button>
+          <button class="sf-button" id="floatingCreateDryRunBtn" type="button" data-floating-action="create-dry-run" disabled>Dry-run</button>
+          <button class="sf-button sf-button--primary" id="floatingCreateSaveBtn" type="button" data-floating-action="create-save" disabled>Save debt</button>
         </div>
       </form>
 
-      <div id="floatingProofPanel" style="margin-top: 14px;"></div>
+      <div id="floatingProofPanel" class="sf-debt-proof-card">
+        <div class="sf-empty-state">Dry-run proof will appear here.</div>
+      </div>
     `;
 
-    openFloatingForm('Add Debt', 'Create a debt record. Ledger movement only happens if Money moved now is checked.', body);
+    openFloatingForm('Add debt', 'Create a debt record. Ledger movement is optional and explicit.', body, { width: '760px' });
+
+    ['floatingDebtNameInput', 'floatingDebtOriginalInput', 'floatingDebtAccountInput'].forEach(id => {
+      $(id)?.addEventListener('input', updateCreateButtons);
+      $(id)?.addEventListener('change', updateCreateButtons);
+    });
 
     $('floatingDebtMovementNowInput')?.addEventListener('change', event => {
       const account = $('floatingDebtAccountInput');
-      if (account) account.disabled = !event.target.checked;
+      if (account) account.disabled = !event.target.checked || !state.accounts.length;
+      updateCreateButtons();
     });
+
+    updateCreateButtons();
   }
 
   function buildDebtCreatePayload() {
@@ -893,7 +950,7 @@
       account_id: movementNow ? clean($('floatingDebtAccountInput')?.value) : '',
       movement_date: clean($('floatingDebtMovementDateInput')?.value) || todayISO(),
       notes: clean($('floatingDebtNotesInput')?.value),
-      idempotency_key: `debt_${bodySafeDate()}_${name.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`,
+      idempotency_key: `debt_${bodySafeDate()}_${safeIdPart(name)}`,
       created_by: VERSION
     };
   }
@@ -914,7 +971,7 @@
 
     if (error) {
       toast(error);
-      setFloatingProof(fieldRow('Validation failed', 'Fix form fields', esc(error), 'danger'));
+      setFloatingProof(proofRow('Validation failed', esc(error), 'Fix form fields', 'danger'));
       return;
     }
 
@@ -924,10 +981,10 @@
       const result = await postJSON(`${API_DEBTS}${dryRun ? '?dry_run=1' : ''}`, payload);
 
       const proof = `
-        ${fieldRow(dryRun ? 'Dry-run debt' : 'Debt saved', 'Backend validation', dryRun ? 'Passed' : 'Committed', 'positive')}
-        ${fieldRow('Ledger created', 'Expected money movement', String(Boolean(result.ledger?.created)), result.ledger?.created ? 'positive' : 'warning')}
-        ${fieldRow('Transaction type', 'Expected ledger type', esc(result.ledger?.type || 'none'))}
-        ${fieldRow('Account delta', 'Ledger-derived account impact', result.ledger?.account_delta == null ? '0' : String(result.ledger.account_delta))}
+        ${proofRow(dryRun ? 'Dry-run' : 'Saved', dryRun ? 'Passed' : 'Committed', 'Backend validation', 'positive')}
+        ${proofRow('Ledger movement', result.ledger?.created ? 'Yes' : 'No', 'Expected money movement', result.ledger?.created ? 'positive' : 'warning')}
+        ${proofRow('Transaction type', esc(result.ledger?.type || 'none'), 'Expected ledger type')}
+        ${proofRow('Account delta', result.ledger?.account_delta == null ? '0' : String(result.ledger.account_delta), 'Ledger-derived impact')}
       `;
 
       if (dryRun) {
@@ -937,8 +994,7 @@
       }
 
       closeFloatingForm();
-      state.lastProofHTML = proof;
-      renderProof();
+      setProof('Debt saved', proof);
       toast(result.ledger?.created ? 'Debt saved with ledger movement.' : 'Debt saved without money movement.');
 
       await loadDebts();
@@ -947,151 +1003,118 @@
       if (nextId) selectDebt(nextId);
     } catch (err) {
       toast(`Debt create failed: ${err.message}`);
-      setFloatingProof(fieldRow('Debt create failed', 'Backend rejected request', esc(err.message), 'danger'));
+      setFloatingProof(proofRow('Create failed', esc(err.message), 'Backend rejected request', 'danger'));
     }
   }
-function paymentAccountOptions(selectedValue) {
-  if (!state.accounts.length) {
-    return '<option value="">Loading accounts…</option>';
+
+  function paymentAccountOptions(selectedValue) {
+    return accountOptions(selectedValue, 'Choose payment account…');
   }
 
-  return ['<option value="">Choose payment account…</option>'].concat(
-    state.accounts.map(account => {
-      const id = account.id || account.account_id;
-      const name = account.name || account.label || id;
-      const balance = account.balance ?? account.current_balance ?? account.amount ?? 0;
-      const selected = String(id) === String(selectedValue || '') ? ' selected' : '';
+  function updatePaymentButtons() {
+    const amount = num($('floatingPaymentAmountInput')?.value);
+    const accountId = clean($('floatingPaymentAccountInput')?.value);
+    const disabled = !amount || amount <= 0 || !accountId || !state.accounts.length;
 
-      return `<option value="${esc(id)}"${selected}>${esc(name)} · ${money(balance)}</option>`;
-    })
-  ).join('');
-}
+    ['floatingPaymentDryRunBtn', 'floatingPaymentSaveBtn'].forEach(id => {
+      const button = $(id);
+      if (button) button.disabled = disabled;
+    });
+  }
 
-function updatePaymentButtons() {
-  const amount = num($('floatingPaymentAmountInput')?.value);
-  const accountId = clean($('floatingPaymentAccountInput')?.value);
-  const disabled = !amount || amount <= 0 || !accountId || !state.accounts.length;
-
-  ['floatingPaymentDryRunBtn', 'floatingPaymentSaveBtn'].forEach(id => {
-    const button = $(id);
-    if (button) button.disabled = disabled;
-  });
-}
   function openPaymentForm(id) {
-  const debt = findDebtById(id);
+    const debt = findDebtById(id);
 
-  if (!debt) {
-    toast(`Debt not loaded: ${id}`);
-    return;
+    if (!debt) {
+      toast(`Debt not loaded: ${id}`);
+      return;
+    }
+
+    selectDebt(debt.id);
+
+    const defaultNotes = debt.kind === 'owe'
+      ? `${debt.name} · debt repayment`
+      : `${debt.name} · debt received`;
+
+    const actionLabel = debt.kind === 'owe' ? 'Record payment' : 'Record money received';
+    const accountLabel = debt.kind === 'owe' ? 'Paid from' : 'Received into';
+    const amountLabel = debt.kind === 'owe' ? 'Amount paid' : 'Amount received';
+    const accountHelp = state.accounts.length
+      ? 'Choose the account this money moved through.'
+      : 'Accounts are still loading. Wait a moment before saving.';
+
+    const body = `
+      <div class="sf-debt-pay-card">
+        <div class="sf-debt-pay-summary">
+          <div>
+            <p class="sf-section-kicker">${esc(kindLabel(debt.kind))}</p>
+            <h3 class="sf-section-title">${esc(debt.name)}</h3>
+            <p class="sf-section-subtitle">Remaining balance: ${money(debt.remaining_amount)}</p>
+          </div>
+
+          <div class="sf-debt-pay-amount">
+            <span>Remaining</span>
+            <strong>${money(debt.remaining_amount)}</strong>
+          </div>
+        </div>
+
+        <form class="sf-form-grid sf-debt-pay-form">
+          <input id="floatingPaymentDebtIdInput" type="hidden" value="${esc(debt.id)}">
+
+          <label class="sf-field">
+            <span class="sf-label">${esc(amountLabel)}</span>
+            <input
+              class="sf-input"
+              id="floatingPaymentAmountInput"
+              type="number"
+              step="0.01"
+              min="0"
+              value="${esc(debt.installment_amount || debt.remaining_amount || '')}"
+              autocomplete="off"
+            >
+          </label>
+
+          <label class="sf-field">
+            <span class="sf-label">Payment date</span>
+            <input class="sf-input" id="floatingPaymentDateInput" type="date" value="${todayISO()}">
+          </label>
+
+          <label class="sf-field sf-field--wide">
+            <span class="sf-label">${esc(accountLabel)}</span>
+            <select class="sf-select" id="floatingPaymentAccountInput" ${state.accounts.length ? '' : 'disabled'}>
+              ${paymentAccountOptions('')}
+            </select>
+            <p class="sf-field-help">${esc(accountHelp)}</p>
+          </label>
+
+          <label class="sf-field sf-field--wide">
+            <span class="sf-label">Note</span>
+            <textarea class="sf-textarea" id="floatingPaymentNotesInput">${esc(defaultNotes)}</textarea>
+          </label>
+
+          <div class="sf-debt-pay-help sf-field--wide">
+            Run dry-run first to confirm the ledger impact before saving.
+          </div>
+
+          <div class="sf-section-actions sf-field--wide">
+            <button class="sf-button" id="floatingPaymentDryRunBtn" type="button" data-floating-action="payment-dry-run" disabled>Dry-run</button>
+            <button class="sf-button sf-button--primary" id="floatingPaymentSaveBtn" type="button" data-floating-action="payment-save" disabled>Save payment</button>
+          </div>
+        </form>
+
+        <div id="floatingProofPanel" class="sf-debt-pay-proof">
+          <div class="sf-empty-state">Dry-run proof will appear here.</div>
+        </div>
+      </div>
+    `;
+
+    openFloatingForm(actionLabel, 'Confirm the account and amount before saving.', body, { width: '620px' });
+
+    $('floatingPaymentAmountInput')?.addEventListener('input', updatePaymentButtons);
+    $('floatingPaymentAccountInput')?.addEventListener('change', updatePaymentButtons);
+
+    updatePaymentButtons();
   }
-
-  selectDebt(debt.id);
-
-  const defaultNotes = debt.kind === 'owe'
-    ? `${debt.name} · debt repayment`
-    : `${debt.name} · debt received`;
-
-  const actionLabel = debt.kind === 'owe' ? 'Record payment' : 'Record money received';
-  const accountLabel = debt.kind === 'owe' ? 'Paid from' : 'Received into';
-  const amountLabel = debt.kind === 'owe' ? 'Amount paid' : 'Amount received';
-
-  const accountDisabled = !state.accounts.length ? ' disabled' : '';
-  const accountHelp = state.accounts.length
-    ? 'Choose the account this money moved through.'
-    : 'Accounts are still loading. Wait a moment before saving.';
-
-  const body = `
-    <div class="sf-debt-pay-card">
-      <div class="sf-debt-pay-summary">
-        <div>
-          <p class="sf-section-kicker">${esc(kindLabel(debt.kind))}</p>
-          <h3 class="sf-section-title">${esc(debt.name)}</h3>
-          <p class="sf-section-subtitle">
-            Remaining balance: ${money(debt.remaining_amount)}
-          </p>
-        </div>
-
-        <div class="sf-debt-pay-amount">
-          <span>Remaining</span>
-          <strong>${money(debt.remaining_amount)}</strong>
-        </div>
-      </div>
-
-      <form class="sf-form-grid sf-debt-pay-form">
-        <input id="floatingPaymentDebtIdInput" type="hidden" value="${esc(debt.id)}">
-
-        <label class="sf-field">
-          <span class="sf-label">${esc(amountLabel)}</span>
-          <input
-            class="sf-input"
-            id="floatingPaymentAmountInput"
-            type="number"
-            step="0.01"
-            min="0"
-            value="${esc(debt.installment_amount || debt.remaining_amount || '')}"
-            autocomplete="off"
-          >
-        </label>
-
-        <label class="sf-field">
-          <span class="sf-label">Payment date</span>
-          <input
-            class="sf-input"
-            id="floatingPaymentDateInput"
-            type="date"
-            value="${todayISO()}"
-          >
-        </label>
-
-        <label class="sf-field sf-field--wide">
-          <span class="sf-label">${esc(accountLabel)}</span>
-          <select class="sf-select" id="floatingPaymentAccountInput"${accountDisabled}>
-            ${paymentAccountOptions('')}
-          </select>
-          <p class="sf-field-help">${esc(accountHelp)}</p>
-        </label>
-
-        <label class="sf-field sf-field--wide">
-          <span class="sf-label">Note</span>
-          <textarea class="sf-textarea" id="floatingPaymentNotesInput">${esc(defaultNotes)}</textarea>
-        </label>
-
-        <div class="sf-debt-pay-help sf-field--wide">
-          Run dry-run first to confirm the ledger impact before saving.
-        </div>
-
-        <div class="sf-section-actions sf-field--wide">
-          <button
-            class="sf-button"
-            id="floatingPaymentDryRunBtn"
-            type="button"
-            data-floating-action="payment-dry-run"
-            disabled
-          >Dry-run</button>
-
-          <button
-            class="sf-button sf-button--primary"
-            id="floatingPaymentSaveBtn"
-            type="button"
-            data-floating-action="payment-save"
-            disabled
-          >Save payment</button>
-        </div>
-      </form>
-
-      <div id="floatingProofPanel" class="sf-debt-pay-proof">
-        <div class="sf-empty-state">Dry-run proof will appear here.</div>
-      </div>
-    </div>
-  `;
-
-  openFloatingForm(actionLabel, 'Confirm the account and amount before saving.', body, { width: '620px' });
-
-  $('floatingPaymentAmountInput')?.addEventListener('input', updatePaymentButtons);
-  $('floatingPaymentAccountInput')?.addEventListener('change', updatePaymentButtons);
-
-  updatePaymentButtons();
-}
 
   function buildPaymentPayload() {
     const debtId = clean($('floatingPaymentDebtIdInput')?.value) || state.selectedDebtId;
@@ -1114,7 +1137,7 @@ function updatePaymentButtons() {
         date,
         account_id: accountId,
         notes: clean($('floatingPaymentNotesInput')?.value),
-        idempotency_key: `debtpay_${debt.id}_${bodySafeDate()}_${amount.toFixed(2)}_${accountId}`,
+        idempotency_key: `debtpay_${debt.id}_${bodySafeDate()}_${amount.toFixed(2)}_${safeIdPart(accountId)}`,
         created_by: VERSION
       }
     };
@@ -1125,7 +1148,7 @@ function updatePaymentButtons() {
 
     if (!built.ok) {
       toast(built.error);
-      setFloatingProof(fieldRow('Validation failed', 'Fix payment fields', esc(built.error), 'danger'));
+      setFloatingProof(proofRow('Validation failed', esc(built.error), 'Fix payment fields', 'danger'));
       return;
     }
 
@@ -1137,15 +1160,12 @@ function updatePaymentButtons() {
       const result = await postJSON(`${API_DEBTS}${dryRun ? '?dry_run=1' : ''}`, payload);
 
       const proof = `
-        ${fieldRow(dryRun ? 'Dry-run payment' : 'Payment saved', 'Backend route', dryRun ? 'Passed' : 'Committed', 'positive')}
-        ${fieldRow('Debt', debt.id, esc(debt.name))}
-        ${fieldRow('Endpoint', 'Canonical route', 'POST /api/debts')}
-        ${fieldRow('Marker', 'Debt transaction marker', esc(result.ledger?.marker || '—'))}
-        ${fieldRow('Transaction type', 'Expected account impact', esc(result.ledger?.type || '—'), result.ledger?.type === 'income' ? 'positive' : 'danger')}
-        ${fieldRow('Account delta', 'Ledger-derived account impact', result.ledger?.account_delta == null ? '—' : String(result.ledger.account_delta))}
-        ${fieldRow('Paid after', 'Debt state after payment', money(result.proof?.paid_amount_after || result.debt?.paid_amount || 0))}
-        ${fieldRow('Remaining after', 'Debt remaining after payment', money(result.proof?.remaining_after || result.debt?.remaining_amount || 0))}
-        ${fieldRow('Status after', 'Debt status after payment', esc(result.proof?.status_after || result.debt?.status || '—'))}
+        ${proofRow(dryRun ? 'Dry-run' : 'Payment saved', dryRun ? 'Passed' : 'Committed', 'Backend validation', 'positive')}
+        ${proofRow('Transaction type', esc(result.ledger?.type || '—'), 'Ledger impact', result.ledger?.type === 'income' ? 'positive' : 'danger')}
+        ${proofRow('Account delta', result.ledger?.account_delta == null ? '—' : String(result.ledger.account_delta), 'Account movement')}
+        ${proofRow('Paid after', money(result.proof?.paid_amount_after || result.debt?.paid_amount || 0), 'Debt state')}
+        ${proofRow('Remaining after', money(result.proof?.remaining_after || result.debt?.remaining_amount || 0), 'Debt balance')}
+        ${proofRow('Status after', esc(result.proof?.status_after || result.debt?.status || '—'), 'Debt status', tone(result.proof?.status_after || result.debt?.status))}
       `;
 
       if (dryRun) {
@@ -1155,12 +1175,12 @@ function updatePaymentButtons() {
       }
 
       closeFloatingForm();
-      state.lastProofHTML = `
+
+      setProof('Payment saved', `
         ${proof}
-        ${fieldRow('Payment ID', 'Debt payment record', esc(result.payment_id || result.payment?.payment_id || '—'))}
-        ${fieldRow('Ledger transaction', 'Linked transaction row', esc(result.payment_transaction_id || result.ledger?.transaction_id || '—'))}
-      `;
-      renderProof();
+        ${proofRow('Payment ID', esc(result.payment_id || result.payment?.payment_id || '—'), 'Debt payment record')}
+        ${proofRow('Ledger transaction', esc(result.payment_transaction_id || result.ledger?.transaction_id || '—'), 'Linked transaction row')}
+      `);
 
       toast('Payment saved.');
       await loadDebts();
@@ -1169,10 +1189,9 @@ function updatePaymentButtons() {
       toast(`Payment failed: ${err.message}`);
 
       setFloatingProof(`
-        ${fieldRow('Payment failed', 'Backend rejected payment', esc(err.message), 'danger')}
-        ${fieldRow('Debt', debt.id, esc(debt.name))}
-        ${fieldRow('Amount', 'Attempted payment amount', money(payload.amount))}
-        ${fieldRow('Account', 'Attempted payment account', esc(payload.account_id))}
+        ${proofRow('Payment failed', esc(err.message), 'Backend rejected payment', 'danger')}
+        ${proofRow('Amount', money(payload.amount), 'Attempted amount')}
+        ${proofRow('Account', esc(payload.account_id), 'Attempted account')}
       `);
     }
   }
@@ -1190,17 +1209,17 @@ function updatePaymentButtons() {
     const body = `
       <form class="sf-form-grid">
         <label class="sf-field">
-          <span>Due Date</span>
+          <span>Due date</span>
           <input class="sf-input" id="floatingEditDueDateInput" type="date" value="${esc(debt.due_date || '')}">
         </label>
 
         <label class="sf-field">
-          <span>Due Day</span>
+          <span>Due day</span>
           <input class="sf-input" id="floatingEditDueDayInput" type="number" min="1" max="31" value="${esc(debt.due_day || '')}">
         </label>
 
         <label class="sf-field">
-          <span>Installment Amount</span>
+          <span>Installment amount</span>
           <input class="sf-input" id="floatingEditInstallmentInput" type="number" step="0.01" min="0" value="${esc(debt.installment_amount || '')}">
         </label>
 
@@ -1217,14 +1236,14 @@ function updatePaymentButtons() {
         </label>
 
         <div class="sf-section-actions sf-field--wide">
-          <button class="sf-button sf-button--primary" type="button" data-floating-action="edit-save">Save Edit</button>
+          <button class="sf-button sf-button--primary" type="button" data-floating-action="edit-save">Save changes</button>
         </div>
       </form>
 
-      <div id="floatingProofPanel" style="margin-top: 14px;"></div>
+      <div id="floatingProofPanel" class="sf-debt-proof-card"></div>
     `;
 
-    openFloatingForm(`${debt.name} · Edit`, 'Schedule/details only. No money movement.', body);
+    openFloatingForm(`${debt.name} · Edit`, 'Update schedule/details only. No money movement.', body, { width: '680px' });
   }
 
   async function submitEdit() {
@@ -1245,15 +1264,14 @@ function updatePaymentButtons() {
       });
 
       closeFloatingForm();
-      state.lastProofHTML = fieldRow('Edit saved', 'Backend accepted schedule/details update', 'Committed', 'positive');
-      renderProof();
+      setProof('Edit saved', proofRow('Edit saved', 'Committed', 'Backend accepted schedule/details update', 'positive'));
 
       toast('Debt schedule updated.');
       await loadDebts();
       selectDebt(debt.id);
     } catch (err) {
       toast(`Edit failed: ${err.message}`);
-      setFloatingProof(fieldRow('Edit failed', 'Backend rejected update', esc(err.message), 'danger'));
+      setFloatingProof(proofRow('Edit failed', esc(err.message), 'Backend rejected update', 'danger'));
     }
   }
 
@@ -1270,12 +1288,12 @@ function updatePaymentButtons() {
     const body = `
       <form class="sf-form-grid">
         <label class="sf-field">
-          <span>New Due Date</span>
+          <span>New due date</span>
           <input class="sf-input" id="floatingDeferDueDateInput" type="date" value="${esc(debt.due_date || '')}">
         </label>
 
         <label class="sf-field">
-          <span>New Due Day</span>
+          <span>New due day</span>
           <input class="sf-input" id="floatingDeferDueDayInput" type="number" min="1" max="31" value="${esc(debt.due_day || '')}">
         </label>
 
@@ -1285,14 +1303,14 @@ function updatePaymentButtons() {
         </label>
 
         <div class="sf-section-actions sf-field--wide">
-          <button class="sf-button sf-button--primary" type="button" data-floating-action="defer-save">Save Defer</button>
+          <button class="sf-button sf-button--primary" type="button" data-floating-action="defer-save">Save defer</button>
         </div>
       </form>
 
-      <div id="floatingProofPanel" style="margin-top: 14px;"></div>
+      <div id="floatingProofPanel" class="sf-debt-proof-card"></div>
     `;
 
-    openFloatingForm(`${debt.name} · Defer`, 'Schedule only. No ledger movement.', body);
+    openFloatingForm(`${debt.name} · Defer`, 'Schedule only. No ledger movement.', body, { width: '640px' });
   }
 
   async function submitDefer() {
@@ -1312,16 +1330,25 @@ function updatePaymentButtons() {
       });
 
       closeFloatingForm();
-      state.lastProofHTML = fieldRow('Debt deferred', 'Backend accepted schedule update', 'Committed', 'positive');
-      renderProof();
+      setProof('Debt deferred', proofRow('Debt deferred', 'Committed', 'Backend accepted schedule update', 'positive'));
 
       toast('Debt deferred.');
       await loadDebts();
       selectDebt(debt.id);
     } catch (err) {
       toast(`Defer failed: ${err.message}`);
-      setFloatingProof(fieldRow('Defer failed', 'Backend rejected update', esc(err.message), 'danger'));
+      setFloatingProof(proofRow('Defer failed', esc(err.message), 'Backend rejected update', 'danger'));
     }
+  }
+
+  function updateRepairButtons() {
+    const accountId = clean($('floatingRepairAccountInput')?.value);
+    const disabled = !accountId || !state.accounts.length;
+
+    ['floatingRepairDryRunBtn', 'floatingRepairSaveBtn'].forEach(id => {
+      const button = $(id);
+      if (button) button.disabled = disabled;
+    });
   }
 
   function openRepairForm(id) {
@@ -1335,35 +1362,40 @@ function updatePaymentButtons() {
     selectDebt(debt.id);
 
     const rule = debt.kind === 'owed'
-      ? 'Owed to me: select the account money originally left from.'
-      : 'I owe: select the account money originally entered into.';
+      ? 'Select the account money originally left from.'
+      : 'Select the account money originally entered into.';
 
     const body = `
-      <div class="sf-dialog-note" style="margin-bottom: 14px;">${esc(rule)}</div>
+      <div class="sf-debt-pay-help">${esc(rule)}</div>
 
       <form class="sf-form-grid">
         <label class="sf-field">
-          <span>Correct Account</span>
-          <select class="sf-select" id="floatingRepairAccountInput">
-            ${accountOptions('')}
+          <span>Correct account</span>
+          <select class="sf-select" id="floatingRepairAccountInput" ${state.accounts.length ? '' : 'disabled'}>
+            ${accountOptions('', 'Choose account…')}
           </select>
         </label>
 
         <label class="sf-field">
-          <span>Movement Date</span>
+          <span>Movement date</span>
           <input class="sf-input" id="floatingRepairDateInput" type="date" value="${todayISO()}">
         </label>
 
         <div class="sf-section-actions sf-field--wide">
-          <button class="sf-button" type="button" data-floating-action="repair-dry-run">Dry-run Repair</button>
-          <button class="sf-button sf-button--primary" type="button" data-floating-action="repair-save">Commit Repair</button>
+          <button class="sf-button" id="floatingRepairDryRunBtn" type="button" data-floating-action="repair-dry-run" disabled>Dry-run</button>
+          <button class="sf-button sf-button--primary" id="floatingRepairSaveBtn" type="button" data-floating-action="repair-save" disabled>Commit repair</button>
         </div>
       </form>
 
-      <div id="floatingProofPanel" style="margin-top: 14px;"></div>
+      <div id="floatingProofPanel" class="sf-debt-proof-card">
+        <div class="sf-empty-state">Repair proof will appear here.</div>
+      </div>
     `;
 
-    openFloatingForm(`${debt.name} · Repair Origin`, 'Explicit origin ledger repair only.', body);
+    openFloatingForm(`${debt.name} · Repair origin`, 'Explicit origin ledger repair only.', body, { width: '620px' });
+
+    $('floatingRepairAccountInput')?.addEventListener('change', updateRepairButtons);
+    updateRepairButtons();
   }
 
   async function submitRepair(dryRun) {
@@ -1378,7 +1410,7 @@ function updatePaymentButtons() {
 
     if (!accountId) {
       toast('Select account first.');
-      setFloatingProof(fieldRow('Validation failed', 'Repair account required', 'Select account first.', 'danger'));
+      setFloatingProof(proofRow('Validation failed', 'Select account first.', 'Repair account required', 'danger'));
       return;
     }
 
@@ -1397,10 +1429,10 @@ function updatePaymentButtons() {
       const result = await postJSON(`${API_DEBTS}${dryRun ? '?dry_run=1' : ''}`, body);
 
       const proof = `
-        ${fieldRow(dryRun ? 'Dry-run repair' : 'Repair committed', 'Backend result', result.ok ? 'OK' : 'Failed', result.ok ? 'positive' : 'danger')}
-        ${fieldRow('Ledger transaction', 'Origin movement row', esc(result.ledger?.transaction_id || result.origin_transaction_id || 'pending'))}
-        ${fieldRow('Writes performed', 'Backend truth', String(Boolean(result.writes_performed)), result.writes_performed ? 'positive' : 'warning')}
-        ${fieldRow('Source action', 'Structured source', esc(result.ledger?.source_action || 'repair_origin'))}
+        ${proofRow(dryRun ? 'Dry-run repair' : 'Repair committed', result.ok ? 'OK' : 'Failed', 'Backend result', result.ok ? 'positive' : 'danger')}
+        ${proofRow('Ledger transaction', esc(result.ledger?.transaction_id || result.origin_transaction_id || 'pending'), 'Origin movement row')}
+        ${proofRow('Writes performed', String(Boolean(result.writes_performed)), 'Backend truth', result.writes_performed ? 'positive' : 'warning')}
+        ${proofRow('Source action', esc(result.ledger?.source_action || 'repair_origin'), 'Structured source')}
       `;
 
       if (dryRun) {
@@ -1410,15 +1442,14 @@ function updatePaymentButtons() {
       }
 
       closeFloatingForm();
-      state.lastProofHTML = proof;
-      renderProof();
+      setProof('Repair committed', proof);
 
       toast('Repair committed.');
       await loadDebts();
       selectDebt(debt.id);
     } catch (err) {
       toast(`Repair failed: ${err.message}`);
-      setFloatingProof(fieldRow('Repair failed', 'Backend rejected repair', esc(err.message), 'danger'));
+      setFloatingProof(proofRow('Repair failed', esc(err.message), 'Backend rejected repair', 'danger'));
     }
   }
 
@@ -1480,8 +1511,8 @@ function updatePaymentButtons() {
   }
 
   function wireEvents() {
-    if (document._sovereignDebtsFloatingBound) return;
-    document._sovereignDebtsFloatingBound = true;
+    if (document._sovereignDebtsEndUserBound) return;
+    document._sovereignDebtsEndUserBound = true;
 
     document.addEventListener('click', handlePageClick);
   }
