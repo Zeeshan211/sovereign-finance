@@ -262,19 +262,28 @@
   }
 
   function refreshAccountSelects() {
-    [
-      'floatingDebtAccountInput',
-      'floatingPaymentAccountInput',
-      'floatingRepairAccountInput'
-    ].forEach(id => {
-      const select = $(id);
-      if (!select) return;
+  [
+    'floatingDebtAccountInput',
+    'floatingRepairAccountInput'
+  ].forEach(id => {
+    const select = $(id);
+    if (!select) return;
 
-      const current = select.value;
-      select.innerHTML = accountOptions(current);
-      if (current) select.value = current;
-    });
+    const current = select.value;
+    select.innerHTML = accountOptions(current);
+    if (current) select.value = current;
+  });
+
+  const paymentSelect = $('floatingPaymentAccountInput');
+  if (paymentSelect) {
+    const current = paymentSelect.value;
+    paymentSelect.innerHTML = paymentAccountOptions(current);
+    paymentSelect.disabled = !state.accounts.length;
+
+    if (current) paymentSelect.value = current;
+    updatePaymentButtons();
   }
+}
 
   async function loadDebts() {
     if (state.loading) return;
@@ -941,68 +950,148 @@
       setFloatingProof(fieldRow('Debt create failed', 'Backend rejected request', esc(err.message), 'danger'));
     }
   }
+function paymentAccountOptions(selectedValue) {
+  if (!state.accounts.length) {
+    return '<option value="">Loading accounts…</option>';
+  }
 
+  return ['<option value="">Choose payment account…</option>'].concat(
+    state.accounts.map(account => {
+      const id = account.id || account.account_id;
+      const name = account.name || account.label || id;
+      const balance = account.balance ?? account.current_balance ?? account.amount ?? 0;
+      const selected = String(id) === String(selectedValue || '') ? ' selected' : '';
+
+      return `<option value="${esc(id)}"${selected}>${esc(name)} · ${money(balance)}</option>`;
+    })
+  ).join('');
+}
+
+function updatePaymentButtons() {
+  const amount = num($('floatingPaymentAmountInput')?.value);
+  const accountId = clean($('floatingPaymentAccountInput')?.value);
+  const disabled = !amount || amount <= 0 || !accountId || !state.accounts.length;
+
+  ['floatingPaymentDryRunBtn', 'floatingPaymentSaveBtn'].forEach(id => {
+    const button = $(id);
+    if (button) button.disabled = disabled;
+  });
+}
   function openPaymentForm(id) {
-    const debt = findDebtById(id);
+  const debt = findDebtById(id);
 
-    if (!debt) {
-      toast(`Debt not loaded: ${id}`);
-      return;
-    }
+  if (!debt) {
+    toast(`Debt not loaded: ${id}`);
+    return;
+  }
 
-    selectDebt(debt.id);
+  selectDebt(debt.id);
 
-    const defaultNotes = debt.kind === 'owe'
-      ? `${debt.name} · debt repayment`
-      : `${debt.name} · debt received`;
+  const defaultNotes = debt.kind === 'owe'
+    ? `${debt.name} · debt repayment`
+    : `${debt.name} · debt received`;
 
-    const body = `
-      <div class="sf-section-actions" style="margin-bottom: 14px;">
-        ${pill('POST /api/debts action=payment', 'positive')}
-        ${pill(kindLabel(debt.kind), debt.kind === 'owed' ? 'positive' : 'danger')}
-        ${pill(`Remaining ${money(debt.remaining_amount)}`, 'warning')}
+  const actionLabel = debt.kind === 'owe' ? 'Record payment' : 'Record money received';
+  const accountLabel = debt.kind === 'owe' ? 'Paid from' : 'Received into';
+  const amountLabel = debt.kind === 'owe' ? 'Amount paid' : 'Amount received';
+
+  const accountDisabled = !state.accounts.length ? ' disabled' : '';
+  const accountHelp = state.accounts.length
+    ? 'Choose the account this money moved through.'
+    : 'Accounts are still loading. Wait a moment before saving.';
+
+  const body = `
+    <div class="sf-debt-pay-card">
+      <div class="sf-debt-pay-summary">
+        <div>
+          <p class="sf-section-kicker">${esc(kindLabel(debt.kind))}</p>
+          <h3 class="sf-section-title">${esc(debt.name)}</h3>
+          <p class="sf-section-subtitle">
+            Remaining balance: ${money(debt.remaining_amount)}
+          </p>
+        </div>
+
+        <div class="sf-debt-pay-amount">
+          <span>Remaining</span>
+          <strong>${money(debt.remaining_amount)}</strong>
+        </div>
       </div>
 
-      <form class="sf-form-grid">
+      <form class="sf-form-grid sf-debt-pay-form">
         <input id="floatingPaymentDebtIdInput" type="hidden" value="${esc(debt.id)}">
 
         <label class="sf-field">
-          <span class="sf-label">Amount</span>
-          <input class="sf-input" id="floatingPaymentAmountInput" type="number" step="0.01" min="0" value="${esc(debt.installment_amount || debt.remaining_amount || '')}">
+          <span class="sf-label">${esc(amountLabel)}</span>
+          <input
+            class="sf-input"
+            id="floatingPaymentAmountInput"
+            type="number"
+            step="0.01"
+            min="0"
+            value="${esc(debt.installment_amount || debt.remaining_amount || '')}"
+            autocomplete="off"
+          >
         </label>
 
         <label class="sf-field">
-          <span class="sf-label">Date</span>
-          <input class="sf-input" id="floatingPaymentDateInput" type="date" value="${todayISO()}">
+          <span class="sf-label">Payment date</span>
+          <input
+            class="sf-input"
+            id="floatingPaymentDateInput"
+            type="date"
+            value="${todayISO()}"
+          >
         </label>
 
         <label class="sf-field sf-field--wide">
-          <span class="sf-label">Account</span>
-          <select class="sf-select" id="floatingPaymentAccountInput">
-            ${accountOptions('')}
+          <span class="sf-label">${esc(accountLabel)}</span>
+          <select class="sf-select" id="floatingPaymentAccountInput"${accountDisabled}>
+            ${paymentAccountOptions('')}
           </select>
+          <p class="sf-field-help">${esc(accountHelp)}</p>
         </label>
 
         <label class="sf-field sf-field--wide">
-          <span class="sf-label">Notes</span>
+          <span class="sf-label">Note</span>
           <textarea class="sf-textarea" id="floatingPaymentNotesInput">${esc(defaultNotes)}</textarea>
         </label>
 
-        <div class="sf-dialog-note sf-field--wide">
-          Dry-run first. Save only after backend proof is clean.
+        <div class="sf-debt-pay-help sf-field--wide">
+          Run dry-run first to confirm the ledger impact before saving.
         </div>
 
         <div class="sf-section-actions sf-field--wide">
-          <button class="sf-button" type="button" data-floating-action="payment-dry-run">Dry-run Payment</button>
-          <button class="sf-button sf-button--primary" type="button" data-floating-action="payment-save">Save Payment</button>
+          <button
+            class="sf-button"
+            id="floatingPaymentDryRunBtn"
+            type="button"
+            data-floating-action="payment-dry-run"
+            disabled
+          >Dry-run</button>
+
+          <button
+            class="sf-button sf-button--primary"
+            id="floatingPaymentSaveBtn"
+            type="button"
+            data-floating-action="payment-save"
+            disabled
+          >Save payment</button>
         </div>
       </form>
 
-      <div id="floatingProofPanel" style="margin-top: 14px;"></div>
-    `;
+      <div id="floatingProofPanel" class="sf-debt-pay-proof">
+        <div class="sf-empty-state">Dry-run proof will appear here.</div>
+      </div>
+    </div>
+  `;
 
-    openFloatingForm(`${debt.name} · Payment`, 'Floating approval form. No page jump. No inline drag-down.', body);
-  }
+  openFloatingForm(actionLabel, 'Confirm the account and amount before saving.', body, { width: '620px' });
+
+  $('floatingPaymentAmountInput')?.addEventListener('input', updatePaymentButtons);
+  $('floatingPaymentAccountInput')?.addEventListener('change', updatePaymentButtons);
+
+  updatePaymentButtons();
+}
 
   function buildPaymentPayload() {
     const debtId = clean($('floatingPaymentDebtIdInput')?.value) || state.selectedDebtId;
