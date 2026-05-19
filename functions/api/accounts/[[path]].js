@@ -1,16 +1,38 @@
 /* /api/accounts
  * Sovereign Finance · Accounts API
+<<<<<<< HEAD
+ * v0.2.10-accounts-source-only-balance
+=======
  * v0.2.9-accounts-active-helper-fix
+>>>>>>> 66b22ea93c57fcc4fcebd9ed68cfde0645c36552
  *
+<<<<<<< HEAD
+ * Contract:
+ * - GET is read-only.
+ * - Account balances are ledger-derived from transactions.
+ * - Balances are computed from transaction.account_id only.
+ * - Do NOT add transfer_to_account_id as a synthetic positive row.
+ * - Reversal rows and reversed originals are excluded from balances.
+ *
+ * RCA:
+ * - v0.2.9 added destination-side transfer aggregation.
+ * - In current ledger data, destination movement is already represented in account_id rows.
+ * - Adding transfer_to_account_id caused duplicate +transfer amount, e.g. Cash +2000.
+=======
  * Contract:
  * - GET is read-only.
  * - Account balances are ledger-derived from transactions.
  * - Source account movement is signed by transaction type.
  * - Transfer destination account is counted as positive when transfer_to_account_id exists.
  * - Reversal rows and reversed originals are excluded from balances.
+>>>>>>> 66b22ea93c57fcc4fcebd9ed68cfde0645c36552
  */
 
+<<<<<<< HEAD
+const VERSION = 'v0.2.11-accounts-signed-amount-safe';
+=======
 const VERSION = 'v0.2.9-accounts-active-helper-fix';
+>>>>>>> 66b22ea93c57fcc4fcebd9ed68cfde0645c36552
 
 export async function onRequestGet(context) {
   try {
@@ -65,7 +87,7 @@ export async function onRequestGet(context) {
         transaction_count: computed.transaction_count,
         included_transaction_count: computed.included_transaction_count,
         skipped_inactive_transaction_count: computed.skipped_inactive_transaction_count,
-        balance_source: 'transactions_canonical',
+        balance_source: 'transactions_account_id_only',
         balance_version: VERSION
       };
 
@@ -111,10 +133,17 @@ export async function onRequestGet(context) {
       net_worth: roundMoney(totalAssets + totalLiabilities),
 
       rules: {
+<<<<<<< HEAD
+        balance_source: 'transactions.account_id only',
+        transfer_to_account_id_counted: false,
+        positive_types: ['income', 'salary', 'opening', 'borrow', 'debt_in'],
+        negative_types: ['expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out', 'cc_payment'],
+=======
         balance_source: 'transactions',
         source_positive_types: ['income', 'salary', 'opening', 'borrow', 'debt_in'],
         source_negative_types: ['expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out', 'cc_payment'],
         destination_positive_types: ['transfer'],
+>>>>>>> 66b22ea93c57fcc4fcebd9ed68cfde0645c36552
         inactive_filters: ['reversed_by', 'reversed_at', '[REVERSAL OF ...]', '[REVERSED BY ...]']
       }
     });
@@ -188,6 +217,55 @@ async function loadAccounts(db, cols) {
 }
 
 async function computeTransactionBalances(db, txCols) {
+<<<<<<< HEAD
+  const map = new Map();
+
+  if (!txCols.has('account_id')) return map;
+
+  const amountExpr = amountSql(txCols);
+  const typeExpr = normalizedTypeSql(txCols);
+  const inactiveExpr = inactiveSql(txCols);
+
+  const signedExpr = `
+    CASE
+      /* If amount is already signed, trust it. */
+      WHEN COALESCE(${amountExpr}, 0) < 0
+        THEN ROUND(COALESCE(${amountExpr}, 0), 2)
+
+      /* Positive money-in types stay positive. */
+      WHEN ${typeExpr} IN ('income', 'salary', 'opening', 'borrow', 'debt_in')
+        THEN ROUND(COALESCE(${amountExpr}, 0), 2)
+
+      /* Positive money-out types become negative. */
+      WHEN ${typeExpr} IN ('expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out', 'cc_payment')
+        THEN ROUND(-COALESCE(${amountExpr}, 0), 2)
+
+      /* Unknown positive rows default to expense for safety. */
+      ELSE ROUND(-COALESCE(${amountExpr}, 0), 2)
+    END
+  `;
+
+  const result = await db.prepare(`
+    SELECT
+      TRIM(account_id) AS account_id,
+      COUNT(*) AS transaction_count,
+      SUM(CASE WHEN ${inactiveExpr} THEN 1 ELSE 0 END) AS skipped_inactive_transaction_count,
+      SUM(CASE WHEN ${inactiveExpr} THEN 0 ELSE 1 END) AS included_transaction_count,
+      ROUND(SUM(CASE WHEN ${inactiveExpr} THEN 0 ELSE ${signedExpr} END), 2) AS balance
+    FROM transactions
+    WHERE account_id IS NOT NULL
+      AND TRIM(COALESCE(account_id, '')) != ''
+    GROUP BY TRIM(account_id)
+  `).all();
+
+  for (const row of result.results || []) {
+    addBalanceBucket(map, row.account_id, {
+      balance: row.balance,
+      transaction_count: row.transaction_count,
+      included_transaction_count: row.included_transaction_count,
+      skipped_inactive_transaction_count: row.skipped_inactive_transaction_count
+    });
+=======
   const map = new Map();
 
   if (!txCols.has('account_id')) return map;
@@ -228,8 +306,17 @@ async function computeTransactionBalances(db, txCols) {
       included_transaction_count: row.included_transaction_count,
       skipped_inactive_transaction_count: row.skipped_inactive_transaction_count
     });
+>>>>>>> 66b22ea93c57fcc4fcebd9ed68cfde0645c36552
   }
 
+<<<<<<< HEAD
+  return map;
+}
+
+function amountSql(txCols) {
+  if (txCols.has('pkr_amount') && txCols.has('amount')) {
+    return `
+=======
   if (txCols.has('transfer_to_account_id')) {
     const destinationResult = await db.prepare(`
       SELECT
@@ -264,6 +351,7 @@ async function computeTransactionBalances(db, txCols) {
 function amountSql(txCols) {
   if (txCols.has('pkr_amount') && txCols.has('amount')) {
     return `
+>>>>>>> 66b22ea93c57fcc4fcebd9ed68cfde0645c36552
       CASE
         WHEN pkr_amount IS NOT NULL
          AND CAST(pkr_amount AS REAL) != 0
