@@ -1916,7 +1916,7 @@ async function findExistingPayment(db, paymentId, debtId) {
     const row = await db.prepare(
       `SELECT ${select}
          FROM debt_payments
-        WHERE id = ?
+        WHERE TRIM(id) = TRIM(?)
         LIMIT 1`
     ).bind(paymentId).first();
 
@@ -1929,10 +1929,13 @@ async function findExistingPayment(db, paymentId, debtId) {
     const row = await db.prepare(
       `SELECT id, notes
          FROM transactions
-        WHERE notes LIKE ?
-          AND notes LIKE ?
+        WHERE instr(notes, ?) > 0
+          AND instr(notes, ?) > 0
         LIMIT 1`
-    ).bind(`%payment_id=${paymentId}%`, `%debt_id=${debtId}%`).first();
+    ).bind(
+      `payment_id=${paymentId}`,
+      `debt_id=${debtId}`
+    ).first();
 
     if (row) return { id: row.id, transaction_id: row.id };
   }
