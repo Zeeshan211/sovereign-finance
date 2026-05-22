@@ -1,74 +1,241 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-page="ai" data-theme="dark" data-bg="warm-command" data-accent="amber">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Curator - Sovereign Life OS</title>
-  <link rel="stylesheet" href="/css/app.css?v=1.0.1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d0d0d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>AI Curator · Sovereign Finance</title>
+  <script src="/js/sf-theme-switcher.js"></script>
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
   <style>
-    body{background:linear-gradient(135deg,#ecfeff,#f8fafc);color:#0f172a}header{display:none}main{max-width:1180px;margin:0 auto;padding:22px}
-    .top{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}.brand{font-weight:950;font-size:18px}.sub{color:#64748b;font-size:12px;font-weight:850;margin-top:3px}
-    .btn{border:1px solid rgba(15,23,42,.12);background:#fff;color:#0f172a;border-radius:999px;padding:10px 14px;text-decoration:none;font-size:12px;font-weight:950}
-    .hero,.panel,.card{background:rgba(255,255,255,.9);border:1px solid rgba(15,23,42,.1);border-radius:28px;box-shadow:0 20px 60px rgba(15,23,42,.1)}
-    .hero{padding:34px;margin-bottom:18px}.kicker{display:inline-flex;background:#ccfbf1;color:#0f766e;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:950;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
-    h1{margin:0;font-size:clamp(40px,7vw,72px);line-height:.95;letter-spacing:-.07em}.copy{color:#64748b;max-width:820px;line-height:1.6;font-weight:760;margin-top:15px}
-    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.card{padding:18px}.label{color:#64748b;font-size:11px;font-weight:950;letter-spacing:.08em;text-transform:uppercase}.value{margin-top:8px;font-size:22px;font-weight:950;color:#0f766e}
-    .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,.85fr);gap:18px}.panel{padding:18px;margin-bottom:18px}.wide{grid-column:1/-1}.title{font-size:19px;font-weight:950}.hint{color:#64748b;font-size:12px;font-weight:850;margin-top:3px}
-    .rows{display:grid;gap:10px;margin-top:16px}.row{background:#f8fafc;border:1px solid rgba(15,23,42,.08);border-radius:18px;padding:13px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}.row-title{font-size:13px;font-weight:950}.row-copy{color:#64748b;font-size:12px;font-weight:820;margin-top:3px;line-height:1.35}.tag{color:#0f766e;font-size:11px;font-weight:950;white-space:nowrap}
-    @media(max-width:900px){.stats,.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.top{align-items:flex-start;flex-direction:column}}
+    .ai-kicker {
+      display: inline-flex;
+      background: var(--sf-accent-soft);
+      color: var(--sf-accent-strong);
+      border-radius: var(--sf-radius-pill);
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 950;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .ai-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .ai-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, .85fr);
+      gap: 18px;
+    }
+    .ai-wide { grid-column: 1 / -1; }
+    .ai-rows { display: grid; gap: 10px; margin-top: 16px; }
+    .ai-row {
+      background: var(--sf-surface-2);
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: var(--sf-radius-md);
+      padding: 13px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+    }
+    .ai-row-title {
+      font-size: 13px;
+      font-weight: 950;
+      color: var(--sf-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ai-row-copy {
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      font-weight: 820;
+      margin-top: 3px;
+      line-height: 1.35;
+    }
+    .ai-tag {
+      color: var(--sf-accent);
+      font-size: 11px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+    @media (max-width: 900px) {
+      .ai-stats, .ai-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .ai-wide { grid-column: auto; }
+    }
+    @media (max-width: 600px) {
+      .ai-stats { grid-template-columns: 1fr; }
+      .ai-grid { grid-template-columns: 1fr; }
+      .ai-row { grid-template-columns: 1fr; }
+    }
+
+    /* Text overflow safety */
+    [class*="-name"], [class*="-title"], [class*="-label"] {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    [class*="-left"], [class*="-meta"], [class*="-text"] { min-width: 0; }
   </style>
 </head>
-<body>
-  <main>
-    <nav class="top">
-      <div><div class="brand">AI Curator</div><div class="sub">Sovereign Life OS · decision layer</div></div>
-      <a class="btn" href="/index.html">Command Centre</a>
-    </nav>
 
-    <section class="hero">
-      <div class="kicker">AI Shell v0.1</div>
-      <h1>AI curates decisions. It does not invent state.</h1>
-      <p class="copy">This layer will eventually read summaries from Finance, Salah, Habits, Mission, and later Health/Knowledge. It will create briefings, decision queues, and Telegram-ready relays only from real data.</p>
-    </section>
+<body class="sf-shell-body">
+  <div class="sf-app-shell sf-app-shell--with-nav">
 
-    <section class="stats">
-      <div class="card"><div class="label">Briefing</div><div class="value">Planned</div></div>
-      <div class="card"><div class="label">Decisions</div><div class="value">Queued</div></div>
-      <div class="card"><div class="label">Telegram</div><div class="value">Later</div></div>
-      <div class="card"><div class="label">Mutation</div><div class="value">Blocked</div></div>
-    </section>
+    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
 
-    <section class="grid">
-      <div class="panel">
-        <div class="title">Curator Contract</div>
-        <div class="hint">AI is not the database. AI reads summaries and curates.</div>
-        <div class="rows">
-          <div class="row"><div><div class="row-title">Daily briefing</div><div class="row-copy">What matters now across domains.</div></div><div class="tag">Planned</div></div>
-          <div class="row"><div><div class="row-title">Decision queue</div><div class="row-copy">Only items requiring user choice or confirmation.</div></div><div class="tag">Planned</div></div>
-          <div class="row"><div><div class="row-title">Telegram relay</div><div class="row-copy">Only approved curated messages, not noisy raw data.</div></div><div class="tag">Later</div></div>
+    <main class="sf-page-shell">
+      <header class="sf-page-hero">
+        <div class="sf-page-title-group">
+          <div class="sf-page-eyebrow">AI</div>
+          <h1 class="sf-page-title">AI Curator</h1>
+          <p class="sf-page-subtitle">AI curates decisions. It does not invent state.</p>
         </div>
-      </div>
-
-      <div class="panel">
-        <div class="title">AI Build Plan</div>
-        <div class="hint">Build after at least Finance + Salah + Habits have real APIs.</div>
-        <div class="rows">
-          <div class="row"><div><div class="row-title">Briefing API</div><div class="row-copy">/api/ai/briefing.</div></div><div class="tag">Layer 5A</div></div>
-          <div class="row"><div><div class="row-title">Decision queue</div><div class="row-copy">/api/ai/decision-queue.</div></div><div class="tag">Layer 5B</div></div>
-          <div class="row"><div><div class="row-title">Relay API</div><div class="row-copy">/api/telegram/relay after curation rules are stable.</div></div><div class="tag">Layer 6</div></div>
+        <div class="sf-page-actions">
+          <span class="sf-pill">Shell v0.1</span>
         </div>
-      </div>
-    </section>
+      </header>
 
-    <section class="panel wide">
-      <div class="title">Safety Contract</div>
-      <div class="hint">AI should help decide, not hallucinate.</div>
-      <div class="rows">
-        <div class="row"><div><div class="row-title">No fake live data</div><div class="row-copy">AI must not invent Salah, Habit, Mission, Finance, or Health state.</div></div><div class="tag">Locked</div></div>
-        <div class="row"><div><div class="row-title">No direct mutation first</div><div class="row-copy">AI recommendations go to decision queue before Telegram or writes.</div></div><div class="tag">Locked</div></div>
-        <div class="row"><div><div class="row-title">Source summaries only</div><div class="row-copy">AI reads domain summaries, not unrestricted raw private tables by default.</div></div><div class="tag">Locked</div></div>
-      </div>
-    </section>
-  </main>
+      <section class="sf-page-content">
+
+        <section class="sf-metric-card sf-metric-card--accent">
+          <div class="ai-kicker">AI Shell v0.1</div>
+          <p class="sf-card-kicker">Contract</p>
+          <p class="sf-card-subtitle">This layer will eventually read summaries from Finance, Salah, Habits, and Mission. It creates briefings and decision queues only from real data.</p>
+        </section>
+
+        <div class="ai-stats">
+          <section class="sf-panel">
+            <p class="sf-section-kicker">Briefing</p>
+            <div class="sf-metric-value">Planned</div>
+          </section>
+          <section class="sf-panel">
+            <p class="sf-section-kicker">Decisions</p>
+            <div class="sf-metric-value">Queued</div>
+          </section>
+          <section class="sf-panel">
+            <p class="sf-section-kicker">Telegram</p>
+            <div class="sf-metric-value">Later</div>
+          </section>
+          <section class="sf-panel">
+            <p class="sf-section-kicker">Mutation</p>
+            <div class="sf-metric-value">Blocked</div>
+          </section>
+        </div>
+
+        <div class="ai-grid">
+          <section class="sf-panel">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Curator Contract</p>
+                <h2 class="sf-section-title">AI reads. AI curates.</h2>
+              </div>
+            </div>
+            <div class="ai-rows">
+              <div class="ai-row">
+                <div>
+                  <div class="ai-row-title">Daily briefing</div>
+                  <div class="ai-row-copy">What matters now across domains.</div>
+                </div>
+                <div class="ai-tag">Planned</div>
+              </div>
+              <div class="ai-row">
+                <div>
+                  <div class="ai-row-title">Decision queue</div>
+                  <div class="ai-row-copy">Only items requiring user choice or confirmation.</div>
+                </div>
+                <div class="ai-tag">Planned</div>
+              </div>
+              <div class="ai-row">
+                <div>
+                  <div class="ai-row-title">Telegram relay</div>
+                  <div class="ai-row-copy">Only approved curated messages, not noisy raw data.</div>
+                </div>
+                <div class="ai-tag">Later</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="sf-panel">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">AI Build Plan</p>
+                <h2 class="sf-section-title">Layer sequence</h2>
+              </div>
+            </div>
+            <div class="ai-rows">
+              <div class="ai-row">
+                <div>
+                  <div class="ai-row-title">Briefing API</div>
+                  <div class="ai-row-copy">/api/ai/briefing.</div>
+                </div>
+                <div class="ai-tag">Layer 5A</div>
+              </div>
+              <div class="ai-row">
+                <div>
+                  <div class="ai-row-title">Decision queue</div>
+                  <div class="ai-row-copy">/api/ai/decision-queue.</div>
+                </div>
+                <div class="ai-tag">Layer 5B</div>
+              </div>
+              <div class="ai-row">
+                <div>
+                  <div class="ai-row-title">Relay API</div>
+                  <div class="ai-row-copy">/api/telegram/relay after curation rules are stable.</div>
+                </div>
+                <div class="ai-tag">Layer 6</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="sf-panel ai-wide">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Safety Contract</p>
+                <h2 class="sf-section-title">AI helps decide, not hallucinate</h2>
+              </div>
+            </div>
+            <div class="ai-rows">
+              <div class="ai-row">
+                <div>
+                  <div class="ai-row-title">No fake live data</div>
+                  <div class="ai-row-copy">AI must not invent Salah, Habit, Mission, Finance, or Health state.</div>
+                </div>
+                <div class="ai-tag">Locked</div>
+              </div>
+              <div class="ai-row">
+                <div>
+                  <div class="ai-row-title">No direct mutation first</div>
+                  <div class="ai-row-copy">AI recommendations go to decision queue before Telegram or writes.</div>
+                </div>
+                <div class="ai-tag">Locked</div>
+              </div>
+              <div class="ai-row">
+                <div>
+                  <div class="ai-row-title">Source summaries only</div>
+                  <div class="ai-row-copy">AI reads domain summaries, not unrestricted raw private tables by default.</div>
+                </div>
+                <div class="ai-tag">Locked</div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <footer>
+          <span class="sf-meta-text">v0.1.0 · ai · warm command shell</span>
+        </footer>
+
+      </section>
+    </main>
+
+  </div>
+
+  <script src="/js/sf-components.js"></script>
+  <script src="/js/sf-shell.js"></script>
 </body>
 </html>

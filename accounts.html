@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" data-page="accounts" data-theme="dark">
+<html lang="en" data-page="accounts" data-theme="dark" data-bg="warm-command" data-accent="amber">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#050816">
+  <meta name="theme-color" content="#0d0d0d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Accounts · Sovereign Finance</title>
@@ -145,6 +145,12 @@
     @media (max-width: 720px) {
       .sf-money-grid { grid-template-columns: 1fr; }
     }
+
+    /* Text overflow safety */
+    [class*="-name"], [class*="-title"], [class*="-label"] {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    [class*="-left"], [class*="-meta"], [class*="-text"] { min-width: 0; }
   </style>
 </head>
 

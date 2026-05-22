@@ -1,41 +1,56 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-page="sanity" data-theme="dark" data-bg="warm-command" data-accent="amber">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sovereign Finance — Sanity Dashboard</title>
-  <link rel="stylesheet" href="/css/app.css">
+  <script src="/js/sf-theme-switcher.js"></script>
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
   <style>
     .sanity-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin:16px 0 24px }
-    .sanity-card { background:var(--bg-elev-1); padding:16px; border-radius:12px; border:1px solid var(--border) }
-    .sanity-label { font-size:12px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px }
+    .sanity-card { background:var(--sf-surface-1); padding:16px; border-radius:12px; border:1px solid var(--sf-border) }
+    .sanity-label { font-size:12px; color:var(--sf-text-muted); text-transform:uppercase; letter-spacing:0.5px }
     .sanity-value { font-size:28px; font-weight:700; margin-top:6px; font-variant-numeric:tabular-nums }
-    .sanity-section { background:var(--bg-elev-1); padding:16px; border-radius:12px; margin-bottom:16px; border:1px solid var(--border) }
+    .sanity-section { background:var(--sf-surface-1); padding:16px; border-radius:12px; margin-bottom:16px; border:1px solid var(--sf-border) }
     .recon-table { width:100%; border-collapse:collapse; margin-top:8px }
-    .recon-table th, .recon-table td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--border); font-size:14px }
-    .recon-table th { font-size:11px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.5px }
+    .recon-table th, .recon-table td { padding:10px 12px; text-align:left; border-bottom:1px solid var(--sf-border); font-size:14px }
+    .recon-table th { font-size:11px; text-transform:uppercase; color:var(--sf-text-muted); letter-spacing:0.5px }
     .recon-table td.r { text-align:right; font-variant-numeric:tabular-nums }
-    .recon-input { width:100px; padding:6px 8px; border:1px solid var(--border); background:var(--bg-elev-2); color:var(--text); border-radius:6px; font-family:inherit; text-align:right }
+    .recon-input { width:100px; padding:6px 8px; border:1px solid var(--sf-border); background:var(--sf-surface-2); color:var(--sf-text); border-radius:6px; font-family:inherit; text-align:right }
     .drift-ok    { color:#10b981; font-weight:600 }
     .drift-warn  { color:#f59e0b; font-weight:600 }
     .drift-bad   { color:#ef4444; font-weight:600 }
-    .drift-zero  { color:var(--text-muted) }
+    .drift-zero  { color:var(--sf-text-muted) }
     .pos { color:#10b981 }
     .neg { color:#ef4444 }
-    .neu { color:var(--text-muted) }
-    .muted { color:var(--text-muted); font-size:13px }
-    .row-tx { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border) }
+    .neu { color:var(--sf-text-muted) }
+    .muted { color:var(--sf-text-muted); font-size:13px }
+    .row-tx { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--sf-border) }
     .row-tx:last-child { border:none }
-    .btn { padding:8px 16px; border:none; background:var(--accent,#3b82f6); color:#fff; border-radius:8px; cursor:pointer; font-family:inherit; font-weight:600 }
+    .btn { padding:8px 16px; border:none; background:var(--sf-accent); color:#fff; border-radius:8px; cursor:pointer; font-family:inherit; font-weight:600 }
     .btn:hover { opacity:0.9 }
-    .stamp { font-size:11px; color:var(--text-muted); margin-top:4px }
+    .stamp { font-size:11px; color:var(--sf-text-muted); margin-top:4px }
+
+    /* Text overflow safety */
+    [class*="-name"], [class*="-title"], [class*="-label"] {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    [class*="-left"], [class*="-meta"], [class*="-text"] { min-width: 0; }
   </style>
 </head>
-<body>
-  <header>
-    <div class="brand">Sovereign Ops</div>
-    <h1 class="title">Sanity Dashboard</h1>
-  </header>
+<body class="sf-shell-body">
+  <div class="sf-app-shell sf-app-shell--with-nav">
+    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
+    <main class="sf-page-shell">
+      <header class="sf-page-hero">
+        <div class="sf-page-title-group">
+          <div class="sf-page-eyebrow">Sanity</div>
+          <h1 class="sf-page-title">Sanity Dashboard</h1>
+          <p class="sf-page-subtitle">Self-contained truth view — reads APIs directly.</p>
+        </div>
+      </header>
+      <section class="sf-page-content">
 
   <div style="margin:16px 0; padding:12px 14px; background:rgba(59,130,246,0.1); border-radius:8px; border:1px solid rgba(59,130,246,0.3); font-size:13px">
     📊 <strong>Self-contained truth view</strong> — reads APIs directly, ignores broken Hub. Use this to verify D1 state vs sheet.
@@ -87,7 +102,7 @@
       </thead>
       <tbody id="recon-body"><tr><td colspan="5" class="muted">Loading…</td></tr></tbody>
       <tfoot>
-        <tr style="font-weight:600; border-top:2px solid var(--border)">
+        <tr style="font-weight:600; border-top:2px solid var(--sf-border)">
           <td>TOTAL LIQUID</td>
           <td class="r" id="recon-total-d1">—</td>
           <td class="r" id="recon-total-sheet">—</td>
@@ -121,6 +136,7 @@
     </ul>
   </div>
 
+      </section>
   <script>
     'use strict';
 
@@ -304,5 +320,11 @@
     document.getElementById('refreshBtn').addEventListener('click', loadAll);
     loadAll();
   </script>
+
+    </main>
+  </div>
+
+  <script src="/js/sf-components.js"></script>
+  <script src="/js/sf-shell.js"></script>
 </body>
 </html>

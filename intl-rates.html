@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-page="intl-rates" data-theme="dark" data-bg="warm-command" data-accent="amber">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,13 @@
   <script src="/js/sf-theme-switcher.js"></script>
   <link rel="stylesheet" href="/css/sf-theme.css">
   <link rel="stylesheet" href="/css/sf-shell.css">
+  <style>
+    /* Text overflow safety */
+    [class*="-name"], [class*="-title"], [class*="-label"] {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    [class*="-left"], [class*="-meta"], [class*="-text"] { min-width: 0; }
+  </style>
 </head>
 <body class="sf-shell-body">
   <div class="sf-app-shell sf-app-shell--with-nav">

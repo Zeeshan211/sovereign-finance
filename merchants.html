@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-page="merchants">
+<html lang="en" data-page="merchants" data-theme="dark" data-bg="warm-command" data-accent="amber">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -58,9 +58,19 @@
       ]
     };
   </script>
+  <style>
+    /* Text overflow safety */
+    [class*="-name"], [class*="-title"], [class*="-label"] {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    [class*="-left"], [class*="-meta"], [class*="-text"] { min-width: 0; }
+  </style>
 </head>
 
-<body>
+<body class="sf-shell-body">
+  <div class="sf-app-shell sf-app-shell--with-nav">
+    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
+    <main class="sf-page-shell">
   <section class="sf-panel-grid">
     <article class="sf-panel sf-span-8">
       <div class="sf-section-head">
@@ -340,6 +350,8 @@
       <span id="merchants-footer-version">Merchants</span>
     </footer>
   </section>
+    </main>
+  </div>
 
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-page="edit" data-theme="dark" data-bg="warm-command" data-accent="amber">
  <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
-  <meta content="#050816" name="theme-color"/>
+  <meta name="theme-color" content="#0d0d0d">
   <meta content="yes" name="apple-mobile-web-app-capable"/>
   <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
   <title>
@@ -203,6 +203,12 @@
     top:0;
     height:auto}
 }
+
+    /* Text overflow safety */
+    [class*="-name"], [class*="-title"], [class*="-label"] {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    [class*="-left"], [class*="-meta"], [class*="-text"] { min-width: 0; }
   </style>
  </head>
  <body class="sf-shell-body">
