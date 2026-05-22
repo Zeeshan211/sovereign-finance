@@ -593,6 +593,60 @@
         grid-template-columns: 1fr;
       }
     }
+    /* ── Fix 1: grid children never overflow their column ─────── */
+    .hub-mid > *,
+    .hub-bottom > *,
+    .hub-oblg > *,
+    .hub-os > * {
+      min-width: 0;
+    }
+
+    /* ── Fix 2: sf-finance-row overflow guard ─────────────────── */
+    .sf-finance-row {
+      overflow: hidden;
+    }
+
+    /* ── Fix 3: row titles clamp to one line with ellipsis ────── */
+    .hub-pos-label,
+    .hub-runway-label,
+    .sf-row-title,
+    .hub-api-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Fix 4: accounts snapshot — name · type on one line ───── */
+    #hub-accounts-preview .sf-row-title,
+    #hub-accounts-preview .hub-pos-label {
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* hub.js renders account rows with .sf-row-left containing
+       .sf-row-title (name) and .sf-row-subtitle (type).
+       Collapse them onto one line separated by a dot. */
+    #hub-accounts-preview .sf-row-left {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    #hub-accounts-preview .sf-row-subtitle {
+      display: inline;
+    }
+
+    #hub-accounts-preview .sf-row-title::after {
+      content: " · ";
+      color: var(--sf-text-faint);
+      font-weight: 600;
+    }
+
+    #hub-accounts-preview .sf-row-title {
+      display: inline;
+      white-space: nowrap;
+    }
   </style>
 </head>
 
