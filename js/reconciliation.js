@@ -1,401 +1,408 @@
-/* Sovereign Finance Reconciliation API
- * /api/reconciliation
- * v0.1.0-manual-balance-snapshots
+/**
+ * reconciliation.js
+ * Sovereign Finance · Reconciliation Page
+ * v0.1.0-reconciliation-manual-snapshots
  *
- * Purpose:
- * - Compare app account balance vs real bank/wallet balance.
- * - Save reconciliation snapshots.
- * - Does NOT mutate ledger or account balances.
- * - Does NOT create adjustment transactions yet.
+ * Extracted from reconciliation.html inline <script>.
+ * Depends on: sf-components.js, sf-shell.js (loaded before this file).
  */
 
-const VERSION = 'v0.1.0-manual-balance-snapshots';
+(function () {
+  'use strict';
 
-export async function onRequestGet(context) {
-  return withJsonErrors('GET', async () => {
-    const db = context.env.DB;
+  const VERSION = 'v0.1.0-reconciliation-manual-snapshots';
+  const API_RECON = '/api/reconciliation';
 
-    await ensureTable(db);
+  const state = {
+    payload: null,
+    rows: [],
+    exceptions: []
+  };
 
-    const accounts = await loadAccounts(db);
-    const latestMap = await loadLatestReconciliations(db);
+  /* ─── DOM helpers ─────────────────────────────────────────────────────── */
 
-    const rows = accounts.map(account => {
-      const latest = latestMap.get(account.id) || null;
-      const appBalance = moneyNumber(account.balance, 0);
-      const realBalance = latest ? moneyNumber(latest.real_balance, 0) : null;
-      const difference = latest ? round2(realBalance - appBalance) : null;
+  const $ = id => document.getElementById(id);
 
-      const status = latest
-        ? difference === 0
-          ? 'matched'
-          : 'needs_review'
-        : 'pending_statement';
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value == null ? '' : String(value);
+  }
 
-      return {
-        account_id: account.id,
-        account_name: account.name,
-        account_type: account.type,
-        app_balance: appBalance,
-        real_balance: realBalance,
-        difference,
-        status,
-        statement_date: latest ? latest.statement_date : null,
-        last_checked_at: latest ? latest.created_at : null,
-        notes: latest ? latest.notes : '',
-        latest_reconciliation_id: latest ? latest.id : null
-      };
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  /* ─── Number / money helpers ──────────────────────────────────────────── */
+
+  function num(value, fallback) {
+    if (fallback === undefined) fallback = 0;
+    if (value === null || value === undefined || value === '') return fallback;
+    const n = Number(String(value).replace(/rs/ig, '').replace(/,/g, '').trim());
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function money(value) {
+    if (value === null || value === undefined || value === '') return '—';
+    const n = num(value, NaN);
+    if (!Number.isFinite(n)) return '—';
+    const sign = n < 0 ? '-' : '';
+    return sign + 'Rs ' + Math.abs(n).toLocaleString('en-PK', {
+      minimumFractionDigits: Math.abs(n) % 1 === 0 ? 0 : 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function todayISO() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  /* ─── Fetch helpers ───────────────────────────────────────────────────── */
+
+  async function fetchJSON(url, options) {
+    const response = await fetch(url, {
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+        ...(options && options.headers ? options.headers : {})
+      },
+      ...(options || {})
     });
 
-    const summary = summarize(rows);
+    const text = await response.text();
+    let payload = null;
 
-    return json({
-      ok: true,
-      version: VERSION,
-      rows,
-      exceptions: rows.filter(row => row.status === 'needs_review'),
-      summary,
-      rules: {
-        reconciliation_does_not_change_balances: true,
-        real_balance_is_manual_statement_value: true,
-        adjustments_are_not_auto_created: true,
-        ignored_differences_not_supported_yet: true
-      }
+    try {
+      payload = text ? JSON.parse(text) : null;
+    } catch {
+      throw new Error(`Non-JSON response from ${url}: HTTP ${response.status}`);
+    }
+
+    if (!response.ok || !payload || payload.ok === false) {
+      throw new Error((payload && payload.error) || `HTTP ${response.status}`);
+    }
+
+    return payload;
+  }
+
+  async function postJSON(url, body) {
+    return fetchJSON(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {})
     });
-  });
-}
+  }
 
-export async function onRequestPost(context) {
-  return withJsonErrors('POST', async () => {
-    const db = context.env.DB;
-    const url = new URL(context.request.url);
-    const dryRun = url.searchParams.get('dry_run') === '1' || url.searchParams.get('dry_run') === 'true';
+  /* ─── Tone / label helpers ────────────────────────────────────────────── */
 
-    await ensureTable(db);
+  function diffTone(diff) {
+    const d = num(diff, 0);
+    if (d === 0) return 'good';
+    return 'warn';
+  }
 
-    const body = await readJSON(context.request);
+  function statusLabel(status) {
+    if (status === 'needs_review') return 'Review';
+    if (status === 'matched') return 'Matched';
+    return 'Pending';
+  }
 
-    const accountId = safeText(body.account_id, '', 160);
-    const statementDate = normalizeDate(body.statement_date || body.date) || todayISO();
-    const realBalance = moneyNumber(body.real_balance, null);
-    const notes = safeText(body.notes, '', 1000);
-    const createdBy = safeText(body.created_by, 'web-reconciliation', 120);
+  function statusClass(status) {
+    if (status === 'matched') return 'good';
+    return 'warn';
+  }
 
-    if (!accountId) {
-      return json({ ok: false, version: VERSION, error: 'account_id required' }, 400);
+  function recommendation(row) {
+    const diff = num(row.difference, 0);
+    if (row.real_balance === null || row.real_balance === undefined) {
+      return 'Enter real statement balance to compare.';
+    }
+    if (diff === 0) return 'Balances match. No action needed.';
+    if (diff < 0) {
+      return 'Real balance is lower than app balance. Possible missing expense, fee, withdrawal, transfer out, or duplicate income.';
+    }
+    return 'Real balance is higher than app balance. Possible missing income, refund, reversal, transfer in, or duplicate expense.';
+  }
+
+  /* ─── CSS escape ──────────────────────────────────────────────────────── */
+
+  function cssEscape(value) {
+    if (window.CSS && typeof window.CSS.escape === 'function') {
+      return window.CSS.escape(value);
+    }
+    return String(value || '').replace(/"/g, '\\"');
+  }
+
+  /* ─── Render KPIs ─────────────────────────────────────────────────────── */
+
+  function renderKpis(summary) {
+    summary = summary || {};
+    setText('kpiAppBalance', money(summary.app_balance));
+    setText('kpiRealBalance', money(summary.real_balance));
+    setText('kpiDifference', money(summary.difference));
+    setText('kpiMatched', String(summary.matched_count || 0));
+    setText('kpiReview', String(summary.needs_review_count || 0));
+
+    const diff = $('kpiDifference');
+    if (diff) {
+      diff.classList.remove('good', 'warn', 'danger');
+      const d = num(summary.difference, 0);
+      diff.classList.add(d === 0 ? 'good' : 'warn');
+    }
+  }
+
+  /* ─── Detail helper ───────────────────────────────────────────────────── */
+
+  function detail(label, value) {
+    return `
+      <div class="recon-detail-label">${esc(label)}</div>
+      <div class="recon-detail-value">${esc(value)}</div>
+    `;
+  }
+
+  /* ─── Render rows ─────────────────────────────────────────────────────── */
+
+  function renderRows() {
+    const list = $('reconList');
+    if (!list) return;
+
+    if (!state.rows.length) {
+      list.innerHTML = '<div class="recon-empty">No active asset accounts found.</div>';
+      return;
     }
 
-    if (realBalance == null) {
-      return json({ ok: false, version: VERSION, error: 'real_balance required' }, 400);
-    }
+    list.innerHTML = state.rows.map(row => {
+      const tone = diffTone(row.difference);
+      const realValue = row.real_balance == null ? '' : row.real_balance;
 
-    const account = await findAccount(db, accountId);
+      return `
+        <article class="recon-row" data-account-id="${esc(row.account_id)}">
+          <button class="recon-row-shell" type="button" data-toggle-recon="${esc(row.account_id)}">
+            <div class="recon-icon">🏦</div>
 
-    if (!account) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: `Account not found: ${accountId}`
-      }, 404);
-    }
+            <div>
+              <div class="recon-title-line">${esc(row.account_name)}</div>
+              <div class="recon-sub">statement ${esc(row.statement_date || 'not checked')} · ${esc(recommendation(row))}</div>
+            </div>
 
-    const appBalance = moneyNumber(account.balance, 0);
-    const difference = round2(realBalance - appBalance);
-    const status = difference === 0 ? 'matched' : 'needs_review';
+            <div class="recon-amount">${esc(money(row.app_balance))}</div>
+            <div class="recon-amount">${esc(row.real_balance == null ? '—' : money(row.real_balance))}</div>
+            <div class="recon-amount ${tone}">${esc(row.difference == null ? '—' : money(row.difference))}</div>
+            <div class="recon-status-label ${statusClass(row.status)}">${esc(statusLabel(row.status))}</div>
+            <div class="recon-caret">▾</div>
+          </button>
 
-    const snapshot = {
-      id: makeId('recon'),
-      account_id: account.id,
-      account_name_snapshot: account.name,
-      statement_date: statementDate,
-      app_balance: appBalance,
-      real_balance: realBalance,
-      difference,
-      status,
-      notes,
-      created_by: createdBy
-    };
+          <div class="recon-detail">
+            <div class="recon-detail-grid">
+              ${detail('Account', row.account_name)}
+              ${detail('App balance', money(row.app_balance))}
+              ${detail('Real balance', row.real_balance == null ? '—' : money(row.real_balance))}
+              ${detail('Difference', row.difference == null ? '—' : money(row.difference))}
+              ${detail('Status', statusLabel(row.status))}
+              ${detail('Last checked', row.last_checked_at || 'Never')}
+              ${detail('Recommendation', recommendation(row))}
+              ${detail('Notes', row.notes || '—')}
+            </div>
 
-    if (dryRun) {
-      return json({
-        ok: true,
-        version: VERSION,
-        action: 'reconciliation.dry_run',
-        dry_run: true,
-        writes_performed: false,
-        snapshot,
-        recommendation: recommendationForDifference(difference)
+            <div class="recon-form-grid">
+              <div class="recon-field">
+                <label>Statement Date</label>
+                <input class="recon-input" type="date" data-recon-date="${esc(row.account_id)}" value="${esc(row.statement_date || todayISO())}">
+              </div>
+
+              <div class="recon-field">
+                <label>Real Balance</label>
+                <input class="recon-input" type="number" step="0.01" data-recon-real="${esc(row.account_id)}" value="${esc(realValue)}" placeholder="Enter bank/wallet balance">
+              </div>
+
+              <div class="recon-field">
+                <label>Notes</label>
+                <input class="recon-input" type="text" data-recon-notes="${esc(row.account_id)}" value="${esc(row.notes || '')}" placeholder="Checked mobile app">
+              </div>
+            </div>
+
+            <div class="recon-inline-actions">
+              <button class="recon-action" type="button" data-dry-run-recon="${esc(row.account_id)}">Dry-run</button>
+              <button class="recon-action primary" type="button" data-save-recon="${esc(row.account_id)}">Save Check</button>
+              <a class="recon-action" href="/transactions.html?account=${encodeURIComponent(row.account_id)}">Open Ledger</a>
+            </div>
+          </div>
+        </article>
+      `;
+    }).join('');
+
+    bindRows();
+  }
+
+  function bindRows() {
+    document.querySelectorAll('[data-toggle-recon]').forEach(button => {
+      button.addEventListener('click', () => {
+        const id = button.getAttribute('data-toggle-recon');
+        const row = document.querySelector(`[data-account-id="${cssEscape(id)}"]`);
+        if (!row) return;
+        row.classList.toggle('is-open');
       });
-    }
-
-    await db.prepare(
-      `INSERT INTO account_reconciliations (
-        id,
-        account_id,
-        account_name_snapshot,
-        statement_date,
-        app_balance,
-        real_balance,
-        difference,
-        status,
-        notes,
-        created_by,
-        created_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
-    ).bind(
-      snapshot.id,
-      snapshot.account_id,
-      snapshot.account_name_snapshot,
-      snapshot.statement_date,
-      snapshot.app_balance,
-      snapshot.real_balance,
-      snapshot.difference,
-      snapshot.status,
-      snapshot.notes,
-      snapshot.created_by
-    ).run();
-
-    return json({
-      ok: true,
-      version: VERSION,
-      action: 'reconciliation.save',
-      writes_performed: true,
-      snapshot,
-      recommendation: recommendationForDifference(difference)
     });
-  });
-}
 
-/* -----------------------------
- * Table
- * ----------------------------- */
-
-async function ensureTable(db) {
-  await db.prepare(
-    `CREATE TABLE IF NOT EXISTS account_reconciliations (
-      id TEXT PRIMARY KEY,
-      account_id TEXT NOT NULL,
-      account_name_snapshot TEXT,
-      statement_date TEXT NOT NULL,
-      app_balance REAL NOT NULL,
-      real_balance REAL NOT NULL,
-      difference REAL NOT NULL,
-      status TEXT NOT NULL,
-      notes TEXT,
-      created_by TEXT,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )`
-  ).run();
-}
-
-/* -----------------------------
- * Data loaders
- * ----------------------------- */
-
-async function loadAccounts(db) {
-  const cols = await tableColumns(db, 'accounts');
-  if (!cols.size || !cols.has('id')) return [];
-
-  const selected = [
-    'id',
-    cols.has('name') ? 'name' : null,
-    cols.has('type') ? 'type' : null,
-    cols.has('kind') ? 'kind' : null,
-    cols.has('balance') ? 'balance' : null,
-    cols.has('current_balance') ? 'current_balance' : null,
-    cols.has('amount') ? 'amount' : null,
-    cols.has('status') ? 'status' : null,
-    cols.has('deleted_at') ? 'deleted_at' : null,
-    cols.has('archived_at') ? 'archived_at' : null,
-    cols.has('display_order') ? 'display_order' : null
-  ].filter(Boolean);
-
-  const order = cols.has('display_order') ? 'display_order, name, id' : cols.has('name') ? 'name, id' : 'id';
-
-  const res = await db.prepare(
-    `SELECT ${selected.join(', ')}
-     FROM accounts
-     ORDER BY ${order}`
-  ).all();
-
-  return (res.results || [])
-    .map(row => normalizeAccount(row))
-    .filter(row => {
-      const status = String(row.status || 'active').toLowerCase();
-      if (['inactive', 'deleted', 'archived'].includes(status)) return false;
-      if (row.deleted_at || row.archived_at) return false;
-
-      const type = String(row.type || '').toLowerCase();
-      if (['liability', 'credit_card', 'loan', 'debt'].includes(type)) return false;
-
-      return true;
+    document.querySelectorAll('[data-dry-run-recon]').forEach(button => {
+      button.addEventListener('click', () => {
+        saveReconciliation(button.getAttribute('data-dry-run-recon'), true);
+      });
     });
-}
 
-async function findAccount(db, accountId) {
-  const accounts = await loadAccounts(db);
-  const target = token(accountId);
+    document.querySelectorAll('[data-save-recon]').forEach(button => {
+      button.addEventListener('click', () => {
+        saveReconciliation(button.getAttribute('data-save-recon'), false);
+      });
+    });
+  }
 
-  return accounts.find(account =>
-    token(account.id) === target ||
-    token(account.name) === target
-  ) || null;
-}
+  /* ─── Render exceptions ───────────────────────────────────────────────── */
 
-async function loadLatestReconciliations(db) {
-  const map = new Map();
+  function renderExceptions() {
+    const panel = $('exceptionPanel');
+    if (!panel) return;
 
-  const res = await db.prepare(
-    `SELECT *
-     FROM account_reconciliations
-     ORDER BY datetime(created_at) DESC, id DESC`
-  ).all();
+    const exceptions = state.exceptions || [];
 
-  for (const row of res.results || []) {
-    if (!map.has(row.account_id)) {
-      map.set(row.account_id, row);
+    setText('exceptionTitle', exceptions.length ? `${exceptions.length} need review` : 'No exceptions');
+    setText('exceptionSub', exceptions.length
+      ? 'Non-zero balance differences.'
+      : 'No account differences found.');
+
+    if (!exceptions.length) {
+      panel.innerHTML = '<div class="recon-empty">No exceptions. Matched accounts or pending statements only.</div>';
+      return;
+    }
+
+    panel.innerHTML = exceptions.map(row => `
+      <div class="recon-empty">
+        <strong>${esc(row.account_name)}</strong><br>
+        Difference: ${esc(money(row.difference))}<br>
+        ${esc(recommendation(row))}
+      </div>
+    `).join('');
+  }
+
+  /* ─── Render raw ──────────────────────────────────────────────────────── */
+
+  function renderRaw() {
+    const raw = $('reconRaw');
+    if (raw) raw.textContent = JSON.stringify(state.payload || {}, null, 2);
+  }
+
+  /* ─── Render all ──────────────────────────────────────────────────────── */
+
+  function renderAll(payload) {
+    state.payload = payload || {};
+    state.rows = Array.isArray(payload.rows) ? payload.rows : [];
+    state.exceptions = Array.isArray(payload.exceptions) ? payload.exceptions : [];
+
+    renderKpis(payload.summary || {});
+    renderRows();
+    renderExceptions();
+    renderRaw();
+
+    setText('reconHealth', 'Health OK');
+    setText('reconReviewChip', `${payload.summary?.needs_review_count || 0} need review`);
+    setText('reconStatusDetail', `${state.rows.length} account${state.rows.length === 1 ? '' : 's'} loaded.`);
+    setText('reconVersion', VERSION);
+    setText('reconFooterVersion', `reconciliation.html · ${VERSION} · backend ${payload.version || 'unknown'}`);
+  }
+
+  /* ─── Build save payload ──────────────────────────────────────────────── */
+
+  function payloadForAccount(accountId) {
+    return {
+      account_id: accountId,
+      statement_date: document.querySelector(`[data-recon-date="${cssEscape(accountId)}"]`)?.value || todayISO(),
+      real_balance: num(document.querySelector(`[data-recon-real="${cssEscape(accountId)}"]`)?.value, null),
+      notes: document.querySelector(`[data-recon-notes="${cssEscape(accountId)}"]`)?.value || '',
+      created_by: 'web-reconciliation-v0.1.0'
+    };
+  }
+
+  /* ─── Save / dry-run ──────────────────────────────────────────────────── */
+
+  async function saveReconciliation(accountId, dryRun) {
+    const payload = payloadForAccount(accountId);
+
+    if (payload.real_balance === null || Number.isNaN(payload.real_balance)) {
+      toast('Enter real balance first.');
+      return;
+    }
+
+    try {
+      const result = await postJSON(`${API_RECON}${dryRun ? '?dry_run=1' : ''}`, payload);
+      toast(dryRun ? `Dry-run: ${result.recommendation}` : 'Reconciliation saved.');
+
+      if (!dryRun) {
+        await loadReconciliation();
+      }
+    } catch (err) {
+      toast(`${dryRun ? 'Dry-run' : 'Save'} failed: ${err.message}`);
     }
   }
 
-  return map;
-}
+  /* ─── Load ────────────────────────────────────────────────────────────── */
 
-/* -----------------------------
- * Helpers
- * ----------------------------- */
+  async function loadReconciliation() {
+    setText('reconHealth', 'Loading reconciliation');
+    setText('reconStatusDetail', 'Reading account balances.');
 
-function summarize(rows) {
-  const appBalance = round2(rows.reduce((sum, row) => sum + moneyNumber(row.app_balance, 0), 0));
-  const realBalance = round2(rows.reduce((sum, row) => {
-    return sum + (row.real_balance == null ? moneyNumber(row.app_balance, 0) : moneyNumber(row.real_balance, 0));
-  }, 0));
+    const list = $('reconList');
+    if (list) list.innerHTML = '<div class="recon-empty">Loading accounts…</div>';
 
-  const difference = round2(realBalance - appBalance);
-  const matched = rows.filter(row => row.status === 'matched').length;
-  const needsReview = rows.filter(row => row.status === 'needs_review').length;
-  const pending = rows.filter(row => row.status === 'pending_statement').length;
+    try {
+      const payload = await fetchJSON(API_RECON);
+      renderAll(payload);
+    } catch (err) {
+      setText('reconHealth', 'Reconciliation unavailable');
+      setText('reconStatusDetail', err.message);
 
-  return {
-    app_balance: appBalance,
-    real_balance: realBalance,
-    difference,
-    matched_count: matched,
-    needs_review_count: needsReview,
-    pending_statement_count: pending,
-    account_count: rows.length
-  };
-}
+      if (list) {
+        list.innerHTML = `<div class="recon-empty">Reconciliation could not load: ${esc(err.message)}</div>`;
+      }
 
-function recommendationForDifference(difference) {
-  const diff = moneyNumber(difference, 0);
-
-  if (diff === 0) {
-    return 'Balances match. No action needed.';
+      state.payload = { error: err.message };
+      renderRaw();
+    }
   }
 
-  if (diff < 0) {
-    return 'Real balance is lower than app balance. Possible missing expense, fee, withdrawal, transfer out, or duplicate income.';
+  /* ─── Toast ───────────────────────────────────────────────────────────── */
+
+  function toast(message) {
+    const el = $('reconToast');
+    if (!el) return;
+
+    el.textContent = message;
+    el.classList.add('show');
+
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 3500);
   }
 
-  return 'Real balance is higher than app balance. Possible missing income, refund, reversal, transfer in, or duplicate expense.';
-}
+  /* ─── Init ────────────────────────────────────────────────────────────── */
 
-function normalizeAccount(row) {
-  return {
-    id: safeText(row.id, '', 160),
-    name: safeText(row.name || row.id, '', 160),
-    type: safeText(row.type || row.kind || 'asset', 'asset', 80),
-    status: safeText(row.status || 'active', 'active', 80),
-    balance: moneyNumber(row.balance ?? row.current_balance ?? row.amount, 0),
-    deleted_at: row.deleted_at || null,
-    archived_at: row.archived_at || null
-  };
-}
+  function init() {
+    $('refreshReconBtn')?.addEventListener('click', loadReconciliation);
+    loadReconciliation();
 
-async function tableColumns(db, table) {
-  try {
-    const res = await db.prepare(`PRAGMA table_info(${table})`).all();
-    return new Set((res.results || []).map(row => row.name).filter(Boolean));
-  } catch {
-    return new Set();
-  }
-}
-
-async function readJSON(request) {
-  try {
-    return await request.json();
-  } catch {
-    return {};
-  }
-}
-
-async function withJsonErrors(method, fn) {
-  try {
-    return await fn();
-  } catch (err) {
-    return json({
-      ok: false,
+    window.SovereignReconciliation = {
       version: VERSION,
-      method,
-      error: err.message || String(err),
-      stack: String(err && err.stack ? err.stack : '').split('\n').slice(0, 6).join('\n')
-    }, 500);
+      reload: loadReconciliation,
+      state: () => JSON.parse(JSON.stringify(state))
+    };
   }
-}
 
-function normalizeDate(value) {
-  const raw = safeText(value, '', 40);
-  if (!raw) return '';
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-  return '';
-}
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  } else {
+    init();
+  }
 
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function safeText(value, fallback = '', max = 500) {
-  const raw = value == null || value === '' ? fallback : value;
-  return String(raw == null ? '' : raw).trim().slice(0, max);
-}
-
-function moneyNumber(value, fallback = 0) {
-  if (value === undefined || value === null || value === '') return fallback;
-
-  const n = typeof value === 'number'
-    ? value
-    : Number(String(value).replace(/rs/ig, '').replace(/,/g, '').trim());
-
-  return Number.isFinite(n) ? round2(n) : fallback;
-}
-
-function round2(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return 0;
-  return Math.round(n * 100) / 100;
-}
-
-function token(value) {
-  return String(value || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
-
-function makeId(prefix) {
-  return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-}
-
-function json(payload, status = 200) {
-  return new Response(JSON.stringify(payload, null, 2), {
-    status,
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-      Pragma: 'no-cache'
-    }
-  });
-}
+})();
