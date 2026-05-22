@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" data-page="bills">
+<html lang="en" data-page="bills" data-theme="dark" data-bg="warm-command" data-accent="amber">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#050816">
+  <meta name="theme-color" content="#0d0d0d">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -34,6 +34,13 @@
       ]
     };
   </script>
+  <style>
+    /* Text overflow safety */
+    [class*="-name"], [class*="-title"], [class*="-label"] {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    [class*="-left"], [class*="-meta"], [class*="-text"] { min-width: 0; }
+  </style>
 </head>
 
 <body class="sf-shell-body">
