@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-page="add">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -7,7 +7,7 @@
   <title>Add Transaction · Sovereign Finance</title>
 
   <script src="/js/sf-theme-switcher.js"></script>
-<link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-theme.css">
   <link rel="stylesheet" href="/css/sf-shell.css">
 
   <script>
@@ -23,445 +23,450 @@
       kpis: []
     };
   </script>
+</head>
+
+<body class="sf-shell-body">
+  <div class="sf-app-shell sf-app-shell--with-nav">
+    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
+
+    <main class="sf-page-shell">
+      <section class="sf-page-content">
+
+        <section class="sf-panel sf-panel--accent sf-span-12" aria-labelledby="add-mode-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Mode</p>
+              <h2 id="add-mode-title" class="sf-section-title">Choose what you are recording</h2>
+              <p class="sf-section-subtitle">
+                Keep the primary workflow clean: Expense, Income, Transfer, or International. Everything else routes to its owner page below.
+              </p>
+            </div>
+            <div class="sf-section-meta">
+              <span id="add-selected-mode-pill" class="sf-pill sf-pill--positive">Expense</span>
+              <span id="add-route-pill" class="sf-pill sf-pill--positive">Direct save</span>
+            </div>
+          </div>
+
+          <div class="sf-chip-row add-mode-row" role="group" aria-label="Transaction modes">
+            <button class="sf-chip is-active" type="button" data-add-mode="expense">Expense</button>
+            <button class="sf-chip" type="button" data-add-mode="income">Income</button>
+            <button class="sf-chip" type="button" data-add-mode="transfer">Transfer</button>
+            <button class="sf-chip" type="button" data-add-mode="international">International</button>
+          </div>
+        </section>
+
+        <section class="sf-panel sf-span-7" aria-labelledby="add-form-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Entry</p>
+              <h2 id="add-form-title" class="sf-section-title">Transaction details</h2>
+              <p id="add-form-copy" class="sf-section-subtitle">
+                Expense requires amount, source account, and category. Destination account is only for Transfer.
+              </p>
+            </div>
+            <div class="sf-section-meta">
+              <span id="add-form-status" class="sf-pill">Waiting</span>
+            </div>
+          </div>
+
+          <form id="add-form" class="sf-form-grid" autocomplete="off">
+            <div class="sf-field sf-span-6">
+              <label for="add-amount">Amount</label>
+              <input id="add-amount" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required>
+              <p id="add-amount-help" class="sf-field-help">Positive amount only.</p>
+            </div>
+
+            <div class="sf-field sf-span-6">
+              <label for="add-date">Date</label>
+              <input id="add-date" class="sf-input" type="date" required>
+            </div>
+
+            <div class="sf-field sf-span-6">
+              <label id="add-account-label" for="add-account">Source account</label>
+              <select id="add-account" class="sf-select" required>
+                <option value="">Loading accounts…</option>
+              </select>
+              <p id="add-account-help" class="sf-field-help">The account affected by this transaction.</p>
+            </div>
+
+            <div id="add-category-field" class="sf-field sf-span-6">
+              <label for="add-category">Category</label>
+              <select id="add-category" class="sf-select" required>
+                <option value="">Loading categories…</option>
+              </select>
+              <p class="sf-field-help">Used for Expense, Income, and International package labeling.</p>
+            </div>
+
+            <div id="add-destination-field" class="sf-field sf-span-6" hidden>
+              <label for="add-destination-account">Destination account</label>
+              <select id="add-destination-account" class="sf-select">
+                <option value="">Select destination…</option>
+              </select>
+              <p class="sf-field-help">Only used for Transfer.</p>
+            </div>
+
+            <div class="sf-field sf-span-6">
+              <label id="add-merchant-label" for="add-merchant">Merchant / source / person</label>
+              <input id="add-merchant" class="sf-input" type="text" placeholder="e.g. Imtiaz, Salary, Ali, Fuel">
+            </div>
+
+            <div class="sf-field sf-span-6">
+              <label for="add-reference">Reference</label>
+              <input id="add-reference" class="sf-input" type="text" placeholder="Optional receipt, invoice, transfer ref">
+            </div>
+
+            <div class="sf-field sf-span-6">
+              <label for="add-notes">Notes</label>
+              <input id="add-notes" class="sf-input" type="text" placeholder="Optional note">
+            </div>
+
+            <div id="add-international-fields" class="sf-span-12" hidden>
+              <div class="sf-panel" style="margin-top: var(--sf-space-4);">
+                <div class="sf-section-head">
+                  <div>
+                    <p class="sf-section-kicker">International Package</p>
+                    <h3 class="sf-section-title">Subtype and amount</h3>
+                    <p class="sf-section-subtitle">
+                      Pick how the bank charged you. Engine auto-computes FX fee, excise, advance tax, PRA, and bank charge from configured rates.
+                    </p>
+                  </div>
+                  <div class="sf-section-meta">
+                    <span id="add-intl-rates-pill" class="sf-pill sf-pill--info" title="Edit at /intl-rates.html">Rates · loading</span>
+                  </div>
+                </div>
+
+                <div class="sf-form-grid">
+                  <div class="sf-field sf-span-12">
+                    <label class="sf-label">Subtype</label>
+                    <div class="sf-chip-row" role="radiogroup" aria-label="International subtype">
+                      <button type="button" id="add-intl-subtype-foreign" class="sf-chip is-active" data-intl-subtype="foreign" role="radio" aria-checked="true">
+                        Foreign currency
+                      </button>
+                      <button type="button" id="add-intl-subtype-pkr" class="sf-chip" data-intl-subtype="pkr_base" role="radio" aria-checked="false">
+                        PKR-base international
+                      </button>
+                    </div>
+                    <p class="sf-field-help" id="add-intl-subtype-help">
+                      Foreign: bank charged you in USD/EUR/etc. and converted to PKR. Engine fetches FX rate.<br>
+                      PKR-base: bank charged you in PKR but it&rsquo;s an international transaction (e.g. Google subscription billed in PKR). No FX conversion.
+                    </p>
+                  </div>
+
+                  <div id="add-intl-foreign-fields" class="sf-span-12">
+                    <div class="sf-form-grid">
+                      <div class="sf-field sf-span-4">
+                        <label for="add-intl-foreign-amount">Foreign amount</label>
+                        <input id="add-intl-foreign-amount" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+                        <p class="sf-field-help">Amount in foreign currency (e.g. 9.99).</p>
+                      </div>
+
+                      <div class="sf-field sf-span-3">
+                        <label for="add-intl-currency">Currency</label>
+                        <select id="add-intl-currency" class="sf-select">
+                          <option value="USD" selected>USD</option>
+                          <option value="EUR">EUR</option>
+                          <option value="GBP">GBP</option>
+                          <option value="AED">AED</option>
+                          <option value="SAR">SAR</option>
+                          <option value="JPY">JPY</option>
+                          <option value="CAD">CAD</option>
+                          <option value="AUD">AUD</option>
+                          <option value="CNY">CNY</option>
+                          <option value="INR">INR</option>
+                        </select>
+                      </div>
+
+                      <div class="sf-field sf-span-3">
+                        <label for="add-intl-fx-rate">FX rate (PKR per 1)</label>
+                        <input id="add-intl-fx-rate" class="sf-input" type="number" inputmode="decimal" min="0" step="0.0001" placeholder="auto">
+                        <p class="sf-field-help" id="add-intl-fx-rate-help">Leave blank to auto-fetch.</p>
+                      </div>
+
+                      <div class="sf-field sf-span-2">
+                        <label class="sf-label">&nbsp;</label>
+                        <button type="button" id="add-intl-fx-fetch" class="sf-button sf-button--primary" style="width:100%;">
+                          Auto-fetch
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div id="add-intl-pkr-fields" class="sf-span-12" hidden>
+                    <div class="sf-form-grid">
+                      <div class="sf-field sf-span-6">
+                        <label for="add-intl-pkr-amount">PKR amount</label>
+                        <input id="add-intl-pkr-amount" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+                        <p class="sf-field-help">Amount the bank charged you in PKR. No FX conversion applied.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="sf-field sf-span-6">
+                    <label for="add-intl-bank-charge">Bank charge override (optional)</label>
+                    <input id="add-intl-bank-charge" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="auto from rates">
+                    <p class="sf-field-help">Leave blank to use configured default. Set to 0 to suppress, or override per transaction.</p>
+                  </div>
+
+                  <div class="sf-field sf-span-6">
+                    <label class="sf-label">Punjab IT services tax (PRA)</label>
+                    <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--sf-border);border-radius:var(--sf-radius-sm);background:var(--sf-surface-1);cursor:pointer;">
+                      <input id="add-intl-include-pra" type="checkbox" style="width:18px;height:18px;accent-color:var(--sf-accent);">
+                      <span style="font-size:var(--sf-font-13);color:var(--sf-text-soft);">Include PRA (5% of base)</span>
+                    </label>
+                    <p class="sf-field-help">Tick if this merchant collects PRA. Skip otherwise. Defaults from merchant profile if known.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sf-panel sf-panel--accent" id="add-intl-package-preview" style="margin-top: var(--sf-space-4);" hidden>
+                <div class="sf-section-head">
+                  <div>
+                    <p class="sf-section-kicker">Package Preview</p>
+                    <h3 class="sf-section-title">Computed breakdown</h3>
+                    <p class="sf-section-subtitle">
+                      Each component will be written as a separate ledger row under one package id. Source account decreases by the total.
+                    </p>
+                  </div>
+                  <div class="sf-section-meta">
+                    <span id="add-intl-fx-source-pill" class="sf-pill" hidden></span>
+                  </div>
+                </div>
+
+                <div class="sf-dense-grid" id="add-intl-package-rows">
+                  <!-- rows rendered by js/add.js -->
+                </div>
+
+                <div class="sf-row" style="margin-top: var(--sf-space-4); border: 1px solid var(--sf-accent-border); background: var(--sf-accent-soft);">
+                  <div class="sf-row-main">
+                    <div class="sf-row-title">Total package</div>
+                    <div class="sf-row-subtitle" id="add-intl-package-meta">—</div>
+                  </div>
+                  <div class="sf-row-value" id="add-intl-package-total" style="color: var(--sf-accent-strong); font-size: var(--sf-font-20);">—</div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <section class="sf-panel sf-span-5" aria-labelledby="add-impact-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Live Impact</p>
+              <h2 id="add-impact-title" class="sf-section-title">Account balance preview</h2>
+              <p class="sf-section-subtitle">
+                This is a UI preview from loaded account balances. Backend remains final truth.
+              </p>
+            </div>
+          </div>
+
+          <div id="add-live-impact" class="sf-dense-grid">
+            <div class="sf-empty-state">
+              <div>
+                <h3 class="sf-card-title">Waiting for input</h3>
+                <p class="sf-card-subtitle">Choose account and amount to preview the account impact.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sf-panel sf-span-7" aria-labelledby="add-review-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Review</p>
+              <h2 id="add-review-title" class="sf-section-title">What will be submitted</h2>
+              <p class="sf-section-subtitle">
+                Review the payload before dry-run. Direct save is enabled only for Expense, Income, and Transfer.
+              </p>
+            </div>
+          </div>
+
+          <div id="add-review-panel" class="sf-dense-grid">
+            <div class="sf-empty-state">
+              <div>
+                <h3 class="sf-card-title">No payload yet</h3>
+                <p class="sf-card-subtitle">Fill the form to build the review.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sf-panel sf-span-5" aria-labelledby="add-proof-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Dry-run & Save</p>
+              <h2 id="add-proof-title" class="sf-section-title">Backend validation</h2>
+              <p class="sf-section-subtitle">
+                Dry-run must pass before Confirm Save unlocks.
+              </p>
+            </div>
+          </div>
+
+          <div class="sf-section-head" style="margin-bottom: var(--sf-space-3);">
+            <div>
+              <p class="sf-section-kicker">Dry-run</p>
+              <h3 class="sf-section-title">Proof before save</h3>
+            </div>
+            <div class="sf-section-meta">
+              <button id="add-run-dryrun" class="sf-button sf-button--primary" type="button" disabled>Run Dry-Run</button>
+            </div>
+          </div>
+
+          <div id="add-dryrun-panel" class="sf-dense-grid">
+            <div class="sf-empty-state">
+              <div>
+                <h3 class="sf-card-title">Dry-run not run</h3>
+                <p class="sf-card-subtitle">A valid direct-mode payload is required.</p>
+              </div>
+            </div>
+          </div>
+
+          <div style="height: var(--sf-space-5);"></div>
+
+          <div class="sf-section-head" style="margin-bottom: var(--sf-space-3);">
+            <div>
+              <p class="sf-section-kicker">Commit</p>
+              <h3 class="sf-section-title">Final save</h3>
+            </div>
+            <div class="sf-section-meta">
+              <button id="add-confirm-save" class="sf-button sf-button--primary" type="button" disabled>Confirm Save</button>
+            </div>
+          </div>
+
+          <div id="add-save-panel" class="sf-dense-grid">
+            <div class="sf-empty-state">
+              <div>
+                <h3 class="sf-card-title">Save blocked</h3>
+                <p class="sf-card-subtitle">Run backend dry-run first.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sf-panel sf-span-7" aria-labelledby="add-assist-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Smart Assist</p>
+              <h2 id="add-assist-title" class="sf-section-title">Suggestions</h2>
+              <p class="sf-section-subtitle">
+                Merchant, salary, and international hints appear here. Nothing auto-writes.
+              </p>
+            </div>
+          </div>
+
+          <div id="add-smart-assist" class="sf-dense-grid">
+            <div class="sf-empty-state">
+              <div>
+                <h3 class="sf-card-title">Waiting for input</h3>
+                <p class="sf-card-subtitle">Suggestions appear after amount, merchant, or mode changes.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sf-panel sf-span-5" aria-labelledby="add-source-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Source State</p>
+              <h2 id="add-source-title" class="sf-section-title">Write preconditions</h2>
+              <p class="sf-section-subtitle">
+                Accounts and categories must load before direct save.
+              </p>
+            </div>
+            <div class="sf-section-meta">
+              <span id="add-source-overall" class="sf-pill">Loading</span>
+            </div>
+          </div>
+
+          <div id="add-source-list" class="sf-dense-grid">
+            <div class="sf-loading-state">
+              <div>
+                <h3 class="sf-card-title">Loading sources</h3>
+                <p class="sf-card-subtitle">Reading /api/add/context.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sf-panel sf-span-12" aria-labelledby="add-routes-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Other Finance Workflows</p>
+              <h2 id="add-routes-title" class="sf-section-title">Owner pages</h2>
+              <p class="sf-section-subtitle">
+                These are not primary Add modes yet. They route to owner pages to preserve linked records and source-truth logic.
+              </p>
+            </div>
+          </div>
+
+          <div class="sf-secondary-grid">
+            <a class="sf-finance-row" id="add-route-bills" href="/bills.html">
+              <div class="sf-row-left">
+                <div class="sf-row-title">Bill Payment</div>
+                <div class="sf-row-subtitle">Preserves bill link, cycle, and payment record.</div>
+              </div>
+              <div class="sf-row-right">Open Bills</div>
+            </a>
+
+            <a class="sf-finance-row" id="add-route-debts" href="/debts.html">
+              <div class="sf-row-left">
+                <div class="sf-row-title">Debt Given / Debt Received</div>
+                <div class="sf-row-subtitle">Debt state and ledger write belong to Debts.</div>
+              </div>
+              <div class="sf-row-right">Open Debts</div>
+            </a>
+
+            <a class="sf-finance-row" id="add-route-cc" href="/cc.html">
+              <div class="sf-row-left">
+                <div class="sf-row-title">Credit Card</div>
+                <div class="sf-row-subtitle">Preserves liability semantics and card pressure.</div>
+              </div>
+              <div class="sf-row-right">Open Credit Card</div>
+            </a>
+
+            <a class="sf-finance-row" id="add-route-atm" href="/atm.html">
+              <div class="sf-row-left">
+                <div class="sf-row-title">ATM Withdrawal</div>
+                <div class="sf-row-subtitle">Linked movement and fee behavior belongs to ATM.</div>
+              </div>
+              <div class="sf-row-right">Open ATM</div>
+            </a>
+
+            <a class="sf-finance-row" id="add-route-merchants" href="/merchants.html">
+              <div class="sf-row-left">
+                <div class="sf-row-title">Merchants</div>
+                <div class="sf-row-subtitle">Merchant rules suggest account/category/PRA.</div>
+              </div>
+              <div class="sf-row-right">Open Merchants</div>
+            </a>
+
+            <a class="sf-finance-row" id="add-route-salary" href="/salary.html">
+              <div class="sf-row-left">
+                <div class="sf-row-title">Salary Source</div>
+                <div class="sf-row-subtitle">Salary source updates belong to Salary.</div>
+              </div>
+              <div class="sf-row-right">Open Salary</div>
+            </a>
+          </div>
+        </section>
+
+        <section id="add-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Debug</p>
+              <h2 class="sf-section-title">Add Transaction Debug</h2>
+              <p class="sf-section-subtitle">Visible only with ?debug=1.</p>
+            </div>
+          </div>
+
+          <pre id="add-debug-output" class="sf-debug-text">Waiting for js/add.js.</pre>
+        </section>
+
+      </section>
+    </main>
+  </div>
 
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
-</head>
-
-<body>
-  <section class="sf-panel-grid" aria-label="Add transaction workspace">
-
-    <section class="sf-panel sf-panel--accent sf-span-12" aria-labelledby="add-mode-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Mode</p>
-          <h2 id="add-mode-title" class="sf-section-title">Choose what you are recording</h2>
-          <p class="sf-section-subtitle">
-            Keep the primary workflow clean: Expense, Income, Transfer, or International. Everything else routes to its owner page below.
-          </p>
-        </div>
-        <div class="sf-section-meta">
-          <span id="add-selected-mode-pill" class="sf-pill sf-pill--positive">Expense</span>
-          <span id="add-route-pill" class="sf-pill sf-pill--positive">Direct save</span>
-        </div>
-      </div>
-
-      <div class="sf-chip-row add-mode-row" role="group" aria-label="Transaction modes">
-        <button class="sf-chip is-active" type="button" data-add-mode="expense">Expense</button>
-        <button class="sf-chip" type="button" data-add-mode="income">Income</button>
-        <button class="sf-chip" type="button" data-add-mode="transfer">Transfer</button>
-        <button class="sf-chip" type="button" data-add-mode="international">International</button>
-      </div>
-    </section>
-
-    <section class="sf-panel sf-span-7" aria-labelledby="add-form-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Entry</p>
-          <h2 id="add-form-title" class="sf-section-title">Transaction details</h2>
-          <p id="add-form-copy" class="sf-section-subtitle">
-            Expense requires amount, source account, and category. Destination account is only for Transfer.
-          </p>
-        </div>
-        <div class="sf-section-meta">
-          <span id="add-form-status" class="sf-pill">Waiting</span>
-        </div>
-      </div>
-
-      <form id="add-form" class="sf-form-grid" autocomplete="off">
-        <div class="sf-field sf-span-6">
-          <label for="add-amount">Amount</label>
-          <input id="add-amount" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00" required>
-          <p id="add-amount-help" class="sf-field-help">Positive amount only.</p>
-        </div>
-
-        <div class="sf-field sf-span-6">
-          <label for="add-date">Date</label>
-          <input id="add-date" class="sf-input" type="date" required>
-        </div>
-
-        <div class="sf-field sf-span-6">
-          <label id="add-account-label" for="add-account">Source account</label>
-          <select id="add-account" class="sf-select" required>
-            <option value="">Loading accounts…</option>
-          </select>
-          <p id="add-account-help" class="sf-field-help">The account affected by this transaction.</p>
-        </div>
-
-        <div id="add-category-field" class="sf-field sf-span-6">
-          <label for="add-category">Category</label>
-          <select id="add-category" class="sf-select" required>
-            <option value="">Loading categories…</option>
-          </select>
-          <p class="sf-field-help">Used for Expense, Income, and International package labeling.</p>
-        </div>
-
-        <div id="add-destination-field" class="sf-field sf-span-6" hidden>
-          <label for="add-destination-account">Destination account</label>
-          <select id="add-destination-account" class="sf-select">
-            <option value="">Select destination…</option>
-          </select>
-          <p class="sf-field-help">Only used for Transfer.</p>
-        </div>
-
-        <div class="sf-field sf-span-6">
-          <label id="add-merchant-label" for="add-merchant">Merchant / source / person</label>
-          <input id="add-merchant" class="sf-input" type="text" placeholder="e.g. Imtiaz, Salary, Ali, Fuel">
-        </div>
-
-        <div class="sf-field sf-span-6">
-          <label for="add-reference">Reference</label>
-          <input id="add-reference" class="sf-input" type="text" placeholder="Optional receipt, invoice, transfer ref">
-        </div>
-
-        <div class="sf-field sf-span-6">
-          <label for="add-notes">Notes</label>
-          <input id="add-notes" class="sf-input" type="text" placeholder="Optional note">
-        </div>
-
-        <div id="add-international-fields" class="sf-span-12" hidden>
-          <div class="sf-panel" style="margin-top: var(--sf-space-4);">
-            <div class="sf-section-head">
-              <div>
-                <p class="sf-section-kicker">International Package</p>
-                <h3 class="sf-section-title">Subtype and amount</h3>
-                <p class="sf-section-subtitle">
-                  Pick how the bank charged you. Engine auto-computes FX fee, excise, advance tax, PRA, and bank charge from configured rates.
-                </p>
-              </div>
-              <div class="sf-section-meta">
-                <span id="add-intl-rates-pill" class="sf-pill sf-pill--info" title="Edit at /intl-rates.html">Rates · loading</span>
-              </div>
-            </div>
-
-            <div class="sf-form-grid">
-              <div class="sf-field sf-span-12">
-                <label class="sf-label">Subtype</label>
-                <div class="sf-chip-row" role="radiogroup" aria-label="International subtype">
-                  <button type="button" id="add-intl-subtype-foreign" class="sf-chip is-active" data-intl-subtype="foreign" role="radio" aria-checked="true">
-                    Foreign currency
-                  </button>
-                  <button type="button" id="add-intl-subtype-pkr" class="sf-chip" data-intl-subtype="pkr_base" role="radio" aria-checked="false">
-                    PKR-base international
-                  </button>
-                </div>
-                <p class="sf-field-help" id="add-intl-subtype-help">
-                  Foreign: bank charged you in USD/EUR/etc. and converted to PKR. Engine fetches FX rate.<br>
-                  PKR-base: bank charged you in PKR but it&rsquo;s an international transaction (e.g. Google subscription billed in PKR). No FX conversion.
-                </p>
-              </div>
-
-              <div id="add-intl-foreign-fields" class="sf-span-12">
-                <div class="sf-form-grid">
-                  <div class="sf-field sf-span-4">
-                    <label for="add-intl-foreign-amount">Foreign amount</label>
-                    <input id="add-intl-foreign-amount" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
-                    <p class="sf-field-help">Amount in foreign currency (e.g. 9.99).</p>
-                  </div>
-
-                  <div class="sf-field sf-span-3">
-                    <label for="add-intl-currency">Currency</label>
-                    <select id="add-intl-currency" class="sf-select">
-                      <option value="USD" selected>USD</option>
-                      <option value="EUR">EUR</option>
-                      <option value="GBP">GBP</option>
-                      <option value="AED">AED</option>
-                      <option value="SAR">SAR</option>
-                      <option value="JPY">JPY</option>
-                      <option value="CAD">CAD</option>
-                      <option value="AUD">AUD</option>
-                      <option value="CNY">CNY</option>
-                      <option value="INR">INR</option>
-                    </select>
-                  </div>
-
-                  <div class="sf-field sf-span-3">
-                    <label for="add-intl-fx-rate">FX rate (PKR per 1)</label>
-                    <input id="add-intl-fx-rate" class="sf-input" type="number" inputmode="decimal" min="0" step="0.0001" placeholder="auto">
-                    <p class="sf-field-help" id="add-intl-fx-rate-help">Leave blank to auto-fetch.</p>
-                  </div>
-
-                  <div class="sf-field sf-span-2">
-                    <label class="sf-label">&nbsp;</label>
-                    <button type="button" id="add-intl-fx-fetch" class="sf-button sf-button--primary" style="width:100%;">
-                      Auto-fetch
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div id="add-intl-pkr-fields" class="sf-span-12" hidden>
-                <div class="sf-form-grid">
-                  <div class="sf-field sf-span-6">
-                    <label for="add-intl-pkr-amount">PKR amount</label>
-                    <input id="add-intl-pkr-amount" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
-                    <p class="sf-field-help">Amount the bank charged you in PKR. No FX conversion applied.</p>
-                  </div>
-                </div>
-              </div>
-
-              <div class="sf-field sf-span-6">
-                <label for="add-intl-bank-charge">Bank charge override (optional)</label>
-                <input id="add-intl-bank-charge" class="sf-input" type="number" inputmode="decimal" min="0" step="0.01" placeholder="auto from rates">
-                <p class="sf-field-help">Leave blank to use configured default. Set to 0 to suppress, or override per transaction.</p>
-              </div>
-
-              <div class="sf-field sf-span-6">
-                <label class="sf-label">Punjab IT services tax (PRA)</label>
-                <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--sf-border);border-radius:var(--sf-radius-sm);background:var(--sf-surface-1);cursor:pointer;">
-                  <input id="add-intl-include-pra" type="checkbox" style="width:18px;height:18px;accent-color:var(--sf-accent);">
-                  <span style="font-size:var(--sf-font-13);color:var(--sf-text-soft);">Include PRA (5% of base)</span>
-                </label>
-                <p class="sf-field-help">Tick if this merchant collects PRA. Skip otherwise. Defaults from merchant profile if known.</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="sf-panel sf-panel--accent" id="add-intl-package-preview" style="margin-top: var(--sf-space-4);" hidden>
-            <div class="sf-section-head">
-              <div>
-                <p class="sf-section-kicker">Package Preview</p>
-                <h3 class="sf-section-title">Computed breakdown</h3>
-                <p class="sf-section-subtitle">
-                  Each component will be written as a separate ledger row under one package id. Source account decreases by the total.
-                </p>
-              </div>
-              <div class="sf-section-meta">
-                <span id="add-intl-fx-source-pill" class="sf-pill" hidden></span>
-              </div>
-            </div>
-
-            <div class="sf-dense-grid" id="add-intl-package-rows">
-              <!-- rows rendered by js/add.js -->
-            </div>
-
-            <div class="sf-row" style="margin-top: var(--sf-space-4); border: 1px solid var(--sf-accent-border); background: var(--sf-accent-soft);">
-              <div class="sf-row-main">
-                <div class="sf-row-title">Total package</div>
-                <div class="sf-row-subtitle" id="add-intl-package-meta">—</div>
-              </div>
-              <div class="sf-row-value" id="add-intl-package-total" style="color: var(--sf-accent-strong); font-size: var(--sf-font-20);">—</div>
-            </div>
-          </div>
-        </div>
-      </form>
-    </section>
-
-    <section class="sf-panel sf-span-5" aria-labelledby="add-impact-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Live Impact</p>
-          <h2 id="add-impact-title" class="sf-section-title">Account balance preview</h2>
-          <p class="sf-section-subtitle">
-            This is a UI preview from loaded account balances. Backend remains final truth.
-          </p>
-        </div>
-      </div>
-
-      <div id="add-live-impact" class="sf-dense-grid">
-        <div class="sf-empty-state">
-          <div>
-            <h3 class="sf-card-title">Waiting for input</h3>
-            <p class="sf-card-subtitle">Choose account and amount to preview the account impact.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="sf-panel sf-span-7" aria-labelledby="add-review-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Review</p>
-          <h2 id="add-review-title" class="sf-section-title">What will be submitted</h2>
-          <p class="sf-section-subtitle">
-            Review the payload before dry-run. Direct save is enabled only for Expense, Income, and Transfer.
-          </p>
-        </div>
-      </div>
-
-      <div id="add-review-panel" class="sf-dense-grid">
-        <div class="sf-empty-state">
-          <div>
-            <h3 class="sf-card-title">No payload yet</h3>
-            <p class="sf-card-subtitle">Fill the form to build the review.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="sf-panel sf-span-5" aria-labelledby="add-proof-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Dry-run & Save</p>
-          <h2 id="add-proof-title" class="sf-section-title">Backend validation</h2>
-          <p class="sf-section-subtitle">
-            Dry-run must pass before Confirm Save unlocks.
-          </p>
-        </div>
-      </div>
-
-      <div class="sf-section-head" style="margin-bottom: var(--sf-space-3);">
-        <div>
-          <p class="sf-section-kicker">Dry-run</p>
-          <h3 class="sf-section-title">Proof before save</h3>
-        </div>
-        <div class="sf-section-meta">
-          <button id="add-run-dryrun" class="sf-button sf-button--primary" type="button" disabled>Run Dry-Run</button>
-        </div>
-      </div>
-
-      <div id="add-dryrun-panel" class="sf-dense-grid">
-        <div class="sf-empty-state">
-          <div>
-            <h3 class="sf-card-title">Dry-run not run</h3>
-            <p class="sf-card-subtitle">A valid direct-mode payload is required.</p>
-          </div>
-        </div>
-      </div>
-
-      <div style="height: var(--sf-space-5);"></div>
-
-      <div class="sf-section-head" style="margin-bottom: var(--sf-space-3);">
-        <div>
-          <p class="sf-section-kicker">Commit</p>
-          <h3 class="sf-section-title">Final save</h3>
-        </div>
-        <div class="sf-section-meta">
-          <button id="add-confirm-save" class="sf-button sf-button--primary" type="button" disabled>Confirm Save</button>
-        </div>
-      </div>
-
-      <div id="add-save-panel" class="sf-dense-grid">
-        <div class="sf-empty-state">
-          <div>
-            <h3 class="sf-card-title">Save blocked</h3>
-            <p class="sf-card-subtitle">Run backend dry-run first.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="sf-panel sf-span-7" aria-labelledby="add-assist-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Smart Assist</p>
-          <h2 id="add-assist-title" class="sf-section-title">Suggestions</h2>
-          <p class="sf-section-subtitle">
-            Merchant, salary, and international hints appear here. Nothing auto-writes.
-          </p>
-        </div>
-      </div>
-
-      <div id="add-smart-assist" class="sf-dense-grid">
-        <div class="sf-empty-state">
-          <div>
-            <h3 class="sf-card-title">Waiting for input</h3>
-            <p class="sf-card-subtitle">Suggestions appear after amount, merchant, or mode changes.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="sf-panel sf-span-5" aria-labelledby="add-source-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Source State</p>
-          <h2 id="add-source-title" class="sf-section-title">Write preconditions</h2>
-          <p class="sf-section-subtitle">
-            Accounts and categories must load before direct save.
-          </p>
-        </div>
-        <div class="sf-section-meta">
-          <span id="add-source-overall" class="sf-pill">Loading</span>
-        </div>
-      </div>
-
-      <div id="add-source-list" class="sf-dense-grid">
-        <div class="sf-loading-state">
-          <div>
-            <h3 class="sf-card-title">Loading sources</h3>
-            <p class="sf-card-subtitle">Reading /api/add/context.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="sf-panel sf-span-12" aria-labelledby="add-routes-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Other Finance Workflows</p>
-          <h2 id="add-routes-title" class="sf-section-title">Owner pages</h2>
-          <p class="sf-section-subtitle">
-            These are not primary Add modes yet. They route to owner pages to preserve linked records and source-truth logic.
-          </p>
-        </div>
-      </div>
-
-      <div class="sf-secondary-grid">
-        <a class="sf-finance-row" id="add-route-bills" href="/bills.html">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Bill Payment</div>
-            <div class="sf-row-subtitle">Preserves bill link, cycle, and payment record.</div>
-          </div>
-          <div class="sf-row-right">Open Bills</div>
-        </a>
-
-        <a class="sf-finance-row" id="add-route-debts" href="/debts.html">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Debt Given / Debt Received</div>
-            <div class="sf-row-subtitle">Debt state and ledger write belong to Debts.</div>
-          </div>
-          <div class="sf-row-right">Open Debts</div>
-        </a>
-
-        <a class="sf-finance-row" id="add-route-cc" href="/cc.html">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Credit Card</div>
-            <div class="sf-row-subtitle">Preserves liability semantics and card pressure.</div>
-          </div>
-          <div class="sf-row-right">Open Credit Card</div>
-        </a>
-
-        <a class="sf-finance-row" id="add-route-atm" href="/atm.html">
-          <div class="sf-row-left">
-            <div class="sf-row-title">ATM Withdrawal</div>
-            <div class="sf-row-subtitle">Linked movement and fee behavior belongs to ATM.</div>
-          </div>
-          <div class="sf-row-right">Open ATM</div>
-        </a>
-
-        <a class="sf-finance-row" id="add-route-merchants" href="/merchants.html">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Merchants</div>
-            <div class="sf-row-subtitle">Merchant rules suggest account/category/PRA.</div>
-          </div>
-          <div class="sf-row-right">Open Merchants</div>
-        </a>
-
-        <a class="sf-finance-row" id="add-route-salary" href="/salary.html">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Salary Source</div>
-            <div class="sf-row-subtitle">Salary source updates belong to Salary.</div>
-          </div>
-          <div class="sf-row-right">Open Salary</div>
-        </a>
-      </div>
-    </section>
-
-    <section id="add-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Debug</p>
-          <h2 class="sf-section-title">Add Transaction Debug</h2>
-          <p class="sf-section-subtitle">Visible only with ?debug=1.</p>
-        </div>
-      </div>
-
-      <pre id="add-debug-output" class="sf-debug-text">Waiting for js/add.js.</pre>
-    </section>
-
-  </section>
-
   <script src="/js/add.js"></script>
 </body>
 </html>
