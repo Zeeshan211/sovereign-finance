@@ -1,367 +1,17 @@
 <!DOCTYPE html>
 <html lang="en" data-page="audit">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#050816" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#050816">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
 
   <title>Audit Trail · Sovereign Finance</title>
 
   <script src="/js/sf-theme-switcher.js"></script>
-  <link rel="stylesheet" href="/css/sf-theme.css" />
-  <link rel="stylesheet" href="/css/sf-shell.css" />
-
-  <style>
-    .audit-os {
-      width: min(100%, 1480px);
-      margin: 0 auto;
-      display: grid;
-      gap: var(--sf-space-5, 20px);
-    }
-
-    .audit-command {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: var(--sf-space-4, 16px);
-      align-items: center;
-      padding: clamp(18px, 3vw, 28px);
-      border: 1px solid var(--sf-border);
-      border-radius: var(--sf-radius-xl, 24px);
-      background: var(--sf-card);
-      box-shadow: var(--sf-shadow-sm);
-    }
-
-    .audit-title {
-      margin: 0;
-      color: var(--sf-text);
-      font-size: clamp(34px, 6vw, 62px);
-      line-height: .92;
-      font-weight: 950;
-      letter-spacing: -.07em;
-    }
-
-    .audit-copy {
-      margin: 10px 0 0;
-      color: var(--sf-text-muted);
-      font-size: var(--sf-font-14, 14px);
-      font-weight: 700;
-      line-height: 1.55;
-      max-width: 980px;
-    }
-
-    .audit-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--sf-space-2, 10px);
-      justify-content: flex-end;
-    }
-
-    .audit-hero {
-      position: relative;
-      overflow: hidden;
-      padding: clamp(22px, 4vw, 38px);
-      border-radius: var(--sf-radius-2xl, 30px);
-      color: #f8fafc;
-      background:
-        radial-gradient(circle at 82% 12%, rgba(83, 215, 167, .28), transparent 24rem),
-        linear-gradient(135deg, #06111f, #0f172a 48%, #102a25);
-      border: 1px solid rgba(255, 255, 255, .10);
-      box-shadow: var(--sf-shadow-lg);
-    }
-
-    .audit-hero h2 {
-      margin: 12px 0 0;
-      color: #fff;
-      font-size: clamp(34px, 6vw, 68px);
-      line-height: .92;
-      font-weight: 950;
-      letter-spacing: -.075em;
-    }
-
-    .audit-hero p {
-      max-width: 920px;
-      margin: 14px 0 0;
-      color: #cbd5e1;
-      font-size: var(--sf-font-15, 15px);
-      line-height: 1.6;
-      font-weight: 720;
-    }
-
-    .audit-pill-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 14px;
-    }
-
-    .audit-pill {
-      border: 1px solid rgba(255, 255, 255, .16);
-      border-radius: 999px;
-      background: rgba(255, 255, 255, .08);
-      color: #e5e7eb;
-      padding: 7px 10px;
-      font-size: 12px;
-      font-weight: 850;
-    }
-
-    .audit-metrics {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-      gap: var(--sf-space-4, 14px);
-    }
-
-    .audit-workspace {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(340px, 460px);
-      gap: var(--sf-space-4, 16px);
-      align-items: start;
-    }
-
-    .audit-stack {
-      display: grid;
-      gap: var(--sf-space-4, 16px);
-    }
-
-    .audit-filter-grid {
-      display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 12px;
-      align-items: end;
-    }
-
-    .audit-field {
-      display: grid;
-      gap: 7px;
-    }
-
-    .audit-field label {
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      font-weight: 850;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-
-    .audit-input,
-    .audit-select {
-      width: 100%;
-      border: 1px solid var(--sf-border);
-      border-radius: 14px;
-      background: var(--sf-surface-1);
-      color: var(--sf-text);
-      padding: 12px 13px;
-      font: inherit;
-      outline: none;
-    }
-
-    .audit-input:focus,
-    .audit-select:focus {
-      border-color: var(--sf-accent);
-      box-shadow: 0 0 0 3px var(--sf-accent-soft);
-    }
-
-    .audit-list {
-      display: grid;
-      gap: 12px;
-    }
-
-    .audit-event-card {
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 18px;
-      background: var(--sf-surface-1);
-      padding: 14px;
-      display: grid;
-      gap: 12px;
-    }
-
-    .audit-event-head {
-      display: grid;
-      grid-template-columns: 42px minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: center;
-    }
-
-    .audit-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 14px;
-      display: grid;
-      place-items: center;
-      background: var(--sf-accent-soft);
-      color: var(--sf-accent-strong);
-      font-weight: 900;
-    }
-
-    .audit-event-title {
-      color: var(--sf-text);
-      font-size: 15px;
-      font-weight: 950;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .audit-event-sub {
-      margin-top: 4px;
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.35;
-    }
-
-    .audit-time {
-      color: var(--sf-text);
-      font-size: 12px;
-      font-weight: 900;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-      text-align: right;
-    }
-
-    .audit-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-    }
-
-    .audit-tag {
-      border: 1px solid var(--sf-border-subtle);
-      border-radius: 999px;
-      background: var(--sf-surface-2);
-      color: var(--sf-text-muted);
-      padding: 4px 8px;
-      font-size: 11px;
-      font-weight: 850;
-    }
-
-    .audit-tag.good {
-      background: var(--sf-positive-soft);
-      color: var(--sf-positive);
-      border-color: rgba(83, 215, 167, .28);
-    }
-
-    .audit-tag.warn {
-      background: var(--sf-warning-soft);
-      color: var(--sf-warning);
-      border-color: rgba(241, 184, 87, .28);
-    }
-
-    .audit-tag.danger {
-      background: var(--sf-danger-soft);
-      color: var(--sf-danger);
-      border-color: rgba(255, 127, 138, .28);
-    }
-
-    .audit-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 12px;
-      align-items: start;
-      padding: 11px 0;
-      border-bottom: 1px solid var(--sf-border-subtle);
-    }
-
-    .audit-row:last-child {
-      border-bottom: 0;
-      padding-bottom: 0;
-    }
-
-    .audit-row-title {
-      color: var(--sf-text);
-      font-size: 14px;
-      font-weight: 900;
-      line-height: 1.25;
-    }
-
-    .audit-row-sub {
-      margin-top: 4px;
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.4;
-      overflow-wrap: anywhere;
-    }
-
-    .audit-row-value {
-      color: var(--sf-text);
-      font-weight: 950;
-      text-align: right;
-      white-space: nowrap;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .audit-code,
-    .audit-debug {
-      white-space: pre-wrap;
-      overflow: auto;
-      max-height: 520px;
-      border-radius: 16px;
-      padding: 14px;
-      background: var(--sf-surface-2);
-      color: var(--sf-text-muted);
-      font-size: 12px;
-      line-height: 1.5;
-      font-family: var(--sf-font-mono);
-    }
-
-    .audit-empty {
-      border: 1px dashed var(--sf-border);
-      border-radius: 18px;
-      padding: 18px;
-      color: var(--sf-text-muted);
-      background: var(--sf-surface-1);
-      line-height: 1.5;
-    }
-
-    .audit-toast {
-      position: fixed;
-      right: 18px;
-      bottom: 18px;
-      z-index: 9999;
-      transform: translateY(18px);
-      opacity: 0;
-      pointer-events: none;
-      transition: .2s ease;
-      border: 1px solid var(--sf-border);
-      border-radius: 16px;
-      padding: 12px 14px;
-      background: var(--sf-card-strong);
-      color: var(--sf-text);
-      box-shadow: var(--sf-shadow-md);
-      font-weight: 850;
-    }
-
-    .audit-toast.show {
-      transform: translateY(0);
-      opacity: 1;
-    }
-
-    @media (max-width: 1180px) {
-      .audit-command,
-      .audit-workspace,
-      .audit-filter-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .audit-actions {
-        justify-content: flex-start;
-      }
-    }
-
-    @media (max-width: 760px) {
-      .audit-actions .sf-button {
-        width: 100%;
-      }
-
-      .audit-event-head,
-      .audit-row {
-        grid-template-columns: 1fr;
-      }
-
-      .audit-time,
-      .audit-row-value {
-        text-align: left;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-shell.css">
 </head>
 
 <body class="sf-shell-body">
@@ -369,236 +19,53 @@
     <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
 
     <main class="sf-page-shell">
-      <section class="sf-page-content audit-os">
-        <section class="audit-command">
-          <div>
-            <div class="sf-page-eyebrow">Banking-grade audit trail</div>
-            <h1 class="audit-title">Audit Trail</h1>
-            <p class="audit-copy">
-              Audit is read-only. It verifies event continuity, hash-chain coverage, critical actions, exports, and entity-level forensic history.
-            </p>
-          </div>
+      <section class="sf-page-content">
 
-          <div class="audit-actions">
-            <button class="sf-button sf-button--primary" id="refreshAuditBtn" type="button">Refresh</button>
-            <button class="sf-button" id="verifyAuditBtn" type="button">Verify Chain</button>
-            <button class="sf-button" id="exportCsvBtn" type="button">Export CSV</button>
-            <button class="sf-button" id="exportJsonBtn" type="button">Export JSON</button>
-          </div>
-        </section>
-
-        <section class="audit-hero">
-          <div class="sf-page-eyebrow">Integrity status</div>
-          <h2 id="auditHeroStatus">Loading</h2>
-          <p id="auditHeroCopy">
-            Reading /api/audit/health and verifying hash-chain coverage.
-          </p>
-          <div class="audit-pill-row">
-            <span class="audit-pill" id="auditVersionPill">version loading</span>
-            <span class="audit-pill" id="auditHealthPill">health loading</span>
-            <span class="audit-pill" id="auditHashPill">hash loading</span>
-          </div>
-        </section>
-
-        <section class="audit-metrics">
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Rows</p>
-            <div id="metricAuditRows" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">Audit log row count.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Hash Coverage</p>
-            <div id="metricHashCoverage" class="sf-metric-value sf-tone-warning">—</div>
-            <p class="sf-card-subtitle">Rows with row_hash.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Critical Events</p>
-            <div id="metricCriticalEvents" class="sf-metric-value sf-tone-danger">—</div>
-            <p class="sf-card-subtitle">Purges, reversals, blocks, failures.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Latest Event</p>
-            <div id="metricLatestEvent" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">Latest logged action timestamp.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Integrity</p>
-            <div id="metricIntegrityStatus" class="sf-metric-value">—</div>
-            <p class="sf-card-subtitle">Hash-chain verify state.</p>
-          </article>
-
-          <article class="sf-metric-card">
-            <p class="sf-card-kicker">Writes</p>
-            <div id="metricReadOnly" class="sf-metric-value">Blocked</div>
-            <p class="sf-card-subtitle">Audit API is read-only.</p>
-          </article>
-        </section>
-
-        <section class="sf-panel">
+        <section class="sf-panel" aria-label="Audit Trail header">
           <div class="sf-section-head">
             <div>
-              <p class="sf-section-kicker">Filters</p>
-              <h2 class="sf-section-title">Audit Search</h2>
+              <p class="sf-section-kicker">Control / QA</p>
+              <h1 class="sf-section-title">Audit Trail</h1>
               <p class="sf-section-subtitle">
-                Filters are passed to /api/audit. The frontend does not alter audit truth.
+                Full chronological record of every write, reversal, and state change across the ledger.
+              </p>
+            </div>
+            <div class="sf-section-actions">
+              <a class="sf-button" href="/reconciliation.html">Reconciliation</a>
+              <a class="sf-button" href="/monthly-close.html">Monthly Close</a>
+              <a class="sf-button" href="/index.html">Hub</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="sf-panel sf-span-12" aria-labelledby="audit-status-title">
+          <div class="sf-section-head">
+            <div>
+              <p class="sf-section-kicker">Status</p>
+              <h2 id="audit-status-title" class="sf-section-title">Page not yet built</h2>
+              <p class="sf-section-subtitle">
+                This page is a shell placeholder. Add <code>js/audit.js</code> and wire it to <code>/api/audit</code> when ready.
               </p>
             </div>
           </div>
 
-          <div class="audit-filter-grid">
-            <div class="audit-field">
-              <label for="auditActionFilter">Action</label>
-              <input class="audit-input" id="auditActionFilter" placeholder="TXN_ADD, DEBT_PURGED…" />
+          <div class="sf-empty-state">
+            <div>
+              <h3 class="sf-card-title">Audit Trail coming soon</h3>
+              <p class="sf-card-subtitle">No audit API connected yet.</p>
             </div>
-
-            <div class="audit-field">
-              <label for="auditEntityFilter">Entity</label>
-              <input class="audit-input" id="auditEntityFilter" placeholder="transaction, debt…" />
-            </div>
-
-            <div class="audit-field">
-              <label for="auditKindFilter">Kind</label>
-              <input class="audit-input" id="auditKindFilter" placeholder="mutation, system…" />
-            </div>
-
-            <div class="audit-field">
-              <label for="auditSeverityFilter">Severity</label>
-              <input class="audit-input" id="auditSeverityFilter" placeholder="info, warning, critical…" />
-            </div>
-
-            <div class="audit-field">
-              <label for="auditFromInput">From</label>
-              <input class="audit-input" id="auditFromInput" type="date" />
-            </div>
-
-            <div class="audit-field">
-              <label for="auditToInput">To</label>
-              <input class="audit-input" id="auditToInput" type="date" />
-            </div>
-
-            <div class="audit-field">
-              <label for="auditLimitInput">Limit</label>
-              <input class="audit-input" id="auditLimitInput" type="number" min="1" max="500" value="100" />
-            </div>
-
-            <button class="sf-button sf-button--primary" id="applyAuditFiltersBtn" type="button">Apply Filters</button>
           </div>
-        </section>
-
-        <section class="audit-workspace">
-          <div class="audit-stack">
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Timeline</p>
-                  <h2 class="sf-section-title">Audit Events</h2>
-                  <p class="sf-section-subtitle">
-                    Newest events first. Detail JSON is rendered when present.
-                  </p>
-                </div>
-              </div>
-
-              <div id="auditEventList" class="audit-list">
-                <div class="audit-empty">Loading audit events…</div>
-              </div>
-            </section>
-          </div>
-
-          <aside class="audit-stack">
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Health</p>
-                  <h2 class="sf-section-title">Audit Health</h2>
-                </div>
-              </div>
-
-              <div id="auditHealthPanel">
-                <div class="audit-empty">Loading audit health…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Hash chain</p>
-                  <h2 class="sf-section-title">Integrity Verification</h2>
-                </div>
-              </div>
-
-              <div id="auditVerifyPanel">
-                <div class="audit-empty">Verification not run yet.</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Taxonomy</p>
-                  <h2 class="sf-section-title">Canonical Actions</h2>
-                </div>
-              </div>
-
-              <div id="auditActionsPanel">
-                <div class="audit-empty">Loading action taxonomy…</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Entity drilldown</p>
-                  <h2 class="sf-section-title">Forensics</h2>
-                </div>
-              </div>
-
-              <div class="audit-field">
-                <label for="entityTypeInput">Entity</label>
-                <input class="audit-input" id="entityTypeInput" placeholder="debt, transaction, bill…" />
-              </div>
-
-              <div class="audit-field" style="margin-top:10px;">
-                <label for="entityIdInput">Entity ID</label>
-                <input class="audit-input" id="entityIdInput" placeholder="debt_…, tx_…" />
-              </div>
-
-              <button class="sf-button" id="loadEntityAuditBtn" type="button" style="margin-top:12px;">Load Entity Audit</button>
-
-              <div id="auditEntityPanel" style="margin-top:14px;">
-                <div class="audit-empty">No entity loaded.</div>
-              </div>
-            </section>
-
-            <section class="sf-panel">
-              <div class="sf-section-head">
-                <div>
-                  <p class="sf-section-kicker">Debug</p>
-                  <h2 class="sf-section-title">Raw Audit Contract</h2>
-                </div>
-              </div>
-
-              <pre id="auditDebug" class="audit-debug">Loading…</pre>
-            </section>
-          </aside>
         </section>
 
         <footer>
-          <span class="sf-meta-text" id="auditFooterVersion">
-            audit.html · integrity shell
-          </span>
+          <span class="sf-meta-text">audit.html · shell v1</span>
         </footer>
+
       </section>
     </main>
   </div>
 
-  <div id="auditToast" class="audit-toast"></div>
-
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
-  <script src="/js/audit.js?v=0.3.0-audit-health-integrity-ui"></script>
 </body>
 </html>
