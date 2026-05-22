@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-page="cc">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
   <title>Credit Card · Sovereign Finance</title>
 
   <script src="/js/sf-theme-switcher.js"></script>
-<link rel="stylesheet" href="/css/sf-theme.css">
+  <link rel="stylesheet" href="/css/sf-theme.css">
   <link rel="stylesheet" href="/css/sf-shell.css">
 
   <script>
@@ -52,152 +52,161 @@
       ]
     };
   </script>
+</head>
+
+<body class="sf-shell-body">
+  <div class="sf-app-shell sf-app-shell--with-nav">
+    <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
+
+    <main class="sf-page-shell">
+      <section class="sf-page-content">
+
+        <section class="sf-panel-grid" aria-label="Credit card workspace">
+          <section class="sf-panel sf-span-8" aria-labelledby="cc-cards-title">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Cards</p>
+                <h2 id="cc-cards-title" class="sf-section-title">Card Accounts</h2>
+                <p id="cc-summary" class="sf-section-subtitle">Loading cards from /api/cc.</p>
+              </div>
+              <div class="sf-section-meta">
+                <span id="cc-api-status" class="sf-pill">Loading</span>
+              </div>
+            </div>
+
+            <div id="cc-cards-container" class="sf-dense-grid">
+              <div class="sf-loading-state">
+                <div>
+                  <h3 class="sf-card-title">Loading cards</h3>
+                  <p class="sf-card-subtitle">Reading canonical credit-card account state.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <aside class="sf-panel sf-span-4" aria-labelledby="cc-pressure-title">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Pressure</p>
+                <h2 id="cc-pressure-title" class="sf-section-title">Payment Pressure</h2>
+                <p class="sf-section-subtitle">Due date, minimum payment, utilization, and payoff scenarios.</p>
+              </div>
+            </div>
+
+            <div id="cc-pressure-panel" class="sf-dense-grid">
+              <div class="sf-loading-state">
+                <div>
+                  <h3 class="sf-card-title">Loading pressure view</h3>
+                  <p class="sf-card-subtitle">Select a card after data loads.</p>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <section class="sf-panel sf-span-12" aria-labelledby="cc-plan-title">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Planner</p>
+                <h2 id="cc-plan-title" class="sf-section-title">Payoff Plan</h2>
+                <p class="sf-section-subtitle">Planner data comes from /api/cc/{id}/payoff-plan. Payment action routes to Add Transaction.</p>
+              </div>
+              <div class="sf-section-meta">
+                <span id="cc-selected-card" class="sf-pill">No card selected</span>
+              </div>
+            </div>
+
+            <div id="cc-payoff-plan" class="sf-dense-grid">
+              <div class="sf-empty-state">
+                <div>
+                  <h3 class="sf-card-title">No payoff plan loaded</h3>
+                  <p class="sf-card-subtitle">Open a card to load its payoff scenarios.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="sf-panel sf-span-12" aria-labelledby="cc-dependencies-title">
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Dependency Map</p>
+                <h2 id="cc-dependencies-title" class="sf-section-title">Source Ownership</h2>
+                <p class="sf-section-subtitle">This page reads card state only. It does not write ledger rows or recalculate finance truth.</p>
+              </div>
+            </div>
+
+            <div class="sf-secondary-grid">
+              <div class="sf-finance-row">
+                <div class="sf-row-left">
+                  <div class="sf-row-title">Primary API</div>
+                  <div class="sf-row-subtitle">Canonical credit-card state</div>
+                </div>
+                <div class="sf-row-right">/api/cc</div>
+              </div>
+
+              <div class="sf-finance-row">
+                <div class="sf-row-left">
+                  <div class="sf-row-title">Planner API</div>
+                  <div class="sf-row-subtitle">Card-specific payoff scenarios</div>
+                </div>
+                <div class="sf-row-right">/api/cc/{id}/payoff-plan</div>
+              </div>
+
+              <div class="sf-finance-row">
+                <div class="sf-row-left">
+                  <div class="sf-row-title">Payment Execution</div>
+                  <div class="sf-row-subtitle">Dry-run and real save belong to Add Transaction</div>
+                </div>
+                <div class="sf-row-right">/add.html</div>
+              </div>
+
+              <div class="sf-finance-row">
+                <div class="sf-row-left">
+                  <div class="sf-row-title">Forecast Consumer</div>
+                  <div class="sf-row-subtitle">Forecast reads /api/cc independently</div>
+                </div>
+                <div class="sf-row-right">/forecast.html</div>
+              </div>
+            </div>
+          </section>
+
+          <section id="cc-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
+            <div class="sf-section-head">
+              <div>
+                <p class="sf-section-kicker">Debug</p>
+                <h2 class="sf-section-title">Credit Card Debug</h2>
+                <p class="sf-section-subtitle">Visible only with ?debug=1.</p>
+              </div>
+            </div>
+
+            <div class="sf-dense-grid">
+              <div class="sf-dense-row">
+                <span>Primary source</span>
+                <strong>/api/cc</strong>
+              </div>
+              <div class="sf-dense-row">
+                <span>Planner source</span>
+                <strong>/api/cc/{id}/payoff-plan</strong>
+              </div>
+              <div class="sf-dense-row">
+                <span>Expected API version</span>
+                <strong>v0.3.1</strong>
+              </div>
+              <div class="sf-dense-row">
+                <span>Write behavior</span>
+                <strong>Read-only page</strong>
+              </div>
+            </div>
+
+            <pre id="cc-debug-output" class="sf-debug-text">Waiting for js/cc.js.</pre>
+          </section>
+        </section>
+
+      </section>
+    </main>
+  </div>
 
   <script src="/js/sf-components.js"></script>
   <script src="/js/sf-shell.js"></script>
-</head>
-
-<body>
-  <section class="sf-panel-grid" aria-label="Credit card workspace">
-    <section class="sf-panel sf-span-8" aria-labelledby="cc-cards-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Cards</p>
-          <h2 id="cc-cards-title" class="sf-section-title">Card Accounts</h2>
-          <p id="cc-summary" class="sf-section-subtitle">Loading cards from /api/cc.</p>
-        </div>
-        <div class="sf-section-meta">
-          <span id="cc-api-status" class="sf-pill">Loading</span>
-        </div>
-      </div>
-
-      <div id="cc-cards-container" class="sf-dense-grid">
-        <div class="sf-loading-state">
-          <div>
-            <h3 class="sf-card-title">Loading cards</h3>
-            <p class="sf-card-subtitle">Reading canonical credit-card account state.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <aside class="sf-panel sf-span-4" aria-labelledby="cc-pressure-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Pressure</p>
-          <h2 id="cc-pressure-title" class="sf-section-title">Payment Pressure</h2>
-          <p class="sf-section-subtitle">Due date, minimum payment, utilization, and payoff scenarios.</p>
-        </div>
-      </div>
-
-      <div id="cc-pressure-panel" class="sf-dense-grid">
-        <div class="sf-loading-state">
-          <div>
-            <h3 class="sf-card-title">Loading pressure view</h3>
-            <p class="sf-card-subtitle">Select a card after data loads.</p>
-          </div>
-        </div>
-      </div>
-    </aside>
-
-    <section class="sf-panel sf-span-12" aria-labelledby="cc-plan-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Planner</p>
-          <h2 id="cc-plan-title" class="sf-section-title">Payoff Plan</h2>
-          <p class="sf-section-subtitle">Planner data comes from /api/cc/{id}/payoff-plan. Payment action routes to Add Transaction.</p>
-        </div>
-        <div class="sf-section-meta">
-          <span id="cc-selected-card" class="sf-pill">No card selected</span>
-        </div>
-      </div>
-
-      <div id="cc-payoff-plan" class="sf-dense-grid">
-        <div class="sf-empty-state">
-          <div>
-            <h3 class="sf-card-title">No payoff plan loaded</h3>
-            <p class="sf-card-subtitle">Open a card to load its payoff scenarios.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="sf-panel sf-span-12" aria-labelledby="cc-dependencies-title">
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Dependency Map</p>
-          <h2 id="cc-dependencies-title" class="sf-section-title">Source Ownership</h2>
-          <p class="sf-section-subtitle">This page reads card state only. It does not write ledger rows or recalculate finance truth.</p>
-        </div>
-      </div>
-
-      <div class="sf-secondary-grid">
-        <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Primary API</div>
-            <div class="sf-row-subtitle">Canonical credit-card state</div>
-          </div>
-          <div class="sf-row-right">/api/cc</div>
-        </div>
-
-        <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Planner API</div>
-            <div class="sf-row-subtitle">Card-specific payoff scenarios</div>
-          </div>
-          <div class="sf-row-right">/api/cc/{id}/payoff-plan</div>
-        </div>
-
-        <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Payment Execution</div>
-            <div class="sf-row-subtitle">Dry-run and real save belong to Add Transaction</div>
-          </div>
-          <div class="sf-row-right">/add.html</div>
-        </div>
-
-        <div class="sf-finance-row">
-          <div class="sf-row-left">
-            <div class="sf-row-title">Forecast Consumer</div>
-            <div class="sf-row-subtitle">Forecast reads /api/cc independently</div>
-          </div>
-          <div class="sf-row-right">/forecast.html</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="cc-debug-panel" class="sf-debug-panel sf-debug-only sf-span-12" hidden>
-      <div class="sf-section-head">
-        <div>
-          <p class="sf-section-kicker">Debug</p>
-          <h2 class="sf-section-title">Credit Card Debug</h2>
-          <p class="sf-section-subtitle">Visible only with ?debug=1.</p>
-        </div>
-      </div>
-
-      <div class="sf-dense-grid">
-        <div class="sf-dense-row">
-          <span>Primary source</span>
-          <strong>/api/cc</strong>
-        </div>
-        <div class="sf-dense-row">
-          <span>Planner source</span>
-          <strong>/api/cc/{id}/payoff-plan</strong>
-        </div>
-        <div class="sf-dense-row">
-          <span>Expected API version</span>
-          <strong>v0.3.1</strong>
-        </div>
-        <div class="sf-dense-row">
-          <span>Write behavior</span>
-          <strong>Read-only page</strong>
-        </div>
-      </div>
-
-      <pre id="cc-debug-output" class="sf-debug-text">Waiting for js/cc.js.</pre>
-    </section>
-  </section>
-
   <script src="/js/cc.js"></script>
 </body>
 </html>
