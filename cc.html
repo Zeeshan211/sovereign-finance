@@ -53,6 +53,71 @@
     };
   </script>
   <style>
+    /* ── CC hero card ───────────────────────────────────────── */
+    .cc-hero-inner {
+      display: grid;
+      grid-template-columns: 1fr 2fr 1fr;
+      gap: 24px;
+      align-items: center;
+    }
+    .cc-hero-amount {
+      font-size: clamp(32px, 4vw, 48px);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      color: var(--sf-text);
+      margin: 8px 0 4px;
+    }
+    .cc-hero-due {
+      font-size: clamp(22px, 3vw, 34px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      color: var(--sf-text);
+      margin: 8px 0 4px;
+    }
+    .cc-hero-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--sf-text-muted);
+      margin-bottom: 8px;
+    }
+    .cc-hero-bar-track {
+      height: 8px;
+      border-radius: 999px;
+      background: var(--sf-border-subtle);
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .cc-hero-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: var(--sf-accent);
+      transition: width 0.5s ease;
+    }
+    @media (max-width: 760px) {
+      .cc-hero-inner { grid-template-columns: 1fr; }
+    }
+
+    /* ── Design token overrides ─────────────────────────────── */
+    html[data-page="cc"] .sf-panel,
+    html[data-page="cc"] .sf-metric-card {
+      border-radius: var(--sf-radius-xs);
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    html[data-page="cc"] .sf-row-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--sf-text-soft);
+    }
+    html[data-page="cc"] .sf-row-subtitle {
+      font-size: 11px;
+      color: var(--sf-text-faint);
+    }
+
     /* Text overflow safety */
     [class*="-name"], [class*="-title"], [class*="-label"] {
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -67,6 +132,32 @@
 
     <main class="sf-page-shell">
       <section class="sf-page-content">
+
+        <!-- Hero card -->
+        <section class="sf-panel sf-panel--accent" aria-label="Credit card overview">
+          <div class="cc-hero-inner">
+            <div>
+              <p class="sf-card-kicker">Outstanding Balance</p>
+              <div class="cc-hero-amount" id="cc-hero-outstanding">—</div>
+              <p class="sf-card-subtitle">Total credit card liability</p>
+            </div>
+            <div>
+              <div class="cc-hero-bar-labels">
+                <span>Utilization</span>
+                <span id="cc-hero-utilization-pct">—%</span>
+              </div>
+              <div class="cc-hero-bar-track">
+                <div class="cc-hero-bar-fill" id="cc-hero-utilization-fill" style="width:0%"></div>
+              </div>
+              <p class="sf-card-subtitle">Outstanding vs credit limit</p>
+            </div>
+            <div>
+              <p class="sf-card-kicker">Payment Due</p>
+              <div class="cc-hero-due" id="cc-hero-due-date">—</div>
+              <p class="sf-card-subtitle">Next due date</p>
+            </div>
+          </div>
+        </section>
 
         <section class="sf-panel-grid" aria-label="Credit card workspace">
           <section class="sf-panel sf-span-8" aria-labelledby="cc-cards-title">

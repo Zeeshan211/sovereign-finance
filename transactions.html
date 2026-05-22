@@ -66,9 +66,9 @@
       justify-content: space-between;
       padding: 12px 14px;
       border: 1px solid var(--sf-border);
-      border-radius: 18px;
+      border-radius: var(--sf-radius-xs);
       background:
-        radial-gradient(circle at 90% 20%, rgba(83, 215, 167, .12), transparent 22rem),
+        radial-gradient(circle at 90% 20%, var(--sf-accent-soft), transparent 22rem),
         var(--sf-surface-1);
     }
 
@@ -98,13 +98,7 @@
     .ledger-status-chip.strong {
       color: var(--sf-text);
       background: var(--sf-accent-soft);
-      border-color: rgba(241, 184, 87, .28);
-    }
-
-    .ledger-status-chip.good {
-      color: var(--sf-positive);
-      border-color: rgba(83, 215, 167, .28);
-      background: var(--sf-positive-soft);
+      border-color: var(--sf-accent-border);
     }
 
     .ledger-rules {
@@ -185,7 +179,11 @@
 
     .ledger-filter-grid {
       display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .ledger-filter-dropdowns {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 12px;
     }
 
@@ -286,9 +284,12 @@
 
     @media (max-width: 1180px) {
       .ledger-command,
-      .ledger-workspace,
-      .ledger-filter-grid {
+      .ledger-workspace {
         grid-template-columns: 1fr;
+      }
+
+      .ledger-filter-dropdowns {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .ledger-actions {
@@ -321,6 +322,27 @@
       .ledger-metrics {
         grid-template-columns: 1fr;
       }
+    }
+
+    /* ── Design token overrides ─────────────────────────────── */
+    html[data-page="transactions"] .sf-panel,
+    html[data-page="transactions"] .sf-metric-card {
+      border-radius: var(--sf-radius-xs);
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    html[data-page="transactions"] .sf-row-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--sf-text-soft);
+    }
+    html[data-page="transactions"] .sf-row-subtitle {
+      font-size: 11px;
+      color: var(--sf-text-faint);
+    }
+    html[data-page="transactions"] .ledger-rules,
+    html[data-page="transactions"] .ledger-empty {
+      border-radius: var(--sf-radius-xs);
     }
 
     /* Text overflow safety */
@@ -357,7 +379,6 @@
         <section class="ledger-status-strip" aria-label="Ledger system status">
           <div class="ledger-status-main">
             <span class="ledger-status-chip strong" id="ledgerHealth">Loading ledger</span>
-            <span class="ledger-status-chip good">Backend truth</span>
             <span class="ledger-status-chip">Append-only reverse</span>
             <span class="ledger-status-chip" id="ledgerSortMode">Latest Activity · created date</span>
             <span class="ledger-status-chip" id="ledgerJsVersion">waiting for JS</span>
@@ -432,45 +453,47 @@
               >
             </div>
 
-            <div class="sf-field">
-              <label for="accountFilter">Account</label>
-              <select id="accountFilter" class="sf-select">
-                <option value="">All accounts</option>
-              </select>
-            </div>
+            <div class="ledger-filter-dropdowns">
+              <div class="sf-field">
+                <label for="accountFilter">Account</label>
+                <select id="accountFilter" class="sf-select">
+                  <option value="">All accounts</option>
+                </select>
+              </div>
 
-            <div class="sf-field">
-              <label for="typeFilter">Type</label>
-              <select id="typeFilter" class="sf-select">
-                <option value="">All types</option>
-                <option value="income">Income</option>
-                <option value="expense">Expense</option>
-                <option value="transfer">Transfer</option>
-                <option value="atm">ATM</option>
-                <option value="repay">Debt</option>
-                <option value="cc_payment">CC Payment</option>
-                <option value="cc_spend">CC Spend</option>
-                <option value="salary">Salary</option>
-              </select>
-            </div>
+              <div class="sf-field">
+                <label for="typeFilter">Type</label>
+                <select id="typeFilter" class="sf-select">
+                  <option value="">All types</option>
+                  <option value="income">Income</option>
+                  <option value="expense">Expense</option>
+                  <option value="transfer">Transfer</option>
+                  <option value="atm">ATM</option>
+                  <option value="repay">Debt</option>
+                  <option value="cc_payment">CC Payment</option>
+                  <option value="cc_spend">CC Spend</option>
+                  <option value="salary">Salary</option>
+                </select>
+              </div>
 
-            <div class="sf-field">
-              <label for="statusFilter">Status</label>
-              <select id="statusFilter" class="sf-select">
-                <option value="">All status</option>
-                <option value="reverse_eligible">Reverse eligible</option>
-                <option value="reverse_blocked">Reverse blocked</option>
-                <option value="grouped">Grouped only</option>
-                <option value="reversed">Reversed / reversal</option>
-              </select>
-            </div>
+              <div class="sf-field">
+                <label for="statusFilter">Status</label>
+                <select id="statusFilter" class="sf-select">
+                  <option value="">All status</option>
+                  <option value="reverse_eligible">Reverse eligible</option>
+                  <option value="reverse_blocked">Reverse blocked</option>
+                  <option value="grouped">Grouped only</option>
+                  <option value="reversed">Reversed / reversal</option>
+                </select>
+              </div>
 
-            <div class="sf-field">
-              <label for="filter_view">View</label>
-              <select id="filter_view" class="sf-select">
-                <option value="grouped">Grouped</option>
-                <option value="raw">Raw rows</option>
-              </select>
+              <div class="sf-field">
+                <label for="filter_view">View</label>
+                <select id="filter_view" class="sf-select">
+                  <option value="grouped">Grouped</option>
+                  <option value="raw">Raw rows</option>
+                </select>
+              </div>
             </div>
           </div>
         </section>
@@ -525,11 +548,6 @@
                 <div class="health-line">
                   <span>Status</span>
                   <strong id="healthStatus">Loading</strong>
-                </div>
-
-                <div class="health-line">
-                  <span>Mode</span>
-                  <strong>Backend truth</strong>
                 </div>
 
                 <div class="health-line">

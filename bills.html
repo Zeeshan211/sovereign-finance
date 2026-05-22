@@ -27,14 +27,36 @@
         { label: "Ledger", href: "/transactions.html" }
       ],
       kpis: [
-        { title: "Expected This Cycle", kicker: "Bills", value: "Loading", valueId: "bills-kpi-expected", valueKey: "expected_this_cycle", subtitle: "Total expected bills for current cycle", foot: "From /api/bills" },
-        { title: "Paid This Cycle", kicker: "Ledger-linked", value: "Loading", valueId: "bills-kpi-paid", valueKey: "paid_this_cycle", subtitle: "Valid active bill payments", foot: "Reversed ledger payments excluded" },
-        { title: "Remaining", kicker: "Pressure", value: "Loading", valueId: "bills-kpi-remaining", valueKey: "remaining", subtitle: "Still due in the current cycle", foot: "Backend current_cycle truth" },
-        { title: "Bills Health", kicker: "Integrity", value: "Loading", valueId: "bills-kpi-health", valueKey: "health_status", subtitle: "Payment and ledger consistency", foot: "From /api/bills/health" }
+        { title: "Expected", kicker: "This Cycle", value: "Loading", valueId: "bills-kpi-expected", valueKey: "expected_this_cycle", subtitle: "Total expected this cycle", foot: "From /api/bills" },
+        { title: "Paid", kicker: "Ledger-linked", value: "Loading", valueId: "bills-kpi-paid", valueKey: "paid_this_cycle", subtitle: "Valid active payments", foot: "Reversed excluded" },
+        { title: "Remaining", kicker: "Pressure", value: "Loading", valueId: "bills-kpi-remaining", valueKey: "remaining", subtitle: "Still due this cycle", foot: "Current cycle truth" },
+        { title: "Due Soon", kicker: "Upcoming", value: "Loading", valueId: "bills-kpi-due-soon", valueKey: "due_this_week", subtitle: "Bills due within 7 days", foot: "From /api/bills" },
+        { title: "Health", kicker: "Integrity", value: "Loading", valueId: "bills-kpi-health", valueKey: "health_status", subtitle: "Payment and ledger check", foot: "From /api/bills/health" }
       ]
     };
   </script>
   <style>
+    /* ── Design token overrides ─────────────────────────────── */
+    html[data-page="bills"] .sf-panel,
+    html[data-page="bills"] .sf-metric-card {
+      border-radius: var(--sf-radius-xs);
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    html[data-page="bills"] .sf-row-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--sf-text-soft);
+    }
+    html[data-page="bills"] .sf-row-subtitle {
+      font-size: 11px;
+      color: var(--sf-text-faint);
+    }
+    /* Filter chip relabels */
+    html[data-page="bills"] .sf-button--chip {
+      font-size: 12px;
+    }
+
     /* Text overflow safety */
     [class*="-name"], [class*="-title"], [class*="-label"] {
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -66,7 +88,7 @@
               <button class="sf-button sf-button--chip" type="button" data-bills-filter="unpaid">Unpaid</button>
               <button class="sf-button sf-button--chip" type="button" data-bills-filter="partial">Partial</button>
               <button class="sf-button sf-button--chip" type="button" data-bills-filter="paid">Paid</button>
-              <button class="sf-button sf-button--chip" type="button" data-bills-filter="due_this_week">Due this week</button>
+              <button class="sf-button sf-button--chip" type="button" data-bills-filter="due_this_week">Due Soon</button>
               <button class="sf-button sf-button--chip" type="button" data-bills-filter="ledger_reversed">Ledger reversed</button>
               <button class="sf-button sf-button--chip" type="button" data-bills-filter="deleted">Deleted</button>
             </div>

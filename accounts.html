@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="/css/sf-theme.css">
   <link rel="stylesheet" href="/css/sf-shell.css">
   <style>
-    /* Accounts-page modal — classes not present in sf-shell.css */
+    /* ── Edit modal — overlay on mobile, inline panel on desktop ── */
     .modal-backdrop {
       position: fixed;
       inset: 0;
@@ -31,89 +31,138 @@
       max-height: 88vh;
       overflow: auto;
       border: 1px solid var(--sf-border);
-      border-radius: 24px;
+      border-radius: var(--sf-radius-xs);
       background: var(--sf-card-strong);
-      padding: 22px;
+      padding: 20px;
       box-shadow: var(--sf-shadow-lg);
     }
     .modal-title {
-      font-size: 22px;
-      font-weight: 900;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--sf-text);
+      margin: 0 0 4px;
     }
     .modal-sub {
-      color: var(--sf-text-muted);
-      font-size: 13px;
-      margin: 4px 0 18px;
+      color: var(--sf-text-faint);
+      font-size: 11px;
+      margin: 0 0 16px;
     }
     .field-label {
       display: block;
-      margin: 14px 0 6px;
-      color: var(--sf-text-muted);
-      font-size: 12px;
+      margin: 12px 0 5px;
+      color: var(--sf-text-faint);
+      font-size: 10px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: .08em;
+      letter-spacing: 0.1em;
     }
     .form-input,
     .form-select,
     .amount-input {
       width: 100%;
       border: 1px solid var(--sf-border);
-      border-radius: 14px;
+      border-radius: 10px;
       background: var(--sf-surface-1);
       color: var(--sf-text);
-      padding: 12px 13px;
+      padding: 10px 12px;
       font: inherit;
+      font-size: 13px;
+    }
+    .form-input:focus,
+    .form-select:focus,
+    .amount-input:focus {
+      outline: none;
+      border-color: var(--sf-accent);
+      box-shadow: 0 0 0 3px var(--sf-accent-soft);
     }
     .modal-actions {
       display: flex;
       justify-content: flex-end;
-      gap: 10px;
-      margin-top: 18px;
+      gap: 8px;
+      margin-top: 16px;
       flex-wrap: wrap;
     }
-    /* Page-specific grid helpers */
-    .sf-money-grid {
+
+    /* ── 4-metric strip ─────────────────────────────────────── */
+    .acc-metrics-strip {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0,1fr));
-      gap: 20px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
     }
-    .sf-row-stack {
+    @media (max-width: 640px) {
+      .acc-metrics-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    /* ── Two-column workspace ───────────────────────────────── */
+    .acc-workspace {
       display: grid;
-      gap: 10px;
+      gap: 12px;
     }
-    /* Mini account rows rendered by accounts.js */
+    .acc-workspace-left { display: grid; gap: 12px; }
+
+    @media (min-width: 900px) {
+      .acc-workspace {
+        grid-template-columns: 1fr 360px;
+        align-items: start;
+      }
+      /* On desktop: make the edit modal an always-visible right panel */
+      #editAccountModal.modal-backdrop {
+        position: sticky !important;
+        top: 24px;
+        inset: auto !important;
+        background: none !important;
+        backdrop-filter: none !important;
+        z-index: 1 !important;
+        padding: 0 !important;
+        display: block !important;
+      }
+      #editAccountModal .modal {
+        width: 100% !important;
+        max-height: none !important;
+        box-shadow: none !important;
+      }
+    }
+
+    /* ── Account rows rendered by accounts.js ───────────────── */
     .mini-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 14px;
-      padding: 14px;
+      gap: 12px;
+      padding: 12px 14px;
       border: 1px solid var(--sf-border-subtle);
-      border-radius: 16px;
+      border-radius: 10px;
       background: var(--sf-surface-1);
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease;
+    }
+    .mini-row:hover {
+      background: var(--sf-surface-2);
+      border-color: var(--sf-border);
     }
     .mini-row-left {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       min-width: 0;
     }
     .mini-row-icon {
-      width: 38px;
-      height: 38px;
-      border-radius: 14px;
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
       display: grid;
       place-items: center;
       background: var(--sf-accent-soft);
       color: var(--sf-accent-strong);
       font-weight: 800;
       flex-shrink: 0;
+      font-size: 13px;
     }
     .mini-row-meta { min-width: 0; }
     .mini-row-name {
-      font-weight: 800;
-      color: var(--sf-text);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--sf-text-soft);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -122,28 +171,47 @@
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
-      margin-top: 4px;
-      color: var(--sf-text-muted);
-      font-size: 12px;
+      margin-top: 2px;
+      color: var(--sf-text-faint);
+      font-size: 11px;
     }
     .mini-row-right {
       text-align: right;
       display: grid;
       justify-items: end;
-      gap: 4px;
+      gap: 2px;
+      flex-shrink: 0;
     }
     .mini-row-amount {
-      font-weight: 900;
+      font-weight: 700;
       color: var(--sf-text);
-      font-size: 16px;
+      font-size: 14px;
+      letter-spacing: -0.01em;
     }
-    .mini-row-amount.danger, .value.danger, .liabilities { color: var(--sf-danger); }
+    .mini-row-amount.danger { color: var(--sf-danger); }
+    .liabilities, .value.danger { color: var(--sf-danger); }
     .assets, .accent { color: var(--sf-positive); }
-    .meta { font-size: 12px; color: var(--sf-text-muted); }
+    .meta { font-size: 11px; color: var(--sf-text-faint); }
     .meta.warn { color: var(--sf-warning); }
     .meta.danger { color: var(--sf-danger); }
-    @media (max-width: 720px) {
-      .sf-money-grid { grid-template-columns: 1fr; }
+
+    .sf-row-stack { display: grid; gap: 8px; }
+
+    /* ── Design token overrides ─────────────────────────────── */
+    html[data-page="accounts"] .sf-panel,
+    html[data-page="accounts"] .sf-metric-card {
+      border-radius: var(--sf-radius-xs);
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    html[data-page="accounts"] .sf-row-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--sf-text-soft);
+    }
+    html[data-page="accounts"] .sf-row-subtitle {
+      font-size: 11px;
+      color: var(--sf-text-faint);
     }
 
     /* Text overflow safety */
@@ -160,118 +228,144 @@
     <aside class="sf-finance-sidebar" id="sf-sidebar"></aside>
 
     <main class="sf-page-shell">
+
       <header class="sf-page-hero">
         <div class="sf-page-title-group">
           <div class="sf-page-eyebrow">Accounts</div>
           <h1 class="sf-page-title">Accounts</h1>
-          <p class="sf-page-subtitle">Balance truth from account and balance APIs. No duplicate navigation, no legacy shell.</p>
+          <p class="sf-page-subtitle">Asset and liability balances from the verified ledger.</p>
         </div>
         <div class="sf-page-actions">
           <span class="sf-pill"><span id="acc-day-count"></span> Day <span id="dayNum"></span> of 90</span>
+          <button class="sf-button sf-button--primary" id="addAccountBtn" type="button">Add Account</button>
         </div>
       </header>
 
       <section class="sf-page-content">
 
-        <section class="sf-metric-card sf-metric-card--accent">
-          <p class="sf-card-kicker">Net Worth</p>
-          <div class="sf-metric-value positive counter" id="acc-net-worth">
-            <span class="sf-muted">Loading</span>
-          </div>
-          <p class="sf-card-subtitle">Read from /api/balances; fallback handled by page JS.</p>
-        </section>
-
-        <section class="sf-money-grid">
-          <section class="sf-panel">
-            <div class="sf-section-head">
-              <div>
-                <p class="sf-section-kicker">Assets</p>
-                <h2 class="sf-section-title"><span id="acc-assets-count">0</span> active</h2>
-              </div>
-              <div class="sf-pill sf-pill--positive assets" id="acc-assets-total"></div>
-            </div>
-            <div class="sf-row-stack" id="acc-assets-list"></div>
+        <!-- 4-metric strip -->
+        <div class="acc-metrics-strip">
+          <section class="sf-metric-card sf-metric-card--accent">
+            <p class="sf-card-kicker">Net Worth</p>
+            <div class="sf-metric-value counter" id="acc-net-worth">—</div>
+            <p class="sf-card-subtitle">Assets minus liabilities</p>
           </section>
-
-          <section class="sf-panel">
-            <div class="sf-section-head">
-              <div>
-                <p class="sf-section-kicker">Liabilities</p>
-                <h2 class="sf-section-title"><span id="acc-liabilities-count">0</span> active</h2>
-              </div>
-              <div class="sf-pill sf-pill--danger liabilities" id="acc-liabilities-total"></div>
-            </div>
-            <div class="sf-row-stack" id="acc-liabilities-list"></div>
+          <section class="sf-metric-card">
+            <p class="sf-card-kicker">Total Assets</p>
+            <div class="sf-metric-value assets" id="acc-assets-total">—</div>
+            <p class="sf-card-subtitle"><span id="acc-assets-count">0</span> active</p>
           </section>
-        </section>
+          <section class="sf-metric-card">
+            <p class="sf-card-kicker">Total Liabilities</p>
+            <div class="sf-metric-value liabilities" id="acc-liabilities-total">—</div>
+            <p class="sf-card-subtitle"><span id="acc-liabilities-count">0</span> active</p>
+          </section>
+          <section class="sf-metric-card">
+            <p class="sf-card-kicker">Archived</p>
+            <div class="sf-metric-value" id="acc-archived-count">0</div>
+            <p class="sf-card-subtitle">Hidden accounts</p>
+          </section>
+        </div>
 
-        <section class="sf-panel" id="acc-archived-header" style="cursor:pointer">
-          <div class="sf-section-head" style="margin-bottom:0">
-            <div>
-              <p class="sf-section-kicker">Archived</p>
-              <h2 class="sf-section-title"><span id="acc-archived-count">0</span> accounts</h2>
+        <!-- Two-column workspace -->
+        <div class="acc-workspace">
+
+          <div class="acc-workspace-left">
+
+            <!-- Assets -->
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Assets</p>
+                  <h2 class="sf-section-title">Asset Accounts</h2>
+                </div>
+              </div>
+              <div class="sf-row-stack" id="acc-assets-list"></div>
+            </section>
+
+            <!-- Liabilities -->
+            <section class="sf-panel">
+              <div class="sf-section-head">
+                <div>
+                  <p class="sf-section-kicker">Liabilities</p>
+                  <h2 class="sf-section-title">Liability Accounts</h2>
+                </div>
+              </div>
+              <div class="sf-row-stack" id="acc-liabilities-list"></div>
+            </section>
+
+            <!-- Archived (collapsible) -->
+            <section class="sf-panel" id="acc-archived-header" style="cursor:pointer">
+              <div class="sf-section-head" style="margin-bottom:0">
+                <div>
+                  <p class="sf-section-kicker">Archived</p>
+                  <h2 class="sf-section-title">Archived Accounts</h2>
+                </div>
+                <button class="sf-button" id="acc-archived-toggle" type="button">Show</button>
+              </div>
+              <div class="sf-row-stack" id="acc-archived-list" style="display:none;margin-top:12px"></div>
+            </section>
+
+          </div><!-- /acc-workspace-left -->
+
+          <!-- Edit panel — inline right column on desktop, modal overlay on mobile -->
+          <div class="modal-backdrop" id="editAccountModal">
+            <div class="modal">
+              <div class="modal-title" id="editAccountTitle">Edit Account</div>
+              <div class="modal-sub" id="editAccountSub">Select an account to edit</div>
+
+              <label class="field-label">Name</label>
+              <input class="form-input" id="editAccountName" type="text">
+
+              <label class="field-label">Icon</label>
+              <input class="form-input" id="editAccountIcon" type="text">
+
+              <label class="field-label">Kind</label>
+              <select class="form-select" id="editAccountKind" disabled>
+                <option value="bank">Bank</option>
+                <option value="cash">Cash</option>
+                <option value="wallet">Wallet</option>
+                <option value="cc">Credit Card</option>
+              </select>
+
+              <label class="field-label">Opening Balance</label>
+              <input class="amount-input" id="editAccountOpen" step="0.01" type="number">
+
+              <label class="field-label">Display Order</label>
+              <input class="form-input" id="editAccountOrder" step="1" type="number">
+
+              <div id="editAccountCCBlock" style="display:none">
+                <label class="field-label">Credit Limit</label>
+                <input class="amount-input" id="editAccountCreditLimit" step="0.01" type="number">
+
+                <label class="field-label">Minimum Payment</label>
+                <input class="amount-input" id="editAccountMinPayment" step="0.01" type="number">
+
+                <label class="field-label">Statement Day</label>
+                <input class="form-input" id="editAccountStatementDay" type="number" min="1" max="31">
+
+                <label class="field-label">Due Day</label>
+                <input class="form-input" id="editAccountDueDay" type="number" min="1" max="31">
+              </div>
+
+              <div class="modal-actions">
+                <button class="sf-button" id="editAccountArchive" type="button">Archive</button>
+                <button class="sf-button sf-button--danger" id="editAccountDelete" type="button">Delete</button>
+                <button class="sf-button" id="editAccountCancel" type="button">Cancel</button>
+                <button class="sf-button sf-button--primary" id="editAccountConfirm" type="button">Save</button>
+              </div>
             </div>
-            <button class="sf-button" id="acc-archived-toggle" type="button">&gt;</button>
           </div>
-          <div class="sf-row-stack" id="acc-archived-list" style="display:none;margin-top:14px"></div>
-        </section>
+
+        </div><!-- /acc-workspace -->
 
         <footer>
-          <span class="sf-meta-text">v0.5.0 · accounts · shared shell migration batch 1</span>
+          <span class="sf-meta-text">v0.5.0 · accounts</span>
         </footer>
 
       </section>
     </main>
 
-  </div>
-
-  <!-- Edit Account Modal -->
-  <div class="modal-backdrop" id="editAccountModal">
-    <div class="modal">
-      <div class="modal-title" id="editAccountTitle">Edit Account</div>
-      <div class="modal-sub" id="editAccountSub"></div>
-
-      <label class="field-label">Name</label>
-      <input class="form-input" id="editAccountName" type="text">
-
-      <label class="field-label">Icon</label>
-      <input class="form-input" id="editAccountIcon" type="text">
-
-      <label class="field-label">Kind</label>
-      <select class="form-select" id="editAccountKind" disabled>
-        <option value="bank">Bank</option>
-        <option value="cash">Cash</option>
-        <option value="wallet">Wallet</option>
-        <option value="cc">Credit Card</option>
-      </select>
-
-      <label class="field-label">Opening Balance</label>
-      <input class="amount-input" id="editAccountOpen" step="0.01" type="number">
-
-      <label class="field-label">Display Order</label>
-      <input class="form-input" id="editAccountOrder" step="1" type="number">
-
-      <div id="editAccountCCBlock" style="display:none">
-        <label class="field-label">Credit Limit</label>
-        <input class="amount-input" id="editAccountCreditLimit" step="0.01" type="number">
-
-        <label class="field-label">Minimum Payment</label>
-        <input class="amount-input" id="editAccountMinPayment" step="0.01" type="number">
-
-        <label class="field-label">Statement Day</label>
-        <input class="form-input" id="editAccountStatementDay" type="number" min="1" max="31">
-
-        <label class="field-label">Due Day</label>
-        <input class="form-input" id="editAccountDueDay" type="number" min="1" max="31">
-      </div>
-
-      <div class="modal-actions">
-        <button class="sf-button" id="editAccountArchive" type="button">Archive</button>
-        <button class="sf-button sf-button--danger" id="editAccountDelete" type="button">Delete</button>
-        <button class="sf-button" id="editAccountCancel" type="button">Cancel</button>
-        <button class="sf-button sf-button--primary" id="editAccountConfirm" type="button">Save</button>
-      </div>
-    </div>
   </div>
 
   <script src="/js/sf-components.js"></script>

@@ -16,17 +16,17 @@
   <style>
     /* ── Hub page-scoped variables ────────────────────────────────── */
     html[data-page="hub"] {
-      --hub-header-bg:       #1c1412;
-      --hub-header-text:     #f5f0e8;
-      --hub-featured-bg:     #1c1412;
-      --hub-featured-text:   #f5f0e8;
-      --hub-featured-sub:    rgba(245, 240, 232, 0.55);
-      --hub-featured-border: rgba(245, 240, 232, 0.10);
-      --hub-bar-track:       rgba(245, 240, 232, 0.10);
+      --hub-header-bg:       var(--sf-card-strong);
+      --hub-header-text:     var(--sf-text);
+      --hub-featured-bg:     var(--sf-card-strong);
+      --hub-featured-text:   var(--sf-text);
+      --hub-featured-sub:    var(--sf-text-muted);
+      --hub-featured-border: var(--sf-border-subtle);
+      --hub-bar-track:       var(--sf-border);
       --hub-bar-fill:        var(--sf-accent);
-      --hub-actions-bg:      #1c1412;
-      --hub-actions-text:    #f5f0e8;
-      --hub-radius:          22px;
+      --hub-actions-bg:      var(--sf-card-strong);
+      --hub-actions-text:    var(--sf-text);
+      --hub-radius:          10px;
       --hub-gap:             14px;
     }
 
@@ -109,7 +109,7 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: radial-gradient(ellipse at 0% 50%, rgba(91, 162, 255, 0.14), transparent 55%);
+      background: radial-gradient(ellipse at 0% 50%, var(--sf-bg-glow), transparent 55%);
       pointer-events: none;
     }
 
@@ -436,7 +436,8 @@
     }
 
     .hub-action-btn.is-primary:hover {
-      background: rgba(91, 162, 255, 0.22);
+      background: var(--sf-accent-glow);
+      border-color: var(--sf-accent-border);
     }
 
     /* API status dots */
@@ -646,6 +647,26 @@
     #hub-accounts-preview .sf-row-title {
       display: inline;
       white-space: nowrap;
+    }
+
+    /* ── Design token overrides ─────────────────────────────── */
+    html[data-page="hub"] .hub-card,
+    html[data-page="hub"] .hub-attention-card,
+    html[data-page="hub"] .hub-actions-card,
+    html[data-page="hub"] .hub-api-card,
+    html[data-page="hub"] .hub-debug {
+      border-radius: var(--sf-radius-xs);
+    }
+    html[data-page="hub"] .hub-pos-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--sf-text-soft);
+    }
+    html[data-page="hub"] .hub-pos-sub,
+    html[data-page="hub"] .hub-runway-label,
+    html[data-page="hub"] .hub-api-name {
+      font-size: 11px;
+      color: var(--sf-text-faint);
     }
 
     /* Text overflow safety */
