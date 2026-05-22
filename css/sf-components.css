@@ -1,0 +1,351 @@
+/* ============================================================
+   sf-components.css  —  Sovereign Finance Shared Components
+   Extracted from the pre-refactor sf-shell.css (900-line version).
+   Contains three component groups that were lost during the
+   shell refactor and are needed by multiple pages:
+     1. .sf-pill tone utilities + .sf-tone-* color helpers
+     2. .sf-finance-row / .sf-row list / row system
+     3. .sf-meter progress bar system
+     4. dialog.sf-dialog modal system
+   Do NOT add layout or shell rules here. Shell lives in
+   sf-shell.css; theme tokens live in sf-theme.css.
+   ============================================================ */
+
+/* ── 1. Pill tone utilities ───────────────────────────────── */
+
+.sf-pill--positive,
+.sf-tone-positive {
+  background: var(--sf-positive-soft);
+  color: var(--sf-positive);
+  border-color: rgba(83, 215, 167, 0.28);
+}
+
+.sf-pill--warning,
+.sf-tone-warning {
+  background: var(--sf-warning-soft);
+  color: var(--sf-warning);
+  border-color: rgba(241, 184, 87, 0.28);
+}
+
+.sf-pill--danger,
+.sf-tone-danger {
+  background: var(--sf-danger-soft);
+  color: var(--sf-danger);
+  border-color: rgba(255, 127, 138, 0.28);
+}
+
+.sf-pill--info,
+.sf-tone-info {
+  background: var(--sf-info-soft);
+  color: var(--sf-info);
+  border-color: rgba(143, 188, 255, 0.28);
+}
+
+/* ── 2. Finance row / list row system ────────────────────── */
+
+.sf-row,
+.sf-finance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sf-space-4);
+  padding: var(--sf-space-4);
+  border: 1px solid var(--sf-border-subtle);
+  border-radius: var(--sf-radius-md);
+  background: var(--sf-surface-1);
+}
+
+button.sf-finance-row {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.sf-finance-row:hover,
+button.sf-finance-row:focus-visible {
+  outline: none;
+  border-color: var(--sf-border-strong);
+  background: var(--sf-surface-2);
+}
+
+button.sf-finance-row.is-active {
+  border-color: rgba(91, 162, 255, 0.38);
+  background: rgba(91, 162, 255, 0.08);
+}
+
+.sf-row-main,
+.sf-row-left {
+  min-width: 0;
+  display: grid;
+  gap: var(--sf-space-1);
+}
+
+.sf-row-title {
+  font-weight: 700;
+  color: var(--sf-text);
+}
+
+.sf-row-subtitle {
+  color: var(--sf-text-muted);
+  font-size: var(--sf-font-13);
+}
+
+.sf-row-value,
+.sf-row-right {
+  flex: 0 0 auto;
+  text-align: right;
+  font-weight: 700;
+}
+
+/* ── 3. Meter / progress bar system ──────────────────────── */
+
+.sf-meter {
+  position: relative;
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--sf-radius-pill);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sf-meter-fill {
+  height: 100%;
+  width: var(--sf-meter-value, 0%);
+  max-width: 100%;
+  border-radius: inherit;
+  background: var(--sf-accent);
+  transition: width var(--sf-duration-normal) var(--sf-ease);
+}
+
+.sf-meter-fill.sf-tone-positive { background: var(--sf-positive); }
+.sf-meter-fill.sf-tone-warning  { background: var(--sf-warning); }
+.sf-meter-fill.sf-tone-danger   { background: var(--sf-danger); }
+.sf-meter-fill.sf-tone-info     { background: var(--sf-info); }
+
+/* ── 4. Shared modal / dialog system ─────────────────────── */
+/*
+ * Global contract for every class="sf-dialog" modal.
+ * Header and footer stay fixed inside the dialog.
+ * Body is the only scrollable area.
+ */
+
+dialog.sf-dialog {
+  width: min(760px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--sf-border);
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025)),
+    var(--sf-card);
+  color: var(--sf-text);
+  box-shadow: var(--sf-shadow-lg);
+  overflow: hidden;
+}
+
+dialog.sf-dialog[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+dialog.sf-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(12px);
+}
+
+.sf-dialog-head {
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sf-space-4, 16px);
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--sf-border-subtle);
+  background:
+    radial-gradient(circle at top right, rgba(241, 184, 87, 0.14), transparent 280px),
+    var(--sf-surface-1);
+  z-index: 2;
+}
+
+.sf-dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  display: grid;
+  gap: 18px;
+  padding: 20px 24px;
+  background: var(--sf-card);
+}
+
+.sf-dialog-footer {
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sf-space-3, 12px);
+  flex-wrap: wrap;
+  padding: 14px 24px 18px;
+  border-top: 1px solid var(--sf-border-subtle);
+  background: var(--sf-surface-1);
+  box-shadow: 0 -14px 30px rgba(0, 0, 0, 0.18);
+  z-index: 2;
+}
+
+.sf-dialog-footer-copy {
+  flex: 1 1 240px;
+  min-width: min(100%, 220px);
+  color: var(--sf-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
+.sf-dialog-footer .sf-section-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--sf-space-2, 8px);
+  flex-wrap: wrap;
+}
+
+.sf-dialog-footer .sf-button {
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.sf-dialog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.sf-dialog-grid .sf-field {
+  min-width: 0;
+}
+
+.sf-dialog .sf-field--wide {
+  grid-column: 1 / -1;
+}
+
+.sf-dialog-note {
+  grid-column: 1 / -1;
+  border: 1px solid rgba(241, 184, 87, 0.22);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(241, 184, 87, 0.08);
+  color: var(--sf-text-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.sf-dialog-proof-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sf-dialog-proof-card {
+  border: 1px solid var(--sf-border-subtle);
+  border-radius: 16px;
+  padding: 12px;
+  background: var(--sf-surface-1);
+}
+
+.sf-dialog-proof-card span {
+  display: block;
+  color: var(--sf-text-muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.sf-dialog-proof-card strong {
+  color: var(--sf-text);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.sf-dialog .sf-section-title {
+  margin: 0;
+}
+
+.sf-dialog .sf-section-subtitle {
+  max-width: 580px;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+
+  /* Row system */
+  .sf-row,
+  .sf-finance-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .sf-row-right {
+    width: 100%;
+    text-align: left;
+  }
+
+  /* Dialog */
+  dialog.sf-dialog {
+    width: calc(100vw - 12px);
+    max-width: calc(100vw - 12px);
+    max-height: calc(100dvh - 12px);
+    border-radius: 18px;
+  }
+
+  .sf-dialog-head {
+    padding: 14px 14px 12px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sf-dialog-body {
+    padding: 14px;
+    gap: 14px;
+  }
+
+  .sf-dialog-footer {
+    padding: 12px 14px 14px;
+    align-items: stretch;
+  }
+
+  .sf-dialog-footer-copy {
+    flex: 1 1 100%;
+  }
+
+  .sf-dialog-footer .sf-section-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .sf-dialog-footer .sf-button {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+
+  .sf-dialog-grid,
+  .sf-dialog-proof-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sf-dialog .sf-field--wide,
+  .sf-dialog-note {
+    grid-column: 1 / -1;
+  }
+}
