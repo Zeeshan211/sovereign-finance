@@ -10,6 +10,142 @@
   <script src="/js/sf-theme-switcher.js"></script>
   <link rel="stylesheet" href="/css/sf-theme.css">
   <link rel="stylesheet" href="/css/sf-shell.css">
+  <style>
+    /* Accounts-page modal — classes not present in sf-shell.css */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.62);
+      backdrop-filter: blur(10px);
+      z-index: 80;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    .modal-backdrop.is-open {
+      display: flex;
+    }
+    .modal {
+      width: min(560px, 100%);
+      max-height: 88vh;
+      overflow: auto;
+      border: 1px solid var(--sf-border);
+      border-radius: 24px;
+      background: var(--sf-card-strong);
+      padding: 22px;
+      box-shadow: var(--sf-shadow-lg);
+    }
+    .modal-title {
+      font-size: 22px;
+      font-weight: 900;
+    }
+    .modal-sub {
+      color: var(--sf-text-muted);
+      font-size: 13px;
+      margin: 4px 0 18px;
+    }
+    .field-label {
+      display: block;
+      margin: 14px 0 6px;
+      color: var(--sf-text-muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    .form-input,
+    .form-select,
+    .amount-input {
+      width: 100%;
+      border: 1px solid var(--sf-border);
+      border-radius: 14px;
+      background: var(--sf-surface-1);
+      color: var(--sf-text);
+      padding: 12px 13px;
+      font: inherit;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+    /* Page-specific grid helpers */
+    .sf-money-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 20px;
+    }
+    .sf-row-stack {
+      display: grid;
+      gap: 10px;
+    }
+    /* Mini account rows rendered by accounts.js */
+    .mini-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px;
+      border: 1px solid var(--sf-border-subtle);
+      border-radius: 16px;
+      background: var(--sf-surface-1);
+    }
+    .mini-row-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .mini-row-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: var(--sf-accent-soft);
+      color: var(--sf-accent-strong);
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .mini-row-meta { min-width: 0; }
+    .mini-row-name {
+      font-weight: 800;
+      color: var(--sf-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mini-row-sub {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+      color: var(--sf-text-muted);
+      font-size: 12px;
+    }
+    .mini-row-right {
+      text-align: right;
+      display: grid;
+      justify-items: end;
+      gap: 4px;
+    }
+    .mini-row-amount {
+      font-weight: 900;
+      color: var(--sf-text);
+      font-size: 16px;
+    }
+    .mini-row-amount.danger, .value.danger, .liabilities { color: var(--sf-danger); }
+    .assets, .accent { color: var(--sf-positive); }
+    .meta { font-size: 12px; color: var(--sf-text-muted); }
+    .meta.warn { color: var(--sf-warning); }
+    .meta.danger { color: var(--sf-danger); }
+    @media (max-width: 720px) {
+      .sf-money-grid { grid-template-columns: 1fr; }
+    }
+  </style>
 </head>
 
 <body class="sf-shell-body">
