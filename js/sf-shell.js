@@ -332,7 +332,17 @@
     let appShell = q("." + SHELL_CLASS);
     if (appShell) return appShell;
 
-    appShell = document.createElement("main");
+    // Pilot phase: if a root mount point exists, promote it to the app shell
+    // rather than wrapping everything in a new element. This lets index.html
+    // and transactions.html declare <div id="sf-app-root"> as the only shell
+    // boilerplate — sf-shell.js injects the sidebar and grid classes from here.
+    const rootMount = document.getElementById("sf-app-root");
+    if (rootMount) {
+      rootMount.classList.add(SHELL_CLASS);
+      return rootMount;
+    }
+
+    appShell = document.createElement("div");
     appShell.className = SHELL_CLASS;
 
     const nodes = Array.from(document.body.childNodes);
