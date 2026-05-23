@@ -1,22 +1,42 @@
 # D1 Schema Snapshot — sovereign-finance
 
 > Captured directly from Cloudflare D1 Console.
-> Date: 2026-05-23
+> Original snapshot: 2026-05-23
+> Updated: 2026-05-23 (Phase 2A backend session)
 > Purpose: Ground truth reference. Every future backend session should read this first.
+
+---
+
+## Migration Status
+
+All migrations in `migrations/` have been **written** but require manual execution:
+
+```bash
+# Run in order:
+wrangler d1 execute sovereign-finance --file=migrations/01_multiuser_foundation.sql
+wrangler d1 execute sovereign-finance --file=migrations/02_auth_foundation.sql
+wrangler d1 execute sovereign-finance --file=migrations/03_user_attribution.sql
+wrangler d1 execute sovereign-finance --file=migrations/04_known_bugs.sql
+wrangler d1 execute sovereign-finance --file=migrations/05_money_precision.sql
+wrangler d1 execute sovereign-finance --file=migrations/06_audit_chain.sql
+wrangler d1 execute sovereign-finance --file=migrations/07_category_types_data.sql
+wrangler d1 execute sovereign-finance --file=migrations/08_intl_rate_config_data.sql
+wrangler d1 execute sovereign-finance --file=migrations/09_drop_dead_backups.sql
+```
+
+After execution the schema will match the "AFTER migrations" sections below.
 
 ---
 
 ## Summary
 
-- **Tables found:** 43 (8 are salah_* prayer tracking, 5 are dead backups, 30 are active finance + system)
-- **Active finance tables:** 21
-- **System/internal tables:** 2 (_cf_KV, sqlite_sequence)
-- **Dead backup tables to drop:** 5
-- **Out-of-scope tables:** 8 (salah_* — prayer tracking, separate domain)
+- **Tables (before Phase 2A migrations):** 43 (8 are salah_* prayer tracking, 5 are dead backups, 30 are active)
+- **Tables (after Phase 2A migrations):** 49 active (+ 8 salah + 2 system) — dead backups dropped
+- **New tables added by Phase 2A:** households, users, account_permissions, sessions, login_attempts, password_reset_tokens, user_2fa, idempotency_keys
 
 ---
 
-## Row Counts (Active Tables)
+## Row Counts (Active Tables — as of original snapshot 2026-05-23)
 
 | Table | Rows |
 |---|---|
@@ -29,31 +49,43 @@
 
 ---
 
-## All Tables Found
+## All Tables — After Phase 2A Migrations
+
+### Multi-user / Auth Tables (NEW — added by migrations 01-02)
+- `households` — household records (default: hh_owner)
+- `users` — user records with role/status (default: user_owner → owner@local)
+- `account_permissions` — per-user account access grants
+- `sessions` — active login sessions
+- `login_attempts` — login audit log
+- `password_reset_tokens` — password reset flow
+- `user_2fa` — TOTP 2FA per user
+
+### System / Dedup Tables (NEW — added by migration 04)
+- `idempotency_keys` — server-side dedup for API endpoints (24h TTL)
 
 ### Active Finance Tables
-- `accounts` — 11 rows
-- `audit_log` — log entries, indexed by action/entity/timestamp
+- `accounts` — 11 rows (+ owner_user_id, household_id, paisa columns after migrations)
+- `audit_log` — log entries (+ sequence_number, prev_entry_hash, entry_hash, entity_hash after migration 06)
 - `bill_payments` — bill payment history (paisa precision)
-- `bills` — 8 rows
-- `budgets` — per-category monthly budgets
-- `categories` — 13 rows
-- `debt_payments` — debt payment history (paisa precision, snapshot fields)
+- `bills` — 8 rows (+ owner_user_id, household_id after migration 03)
+- `budgets` — per-category monthly budgets (+ owner_user_id, household_id)
+- `categories` — 13 rows (type column populated after migration 07)
+- `debt_payments` — debt payment history
 - `debt_purge_audit` — debt deletion audit
-- `debts` — 21 rows
-- `goals` — savings goals
+- `debts` — 21 rows (+ owner_user_id, household_id)
+- `goals` — savings goals (+ owner_user_id, household_id)
 - `intl_fx_cache` — FX rate cache
 - `intl_package` — international purchase 5-component breakdown
 - `intl_rate_audit` — intl rate config changes audit
-- `intl_rate_config` — single-row config table (id = 1 enforced)
-- `merchants` — 0 rows (table exists, empty)
-- `nano_loans` — nano loan tracking (shape A/B)
-- `reconciliation` — drift detection (account-level)
-- `reconciliation_declarations` — drift declarations with severity
+- `intl_rate_config` — single-row config (FY2025-26 rates after migration 08)
+- `merchants` — 0 rows
+- `nano_loans` — nano loan tracking (+ owner_user_id, household_id)
+- `reconciliation` — drift detection
+- `reconciliation_declarations` — drift declarations
 - `reconciliation_exceptions` — drift exception details
 - `reconciliation_snapshots` — drift snapshots
-- `salary` — main salary record
-- `salary_config` — salary calculation config (many fields)
+- `salary` — main salary record (+ owner_user_id, household_id)
+- `salary_config` — salary calculation config
 - `salary_contracts` — salary contract history
 - `salary_forecast_config` — salary forecasting config
 - `salary_payslip_components` — payslip component breakdown
@@ -61,9 +93,9 @@
 - `settings` — key/value app config
 - `snapshot_data` — snapshot row data (JSON)
 - `snapshots` — snapshot metadata
-- `transactions` — 294 rows (CORE LEDGER)
+- `transactions` — 294 rows (+ idempotency_key, account_delta, paisa cols, household_id after migrations)
 
-### Salah/Prayer Tracking Tables (OUT OF FINANCE SCOPE)
+### Salah/Prayer Tracking Tables (OUT OF FINANCE SCOPE — untouched)
 - `salah_daily_status`
 - `salah_export_batches`
 - `salah_insights`
@@ -71,13 +103,11 @@
 - `salah_prayer_times`
 - `salah_recovery_items`
 
-These are mixed into the same D1 database but are a separate domain (prayer tracking). Finance work should NOT touch these.
-
 ### System Tables
 - `_cf_KV` — Cloudflare KV (internal)
 - `sqlite_sequence` — SQLite autoincrement tracker
 
-### Dead Backup Tables (SAFE TO DROP)
+### Dead Backup Tables (SAFE TO DROP — migration 09 drops these)
 - `accounts_backup_20260504`
 - `accounts_backup_20260504_ccvalid`
 - `budgets_backup_20260504`
@@ -85,39 +115,30 @@ These are mixed into the same D1 database but are a separate domain (prayer trac
 - `transactions_backup_20260504_1c_replay`
 - `txn_backup_salary_recat_20260504`
 
-These are stale backups from May 4. Recommend dropping after confirming no active references. They don't affect functionality but add visual noise.
+grep confirmed 0 handler references to any of these tables.
 
 ---
 
-## CONFIRMED BUGS / GAPS
+## CONFIRMED BUGS / STATUS
 
-### Bug 1: transactions table is missing `idempotency_key` column
-**Severity:** HIGH
-**Source:** Confirmed via `PRAGMA table_info(transactions)` — column not present.
-**Impact:** Frontend can't send idempotency_key (currently working around by stripping it).
-**Fix:** `ALTER TABLE transactions ADD COLUMN idempotency_key TEXT;`
-**Also needed:** UNIQUE index or pre-insert lookup logic to dedupe.
+### Bug 1: /api/add/dry-run returns plain JS object — ✅ FIXED (Phase 2A)
+**Fix**: `dryRun()` in `add/[[path]].js` now wraps `internalPost()` result in `json()`.
 
-### Bug 2: /api/add/dry-run handler returns plain JS object (known from earlier RCA)
-**Severity:** HIGH
-**Source:** Frontend hit "Unsupported GET route" — Claude RCA found handler returns plain object instead of `new Response()`.
-**Impact:** Direct calls to /api/add/dry-run fail. Frontend works around by hitting /api/transactions?dry_run=1.
-**Fix:** Wrap response in `new Response(JSON.stringify(...), { headers })`.
+### Bug 2: transactions.idempotency_key missing — ✅ SCHEMA WRITTEN, needs D1 execution
+**Fix**: migration 04 adds column + unique index. Frontend can re-enable idempotency_key once migration runs.
 
-### Gap 3: POST/PATCH/DELETE /api/accounts return 405
-**Severity:** HIGH for AccountsPage write actions
-**Source:** Frontend can't wire Add/Save/Archive/Delete buttons.
-**Fix:** Add handlers — table schema is ready (already has status, deleted_at, archived_at columns).
+### Bug 3: Category ID drift (groceries/debt_payment/cc_payment) — ✅ FIXED (Phase 2A)
+**Fix**: CATEGORY_ALIASES in transactions.js, add/[[path]].js, categories.js updated to D1 canonical IDs.
 
-### Gap 4: merchants table is empty
-**Severity:** MEDIUM
-**Source:** 0 rows in merchants table.
-**Impact:** AddPage merchant autocomplete returns no suggestions.
-**Fix:** Run `POST /api/merchants/seed` if endpoint exists, or seed manually with 150+ legacy merchants from Section 20 of LEGACY_FINANCE_INVENTORY.md.
+### Bug 4: /api/transactions missing account_id filter — ✅ FIXED (Phase 2A)
+**Fix**: GET /api/transactions now accepts ?account_id=X for server-side filtering.
+
+### Bug 5: POST /api/accounts returns 405 — ✅ FIXED (Phase 2A)
+**Fix**: POST, PATCH, DELETE /api/accounts all implemented with proper Response objects.
 
 ---
 
-## TRANSACTIONS TABLE — FULL SCHEMA
+## TRANSACTIONS TABLE — FULL SCHEMA (after Phase 2A migrations)
 
 ```
 id                      TEXT PRIMARY KEY
@@ -138,54 +159,70 @@ reversed_by             TEXT
 reversed_at             TEXT
 linked_txn_id           TEXT
 intl_package_id         TEXT
-
+idempotency_key         TEXT           UNIQUE (WHERE NOT NULL)  ← NEW (migration 04)
+account_delta           REAL           ← NEW (migration 04)
+amount_paisa            INTEGER        ← NEW (migration 05)
+fee_amount_paisa        INTEGER        ← NEW (migration 05)
+pra_amount_paisa        INTEGER        ← NEW (migration 05)
+account_delta_paisa     INTEGER        ← NEW (migration 05)
+created_by_user_id      TEXT           DEFAULT 'user_owner'  ← NEW (migration 03)
+modified_by_user_id     TEXT           ← NEW (migration 03)
+household_id            TEXT           DEFAULT 'hh_owner'  ← NEW (migration 03)
 ```
-
-**Missing:** `idempotency_key` (bug)
-
-**Indexes:**
-- idx_tx_account ON (account_id)
-- idx_tx_category ON (category_id)
-- idx_tx_date ON (date DESC)
-- idx_txn_linked ON (linked_txn_id)
-- idx_txn_reversed ON (reversed_by)
-- idx_transactions_intl_package ON (intl_package_id) WHERE intl_package_id IS NOT NULL
-
-**Foreign keys:**
-- transfer_to_account_id → accounts.id
-- account_id → accounts.id
-- category_id → categories.id
 
 ---
 
-## ACCOUNTS TABLE — SCHEMA
+## ACCOUNTS TABLE — SCHEMA (after Phase 2A migrations)
 
 ```
-id                  TEXT PRIMARY KEY
-name                TEXT NOT NULL
-icon                TEXT
-type                TEXT NOT NULL  (CHECK: asset, liability)
-kind                TEXT NOT NULL
-opening_balance     REAL           DEFAULT 0
-currency            TEXT           DEFAULT 'PKR'
-color               TEXT
-display_order       INTEGER        DEFAULT 0
-created_at          TEXT           DEFAULT CURRENT_TIMESTAMP
-status              TEXT           DEFAULT 'active'
-deleted_at          TEXT
-archived_at         TEXT
-credit_limit        REAL
-min_payment_amount  REAL
-statement_day       INTEGER
-payment_due_day     INTEGER
-
+id                    TEXT PRIMARY KEY
+name                  TEXT NOT NULL
+icon                  TEXT
+type                  TEXT NOT NULL  (CHECK: asset, liability)
+kind                  TEXT NOT NULL
+opening_balance       REAL           DEFAULT 0
+currency              TEXT           DEFAULT 'PKR'
+color                 TEXT
+display_order         INTEGER        DEFAULT 0
+created_at            TEXT           DEFAULT CURRENT_TIMESTAMP
+status                TEXT           DEFAULT 'active'
+deleted_at            TEXT
+archived_at           TEXT
+credit_limit          REAL
+min_payment_amount    REAL
+statement_day         INTEGER
+payment_due_day       INTEGER
+owner_user_id         TEXT           ← NEW (migration 03)
+household_id          TEXT           DEFAULT 'hh_owner'  ← NEW (migration 03)
+opening_balance_paisa INTEGER        DEFAULT 0  ← NEW (migration 05)
+credit_limit_paisa    INTEGER        ← NEW (migration 05)
 ```
-
-Ready for full CRUD operations. Soft-delete via `archived_at` and `deleted_at` already supported.
 
 ---
 
-## INTL_PACKAGE TABLE — SCHEMA (legacy international purchase support)
+## CATEGORIES TABLE — type column (after migration 07)
+
+| id | name | type |
+|---|---|---|
+| biller | Biller | expense |
+| bills | Bills | expense |
+| cc_pay | CC Payment | system |
+| cc_spend | CC Spend | expense |
+| debt | Debt | system |
+| family | Family | expense |
+| food | Food | expense |
+| gift | Gift | expense |
+| grocery | Grocery | expense |
+| health | Health | expense |
+| other | Other | system |
+| personal | Personal | expense |
+| salary | Salary | income |
+| transfer | Transfer | transfer |
+| transport | Transport | expense |
+
+---
+
+## INTL_PACKAGE TABLE — SCHEMA (unchanged — fully aligned with legacy)
 
 ```
 id                  TEXT PRIMARY KEY
@@ -207,139 +244,66 @@ pra_pkr             REAL NOT NULL DEFAULT 0
 bank_charge_pkr     REAL NOT NULL DEFAULT 0
 total_pkr           REAL NOT NULL
 rate_snapshot       TEXT NOT NULL
-status              TEXT NOT NULL  DEFAULT 'committed'  (CHECK: committed, voided)
-
+status              TEXT NOT NULL  DEFAULT 'committed'
 ```
-
-**FULLY ALIGNED WITH LEGACY 5-COMPONENT FEE BREAKDOWN.** This is one of the most complete tables in the database.
 
 ---
 
-## NANO_LOANS TABLE — SCHEMA (legacy nano-loan tracking)
-
-```
-id                   TEXT PRIMARY KEY
-date                 TEXT NOT NULL
-app_code             TEXT
-app_name             TEXT NOT NULL
-status               TEXT NOT NULL DEFAULT 'active'  (CHECK: active, closed, defaulted)
-shape                TEXT NOT NULL DEFAULT 'A'       (CHECK: A, B)
-principal_amount     REAL NOT NULL                   (CHECK > 0)
-cool_off_fee         REAL NOT NULL DEFAULT 0         (CHECK >= 0)
-total_owed           REAL NOT NULL                   (CHECK > 0)
-repaid_amount        REAL NOT NULL DEFAULT 0         (CHECK >= 0)
-source_account_id    TEXT NOT NULL                   (FK → accounts.id)
-txn_in_id            TEXT
-repay_txn_id         TEXT
-pushed_at            TEXT
-pushed_txn_id        TEXT
-push_fee_txn_id      TEXT
-cool_off_due         TEXT
-closed_at            TEXT
-notes                TEXT
-created_at           TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-updated_at           TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-
-```
-
-**FULLY ALIGNED WITH LEGACY NANO-LOAN MODEL** (Shape A/B, push to CC, repay tracking).
-
----
-
-## SALARY ECOSYSTEM (5 TABLES — VERY DETAILED)
-
-- `salary` — current salary record (39+ columns including tax tracking, EOBI, all PK 2025-26 fields)
-- `salary_config` — calculation config (employer, designation, basic/HRA/medical/utility, WFH USD, tax rate, FY tax tracker, YTD totals)
-- `salary_contracts` — historical contracts by effective_month
-- `salary_forecast_config` — forecasting policy with FX source tracking
-- `salary_payslip_components` — payslip component breakdown
-- `salary_payslips` — payslip history
-
-**ALIGNED WITH LEGACY MULTI-ANCHOR SALARY FORECAST + TAX TRACKER.** Backend has more salary fields than I expected.
-
----
-
-## INDEXES (only those that exist as explicit CREATE INDEX, ordered by table)
+## INDEXES (after Phase 2A migrations, in addition to original set)
 
 | Table | Index Name | Columns |
 |---|---|---|
-| audit_log | idx_audit_action | action |
-| audit_log | idx_audit_entity | (entity, entity_id) |
-| audit_log | idx_audit_timestamp | timestamp DESC |
-| bill_payments | idx_bill_payments_bill_month | (bill_id, bill_month, status) |
-| bills | idx_bills_status | status |
-| debt_payments | idx_debt_payments_debt_status | (debt_id, status) |
-| debt_payments | idx_debt_payments_transaction | transaction_id |
-| goals | idx_goals_status | status |
-| intl_fx_cache | idx_intl_fx_cache_lookup | (base_currency, quote_currency, fetched_at DESC) |
-| intl_package | idx_intl_package_account | (account_id, created_at DESC) |
-| intl_rate_audit | idx_intl_rate_audit_changed_at | changed_at DESC |
-| nano_loans | (6 indexes — app, date, pushed, source, status + autoindex) |
-| reconciliation | idx_recon_account_date | (account_id, declared_at DESC) |
-| reconciliation_declarations | idx_reconciliation_declarations_account_created | (account_id, created_at DESC) |
-| reconciliation_declarations | idx_reconciliation_declarations_severity | severity |
-| snapshot_data | idx_snapdata_snap | snapshot_id |
-| snapshots | idx_snapshots_created | created_at DESC |
-| transactions | idx_tx_account, idx_tx_category, idx_tx_date, idx_txn_linked, idx_txn_reversed, idx_transactions_intl_package |
-| salary | idx_salary_next_salary_date, idx_salary_status |
-
-Indexing is generally good. Some tables (bills, debts, accounts) have minimal indexes — could be tuned later.
-
----
-
-## DATA INTEGRITY CHECKS
-
-| Check | Result |
-|---|---|
-| transactions.account_id NULL count | 0 ✅ |
-| transactions.amount NULL count | 0 ✅ |
-
-Database integrity is clean on the critical fields tested.
+| transactions | idx_transactions_idempotency | (idempotency_key) WHERE NOT NULL — UNIQUE |
+| transactions | idx_transactions_account_date | (account_id, date) |
+| transactions | idx_transactions_date | (date) |
+| transactions | idx_tx_household | (household_id) |
+| transactions | idx_tx_created_by | (created_by_user_id) |
+| accounts | idx_accounts_household | (household_id) |
+| accounts | idx_accounts_owner | (owner_user_id) |
+| bills | idx_bills_household | (household_id) |
+| debts | idx_debts_household | (household_id) |
+| users | idx_users_household | (household_id) |
+| users | idx_users_email | (email) |
+| account_permissions | idx_account_perms_user | (user_id) |
+| account_permissions | idx_account_perms_account | (account_id) |
+| sessions | idx_sessions_user | (user_id) |
+| sessions | idx_sessions_token | (token_hash) |
+| sessions | idx_sessions_expires | (expires_at) |
+| login_attempts | idx_login_attempts_email_time | (email, attempted_at DESC) |
+| login_attempts | idx_login_attempts_ip_time | (ip_address, attempted_at DESC) |
+| password_reset_tokens | idx_password_reset_user | (user_id) |
+| password_reset_tokens | idx_password_reset_token | (token_hash) |
+| idempotency_keys | idx_idempotency_expires | (expires_at) |
+| audit_log | idx_audit_seq | (sequence_number) |
 
 ---
 
-## SAMPLE DATA — transactions (first 5 rows)
+## ARCHITECTURAL NOTES (updated)
 
-All 5 sample rows are ATM-related transactions from 2026-05-02:
-- 1 ATM fee (35 PKR, pending reversal, then reversed)
-- 1 Transfer OUT (Mashreq → Cash, 16500)
-- 1 Income IN (Cash from Mashreq, 16500) — the corresponding leg
-- 1 Transfer OUT (UBL → Mashreq, 16500) — different transfer
-- 1 Income IN (Mashreq from UBL, 16500) — the corresponding leg
+1. **Multi-user foundation is code-complete.** Tables (households, users, account_permissions, sessions, auth tables) are written in migrations. Single-user mode remains the default — auth UI not yet built. No breaking changes to existing endpoints.
 
-This confirms: **Transfer pair pattern works as designed** (linked OUT + IN with [linked: TXN-XXX] in notes).
+2. **Paisa precision prepared.** INTEGER paisa columns alongside REAL columns. Handler code continues using REAL for backward compatibility. Precision migration is a separate future session.
 
----
+3. **Category IDs are now canonical.** All three CATEGORY_ALIASES maps (transactions.js, add/[[path]].js, categories.js) align to D1 canonical IDs. Frontend aliases for legacy inputs will now resolve correctly.
 
-## ARCHITECTURAL INSIGHTS
+4. **Idempotency dedup is schema-ready.** Column added in migration 04. Frontend can re-enable `idempotency_key` field once migration runs.
 
-1. **The backend is way more capable than the LiquidityOS frontend currently uses.** Most of the legacy app's features have schema support already; they just need API endpoints exposed.
+5. **Account CRUD is complete.** POST/PATCH/DELETE /api/accounts implemented with soft-delete pattern.
 
-2. **Paisa precision is used in payments tables.** `bill_payments` and `debt_payments` use both REAL (rupees) and INTEGER (paisa) columns. The new backend already follows the "store paisa for accuracy" pattern.
-
-3. **Soft-delete pattern is consistent.** accounts has `status`, `deleted_at`, `archived_at`. bills has `status`, `deleted_at`. Frontend can safely use these for archive/delete UX.
-
-4. **Audit trail uses entity/action/timestamp indexing.** This is well-designed. New endpoints should write to `audit_log` with the right entity/action.
-
-5. **The mix of salah_* tables in the same DB is unusual.** Probably from a separate prayer tracking module that shares the DB. Should be ignored for finance work.
-
-6. **5 backup tables = ~30KB of dead weight.** Can be DROPped to clean up but not urgent.
+6. **Salah tables untouched.** Prayer tracking tables coexist in the same D1 database — finance work must not reference these.
 
 ---
 
-## NEXT BACKEND WORK PRIORITIES (based on this schema)
+## NEXT BACKEND WORK PRIORITIES
 
-1. Add `idempotency_key` column to transactions + dedupe insert logic (highest priority bug)
-2. Fix `/api/add/dry-run` response wrapping (highest priority bug)
-3. Add POST/PATCH/DELETE `/api/accounts` handlers (unblocks AccountsPage write actions)
-4. Seed merchants table (unblocks AddPage merchant autocomplete)
-5. Expose existing nano_loans table via REST endpoints (unblocks NanoLoanPage future build)
-6. Expose existing intl_package data via /api/add/commit international mode (mostly already there)
-7. Expose existing reconciliation_declarations via endpoints (unblocks ReconciliationPage)
-8. Expose existing salary_* tables via endpoints (unblocks SalaryPage)
-9. Expose existing snapshots system via endpoints (admin nice-to-have)
-10. DROP backup tables (cosmetic cleanup, low priority)
+1. **Run migrations 01-09** via wrangler — D1 schema is behind the code
+2. **Re-enable idempotency_key** in LiquidityOS frontend (after migration 04 runs)
+3. **Seed merchants table** (0 rows) — run `POST /api/merchants/seed`
+4. **LiquidityOS frontend wire-up sessions** — all backend endpoints are ready
+5. **Pakistan tax imports** — update salary/[[path]].js and atm/[[path]].js to import from `_lib/pakistan_taxes.js`
+6. **Hash-chain audit backfill** — dedicated session (high risk migration)
 
 ---
 
-*Snapshot complete. This document is the canonical reference for sovereign-finance D1 state as of 2026-05-23.*
+*Updated: 2026-05-23 — Phase 2A backend foundation session complete.*
+*Next session: Run migrations via wrangler, then LiquidityOS frontend wire-up.*
