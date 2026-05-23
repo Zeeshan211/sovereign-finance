@@ -121,6 +121,7 @@ export async function onRequestGet(context) {
 
     const includeReversed = url.searchParams.get('include_reversed') === '1';
     const limit = clampInt(url.searchParams.get('limit'), 1, 500, 200);
+    const accountId = text(url.searchParams.get('account_id'), '', 160) || null;
 
     const txCols = await tableColumns(db, 'transactions');
 
@@ -139,12 +140,16 @@ export async function onRequestGet(context) {
       ? limit
       : Math.min(500, Math.max(limit * 8, limit + 150));
 
+    const whereClause = accountId ? 'WHERE account_id = ?' : '';
+    const binds = accountId ? [accountId, fetchLimit] : [fetchLimit];
+
     const result = await db.prepare(
       `SELECT ${select.join(', ')}
        FROM transactions
+       ${whereClause}
        ORDER BY ${buildOrderBy(txCols)}
        LIMIT ?`
-    ).bind(fetchLimit).all();
+    ).bind(...binds).all();
 
     const decorated = (result.results || []).map(decorateTransaction);
     const activeOnly = decorated.filter(row => !row.is_reversal && !row.is_reversed);
@@ -158,6 +163,7 @@ export async function onRequestGet(context) {
       version: VERSION,
       contract_version: CONTRACT_VERSION,
       include_reversed: includeReversed,
+      account_id_filter: accountId,
       count: visible.length,
       fetched_count: decorated.length,
       hidden_reversal_count: includeReversed ? 0 : decorated.filter(row => row.is_reversal).length,
