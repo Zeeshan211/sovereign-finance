@@ -11,55 +11,57 @@
 const VERSION = "v0.2.0-contract-lock";
 
 const CATEGORY_ALIASES = {
-  grocery: "groceries",
-  groceries: "groceries",
+  grocery: "grocery",
+  groceries: "grocery",
 
-  food: "food_dining",
-  food_dining: "food_dining",
-  dining: "food_dining",
+  food: "food",
+  food_dining: "food",
+  dining: "food",
 
   transport: "transport",
   travel: "transport",
 
-  bill: "bills_utilities",
-  bills: "bills_utilities",
-  utility: "bills_utilities",
-  utilities: "bills_utilities",
-  bills_utilities: "bills_utilities",
+  bill: "bills",
+  bills: "bills",
+  utility: "bills",
+  utilities: "bills",
+  bills_utilities: "bills",
 
   health: "health",
   medical: "health",
 
-  fee: "bank_fee",
-  bank_fee: "bank_fee",
-  atm: "atm_fee",
-  atm_fee: "atm_fee",
+  fee: "other",
+  bank_fee: "other",
+  atm: "other",
+  atm_fee: "other",
 
-  cc: "credit_card",
-  card: "credit_card",
-  credit: "credit_card",
-  credit_card: "credit_card",
-  cc_payment: "credit_card",
-  cc_spend: "credit_card",
+  cc: "cc_spend",
+  card: "cc_spend",
+  credit: "cc_spend",
+  credit_card: "cc_spend",
+  cc_payment: "cc_pay",
+  cc_spend: "cc_spend",
 
-  debt: "debt_payment",
-  debt_payment: "debt_payment",
-  repay: "debt_payment",
-  repayment: "debt_payment",
+  debt: "debt",
+  debt_payment: "debt",
+  repay: "debt",
+  repayment: "debt",
 
-  salary: "salary_income",
-  salary_income: "salary_income",
+  salary: "salary",
+  salary_income: "salary",
 
-  income: "manual_income",
-  manual_income: "manual_income",
-  manual: "manual_income",
+  income: "other",
+  manual_income: "other",
+  manual: "other",
 
   transfer: "transfer",
 
-  misc: "misc",
-  miscellaneous: "misc",
-  other: "misc",
-  general: "misc"
+  misc: "other",
+  miscellaneous: "other",
+  other: "other",
+  general: "other",
+  intl: "other",
+  intl_subscription: "other"
 };
 
 export async function onRequestGet(context) {

@@ -63,51 +63,51 @@ const OUT_TYPES = new Set([
 ]);
 
 const CATEGORY_ALIASES = {
-  grocery: 'groceries',
-  groceries: 'groceries',
-  food: 'food_dining',
-  food_dining: 'food_dining',
-  dining: 'food_dining',
+  grocery: 'grocery',
+  groceries: 'grocery',
+  food: 'food',
+  food_dining: 'food',
+  dining: 'food',
   transport: 'transport',
   travel: 'transport',
-  bill: 'bills_utilities',
-  bills: 'bills_utilities',
-  utility: 'bills_utilities',
-  utilities: 'bills_utilities',
-  bills_utilities: 'bills_utilities',
+  bill: 'bills',
+  bills: 'bills',
+  utility: 'bills',
+  utilities: 'bills',
+  bills_utilities: 'bills',
   health: 'health',
   medical: 'health',
-  fee: 'bank_fee',
-  bank_fee: 'bank_fee',
-  atm: 'atm_fee',
-  atm_fee: 'atm_fee',
-  cc: 'credit_card',
-  card: 'credit_card',
-  credit: 'credit_card',
-  credit_card: 'credit_card',
-  cc_payment: 'credit_card',
-  cc_spend: 'credit_card',
-  debt: 'debt_payment',
-  debt_payment: 'debt_payment',
-  repay: 'debt_payment',
-  repayment: 'debt_payment',
-  salary: 'salary_income',
-  salary_income: 'salary_income',
-  income: 'manual_income',
-  manual_income: 'manual_income',
-  manual: 'manual_income',
+  fee: 'other',
+  bank_fee: 'other',
+  atm: 'other',
+  atm_fee: 'other',
+  cc: 'cc_spend',
+  card: 'cc_spend',
+  credit: 'cc_spend',
+  credit_card: 'cc_spend',
+  cc_payment: 'cc_pay',
+  cc_spend: 'cc_spend',
+  debt: 'debt',
+  debt_payment: 'debt',
+  repay: 'debt',
+  repayment: 'debt',
+  salary: 'salary',
+  salary_income: 'salary',
+  income: 'other',
+  manual_income: 'other',
+  manual: 'other',
   transfer: 'transfer',
-  adjustment: 'misc',
-  adjustment_positive: 'misc',
-  adjustment_negative: 'misc',
-  misc: 'misc',
-  miscellaneous: 'misc',
-  other: 'misc',
-  general: 'misc',
-  intl: 'intl_subscription',
-  international: 'intl_subscription',
-  international_purchase: 'intl_subscription',
-  intl_subscription: 'intl_subscription'
+  adjustment: 'other',
+  adjustment_positive: 'other',
+  adjustment_negative: 'other',
+  misc: 'other',
+  miscellaneous: 'other',
+  other: 'other',
+  general: 'other',
+  intl: 'other',
+  international: 'other',
+  international_purchase: 'other',
+  intl_subscription: 'other'
 };
 
 const DEFAULT_CC_LIMIT = 100000;
@@ -1358,15 +1358,15 @@ async function resolveCategory(db, input, type) {
   const raw = text(input, '', 160);
 
   if (!raw) {
-    if (type === 'income' || type === 'salary') {
-      return resolveCategory(db, type === 'salary' ? 'salary_income' : 'manual_income', type);
+    if (type === 'salary') {
+      return resolveCategory(db, 'salary', type);
     }
 
-    if (type === 'adjustment_positive' || type === 'adjustment_negative') {
-      return resolveCategory(db, 'misc', type);
+    if (type === 'income') {
+      return resolveCategory(db, 'other', type);
     }
 
-    return resolveCategory(db, 'misc', type);
+    return resolveCategory(db, 'other', type);
   }
 
   const cols = await tableColumns(db, 'categories');
