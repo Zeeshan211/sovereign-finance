@@ -6,6 +6,8 @@
 
 sovereign-finance is the canonical ledger backend for the LiquidityOS personal finance system. Cloudflare Pages + D1 database. Read-mostly architecture with selective writes.
 
+This repo is BACKEND ONLY. No frontend code. No HTML, no CSS, no JS for browser. All frontend work happens in the separate Zeeshan211/LiquidityOS repository (React + Vite, deploys to liquidityos.sherk3344.workers.dev). Any session on sovereign-finance that touches HTML, CSS, JS for browser, or React components is a mistake and should STOP. This repo's sole job: serve /api/* endpoints from Cloudflare Pages Functions.
+
 Tech stack: Cloudflare Pages Functions, D1 (SQLite), JavaScript (functions/api/*.js).
 
 Live URL: https://sovereign-finance.pages.dev
