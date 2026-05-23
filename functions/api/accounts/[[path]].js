@@ -12,7 +12,7 @@
  * - Reversal rows and reversed originals are excluded.
  */
 
-const VERSION = 'v0.2.11-accounts-signed-amount-safe';
+const VERSION = 'v0.3.0-accounts-full-crud';
 
 export async function onRequestGet(context) {
   try {
@@ -137,12 +137,179 @@ export async function onRequestGet(context) {
   }
 }
 
-export async function onRequestPost() {
-  return json({
-    ok: false,
-    version: VERSION,
-    error: 'Account writes are not supported from this endpoint.'
-  }, 405);
+export async function onRequestPost(context) {
+  try {
+    const db = requireDb(context.env);
+    const url = new URL(context.request.url);
+    const pathParts = (context.params && context.params.path
+      ? (Array.isArray(context.params.path) ? context.params.path : [context.params.path])
+      : []).filter(Boolean);
+
+    const body = await readJSON(context.request);
+
+    const name = safeText(body.name, '', 160);
+    const type = safeText(body.type, '', 40).toLowerCase();
+    const kind = safeText(body.kind, '', 80).toLowerCase() || type;
+
+    if (!name) {
+      return json({ ok: false, version: VERSION, error: 'name is required' }, 400);
+    }
+
+    if (!type || !['asset', 'liability'].includes(type)) {
+      return json({ ok: false, version: VERSION, error: 'type must be "asset" or "liability"' }, 400);
+    }
+
+    if (!kind) {
+      return json({ ok: false, version: VERSION, error: 'kind is required' }, 400);
+    }
+
+    const cols = await tableColumns(db, 'accounts');
+
+    const slug = makeAccountSlug(name);
+    const existing = await db.prepare(
+      `SELECT id FROM accounts WHERE id = ? LIMIT 1`
+    ).bind(slug).first();
+
+    const id = existing ? slug + '_' + randomSuffix() : slug;
+
+    const opening_balance = roundMoney(body.opening_balance || 0);
+    const currency = safeText(body.currency || 'PKR', 'PKR', 10).toUpperCase();
+    const now = new Date().toISOString();
+
+    const row = filterRowToCols(cols, {
+      id,
+      name,
+      type,
+      kind,
+      currency,
+      opening_balance,
+      color:              safeText(body.color, '', 40) || null,
+      icon:               safeText(body.icon, '', 40) || null,
+      display_order:      Number.isFinite(Number(body.display_order)) ? Number(body.display_order) : 999,
+      status:             'active',
+      credit_limit:       body.credit_limit != null ? roundMoney(body.credit_limit) : null,
+      min_payment_amount: body.min_payment_amount != null ? roundMoney(body.min_payment_amount) : null,
+      statement_day:      body.statement_day != null ? Math.floor(Number(body.statement_day)) : null,
+      payment_due_day:    body.payment_due_day != null ? Math.floor(Number(body.payment_due_day)) : null,
+      owner_user_id:      'user_owner',
+      household_id:       'hh_owner',
+      created_at:         now
+    });
+
+    const keys = Object.keys(row);
+    await db.prepare(
+      `INSERT INTO accounts (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`
+    ).bind(...keys.map(k => row[k])).run();
+
+    const created = await db.prepare(
+      `SELECT * FROM accounts WHERE id = ? LIMIT 1`
+    ).bind(id).first();
+
+    return json({ ok: true, version: VERSION, account: created }, 201);
+  } catch (err) {
+    return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
+  }
+}
+
+export async function onRequestPatch(context) {
+  try {
+    const db = requireDb(context.env);
+    const pathParts = (context.params && context.params.path
+      ? (Array.isArray(context.params.path) ? context.params.path : [context.params.path])
+      : []).filter(Boolean);
+
+    const accountId = pathParts[0];
+
+    if (!accountId) {
+      return json({ ok: false, version: VERSION, error: 'account id required in path: /api/accounts/:id' }, 400);
+    }
+
+    const existing = await db.prepare(
+      `SELECT * FROM accounts WHERE id = ? LIMIT 1`
+    ).bind(accountId).first();
+
+    if (!existing) {
+      return json({ ok: false, version: VERSION, error: 'Account not found' }, 404);
+    }
+
+    const body = await readJSON(context.request);
+    const cols = await tableColumns(db, 'accounts');
+
+    const EDITABLE = ['name', 'color', 'icon', 'status', 'display_order',
+      'credit_limit', 'min_payment_amount', 'statement_day', 'payment_due_day'];
+
+    const updates = {};
+
+    for (const field of EDITABLE) {
+      if (!(field in body)) continue;
+      if (!cols.has(field)) continue;
+
+      if (['credit_limit', 'min_payment_amount'].includes(field)) {
+        updates[field] = body[field] != null ? roundMoney(body[field]) : null;
+      } else if (['display_order', 'statement_day', 'payment_due_day'].includes(field)) {
+        updates[field] = body[field] != null ? Math.floor(Number(body[field])) : null;
+      } else {
+        updates[field] = safeText(body[field], '', 200) || null;
+      }
+    }
+
+    if (!Object.keys(updates).length) {
+      return json({ ok: false, version: VERSION, error: 'No editable fields supplied' }, 400);
+    }
+
+    const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ');
+    await db.prepare(
+      `UPDATE accounts SET ${setClauses} WHERE id = ?`
+    ).bind(...Object.values(updates), accountId).run();
+
+    const updated = await db.prepare(
+      `SELECT * FROM accounts WHERE id = ? LIMIT 1`
+    ).bind(accountId).first();
+
+    return json({ ok: true, version: VERSION, account: updated });
+  } catch (err) {
+    return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
+  }
+}
+
+export async function onRequestDelete(context) {
+  try {
+    const db = requireDb(context.env);
+    const pathParts = (context.params && context.params.path
+      ? (Array.isArray(context.params.path) ? context.params.path : [context.params.path])
+      : []).filter(Boolean);
+
+    const accountId = pathParts[0];
+
+    if (!accountId) {
+      return json({ ok: false, version: VERSION, error: 'account id required in path: /api/accounts/:id' }, 400);
+    }
+
+    const existing = await db.prepare(
+      `SELECT id, name, status FROM accounts WHERE id = ? LIMIT 1`
+    ).bind(accountId).first();
+
+    if (!existing) {
+      return json({ ok: false, version: VERSION, error: 'Account not found' }, 404);
+    }
+
+    const now = new Date().toISOString();
+
+    await db.prepare(
+      `UPDATE accounts SET deleted_at = ?, status = 'deleted' WHERE id = ?`
+    ).bind(now, accountId).run();
+
+    return json({
+      ok: true,
+      version: VERSION,
+      deleted: true,
+      account_id: accountId,
+      deleted_at: now,
+      note: 'Soft delete — row retained, transactions preserved. Filter with deleted_at IS NOT NULL to hide.'
+    });
+  } catch (err) {
+    return json({ ok: false, version: VERSION, error: err.message || String(err) }, 500);
+  }
 }
 
 async function loadAccounts(db, cols) {
@@ -428,6 +595,32 @@ function roundMoney(value) {
 function safeText(value, fallback = '', max = 500) {
   const raw = value == null ? fallback : value;
   return String(raw == null ? '' : raw).trim().slice(0, max);
+}
+
+function filterRowToCols(cols, row) {
+  const out = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (cols.has(key) && value !== undefined) out[key] = value;
+  }
+  return out;
+}
+
+function makeAccountSlug(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 40) || 'account';
+}
+
+function randomSuffix() {
+  return Math.random().toString(36).slice(2, 6);
+}
+
+async function readJSON(request) {
+  try { return await request.json(); } catch { return {}; }
 }
 
 function requireDb(env) {
