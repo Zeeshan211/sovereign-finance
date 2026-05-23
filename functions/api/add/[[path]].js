@@ -548,7 +548,8 @@ async function dryRun(context, body) {
     });
   }
 
-  return internalPost(context, '/api/transactions?dry_run=1', directTransactionPayload(normalized));
+  const result = await internalPost(context, '/api/transactions?dry_run=1', directTransactionPayload(normalized));
+  return json(result);
 }
 
 async function commit(context, body) {
