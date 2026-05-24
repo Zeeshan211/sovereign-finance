@@ -186,3 +186,33 @@ Before confirming, please verify:
 1. Account IDs in the table above match your actual account slugs in LiquidityOS
 2. You are satisfied with 270 flagged transactions being included (they can be reviewed post-import)
 3. You acknowledge rollback is available if needed
+
+---
+
+## Update: Account Slugs Corrected (Phase 1)
+
+The following slug corrections were applied before import:
+
+| Original | Corrected |
+|----------|-----------|
+| `alfalah_cc` | `cc` |
+| `faysal_cc` | `faysal_cc_a` |
+| `nayapay` | `naya_pay` |
+
+## Update: May 24 Manual Transactions Added (Phase 2)
+
+24 additional transactions for 2026-05-24 appended:
+- Imran Bhai loan injection → meezan
+- Naseem Bibi debt repayment
+- Alfalah CC payments (2,000 + 500 from meezan)
+- Mashreq: 100k inflow + ATM withdrawal for plot payment to Aunt
+- NayaPay / Meezan: noodles split
+- Cash: Zain returns (650 + 500), cat treats, house maid salary
+- Alfalah CC: Google Claude, PTCL, transaction fees + taxes
+
+**Final payload:** 2,730 transactions (2,706 historical HIGH + 24 manual today)
+
+## API Access
+
+Live API returns HTTP 403 to automated requests (Cloudflare edge protection).
+Import to be executed via browser console script: `import/browser_full_import.js`
