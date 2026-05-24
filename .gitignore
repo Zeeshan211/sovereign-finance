@@ -82,3 +82,11 @@ logs/
 # Sandbox / experiments folder (operator's local exploration only)
 sandbox/
 experiments/
+
+# ─── Historical Import Workspace ───
+# PDFs, extracted text, and parsed JSON are gitignored (large + private).
+# Only reports and README are committed.
+import/pdfs/
+import/extracted/
+import/*.json
+import/parse_errors/
