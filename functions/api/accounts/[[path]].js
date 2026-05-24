@@ -12,7 +12,7 @@
  * - Reversal rows and reversed originals are excluded.
  */
 
-const VERSION = 'v0.3.0-accounts-full-crud';
+const VERSION = 'v0.3.1-accounts-number-closed';
 
 export async function onRequestGet(context) {
   try {
@@ -183,10 +183,12 @@ export async function onRequestPost(context) {
       kind,
       currency,
       opening_balance,
+      account_number:     safeText(body.account_number, '', 80) || null,
       color:              safeText(body.color, '', 40) || null,
       icon:               safeText(body.icon, '', 40) || null,
       display_order:      Number.isFinite(Number(body.display_order)) ? Number(body.display_order) : 999,
-      status:             'active',
+      status:             safeText(body.status, 'active', 40).toLowerCase() || 'active',
+      closed_at:          body.closed_at || null,
       credit_limit:       body.credit_limit != null ? roundMoney(body.credit_limit) : null,
       min_payment_amount: body.min_payment_amount != null ? roundMoney(body.min_payment_amount) : null,
       statement_day:      body.statement_day != null ? Math.floor(Number(body.statement_day)) : null,
@@ -235,8 +237,8 @@ export async function onRequestPatch(context) {
     const body = await readJSON(context.request);
     const cols = await tableColumns(db, 'accounts');
 
-    const EDITABLE = ['name', 'color', 'icon', 'status', 'display_order',
-      'credit_limit', 'min_payment_amount', 'statement_day', 'payment_due_day'];
+    const EDITABLE = ['name', 'account_number', 'color', 'icon', 'status', 'closed_at',
+      'display_order', 'credit_limit', 'min_payment_amount', 'statement_day', 'payment_due_day'];
 
     const updates = {};
 
@@ -322,8 +324,10 @@ async function loadAccounts(db, cols) {
     'color',
     'icon',
     'status',
+    'account_number',
     'display_order',
     'credit_limit',
+    'closed_at',
     'deleted_at',
     'archived_at',
     'is_active',
@@ -354,7 +358,9 @@ async function loadAccounts(db, cols) {
       icon: row.icon || '',
       status: safeText(row.status || 'active', 'active', 80),
       display_order: row.display_order == null ? 999 : Number(row.display_order),
+      account_number: row.account_number || null,
       credit_limit: row.credit_limit == null ? null : Number(row.credit_limit),
+      closed_at: row.closed_at || null,
       deleted_at: row.deleted_at || null,
       archived_at: row.archived_at || null,
       is_active: row.is_active,
