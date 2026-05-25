@@ -33,3 +33,76 @@ Production. Serving the LiquidityOS frontend. 44+ API endpoints. Multi-user sche
 ## Deployment
 
 Auto-deploys to https://sovereign-finance.pages.dev on every push to main via Cloudflare Pages.
+
+## Reconciliation — How to Commit a Dry-Run Plan (v0.3)
+
+After running a dry-run via `POST /api/reconciliation/dry-run` and receiving a `plan_id`, you can
+commit the safe rows to the ledger in two steps from the UI or via API:
+
+### Step 1 — Run a dry-run (Phase 1, unchanged)
+
+```bash
+# Import statement CSV
+curl -X POST https://sovereign-finance.pages.dev/api/reconciliation/import-statement \
+  -H 'Content-Type: application/json' \
+  -d '{"account_id":"meezan","csv_text":"date,description,debit,credit,balance\n..."}'
+# Returns: { "import_id": "stmt_import_..." }
+
+# Run dry-run matching engine
+curl -X POST https://sovereign-finance.pages.dev/api/reconciliation/dry-run \
+  -H 'Content-Type: application/json' \
+  -d '{"import_id":"stmt_import_...","account_id":"meezan"}'
+# Returns: { "plan_id": "recon_plan_...", "plan": [...], "classification_counts": {...} }
+```
+
+### Step 2 — Commit safe rows (Phase 2, new)
+
+```bash
+curl -X POST https://sovereign-finance.pages.dev/api/reconciliation/commit \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "plan_id": "recon_plan_...",
+    "confirm": true,
+    "idempotency_key": "commit-meezan-2026-05-25"
+  }'
+```
+
+**Response:**
+```json
+{
+  "ok": true,
+  "version": "reconciliation-v0.3",
+  "plan_id": "recon_plan_...",
+  "committed_count": 4,
+  "committed_transaction_ids": ["tx_...", "tx_...", "tx_...", "tx_..."],
+  "skipped_count": 0,
+  "skipped_to_exceptions": [],
+  "projected_balance_before": 448.01,
+  "projected_balance_after": 10.01,
+  "warnings": []
+}
+```
+
+**Rules:**
+- Only `MISSING_SAFE_TO_IMPORT` and `TRANSFER_PAIR_FOUND` rows are committed.
+- `POSSIBLE_DUPLICATE`, `PENDING_UNPOSTED`, `NEEDS_REVIEW`, `TRANSFER_PAIR_MISSING`, `DO_NOT_IMPORT` are never auto-committed.
+- Re-running the same `plan_id` is idempotent — returns `committed_count: 0`, `is_idempotent: true`.
+- Failed commits are written to `reconciliation_exceptions` as `NO_STATEMENT_PROOF`.
+
+### Step 3 — Resolve an exception (Phase 2, new)
+
+```bash
+curl -X POST https://sovereign-finance.pages.dev/api/reconciliation/exceptions/exc_.../resolve \
+  -H 'Content-Type: application/json' \
+  -d '{"resolution_note": "Verified duplicate — original entry exists"}'
+```
+
+### Migration
+
+Run `migrations/12_reconciliation_exceptions.sql` once against D1 to add the Phase 2 columns:
+
+```bash
+wrangler d1 execute sovereign-finance-db --file migrations/12_reconciliation_exceptions.sql
+```
+
+Duplicate-column errors on the `ALTER TABLE` lines can be ignored (column already exists from Phase 1).
