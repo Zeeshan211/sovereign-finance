@@ -1,17 +1,19 @@
 /* Sovereign Finance Reconciliation API
  * /api/reconciliation
- * v0.1.0-manual-balance-snapshots
+ * v0.2.0-statement-reconciliation
  *
- * Phase 5 purpose:
- * - Manual statement balance snapshot source.
- * - Shows app balance from transactions_canonical.
- * - Lets user dry-run real statement balance comparisons.
- * - Saves manual reconciliation snapshots.
- * - Creates exception records when app balance and real balance differ.
- * - Does NOT mutate ledger/accounts/balances automatically.
+ * GET  /api/reconciliation   — dashboard summary (upgraded from v0.1.0)
+ * POST /api/reconciliation   — dry_run | save_snapshot (unchanged from v0.1.0)
+ *
+ * New in v0.2.0:
+ *   - GET response includes import_summary (statement_imports table counts)
+ *   - GET contract flags: statement_import_supported, dry_run_statement_supported
+ *   - New sub-routes (separate files, take precedence over this catch-all):
+ *       POST /api/reconciliation/import-statement
+ *       POST /api/reconciliation/dry-run
  */
 
-const VERSION = 'v0.1.0-manual-balance-snapshots';
+const VERSION = 'v0.2.0-statement-reconciliation';
 
 const POSITIVE_TYPES = new Set([
   'income',
@@ -46,8 +48,9 @@ export async function onRequestGet(context) {
       }, 500);
     }
 
-    const rows = await buildRows(db);
-    const exceptions = await loadOpenExceptions(db);
+    const rows          = await buildRows(db);
+    const exceptions    = await loadOpenExceptions(db);
+    const importSummary = await loadImportSummary(db);
 
     return json({
       ok: true,
@@ -56,15 +59,18 @@ export async function onRequestGet(context) {
       summary: summarizeRows(rows, exceptions),
       rows,
       exceptions,
+      import_summary: importSummary,
       contract: {
-        reconciliation_is_manual: true,
-        app_balance_source: 'transactions_canonical',
-        real_balance_source: 'manual_statement_entry',
-        mutates_ledger: false,
-        mutates_accounts: false,
-        auto_adjusts_balances: false,
-        save_snapshot_supported: true,
-        dry_run_supported: true
+        reconciliation_is_manual:        true,
+        app_balance_source:              'transactions_canonical',
+        real_balance_source:             'manual_statement_entry',
+        mutates_ledger:                  false,
+        mutates_accounts:                false,
+        auto_adjusts_balances:           false,
+        save_snapshot_supported:         true,
+        dry_run_supported:               true,
+        statement_import_supported:      true,
+        dry_run_statement_supported:     true
       }
     });
   } catch (err) {
@@ -81,7 +87,7 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   try {
-    const db = context.env.DB;
+    const db   = context.env.DB;
     const body = await readJson(context.request);
     const action = clean(body.action || 'dry_run').toLowerCase();
 
@@ -141,16 +147,16 @@ export async function onRequestOptions() {
   });
 }
 
-/* ─────────────────────────────
+/* ───────────────────────────
  * GET rows
- * ───────────────────────────── */
+ * ─────────────────────────── */
 
 async function buildRows(db) {
-  const accounts = await loadAccountsWithBalances(db);
+  const accounts        = await loadAccountsWithBalances(db);
   const latestSnapshots = await loadLatestSnapshotsByAccount(db);
 
   return accounts.map(account => {
-    const snapshot = latestSnapshots.get(account.id) || null;
+    const snapshot    = latestSnapshots.get(account.id) || null;
     const realBalance = snapshot && snapshot.real_balance != null
       ? round2(snapshot.real_balance)
       : null;
@@ -160,20 +166,20 @@ async function buildRows(db) {
       : round2(realBalance - account.app_balance);
 
     return {
-      account_id: account.id,
-      account_name: account.name,
-      account_type: account.type,
-      account_kind: account.kind,
-      currency: account.currency,
-      status: statusForDifference(realBalance, difference),
-      app_balance: account.app_balance,
-      app_balance_source: 'transactions_canonical',
-      real_balance: realBalance,
+      account_id:           account.id,
+      account_name:         account.name,
+      account_type:         account.type,
+      account_kind:         account.kind,
+      currency:             account.currency,
+      status:               statusForDifference(realBalance, difference),
+      app_balance:          account.app_balance,
+      app_balance_source:   'transactions_canonical',
+      real_balance:         realBalance,
       difference,
-      last_snapshot_id: snapshot ? snapshot.id : null,
-      last_snapshot_at: snapshot ? snapshot.created_at : null,
-      last_statement_date: snapshot ? snapshot.statement_date : null,
-      needs_review: realBalance != null && Math.abs(difference) > 0.009,
+      last_snapshot_id:     snapshot ? snapshot.id         : null,
+      last_snapshot_at:     snapshot ? snapshot.created_at : null,
+      last_statement_date:  snapshot ? snapshot.statement_date : null,
+      needs_review:         realBalance != null && Math.abs(difference) > 0.009,
       rule: 'Manual reconciliation compares app balance to statement balance and does not mutate ledger/accounts.'
     };
   });
@@ -181,20 +187,20 @@ async function buildRows(db) {
 
 async function loadAccountsWithBalances(db) {
   const accountCols = await tableColumns(db, 'accounts');
-  const txCols = await tableColumns(db, 'transactions');
+  const txCols      = await tableColumns(db, 'transactions');
 
   if (!accountCols.size || !accountCols.has('id')) return [];
 
   const accountSelect = [
     'id',
-    accountCols.has('name') ? 'name' : null,
-    accountCols.has('type') ? 'type' : null,
-    accountCols.has('kind') ? 'kind' : null,
-    accountCols.has('currency') ? 'currency' : null,
-    accountCols.has('status') ? 'status' : null,
+    accountCols.has('name')          ? 'name'          : null,
+    accountCols.has('type')          ? 'type'          : null,
+    accountCols.has('kind')          ? 'kind'          : null,
+    accountCols.has('currency')      ? 'currency'      : null,
+    accountCols.has('status')        ? 'status'        : null,
     accountCols.has('display_order') ? 'display_order' : null,
-    accountCols.has('deleted_at') ? 'deleted_at' : null,
-    accountCols.has('archived_at') ? 'archived_at' : null
+    accountCols.has('deleted_at')    ? 'deleted_at'    : null,
+    accountCols.has('archived_at')   ? 'archived_at'   : null
   ].filter(Boolean);
 
   const accountRows = await db.prepare(
@@ -204,17 +210,17 @@ async function loadAccountsWithBalances(db) {
   ).all();
 
   const accounts = (accountRows.results || []).map(row => ({
-    id: clean(row.id),
-    name: clean(row.name || row.id),
-    type: clean(row.type || 'asset'),
-    kind: clean(row.kind || row.type || 'account'),
-    currency: clean(row.currency || 'PKR'),
-    status: clean(row.status || 'active'),
-    deleted_at: row.deleted_at || null,
+    id:          clean(row.id),
+    name:        clean(row.name || row.id),
+    type:        clean(row.type || 'asset'),
+    kind:        clean(row.kind || row.type || 'account'),
+    currency:    clean(row.currency || 'PKR'),
+    status:      clean(row.status || 'active'),
+    deleted_at:  row.deleted_at  || null,
     archived_at: row.archived_at || null,
-    app_balance: 0,
-    transaction_count: 0,
-    included_transaction_count: 0,
+    app_balance:                       0,
+    transaction_count:                 0,
+    included_transaction_count:        0,
     skipped_inactive_transaction_count: 0
   })).filter(account => isActiveAccount(account));
 
@@ -224,18 +230,17 @@ async function loadAccountsWithBalances(db) {
 
   const txSelect = [
     'id',
-    txCols.has('type') ? 'type' : null,
+    txCols.has('type')             ? 'type'             : null,
     txCols.has('transaction_type') ? 'transaction_type' : null,
     'amount',
     'account_id',
-    txCols.has('notes') ? 'notes' : null,
+    txCols.has('notes')       ? 'notes'       : null,
     txCols.has('reversed_by') ? 'reversed_by' : null,
     txCols.has('reversed_at') ? 'reversed_at' : null
   ].filter(Boolean);
 
   const txRows = await db.prepare(
-    `SELECT ${txSelect.join(', ')}
-     FROM transactions`
+    `SELECT ${txSelect.join(', ')} FROM transactions`
   ).all();
 
   const byId = new Map(accounts.map(account => [account.id, account]));
@@ -283,10 +288,10 @@ async function loadLatestSnapshotsByAccount(db) {
     cols.has('id') ? 'id' : 'rowid AS id',
     'account_id',
     realCol,
-    cols.has('app_balance') ? 'app_balance' : 'NULL AS app_balance',
-    cols.has('difference') ? 'difference' : 'NULL AS difference',
+    cols.has('app_balance')    ? 'app_balance'    : 'NULL AS app_balance',
+    cols.has('difference')     ? 'difference'     : 'NULL AS difference',
     cols.has('statement_date') ? 'statement_date' : 'NULL AS statement_date',
-    cols.has('created_at') ? 'created_at' : 'NULL AS created_at'
+    cols.has('created_at')     ? 'created_at'     : 'NULL AS created_at'
   ];
 
   const orderCol = cols.has('created_at') ? 'datetime(created_at)' : 'rowid';
@@ -302,13 +307,13 @@ async function loadLatestSnapshotsByAccount(db) {
     if (!accountId || map.has(accountId)) continue;
 
     map.set(accountId, {
-      id: row.id,
-      account_id: accountId,
-      real_balance: row.real_balance == null ? null : number(row.real_balance),
-      app_balance: row.app_balance == null ? null : number(row.app_balance),
-      difference: row.difference == null ? null : number(row.difference),
+      id:             row.id,
+      account_id:     accountId,
+      real_balance:   row.real_balance   == null ? null : number(row.real_balance),
+      app_balance:    row.app_balance    == null ? null : number(row.app_balance),
+      difference:     row.difference     == null ? null : number(row.difference),
       statement_date: row.statement_date || null,
-      created_at: row.created_at || null
+      created_at:     row.created_at     || null
     });
   }
 
@@ -325,14 +330,14 @@ async function loadOpenExceptions(db) {
   if (!cols.has('account_id')) return [];
 
   const select = [
-    cols.has('id') ? 'id' : 'rowid AS id',
+    cols.has('id')           ? 'id'           : 'rowid AS id',
     'account_id',
     cols.has('account_name') ? 'account_name' : 'NULL AS account_name',
-    cols.has('app_balance') ? 'app_balance' : 'NULL AS app_balance',
+    cols.has('app_balance')  ? 'app_balance'  : 'NULL AS app_balance',
     cols.has('real_balance') ? 'real_balance' : 'NULL AS real_balance',
-    cols.has('difference') ? 'difference' : 'NULL AS difference',
-    cols.has('status') ? 'status' : 'NULL AS status',
-    cols.has('created_at') ? 'created_at' : 'NULL AS created_at'
+    cols.has('difference')   ? 'difference'   : 'NULL AS difference',
+    cols.has('status')       ? 'status'       : 'NULL AS status',
+    cols.has('created_at')   ? 'created_at'   : 'NULL AS created_at'
   ];
 
   const where = cols.has('status')
@@ -348,24 +353,46 @@ async function loadOpenExceptions(db) {
   ).all();
 
   return (res.results || []).map(row => ({
-    id: row.id,
-    account_id: clean(row.account_id),
-    account_name: row.account_name || null,
-    app_balance: row.app_balance == null ? null : round2(row.app_balance),
+    id:           row.id,
+    account_id:   clean(row.account_id),
+    account_name: row.account_name  || null,
+    app_balance:  row.app_balance  == null ? null : round2(row.app_balance),
     real_balance: row.real_balance == null ? null : round2(row.real_balance),
-    difference: row.difference == null ? null : round2(row.difference),
-    status: row.status || 'open',
-    created_at: row.created_at || null
+    difference:   row.difference   == null ? null : round2(row.difference),
+    status:       row.status || 'open',
+    created_at:   row.created_at   || null
   }));
 }
 
-/* ─────────────────────────────
+async function loadImportSummary(db) {
+  try {
+    const exists = await tableExists(db, 'statement_imports');
+    if (!exists) return { total_imports: 0, last_import_at: null, last_import_account: null };
+
+    const totals = await db.prepare(
+      `SELECT COUNT(*) AS total, MAX(created_at) AS last_at FROM statement_imports`
+    ).first();
+    const lastRow = await db.prepare(
+      `SELECT account_id FROM statement_imports ORDER BY created_at DESC LIMIT 1`
+    ).first();
+
+    return {
+      total_imports:       totals?.total    || 0,
+      last_import_at:      totals?.last_at  || null,
+      last_import_account: lastRow?.account_id || null
+    };
+  } catch (_) {
+    return { total_imports: 0, last_import_at: null, last_import_account: null };
+  }
+}
+
+/* ───────────────────────────
  * POST dry-run / save
- * ───────────────────────────── */
+ * ─────────────────────────── */
 
 async function dryRunReconciliation(db, body) {
-  const input = normalizeSnapshotInput(body);
-  const rows = await buildRows(db);
+  const input   = normalizeSnapshotInput(body);
+  const rows    = await buildRows(db);
   const account = rows.find(row => row.account_id === input.account_id);
 
   if (!account) {
@@ -401,8 +428,8 @@ async function dryRunReconciliation(db, body) {
     writes_performed: false,
     row: result,
     contract: {
-      mutates_ledger: false,
-      mutates_accounts: false,
+      mutates_ledger:           false,
+      mutates_accounts:         false,
       save_required_for_snapshot: true
     }
   });
@@ -411,8 +438,8 @@ async function dryRunReconciliation(db, body) {
 async function saveSnapshot(db, body) {
   await ensureReconciliationTables(db);
 
-  const input = normalizeSnapshotInput(body);
-  const rows = await buildRows(db);
+  const input   = normalizeSnapshotInput(body);
+  const rows    = await buildRows(db);
   const account = rows.find(row => row.account_id === input.account_id);
 
   if (!account) {
@@ -439,8 +466,8 @@ async function saveSnapshot(db, body) {
     }, 400);
   }
 
-  const result = buildComparison(account, input);
-  const now = nowSql();
+  const result     = buildComparison(account, input);
+  const now        = nowSql();
   const snapshotId = `recon_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   const batch = [
@@ -464,7 +491,6 @@ async function saveSnapshot(db, body) {
 
   if (result.needs_review) {
     const exceptionId = `recon_exc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
     batch.push(
       db.prepare(
         `INSERT INTO reconciliation_exceptions
@@ -487,8 +513,9 @@ async function saveSnapshot(db, body) {
 
   await db.batch(batch);
 
-  const updatedRows = await buildRows(db);
-  const exceptions = await loadOpenExceptions(db);
+  const updatedRows  = await buildRows(db);
+  const exceptions   = await loadOpenExceptions(db);
+  const importSummary = await loadImportSummary(db);
 
   return json({
     ok: true,
@@ -501,13 +528,14 @@ async function saveSnapshot(db, body) {
       last_snapshot_id: snapshotId,
       last_snapshot_at: now
     },
-    summary: summarizeRows(updatedRows, exceptions),
-    rows: updatedRows,
+    summary:        summarizeRows(updatedRows, exceptions),
+    rows:           updatedRows,
     exceptions,
+    import_summary: importSummary,
     contract: {
-      mutates_ledger: false,
-      mutates_accounts: false,
-      snapshot_saved: true,
+      mutates_ledger:    false,
+      mutates_accounts:  false,
+      snapshot_saved:    true,
       exception_created: result.needs_review
     }
   });
@@ -515,41 +543,41 @@ async function saveSnapshot(db, body) {
 
 function normalizeSnapshotInput(body) {
   return {
-    account_id: clean(body.account_id || body.id),
+    account_id:   clean(body.account_id || body.id),
     real_balance: body.real_balance === undefined || body.real_balance === null || body.real_balance === ''
       ? null
       : round2(body.real_balance),
     statement_date: normalizeDate(body.statement_date || body.date) || todayISO(),
-    notes: clean(body.notes || '')
+    notes:          clean(body.notes || '')
   };
 }
 
 function buildComparison(account, input) {
   const realBalance = round2(input.real_balance);
-  const appBalance = round2(account.app_balance);
-  const difference = round2(realBalance - appBalance);
+  const appBalance  = round2(account.app_balance);
+  const difference  = round2(realBalance - appBalance);
   const needsReview = Math.abs(difference) > 0.009;
 
   return {
-    account_id: account.account_id,
-    account_name: account.account_name,
-    account_type: account.account_type,
-    account_kind: account.account_kind,
-    currency: account.currency,
-    app_balance: appBalance,
-    app_balance_source: 'transactions_canonical',
-    real_balance: realBalance,
+    account_id:          account.account_id,
+    account_name:        account.account_name,
+    account_type:        account.account_type,
+    account_kind:        account.account_kind,
+    currency:            account.currency,
+    app_balance:         appBalance,
+    app_balance_source:  'transactions_canonical',
+    real_balance:        realBalance,
     difference,
-    statement_date: input.statement_date,
-    status: needsReview ? 'needs_review' : 'matched',
-    needs_review: needsReview,
+    statement_date:      input.statement_date,
+    status:              needsReview ? 'needs_review' : 'matched',
+    needs_review:        needsReview,
     rule: 'Difference = real statement balance - app ledger balance. No automatic ledger adjustment is made.'
   };
 }
 
-/* ─────────────────────────────
+/* ───────────────────────────
  * Table setup for snapshots
- * ───────────────────────────── */
+ * ─────────────────────────── */
 
 async function ensureReconciliationTables(db) {
   await db.prepare(
@@ -583,27 +611,27 @@ async function ensureReconciliationTables(db) {
   ).run();
 }
 
-/* ─────────────────────────────
+/* ───────────────────────────
  * Summary / rules
- * ───────────────────────────── */
+ * ─────────────────────────── */
 
 function summarizeRows(rows, exceptions) {
-  const accountCount = rows.length;
-  const needsReviewCount = rows.filter(row => row.needs_review).length;
-  const matchedCount = rows.filter(row => row.status === 'matched').length;
+  const accountCount         = rows.length;
+  const needsReviewCount     = rows.filter(row => row.needs_review).length;
+  const matchedCount         = rows.filter(row => row.status === 'matched').length;
   const pendingStatementCount = rows.filter(row => row.status === 'pending_statement').length;
 
   return {
-    account_count: accountCount,
-    needs_review_count: needsReviewCount,
-    matched_count: matchedCount,
+    account_count:          accountCount,
+    needs_review_count:     needsReviewCount,
+    matched_count:          matchedCount,
     pending_statement_count: pendingStatementCount,
-    exception_count: exceptions.length,
-    app_balance_total: round2(rows.reduce((sum, row) => sum + number(row.app_balance, 0), 0)),
-    real_balance_total: rows.some(row => row.real_balance != null)
+    exception_count:        exceptions.length,
+    app_balance_total:      round2(rows.reduce((sum, row) => sum + number(row.app_balance, 0), 0)),
+    real_balance_total:     rows.some(row => row.real_balance != null)
       ? round2(rows.reduce((sum, row) => sum + number(row.real_balance, 0), 0))
       : null,
-    difference_total: rows.some(row => row.difference != null)
+    difference_total:       rows.some(row => row.difference != null)
       ? round2(rows.reduce((sum, row) => sum + number(row.difference, 0), 0))
       : null
   };
@@ -615,23 +643,21 @@ function statusForDifference(realBalance, difference) {
   return 'needs_review';
 }
 
-/* ─────────────────────────────
+/* ───────────────────────────
  * Money / transaction helpers
- * ───────────────────────────── */
+ * ─────────────────────────── */
 
 function signedAmount(tx) {
-  const type = clean(tx.type || tx.transaction_type).toLowerCase();
+  const type   = clean(tx.type || tx.transaction_type).toLowerCase();
   const amount = Math.abs(number(tx.amount, 0));
 
-  if (POSITIVE_TYPES.has(type)) return amount;
+  if (POSITIVE_TYPES.has(type)) return  amount;
   if (NEGATIVE_TYPES.has(type)) return -amount;
-
   return -amount;
 }
 
 function isInactiveTransaction(tx) {
   const notes = String(tx.notes || '').toUpperCase();
-
   return Boolean(
     tx.reversed_by ||
     tx.reversed_at ||
@@ -642,23 +668,20 @@ function isInactiveTransaction(tx) {
 
 function isActiveAccount(account) {
   const status = clean(account.status || 'active').toLowerCase();
-
   if (['inactive', 'deleted', 'archived'].includes(status)) return false;
   if (account.deleted_at || account.archived_at) return false;
-
   return true;
 }
 
-/* ─────────────────────────────
+/* ───────────────────────────
  * Generic helpers
- * ───────────────────────────── */
+ * ─────────────────────────── */
 
 async function tableExists(db, tableName) {
   try {
     const row = await db.prepare(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1"
     ).bind(tableName).first();
-
     return Boolean(row && row.name);
   } catch {
     return false;
@@ -675,20 +698,14 @@ async function tableColumns(db, tableName) {
 }
 
 async function readJson(request) {
-  try {
-    return await request.json();
-  } catch {
-    return {};
-  }
+  try { return await request.json(); } catch { return {}; }
 }
 
 function number(value, fallback = 0) {
   if (value === undefined || value === null || value === '') return fallback;
-
   const n = typeof value === 'number'
     ? value
     : Number(String(value).replace(/rs/ig, '').replace(/,/g, '').trim());
-
   return Number.isFinite(n) ? n : fallback;
 }
 
@@ -703,10 +720,8 @@ function clean(value) {
 
 function normalizeDate(value) {
   const raw = clean(value);
-
   if (!raw) return '';
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-
   return '';
 }
 
