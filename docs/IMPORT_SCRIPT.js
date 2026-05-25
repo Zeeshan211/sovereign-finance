@@ -126,15 +126,6 @@
 
   const TO_CREATE = [
     {
-      id: 'debt_aunt_plot_700k',
-      name: 'Aunt — Plot Purchase',
-      kind: 'owe',
-      original_amount: 700000,
-      paid_amount: 300000,
-      movement_now: false,
-      notes: '700k total. 300k paid. 400k outstanding for plot purchase.',
-    },
-    {
       id: 'debt_jamima_1000',
       name: 'Jamima Khan',
       kind: 'owed',
@@ -228,7 +219,7 @@
   console.log('    debt_imran_historical_10k Imran Bhai — Historical    10k');
   console.log('    debt_cred_2_4             Mashal                     8.5k');
   console.log('    debt_naseem_fix_820       Naseem Bibi                320 remaining (820-500)');
-  console.log('    debt_aunt_plot_700k       Aunt — Plot Purchase       400k remaining (700k-300k)');
+  console.log('    [Aunt — Plot Purchase skipped — to be handled separately]');
   console.log('');
   console.log('  OWED TO ME:');
   console.log('    debt_jamima_1000          Jamima Khan                1k');
