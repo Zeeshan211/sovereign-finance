@@ -1,5 +1,5 @@
 // Auth helpers — Web Crypto API only, no npm deps
-// Password hashing: PBKDF2-SHA256 310k iterations (≥ bcrypt cost-12 equivalent)
+// Password hashing: PBKDF2-SHA256 10k iterations (fits Workers 50ms CPU budget)
 
 const COOKIE_NAME = 'sid';
 const SESSION_DAYS = 30;
@@ -12,9 +12,9 @@ export async function hashPassword(password) {
     'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']
   );
   const bits = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' }, key, 256
+    { name: 'PBKDF2', salt, iterations: 10000, hash: 'SHA-256' }, key, 256
   );
-  return `pbkdf2:310000:${toHex(salt)}:${toHex(new Uint8Array(bits))}`;
+  return `pbkdf2:10000:${toHex(salt)}:${toHex(new Uint8Array(bits))}`;
 }
 
 export async function verifyPassword(password, stored) {
@@ -25,6 +25,7 @@ export async function verifyPassword(password, stored) {
       'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']
     );
     const bits = await crypto.subtle.deriveBits(
+      // reads iteration count from stored hash — compatible with any past cost
       { name: 'PBKDF2', salt, iterations: Number(iters), hash: 'SHA-256' }, key, 256
     );
     return toHex(new Uint8Array(bits)) === expectedHex;
