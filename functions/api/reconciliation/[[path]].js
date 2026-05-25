@@ -1,16 +1,16 @@
 /* Sovereign Finance Reconciliation API
  * /api/reconciliation
- * v0.2.0-statement-reconciliation
+ * v0.2.0-statement-reconciliation (Phase 2 additive: dashboard)
  *
- * GET  /api/reconciliation   — dashboard summary (upgraded from v0.1.0)
+ * GET  /api/reconciliation   — dashboard summary (additive v0.3 fields)
  * POST /api/reconciliation   — dry_run | save_snapshot (unchanged from v0.1.0)
  *
- * New in v0.2.0:
- *   - GET response includes import_summary (statement_imports table counts)
- *   - GET contract flags: statement_import_supported, dry_run_statement_supported
- *   - New sub-routes (separate files, take precedence over this catch-all):
- *       POST /api/reconciliation/import-statement
- *       POST /api/reconciliation/dry-run
+ * Phase 2 additions (additive, no contract breaks):
+ *   - GET response includes dashboard { accounts, transfer_pairs_last_30d, exception_summary }
+ *   - GET response exceptions updated to include Phase 2 columns
+ *   - New sub-routes (separate files):
+ *       POST /api/reconciliation/commit
+ *       POST /api/reconciliation/exceptions/:id/resolve
  */
 
 const VERSION = 'v0.2.0-statement-reconciliation';
@@ -51,6 +51,7 @@ export async function onRequestGet(context) {
     const rows          = await buildRows(db);
     const exceptions    = await loadOpenExceptions(db);
     const importSummary = await loadImportSummary(db);
+    const dashboard     = await loadDashboard(db, rows);
 
     return json({
       ok: true,
@@ -60,6 +61,7 @@ export async function onRequestGet(context) {
       rows,
       exceptions,
       import_summary: importSummary,
+      dashboard,
       contract: {
         reconciliation_is_manual:        true,
         app_balance_source:              'transactions_canonical',
@@ -70,7 +72,9 @@ export async function onRequestGet(context) {
         save_snapshot_supported:         true,
         dry_run_supported:               true,
         statement_import_supported:      true,
-        dry_run_statement_supported:     true
+        dry_run_statement_supported:     true,
+        commit_supported:                true,
+        exception_resolve_supported:     true
       }
     });
   } catch (err) {
@@ -322,22 +326,29 @@ async function loadLatestSnapshotsByAccount(db) {
 
 async function loadOpenExceptions(db) {
   const exists = await tableExists(db, 'reconciliation_exceptions');
-
   if (!exists) return [];
 
   const cols = await tableColumns(db, 'reconciliation_exceptions');
-
-  if (!cols.has('account_id')) return [];
+  if (!cols.has('id')) return [];
 
   const select = [
-    cols.has('id')           ? 'id'           : 'rowid AS id',
-    'account_id',
-    cols.has('account_name') ? 'account_name' : 'NULL AS account_name',
-    cols.has('app_balance')  ? 'app_balance'  : 'NULL AS app_balance',
-    cols.has('real_balance') ? 'real_balance' : 'NULL AS real_balance',
-    cols.has('difference')   ? 'difference'   : 'NULL AS difference',
-    cols.has('status')       ? 'status'       : 'NULL AS status',
-    cols.has('created_at')   ? 'created_at'   : 'NULL AS created_at'
+    'id',
+    cols.has('account_id')               ? 'account_id'               : 'NULL AS account_id',
+    cols.has('plan_id')                  ? 'plan_id'                  : 'NULL AS plan_id',
+    cols.has('type')                     ? 'type'                     : 'NULL AS type',
+    cols.has('severity')                 ? 'severity'                 : 'NULL AS severity',
+    cols.has('amount')                   ? 'amount'                   : 'NULL AS amount',
+    cols.has('description')              ? 'description'              : 'NULL AS description',
+    cols.has('reason')                   ? 'reason'                   : 'NULL AS reason',
+    cols.has('recommended_action')       ? 'recommended_action'       : 'NULL AS recommended_action',
+    cols.has('status')                   ? 'status'                   : "'open' AS status",
+    cols.has('created_at')               ? 'created_at'               : 'NULL AS created_at',
+    cols.has('resolved_at')              ? 'resolved_at'              : 'NULL AS resolved_at',
+    cols.has('resolution_note')          ? 'resolution_note'          : 'NULL AS resolution_note',
+    cols.has('account_name')             ? 'account_name'             : 'NULL AS account_name',
+    cols.has('app_balance')              ? 'app_balance'              : 'NULL AS app_balance',
+    cols.has('real_balance')             ? 'real_balance'             : 'NULL AS real_balance',
+    cols.has('difference')               ? 'difference'               : 'NULL AS difference'
   ];
 
   const where = cols.has('status')
@@ -349,18 +360,27 @@ async function loadOpenExceptions(db) {
      FROM reconciliation_exceptions
      ${where}
      ORDER BY ${cols.has('created_at') ? 'datetime(created_at) DESC,' : ''} id DESC
-     LIMIT 100`
+     LIMIT 200`
   ).all();
 
   return (res.results || []).map(row => ({
-    id:           row.id,
-    account_id:   clean(row.account_id),
-    account_name: row.account_name  || null,
-    app_balance:  row.app_balance  == null ? null : round2(row.app_balance),
-    real_balance: row.real_balance == null ? null : round2(row.real_balance),
-    difference:   row.difference   == null ? null : round2(row.difference),
-    status:       row.status || 'open',
-    created_at:   row.created_at   || null
+    id:                 row.id,
+    account_id:         clean(row.account_id || ''),
+    plan_id:            row.plan_id            || null,
+    type:               row.type               || null,
+    severity:           row.severity           || null,
+    amount:             row.amount    == null  ? null : round2(row.amount),
+    description:        row.description        || null,
+    reason:             row.reason             || null,
+    recommended_action: row.recommended_action || null,
+    status:             row.status             || 'open',
+    created_at:         row.created_at         || null,
+    resolved_at:        row.resolved_at        || null,
+    resolution_note:    row.resolution_note    || null,
+    account_name:       row.account_name       || null,
+    app_balance:        row.app_balance  == null ? null : round2(row.app_balance),
+    real_balance:       row.real_balance == null ? null : round2(row.real_balance),
+    difference:         row.difference   == null ? null : round2(row.difference)
   }));
 }
 
@@ -383,6 +403,137 @@ async function loadImportSummary(db) {
     };
   } catch (_) {
     return { total_imports: 0, last_import_at: null, last_import_account: null };
+  }
+}
+
+async function loadDashboard(db, rows) {
+  try {
+    const accounts = [];
+
+    const stmtImportsExist = await tableExists(db, 'statement_imports');
+    const plansExist       = await tableExists(db, 'reconciliation_plans');
+    const excExist         = await tableExists(db, 'reconciliation_exceptions');
+
+    for (const row of rows) {
+      const acctId = row.account_id;
+
+      let lastStatementDate    = null;
+      let lastStatementClosing = null;
+      if (stmtImportsExist) {
+        const si = await db.prepare(
+          `SELECT date_to, statement_closing_balance
+           FROM statement_imports WHERE account_id = ?
+           ORDER BY created_at DESC LIMIT 1`
+        ).bind(acctId).first().catch(() => null);
+        if (si) {
+          lastStatementDate    = si.date_to || null;
+          lastStatementClosing = si.statement_closing_balance != null
+            ? round2(si.statement_closing_balance)
+            : null;
+        }
+      }
+
+      let lastReconciledAt = null;
+      if (plansExist) {
+        const p = await db.prepare(
+          `SELECT committed_at FROM reconciliation_plans
+           WHERE account_id = ? AND committed_at IS NOT NULL
+           ORDER BY committed_at DESC LIMIT 1`
+        ).bind(acctId).first().catch(() => null);
+        if (p) lastReconciledAt = p.committed_at;
+      }
+
+      let openExceptionsCount = 0;
+      if (excExist) {
+        const e = await db.prepare(
+          `SELECT COUNT(*) AS n FROM reconciliation_exceptions
+           WHERE account_id = ? AND (status IS NULL OR status = '' OR status = 'open')`
+        ).bind(acctId).first().catch(() => null);
+        if (e) openExceptionsCount = e.n || 0;
+      }
+
+      const drift = lastStatementClosing != null
+        ? round2(row.app_balance - lastStatementClosing)
+        : null;
+
+      const status = lastStatementClosing == null
+        ? 'no_statement'
+        : Math.abs(drift) < 0.01
+          ? 'reconciled'
+          : Math.abs(drift) < 10
+            ? 'drift_minor'
+            : 'drift_major';
+
+      accounts.push({
+        account_id:            acctId,
+        name:                  row.account_name,
+        app_balance:           row.app_balance,
+        last_statement_date:   lastStatementDate,
+        last_statement_closing: lastStatementClosing,
+        drift,
+        status,
+        last_reconciled_at:    lastReconciledAt,
+        open_exceptions_count: openExceptionsCount
+      });
+    }
+
+    // Transfer pairs from reconciliation_plans last 30 days
+    const transferPairs = [];
+    if (plansExist) {
+      const cutoff = addDays(todayISO(), -30) + ' 00:00:00';
+      const plans  = await db.prepare(
+        `SELECT account_id, plan_json
+         FROM reconciliation_plans
+         WHERE created_at >= ?
+         ORDER BY created_at DESC LIMIT 100`
+      ).bind(cutoff).all().catch(() => ({ results: [] }));
+
+      for (const p of plans.results || []) {
+        try {
+          const pd = JSON.parse(p.plan_json || '{}');
+          for (const item of pd.plan || []) {
+            if (item.classification !== 'TRANSFER_PAIR_FOUND') continue;
+            const stmt = item.statement_row;
+            if (!stmt) continue;
+            const amount = stmt.debit != null
+              ? Math.abs(stmt.debit)
+              : Math.abs(stmt.credit ?? 0);
+            transferPairs.push({
+              date:              stmt.posted_date,
+              source_account_id: p.account_id,
+              dest_account_id:   item.other_account_id || null,
+              amount,
+              both_sides_found:  true,
+              source_tx_id:      null,
+              dest_tx_id:        item.matched_ledger_id || null
+            });
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Exception summary
+    const exceptionSummary = { open: 0, resolved: 0, by_type: {} };
+    if (excExist) {
+      const excCols = await tableColumns(db, 'reconciliation_exceptions');
+      if (excCols.has('status')) {
+        const allExc = await db.prepare(
+          `SELECT type, status FROM reconciliation_exceptions LIMIT 2000`
+        ).all().catch(() => ({ results: [] }));
+        for (const e of allExc.results || []) {
+          if (e.status === 'resolved') exceptionSummary.resolved++;
+          else exceptionSummary.open++;
+          if (e.type) {
+            exceptionSummary.by_type[e.type] =
+              (exceptionSummary.by_type[e.type] || 0) + 1;
+          }
+        }
+      }
+    }
+
+    return { accounts, transfer_pairs_last_30d: transferPairs, exception_summary: exceptionSummary };
+  } catch (_) {
+    return { accounts: [], transfer_pairs_last_30d: [], exception_summary: { open: 0, resolved: 0, by_type: {} } };
   }
 }
 
@@ -727,6 +878,12 @@ function normalizeDate(value) {
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function addDays(dateStr, n) {
+  const d = new Date((dateStr || todayISO()) + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
 }
 
 function nowSql() {
