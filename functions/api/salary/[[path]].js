@@ -1,671 +1,612 @@
-/* /api/salary
- * Sovereign Finance · Salary Contract Source
- * v0.2.1-salary-contract-source-precision
+/* /api/salary/[[path]]
+ * Sovereign Finance · Salary & Payslips
+ * v1.0.0-salary-payslips
  *
- * Phase 3 purpose:
- * - Salary is a saved backend contract, not page-only display state.
- * - Forecast reads salary from this contract.
- * - Saving salary must NOT mutate account balances or ledger.
- * - Preserve FX precision.
- * - Return whole-rupee computed salary values for Forecast/Hub consistency.
+ * Actions (POST body.action):
+ *   create_contract  – employer-based salary contract
+ *   add_payslip      – monthly payslip + ledger income transaction
+ *   update_contract  – update non-amount fields
+ *   archive_contract – set status='archived'
+ *   forecast_period  – N-month income projection
+ *   update_config    – update salary_config table
+ *   (none)           – backward compat legacy POST
+ *
+ * GET /api/salary          – list contracts + computed + payslips
+ * GET /api/salary/forecast – 6-month projection
+ * GET /api/salary/:id      – contract detail with payslips
  */
 
-const VERSION = 'v0.2.1-salary-contract-source-precision';
-const CONTRACT_ID = 'salary_contract_current';
+import { audit } from '../_lib.js';
+
+const VERSION = 'v1.0.0-salary-payslips';
+const LEGACY_CONTRACT_ID = 'salary_contract_current';
 
 export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
+    const path = getPath(context);
+    if (!db) return dbMissing();
 
-    if (!db) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: {
-          code: 'DB_BINDING_MISSING',
-          message: 'Cloudflare D1 binding DB is not available.'
-        }
-      }, 500);
-    }
-
-    const tableOk = await tableExists(db, 'salary_contracts');
-
-    if (!tableOk) {
-      return json({
-        ok: true,
-        version: VERSION,
-        source: 'salary_contract',
-        contract: null,
-        computed: emptyComputed(),
-        forecast_source: disabledForecastSource('salary_contracts table missing'),
-        salary: [],
-        contract_health: {
-          ok: false,
-          reason: 'salary_contracts table missing'
-        }
-      });
-    }
-
-    const contract = await loadCurrentContract(db);
-    const normalized = normalizeContract(contract || {});
-    const computed = computeSalary(normalized);
-    const forecastSource = buildForecastSource(normalized, computed);
-
-    return json({
-      ok: true,
-      version: VERSION,
-      source: 'salary_contract',
-      contract: contract ? normalized : null,
-      computed,
-      forecast_source: forecastSource,
-      salary: contract ? [normalized] : [],
-      contract_health: {
-        ok: Boolean(contract),
-        saved_contract_exists: Boolean(contract),
-        forecast_enabled: forecastSource.enabled,
-        money_precision: 'whole_rupees_for_outputs',
-        fx_precision: 'preserved_input_precision'
-      }
-    });
+    if (path[0] === 'forecast') return handleForecastGet(db, 6);
+    if (path[0] && path[0] !== 'forecast') return handleContractDetail(db, path[0]);
+    return handleList(db);
   } catch (err) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: {
-        code: 'SALARY_GET_FAILED',
-        message: err.message || String(err)
-      }
-    }, 500);
+    return json({ ok: false, version: VERSION, error: { code: 'GET_FAILED', message: err.message } }, 500);
   }
 }
 
 export async function onRequestPost(context) {
   try {
     const db = context.env.DB;
-    const url = new URL(context.request.url);
+    if (!db) return dbMissing();
     const body = await readJson(context.request);
-    const dryRun = isDryRun(url, body);
+    const path = getPath(context);
+    const action = s(body.action || path[1] || '').toLowerCase();
 
-    if (!db) {
-      return json({
-        ok: false,
-        version: VERSION,
-        error: {
-          code: 'DB_BINDING_MISSING',
-          message: 'Cloudflare D1 binding DB is not available.'
-        }
-      }, 500);
+    switch (action) {
+      case 'create_contract':  return handleCreateContract(db, body, context.env);
+      case 'add_payslip':      return handleAddPayslip(db, body, context.env);
+      case 'update_contract':  return handleUpdateContract(db, body, context.env);
+      case 'archive_contract': return handleArchiveContract(db, body, context.env);
+      case 'forecast_period':  return handleForecastPeriod(db, body);
+      case 'update_config':    return handleUpdateConfig(db, body);
+      default:                 return handleLegacyPost(db, body);
     }
-
-    const tableOk = await tableExists(db, 'salary_contracts');
-
-    if (!tableOk) {
-      return json({
-        ok: false,
-        version: VERSION,
-        action: dryRun ? 'salary.contract.dry_run' : 'salary.contract.save',
-        error: {
-          code: 'SALARY_CONTRACTS_TABLE_MISSING',
-          message: 'salary_contracts table does not exist.'
-        }
-      }, 500);
-    }
-
-    const contract = normalizeContract({
-      id: CONTRACT_ID,
-      effective_month: body.effective_month,
-      basic: body.basic,
-      hra: body.hra,
-      medical: body.medical,
-      utility: body.utility,
-      contract_base: body.contract_base,
-      wfh_usd: body.wfh_usd,
-      wfh_fx_rate: body.wfh_fx_rate,
-      include_wfh: body.include_wfh,
-      other_allowance: body.other_allowance,
-      deductions: body.deductions,
-      payday: body.payday,
-      payout_account_id: body.payout_account_id,
-      include_in_forecast: body.include_in_forecast,
-      notes: body.notes,
-      updated_at: nowSql()
-    });
-
-    const validation = validateContract(contract);
-
-    if (!validation.ok) {
-      return json({
-        ok: false,
-        version: VERSION,
-        action: dryRun ? 'salary.contract.dry_run' : 'salary.contract.save',
-        error: validation.error,
-        contract,
-        computed: computeSalary(contract),
-        forecast_source: disabledForecastSource(validation.error.message)
-      }, 400);
-    }
-
-    const computed = computeSalary(contract);
-    const forecastSource = buildForecastSource(contract, computed);
-
-    if (dryRun) {
-      return json({
-        ok: true,
-        version: VERSION,
-        action: 'salary.contract.dry_run',
-        dry_run: true,
-        writes_performed: false,
-        contract,
-        computed,
-        forecast_source: forecastSource,
-        contract_health: {
-          ok: true,
-          would_save: true,
-          money_precision: 'whole_rupees_for_outputs',
-          fx_precision: 'preserved_input_precision'
-        }
-      });
-    }
-
-    await saveContract(db, contract);
-
-    const saved = normalizeContract(await loadCurrentContract(db));
-    const savedComputed = computeSalary(saved);
-    const savedForecastSource = buildForecastSource(saved, savedComputed);
-
-    return json({
-      ok: true,
-      version: VERSION,
-      action: 'salary.contract.save',
-      writes_performed: true,
-      contract: saved,
-      computed: savedComputed,
-      forecast_source: savedForecastSource,
-      salary: [saved],
-      contract_health: {
-        ok: true,
-        saved_contract_exists: true,
-        forecast_enabled: savedForecastSource.enabled,
-        money_precision: 'whole_rupees_for_outputs',
-        fx_precision: 'preserved_input_precision'
-      }
-    });
   } catch (err) {
-    return json({
-      ok: false,
-      version: VERSION,
-      error: {
-        code: 'SALARY_POST_FAILED',
-        message: err.message || String(err)
-      }
-    }, 500);
+    return json({ ok: false, version: VERSION, error: { code: 'POST_FAILED', message: err.message } }, 500);
   }
 }
 
 export async function onRequestOptions() {
-  return new Response(null, {
-    status: 204,
-    headers: corsHeaders()
+  return new Response(null, { status: 204, headers: corsHeaders() });
+}
+
+// ─── GET handlers ─────────────────────────────────────────────────────────────
+
+async function handleList(db) {
+  const contractCols = await tableColumns(db, 'salary_contracts');
+  const payslipCols  = await tableColumns(db, 'salary_payslips');
+
+  const contracts = await loadContracts(db, contractCols);
+  const recentPayslips = payslipCols.has('id') ? await loadRecentPayslips(db, payslipCols, 12) : [];
+
+  const legacyContract = contracts.find(c => c.id === LEGACY_CONTRACT_ID) || contracts[0] || null;
+  const normalized = legacyContract ? normalizeLegacy(legacyContract) : null;
+  const computed = normalized ? computeSalary(normalized) : emptyComputed();
+  const forecastSource = normalized ? buildForecastSource(normalized, computed) : disabledForecastSource('no contract');
+
+  return json({
+    ok: true,
+    version: VERSION,
+    source: 'salary_contract',
+    contracts,
+    active_contracts: contracts.filter(c => s(c.status) !== 'archived'),
+    archived_contracts: contracts.filter(c => s(c.status) === 'archived'),
+    payslips: recentPayslips,
+    contract: normalized,
+    computed,
+    forecast_source: forecastSource,
+    salary: normalized ? [normalized] : [],
+    contract_health: {
+      ok: Boolean(normalized),
+      saved_contract_exists: Boolean(normalized),
+      forecast_enabled: forecastSource.enabled,
+    },
   });
 }
 
-/* ─────────────────────────────
- * Data access
- * ───────────────────────────── */
-
-async function loadCurrentContract(db) {
-  const cols = await tableColumns(db, 'salary_contracts');
-  const selectCols = Array.from(cols).join(', ');
-
-  if (!selectCols) return null;
-
-  let row = null;
-
-  if (cols.has('id')) {
-    row = await db.prepare(
-      `SELECT ${selectCols}
-       FROM salary_contracts
-       WHERE id = ?
-       LIMIT 1`
-    ).bind(CONTRACT_ID).first();
-  }
-
-  if (row) return row;
-
-  const orderBy = cols.has('updated_at')
-    ? 'datetime(updated_at) DESC'
-    : cols.has('effective_month')
-      ? 'effective_month DESC'
-      : 'rowid DESC';
-
-  return db.prepare(
-    `SELECT ${selectCols}
-     FROM salary_contracts
-     ORDER BY ${orderBy}
-     LIMIT 1`
-  ).first();
+async function handleContractDetail(db, contractId) {
+  const contractCols = await tableColumns(db, 'salary_contracts');
+  const payslipCols  = await tableColumns(db, 'salary_payslips');
+  const contract = await loadContract(db, contractCols, contractId);
+  if (!contract) return json({ ok: false, version: VERSION, error: { code: 'NOT_FOUND', message: 'Contract not found' } }, 404);
+  const payslips = payslipCols.has('id') ? await loadContractPayslips(db, payslipCols, contractId) : [];
+  return json({ ok: true, version: VERSION, contract, payslips });
 }
 
-async function saveContract(db, contract) {
+async function handleForecastGet(db, months) {
+  const contractCols = await tableColumns(db, 'salary_contracts');
+  const contracts = await loadContracts(db, contractCols);
+  const active = contracts.filter(c => s(c.status) !== 'archived');
+  return json({ ok: true, version: VERSION, action: 'forecast', months, projections: buildProjections(active, months) });
+}
+
+// ─── POST action handlers ─────────────────────────────────────────────────────
+
+async function handleCreateContract(db, body, env) {
   const cols = await tableColumns(db, 'salary_contracts');
+  if (!cols.has('id')) return json({ ok: false, version: VERSION, action: 'create_contract', error: 'salary_contracts table missing', code: 'TABLE_MISSING' }, 500);
 
-  if (!cols.size) {
-    throw new Error('salary_contracts table has no readable columns');
-  }
+  const employerName = s(body.employer_name || body.employer || '').slice(0, 200);
+  if (!employerName) return json({ ok: false, version: VERSION, action: 'create_contract', error: 'employer_name is required', code: 'EMPLOYER_REQUIRED' }, 400);
 
-  const now = nowSql();
+  const grossAmount     = moneyInt(body.gross_amount || body.gross || 0);
+  const netEstimate     = moneyInt(body.net_amount_estimate || body.net || grossAmount);
+  const frequency       = normalizeFrequency(body.frequency);
+  const paydayDay       = normalizePayday(body.payday_day || body.payday);
+  const depositAccount  = s(body.deposit_account_id || body.payout_account_id || 'meezan').slice(0, 120);
+  const startDate       = cleanDate(body.start_date);
+  const taxBracket      = s(body.tax_bracket || '').slice(0, 50);
+  const currency        = s(body.currency || 'PKR').slice(0, 10);
+  const notes           = s(body.notes || '').slice(0, 1000);
+  const now             = nowISO();
+  const contractId      = makeId('contract');
+  const effectiveMonth  = startDate ? startDate.slice(0, 7) : now.slice(0, 7);
 
-  const row = {
-    id: CONTRACT_ID,
-    effective_month: contract.effective_month,
-    basic: contract.basic,
-    hra: contract.hra,
-    medical: contract.medical,
-    utility: contract.utility,
-    contract_base: contract.contract_base,
-    wfh_usd: contract.wfh_usd,
-    wfh_fx_rate: contract.wfh_fx_rate,
-    include_wfh: boolToDb(contract.include_wfh),
-    other_allowance: contract.other_allowance,
-    deductions: contract.deductions,
-    payday: contract.payday,
-    payout_account_id: contract.payout_account_id,
-    include_in_forecast: boolToDb(contract.include_in_forecast),
-    notes: contract.notes,
+  const row = filterToCols(cols, {
+    id: contractId,
+    employer_name: employerName,
+    gross_amount: grossAmount,
+    net_amount_estimate: netEstimate,
+    frequency,
+    payday: paydayDay,
+    payday_day: paydayDay,
+    deposit_account_id: depositAccount,
+    payout_account_id: depositAccount,
+    start_date: startDate,
+    tax_bracket: taxBracket,
+    currency,
+    status: 'active',
+    notes,
+    include_in_forecast: 1,
+    basic: grossAmount,
+    contract_base: grossAmount,
+    deductions: Math.max(0, grossAmount - netEstimate),
+    effective_month: effectiveMonth,
+    created_at: now,
     updated_at: now,
-    created_at: now
-  };
+  });
 
-  const exists = cols.has('id')
-    ? await db.prepare('SELECT id FROM salary_contracts WHERE id = ? LIMIT 1').bind(CONTRACT_ID).first()
-    : null;
+  await buildInsert(db, 'salary_contracts', row).run();
 
-  if (exists) {
-    const updateKeys = Object.keys(row).filter(key => key !== 'id' && cols.has(key));
+  await safeAudit(env, {
+    action: 'SALARY_CONTRACT_CREATE',
+    entity: 'salary_contract',
+    entity_id: contractId,
+    kind: 'mutation',
+    detail: JSON.stringify({ contract_id: contractId, employer_name: employerName, gross_amount: grossAmount }),
+    created_by: 'web-salary',
+  });
 
-    if (!updateKeys.length) {
-      throw new Error('salary_contracts table has no supported columns to update');
-    }
-
-    await db.prepare(
-      `UPDATE salary_contracts
-       SET ${updateKeys.map(key => `${key} = ?`).join(', ')}
-       WHERE id = ?`
-    ).bind(...updateKeys.map(key => row[key]), CONTRACT_ID).run();
-
-    return;
-  }
-
-  const insertKeys = Object.keys(row).filter(key => cols.has(key));
-
-  if (!insertKeys.length) {
-    throw new Error('salary_contracts table has no supported columns to insert');
-  }
-
-  await db.prepare(
-    `INSERT INTO salary_contracts (${insertKeys.join(', ')})
-     VALUES (${insertKeys.map(() => '?').join(', ')})`
-  ).bind(...insertKeys.map(key => row[key])).run();
+  return json({
+    ok: true,
+    version: VERSION,
+    action: 'create_contract',
+    committed: true,
+    writes_performed: true,
+    contract_id: contractId,
+    data: { id: contractId, employer_name: employerName, gross_amount: grossAmount, net_amount_estimate: netEstimate, frequency, payday_day: paydayDay, deposit_account_id: depositAccount, status: 'active' },
+  });
 }
 
-/* ─────────────────────────────
- * Contract normalization
- * ───────────────────────────── */
+async function handleAddPayslip(db, body, env) {
+  const payslipCols  = await tableColumns(db, 'salary_payslips');
+  const txCols       = await tableColumns(db, 'transactions');
 
-function normalizeContract(input) {
-  const basic = wholeRupee(input.basic);
-  const hra = wholeRupee(input.hra);
-  const medical = wholeRupee(input.medical);
-  const utility = wholeRupee(input.utility);
-
-  const providedContractBase = numberOrNull(input.contract_base);
-  const derivedContractBase = wholeRupee(basic + hra + medical + utility);
-  const contractBase = providedContractBase == null
-    ? derivedContractBase
-    : wholeRupee(providedContractBase);
-
-  const wfhUsd = decimalMoney(input.wfh_usd, 0, 6);
-  const wfhFxRate = decimalMoney(input.wfh_fx_rate, 0, 6);
-
-  return {
-    id: safeText(input.id || CONTRACT_ID, CONTRACT_ID, 120),
-    effective_month: normalizeEffectiveMonth(input.effective_month),
-    basic,
-    hra,
-    medical,
-    utility,
-    contract_base: contractBase,
-    wfh_usd: wfhUsd,
-    wfh_fx_rate: wfhFxRate,
-    include_wfh: toBool(input.include_wfh, false),
-    other_allowance: wholeRupee(input.other_allowance),
-    deductions: wholeRupee(input.deductions),
-    payday: normalizePayday(input.payday),
-    payout_account_id: safeText(input.payout_account_id || 'meezan', 'meezan', 120),
-    include_in_forecast: toBool(input.include_in_forecast, true),
-    notes: safeText(input.notes, '', 1000),
-    updated_at: input.updated_at || null
-  };
-}
-
-function validateContract(contract) {
-  if (!contract.effective_month) {
-    return {
-      ok: false,
-      error: {
-        code: 'EFFECTIVE_MONTH_REQUIRED',
-        message: 'effective_month is required in YYYY-MM format.'
-      }
-    };
+  if (!payslipCols.has('id')) {
+    return json({ ok: false, version: VERSION, action: 'add_payslip', error: 'salary_payslips table missing — run migration 18', code: 'TABLE_MISSING' }, 500);
   }
 
-  if (!contract.payday || contract.payday < 1 || contract.payday > 31) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_PAYDAY',
-        message: 'payday must be between 1 and 31.'
-      }
-    };
-  }
+  const contractId      = s(body.contract_id || LEGACY_CONTRACT_ID);
+  const period          = cleanPeriod(body.period);
+  const gross           = moneyInt(body.gross || body.gross_amount || 0);
+  const net             = moneyInt(body.net || body.net_amount || gross);
+  const bonus           = moneyInt(body.bonus || 0);
+  const depositDate     = cleanDate(body.deposit_date || body.date);
+  const depositAccount  = s(body.deposit_account_id || body.account_id || '').slice(0, 120);
+  const notes           = s(body.notes || '').slice(0, 1000);
+  const components      = JSON.stringify(Array.isArray(body.components) ? body.components : []);
+  const deductions      = JSON.stringify(Array.isArray(body.deductions) ? body.deductions : []);
 
-  if (!contract.payout_account_id) {
-    return {
-      ok: false,
-      error: {
-        code: 'PAYOUT_ACCOUNT_REQUIRED',
-        message: 'payout_account_id is required.'
-      }
-    };
-  }
+  if (!period) return json({ ok: false, version: VERSION, action: 'add_payslip', error: 'period is required (YYYY-MM)', code: 'PERIOD_REQUIRED' }, 400);
+  if (net <= 0)  return json({ ok: false, version: VERSION, action: 'add_payslip', error: 'net amount must be > 0', code: 'INVALID_NET' }, 400);
+  if (!depositAccount) return json({ ok: false, version: VERSION, action: 'add_payslip', error: 'deposit_account_id is required', code: 'ACCOUNT_REQUIRED' }, 400);
 
-  if (contract.contract_base < 0 || contract.other_allowance < 0 || contract.deductions < 0) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_AMOUNT',
-        message: 'Salary amounts cannot be negative.'
-      }
-    };
-  }
+  const now        = nowISO();
+  const payslipId  = makeId('payslip');
+  const txnId      = makeId('salaryin');
+  const txnNotes   = `[SALARY_INCOME] payslip_id=${payslipId} period=${period} contract_id=${contractId} gross=${gross}`.slice(0, 240);
 
-  if (contract.include_wfh && (contract.wfh_usd <= 0 || contract.wfh_fx_rate <= 0)) {
-    return {
-      ok: false,
-      error: {
-        code: 'INVALID_WFH',
-        message: 'WFH USD and FX rate must be greater than 0 when include_wfh is true.'
-      }
-    };
-  }
-
-  return { ok: true };
-}
-
-/* ─────────────────────────────
- * Salary computation
- * ───────────────────────────── */
-
-function computeSalary(contract) {
-  const wfhRaw = contract.include_wfh
-    ? decimal(contract.wfh_usd) * decimal(contract.wfh_fx_rate)
-    : 0;
-
-  const wfhAllowance = wholeRupee(wfhRaw);
-
-  const gross = wholeRupee(
-    contract.contract_base +
-    wfhAllowance +
-    contract.other_allowance
-  );
-
-  const net = wholeRupee(gross - contract.deductions);
-  const expectedDate = expectedDateForMonth(contract.effective_month, contract.payday);
-
-  return {
-    basic: wholeRupee(contract.basic),
-    hra: wholeRupee(contract.hra),
-    medical: wholeRupee(contract.medical),
-    utility: wholeRupee(contract.utility),
-    contract_base: wholeRupee(contract.contract_base),
-    wfh_usd: decimalMoney(contract.wfh_usd, 0, 6),
-    wfh_fx_rate: decimalMoney(contract.wfh_fx_rate, 0, 6),
-    wfh_allowance: wfhAllowance,
-    include_wfh: Boolean(contract.include_wfh),
-    other_allowance: wholeRupee(contract.other_allowance),
-    deductions: wholeRupee(contract.deductions),
+  const payslipRow = filterToCols(payslipCols, {
+    id: payslipId,
+    contract_id: contractId,
+    period,
     gross,
     net,
-    paid: 0,
-    remaining: net,
-    payday: contract.payday,
-    expected_date: expectedDate,
-    payout_account_id: contract.payout_account_id,
-    include_in_forecast: Boolean(contract.include_in_forecast)
+    deductions,
+    components,
+    bonus,
+    deposit_date: depositDate,
+    deposit_account_id: depositAccount,
+    transaction_id: txCols.has('id') ? txnId : null,
+    notes,
+    created_at: now,
+    updated_at: now,
+  });
+
+  const stmts = [buildInsert(db, 'salary_payslips', payslipRow)];
+
+  if (txCols.has('id') && txCols.has('type') && txCols.has('amount') && txCols.has('account_id')) {
+    const txnRow = filterToCols(txCols, {
+      id: txnId,
+      date: depositDate,
+      type: 'income',
+      amount: net,
+      pkr_amount: net,
+      account_id: depositAccount,
+      merchant: s(body.employer_name || 'Salary').slice(0, 200),
+      notes: txnNotes,
+      currency: 'PKR',
+      fx_rate_at_commit: 1,
+      fx_source: 'PKR-base',
+      linked_txn_id: payslipId,
+      source_module: 'salary',
+      source_id: payslipId,
+      source_action: 'payslip_income',
+      created_by: 'web-salary',
+      created_at: now,
+      updated_at: now,
+    });
+    stmts.push(buildInsert(db, 'transactions', txnRow));
+  }
+
+  await db.batch(stmts);
+
+  await safeAudit(env, {
+    action: 'SALARY_PAYSLIP_ADD',
+    entity: 'salary_payslip',
+    entity_id: payslipId,
+    kind: 'mutation',
+    detail: JSON.stringify({ payslip_id: payslipId, contract_id: contractId, period, gross, net, deposit_account_id: depositAccount }),
+    created_by: 'web-salary',
+  });
+
+  return json({
+    ok: true,
+    version: VERSION,
+    action: 'add_payslip',
+    committed: true,
+    writes_performed: true,
+    payslip_id: payslipId,
+    transaction_id: txCols.has('id') ? txnId : null,
+    data: { id: payslipId, contract_id: contractId, period, gross, net, deposit_account_id: depositAccount, deposit_date: depositDate },
+  });
+}
+
+async function handleUpdateContract(db, body, env) {
+  const cols = await tableColumns(db, 'salary_contracts');
+  const contractId = s(body.contract_id || LEGACY_CONTRACT_ID);
+  const existing = cols.has('id') ? await db.prepare('SELECT id FROM salary_contracts WHERE id = ? LIMIT 1').bind(contractId).first() : null;
+  if (!existing) return json({ ok: false, version: VERSION, action: 'update_contract', error: 'Contract not found', code: 'NOT_FOUND' }, 404);
+
+  const updates = {};
+  if (body.employer_name !== undefined) updates.employer_name = s(body.employer_name).slice(0, 200);
+  if (body.notes         !== undefined) updates.notes         = s(body.notes).slice(0, 1000);
+  if (body.frequency     !== undefined) updates.frequency     = normalizeFrequency(body.frequency);
+  if (body.tax_bracket   !== undefined) updates.tax_bracket   = s(body.tax_bracket).slice(0, 50);
+  if (body.currency      !== undefined) updates.currency      = s(body.currency).slice(0, 10);
+  updates.updated_at = nowISO();
+
+  const entries = Object.entries(updates).filter(([k]) => cols.has(k));
+  if (entries.length <= 1) return json({ ok: true, version: VERSION, action: 'update_contract', committed: false, writes_performed: false });
+
+  const setSql = entries.map(([k]) => `${k} = ?`).join(', ');
+  await db.prepare(`UPDATE salary_contracts SET ${setSql} WHERE id = ?`).bind(...entries.map(([, v]) => v), contractId).run();
+
+  return json({ ok: true, version: VERSION, action: 'update_contract', committed: true, writes_performed: true, contract_id: contractId });
+}
+
+async function handleArchiveContract(db, body, env) {
+  const cols = await tableColumns(db, 'salary_contracts');
+  const contractId = s(body.contract_id || LEGACY_CONTRACT_ID);
+  if (!cols.has('status')) return json({ ok: false, version: VERSION, action: 'archive_contract', error: 'status column missing — run migration 18', code: 'COLUMN_MISSING' }, 500);
+  await db.prepare('UPDATE salary_contracts SET status = ?, updated_at = ? WHERE id = ?').bind('archived', nowISO(), contractId).run();
+  await safeAudit(env, { action: 'SALARY_CONTRACT_ARCHIVE', entity: 'salary_contract', entity_id: contractId, kind: 'mutation', detail: JSON.stringify({ contract_id: contractId }), created_by: 'web-salary' });
+  return json({ ok: true, version: VERSION, action: 'archive_contract', committed: true, writes_performed: true, contract_id: contractId, status: 'archived' });
+}
+
+async function handleForecastPeriod(db, body) {
+  const months = Math.min(24, Math.max(1, parseInt(body.months || 6, 10) || 6));
+  const cols = await tableColumns(db, 'salary_contracts');
+  const contracts = await loadContracts(db, cols);
+  const active = contracts.filter(c => s(c.status) !== 'archived');
+  return json({ ok: true, version: VERSION, action: 'forecast_period', committed: false, writes_performed: false, months, projections: buildProjections(active, months) });
+}
+
+async function handleUpdateConfig(db, body) {
+  const cols = await tableColumns(db, 'salary_config');
+  if (!cols.has('id')) return json({ ok: false, version: VERSION, action: 'update_config', error: 'salary_config table missing — run migration 18', code: 'TABLE_MISSING' }, 500);
+  const now  = nowISO();
+  const id   = 'salary_config_current';
+  const taxRates         = body.tax_rates         ? JSON.stringify(body.tax_rates)         : null;
+  const defaultDeductions = body.default_deductions ? JSON.stringify(body.default_deductions) : null;
+  const existing = await db.prepare('SELECT id FROM salary_config WHERE id = ? LIMIT 1').bind(id).first();
+  if (existing) {
+    const sets = []; const vals = [];
+    if (taxRates         && cols.has('tax_rates'))          { sets.push('tax_rates = ?');          vals.push(taxRates); }
+    if (defaultDeductions && cols.has('default_deductions')) { sets.push('default_deductions = ?'); vals.push(defaultDeductions); }
+    sets.push('updated_at = ?'); vals.push(now);
+    await db.prepare(`UPDATE salary_config SET ${sets.join(', ')} WHERE id = ?`).bind(...vals, id).run();
+  } else {
+    const row = filterToCols(cols, { id, tax_rates: taxRates || '{}', default_deductions: defaultDeductions || '[]', updated_at: now });
+    await buildInsert(db, 'salary_config', row).run();
+  }
+  return json({ ok: true, version: VERSION, action: 'update_config', committed: true, writes_performed: true });
+}
+
+// ─── Legacy backward-compat POST ──────────────────────────────────────────────
+
+async function handleLegacyPost(db, body) {
+  const cols = await tableColumns(db, 'salary_contracts');
+  if (!cols.has('id')) return json({ ok: false, version: VERSION, error: { code: 'SALARY_CONTRACTS_TABLE_MISSING', message: 'salary_contracts table does not exist.' } }, 500);
+
+  const dryRun = body.dry_run === true || body.dry_run === '1';
+  const contract = normalizeLegacy({
+    id: LEGACY_CONTRACT_ID,
+    effective_month: body.effective_month,
+    basic: body.basic, hra: body.hra, medical: body.medical, utility: body.utility,
+    contract_base: body.contract_base,
+    wfh_usd: body.wfh_usd, wfh_fx_rate: body.wfh_fx_rate, include_wfh: body.include_wfh,
+    other_allowance: body.other_allowance, deductions: body.deductions,
+    payday: body.payday,
+    payout_account_id: body.payout_account_id || body.deposit_account_id,
+    deposit_account_id: body.deposit_account_id || body.payout_account_id,
+    include_in_forecast: body.include_in_forecast,
+    employer_name: body.employer_name || null,
+    notes: body.notes, updated_at: nowISO(),
+  });
+
+  const computed = computeSalary(contract);
+  const forecastSource = buildForecastSource(contract, computed);
+
+  if (dryRun) {
+    return json({ ok: true, version: VERSION, action: 'salary.contract.dry_run', dry_run: true, writes_performed: false, contract, computed, forecast_source: forecastSource });
+  }
+
+  await saveLegacyContract(db, cols, contract);
+  return json({ ok: true, version: VERSION, action: 'salary.contract.save', committed: true, writes_performed: true, contract, computed, forecast_source: forecastSource, salary: [contract] });
+}
+
+// ─── Data access ──────────────────────────────────────────────────────────────
+
+async function loadContracts(db, cols) {
+  if (!cols.has('id')) return [];
+  const wanted = ['id','employer_name','gross_amount','net_amount_estimate','frequency',
+    'payday','payday_day','deposit_account_id','payout_account_id','status','start_date',
+    'tax_bracket','currency','notes','basic','hra','medical','utility','contract_base',
+    'wfh_usd','wfh_fx_rate','include_wfh','other_allowance','deductions',
+    'include_in_forecast','effective_month','created_at','updated_at'].filter(c => cols.has(c));
+  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_contracts ORDER BY datetime(updated_at) DESC, id DESC`).all();
+  return (result.results || []).map(enrichContract);
+}
+
+async function loadContract(db, cols, id) {
+  if (!cols.has('id')) return null;
+  const wanted = ['id','employer_name','gross_amount','net_amount_estimate','frequency',
+    'payday','payday_day','deposit_account_id','payout_account_id','status','start_date',
+    'tax_bracket','currency','notes','basic','hra','medical','utility','contract_base',
+    'wfh_usd','wfh_fx_rate','include_wfh','other_allowance','deductions',
+    'include_in_forecast','effective_month','created_at','updated_at'].filter(c => cols.has(c));
+  const row = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_contracts WHERE id = ? LIMIT 1`).bind(id).first();
+  return row ? enrichContract(row) : null;
+}
+
+async function loadContractPayslips(db, cols, contractId) {
+  if (!cols.has('id')) return [];
+  const wanted = ['id','contract_id','period','gross','net','bonus','deposit_date',
+    'deposit_account_id','transaction_id','notes','created_at','updated_at'].filter(c => cols.has(c));
+  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_payslips WHERE contract_id = ? ORDER BY period DESC`).bind(contractId).all();
+  return result.results || [];
+}
+
+async function loadRecentPayslips(db, cols, limit) {
+  if (!cols.has('id')) return [];
+  const wanted = ['id','contract_id','period','gross','net','bonus',
+    'deposit_date','deposit_account_id','transaction_id','notes','created_at','updated_at'].filter(c => cols.has(c));
+  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_payslips ORDER BY period DESC LIMIT ?`).bind(limit).all();
+  return result.results || [];
+}
+
+async function saveLegacyContract(db, cols, contract) {
+  const now = nowISO();
+  const row = {
+    id: LEGACY_CONTRACT_ID, effective_month: contract.effective_month,
+    basic: contract.basic, hra: contract.hra, medical: contract.medical, utility: contract.utility,
+    contract_base: contract.contract_base, wfh_usd: contract.wfh_usd, wfh_fx_rate: contract.wfh_fx_rate,
+    include_wfh: contract.include_wfh ? 1 : 0, other_allowance: contract.other_allowance,
+    deductions: contract.deductions, payday: contract.payday,
+    payout_account_id: contract.payout_account_id, deposit_account_id: contract.deposit_account_id,
+    include_in_forecast: contract.include_in_forecast ? 1 : 0,
+    employer_name: contract.employer_name || null,
+    gross_amount: contract.contract_base || 0,
+    net_amount_estimate: (contract.contract_base || 0) - (contract.deductions || 0),
+    status: 'active',
+    notes: contract.notes, updated_at: now, created_at: now,
+  };
+  const existing = cols.has('id') ? await db.prepare('SELECT id FROM salary_contracts WHERE id = ? LIMIT 1').bind(LEGACY_CONTRACT_ID).first() : null;
+  if (existing) {
+    const keys = Object.keys(row).filter(k => k !== 'id' && cols.has(k));
+    if (!keys.length) return;
+    await db.prepare(`UPDATE salary_contracts SET ${keys.map(k => `${k} = ?`).join(', ')} WHERE id = ?`).bind(...keys.map(k => row[k]), LEGACY_CONTRACT_ID).run();
+  } else {
+    const keys = Object.keys(row).filter(k => cols.has(k));
+    if (!keys.length) return;
+    await db.prepare(`INSERT INTO salary_contracts (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`).bind(...keys.map(k => row[k])).run();
+  }
+}
+
+// ─── Enrichment & computation ─────────────────────────────────────────────────
+
+function enrichContract(row) {
+  const gross  = row.gross_amount  || row.contract_base || ((row.basic||0)+(row.hra||0)+(row.medical||0)+(row.utility||0));
+  const net    = row.net_amount_estimate || gross - (row.deductions || 0);
+  const payday = row.payday_day || row.payday || 25;
+  const depositAccount = row.deposit_account_id || row.payout_account_id || null;
+  return {
+    ...row,
+    employer_name:       row.employer_name || null,
+    gross_amount:        gross,
+    net_amount_estimate: net,
+    frequency:           row.frequency || 'monthly',
+    payday_day:          payday,
+    deposit_account_id:  depositAccount,
+    status:              row.status || 'active',
+    currency:            row.currency || 'PKR',
   };
 }
 
-function buildForecastSource(contract, computed) {
-  const enabled = Boolean(
-    contract &&
-    contract.include_in_forecast &&
-    computed &&
-    computed.net > 0 &&
-    contract.payout_account_id
-  );
+function buildProjections(contracts, months) {
+  const now = new Date();
+  return Array.from({ length: months }, (_, i) => {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1));
+    const period = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    const perContract = contracts.map(c => {
+      const payday = c.payday_day || c.payday || 25;
+      const maxDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+      return {
+        period, contract_id: c.id, employer_name: c.employer_name || null,
+        projected_gross: c.gross_amount || 0,
+        projected_net: c.net_amount_estimate || 0,
+        deposit_account_id: c.deposit_account_id || null,
+        expected_date: `${period}-${String(Math.min(payday, maxDay)).padStart(2, '0')}`,
+        frequency: c.frequency || 'monthly',
+      };
+    });
+    return {
+      period,
+      contracts: perContract,
+      total_projected_net:   perContract.reduce((s, p) => s + p.projected_net,   0),
+      total_projected_gross: perContract.reduce((s, p) => s + p.projected_gross, 0),
+    };
+  });
+}
 
+// ─── Legacy contract normalization ────────────────────────────────────────────
+
+function normalizeLegacy(input) {
+  const basic   = wr(input.basic);
+  const hra     = wr(input.hra);
+  const medical = wr(input.medical);
+  const utility = wr(input.utility);
+  const providedBase  = num(input.contract_base);
+  const derivedBase   = wr(basic + hra + medical + utility);
+  const contractBase  = providedBase == null ? derivedBase : wr(providedBase);
+  return {
+    id: s(input.id || LEGACY_CONTRACT_ID).slice(0, 120),
+    effective_month: normalizeEffectiveMonth(input.effective_month),
+    basic, hra, medical, utility,
+    contract_base: contractBase,
+    wfh_usd: dm(input.wfh_usd, 0, 6),
+    wfh_fx_rate: dm(input.wfh_fx_rate, 0, 6),
+    include_wfh: toBool(input.include_wfh, false),
+    other_allowance: wr(input.other_allowance),
+    deductions: wr(input.deductions),
+    payday: normalizePayday(input.payday),
+    payout_account_id: s(input.payout_account_id || input.deposit_account_id || 'meezan').slice(0, 120),
+    deposit_account_id: s(input.deposit_account_id || input.payout_account_id || 'meezan').slice(0, 120),
+    include_in_forecast: toBool(input.include_in_forecast, true),
+    employer_name: input.employer_name || null,
+    gross_amount: contractBase,
+    net_amount_estimate: wr(contractBase - wr(input.deductions)),
+    frequency: normalizeFrequency(input.frequency),
+    status: s(input.status || 'active'),
+    notes: s(input.notes || '').slice(0, 1000),
+    updated_at: input.updated_at || null,
+  };
+}
+
+function computeSalary(c) {
+  const wfhRaw = c.include_wfh ? (c.wfh_usd || 0) * (c.wfh_fx_rate || 0) : 0;
+  const wfhAllowance = wr(wfhRaw);
+  const gross = wr((c.contract_base || 0) + wfhAllowance + (c.other_allowance || 0));
+  const net   = wr(gross - (c.deductions || 0));
+  return {
+    basic: wr(c.basic), hra: wr(c.hra), medical: wr(c.medical), utility: wr(c.utility),
+    contract_base: wr(c.contract_base), wfh_usd: c.wfh_usd || 0, wfh_fx_rate: c.wfh_fx_rate || 0,
+    wfh_allowance: wfhAllowance, include_wfh: Boolean(c.include_wfh),
+    other_allowance: wr(c.other_allowance), deductions: wr(c.deductions),
+    gross, net, paid: 0, remaining: net,
+    payday: c.payday, expected_date: expectedDate(c.effective_month, c.payday),
+    payout_account_id: c.payout_account_id, include_in_forecast: Boolean(c.include_in_forecast),
+  };
+}
+
+function buildForecastSource(c, computed) {
+  const enabled = Boolean(c && c.include_in_forecast && computed && computed.net > 0 && c.payout_account_id);
   if (!enabled) {
-    let reason = 'salary contract not enabled for forecast';
-
-    if (!contract) reason = 'no saved salary contract';
-    else if (!contract.include_in_forecast) reason = 'salary excluded from forecast';
-    else if (!computed || computed.net <= 0) reason = 'salary net amount is zero';
-    else if (!contract.payout_account_id) reason = 'payout account missing';
-
+    const reason = !c ? 'no saved salary contract' : !c.include_in_forecast ? 'salary excluded from forecast' : !computed || computed.net <= 0 ? 'salary net amount is zero' : 'payout account missing';
     return disabledForecastSource(reason);
   }
-
   return {
-    type: 'salary_income',
-    source: 'salary_contract',
-    enabled: true,
-    monthly_salary_net: wholeRupee(computed.net),
-    expected_income_amount: wholeRupee(computed.net),
-    expected_payday: contract.payday,
-    expected_date: computed.expected_date,
-    payout_account_id: contract.payout_account_id,
-    effective_month: contract.effective_month,
-    version: VERSION,
-    rule: 'Salary forecast source emits whole-rupee net salary from saved salary contract.'
+    type: 'salary_income', source: 'salary_contract', enabled: true,
+    monthly_salary_net: wr(computed.net), expected_income_amount: wr(computed.net),
+    expected_payday: c.payday, expected_date: computed.expected_date,
+    payout_account_id: c.payout_account_id, effective_month: c.effective_month, version: VERSION,
   };
 }
 
 function disabledForecastSource(reason) {
-  return {
-    type: 'salary_income',
-    source: 'salary_contract',
-    enabled: false,
-    monthly_salary_net: 0,
-    expected_income_amount: 0,
-    expected_payday: null,
-    expected_date: null,
-    payout_account_id: null,
-    reason,
-    version: VERSION
-  };
+  return { type: 'salary_income', source: 'salary_contract', enabled: false, monthly_salary_net: 0, expected_income_amount: 0, expected_payday: null, expected_date: null, payout_account_id: null, reason, version: VERSION };
 }
 
 function emptyComputed() {
-  return {
-    basic: 0,
-    hra: 0,
-    medical: 0,
-    utility: 0,
-    contract_base: 0,
-    wfh_usd: 0,
-    wfh_fx_rate: 0,
-    wfh_allowance: 0,
-    include_wfh: false,
-    other_allowance: 0,
-    deductions: 0,
-    gross: 0,
-    net: 0,
-    paid: 0,
-    remaining: 0,
-    payday: null,
-    expected_date: null,
-    payout_account_id: null,
-    include_in_forecast: false
-  };
+  return { basic: 0, hra: 0, medical: 0, utility: 0, contract_base: 0, wfh_usd: 0, wfh_fx_rate: 0, wfh_allowance: 0, include_wfh: false, other_allowance: 0, deductions: 0, gross: 0, net: 0, paid: 0, remaining: 0, payday: null, expected_date: null, payout_account_id: null, include_in_forecast: false };
 }
 
-/* ─────────────────────────────
- * Helpers
- * ───────────────────────────── */
-
-async function tableExists(db, tableName) {
-  try {
-    const row = await db.prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1"
-    ).bind(tableName).first();
-
-    return Boolean(row && row.name);
-  } catch {
-    return false;
-  }
-}
+// ─── Utilities ────────────────────────────────────────────────────────────────
 
 async function tableColumns(db, tableName) {
   try {
     const result = await db.prepare(`PRAGMA table_info(${tableName})`).all();
-    return new Set((result.results || []).map(row => row.name).filter(Boolean));
-  } catch {
-    return new Set();
-  }
+    return new Set((result.results || []).map(r => r.name).filter(Boolean));
+  } catch { return new Set(); }
 }
 
-async function readJson(request) {
+function filterToCols(cols, row) {
+  const out = {};
+  for (const [k, v] of Object.entries(row)) { if (cols.has(k)) out[k] = v; }
+  return out;
+}
+
+function buildInsert(db, table, row) {
+  const keys = Object.keys(row);
+  if (!keys.length) throw new Error('No insertable columns for ' + table);
+  return db.prepare(`INSERT INTO ${table} (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`).bind(...keys.map(k => row[k]));
+}
+
+function makeId(prefix) { return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`; }
+function nowISO() { return new Date().toISOString(); }
+function s(v, fb = '') { return v === undefined || v === null ? fb : String(v).trim(); }
+function moneyInt(v) { const n = Number(String(v || 0).replace(/[^0-9.]/g, '')); return Number.isFinite(n) ? Math.round(n) : 0; }
+function num(v) { if (v === undefined || v === null || v === '') return null; const n = Number(String(v).replace(/,/g, '').trim()); return Number.isFinite(n) ? n : null; }
+function wr(v)  { const n = num(v); return n == null ? 0 : Math.round(n); }
+function dm(v, fb = 0, places = 6) { const n = num(v); if (n == null) return fb; const f = Math.pow(10, places); return Math.round(n * f) / f; }
+function toBool(v, fb = false) { if (v === undefined || v === null || v === '') return fb; if (v === true || v === 1) return true; if (v === false || v === 0) return false; const r = String(v).toLowerCase(); return ['1','true','yes','on'].includes(r) ? true : ['0','false','no','off'].includes(r) ? false : fb; }
+function normalizePayday(v) { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.min(31, Math.max(1, n)) : 25; }
+function normalizeFrequency(v) { const f = s(v).toLowerCase(); return ['monthly','biweekly','weekly'].includes(f) ? f : 'monthly'; }
+function normalizeEffectiveMonth(v) { const raw = s(v); if (/^\d{4}-\d{2}$/.test(raw)) return raw; if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw.slice(0, 7); const n = new Date(); return `${n.getUTCFullYear()}-${String(n.getUTCMonth() + 1).padStart(2, '0')}`; }
+function cleanPeriod(v) { const r = s(v); if (/^\d{4}-\d{2}$/.test(r)) return r; if (/^\d{4}-\d{2}-\d{2}$/.test(r)) return r.slice(0, 7); return null; }
+function cleanDate(v) { const r = s(v); return /^\d{4}-\d{2}-\d{2}$/.test(r) ? r : new Date().toISOString().slice(0, 10); }
+function expectedDate(effectiveMonth, payday) { const m = normalizeEffectiveMonth(effectiveMonth); const [y, mo] = m.split('-').map(Number); const maxDay = new Date(Date.UTC(y, mo, 0)).getUTCDate(); const day = Math.min(normalizePayday(payday), maxDay); return `${m}-${String(day).padStart(2, '0')}`; }
+
+function getPath(context) {
+  const raw = context.params && context.params.path;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
+  return String(raw).split('/').filter(Boolean);
+}
+
+async function readJson(request) { try { return await request.json(); } catch { return {}; } }
+function dbMissing() { return json({ ok: false, version: VERSION, error: { code: 'DB_BINDING_MISSING', message: 'D1 binding DB not available.' } }, 500); }
+
+async function safeAudit(env, event) {
   try {
-    return await request.json();
-  } catch {
-    return {};
+    const result = await audit(env, { ...event, detail: typeof event.detail === 'string' ? event.detail : JSON.stringify(event.detail || {}) });
+    return { ok: !!(result && result.ok), error: result?.error || null };
+  } catch (err) {
+    return { ok: false, error: err.message || String(err) };
   }
 }
 
-function isDryRun(url, body) {
-  return url.searchParams.get('dry_run') === '1' ||
-    url.searchParams.get('dry_run') === 'true' ||
-    body.dry_run === true ||
-    body.dry_run === '1' ||
-    body.dry_run === 'true';
-}
-
-function normalizeEffectiveMonth(value) {
-  const raw = safeText(value, '', 20);
-
-  if (/^\d{4}-\d{2}$/.test(raw)) return raw;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw.slice(0, 7);
-
-  const now = new Date();
-  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-
-  return `${now.getUTCFullYear()}-${month}`;
-}
-
-function normalizePayday(value) {
-  const n = Number(value);
-
-  if (!Number.isFinite(n)) return 1;
-
-  return Math.min(31, Math.max(1, Math.floor(n)));
-}
-
-function expectedDateForMonth(effectiveMonth, payday) {
-  const month = normalizeEffectiveMonth(effectiveMonth);
-  const [yearText, monthText] = month.split('-');
-  const year = Number(yearText);
-  const monthIndex = Number(monthText) - 1;
-  const maxDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
-  const day = Math.min(normalizePayday(payday), maxDay);
-
-  return `${month}-${String(day).padStart(2, '0')}`;
-}
-
-function numberOrNull(value) {
-  if (value === undefined || value === null || value === '') return null;
-
-  const n = Number(String(value).replace(/,/g, '').trim());
-
-  return Number.isFinite(n) ? n : null;
-}
-
-function decimal(value) {
-  const n = numberOrNull(value);
-
-  return n == null ? 0 : n;
-}
-
-function decimalMoney(value, fallback = 0, places = 6) {
-  const n = numberOrNull(value);
-
-  if (n == null) return fallback;
-
-  const factor = Math.pow(10, places);
-
-  return Math.round(n * factor) / factor;
-}
-
-function wholeRupee(value) {
-  const n = numberOrNull(value);
-
-  if (n == null) return 0;
-
-  return Math.round(n);
-}
-
-function toBool(value, fallback = false) {
-  if (value === undefined || value === null || value === '') return fallback;
-  if (value === true || value === 1) return true;
-  if (value === false || value === 0) return false;
-
-  const raw = String(value).trim().toLowerCase();
-
-  if (['1', 'true', 'yes', 'y', 'on', 'enabled'].includes(raw)) return true;
-  if (['0', 'false', 'no', 'n', 'off', 'disabled'].includes(raw)) return false;
-
-  return fallback;
-}
-
-function boolToDb(value) {
-  return value ? 1 : 0;
-}
-
-function safeText(value, fallback = '', max = 500) {
-  const raw = value === undefined || value === null ? fallback : value;
-
-  return String(raw === undefined || raw === null ? '' : raw).trim().slice(0, max);
-}
-
-function nowSql() {
-  return new Date().toISOString().replace('T', ' ').slice(0, 19);
-}
-
-function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Cache-Control': 'no-store'
-  };
-}
-
-function json(payload, status = 200) {
-  return new Response(JSON.stringify(payload, null, 2), {
-    status,
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-      Pragma: 'no-cache'
-    }
-  });
-}
+function corsHeaders() { return { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Cache-Control': 'no-store' }; }
+function json(payload, status = 200) { return new Response(JSON.stringify(payload, null, 2), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0', Pragma: 'no-cache' } }); }
