@@ -226,7 +226,7 @@ async function extractPdf(env, db, fileId, userId, accountId, r2Key, arrayBuffer
     ]
   };
 
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
   let geminiRes;
   try {
@@ -255,7 +255,8 @@ async function extractPdf(env, db, fileId, userId, accountId, r2Key, arrayBuffer
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text().catch(() => 'unknown error');
-      const detail = `Gemini HTTP ${geminiRes.status}: ${errText.slice(0, 300)}`;
+      const detail = `Gemini HTTP ${geminiRes.status}: ${errText.slice(0, 500)}`;
+      console.error('[upload-pdf] Gemini error', { status: geminiRes.status, body: errText.slice(0, 500) });
       await updateFileStatus(db, fileId, 'failed', null, detail);
       return { status: 'failed', error: `AI service error (HTTP ${geminiRes.status})`, message: detail };
     }
@@ -520,7 +521,7 @@ async function ensureStatementFilesTable(db) {
     extraction_result_json TEXT,
     extracted_row_count INTEGER,
     statement_import_id TEXT,
-    extraction_provider TEXT DEFAULT 'gemini-1.5-flash',
+    extraction_provider TEXT DEFAULT 'gemini-2.0-flash',
     extraction_cost_cents INTEGER DEFAULT 0,
     extraction_error TEXT,
     detected_bank TEXT,
