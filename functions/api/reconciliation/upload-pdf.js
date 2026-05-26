@@ -255,8 +255,9 @@ async function extractPdf(env, db, fileId, userId, accountId, r2Key, arrayBuffer
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text().catch(() => 'unknown error');
-      await updateFileStatus(db, fileId, 'failed', null, `Gemini HTTP ${geminiRes.status}: ${errText.slice(0, 200)}`);
-      return { status: 'failed', error: 'Could not reach AI service', message: 'Extraction service error' };
+      const detail = `Gemini HTTP ${geminiRes.status}: ${errText.slice(0, 300)}`;
+      await updateFileStatus(db, fileId, 'failed', null, detail);
+      return { status: 'failed', error: `AI service error (HTTP ${geminiRes.status})`, message: detail };
     }
   } catch (fetchErr) {
     await updateFileStatus(db, fileId, 'failed', null, `Network error calling Gemini: ${fetchErr.message}`);
