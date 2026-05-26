@@ -92,8 +92,8 @@ export async function onRequestPost(context) {
     }
 
     const account = await db.prepare(
-      'SELECT id, name FROM accounts WHERE id = ? AND user_id = ? LIMIT 1'
-    ).bind(accountId, userId).first();
+      'SELECT id, name FROM accounts WHERE id = ? LIMIT 1'
+    ).bind(accountId).first();
     if (!account) {
       return json(validErr('Account not found or does not belong to you', 'ACCOUNT_NOT_FOUND'), 404);
     }
