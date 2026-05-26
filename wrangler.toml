@@ -1,5 +1,11 @@
 name = "sovereign-finance"
 pages_build_output_dir = "."
+compatibility_date = "2026-05-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sovereign-finance"
+database_id = "9296b2f7-1c4b-4bd7-b57a-629d12a60e66"
 
 [[r2_buckets]]
 binding = "STATEMENTS"
