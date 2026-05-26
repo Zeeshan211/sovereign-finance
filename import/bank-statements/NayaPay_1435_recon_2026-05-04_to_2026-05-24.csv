@@ -1,0 +1,20 @@
+date,description,debit,credit,balance
+2026-05-04,IBFT In from Muhammad Zeeshan Nasir UBL-5196 TxnID:224060,,3000,3000.31
+2026-05-04,Bill Payment MEPCO (1LINK) Consumer:11151758656103 Bushra Kausar,2904,,96.31
+2026-05-05,Linked Account Load from Muhammad Zeeshan Nasir Meezan-7136,,350,446.31
+2026-05-05,Linked Account Load from Muhammad Zeeshan Nasir Meezan-7136,,154,600.31
+2026-05-05,Raast Out to Shehzad Riaz easypaisa Bank-9708 TxnID:69fa0adecd430b31e4e7f067,600,,0.31
+2026-05-05,Linked Account Load from Muhammad Zeeshan Nasir Meezan-7136,,210,210.31
+2026-05-05,Raast Out to Muhammad Shakeel JazzCash/Mobilink MFB-3882 TxnID:69fa26d8cd430b31e4eadf06,210,,0.31
+2026-05-11,Linked Account Load from Muhammad Zeeshan Nasir Meezan-7136,,500,500.31
+2026-05-11,Raast Out to Muhammad Zeeshan Nasir easypaisa Bank-9487 TxnID:6a02100d18f5c6538692a614,500,,0.31
+2026-05-16,Linked Account Load from Muhammad Zeeshan Nasir Meezan-7136,,100,100.31
+2026-05-16,Raast Out to Ghulam Shabir JazzCash/Mobilink MFB-9810 TxnID:6a0825f3d96aaf72ccb480c2,100,,0.31
+2026-05-16,Reversal: Raast Out to Ghulam Shabir JazzCash/Mobilink MFB-9810 Reversal TxnID:M4704496176,,100,100.31
+2026-05-16,Linked Account Load from Muhammad Zeeshan Nasir Meezan-7136,,750,850.31
+2026-05-16,Raast Out to Tahur Naqash JazzCash/Mobilink MFB-3960 TxnID:6a083d588cb1ee399d5bfe59,750,,100.31
+2026-05-16,Reversal: Raast Out to Tahur Naqash JazzCash/Mobilink MFB-3960 Reversal TxnID:M4705211814,,750,850.31
+2026-05-17,Raast Out to Muhammad Bilal easypaisa Bank-5410 TxnID:6a097fa7187c8c10e663d787,160,,690.31
+2026-05-17,Raast Out to Allah Rakha JazzCash/Mobilink MFB-4704 TxnID:6a09aec3187c8c10e6672a50,500,,190.31
+2026-05-24,Raast Out to Muhammad Zeeshan Nasir Meezan-7136 TxnID:6a130c280c8fa56eb1212c52,190,,0.31
+# Opening: Rs 0.31 | Closing: Rs 0.31 | Rows: 18 | Period: 2026-05-04 to 2026-05-24
