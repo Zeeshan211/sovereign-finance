@@ -1,0 +1,6 @@
+name = "sovereign-finance"
+pages_build_output_dir = "."
+
+[[r2_buckets]]
+binding = "STATEMENTS"
+bucket_name = "liquidityos-statements"
