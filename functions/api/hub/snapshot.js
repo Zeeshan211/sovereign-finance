@@ -48,11 +48,11 @@ export async function onRequestGet(context) {
       dismissalRows,
       insightDismissalRows,
     ] = await Promise.all([
-      db.prepare(`SELECT id, name, type, kind, currency, status, archived_at, deleted_at FROM accounts WHERE user_id = ? AND deleted_at IS NULL`).bind(userId).all(),
-      db.prepare(`SELECT t.id, t.account_id, t.amount, t.type, t.category_id, t.description, t.merchant, t.transacted_at, t.created_at FROM transactions t WHERE t.user_id = ? AND t.reversed_at IS NULL AND t.is_reversal = 0 AND t.transacted_at >= date('now', '-30 days') ORDER BY t.transacted_at DESC`).bind(userId).all(),
-      db.prepare(`SELECT t.id, t.account_id, t.amount, t.type, t.category_id, t.description, t.merchant, t.transacted_at FROM transactions t WHERE t.user_id = ? AND t.reversed_at IS NULL AND t.is_reversal = 0 AND t.transacted_at >= date('now', '-7 days') ORDER BY t.transacted_at DESC`).bind(userId).all(),
-      db.prepare(`SELECT id, name, amount, due_day, due_date, status, account_id, category_id, next_due_date FROM bills WHERE user_id = ? AND status = 'active' ORDER BY due_date ASC`).bind(userId).all(),
-      db.prepare(`SELECT id, payday_day, monthly_salary_net, payout_account_id, enabled FROM salary_contracts WHERE user_id = ? AND enabled = 1 LIMIT 1`).bind(userId).first().catch(() => null),
+      db.prepare(`SELECT id, name, type, kind, currency, status, archived_at, deleted_at FROM accounts WHERE deleted_at IS NULL`).all(),
+      db.prepare(`SELECT t.id, t.account_id, t.amount, t.type, t.category_id, t.notes, t.merchant, t.date, t.created_at FROM transactions t WHERE t.reversed_at IS NULL AND t.date >= date('now', '-30 days') ORDER BY t.date DESC`).all(),
+      db.prepare(`SELECT t.id, t.account_id, t.amount, t.type, t.category_id, t.notes, t.merchant, t.date FROM transactions t WHERE t.reversed_at IS NULL AND t.date >= date('now', '-7 days') ORDER BY t.date DESC`).all(),
+      db.prepare(`SELECT id, name, amount, due_day, due_date, status, account_id, category_id FROM bills WHERE status = 'active' ORDER BY due_date ASC`).all(),
+      db.prepare(`SELECT id, payday_day, monthly_salary_net, payout_account_id, enabled FROM salary_contracts WHERE enabled = 1 ORDER BY rowid DESC LIMIT 1`).first().catch(() => null),
       db.prepare(`SELECT item_signature FROM hub_dismissals WHERE user_id = ? AND dismissed_at >= datetime('now', '-7 days')`).bind(userId).all().catch(() => ({ results: [] })),
       db.prepare(`SELECT insight_signature FROM hub_insight_dismissals WHERE user_id = ? AND dismissed_at >= datetime('now', '-7 days')`).bind(userId).all().catch(() => ({ results: [] })),
     ]);
@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
     const dismissedInsightSigs = new Set((insightDismissalRows?.results ?? []).map(r => r.insight_signature));
 
     // Compute balances from transactions
-    const balanceMap = await computeBalances(db, userId);
+    const balanceMap = await computeBalances(db);
 
     // Build pulse
     const pulse = buildPulse(accounts, balanceMap, txs30d, now);
@@ -135,15 +135,13 @@ export async function onRequestOptions() {
 
 // ─── Balance computation ──────────────────────────────────────────
 
-async function computeBalances(db, userId) {
+async function computeBalances(db) {
   const rows = await db.prepare(
     `SELECT t.account_id, t.type, SUM(t.amount) as total
      FROM transactions t
-     WHERE t.user_id = ?
-       AND t.reversed_at IS NULL
-       AND t.is_reversal = 0
+     WHERE t.reversed_at IS NULL
      GROUP BY t.account_id, t.type`
-  ).bind(userId).all();
+  ).all();
 
   const balanceMap = {};
   for (const row of rows?.results ?? []) {
@@ -203,7 +201,7 @@ function buildPulse(accounts, balanceMap, txs30d, now) {
   const dailyBurnRate = expenseTxs.reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0) / 30;
   const daysRemaining = dailyBurnRate > 0 ? Math.floor(liquidBalance / dailyBurnRate) : 999;
 
-  const txDaysCount = new Set(txs30d.map(t => t.transacted_at?.slice(0, 10))).size;
+  const txDaysCount = new Set(txs30d.map(t => t.date?.slice(0, 10))).size;
   const runwayConfidence = txDaysCount >= 30 ? 'high' : txDaysCount >= 14 ? 'medium' : 'low';
 
   const excludedAccounts = activeAccounts
@@ -241,7 +239,7 @@ function buildSparkline(txs30d, now, buckets) {
   const cutoff = now.getTime() - 7 * 24 * 60 * 60 * 1000;
 
   for (const tx of txs30d) {
-    const txTime = new Date(tx.transacted_at).getTime();
+    const txTime = new Date(tx.date).getTime();
     if (txTime < cutoff) continue;
     const bucketIdx = Math.min(Math.floor((txTime - cutoff) / msPerBucket), buckets - 1);
     const amount = Number(tx.amount) || 0;
@@ -257,7 +255,7 @@ function computeDelta(txs30d, now, days) {
   const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   let delta = 0;
   for (const tx of txs30d) {
-    if ((tx.transacted_at || '').slice(0, 10) >= cutoff) {
+    if ((tx.date || '').slice(0, 10) >= cutoff) {
       const amount = Number(tx.amount) || 0;
       delta += POSITIVE_TYPES.has(tx.type) ? amount : -amount;
     }
@@ -267,7 +265,7 @@ function computeDelta(txs30d, now, days) {
 
 function buildMonthStory(txs30d, now) {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const monthTxs = txs30d.filter(t => (t.transacted_at || '').slice(0, 10) >= monthStart);
+  const monthTxs = txs30d.filter(t => (t.date || '').slice(0, 10) >= monthStart);
 
   let income = 0;
   let expenses = 0;
@@ -373,7 +371,7 @@ function buildPriorityInbox(accounts, balanceMap, bills, txs30d, txs7d, salary, 
   // Unusual activity: transaction in last 24h > 2x avg
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   const recentBigTxs = txs7d.filter(t => {
-    if (t.transacted_at < last24h) return false;
+    if (t.date < last24h) return false;
     if (POSITIVE_TYPES.has(t.type)) return false;
     const amount = Math.abs(Number(t.amount) || 0);
     const avgTx = txs30d.filter(tx => !POSITIVE_TYPES.has(tx.type)).reduce((s, tx) => s + Math.abs(Number(tx.amount) || 0), 0) / Math.max(txs30d.length, 1);
@@ -388,7 +386,7 @@ function buildPriorityInbox(accounts, balanceMap, bills, txs30d, txs7d, salary, 
         type: 'unusual_activity',
         severity: 'info',
         title: 'Unusual large transaction',
-        body: `Rs ${formatAmount(Math.abs(Number(tx.amount)))} at ${tx.merchant || tx.description || 'unknown'} — larger than usual.`,
+        body: `Rs ${formatAmount(Math.abs(Number(tx.amount)))} at ${tx.merchant || tx.notes || 'unknown'} — larger than usual.`,
         action_label: 'View transaction',
         action_url: `/transactions`,
         dismissible: true,
@@ -551,7 +549,7 @@ function buildAccountsHealth(accounts, balanceMap, txs30d) {
   const recentAccountIds = new Set(
     txs30d
       .filter(t => {
-        const d = new Date(t.transacted_at);
+        const d = new Date(t.date);
         return Date.now() - d.getTime() < 14 * 24 * 60 * 60 * 1000;
       })
       .map(t => t.account_id)
