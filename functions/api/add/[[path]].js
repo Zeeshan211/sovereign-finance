@@ -11,7 +11,9 @@
  * - Account balances in context are computed inline from transactions with reversal-safe rules.
  */
 
-const VERSION = 'v1.3.0-add-context-merchant-contract';
+import { onRequestPost as _txHandler } from '../transactions.js';
+
+const VERSION = 'v1.4.0-direct-tx-call';
 
 const TRANSACTIONS_CONTRACT_EXPECTED = 'transactions-add-v1';
 const TRANSACTIONS_VERSION_EXPECTED = 'v0.7.0-transactions-add-contract-proof';
@@ -548,7 +550,7 @@ async function dryRun(context, body) {
     });
   }
 
-  const result = await internalPost(context, '/api/transactions?dry_run=1', directTransactionPayload(normalized));
+  const result = await callTxDirect(context, directTransactionPayload(normalized), true);
   return json(result);
 }
 
@@ -585,7 +587,7 @@ async function commit(context, body) {
     txPayload.override_token = cleanText(body.override_token, '', 300);
   }
 
-  const result = await internalPost(context, '/api/transactions', txPayload);
+  const result = await callTxDirect(context, txPayload, false);
 
   return json({
     ok: true,
@@ -1033,23 +1035,27 @@ function insertStatement(db, table, row) {
   ).bind(...keys.map(key => row[key]));
 }
 
-async function internalPost(context, path, body) {
+async function callTxDirect(context, body, dryRun) {
   const url = new URL(context.request.url);
-  const [pathname, search = ''] = path.split('?');
+  url.pathname = '/api/transactions';
+  url.search = dryRun ? '?dry_run=1' : '';
 
-  url.pathname = pathname;
-  url.search = search ? '?' + search : '';
-
-  const response = await fetch(url.toString(), {
+  const innerRequest = new Request(url.toString(), {
     method: 'POST',
-    headers: {
-      accept: 'application/json',
-      'content-type': 'application/json',
-      cookie: context.request.headers.get('cookie') || '',
-    },
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body || {})
   });
 
+  const innerContext = {
+    request: innerRequest,
+    env: context.env,
+    data: context.data || {},
+    params: {},
+    next: async () => new Response('not found', { status: 404 }),
+    waitUntil: context.waitUntil ? context.waitUntil.bind(context) : () => {},
+  };
+
+  const response = await _txHandler(innerContext);
   const payload = await response.json().catch(() => null);
 
   if (!response.ok || !payload || payload.ok === false) {
