@@ -518,10 +518,14 @@ async function validatePayload(context, body) {
   const requiresOverride = balanceProof.requires_override === true;
   const overrideReason = requiresOverride ? balanceProof.override_reason : null;
 
+  // Exclude idempotency_key from hash so dry-run (no key) and commit (with key) produce the same hash.
+  // The idempotency key is client-side dedup metadata and doesn't change the transaction semantics.
+  const { idempotency_key: _ik, ...hashableNormalized } = normalized;
+
   const payloadHash = await hashPayload({
     route: 'transactions',
     contract_version: CONTRACT_VERSION,
-    normalized_payload: normalized
+    normalized_payload: hashableNormalized
   });
 
   const overrideToken = requiresOverride
@@ -529,7 +533,7 @@ async function validatePayload(context, body) {
       route: 'transactions',
       contract_version: CONTRACT_VERSION,
       override_reason: overrideReason,
-      normalized_payload: normalized
+      normalized_payload: hashableNormalized
     })
     : null;
 
@@ -1364,15 +1368,7 @@ async function resolveCategory(db, input, type) {
   const raw = text(input, '', 160);
 
   if (!raw) {
-    if (type === 'salary') {
-      return resolveCategory(db, 'salary', type);
-    }
-
-    if (type === 'income') {
-      return resolveCategory(db, 'other', type);
-    }
-
-    return resolveCategory(db, 'other', type);
+    return { ok: true, category_id: null };
   }
 
   const cols = await tableColumns(db, 'categories');
