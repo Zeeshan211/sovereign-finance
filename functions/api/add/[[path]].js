@@ -1044,7 +1044,8 @@ async function internalPost(context, path, body) {
     method: 'POST',
     headers: {
       accept: 'application/json',
-      'content-type': 'application/json'
+      'content-type': 'application/json',
+      cookie: context.request.headers.get('cookie') || '',
     },
     body: JSON.stringify(body || {})
   });
