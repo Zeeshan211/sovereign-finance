@@ -370,6 +370,7 @@ async function loadCategoriesDirect(db) {
   const wanted = [
     'id',
     'name',
+    'icon',
     'label',
     'type',
     'kind',
@@ -390,6 +391,7 @@ async function loadCategoriesDirect(db) {
   return (rows.results || []).map(row => ({
     id: row.id,
     name: row.name || row.label || row.id,
+    icon: row.icon || null,
     label: row.label || row.name || row.id,
     type: row.type || row.kind || '',
     kind: row.kind || row.type || '',
@@ -549,6 +551,16 @@ async function dryRun(context, body) {
   }
 
   const result = await internalPost(context, '/api/transactions?dry_run=1', directTransactionPayload(normalized));
+
+  // Hoist balance_projection info to top level so the frontend BalancePreview can show before/after balances
+  if (result && Array.isArray(result.proof?.checks)) {
+    const balanceCheck = result.proof.checks.find(c => c && c.check === 'balance_projection');
+    if (balanceCheck) {
+      result.account_balance_before = balanceCheck.current_balance;
+      result.account_balance_after = balanceCheck.projected_balance;
+    }
+  }
+
   return json(result);
 }
 
