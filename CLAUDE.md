@@ -1,10 +1,10 @@
 # Sovereign Finance — Claude Code Rules
 
 ## Inheritance
-This project inherits universal rules from:
-https://github.com/Zeeshan211/claude-config/blob/main/CLAUDE.md
+- Read ~/projects/claude-config/CLAUDE.md once at session start
+- Skills auto-load from ~/.claude/skills/ — load ONLY skills triggered by task
+- Never preload all skills (~15-20% budget waste per 2026-05-27 audit)
 
-Claude MUST read claude-config/CLAUDE.md and claude-config/skills/*/SKILL.md at session start.
 Universal rules apply UNLESS explicitly overridden here.
 
 ## Identity
