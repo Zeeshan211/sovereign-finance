@@ -68,7 +68,7 @@ export async function onRequestGet(context) {
     const parts = pathParts(context);
 
     if (!parts[0] || parts[0] === 'context') {
-      return getContext(context);
+      return await getContext(context);
     }
 
     return json({
@@ -91,9 +91,9 @@ export async function onRequestPost(context) {
     const route = parts[0] || '';
     const body = await readJSON(context.request);
 
-    if (route === 'preview') return preview(context, body);
-    if (route === 'dry-run' || route === 'dry_run') return dryRun(context, body);
-    if (route === 'commit' || route === 'save') return commit(context, body);
+    if (route === 'preview') return await preview(context, body);
+    if (route === 'dry-run' || route === 'dry_run') return await dryRun(context, body);
+    if (route === 'commit' || route === 'save') return await commit(context, body);
 
     return json({
       ok: false,
