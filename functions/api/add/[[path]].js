@@ -522,11 +522,11 @@ async function commit(context, body) {
     }
   }
 
-  // Legacy fallback: proxy to /api/transactions with hash
+  // Legacy fallback: proxy to /api/transactions WITHOUT the v2 payload hash.
+  // The v2 hash was computed from buildCommittablePayload() which has a different
+  // structure than transactions.js's own hash — sending it causes a 409 mismatch.
   const txPayload = {
     ...directTransactionPayload(normalized),
-    dry_run_payload_hash: suppliedHash,
-    payload_hash: suppliedHash,
     ...(body.override_token && { override_token: cleanText(body.override_token, '', 300) }),
   };
   const result = await internalPost(context, '/api/transactions', txPayload);
