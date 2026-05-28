@@ -61,6 +61,22 @@ const CATEGORY_ALIASES = {
 };
 
 const DIRECT_TYPES = new Set(['expense', 'income', 'transfer']);
+
+const INCOME_CATEGORY_IDS = new Set(['salary', 'salary_income', 'income', 'manual_income']);
+
+function splitCategoriesByType(categories) {
+  const expense = [];
+  const income = [];
+  for (const cat of categories) {
+    const isIncome =
+      cat.type === 'income' ||
+      cat.kind === 'income' ||
+      INCOME_CATEGORY_IDS.has(cat.id);
+    if (isIncome) income.push(cat);
+    else expense.push(cat);
+  }
+  return { expense, income };
+}
 const INTERNATIONAL_TYPES = new Set(['international', 'international_purchase']);
 
 export async function onRequestGet(context) {
@@ -116,7 +132,7 @@ export async function onRequestPost(context) {
 async function getContext(context) {
   const db = context.env.DB;
 
-  const [accounts, categories, merchants, intlConfig, addSchema] = await Promise.all([
+  const [accounts, allCategories, merchants, intlConfig, addSchema] = await Promise.all([
     loadAccountsWithInlineBalances(db),
     loadCategoriesDirect(db),
     loadMerchantsDirect(db),
@@ -124,14 +140,16 @@ async function getContext(context) {
     loadAddSchema(db)
   ]);
 
+  const categories = splitCategoriesByType(allCategories);
+
   return json({
     ok: true,
     version: VERSION,
     contract_version: 'add-context-v1',
-    can_direct_write: accounts.length > 0 && categories.length > 0,
+    can_direct_write: accounts.length > 0 && allCategories.length > 0,
     source_status: {
       accounts: accounts.length ? 'ok' : 'failed',
-      categories: categories.length ? 'ok' : 'failed',
+      categories: allCategories.length ? 'ok' : 'failed',
       merchants: merchants.length ? 'ok' : 'optional',
       merchant_match: 'available',
       intl_rates: intlConfig ? 'ok' : 'optional',
