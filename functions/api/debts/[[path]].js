@@ -696,8 +696,8 @@ async function createDebt(db, body, dryRun) {
     principal_currency: principalCurrency,
     date_originated: dateOriginated,
     expected_repayment_date: expectedRepaymentDate,
-    destination_account_id: direction === 'i_owe' && movementNow ? (account?.id || null) : null,
-    source_account_id: direction === 'owed_to_me' && movementNow ? (account?.id || null) : null,
+    destination_account_id: direction === 'i_owe' ? (account?.id || accountId || null) : null,
+    source_account_id: direction === 'owed_to_me' ? (account?.id || accountId || null) : null,
     funds_moved_at_creation: movementNow ? 1 : 0,
     interest_rate_pct: interestRatePct,
     interest_type: interestType,
@@ -716,6 +716,7 @@ async function createDebt(db, body, dryRun) {
   const origin = movementNow
     ? buildOriginTransaction({ debt: debtRow, account, date: movementDate, created_by: createdBy, idempotency_key: idempotencyKey })
     : null;
+  debtRow.origination_transaction_id = origin ? origin.id : null;
 
   const projectionDebt = normalizeDebt({ ...debtRow, created_at: null });
 
@@ -2930,14 +2931,15 @@ function hasMovementFlag(body) {
     body.movement_now === undefined &&
     body.money_moved_now === undefined &&
     body.ledger_movement_now === undefined &&
-    body.create_ledger === undefined
+    body.create_ledger === undefined &&
+    body.funds_moved_at_creation === undefined
   );
 }
 
 function parseMovementNow(body) {
   if (!hasMovementFlag(body)) return false;
 
-  const value = body.movement_now ?? body.money_moved_now ?? body.ledger_movement_now ?? body.create_ledger;
+  const value = body.movement_now ?? body.money_moved_now ?? body.ledger_movement_now ?? body.create_ledger ?? body.funds_moved_at_creation;
 
   if (value === true || value === 1) return true;
   if (value === false || value === 0 || value == null || value === '') return false;
