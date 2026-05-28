@@ -56,6 +56,7 @@ export async function onRequest(context) {
 
     return errResp('n/a', 'METHOD_NOT_ALLOWED', `${method} not supported`, 405);
   } catch (e) {
+    if (e.status === 401) return errResp('n/a', 'UNAUTHORIZED', e.message || 'Session required', 401);
     console.error('[credit-cards]', e);
     return errResp('n/a', 'INTERNAL_ERROR', e.message || String(e), 500);
   }
@@ -87,6 +88,7 @@ async function handleGet(context) {
     return json({
       ok: true, version: VERSION, contract_version: CONTRACT_VERSION,
       card: enrichCard(card, balance),
+      current_cycle: statements[0] ?? null,
       recent_statements: statements
     });
   }
@@ -115,9 +117,11 @@ async function handleGet(context) {
   return json({
     ok: true, version: VERSION, contract_version: CONTRACT_VERSION,
     count: enriched.length,
-    total_outstanding_paisa: totalOutstanding,
-    total_credit_limit_paisa: totalLimit,
-    utilization_pct: totalLimit > 0 ? round1((totalOutstanding / totalLimit) * 100) : null,
+    portfolio_summary: {
+      total_outstanding_paisa: totalOutstanding,
+      total_credit_limit_paisa: totalLimit,
+      utilization_pct: totalLimit > 0 ? round1((totalOutstanding / totalLimit) * 100) : null,
+    },
     cards: enriched
   });
 }
