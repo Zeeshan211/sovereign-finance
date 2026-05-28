@@ -1381,6 +1381,16 @@ async function resolveCategory(db, input, type) {
     };
   }
 
+  // Try raw id first — DB ids (e.g. 'food_dining', 'groceries') must pass through
+  // without aliasing. Canonical aliasing is only for free-text user input.
+  const rawExact = await db.prepare(
+    `SELECT id FROM categories WHERE id = ? LIMIT 1`
+  ).bind(raw).first();
+
+  if (rawExact && rawExact.id) {
+    return { ok: true, category_id: rawExact.id };
+  }
+
   const canonical = canonicalCategory(raw);
 
   const exact = await db.prepare(
