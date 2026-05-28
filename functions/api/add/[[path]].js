@@ -581,7 +581,7 @@ function normalizeAddPayload(body) {
     transfer_to_account_id: cleanText(
       body.transfer_to_account_id || body.to_account_id || body.destination_account_id, '', 120
     ),
-    category_id: canonicalCategory(body.category_id || body.category || ''),
+    category_id: cleanText(body.category_id || body.category || '', '', 160),
     merchant_id: cleanText(body.merchant_id || body.merchant_rule_id, '', 160),
     merchant: cleanText(body.merchant || body.payee || body.counterparty, '', 160),
     reference: cleanText(body.reference, '', 160),
