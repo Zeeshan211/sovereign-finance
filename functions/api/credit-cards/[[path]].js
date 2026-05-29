@@ -191,13 +191,24 @@ async function handlePost(context) {
       return actionListTrips(db, body, userId);
     case 'list_benefits':
       return actionListBenefits(db, body, userId);
-      return actionConfigureAutoPay(db, body, userId);
+    case 'parse_statement_pdf':
+      return actionParseStatementPdf(db, body, userId, context.env);
+    case 'run_reconciliation':
+      return actionRunReconciliation(db, body, userId);
+    case 'import_statement_transaction':
+      return actionImportStatementTransaction(db, body, userId);
+    case 'mark_statement_txn_disputed':
+      return actionMarkStatementTxnDisputed(db, body, userId);
+    case 'get_reconciliation_view':
+      return actionGetReconciliationView(db, body, userId);
     default:
       return errResp(action, 'UNKNOWN_ACTION',
         `Unknown action "${action}". Supported: create, update, record_purchase, record_cash_advance, ` +
         `record_intl_purchase, record_payment, record_interest, record_fee, record_refund, ` +
         `upload_statement, reconcile_statement, close_card, convert_to_emi, record_balance_transfer, ` +
-        `file_dispute, resolve_dispute, detect_subscriptions, record_nsf_fee, configure_auto_pay`, 400);
+        `file_dispute, resolve_dispute, detect_subscriptions, record_nsf_fee, configure_auto_pay, ` +
+        `parse_statement_pdf, run_reconciliation, import_statement_transaction, ` +
+        `mark_statement_txn_disputed, get_reconciliation_view`, 400);
   }
 }
 
@@ -2032,4 +2043,325 @@ async function actionGetCycleInfo(db, body, userId) {
     },
     committed: true
   });
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// RECONCILIATION V2 ACTIONS: parse / reconcile / import / dispute / view
+// ═════════════════════════════════════════════════════════════════════════════
+
+function adjustDate(dateStr, days) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+async function actionParseStatementPdf(db, body, userId, env) {
+  const { statement_id, file_url } = body;
+  if (!statement_id) return errResp('parse_statement_pdf', 'MISSING_FIELDS', 'statement_id required', 400);
+
+  const stmt = await db.prepare(
+    `SELECT cs.*, cc.account_id FROM card_statements cs
+     JOIN credit_cards cc ON cc.id = cs.card_id
+     WHERE cs.id = ? AND cs.user_id = ?`
+  ).bind(statement_id, userId).first();
+  if (!stmt) return errResp('parse_statement_pdf', 'NOT_FOUND', 'Statement not found', 404);
+
+  const url = file_url || stmt.file_url;
+  if (!url) return errResp('parse_statement_pdf', 'MISSING_FILE', 'No file_url on statement', 400);
+
+  const existing = await db.prepare(
+    `SELECT COUNT(*) AS cnt FROM card_statement_transactions WHERE statement_id = ?`
+  ).bind(statement_id).first();
+  if (existing.cnt > 0) {
+    return json({ ok: true, action: 'parse_statement_pdf', contract_version: CONTRACT_VERSION,
+      statement_id, rows_inserted: 0, rows_existing: existing.cnt,
+      note: 'Already parsed. Delete existing rows to re-parse.',
+      committed: false, writes_performed: false });
+  }
+
+  let imageBase64;
+  try {
+    const fileResp = await fetch(url);
+    if (!fileResp.ok) return errResp('parse_statement_pdf', 'FETCH_FAILED', `Could not fetch file: ${fileResp.status}`, 502);
+    const buffer = await fileResp.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    imageBase64 = btoa(binary);
+  } catch (e) {
+    return errResp('parse_statement_pdf', 'FETCH_ERROR', `File fetch failed: ${e.message}`, 502);
+  }
+
+  const now = new Date().toISOString();
+  let parsed;
+  try {
+    const aiResp = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: `data:application/pdf;base64,${imageBase64}` } },
+          { type: 'text', text:
+            'Extract all transactions from this Pakistani credit card statement as a JSON array. ' +
+            'Return ONLY valid JSON with no explanation. Each item: ' +
+            '{"date":"YYYY-MM-DD","description":"string","amount_paisa":integer,"txn_type":"debit|credit"}. ' +
+            'amount_paisa is the absolute value in Pakistani paisas (1 PKR = 100 paisas). ' +
+            'txn_type is "debit" for purchases/charges, "credit" for payments/refunds.'
+          }
+        ]
+      }]
+    });
+    const text = aiResp?.response || '';
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      await db.prepare(`UPDATE card_statements SET parsing_status='failed', updated_at=? WHERE id=?`).bind(now, statement_id).run();
+      return errResp('parse_statement_pdf', 'AI_PARSE_FAILED', 'AI could not extract transactions', 422);
+    }
+    parsed = JSON.parse(jsonMatch[0]);
+  } catch (e) {
+    await db.prepare(`UPDATE card_statements SET parsing_status='failed', updated_at=? WHERE id=?`).bind(now, statement_id).run();
+    return errResp('parse_statement_pdf', 'AI_ERROR', `AI call failed: ${e.message}`, 502);
+  }
+
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    await db.prepare(`UPDATE card_statements SET parsing_status='failed', updated_at=? WHERE id=?`).bind(now, statement_id).run();
+    return errResp('parse_statement_pdf', 'NO_TRANSACTIONS', 'AI returned no transactions', 422);
+  }
+
+  const inserts = parsed.map(txn => {
+    const rowId = 'cst_' + uuid();
+    const amtPaisa = Math.abs(parseInt(txn.amount_paisa) || 0);
+    return db.prepare(
+      `INSERT OR IGNORE INTO card_statement_transactions
+       (id, statement_id, card_id, user_id, transaction_date, description, amount_paisa,
+        txn_type, raw_text, match_status, extraction_provider, created_at, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).bind(
+      rowId, statement_id, stmt.card_id, userId,
+      txn.date || null,
+      txn.description || '',
+      amtPaisa,
+      txn.txn_type === 'credit' ? 'credit' : 'debit',
+      JSON.stringify(txn),
+      'unmatched',
+      'llama-3.2-11b-vision-instruct',
+      now, now
+    );
+  });
+
+  await db.batch(inserts);
+  await db.prepare(`UPDATE card_statements SET parsing_status='complete', updated_at=? WHERE id=?`).bind(now, statement_id).run();
+
+  return json({ ok: true, action: 'parse_statement_pdf', contract_version: CONTRACT_VERSION,
+    statement_id, rows_inserted: inserts.length, rows_existing: 0,
+    committed: true, writes_performed: true });
+}
+
+async function actionRunReconciliation(db, body, userId) {
+  const { statement_id } = body;
+  if (!statement_id) return errResp('run_reconciliation', 'MISSING_FIELDS', 'statement_id required', 400);
+
+  const stmt = await db.prepare(
+    `SELECT cs.*, cc.account_id FROM card_statements cs
+     JOIN credit_cards cc ON cc.id = cs.card_id
+     WHERE cs.id = ? AND cs.user_id = ?`
+  ).bind(statement_id, userId).first();
+  if (!stmt) return errResp('run_reconciliation', 'NOT_FOUND', 'Statement not found', 404);
+
+  const stmtTxns = (await db.prepare(
+    `SELECT * FROM card_statement_transactions WHERE statement_id = ? AND match_status = 'unmatched'`
+  ).bind(statement_id).all()).results || [];
+
+  if (stmtTxns.length === 0) {
+    return json({ ok: true, action: 'run_reconciliation', contract_version: CONTRACT_VERSION,
+      statement_id, matched: 0, unmatched: 0, committed: false, writes_performed: false,
+      note: 'No unmatched statement transactions. Run parse_statement_pdf first.' });
+  }
+
+  const periodStart = stmt.statement_start
+    ? adjustDate(stmt.statement_start, -3)
+    : adjustDate(stmt.statement_end || new Date().toISOString().split('T')[0], -38);
+  const periodEnd = stmt.statement_end
+    ? adjustDate(stmt.statement_end, 3)
+    : adjustDate(new Date().toISOString().split('T')[0], 3);
+
+  const ledgerTxns = (await db.prepare(
+    `SELECT id, date, amount_paisa, type, notes FROM transactions
+     WHERE account_id = ? AND date BETWEEN ? AND ?
+     AND type IN ('cc_spend','expense','income','cc_payment')`
+  ).bind(stmt.account_id, periodStart, periodEnd).all()).results || [];
+
+  const AMOUNT_TOL = 500;
+  const DATE_TOL = 3;
+  const updates = [];
+  const usedLedgerIds = new Set();
+  const now = new Date().toISOString();
+
+  for (const stxn of stmtTxns) {
+    let best = null;
+    for (const ltxn of ledgerTxns) {
+      if (usedLedgerIds.has(ltxn.id)) continue;
+      const amtDiff = Math.abs((ltxn.amount_paisa || 0) - stxn.amount_paisa);
+      const dateDiff = daysBetweenDates(ltxn.date, stxn.transaction_date);
+      let confidence = 0, method = null;
+      if (amtDiff <= AMOUNT_TOL && dateDiff === 0) {
+        confidence = 1.0; method = 'exact';
+      } else if (amtDiff <= AMOUNT_TOL && dateDiff <= DATE_TOL) {
+        confidence = 0.8; method = 'fuzzy_date';
+      } else if (dateDiff <= DATE_TOL && stxn.amount_paisa > 0 && amtDiff <= stxn.amount_paisa * 0.1) {
+        confidence = 0.6; method = 'fuzzy_amount';
+      }
+      if (confidence > 0 && (!best || confidence > best.confidence)) {
+        best = { ltxn, confidence, method };
+      }
+    }
+    if (best) {
+      usedLedgerIds.add(best.ltxn.id);
+      updates.push(db.prepare(
+        `UPDATE card_statement_transactions
+         SET match_status='matched', matched_ledger_txn_id=?, match_confidence=?, match_method=?, updated_at=?
+         WHERE id=?`
+      ).bind(best.ltxn.id, best.confidence, best.method, now, stxn.id));
+    }
+  }
+
+  if (updates.length > 0) await db.batch(updates);
+
+  const counts = (await db.prepare(
+    `SELECT match_status, COUNT(*) AS cnt FROM card_statement_transactions WHERE statement_id=? GROUP BY match_status`
+  ).bind(statement_id).all()).results || [];
+
+  const summary = {};
+  for (const row of counts) summary[row.match_status] = row.cnt;
+
+  return json({ ok: true, action: 'run_reconciliation', contract_version: CONTRACT_VERSION,
+    statement_id, matched: updates.length, unmatched: stmtTxns.length - updates.length,
+    summary, committed: true, writes_performed: updates.length > 0 });
+}
+
+async function actionImportStatementTransaction(db, body, userId) {
+  const { statement_txn_id } = body;
+  if (!statement_txn_id) return errResp('import_statement_transaction', 'MISSING_FIELDS', 'statement_txn_id required', 400);
+
+  const stxn = await db.prepare(
+    `SELECT cst.*, cc.account_id
+     FROM card_statement_transactions cst
+     JOIN card_statements cs ON cs.id = cst.statement_id
+     JOIN credit_cards cc ON cc.id = cs.card_id
+     WHERE cst.id = ? AND cst.user_id = ?`
+  ).bind(statement_txn_id, userId).first();
+  if (!stxn) return errResp('import_statement_transaction', 'NOT_FOUND', 'Statement transaction not found', 404);
+
+  if (stxn.match_status === 'imported') {
+    return json({ ok: true, action: 'import_statement_transaction', contract_version: CONTRACT_VERSION,
+      statement_txn_id, note: 'Already imported', committed: false, writes_performed: false });
+  }
+
+  const now = new Date().toISOString();
+  const txnId = 'txn_' + uuid();
+  const type = stxn.txn_type === 'credit' ? TX_CC_PAYMENT : TX_CC_SPEND;
+  const notes = `[from statement] ${stxn.description}`;
+
+  await db.batch([
+    db.prepare(
+      `INSERT INTO transactions (id, date, type, amount, amount_paisa, account_id, category_id,
+       notes, source_module, source_action, cc_reconciliation_status, created_by_user_id, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
+    ).bind(
+      txnId, stxn.transaction_date, type,
+      stxn.amount_paisa / 100, stxn.amount_paisa,
+      stxn.account_id,
+      type === TX_CC_PAYMENT ? 'cc_payment' : 'cc_spend',
+      notes, 'credit_cards', 'statement_reconciliation',
+      'reconciled', userId, now
+    ),
+    db.prepare(
+      `UPDATE card_statement_transactions SET match_status='imported', matched_ledger_txn_id=?, updated_at=? WHERE id=?`
+    ).bind(txnId, now, statement_txn_id)
+  ]);
+
+  return json({ ok: true, action: 'import_statement_transaction', contract_version: CONTRACT_VERSION,
+    statement_txn_id, transaction_id: txnId, committed: true, writes_performed: true });
+}
+
+async function actionMarkStatementTxnDisputed(db, body, userId) {
+  const { statement_txn_id, reason } = body;
+  if (!statement_txn_id) return errResp('mark_statement_txn_disputed', 'MISSING_FIELDS', 'statement_txn_id required', 400);
+
+  const stxn = await db.prepare(
+    `SELECT id FROM card_statement_transactions WHERE id = ? AND user_id = ?`
+  ).bind(statement_txn_id, userId).first();
+  if (!stxn) return errResp('mark_statement_txn_disputed', 'NOT_FOUND', 'Statement transaction not found', 404);
+
+  const now = new Date().toISOString();
+  await db.prepare(
+    `UPDATE card_statement_transactions SET match_status='disputed', updated_at=? WHERE id=?`
+  ).bind(now, statement_txn_id).run();
+
+  return json({ ok: true, action: 'mark_statement_txn_disputed', contract_version: CONTRACT_VERSION,
+    statement_txn_id, reason: reason || null, committed: true, writes_performed: true });
+}
+
+async function actionGetReconciliationView(db, body, userId) {
+  const { statement_id } = body;
+  if (!statement_id) return errResp('get_reconciliation_view', 'MISSING_FIELDS', 'statement_id required', 400);
+
+  const stmt = await db.prepare(
+    `SELECT cs.*, cc.account_id FROM card_statements cs
+     JOIN credit_cards cc ON cc.id = cs.card_id
+     WHERE cs.id = ? AND cs.user_id = ?`
+  ).bind(statement_id, userId).first();
+  if (!stmt) return errResp('get_reconciliation_view', 'NOT_FOUND', 'Statement not found', 404);
+
+  const stmtTxns = (await db.prepare(
+    `SELECT cst.*, t.date AS ledger_date, t.amount_paisa AS ledger_amount_paisa,
+            t.notes AS ledger_notes, t.type AS ledger_type
+     FROM card_statement_transactions cst
+     LEFT JOIN transactions t ON t.id = cst.matched_ledger_txn_id
+     WHERE cst.statement_id = ? ORDER BY cst.transaction_date`
+  ).bind(statement_id).all()).results || [];
+
+  const periodStart = stmt.statement_start || '2000-01-01';
+  const periodEnd   = stmt.statement_end   || new Date().toISOString().split('T')[0];
+
+  const matchedLedgerIds = stmtTxns
+    .filter(s => s.matched_ledger_txn_id)
+    .map(s => s.matched_ledger_txn_id);
+
+  let ledgerOnly = [];
+  if (matchedLedgerIds.length > 0) {
+    const placeholders = matchedLedgerIds.map(() => '?').join(',');
+    ledgerOnly = (await db.prepare(
+      `SELECT id, date, amount_paisa, type, notes FROM transactions
+       WHERE account_id = ? AND date BETWEEN ? AND ?
+       AND type IN ('cc_spend','expense') AND id NOT IN (${placeholders})`
+    ).bind(stmt.account_id, periodStart, periodEnd, ...matchedLedgerIds).all()).results || [];
+  } else {
+    ledgerOnly = (await db.prepare(
+      `SELECT id, date, amount_paisa, type, notes FROM transactions
+       WHERE account_id = ? AND date BETWEEN ? AND ? AND type IN ('cc_spend','expense')`
+    ).bind(stmt.account_id, periodStart, periodEnd).all()).results || [];
+  }
+
+  const matched      = stmtTxns.filter(s => s.match_status === 'matched' && s.match_confidence >= 1.0);
+  const mismatches   = stmtTxns.filter(s => s.match_status === 'matched' && s.match_confidence < 1.0);
+  const stmtOnly     = stmtTxns.filter(s => s.match_status === 'unmatched' || s.match_status === 'pending');
+  const disputed     = stmtTxns.filter(s => s.match_status === 'disputed');
+  const imported     = stmtTxns.filter(s => s.match_status === 'imported');
+
+  const sum = arr => arr.reduce((a, b) => a + (b.amount_paisa || 0), 0);
+
+  return json({ ok: true, action: 'get_reconciliation_view', contract_version: CONTRACT_VERSION,
+    statement_id,
+    matched,
+    mismatches,
+    statement_only: [...stmtOnly, ...disputed],
+    ledger_only: ledgerOnly,
+    imported,
+    totals: {
+      matched_paisa:       sum(matched),
+      mismatches_paisa:    sum(mismatches),
+      statement_only_paisa: sum(stmtOnly),
+      ledger_only_paisa:   sum(ledgerOnly),
+    },
+    committed: false, writes_performed: false });
 }
