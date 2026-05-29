@@ -316,7 +316,7 @@ async function actionUpdate(db, body, userId) {
 
   const card = await requireCard(db, card_id, userId);
 
-  const MUTABLE = ['card_name', 'card_nickname', 'card_number_last4', 'card_network',
+  const MUTABLE = ['card_name', 'card_nickname', 'card_number_last4', 'card_network', 'card_tier',
     'credit_limit_paisa', 'statement_day', 'payment_due_day', 'interest_free_days',
     'apr_pct', 'cash_advance_apr_pct', 'cash_advance_fee_pct', 'cash_advance_fee_min_paisa',
     'fx_markup_pct', 'reward_type', 'reward_rate_pct', 'reward_cap_monthly_paisa',
