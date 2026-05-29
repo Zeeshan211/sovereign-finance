@@ -177,6 +177,8 @@ async function handlePost(context) {
       return actionRecordNsfFee(db, body, userId);
     case 'configure_auto_pay':
       return actionConfigureAutoPay(db, body, userId);
+    case 'get_cycle_info':
+      return actionGetCycleInfo(db, body, userId);
     case 'register_trip':
       return actionRegisterTrip(db, body, userId);
     case 'log_benefit_usage':
@@ -1963,4 +1965,56 @@ async function actionListTrips(db, body, userId) {
 async function actionListBenefits(db, body, userId) {
   const result = await db.prepare(`SELECT * FROM card_benefit_usage WHERE user_id = ? ORDER BY usage_date DESC LIMIT 100`).bind(userId).all();
   return json({ ok: true, action: 'list_benefits', contract_version: CONTRACT_VERSION, benefits: result.results || [], committed: true });
+}
+
+
+async function actionGetCycleInfo(db, body, userId) {
+  const { card_id } = body;
+  if (!card_id) return errResp('get_cycle_info', 'MISSING_FIELDS', 'card_id required', 400);
+  const card = await requireCard(db, card_id, userId);
+
+  const today = new Date();
+  const stmtDay = card.statement_day || 12;
+  const dueDay = card.payment_due_day || 1;
+
+  // Last statement close date
+  let stmtClose = new Date(today.getFullYear(), today.getMonth(), stmtDay);
+  if (stmtClose > today) stmtClose.setMonth(stmtClose.getMonth() - 1);
+
+  // Next due date (dueDay of month AFTER statement close)
+  const dueDate = new Date(stmtClose.getFullYear(), stmtClose.getMonth() + 1, dueDay);
+  const daysToDue = Math.ceil((dueDate - today) / 86400000);
+
+  const stmtCloseStr = stmtClose.toISOString().split('T')[0];
+
+  // Statement balance: outstanding AS OF statement close (sum txns up to that date)
+  const stmtBalQuery = await db.prepare(
+    `SELECT COALESCE(SUM(CASE WHEN type IN ('expense','cc_spend','transfer') THEN amount_paisa WHEN type IN ('income','cc_payment') THEN -amount_paisa ELSE 0 END), 0) AS bal
+     FROM transactions WHERE account_id = ? AND date <= ?`
+  ).bind(card.account_id, stmtCloseStr).first();
+  const statement_balance_paisa = Math.abs(stmtBalQuery.bal || 0);
+
+  // Payments since statement close
+  const paymentsQuery = await db.prepare(
+    `SELECT COALESCE(SUM(amount_paisa), 0) AS pay FROM transactions WHERE account_id = ? AND date > ? AND type IN ('income','cc_payment')`
+  ).bind(card.account_id, stmtCloseStr).first();
+  const payments_since_paisa = paymentsQuery.pay || 0;
+
+  const pay_by_paisa = Math.max(0, statement_balance_paisa - payments_since_paisa);
+  const min_due_paisa = Math.round(statement_balance_paisa * (card.minimum_payment_pct || 5) / 100);
+
+  return json({
+    ok: true, action: 'get_cycle_info', contract_version: CONTRACT_VERSION,
+    cycle: {
+      statement_close_date: stmtCloseStr,
+      due_date: dueDate.toISOString().split('T')[0],
+      days_to_due: daysToDue,
+      statement_balance_paisa,
+      payments_since_paisa,
+      pay_by_paisa,
+      min_due_paisa,
+      in_grace_period: daysToDue > 0 && pay_by_paisa > 0
+    },
+    committed: true
+  });
 }
