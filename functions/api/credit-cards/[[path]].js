@@ -2095,7 +2095,7 @@ async function actionParseStatementPdf(db, body, userId, env) {
   const now = new Date().toISOString();
   let parsed;
   try {
-    const aiResp = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+    const aiResp = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
       messages: [{
         role: 'user',
         content: [
