@@ -1903,35 +1903,39 @@ function addMonths(dateStr, months) {
 // ═════════════════════════════════════════════════════════════════════════════
 
 async function actionRegisterTrip(db, body, userId) {
-  const { trip_start, trip_end, destination_countries, cards_active, expected_forex_markup_pct, notes, idempotency_key } = body;
-  if (!trip_start || !trip_end) return errResp('register_trip', 'MISSING_FIELDS', 'trip_start and trip_end required', 400);
+  const { card_id, trip_name, destination, departure_date, return_date, budget_paisa, notes } = body;
+  if (!departure_date || !return_date) return errResp('register_trip', 'MISSING_FIELDS', 'departure_date and return_date required', 400);
   const id = 'trip_' + uuid();
   await db.prepare(
-    `INSERT INTO card_trips (id, user_id, trip_start, trip_end, destination_countries, cards_active, expected_forex_markup_pct, notes, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
-  ).bind(id, userId, trip_start, trip_end, JSON.stringify(destination_countries || []), JSON.stringify(cards_active || []), expected_forex_markup_pct || 3.5, notes || null).run();
-  return json({ ok: true, action: 'register_trip', contract_version: CONTRACT_VERSION, trip: { id, trip_start, trip_end }, committed: true });
+    `INSERT INTO card_trips (id, card_id, user_id, trip_name, destination, departure_date, return_date, budget_paisa, spent_paisa, status, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'planned', ?, datetime('now'), datetime('now'))`
+  ).bind(id, card_id || null, userId, trip_name || 'Trip', destination || '', departure_date, return_date, budget_paisa || 0, notes || null).run();
+  return json({ ok: true, action: 'register_trip', contract_version: CONTRACT_VERSION, trip: { id }, committed: true });
 }
 
 async function actionLogBenefitUsage(db, body, userId) {
-  const { card_id, benefit_type, value_paisa, date_used, notes } = body;
+  const { card_id, benefit_type, amount_paisa, value_paisa, usage_date, date_used, description, notes } = body;
   if (!card_id || !benefit_type) return errResp('log_benefit_usage', 'MISSING_FIELDS', 'card_id and benefit_type required', 400);
   const id = 'ben_' + uuid();
+  const amount = amount_paisa || value_paisa || 0;
+  const useDate = usage_date || date_used || new Date().toISOString().split('T')[0];
+  const desc = description || notes || null;
   await db.prepare(
-    `INSERT INTO card_benefit_usage (id, card_id, user_id, benefit_type, value_paisa, date_used, notes, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
-  ).bind(id, card_id, userId, benefit_type, value_paisa || 0, date_used || new Date().toISOString().split('T')[0], notes || null).run();
+    `INSERT INTO card_benefit_usage (id, card_id, user_id, benefit_type, amount_paisa, usage_date, description, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'used', datetime('now'))`
+  ).bind(id, card_id, userId, benefit_type, amount, useDate, desc).run();
   return json({ ok: true, action: 'log_benefit_usage', contract_version: CONTRACT_VERSION, usage: { id }, committed: true });
 }
 
 async function actionAddHouseholdMember(db, body, userId) {
-  const { card_id, member_name, relationship, credit_limit_paisa, notes } = body;
+  const { card_id, member_name, relationship, spending_limit_paisa, credit_limit_paisa, card_number_last4, notes } = body;
   if (!card_id || !member_name) return errResp('add_household_member', 'MISSING_FIELDS', 'card_id and member_name required', 400);
   const id = 'hm_' + uuid();
+  const limit = spending_limit_paisa || credit_limit_paisa || 0;
   await db.prepare(
-    `INSERT INTO household_members (id, card_id, user_id, member_name, relationship, credit_limit_paisa, notes, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
-  ).bind(id, card_id, userId, member_name, relationship || null, credit_limit_paisa || 0, notes || null).run();
+    `INSERT INTO household_members (id, card_id, user_id, member_name, relationship, card_number_last4, spending_limit_paisa, status, added_date, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'active', date('now'), ?)`
+  ).bind(id, card_id, userId, member_name, relationship || null, card_number_last4 || null, limit, notes || null).run();
   return json({ ok: true, action: 'add_household_member', contract_version: CONTRACT_VERSION, member: { id, member_name }, committed: true });
 }
 
@@ -1939,19 +1943,23 @@ async function actionSettleHousehold(db, body, userId) {
   const { household_member_id, month, owed_amount_paisa, settlement_method, notes } = body;
   if (!household_member_id || !month) return errResp('settle_household', 'MISSING_FIELDS', 'household_member_id and month required', 400);
   const id = 'set_' + uuid();
-  await db.prepare(
-    `INSERT INTO household_settlements (id, household_member_id, user_id, month, owed_amount_paisa, settlement_method, notes, settled_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
-  ).bind(id, household_member_id, userId, month, owed_amount_paisa || 0, settlement_method || 'cash', notes || null).run();
+  try {
+    await db.prepare(
+      `INSERT INTO household_settlements (id, household_member_id, user_id, month, owed_amount_paisa, settlement_method, notes, settled_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+    ).bind(id, household_member_id, userId, month, owed_amount_paisa || 0, settlement_method || 'cash', notes || null).run();
+  } catch (e) {
+    return errResp('settle_household', 'DB_ERROR', String(e?.message || e), 500);
+  }
   return json({ ok: true, action: 'settle_household', contract_version: CONTRACT_VERSION, settlement: { id }, committed: true });
 }
 
 async function actionListTrips(db, body, userId) {
-  const result = await db.prepare(`SELECT * FROM card_trips WHERE user_id = ? ORDER BY trip_start DESC LIMIT 50`).bind(userId).all();
+  const result = await db.prepare(`SELECT * FROM card_trips WHERE user_id = ? ORDER BY departure_date DESC LIMIT 50`).bind(userId).all();
   return json({ ok: true, action: 'list_trips', contract_version: CONTRACT_VERSION, trips: result.results || [], committed: true });
 }
 
 async function actionListBenefits(db, body, userId) {
-  const result = await db.prepare(`SELECT * FROM card_benefit_usage WHERE user_id = ? ORDER BY date_used DESC LIMIT 100`).bind(userId).all();
+  const result = await db.prepare(`SELECT * FROM card_benefit_usage WHERE user_id = ? ORDER BY usage_date DESC LIMIT 100`).bind(userId).all();
   return json({ ok: true, action: 'list_benefits', contract_version: CONTRACT_VERSION, benefits: result.results || [], committed: true });
 }
