@@ -177,6 +177,8 @@ async function handlePost(context) {
       return actionRecordNsfFee(db, body, userId);
     case 'configure_auto_pay':
       return actionConfigureAutoPay(db, body, userId);
+    case 'delete_statement':
+      return actionDeleteStatement(db, body, userId);
     case 'get_cycle_info':
       return actionGetCycleInfo(db, body, userId);
     case 'register_trip':
@@ -2364,4 +2366,13 @@ async function actionGetReconciliationView(db, body, userId) {
       ledger_only_paisa:   sum(ledgerOnly),
     },
     committed: false, writes_performed: false });
+}
+
+
+async function actionDeleteStatement(db, body, userId) {
+  const { statement_id } = body;
+  const stmt = await db.prepare('SELECT id FROM card_statements WHERE id = ? AND user_id = ?').bind(statement_id, userId).first();
+  await db.prepare('DELETE FROM card_statement_transactions WHERE statement_id = ?').bind(statement_id).run();
+  await db.prepare('DELETE FROM card_statements WHERE id = ? AND user_id = ?').bind(statement_id, userId).run();
+  return json({ ok: true, action: 'delete_statement', contract_version: CONTRACT_VERSION, deleted_id: statement_id, committed: true });
 }
