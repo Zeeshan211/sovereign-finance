@@ -1987,12 +1987,26 @@ async function actionGetCycleInfo(db, body, userId) {
 
   const stmtCloseStr = stmtClose.toISOString().split('T')[0];
 
-  // Statement balance: outstanding AS OF statement close (sum txns up to that date)
-  const stmtBalQuery = await db.prepare(
-    `SELECT COALESCE(SUM(CASE WHEN type IN ('expense','cc_spend','transfer') THEN amount_paisa WHEN type IN ('income','cc_payment') THEN -amount_paisa ELSE 0 END), 0) AS bal
-     FROM transactions WHERE account_id = ? AND date <= ?`
-  ).bind(card.account_id, stmtCloseStr).first();
-  const statement_balance_paisa = Math.abs(stmtBalQuery.bal || 0);
+  // PREFER uploaded statement if exists, fallback to ledger calc
+  const stmtMonth = stmtCloseStr.slice(0, 7);
+  const uploadedStmt = await db.prepare(
+    `SELECT statement_balance_paisa, minimum_payment_paisa, due_date FROM card_statements WHERE card_id = ? AND statement_month = ? ORDER BY created_at DESC LIMIT 1`
+  ).bind(card.id, stmtMonth).first();
+
+  let statement_balance_paisa;
+  let uploadedDueDate = null;
+  let uploadedMinPaisa = null;
+  if (uploadedStmt) {
+    statement_balance_paisa = uploadedStmt.statement_balance_paisa;
+    uploadedDueDate = uploadedStmt.due_date;
+    uploadedMinPaisa = uploadedStmt.minimum_payment_paisa;
+  } else {
+    const stmtBalQuery = await db.prepare(
+      `SELECT COALESCE(SUM(CASE WHEN type IN ('expense','cc_spend','transfer') THEN amount_paisa WHEN type IN ('income','cc_payment') THEN -amount_paisa ELSE 0 END), 0) AS bal
+       FROM transactions WHERE account_id = ? AND date <= ?`
+    ).bind(card.account_id, stmtCloseStr).first();
+    statement_balance_paisa = Math.abs(stmtBalQuery.bal || 0);
+  }
 
   // Payments since statement close
   const paymentsQuery = await db.prepare(
@@ -2001,13 +2015,14 @@ async function actionGetCycleInfo(db, body, userId) {
   const payments_since_paisa = paymentsQuery.pay || 0;
 
   const pay_by_paisa = Math.max(0, statement_balance_paisa - payments_since_paisa);
-  const min_due_paisa = Math.round(statement_balance_paisa * (card.minimum_payment_pct || 5) / 100);
+  const min_due_paisa = uploadedMinPaisa || Math.round(statement_balance_paisa * (card.minimum_payment_pct || 5) / 100);
+  const finalDueDate = uploadedDueDate || dueDate.toISOString().split('T')[0];
 
   return json({
     ok: true, action: 'get_cycle_info', contract_version: CONTRACT_VERSION,
     cycle: {
       statement_close_date: stmtCloseStr,
-      due_date: dueDate.toISOString().split('T')[0],
+      due_date: finalDueDate,
       days_to_due: daysToDue,
       statement_balance_paisa,
       payments_since_paisa,
