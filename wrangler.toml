@@ -10,3 +10,23 @@ database_id = "9296b2f7-1c4b-4bd7-b57a-629d12a60e66"
 [[r2_buckets]]
 binding = "STATEMENTS"
 bucket_name = "liquidityos-statements"
+
+# ── Cron triggers ─────────────────────────────────────────────────────────────
+# NOTE: Cloudflare Pages does not support cron triggers.
+# These are documented here for migration to a standalone Worker.
+# When migrated, uncomment and set `main = "functions/scheduled/cc-cron-runner.js"`.
+#
+# [triggers]
+# crons = [
+#   "0 2 * * *",    # interest_accrual         — daily 02:00 PKT
+#   "0 3 * * *",    # statement_generation      — daily 03:00 PKT
+#   "30 2 * * *",   # emi_installment_billing   — daily 02:30 PKT
+#   "0 9 * * *",    # due_date_alerts           — daily 09:00 PKT
+#   "0 6 * * *",    # autopay_pre_flight        — daily 06:00 PKT
+#   "0 10 * * *",   # autopay_execute           — daily 10:00 PKT
+#   "0 1 * * *",    # cleanup_expired_dry_runs  — daily 01:00 PKT
+#   "0 5 * * *",    # cleanup_expired_notifs    — daily 05:00 PKT
+#   "0 4 0 * *",    # annual_fee_check          — monthly 1st 04:00 PKT
+#   "0 4 * * 0",    # subscription_detection    — weekly Sunday 04:00 PKT
+#   "0 9 * * 5",    # rewards_expiry_alert      — weekly Friday 09:00 PKT
+# ]
