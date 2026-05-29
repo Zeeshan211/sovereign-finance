@@ -1683,19 +1683,34 @@ function calculateReward(card, amountPaisa) {
 
 async function computeCardOutstanding(db, accountId) {
   const sql = `
-    SELECT COALESCE(SUM(
-      CASE
-        WHEN type IN ('expense', 'cc_spend') THEN COALESCE(amount_paisa, CAST(amount * 100 AS INTEGER), 0)
-        WHEN type IN ('income', 'cc_payment') THEN -COALESCE(amount_paisa, CAST(amount * 100 AS INTEGER), 0)
-        ELSE 0
+    SELECT ROUND(SUM(
+      CASE WHEN (reversed_by IS NOT NULL AND TRIM(COALESCE(reversed_by, '')) != '')
+                OR (reversed_at IS NOT NULL AND TRIM(COALESCE(reversed_at, '')) != '')
+                OR UPPER(COALESCE(notes, '')) LIKE '%[REVERSAL OF %'
+                OR UPPER(COALESCE(notes, '')) LIKE '%[REVERSED BY %'
+           THEN 0
+           ELSE
+             CASE
+               WHEN account_delta IS NOT NULL AND TRIM(COALESCE(account_delta, '')) != ''
+                 THEN ROUND(CAST(account_delta AS REAL), 2)
+               WHEN COALESCE(CAST(amount AS REAL), 0) < 0
+                 THEN ROUND(COALESCE(CAST(amount AS REAL), 0), 2)
+               WHEN LOWER(TRIM(COALESCE(type, ''))) IN ('income', 'salary', 'opening', 'borrow', 'debt_in', 'manual_income', 'salary_income')
+                 THEN ROUND(COALESCE(CAST(amount AS REAL), 0), 2)
+               WHEN LOWER(TRIM(COALESCE(type, ''))) IN ('expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out', 'cc_payment', 'debt_payment', 'credit_card', 'international', 'international_purchase')
+                 THEN ROUND(-COALESCE(CAST(amount AS REAL), 0), 2)
+               ELSE ROUND(-COALESCE(CAST(amount AS REAL), 0), 2)
+             END
       END
-    ), 0) as outstanding_paisa
+    ), 2) AS signed_balance_rupees
     FROM transactions
     WHERE account_id = ?
   `;
-  const r = await db.prepare(sql).bind(accountId).first();
-  const outstanding = Math.max(0, r.outstanding_paisa);
-  return { balance: -outstanding, paisa: outstanding, pkr: outstanding / 100 };
+  const result = await db.prepare(sql).bind(accountId).first();
+  const signedRupees = Number(result?.signed_balance_rupees ?? 0);
+  // CC is a liability: /accounts returns a negative signed value (debt owed). Convert to positive paisa.
+  const outstanding_paisa = Math.round(Math.abs(signedRupees) * 100);
+  return { balance: -outstanding_paisa, paisa: outstanding_paisa, pkr: outstanding_paisa / 100 };
 }
 
 function isReversalRow(txn) {
