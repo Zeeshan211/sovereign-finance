@@ -1874,7 +1874,3 @@ function addMonths(dateStr, months) {
   d.setUTCMonth(d.getUTCMonth() + months);
   return d.toISOString().slice(0, 10);
 }
-
-function uuid() {
-  return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9);
-}
