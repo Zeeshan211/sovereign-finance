@@ -30,3 +30,6 @@ bucket_name = "liquidityos-statements"
 #   "0 4 * * 0",    # subscription_detection    — weekly Sunday 04:00 PKT
 #   "0 9 * * 5",    # rewards_expiry_alert      — weekly Friday 09:00 PKT
 # ]
+
+[ai]
+binding = "AI"

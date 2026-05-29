@@ -176,6 +176,7 @@ async function handlePost(context) {
     case 'record_nsf_fee':
       return actionRecordNsfFee(db, body, userId);
     case 'configure_auto_pay':
+      return actionConfigureAutoPay(db, body, userId);
     case 'register_trip':
       return actionRegisterTrip(db, body, userId);
     case 'log_benefit_usage':

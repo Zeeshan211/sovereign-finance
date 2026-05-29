@@ -193,6 +193,29 @@ export async function onRequestGet(context) {
 
 async function extractPdf(env, db, fileId, userId, accountId, r2Key, arrayBuffer) {
   const apiKey = env.GEMINI_API_KEY;
+  const useCloudflareAI = !apiKey && env.AI;
+  if (useCloudflareAI) {
+    try {
+      const aiResp = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+        image: Array.from(new Uint8Array(pdfBuffer)),
+        prompt: 'Extract from this Pakistani bank credit card statement and return ONLY valid JSON: {"statement_balance_paisa": number, "minimum_payment_paisa": number, "due_date": "YYYY-MM-DD", "period_start": "YYYY-MM-DD", "period_end": "YYYY-MM-DD", "transactions": [{"date":"YYYY-MM-DD","description":"text","amount_paisa":number,"type":"debit|credit"}]}',
+        max_tokens: 4096
+      });
+      const text = aiResp.response || aiResp.result || '';
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        await updateFileStatus(db, fileId, 'parsed', JSON.stringify(parsed), null);
+        return { status: 'parsed', data: parsed };
+      }
+      await updateFileStatus(db, fileId, 'failed', null, 'CloudflareAI returned non-JSON');
+      return { status: 'failed', error: 'AI returned invalid JSON' };
+    } catch(e) {
+      await updateFileStatus(db, fileId, 'failed', null, 'CloudflareAI error: ' + e.message);
+      return { status: 'failed', error: 'CloudflareAI: ' + e.message };
+    }
+  }
+
   if (!apiKey) {
     await updateFileStatus(db, fileId, 'failed', null, 'GEMINI_API_KEY not configured');
     return { status: 'failed', error: 'Extraction service not configured', message: 'Configuration error' };
