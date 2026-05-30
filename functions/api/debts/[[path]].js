@@ -86,6 +86,7 @@ const DEBT_COLUMNS = `
 export async function onRequestGet(context) {
   return withJsonErrors('GET', async () => {
     const db = requireDb(context.env);
+    const userId = context.data.user_id;
     const url = new URL(context.request.url);
     const path = getPath(context);
     const action = safeText(url.searchParams.get('action'), '', 80).toLowerCase();
@@ -99,16 +100,17 @@ export async function onRequestGet(context) {
       }), 404);
     }
 
-    if (action === 'health') return health(db);
+    if (action === 'health') return health(db, userId);
     if (action === 'payment_check' || action === 'payment-check') return paymentCheckFromUrl(db, url);
 
-    return listDebts(db, url);
+    return listDebts(db, url, userId);
   });
 }
 
 export async function onRequestPost(context) {
   return withJsonErrors('POST', async () => {
     const db = requireDb(context.env);
+    const userId = context.data.user_id;
     const url = new URL(context.request.url);
     const path = getPath(context);
     const body = await readJSON(context.request);
@@ -138,8 +140,8 @@ export async function onRequestPost(context) {
     if (action === 'writeoff' || action === 'write_off' || action === 'writeoff_debt') return writeoffDebt(db, body, dryRun);
     if (action === 'payment_check' || action === 'payment-check') return paymentCheckFromBody(db, body);
     if (action === 'repair_ledger' || action === 'repair-ledger') return repairLedgerOrigin(db, body, dryRun);
-    if (action === 'repair_settled_debts' || action === 'repair-settled-debts') return repairSettledDebts(db, body, dryRun);
-    if (action === 'repair_reversed_payments' || action === 'repair-reversed-payments') return repairReversedPayments(db, body, dryRun);
+    if (action === 'repair_settled_debts' || action === 'repair-settled-debts') return repairSettledDebts(db, body, dryRun, userId);
+    if (action === 'repair_reversed_payments' || action === 'repair-reversed-payments') return repairReversedPayments(db, body, dryRun, userId);
 
     return json(contractError({
       action: 'debt_post',
@@ -238,7 +240,7 @@ export async function onRequestPut(context) {
  * GET: read-only list / health / check
  * ───────────────────────────── */
 
-async function listDebts(db, url) {
+async function listDebts(db, url, userId) {
   const includeInactive = url.searchParams.get('include_inactive') === '1';
   const filterDirection = safeText(url.searchParams.get('direction') || '', '', 20).toLowerCase();
   const filterStatus = safeText(url.searchParams.get('status') || '', '', 30).toLowerCase();
@@ -247,8 +249,9 @@ async function listDebts(db, url) {
   const res = await db.prepare(
     `SELECT ${DEBT_COLUMNS}
        FROM debts
+      WHERE owner_user_id = ?
       ORDER BY kind, snowball_order, name`
-  ).all();
+  ).bind(userId).all();
 
   const allRows = res.results || [];
   let raw = includeInactive ? allRows : allRows.filter(row => !isTerminalStatus(row.status));
@@ -336,8 +339,8 @@ async function listDebts(db, url) {
   });
 }
 
-async function health(db) {
-  const rows = (await db.prepare(`SELECT ${DEBT_COLUMNS} FROM debts`).all()).results || [];
+async function health(db, userId) {
+  const rows = (await db.prepare(`SELECT ${DEBT_COLUMNS} FROM debts WHERE owner_user_id = ?`).bind(userId).all()).results || [];
   const normalized = rows.map(normalizeDebt);
   const txMap = await loadTransactionsForDebts(db, normalized.map(debt => debt.id));
   const debts = normalized.map(debt => decorateDebtFromTransactions(debt, txMap.get(debt.id) || []));
@@ -1773,8 +1776,8 @@ async function repairLedgerOrigin(db, body, dryRun) {
  * POST: explicit settlement/status repair
  * ───────────────────────────── */
 
-async function repairSettledDebts(db, body, dryRun) {
-  const rows = (await db.prepare(`SELECT ${DEBT_COLUMNS} FROM debts`).all()).results || [];
+async function repairSettledDebts(db, body, dryRun, userId) {
+  const rows = (await db.prepare(`SELECT ${DEBT_COLUMNS} FROM debts WHERE owner_user_id = ?`).bind(userId).all()).results || [];
 
   const flipCandidates = [];
   const normalizeCandidates = [];
@@ -1874,7 +1877,7 @@ async function repairSettledDebts(db, body, dryRun) {
   });
 }
 
-async function repairReversedPayments(db, body, dryRun) {
+async function repairReversedPayments(db, body, dryRun, userId) {
   const paymentCols = await tableColumns(db, 'debt_payments');
 
   if (!paymentCols.size) {
@@ -1898,8 +1901,9 @@ async function repairReversedPayments(db, body, dryRun) {
         ON TRIM(t.id) = TRIM(dp.transaction_id)
      WHERE (dp.status IS NULL OR dp.status = '' OR dp.status = 'paid' OR dp.status = 'active')
        AND (t.reversed_by IS NOT NULL OR t.reversed_at IS NOT NULL)
+       AND t.user_id = ?
      ORDER BY dp.debt_id, dp.id
-  `).all();
+  `).bind(userId).all();
 
   const badPayments = badRows.results || [];
   const affectedDebtIds = [...new Set(badPayments.map(row => row.debt_id).filter(Boolean))];
