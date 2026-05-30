@@ -193,6 +193,8 @@ async function handlePost(context) {
       return actionListTrips(db, body, userId);
     case 'list_benefits':
       return actionListBenefits(db, body, userId);
+    case 'parse_statement_text':
+      return actionParseStatementText(db, body, userId);
     case 'parse_statement_pdf':
       return actionParseStatementPdf(db, body, userId, context.env);
     case 'run_reconciliation':
@@ -2372,4 +2374,91 @@ async function actionDeleteStatement(db, body, userId) {
   await db.prepare('DELETE FROM card_statement_transactions WHERE statement_id = ?').bind(statement_id).run();
   await db.prepare('DELETE FROM card_statements WHERE id = ? AND user_id = ?').bind(statement_id, userId).run();
   return json({ ok: true, action: 'delete_statement', contract_version: CONTRACT_VERSION, deleted_id: statement_id, committed: true });
+}
+
+
+async function actionParseStatementText(db, body, userId) {
+  const { statement_id, raw_text } = body;
+  if (!statement_id || !raw_text) {
+    return errResp('parse_statement_text', 'MISSING_FIELDS', 'statement_id and raw_text required', 400);
+  }
+
+  const stmt = await db.prepare(
+    'SELECT id, card_id FROM card_statements WHERE id = ? AND user_id = ?'
+  ).bind(statement_id, userId).first();
+
+  if (!stmt) {
+    return errResp('parse_statement_text', 'NOT_FOUND', 'Statement not found', 404);
+  }
+
+  const now = new Date().toISOString();
+  const lines = raw_text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const parsed = [];
+
+  for (const line of lines) {
+    const parts = line.split('|', 4);
+    if (parts.length !== 4) continue;
+
+    const [transaction_date, txn_type_raw, amount_raw, description_raw] = parts.map(s => String(s).trim());
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(transaction_date)) continue;
+
+    const txn_type = txn_type_raw.toLowerCase();
+    if (txn_type !== 'debit' && txn_type !== 'credit') continue;
+
+    const amount_paisa = parseInt(amount_raw, 10);
+    if (!Number.isFinite(amount_paisa) || amount_paisa <= 0) continue;
+
+    const description = description_raw.slice(0, 300);
+    parsed.push({ transaction_date, txn_type, amount_paisa, description, raw_text: line });
+  }
+
+  if (parsed.length === 0) {
+    await db.prepare(
+      'UPDATE card_statements SET parsing_status = ?, updated_at = ? WHERE id = ?'
+    ).bind('failed', now, statement_id).run();
+
+    return errResp('parse_statement_text', 'NO_TRANSACTIONS', 'Could not extract any transactions from pasted text', 422);
+  }
+
+  await db.prepare(
+    'DELETE FROM card_statement_transactions WHERE statement_id = ?'
+  ).bind(statement_id).run();
+
+  const inserts = parsed.map(txn =>
+    db.prepare(
+      `INSERT INTO card_statement_transactions
+       (id, statement_id, card_id, user_id, transaction_date, description, amount_paisa,
+        txn_type, raw_text, match_status, extraction_provider, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      'cst_' + uuid(),
+      statement_id,
+      stmt.card_id,
+      userId,
+      txn.transaction_date,
+      txn.description,
+      txn.amount_paisa,
+      txn.txn_type,
+      txn.raw_text,
+      'unmatched',
+      'paste-text',
+      now,
+      now
+    )
+  );
+
+  await db.batch(inserts);
+
+  await db.prepare(
+    'UPDATE card_statements SET parsing_status = ?, updated_at = ? WHERE id = ?'
+  ).bind('complete', now, statement_id).run();
+
+  return json({
+    ok: true,
+    action: 'parse_statement_text',
+    contract_version: CONTRACT_VERSION,
+    statement_id,
+    rows_inserted: parsed.length,
+    committed: true
+  });
 }
