@@ -2108,7 +2108,7 @@ async function actionParseStatementPdf(db, body, userId, env) {
       body: JSON.stringify({contents:[{parts:[{inline_data:{mime_type:'application/pdf',data:imageBase64}},{text:prompt}]}]})
     });
     const gd = await gr.json();
-    const aiResp = { response: gd.candidates?.[0]?.content?.parts?.[0]?.text || '' };
+    console.log("GEMINI RAW:", JSON.stringify(gd).slice(0, 500)); const aiResp = { response: gd.candidates?.[0]?.content?.parts?.[0]?.text || '' };
     const text = aiResp?.response || '';
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
