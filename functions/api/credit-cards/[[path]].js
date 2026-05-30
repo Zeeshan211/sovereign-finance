@@ -2097,23 +2097,72 @@ async function actionParseStatementPdf(db, body, userId, env) {
   const now = new Date().toISOString();
   let parsed;
   try {
-    const grokResp = await fetch('https://api.x.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + env.GROK_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'grok-2-vision-1212',
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: `data:application/pdf;base64,${imageBase64}` } },
-            { type: 'text', text: 'Extract all transactions from this Pakistani credit card statement as a JSON array. Return ONLY valid JSON with no explanation. Each item: {"date":"YYYY-MM-DD","description":"string","amount_paisa":integer,"txn_type":"debit|credit"}. amount_paisa is absolute value in paisas (1 PKR = 100 paisas). txn_type is "debit" for charges, "credit" for payments/refunds.' }
-          ]
-        }],
-        max_tokens: 4096
-      })
-    });
-    const grokData = await grokResp.json();
-    const aiResp = { response: grokData.choices?.[0]?.message?.content || '' };
+    // Multi-AI fallback chain: Grok -> Gemini -> Llama -> LLaVA
+    const prompt = 'Extract all transactions from this Pakistani credit card statement as a JSON array. Return ONLY valid JSON with no explanation. Each item: {"date":"YYYY-MM-DD","description":"string","amount_paisa":integer,"txn_type":"debit|credit"}. amount_paisa absolute value in paisas. txn_type "debit" for charges, "credit" for payments/refunds.';
+    const pdfDataUrl = `data:application/pdf;base64,${imageBase64}`;
+    let aiResp = { response: '' };
+    let usedProvider = 'none';
+
+    // 1. Try Grok
+    try {
+      if (env.GROK_API_KEY) {
+        const r = await fetch('https://api.x.ai/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + env.GROK_API_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'grok-2-vision-1212',
+            messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: pdfDataUrl } }, { type: 'text', text: prompt }] }],
+            max_tokens: 4096
+          })
+        });
+        const d = await r.json();
+        const txt = d.choices?.[0]?.message?.content;
+        if (txt && txt.includes('[')) { aiResp = { response: txt }; usedProvider = 'grok'; }
+      }
+    } catch (e) { console.error('Grok failed:', e.message); }
+
+    // 2. Try Gemini
+    if (!aiResp.response && env.GEMINI_API_KEY) {
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${env.GEMINI_API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ inline_data: { mime_type: 'application/pdf', data: imageBase64 } }, { text: prompt }] }]
+          })
+        });
+        const d = await r.json();
+        const txt = d.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (txt && txt.includes('[')) { aiResp = { response: txt }; usedProvider = 'gemini'; }
+      } catch (e) { console.error('Gemini failed:', e.message); }
+    }
+
+    // 3. Try Cloudflare Llama Vision
+    if (!aiResp.response) {
+      try {
+        const r = await env.AI.run('@cf/meta/llama-3.2-11b-vision-instruct', {
+          messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: pdfDataUrl } }, { type: 'text', text: prompt }] }]
+        });
+        if (r?.response && r.response.includes('[')) { aiResp = r; usedProvider = 'cf-llama'; }
+      } catch (e) { console.error('CF Llama failed:', e.message); }
+    }
+
+    // 4. Try LLaVA fallback
+    if (!aiResp.response) {
+      try {
+        const r = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
+          messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: pdfDataUrl } }, { type: 'text', text: prompt }] }]
+        });
+        if (r?.response) { aiResp = r; usedProvider = 'cf-llava'; }
+      } catch (e) { console.error('LLaVA failed:', e.message); }
+    }
+
+    console.log('AI parser used:', usedProvider);
+
+    // Dummy assignment to satisfy old variable references
+    const grokResp = { ok: true };
+    const grokData = { choices: [] };
+
     const text = aiResp?.response || '';
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
