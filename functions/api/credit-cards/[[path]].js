@@ -2097,21 +2097,23 @@ async function actionParseStatementPdf(db, body, userId, env) {
   const now = new Date().toISOString();
   let parsed;
   try {
-    const aiResp = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', {
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image_url', image_url: { url: `data:application/pdf;base64,${imageBase64}` } },
-          { type: 'text', text:
-            'Extract all transactions from this Pakistani credit card statement as a JSON array. ' +
-            'Return ONLY valid JSON with no explanation. Each item: ' +
-            '{"date":"YYYY-MM-DD","description":"string","amount_paisa":integer,"txn_type":"debit|credit"}. ' +
-            'amount_paisa is the absolute value in Pakistani paisas (1 PKR = 100 paisas). ' +
-            'txn_type is "debit" for purchases/charges, "credit" for payments/refunds.'
-          }
-        ]
-      }]
+    const grokResp = await fetch('https://api.x.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + env.GROK_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'grok-2-vision-1212',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: `data:application/pdf;base64,${imageBase64}` } },
+            { type: 'text', text: 'Extract all transactions from this Pakistani credit card statement as a JSON array. Return ONLY valid JSON with no explanation. Each item: {"date":"YYYY-MM-DD","description":"string","amount_paisa":integer,"txn_type":"debit|credit"}. amount_paisa is absolute value in paisas (1 PKR = 100 paisas). txn_type is "debit" for charges, "credit" for payments/refunds.' }
+          ]
+        }],
+        max_tokens: 4096
+      })
     });
+    const grokData = await grokResp.json();
+    const aiResp = { response: grokData.choices?.[0]?.message?.content || '' };
     const text = aiResp?.response || '';
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
