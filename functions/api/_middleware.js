@@ -40,11 +40,12 @@ export async function onRequest(context) {
     const path = url.pathname;
     const method = context.request.method;
 
-    // Public: auth routes + health (skip session check but still add security headers)
+    // Public: auth routes + health + one-time owner migration
     if (
       path.startsWith('/api/auth/') ||
       path === '/api/health' ||
-      path === '/api/deploy-check'
+      path === '/api/deploy-check' ||
+      path === '/api/migrate-owner'
     ) {
       const response = await context.next();
       return addSecurityHeaders(response);
@@ -53,8 +54,6 @@ export async function onRequest(context) {
     // CSRF protection: verify Origin on mutations
     if (MUTATION_METHODS.has(method)) {
       const origin = context.request.headers.get('Origin');
-      // If Origin is present and not in allowlist → reject
-      // No Origin header is acceptable for server-to-server calls
       if (origin && !ALLOWED_ORIGINS.has(origin)) {
         return new Response(JSON.stringify({ ok: false, error: 'Forbidden: Origin not allowed' }), {
           status: 403,
@@ -78,7 +77,6 @@ export async function onRequest(context) {
     }
 
     // Single-user app: only the owner role may access data.
-    // Members created before this fix are blocked here.
     if (session.role !== 'owner') {
       return new Response(JSON.stringify({ ok: false, error: 'Access denied. This is a single-user instance.' }), {
         status: 403,

@@ -51,7 +51,7 @@
 </head>
 <body>
   <h1>Owner ID Migration</h1>
-  <p>Tap the button once while logged in.<br>Fixes empty accounts &amp; transactions.</p>
+  <p>Tap once. No login needed.<br>Fixes empty accounts &amp; transactions.</p>
   <button id="btn" onclick="run()">Run Migration</button>
   <pre id="out"></pre>
 
@@ -63,12 +63,17 @@
       btn.textContent = 'Running…';
       out.style.display = 'none';
       try {
-        const res = await fetch('/api/migrate-owner', { method: 'POST', credentials: 'same-origin' });
+        const res = await fetch('/api/migrate-owner', { method: 'POST' });
         const data = await res.json();
         out.className = data.ok ? 'ok' : 'err';
         out.textContent = JSON.stringify(data, null, 2);
         out.style.display = 'block';
-        btn.textContent = data.ok ? 'Done — reload the app!' : 'Failed (see below)';
+        if (data.ok) {
+          btn.textContent = 'Done — log in again!';
+        } else {
+          btn.textContent = 'Failed (see below)';
+          btn.disabled = false;
+        }
       } catch (e) {
         out.className = 'err';
         out.textContent = String(e);
