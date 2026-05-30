@@ -32,21 +32,23 @@ const INACTIVE_STATUSES = new Set([
 export async function onRequestGet(context) {
   return withJsonErrors('GET', async () => {
     const db = requireDb(context.env);
+    const userId = context.data.user_id;
     const url = new URL(context.request.url);
     const path = getPath(context);
     const action = clean(url.searchParams.get('action')).toLowerCase();
 
-    if (path[0] === 'history' || action === 'history') return getHistory(db, url);
-    if (path[0] === 'cycle' || action === 'cycle') return getOverview(db, url);
-    if (path[0] && path[0] !== 'health' && !isReservedPath(path[0])) return getBillDetail(db, path[0], url);
+    if (path[0] === 'history' || action === 'history') return getHistory(db, url, userId);
+    if (path[0] === 'cycle' || action === 'cycle') return getOverview(db, url, userId);
+    if (path[0] && path[0] !== 'health' && !isReservedPath(path[0])) return getBillDetail(db, path[0], url, userId);
 
-    return getOverview(db, url);
+    return getOverview(db, url, userId);
   });
 }
 
 export async function onRequestPost(context) {
   return withJsonErrors('POST', async () => {
     const db = requireDb(context.env);
+    const userId = context.data.user_id;
     const url = new URL(context.request.url);
     const path = getPath(context);
     const body = await readJson(context.request);
@@ -57,11 +59,11 @@ export async function onRequestPost(context) {
     const dryRun = isDryRun(url, body);
 
     if (action === 'create' || action === 'add' || action === '') return createBill(db, body, dryRun);
-    if (action === 'pay' || action === 'payment' || action === 'record_payment') return payBill(db, body, dryRun);
+    if (action === 'pay' || action === 'payment' || action === 'record_payment') return payBill(db, body, dryRun, userId);
     if (action === 'update' || action === 'edit') return updateBill(db, body, dryRun);
     if (action === 'defer') return deferBill(db, body, dryRun);
     if (action === 'repair' || action === 'repair_reversed_payments' || action === 'repair-reversed-payments') {
-      return repairReversedPayments(db, body, dryRun);
+      return repairReversedPayments(db, body, dryRun, userId);
     }
 
     return json(contractError({
@@ -112,13 +114,13 @@ export async function onRequestDelete(context) {
  * GET overview/detail/history
  * ───────────────────────────── */
 
-async function getOverview(db, url) {
+async function getOverview(db, url, userId) {
   const month = normalizeMonth(url.searchParams.get('month')) || currentMonth();
   const includeInactive = url.searchParams.get('include_inactive') === '1';
 
-  const allBills = await loadBills(db);
+  const allBills = await loadBills(db, userId);
   const payments = await loadBillPayments(db);
-  const txnsById = await loadTransactionsById(db);
+  const txnsById = await loadTransactionsById(db, userId);
 
   const rows = [];
 
@@ -220,7 +222,7 @@ async function getOverview(db, url) {
   });
 }
 
-async function getBillDetail(db, billId, url) {
+async function getBillDetail(db, billId, url, userId) {
   const bill = await findBill(db, billId);
 
   if (!bill) {
@@ -233,7 +235,7 @@ async function getBillDetail(db, billId, url) {
 
   const month = normalizeMonth(url.searchParams.get('month')) || currentMonth();
   const payments = await loadBillPayments(db);
-  const txnsById = await loadTransactionsById(db);
+  const txnsById = await loadTransactionsById(db, userId);
 
   const cycle = buildCycle({ bill, month, payments, txnsById });
   const advance = buildAdvanceSummary({ bill, month, payments, txnsById });
@@ -258,7 +260,7 @@ async function getBillDetail(db, billId, url) {
   });
 }
 
-async function getHistory(db, url) {
+async function getHistory(db, url, userId) {
   const billId = clean(url.searchParams.get('bill_id') || url.searchParams.get('id'));
 
   if (!billId) {
@@ -280,7 +282,7 @@ async function getHistory(db, url) {
   }
 
   const payments = (await loadBillPayments(db)).filter(p => p.bill_id === billId);
-  const txnsById = await loadTransactionsById(db);
+  const txnsById = await loadTransactionsById(db, userId);
 
   const history = payments.map(payment => {
     const tx = payment.transaction_id ? txnsById.get(payment.transaction_id) : null;
@@ -483,7 +485,7 @@ async function createBill(db, body, dryRun) {
  * Pay bill: ledger + bill payment link
  * ───────────────────────────── */
 
-async function payBill(db, body, dryRun) {
+async function payBill(db, body, dryRun, userId) {
   const billId = clean(body.bill_id || body.id);
   const bill = await findBill(db, billId);
 
@@ -556,7 +558,7 @@ async function payBill(db, body, dryRun) {
 
   if (existingPayment) {
     const payments = await loadBillPayments(db);
-    const txnsById = await loadTransactionsById(db);
+    const txnsById = await loadTransactionsById(db, userId);
     const cycle = buildCycle({ bill, month: billMonth, payments, txnsById });
 
     return json({
@@ -594,7 +596,7 @@ async function payBill(db, body, dryRun) {
   }
 
   const paymentsBefore = await loadBillPayments(db);
-  const txnsByIdBefore = await loadTransactionsById(db);
+  const txnsByIdBefore = await loadTransactionsById(db, userId);
   const beforeCycle = buildCycle({ bill, month: billMonth, payments: paymentsBefore, txnsById: txnsByIdBefore });
 
   if (amount > beforeCycle.remaining) {
@@ -790,7 +792,7 @@ async function payBill(db, body, dryRun) {
 
   const freshBill = await findBill(db, bill.id);
   const paymentsAfter = await loadBillPayments(db);
-  const txnsAfter = await loadTransactionsById(db);
+  const txnsAfter = await loadTransactionsById(db, userId);
   const cycleAfter = buildCycle({ bill: freshBill, month: billMonth, payments: paymentsAfter, txnsById: txnsAfter });
   const currentCycleAfter = buildCycle({ bill: freshBill, month: current, payments: paymentsAfter, txnsById: txnsAfter });
   const advanceAfter = buildAdvanceSummary({ bill: freshBill, month: current, payments: paymentsAfter, txnsById: txnsAfter });
@@ -1046,9 +1048,9 @@ async function deferBill(db, body, dryRun) {
   });
 }
 
-async function repairReversedPayments(db, body, dryRun) {
+async function repairReversedPayments(db, body, dryRun, userId) {
   const payments = await loadBillPayments(db);
-  const txnsById = await loadTransactionsById(db);
+  const txnsById = await loadTransactionsById(db, userId);
   const paymentCols = await tableColumns(db, 'bill_payments');
 
   const bad = payments.filter(payment => {
@@ -1280,7 +1282,7 @@ function classifyPayment(payment, tx) {
  * Loaders
  * ───────────────────────────── */
 
-async function loadBills(db) {
+async function loadBills(db, userId) {
   const cols = await tableColumns(db, 'bills');
   if (!cols.size) return [];
 
@@ -1310,8 +1312,9 @@ async function loadBills(db) {
   const res = await db.prepare(
     `SELECT ${select.join(', ')}
        FROM bills
+      WHERE owner_user_id = ?
       ORDER BY ${orderBy}`
-  ).all();
+  ).bind(userId).all();
 
   return (res.results || []).map(normalizeBill);
 }
@@ -1385,7 +1388,7 @@ async function loadBillPayments(db) {
   return (res.results || []).map(normalizePayment);
 }
 
-async function loadTransactionsById(db) {
+async function loadTransactionsById(db, userId) {
   const exists = await tableExists(db, 'transactions');
   const map = new Map();
 
@@ -1412,8 +1415,9 @@ async function loadTransactionsById(db) {
 
   const res = await db.prepare(
     `SELECT ${select.join(', ')}
-       FROM transactions`
-  ).all();
+       FROM transactions
+      WHERE user_id = ?`
+  ).bind(userId).all();
 
   for (const row of res.results || []) {
     const tx = normalizeTxn(row);

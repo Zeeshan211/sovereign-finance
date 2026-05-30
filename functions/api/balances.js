@@ -37,6 +37,7 @@ const NEGATIVE_TYPES = [
 export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
+    const userId = context.data.user_id;
 
     const [accountCols, txCols] = await Promise.all([
       tableColumns(db, 'accounts'),
@@ -61,8 +62,8 @@ export async function onRequestGet(context) {
       }, 500);
     }
 
-    const accounts = await loadAccounts(db, accountCols);
-    const balanceMap = await computeBalances(db, txCols);
+    const accounts = await loadAccounts(db, accountCols, userId);
+    const balanceMap = await computeBalances(db, txCols, userId);
 
     const accountsById = {};
     const accountList = [];
@@ -254,7 +255,7 @@ export async function onRequestGet(context) {
   }
 }
 
-async function loadAccounts(db, cols) {
+async function loadAccounts(db, cols, userId) {
   const wanted = [
     'id',
     'name',
@@ -277,8 +278,9 @@ async function loadAccounts(db, cols) {
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM accounts
+     WHERE owner_user_id = ?
      ORDER BY ${orderBy}`
-  ).all();
+  ).bind(userId).all();
 
   return (result.results || []).map(row => {
     const accountClass = classifyAccount(row);
@@ -300,7 +302,7 @@ async function loadAccounts(db, cols) {
   });
 }
 
-async function computeBalances(db, txCols) {
+async function computeBalances(db, txCols, userId) {
   const wanted = [
     'id',
     'date',
@@ -323,8 +325,9 @@ async function computeBalances(db, txCols) {
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM transactions
+     WHERE user_id = ?
      ORDER BY ${orderBy}`
-  ).all();
+  ).bind(userId).all();
 
   const map = new Map();
 
