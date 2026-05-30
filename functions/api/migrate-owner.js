@@ -3,10 +3,9 @@
  * placeholder user id ('user_owner') to the real authenticated user's id.
  *
  * Protected by _middleware.js — only the owner session can call this.
- * Safe to call multiple times (idempotent — rows already on real UUID are untouched).
+ * Safe to call multiple times (idempotent).
  *
- * Usage: POST /api/migrate-owner
- * Returns: JSON summary of rows updated per table.
+ * Usage: GET or POST /api/migrate-owner
  */
 
 const LEGACY_IDS = ['user_owner', 'owner', 'household_owner', 'hh_owner'];
@@ -21,19 +20,26 @@ const TABLES = [
   { table: 'reconciliation', column: 'owner_user_id' },
 ];
 
+export async function onRequestGet(context) {
+  return runMigration(context);
+}
+
 export async function onRequestPost(context) {
+  return runMigration(context);
+}
+
+async function runMigration(context) {
   try {
     const db = context.env?.DB;
     if (!db) return json({ ok: false, error: 'DB binding missing' }, 500);
 
     const realUserId = context.data?.user_id;
-    if (!realUserId) return json({ ok: false, error: 'No authenticated user_id' }, 401);
+    if (!realUserId) return json({ ok: false, error: 'Not authenticated' }, 401);
 
     const summary = [];
     let totalUpdated = 0;
 
     for (const { table, column } of TABLES) {
-      // Skip tables that don't exist
       const cols = await tableColumns(db, table);
       if (!cols.size) {
         summary.push({ table, column, skipped: true, reason: 'table not found' });
@@ -46,7 +52,6 @@ export async function onRequestPost(context) {
 
       let tableUpdated = 0;
       for (const legacyId of LEGACY_IDS) {
-        // Count first so we can report accurately
         const countRow = await db
           .prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${column} = ?`)
           .bind(legacyId)
