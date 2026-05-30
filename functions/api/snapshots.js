@@ -40,6 +40,7 @@ const SYSTEM_TABLES = new Set([
 export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
+    const userId = context.data.user_id;
     const url = new URL(context.request.url);
     const id = cleanText(url.searchParams.get('id'), '', 160);
 
@@ -58,9 +59,10 @@ export async function onRequestGet(context) {
     const result = await db.prepare(
       `SELECT id, label, status, row_count_total, created_by, created_at
        FROM snapshots
+       WHERE created_by = ?
        ORDER BY datetime(created_at) DESC, id DESC
        LIMIT ?`
-    ).bind(limit).all();
+    ).bind(userId, limit).all();
 
     return json({
       ok: true,

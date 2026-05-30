@@ -18,20 +18,21 @@ const ALLOWED_STATUS = ['active', 'completed', 'paused', 'archived'];
 export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
+    const userId = context.data.user_id;
     const path = context.params.path || [];
 
     if (path.length === 1) {
       const id = path[0];
       const goal = await db.prepare(
-        "SELECT * FROM goals WHERE id = ?"
-      ).bind(id).first();
+        "SELECT * FROM goals WHERE id = ? AND user_id = ?"
+      ).bind(id, userId).first();
       if (!goal) return json({ ok: false, error: 'Goal not found' }, 404);
       return json({ ok: true, goal: enrichGoal(goal) });
     }
 
     const goals = await db.prepare(
-      "SELECT * FROM goals WHERE status != 'archived' OR status IS NULL ORDER BY display_order, deadline"
-    ).all();
+      "SELECT * FROM goals WHERE (status != 'archived' OR status IS NULL) AND user_id = ? ORDER BY display_order, deadline"
+    ).bind(userId).all();
     return json({ ok: true, goals: (goals.results || []).map(enrichGoal) });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
