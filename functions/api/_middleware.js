@@ -77,9 +77,22 @@ export async function onRequest(context) {
       });
     }
 
+    // Single-user app: only the owner role may access data.
+    // Members created before this fix are blocked here.
+    if (session.role !== 'owner') {
+      return new Response(JSON.stringify({ ok: false, error: 'Access denied. This is a single-user instance.' }), {
+        status: 403,
+        headers: {
+          'Content-Type': 'application/json',
+          ...SECURITY_HEADERS,
+        },
+      });
+    }
+
     context.data.user_id = session.user_id;
     context.data.user_email = session.email;
     context.data.session_id = session.id;
+    context.data.role = session.role;
 
     const response = await context.next();
     return addSecurityHeaders(response);
