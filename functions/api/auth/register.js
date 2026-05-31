@@ -23,17 +23,7 @@ export async function onRequestPost(context) {
     const ownerExists = await context.env.DB.prepare(
       `SELECT id FROM users WHERE password_hash IS NOT NULL LIMIT 1`
     ).first();
-
-    // This is a single-user personal finance app.
-    // Once an owner account exists, registration is closed.
-    if (ownerExists) {
-      return json(
-        { ok: false, error: 'Registration is closed. This is a single-user instance.' },
-        403
-      );
-    }
-
-    const role = 'owner';
+    const role = ownerExists ? 'member' : 'owner';
 
     // Use or create household
     let householdId = 'hh_owner';
@@ -52,10 +42,12 @@ export async function onRequestPost(context) {
     ).bind(userId, householdId, email, passwordHash, email.split('@')[0], role).run();
 
     // Backfill NULL-attributed rows to first real owner
-    for (const tbl of ['accounts', 'transactions', 'bills', 'debts']) {
-      await context.env.DB.prepare(
-        `UPDATE ${tbl} SET user_id = ? WHERE user_id IS NULL`
-      ).bind(userId).run().catch(() => {});
+    if (!ownerExists) {
+      for (const tbl of ['accounts', 'transactions', 'bills', 'debts']) {
+        await context.env.DB.prepare(
+          `UPDATE ${tbl} SET user_id = ? WHERE user_id IS NULL`
+        ).bind(userId).run().catch(() => {});
+      }
     }
 
     const token = await createSession(context.env, userId, context.request);
