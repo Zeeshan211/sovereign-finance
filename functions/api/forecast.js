@@ -11,7 +11,7 @@
  * - Does NOT mutate ledger/accounts/debts/salary.
  */
 
-const VERSION = 'v0.2.0-forecast-contract-aggregate';
+const VERSION = 'v0.3.0-forecast-bills-included';
 
 const POSITIVE_TYPES = new Set([
   'income',
@@ -63,9 +63,12 @@ export async function onRequestGet(context) {
     const today = todayISO();
     const horizonEnd = addDaysISO(today, horizonDays);
 
-    const accounts = await loadCanonicalAccounts(db);
-    const salary = await loadSalarySource(db, today, horizonEnd);
-    const debts = await loadDebts(db, today);
+    const [accounts, salary, debts, billEvents] = await Promise.all([
+      loadCanonicalAccounts(db),
+      loadSalarySource(db, today, horizonEnd),
+      loadDebts(db, today),
+      loadActiveBillEvents(db, today, horizonEnd),
+    ]);
 
     const cashNow = round2(accounts
       .filter(account => isLiquidAssetAccount(account))
@@ -129,6 +132,10 @@ export async function onRequestGet(context) {
       }
     }
 
+    for (const ev of billEvents) {
+      events.push(ev);
+    }
+
     if (buffer !== 0) {
       events.push({
         id: 'manual_buffer',
@@ -183,7 +190,8 @@ export async function onRequestGet(context) {
         salary_enabled: salary.enabled,
         salary_amount: wholeRupee(salary.amount || 0),
         salary_expected_date: salary.expected_date || null,
-        debts_count: debts.length
+        debts_count: debts.length,
+        bills_count: billEvents.length,
       },
       events,
       inputs: {
@@ -603,6 +611,107 @@ function computeNextDueDate(debt, today) {
   if (thisMonthIso >= today) return thisMonthIso;
 
   return dateOnly(paydayDate(start.getUTCFullYear(), start.getUTCMonth() + 1, dueDay));
+}
+
+/* ─────────────────────────────
+ * Bills — scheduled outflows
+ * ───────────────────────────── */
+
+const INACTIVE_BILL_STATUSES = new Set([
+  'archived', 'deleted', 'disabled', 'paused', 'closed', 'inactive'
+]);
+
+async function loadActiveBillEvents(db, today, horizonEnd) {
+  const billCols = await tableColumns(db, 'bills');
+  if (!billCols.size) return [];
+
+  const paymentCols = await tableColumns(db, 'bill_payments');
+
+  const select = ['id', 'name', 'amount',
+    billCols.has('due_day') ? 'due_day' : null,
+    billCols.has('status') ? 'status' : null,
+    billCols.has('account_id') ? 'account_id' : null,
+    billCols.has('category_id') ? 'category_id' : null,
+  ].filter(Boolean);
+
+  const res = await db.prepare(
+    `SELECT ${select.join(', ')} FROM bills`
+  ).all();
+
+  const activeBills = (res.results || []).filter(b => {
+    const s = String(b.status || '').toLowerCase();
+    return !INACTIVE_BILL_STATUSES.has(s);
+  });
+
+  if (!activeBills.length) return [];
+
+  // Build set of already-paid bill_months so we don't double-count
+  const paidKey = new Set();
+  if (paymentCols.has('bill_id') && paymentCols.has('bill_month')) {
+    const monthStart = today.slice(0, 7);
+    const monthEnd = horizonEnd.slice(0, 7);
+    const hasPaidAmt = paymentCols.has('paid_amount');
+    const hasStatus  = paymentCols.has('status');
+
+    const paid = await db.prepare(
+      `SELECT bill_id, bill_month
+         FROM bill_payments
+        WHERE bill_month >= ? AND bill_month <= ?
+          ${hasStatus ? "AND status = 'paid'" : hasPaidAmt ? 'AND paid_amount > 0' : ''}`
+    ).bind(monthStart, monthEnd).all();
+
+    for (const row of paid.results || []) {
+      paidKey.add(`${row.bill_id}::${row.bill_month}`);
+    }
+  }
+
+  const events = [];
+  const start = parseIsoDate(today);
+  const end   = parseIsoDate(horizonEnd);
+  if (!start || !end) return [];
+
+  for (const bill of activeBills) {
+    const dueDay = normalizeNullablePayday(bill.due_day);
+    if (!dueDay) continue;
+
+    const amount = wholeRupee(bill.amount || 0);
+    if (amount <= 0) continue;
+
+    // Iterate each calendar month that overlaps the horizon
+    let cursor = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+    const endMonth = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1));
+
+    while (cursor <= endMonth) {
+      const year  = cursor.getUTCFullYear();
+      const month = cursor.getUTCMonth();
+      const billMonth = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+      if (!paidKey.has(`${bill.id}::${billMonth}`)) {
+        const maxDay  = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+        const dueDate = dateOnly(new Date(Date.UTC(year, month, Math.min(dueDay, maxDay))));
+
+        if (dueDate >= today && dueDate <= horizonEnd) {
+          events.push({
+            id:          `bill_${bill.id}_${billMonth}`,
+            source:      'bill',
+            type:        'outflow',
+            title:       `Bill: ${bill.name || bill.id}`,
+            label:       bill.name || 'Bill',
+            amount:      -amount,
+            date:        dueDate,
+            account_id:  bill.account_id || '',
+            status:      'scheduled',
+            confidence:  'projected',
+            description: `Recurring bill · ${billMonth}`,
+          });
+        }
+      }
+
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+  }
+
+  return events;
 }
 
 /* ─────────────────────────────
