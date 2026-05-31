@@ -31,5 +31,10 @@ bucket_name = "liquidityos-statements"
 #   "0 9 * * 5",    # rewards_expiry_alert      — weekly Friday 09:00 PKT
 # ]
 
+[vars]
+# Set this to your Google OAuth 2.0 Client ID from Google Cloud Console.
+# After deploying, also add this in Cloudflare Pages → Settings → Environment Variables.
+GOOGLE_CLIENT_ID = "REPLACE_WITH_YOUR_GOOGLE_CLIENT_ID"
+
 [ai]
 binding = "AI"
