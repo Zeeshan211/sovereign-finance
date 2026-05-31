@@ -518,6 +518,8 @@ async function validatePayload(context, body) {
   const requiresOverride = balanceProof.requires_override === true;
   const overrideReason = requiresOverride ? balanceProof.override_reason : null;
 
+  // Exclude idempotency_key from hash so dry-run (no key) and commit (with key) produce the same hash.
+  // The idempotency key is client-side dedup metadata and doesn't change the transaction semantics.
   const { idempotency_key: _ik, ...hashableNormalized } = normalized;
 
   const payloadHash = await hashPayload({
@@ -1379,6 +1381,8 @@ async function resolveCategory(db, input, type) {
     };
   }
 
+  // Try raw id first — DB ids (e.g. 'food_dining', 'groceries') must pass through
+  // without aliasing. Canonical aliasing is only for free-text user input.
   const rawExact = await db.prepare(
     `SELECT id FROM categories WHERE id = ? LIMIT 1`
   ).bind(raw).first();
