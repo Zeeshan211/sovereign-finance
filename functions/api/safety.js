@@ -37,17 +37,16 @@ const TYPE_MINUS = new Set(['expense', 'cc_spend', 'atm', 'debt_out', 'repay', '
 
 export async function onRequest(context) {
   const db = context.env.DB;
-  const userId = context.data.user_id;
   const now = new Date();
 
   try {
     const [forecastRes, accountsRes, txnsRes, billsRes, debtsRes, reconRes] = await Promise.all([
       readForecast(context),
-      readTable(db, 'accounts', userId),
-      readTable(db, 'transactions', userId),
-      readTable(db, 'bills', userId),
-      readTable(db, 'debts', userId),
-      readTable(db, 'reconciliation', userId)
+      readTable(db, 'accounts'),
+      readTable(db, 'transactions'),
+      readTable(db, 'bills'),
+      readTable(db, 'debts'),
+      readTable(db, 'reconciliation')
     ]);
 
     const accounts = activeAccounts(accountsRes.rows);
@@ -218,21 +217,9 @@ async function readForecast(context) {
   }
 }
 
-async function readTable(db, table, userId) {
+async function readTable(db, table) {
   try {
-    const userColByTable = {
-      accounts: 'owner_user_id',
-      transactions: 'user_id',
-      bills: 'owner_user_id',
-      debts: 'owner_user_id',
-      reconciliation: 'owner_user_id'
-    };
-    const userCol = userColByTable[table];
-    const whereClause = (userId && userCol) ? `WHERE ${userCol} = ?` : '';
-    const stmt = whereClause
-      ? db.prepare(`SELECT * FROM ${table} ${whereClause}`).bind(userId)
-      : db.prepare(`SELECT * FROM ${table}`);
-    const res = await stmt.all();
+    const res = await db.prepare(`SELECT * FROM ${table}`).all();
     return {
       ok: true,
       table,

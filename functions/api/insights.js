@@ -36,7 +36,6 @@ const CASH_CONCENTRATION_WATCH = 0.8;
 
 export async function onRequest(context) {
   const { env, request } = context;
-  const userId = context.data.user_id;
   const url = new URL(request.url);
   const days = clampInt(url.searchParams.get('days'), 30, 1, 365);
   const since = dateDaysAgo(days);
@@ -50,18 +49,18 @@ export async function onRequest(context) {
         `SELECT id, date, type, amount, account_id, category_id, notes,
           reversed_by, reversed_at, linked_txn_id, created_at
          FROM transactions
-         WHERE date >= ? AND user_id = ?
+         WHERE date >= ?
          ORDER BY date ASC, datetime(created_at) ASC, id ASC`
-      ).bind(since, userId).all(),
+      ).bind(since).all(),
       env.DB.prepare(
         `SELECT id, name, icon, kind, type, status, opening_balance
          FROM accounts
-         WHERE (status = 'active' OR status IS NULL) AND owner_user_id = ?
+         WHERE status = 'active' OR status IS NULL
          ORDER BY display_order, name`
-      ).bind(userId).all(),
+      ).all(),
       safeAll(env.DB, `SELECT id, name, icon FROM categories`),
-      safeAll(env.DB, `SELECT * FROM debts WHERE owner_user_id = ?`, [userId]),
-      safeAll(env.DB, `SELECT * FROM bills WHERE owner_user_id = ?`, [userId]),
+      safeAll(env.DB, `SELECT * FROM debts`),
+      safeAll(env.DB, `SELECT * FROM bills`),
       safeAll(env.DB, `SELECT * FROM reconciliation ORDER BY declared_at DESC`)
     ]);
 
@@ -911,10 +910,9 @@ function toCategoryMap(rows) {
   return map;
 }
 
-async function safeAll(db, sql, bindings = []) {
+async function safeAll(db, sql) {
   try {
-    const stmt = bindings.length ? db.prepare(sql).bind(...bindings) : db.prepare(sql);
-    return await stmt.all();
+    return await db.prepare(sql).all();
   } catch (err) {
     return { results: [], error: err.message };
   }
@@ -922,12 +920,12 @@ async function safeAll(db, sql, bindings = []) {
 
 function iconForAccount(row) {
   const kind = String(row.kind || row.type || '').toLowerCase();
-  if (kind === 'cash') return '💵';
-  if (kind === 'wallet') return '💜';
-  if (kind === 'cc') return '💳';
-  if (kind === 'credit_card') return '💳';
-  if (kind === 'prepaid') return '🎫';
-  return '🏦';
+  if (kind === 'cash') return '';
+  if (kind === 'wallet') return '';
+  if (kind === 'cc') return '';
+  if (kind === 'credit_card') return '';
+  if (kind === 'prepaid') return '';
+  return '';
 }
 
 function remainingDebtAmount(debt) {
