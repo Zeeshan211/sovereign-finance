@@ -17,7 +17,6 @@ const VERSION = 'v0.3.1-accounts-number-closed';
 export async function onRequestGet(context) {
   try {
     const db = requireDb(context.env);
-    const userId = context.data.user_id;
 
     const [accountCols, txCols] = await Promise.all([
       tableColumns(db, 'accounts'),
@@ -32,9 +31,9 @@ export async function onRequestGet(context) {
       }, 500);
     }
 
-    const accounts = await loadAccounts(db, accountCols, userId);
+    const accounts = await loadAccounts(db, accountCols);
     const balanceMap = txCols.has('account_id')
-      ? await computeTransactionBalances(db, txCols, userId)
+      ? await computeTransactionBalances(db, txCols)
       : new Map();
 
     const rows = [];
@@ -194,7 +193,7 @@ export async function onRequestPost(context) {
       min_payment_amount: body.min_payment_amount != null ? roundMoney(body.min_payment_amount) : null,
       statement_day:      body.statement_day != null ? Math.floor(Number(body.statement_day)) : null,
       payment_due_day:    body.payment_due_day != null ? Math.floor(Number(body.payment_due_day)) : null,
-      owner_user_id:      context.data.user_id,
+      owner_user_id:      'user_owner',
       household_id:       'hh_owner',
       created_at:         now
     });
@@ -217,7 +216,6 @@ export async function onRequestPost(context) {
 export async function onRequestPatch(context) {
   try {
     const db = requireDb(context.env);
-    const userId = context.data.user_id;
     const pathParts = (context.params && context.params.path
       ? (Array.isArray(context.params.path) ? context.params.path : [context.params.path])
       : []).filter(Boolean);
@@ -229,8 +227,8 @@ export async function onRequestPatch(context) {
     }
 
     const existing = await db.prepare(
-      `SELECT * FROM accounts WHERE id = ? AND owner_user_id = ? LIMIT 1`
-    ).bind(accountId, userId).first();
+      `SELECT * FROM accounts WHERE id = ? LIMIT 1`
+    ).bind(accountId).first();
 
     if (!existing) {
       return json({ ok: false, version: VERSION, error: 'Account not found' }, 404);
@@ -263,12 +261,12 @@ export async function onRequestPatch(context) {
 
     const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ');
     await db.prepare(
-      `UPDATE accounts SET ${setClauses} WHERE id = ? AND owner_user_id = ?`
-    ).bind(...Object.values(updates), accountId, userId).run();
+      `UPDATE accounts SET ${setClauses} WHERE id = ?`
+    ).bind(...Object.values(updates), accountId).run();
 
     const updated = await db.prepare(
-      `SELECT * FROM accounts WHERE id = ? AND owner_user_id = ? LIMIT 1`
-    ).bind(accountId, userId).first();
+      `SELECT * FROM accounts WHERE id = ? LIMIT 1`
+    ).bind(accountId).first();
 
     return json({ ok: true, version: VERSION, account: updated });
   } catch (err) {
@@ -279,7 +277,6 @@ export async function onRequestPatch(context) {
 export async function onRequestDelete(context) {
   try {
     const db = requireDb(context.env);
-    const userId = context.data.user_id;
     const pathParts = (context.params && context.params.path
       ? (Array.isArray(context.params.path) ? context.params.path : [context.params.path])
       : []).filter(Boolean);
@@ -291,8 +288,8 @@ export async function onRequestDelete(context) {
     }
 
     const existing = await db.prepare(
-      `SELECT id, name, status FROM accounts WHERE id = ? AND owner_user_id = ? LIMIT 1`
-    ).bind(accountId, userId).first();
+      `SELECT id, name, status FROM accounts WHERE id = ? LIMIT 1`
+    ).bind(accountId).first();
 
     if (!existing) {
       return json({ ok: false, version: VERSION, error: 'Account not found' }, 404);
@@ -301,8 +298,8 @@ export async function onRequestDelete(context) {
     const now = new Date().toISOString();
 
     await db.prepare(
-      `UPDATE accounts SET deleted_at = ?, status = 'deleted' WHERE id = ? AND owner_user_id = ?`
-    ).bind(now, accountId, userId).run();
+      `UPDATE accounts SET deleted_at = ?, status = 'deleted' WHERE id = ?`
+    ).bind(now, accountId).run();
 
     return json({
       ok: true,
@@ -317,7 +314,7 @@ export async function onRequestDelete(context) {
   }
 }
 
-async function loadAccounts(db, cols, userId) {
+async function loadAccounts(db, cols) {
   const wanted = [
     'id',
     'name',
@@ -345,9 +342,8 @@ async function loadAccounts(db, cols, userId) {
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
        FROM accounts
-      WHERE owner_user_id = ?
       ORDER BY ${orderBy}`
-  ).bind(userId).all();
+  ).all();
 
   return (result.results || []).map(row => {
     const classified = classifyAccount(row);
@@ -374,7 +370,7 @@ async function loadAccounts(db, cols, userId) {
   });
 }
 
-async function computeTransactionBalances(db, txCols, userId) {
+async function computeTransactionBalances(db, txCols) {
   const map = new Map();
 
   if (!txCols.has('account_id')) return map;
@@ -392,9 +388,8 @@ async function computeTransactionBalances(db, txCols, userId) {
     FROM transactions
     WHERE account_id IS NOT NULL
       AND TRIM(COALESCE(account_id, '')) != ''
-      AND user_id = ?
     GROUP BY TRIM(account_id)
-  `).bind(userId).all();
+  `).all();
 
   for (const row of result.results || []) {
     addBalanceBucket(map, row.account_id, {
