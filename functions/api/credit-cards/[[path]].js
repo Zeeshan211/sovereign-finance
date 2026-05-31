@@ -72,13 +72,14 @@ async function handleGet(context) {
   const includeInactive = url.searchParams.get('include_inactive') === '1';
 
   if (cardId) {
+    // Support both cc.id (e.g. 'cc_uuid') and cc.account_id (raw account uuid)
     const card = await db.prepare(
       `SELECT cc.*, a.name AS account_name, a.kind AS account_kind,
               a.status AS account_status
        FROM credit_cards cc
        JOIN accounts a ON a.id = cc.account_id
-       WHERE cc.id = ? AND cc.user_id = ?`
-    ).bind(cardId, userId).first();
+       WHERE (cc.id = ? OR cc.account_id = ?) AND cc.user_id = ?`
+    ).bind(cardId, cardId, userId).first();
 
     if (!card) return errResp('list', 'CARD_NOT_FOUND', `Card ${cardId} not found`, 404);
 
@@ -1755,8 +1756,8 @@ async function requireCard(db, cardId, userId) {
     `SELECT cc.*, a.kind AS account_kind
      FROM credit_cards cc
      JOIN accounts a ON a.id = cc.account_id
-     WHERE cc.id = ? AND cc.user_id = ? AND cc.status != 'deleted'`
-  ).bind(cardId, userId).first();
+     WHERE (cc.id = ? OR cc.account_id = ?) AND cc.user_id = ? AND cc.status != 'deleted'`
+  ).bind(cardId, cardId, userId).first();
 
   if (!card) {
     const e = new Error(`Credit card ${cardId} not found or not authorized`);
