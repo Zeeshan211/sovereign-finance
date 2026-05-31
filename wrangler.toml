@@ -34,7 +34,7 @@ bucket_name = "liquidityos-statements"
 [vars]
 # Set this to your Google OAuth 2.0 Client ID from Google Cloud Console.
 # After deploying, also add this in Cloudflare Pages → Settings → Environment Variables.
-GOOGLE_CLIENT_ID = "REPLACE_WITH_YOUR_GOOGLE_CLIENT_ID"
+GOOGLE_CLIENT_ID = "534964267819-cib38apec7aa03pem85e9d3fhs5hp84j.apps.googleusercontent.com"
 
 [ai]
 binding = "AI"
