@@ -117,7 +117,6 @@ const CC_OVERLIMIT_TOLERANCE = 1.0;
 export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
-    const userId = context.data.user_id;
     const url = new URL(context.request.url);
 
     const includeReversed = url.searchParams.get('include_reversed') === '1';
@@ -141,8 +140,8 @@ export async function onRequestGet(context) {
       ? limit
       : Math.min(500, Math.max(limit * 8, limit + 150));
 
-    const whereClause = accountId ? 'WHERE account_id = ? AND user_id = ?' : 'WHERE user_id = ?';
-    const binds = accountId ? [accountId, userId, fetchLimit] : [userId, fetchLimit];
+    const whereClause = accountId ? 'WHERE account_id = ?' : '';
+    const binds = accountId ? [accountId, fetchLimit] : [fetchLimit];
 
     const result = await db.prepare(
       `SELECT ${select.join(', ')}
