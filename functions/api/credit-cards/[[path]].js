@@ -354,7 +354,8 @@ async function actionUpdate(db, body, userId) {
 
   updates.updated_at = new Date().toISOString();
   const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ');
-  const values     = [...Object.values(updates), card_id];
+  // Use card.id (real primary key) not card_id (may be account_id alias)
+  const values = [...Object.values(updates), card.id];
 
   await db.prepare(`UPDATE credit_cards SET ${setClauses} WHERE id = ?`).bind(...values).run();
 
