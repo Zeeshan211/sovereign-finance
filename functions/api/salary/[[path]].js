@@ -376,7 +376,8 @@ async function loadContracts(db, cols) {
     'tax_bracket','currency','notes','basic','hra','medical','utility','contract_base',
     'wfh_usd','wfh_fx_rate','include_wfh','other_allowance','deductions',
     'include_in_forecast','effective_month','created_at','updated_at'].filter(c => cols.has(c));
-  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_contracts ORDER BY datetime(updated_at) DESC, id DESC`).all();
+  const orderBy = cols.has('updated_at') ? 'ORDER BY datetime(updated_at) DESC, id DESC' : 'ORDER BY id DESC';
+  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_contracts ${orderBy}`).all();
   return (result.results || []).map(enrichContract);
 }
 
