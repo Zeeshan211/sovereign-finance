@@ -2,7 +2,7 @@
 
 > Captured directly from Cloudflare D1 Console.
 > Original snapshot: 2026-05-23
-> Updated: 2026-06-01 (Bills contract v1 session)
+> Updated: 2026-06-01 (Bills contract v1 session — migration 26 complete)
 > Purpose: Ground truth reference. Every future backend session should read this first.
 
 ---
@@ -341,15 +341,15 @@ status              TEXT NOT NULL  DEFAULT 'committed'
 | transactions | idx_transactions_date | (date) | ✅ |
 | transactions | idx_tx_household | (household_id) | ✅ |
 | transactions | idx_tx_created_by | (created_by_user_id) | ✅ |
-| transactions | idx_transactions_source | (source_module, source_id) | ⚠️ PENDING (migration 26) |
+| transactions | idx_transactions_source | (source_module, source_id) | ✅ |
 | accounts | idx_accounts_household | (household_id) | ✅ |
 | accounts | idx_accounts_owner | (owner_user_id) | ✅ |
 | bills | idx_bills_household | (household_id) | ✅ |
-| bills | idx_bills_status | (status) | ⚠️ PENDING (migration 26) |
-| bills | idx_bills_due_day | (due_day) | ⚠️ PENDING (migration 26) |
-| bill_payments | idx_bill_payments_bill_id | (bill_id) | ⚠️ PENDING (migration 26) |
-| bill_payments | idx_bill_payments_bill_month | (bill_month) | ⚠️ PENDING (migration 26) |
-| bill_payments | idx_bill_payments_txn_id | (transaction_id) | ⚠️ PENDING (migration 26) |
+| bills | idx_bills_status | (status) | ✅ |
+| bills | idx_bills_due_day | (due_day) | ✅ |
+| bill_payments | idx_bill_payments_bill_id | (bill_id) | ✅ |
+| bill_payments | idx_bill_payments_bill_month | (bill_month) | ✅ |
+| bill_payments | idx_bill_payments_txn_id | (transaction_id) | ✅ |
 | debts | idx_debts_household | (household_id) | ✅ |
 | users | idx_users_household | (household_id) | ✅ |
 | users | idx_users_email | (email) | ✅ |
@@ -385,35 +385,16 @@ status              TEXT NOT NULL  DEFAULT 'committed'
 
 ## NEXT BACKEND WORK PRIORITIES
 
-### ⚠️ MIGRATION 26 — REMAINING D1 STATEMENTS
+### ✅ MIGRATION 26 — COMPLETE (2026-06-01)
 
-Schema columns all done. Two remaining steps:
+All statements executed successfully in D1:
+- Bills schema: 6 new columns added + backfills run
+- Bill_payments schema: 8 new alias columns added + backfills run
+- Transactions: source_id added
+- Category drift fixed (FK off/on wrap required for orphaned account refs)
+- All 6 indexes created
 
-```sql
--- 1. Category drift fix (requires FK off — some transactions have orphaned account_id refs)
-PRAGMA foreign_keys = OFF;
-UPDATE transactions SET category_id = 'bills' WHERE (notes LIKE '%[BILL_PAYMENT]%' OR source_module = 'bills') AND category_id = 'bills_utilities';
-UPDATE bill_payments SET category_id = 'bills' WHERE category_id = 'bills_utilities';
-PRAGMA foreign_keys = ON;
-
--- 2. Backfill bill_payments aliases (run after all 8 columns were added)
-UPDATE bill_payments SET paid_amount = amount WHERE paid_amount IS NULL AND amount IS NOT NULL;
-UPDATE bill_payments SET paid_amount_paisa = amount_paisa WHERE paid_amount_paisa IS NULL AND amount_paisa IS NOT NULL;
-UPDATE bill_payments SET date = COALESCE(paid_date, payment_date) WHERE date IS NULL;
-UPDATE bill_payments SET txn_id = transaction_id WHERE txn_id IS NULL AND transaction_id IS NOT NULL;
-UPDATE bill_payments SET ledger_transaction_id = transaction_id WHERE ledger_transaction_id IS NULL AND transaction_id IS NOT NULL;
-UPDATE bill_payments SET cycle_month = COALESCE(bill_month, month) WHERE cycle_month IS NULL;
-
--- 3. Indexes
-CREATE INDEX IF NOT EXISTS idx_bill_payments_bill_id    ON bill_payments(bill_id);
-CREATE INDEX IF NOT EXISTS idx_bill_payments_bill_month ON bill_payments(bill_month);
-CREATE INDEX IF NOT EXISTS idx_bill_payments_txn_id     ON bill_payments(transaction_id);
-CREATE INDEX IF NOT EXISTS idx_bills_status             ON bills(status);
-CREATE INDEX IF NOT EXISTS idx_bills_due_day            ON bills(due_day);
-CREATE INDEX IF NOT EXISTS idx_transactions_source      ON transactions(source_module, source_id);
-```
-
-### AFTER MIGRATION 26 COMPLETES
+### NEXT WORK
 
 1. **Run migrations 01-09** via wrangler — D1 schema is behind the code
 2. **Re-enable idempotency_key** in LiquidityOS frontend (after migration 04 runs)
@@ -424,5 +405,5 @@ CREATE INDEX IF NOT EXISTS idx_transactions_source      ON transactions(source_m
 
 ---
 
-*Updated: 2026-06-01 — Bills contract v1 session. All schema columns added. Category drift fix + index creation pending.*
-*Next session: Complete migration 26 cleanup, then frontend wire-up for bills.*
+*Updated: 2026-06-01 — Bills contract v1 + migration 26 complete. Bills backend v1.0.0 shipped.*
+*Next session: Frontend wire-up for bills section in LiquidityOS.*
