@@ -172,7 +172,7 @@ modified_by_user_id     TEXT           ← NEW (migration 03)
 household_id            TEXT           DEFAULT 'hh_owner'  ← NEW (migration 03)
 source_module           TEXT           DEFAULT 'manual'     ← confirmed existing (col 36)
 source_action           TEXT           DEFAULT 'manual_create' ← confirmed existing (col 37)
-source_id               TEXT           ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION
+source_id               TEXT           ← NEW (migration 26) ✅ run
 ```
 
 ---
@@ -198,14 +198,11 @@ owner_user_id         TEXT           ← added by migration 03
 household_id          TEXT           ← added by migration 03
 due_date              TEXT           ← NEW (migration 26) ✅ run
 notes                 TEXT           ← NEW (migration 26) ✅ run
-created_at            TEXT           ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION
+created_at            TEXT           ← NEW (migration 26) ✅ run
 updated_at            TEXT           ← NEW (migration 26) ✅ run
 expected_amount       REAL           ← NEW (migration 26) ✅ run  (backfilled from amount)
 archived_at           TEXT           ← NEW (migration 26) ✅ run
 ```
-
-Note: `created_at` failed initial attempt (DEFAULT CURRENT_TIMESTAMP not allowed in D1 ALTER TABLE).
-Fixed migration uses `ALTER TABLE bills ADD COLUMN created_at TEXT;` — needs to be run in D1 console.
 
 ---
 
@@ -238,14 +235,14 @@ reason                    TEXT
 dry_run_payload_hash      TEXT
 transaction_payload_hash  TEXT
 created_by                TEXT
-updated_at                TEXT   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION
-reversed_by               TEXT   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION
-paid_amount               REAL   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION  (alias of amount)
-paid_amount_paisa         INTEGER ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION  (alias of amount_paisa)
-date                      TEXT   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION  (alias of paid_date)
-txn_id                    TEXT   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION  (alias of transaction_id)
-ledger_transaction_id     TEXT   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION  (alias of transaction_id)
-cycle_month               TEXT   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION  (alias of bill_month)
+updated_at                TEXT   ← NEW (migration 26) ✅ run
+reversed_by               TEXT   ← NEW (migration 26) ✅ run
+paid_amount               REAL   ← NEW (migration 26) ✅ run  (alias of amount)
+paid_amount_paisa         INTEGER ← NEW (migration 26) ✅ run  (alias of amount_paisa)
+date                      TEXT   ← NEW (migration 26) ✅ run  (alias of paid_date)
+txn_id                    TEXT   ← NEW (migration 26) ✅ run  (alias of transaction_id)
+ledger_transaction_id     TEXT   ← NEW (migration 26) ✅ run  (alias of transaction_id)
+cycle_month               TEXT   ← NEW (migration 26) ✅ run  (alias of bill_month)
 ```
 
 ---
@@ -278,25 +275,33 @@ credit_limit_paisa    INTEGER        ← NEW (migration 05)
 
 ---
 
-## CATEGORIES TABLE — type column (after migration 07)
+## CATEGORIES TABLE — CONFIRMED FROM D1 (2026-06-01)
 
-| id | name | type |
+> ⚠️ These are the ACTUAL D1 category IDs, confirmed via SELECT. Earlier snapshot was wrong.
+> All handler CATEGORY_ALIASES maps must use these IDs.
+
+| id | name | notes |
 |---|---|---|
-| biller | Biller | expense |
-| bills | Bills | expense |
-| cc_pay | CC Payment | system |
-| cc_spend | CC Spend | expense |
-| debt | Debt | system |
-| family | Family | expense |
-| food | Food | expense |
-| gift | Gift | expense |
-| grocery | Grocery | expense |
-| health | Health | expense |
-| other | Other | system |
-| personal | Personal | expense |
-| salary | Salary | income |
-| transfer | Transfer | transfer |
-| transport | Transport | expense |
+| atm_fee | ATM Fee | |
+| bank_fee | Bank Fee | |
+| bills | Bills | NEW — inserted 2026-06-01 for bills handler |
+| bills_utilities | Bills & Utilities | pre-existing; used by old bill payments |
+| cat_adjustment | Adjustment | |
+| cat_bank_fees | Bank Fees | |
+| cat_transfer | Transfer | |
+| cat_uncategorized | Uncategorized | |
+| credit_card | Credit Card | CC payments |
+| debt_payment | Debt Payment | debt repayments |
+| food_dining | Food & Dining | |
+| groceries | Groceries | |
+| health | Health | |
+| manual_income | Manual Income | |
+| misc | Miscellaneous | |
+| salary_income | Salary Income | |
+| transfer | Transfer | |
+| transport | Transport | |
+
+**Bills handler default:** `category_id = 'bills'` (newly inserted; valid FK)
 
 ---
 
@@ -380,24 +385,18 @@ status              TEXT NOT NULL  DEFAULT 'committed'
 
 ## NEXT BACKEND WORK PRIORITIES
 
-### ⚠️ MIGRATION 26 — REMAINING D1 STATEMENTS (run in D1 console)
+### ⚠️ MIGRATION 26 — REMAINING D1 STATEMENTS
+
+Schema columns all done. Two remaining steps:
 
 ```sql
--- 1. bills.created_at (failed before due to DEFAULT, now fixed)
-ALTER TABLE bills ADD COLUMN created_at TEXT;
-UPDATE bills SET created_at = datetime('now') WHERE created_at IS NULL;
+-- 1. Category drift fix (requires FK off — some transactions have orphaned account_id refs)
+PRAGMA foreign_keys = OFF;
+UPDATE transactions SET category_id = 'bills' WHERE (notes LIKE '%[BILL_PAYMENT]%' OR source_module = 'bills') AND category_id = 'bills_utilities';
+UPDATE bill_payments SET category_id = 'bills' WHERE category_id = 'bills_utilities';
+PRAGMA foreign_keys = ON;
 
--- 2. bill_payments new columns (all 8)
-ALTER TABLE bill_payments ADD COLUMN updated_at TEXT;
-ALTER TABLE bill_payments ADD COLUMN reversed_by TEXT;
-ALTER TABLE bill_payments ADD COLUMN paid_amount REAL;
-ALTER TABLE bill_payments ADD COLUMN paid_amount_paisa INTEGER;
-ALTER TABLE bill_payments ADD COLUMN date TEXT;
-ALTER TABLE bill_payments ADD COLUMN txn_id TEXT;
-ALTER TABLE bill_payments ADD COLUMN ledger_transaction_id TEXT;
-ALTER TABLE bill_payments ADD COLUMN cycle_month TEXT;
-
--- 3. Backfill bill_payments aliases
+-- 2. Backfill bill_payments aliases (run after all 8 columns were added)
 UPDATE bill_payments SET paid_amount = amount WHERE paid_amount IS NULL AND amount IS NOT NULL;
 UPDATE bill_payments SET paid_amount_paisa = amount_paisa WHERE paid_amount_paisa IS NULL AND amount_paisa IS NOT NULL;
 UPDATE bill_payments SET date = COALESCE(paid_date, payment_date) WHERE date IS NULL;
@@ -405,14 +404,7 @@ UPDATE bill_payments SET txn_id = transaction_id WHERE txn_id IS NULL AND transa
 UPDATE bill_payments SET ledger_transaction_id = transaction_id WHERE ledger_transaction_id IS NULL AND transaction_id IS NOT NULL;
 UPDATE bill_payments SET cycle_month = COALESCE(bill_month, month) WHERE cycle_month IS NULL;
 
--- 4. transactions.source_id
-ALTER TABLE transactions ADD COLUMN source_id TEXT;
-
--- 5. Category drift fix
-UPDATE transactions SET category_id = 'bills' WHERE (notes LIKE '%[BILL_PAYMENT]%' OR source_module = 'bills') AND category_id = 'bills_utilities';
-UPDATE bill_payments SET category_id = 'bills' WHERE category_id = 'bills_utilities';
-
--- 6. Indexes
+-- 3. Indexes
 CREATE INDEX IF NOT EXISTS idx_bill_payments_bill_id    ON bill_payments(bill_id);
 CREATE INDEX IF NOT EXISTS idx_bill_payments_bill_month ON bill_payments(bill_month);
 CREATE INDEX IF NOT EXISTS idx_bill_payments_txn_id     ON bill_payments(transaction_id);
@@ -432,5 +424,5 @@ CREATE INDEX IF NOT EXISTS idx_transactions_source      ON transactions(source_m
 
 ---
 
-*Updated: 2026-06-01 — Bills contract v1 session. Migration 26 partially run; remaining statements listed above.*
-*Next session: Complete migration 26 in D1 console, then frontend wire-up for bills.*
+*Updated: 2026-06-01 — Bills contract v1 session. All schema columns added. Category drift fix + index creation pending.*
+*Next session: Complete migration 26 cleanup, then frontend wire-up for bills.*

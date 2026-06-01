@@ -79,7 +79,13 @@ CREATE INDEX IF NOT EXISTS idx_transactions_source      ON transactions(source_m
 -- ============================================================
 -- PART 5: FIX CATEGORY DRIFT on existing bill payment transactions
 -- Also fix bill_payments rows that inherited the wrong default.
+-- NOTE: Some transactions have orphaned account_id FK references so the
+-- UPDATE fails with SQLITE_CONSTRAINT_FOREIGNKEY even when the target
+-- category_id IS valid. Must disable FK checks for this data cleanup.
+-- First ensure 'bills' exists: INSERT OR IGNORE INTO categories (id, name) VALUES ('bills', 'Bills');
 -- ============================================================
+
+PRAGMA foreign_keys = OFF;
 
 UPDATE transactions
    SET category_id = 'bills'
@@ -89,6 +95,8 @@ UPDATE transactions
 UPDATE bill_payments
    SET category_id = 'bills'
  WHERE category_id = 'bills_utilities';
+
+PRAGMA foreign_keys = ON;
 
 -- ============================================================
 -- KNOWN SCHEMA BUG (unfixable without table rebuild):
