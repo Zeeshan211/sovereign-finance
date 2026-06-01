@@ -1,34 +1,34 @@
 -- Migration 26: Bills System Contract v1
--- Safe, minimal — only adds columns that do NOT already exist in D1.
+-- Based on confirmed PRAGMA table_info output from D1 (2026-06-01).
 --
--- Run PRAGMA checks first (optional verification):
---   PRAGMA table_info(bills);
---   PRAGMA table_info(bill_payments);
---   PRAGMA table_info(transactions);
+-- bills table confirmed columns (14):
+--   id, name, amount, due_day, frequency, category_id, default_account_id,
+--   last_paid_date, auto_post, status, deleted_at, last_paid_account_id,
+--   owner_user_id, household_id
 --
 -- Run: wrangler d1 execute sovereign-finance --remote --file=migrations/26_bills_contract_v1.sql
 
 -- ============================================================
--- PART 1: NEW COLUMNS ON bills TABLE
--- Only adding columns confirmed NOT present from prior migrations.
--- Already present (do NOT add): id, name, amount, due_day, due_date, frequency,
---   category_id, account_id, default_account_id, status, notes, created_at,
---   last_paid_date, last_paid_account_id, deleted_at, updated_at,
---   owner_user_id (migration 03), household_id (migration 03)
+-- PART 1: ADD MISSING COLUMNS TO bills TABLE
+-- Confirmed missing via PRAGMA table_info(bills) on 2026-06-01.
 -- ============================================================
 
+ALTER TABLE bills ADD COLUMN due_date TEXT;
+ALTER TABLE bills ADD COLUMN notes TEXT;
+ALTER TABLE bills ADD COLUMN created_at TEXT DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE bills ADD COLUMN updated_at TEXT;
 ALTER TABLE bills ADD COLUMN expected_amount REAL;
-ALTER TABLE bills ADD COLUMN auto_post INTEGER DEFAULT 0;
 ALTER TABLE bills ADD COLUMN archived_at TEXT;
 
--- Backfill expected_amount = amount where null
+-- Backfill expected_amount = amount for all existing rows
 UPDATE bills SET expected_amount = amount WHERE expected_amount IS NULL AND amount IS NOT NULL;
+
+-- Backfill created_at for existing rows that have null
+UPDATE bills SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL;
 
 -- ============================================================
 -- PART 2: bill_payments TABLE — create if not exists (full schema)
--- Safe: IF NOT EXISTS means no-op if table already exists with all columns.
--- If the table exists but is missing some columns, run the ALTER TABLE
--- statements in PART 3 after confirming with PRAGMA table_info(bill_payments).
+-- If the table already exists with all columns, this is a no-op.
 -- ============================================================
 
 CREATE TABLE IF NOT EXISTS bill_payments (
@@ -61,9 +61,9 @@ CREATE TABLE IF NOT EXISTS bill_payments (
 );
 
 -- ============================================================
--- PART 3: ADD MISSING COLUMNS TO bill_payments (if table existed before)
--- Run PRAGMA table_info(bill_payments) first.
--- Comment out any ALTER statements for columns that already exist.
+-- PART 3: ADD MISSING COLUMNS TO bill_payments
+-- Run PRAGMA table_info(bill_payments) first and comment out
+-- any ALTER statements for columns that already exist.
 -- ============================================================
 
 ALTER TABLE bill_payments ADD COLUMN bill_month TEXT;
@@ -87,9 +87,8 @@ ALTER TABLE bill_payments ADD COLUMN created_by TEXT DEFAULT 'user_owner';
 
 -- ============================================================
 -- PART 4: ADD SOURCE TRACKING COLUMNS TO transactions
--- Required for bill payment linkage (source_module, source_id, source_action).
--- Check first: PRAGMA table_info(transactions);
--- Comment out any that already exist.
+-- Run PRAGMA table_info(transactions) first and comment out
+-- any ALTER statements for columns that already exist.
 -- ============================================================
 
 ALTER TABLE transactions ADD COLUMN source_module TEXT;
@@ -109,7 +108,6 @@ CREATE INDEX IF NOT EXISTS idx_transactions_source      ON transactions(source_m
 
 -- ============================================================
 -- PART 6: FIX CATEGORY DRIFT on existing bill payment transactions
--- Rewrites the broken bills_utilities category to the correct bills ID.
 -- ============================================================
 
 UPDATE transactions
@@ -117,7 +115,7 @@ UPDATE transactions
  WHERE (notes LIKE '%[BILL_PAYMENT]%' OR source_module = 'bills')
    AND category_id = 'bills_utilities';
 
--- Verify:
+-- Verify after running:
 -- SELECT COUNT(*) FROM bill_payments;
--- PRAGMA table_info(bill_payments);
+-- PRAGMA table_info(bills);
 -- SELECT DISTINCT category_id FROM transactions WHERE notes LIKE '%BILL_PAYMENT%';
