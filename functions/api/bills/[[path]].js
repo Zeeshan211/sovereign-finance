@@ -14,9 +14,9 @@
  *   - Frontend must display backend totals/proof only.
  */
 
-const VERSION = 'v0.9.0-bills-contract-owner';
+const VERSION = 'v1.0.0-bills-section-v2';
 const CONTRACT_VERSION = 'bills-v1';
-const DEFAULT_CATEGORY_ID = 'bills_utilities';
+const DEFAULT_CATEGORY_ID = 'bills';
 
 const ACTIVE_STATUS = 'active';
 
@@ -63,13 +63,14 @@ export async function onRequestPost(context) {
     if (action === 'repair' || action === 'repair_reversed_payments' || action === 'repair-reversed-payments') {
       return repairReversedPayments(db, body, dryRun);
     }
+    if (action === 'archive' || action === 'pause' || action === 'disable') return archiveBill(db, body, dryRun);
 
     return json(contractError({
       action: 'bill_post',
       code: 'UNSUPPORTED_BILLS_ACTION',
       error: `Unsupported Bills action: ${action}`,
       extra: {
-        supported_actions: ['create', 'payment', 'update', 'defer', 'repair_reversed_payments']
+        supported_actions: ['create', 'payment', 'update', 'defer', 'archive', 'repair_reversed_payments']
       }
     }), 400);
   });
@@ -166,6 +167,24 @@ async function getOverview(db, url) {
 
   const health = buildEmbeddedHealth({ payments, txnsById });
 
+  const today = todayISO();
+  const due_soon = rows
+    .filter(bill => {
+      if (!isActiveBill(bill)) return false;
+      if (bill.current_cycle.status === 'paid') return false;
+      if (!bill.due_day) return false;
+      const due = dueDateForMonth(month, bill.due_day);
+      if (!due) return false;
+      const daysUntil = Math.floor((new Date(due) - new Date(today)) / 86400000);
+      return daysUntil >= 0 && daysUntil <= 7;
+    })
+    .map(bill => ({
+      id: bill.id,
+      name: bill.name,
+      due_date: dueDateForMonth(month, bill.due_day),
+      remaining: bill.current_cycle.remaining
+    }));
+
   return json({
     ok: true,
     version: VERSION,
@@ -193,6 +212,7 @@ async function getOverview(db, url) {
     count: rows.length,
     bills: rows,
     current_cycle: rows,
+    due_soon,
     health,
 
     rules: {
@@ -212,6 +232,7 @@ async function getOverview(db, url) {
       compatibility_payment: 'POST /api/bills/pay',
       update: 'POST /api/bills action=update',
       defer: 'POST /api/bills action=defer',
+      archive: 'POST /api/bills action=archive',
       repair: 'POST /api/bills action=repair_reversed_payments',
       reversal: 'POST /api/transactions/reverse'
     },
@@ -351,6 +372,10 @@ async function createBill(db, body, dryRun) {
     }), 400);
   }
 
+  const frequencyWarning = ['weekly', 'custom'].includes(frequency)
+    ? `frequency '${frequency}' accepted but cycle math is manual — only monthly has full automated cycle support`
+    : null;
+
   if (body.due_day !== undefined && body.due_day !== null && body.due_day !== '' && dueDay == null) {
     return json(contractError({
       action: 'bill_create',
@@ -457,7 +482,7 @@ async function createBill(db, body, dryRun) {
       money_movement: false,
       account_effect: 'none'
     },
-    warnings: []
+    warnings: frequencyWarning ? [frequencyWarning] : []
   };
 
   if (dryRun) {
@@ -533,6 +558,9 @@ async function payBill(db, body, dryRun) {
       extra: { account_diagnostics: accountCheck.diagnostics || null }
     }), accountCheck.status || 409);
   }
+
+  const isLiabilityAccount = accountCheck.account?.type === 'liability';
+  const txType = isLiabilityAccount ? 'cc_spend' : 'expense';
 
   const paidDate = normalizeDate(body.paid_date || body.payment_date || body.date) || todayISO();
   const billMonth = normalizeMonth(body.bill_month || body.month || body.cycle_month) || monthFromDate(paidDate);
@@ -620,8 +648,8 @@ async function payBill(db, body, dryRun) {
   const transaction = {
     id: txId,
     date: paidDate,
-    type: 'expense',
-    transaction_type: 'expense',
+    type: txType,
+    transaction_type: txType,
     amount,
     account_id: accountId,
     category_id: categoryId,
@@ -709,14 +737,15 @@ async function payBill(db, body, dryRun) {
     ledger: {
       created: !dryRun,
       transaction_id: txId,
-      type: 'expense',
+      type: txType,
       amount,
       account_id: accountId,
       account_delta: round2(-amount),
       marker: `[BILL_PAYMENT] bill_id=${bill.id} bill_month=${billMonth}`,
       source_module: 'bills',
       source_id: bill.id,
-      source_action: isAdvance ? 'advance_payment' : 'payment'
+      source_action: isAdvance ? 'advance_payment' : 'payment',
+      cc_payment: isLiabilityAccount
     },
 
     payment: {
@@ -1139,6 +1168,82 @@ async function repairReversedPayments(db, body, dryRun) {
 }
 
 /* ─────────────────────────────
+ * Archive bill: soft, reversible via update
+ * ───────────────────────────── */
+
+async function archiveBill(db, body, dryRun) {
+  const billId = clean(body.bill_id || body.id);
+  const bill = await findBill(db, billId);
+
+  if (!bill) {
+    return json(contractError({
+      action: 'bill_archive',
+      code: 'BILL_NOT_FOUND',
+      error: `Bill not found: ${billId}`
+    }), 404);
+  }
+
+  if (!isActiveBill(bill)) {
+    return json({
+      ok: true,
+      version: VERSION,
+      contract_version: CONTRACT_VERSION,
+      action: 'bill_archive',
+      committed: false,
+      writes_performed: false,
+      already_inactive: true,
+      bill_id: bill.id,
+      current_status: bill.status,
+      warnings: [`Bill is already inactive (status=${bill.status})`]
+    });
+  }
+
+  const cols = await tableColumns(db, 'bills');
+  const now = nowSql();
+  const updates = {};
+
+  if (cols.has('status')) updates.status = 'archived';
+  if (cols.has('archived_at')) updates.archived_at = now;
+  if (cols.has('updated_at')) updates.updated_at = now;
+  if (body.notes !== undefined && cols.has('notes')) {
+    updates.notes = appendNote(bill.notes, clean(body.notes));
+  }
+
+  if (dryRun) {
+    return json({
+      ok: true,
+      version: VERSION,
+      contract_version: CONTRACT_VERSION,
+      action: 'bill_archive',
+      committed: false,
+      writes_performed: false,
+      dry_run: true,
+      bill_id: bill.id,
+      updates,
+      ledger: { created: false, transaction_id: null, account_delta: 0 },
+      forecast: { should_reflect: false },
+      warnings: []
+    });
+  }
+
+  await updateRow(db, 'bills', cols, updates, 'TRIM(id) = TRIM(?)', [bill.id]);
+
+  return json({
+    ok: true,
+    version: VERSION,
+    contract_version: CONTRACT_VERSION,
+    action: 'bill_archive',
+    committed: true,
+    writes_performed: true,
+    bill_id: bill.id,
+    bill: await findBill(db, bill.id),
+    ledger: { created: false, transaction_id: null, account_delta: 0 },
+    forecast: { should_reflect: false },
+    warnings: []
+  });
+}
+
+/* ─────────────────────────────
  * Cycle engine
  * ───────────────────────────── */
 
@@ -1552,7 +1657,7 @@ function buildEmbeddedHealth({ payments, txnsById }) {
  * ───────────────────────────── */
 
 function isReservedPath(value) {
-  return ['history', 'cycle', 'pay', 'payment', 'update', 'defer', 'repair', 'health'].includes(clean(value).toLowerCase());
+  return ['history', 'cycle', 'pay', 'payment', 'update', 'defer', 'repair', 'archive', 'pause', 'disable', 'health'].includes(clean(value).toLowerCase());
 }
 
 function isActiveBill(bill) {
