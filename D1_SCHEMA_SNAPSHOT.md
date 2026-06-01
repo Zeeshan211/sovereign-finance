@@ -2,7 +2,7 @@
 
 > Captured directly from Cloudflare D1 Console.
 > Original snapshot: 2026-05-23
-> Updated: 2026-05-23 (Phase 2A backend session)
+> Updated: 2026-06-01 (Bills contract v1 session)
 > Purpose: Ground truth reference. Every future backend session should read this first.
 
 ---
@@ -138,7 +138,9 @@ grep confirmed 0 handler references to any of these tables.
 
 ---
 
-## TRANSACTIONS TABLE — FULL SCHEMA (after Phase 2A migrations)
+## TRANSACTIONS TABLE — FULL SCHEMA (after Phase 2A migrations + migration 26)
+
+Confirmed via PRAGMA table_info(transactions) — 59 columns total as of 2026-06-01.
 
 ```
 id                      TEXT PRIMARY KEY
@@ -168,6 +170,82 @@ account_delta_paisa     INTEGER        ← NEW (migration 05)
 created_by_user_id      TEXT           DEFAULT 'user_owner'  ← NEW (migration 03)
 modified_by_user_id     TEXT           ← NEW (migration 03)
 household_id            TEXT           DEFAULT 'hh_owner'  ← NEW (migration 03)
+source_module           TEXT           DEFAULT 'manual'     ← confirmed existing (col 36)
+source_action           TEXT           DEFAULT 'manual_create' ← confirmed existing (col 37)
+source_id               TEXT           ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION
+```
+
+---
+
+## BILLS TABLE — FULL SCHEMA (after migration 26)
+
+Confirmed via PRAGMA table_info(bills) — 14 pre-existing columns confirmed 2026-06-01.
+
+```
+id                    TEXT PRIMARY KEY
+name                  TEXT NOT NULL
+amount                REAL
+due_day               INTEGER
+frequency             TEXT
+category_id           TEXT
+default_account_id    TEXT
+last_paid_date        TEXT
+auto_post             INTEGER
+status                TEXT           DEFAULT 'active'
+deleted_at            TEXT
+last_paid_account_id  TEXT
+owner_user_id         TEXT           ← added by migration 03
+household_id          TEXT           ← added by migration 03
+due_date              TEXT           ← NEW (migration 26) ✅ run
+notes                 TEXT           ← NEW (migration 26) ✅ run
+created_at            TEXT           ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION
+updated_at            TEXT           ← NEW (migration 26) ✅ run
+expected_amount       REAL           ← NEW (migration 26) ✅ run  (backfilled from amount)
+archived_at           TEXT           ← NEW (migration 26) ✅ run
+```
+
+Note: `created_at` failed initial attempt (DEFAULT CURRENT_TIMESTAMP not allowed in D1 ALTER TABLE).
+Fixed migration uses `ALTER TABLE bills ADD COLUMN created_at TEXT;` — needs to be run in D1 console.
+
+---
+
+## BILL_PAYMENTS TABLE — FULL SCHEMA (after migration 26)
+
+Confirmed via PRAGMA table_info(bill_payments) — 23 pre-existing columns confirmed 2026-06-01.
+
+```
+id                        TEXT PRIMARY KEY
+bill_id                   TEXT NOT NULL
+transaction_id            TEXT
+account_id                TEXT
+amount                    REAL
+payment_date              TEXT
+month                     TEXT
+notes                     TEXT
+created_at                TEXT
+bill_month                TEXT
+status                    TEXT
+bill_name_snapshot        TEXT
+expected_amount_paisa     INTEGER
+amount_paisa              INTEGER
+expected_amount           REAL
+paid_date                 TEXT
+category_id               TEXT  DEFAULT 'bills_utilities'  ← KNOWN BUG: wrong default, unfixable without rebuild;
+                                                              handler always writes explicitly so never fires
+reversed_at               TEXT
+reversal_transaction_id   TEXT
+reason                    TEXT
+dry_run_payload_hash      TEXT
+transaction_payload_hash  TEXT
+created_by                TEXT
+updated_at                TEXT   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION
+reversed_by               TEXT   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION
+paid_amount               REAL   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION  (alias of amount)
+paid_amount_paisa         INTEGER ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION  (alias of amount_paisa)
+date                      TEXT   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION  (alias of paid_date)
+txn_id                    TEXT   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION  (alias of transaction_id)
+ledger_transaction_id     TEXT   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION  (alias of transaction_id)
+cycle_month               TEXT   ← NEW (migration 26) ⚠️ PENDING D1 EXECUTION  (alias of bill_month)
 ```
 
 ---
@@ -249,32 +327,38 @@ status              TEXT NOT NULL  DEFAULT 'committed'
 
 ---
 
-## INDEXES (after Phase 2A migrations, in addition to original set)
+## INDEXES (after Phase 2A migrations + migration 26)
 
-| Table | Index Name | Columns |
-|---|---|---|
-| transactions | idx_transactions_idempotency | (idempotency_key) WHERE NOT NULL — UNIQUE |
-| transactions | idx_transactions_account_date | (account_id, date) |
-| transactions | idx_transactions_date | (date) |
-| transactions | idx_tx_household | (household_id) |
-| transactions | idx_tx_created_by | (created_by_user_id) |
-| accounts | idx_accounts_household | (household_id) |
-| accounts | idx_accounts_owner | (owner_user_id) |
-| bills | idx_bills_household | (household_id) |
-| debts | idx_debts_household | (household_id) |
-| users | idx_users_household | (household_id) |
-| users | idx_users_email | (email) |
-| account_permissions | idx_account_perms_user | (user_id) |
-| account_permissions | idx_account_perms_account | (account_id) |
-| sessions | idx_sessions_user | (user_id) |
-| sessions | idx_sessions_token | (token_hash) |
-| sessions | idx_sessions_expires | (expires_at) |
-| login_attempts | idx_login_attempts_email_time | (email, attempted_at DESC) |
-| login_attempts | idx_login_attempts_ip_time | (ip_address, attempted_at DESC) |
-| password_reset_tokens | idx_password_reset_user | (user_id) |
-| password_reset_tokens | idx_password_reset_token | (token_hash) |
-| idempotency_keys | idx_idempotency_expires | (expires_at) |
-| audit_log | idx_audit_seq | (sequence_number) |
+| Table | Index Name | Columns | Status |
+|---|---|---|---|
+| transactions | idx_transactions_idempotency | (idempotency_key) WHERE NOT NULL — UNIQUE | ✅ |
+| transactions | idx_transactions_account_date | (account_id, date) | ✅ |
+| transactions | idx_transactions_date | (date) | ✅ |
+| transactions | idx_tx_household | (household_id) | ✅ |
+| transactions | idx_tx_created_by | (created_by_user_id) | ✅ |
+| transactions | idx_transactions_source | (source_module, source_id) | ⚠️ PENDING (migration 26) |
+| accounts | idx_accounts_household | (household_id) | ✅ |
+| accounts | idx_accounts_owner | (owner_user_id) | ✅ |
+| bills | idx_bills_household | (household_id) | ✅ |
+| bills | idx_bills_status | (status) | ⚠️ PENDING (migration 26) |
+| bills | idx_bills_due_day | (due_day) | ⚠️ PENDING (migration 26) |
+| bill_payments | idx_bill_payments_bill_id | (bill_id) | ⚠️ PENDING (migration 26) |
+| bill_payments | idx_bill_payments_bill_month | (bill_month) | ⚠️ PENDING (migration 26) |
+| bill_payments | idx_bill_payments_txn_id | (transaction_id) | ⚠️ PENDING (migration 26) |
+| debts | idx_debts_household | (household_id) | ✅ |
+| users | idx_users_household | (household_id) | ✅ |
+| users | idx_users_email | (email) | ✅ |
+| account_permissions | idx_account_perms_user | (user_id) | ✅ |
+| account_permissions | idx_account_perms_account | (account_id) | ✅ |
+| sessions | idx_sessions_user | (user_id) | ✅ |
+| sessions | idx_sessions_token | (token_hash) | ✅ |
+| sessions | idx_sessions_expires | (expires_at) | ✅ |
+| login_attempts | idx_login_attempts_email_time | (email, attempted_at DESC) | ✅ |
+| login_attempts | idx_login_attempts_ip_time | (ip_address, attempted_at DESC) | ✅ |
+| password_reset_tokens | idx_password_reset_user | (user_id) | ✅ |
+| password_reset_tokens | idx_password_reset_token | (token_hash) | ✅ |
+| idempotency_keys | idx_idempotency_expires | (expires_at) | ✅ |
+| audit_log | idx_audit_seq | (sequence_number) | ✅ |
 
 ---
 
@@ -296,6 +380,49 @@ status              TEXT NOT NULL  DEFAULT 'committed'
 
 ## NEXT BACKEND WORK PRIORITIES
 
+### ⚠️ MIGRATION 26 — REMAINING D1 STATEMENTS (run in D1 console)
+
+```sql
+-- 1. bills.created_at (failed before due to DEFAULT, now fixed)
+ALTER TABLE bills ADD COLUMN created_at TEXT;
+UPDATE bills SET created_at = datetime('now') WHERE created_at IS NULL;
+
+-- 2. bill_payments new columns (all 8)
+ALTER TABLE bill_payments ADD COLUMN updated_at TEXT;
+ALTER TABLE bill_payments ADD COLUMN reversed_by TEXT;
+ALTER TABLE bill_payments ADD COLUMN paid_amount REAL;
+ALTER TABLE bill_payments ADD COLUMN paid_amount_paisa INTEGER;
+ALTER TABLE bill_payments ADD COLUMN date TEXT;
+ALTER TABLE bill_payments ADD COLUMN txn_id TEXT;
+ALTER TABLE bill_payments ADD COLUMN ledger_transaction_id TEXT;
+ALTER TABLE bill_payments ADD COLUMN cycle_month TEXT;
+
+-- 3. Backfill bill_payments aliases
+UPDATE bill_payments SET paid_amount = amount WHERE paid_amount IS NULL AND amount IS NOT NULL;
+UPDATE bill_payments SET paid_amount_paisa = amount_paisa WHERE paid_amount_paisa IS NULL AND amount_paisa IS NOT NULL;
+UPDATE bill_payments SET date = COALESCE(paid_date, payment_date) WHERE date IS NULL;
+UPDATE bill_payments SET txn_id = transaction_id WHERE txn_id IS NULL AND transaction_id IS NOT NULL;
+UPDATE bill_payments SET ledger_transaction_id = transaction_id WHERE ledger_transaction_id IS NULL AND transaction_id IS NOT NULL;
+UPDATE bill_payments SET cycle_month = COALESCE(bill_month, month) WHERE cycle_month IS NULL;
+
+-- 4. transactions.source_id
+ALTER TABLE transactions ADD COLUMN source_id TEXT;
+
+-- 5. Category drift fix
+UPDATE transactions SET category_id = 'bills' WHERE (notes LIKE '%[BILL_PAYMENT]%' OR source_module = 'bills') AND category_id = 'bills_utilities';
+UPDATE bill_payments SET category_id = 'bills' WHERE category_id = 'bills_utilities';
+
+-- 6. Indexes
+CREATE INDEX IF NOT EXISTS idx_bill_payments_bill_id    ON bill_payments(bill_id);
+CREATE INDEX IF NOT EXISTS idx_bill_payments_bill_month ON bill_payments(bill_month);
+CREATE INDEX IF NOT EXISTS idx_bill_payments_txn_id     ON bill_payments(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_bills_status             ON bills(status);
+CREATE INDEX IF NOT EXISTS idx_bills_due_day            ON bills(due_day);
+CREATE INDEX IF NOT EXISTS idx_transactions_source      ON transactions(source_module, source_id);
+```
+
+### AFTER MIGRATION 26 COMPLETES
+
 1. **Run migrations 01-09** via wrangler — D1 schema is behind the code
 2. **Re-enable idempotency_key** in LiquidityOS frontend (after migration 04 runs)
 3. **Seed merchants table** (0 rows) — run `POST /api/merchants/seed`
@@ -305,5 +432,5 @@ status              TEXT NOT NULL  DEFAULT 'committed'
 
 ---
 
-*Updated: 2026-05-23 — Phase 2A backend foundation session complete.*
-*Next session: Run migrations via wrangler, then LiquidityOS frontend wire-up.*
+*Updated: 2026-06-01 — Bills contract v1 session. Migration 26 partially run; remaining statements listed above.*
+*Next session: Complete migration 26 in D1 console, then frontend wire-up for bills.*
