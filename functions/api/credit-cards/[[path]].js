@@ -2035,16 +2035,41 @@ async function actionGetCycleInfo(db, body, userId) {
   const min_due_paisa = uploadedMinPaisa || Math.round(statement_balance_paisa * (card.minimum_payment_pct || 5) / 100);
   const finalDueDate = uploadedDueDate || dueDate.toISOString().split('T')[0];
 
+  // Total outstanding = full current balance owed across the whole ledger.
+  const totalBal = await computeCardOutstanding(db, card.account_id);
+  const total_outstanding_paisa = totalBal.paisa;
+
+  // Strict on-time check: payments dated AFTER the statement closed but ON OR
+  // BEFORE the due date — these are what clear *this* statement in time.
+  const onTimeQuery = await db.prepare(
+    `SELECT COALESCE(SUM(amount_paisa), 0) AS pay
+       FROM transactions
+      WHERE account_id = ? AND date > ? AND date <= ? AND type IN ('income','cc_payment')`
+  ).bind(card.account_id, stmtCloseStr, finalDueDate).first();
+  const payments_on_time_paisa = onTimeQuery.pay || 0;
+
+  const paid_on_time = statement_balance_paisa > 0 && payments_on_time_paisa >= statement_balance_paisa;
+  let cycle_status;
+  if (statement_balance_paisa <= 0)      cycle_status = 'no_balance';   // nothing was due this cycle
+  else if (paid_on_time)                 cycle_status = 'paid_on_time'; // cleared by the due date
+  else if (pay_by_paisa <= 0)            cycle_status = 'paid_late';    // cleared, but after the due date
+  else if (daysToDue >= 0)               cycle_status = 'due';          // still within grace period
+  else                                   cycle_status = 'overdue';      // due date passed, balance remains
+
   return json({
     ok: true, action: 'get_cycle_info', contract_version: CONTRACT_VERSION,
     cycle: {
       statement_close_date: stmtCloseStr,
       due_date: finalDueDate,
       days_to_due: daysToDue,
+      total_outstanding_paisa,
       statement_balance_paisa,
       payments_since_paisa,
+      payments_on_time_paisa,
       pay_by_paisa,
       min_due_paisa,
+      paid_on_time,
+      status: cycle_status,
       in_grace_period: daysToDue > 0 && pay_by_paisa > 0
     },
     committed: true
