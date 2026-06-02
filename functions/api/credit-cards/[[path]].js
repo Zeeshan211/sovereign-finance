@@ -2027,7 +2027,7 @@ async function actionGetCycleInfo(db, body, userId) {
 
   // Payments since statement close
   const paymentsQuery = await db.prepare(
-    `SELECT COALESCE(SUM(amount_paisa), 0) AS pay FROM transactions WHERE account_id = ? AND date > ? AND type IN ('income','cc_payment')`
+    `SELECT COALESCE(SUM(amount_paisa), 0) AS pay FROM transactions WHERE transfer_to_account_id = ? AND date > ? AND type = 'cc_payment'`
   ).bind(card.account_id, stmtCloseStr).first();
   const payments_since_paisa = paymentsQuery.pay || 0;
 
@@ -2044,7 +2044,7 @@ async function actionGetCycleInfo(db, body, userId) {
   const onTimeQuery = await db.prepare(
     `SELECT COALESCE(SUM(amount_paisa), 0) AS pay
        FROM transactions
-      WHERE account_id = ? AND date > ? AND date <= ? AND type IN ('income','cc_payment')`
+      WHERE transfer_to_account_id = ? AND date > ? AND date <= ? AND type = 'cc_payment'`
   ).bind(card.account_id, stmtCloseStr, finalDueDate).first();
   const payments_on_time_paisa = onTimeQuery.pay || 0;
 
