@@ -2025,10 +2025,16 @@ async function actionGetCycleInfo(db, body, userId) {
     statement_balance_paisa = Math.abs(stmtBalQuery.bal || 0);
   }
 
-  // Payments since statement close
+  // Payments since statement close.
+  // Two insertion paths:
+  //   1. record_payment modal  → type='cc_payment', account_id=from_account, transfer_to_account_id=card_account
+  //   2. statement reconcile import → type='cc_payment', account_id=card_account, transfer_to_account_id=NULL
+  // Must union both to avoid undercounting.
   const paymentsQuery = await db.prepare(
-    `SELECT COALESCE(SUM(amount_paisa), 0) AS pay FROM transactions WHERE transfer_to_account_id = ? AND date > ? AND type = 'cc_payment'`
-  ).bind(card.account_id, stmtCloseStr).first();
+    `SELECT COALESCE(SUM(amount_paisa), 0) AS pay FROM transactions
+     WHERE date > ? AND type = 'cc_payment'
+       AND (account_id = ? OR transfer_to_account_id = ?)`
+  ).bind(stmtCloseStr, card.account_id, card.account_id).first();
   const payments_since_paisa = paymentsQuery.pay || 0;
 
   const pay_by_paisa = Math.max(0, statement_balance_paisa - payments_since_paisa);
@@ -2044,8 +2050,9 @@ async function actionGetCycleInfo(db, body, userId) {
   const onTimeQuery = await db.prepare(
     `SELECT COALESCE(SUM(amount_paisa), 0) AS pay
        FROM transactions
-      WHERE transfer_to_account_id = ? AND date > ? AND date <= ? AND type = 'cc_payment'`
-  ).bind(card.account_id, stmtCloseStr, finalDueDate).first();
+      WHERE date > ? AND date <= ? AND type = 'cc_payment'
+        AND (account_id = ? OR transfer_to_account_id = ?)`
+  ).bind(stmtCloseStr, finalDueDate, card.account_id, card.account_id).first();
   const payments_on_time_paisa = onTimeQuery.pay || 0;
 
   const paid_on_time = statement_balance_paisa > 0 && payments_on_time_paisa >= statement_balance_paisa;
