@@ -8,6 +8,7 @@
  * - POST does not perform money logic here.
  * - Reversal lives only in /api/transactions/reverse.
  * - PUT and DELETE are blocked to preserve append-only ledger history.
+ * - PATCH edits notes ONLY (non-financial annotation); money fields stay immutable.
  */
 
 const VERSION = 'v0.6.1-transaction-id-health';
@@ -108,6 +109,130 @@ export async function onRequestDelete() {
     code: 'DIRECT_DELETE_BLOCKED',
     committed: false
   }, 405);
+}
+
+/* PATCH /api/transactions/:id — notes-only edit.
+ * Notes are non-financial annotation, so this is the single permitted mutation on
+ * an existing transaction. Money/account/date/type/category stay immutable; edits to
+ * those still go through append-only reversal (/api/transactions/reverse). Reversal
+ * rows and reversed originals are refused because their notes carry the load-bearing
+ * [REVERSAL OF …] / [REVERSED BY …] markers that balance + health logic depend on. */
+export async function onRequestPatch(context) {
+  try {
+    const routeId = getRouteId(context);
+
+    if (!routeId || routeId === 'health') {
+      return json({
+        ok: false,
+        version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        error: 'transaction id required',
+        code: 'TRANSACTION_ID_REQUIRED'
+      }, 400);
+    }
+
+    let body = {};
+    try { body = await context.request.json(); } catch { body = {}; }
+
+    const MONEY_FIELDS = ['amount', 'pkr_amount', 'account_id', 'transfer_to_account_id',
+      'date', 'type', 'category_id', 'fee_amount', 'pra_amount', 'currency'];
+    const blocked = MONEY_FIELDS.filter(field => field in body);
+
+    if (blocked.length) {
+      return json({
+        ok: false,
+        version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        error: 'Only notes can be edited on a transaction. Money fields are immutable — use append-only reversal.',
+        code: 'DIRECT_EDIT_BLOCKED',
+        forbidden_fields: blocked,
+        committed: false
+      }, 405);
+    }
+
+    if (!('notes' in body)) {
+      return json({
+        ok: false,
+        version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        error: 'notes field required',
+        code: 'NOTES_REQUIRED',
+        committed: false
+      }, 400);
+    }
+
+    const db = context.env.DB;
+    const txColumns = await tableColumns(db, 'transactions');
+
+    if (!txColumns.has('id') || !txColumns.has('notes')) {
+      return json({
+        ok: false,
+        version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        error: 'transactions table missing id or notes column',
+        code: 'TRANSACTIONS_SCHEMA_INVALID'
+      }, 500);
+    }
+
+    const existing = await selectTransactionById(db, txColumns, routeId);
+
+    if (!existing) {
+      return json({
+        ok: false,
+        version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        error: 'transaction not found',
+        code: 'TRANSACTION_NOT_FOUND',
+        id: routeId
+      }, 404);
+    }
+
+    const decorated = decorateTransaction(existing);
+
+    if (decorated.is_reversal || decorated.is_reversed) {
+      return json({
+        ok: false,
+        version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        error: 'Notes cannot be edited on reversal rows or reversed originals — their markers preserve the audit trail.',
+        code: 'NOTES_EDIT_BLOCKED_ON_REVERSAL',
+        committed: false
+      }, 409);
+    }
+
+    const notes = cleanText(body.notes, '', 2000);
+    const sets = ['notes = ?'];
+    const binds = [notes];
+
+    if (txColumns.has('updated_at')) {
+      sets.push('updated_at = ?');
+      binds.push(new Date().toISOString());
+    }
+
+    binds.push(routeId);
+
+    await db.prepare(`UPDATE transactions SET ${sets.join(', ')} WHERE id = ?`).bind(...binds).run();
+
+    const after = await selectTransactionById(db, txColumns, routeId);
+
+    return json({
+      ok: true,
+      version: VERSION,
+      contract_version: CONTRACT_VERSION,
+      action: 'transaction_notes_update',
+      committed: true,
+      writes_performed: true,
+      money_movement: false,
+      transaction: decorateTransaction(after)
+    });
+  } catch (err) {
+    return json({
+      ok: false,
+      version: VERSION,
+      contract_version: CONTRACT_VERSION,
+      error: err && err.message ? err.message : String(err)
+    }, 500);
+  }
 }
 
 async function ledgerHealth(context) {
