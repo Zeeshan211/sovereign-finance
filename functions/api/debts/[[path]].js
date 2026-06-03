@@ -1622,28 +1622,36 @@ async function writeoffDebt(db, body, dryRun) {
   }
 
   const nowTs = nowSQL();
-  const batch = [
-    db.prepare(`UPDATE debts SET status = 'written_off', writeoff_date = ?, writeoff_reason = ?, updated_at = ? WHERE TRIM(id) = TRIM(?)`)
-      .bind(writeoffDate, reason, nowTs, debtId)
-  ];
 
+  // The status change IS the write-off and must always commit. Run it on its own
+  // so it cannot be rolled back by the optional forgiveness ledger row below.
+  await db.prepare(`UPDATE debts SET status = 'written_off', writeoff_date = ?, writeoff_reason = ?, updated_at = ? WHERE TRIM(id) = TRIM(?)`)
+    .bind(writeoffDate, reason, nowTs, debtId).run();
+
+  // The forgiveness ledger row targets a virtual account that may not exist, so a
+  // failed insert (e.g. foreign-key enforcement) must not fail the write-off.
+  // Insert it separately and swallow any error.
+  let writeoffTxRecorded = false;
   if (writeoffTxRow) {
     try {
       const txCols = await tableColumns(db, 'transactions');
       const insertable = {};
       for (const [k, v] of Object.entries(writeoffTxRow)) { if (txCols.has(k)) insertable[k] = v; }
       const keys = Object.keys(insertable);
-      if (keys.length) batch.push(db.prepare(`INSERT INTO transactions (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`).bind(...keys.map(k => insertable[k])));
-    } catch (_) { /* writeoff tx creation is best-effort if account_id is virtual */ }
+      if (keys.length) {
+        await db.prepare(`INSERT INTO transactions (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`)
+          .bind(...keys.map(k => insertable[k])).run();
+        writeoffTxRecorded = true;
+      }
+    } catch (_) { /* writeoff ledger row is best-effort if account_id is virtual */ }
   }
 
-  await db.batch(batch);
   const after = normalizeDebt(await findDebtById(db, debtId));
 
   return json({ ok: true, action: 'writeoff', version: VERSION, contract_version: CONTRACT_VERSION,
     committed: true, writes_performed: true,
     debt: debtSummary(after),
-    transaction: writeoffTxRow ? sanitizeTransaction(writeoffTxRow) : null });
+    transaction: writeoffTxRecorded ? sanitizeTransaction(writeoffTxRow) : null });
 }
 
 /* ─────────────────────────────
