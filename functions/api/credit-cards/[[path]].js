@@ -43,6 +43,9 @@ const TX_INCOME     = 'income';     // refund / dispute credit / cash advance re
 
 // ─── Supported card statuses ─────────────────────────────────────────────────
 const ACTIVE_STATUSES = new Set(['active', 'paused']);
+// Statuses settable via action=update (matches the Edit Card dropdown). 'deleted'
+// is intentionally excluded — deletion has its own path.
+const SETTABLE_STATUSES = new Set(['active', 'paused', 'inactive', 'blocked', 'closed']);
 
 // ─── ENTRY POINT ─────────────────────────────────────────────────────────────
 
@@ -342,7 +345,17 @@ async function actionUpdate(db, body, userId) {
     'late_payment_fee_paisa', 'over_limit_fee_paisa', 'notes', 'opened_date',
     'pdf_password_strategy', 'pdf_password_encrypted', 'pdf_password_pattern', 'email_forward_address',
     'payment_allocation_order', 'credit_balance_handling', 'waiver_threshold_period_months',
-    'multi_currency_billing', 'bank_id', 'predecessor_card_id', 'successor_card_id'];
+    'multi_currency_billing', 'bank_id', 'predecessor_card_id', 'successor_card_id', 'status'];
+
+  // Validate status if present, so the Edit Card dropdown actually persists.
+  if (body.status !== undefined) {
+    const s = String(body.status || '').trim().toLowerCase();
+    if (!SETTABLE_STATUSES.has(s)) {
+      return errResp('update', 'INVALID_STATUS',
+        `status must be one of: ${[...SETTABLE_STATUSES].join(', ')}`, 400);
+    }
+    body.status = s;
+  }
 
   const updates = {};
   for (const field of MUTABLE) {
