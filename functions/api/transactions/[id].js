@@ -17,6 +17,29 @@ const CONTRACT_VERSION = 'transactions-id-health-v1';
 const REVERSAL_PREFIX = '[REVERSAL OF ';
 const REVERSED_BY_PREFIX = '[REVERSED BY ';
 
+// Income-side transaction types — money flows INTO the account.
+const IN_TYPES = new Set(['income', 'salary', 'opening', 'borrow', 'debt_in', 'adjustment_positive']);
+
+// Friendly counterparty labels when no merchant is attached.
+const FLOW_SOURCE_LABEL = {
+  income: 'Income source',
+  salary: 'Employer / payroll',
+  opening: 'Opening balance',
+  borrow: 'Lender',
+  debt_in: 'Borrowed from',
+  adjustment_positive: 'Balance adjustment'
+};
+
+const FLOW_DEST_LABEL = {
+  expense: 'Merchant / payee',
+  cc_spend: 'Merchant (card)',
+  cc_payment: 'Card issuer',
+  atm: 'ATM / cash',
+  repay: 'Repaid to',
+  debt_out: 'Lent to',
+  adjustment_negative: 'Balance adjustment'
+};
+
 export async function onRequestGet(context) {
   try {
     const routeId = getRouteId(context);
@@ -59,6 +82,19 @@ export async function onRequestGet(context) {
         code: 'TRANSACTION_NOT_FOUND',
         id: routeId
       }, 404);
+    }
+
+    const url = new URL(context.request.url);
+    if (url.searchParams.get('view') === 'trace') {
+      const trace = await buildTransactionTrace(db, txColumns, row);
+      return json({
+        ok: true,
+        version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        view: 'trace',
+        transaction: decorateTransaction(row),
+        trace
+      });
     }
 
     return json({
@@ -635,6 +671,7 @@ function selectTransactionColumns(columns) {
     'intl_package_id',
     'reversed_by',
     'reversed_at',
+    'import_batch_id',
     'source_module',
     'source_id',
     'source_action',
@@ -744,6 +781,323 @@ function roundMoney(value) {
 function cleanText(value, fallback = '', maxLen = 500) {
   const raw = value == null ? fallback : value;
   return String(raw == null ? '' : raw).trim().slice(0, maxLen);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Transaction trace ("money trail") — read-only lineage for one transaction.
+ * Resolves: directional flow (from → to), the chunk it belongs to (linked
+ * legs / intl-package breakdown), the reversal chain, links to bill / debt /
+ * import ledgers, and the audit_log timeline. Every lookup is column- and
+ * table-guarded so a missing optional table degrades gracefully rather than
+ * failing the request. Append-only ledger is untouched — reads only.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+async function buildTransactionTrace(db, txColumns, row) {
+  const focal = decorateTransaction(row);
+  const accountMap = await fetchAllAccounts(db);
+
+  const flow = buildFlow(focal, accountMap);
+  const chunk = await buildChunk(db, txColumns, focal, accountMap);
+  const reversal = await buildReversal(db, txColumns, focal, accountMap);
+  const related = await buildRelated(db, focal);
+  const timeline = await buildTimeline(db, focal, reversal);
+
+  return { flow, chunk, reversal, related, timeline };
+}
+
+async function fetchAllAccounts(db) {
+  const map = new Map();
+  try {
+    const cols = await tableColumns(db, 'accounts');
+    if (!cols.has('id')) return map;
+    const wanted = ['id', 'name', 'kind', 'type'].filter(col => cols.has(col));
+    const res = await db.prepare(`SELECT ${wanted.join(', ')} FROM accounts`).all();
+    for (const acct of res.results || []) map.set(String(acct.id), acct);
+  } catch { /* accounts unreadable — names degrade to ids */ }
+  return map;
+}
+
+function accountNode(account, fallbackId) {
+  if (account) {
+    return {
+      kind: 'account',
+      id: String(account.id),
+      name: account.name || String(account.id),
+      account_kind: account.kind || null
+    };
+  }
+  if (fallbackId) {
+    return { kind: 'account', id: String(fallbackId), name: String(fallbackId), account_kind: null };
+  }
+  return null;
+}
+
+function buildFlow(focal, accountMap) {
+  const type = String(focal.type || '').toLowerCase();
+  const amount = Number(focal.display_amount != null ? focal.display_amount : (focal.pkr_amount || focal.amount || 0));
+  const currency = focal.currency || 'PKR';
+  const fromAccount = focal.account_id ? accountMap.get(String(focal.account_id)) : null;
+  const merchant = focal.merchant ? String(focal.merchant) : null;
+
+  if (type === 'transfer') {
+    const toAccount = focal.transfer_to_account_id ? accountMap.get(String(focal.transfer_to_account_id)) : null;
+    return {
+      direction: 'transfer',
+      from: accountNode(fromAccount, focal.account_id),
+      to: accountNode(toAccount, focal.transfer_to_account_id),
+      amount,
+      currency
+    };
+  }
+
+  if (IN_TYPES.has(type)) {
+    return {
+      direction: 'in',
+      from: { kind: merchant ? 'counterparty' : 'external', name: merchant || FLOW_SOURCE_LABEL[type] || 'External source' },
+      to: accountNode(fromAccount, focal.account_id),
+      amount,
+      currency
+    };
+  }
+
+  return {
+    direction: 'out',
+    from: accountNode(fromAccount, focal.account_id),
+    to: { kind: merchant ? 'merchant' : 'external', name: merchant || FLOW_DEST_LABEL[type] || 'External payee' },
+    amount,
+    currency
+  };
+}
+
+function memberNode(t, role, accountMap) {
+  const account = t.account_id ? accountMap.get(String(t.account_id)) : null;
+  return {
+    id: String(t.id),
+    role,
+    type: t.type || null,
+    amount: Number(t.display_amount != null ? t.display_amount : (t.pkr_amount || t.amount || 0)),
+    account_id: t.account_id || null,
+    account_name: account ? (account.name || String(account.id)) : (t.account_id || null),
+    date: t.date || null,
+    is_reversal: !!t.is_reversal,
+    is_reversed: !!t.is_reversed,
+    notes: t.notes || null
+  };
+}
+
+async function buildChunk(db, txColumns, focal, accountMap) {
+  const members = [memberNode(focal, 'self', accountMap)];
+  let intlPackage = null;
+  let chunkType = focal.group_type || 'single';
+
+  const linkedId = focal.linked_txn_id || extractLinkedId(focal.notes);
+  if (linkedId && String(linkedId) !== String(focal.id)) {
+    try {
+      const peer = await selectTransactionById(db, txColumns, linkedId);
+      if (peer) members.push(memberNode(decorateTransaction(peer), 'peer', accountMap));
+    } catch { /* peer unreadable */ }
+  }
+
+  if (focal.intl_package_id && txColumns.has('intl_package_id')) {
+    try {
+      const cols = selectTransactionColumns(txColumns);
+      const res = await db.prepare(
+        `SELECT ${cols.join(', ')} FROM transactions WHERE intl_package_id = ? AND id != ?`
+      ).bind(focal.intl_package_id, focal.id).all();
+      for (const leg of res.results || []) {
+        members.push(memberNode(decorateTransaction(leg), 'leg', accountMap));
+      }
+      chunkType = 'intl_package';
+    } catch { /* legs unreadable */ }
+    intlPackage = await fetchIntlPackage(db, focal.intl_package_id);
+  }
+
+  return {
+    type: chunkType,
+    group_id: focal.group_id || null,
+    member_count: members.length,
+    members,
+    intl_package: intlPackage
+  };
+}
+
+async function fetchIntlPackage(db, id) {
+  try {
+    const cols = await tableColumns(db, 'intl_package');
+    if (!cols.has('id')) return null;
+    const pkg = await db.prepare(`SELECT * FROM intl_package WHERE id = ? LIMIT 1`).bind(id).first();
+    return pkg || null;
+  } catch {
+    return null;
+  }
+}
+
+async function buildReversal(db, txColumns, focal, accountMap) {
+  let role = 'none';
+  let original = null;
+  let reversedBy = null;
+
+  if (focal.is_reversal) {
+    role = 'reversal';
+    const originalId = extractReversalOriginalId(focal.notes);
+    if (originalId) {
+      try {
+        const o = await selectTransactionById(db, txColumns, originalId);
+        if (o) original = memberNode(decorateTransaction(o), 'original', accountMap);
+      } catch { /* original unreadable */ }
+    }
+  }
+
+  if (focal.is_reversed) {
+    role = focal.is_reversal ? 'both' : 'reversed';
+    let rev = null;
+    if (focal.reversed_by) {
+      try { rev = await selectTransactionById(db, txColumns, focal.reversed_by); } catch { /* */ }
+    }
+    if (!rev) {
+      try {
+        const cols = selectTransactionColumns(txColumns);
+        rev = await db.prepare(
+          `SELECT ${cols.join(', ')} FROM transactions WHERE notes LIKE ? LIMIT 1`
+        ).bind('%' + REVERSAL_PREFIX + focal.id + ']%').first();
+      } catch { /* search failed */ }
+    }
+    if (rev) {
+      reversedBy = memberNode(decorateTransaction(rev), 'reversal', accountMap);
+    }
+  }
+
+  return {
+    role,
+    original,
+    reversed_by: reversedBy,
+    reversed_at: focal.reversed_at || null
+  };
+}
+
+async function buildRelated(db, focal) {
+  const related = { bill: null, debt: null, import_batch: null };
+
+  try {
+    const cols = await tableColumns(db, 'bill_payments');
+    if (cols.has('transaction_id')) {
+      const bp = await db.prepare(`SELECT * FROM bill_payments WHERE transaction_id = ? LIMIT 1`).bind(focal.id).first();
+      if (bp) {
+        related.bill = {
+          bill_id: bp.bill_id || null,
+          amount: Number(bp.amount != null ? bp.amount : (bp.amount_paid || 0)),
+          status: bp.status || null,
+          paid_date: bp.paid_date || bp.created_at || null,
+          name: await lookupName(db, 'bills', bp.bill_id, ['name', 'biller_name', 'label'])
+        };
+      }
+    }
+  } catch { /* bill_payments absent */ }
+
+  try {
+    const cols = await tableColumns(db, 'debt_payments');
+    const txCol = cols.has('transaction_id')
+      ? 'transaction_id'
+      : (cols.has('payment_transaction_id') ? 'payment_transaction_id' : null);
+    if (txCol) {
+      const dp = await db.prepare(`SELECT * FROM debt_payments WHERE ${txCol} = ? LIMIT 1`).bind(focal.id).first();
+      if (dp) {
+        related.debt = {
+          debt_id: dp.debt_id || null,
+          amount: Number(dp.amount || 0),
+          status: dp.status || null,
+          paid_date: dp.paid_date || dp.created_at || null,
+          counterparty: await lookupName(db, 'debts', dp.debt_id, ['counterparty', 'name', 'lender', 'borrower'])
+        };
+      }
+    }
+  } catch { /* debt_payments absent */ }
+
+  if (focal.import_batch_id) {
+    related.import_batch = { id: String(focal.import_batch_id) };
+    try {
+      const cols = await tableColumns(db, 'statement_imports');
+      if (cols.has('id')) {
+        const imp = await db.prepare(`SELECT * FROM statement_imports WHERE id = ? LIMIT 1`).bind(focal.import_batch_id).first();
+        if (imp) {
+          related.import_batch.imported_at = imp.imported_at || imp.created_at || null;
+          related.import_batch.row_count = imp.row_count != null ? Number(imp.row_count) : null;
+          related.import_batch.date_from = imp.date_from || null;
+          related.import_batch.date_to = imp.date_to || null;
+        }
+      }
+    } catch { /* statement_imports absent */ }
+  }
+
+  return related;
+}
+
+async function lookupName(db, table, id, candidateColumns) {
+  if (!id) return null;
+  try {
+    const cols = await tableColumns(db, table);
+    if (!cols.has('id')) return null;
+    const row = await db.prepare(`SELECT * FROM ${safeIdentifier(table)} WHERE id = ? LIMIT 1`).bind(id).first();
+    if (!row) return null;
+    for (const col of candidateColumns) {
+      if (row[col]) return String(row[col]);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function buildTimeline(db, focal, reversal) {
+  const events = [];
+  try {
+    const cols = await tableColumns(db, 'audit_log');
+    if (!cols.has('entity_id')) return events;
+
+    const ids = [String(focal.id)];
+    if (reversal && reversal.original && reversal.original.id) ids.push(String(reversal.original.id));
+    if (reversal && reversal.reversed_by && reversal.reversed_by.id) ids.push(String(reversal.reversed_by.id));
+
+    const tsCol = cols.has('created_at') ? 'created_at' : (cols.has('timestamp') ? 'timestamp' : null);
+    const detailCol = cols.has('detail') ? 'detail' : (cols.has('detail_json') ? 'detail_json' : null);
+    const orderCol = tsCol || (cols.has('sequence_number') ? 'sequence_number' : 'id');
+
+    const wanted = ['id', 'action', 'kind', 'entity', 'entity_id', 'created_by', tsCol, detailCol].filter(Boolean);
+    const placeholders = ids.map(() => '?').join(', ');
+
+    const res = await db.prepare(
+      `SELECT ${wanted.join(', ')} FROM audit_log
+       WHERE entity_id IN (${placeholders})
+       ORDER BY ${orderCol} ASC
+       LIMIT 100`
+    ).bind(...ids).all();
+
+    for (const ev of res.results || []) {
+      events.push({
+        action: ev.action || null,
+        kind: ev.kind || null,
+        at: (tsCol ? ev[tsCol] : null) || null,
+        created_by: ev.created_by || null,
+        entity_id: ev.entity_id || null,
+        detail: detailCol ? summarizeDetail(ev[detailCol]) : null
+      });
+    }
+  } catch { /* audit_log absent or unreadable */ }
+  return events;
+}
+
+function summarizeDetail(detail) {
+  if (detail == null) return null;
+  const text = typeof detail === 'string' ? detail : JSON.stringify(detail);
+  return text.length > 300 ? text.slice(0, 300) + '…' : text;
+}
+
+function safeIdentifier(identifier) {
+  const value = String(identifier || '');
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) {
+    throw new Error('Unsafe SQL identifier: ' + value);
+  }
+  return value;
 }
 
 function json(payload, status = 200) {
