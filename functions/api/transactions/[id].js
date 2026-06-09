@@ -11,6 +11,8 @@
  * - PATCH edits notes ONLY (non-financial annotation); money fields stay immutable.
  */
 
+import { buildProvenance } from '../_lib/provenance.js';
+
 const VERSION = 'v0.6.1-transaction-id-health';
 const CONTRACT_VERSION = 'transactions-id-health-v1';
 
@@ -94,6 +96,18 @@ export async function onRequestGet(context) {
         view: 'trace',
         transaction: decorateTransaction(row),
         trace
+      });
+    }
+
+    if (url.searchParams.get('view') === 'provenance') {
+      const provenance = await buildProvenance(context.env.DB, row);
+      return json({
+        ok: true,
+        version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        view: 'provenance',
+        transaction: decorateTransaction(row),
+        provenance
       });
     }
 
