@@ -28,9 +28,11 @@ const ORIGIN_LABEL = {
 const DEFAULT_OPTS = { maxDepth: 24, maxNodes: 200 };
 
 export async function buildProvenance(db, focalRow, opts = {}) {
-  const { maxDepth, maxNodes } = { ...DEFAULT_OPTS, ...opts };
+  const { maxDepth, maxNodes, userId } = { ...DEFAULT_OPTS, ...opts };
+  if (!userId) throw new Error('buildProvenance: userId required');
   const ctx = {
     db,
+    userId,
     maxDepth,
     maxNodes,
     nodeCount: 0,
@@ -271,7 +273,7 @@ async function getLedger(ctx, accountId) {
   let accountName = key || 'Unknown account';
   let accountKind = null;
   try {
-    const acct = await ctx.db.prepare('SELECT * FROM accounts WHERE id = ? LIMIT 1').bind(accountId).first();
+    const acct = await ctx.db.prepare('SELECT * FROM accounts WHERE id = ? AND user_id = ? LIMIT 1').bind(accountId, ctx.userId).first();
     if (acct) {
       opening = Number(acct.opening_balance || 0);
       accountName = acct.name || key;
@@ -283,9 +285,9 @@ async function getLedger(ctx, accountId) {
   try {
     const res = await ctx.db.prepare(
       `SELECT * FROM transactions
-       WHERE account_id = ?
+       WHERE account_id = ? AND user_id = ?
        ORDER BY date ASC, datetime(created_at) ASC, id ASC`
-    ).bind(accountId).all();
+    ).bind(accountId, ctx.userId).all();
     rows = (res.results || []).filter(r => !isVoided(r));
   } catch { /* transactions unreadable */ }
 
@@ -300,7 +302,7 @@ async function fetchTxn(ctx, id) {
   if (ctx.txnCache.has(key)) return ctx.txnCache.get(key);
   let row = null;
   try {
-    row = await ctx.db.prepare('SELECT * FROM transactions WHERE id = ? LIMIT 1').bind(id).first();
+    row = await ctx.db.prepare('SELECT * FROM transactions WHERE id = ? AND user_id = ? LIMIT 1').bind(id, ctx.userId).first();
   } catch { /* unreadable */ }
   ctx.txnCache.set(key, row || null);
   return row || null;
