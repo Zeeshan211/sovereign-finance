@@ -11,6 +11,8 @@
  * - Does NOT mutate ledger/accounts/debts/salary.
  */
 
+import { getUserId } from '../_lib.js';
+
 const VERSION = 'v0.3.0-forecast-bills-included';
 
 const POSITIVE_TYPES = new Set([
@@ -41,6 +43,9 @@ const LIABILITY_TYPES = new Set([
 
 export async function onRequestGet(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = context.env.DB;
     const url = new URL(context.request.url);
 
@@ -64,10 +69,10 @@ export async function onRequestGet(context) {
     const horizonEnd = addDaysISO(today, horizonDays);
 
     const [accounts, salary, debts, billEvents] = await Promise.all([
-      loadCanonicalAccounts(db),
-      loadSalarySource(db, today, horizonEnd),
-      loadDebts(db, today),
-      loadActiveBillEvents(db, today, horizonEnd),
+      loadCanonicalAccounts(db, userId),
+      loadSalarySource(db, today, horizonEnd, userId),
+      loadDebts(db, today, userId),
+      loadActiveBillEvents(db, today, horizonEnd, userId),
     ]);
 
     const cashNow = round2(accounts
@@ -231,7 +236,7 @@ export async function onRequestGet(context) {
  * Accounts / balances
  * ───────────────────────────── */
 
-async function loadCanonicalAccounts(db) {
+async function loadCanonicalAccounts(db, userId) {
   const accountCols = await tableColumns(db, 'accounts');
   const transactionCols = await tableColumns(db, 'transactions');
 
@@ -253,8 +258,9 @@ async function loadCanonicalAccounts(db) {
   const accountRows = await db.prepare(
     `SELECT ${accountSelect.join(', ')}
      FROM accounts
+     WHERE user_id = ?
      ORDER BY ${accountCols.has('display_order') ? 'display_order,' : ''} id`
-  ).all();
+  ).bind(userId).all();
 
   const accounts = (accountRows.results || []).map(row => ({
     id: row.id,
@@ -294,8 +300,9 @@ async function loadCanonicalAccounts(db) {
 
   const txRows = await db.prepare(
     `SELECT ${txSelect.join(', ')}
-     FROM transactions`
-  ).all();
+     FROM transactions
+     WHERE user_id = ?`
+  ).bind(userId).all();
 
   const byId = new Map(accounts.map(account => [String(account.id), account]));
 
@@ -358,7 +365,7 @@ function isLiquidAssetAccount(account) {
  * Salary
  * ───────────────────────────── */
 
-async function loadSalarySource(db, today, horizonEnd) {
+async function loadSalarySource(db, today, horizonEnd, userId) {
   const cols = await tableColumns(db, 'salary_contracts');
 
   if (!cols.size) {
@@ -368,9 +375,10 @@ async function loadSalarySource(db, today, horizonEnd) {
   const row = await db.prepare(
     `SELECT *
      FROM salary_contracts
+     WHERE user_id = ?
      ORDER BY ${cols.has('updated_at') ? 'datetime(updated_at) DESC' : 'rowid DESC'}
      LIMIT 1`
-  ).first();
+  ).bind(userId).first();
 
   if (!row) {
     return disabledSalary('no saved salary contract');
@@ -538,7 +546,7 @@ function paydayDate(year, monthIndex, payday) {
  * Debts
  * ───────────────────────────── */
 
-async function loadDebts(db, today) {
+async function loadDebts(db, today, userId) {
   const cols = await tableColumns(db, 'debts');
 
   if (!cols.size) return [];
@@ -563,9 +571,10 @@ async function loadDebts(db, today) {
   const res = await db.prepare(
     `SELECT ${select.join(', ')}
      FROM debts
-     WHERE status IS NULL OR status = '' OR status = 'active'
+     WHERE user_id = ?
+       AND (status IS NULL OR status = '' OR status = 'active')
      ORDER BY due_date ASC, name ASC`
-  ).all();
+  ).bind(userId).all();
 
   return (res.results || []).map(row => {
     const original = number(row.original_amount, 0);
@@ -621,7 +630,7 @@ const INACTIVE_BILL_STATUSES = new Set([
   'archived', 'deleted', 'disabled', 'paused', 'closed', 'inactive'
 ]);
 
-async function loadActiveBillEvents(db, today, horizonEnd) {
+async function loadActiveBillEvents(db, today, horizonEnd, userId) {
   const billCols = await tableColumns(db, 'bills');
   if (!billCols.size) return [];
 
@@ -635,8 +644,8 @@ async function loadActiveBillEvents(db, today, horizonEnd) {
   ].filter(Boolean);
 
   const res = await db.prepare(
-    `SELECT ${select.join(', ')} FROM bills`
-  ).all();
+    `SELECT ${select.join(', ')} FROM bills WHERE user_id = ?`
+  ).bind(userId).all();
 
   const activeBills = (res.results || []).filter(b => {
     const s = String(b.status || '').toLowerCase();
@@ -656,9 +665,9 @@ async function loadActiveBillEvents(db, today, horizonEnd) {
     const paid = await db.prepare(
       `SELECT bill_id, bill_month
          FROM bill_payments
-        WHERE bill_month >= ? AND bill_month <= ?
+        WHERE user_id = ? AND bill_month >= ? AND bill_month <= ?
           ${hasStatus ? "AND status = 'paid'" : hasPaidAmt ? 'AND paid_amount > 0' : ''}`
-    ).bind(monthStart, monthEnd).all();
+    ).bind(userId, monthStart, monthEnd).all();
 
     for (const row of paid.results || []) {
       paidKey.add(`${row.bill_id}::${row.bill_month}`);

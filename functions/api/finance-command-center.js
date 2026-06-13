@@ -1,3 +1,5 @@
+import { getUserId } from '../_lib.js';
+
 const VERSION = "0.8.3-add-proof-inline";
 const ENFORCEMENT_VERSION = "0.8.3";
 
@@ -41,6 +43,9 @@ const READ_ONLY_GUARDS = [
 ];
 
 export async function onRequest(context) {
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
   const computedAt = new Date().toISOString();
 
   if (!["GET", "HEAD"].includes(context.request.method)) {

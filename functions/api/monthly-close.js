@@ -21,7 +21,7 @@
  * - Response exposes both scopes clearly.
  */
 
-import { json } from './_lib.js';
+import { json, getUserId } from './_lib.js';
 
 const VERSION = 'v0.1.1';
 
@@ -34,6 +34,9 @@ const WATCH_THRESHOLD = 10000;
 const RECON_DRIFT_THRESHOLD = 1;
 
 export async function onRequest(context) {
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
   const db = context.env.DB;
   const now = new Date();
   const url = new URL(context.request.url);
@@ -56,20 +59,22 @@ export async function onRequest(context) {
       readInternalJson(context, '/api/forecast'),
       readInternalJson(context, '/api/safety'),
       readInternalJson(context, '/api/insights'),
-      safeAll(db, `SELECT * FROM accounts`),
+      safeAll(db, `SELECT * FROM accounts WHERE user_id = ?`, [userId]),
       safeAll(db, `
         SELECT * FROM transactions
+        WHERE user_id = ?
         ORDER BY date ASC, created_at ASC, id ASC
-      `),
+      `, [userId]),
       safeAll(db, `
         SELECT * FROM transactions
-        WHERE date >= ?
+        WHERE user_id = ?
+          AND date >= ?
           AND date < ?
         ORDER BY date ASC, created_at ASC, id ASC
-      `, [monthStart, monthEndExclusive]),
-      safeAll(db, `SELECT * FROM bills`),
-      safeAll(db, `SELECT * FROM debts`),
-      safeAll(db, `SELECT * FROM reconciliation ORDER BY declared_at DESC`)
+      `, [userId, monthStart, monthEndExclusive]),
+      safeAll(db, `SELECT * FROM bills WHERE user_id = ?`, [userId]),
+      safeAll(db, `SELECT * FROM debts WHERE user_id = ?`, [userId]),
+      safeAll(db, `SELECT * FROM reconciliation WHERE user_id = ? ORDER BY declared_at DESC`, [userId])
     ]);
 
     const accounts = activeAccounts(accountsRes.rows);

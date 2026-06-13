@@ -18,9 +18,17 @@
  * - Safety status never depends on manual variable income.
  */
 
-import { json } from './_lib.js';
+import { json, getUserId } from './_lib.js';
 
 const VERSION = 'v0.2.0';
+
+const USER_SCOPED_TABLES = new Set([
+  'accounts',
+  'transactions',
+  'bills',
+  'debts',
+  'reconciliation'
+]);
 
 const LOW_LIQUID_UNSAFE = 5000;
 const LOW_LIQUID_WATCH = 10000;
@@ -36,17 +44,20 @@ const TYPE_PLUS = new Set(['income', 'salary', 'debt_in', 'borrow', 'opening']);
 const TYPE_MINUS = new Set(['expense', 'cc_spend', 'atm', 'debt_out', 'repay', 'transfer']);
 
 export async function onRequest(context) {
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
   const db = context.env.DB;
   const now = new Date();
 
   try {
     const [forecastRes, accountsRes, txnsRes, billsRes, debtsRes, reconRes] = await Promise.all([
       readForecast(context),
-      readTable(db, 'accounts'),
-      readTable(db, 'transactions'),
-      readTable(db, 'bills'),
-      readTable(db, 'debts'),
-      readTable(db, 'reconciliation')
+      readTable(db, 'accounts', userId),
+      readTable(db, 'transactions', userId),
+      readTable(db, 'bills', userId),
+      readTable(db, 'debts', userId),
+      readTable(db, 'reconciliation', userId)
     ]);
 
     const accounts = activeAccounts(accountsRes.rows);
@@ -217,9 +228,12 @@ async function readForecast(context) {
   }
 }
 
-async function readTable(db, table) {
+async function readTable(db, table, userId) {
   try {
-    const res = await db.prepare(`SELECT * FROM ${table}`).all();
+    const scoped = USER_SCOPED_TABLES.has(table);
+    const sql = scoped ? `SELECT * FROM ${table} WHERE user_id = ?` : `SELECT * FROM ${table}`;
+    const stmt = scoped ? db.prepare(sql).bind(userId) : db.prepare(sql);
+    const res = await stmt.all();
     return {
       ok: true,
       table,
