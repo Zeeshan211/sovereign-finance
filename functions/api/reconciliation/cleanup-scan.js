@@ -5,7 +5,7 @@
  * Safe: read-only scan, no mutations
  */
 
-import { json } from '../_lib.js';
+import { json, getUserId } from '../_lib.js';
 
 const VERSION = 'v1.0.0';
 
@@ -20,6 +20,9 @@ const PHANTOM_PATTERNS = [
 
 export async function onRequestPost(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, error: 'Unauthorized' }, 401);
+
     // Build LIKE conditions for each pattern
     const conditions = PHANTOM_PATTERNS.map(() => `notes LIKE ?`).join(' OR ');
     const bindings = PHANTOM_PATTERNS.map(p => `%${p}%`);
@@ -37,9 +40,10 @@ export async function onRequestPost(context) {
        LEFT JOIN accounts a ON a.id = t.account_id
        WHERE (${conditions})
          AND t.reversed_by IS NULL
+         AND t.user_id = ?
        ORDER BY t.date DESC, t.id DESC
        LIMIT 200`
-    ).bind(...bindings).all();
+    ).bind(...bindings, userId).all();
 
     const candidates = (result.results || []).map(row => ({
       id: row.id,

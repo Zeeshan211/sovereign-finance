@@ -10,8 +10,13 @@
  * It CANNOT delete manually-entered transactions.
  */
 
+import { getUserId } from '../../_lib.js';
+
 export async function onRequestPost(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const body = await readJSON(context.request);
     const { batch_id, confirm = false } = body;
 
@@ -27,8 +32,8 @@ export async function onRequestPost(context) {
 
     const countRow = await db.prepare(`
       SELECT COUNT(*) AS c FROM transactions
-      WHERE import_batch_id = ? AND historical_import = 1
-    `).bind(batch_id).first();
+      WHERE import_batch_id = ? AND historical_import = 1 AND user_id = ?
+    `).bind(batch_id, userId).first();
 
     const count = countRow?.c ?? 0;
 
@@ -52,8 +57,8 @@ export async function onRequestPost(context) {
     }
 
     await db.prepare(`
-      DELETE FROM transactions WHERE import_batch_id = ? AND historical_import = 1
-    `).bind(batch_id).run();
+      DELETE FROM transactions WHERE import_batch_id = ? AND historical_import = 1 AND user_id = ?
+    `).bind(batch_id, userId).run();
 
     return json({
       ok: true,

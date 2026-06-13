@@ -3,10 +3,15 @@
  * contract_version: reconciliation-v0.3
  */
 
+import { getUserId } from '../../../_lib.js';
+
 const VERSION = 'reconciliation-v0.3';
 
 export async function onRequestPost(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, error: 'Unauthorized' }, 401);
+
     const db          = context.env.DB;
     const exceptionId = context.params.id;
 
@@ -23,8 +28,8 @@ export async function onRequestPost(context) {
     }
 
     const existing = await db.prepare(
-      `SELECT id, status FROM reconciliation_exceptions WHERE id = ? LIMIT 1`
-    ).bind(exceptionId).first().catch(() => null);
+      `SELECT id, status FROM reconciliation_exceptions WHERE id = ? AND user_id = ? LIMIT 1`
+    ).bind(exceptionId, userId).first().catch(() => null);
 
     if (!existing) {
       return json({ ok: false, version: VERSION, error: `Exception not found: ${exceptionId}`, code: 'NOT_FOUND' }, 404);
@@ -33,12 +38,12 @@ export async function onRequestPost(context) {
     await db.prepare(
       `UPDATE reconciliation_exceptions
        SET status = 'resolved', resolved_at = ?, resolution_note = ?
-       WHERE id = ?`
-    ).bind(now, note || null, exceptionId).run();
+       WHERE id = ? AND user_id = ?`
+    ).bind(now, note || null, exceptionId, userId).run();
 
     const updated = await db.prepare(
-      `SELECT * FROM reconciliation_exceptions WHERE id = ? LIMIT 1`
-    ).bind(exceptionId).first().catch(() => null);
+      `SELECT * FROM reconciliation_exceptions WHERE id = ? AND user_id = ? LIMIT 1`
+    ).bind(exceptionId, userId).first().catch(() => null);
 
     return json({
       ok:        true,

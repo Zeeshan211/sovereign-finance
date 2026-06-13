@@ -1,6 +1,6 @@
 /* /api/debts/:id
  * Sovereign Finance · Debt Item Route
- * v0.6.0-non-money-item-route
+ * v0.6.1-user-scoped
  *
  * This route is intentionally NON-MONEY ONLY.
  *
@@ -29,7 +29,9 @@
  *   POST /api/transactions/reverse
  */
 
-const VERSION = 'v0.6.0-non-money-item-route';
+import { getUserId } from '../_lib.js';
+
+const VERSION = 'v0.6.1-user-scoped';
 const CONTRACT_VERSION = 'debts-v1';
 
 const TERMINAL_STATUSES = new Set([
@@ -100,10 +102,13 @@ const BLOCKED_MONEY_FIELDS = [
 
 export async function onRequestGet(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, contract_version: CONTRACT_VERSION, error: 'Unauthorized' }, 401);
+
     const db = requireDb(context.env);
     const id = requireClean(context.params.id, 'id');
 
-    const row = await readDebt(db, id);
+    const row = await readDebt(db, id, userId);
 
     if (!row) {
       return json({
@@ -177,12 +182,15 @@ export async function onRequestPatch(context) {
 
 async function handleWrite(context, method) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, contract_version: CONTRACT_VERSION, error: 'Unauthorized' }, 401);
+
     const db = requireDb(context.env);
     const id = requireClean(context.params.id, 'id');
     const body = await readJson(context.request);
     const action = clean(body.action || 'update').toLowerCase();
 
-    const row = await readDebt(db, id);
+    const row = await readDebt(db, id, userId);
 
     if (!row) {
       return json({
@@ -220,7 +228,7 @@ async function handleWrite(context, method) {
     }
 
     if (action === 'defer') {
-      return deferDebt(db, id, body, row, method);
+      return deferDebt(db, id, body, row, method, userId);
     }
 
     if (action === 'archive') {
@@ -228,7 +236,7 @@ async function handleWrite(context, method) {
         method,
         action: 'archive',
         reason: 'Debt archived without ledger/account movement.'
-      });
+      }, userId);
     }
 
     if (action === 'reactivate') {
@@ -236,11 +244,11 @@ async function handleWrite(context, method) {
         method,
         action: 'reactivate',
         reason: 'Debt reactivated without ledger/account movement.'
-      });
+      }, userId);
     }
 
     if (action === 'update' || action === 'edit' || action === 'schedule_update') {
-      return updateDebtNonMoney(db, id, body, row, method);
+      return updateDebtNonMoney(db, id, body, row, method, userId);
     }
 
     return json({
@@ -279,7 +287,7 @@ async function handleWrite(context, method) {
   }
 }
 
-async function updateDebtNonMoney(db, id, body, beforeRow, method) {
+async function updateDebtNonMoney(db, id, body, beforeRow, method, userId) {
   const columns = await getColumns(db, 'debts');
   const before = normalizeDebt(beforeRow);
   const patch = {};
@@ -436,10 +444,10 @@ async function updateDebtNonMoney(db, id, body, beforeRow, method) {
   await db.prepare(
     `UPDATE debts
         SET ${keys.map(key => `${key} = ?`).join(', ')}
-      WHERE TRIM(id) = TRIM(?)`
-  ).bind(...keys.map(key => patch[key]), id).run();
+      WHERE TRIM(id) = TRIM(?) AND user_id = ?`
+  ).bind(...keys.map(key => patch[key]), id, userId).run();
 
-  const after = normalizeDebt(await readDebt(db, id));
+  const after = normalizeDebt(await readDebt(db, id, userId));
 
   return json({
     ok: true,
@@ -472,7 +480,7 @@ async function updateDebtNonMoney(db, id, body, beforeRow, method) {
   });
 }
 
-async function deferDebt(db, id, body, beforeRow, method) {
+async function deferDebt(db, id, body, beforeRow, method, userId) {
   const columns = await getColumns(db, 'debts');
   const before = normalizeDebt(beforeRow);
 
@@ -525,10 +533,10 @@ async function deferDebt(db, id, body, beforeRow, method) {
   await db.prepare(
     `UPDATE debts
         SET ${keys.map(key => `${key} = ?`).join(', ')}
-      WHERE TRIM(id) = TRIM(?)`
-  ).bind(...keys.map(key => patch[key]), id).run();
+      WHERE TRIM(id) = TRIM(?) AND user_id = ?`
+  ).bind(...keys.map(key => patch[key]), id, userId).run();
 
-  const after = normalizeDebt(await readDebt(db, id));
+  const after = normalizeDebt(await readDebt(db, id, userId));
 
   return json({
     ok: true,
@@ -561,7 +569,7 @@ async function deferDebt(db, id, body, beforeRow, method) {
   });
 }
 
-async function setNonMoneyStatus(db, id, status, incomingNote, beforeRow, meta) {
+async function setNonMoneyStatus(db, id, status, incomingNote, beforeRow, meta, userId) {
   const columns = await getColumns(db, 'debts');
   const before = normalizeDebt(beforeRow);
 
@@ -578,10 +586,10 @@ async function setNonMoneyStatus(db, id, status, incomingNote, beforeRow, meta) 
   await db.prepare(
     `UPDATE debts
         SET ${keys.map(key => `${key} = ?`).join(', ')}
-      WHERE TRIM(id) = TRIM(?)`
-  ).bind(...keys.map(key => patch[key]), id).run();
+      WHERE TRIM(id) = TRIM(?) AND user_id = ?`
+  ).bind(...keys.map(key => patch[key]), id, userId).run();
 
-  const after = normalizeDebt(await readDebt(db, id));
+  const after = normalizeDebt(await readDebt(db, id, userId));
 
   return json({
     ok: true,
@@ -658,13 +666,13 @@ function blockedMoneyAction(input) {
   }, 409);
 }
 
-async function readDebt(db, id) {
+async function readDebt(db, id, userId) {
   return db.prepare(
     `SELECT ${DEBT_COLUMNS}
        FROM debts
-      WHERE TRIM(id) = TRIM(?)
+      WHERE TRIM(id) = TRIM(?) AND user_id = ?
       LIMIT 1`
-  ).bind(id).first();
+  ).bind(id, userId).first();
 }
 
 function normalizeDebt(row) {

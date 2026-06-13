@@ -7,11 +7,16 @@
  * NEVER writes to ledger. Period.
  */
 
+import { getUserId } from '../_lib.js';
+
 const VERSION = 'v0.2.0-statement-reconciliation';
 const CONTRACT_VERSION = 'reconciliation-v0.2';
 
 export async function onRequestPost(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json(authErr(), 401);
+
     const db = context.env.DB;
     if (!db) return json(dbErr(), 500);
 
@@ -24,8 +29,8 @@ export async function onRequestPost(context) {
     if (!csvText)   return json(validErr('csv_text is required',   'CSV_REQUIRED'), 400);
 
     const account = await db.prepare(
-      'SELECT id, name FROM accounts WHERE id = ? LIMIT 1'
-    ).bind(accountId).first();
+      'SELECT id, name FROM accounts WHERE id = ? AND user_id = ? LIMIT 1'
+    ).bind(accountId, userId).first();
     if (!account) return json(validErr(`Account not found: ${accountId}`, 'ACCOUNT_NOT_FOUND'), 404);
 
     const parsed = parseCsv(csvText);
@@ -59,23 +64,23 @@ export async function onRequestPost(context) {
     const insertImport = db.prepare(
       `INSERT INTO statement_imports
          (id, account_id, imported_at, row_count, date_from, date_to,
-          statement_closing_balance, raw_csv, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+          statement_closing_balance, raw_csv, created_by, created_at, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       importId, accountId, now, rows.length,
       dateFrom, dateTo, closingBalance,
-      csvText.slice(0, 50000), createdBy, now
+      csvText.slice(0, 50000), createdBy, now, userId
     );
 
     const insertRowStmts = stmtRows.map(r =>
       db.prepare(
         `INSERT OR IGNORE INTO statement_transactions
            (id, import_id, account_id, posted_date, description,
-            debit, credit, balance, idempotency_key, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            debit, credit, balance, idempotency_key, created_at, user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       ).bind(
         r.id, r.import_id, r.account_id, r.posted_date, r.description,
-        r.debit, r.credit, r.balance, r.idempotency_key, now
+        r.debit, r.credit, r.balance, r.idempotency_key, now, userId
       )
     );
 
@@ -266,6 +271,11 @@ async function ensureStatementTables(db) {
 
 async function readJson(request) {
   try { return await request.json(); } catch { return {}; }
+}
+
+function authErr() {
+  return { ok: false, version: VERSION, contract_version: CONTRACT_VERSION,
+    error: 'Unauthorized', code: 'UNAUTHORIZED' };
 }
 
 function dbErr() {

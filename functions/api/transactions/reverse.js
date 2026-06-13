@@ -1,6 +1,6 @@
 /* functions/api/transactions/reverse.js
  * Sovereign Finance · Canonical Transaction Reversal
- * v0.6.0-canonical-transaction-reversal
+ * v0.6.1-user-scoped
  *
  * Contract:
  * - This file owns POST /api/transactions/reverse.
@@ -14,7 +14,9 @@
  * - No Debts API list/create/payment logic belongs in this file.
  */
 
-const VERSION = 'v0.6.0-canonical-transaction-reversal';
+import { getUserId } from '../_lib.js';
+
+const VERSION = 'v0.6.1-user-scoped';
 const CONTRACT_VERSION = 'ledger-reversal-v1';
 
 const REVERSAL_PREFIX = '[REVERSAL OF ';
@@ -67,6 +69,8 @@ export async function onRequestGet() {
 export async function onRequestPost(context) {
   try {
     const db = context.env.DB;
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, contract_version: CONTRACT_VERSION, action: 'reverse_transaction', error: 'Unauthorized', code: 'UNAUTHORIZED', committed: false }, 401);
     const body = await readJSON(context.request);
 
     const transactionId = cleanText(body.transaction_id || body.id, '', 200);
@@ -111,7 +115,7 @@ export async function onRequestPost(context) {
       }, 500);
     }
 
-    const target = await selectTransactionById(db, txColumns, transactionId);
+    const target = await selectTransactionById(db, txColumns, transactionId, userId);
 
     if (!target) {
       return json({
@@ -156,7 +160,7 @@ export async function onRequestPost(context) {
       }, 409);
     }
 
-    const plan = await buildReversalPlan(db, txColumns, decoratedTarget, reason, createdBy);
+    const plan = await buildReversalPlan(db, txColumns, decoratedTarget, reason, createdBy, userId);
 
     if (!plan.ok) {
       return json({
@@ -184,7 +188,8 @@ export async function onRequestPost(context) {
         original.id,
         plan.reversal_ids.join(','),
         reason,
-        plan.now
+        plan.now,
+        userId
       ));
     }
 
@@ -238,32 +243,32 @@ export async function onRequestPost(context) {
   }
 }
 
-async function buildReversalPlan(db, txColumns, target, reason, createdBy) {
+async function buildReversalPlan(db, txColumns, target, reason, createdBy, userId) {
   const now = nowISO();
 
   if (target.intl_package_id) {
-    return buildIntlPackageReversalPlan(db, txColumns, target, reason, createdBy, now);
+    return buildIntlPackageReversalPlan(db, txColumns, target, reason, createdBy, now, userId);
   }
 
   const linkedId = target.linked_txn_id || extractLinkedId(target.notes);
 
   if (linkedId) {
-    return buildLinkedPairReversalPlan(db, txColumns, target, linkedId, reason, createdBy, now);
+    return buildLinkedPairReversalPlan(db, txColumns, target, linkedId, reason, createdBy, now, userId);
   }
 
-  return buildSingleReversalPlan(db, txColumns, target, reason, createdBy, now);
+  return buildSingleReversalPlan(db, txColumns, target, reason, createdBy, now, userId);
 }
 
-async function buildSingleReversalPlan(db, txColumns, target, reason, createdBy, now) {
-  const moduleRepairPrecheck = await precheckModuleRepair(db, [target]);
+async function buildSingleReversalPlan(db, txColumns, target, reason, createdBy, now, userId) {
+  const moduleRepairPrecheck = await precheckModuleRepair(db, [target], userId);
 
   if (!moduleRepairPrecheck.ok) {
     return moduleRepairPrecheck;
   }
 
   const reversalId = makeTxnId('rv');
-  const reversalRow = makeReversalRow(txColumns, target, reversalId, reason, createdBy, now, null);
-  const moduleRepair = await buildModuleRepairPlan(db, [target], [reversalId]);
+  const reversalRow = makeReversalRow(txColumns, target, reversalId, reason, createdBy, now, null, userId);
+  const moduleRepair = await buildModuleRepairPlan(db, [target], [reversalId], userId);
 
   return {
     ok: true,
@@ -277,8 +282,8 @@ async function buildSingleReversalPlan(db, txColumns, target, reason, createdBy,
   };
 }
 
-async function buildLinkedPairReversalPlan(db, txColumns, target, linkedId, reason, createdBy, now) {
-  const linked = await selectTransactionById(db, txColumns, linkedId);
+async function buildLinkedPairReversalPlan(db, txColumns, target, linkedId, reason, createdBy, now, userId) {
+  const linked = await selectTransactionById(db, txColumns, linkedId, userId);
 
   if (!linked) {
     return {
@@ -311,7 +316,7 @@ async function buildLinkedPairReversalPlan(db, txColumns, target, linkedId, reas
   }
 
   const originals = [target, linkedState];
-  const moduleRepairPrecheck = await precheckModuleRepair(db, originals);
+  const moduleRepairPrecheck = await precheckModuleRepair(db, originals, userId);
 
   if (!moduleRepairPrecheck.ok) {
     return moduleRepairPrecheck;
@@ -320,10 +325,10 @@ async function buildLinkedPairReversalPlan(db, txColumns, target, linkedId, reas
   const firstReversalId = makeTxnId('rv');
   const secondReversalId = makeTxnId('rv');
 
-  const firstReversal = makeReversalRow(txColumns, target, firstReversalId, reason, createdBy, now, secondReversalId);
-  const secondReversal = makeReversalRow(txColumns, linkedState, secondReversalId, reason, createdBy, now, firstReversalId);
+  const firstReversal = makeReversalRow(txColumns, target, firstReversalId, reason, createdBy, now, secondReversalId, userId);
+  const secondReversal = makeReversalRow(txColumns, linkedState, secondReversalId, reason, createdBy, now, firstReversalId, userId);
 
-  const moduleRepair = await buildModuleRepairPlan(db, originals, [firstReversalId, secondReversalId]);
+  const moduleRepair = await buildModuleRepairPlan(db, originals, [firstReversalId, secondReversalId], userId);
 
   return {
     ok: true,
@@ -337,15 +342,15 @@ async function buildLinkedPairReversalPlan(db, txColumns, target, linkedId, reas
   };
 }
 
-async function buildIntlPackageReversalPlan(db, txColumns, target, reason, createdBy, now) {
+async function buildIntlPackageReversalPlan(db, txColumns, target, reason, createdBy, now, userId) {
   const packageId = target.intl_package_id;
 
   const rowsResult = await db.prepare(
     `SELECT ${selectTransactionColumns(txColumns).join(', ')}
      FROM transactions
-     WHERE intl_package_id = ?
+     WHERE intl_package_id = ? AND user_id = ?
      ORDER BY date ASC, datetime(created_at) ASC, id ASC`
-  ).bind(packageId).all();
+  ).bind(packageId, userId).all();
 
   const packageRows = (rowsResult.results || []).map(row => decorateTransaction(row));
 
@@ -376,7 +381,7 @@ async function buildIntlPackageReversalPlan(db, txColumns, target, reason, creat
     };
   }
 
-  const moduleRepairPrecheck = await precheckModuleRepair(db, packageRows);
+  const moduleRepairPrecheck = await precheckModuleRepair(db, packageRows, userId);
 
   if (!moduleRepairPrecheck.ok) {
     return moduleRepairPrecheck;
@@ -388,10 +393,10 @@ async function buildIntlPackageReversalPlan(db, txColumns, target, reason, creat
   for (const row of packageRows) {
     const reversalId = makeTxnId('rv');
     reversalIds.push(reversalId);
-    reversalRows.push(makeReversalRow(txColumns, row, reversalId, reason, createdBy, now, null));
+    reversalRows.push(makeReversalRow(txColumns, row, reversalId, reason, createdBy, now, null, userId));
   }
 
-  const moduleRepair = await buildModuleRepairPlan(db, packageRows, reversalIds);
+  const moduleRepair = await buildModuleRepairPlan(db, packageRows, reversalIds, userId);
 
   return {
     ok: true,
@@ -406,7 +411,7 @@ async function buildIntlPackageReversalPlan(db, txColumns, target, reason, creat
   };
 }
 
-function makeReversalRow(txColumns, original, reversalId, reason, createdBy, now, linkedReversalId) {
+function makeReversalRow(txColumns, original, reversalId, reason, createdBy, now, linkedReversalId, userId) {
   const originalAmount = Math.abs(Number(original.amount || original.pkr_amount || 0));
   const originalPkrAmount = Math.abs(Number(original.pkr_amount || original.amount || 0));
   const reversalType = reversalTypeFor(original.type);
@@ -439,7 +444,8 @@ function makeReversalRow(txColumns, original, reversalId, reason, createdBy, now
     source_action: 'reversal',
     created_by: createdBy,
     created_at: now,
-    updated_at: now
+    updated_at: now,
+    user_id: userId || null
   };
 
   return filterToCols(txColumns, row);
@@ -457,7 +463,7 @@ function reversalTypeFor(type) {
   return 'expense';
 }
 
-function buildMarkReversedStatement(db, txColumns, originalId, reversalIds, reason, now) {
+function buildMarkReversedStatement(db, txColumns, originalId, reversalIds, reason, now, userId) {
   const setParts = [];
   const values = [];
 
@@ -498,11 +504,11 @@ function buildMarkReversedStatement(db, txColumns, originalId, reversalIds, reas
   return db.prepare(
     `UPDATE transactions
      SET ${setParts.join(', ')}
-     WHERE id = ?`
-  ).bind(...values);
+     WHERE id = ? AND user_id = ?`
+  ).bind(...values, userId);
 }
 
-async function precheckModuleRepair(db, originalRows) {
+async function precheckModuleRepair(db, originalRows, userId) {
   for (const row of originalRows) {
     if (!isDebtOrigin(row)) continue;
 
@@ -510,7 +516,7 @@ async function precheckModuleRepair(db, originalRows) {
 
     if (!debtId) continue;
 
-    const activePaymentCount = await countActiveDebtPaymentRefs(db, debtId);
+    const activePaymentCount = await countActiveDebtPaymentRefs(db, debtId, userId);
 
     if (activePaymentCount > 0) {
       return {
@@ -532,7 +538,7 @@ async function precheckModuleRepair(db, originalRows) {
   };
 }
 
-async function buildModuleRepairPlan(db, originalRows, reversalIds) {
+async function buildModuleRepairPlan(db, originalRows, reversalIds, userId) {
   const statements = [];
   const repairs = [];
 
@@ -540,21 +546,21 @@ async function buildModuleRepairPlan(db, originalRows, reversalIds) {
     const row = originalRows[i];
     const reversalId = reversalIds[i] || reversalIds[0];
 
-    const debtPaymentRepair = await buildDebtPaymentRepair(db, row, reversalId);
+    const debtPaymentRepair = await buildDebtPaymentRepair(db, row, reversalId, userId);
 
     if (debtPaymentRepair) {
       statements.push(...debtPaymentRepair.statements);
       repairs.push(debtPaymentRepair.summary);
     }
 
-    const debtOriginRepair = await buildDebtOriginRepair(db, row, reversalId);
+    const debtOriginRepair = await buildDebtOriginRepair(db, row, reversalId, userId);
 
     if (debtOriginRepair) {
       statements.push(...debtOriginRepair.statements);
       repairs.push(debtOriginRepair.summary);
     }
 
-    const billPaymentRepair = await buildBillPaymentRepair(db, row, reversalId);
+    const billPaymentRepair = await buildBillPaymentRepair(db, row, reversalId, userId);
 
     if (billPaymentRepair) {
       statements.push(...billPaymentRepair.statements);
@@ -580,7 +586,7 @@ async function buildModuleRepairPlan(db, originalRows, reversalIds) {
   };
 }
 
-async function buildDebtPaymentRepair(db, row, reversalId) {
+async function buildDebtPaymentRepair(db, row, reversalId, userId) {
   if (!isDebtPayment(row)) return null;
 
   const debtId = extractDebtId(row.notes);
@@ -631,8 +637,8 @@ async function buildDebtPaymentRepair(db, row, reversalId) {
       db.prepare(
         `UPDATE debts
          SET ${setParts.join(', ')}
-         WHERE TRIM(id) = TRIM(?)`
-      ).bind(...values)
+         WHERE TRIM(id) = TRIM(?) AND user_id = ?`
+      ).bind(...values, userId)
     );
   }
 
@@ -642,7 +648,7 @@ async function buildDebtPaymentRepair(db, row, reversalId) {
       reversed_at: nowISO(),
       reversal_transaction_id: reversalId,
       notes: `Reversed by ${reversalId}`
-    }, 'TRIM(transaction_id) = TRIM(?)', [row.id]);
+    }, 'TRIM(transaction_id) = TRIM(?) AND user_id = ?', [row.id, userId]);
 
     if (paymentUpdate) statements.push(paymentUpdate);
   }
@@ -661,7 +667,7 @@ async function buildDebtPaymentRepair(db, row, reversalId) {
   };
 }
 
-async function buildDebtOriginRepair(db, row, reversalId) {
+async function buildDebtOriginRepair(db, row, reversalId, userId) {
   if (!isDebtOrigin(row)) return null;
 
   const debtId = extractDebtId(row.notes);
@@ -696,8 +702,8 @@ async function buildDebtOriginRepair(db, row, reversalId) {
       'debts',
       debtCols,
       updates,
-      'TRIM(id) = TRIM(?)',
-      [debtId]
+      'TRIM(id) = TRIM(?) AND user_id = ?',
+      [debtId, userId]
     );
 
     if (update) statements.push(update);
@@ -717,7 +723,7 @@ async function buildDebtOriginRepair(db, row, reversalId) {
   };
 }
 
-async function buildBillPaymentRepair(db, row, reversalId) {
+async function buildBillPaymentRepair(db, row, reversalId, userId) {
   if (!isBillPayment(row)) return null;
 
   const billId = extractToken(row.notes, 'bill_id');
@@ -731,7 +737,7 @@ async function buildBillPaymentRepair(db, row, reversalId) {
       reversed_at: nowISO(),
       reversal_transaction_id: reversalId,
       notes: `Reversed by ${reversalId}`
-    }, 'TRIM(transaction_id) = TRIM(?)', [row.id]);
+    }, 'TRIM(transaction_id) = TRIM(?) AND user_id = ?', [row.id, userId]);
 
     if (update) statements.push(update);
   }
@@ -750,7 +756,7 @@ async function buildBillPaymentRepair(db, row, reversalId) {
   };
 }
 
-async function countActiveDebtPaymentRefs(db, debtId) {
+async function countActiveDebtPaymentRefs(db, debtId, userId) {
   let count = 0;
 
   const txCols = await tableColumns(db, 'transactions');
@@ -773,8 +779,8 @@ async function countActiveDebtPaymentRefs(db, debtId) {
     const row = await db.prepare(
       `SELECT COUNT(*) AS c
        FROM transactions
-       WHERE ${where.join(' AND ')}`
-    ).bind(`%debt_id=${debtId}%`).first();
+       WHERE ${where.join(' AND ')} AND user_id = ?`
+    ).bind(`%debt_id=${debtId}%`, userId).first();
 
     count += Number(row && row.c || 0);
   }
@@ -791,8 +797,8 @@ async function countActiveDebtPaymentRefs(db, debtId) {
     const row = await db.prepare(
       `SELECT COUNT(*) AS c
        FROM debt_payments
-       WHERE ${where.join(' AND ')}`
-    ).bind(debtId).first();
+       WHERE ${where.join(' AND ')} AND user_id = ?`
+    ).bind(debtId, userId).first();
 
     count += Number(row && row.c || 0);
   }
@@ -856,7 +862,7 @@ function buildOptionalUpdateStatement(db, table, columns, desired, whereSql, whe
   ).bind(...values, ...whereValues);
 }
 
-async function selectTransactionById(db, txColumns, id) {
+async function selectTransactionById(db, txColumns, id, userId) {
   const cols = selectTransactionColumns(txColumns);
 
   if (!cols.length) {
@@ -866,9 +872,9 @@ async function selectTransactionById(db, txColumns, id) {
   return db.prepare(
     `SELECT ${cols.join(', ')}
      FROM transactions
-     WHERE id = ?
+     WHERE id = ? AND user_id = ?
      LIMIT 1`
-  ).bind(id).first();
+  ).bind(id, userId).first();
 }
 
 function selectTransactionColumns(columns) {

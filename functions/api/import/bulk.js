@@ -21,8 +21,13 @@
  * Requires migration 10 (historical_import + import_batch_id columns) to be applied first.
  */
 
+import { getUserId } from '../../_lib.js';
+
 export async function onRequestPost(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const body = await readJSON(context.request);
     const { transactions, batch_id, dry_run = false } = body;
 
@@ -75,8 +80,9 @@ export async function onRequestPost(context) {
         const existing = await db.prepare(`
           SELECT id FROM transactions
           WHERE date = ? AND amount = ? AND account_id = ? AND COALESCE(notes,'') = ?
+            AND user_id = ?
           LIMIT 1
-        `).bind(txn.date, amount, txn.account_id, notes).first();
+        `).bind(txn.date, amount, txn.account_id, notes, userId).first();
 
         if (existing) {
           results.skipped++;
@@ -95,8 +101,8 @@ export async function onRequestPost(context) {
           INSERT INTO transactions (
             id, date, type, amount, account_id, transfer_to_account_id,
             category_id, merchant_id, notes,
-            historical_import, import_batch_id, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+            historical_import, import_batch_id, created_at, user_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
         `).bind(
           id,
           txn.date,
@@ -108,7 +114,8 @@ export async function onRequestPost(context) {
           txn.merchant_id || null,
           notes,
           batch_id,
-          now
+          now,
+          userId
         ).run();
 
         results.inserted++;

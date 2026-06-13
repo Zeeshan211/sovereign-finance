@@ -17,6 +17,8 @@
  *   DO_NOT_IMPORT         — reserved for Phase 2 commit logic
  */
 
+import { getUserId } from '../_lib.js';
+
 const VERSION          = 'v0.2.0-statement-reconciliation';
 const CONTRACT_VERSION = 'reconciliation-v0.2';
 
@@ -25,6 +27,9 @@ const NEGATIVE_TYPES = new Set(['expense', 'transfer', 'cc_spend', 'repay', 'atm
 
 export async function onRequestPost(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, contract_version: CONTRACT_VERSION, error: 'Unauthorized', code: 'UNAUTHORIZED' }, 401);
+
     const db = context.env.DB;
     if (!db) return json(dbErr(), 500);
 
@@ -38,8 +43,8 @@ export async function onRequestPost(context) {
     await ensureStatementTables(db);
 
     const importRow = await db.prepare(
-      `SELECT * FROM statement_imports WHERE id = ? AND account_id = ? LIMIT 1`
-    ).bind(importId, accountId).first().catch(() => null);
+      `SELECT * FROM statement_imports WHERE id = ? AND account_id = ? AND user_id = ? LIMIT 1`
+    ).bind(importId, accountId, userId).first().catch(() => null);
     if (!importRow) return json(validErr(`Import not found: ${importId}`, 'IMPORT_NOT_FOUND'), 404);
 
     const stmtRes  = await db.prepare(
@@ -55,22 +60,22 @@ export async function onRequestPost(context) {
       `SELECT id, type, amount, date, notes, account_id, transfer_to_account_id,
               reversed_by, reversed_at
        FROM transactions
-       WHERE account_id = ? AND date >= ? AND date <= ?
+       WHERE account_id = ? AND user_id = ? AND date >= ? AND date <= ?
        ORDER BY date, id`
-    ).bind(accountId, dateFrom, dateTo).all();
+    ).bind(accountId, userId, dateFrom, dateTo).all();
     const ledgerRows = (ledgerRes.results || []).filter(l => !isReversed(l));
 
     const ledgerOtherRes = await db.prepare(
       `SELECT id, type, amount, date, notes, account_id, transfer_to_account_id,
               reversed_by, reversed_at
        FROM transactions
-       WHERE account_id != ? AND date >= ? AND date <= ?
+       WHERE account_id != ? AND user_id = ? AND date >= ? AND date <= ?
        ORDER BY date, id`
-    ).bind(accountId, dateFrom, dateTo).all();
+    ).bind(accountId, userId, dateFrom, dateTo).all();
     const ledgerOtherRows = (ledgerOtherRes.results || []).filter(l => !isReversed(l));
 
-    const account    = await db.prepare('SELECT id, name FROM accounts WHERE id = ? LIMIT 1').bind(accountId).first().catch(() => null);
-    const appBalance = await computeAppBalance(db, accountId);
+    const account    = await db.prepare('SELECT id, name FROM accounts WHERE id = ? AND user_id = ? LIMIT 1').bind(accountId, userId).first().catch(() => null);
+    const appBalance = await computeAppBalance(db, accountId, userId);
 
     const plan = runMatchingEngine(stmtRows, ledgerRows, ledgerOtherRows);
 
@@ -102,9 +107,9 @@ export async function onRequestPost(context) {
     const planId = `recon_plan_${Date.now()}_${rand()}`;
     try {
       await db.prepare(
-        `INSERT INTO reconciliation_plans (id, import_id, account_id, plan_json, created_at)
-         VALUES (?, ?, ?, ?, ?)`
-      ).bind(planId, importId, accountId, JSON.stringify({ plan, classification_counts }), nowSql()).run();
+        `INSERT INTO reconciliation_plans (id, import_id, account_id, plan_json, created_at, user_id)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      ).bind(planId, importId, accountId, JSON.stringify({ plan, classification_counts }), nowSql(), userId).run();
     } catch (_) {}
 
     return json({
@@ -294,12 +299,12 @@ function findTransfer(stmt, stmtAmount, isDebit, ledgerOtherRows, usedLedgerIds)
 
 /* ─── App Balance ─── */
 
-async function computeAppBalance(db, accountId) {
+async function computeAppBalance(db, accountId, userId) {
   try {
     const res = await db.prepare(
       `SELECT type, amount, reversed_by, reversed_at, notes
-       FROM transactions WHERE account_id = ?`
-    ).bind(accountId).all();
+       FROM transactions WHERE account_id = ? AND user_id = ?`
+    ).bind(accountId, userId).all();
 
     let balance = 0;
     for (const tx of res.results || []) {
