@@ -48,6 +48,7 @@ export async function onRequestPost(context) {
     if (!db) return json(errBody('DB binding missing', 'DB_BINDING_MISSING'), 500);
 
     const hh = householdOf(context);
+    if (!hh) return json(errBody('Unauthorized', 'UNAUTHORIZED'), 401);
 
     const body      = await readJson(context.request);
     const planId    = clean(body.plan_id);
@@ -68,11 +69,11 @@ export async function onRequestPost(context) {
     await ensureExceptionsTable(db);
 
     // Scope reconciliation_plans SELECT by household_id when column exists
-    const plansHhClause = await colExists(db, 'reconciliation_plans', 'household_id');
+    const plansHhClause = await colExists(db, 'reconciliation_plans', 'user_id');
     const planRow = await db.prepare(
       `SELECT id, account_id, plan_json, committed_at
        FROM reconciliation_plans
-       WHERE id = ?${plansHhClause ? ' AND household_id = ?' : ''}
+       WHERE id = ?${plansHhClause ? ' AND user_id = ?' : ''}
        LIMIT 1`
     ).bind(...(plansHhClause ? [planId, hh] : [planId])).first().catch(() => null);
 
@@ -109,7 +110,7 @@ export async function onRequestPost(context) {
     const exceptionIds = [];
 
     // Check household_id column existence once for exceptions table
-    const excHhClause = await colExists(db, 'reconciliation_exceptions', 'household_id');
+    const excHhClause = await colExists(db, 'reconciliation_exceptions', 'user_id');
 
     for (const item of planItems) {
       const cls = item.classification;
@@ -123,7 +124,7 @@ export async function onRequestPost(context) {
             id:           excId,
             plan_id:      planId,
             account_id:   planRow.account_id,
-            household_id: excHhClause ? hh : undefined,
+            user_id: excHhClause ? hh : undefined,
             stmt_tx_id:   stmt?.id || null,
             ledger_tx_id: item.matched_ledger_id || null,
             type:         EXCEPTION_TYPE_MAP[cls],
@@ -178,7 +179,7 @@ export async function onRequestPost(context) {
           id:           excId,
           plan_id:      planId,
           account_id:   planRow.account_id,
-          household_id: excHhClause ? hh : undefined,
+          user_id: excHhClause ? hh : undefined,
           stmt_tx_id:   stmt.id || null,
           ledger_tx_id: null,
           type:         'NO_STATEMENT_PROOF',
@@ -263,15 +264,15 @@ async function commitOneTransaction(origin, payload) {
 
 /* ─── Exceptions table ─── */
 
-async function writeException(db, { id, plan_id, account_id, household_id, stmt_tx_id, ledger_tx_id,
+async function writeException(db, { id, plan_id, account_id, user_id, stmt_tx_id, ledger_tx_id,
   type, severity, amount, description, reason, action, now }) {
-  if (household_id !== undefined) {
+  if (user_id !== undefined) {
     await db.prepare(
       `INSERT INTO reconciliation_exceptions
-         (id, plan_id, account_id, household_id, statement_transaction_id, ledger_transaction_id,
+         (id, plan_id, account_id, user_id, statement_transaction_id, ledger_transaction_id,
           type, severity, amount, description, reason, recommended_action, status, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`
-    ).bind(id, plan_id, account_id, household_id, stmt_tx_id, ledger_tx_id,
+    ).bind(id, plan_id, account_id, user_id, stmt_tx_id, ledger_tx_id,
       type, severity, amount, description, reason, action, now).run();
   } else {
     await db.prepare(
@@ -290,7 +291,7 @@ async function ensureExceptionsTable(db) {
        id TEXT PRIMARY KEY,
        plan_id TEXT,
        account_id TEXT,
-       household_id TEXT,
+       user_id TEXT,
        statement_transaction_id TEXT,
        ledger_transaction_id TEXT,
        type TEXT,
@@ -307,7 +308,7 @@ async function ensureExceptionsTable(db) {
     `CREATE INDEX IF NOT EXISTS idx_recon_excp_status    ON reconciliation_exceptions(status)`,
     `CREATE INDEX IF NOT EXISTS idx_recon_excp_account   ON reconciliation_exceptions(account_id)`,
     `CREATE INDEX IF NOT EXISTS idx_recon_excp_plan      ON reconciliation_exceptions(plan_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_recon_excp_household ON reconciliation_exceptions(household_id)`
+    `CREATE INDEX IF NOT EXISTS idx_recon_excp_user ON reconciliation_exceptions(user_id)`
   ];
   for (const sql of ddl) {
     try { await db.prepare(sql).run(); } catch (_) {}
@@ -320,11 +321,11 @@ async function computeAppBalance(db, accountId, hh) {
   try {
     const POSITIVE = new Set(['income','salary','opening','borrow','debt_in','adjustment_positive']);
     const NEGATIVE = new Set(['expense','transfer','cc_spend','repay','atm','debt_out','cc_payment','adjustment_negative']);
-    const hhClause = await colExists(db, 'transactions', 'household_id');
+    const hhClause = await colExists(db, 'transactions', 'user_id');
     const res = await db.prepare(
       `SELECT type, amount, reversed_by, reversed_at, notes
        FROM transactions
-       WHERE account_id = ?${hhClause ? ' AND household_id = ?' : ''}`
+       WHERE account_id = ?${hhClause ? ' AND user_id = ?' : ''}`
     ).bind(...(hhClause ? [accountId, hh] : [accountId])).all();
     let balance = 0;
     for (const tx of res.results || []) {

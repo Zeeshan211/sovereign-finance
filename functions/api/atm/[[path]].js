@@ -78,12 +78,14 @@ const ATM_PROVIDERS = [
 export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
+    const hh = householdOf(context);
+    if (!hh) return json({ ok: false, version: VERSION, contract_version: CONTRACT_VERSION, error: 'Unauthorized', code: 'UNAUTHORIZED' }, 401);
     const url = new URL(context.request.url);
     const path = getPath(context);
     const action = cleanText(url.searchParams.get('action'), '', 80).toLowerCase();
 
     if (action === 'health' || path[0] === 'health') {
-      return atmHealth(db, householdOf(context));
+      return atmHealth(db, hh);
     }
 
     if (action === 'providers' || path[0] === 'providers') {
@@ -105,8 +107,6 @@ export async function onRequestGet(context) {
         }
       });
     }
-
-    const hh = householdOf(context);
 
     const [accountCols, txCols] = await Promise.all([
       tableColumns(db, 'accounts'),
@@ -216,6 +216,7 @@ export async function onRequestPost(context) {
   try {
     const path = getPath(context);
     const body = await readJSON(context.request);
+    if (!householdOf(context)) return json({ ok: false, version: VERSION, contract_version: CONTRACT_VERSION, error: 'Unauthorized', code: 'UNAUTHORIZED' }, 401);
     const action = cleanText(path[0] || body.action || 'withdrawal', 'withdrawal', 80).toLowerCase();
 
     if (['withdraw', 'withdrawal', 'atm_withdrawal', 'create'].includes(action)) {
@@ -464,7 +465,7 @@ async function createATMWithdraw(context, body) {
     source_id: atmId,
     source_action: 'withdrawal_source',
     idempotency_key: idempotencyKey ? `${idempotencyKey}:source` : null,
-    household_id: hh || null,
+    user_id: hh || null,
     created_by_user_id: uid || null,
     created_by: createdBy,
     created_at: createdAt,
@@ -493,7 +494,7 @@ async function createATMWithdraw(context, body) {
     source_id: atmId,
     source_action: 'withdrawal_cash',
     idempotency_key: idempotencyKey ? `${idempotencyKey}:cash` : null,
-    household_id: hh || null,
+    user_id: hh || null,
     created_by_user_id: uid || null,
     created_by: createdBy,
     created_at: createdAt,
@@ -534,7 +535,7 @@ async function createATMWithdraw(context, body) {
       source_id: atmId,
       source_action: feeAction,
       idempotency_key: idempotencyKey ? `${idempotencyKey}:fee` : null,
-      household_id: hh || null,
+      user_id: hh || null,
       created_by_user_id: uid || null,
       created_by: createdBy,
       created_at: createdAt,
@@ -683,7 +684,7 @@ async function refundATMFee(context, body) {
     source_module: 'atm',
     source_id: extractAtmId(target.notes) || target.source_id || target.id,
     source_action: 'fee_refund',
-    household_id: hh || null,
+    user_id: hh || null,
     created_by_user_id: uid || null,
     created_by: createdBy,
     created_at: createdAt,
@@ -706,8 +707,8 @@ async function refundATMFee(context, body) {
   }
 
   if (updateParts.length) {
-    const hhWhere = (hh && txCols.has('household_id')) ? ' AND household_id = ?' : '';
-    const hhBinds = (hh && txCols.has('household_id')) ? [hh] : [];
+    const hhWhere = (hh && txCols.has('user_id')) ? ' AND user_id = ?' : '';
+    const hhBinds = (hh && txCols.has('user_id')) ? [hh] : [];
     values.push(target.id);
     statements.push(
       db.prepare(`UPDATE transactions SET ${updateParts.join(', ')} WHERE id = ?${hhWhere}`).bind(...values, ...hhBinds)
@@ -899,10 +900,10 @@ async function loadAccounts(db, cols, hh) {
   ].filter(col => cols.has(col));
 
   const activeWhere = activeAccountWhere(cols);
-  const hhClause = (hh && cols.has('household_id')) ? `household_id = ?` : '';
+  const hhClause = (hh && cols.has('user_id')) ? `user_id = ?` : '';
   const whereParts = [activeWhere, hhClause].filter(Boolean);
   const where = whereParts.length ? whereParts.join(' AND ') : '';
-  const binds = (hh && cols.has('household_id')) ? [hh] : [];
+  const binds = (hh && cols.has('user_id')) ? [hh] : [];
   const orderBy = cols.has('display_order')
     ? 'display_order, name'
     : (cols.has('name') ? 'name' : 'id');
@@ -983,8 +984,8 @@ async function loadRecentATMRows(db, txCols, limit = 40, hh) {
     predicates.unshift("source_module = 'atm'");
   }
 
-  const hhClause = (hh && txCols.has('household_id')) ? ` AND household_id = ?` : '';
-  const hhBinds  = (hh && txCols.has('household_id')) ? [hh] : [];
+  const hhClause = (hh && txCols.has('user_id')) ? ` AND user_id = ?` : '';
+  const hhBinds  = (hh && txCols.has('user_id')) ? [hh] : [];
 
   const rows = await db.prepare(
     `SELECT ${wanted.join(', ')}
@@ -1062,8 +1063,8 @@ async function loadAccountMap(db, cols, ids, hh) {
   if (!cols.has('id')) return out;
 
   const where = activeAccountWhere(cols);
-  const hhClause = (hh && cols.has('household_id')) ? 'AND household_id = ?' : '';
-  const hhBinds  = (hh && cols.has('household_id')) ? [hh] : [];
+  const hhClause = (hh && cols.has('user_id')) ? 'AND user_id = ?' : '';
+  const hhBinds  = (hh && cols.has('user_id')) ? [hh] : [];
 
   for (const id of ids) {
     if (!id) continue;
@@ -1109,8 +1110,8 @@ async function computeAccountBalance(db, txCols, accountId, hh) {
     'created_at'
   ].filter(col => txCols.has(col));
 
-  const hhClause = (hh && txCols.has('household_id')) ? ' AND household_id = ?' : '';
-  const binds    = (hh && txCols.has('household_id')) ? [accountId, hh] : [accountId];
+  const hhClause = (hh && txCols.has('user_id')) ? ' AND user_id = ?' : '';
+  const binds    = (hh && txCols.has('user_id')) ? [accountId, hh] : [accountId];
 
   const rows = await db.prepare(
     `SELECT ${wanted.join(', ')}
