@@ -43,7 +43,12 @@ export async function onRequestPost(context) {
 
     // Backfill NULL-attributed rows to first real owner
     if (!ownerExists) {
-      for (const tbl of ['accounts', 'transactions', 'bills', 'debts']) {
+      for (const tbl of [
+        'accounts', 'transactions', 'bills', 'bill_payments', 'budgets',
+        'categories', 'debts', 'debt_payments', 'goals', 'merchants',
+        'nano_loans', 'reconciliation', 'salary', 'salary_config',
+        'salary_contracts', 'salary_payslips', 'snapshots', 'audit_log'
+      ]) {
         await context.env.DB.prepare(
           `UPDATE ${tbl} SET user_id = ? WHERE user_id IS NULL`
         ).bind(userId).run().catch(() => {});

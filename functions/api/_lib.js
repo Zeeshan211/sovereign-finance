@@ -40,6 +40,15 @@ export function json(obj, status = 200) {
   });
 }
 
+//  USER SCOPING
+// Middleware (_middleware.js) authenticates the session and sets
+// context.data.user_id. Every handler MUST call this and bail with 401
+// when it returns null, then scope every query with user_id = ?.
+export function getUserId(context) {
+  const userId = context && context.data && context.data.user_id;
+  return (typeof userId === 'string' && userId.length > 0) ? userId : null;
+}
+
 export function uuid() {
   return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
 }
@@ -56,8 +65,8 @@ export async function audit(env, fields) {
 
   try {
     await env.DB.prepare(
-      `INSERT INTO audit_log (id, action, entity, entity_id, kind, detail, created_by, ip)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO audit_log (id, action, entity, entity_id, kind, detail, created_by, ip, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       uuid(),
       fields.action,
@@ -70,7 +79,8 @@ export async function audit(env, fields) {
           : JSON.stringify(fields.detail))
         : null,
       fields.created_by || 'web',
-      fields.ip || null
+      fields.ip || null,
+      fields.user_id || null
     ).run();
 
     return { ok: true };
@@ -107,8 +117,9 @@ export async function audit(env, fields) {
 //     missing_tables,
 //     row_count_by_table
 //   }
-export async function snapshot(env, label, createdBy = 'system') {
+export async function snapshot(env, label, createdBy = 'system', userId = null) {
   if (!label) return { ok: false, version: LIB_VERSION, error: 'snapshot: label required' };
+  if (!userId) return { ok: false, version: LIB_VERSION, error: 'snapshot: userId required' };
 
   const snapId = 'snap-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const includedTables = [...CORE_SNAPSHOT_TABLES];
@@ -130,7 +141,9 @@ export async function snapshot(env, label, createdBy = 'system') {
 
     for (const table of includedTables) {
       try {
-        const res = await env.DB.prepare(`SELECT * FROM ${safeIdentifier(table)}`).all();
+        const res = await env.DB.prepare(
+          `SELECT * FROM ${safeIdentifier(table)} WHERE user_id = ?`
+        ).bind(userId).all();
         const rows = res && res.results ? res.results : [];
         const count = rows.length;
 
@@ -159,9 +172,9 @@ export async function snapshot(env, label, createdBy = 'system') {
     }
 
     await env.DB.prepare(
-      `INSERT INTO snapshots (id, label, status, row_count_total, created_by)
-       VALUES (?, ?, 'complete', ?, ?)`
-    ).bind(snapId, label, totalRows, createdBy).run();
+      `INSERT INTO snapshots (id, label, status, row_count_total, created_by, user_id)
+       VALUES (?, ?, 'complete', ?, ?, ?)`
+    ).bind(snapId, label, totalRows, createdBy, userId).run();
 
     const stmts = dataRows.map(d =>
       env.DB.prepare(
@@ -202,7 +215,8 @@ export async function snapshot(env, label, createdBy = 'system') {
       entity_id: snapId,
       kind: 'snapshot',
       detail: summary,
-      created_by: createdBy
+      created_by: createdBy,
+      user_id: userId
     });
 
     return {
