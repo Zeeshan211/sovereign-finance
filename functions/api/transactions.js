@@ -17,6 +17,8 @@
  * - Full audit history is available with include_reversed=1.
  */
 
+import { getUserId } from './_lib.js';
+
 const VERSION = 'v0.7.0-transactions-add-contract-proof';
 const CONTRACT_VERSION = 'transactions-add-v1';
 
@@ -116,6 +118,9 @@ const CC_OVERLIMIT_TOLERANCE = 1.0;
 
 export async function onRequestGet(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = context.env.DB;
     const url = new URL(context.request.url);
 
@@ -140,8 +145,10 @@ export async function onRequestGet(context) {
       ? limit
       : Math.min(500, Math.max(limit * 8, limit + 150));
 
-    const whereClause = accountId ? 'WHERE account_id = ?' : '';
-    const binds = accountId ? [accountId, fetchLimit] : [fetchLimit];
+    const whereClause = accountId
+      ? 'WHERE user_id = ? AND account_id = ?'
+      : 'WHERE user_id = ?';
+    const binds = accountId ? [userId, accountId, fetchLimit] : [userId, fetchLimit];
 
     const result = await db.prepare(
       `SELECT ${select.join(', ')}
@@ -198,11 +205,14 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const url = new URL(context.request.url);
     const body = await readJSON(context.request);
     const dryRun = isDryRun(url, body);
 
-    const validation = await validatePayload(context, body);
+    const validation = await validatePayload(context, body, userId);
 
     if (!validation.ok) {
       return json({
@@ -278,10 +288,10 @@ export async function onRequestPost(context) {
     }
 
     if (validation.normalized_payload.type === 'transfer') {
-      return createTransferPair(context, validation);
+      return createTransferPair(context, validation, userId);
     }
 
-    return createSingleTransaction(context, validation);
+    return createSingleTransaction(context, validation, userId);
   } catch (err) {
     return json({
       ok: false,
@@ -294,7 +304,7 @@ export async function onRequestPost(context) {
   }
 }
 
-async function validatePayload(context, body) {
+async function validatePayload(context, body, userId) {
   const db = context.env.DB;
   const warnings = [];
 
@@ -345,7 +355,7 @@ async function validatePayload(context, body) {
     };
   }
 
-  const sourceResult = await resolveAccount(db, sourceInput);
+  const sourceResult = await resolveAccount(db, sourceInput, userId);
 
   if (!sourceResult.ok) {
     return {
@@ -377,7 +387,7 @@ async function validatePayload(context, body) {
       };
     }
 
-    const targetResult = await resolveAccount(db, transferTargetInput);
+    const targetResult = await resolveAccount(db, transferTargetInput, userId);
 
     if (!targetResult.ok) {
       return {
@@ -407,7 +417,7 @@ async function validatePayload(context, body) {
 
   if (type !== 'transfer') {
     const categoryInput = body.category_id || body.category;
-    const categoryResult = await resolveCategory(db, categoryInput, type);
+    const categoryResult = await resolveCategory(db, categoryInput, type, userId);
 
     if (!categoryResult.ok) {
       return {
@@ -473,15 +483,15 @@ async function validatePayload(context, body) {
     });
   }
 
-  const merchantProof = await buildMerchantProof(db, normalized);
+  const merchantProof = await buildMerchantProof(db, normalized, userId);
 
   if (merchantProof.status === 'warn') {
     warnings.push(merchantProof);
   }
 
-  const balanceProof = await buildBalanceProof(db, normalized, sourceAccount, transferToAccount);
-  const duplicateProof = await buildDuplicateProof(db, normalized);
-  const idempotencyProof = await buildIdempotencyProof(db, normalized);
+  const balanceProof = await buildBalanceProof(db, normalized, sourceAccount, transferToAccount, userId);
+  const duplicateProof = await buildDuplicateProof(db, normalized, userId);
+  const idempotencyProof = await buildIdempotencyProof(db, normalized, userId);
 
   if (duplicateProof.status === 'warn') {
     warnings.push(duplicateProof);
@@ -639,7 +649,7 @@ function buildProof(payload, checks) {
   };
 }
 
-async function createSingleTransaction(context, validation) {
+async function createSingleTransaction(context, validation, userId) {
   const db = context.env.DB;
   const payload = validation.normalized_payload;
   const txCols = await tableColumns(db, 'transactions');
@@ -673,6 +683,8 @@ async function createSingleTransaction(context, validation) {
     created_at: createdAt,
     updated_at: createdAt
   });
+
+  row.user_id = userId;
 
   try {
     await buildInsert(db, 'transactions', row).run();
@@ -744,7 +756,7 @@ async function createSingleTransaction(context, validation) {
   });
 }
 
-async function createTransferPair(context, validation) {
+async function createTransferPair(context, validation, userId) {
   const db = context.env.DB;
   const payload = validation.normalized_payload;
   const txCols = await tableColumns(db, 'transactions');
@@ -811,6 +823,9 @@ async function createTransferPair(context, validation) {
     created_at: createdAt,
     updated_at: createdAt
   });
+
+  outRow.user_id = userId;
+  inRow.user_id = userId;
 
   try {
     await db.batch([
@@ -945,8 +960,8 @@ function existingIdempotentResponse(validation) {
   });
 }
 
-async function buildBalanceProof(db, payload, sourceAccount, transferToAccount) {
-  const sourceBalance = await computeAccountBalance(db, payload.account_id);
+async function buildBalanceProof(db, payload, sourceAccount, transferToAccount, userId) {
+  const sourceBalance = await computeAccountBalance(db, payload.account_id, userId);
   const sourceProjection = sourceBalance.balance + accountDelta(payload.type, payload.pkr_amount, 'source');
 
   const sourceKind = classifyAccount(sourceAccount);
@@ -992,7 +1007,7 @@ async function buildBalanceProof(db, payload, sourceAccount, transferToAccount) 
   }
 
   if (payload.type === 'transfer' && transferToAccount) {
-    const targetBalance = await computeAccountBalance(db, payload.transfer_to_account_id);
+    const targetBalance = await computeAccountBalance(db, payload.transfer_to_account_id, userId);
     const targetProjection = targetBalance.balance + Math.abs(payload.pkr_amount);
 
     proof.transfer_target = {
@@ -1007,7 +1022,7 @@ async function buildBalanceProof(db, payload, sourceAccount, transferToAccount) 
   return proof;
 }
 
-async function computeAccountBalance(db, accountId) {
+async function computeAccountBalance(db, accountId, userId) {
   const txCols = await tableColumns(db, 'transactions');
 
   if (!txCols.has('account_id')) {
@@ -1031,8 +1046,8 @@ async function computeAccountBalance(db, accountId) {
   const rows = await db.prepare(
     `SELECT ${select.join(', ')}
      FROM transactions
-     WHERE account_id = ?`
-  ).bind(accountId).all();
+     WHERE account_id = ? AND user_id = ?`
+  ).bind(accountId, userId).all();
 
   let balance = 0;
   let txnCount = 0;
@@ -1056,7 +1071,7 @@ async function computeAccountBalance(db, accountId) {
   };
 }
 
-async function buildDuplicateProof(db, payload) {
+async function buildDuplicateProof(db, payload, userId) {
   const txCols = await tableColumns(db, 'transactions');
 
   if (!txCols.has('date') || !txCols.has('type') || !txCols.has('account_id') || !txCols.has('amount')) {
@@ -1087,13 +1102,14 @@ async function buildDuplicateProof(db, payload) {
   const rows = await db.prepare(
     `SELECT ${select.join(', ')}
      FROM transactions
-     WHERE date = ?
+     WHERE user_id = ?
+       AND date = ?
        AND type = ?
        AND account_id = ?
        AND ROUND(ABS(amount), 2) = ROUND(ABS(?), 2)
      ORDER BY ${buildOrderBy(txCols)}
      LIMIT 8`
-  ).bind(payload.date, payload.type, payload.account_id, payload.amount).all();
+  ).bind(userId, payload.date, payload.type, payload.account_id, payload.amount).all();
 
   const normalizedMerchant = token(payload.merchant || '');
   const normalizedNotes = token(payload.notes || '');
@@ -1133,7 +1149,7 @@ async function buildDuplicateProof(db, payload) {
   };
 }
 
-async function buildIdempotencyProof(db, payload) {
+async function buildIdempotencyProof(db, payload, userId) {
   if (!payload.idempotency_key) {
     return {
       check: 'idempotency',
@@ -1164,10 +1180,11 @@ async function buildIdempotencyProof(db, payload) {
   const result = await db.prepare(
     `SELECT ${select.join(', ')}
      FROM transactions
-     WHERE idempotency_key IN (${placeholders})
+     WHERE user_id = ?
+       AND idempotency_key IN (${placeholders})
      ORDER BY ${buildOrderBy(txCols)}
      LIMIT 4`
-  ).bind(...keys).all();
+  ).bind(userId, ...keys).all();
 
   const rows = (result.results || []).map(decorateTransaction);
 
@@ -1231,7 +1248,7 @@ function idempotentRowMatchesPayload(row, payload) {
   return true;
 }
 
-async function buildMerchantProof(db, payload) {
+async function buildMerchantProof(db, payload, userId) {
   if (!payload.merchant_id && !payload.merchant) {
     return {
       check: 'merchant_preservation',
@@ -1269,9 +1286,9 @@ async function buildMerchantProof(db, payload) {
       const merchant = await db.prepare(
         `SELECT id, name
          FROM merchants
-         WHERE id = ?
+         WHERE id = ? AND user_id = ?
          LIMIT 1`
-      ).bind(payload.merchant_id).first();
+      ).bind(payload.merchant_id, userId).first();
 
       if (!merchant) {
         proof.status = 'warn';
@@ -1288,7 +1305,7 @@ async function buildMerchantProof(db, payload) {
   return proof;
 }
 
-async function resolveAccount(db, input) {
+async function resolveAccount(db, input, userId) {
   const raw = text(input, '', 160);
 
   if (!raw) {
@@ -1315,9 +1332,10 @@ async function resolveAccount(db, input) {
     `SELECT *
      FROM accounts
      WHERE TRIM(id) = TRIM(?)
+     AND user_id = ?
      ${where ? 'AND ' + where : ''}
      LIMIT 1`
-  ).bind(raw).first();
+  ).bind(raw, userId).first();
 
   if (exact && exact.id) {
     return {
@@ -1333,9 +1351,10 @@ async function resolveAccount(db, input) {
   const rows = await db.prepare(
     `SELECT *
      FROM accounts
-     ${where ? 'WHERE ' + where : ''}
+     WHERE user_id = ?
+     ${where ? 'AND ' + where : ''}
      ORDER BY ${order}`
-  ).all();
+  ).bind(userId).all();
 
   const wanted = token(raw);
 
@@ -1364,7 +1383,7 @@ async function resolveAccount(db, input) {
   };
 }
 
-async function resolveCategory(db, input, type) {
+async function resolveCategory(db, input, type, userId) {
   const raw = text(input, '', 160);
 
   if (!raw) {
@@ -1384,8 +1403,8 @@ async function resolveCategory(db, input, type) {
   // Try raw id first — DB ids (e.g. 'food_dining', 'groceries') must pass through
   // without aliasing. Canonical aliasing is only for free-text user input.
   const rawExact = await db.prepare(
-    `SELECT id FROM categories WHERE id = ? LIMIT 1`
-  ).bind(raw).first();
+    `SELECT id FROM categories WHERE id = ? AND user_id = ? LIMIT 1`
+  ).bind(raw, userId).first();
 
   if (rawExact && rawExact.id) {
     return { ok: true, category_id: rawExact.id };
@@ -1396,9 +1415,9 @@ async function resolveCategory(db, input, type) {
   const exact = await db.prepare(
     `SELECT id
      FROM categories
-     WHERE id = ?
+     WHERE id = ? AND user_id = ?
      LIMIT 1`
-  ).bind(canonical).first();
+  ).bind(canonical, userId).first();
 
   if (exact && exact.id) {
     return {
@@ -1410,8 +1429,9 @@ async function resolveCategory(db, input, type) {
   const rows = await db.prepare(
     `SELECT *
      FROM categories
+     WHERE user_id = ?
      ORDER BY ${cols.has('name') ? 'name, id' : 'id'}`
-  ).all();
+  ).bind(userId).all();
 
   const wanted = token(canonical);
 
@@ -1463,7 +1483,8 @@ function selectTransactionColumns(cols) {
     'idempotency_key',
     'created_by',
     'created_at',
-    'updated_at'
+    'updated_at',
+    'user_id'
   ].filter(col => cols.has(col));
 }
 

@@ -9,10 +9,15 @@
  * - Gives the Hub page one stable health/dashboard source.
  */
 
+import { getUserId } from './_lib.js';
+
 const VERSION = 'v0.1.0-hub-contract-health';
 
 export async function onRequestGet(context) {
   const checkedAt = new Date().toISOString();
+
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
   try {
     const origin = new URL(context.request.url).origin;

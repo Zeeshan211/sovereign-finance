@@ -1,12 +1,12 @@
 // DELETE /api/account — permanently delete the user account and all associated data
 // Requires { confirm: "DELETE MY ACCOUNT" } in the body as an intentional gate.
 
-import { json, audit } from '../_lib.js';
+import { json, audit, getUserId } from '../_lib.js';
 import { clearSessionCookie } from '../_lib/auth.js';
 
 export async function onRequestDelete(context) {
   try {
-    const userId = context.data?.user_id;
+    const userId = getUserId(context);
     if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
 
     const body = await context.request.json().catch(() => ({}));
@@ -23,16 +23,24 @@ export async function onRequestDelete(context) {
       entity_id: userId,
       kind: 'mutation',
       created_by: userId,
+      user_id: userId,
     });
 
     // ON DELETE CASCADE handles most child records; explicit deletes for safety
     const tables = [
       'transactions', 'accounts', 'bills', 'bill_payments',
       'debts', 'debt_payments', 'goals', 'budgets',
-      'snapshots', 'snapshot_data', 'categories', 'merchants',
+      'snapshots', 'categories', 'merchants',
       'reconciliation', 'intl_rates', 'oauth_identities',
       'sessions', 'user_preferences',
     ];
+
+    // snapshot_data has no user_id column — scope via parent snapshots,
+    // and delete BEFORE snapshots rows are removed.
+    await db.prepare(
+      `DELETE FROM snapshot_data
+       WHERE snapshot_id IN (SELECT id FROM snapshots WHERE user_id = ?)`
+    ).bind(userId).run().catch(() => {});
 
     for (const table of tables) {
       await db.prepare(`DELETE FROM ${table} WHERE user_id = ?`)
