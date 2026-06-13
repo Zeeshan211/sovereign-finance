@@ -8,6 +8,8 @@
  * - Mutating category operations are not part of Shipment 3.
  */
 
+import { getUserId } from "./_lib.js";
+
 const VERSION = "v0.2.0-contract-lock";
 
 const CATEGORY_ALIASES = {
@@ -66,11 +68,15 @@ const CATEGORY_ALIASES = {
 
 export async function onRequestGet(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return jsonResponse({ ok: false, error: "Unauthorized" }, 401);
+
     const result = await context.env.DB.prepare(
       `SELECT id, name, icon, type, parent_id, monthly_budget, color, display_order
        FROM categories
+       WHERE user_id = ?
        ORDER BY display_order, name`
-    ).all();
+    ).bind(userId).all();
 
     const categories = result.results || [];
     const ids = new Set(categories.map(row => row.id));

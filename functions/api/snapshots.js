@@ -17,7 +17,7 @@
 *   - Does not mutate finance business tables.
 */
 
-import { json, snapshot } from './_lib.js';
+import { json, snapshot, getUserId } from './_lib.js';
 
 const VERSION = 'v0.2.1';
 
@@ -39,12 +39,15 @@ const SYSTEM_TABLES = new Set([
 
 export async function onRequestGet(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, error: 'Unauthorized' }, 401);
+
     const db = context.env.DB;
     const url = new URL(context.request.url);
     const id = cleanText(url.searchParams.get('id'), '', 160);
 
     if (id) {
-      const detail = await getSnapshotDetailPayload(db, id);
+      const detail = await getSnapshotDetailPayload(db, id, userId);
 
       if (!detail.ok) {
         return json(detail, detail.status || 404);
@@ -58,9 +61,10 @@ export async function onRequestGet(context) {
     const result = await db.prepare(
       `SELECT id, label, status, row_count_total, created_by, created_at
        FROM snapshots
+       WHERE user_id = ?
        ORDER BY datetime(created_at) DESC, id DESC
        LIMIT ?`
-    ).bind(limit).all();
+    ).bind(userId, limit).all();
 
     return json({
       ok: true,
@@ -79,6 +83,9 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, error: 'Unauthorized' }, 401);
+
     const body = await readJSON(context.request);
     const label = cleanText(
       body.label || body.name || body.reason,
@@ -100,7 +107,7 @@ export async function onRequestPost(context) {
     }
 
     const safeLabel = makeSafeLabel(label);
-    const result = await snapshot(context.env, safeLabel, createdBy);
+    const result = await snapshot(context.env, safeLabel, createdBy, userId);
 
     if (!result || !result.ok) {
       return json({
@@ -114,7 +121,7 @@ export async function onRequestPost(context) {
     const snapshotId = result.snapshot_id || result.id;
 
     if (snapshotId) {
-      const detail = await getSnapshotDetailPayload(context.env.DB, snapshotId);
+      const detail = await getSnapshotDetailPayload(context.env.DB, snapshotId, userId);
 
       if (detail.ok) {
         return json({
@@ -149,12 +156,12 @@ export async function onRequestPost(context) {
   }
 }
 
-async function getSnapshotDetailPayload(db, id) {
+async function getSnapshotDetailPayload(db, id, userId) {
   const snap = await db.prepare(
     `SELECT id, label, status, row_count_total, created_by, created_at
      FROM snapshots
-     WHERE id = ?`
-  ).bind(id).first();
+     WHERE id = ? AND user_id = ?`
+  ).bind(id, userId).first();
 
   if (!snap) {
     return {

@@ -48,11 +48,11 @@ export async function onRequestGet(context) {
       dismissalRows,
       insightDismissalRows,
     ] = await Promise.all([
-      db.prepare(`SELECT id, name, type, kind, currency, status, archived_at, deleted_at FROM accounts WHERE deleted_at IS NULL`).all(),
-      db.prepare(`SELECT t.id, t.account_id, t.amount, t.type, t.category_id, t.notes, t.merchant, t.date, t.created_at FROM transactions t WHERE t.reversed_at IS NULL AND t.date >= date('now', '-30 days') ORDER BY t.date DESC`).all(),
-      db.prepare(`SELECT t.id, t.account_id, t.amount, t.type, t.category_id, t.notes, t.merchant, t.date FROM transactions t WHERE t.reversed_at IS NULL AND t.date >= date('now', '-7 days') ORDER BY t.date DESC`).all(),
-      db.prepare(`SELECT id, name, amount, due_day, due_date, status, account_id, category_id FROM bills WHERE status = 'active' ORDER BY due_date ASC`).all(),
-      db.prepare(`SELECT id, payday_day, monthly_salary_net, payout_account_id, enabled FROM salary_contracts WHERE enabled = 1 ORDER BY rowid DESC LIMIT 1`).first().catch(() => null),
+      db.prepare(`SELECT id, name, type, kind, currency, status, archived_at, deleted_at FROM accounts WHERE deleted_at IS NULL AND user_id = ?`).bind(userId).all(),
+      db.prepare(`SELECT t.id, t.account_id, t.amount, t.type, t.category_id, t.notes, t.merchant, t.date, t.created_at FROM transactions t WHERE t.reversed_at IS NULL AND t.date >= date('now', '-30 days') AND t.user_id = ? ORDER BY t.date DESC`).bind(userId).all(),
+      db.prepare(`SELECT t.id, t.account_id, t.amount, t.type, t.category_id, t.notes, t.merchant, t.date FROM transactions t WHERE t.reversed_at IS NULL AND t.date >= date('now', '-7 days') AND t.user_id = ? ORDER BY t.date DESC`).bind(userId).all(),
+      db.prepare(`SELECT id, name, amount, due_day, due_date, status, account_id, category_id FROM bills WHERE status = 'active' AND user_id = ? ORDER BY due_date ASC`).bind(userId).all(),
+      db.prepare(`SELECT id, payday_day, monthly_salary_net, payout_account_id, enabled FROM salary_contracts WHERE enabled = 1 AND user_id = ? ORDER BY rowid DESC LIMIT 1`).bind(userId).first().catch(() => null),
       db.prepare(`SELECT item_signature FROM hub_dismissals WHERE user_id = ? AND dismissed_at >= datetime('now', '-7 days')`).bind(userId).all().catch(() => ({ results: [] })),
       db.prepare(`SELECT insight_signature FROM hub_insight_dismissals WHERE user_id = ? AND dismissed_at >= datetime('now', '-7 days')`).bind(userId).all().catch(() => ({ results: [] })),
     ]);
@@ -66,7 +66,7 @@ export async function onRequestGet(context) {
     const dismissedInsightSigs = new Set((insightDismissalRows?.results ?? []).map(r => r.insight_signature));
 
     // Compute balances from transactions
-    const balanceMap = await computeBalances(db);
+    const balanceMap = await computeBalances(db, userId);
 
     // Build pulse
     const pulse = buildPulse(accounts, balanceMap, txs30d, now);
@@ -135,13 +135,13 @@ export async function onRequestOptions() {
 
 // ─── Balance computation ──────────────────────────────────────────
 
-async function computeBalances(db) {
+async function computeBalances(db, userId) {
   const rows = await db.prepare(
     `SELECT t.account_id, t.type, SUM(t.amount) as total
      FROM transactions t
-     WHERE t.reversed_at IS NULL
+     WHERE t.reversed_at IS NULL AND t.user_id = ?
      GROUP BY t.account_id, t.type`
-  ).all();
+  ).bind(userId).all();
 
   const balanceMap = {};
   for (const row of rows?.results ?? []) {

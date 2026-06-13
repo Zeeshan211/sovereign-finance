@@ -14,6 +14,8 @@
  *   - Frontend must display backend totals/proof only.
  */
 
+import { getUserId } from '../_lib.js';
+
 const VERSION = 'v0.9.0-bills-contract-owner';
 const CONTRACT_VERSION = 'bills-v1';
 const DEFAULT_CATEGORY_ID = 'bills_utilities';
@@ -31,21 +33,27 @@ const INACTIVE_STATUSES = new Set([
 
 export async function onRequestGet(context) {
   return withJsonErrors('GET', async () => {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = requireDb(context.env);
     const url = new URL(context.request.url);
     const path = getPath(context);
     const action = clean(url.searchParams.get('action')).toLowerCase();
 
-    if (path[0] === 'history' || action === 'history') return getHistory(db, url);
-    if (path[0] === 'cycle' || action === 'cycle') return getOverview(db, url);
-    if (path[0] && path[0] !== 'health' && !isReservedPath(path[0])) return getBillDetail(db, path[0], url);
+    if (path[0] === 'history' || action === 'history') return getHistory(db, url, userId);
+    if (path[0] === 'cycle' || action === 'cycle') return getOverview(db, url, userId);
+    if (path[0] && path[0] !== 'health' && !isReservedPath(path[0])) return getBillDetail(db, path[0], url, userId);
 
-    return getOverview(db, url);
+    return getOverview(db, url, userId);
   });
 }
 
 export async function onRequestPost(context) {
   return withJsonErrors('POST', async () => {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = requireDb(context.env);
     const url = new URL(context.request.url);
     const path = getPath(context);
@@ -56,12 +64,12 @@ export async function onRequestPost(context) {
     const action = routeAction || bodyAction || 'create';
     const dryRun = isDryRun(url, body);
 
-    if (action === 'create' || action === 'add' || action === '') return createBill(db, body, dryRun);
-    if (action === 'pay' || action === 'payment' || action === 'record_payment') return payBill(db, body, dryRun);
-    if (action === 'update' || action === 'edit') return updateBill(db, body, dryRun);
-    if (action === 'defer') return deferBill(db, body, dryRun);
+    if (action === 'create' || action === 'add' || action === '') return createBill(db, body, dryRun, userId);
+    if (action === 'pay' || action === 'payment' || action === 'record_payment') return payBill(db, body, dryRun, userId);
+    if (action === 'update' || action === 'edit') return updateBill(db, body, dryRun, userId);
+    if (action === 'defer') return deferBill(db, body, dryRun, userId);
     if (action === 'repair' || action === 'repair_reversed_payments' || action === 'repair-reversed-payments') {
-      return repairReversedPayments(db, body, dryRun);
+      return repairReversedPayments(db, body, dryRun, userId);
     }
 
     return json(contractError({
@@ -77,17 +85,23 @@ export async function onRequestPost(context) {
 
 export async function onRequestPut(context) {
   return withJsonErrors('PUT', async () => {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = requireDb(context.env);
     const path = getPath(context);
     const body = await readJson(context.request);
     const billId = clean(path[0] || body.bill_id || body.id);
 
-    return updateBill(db, { ...body, bill_id: billId }, false);
+    return updateBill(db, { ...body, bill_id: billId }, false, userId);
   });
 }
 
 export async function onRequestDelete(context) {
   return withJsonErrors('DELETE', async () => {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = requireDb(context.env);
     const path = getPath(context);
     const billId = clean(path[0]);

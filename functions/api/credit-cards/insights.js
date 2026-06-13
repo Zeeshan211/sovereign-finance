@@ -54,11 +54,12 @@ export async function onRequest(context) {
              t.date, t.notes, t.category_id
       FROM   transactions t
       WHERE  t.account_id IN (${ph})
+        AND  t.user_id = ?
         AND  t.date >= ?
         AND  (t.reversed_by IS NULL OR t.reversed_by = '')
         AND  (t.reversed_at IS NULL OR t.reversed_at = '')
       ORDER  BY t.date DESC
-    `).bind(...accountIds, ago90).all();
+    `).bind(...accountIds, userId, ago90).all();
 
     const txns = txRes.results || [];
 

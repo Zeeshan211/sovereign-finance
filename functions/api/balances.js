@@ -61,8 +61,9 @@ export async function onRequestGet(context) {
       }, 500);
     }
 
-    const accounts = await loadAccounts(db, accountCols);
-    const balanceMap = await computeBalances(db, txCols);
+    const hh = (context.data && context.data.household_id) || ('hh_' + (context.data && context.data.user_id || 'unauthenticated'));
+    const accounts = await loadAccounts(db, accountCols, hh);
+    const balanceMap = await computeBalances(db, txCols, hh);
 
     const accountsById = {};
     const accountList = [];
@@ -254,7 +255,7 @@ export async function onRequestGet(context) {
   }
 }
 
-async function loadAccounts(db, cols) {
+async function loadAccounts(db, cols, hh) {
   const wanted = [
     'id',
     'name',
@@ -274,11 +275,14 @@ async function loadAccounts(db, cols) {
     ? 'display_order, name, id'
     : (cols.has('name') ? 'name, id' : 'id');
 
+  const hhWhere = (hh && cols.has('household_id')) ? 'WHERE household_id = ?' : '';
+
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM accounts
+     ${hhWhere}
      ORDER BY ${orderBy}`
-  ).all();
+  ).bind(...(hhWhere ? [hh] : [])).all();
 
   return (result.results || []).map(row => {
     const accountClass = classifyAccount(row);
@@ -300,7 +304,7 @@ async function loadAccounts(db, cols) {
   });
 }
 
-async function computeBalances(db, txCols) {
+async function computeBalances(db, txCols, hh) {
   const wanted = [
     'id',
     'date',
@@ -320,11 +324,14 @@ async function computeBalances(db, txCols) {
     ? 'date ASC'
     : (txCols.has('created_at') ? 'datetime(created_at) ASC' : 'rowid ASC');
 
+  const hhWhere = (hh && txCols.has('household_id')) ? 'WHERE household_id = ?' : '';
+
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM transactions
+     ${hhWhere}
      ORDER BY ${orderBy}`
-  ).all();
+  ).bind(...(hhWhere ? [hh] : [])).all();
 
   const map = new Map();
 

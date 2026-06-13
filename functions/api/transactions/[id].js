@@ -12,6 +12,7 @@
  */
 
 import { buildProvenance } from '../_lib/provenance.js';
+import { getUserId } from '../_lib.js';
 
 const VERSION = 'v0.6.1-transaction-id-health';
 const CONTRACT_VERSION = 'transactions-id-health-v1';
@@ -44,10 +45,13 @@ const FLOW_DEST_LABEL = {
 
 export async function onRequestGet(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const routeId = getRouteId(context);
 
     if (routeId === 'health') {
-      return ledgerHealth(context);
+      return ledgerHealth(context, userId);
     }
 
     if (!routeId) {
@@ -73,7 +77,7 @@ export async function onRequestGet(context) {
       }, 500);
     }
 
-    const row = await selectTransactionById(db, txColumns, routeId);
+    const row = await selectTransactionById(db, txColumns, routeId, userId);
 
     if (!row) {
       return json({
@@ -88,7 +92,7 @@ export async function onRequestGet(context) {
 
     const url = new URL(context.request.url);
     if (url.searchParams.get('view') === 'trace') {
-      const trace = await buildTransactionTrace(db, txColumns, row);
+      const trace = await buildTransactionTrace(db, txColumns, row, userId);
       return json({
         ok: true,
         version: VERSION,
@@ -127,7 +131,10 @@ export async function onRequestGet(context) {
   }
 }
 
-export async function onRequestPost() {
+export async function onRequestPost(context) {
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
   return json({
     ok: false,
     version: VERSION,
@@ -139,7 +146,10 @@ export async function onRequestPost() {
   }, 405);
 }
 
-export async function onRequestPut() {
+export async function onRequestPut(context) {
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
   return json({
     ok: false,
     version: VERSION,
@@ -150,7 +160,10 @@ export async function onRequestPut() {
   }, 405);
 }
 
-export async function onRequestDelete() {
+export async function onRequestDelete(context) {
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
   return json({
     ok: false,
     version: VERSION,
@@ -169,6 +182,9 @@ export async function onRequestDelete() {
  * [REVERSAL OF …] / [REVERSED BY …] markers that balance + health logic depend on. */
 export async function onRequestPatch(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const routeId = getRouteId(context);
 
     if (!routeId || routeId === 'health') {
@@ -224,7 +240,7 @@ export async function onRequestPatch(context) {
       }, 500);
     }
 
-    const existing = await selectTransactionById(db, txColumns, routeId);
+    const existing = await selectTransactionById(db, txColumns, routeId, userId);
 
     if (!existing) {
       return json({
@@ -259,11 +275,11 @@ export async function onRequestPatch(context) {
       binds.push(new Date().toISOString());
     }
 
-    binds.push(routeId);
+    binds.push(routeId, userId);
 
-    await db.prepare(`UPDATE transactions SET ${sets.join(', ')} WHERE id = ?`).bind(...binds).run();
+    await db.prepare(`UPDATE transactions SET ${sets.join(', ')} WHERE id = ? AND user_id = ?`).bind(...binds).run();
 
-    const after = await selectTransactionById(db, txColumns, routeId);
+    const after = await selectTransactionById(db, txColumns, routeId, userId);
 
     return json({
       ok: true,
@@ -285,7 +301,7 @@ export async function onRequestPatch(context) {
   }
 }
 
-async function ledgerHealth(context) {
+async function ledgerHealth(context, userId) {
   const db = context.env.DB;
   const txColumns = await tableColumns(db, 'transactions');
 
@@ -302,9 +318,10 @@ async function ledgerHealth(context) {
   const rowsResult = await db.prepare(
     `SELECT ${selectTransactionColumns(txColumns).join(', ')}
      FROM transactions
+     WHERE user_id = ?
      ORDER BY ${buildOrderBy(txColumns)}
      LIMIT 5000`
-  ).all();
+  ).bind(userId).all();
 
   const rows = (rowsResult.results || []).map(row => decorateTransaction(row));
   const byId = new Map(rows.map(row => [String(row.id), row]));
@@ -313,8 +330,8 @@ async function ledgerHealth(context) {
   const reversedOriginals = rows.filter(row => row.is_reversed && !row.is_reversal);
   const activeRows = rows.filter(row => !row.is_reversal && !row.is_reversed);
 
-  const linkedIntegrity = await checkLinkedIntegrity(db, txColumns, rows, byId);
-  const reversalIntegrity = await checkReversalIntegrity(db, txColumns, reversalRows, byId);
+  const linkedIntegrity = await checkLinkedIntegrity(db, txColumns, rows, byId, userId);
+  const reversalIntegrity = await checkReversalIntegrity(db, txColumns, reversalRows, byId, userId);
   const accountRefs = checkAccountRefs(activeRows);
   const categoryRefs = checkCategoryRefs(activeRows);
   const fxCoverage = checkFxCoverage(rows);
@@ -395,7 +412,7 @@ async function ledgerHealth(context) {
   });
 }
 
-async function checkLinkedIntegrity(db, txColumns, rows, byId) {
+async function checkLinkedIntegrity(db, txColumns, rows, byId, userId) {
   const orphanLinkedRows = [];
   const amountMismatches = [];
   const warnings = [];
@@ -416,7 +433,7 @@ async function checkLinkedIntegrity(db, txColumns, rows, byId) {
     let linked = byId.get(String(linkedId));
 
     if (!linked) {
-      linked = await selectTransactionById(db, txColumns, linkedId);
+      linked = await selectTransactionById(db, txColumns, linkedId, userId);
       if (linked) linked = decorateTransaction(linked);
     }
 
@@ -468,7 +485,7 @@ async function checkLinkedIntegrity(db, txColumns, rows, byId) {
   };
 }
 
-async function checkReversalIntegrity(db, txColumns, reversalRows, byId) {
+async function checkReversalIntegrity(db, txColumns, reversalRows, byId, userId) {
   const errors = [];
   const warnings = [];
   const criticalErrors = [];
@@ -495,7 +512,7 @@ async function checkReversalIntegrity(db, txColumns, reversalRows, byId) {
     let original = byId.get(String(originalId));
 
     if (!original) {
-      original = await selectTransactionById(db, txColumns, originalId);
+      original = await selectTransactionById(db, txColumns, originalId, userId);
       if (original) original = decorateTransaction(original);
     }
 
@@ -648,7 +665,7 @@ function checkDuplicateReversals(reversalRows) {
   };
 }
 
-async function selectTransactionById(db, txColumns, id) {
+async function selectTransactionById(db, txColumns, id, userId) {
   const cols = selectTransactionColumns(txColumns);
 
   if (!cols.length) {
@@ -658,9 +675,9 @@ async function selectTransactionById(db, txColumns, id) {
   return db.prepare(
     `SELECT ${cols.join(', ')}
      FROM transactions
-     WHERE id = ?
+     WHERE id = ? AND user_id = ?
      LIMIT 1`
-  ).bind(id).first();
+  ).bind(id, userId).first();
 }
 
 function selectTransactionColumns(columns) {

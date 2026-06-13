@@ -63,7 +63,7 @@ export async function getSession(env, request) {
   const tokenHash = await hashToken(token);
   const now = new Date().toISOString();
   const session = await env.DB.prepare(
-    `SELECT s.id, s.user_id, u.email, u.role, u.status
+    `SELECT s.id, s.user_id, u.email, u.role, u.status, u.household_id
      FROM sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = ?

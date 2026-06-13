@@ -17,6 +17,8 @@
  * - It verifies row_hash where present and reports coverage.
  */
 
+import { getUserId } from '../_lib.js';
+
 const VERSION = 'v0.3.0-audit-health-integrity';
 
 const DEFAULT_LIMIT = 100;
@@ -79,18 +81,21 @@ export async function onRequest(context) {
     }, 405);
   }
 
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, version: VERSION, error: 'Unauthorized' }, 401);
+
   try {
     const path = getPath(context);
 
-    if (path[0] === 'health') return getHealth(context);
-    if (path[0] === 'verify') return getVerify(context);
-    if (path[0] === 'export.csv') return exportCsv(context);
-    if (path[0] === 'export.json') return exportJson(context);
+    if (path[0] === 'health') return getHealth(context, userId);
+    if (path[0] === 'verify') return getVerify(context, userId);
+    if (path[0] === 'export.csv') return exportCsv(context, userId);
+    if (path[0] === 'export.json') return exportJson(context, userId);
     if (path[0] === 'actions') return getActions();
-    if (path[0] === 'entity') return getEntityAudit(context, path[1], path[2]);
-    if (path[0] === 'correlation') return getCorrelationAudit(context, path[1]);
+    if (path[0] === 'entity') return getEntityAudit(context, path[1], path[2], userId);
+    if (path[0] === 'correlation') return getCorrelationAudit(context, path[1], userId);
 
-    return getAuditList(context);
+    return getAuditList(context, userId);
   } catch (err) {
     return json({
       ok: false,
@@ -104,7 +109,7 @@ export async function onRequest(context) {
  * Main list
  * ───────────────────────────── */
 
-async function getAuditList(context) {
+async function getAuditList(context, userId) {
   const db = context.env.DB;
   const url = new URL(context.request.url);
   const cols = await auditColumns(db);
@@ -112,7 +117,7 @@ async function getAuditList(context) {
   const limit = clampInt(url.searchParams.get('limit'), 1, MAX_LIMIT, DEFAULT_LIMIT);
   const offset = clampInt(url.searchParams.get('offset'), 0, 1000000, 0);
 
-  const filters = buildFilters(url, cols);
+  const filters = buildFilters(url, cols, userId);
   const select = selectAuditColumns(cols);
 
   const countRow = await db.prepare(`
@@ -130,7 +135,7 @@ async function getAuditList(context) {
   `).bind(...filters.args, limit, offset).all();
 
   const events = (rows.results || []).map(row => normalizeAuditRow(row, cols));
-  const health = await buildHealth(db, cols);
+  const health = await buildHealth(db, cols, userId);
 
   return json({
     ok: true,
@@ -157,10 +162,10 @@ async function getAuditList(context) {
  * Health
  * ───────────────────────────── */
 
-async function getHealth(context) {
+async function getHealth(context, userId) {
   const db = context.env.DB;
   const cols = await auditColumns(db);
-  const health = await buildHealth(db, cols);
+  const health = await buildHealth(db, cols, userId);
 
   return json({
     ok: true,
@@ -170,7 +175,7 @@ async function getHealth(context) {
   });
 }
 
-async function buildHealth(db, cols) {
+async function buildHealth(db, cols, userId) {
   const exists = cols.size > 0;
 
   if (!exists) {
@@ -195,7 +200,7 @@ async function buildHealth(db, cols) {
     };
   }
 
-  const rowCount = Number((await db.prepare(`SELECT COUNT(*) AS c FROM audit_log`).first())?.c || 0);
+  const rowCount = Number((await db.prepare(`SELECT COUNT(*) AS c FROM audit_log WHERE user_id = ?`).bind(userId).first())?.c || 0);
 
   const hashColsPresent = cols.has('row_hash') && cols.has('prev_hash');
 
@@ -203,20 +208,21 @@ async function buildHealth(db, cols) {
     ? Number((await db.prepare(`
         SELECT COUNT(*) AS c
         FROM audit_log
-        WHERE row_hash IS NOT NULL AND row_hash != ''
-      `).first())?.c || 0)
+        WHERE user_id = ? AND row_hash IS NOT NULL AND row_hash != ''
+      `).bind(userId).first())?.c || 0)
     : 0;
 
   const latest = await db.prepare(`
     SELECT ${selectAuditColumns(cols).join(', ')}
     FROM audit_log
+    WHERE user_id = ?
     ORDER BY ${orderBy(cols)}
     LIMIT 1
-  `).first();
+  `).bind(userId).first();
 
-  const actionCounts = await getActionCounts(db, cols);
-  const criticalEventCount = await countCriticalEvents(db, cols);
-  const verify = hashColsPresent ? await verifyHashChain(db, cols, 10000) : null;
+  const actionCounts = await getActionCounts(db, cols, userId);
+  const criticalEventCount = await countCriticalEvents(db, cols, userId);
+  const verify = hashColsPresent ? await verifyHashChain(db, cols, 10000, userId) : null;
 
   const hashCoveragePct = rowCount ? Math.round((hashedRowCount / rowCount) * 10000) / 100 : 0;
 
@@ -262,7 +268,7 @@ async function buildHealth(db, cols) {
  * Verify
  * ───────────────────────────── */
 
-async function getVerify(context) {
+async function getVerify(context, userId) {
   const db = context.env.DB;
   const url = new URL(context.request.url);
   const cols = await auditColumns(db);
@@ -280,7 +286,7 @@ async function getVerify(context) {
     });
   }
 
-  const result = await verifyHashChain(db, cols, limit);
+  const result = await verifyHashChain(db, cols, limit, userId);
 
   return json({
     ok: true,
@@ -291,15 +297,16 @@ async function getVerify(context) {
   });
 }
 
-async function verifyHashChain(db, cols, limit) {
+async function verifyHashChain(db, cols, limit, userId) {
   const select = selectAuditColumns(cols);
 
   const rows = await db.prepare(`
     SELECT ${select.join(', ')}
     FROM audit_log
+    WHERE user_id = ?
     ORDER BY ${ascendingOrderBy(cols)}
     LIMIT ?
-  `).bind(limit).all();
+  `).bind(userId, limit).all();
 
   const events = (rows.results || []).map(row => normalizeAuditRow(row, cols));
 
@@ -373,11 +380,11 @@ async function verifyHashChain(db, cols, limit) {
  * Export
  * ───────────────────────────── */
 
-async function exportJson(context) {
+async function exportJson(context, userId) {
   const db = context.env.DB;
   const url = new URL(context.request.url);
   const cols = await auditColumns(db);
-  const filters = buildFilters(url, cols);
+  const filters = buildFilters(url, cols, userId);
   const limit = clampInt(url.searchParams.get('limit'), 1, 50000, 10000);
   const select = selectAuditColumns(cols);
 
@@ -402,11 +409,11 @@ async function exportJson(context) {
   });
 }
 
-async function exportCsv(context) {
+async function exportCsv(context, userId) {
   const db = context.env.DB;
   const url = new URL(context.request.url);
   const cols = await auditColumns(db);
-  const filters = buildFilters(url, cols);
+  const filters = buildFilters(url, cols, userId);
   const limit = clampInt(url.searchParams.get('limit'), 1, 50000, 10000);
   const select = selectAuditColumns(cols);
 
@@ -459,7 +466,7 @@ async function exportCsv(context) {
  * Entity / correlation
  * ───────────────────────────── */
 
-async function getEntityAudit(context, entity, entityId) {
+async function getEntityAudit(context, entity, entityId, userId) {
   if (!entity || !entityId) {
     return json({
       ok: false,
@@ -483,10 +490,10 @@ async function getEntityAudit(context, entity, entityId) {
   const rows = await db.prepare(`
     SELECT ${select.join(', ')}
     FROM audit_log
-    WHERE entity = ? AND entity_id = ?
+    WHERE user_id = ? AND entity = ? AND entity_id = ?
     ORDER BY ${orderBy(cols)}
     LIMIT 500
-  `).bind(entity, entityId).all();
+  `).bind(userId, entity, entityId).all();
 
   const events = (rows.results || []).map(row => normalizeAuditRow(row, cols));
 
@@ -500,7 +507,7 @@ async function getEntityAudit(context, entity, entityId) {
   });
 }
 
-async function getCorrelationAudit(context, correlationId) {
+async function getCorrelationAudit(context, correlationId, userId) {
   if (!correlationId) {
     return json({
       ok: false,
@@ -525,10 +532,10 @@ async function getCorrelationAudit(context, correlationId) {
   const rows = await db.prepare(`
     SELECT ${select.join(', ')}
     FROM audit_log
-    WHERE correlation_id = ?
+    WHERE user_id = ? AND correlation_id = ?
     ORDER BY ${ascendingOrderBy(cols)}
     LIMIT 1000
-  `).bind(correlationId).all();
+  `).bind(userId, correlationId).all();
 
   const events = (rows.results || []).map(row => normalizeAuditRow(row, cols));
 
@@ -594,10 +601,13 @@ function selectAuditColumns(cols) {
   return selected.length ? selected : ['*'];
 }
 
-function buildFilters(url, cols) {
+function buildFilters(url, cols, userId) {
   const clauses = [];
   const args = [];
   const echo = {};
+
+  clauses.push('user_id = ?');
+  args.push(userId);
 
   addFilter('action', 'action');
   addFilter('entity', 'entity');
@@ -737,16 +747,17 @@ function inferSeverity(row) {
  * Counts
  * ───────────────────────────── */
 
-async function getActionCounts(db, cols) {
+async function getActionCounts(db, cols, userId) {
   if (!cols.has('action')) return {};
 
   const rows = await db.prepare(`
     SELECT action, COUNT(*) AS count
     FROM audit_log
+    WHERE user_id = ?
     GROUP BY action
     ORDER BY count DESC, action
     LIMIT 100
-  `).all();
+  `).bind(userId).all();
 
   const out = {};
 
@@ -757,7 +768,7 @@ async function getActionCounts(db, cols) {
   return out;
 }
 
-async function countCriticalEvents(db, cols) {
+async function countCriticalEvents(db, cols, userId) {
   if (!cols.has('action')) return 0;
 
   const severityClause = cols.has('severity')
@@ -767,13 +778,15 @@ async function countCriticalEvents(db, cols) {
   const row = await db.prepare(`
     SELECT COUNT(*) AS c
     FROM audit_log
-    WHERE ${severityClause}
+    WHERE user_id = ? AND (
+      ${severityClause}
       UPPER(action) LIKE '%PURGE%'
       OR UPPER(action) LIKE '%BLOCK%'
       OR UPPER(action) LIKE '%FAIL%'
       OR UPPER(action) LIKE '%CRISIS%'
       OR UPPER(action) LIKE '%REVERSE%'
-  `).first();
+    )
+  `).bind(userId).first();
 
   return Number(row?.c || 0);
 }

@@ -30,7 +30,7 @@
 *   - Otherwise expose an estimated 5% of outstanding and mark source as estimated_outstanding_5pct.
 */
 
-import { json } from '../_lib.js';
+import { json, getUserId } from '../_lib.js';
 
 const VERSION = 'v0.3.1';
 
@@ -54,13 +54,16 @@ export async function onRequest(context) {
     : (Array.isArray(path) ? path : [path]);
   const method = request.method;
 
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
   try {
     if (segments.length === 0 && method === 'GET') {
-      return await listCCAccounts(context);
+      return await listCCAccounts(context, userId);
     }
 
     if (segments.length === 2 && segments[1] === 'payoff-plan' && method === 'GET') {
-      return await getPayoffPlan(context, segments[0]);
+      return await getPayoffPlan(context, segments[0], userId);
     }
 
     return json({
@@ -79,22 +82,23 @@ export async function onRequest(context) {
   }
 }
 
-async function listCCAccounts(context) {
+async function listCCAccounts(context, userId) {
   const db = context.env.DB;
 
   const r = await db.prepare(
     `SELECT *
      FROM accounts
      WHERE kind = 'cc'
+       AND user_id = ?
        AND (deleted_at IS NULL OR deleted_at = '')
        AND (archived_at IS NULL OR archived_at = '')
        AND (status IS NULL OR status = '' OR status = 'active')
      ORDER BY display_order, name`
-  ).all();
+  ).bind(userId).all();
 
   const accounts = r.results || [];
   const enriched = await Promise.all(accounts.map(async account => {
-    const balanceResult = await computeCCBalance(db, account);
+    const balanceResult = await computeCCBalance(db, account, userId);
 
     return enrichCC(account, balanceResult);
   }));
@@ -132,18 +136,19 @@ async function listCCAccounts(context) {
   });
 }
 
-async function getPayoffPlan(context, accountId) {
+async function getPayoffPlan(context, accountId, userId) {
   const db = context.env.DB;
 
   const account = await db.prepare(
     `SELECT *
      FROM accounts
      WHERE id = ?
+       AND user_id = ?
        AND kind = 'cc'
        AND (deleted_at IS NULL OR deleted_at = '')
        AND (archived_at IS NULL OR archived_at = '')
        AND (status IS NULL OR status = '' OR status = 'active')`
-  ).bind(accountId).first();
+  ).bind(accountId, userId).first();
 
   if (!account) {
     return json({
@@ -153,7 +158,7 @@ async function getPayoffPlan(context, accountId) {
     }, 404);
   }
 
-  const balanceResult = await computeCCBalance(db, account);
+  const balanceResult = await computeCCBalance(db, account, userId);
   const enriched = enrichCC(account, balanceResult);
   const outstanding = Number(enriched.outstanding) || 0;
   const minPayment = Number(enriched.minimum_payment_amount) || 0;
@@ -188,14 +193,15 @@ async function getPayoffPlan(context, accountId) {
   });
 }
 
-async function computeCCBalance(db, account) {
+async function computeCCBalance(db, account, userId) {
   const r = await db.prepare(
     `SELECT id, type, amount, account_id, transfer_to_account_id,
             fee_amount, pra_amount, notes, reversed_by, reversed_at
      FROM transactions
      WHERE (account_id = ? OR transfer_to_account_id = ?)
+       AND user_id = ?
      ORDER BY date ASC, created_at ASC`
-  ).bind(account.id, account.id).all();
+  ).bind(account.id, account.id, userId).all();
 
   const rows = r.results || [];
   const activeRows = rows.filter(txn => !isReversalRow(txn));

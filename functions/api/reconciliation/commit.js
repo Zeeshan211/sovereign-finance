@@ -11,7 +11,11 @@
  *
  * All ledger writes go through POST /api/transactions (self-call).
  * Idempotency: re-running the same plan_id returns 0 new writes.
+ *
+ * Multi-tenancy: every SELECT/INSERT is scoped to the authenticated household.
  */
+
+import { householdOf } from '../_lib.js';
 
 const VERSION = 'reconciliation-v0.3';
 
@@ -43,6 +47,8 @@ export async function onRequestPost(context) {
     const db = context.env.DB;
     if (!db) return json(errBody('DB binding missing', 'DB_BINDING_MISSING'), 500);
 
+    const hh = householdOf(context);
+
     const body      = await readJson(context.request);
     const planId    = clean(body.plan_id);
     const idemKey   = clean(body.idempotency_key);
@@ -61,10 +67,14 @@ export async function onRequestPost(context) {
 
     await ensureExceptionsTable(db);
 
+    // Scope reconciliation_plans SELECT by household_id when column exists
+    const plansHhClause = await colExists(db, 'reconciliation_plans', 'household_id');
     const planRow = await db.prepare(
       `SELECT id, account_id, plan_json, committed_at
-       FROM reconciliation_plans WHERE id = ? LIMIT 1`
-    ).bind(planId).first().catch(() => null);
+       FROM reconciliation_plans
+       WHERE id = ?${plansHhClause ? ' AND household_id = ?' : ''}
+       LIMIT 1`
+    ).bind(...(plansHhClause ? [planId, hh] : [planId])).first().catch(() => null);
 
     if (!planRow) return json(errBody(`Plan not found: ${planId}`, 'PLAN_NOT_FOUND'), 404);
 
@@ -93,10 +103,13 @@ export async function onRequestPost(context) {
     const origin    = new URL(context.request.url).origin;
     const now       = nowSql();
 
-    const balanceBefore = await computeAppBalance(db, planRow.account_id);
+    const balanceBefore = await computeAppBalance(db, planRow.account_id, hh);
 
     const committedIds = [];
     const exceptionIds = [];
+
+    // Check household_id column existence once for exceptions table
+    const excHhClause = await colExists(db, 'reconciliation_exceptions', 'household_id');
 
     for (const item of planItems) {
       const cls = item.classification;
@@ -110,6 +123,7 @@ export async function onRequestPost(context) {
             id:           excId,
             plan_id:      planId,
             account_id:   planRow.account_id,
+            household_id: excHhClause ? hh : undefined,
             stmt_tx_id:   stmt?.id || null,
             ledger_tx_id: item.matched_ledger_id || null,
             type:         EXCEPTION_TYPE_MAP[cls],
@@ -164,6 +178,7 @@ export async function onRequestPost(context) {
           id:           excId,
           plan_id:      planId,
           account_id:   planRow.account_id,
+          household_id: excHhClause ? hh : undefined,
           stmt_tx_id:   stmt.id || null,
           ledger_tx_id: null,
           type:         'NO_STATEMENT_PROOF',
@@ -183,7 +198,7 @@ export async function onRequestPost(context) {
       `UPDATE reconciliation_plans SET committed_at = ? WHERE id = ?`
     ).bind(now, planId).run().catch(() => {});
 
-    const balanceAfter = await computeAppBalance(db, planRow.account_id);
+    const balanceAfter = await computeAppBalance(db, planRow.account_id, hh);
 
     return json({
       ok:                        true,
@@ -248,15 +263,25 @@ async function commitOneTransaction(origin, payload) {
 
 /* ─── Exceptions table ─── */
 
-async function writeException(db, { id, plan_id, account_id, stmt_tx_id, ledger_tx_id,
+async function writeException(db, { id, plan_id, account_id, household_id, stmt_tx_id, ledger_tx_id,
   type, severity, amount, description, reason, action, now }) {
-  await db.prepare(
-    `INSERT INTO reconciliation_exceptions
-       (id, plan_id, account_id, statement_transaction_id, ledger_transaction_id,
-        type, severity, amount, description, reason, recommended_action, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`
-  ).bind(id, plan_id, account_id, stmt_tx_id, ledger_tx_id,
-    type, severity, amount, description, reason, action, now).run();
+  if (household_id !== undefined) {
+    await db.prepare(
+      `INSERT INTO reconciliation_exceptions
+         (id, plan_id, account_id, household_id, statement_transaction_id, ledger_transaction_id,
+          type, severity, amount, description, reason, recommended_action, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`
+    ).bind(id, plan_id, account_id, household_id, stmt_tx_id, ledger_tx_id,
+      type, severity, amount, description, reason, action, now).run();
+  } else {
+    await db.prepare(
+      `INSERT INTO reconciliation_exceptions
+         (id, plan_id, account_id, statement_transaction_id, ledger_transaction_id,
+          type, severity, amount, description, reason, recommended_action, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`
+    ).bind(id, plan_id, account_id, stmt_tx_id, ledger_tx_id,
+      type, severity, amount, description, reason, action, now).run();
+  }
 }
 
 async function ensureExceptionsTable(db) {
@@ -265,6 +290,7 @@ async function ensureExceptionsTable(db) {
        id TEXT PRIMARY KEY,
        plan_id TEXT,
        account_id TEXT,
+       household_id TEXT,
        statement_transaction_id TEXT,
        ledger_transaction_id TEXT,
        type TEXT,
@@ -278,9 +304,10 @@ async function ensureExceptionsTable(db) {
        resolved_at TEXT,
        resolution_note TEXT
      )`,
-    `CREATE INDEX IF NOT EXISTS idx_recon_excp_status  ON reconciliation_exceptions(status)`,
-    `CREATE INDEX IF NOT EXISTS idx_recon_excp_account ON reconciliation_exceptions(account_id)`,
-    `CREATE INDEX IF NOT EXISTS idx_recon_excp_plan    ON reconciliation_exceptions(plan_id)`
+    `CREATE INDEX IF NOT EXISTS idx_recon_excp_status    ON reconciliation_exceptions(status)`,
+    `CREATE INDEX IF NOT EXISTS idx_recon_excp_account   ON reconciliation_exceptions(account_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_recon_excp_plan      ON reconciliation_exceptions(plan_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_recon_excp_household ON reconciliation_exceptions(household_id)`
   ];
   for (const sql of ddl) {
     try { await db.prepare(sql).run(); } catch (_) {}
@@ -289,13 +316,16 @@ async function ensureExceptionsTable(db) {
 
 /* ─── Balance helper ─── */
 
-async function computeAppBalance(db, accountId) {
+async function computeAppBalance(db, accountId, hh) {
   try {
     const POSITIVE = new Set(['income','salary','opening','borrow','debt_in','adjustment_positive']);
     const NEGATIVE = new Set(['expense','transfer','cc_spend','repay','atm','debt_out','cc_payment','adjustment_negative']);
+    const hhClause = await colExists(db, 'transactions', 'household_id');
     const res = await db.prepare(
-      `SELECT type, amount, reversed_by, reversed_at, notes FROM transactions WHERE account_id = ?`
-    ).bind(accountId).all();
+      `SELECT type, amount, reversed_by, reversed_at, notes
+       FROM transactions
+       WHERE account_id = ?${hhClause ? ' AND household_id = ?' : ''}`
+    ).bind(...(hhClause ? [accountId, hh] : [accountId])).all();
     let balance = 0;
     for (const tx of res.results || []) {
       if (tx.reversed_by || tx.reversed_at) continue;
@@ -308,6 +338,25 @@ async function computeAppBalance(db, accountId) {
     }
     return round2(balance);
   } catch (_) { return 0; }
+}
+
+/* ─── PRAGMA column-existence cache ─── */
+
+const _colCache = new Map();
+
+async function colExists(db, table, column) {
+  const key = `${table}.${column}`;
+  if (_colCache.has(key)) return _colCache.get(key);
+  try {
+    const rows = await db.prepare(`PRAGMA table_info(${table})`).all();
+    const cols = new Set((rows.results || []).map(r => r.name));
+    const result = cols.has(column);
+    _colCache.set(key, result);
+    return result;
+  } catch (_) {
+    _colCache.set(key, false);
+    return false;
+  }
 }
 
 /* ─── Generic helpers ─── */

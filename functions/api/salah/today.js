@@ -7,7 +7,7 @@
 // - Supports daily prayers + bonus prayers
 // - Does not touch Finance, ledger, transactions, bills, debts, salary, or monthly close
 
-import { json } from '../_lib.js';
+import { json, getUserId } from '../_lib.js';
 
 const VERSION = 'salah-today-api-v0.2.0';
 const TZ = 'Asia/Karachi';
@@ -45,8 +45,12 @@ const PRAYER_LABELS = {
   nafl: 'Nafl'
 };
 
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet(context) {
+  const { request, env } = context;
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, error: 'Unauthorized' }, 401);
+
     if (!env.DB) {
       return json({ ok: false, version: VERSION, error: 'D1 binding DB is missing' }, 500);
     }
@@ -58,13 +62,13 @@ export async function onRequestGet({ request, env }) {
     const daily = await env.DB.prepare(
       `SELECT *
        FROM salah_daily_status
-       WHERE day = ?`
-    ).bind(day).first();
+       WHERE day = ? AND user_id = ?`
+    ).bind(day, userId).first();
 
     const entriesRes = await env.DB.prepare(
       `SELECT *
        FROM salah_prayer_entries
-       WHERE day = ?
+       WHERE day = ? AND user_id = ?
        ORDER BY
         CASE prayer_name
           WHEN 'fajr' THEN 1
@@ -81,7 +85,7 @@ export async function onRequestGet({ request, env }) {
           WHEN 'nafl' THEN 12
           ELSE 99
         END`
-    ).bind(day).all();
+    ).bind(day, userId).all();
 
     const prayerTimes = await env.DB.prepare(
       `SELECT *

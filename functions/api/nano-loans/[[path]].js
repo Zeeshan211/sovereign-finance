@@ -27,7 +27,7 @@
  * - POST /api/nano-loans/{id}/push-to-cc
  */
 
-import { audit } from '../_lib.js';
+import { audit, getUserId } from '../_lib.js';
 
 const VERSION = 'v0.2.0-nano-loans-liability-contract';
 const CONTRACT_VERSION = 'nano-loans-v1';
@@ -39,6 +39,9 @@ const POSITIVE_LEDGER_TYPE = 'borrow';
 const NEGATIVE_LEDGER_TYPE = 'repay';
 
 export async function onRequestGet(context) {
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
   try {
     const db = context.env.DB;
     const url = new URL(context.request.url);
@@ -46,7 +49,7 @@ export async function onRequestGet(context) {
     const action = cleanText(url.searchParams.get('action'), '', 80).toLowerCase();
 
     if (action === 'health' || path[0] === 'health') {
-      return nanoLoansHealth(db);
+      return nanoLoansHealth(db, userId);
     }
 
     const [accountCols, txCols, loanCols] = await Promise.all([
@@ -56,9 +59,9 @@ export async function onRequestGet(context) {
     ]);
 
     const [loans, accounts, ccAccounts] = await Promise.all([
-      loadLoans(db, loanCols),
-      loadAccounts(db, accountCols, false),
-      loadAccounts(db, accountCols, true)
+      loadLoans(db, loanCols, userId),
+      loadAccounts(db, accountCols, false, userId),
+      loadAccounts(db, accountCols, true, userId)
     ]);
 
     const sourceAccounts = accounts.filter(account => {
@@ -127,6 +130,9 @@ export async function onRequestGet(context) {
 }
 
 export async function onRequestPost(context) {
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
   try {
     const path = getPath(context);
     const body = await readJSON(context.request);
@@ -135,19 +141,19 @@ export async function onRequestPost(context) {
     const action = cleanText(path[1] || body.action || '', '', 80).toLowerCase();
 
     if (!loanId && !action) {
-      return createNanoLoan(context, body);
+      return createNanoLoan(context, body, userId);
     }
 
     if (!loanId && ['create', 'origin', 'loan_create'].includes(action)) {
-      return createNanoLoan(context, body);
+      return createNanoLoan(context, body, userId);
     }
 
     if (loanId && ['repay', 'payment', 'loan_repay'].includes(action)) {
-      return repayNanoLoan(context, loanId, body);
+      return repayNanoLoan(context, loanId, body, userId);
     }
 
     if (loanId && ['push-to-cc', 'push_to_cc', 'cc'].includes(action)) {
-      return pushNanoLoanToCC(context, loanId, body);
+      return pushNanoLoanToCC(context, loanId, body, userId);
     }
 
     return json({
@@ -175,7 +181,7 @@ export async function onRequestPost(context) {
   }
 }
 
-async function createNanoLoan(context, body) {
+async function createNanoLoan(context, body, userId) {
   const db = context.env.DB;
 
   const [accountCols, txCols, loanCols] = await Promise.all([
@@ -258,7 +264,7 @@ async function createNanoLoan(context, body) {
     }, 400);
   }
 
-  const source = await loadAccount(db, accountCols, sourceAccountId, false);
+  const source = await loadAccount(db, accountCols, sourceAccountId, false, userId);
   if (!source) {
     return json({
       ok: false,
@@ -286,8 +292,8 @@ async function createNanoLoan(context, body) {
 
   if (idempotencyKey && txCols.has('idempotency_key')) {
     const existing = await db.prepare(
-      `SELECT id FROM transactions WHERE idempotency_key = ? LIMIT 1`
-    ).bind(`${idempotencyKey}:origin`).first();
+      `SELECT id FROM transactions WHERE idempotency_key = ? AND user_id = ? LIMIT 1`
+    ).bind(`${idempotencyKey}:origin`, userId).first();
 
     if (existing && existing.id) {
       return json({
@@ -335,6 +341,7 @@ async function createNanoLoan(context, body) {
     created_at: createdAt,
     updated_at: createdAt
   });
+  txnRow.user_id = userId;
 
   const loanRow = filterToCols(loanCols, {
     id: loanId,
@@ -359,6 +366,7 @@ async function createNanoLoan(context, body) {
     created_at: createdAt,
     updated_at: createdAt
   });
+  loanRow.user_id = userId;
 
   await db.batch([
     buildInsert(db, 'transactions', txnRow),
@@ -384,7 +392,8 @@ async function createNanoLoan(context, body) {
       date,
       principal_received_is_income: false
     },
-    created_by: createdBy
+    created_by: createdBy,
+    user_id: userId
   });
 
   return json({
@@ -424,7 +433,7 @@ async function createNanoLoan(context, body) {
   });
 }
 
-async function repayNanoLoan(context, loanId, body) {
+async function repayNanoLoan(context, loanId, body, userId) {
   const db = context.env.DB;
 
   const [accountCols, txCols, loanCols] = await Promise.all([
@@ -446,7 +455,7 @@ async function repayNanoLoan(context, loanId, body) {
     }, 500);
   }
 
-  const loan = await loadLoan(db, loanCols, loanId);
+  const loan = await loadLoan(db, loanCols, loanId, userId);
 
   if (!loan) {
     return json({
@@ -511,7 +520,7 @@ async function repayNanoLoan(context, loanId, body) {
     }, 400);
   }
 
-  const account = await loadAccount(db, accountCols, accountId, false);
+  const account = await loadAccount(db, accountCols, accountId, false, userId);
   if (!account) {
     return json({
       ok: false,
@@ -539,8 +548,8 @@ async function repayNanoLoan(context, loanId, body) {
 
   if (idempotencyKey && txCols.has('idempotency_key')) {
     const existing = await db.prepare(
-      `SELECT id FROM transactions WHERE idempotency_key = ? LIMIT 1`
-    ).bind(`${idempotencyKey}:repay`).first();
+      `SELECT id FROM transactions WHERE idempotency_key = ? AND user_id = ? LIMIT 1`
+    ).bind(`${idempotencyKey}:repay`, userId).first();
 
     if (existing && existing.id) {
       return json({
@@ -592,8 +601,9 @@ async function repayNanoLoan(context, loanId, body) {
     created_at: createdAt,
     updated_at: createdAt
   });
+  txnRow.user_id = userId;
 
-  const update = buildNanoLoanUpdate(db, loanCols, loan.id, {
+  const update = buildNanoLoanUpdate(db, loanCols, loan.id, userId, {
     repaid_amount: newRepaid,
     repay_txn_id: repayTxnId,
     status: nextStatus,
@@ -624,7 +634,8 @@ async function repayNanoLoan(context, loanId, body) {
       status: nextStatus,
       date
     },
-    created_by: createdBy
+    created_by: createdBy,
+    user_id: userId
   });
 
   return json({
@@ -664,10 +675,10 @@ async function repayNanoLoan(context, loanId, body) {
   });
 }
 
-async function pushNanoLoanToCC(context, loanId, body) {
+async function pushNanoLoanToCC(context, loanId, body, userId) {
   const db = context.env.DB;
   const loanCols = await tableColumns(db, 'nano_loans');
-  const loan = await loadLoan(db, loanCols, loanId);
+  const loan = await loadLoan(db, loanCols, loanId, userId);
 
   return json({
     ok: false,
@@ -683,7 +694,7 @@ async function pushNanoLoanToCC(context, loanId, body) {
   }, 409);
 }
 
-async function nanoLoansHealth(db) {
+async function nanoLoansHealth(db, userId) {
   const [loanCols, txCols, accountCols] = await Promise.all([
     tableColumns(db, 'nano_loans'),
     tableColumns(db, 'transactions'),
@@ -713,9 +724,9 @@ async function nanoLoansHealth(db) {
   }
 
   const [loans, txRows, accounts] = await Promise.all([
-    loadLoans(db, loanCols),
-    loadNanoTransactions(db, txCols),
-    loadAccounts(db, accountCols, true)
+    loadLoans(db, loanCols, userId),
+    loadNanoTransactions(db, txCols, userId),
+    loadAccounts(db, accountCols, true, userId)
   ]);
 
   const txById = new Map(txRows.map(row => [String(row.id), row]));
@@ -909,7 +920,7 @@ async function nanoLoansHealth(db) {
   });
 }
 
-async function loadLoans(db, loanCols) {
+async function loadLoans(db, loanCols, userId) {
   if (!loanCols.has('id')) return [];
 
   const wanted = [
@@ -939,17 +950,18 @@ async function loadLoans(db, loanCols) {
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM nano_loans
+     WHERE user_id = ?
      ORDER BY
        CASE ${loanCols.has('status') ? 'status' : "''"} WHEN 'active' THEN 0 WHEN 'defaulted' THEN 1 ELSE 2 END,
        ${loanCols.has('date') ? 'date DESC,' : ''}
        ${loanCols.has('created_at') ? 'datetime(created_at) DESC,' : ''}
        id DESC`
-  ).all();
+  ).bind(userId).all();
 
   return (result.results || []).map(normalizeLoan);
 }
 
-async function loadLoan(db, loanCols, id) {
+async function loadLoan(db, loanCols, id, userId) {
   if (!loanCols.has('id')) return null;
 
   const wanted = [
@@ -979,14 +991,14 @@ async function loadLoan(db, loanCols, id) {
   const row = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM nano_loans
-     WHERE id = ?
+     WHERE id = ? AND user_id = ?
      LIMIT 1`
-  ).bind(id).first();
+  ).bind(id, userId).first();
 
   return row ? normalizeLoan(row) : null;
 }
 
-async function loadNanoTransactions(db, txCols) {
+async function loadNanoTransactions(db, txCols, userId) {
   if (!txCols.has('id')) return [];
 
   const wanted = [
@@ -1025,15 +1037,15 @@ async function loadNanoTransactions(db, txCols) {
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM transactions
-     WHERE ${predicates.join(' OR ')}
+     WHERE user_id = ? AND (${predicates.join(' OR ')})
      ORDER BY ${txCols.has('date') ? 'date DESC,' : ''} ${txCols.has('created_at') ? 'datetime(created_at) DESC,' : ''} id DESC
      LIMIT 1000`
-  ).all();
+  ).bind(userId).all();
 
   return result.results || [];
 }
 
-async function loadAccounts(db, accountCols, includeLiabilities) {
+async function loadAccounts(db, accountCols, includeLiabilities, userId) {
   if (!accountCols.has('id')) return [];
 
   const wanted = [
@@ -1053,9 +1065,10 @@ async function loadAccounts(db, accountCols, includeLiabilities) {
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM accounts
-     ${where ? 'WHERE ' + where : ''}
+     WHERE user_id = ?
+     ${where ? 'AND ' + where : ''}
      ORDER BY ${accountCols.has('display_order') ? 'display_order, ' : ''} ${accountCols.has('name') ? 'name, ' : ''} id`
-  ).all();
+  ).bind(userId).all();
 
   return (result.results || [])
     .filter(row => includeLiabilities || String(row.type || '').toLowerCase() === 'asset')
@@ -1069,7 +1082,7 @@ async function loadAccounts(db, accountCols, includeLiabilities) {
     }));
 }
 
-async function loadAccount(db, accountCols, id, allowLiability) {
+async function loadAccount(db, accountCols, id, allowLiability, userId) {
   if (!accountCols.has('id')) return null;
 
   const wanted = [
@@ -1088,10 +1101,10 @@ async function loadAccount(db, accountCols, id, allowLiability) {
   const row = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM accounts
-     WHERE id = ?
+     WHERE id = ? AND user_id = ?
      ${where ? 'AND ' + where : ''}
      LIMIT 1`
-  ).bind(id).first();
+  ).bind(id, userId).first();
 
   if (!row) return null;
   if (!allowLiability && String(row.type || '').toLowerCase() !== 'asset') return null;
@@ -1190,7 +1203,7 @@ function validateRepaySchema(txCols, loanCols) {
   return '';
 }
 
-function buildNanoLoanUpdate(db, loanCols, id, values) {
+function buildNanoLoanUpdate(db, loanCols, id, userId, values) {
   const entries = Object.entries(values).filter(([key]) => loanCols.has(key));
 
   if (!entries.length) {
@@ -1203,8 +1216,8 @@ function buildNanoLoanUpdate(db, loanCols, id, values) {
   return db.prepare(
     `UPDATE nano_loans
      SET ${setSql}
-     WHERE id = ?`
-  ).bind(...bindValues, id);
+     WHERE id = ? AND user_id = ?`
+  ).bind(...bindValues, id, userId);
 }
 
 async function tableColumns(db, table) {

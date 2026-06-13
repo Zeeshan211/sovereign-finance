@@ -12,10 +12,15 @@
  * - Reversal rows and reversed originals are excluded.
  */
 
+import { getUserId } from '../_lib.js';
+
 const VERSION = 'v0.3.1-accounts-number-closed';
 
 export async function onRequestGet(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = requireDb(context.env);
 
     const [accountCols, txCols] = await Promise.all([
@@ -31,9 +36,9 @@ export async function onRequestGet(context) {
       }, 500);
     }
 
-    const accounts = await loadAccounts(db, accountCols);
+    const accounts = await loadAccounts(db, accountCols, userId);
     const balanceMap = txCols.has('account_id')
-      ? await computeTransactionBalances(db, txCols)
+      ? await computeTransactionBalances(db, txCols, userId)
       : new Map();
 
     const rows = [];
@@ -139,6 +144,9 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = requireDb(context.env);
     const url = new URL(context.request.url);
     const pathParts = (context.params && context.params.path
@@ -167,8 +175,8 @@ export async function onRequestPost(context) {
 
     const slug = makeAccountSlug(name);
     const existing = await db.prepare(
-      `SELECT id FROM accounts WHERE id = ? LIMIT 1`
-    ).bind(slug).first();
+      `SELECT id FROM accounts WHERE id = ? AND user_id = ? LIMIT 1`
+    ).bind(slug, userId).first();
 
     const id = existing ? slug + '_' + randomSuffix() : slug;
 
@@ -198,14 +206,16 @@ export async function onRequestPost(context) {
       created_at:         now
     });
 
+    row.user_id = userId;
+
     const keys = Object.keys(row);
     await db.prepare(
       `INSERT INTO accounts (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`
     ).bind(...keys.map(k => row[k])).run();
 
     const created = await db.prepare(
-      `SELECT * FROM accounts WHERE id = ? LIMIT 1`
-    ).bind(id).first();
+      `SELECT * FROM accounts WHERE id = ? AND user_id = ? LIMIT 1`
+    ).bind(id, userId).first();
 
     return json({ ok: true, version: VERSION, account: created }, 201);
   } catch (err) {
@@ -215,6 +225,9 @@ export async function onRequestPost(context) {
 
 export async function onRequestPatch(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = requireDb(context.env);
     const pathParts = (context.params && context.params.path
       ? (Array.isArray(context.params.path) ? context.params.path : [context.params.path])
@@ -227,8 +240,8 @@ export async function onRequestPatch(context) {
     }
 
     const existing = await db.prepare(
-      `SELECT * FROM accounts WHERE id = ? LIMIT 1`
-    ).bind(accountId).first();
+      `SELECT * FROM accounts WHERE id = ? AND user_id = ? LIMIT 1`
+    ).bind(accountId, userId).first();
 
     if (!existing) {
       return json({ ok: false, version: VERSION, error: 'Account not found' }, 404);
@@ -261,12 +274,12 @@ export async function onRequestPatch(context) {
 
     const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ');
     await db.prepare(
-      `UPDATE accounts SET ${setClauses} WHERE id = ?`
-    ).bind(...Object.values(updates), accountId).run();
+      `UPDATE accounts SET ${setClauses} WHERE id = ? AND user_id = ?`
+    ).bind(...Object.values(updates), accountId, userId).run();
 
     const updated = await db.prepare(
-      `SELECT * FROM accounts WHERE id = ? LIMIT 1`
-    ).bind(accountId).first();
+      `SELECT * FROM accounts WHERE id = ? AND user_id = ? LIMIT 1`
+    ).bind(accountId, userId).first();
 
     return json({ ok: true, version: VERSION, account: updated });
   } catch (err) {
@@ -276,6 +289,9 @@ export async function onRequestPatch(context) {
 
 export async function onRequestDelete(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = requireDb(context.env);
     const pathParts = (context.params && context.params.path
       ? (Array.isArray(context.params.path) ? context.params.path : [context.params.path])
@@ -288,8 +304,8 @@ export async function onRequestDelete(context) {
     }
 
     const existing = await db.prepare(
-      `SELECT id, name, status FROM accounts WHERE id = ? LIMIT 1`
-    ).bind(accountId).first();
+      `SELECT id, name, status FROM accounts WHERE id = ? AND user_id = ? LIMIT 1`
+    ).bind(accountId, userId).first();
 
     if (!existing) {
       return json({ ok: false, version: VERSION, error: 'Account not found' }, 404);
@@ -298,8 +314,8 @@ export async function onRequestDelete(context) {
     const now = new Date().toISOString();
 
     await db.prepare(
-      `UPDATE accounts SET deleted_at = ?, status = 'deleted' WHERE id = ?`
-    ).bind(now, accountId).run();
+      `UPDATE accounts SET deleted_at = ?, status = 'deleted' WHERE id = ? AND user_id = ?`
+    ).bind(now, accountId, userId).run();
 
     return json({
       ok: true,
@@ -314,7 +330,7 @@ export async function onRequestDelete(context) {
   }
 }
 
-async function loadAccounts(db, cols) {
+async function loadAccounts(db, cols, userId) {
   const wanted = [
     'id',
     'name',
@@ -342,8 +358,9 @@ async function loadAccounts(db, cols) {
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
        FROM accounts
+      WHERE user_id = ?
       ORDER BY ${orderBy}`
-  ).all();
+  ).bind(userId).all();
 
   return (result.results || []).map(row => {
     const classified = classifyAccount(row);
@@ -370,7 +387,7 @@ async function loadAccounts(db, cols) {
   });
 }
 
-async function computeTransactionBalances(db, txCols) {
+async function computeTransactionBalances(db, txCols, userId) {
   const map = new Map();
 
   if (!txCols.has('account_id')) return map;
@@ -386,10 +403,11 @@ async function computeTransactionBalances(db, txCols) {
       SUM(CASE WHEN ${inactiveExpr} THEN 0 ELSE 1 END) AS included_transaction_count,
       ROUND(SUM(CASE WHEN ${inactiveExpr} THEN 0 ELSE ${signedExpr} END), 2) AS balance
     FROM transactions
-    WHERE account_id IS NOT NULL
+    WHERE user_id = ?
+      AND account_id IS NOT NULL
       AND TRIM(COALESCE(account_id, '')) != ''
     GROUP BY TRIM(account_id)
-  `).all();
+  `).bind(userId).all();
 
   for (const row of result.results || []) {
     addBalanceBucket(map, row.account_id, {

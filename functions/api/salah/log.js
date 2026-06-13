@@ -13,7 +13,7 @@
 // - Reads/writes only salah_* tables
 // - Does not touch Finance, ledger, transactions, bills, debts, salary, monthly close
 
-import { json } from '../_lib.js';
+import { json, getUserId } from '../_lib.js';
 
 const VERSION = 'salah-log-api-v0.3.0';
 const TZ = 'Asia/Karachi';
@@ -66,8 +66,12 @@ const BONUS_CODE_MAP = {
   J: { raw: 'Jamaat', normalized: 'J', label: 'Jamaat', score: 0, location: 'jamaat', bonus_done: true }
 };
 
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost(context) {
+  const { request, env } = context;
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, error: 'Unauthorized' }, 401);
+
     if (!env.DB) {
       return json({ ok: false, version: VERSION, error: 'D1 binding DB is missing' }, 500);
     }
@@ -99,7 +103,7 @@ export async function onRequestPost({ request, env }) {
     const isLogged = isFard ? code !== 'NO' : Boolean(meta.bonus_done);
     const scoreValue = isFard ? meta.score : 0;
 
-    await ensureDailyRow(env.DB, day, stamp);
+    await ensureDailyRow(env.DB, day, stamp, userId);
 
     await env.DB.prepare(
       `INSERT OR REPLACE INTO salah_prayer_entries (
@@ -130,8 +134,9 @@ export async function onRequestPost({ request, env }) {
         source_checksum,
         export_batch_id,
         exported_at,
-        updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, 'salah_page', '🕌 Salah', ?, NULL, NULL, ?, ?, ?, datetime('now'))`
+        updated_at,
+        user_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, 'salah_page', '🕌 Salah', ?, NULL, NULL, ?, ?, ?, datetime('now'), ?)`
     ).bind(
       id,
       day,
@@ -153,10 +158,11 @@ export async function onRequestPost({ request, env }) {
       VERSION,
       `page_log_${day}_${prayer}_${code}`,
       `salah_page_log_${day}`,
-      stamp
+      stamp,
+      userId
     ).run();
 
-    await recalcDaily(env.DB, day, stamp);
+    await recalcDaily(env.DB, day, stamp, userId);
 
     return json({
       ok: true,
@@ -182,10 +188,10 @@ export async function onRequestOptions() {
   return json({ ok: true, version: VERSION });
 }
 
-async function ensureDailyRow(db, day, stamp) {
+async function ensureDailyRow(db, day, stamp, userId) {
   const existing = await db.prepare(
-    `SELECT day FROM salah_daily_status WHERE day = ?`
-  ).bind(day).first();
+    `SELECT day FROM salah_daily_status WHERE day = ? AND user_id = ?`
+  ).bind(day, userId).first();
 
   if (existing) return;
 
@@ -210,18 +216,20 @@ async function ensureDailyRow(db, day, stamp) {
       source_layout,
       export_batch_id,
       exported_at,
-      updated_at
-    ) VALUES (?, ?, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 'salah_page', '🕌 Salah', ?, 'today_live', ?, ?, datetime('now'))`
+      updated_at,
+      user_id
+    ) VALUES (?, ?, 0, NULL, 0, 0, 0, 0, 0, 0, 0, 'salah_page', '🕌 Salah', ?, 'today_live', ?, ?, datetime('now'), ?)`
   ).bind(
     day,
     dayOfMonth,
     VERSION,
     `salah_page_log_${day}`,
-    stamp
+    stamp,
+    userId
   ).run();
 }
 
-async function recalcDaily(db, day, stamp) {
+async function recalcDaily(db, day, stamp, userId) {
   const res = await db.prepare(
     `SELECT
       prayer_name,
@@ -237,8 +245,8 @@ async function recalcDaily(db, day, stamp) {
       is_qaza,
       has_valid_udhr
     FROM salah_prayer_entries
-    WHERE day = ?`
-  ).bind(day).all();
+    WHERE day = ? AND user_id = ?`
+  ).bind(day, userId).all();
 
   const rows = res.results || [];
   const byPrayer = new Map(rows.map(row => [row.prayer_name, row]));
@@ -289,7 +297,7 @@ async function recalcDaily(db, day, stamp) {
       export_batch_id = ?,
       exported_at = ?,
       updated_at = datetime('now')
-    WHERE day = ?`
+    WHERE day = ? AND user_id = ?`
   ).bind(
     getPrayerValue(byPrayer, 'fajr', 'raw_code'),
     getPrayerValue(byPrayer, 'dhuhr', 'raw_code'),
@@ -316,7 +324,8 @@ async function recalcDaily(db, day, stamp) {
     VERSION,
     `salah_page_log_${day}`,
     stamp,
-    day
+    day,
+    userId
   ).run();
 }
 

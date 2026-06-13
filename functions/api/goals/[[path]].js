@@ -11,27 +11,30 @@
  *     destination. Math works. Semantic improvement for next session.
  */
 
-import { json, audit, snapshot, uuid } from '../_lib.js';
+import { json, audit, snapshot, uuid, getUserId } from '../_lib.js';
 
 const ALLOWED_STATUS = ['active', 'completed', 'paused', 'archived'];
 
 export async function onRequestGet(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = context.env.DB;
     const path = context.params.path || [];
 
     if (path.length === 1) {
       const id = path[0];
       const goal = await db.prepare(
-        "SELECT * FROM goals WHERE id = ?"
-      ).bind(id).first();
+        "SELECT * FROM goals WHERE id = ? AND user_id = ?"
+      ).bind(id, userId).first();
       if (!goal) return json({ ok: false, error: 'Goal not found' }, 404);
       return json({ ok: true, goal: enrichGoal(goal) });
     }
 
     const goals = await db.prepare(
-      "SELECT * FROM goals WHERE status != 'archived' OR status IS NULL ORDER BY display_order, deadline"
-    ).all();
+      "SELECT * FROM goals WHERE (status != 'archived' OR status IS NULL) AND user_id = ? ORDER BY display_order, deadline"
+    ).bind(userId).all();
     return json({ ok: true, goals: (goals.results || []).map(enrichGoal) });
   } catch (err) {
     return json({ ok: false, error: err.message }, 500);
@@ -53,12 +56,15 @@ function enrichGoal(g) {
 
 export async function onRequestPost(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = context.env.DB;
     const path = context.params.path || [];
 
     // POST /api/goals/{id}/contribute
     if (path.length === 2 && path[1] === 'contribute') {
-      return await contributeGoal(context, path[0]);
+      return await contributeGoal(context, path[0], userId);
     }
 
     // POST /api/goals → create
@@ -71,14 +77,15 @@ export async function onRequestPost(context) {
       const id = body.id || ('GOAL-' + uuid());
 
       await db.prepare(
-        "INSERT INTO goals (id, name, target_amount, current_amount, deadline, source_account_id, status, display_order, notes) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)"
+        "INSERT INTO goals (id, name, target_amount, current_amount, deadline, source_account_id, status, display_order, notes, user_id) VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)"
       ).bind(
         id, body.name, body.target_amount,
         body.current_amount || 0,
         body.deadline || null,
         body.source_account_id || null,
         body.display_order || 0,
-        body.notes || null
+        body.notes || null,
+        userId
       ).run();
 
       await audit(context.env, {
@@ -87,7 +94,8 @@ export async function onRequestPost(context) {
         entity_id: id,
         kind: 'mutation',
         detail: JSON.stringify(body),
-        created_by: body.created_by || 'web-goal-create'
+        created_by: body.created_by || 'web-goal-create',
+        user_id: userId
       });
 
       return json({ ok: true, id });
@@ -101,13 +109,16 @@ export async function onRequestPost(context) {
 
 export async function onRequestPut(context) {
   try {
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
     const db = context.env.DB;
     const path = context.params.path || [];
     if (path.length !== 1) return json({ ok: false, error: 'Path requires goal id' }, 400);
 
     const id = path[0];
     const body = await context.request.json();
-    const existing = await db.prepare("SELECT * FROM goals WHERE id = ?").bind(id).first();
+    const existing = await db.prepare("SELECT * FROM goals WHERE id = ? AND user_id = ?").bind(id, userId).first();
     if (!existing) return json({ ok: false, error: 'Goal not found' }, 404);
 
     if (body.status && !ALLOWED_STATUS.includes(body.status)) {
@@ -115,7 +126,7 @@ export async function onRequestPut(context) {
     }
 
     // Snapshot before mutation (correct signature)
-    await snapshot(context.env, 'pre-goal-edit-' + id + '-' + Date.now(), body.created_by || 'web-goal-edit');
+    await snapshot(context.env, 'pre-goal-edit-' + id + '-' + Date.now(), body.created_by || 'web-goal-edit', userId);
 
     const updates = [];
     const values = [];

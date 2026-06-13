@@ -20,6 +20,8 @@
  * - daily_trend
  */
 
+import { getUserId } from '../_lib.js';
+
 const VERSION = 'v0.3.0';
 
 const INCOME_TYPES = new Set(['income', 'borrow', 'salary']);
@@ -35,6 +37,9 @@ const DEBT_BURDEN_RISK = 2;
 const CASH_CONCENTRATION_WATCH = 0.8;
 
 export async function onRequest(context) {
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, error: 'Unauthorized' }, 401);
+
   const { env, request } = context;
   const url = new URL(request.url);
   const days = clampInt(url.searchParams.get('days'), 30, 1, 365);
@@ -49,19 +54,19 @@ export async function onRequest(context) {
         `SELECT id, date, type, amount, account_id, category_id, notes,
           reversed_by, reversed_at, linked_txn_id, created_at
          FROM transactions
-         WHERE date >= ?
+         WHERE date >= ? AND user_id = ?
          ORDER BY date ASC, datetime(created_at) ASC, id ASC`
-      ).bind(since).all(),
+      ).bind(since, userId).all(),
       env.DB.prepare(
         `SELECT id, name, icon, kind, type, status, opening_balance
          FROM accounts
-         WHERE status = 'active' OR status IS NULL
+         WHERE (status = 'active' OR status IS NULL) AND user_id = ?
          ORDER BY display_order, name`
-      ).all(),
-      safeAll(env.DB, `SELECT id, name, icon FROM categories`),
-      safeAll(env.DB, `SELECT * FROM debts`),
-      safeAll(env.DB, `SELECT * FROM bills`),
-      safeAll(env.DB, `SELECT * FROM reconciliation ORDER BY declared_at DESC`)
+      ).bind(userId).all(),
+      safeAll(env.DB, `SELECT id, name, icon FROM categories WHERE user_id = ?`, [userId]),
+      safeAll(env.DB, `SELECT * FROM debts WHERE user_id = ?`, [userId]),
+      safeAll(env.DB, `SELECT * FROM bills WHERE user_id = ?`, [userId]),
+      safeAll(env.DB, `SELECT * FROM reconciliation WHERE user_id = ? ORDER BY declared_at DESC`, [userId])
     ]);
 
     const accountRows = accountResult.results || [];
@@ -910,9 +915,10 @@ function toCategoryMap(rows) {
   return map;
 }
 
-async function safeAll(db, sql) {
+async function safeAll(db, sql, params = []) {
   try {
-    return await db.prepare(sql).all();
+    const stmt = db.prepare(sql);
+    return await (params.length ? stmt.bind(...params) : stmt).all();
   } catch (err) {
     return { results: [], error: err.message };
   }

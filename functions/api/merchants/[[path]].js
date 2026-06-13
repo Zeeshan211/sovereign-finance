@@ -1,5 +1,5 @@
 /* ─── /api/merchants/[[path]] · Sovereign Finance Merchants & Payees ───
- * v0.2.0-merchants-counterparty-contract
+ * v0.2.1-user-scoped
  *
  * Contract:
  * - Merchants are classification/rules only.
@@ -22,7 +22,9 @@
  * - DELETE /api/merchants/{id}
  */
 
-const VERSION = 'v0.2.0-merchants-counterparty-contract';
+import { getUserId } from '../_lib.js';
+
+const VERSION = 'v0.2.1-user-scoped';
 const CONTRACT_VERSION = 'merchants-v1';
 
 const SEED_COUNTERPARTIES = [
@@ -121,12 +123,14 @@ const SEED_COUNTERPARTIES = [
 export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, contract_version: CONTRACT_VERSION, error: 'Unauthorized', code: 'UNAUTHORIZED' }, 401);
     const url = new URL(context.request.url);
     const path = getPath(context);
     const action = cleanText(url.searchParams.get('action'), '', 80).toLowerCase();
 
     if (action === 'health' || path[0] === 'health') {
-      return merchantsHealth(db);
+      return merchantsHealth(db, userId);
     }
 
     const merchantId = cleanId(path[0] || '');
@@ -146,7 +150,7 @@ export async function onRequestGet(context) {
     }
 
     if (merchantId) {
-      const merchant = await loadMerchant(db, merchantCols, merchantId);
+      const merchant = await loadMerchant(db, merchantCols, merchantId, userId);
 
       if (!merchant) {
         return json({
@@ -167,7 +171,7 @@ export async function onRequestGet(context) {
       });
     }
 
-    const merchants = await loadMerchants(db, merchantCols);
+    const merchants = await loadMerchants(db, merchantCols, userId);
     const enriched = merchants.map(enrichMerchant);
     const summary = summarizeMerchants(enriched);
 
@@ -223,25 +227,27 @@ export async function onRequestGet(context) {
 export async function onRequestPost(context) {
   try {
     const db = context.env.DB;
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, contract_version: CONTRACT_VERSION, error: 'Unauthorized', code: 'UNAUTHORIZED' }, 401);
     const path = getPath(context);
     const body = await readJSON(context.request);
     const actionOrId = cleanText(path[0] || body.action || '', '', 120).toLowerCase();
     const subAction = cleanText(path[1] || '', '', 80).toLowerCase();
 
     if (actionOrId === 'match' || cleanText(body.action || '', '', 80).toLowerCase() === 'match') {
-      return matchMerchantRoute(db, body);
+      return matchMerchantRoute(db, body, userId);
     }
 
     if (actionOrId === 'seed' || cleanText(body.action || '', '', 80).toLowerCase() === 'seed') {
-      return seedMerchantsRoute(db, body);
+      return seedMerchantsRoute(db, body, userId);
     }
 
     if (actionOrId && subAction === 'touch') {
-      return touchMerchantRoute(db, actionOrId, body);
+      return touchMerchantRoute(db, actionOrId, body, userId);
     }
 
     if (!path.length || actionOrId === 'create') {
-      return createMerchantRoute(db, body);
+      return createMerchantRoute(db, body, userId);
     }
 
     return json({
@@ -271,6 +277,8 @@ export async function onRequestPost(context) {
 export async function onRequestPut(context) {
   try {
     const db = context.env.DB;
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, contract_version: CONTRACT_VERSION, error: 'Unauthorized', code: 'UNAUTHORIZED' }, 401);
     const path = getPath(context);
     const id = cleanId(path[0] || '');
     const body = await readJSON(context.request);
@@ -285,7 +293,7 @@ export async function onRequestPut(context) {
       }, 400);
     }
 
-    return updateMerchantRoute(db, id, body);
+    return updateMerchantRoute(db, id, body, userId);
   } catch (err) {
     return json({
       ok: false,
@@ -300,6 +308,8 @@ export async function onRequestPut(context) {
 export async function onRequestDelete(context) {
   try {
     const db = context.env.DB;
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, contract_version: CONTRACT_VERSION, error: 'Unauthorized', code: 'UNAUTHORIZED' }, 401);
     const path = getPath(context);
     const id = cleanId(path[0] || '');
 
@@ -325,7 +335,7 @@ export async function onRequestDelete(context) {
       }, 500);
     }
 
-    const existing = await loadMerchant(db, merchantCols, id);
+    const existing = await loadMerchant(db, merchantCols, id, userId);
 
     if (!existing) {
       return json({
@@ -343,22 +353,22 @@ export async function onRequestDelete(context) {
     if (merchantCols.has('deleted_at')) {
       deleteMode = 'soft_delete';
       await db.prepare(
-        `UPDATE merchants SET deleted_at = ? WHERE id = ?`
-      ).bind(nowISO(), id).run();
+        `UPDATE merchants SET deleted_at = ? WHERE id = ? AND user_id = ?`
+      ).bind(nowISO(), id, userId).run();
     } else if (merchantCols.has('archived_at')) {
       deleteMode = 'archive';
       await db.prepare(
-        `UPDATE merchants SET archived_at = ? WHERE id = ?`
-      ).bind(nowISO(), id).run();
+        `UPDATE merchants SET archived_at = ? WHERE id = ? AND user_id = ?`
+      ).bind(nowISO(), id, userId).run();
     } else if (merchantCols.has('status')) {
       deleteMode = 'status_archived';
       await db.prepare(
-        `UPDATE merchants SET status = ? WHERE id = ?`
-      ).bind('archived', id).run();
+        `UPDATE merchants SET status = ? WHERE id = ? AND user_id = ?`
+      ).bind('archived', id, userId).run();
     } else {
       await db.prepare(
-        `DELETE FROM merchants WHERE id = ?`
-      ).bind(id).run();
+        `DELETE FROM merchants WHERE id = ? AND user_id = ?`
+      ).bind(id, userId).run();
     }
 
     return json({
@@ -381,7 +391,7 @@ export async function onRequestDelete(context) {
   }
 }
 
-async function createMerchantRoute(db, body) {
+async function createMerchantRoute(db, body, userId) {
   const [merchantCols, categoryCols, accountCols] = await Promise.all([
     tableColumns(db, 'merchants'),
     tableColumns(db, 'categories'),
@@ -398,7 +408,7 @@ async function createMerchantRoute(db, body) {
     }, 500);
   }
 
-  const prepared = await prepareMerchantInput(db, merchantCols, categoryCols, accountCols, body, null);
+  const prepared = await prepareMerchantInput(db, merchantCols, categoryCols, accountCols, body, null, false, userId);
 
   if (!prepared.ok) {
     return json({
@@ -429,7 +439,7 @@ async function createMerchantRoute(db, body) {
   });
 }
 
-async function updateMerchantRoute(db, id, body) {
+async function updateMerchantRoute(db, id, body, userId) {
   const [merchantCols, categoryCols, accountCols] = await Promise.all([
     tableColumns(db, 'merchants'),
     tableColumns(db, 'categories'),
@@ -446,7 +456,7 @@ async function updateMerchantRoute(db, id, body) {
     }, 500);
   }
 
-  const existing = await loadMerchant(db, merchantCols, id);
+  const existing = await loadMerchant(db, merchantCols, id, userId);
 
   if (!existing) {
     return json({
@@ -461,7 +471,7 @@ async function updateMerchantRoute(db, id, body) {
     }, 404);
   }
 
-  const prepared = await prepareMerchantInput(db, merchantCols, categoryCols, accountCols, body, id);
+  const prepared = await prepareMerchantInput(db, merchantCols, categoryCols, accountCols, body, id, false, userId);
 
   if (!prepared.ok) {
     return json({
@@ -494,10 +504,10 @@ async function updateMerchantRoute(db, id, body) {
   const values = entries.map(([, value]) => value);
 
   await db.prepare(
-    `UPDATE merchants SET ${setSql} WHERE id = ?`
-  ).bind(...values, id).run();
+    `UPDATE merchants SET ${setSql} WHERE id = ? AND user_id = ?`
+  ).bind(...values, id, userId).run();
 
-  const updated = await loadMerchant(db, merchantCols, id);
+  const updated = await loadMerchant(db, merchantCols, id, userId);
 
   return json({
     ok: true,
@@ -510,7 +520,7 @@ async function updateMerchantRoute(db, id, body) {
   });
 }
 
-async function touchMerchantRoute(db, id, body) {
+async function touchMerchantRoute(db, id, body, userId) {
   const merchantCols = await tableColumns(db, 'merchants');
 
   if (!merchantCols.has('id')) {
@@ -523,7 +533,7 @@ async function touchMerchantRoute(db, id, body) {
     }, 500);
   }
 
-  const merchant = await loadMerchant(db, merchantCols, id);
+  const merchant = await loadMerchant(db, merchantCols, id, userId);
 
   if (!merchant) {
     return json({
@@ -553,8 +563,8 @@ async function touchMerchantRoute(db, id, body) {
     values.push(id);
 
     await db.prepare(
-      `UPDATE merchants SET ${updates.join(', ')} WHERE id = ?`
-    ).bind(...values).run();
+      `UPDATE merchants SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`
+    ).bind(...values, userId).run();
   }
 
   return json({
@@ -571,7 +581,7 @@ async function touchMerchantRoute(db, id, body) {
   });
 }
 
-async function matchMerchantRoute(db, body) {
+async function matchMerchantRoute(db, body, userId) {
   const text = cleanText(body.text || body.description || body.merchant || body.notes || '', '', 500);
 
   if (!text) {
@@ -587,7 +597,7 @@ async function matchMerchantRoute(db, body) {
 
   const merchantCols = await tableColumns(db, 'merchants');
   const dbMerchants = merchantCols.has('id')
-    ? (await loadMerchants(db, merchantCols)).map(enrichMerchant)
+    ? (await loadMerchants(db, merchantCols, userId)).map(enrichMerchant)
     : [];
 
   const candidates = buildCandidates(dbMerchants);
@@ -616,7 +626,7 @@ async function matchMerchantRoute(db, body) {
   });
 }
 
-async function seedMerchantsRoute(db, body) {
+async function seedMerchantsRoute(db, body, userId) {
   const [merchantCols, categoryCols, accountCols] = await Promise.all([
     tableColumns(db, 'merchants'),
     tableColumns(db, 'categories'),
@@ -637,7 +647,7 @@ async function seedMerchantsRoute(db, body) {
 
   const mode = cleanText(body.mode || 'safe_missing_only', '', 80);
   const dryRun = body.dry_run !== false;
-  const existing = await loadMerchants(db, merchantCols);
+  const existing = await loadMerchants(db, merchantCols, userId);
   const existingIds = new Set(existing.map(row => String(row.id)));
   const existingNames = new Set(existing.map(row => normalizeText(row.name)));
 
@@ -653,7 +663,7 @@ async function seedMerchantsRoute(db, body) {
       default_category_id: item.default_category_id,
       default_account_id: item.default_account_id,
       is_pra_required: item.is_pra_required
-    }, null, true);
+    }, null, true, userId);
 
     if (prepared.ok) {
       toInsert.push({
@@ -697,7 +707,7 @@ async function seedMerchantsRoute(db, body) {
   });
 }
 
-async function merchantsHealth(db) {
+async function merchantsHealth(db, userId) {
   const [merchantCols, categoryCols, accountCols] = await Promise.all([
     tableColumns(db, 'merchants'),
     tableColumns(db, 'categories'),
@@ -725,9 +735,9 @@ async function merchantsHealth(db) {
   }
 
   const [merchants, categories, accounts] = await Promise.all([
-    loadMerchants(db, merchantCols),
-    loadCategories(db, categoryCols),
-    loadAccounts(db, accountCols)
+    loadMerchants(db, merchantCols, userId),
+    loadCategories(db, categoryCols, userId),
+    loadAccounts(db, accountCols, userId)
   ]);
 
   const categoryIds = new Set(categories.map(row => String(row.id)));
@@ -834,7 +844,7 @@ async function merchantsHealth(db) {
   });
 }
 
-async function prepareMerchantInput(db, merchantCols, categoryCols, accountCols, body, updatingId, seedMode) {
+async function prepareMerchantInput(db, merchantCols, categoryCols, accountCols, body, updatingId, seedMode, userId) {
   const name = cleanText(body.name || body.merchant_name || '', '', 160);
   const id = cleanId(body.id || name);
   const aliases = normalizeAliases(body.aliases);
@@ -861,7 +871,7 @@ async function prepareMerchantInput(db, merchantCols, categoryCols, accountCols,
     };
   }
 
-  const duplicate = await findDuplicateMerchant(db, merchantCols, id, name, updatingId);
+  const duplicate = await findDuplicateMerchant(db, merchantCols, id, name, updatingId, userId);
 
   if (duplicate) {
     return {
@@ -875,8 +885,8 @@ async function prepareMerchantInput(db, merchantCols, categoryCols, accountCols,
 
   if (defaultCategoryId && categoryCols.has('id')) {
     const cat = await db.prepare(
-      `SELECT id FROM categories WHERE id = ? LIMIT 1`
-    ).bind(defaultCategoryId).first();
+      `SELECT id FROM categories WHERE id = ? AND user_id = ? LIMIT 1`
+    ).bind(defaultCategoryId, userId).first();
 
     if (!cat && !seedMode) {
       return {
@@ -891,8 +901,8 @@ async function prepareMerchantInput(db, merchantCols, categoryCols, accountCols,
 
   if (defaultAccountId && accountCols.has('id')) {
     const acc = await db.prepare(
-      `SELECT id FROM accounts WHERE id = ? LIMIT 1`
-    ).bind(defaultAccountId).first();
+      `SELECT id FROM accounts WHERE id = ? AND user_id = ? LIMIT 1`
+    ).bind(defaultAccountId, userId).first();
 
     if (!acc && !seedMode) {
       return {
@@ -914,7 +924,8 @@ async function prepareMerchantInput(db, merchantCols, categoryCols, accountCols,
     is_pra_required: isPraRequired,
     learned_count: body.learned_count == null ? 0 : Math.max(0, Number(body.learned_count) || 0),
     created_at: now,
-    updated_at: now
+    updated_at: now,
+    user_id: userId || null
   };
 
   const row = filterToCols(merchantCols, rawRow);
@@ -931,12 +942,12 @@ async function prepareMerchantInput(db, merchantCols, categoryCols, accountCols,
   };
 }
 
-async function findDuplicateMerchant(db, merchantCols, id, name, updatingId) {
+async function findDuplicateMerchant(db, merchantCols, id, name, updatingId, userId) {
   if (!merchantCols.has('id') || !merchantCols.has('name')) return null;
 
   const rows = await db.prepare(
-    `SELECT id, name FROM merchants`
-  ).all();
+    `SELECT id, name FROM merchants WHERE user_id = ?`
+  ).bind(userId).all();
 
   const normalizedName = normalizeText(name);
 
@@ -963,7 +974,7 @@ async function findDuplicateMerchant(db, merchantCols, id, name, updatingId) {
   return null;
 }
 
-async function loadMerchant(db, cols, id) {
+async function loadMerchant(db, cols, id, userId) {
   if (!cols.has('id')) return null;
 
   const wanted = merchantSelectColumns(cols);
@@ -971,14 +982,14 @@ async function loadMerchant(db, cols, id) {
   const row = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM merchants
-     WHERE id = ?
+     WHERE id = ? AND user_id = ?
      LIMIT 1`
-  ).bind(id).first();
+  ).bind(id, userId).first();
 
   return row || null;
 }
 
-async function loadMerchants(db, cols) {
+async function loadMerchants(db, cols, userId) {
   if (!cols.has('id')) return [];
 
   const wanted = merchantSelectColumns(cols);
@@ -989,8 +1000,9 @@ async function loadMerchants(db, cols) {
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM merchants
+     WHERE user_id = ?
      ORDER BY ${orderBy}`
-  ).all();
+  ).bind(userId).all();
 
   return result.results || [];
 }
@@ -1012,7 +1024,7 @@ function merchantSelectColumns(cols) {
   ].filter(col => cols.has(col));
 }
 
-async function loadCategories(db, cols) {
+async function loadCategories(db, cols, userId) {
   if (!cols.has('id')) return [];
 
   const wanted = ['id', 'name', 'type'].filter(col => cols.has(col));
@@ -1020,24 +1032,26 @@ async function loadCategories(db, cols) {
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM categories
+     WHERE user_id = ?
      ORDER BY ${cols.has('name') ? 'name' : 'id'}`
-  ).all();
+  ).bind(userId).all();
 
   return result.results || [];
 }
 
-async function loadAccounts(db, cols) {
+async function loadAccounts(db, cols, userId) {
   if (!cols.has('id')) return [];
 
   const wanted = ['id', 'name', 'type', 'kind', 'status', 'deleted_at', 'archived_at'].filter(col => cols.has(col));
-  const where = activeAccountWhere(cols);
+  const activeWhere = activeAccountWhere(cols);
+  const where = activeWhere ? `user_id = ? AND ${activeWhere}` : 'user_id = ?';
 
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM accounts
-     ${where ? 'WHERE ' + where : ''}
+     WHERE ${where}
      ORDER BY ${cols.has('name') ? 'name' : 'id'}`
-  ).all();
+  ).bind(userId).all();
 
   return result.results || [];
 }
