@@ -10,7 +10,7 @@
  * It CANNOT delete manually-entered transactions.
  */
 
-import { getUserId } from '../../_lib.js';
+import { getUserId } from '../_lib.js';
 
 export async function onRequestPost(context) {
   try {

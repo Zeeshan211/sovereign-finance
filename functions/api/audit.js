@@ -17,7 +17,7 @@
  * - It verifies row_hash where present and reports coverage.
  */
 
-import { getUserId } from '../_lib.js';
+import { getUserId } from './_lib.js';
 
 const VERSION = 'v0.3.0-audit-health-integrity';
 

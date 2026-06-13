@@ -21,7 +21,7 @@
  * Requires migration 10 (historical_import + import_batch_id columns) to be applied first.
  */
 
-import { getUserId } from '../../_lib.js';
+import { getUserId } from '../_lib.js';
 
 export async function onRequestPost(context) {
   try {

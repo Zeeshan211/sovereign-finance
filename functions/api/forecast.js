@@ -11,7 +11,7 @@
  * - Does NOT mutate ledger/accounts/debts/salary.
  */
 
-import { getUserId } from '../_lib.js';
+import { getUserId } from './_lib.js';
 
 const VERSION = 'v0.3.0-forecast-bills-included';
 

@@ -20,7 +20,7 @@
  * - daily_trend
  */
 
-import { getUserId } from '../_lib.js';
+import { getUserId } from './_lib.js';
 
 const VERSION = 'v0.3.0';
 
