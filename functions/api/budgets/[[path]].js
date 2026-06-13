@@ -7,7 +7,7 @@
  *   - audit() and snapshot() now receive env (not db) per _lib.js exports
  */
 
-import { json, audit, snapshot } from '../_lib.js';
+import { json, audit, snapshot, householdOf } from '../_lib.js';
 
 function startOfMonthUTC() {
   const d = new Date();
@@ -19,7 +19,10 @@ function endOfMonthUTC() {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
 }
 
-async function spentForCategory(db, categoryId, startDate, endDate) {
+async function spentForCategory(db, categoryId, startDate, endDate, hh) {
+  const txCols = await db.prepare(`PRAGMA table_info(transactions)`).all()
+    .then(r => new Set((r.results || []).map(c => c.name)));
+  const hhClause = (hh && txCols.has('household_id')) ? 'AND household_id = ?' : '';
   const r = await db
     .prepare(
       `SELECT COALESCE(SUM(amount), 0) AS spent
@@ -28,9 +31,10 @@ async function spentForCategory(db, categoryId, startDate, endDate) {
          AND type = 'expense'
          AND date >= ?
          AND date <= ?
-         AND (reversed_by IS NULL OR reversed_by = '')`
+         AND (reversed_by IS NULL OR reversed_by = '')
+         ${hhClause}`
     )
-    .bind(categoryId, startDate, endDate)
+    .bind(...(hhClause ? [categoryId, startDate, endDate, hh] : [categoryId, startDate, endDate]))
     .first();
   return Number(r?.spent || 0);
 }
@@ -64,32 +68,37 @@ export async function onRequest(context) {
   const segments = !path ? [] : (Array.isArray(path) ? path : [path]);
   const method = request.method;
   const db = env.DB;
+  const hh = householdOf(context);
+  const uid = context.data && context.data.user_id;
 
   try {
     if (segments.length === 0) {
-      if (method === 'GET') return await handleList(db);
-      if (method === 'POST') return await handleCreate(env, request);
+      if (method === 'GET') return await handleList(db, hh);
+      if (method === 'POST') return await handleCreate(env, request, hh, uid);
       return json({ ok: false, error: 'Method not allowed' }, 405);
     }
 
     if (segments.length === 1) {
       const id = segments[0];
-      if (method === 'GET') return await handleSingle(db, id);
-      if (method === 'PUT') return await handleEdit(env, id, request);
-      if (method === 'DELETE') return await handleDelete(env, id, request);
+      if (method === 'GET') return await handleSingle(db, id, hh);
+      if (method === 'PUT') return await handleEdit(env, id, request, hh);
+      if (method === 'DELETE') return await handleDelete(env, id, request, hh);
       return json({ ok: false, error: 'Method not allowed' }, 405);
     }
 
     return json({ ok: false, error: 'Not found' }, 404);
   } catch (e) {
-    console.error('[budgets api]', e);
     return json({ ok: false, error: e.message || String(e) }, 500);
   }
 }
 
-async function handleList(db) {
+async function handleList(db, hh) {
+  const budgetCols = await db.prepare(`PRAGMA table_info(budgets)`).all()
+    .then(r => new Set((r.results || []).map(c => c.name)));
+  const hhClause = (hh && budgetCols.has('household_id')) ? "AND household_id = ?" : '';
   const rs = await db
-    .prepare(`SELECT * FROM budgets WHERE status = 'active' OR status IS NULL ORDER BY monthly_amount DESC, category_id ASC`)
+    .prepare(`SELECT * FROM budgets WHERE (status = 'active' OR status IS NULL) ${hhClause} ORDER BY monthly_amount DESC, category_id ASC`)
+    .bind(...(hhClause ? [hh] : []))
     .all();
   const rows = rs.results || [];
 
@@ -98,7 +107,7 @@ async function handleList(db) {
 
   const enriched = await Promise.all(
     rows.map(async b => {
-      const spent = await spentForCategory(db, b.category_id, startDate, endDate);
+      const spent = await spentForCategory(db, b.category_id, startDate, endDate, hh);
       return computeBudgetUI(b, spent);
     })
   );
@@ -121,7 +130,7 @@ async function handleList(db) {
   });
 }
 
-async function handleCreate(env, request) {
+async function handleCreate(env, request, hh, uid) {
   const db = env.DB;
   const body = await request.json().catch(() => ({}));
   const category_id = (body.category_id || '').trim();
@@ -135,15 +144,22 @@ async function handleCreate(env, request) {
   }
   if (monthly_amount < 0) return json({ ok: false, error: 'monthly_amount cannot be negative' }, 400);
 
-  const existing = await db.prepare(`SELECT category_id FROM budgets WHERE category_id = ?`).bind(category_id).first();
+  const budgetCols = await db.prepare(`PRAGMA table_info(budgets)`).all()
+    .then(r => new Set((r.results || []).map(c => c.name)));
+  const hhClause = (hh && budgetCols.has('household_id')) ? 'AND household_id = ?' : '';
+
+  const existing = await db.prepare(`SELECT category_id FROM budgets WHERE category_id = ? ${hhClause}`)
+    .bind(...(hhClause ? [category_id, hh] : [category_id])).first();
   if (existing) return json({ ok: false, error: 'Budget for this category already exists — edit it instead' }, 409);
 
+  const hasHh = budgetCols.has('household_id');
+  const hasOwner = budgetCols.has('owner_user_id');
   await db
     .prepare(
-      `INSERT INTO budgets (category_id, monthly_amount, notes, status)
-       VALUES (?, ?, ?, 'active')`
+      `INSERT INTO budgets (category_id, monthly_amount, notes, status${hasOwner ? ', owner_user_id' : ''}${hasHh ? ', household_id' : ''})
+       VALUES (?, ?, ?, 'active'${hasOwner ? ', ?' : ''}${hasHh ? ', ?' : ''})`
     )
-    .bind(category_id, monthly_amount, notes)
+    .bind(category_id, monthly_amount, notes, ...(hasOwner ? [uid] : []), ...(hasHh ? [hh] : []))
     .run();
 
   await audit(env, {
@@ -158,17 +174,25 @@ async function handleCreate(env, request) {
   return json({ ok: true, category_id, action: 'BUDGET_CREATE' });
 }
 
-async function handleSingle(db, categoryId) {
-  const row = await db.prepare(`SELECT * FROM budgets WHERE category_id = ?`).bind(categoryId).first();
+async function handleSingle(db, categoryId, hh) {
+  const budgetCols = await db.prepare(`PRAGMA table_info(budgets)`).all()
+    .then(r => new Set((r.results || []).map(c => c.name)));
+  const hhClause = (hh && budgetCols.has('household_id')) ? 'AND household_id = ?' : '';
+  const row = await db.prepare(`SELECT * FROM budgets WHERE category_id = ? ${hhClause}`)
+    .bind(...(hhClause ? [categoryId, hh] : [categoryId])).first();
   if (!row) return json({ ok: false, error: 'Budget not found' }, 404);
-  const spent = await spentForCategory(db, categoryId, startOfMonthUTC(), endOfMonthUTC());
+  const spent = await spentForCategory(db, categoryId, startOfMonthUTC(), endOfMonthUTC(), hh);
   return json({ ok: true, budget: computeBudgetUI(row, spent) });
 }
 
-async function handleEdit(env, categoryId, request) {
+async function handleEdit(env, categoryId, request, hh) {
   const db = env.DB;
   const body = await request.json().catch(() => ({}));
-  const existing = await db.prepare(`SELECT * FROM budgets WHERE category_id = ?`).bind(categoryId).first();
+  const budgetCols = await db.prepare(`PRAGMA table_info(budgets)`).all()
+    .then(r => new Set((r.results || []).map(c => c.name)));
+  const hhClause = (hh && budgetCols.has('household_id')) ? 'AND household_id = ?' : '';
+  const existing = await db.prepare(`SELECT * FROM budgets WHERE category_id = ? ${hhClause}`)
+    .bind(...(hhClause ? [categoryId, hh] : [categoryId])).first();
   if (!existing) return json({ ok: false, error: 'Budget not found' }, 404);
 
   const allowed = ['monthly_amount', 'notes', 'status'];
@@ -192,7 +216,7 @@ async function handleEdit(env, categoryId, request) {
 
   const sets = Object.keys(updates).map(k => `${k} = ?`).join(', ');
   const vals = Object.values(updates);
-  await db.prepare(`UPDATE budgets SET ${sets} WHERE category_id = ?`).bind(...vals, categoryId).run();
+  await db.prepare(`UPDATE budgets SET ${sets} WHERE category_id = ? ${hhClause}`).bind(...vals, categoryId, ...(hhClause ? [hh] : [])).run();
 
   await audit(env, {
     action: 'BUDGET_EDIT',
@@ -206,20 +230,25 @@ async function handleEdit(env, categoryId, request) {
   return json({ ok: true, category_id: categoryId, updated_fields: Object.keys(updates) });
 }
 
-async function handleDelete(env, categoryId, request) {
+async function handleDelete(env, categoryId, request, hh) {
   const db = env.DB;
   const url = new URL(request.url);
   const created_by = url.searchParams.get('created_by') || 'web-budget-delete';
 
-  const existing = await db.prepare(`SELECT * FROM budgets WHERE category_id = ?`).bind(categoryId).first();
+  const budgetCols = await db.prepare(`PRAGMA table_info(budgets)`).all()
+    .then(r => new Set((r.results || []).map(c => c.name)));
+  const hhClause = (hh && budgetCols.has('household_id')) ? 'AND household_id = ?' : '';
+
+  const existing = await db.prepare(`SELECT * FROM budgets WHERE category_id = ? ${hhClause}`)
+    .bind(...(hhClause ? [categoryId, hh] : [categoryId])).first();
   if (!existing) return json({ ok: false, error: 'Budget not found' }, 404);
   if (existing.status === 'deleted') return json({ ok: false, error: 'Already deleted' }, 409);
 
   await snapshot(env, 'pre-budget-delete-' + categoryId + '-' + Date.now(), created_by);
 
   await db
-    .prepare(`UPDATE budgets SET status = 'deleted' WHERE category_id = ?`)
-    .bind(categoryId)
+    .prepare(`UPDATE budgets SET status = 'deleted' WHERE category_id = ? ${hhClause}`)
+    .bind(...(hhClause ? [categoryId, hh] : [categoryId]))
     .run();
 
   await audit(env, {

@@ -48,10 +48,11 @@ export async function onRequestGet(context) {
       }, 500);
     }
 
-    const rows          = await buildRows(db);
-    const exceptions    = await loadOpenExceptions(db);
-    const importSummary = await loadImportSummary(db);
-    const dashboard     = await loadDashboard(db, rows);
+    const hh = (context.data && context.data.household_id) || ('hh_' + (context.data && context.data.user_id || 'unauthenticated'));
+    const rows          = await buildRows(db, hh);
+    const exceptions    = await loadOpenExceptions(db, hh);
+    const importSummary = await loadImportSummary(db, hh);
+    const dashboard     = await loadDashboard(db, rows, hh);
 
     return json({
       ok: true,
@@ -106,8 +107,10 @@ export async function onRequestPost(context) {
       }, 500);
     }
 
+    const hh = (context.data && context.data.household_id) || ('hh_' + (context.data && context.data.user_id || 'unauthenticated'));
+
     if (action === 'dry_run' || action === 'dry-run') {
-      return dryRunReconciliation(db, body);
+      return dryRunReconciliation(db, body, hh);
     }
 
     if (
@@ -116,7 +119,7 @@ export async function onRequestPost(context) {
       action === 'save' ||
       action === 'reconcile'
     ) {
-      return saveSnapshot(db, body);
+      return saveSnapshot(db, body, hh);
     }
 
     return json({
@@ -155,9 +158,9 @@ export async function onRequestOptions() {
  * GET rows
  * ─────────────────────────── */
 
-async function buildRows(db) {
-  const accounts        = await loadAccountsWithBalances(db);
-  const latestSnapshots = await loadLatestSnapshotsByAccount(db);
+async function buildRows(db, hh) {
+  const accounts        = await loadAccountsWithBalances(db, hh);
+  const latestSnapshots = await loadLatestSnapshotsByAccount(db, hh);
 
   return accounts.map(account => {
     const snapshot    = latestSnapshots.get(account.id) || null;
@@ -189,7 +192,7 @@ async function buildRows(db) {
   });
 }
 
-async function loadAccountsWithBalances(db) {
+async function loadAccountsWithBalances(db, hh) {
   const accountCols = await tableColumns(db, 'accounts');
   const txCols      = await tableColumns(db, 'transactions');
 
@@ -207,11 +210,13 @@ async function loadAccountsWithBalances(db) {
     accountCols.has('archived_at')   ? 'archived_at'   : null
   ].filter(Boolean);
 
+  const acctHhWhere = (hh && accountCols.has('household_id')) ? 'WHERE household_id = ?' : '';
   const accountRows = await db.prepare(
     `SELECT ${accountSelect.join(', ')}
      FROM accounts
+     ${acctHhWhere}
      ORDER BY ${accountCols.has('display_order') ? 'display_order,' : ''} id`
-  ).all();
+  ).bind(...(acctHhWhere ? [hh] : [])).all();
 
   const accounts = (accountRows.results || []).map(row => ({
     id:          clean(row.id),
@@ -243,9 +248,10 @@ async function loadAccountsWithBalances(db) {
     txCols.has('reversed_at') ? 'reversed_at' : null
   ].filter(Boolean);
 
+  const txHhWhere = (hh && txCols.has('household_id')) ? 'WHERE household_id = ?' : '';
   const txRows = await db.prepare(
-    `SELECT ${txSelect.join(', ')} FROM transactions`
-  ).all();
+    `SELECT ${txSelect.join(', ')} FROM transactions ${txHhWhere}`
+  ).bind(...(txHhWhere ? [hh] : [])).all();
 
   const byId = new Map(accounts.map(account => [account.id, account]));
 
@@ -270,7 +276,7 @@ async function loadAccountsWithBalances(db) {
   }));
 }
 
-async function loadLatestSnapshotsByAccount(db) {
+async function loadLatestSnapshotsByAccount(db, hh) {
   const snapshotsExist = await tableExists(db, 'reconciliation_snapshots');
   const map = new Map();
 
@@ -300,11 +306,13 @@ async function loadLatestSnapshotsByAccount(db) {
 
   const orderCol = cols.has('created_at') ? 'datetime(created_at)' : 'rowid';
 
+  const hhWhere = (hh && cols.has('household_id')) ? 'WHERE household_id = ?' : '';
   const res = await db.prepare(
     `SELECT ${select.join(', ')}
      FROM reconciliation_snapshots
+     ${hhWhere}
      ORDER BY ${orderCol} DESC`
-  ).all();
+  ).bind(...(hhWhere ? [hh] : [])).all();
 
   for (const row of res.results || []) {
     const accountId = clean(row.account_id);
@@ -324,7 +332,7 @@ async function loadLatestSnapshotsByAccount(db) {
   return map;
 }
 
-async function loadOpenExceptions(db) {
+async function loadOpenExceptions(db, hh) {
   const exists = await tableExists(db, 'reconciliation_exceptions');
   if (!exists) return [];
 
@@ -351,17 +359,19 @@ async function loadOpenExceptions(db) {
     cols.has('difference')               ? 'difference'               : 'NULL AS difference'
   ];
 
-  const where = cols.has('status')
-    ? "WHERE status IS NULL OR status = '' OR status = 'open' OR status = 'needs_review'"
+  const statusWhere = cols.has('status')
+    ? "(status IS NULL OR status = '' OR status = 'open' OR status = 'needs_review')"
     : '';
+  const hhClause = (hh && cols.has('household_id')) ? 'AND household_id = ?' : '';
+  const where = [statusWhere, hhClause ? hhClause.replace('AND ', '') : ''].filter(Boolean).join(' AND ');
 
   const res = await db.prepare(
     `SELECT ${select.join(', ')}
      FROM reconciliation_exceptions
-     ${where}
+     ${where ? 'WHERE ' + where : ''}
      ORDER BY ${cols.has('created_at') ? 'datetime(created_at) DESC,' : ''} id DESC
      LIMIT 200`
-  ).all();
+  ).bind(...(hhClause ? [hh] : [])).all();
 
   return (res.results || []).map(row => ({
     id:                 row.id,
@@ -384,17 +394,19 @@ async function loadOpenExceptions(db) {
   }));
 }
 
-async function loadImportSummary(db) {
+async function loadImportSummary(db, hh) {
   try {
     const exists = await tableExists(db, 'statement_imports');
     if (!exists) return { total_imports: 0, last_import_at: null, last_import_account: null };
 
+    const siCols = await tableColumns(db, 'statement_imports').catch(() => new Set());
+    const siHh = (hh && siCols.has('household_id')) ? 'WHERE household_id = ?' : '';
     const totals = await db.prepare(
-      `SELECT COUNT(*) AS total, MAX(created_at) AS last_at FROM statement_imports`
-    ).first();
+      `SELECT COUNT(*) AS total, MAX(created_at) AS last_at FROM statement_imports ${siHh}`
+    ).bind(...(siHh ? [hh] : [])).first();
     const lastRow = await db.prepare(
-      `SELECT account_id FROM statement_imports ORDER BY created_at DESC LIMIT 1`
-    ).first();
+      `SELECT account_id FROM statement_imports ${siHh} ORDER BY created_at DESC LIMIT 1`
+    ).bind(...(siHh ? [hh] : [])).first();
 
     return {
       total_imports:       totals?.total    || 0,
@@ -406,13 +418,22 @@ async function loadImportSummary(db) {
   }
 }
 
-async function loadDashboard(db, rows) {
+async function loadDashboard(db, rows, hh) {
   try {
     const accounts = [];
 
     const stmtImportsExist = await tableExists(db, 'statement_imports');
     const plansExist       = await tableExists(db, 'reconciliation_plans');
     const excExist         = await tableExists(db, 'reconciliation_exceptions');
+
+    // Detect columns once before the loop
+    const siCols  = stmtImportsExist ? await tableColumns(db, 'statement_imports').catch(() => new Set())  : new Set();
+    const plCols  = plansExist       ? await tableColumns(db, 'reconciliation_plans').catch(() => new Set()) : new Set();
+    const excCols = excExist         ? await tableColumns(db, 'reconciliation_exceptions').catch(() => new Set()) : new Set();
+
+    const siHhAnd  = (hh && siCols.has('household_id'))  ? ' AND household_id = ?' : '';
+    const plHhAnd  = (hh && plCols.has('household_id'))  ? ' AND household_id = ?' : '';
+    const excHhAnd = (hh && excCols.has('household_id')) ? ' AND household_id = ?' : '';
 
     for (const row of rows) {
       const acctId = row.account_id;
@@ -422,9 +443,9 @@ async function loadDashboard(db, rows) {
       if (stmtImportsExist) {
         const si = await db.prepare(
           `SELECT date_to, statement_closing_balance
-           FROM statement_imports WHERE account_id = ?
+           FROM statement_imports WHERE account_id = ?${siHhAnd}
            ORDER BY created_at DESC LIMIT 1`
-        ).bind(acctId).first().catch(() => null);
+        ).bind(...[acctId, ...(siHhAnd ? [hh] : [])]).first().catch(() => null);
         if (si) {
           lastStatementDate    = si.date_to || null;
           lastStatementClosing = si.statement_closing_balance != null
@@ -437,9 +458,9 @@ async function loadDashboard(db, rows) {
       if (plansExist) {
         const p = await db.prepare(
           `SELECT committed_at FROM reconciliation_plans
-           WHERE account_id = ? AND committed_at IS NOT NULL
+           WHERE account_id = ?${plHhAnd} AND committed_at IS NOT NULL
            ORDER BY committed_at DESC LIMIT 1`
-        ).bind(acctId).first().catch(() => null);
+        ).bind(...[acctId, ...(plHhAnd ? [hh] : [])]).first().catch(() => null);
         if (p) lastReconciledAt = p.committed_at;
       }
 
@@ -447,8 +468,8 @@ async function loadDashboard(db, rows) {
       if (excExist) {
         const e = await db.prepare(
           `SELECT COUNT(*) AS n FROM reconciliation_exceptions
-           WHERE account_id = ? AND (status IS NULL OR status = '' OR status = 'open')`
-        ).bind(acctId).first().catch(() => null);
+           WHERE account_id = ?${excHhAnd} AND (status IS NULL OR status = '' OR status = 'open')`
+        ).bind(...[acctId, ...(excHhAnd ? [hh] : [])]).first().catch(() => null);
         if (e) openExceptionsCount = e.n || 0;
       }
 
@@ -481,12 +502,15 @@ async function loadDashboard(db, rows) {
     const transferPairs = [];
     if (plansExist) {
       const cutoff = addDays(todayISO(), -30) + ' 00:00:00';
+      const plHhWhere = (hh && plCols.has('household_id'))
+        ? 'WHERE created_at >= ? AND household_id = ?'
+        : 'WHERE created_at >= ?';
       const plans  = await db.prepare(
         `SELECT account_id, plan_json
          FROM reconciliation_plans
-         WHERE created_at >= ?
+         ${plHhWhere}
          ORDER BY created_at DESC LIMIT 100`
-      ).bind(cutoff).all().catch(() => ({ results: [] }));
+      ).bind(...(plHhWhere.includes('household_id') ? [cutoff, hh] : [cutoff])).all().catch(() => ({ results: [] }));
 
       for (const p of plans.results || []) {
         try {
@@ -515,11 +539,11 @@ async function loadDashboard(db, rows) {
     // Exception summary
     const exceptionSummary = { open: 0, resolved: 0, by_type: {} };
     if (excExist) {
-      const excCols = await tableColumns(db, 'reconciliation_exceptions');
       if (excCols.has('status')) {
+        const excHhWhere = (hh && excCols.has('household_id')) ? 'WHERE household_id = ?' : '';
         const allExc = await db.prepare(
-          `SELECT type, status FROM reconciliation_exceptions LIMIT 2000`
-        ).all().catch(() => ({ results: [] }));
+          `SELECT type, status FROM reconciliation_exceptions ${excHhWhere} LIMIT 2000`
+        ).bind(...(excHhWhere ? [hh] : [])).all().catch(() => ({ results: [] }));
         for (const e of allExc.results || []) {
           if (e.status === 'resolved') exceptionSummary.resolved++;
           else exceptionSummary.open++;
@@ -541,9 +565,9 @@ async function loadDashboard(db, rows) {
  * POST dry-run / save
  * ─────────────────────────── */
 
-async function dryRunReconciliation(db, body) {
+async function dryRunReconciliation(db, body, hh) {
   const input   = normalizeSnapshotInput(body);
-  const rows    = await buildRows(db);
+  const rows    = await buildRows(db, hh);
   const account = rows.find(row => row.account_id === input.account_id);
 
   if (!account) {
@@ -586,11 +610,11 @@ async function dryRunReconciliation(db, body) {
   });
 }
 
-async function saveSnapshot(db, body) {
+async function saveSnapshot(db, body, hh) {
   await ensureReconciliationTables(db);
 
   const input   = normalizeSnapshotInput(body);
-  const rows    = await buildRows(db);
+  const rows    = await buildRows(db, hh);
   const account = rows.find(row => row.account_id === input.account_id);
 
   if (!account) {
@@ -621,13 +645,17 @@ async function saveSnapshot(db, body) {
   const now        = nowSql();
   const snapshotId = `recon_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
+  const snCols = await tableColumns(db, 'reconciliation_snapshots').catch(() => new Set());
+  const snHhCol = snCols.has('household_id') ? ', household_id' : '';
+  const snHhVal = snCols.has('household_id') ? ', ?' : '';
+
   const batch = [
     db.prepare(
       `INSERT INTO reconciliation_snapshots
-       (id, account_id, account_name, app_balance, real_balance, difference, statement_date, status, notes, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       (id, account_id, account_name, app_balance, real_balance, difference, statement_date, status, notes, created_at${snHhCol})
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?${snHhVal})`
     ).bind(
-      snapshotId,
+      ...[snapshotId,
       result.account_id,
       result.account_name,
       result.app_balance,
@@ -636,19 +664,23 @@ async function saveSnapshot(db, body) {
       input.statement_date,
       result.status,
       input.notes,
-      now
+      now,
+      ...(snHhVal ? [hh] : [])]
     )
   ];
 
   if (result.needs_review) {
     const exceptionId = `recon_exc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const excSnCols = await tableColumns(db, 'reconciliation_exceptions').catch(() => new Set());
+    const excHhCol2 = excSnCols.has('household_id') ? ', household_id' : '';
+    const excHhVal2 = excSnCols.has('household_id') ? ', ?' : '';
     batch.push(
       db.prepare(
         `INSERT INTO reconciliation_exceptions
-         (id, snapshot_id, account_id, account_name, app_balance, real_balance, difference, status, notes, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+         (id, snapshot_id, account_id, account_name, app_balance, real_balance, difference, status, notes, created_at${excHhCol2})
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?${excHhVal2})`
       ).bind(
-        exceptionId,
+        ...[exceptionId,
         snapshotId,
         result.account_id,
         result.account_name,
@@ -657,16 +689,17 @@ async function saveSnapshot(db, body) {
         result.difference,
         'needs_review',
         input.notes || 'Manual balance mismatch',
-        now
+        now,
+        ...(excHhVal2 ? [hh] : [])]
       )
     );
   }
 
   await db.batch(batch);
 
-  const updatedRows  = await buildRows(db);
-  const exceptions   = await loadOpenExceptions(db);
-  const importSummary = await loadImportSummary(db);
+  const updatedRows  = await buildRows(db, hh);
+  const exceptions   = await loadOpenExceptions(db, hh);
+  const importSummary = await loadImportSummary(db, hh);
 
   return json({
     ok: true,

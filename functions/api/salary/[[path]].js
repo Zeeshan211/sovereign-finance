@@ -16,7 +16,7 @@
  * GET /api/salary/:id      – contract detail with payslips
  */
 
-import { audit } from '../_lib.js';
+import { audit, householdOf } from '../_lib.js';
 
 const VERSION = 'v1.0.0-salary-payslips';
 const LEGACY_CONTRACT_ID = 'salary_contract_current';
@@ -26,10 +26,11 @@ export async function onRequestGet(context) {
     const db = context.env.DB;
     const path = getPath(context);
     if (!db) return dbMissing();
+    const hh = householdOf(context);
 
-    if (path[0] === 'forecast') return handleForecastGet(db, 6);
-    if (path[0] && path[0] !== 'forecast') return handleContractDetail(db, path[0]);
-    return handleList(db);
+    if (path[0] === 'forecast') return handleForecastGet(db, 6, hh);
+    if (path[0] && path[0] !== 'forecast') return handleContractDetail(db, path[0], hh);
+    return handleList(db, hh);
   } catch (err) {
     return json({ ok: false, version: VERSION, error: { code: 'GET_FAILED', message: err.message } }, 500);
   }
@@ -43,14 +44,17 @@ export async function onRequestPost(context) {
     const path = getPath(context);
     const action = s(body.action || path[1] || '').toLowerCase();
 
+    const hh  = householdOf(context);
+    const uid = context.data?.user_id || null;
+
     switch (action) {
-      case 'create_contract':  return handleCreateContract(db, body, context.env);
-      case 'add_payslip':      return handleAddPayslip(db, body, context.env);
-      case 'update_contract':  return handleUpdateContract(db, body, context.env);
-      case 'archive_contract': return handleArchiveContract(db, body, context.env);
-      case 'forecast_period':  return handleForecastPeriod(db, body);
+      case 'create_contract':  return handleCreateContract(db, body, context.env, hh, uid);
+      case 'add_payslip':      return handleAddPayslip(db, body, context.env, hh, uid);
+      case 'update_contract':  return handleUpdateContract(db, body, context.env, hh);
+      case 'archive_contract': return handleArchiveContract(db, body, context.env, hh);
+      case 'forecast_period':  return handleForecastPeriod(db, body, hh);
       case 'update_config':    return handleUpdateConfig(db, body);
-      default:                 return handleLegacyPost(db, body);
+      default:                 return handleLegacyPost(db, body, hh);
     }
   } catch (err) {
     return json({ ok: false, version: VERSION, error: { code: 'POST_FAILED', message: err.message } }, 500);
@@ -63,12 +67,12 @@ export async function onRequestOptions() {
 
 // ─── GET handlers ─────────────────────────────────────────────────────────────
 
-async function handleList(db) {
+async function handleList(db, hh) {
   const contractCols = await tableColumns(db, 'salary_contracts');
   const payslipCols  = await tableColumns(db, 'salary_payslips');
 
-  const contracts = await loadContracts(db, contractCols);
-  const recentPayslips = payslipCols.has('id') ? await loadRecentPayslips(db, payslipCols, 12) : [];
+  const contracts = await loadContracts(db, contractCols, hh);
+  const recentPayslips = payslipCols.has('id') ? await loadRecentPayslips(db, payslipCols, 12, hh) : [];
 
   const legacyContract = contracts.find(c => c.id === LEGACY_CONTRACT_ID) || contracts[0] || null;
   const normalized = legacyContract ? normalizeLegacy(legacyContract) : null;
@@ -95,25 +99,25 @@ async function handleList(db) {
   });
 }
 
-async function handleContractDetail(db, contractId) {
+async function handleContractDetail(db, contractId, hh) {
   const contractCols = await tableColumns(db, 'salary_contracts');
   const payslipCols  = await tableColumns(db, 'salary_payslips');
-  const contract = await loadContract(db, contractCols, contractId);
+  const contract = await loadContract(db, contractCols, contractId, hh);
   if (!contract) return json({ ok: false, version: VERSION, error: { code: 'NOT_FOUND', message: 'Contract not found' } }, 404);
   const payslips = payslipCols.has('id') ? await loadContractPayslips(db, payslipCols, contractId) : [];
   return json({ ok: true, version: VERSION, contract, payslips });
 }
 
-async function handleForecastGet(db, months) {
+async function handleForecastGet(db, months, hh) {
   const contractCols = await tableColumns(db, 'salary_contracts');
-  const contracts = await loadContracts(db, contractCols);
+  const contracts = await loadContracts(db, contractCols, hh);
   const active = contracts.filter(c => s(c.status) !== 'archived');
   return json({ ok: true, version: VERSION, action: 'forecast', months, projections: buildProjections(active, months) });
 }
 
 // ─── POST action handlers ─────────────────────────────────────────────────────
 
-async function handleCreateContract(db, body, env) {
+async function handleCreateContract(db, body, env, hh, uid) {
   const cols = await tableColumns(db, 'salary_contracts');
   if (!cols.has('id')) return json({ ok: false, version: VERSION, action: 'create_contract', error: 'salary_contracts table missing', code: 'TABLE_MISSING' }, 500);
 
@@ -153,6 +157,9 @@ async function handleCreateContract(db, body, env) {
     contract_base: grossAmount,
     deductions: Math.max(0, grossAmount - netEstimate),
     effective_month: effectiveMonth,
+    household_id: hh || null,
+    owner_user_id: uid || null,
+    created_by_user_id: uid || null,
     created_at: now,
     updated_at: now,
   });
@@ -179,7 +186,7 @@ async function handleCreateContract(db, body, env) {
   });
 }
 
-async function handleAddPayslip(db, body, env) {
+async function handleAddPayslip(db, body, env, hh, uid) {
   const payslipCols  = await tableColumns(db, 'salary_payslips');
   const txCols       = await tableColumns(db, 'transactions');
 
@@ -220,6 +227,8 @@ async function handleAddPayslip(db, body, env) {
     deposit_account_id: depositAccount,
     transaction_id: txCols.has('id') ? txnId : null,
     notes,
+    household_id: hh || null,
+    created_by_user_id: uid || null,
     created_at: now,
     updated_at: now,
   });
@@ -243,6 +252,8 @@ async function handleAddPayslip(db, body, env) {
       source_module: 'salary',
       source_id: payslipId,
       source_action: 'payslip_income',
+      household_id: hh || null,
+      created_by_user_id: uid || null,
       created_by: 'web-salary',
       created_at: now,
       updated_at: now,
@@ -273,10 +284,12 @@ async function handleAddPayslip(db, body, env) {
   });
 }
 
-async function handleUpdateContract(db, body, env) {
+async function handleUpdateContract(db, body, env, hh) {
   const cols = await tableColumns(db, 'salary_contracts');
   const contractId = s(body.contract_id || LEGACY_CONTRACT_ID);
-  const existing = cols.has('id') ? await db.prepare('SELECT id FROM salary_contracts WHERE id = ? LIMIT 1').bind(contractId).first() : null;
+  const hhWhere = (hh && cols.has('household_id')) ? ' AND household_id = ?' : '';
+  const hhBinds = (hh && cols.has('household_id')) ? [hh] : [];
+  const existing = cols.has('id') ? await db.prepare(`SELECT id FROM salary_contracts WHERE id = ?${hhWhere} LIMIT 1`).bind(contractId, ...hhBinds).first() : null;
   if (!existing) return json({ ok: false, version: VERSION, action: 'update_contract', error: 'Contract not found', code: 'NOT_FOUND' }, 404);
 
   const updates = {};
@@ -291,24 +304,26 @@ async function handleUpdateContract(db, body, env) {
   if (entries.length <= 1) return json({ ok: true, version: VERSION, action: 'update_contract', committed: false, writes_performed: false });
 
   const setSql = entries.map(([k]) => `${k} = ?`).join(', ');
-  await db.prepare(`UPDATE salary_contracts SET ${setSql} WHERE id = ?`).bind(...entries.map(([, v]) => v), contractId).run();
+  await db.prepare(`UPDATE salary_contracts SET ${setSql} WHERE id = ?${hhWhere}`).bind(...entries.map(([, v]) => v), contractId, ...hhBinds).run();
 
   return json({ ok: true, version: VERSION, action: 'update_contract', committed: true, writes_performed: true, contract_id: contractId });
 }
 
-async function handleArchiveContract(db, body, env) {
+async function handleArchiveContract(db, body, env, hh) {
   const cols = await tableColumns(db, 'salary_contracts');
   const contractId = s(body.contract_id || LEGACY_CONTRACT_ID);
   if (!cols.has('status')) return json({ ok: false, version: VERSION, action: 'archive_contract', error: 'status column missing — run migration 18', code: 'COLUMN_MISSING' }, 500);
-  await db.prepare('UPDATE salary_contracts SET status = ?, updated_at = ? WHERE id = ?').bind('archived', nowISO(), contractId).run();
+  const hhWhere = (hh && cols.has('household_id')) ? ' AND household_id = ?' : '';
+  const hhBinds = (hh && cols.has('household_id')) ? [hh] : [];
+  await db.prepare(`UPDATE salary_contracts SET status = ?, updated_at = ? WHERE id = ?${hhWhere}`).bind('archived', nowISO(), contractId, ...hhBinds).run();
   await safeAudit(env, { action: 'SALARY_CONTRACT_ARCHIVE', entity: 'salary_contract', entity_id: contractId, kind: 'mutation', detail: JSON.stringify({ contract_id: contractId }), created_by: 'web-salary' });
   return json({ ok: true, version: VERSION, action: 'archive_contract', committed: true, writes_performed: true, contract_id: contractId, status: 'archived' });
 }
 
-async function handleForecastPeriod(db, body) {
+async function handleForecastPeriod(db, body, hh) {
   const months = Math.min(24, Math.max(1, parseInt(body.months || 6, 10) || 6));
   const cols = await tableColumns(db, 'salary_contracts');
-  const contracts = await loadContracts(db, cols);
+  const contracts = await loadContracts(db, cols, hh);
   const active = contracts.filter(c => s(c.status) !== 'archived');
   return json({ ok: true, version: VERSION, action: 'forecast_period', committed: false, writes_performed: false, months, projections: buildProjections(active, months) });
 }
@@ -336,7 +351,7 @@ async function handleUpdateConfig(db, body) {
 
 // ─── Legacy backward-compat POST ──────────────────────────────────────────────
 
-async function handleLegacyPost(db, body) {
+async function handleLegacyPost(db, body, hh) {
   const cols = await tableColumns(db, 'salary_contracts');
   if (!cols.has('id')) return json({ ok: false, version: VERSION, error: { code: 'SALARY_CONTRACTS_TABLE_MISSING', message: 'salary_contracts table does not exist.' } }, 500);
 
@@ -363,13 +378,13 @@ async function handleLegacyPost(db, body) {
     return json({ ok: true, version: VERSION, action: 'salary.contract.dry_run', dry_run: true, writes_performed: false, contract, computed, forecast_source: forecastSource });
   }
 
-  await saveLegacyContract(db, cols, contract);
+  await saveLegacyContract(db, cols, contract, hh);
   return json({ ok: true, version: VERSION, action: 'salary.contract.save', committed: true, writes_performed: true, contract, computed, forecast_source: forecastSource, salary: [contract] });
 }
 
 // ─── Data access ──────────────────────────────────────────────────────────────
 
-async function loadContracts(db, cols) {
+async function loadContracts(db, cols, hh) {
   if (!cols.has('id')) return [];
   const wanted = ['id','employer_name','gross_amount','net_amount_estimate','frequency',
     'payday','payday_day','deposit_account_id','payout_account_id','status','start_date',
@@ -377,18 +392,24 @@ async function loadContracts(db, cols) {
     'wfh_usd','wfh_fx_rate','include_wfh','other_allowance','deductions',
     'include_in_forecast','effective_month','created_at','updated_at'].filter(c => cols.has(c));
   const orderBy = cols.has('updated_at') ? 'ORDER BY datetime(updated_at) DESC, id DESC' : 'ORDER BY id DESC';
-  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_contracts ${orderBy}`).all();
+  const useHH = hh && cols.has('household_id');
+  const where = useHH ? 'WHERE household_id = ?' : '';
+  const binds = useHH ? [hh] : [];
+  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_contracts ${where} ${orderBy}`).bind(...binds).all();
   return (result.results || []).map(enrichContract);
 }
 
-async function loadContract(db, cols, id) {
+async function loadContract(db, cols, id, hh) {
   if (!cols.has('id')) return null;
   const wanted = ['id','employer_name','gross_amount','net_amount_estimate','frequency',
     'payday','payday_day','deposit_account_id','payout_account_id','status','start_date',
     'tax_bracket','currency','notes','basic','hra','medical','utility','contract_base',
     'wfh_usd','wfh_fx_rate','include_wfh','other_allowance','deductions',
     'include_in_forecast','effective_month','created_at','updated_at'].filter(c => cols.has(c));
-  const row = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_contracts WHERE id = ? LIMIT 1`).bind(id).first();
+  const useHH = hh && cols.has('household_id');
+  const hhClause = useHH ? ' AND household_id = ?' : '';
+  const binds = useHH ? [id, hh] : [id];
+  const row = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_contracts WHERE id = ?${hhClause} LIMIT 1`).bind(...binds).first();
   return row ? enrichContract(row) : null;
 }
 
@@ -400,15 +421,18 @@ async function loadContractPayslips(db, cols, contractId) {
   return result.results || [];
 }
 
-async function loadRecentPayslips(db, cols, limit) {
+async function loadRecentPayslips(db, cols, limit, hh) {
   if (!cols.has('id')) return [];
   const wanted = ['id','contract_id','period','gross','net','bonus',
     'deposit_date','deposit_account_id','transaction_id','notes','created_at','updated_at'].filter(c => cols.has(c));
-  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_payslips ORDER BY period DESC LIMIT ?`).bind(limit).all();
+  const useHH = hh && cols.has('household_id');
+  const where = useHH ? 'WHERE household_id = ?' : '';
+  const binds = useHH ? [hh, limit] : [limit];
+  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_payslips ${where} ORDER BY period DESC LIMIT ?`).bind(...binds).all();
   return result.results || [];
 }
 
-async function saveLegacyContract(db, cols, contract) {
+async function saveLegacyContract(db, cols, contract, hh) {
   const now = nowISO();
   const row = {
     id: LEGACY_CONTRACT_ID, effective_month: contract.effective_month,
@@ -422,9 +446,13 @@ async function saveLegacyContract(db, cols, contract) {
     gross_amount: contract.contract_base || 0,
     net_amount_estimate: (contract.contract_base || 0) - (contract.deductions || 0),
     status: 'active',
+    household_id: hh || null,
     notes: contract.notes, updated_at: now, created_at: now,
   };
-  const existing = cols.has('id') ? await db.prepare('SELECT id FROM salary_contracts WHERE id = ? LIMIT 1').bind(LEGACY_CONTRACT_ID).first() : null;
+  const useHH = hh && cols.has('household_id');
+  const hhClause = useHH ? ' AND household_id = ?' : '';
+  const hhBinds  = useHH ? [hh] : [];
+  const existing = cols.has('id') ? await db.prepare(`SELECT id FROM salary_contracts WHERE id = ?${hhClause} LIMIT 1`).bind(LEGACY_CONTRACT_ID, ...hhBinds).first() : null;
   if (existing) {
     const keys = Object.keys(row).filter(k => k !== 'id' && cols.has(k));
     if (!keys.length) return;

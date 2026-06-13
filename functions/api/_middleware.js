@@ -80,6 +80,7 @@ export async function onRequest(context) {
     context.data.user_id = session.user_id;
     context.data.user_email = session.email;
     context.data.session_id = session.id;
+    context.data.household_id = session.household_id || ('hh_' + session.user_id);
 
     const response = await context.next();
     return addSecurityHeaders(response);
