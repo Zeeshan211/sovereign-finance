@@ -13,6 +13,8 @@
  *       POST /api/reconciliation/exceptions/:id/resolve
  */
 
+import { getUserId } from '../_lib.js';
+
 const VERSION = 'v0.2.0-statement-reconciliation';
 
 const POSITIVE_TYPES = new Set([
@@ -48,7 +50,11 @@ export async function onRequestGet(context) {
       }, 500);
     }
 
-    const hh = (context.data && context.data.household_id) || ('hh_' + (context.data && context.data.user_id || 'unauthenticated'));
+    const userId = getUserId(context);
+    if (!userId) {
+      return json({ ok: false, version: VERSION, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, 401);
+    }
+    const hh = userId;
     const rows          = await buildRows(db, hh);
     const exceptions    = await loadOpenExceptions(db, hh);
     const importSummary = await loadImportSummary(db, hh);
@@ -107,7 +113,11 @@ export async function onRequestPost(context) {
       }, 500);
     }
 
-    const hh = (context.data && context.data.household_id) || ('hh_' + (context.data && context.data.user_id || 'unauthenticated'));
+    const userId = getUserId(context);
+    if (!userId) {
+      return json({ ok: false, version: VERSION, error: { code: 'UNAUTHORIZED', message: 'Unauthorized' } }, 401);
+    }
+    const hh = userId;
 
     if (action === 'dry_run' || action === 'dry-run') {
       return dryRunReconciliation(db, body, hh);
@@ -210,7 +220,7 @@ async function loadAccountsWithBalances(db, hh) {
     accountCols.has('archived_at')   ? 'archived_at'   : null
   ].filter(Boolean);
 
-  const acctHhWhere = (hh && accountCols.has('household_id')) ? 'WHERE household_id = ?' : '';
+  const acctHhWhere = (hh && accountCols.has('user_id')) ? 'WHERE user_id = ?' : '';
   const accountRows = await db.prepare(
     `SELECT ${accountSelect.join(', ')}
      FROM accounts
@@ -248,7 +258,7 @@ async function loadAccountsWithBalances(db, hh) {
     txCols.has('reversed_at') ? 'reversed_at' : null
   ].filter(Boolean);
 
-  const txHhWhere = (hh && txCols.has('household_id')) ? 'WHERE household_id = ?' : '';
+  const txHhWhere = (hh && txCols.has('user_id')) ? 'WHERE user_id = ?' : '';
   const txRows = await db.prepare(
     `SELECT ${txSelect.join(', ')} FROM transactions ${txHhWhere}`
   ).bind(...(txHhWhere ? [hh] : [])).all();
@@ -306,7 +316,7 @@ async function loadLatestSnapshotsByAccount(db, hh) {
 
   const orderCol = cols.has('created_at') ? 'datetime(created_at)' : 'rowid';
 
-  const hhWhere = (hh && cols.has('household_id')) ? 'WHERE household_id = ?' : '';
+  const hhWhere = (hh && cols.has('user_id')) ? 'WHERE user_id = ?' : '';
   const res = await db.prepare(
     `SELECT ${select.join(', ')}
      FROM reconciliation_snapshots
@@ -362,7 +372,7 @@ async function loadOpenExceptions(db, hh) {
   const statusWhere = cols.has('status')
     ? "(status IS NULL OR status = '' OR status = 'open' OR status = 'needs_review')"
     : '';
-  const hhClause = (hh && cols.has('household_id')) ? 'AND household_id = ?' : '';
+  const hhClause = (hh && cols.has('user_id')) ? 'AND user_id = ?' : '';
   const where = [statusWhere, hhClause ? hhClause.replace('AND ', '') : ''].filter(Boolean).join(' AND ');
 
   const res = await db.prepare(
@@ -400,7 +410,7 @@ async function loadImportSummary(db, hh) {
     if (!exists) return { total_imports: 0, last_import_at: null, last_import_account: null };
 
     const siCols = await tableColumns(db, 'statement_imports').catch(() => new Set());
-    const siHh = (hh && siCols.has('household_id')) ? 'WHERE household_id = ?' : '';
+    const siHh = (hh && siCols.has('user_id')) ? 'WHERE user_id = ?' : '';
     const totals = await db.prepare(
       `SELECT COUNT(*) AS total, MAX(created_at) AS last_at FROM statement_imports ${siHh}`
     ).bind(...(siHh ? [hh] : [])).first();
@@ -431,9 +441,9 @@ async function loadDashboard(db, rows, hh) {
     const plCols  = plansExist       ? await tableColumns(db, 'reconciliation_plans').catch(() => new Set()) : new Set();
     const excCols = excExist         ? await tableColumns(db, 'reconciliation_exceptions').catch(() => new Set()) : new Set();
 
-    const siHhAnd  = (hh && siCols.has('household_id'))  ? ' AND household_id = ?' : '';
-    const plHhAnd  = (hh && plCols.has('household_id'))  ? ' AND household_id = ?' : '';
-    const excHhAnd = (hh && excCols.has('household_id')) ? ' AND household_id = ?' : '';
+    const siHhAnd  = (hh && siCols.has('user_id'))  ? ' AND user_id = ?' : '';
+    const plHhAnd  = (hh && plCols.has('user_id'))  ? ' AND user_id = ?' : '';
+    const excHhAnd = (hh && excCols.has('user_id')) ? ' AND user_id = ?' : '';
 
     for (const row of rows) {
       const acctId = row.account_id;
@@ -502,15 +512,15 @@ async function loadDashboard(db, rows, hh) {
     const transferPairs = [];
     if (plansExist) {
       const cutoff = addDays(todayISO(), -30) + ' 00:00:00';
-      const plHhWhere = (hh && plCols.has('household_id'))
-        ? 'WHERE created_at >= ? AND household_id = ?'
+      const plHhWhere = (hh && plCols.has('user_id'))
+        ? 'WHERE created_at >= ? AND user_id = ?'
         : 'WHERE created_at >= ?';
       const plans  = await db.prepare(
         `SELECT account_id, plan_json
          FROM reconciliation_plans
          ${plHhWhere}
          ORDER BY created_at DESC LIMIT 100`
-      ).bind(...(plHhWhere.includes('household_id') ? [cutoff, hh] : [cutoff])).all().catch(() => ({ results: [] }));
+      ).bind(...(plHhWhere.includes('user_id') ? [cutoff, hh] : [cutoff])).all().catch(() => ({ results: [] }));
 
       for (const p of plans.results || []) {
         try {
@@ -540,7 +550,7 @@ async function loadDashboard(db, rows, hh) {
     const exceptionSummary = { open: 0, resolved: 0, by_type: {} };
     if (excExist) {
       if (excCols.has('status')) {
-        const excHhWhere = (hh && excCols.has('household_id')) ? 'WHERE household_id = ?' : '';
+        const excHhWhere = (hh && excCols.has('user_id')) ? 'WHERE user_id = ?' : '';
         const allExc = await db.prepare(
           `SELECT type, status FROM reconciliation_exceptions ${excHhWhere} LIMIT 2000`
         ).bind(...(excHhWhere ? [hh] : [])).all().catch(() => ({ results: [] }));
@@ -646,8 +656,8 @@ async function saveSnapshot(db, body, hh) {
   const snapshotId = `recon_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
   const snCols = await tableColumns(db, 'reconciliation_snapshots').catch(() => new Set());
-  const snHhCol = snCols.has('household_id') ? ', household_id' : '';
-  const snHhVal = snCols.has('household_id') ? ', ?' : '';
+  const snHhCol = snCols.has('user_id') ? ', user_id' : '';
+  const snHhVal = snCols.has('user_id') ? ', ?' : '';
 
   const batch = [
     db.prepare(
@@ -672,8 +682,8 @@ async function saveSnapshot(db, body, hh) {
   if (result.needs_review) {
     const exceptionId = `recon_exc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const excSnCols = await tableColumns(db, 'reconciliation_exceptions').catch(() => new Set());
-    const excHhCol2 = excSnCols.has('household_id') ? ', household_id' : '';
-    const excHhVal2 = excSnCols.has('household_id') ? ', ?' : '';
+    const excHhCol2 = excSnCols.has('user_id') ? ', user_id' : '';
+    const excHhVal2 = excSnCols.has('user_id') ? ', ?' : '';
     batch.push(
       db.prepare(
         `INSERT INTO reconciliation_exceptions

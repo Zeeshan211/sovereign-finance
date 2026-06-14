@@ -11,6 +11,8 @@
  * - Frontend must not recalculate authoritative balances.
  */
 
+import { getUserId } from './_lib.js';
+
 const VERSION = 'v0.6.0-balances-contract';
 const CONTRACT_VERSION = 'accounts-v1';
 
@@ -38,6 +40,16 @@ export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
 
+    const userId = getUserId(context);
+    if (!userId) {
+      return json({
+        ok: false,
+        version: VERSION,
+        contract_version: CONTRACT_VERSION,
+        error: 'Unauthorized'
+      }, 401);
+    }
+
     const [accountCols, txCols] = await Promise.all([
       tableColumns(db, 'accounts'),
       tableColumns(db, 'transactions')
@@ -61,9 +73,8 @@ export async function onRequestGet(context) {
       }, 500);
     }
 
-    const hh = (context.data && context.data.household_id) || ('hh_' + (context.data && context.data.user_id || 'unauthenticated'));
-    const accounts = await loadAccounts(db, accountCols, hh);
-    const balanceMap = await computeBalances(db, txCols, hh);
+    const accounts = await loadAccounts(db, accountCols, userId);
+    const balanceMap = await computeBalances(db, txCols, userId);
 
     const accountsById = {};
     const accountList = [];
@@ -255,7 +266,7 @@ export async function onRequestGet(context) {
   }
 }
 
-async function loadAccounts(db, cols, hh) {
+async function loadAccounts(db, cols, userId) {
   const wanted = [
     'id',
     'name',
@@ -275,14 +286,12 @@ async function loadAccounts(db, cols, hh) {
     ? 'display_order, name, id'
     : (cols.has('name') ? 'name, id' : 'id');
 
-  const hhWhere = (hh && cols.has('household_id')) ? 'WHERE household_id = ?' : '';
-
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM accounts
-     ${hhWhere}
+     WHERE user_id = ?
      ORDER BY ${orderBy}`
-  ).bind(...(hhWhere ? [hh] : [])).all();
+  ).bind(userId).all();
 
   return (result.results || []).map(row => {
     const accountClass = classifyAccount(row);
@@ -304,7 +313,7 @@ async function loadAccounts(db, cols, hh) {
   });
 }
 
-async function computeBalances(db, txCols, hh) {
+async function computeBalances(db, txCols, userId) {
   const wanted = [
     'id',
     'date',
@@ -324,14 +333,12 @@ async function computeBalances(db, txCols, hh) {
     ? 'date ASC'
     : (txCols.has('created_at') ? 'datetime(created_at) ASC' : 'rowid ASC');
 
-  const hhWhere = (hh && txCols.has('household_id')) ? 'WHERE household_id = ?' : '';
-
   const result = await db.prepare(
     `SELECT ${wanted.join(', ')}
      FROM transactions
-     ${hhWhere}
+     WHERE user_id = ?
      ORDER BY ${orderBy}`
-  ).bind(...(hhWhere ? [hh] : [])).all();
+  ).bind(userId).all();
 
   const map = new Map();
 

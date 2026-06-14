@@ -6,12 +6,17 @@
  * Used by Debts UI for payment history and reverse actions.
  */
 
+import { getUserId } from '../_lib.js';
+
 const VERSION = 'v1.0.0-debts-payments-list';
 
 export async function onRequestGet(context) {
   try {
     const db = context.env.DB;
     const url = new URL(context.request.url);
+
+    const userId = getUserId(context);
+    if (!userId) return json({ ok: false, version: VERSION, error: 'Unauthorized' }, 401);
 
     const debtId = text(url.searchParams.get('debt_id'), '', 160);
     const limit = clampInt(url.searchParams.get('limit'), 1, 500, 200);
@@ -40,8 +45,8 @@ export async function onRequestGet(context) {
       txCols.has('reversed_at') ? 't.reversed_at AS transaction_reversed_at' : 'NULL AS transaction_reversed_at'
     ];
 
-    const where = [];
-    const binds = [];
+    const where = ['dp.user_id = ?'];
+    const binds = [userId];
 
     if (debtId) {
       where.push('dp.debt_id = ?');
