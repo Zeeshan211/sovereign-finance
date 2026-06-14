@@ -9,6 +9,8 @@
  * - International: unchanged (existing buildIntlPreview + commitInternational)
  */
 
+import { getUserId } from '../_lib.js';
+
 const VERSION = 'v2.0.0-contract-v1';
 
 const CATEGORY_ALIASES = {
@@ -63,9 +65,10 @@ export async function onRequestPost(context) {
 
 async function getContext(context) {
   const db = context.env.DB;
-  const hh = (context.data && context.data.household_id) || ('hh_' + (context.data && context.data.user_id || 'unauthenticated'));
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, version: VERSION, error: 'Unauthorized' }, 401);
   const [accounts, allCategories, merchants, intlConfig] = await Promise.all([
-    loadAccountsWithInlineBalances(db, hh),
+    loadAccountsWithInlineBalances(db, userId),
     loadCategoriesDirect(db),
     loadMerchantsDirect(db),
     getIntlConfig(db).catch(() => null),
@@ -116,7 +119,7 @@ function buildFxRates(intlConfig) {
   return { USD: 278.05, EUR: 302.00, GBP: 353.00, AED: 75.75, SAR: 74.15, JPY: 1.85, CNY: 38.40 };
 }
 
-async function loadAccountsWithInlineBalances(db, hh) {
+async function loadAccountsWithInlineBalances(db, userId) {
   const cols = await tableColumns(db, 'accounts');
   if (!cols.has('id')) return [];
   const wanted = ['id','name','type','kind','currency','color','icon','opening_balance',
@@ -124,15 +127,14 @@ async function loadAccountsWithInlineBalances(db, hh) {
   const order  = cols.has('display_order') ? 'display_order, name, id' :
                  cols.has('name') ? 'name, id' : 'id';
   const activeWhere  = buildActiveAccountWhere(cols);
-  const hhClause = (hh && cols.has('household_id')) ? `household_id = ?` : '';
-  const whereParts = [activeWhere, hhClause].filter(Boolean);
+  const whereParts = [activeWhere, 'user_id = ?'].filter(Boolean);
   const where = whereParts.join(' AND ');
   const rows   = await db.prepare(
-    `SELECT ${wanted.join(', ')} FROM accounts ${where ? 'WHERE ' + where : ''} ORDER BY ${order}`
-  ).bind(...(hhClause ? [hh] : [])).all();
+    `SELECT ${wanted.join(', ')} FROM accounts WHERE ${where} ORDER BY ${order}`
+  ).bind(userId).all();
   const out = [];
   for (const account of rows.results || []) {
-    const computed = await computeAccountBalance(db, account.id, hh);
+    const computed = await computeAccountBalance(db, account.id, userId);
     const opening  = Number(account.opening_balance || 0);
     const balance  = roundMoney(opening + computed.balance);
     out.push({
@@ -161,15 +163,14 @@ function buildActiveAccountWhere(cols) {
   return clauses.join(' AND ');
 }
 
-async function computeAccountBalance(db, accountId, hh) {
+async function computeAccountBalance(db, accountId, userId) {
   const txCols = await tableColumns(db, 'transactions');
   if (!txCols.has('account_id')) return { balance: 0, txn_count: 0 };
   const wanted = ['id','type','amount','pkr_amount','notes','reversed_by','reversed_at']
     .filter(c => txCols.has(c));
-  const hhClause = (hh && txCols.has('household_id')) ? 'AND household_id = ?' : '';
   const rows = await db.prepare(
-    `SELECT ${wanted.join(', ')} FROM transactions WHERE account_id = ? ${hhClause}`
-  ).bind(accountId, ...(hhClause ? [hh] : [])).all();
+    `SELECT ${wanted.join(', ')} FROM transactions WHERE account_id = ? AND user_id = ?`
+  ).bind(accountId, userId).all();
   let balance = 0, txnCount = 0;
   for (const row of rows.results || []) {
     if (isInactiveForBalance(row)) continue;
@@ -263,8 +264,8 @@ async function preview(context, body) {
 
 async function dryRun(context, body) {
   const db = context.env.DB;
-  const hh = (context.data && context.data.household_id) || ('hh_' + (context.data && context.data.user_id || 'unauthenticated'));
-  const uid = context.data && context.data.user_id;
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, version: VERSION, error: 'Unauthorized' }, 401);
   const normalized = normalizeAddPayload(body);
 
   if (isInternationalMode(normalized)) return dryRunIntl(context, normalized);
@@ -272,13 +273,13 @@ async function dryRun(context, body) {
   const validationError = validateNormalized(normalized);
   if (validationError) return json({ ok: false, version: VERSION, error: validationError }, 400);
 
-  const accounts   = await loadAccountsWithInlineBalances(db, hh);
+  const accounts   = await loadAccountsWithInlineBalances(db, userId);
   const fromAccount = accounts.find(a => a.id === normalized.account_id);
   const toAccount   = normalized.type === 'transfer'
     ? accounts.find(a => a.id === normalized.transfer_to_account_id) : null;
 
-  normalized.household_id = hh;
-  normalized.created_by_user_id = uid;
+  normalized.user_id = userId;
+  normalized.created_by_user_id = userId;
   const committable = buildCommittablePayload(normalized);
   const payloadHash = await hashPayload(committable);
   const warnings    = computeWarnings(normalized, fromAccount, toAccount);
@@ -363,7 +364,7 @@ function buildCommittablePayload(normalized) {
       idempotency_key: normalized.idempotency_key || null,
       created_by: normalized.created_by || 'web-add',
       created_by_user_id: normalized.created_by_user_id || null,
-      household_id: normalized.household_id || null,
+      user_id: normalized.user_id || null,
       created_at: now,
     };
     const inAmount = feeBearer === 'destination'
@@ -384,7 +385,7 @@ function buildCommittablePayload(normalized) {
       source_action: normalized.source_action || 'manual_create',
       created_by: normalized.created_by || 'web-add',
       created_by_user_id: normalized.created_by_user_id || null,
-      household_id: normalized.household_id || null,
+      user_id: normalized.user_id || null,
       created_at: now,
     };
     return { _type: 'transfer', transfer_id: transferId, legs: [outLeg, inLeg] };

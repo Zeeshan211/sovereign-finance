@@ -15,6 +15,8 @@
  *   - Canonical reversal route is POST /api/transactions/reverse.
  */
 
+import { getUserId } from '../_lib.js';
+
 const VERSION = 'v1.0.0-debts-contract-v1';
 const CONTRACT_VERSION = 'debts-v1';
 
@@ -85,6 +87,8 @@ const DEBT_COLUMNS = `
 
 export async function onRequestGet(context) {
   return withJsonErrors('GET', async () => {
+    const userId = getUserId(context);
+    if (!userId) return json(contractError({ action: 'debt_get', code: 'UNAUTHORIZED', error: 'Unauthorized' }), 401);
     const db = requireDb(context.env);
     const url = new URL(context.request.url);
     const path = getPath(context);
@@ -100,14 +104,16 @@ export async function onRequestGet(context) {
     }
 
     if (action === 'health') return health(db);
-    if (action === 'payment_check' || action === 'payment-check') return paymentCheckFromUrl(db, url);
+    if (action === 'payment_check' || action === 'payment-check') return paymentCheckFromUrl(db, url, userId);
 
-    return listDebts(db, url);
+    return listDebts(db, url, userId);
   });
 }
 
 export async function onRequestPost(context) {
   return withJsonErrors('POST', async () => {
+    const userId = getUserId(context);
+    if (!userId) return json(contractError({ action: 'debt_post', code: 'UNAUTHORIZED', error: 'Unauthorized' }), 401);
     const db = requireDb(context.env);
     const url = new URL(context.request.url);
     const path = getPath(context);
@@ -129,17 +135,17 @@ export async function onRequestPost(context) {
       }), 404);
     }
 
-    if (action === 'create' || action === 'debt_create') return createDebt(db, body, dryRun);
-    if (action === 'pay' || action === 'payment' || action === 'record_payment') return recordDebtPayment(db, body, dryRun);
-    if (action === 'receive_payment' || action === 'receive' || action === 'receive_debt_payment') return receiveDebtPayment(db, body, dryRun);
-    if (action === 'defer' || action === 'defer_debt') return deferDebt(db, body, dryRun);
-    if (action === 'accrue_interest' || action === 'accrue_debt_interest') return accrueDebtInterest(db, body, dryRun);
-    if (action === 'settle' || action === 'mark_settled' || action === 'settle_debt') return settleDebt(db, body, dryRun);
-    if (action === 'writeoff' || action === 'write_off' || action === 'writeoff_debt') return writeoffDebt(db, body, dryRun);
-    if (action === 'payment_check' || action === 'payment-check') return paymentCheckFromBody(db, body);
-    if (action === 'repair_ledger' || action === 'repair-ledger') return repairLedgerOrigin(db, body, dryRun);
-    if (action === 'repair_settled_debts' || action === 'repair-settled-debts') return repairSettledDebts(db, body, dryRun);
-    if (action === 'repair_reversed_payments' || action === 'repair-reversed-payments') return repairReversedPayments(db, body, dryRun);
+    if (action === 'create' || action === 'debt_create') return createDebt(db, body, dryRun, userId);
+    if (action === 'pay' || action === 'payment' || action === 'record_payment') return recordDebtPayment(db, body, dryRun, userId);
+    if (action === 'receive_payment' || action === 'receive' || action === 'receive_debt_payment') return receiveDebtPayment(db, body, dryRun, userId);
+    if (action === 'defer' || action === 'defer_debt') return deferDebt(db, body, dryRun, userId);
+    if (action === 'accrue_interest' || action === 'accrue_debt_interest') return accrueDebtInterest(db, body, dryRun, userId);
+    if (action === 'settle' || action === 'mark_settled' || action === 'settle_debt') return settleDebt(db, body, dryRun, userId);
+    if (action === 'writeoff' || action === 'write_off' || action === 'writeoff_debt') return writeoffDebt(db, body, dryRun, userId);
+    if (action === 'payment_check' || action === 'payment-check') return paymentCheckFromBody(db, body, userId);
+    if (action === 'repair_ledger' || action === 'repair-ledger') return repairLedgerOrigin(db, body, dryRun, userId);
+    if (action === 'repair_settled_debts' || action === 'repair-settled-debts') return repairSettledDebts(db, body, dryRun, userId);
+    if (action === 'repair_reversed_payments' || action === 'repair-reversed-payments') return repairReversedPayments(db, body, dryRun, userId);
 
     return json(contractError({
       action: 'debt_post',
@@ -158,6 +164,8 @@ export async function onRequestPost(context) {
 
 export async function onRequestPut(context) {
   return withJsonErrors('PUT', async () => {
+    const userId = getUserId(context);
+    if (!userId) return json(contractError({ action: 'debt_update', code: 'UNAUTHORIZED', error: 'Unauthorized' }), 401);
     const db = requireDb(context.env);
     const path = getPath(context);
     const debtId = safeText(path[0], '', 200);
@@ -171,7 +179,7 @@ export async function onRequestPut(context) {
       }), 400);
     }
 
-    const existing = await findDebtById(db, debtId);
+    const existing = await findDebtById(db, debtId, userId);
 
     if (!existing) {
       return json(contractError({
@@ -203,10 +211,10 @@ export async function onRequestPut(context) {
     }
 
     await db.prepare(
-      `UPDATE debts SET ${keys.map(k => `${k} = ?`).join(', ')} WHERE TRIM(id) = TRIM(?)`
-    ).bind(...keys.map(k => update.payload[k]), debtId).run();
+      `UPDATE debts SET ${keys.map(k => `${k} = ?`).join(', ')} WHERE TRIM(id) = TRIM(?) AND user_id = ?`
+    ).bind(...keys.map(k => update.payload[k]), debtId, userId).run();
 
-    const debt = await decorateDebt(db, normalizeDebt(await findDebtById(db, debtId)));
+    const debt = await decorateDebt(db, normalizeDebt(await findDebtById(db, debtId, userId)), userId);
 
     return json({
       ok: true,
@@ -238,7 +246,7 @@ export async function onRequestPut(context) {
  * GET: read-only list / health / check
  * ───────────────────────────── */
 
-async function listDebts(db, url) {
+async function listDebts(db, url, userId) {
   const includeInactive = url.searchParams.get('include_inactive') === '1';
   const filterDirection = safeText(url.searchParams.get('direction') || '', '', 20).toLowerCase();
   const filterStatus = safeText(url.searchParams.get('status') || '', '', 30).toLowerCase();
@@ -247,8 +255,9 @@ async function listDebts(db, url) {
   const res = await db.prepare(
     `SELECT ${DEBT_COLUMNS}
        FROM debts
+      WHERE user_id = ?
       ORDER BY kind, snowball_order, name`
-  ).all();
+  ).bind(userId).all();
 
   const allRows = res.results || [];
   let raw = includeInactive ? allRows : allRows.filter(row => !isTerminalStatus(row.status));
@@ -270,7 +279,7 @@ async function listDebts(db, url) {
   }
 
   const normalized = raw.map(normalizeDebt);
-  const txMap = await loadTransactionsForDebts(db, normalized.map(debt => debt.id));
+  const txMap = await loadTransactionsForDebts(db, normalized.map(debt => debt.id), userId);
 
   const debts = normalized.map(debt => decorateDebtFromTransactions(debt, txMap.get(debt.id) || []));
   const totals = summarizeDebts(debts);
@@ -404,25 +413,25 @@ async function health(db) {
   });
 }
 
-async function paymentCheckFromUrl(db, url) {
+async function paymentCheckFromUrl(db, url, userId) {
   return paymentCheckCore(db, {
     debt_id: url.searchParams.get('debt_id'),
     account_id: url.searchParams.get('account_id'),
     amount: moneyNumber(url.searchParams.get('amount'), null),
     date: normalizeDate(url.searchParams.get('date')) || todayISO()
-  });
+  }, userId);
 }
 
-async function paymentCheckFromBody(db, body) {
+async function paymentCheckFromBody(db, body, userId) {
   return paymentCheckCore(db, {
     debt_id: body.debt_id || body.id || body.debtId,
     account_id: body.account_id,
     amount: moneyNumber(body.amount, null),
     date: normalizeDate(body.date || body.paid_at || body.payment_date) || todayISO()
-  });
+  }, userId);
 }
 
-async function paymentCheckCore(db, input) {
+async function paymentCheckCore(db, input, userId) {
   const debtId = safeText(input.debt_id, '', 200);
   const accountId = safeText(input.account_id, '', 160);
   const amount = moneyNumber(input.amount, null);
@@ -452,14 +461,14 @@ async function paymentCheckCore(db, input) {
     }), 400);
   }
 
-  const row = await findDebtById(db, debtId);
+  const row = await findDebtById(db, debtId, userId);
 
   if (!row) {
     return json(contractError({
       action: 'debt_payment_check',
       code: 'DEBT_NOT_FOUND',
       error: `Debt not found for received_debt_id="${debtId}".`,
-      extra: { diagnostics: await debtLookupDiagnostics(db, debtId, input) }
+      extra: { diagnostics: await debtLookupDiagnostics(db, debtId, input, userId) }
     }), 404);
   }
 
@@ -534,7 +543,7 @@ async function paymentCheckCore(db, input) {
  * POST: create
  * ───────────────────────────── */
 
-async function createDebt(db, body, dryRun) {
+async function createDebt(db, body, dryRun, userId) {
   const id = safeText(body.id || body.debt_id || body.idempotency_key, '', 160) || makeId('debt');
 
   // Contract fields — support both legacy (name/kind) and new contract (counterparty_name/direction)
@@ -604,10 +613,10 @@ async function createDebt(db, body, dryRun) {
   if (paidAmount == null || paidAmount < 0) return json(contractError({ action: 'debt_create', code: 'INVALID_PAID_AMOUNT', error: 'paid_amount must be 0 or greater' }), 400);
   if (paidAmount > originalAmount) return json(contractError({ action: 'debt_create', code: 'PAID_EXCEEDS_ORIGINAL', error: 'paid_amount cannot exceed original_amount' }), 400);
 
-  const existing = await findDebtById(db, id);
+  const existing = await findDebtById(db, id, userId);
 
   if (existing) {
-    const debt = await decorateDebt(db, normalizeDebt(existing));
+    const debt = await decorateDebt(db, normalizeDebt(existing), userId);
 
     return json({
       ok: true,
@@ -710,6 +719,7 @@ async function createDebt(db, body, dryRun) {
     collateral,
     guarantor_name: guarantorName,
     trust_level: trustLevel,
+    user_id: userId || null,
     updated_at: nowTs
   };
 
@@ -772,7 +782,7 @@ async function createDebt(db, body, dryRun) {
 
   await db.batch(batch);
 
-  const debt = await decorateDebt(db, normalizeDebt(await findDebtById(db, id)));
+  const debt = await decorateDebt(db, normalizeDebt(await findDebtById(db, id, userId)), userId);
 
   return json({
     ...responseBase,
@@ -790,7 +800,7 @@ async function createDebt(db, body, dryRun) {
  * POST: payment
  * ───────────────────────────── */
 
-async function recordDebtPayment(db, body, dryRun) {
+async function recordDebtPayment(db, body, dryRun, userId) {
   const debtId = safeText(body.debt_id || body.id || body.debtId || body.debtID, '', 200);
   const accountId = safeText(body.account_id, '', 160);
   const amount = moneyNumber(body.amount, null);
@@ -802,14 +812,14 @@ async function recordDebtPayment(db, body, dryRun) {
   if (!accountId) return json(contractError({ action: 'debt_payment', code: 'ACCOUNT_ID_REQUIRED', error: 'account_id required' }), 400);
   if (amount == null || amount <= 0) return json(contractError({ action: 'debt_payment', code: 'INVALID_AMOUNT', error: 'amount must be greater than 0' }), 400);
 
-  const debtRow = await findDebtById(db, debtId);
+  const debtRow = await findDebtById(db, debtId, userId);
 
   if (!debtRow) {
     return json(contractError({
       action: 'debt_payment',
       code: 'DEBT_NOT_FOUND',
       error: `Debt not found for received_debt_id="${debtId}".`,
-      extra: { diagnostics: await debtLookupDiagnostics(db, debtId, body) }
+      extra: { diagnostics: await debtLookupDiagnostics(db, debtId, body, userId) }
     }), 404);
   }
 
@@ -849,7 +859,7 @@ async function recordDebtPayment(db, body, dryRun) {
   const existing = await findExistingPayment(db, paymentId, debt.id);
 
   if (existing) {
-    const after = await decorateDebt(db, normalizeDebt(await findDebtById(db, debt.id)));
+    const after = await decorateDebt(db, normalizeDebt(await findDebtById(db, debt.id, userId)), userId);
 
     return json({
       ok: true,
@@ -976,8 +986,8 @@ async function recordDebtPayment(db, body, dryRun) {
     db.prepare(
       `UPDATE debts
           SET ${debtUpdateKeys.map(key => `${key} = ?`).join(', ')}
-        WHERE TRIM(id) = TRIM(?)`
-    ).bind(...debtUpdateKeys.map(key => debtUpdates[key]), debt.id)
+        WHERE TRIM(id) = TRIM(?) AND user_id = ?`
+    ).bind(...debtUpdateKeys.map(key => debtUpdates[key]), debt.id, userId)
   ];
 
   if (paymentCols.size > 0) {
@@ -1014,7 +1024,7 @@ async function recordDebtPayment(db, body, dryRun) {
 
   await db.batch(batch);
 
-  const after = await decorateDebt(db, normalizeDebt(await findDebtById(db, debt.id)));
+  const after = await decorateDebt(db, normalizeDebt(await findDebtById(db, debt.id, userId)), userId);
 
   return json({
     ...responseBase,
@@ -1247,7 +1257,7 @@ function buildPaymentTransaction({ debt, amount, account, date, notes, created_b
  * POST: receive_payment (owed_to_me)
  * ───────────────────────────── */
 
-async function receiveDebtPayment(db, body, dryRun) {
+async function receiveDebtPayment(db, body, dryRun, userId) {
   const debtId = safeText(body.debt_id || body.id, '', 200);
   const accountId = safeText(body.destination_account_id || body.account_id, '', 160);
   const amount = moneyNumber(body.amount, null);
@@ -1261,7 +1271,7 @@ async function receiveDebtPayment(db, body, dryRun) {
   if (!accountId) return json(contractError({ action: 'receive_payment', code: 'ACCOUNT_ID_REQUIRED', error: 'destination_account_id required' }), 400);
   if (amount == null || amount <= 0) return json(contractError({ action: 'receive_payment', code: 'INVALID_AMOUNT', error: 'Amount must be greater than 0' }), 400);
 
-  const debtRow = await findDebtById(db, debtId);
+  const debtRow = await findDebtById(db, debtId, userId);
   if (!debtRow) return json(contractError({ action: 'receive_payment', code: 'DEBT_NOT_FOUND', error: `Debt not found: ${debtId}` }), 404);
 
   const debt = normalizeDebt(debtRow);
@@ -1336,8 +1346,8 @@ async function receiveDebtPayment(db, body, dryRun) {
 
   const batch = [
     buildTransactionInsert(db, txCols, txRow),
-    db.prepare(`UPDATE debts SET ${debtUpdateKeys.map(k => `${k} = ?`).join(', ')} WHERE TRIM(id) = TRIM(?)`)
-      .bind(...debtUpdateKeys.map(k => debtUpdates[k]), debtId)
+    db.prepare(`UPDATE debts SET ${debtUpdateKeys.map(k => `${k} = ?`).join(', ')} WHERE TRIM(id) = TRIM(?) AND user_id = ?`)
+      .bind(...debtUpdateKeys.map(k => debtUpdates[k]), debtId, userId)
   ];
 
   if (paymentCols.size > 0) {
@@ -1360,7 +1370,7 @@ async function receiveDebtPayment(db, body, dryRun) {
   }
 
   await db.batch(batch);
-  const after = await decorateDebt(db, normalizeDebt(await findDebtById(db, debtId)));
+  const after = await decorateDebt(db, normalizeDebt(await findDebtById(db, debtId, userId)), userId);
 
   return json({ ok: true, action: 'receive_payment', version: VERSION, contract_version: CONTRACT_VERSION,
     committed: true, writes_performed: true,
@@ -1374,7 +1384,7 @@ async function receiveDebtPayment(db, body, dryRun) {
  * POST: defer
  * ───────────────────────────── */
 
-async function deferDebt(db, body, dryRun) {
+async function deferDebt(db, body, dryRun, userId) {
   const debtId = safeText(body.debt_id || body.id, '', 200);
   const newDueDate = normalizeDate(body.new_due_date || body.due_date);
   const deferReason = safeText(body.defer_reason || body.reason || 'other', 'other', 50);
@@ -1385,7 +1395,7 @@ async function deferDebt(db, body, dryRun) {
   if (!debtId) return json(contractError({ action: 'defer', code: 'DEBT_ID_REQUIRED', error: 'debt_id required' }), 400);
   if (!newDueDate) return json(contractError({ action: 'defer', code: 'NEW_DUE_DATE_REQUIRED', error: 'new_due_date required (YYYY-MM-DD)' }), 400);
 
-  const debtRow = await findDebtById(db, debtId);
+  const debtRow = await findDebtById(db, debtId, userId);
   if (!debtRow) return json(contractError({ action: 'defer', code: 'DEBT_NOT_FOUND', error: `Debt not found: ${debtId}` }), 404);
 
   const debt = normalizeDebt(debtRow);
@@ -1433,7 +1443,7 @@ async function deferDebt(db, body, dryRun) {
   }
 
   const batch = [
-    db.prepare(`UPDATE debts SET due_date = ?, updated_at = ? WHERE TRIM(id) = TRIM(?)`).bind(newDueDate, nowTs, debtId),
+    db.prepare(`UPDATE debts SET due_date = ?, updated_at = ? WHERE TRIM(id) = TRIM(?) AND user_id = ?`).bind(newDueDate, nowTs, debtId, userId),
     db.prepare(`INSERT INTO debt_defers (id, debt_id, user_id, previous_due_date, new_due_date, defer_reason, late_fee_amount, late_fee_transaction_id, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(deferRow.id, deferRow.debt_id, deferRow.user_id, deferRow.previous_due_date, deferRow.new_due_date, deferRow.defer_reason, deferRow.late_fee_amount, deferRow.late_fee_transaction_id, deferRow.notes, deferRow.created_at)
   ];
@@ -1444,7 +1454,7 @@ async function deferDebt(db, body, dryRun) {
   }
 
   await db.batch(batch);
-  const after = await decorateDebt(db, normalizeDebt(await findDebtById(db, debtId)));
+  const after = await decorateDebt(db, normalizeDebt(await findDebtById(db, debtId, userId)), userId);
 
   return json({ ok: true, action: 'defer', version: VERSION, contract_version: CONTRACT_VERSION,
     committed: true, writes_performed: true,
@@ -1456,7 +1466,7 @@ async function deferDebt(db, body, dryRun) {
  * POST: accrue_interest
  * ───────────────────────────── */
 
-async function accrueDebtInterest(db, body, dryRun) {
+async function accrueDebtInterest(db, body, dryRun, userId) {
   const debtId = safeText(body.debt_id || body.id, '', 200);
   const interestAmountPaisa = body.interest_amount != null ? Math.round(Number(body.interest_amount)) : null;
   const accrualDate = normalizeDate(body.accrual_date || body.date) || todayISO();
@@ -1468,7 +1478,7 @@ async function accrueDebtInterest(db, body, dryRun) {
   if (!debtId) return json(contractError({ action: 'accrue_interest', code: 'DEBT_ID_REQUIRED', error: 'debt_id required' }), 400);
   if (interestAmountPaisa == null || interestAmountPaisa <= 0) return json(contractError({ action: 'accrue_interest', code: 'INVALID_AMOUNT', error: 'interest_amount must be > 0 (paisas)' }), 400);
 
-  const debtRow = await findDebtById(db, debtId);
+  const debtRow = await findDebtById(db, debtId, userId);
   if (!debtRow) return json(contractError({ action: 'accrue_interest', code: 'DEBT_NOT_FOUND', error: `Debt not found: ${debtId}` }), 404);
 
   const debt = normalizeDebt(debtRow);
@@ -1515,7 +1525,7 @@ async function accrueDebtInterest(db, body, dryRun) {
   const batch = [
     db.prepare(`INSERT INTO debt_interest_accruals (id, debt_id, user_id, amount, accrual_date, accrual_type, capitalized, payment_transaction_id, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .bind(accrualRow.id, accrualRow.debt_id, accrualRow.user_id, accrualRow.amount, accrualRow.accrual_date, accrualRow.accrual_type, accrualRow.capitalized, accrualRow.payment_transaction_id, accrualRow.notes, accrualRow.created_at),
-    db.prepare(`UPDATE debts SET updated_at = ? WHERE TRIM(id) = TRIM(?)`).bind(nowTs, debtId)
+    db.prepare(`UPDATE debts SET updated_at = ? WHERE TRIM(id) = TRIM(?) AND user_id = ?`).bind(nowTs, debtId, userId)
   ];
 
   if (interestTransaction) {
@@ -1524,7 +1534,7 @@ async function accrueDebtInterest(db, body, dryRun) {
   }
 
   await db.batch(batch);
-  const after = normalizeDebt(await findDebtById(db, debtId));
+  const after = normalizeDebt(await findDebtById(db, debtId, userId));
 
   return json({ ok: true, action: 'accrue_interest', version: VERSION, contract_version: CONTRACT_VERSION,
     committed: true, writes_performed: true,
@@ -1536,14 +1546,14 @@ async function accrueDebtInterest(db, body, dryRun) {
  * POST: settle
  * ───────────────────────────── */
 
-async function settleDebt(db, body, dryRun) {
+async function settleDebt(db, body, dryRun, userId) {
   const debtId = safeText(body.debt_id || body.id, '', 200);
   const settlementDate = normalizeDate(body.settlement_date || body.date) || todayISO();
   const settlementNotes = safeText(body.notes || body.settlement_notes || '', '', 500);
 
   if (!debtId) return json(contractError({ action: 'settle', code: 'DEBT_ID_REQUIRED', error: 'debt_id required' }), 400);
 
-  const debtRow = await findDebtById(db, debtId);
+  const debtRow = await findDebtById(db, debtId, userId);
   if (!debtRow) return json(contractError({ action: 'settle', code: 'DEBT_NOT_FOUND', error: `Debt not found: ${debtId}` }), 404);
 
   const debt = normalizeDebt(debtRow);
@@ -1564,10 +1574,10 @@ async function settleDebt(db, body, dryRun) {
   }
 
   const nowTs = nowSQL();
-  await db.prepare(`UPDATE debts SET status = ?, settlement_date = ?, updated_at = ? WHERE TRIM(id) = TRIM(?)`)
-    .bind(CANONICAL_TERMINAL, settlementDate, nowTs, debtId).run();
+  await db.prepare(`UPDATE debts SET status = ?, settlement_date = ?, updated_at = ? WHERE TRIM(id) = TRIM(?) AND user_id = ?`)
+    .bind(CANONICAL_TERMINAL, settlementDate, nowTs, debtId, userId).run();
 
-  const after = normalizeDebt(await findDebtById(db, debtId));
+  const after = normalizeDebt(await findDebtById(db, debtId, userId));
 
   return json({ ok: true, action: 'settle', version: VERSION, contract_version: CONTRACT_VERSION,
     committed: true, writes_performed: true,
@@ -1578,7 +1588,7 @@ async function settleDebt(db, body, dryRun) {
  * POST: writeoff
  * ───────────────────────────── */
 
-async function writeoffDebt(db, body, dryRun) {
+async function writeoffDebt(db, body, dryRun, userId) {
   const debtId = safeText(body.debt_id || body.id, '', 200);
   const writeoffDate = normalizeDate(body.writeoff_date || body.date) || todayISO();
   const writeoffReason = safeText(body.writeoff_reason || body.reason || 'other', 'other', 50);
@@ -1591,7 +1601,7 @@ async function writeoffDebt(db, body, dryRun) {
 
   if (!debtId) return json(contractError({ action: 'writeoff', code: 'DEBT_ID_REQUIRED', error: 'debt_id required' }), 400);
 
-  const debtRow = await findDebtById(db, debtId);
+  const debtRow = await findDebtById(db, debtId, userId);
   if (!debtRow) return json(contractError({ action: 'writeoff', code: 'DEBT_NOT_FOUND', error: `Debt not found: ${debtId}` }), 404);
 
   const debt = normalizeDebt(debtRow);
@@ -1625,8 +1635,8 @@ async function writeoffDebt(db, body, dryRun) {
 
   // The status change IS the write-off and must always commit. Run it on its own
   // so it cannot be rolled back by the optional forgiveness ledger row below.
-  await db.prepare(`UPDATE debts SET status = 'written_off', writeoff_date = ?, writeoff_reason = ?, updated_at = ? WHERE TRIM(id) = TRIM(?)`)
-    .bind(writeoffDate, reason, nowTs, debtId).run();
+  await db.prepare(`UPDATE debts SET status = 'written_off', writeoff_date = ?, writeoff_reason = ?, updated_at = ? WHERE TRIM(id) = TRIM(?) AND user_id = ?`)
+    .bind(writeoffDate, reason, nowTs, debtId, userId).run();
 
   // The forgiveness ledger row targets a virtual account that may not exist, so a
   // failed insert (e.g. foreign-key enforcement) must not fail the write-off.
@@ -1646,7 +1656,7 @@ async function writeoffDebt(db, body, dryRun) {
     } catch (_) { /* writeoff ledger row is best-effort if account_id is virtual */ }
   }
 
-  const after = normalizeDebt(await findDebtById(db, debtId));
+  const after = normalizeDebt(await findDebtById(db, debtId, userId));
 
   return json({ ok: true, action: 'writeoff', version: VERSION, contract_version: CONTRACT_VERSION,
     committed: true, writes_performed: true,
@@ -1658,7 +1668,7 @@ async function writeoffDebt(db, body, dryRun) {
  * POST: repair origin
  * ───────────────────────────── */
 
-async function repairLedgerOrigin(db, body, dryRun) {
+async function repairLedgerOrigin(db, body, dryRun, userId) {
   const debtId = safeText(body.debt_id || body.id, '', 200);
   const accountId = safeText(body.account_id, '', 160);
   const date = normalizeDate(body.date || body.movement_date) || todayISO();
@@ -1667,19 +1677,19 @@ async function repairLedgerOrigin(db, body, dryRun) {
   if (!debtId) return json(contractError({ action: 'debt_repair_origin', code: 'DEBT_ID_REQUIRED', error: 'debt_id required' }), 400);
   if (!accountId) return json(contractError({ action: 'debt_repair_origin', code: 'ACCOUNT_ID_REQUIRED', error: 'account_id required' }), 400);
 
-  const row = await findDebtById(db, debtId);
+  const row = await findDebtById(db, debtId, userId);
 
   if (!row) {
     return json(contractError({
       action: 'debt_repair_origin',
       code: 'DEBT_NOT_FOUND',
       error: `Debt not found for received_debt_id="${debtId}".`,
-      extra: { diagnostics: await debtLookupDiagnostics(db, debtId, body) }
+      extra: { diagnostics: await debtLookupDiagnostics(db, debtId, body, userId) }
     }), 404);
   }
 
   const debt = normalizeDebt(row);
-  const decorated = await decorateDebt(db, debt);
+  const decorated = await decorateDebt(db, debt, userId);
 
   if (decorated.origin_linked) {
     return json({
@@ -1766,7 +1776,7 @@ async function repairLedgerOrigin(db, body, dryRun) {
   const txCols = await tableColumns(db, 'transactions');
   await buildTransactionInsert(db, txCols, originTx).run();
 
-  const after = await decorateDebt(db, normalizeDebt(await findDebtById(db, debt.id)));
+  const after = await decorateDebt(db, normalizeDebt(await findDebtById(db, debt.id, userId)), userId);
 
   return json({
     ...responseBase,
@@ -1781,8 +1791,8 @@ async function repairLedgerOrigin(db, body, dryRun) {
  * POST: explicit settlement/status repair
  * ───────────────────────────── */
 
-async function repairSettledDebts(db, body, dryRun) {
-  const rows = (await db.prepare(`SELECT ${DEBT_COLUMNS} FROM debts`).all()).results || [];
+async function repairSettledDebts(db, body, dryRun, userId) {
+  const rows = (await db.prepare(`SELECT ${DEBT_COLUMNS} FROM debts WHERE user_id = ?`).bind(userId).all()).results || [];
 
   const flipCandidates = [];
   const normalizeCandidates = [];
@@ -1856,17 +1866,17 @@ async function repairSettledDebts(db, body, dryRun) {
     batch.push(db.prepare(
       `UPDATE debts
           SET status = ?
-        WHERE TRIM(id) = TRIM(?)
+        WHERE TRIM(id) = TRIM(?) AND user_id = ?
           AND (status IS NULL OR status = '' OR LOWER(TRIM(status)) = 'active')`
-    ).bind(CANONICAL_TERMINAL, safeText(row.id, '', 200)));
+    ).bind(CANONICAL_TERMINAL, safeText(row.id, '', 200), userId));
   }
 
   for (const row of normalizeCandidates) {
     batch.push(db.prepare(
       `UPDATE debts
           SET status = ?
-        WHERE TRIM(id) = TRIM(?)`
-    ).bind(CANONICAL_TERMINAL, safeText(row.id, '', 200)));
+        WHERE TRIM(id) = TRIM(?) AND user_id = ?`
+    ).bind(CANONICAL_TERMINAL, safeText(row.id, '', 200), userId));
   }
 
   if (batch.length) await db.batch(batch);
@@ -1882,7 +1892,7 @@ async function repairSettledDebts(db, body, dryRun) {
   });
 }
 
-async function repairReversedPayments(db, body, dryRun) {
+async function repairReversedPayments(db, body, dryRun, userId) {
   const paymentCols = await tableColumns(db, 'debt_payments');
 
   if (!paymentCols.size) {
@@ -1904,10 +1914,12 @@ async function repairReversedPayments(db, body, dryRun) {
       FROM debt_payments dp
       INNER JOIN transactions t
         ON TRIM(t.id) = TRIM(dp.transaction_id)
+      INNER JOIN debts d
+        ON TRIM(d.id) = TRIM(dp.debt_id) AND d.user_id = ?
      WHERE (dp.status IS NULL OR dp.status = '' OR dp.status = 'paid' OR dp.status = 'active')
        AND (t.reversed_by IS NOT NULL OR t.reversed_at IS NOT NULL)
      ORDER BY dp.debt_id, dp.id
-  `).all();
+  `).bind(userId).all();
 
   const badPayments = badRows.results || [];
   const affectedDebtIds = [...new Set(badPayments.map(row => row.debt_id).filter(Boolean))];
@@ -1972,7 +1984,7 @@ async function repairReversedPayments(db, body, dryRun) {
   }
 
   for (const debtId of affectedDebtIds) {
-    const recalc = await recalculateDebtPaidAmount(db, debtId);
+    const recalc = await recalculateDebtPaidAmount(db, debtId, userId);
 
     batch.push(db.prepare(
       `UPDATE debts
@@ -1986,8 +1998,8 @@ async function repairReversedPayments(db, body, dryRun) {
   const debts = [];
 
   for (const debtId of affectedDebtIds) {
-    const row = await findDebtById(db, debtId);
-    if (row) debts.push(await decorateDebt(db, normalizeDebt(row)));
+    const row = await findDebtById(db, debtId, userId);
+    if (row) debts.push(await decorateDebt(db, normalizeDebt(row), userId));
   }
 
   return json({
@@ -2063,8 +2075,8 @@ function ledgerSummary(tx) {
  * Debt decoration / linkage
  * ───────────────────────────── */
 
-async function decorateDebt(db, debt) {
-  const txMap = await loadTransactionsForDebts(db, [debt.id]);
+async function decorateDebt(db, debt, userId) {
+  const txMap = await loadTransactionsForDebts(db, [debt.id], userId);
   return decorateDebtFromTransactions(debt, txMap.get(debt.id) || []);
 }
 
@@ -2106,7 +2118,7 @@ function decorateDebtFromTransactions(debt, txs) {
   };
 }
 
-async function loadTransactionsForDebts(db, debtIds) {
+async function loadTransactionsForDebts(db, debtIds, userId) {
   const ids = [...new Set((debtIds || []).map(id => safeText(id, '', 200)).filter(Boolean))];
   const map = new Map(ids.map(id => [id, []]));
 
@@ -2145,16 +2157,18 @@ async function loadTransactionsForDebts(db, debtIds) {
     whereParts.push(`source_module = 'debts'`);
   }
 
+  const userFilter = userId && cols.has('user_id') ? ` AND user_id = ?` : '';
   const orderBy = cols.has('created_at')
     ? 'datetime(created_at) DESC, id DESC'
     : 'id DESC';
 
-  const res = await db.prepare(
+  const stmt = db.prepare(
     `SELECT ${wanted.join(', ')}
        FROM transactions
-      WHERE ${whereParts.join(' OR ')}
+      WHERE (${whereParts.join(' OR ')})${userFilter}
       ORDER BY ${orderBy}`
-  ).all();
+  );
+  const res = await (userFilter ? stmt.bind(userId) : stmt).all();
 
   for (const row of res.results || []) {
     const tx = sanitizeTransaction(row);
@@ -2231,16 +2245,16 @@ function isReversedTransaction(tx) {
     notes.includes('[REVERSED BY ')
   );
 }
-async function findDebtById(db, debtId) {
+async function findDebtById(db, debtId, userId) {
   const id = safeText(debtId, '', 200);
   if (!id) return null;
 
   return db.prepare(
     `SELECT ${DEBT_COLUMNS}
        FROM debts
-      WHERE TRIM(id) = TRIM(?)
+      WHERE TRIM(id) = TRIM(?) AND user_id = ?
       LIMIT 1`
-  ).bind(id).first();
+  ).bind(id, userId).first();
 }
 
 async function resolveAccount(db, input) {
@@ -2366,6 +2380,7 @@ async function buildDebtInsert(db, row) {
     guarantor_name: row.guarantor_name,
     trust_level: row.trust_level,
     split_with_household: row.split_with_household,
+    user_id: row.user_id,
     updated_at: row.updated_at || row.created_at || nowSQL()
   };
 
@@ -2507,7 +2522,7 @@ async function findExistingPayment(db, paymentId, debtId) {
   return null;
 }
 
-async function recalculateDebtPaidAmount(db, debtId) {
+async function recalculateDebtPaidAmount(db, debtId, userId) {
   const sumRow = await db.prepare(`
     SELECT COALESCE(SUM(amount), 0) AS active_paid_amount,
            MAX(paid_date) AS last_paid_date
@@ -2516,7 +2531,7 @@ async function recalculateDebtPaidAmount(db, debtId) {
        AND (status IS NULL OR status = '' OR status = 'paid' OR status = 'active')
   `).bind(debtId).first();
 
-  const debtRow = await findDebtById(db, debtId);
+  const debtRow = await findDebtById(db, debtId, userId);
 
   if (!debtRow) {
     return {
@@ -2813,7 +2828,7 @@ function nextDueFromDay(day, lastPaidDate) {
  * Diagnostics / generic helpers
  * ───────────────────────────── */
 
-async function debtLookupDiagnostics(db, debtId, body) {
+async function debtLookupDiagnostics(db, debtId, body, userId) {
   const id = safeText(debtId, '', 200);
   const tokenPart = id.includes('_') ? id.split('_').slice(-1)[0].toLowerCase() : id.toLowerCase();
 
@@ -2824,35 +2839,35 @@ async function debtLookupDiagnostics(db, debtId, body) {
   let matching_name_debts = [];
 
   try {
-    exact_count = (await db.prepare(`SELECT COUNT(*) AS c FROM debts WHERE id = ?`).bind(id).first())?.c ?? null;
+    exact_count = (await db.prepare(`SELECT COUNT(*) AS c FROM debts WHERE id = ? AND user_id = ?`).bind(id, userId).first())?.c ?? null;
   } catch {}
 
   try {
-    trim_count = (await db.prepare(`SELECT COUNT(*) AS c FROM debts WHERE TRIM(id) = TRIM(?)`).bind(id).first())?.c ?? null;
+    trim_count = (await db.prepare(`SELECT COUNT(*) AS c FROM debts WHERE TRIM(id) = TRIM(?) AND user_id = ?`).bind(id, userId).first())?.c ?? null;
   } catch {}
 
   try {
-    total_debt_count = (await db.prepare(`SELECT COUNT(*) AS c FROM debts`).first())?.c ?? null;
+    total_debt_count = (await db.prepare(`SELECT COUNT(*) AS c FROM debts WHERE user_id = ?`).bind(userId).first())?.c ?? null;
   } catch {}
 
   try {
     matching_id_debts = (await db.prepare(`
       SELECT id, name, kind, original_amount, paid_amount, status, due_date, created_at
         FROM debts
-       WHERE LOWER(id) LIKE ?
+       WHERE LOWER(id) LIKE ? AND user_id = ?
        ORDER BY datetime(created_at) DESC, id DESC
        LIMIT 20
-    `).bind(`%${tokenPart}%`).all()).results || [];
+    `).bind(`%${tokenPart}%`, userId).all()).results || [];
   } catch {}
 
   try {
     matching_name_debts = (await db.prepare(`
       SELECT id, name, kind, original_amount, paid_amount, status, due_date, created_at
         FROM debts
-       WHERE LOWER(name) LIKE ?
+       WHERE LOWER(name) LIKE ? AND user_id = ?
        ORDER BY datetime(created_at) DESC, id DESC
        LIMIT 20
-    `).bind(`%${tokenPart}%`).all()).results || [];
+    `).bind(`%${tokenPart}%`, userId).all()).results || [];
   } catch {}
 
   return {

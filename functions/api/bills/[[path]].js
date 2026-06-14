@@ -126,13 +126,13 @@ export async function onRequestDelete(context) {
  * GET overview/detail/history
  * ───────────────────────────── */
 
-async function getOverview(db, url) {
+async function getOverview(db, url, userId) {
   const month = normalizeMonth(url.searchParams.get('month')) || currentMonth();
   const includeInactive = url.searchParams.get('include_inactive') === '1';
 
-  const allBills = await loadBills(db);
-  const payments = await loadBillPayments(db);
-  const txnsById = await loadTransactionsById(db);
+  const allBills = await loadBills(db, userId);
+  const payments = await loadBillPayments(db, userId);
+  const txnsById = await loadTransactionsById(db, userId);
 
   const rows = [];
 
@@ -234,8 +234,8 @@ async function getOverview(db, url) {
   });
 }
 
-async function getBillDetail(db, billId, url) {
-  const bill = await findBill(db, billId);
+async function getBillDetail(db, billId, url, userId) {
+  const bill = await findBill(db, billId, userId);
 
   if (!bill) {
     return json(contractError({
@@ -246,8 +246,8 @@ async function getBillDetail(db, billId, url) {
   }
 
   const month = normalizeMonth(url.searchParams.get('month')) || currentMonth();
-  const payments = await loadBillPayments(db);
-  const txnsById = await loadTransactionsById(db);
+  const payments = await loadBillPayments(db, userId);
+  const txnsById = await loadTransactionsById(db, userId);
 
   const cycle = buildCycle({ bill, month, payments, txnsById });
   const advance = buildAdvanceSummary({ bill, month, payments, txnsById });
@@ -272,7 +272,7 @@ async function getBillDetail(db, billId, url) {
   });
 }
 
-async function getHistory(db, url) {
+async function getHistory(db, url, userId) {
   const billId = clean(url.searchParams.get('bill_id') || url.searchParams.get('id'));
 
   if (!billId) {
@@ -283,7 +283,7 @@ async function getHistory(db, url) {
     }), 400);
   }
 
-  const bill = await findBill(db, billId);
+  const bill = await findBill(db, billId, userId);
 
   if (!bill) {
     return json(contractError({
@@ -293,8 +293,8 @@ async function getHistory(db, url) {
     }), 404);
   }
 
-  const payments = (await loadBillPayments(db)).filter(p => p.bill_id === billId);
-  const txnsById = await loadTransactionsById(db);
+  const payments = (await loadBillPayments(db, userId)).filter(p => p.bill_id === billId);
+  const txnsById = await loadTransactionsById(db, userId);
 
   const history = payments.map(payment => {
     const tx = payment.transaction_id ? txnsById.get(payment.transaction_id) : null;
@@ -327,7 +327,7 @@ async function getHistory(db, url) {
  * Create bill: obligation only
  * ───────────────────────────── */
 
-async function createBill(db, body, dryRun) {
+async function createBill(db, body, dryRun, userId) {
   const cols = await tableColumns(db, 'bills');
 
   const id = clean(body.id || body.bill_id || body.idempotency_key) || makeId('bill');
@@ -393,7 +393,7 @@ async function createBill(db, body, dryRun) {
     }
   }
 
-  const existing = await findBill(db, id);
+  const existing = await findBill(db, id, userId);
 
   if (existing) {
     return json({
@@ -438,6 +438,7 @@ async function createBill(db, body, dryRun) {
     auto_post: 0,
     status: ACTIVE_STATUS,
     notes,
+    user_id: userId || null,
     created_at: now,
     updated_at: now,
     deleted_at: null
@@ -489,7 +490,7 @@ async function createBill(db, body, dryRun) {
     ...response,
     committed: true,
     writes_performed: true,
-    bill: await findBill(db, id)
+    bill: await findBill(db, id, userId)
   });
 }
 
@@ -497,9 +498,9 @@ async function createBill(db, body, dryRun) {
  * Pay bill: ledger + bill payment link
  * ───────────────────────────── */
 
-async function payBill(db, body, dryRun) {
+async function payBill(db, body, dryRun, userId) {
   const billId = clean(body.bill_id || body.id);
-  const bill = await findBill(db, billId);
+  const bill = await findBill(db, billId, userId);
 
   if (!bill) {
     return json(contractError({
@@ -569,8 +570,8 @@ async function payBill(db, body, dryRun) {
   const existingPayment = await findExistingPayment(db, paymentId);
 
   if (existingPayment) {
-    const payments = await loadBillPayments(db);
-    const txnsById = await loadTransactionsById(db);
+    const payments = await loadBillPayments(db, userId);
+    const txnsById = await loadTransactionsById(db, userId);
     const cycle = buildCycle({ bill, month: billMonth, payments, txnsById });
 
     return json({
@@ -607,8 +608,8 @@ async function payBill(db, body, dryRun) {
     });
   }
 
-  const paymentsBefore = await loadBillPayments(db);
-  const txnsByIdBefore = await loadTransactionsById(db);
+  const paymentsBefore = await loadBillPayments(db, userId);
+  const txnsByIdBefore = await loadTransactionsById(db, userId);
   const beforeCycle = buildCycle({ bill, month: billMonth, payments: paymentsBefore, txnsById: txnsByIdBefore });
 
   if (amount > beforeCycle.remaining) {
@@ -664,7 +665,8 @@ async function payBill(db, body, dryRun) {
     reversed_at: null,
     linked_txn_id: null,
     status: 'active',
-    created_by: createdBy
+    created_by: createdBy,
+    user_id: userId || null
   };
 
   const payment = {
@@ -688,6 +690,7 @@ async function payBill(db, body, dryRun) {
     ledger_transaction_id: txId,
     status: 'paid',
     notes,
+    user_id: userId || null,
     created_at: now,
     updated_at: now,
     created_by: createdBy
@@ -1294,7 +1297,7 @@ function classifyPayment(payment, tx) {
  * Loaders
  * ───────────────────────────── */
 
-async function loadBills(db) {
+async function loadBills(db, userId) {
   const cols = await tableColumns(db, 'bills');
   if (!cols.size) return [];
 
@@ -1324,13 +1327,14 @@ async function loadBills(db) {
   const res = await db.prepare(
     `SELECT ${select.join(', ')}
        FROM bills
+      WHERE user_id = ?
       ORDER BY ${orderBy}`
-  ).all();
+  ).bind(userId).all();
 
   return (res.results || []).map(normalizeBill);
 }
 
-async function findBill(db, billId) {
+async function findBill(db, billId, userId) {
   const id = clean(billId);
   if (!id) return null;
 
@@ -1359,14 +1363,14 @@ async function findBill(db, billId) {
   const row = await db.prepare(
     `SELECT ${select.join(', ')}
        FROM bills
-      WHERE TRIM(id) = TRIM(?)
+      WHERE TRIM(id) = TRIM(?) AND user_id = ?
       LIMIT 1`
-  ).bind(id).first();
+  ).bind(id, userId).first();
 
   return row ? normalizeBill(row) : null;
 }
 
-async function loadBillPayments(db) {
+async function loadBillPayments(db, userId) {
   const exists = await tableExists(db, 'bill_payments');
   if (!exists) return [];
 
@@ -1391,15 +1395,18 @@ async function loadBillPayments(db) {
     col(cols, 'updated_at')
   ].filter(Boolean);
 
+  const whereClause = cols.has('user_id') ? 'WHERE user_id = ?' : '';
+  const binds = cols.has('user_id') ? [userId] : [];
+
   const res = await db.prepare(
     `SELECT ${select.join(', ')}
-       FROM bill_payments`
-  ).all();
+       FROM bill_payments ${whereClause}`
+  ).bind(...binds).all();
 
   return (res.results || []).map(normalizePayment);
 }
 
-async function loadTransactionsById(db) {
+async function loadTransactionsById(db, userId) {
   const exists = await tableExists(db, 'transactions');
   const map = new Map();
 
@@ -1426,8 +1433,9 @@ async function loadTransactionsById(db) {
 
   const res = await db.prepare(
     `SELECT ${select.join(', ')}
-       FROM transactions`
-  ).all();
+       FROM transactions
+      WHERE user_id = ?`
+  ).bind(userId).all();
 
   for (const row of res.results || []) {
     const tx = normalizeTxn(row);
