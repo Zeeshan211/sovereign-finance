@@ -104,7 +104,7 @@ export async function onRequestGet(context) {
     }
 
     if (url.searchParams.get('view') === 'provenance') {
-      const provenance = await buildProvenance(context.env.DB, row);
+      const provenance = await buildProvenance(context.env.DB, row, { userId });
       return json({
         ok: true,
         version: VERSION,
@@ -823,26 +823,30 @@ function cleanText(value, fallback = '', maxLen = 500) {
  * failing the request. Append-only ledger is untouched — reads only.
  * ───────────────────────────────────────────────────────────────────────── */
 
-async function buildTransactionTrace(db, txColumns, row) {
+async function buildTransactionTrace(db, txColumns, row, userId) {
   const focal = decorateTransaction(row);
-  const accountMap = await fetchAllAccounts(db);
+  const accountMap = await fetchAllAccounts(db, userId);
 
   const flow = buildFlow(focal, accountMap);
-  const chunk = await buildChunk(db, txColumns, focal, accountMap);
-  const reversal = await buildReversal(db, txColumns, focal, accountMap);
-  const related = await buildRelated(db, focal);
-  const timeline = await buildTimeline(db, focal, reversal);
+  const chunk = await buildChunk(db, txColumns, focal, accountMap, userId);
+  const reversal = await buildReversal(db, txColumns, focal, accountMap, userId);
+  const related = await buildRelated(db, focal, userId);
+  const timeline = await buildTimeline(db, focal, reversal, userId);
 
   return { flow, chunk, reversal, related, timeline };
 }
 
-async function fetchAllAccounts(db) {
+async function fetchAllAccounts(db, userId) {
   const map = new Map();
   try {
     const cols = await tableColumns(db, 'accounts');
     if (!cols.has('id')) return map;
     const wanted = ['id', 'name', 'kind', 'type'].filter(col => cols.has(col));
-    const res = await db.prepare(`SELECT ${wanted.join(', ')} FROM accounts`).all();
+    const scoped = cols.has('user_id');
+    const sql = `SELECT ${wanted.join(', ')} FROM accounts${scoped ? ' WHERE user_id = ?' : ''}`;
+    const res = scoped
+      ? await db.prepare(sql).bind(userId).all()
+      : await db.prepare(sql).all();
     for (const acct of res.results || []) map.set(String(acct.id), acct);
   } catch { /* accounts unreadable — names degrade to ids */ }
   return map;
@@ -916,7 +920,7 @@ function memberNode(t, role, accountMap) {
   };
 }
 
-async function buildChunk(db, txColumns, focal, accountMap) {
+async function buildChunk(db, txColumns, focal, accountMap, userId) {
   const members = [memberNode(focal, 'self', accountMap)];
   let intlPackage = null;
   let chunkType = focal.group_type || 'single';
@@ -924,7 +928,7 @@ async function buildChunk(db, txColumns, focal, accountMap) {
   const linkedId = focal.linked_txn_id || extractLinkedId(focal.notes);
   if (linkedId && String(linkedId) !== String(focal.id)) {
     try {
-      const peer = await selectTransactionById(db, txColumns, linkedId);
+      const peer = await selectTransactionById(db, txColumns, linkedId, userId);
       if (peer) members.push(memberNode(decorateTransaction(peer), 'peer', accountMap));
     } catch { /* peer unreadable */ }
   }
@@ -932,15 +936,16 @@ async function buildChunk(db, txColumns, focal, accountMap) {
   if (focal.intl_package_id && txColumns.has('intl_package_id')) {
     try {
       const cols = selectTransactionColumns(txColumns);
+      const scoped = txColumns.has('user_id');
       const res = await db.prepare(
-        `SELECT ${cols.join(', ')} FROM transactions WHERE intl_package_id = ? AND id != ?`
-      ).bind(focal.intl_package_id, focal.id).all();
+        `SELECT ${cols.join(', ')} FROM transactions WHERE intl_package_id = ? AND id != ?${scoped ? ' AND user_id = ?' : ''}`
+      ).bind(...(scoped ? [focal.intl_package_id, focal.id, userId] : [focal.intl_package_id, focal.id])).all();
       for (const leg of res.results || []) {
         members.push(memberNode(decorateTransaction(leg), 'leg', accountMap));
       }
       chunkType = 'intl_package';
     } catch { /* legs unreadable */ }
-    intlPackage = await fetchIntlPackage(db, focal.intl_package_id);
+    intlPackage = await fetchIntlPackage(db, focal.intl_package_id, userId);
   }
 
   return {
@@ -952,18 +957,21 @@ async function buildChunk(db, txColumns, focal, accountMap) {
   };
 }
 
-async function fetchIntlPackage(db, id) {
+async function fetchIntlPackage(db, id, userId) {
   try {
     const cols = await tableColumns(db, 'intl_package');
     if (!cols.has('id')) return null;
-    const pkg = await db.prepare(`SELECT * FROM intl_package WHERE id = ? LIMIT 1`).bind(id).first();
+    const scoped = cols.has('user_id');
+    const pkg = await db.prepare(
+      `SELECT * FROM intl_package WHERE id = ?${scoped ? ' AND user_id = ?' : ''} LIMIT 1`
+    ).bind(...(scoped ? [id, userId] : [id])).first();
     return pkg || null;
   } catch {
     return null;
   }
 }
 
-async function buildReversal(db, txColumns, focal, accountMap) {
+async function buildReversal(db, txColumns, focal, accountMap, userId) {
   let role = 'none';
   let original = null;
   let reversedBy = null;
@@ -973,7 +981,7 @@ async function buildReversal(db, txColumns, focal, accountMap) {
     const originalId = extractReversalOriginalId(focal.notes);
     if (originalId) {
       try {
-        const o = await selectTransactionById(db, txColumns, originalId);
+        const o = await selectTransactionById(db, txColumns, originalId, userId);
         if (o) original = memberNode(decorateTransaction(o), 'original', accountMap);
       } catch { /* original unreadable */ }
     }
@@ -983,14 +991,15 @@ async function buildReversal(db, txColumns, focal, accountMap) {
     role = focal.is_reversal ? 'both' : 'reversed';
     let rev = null;
     if (focal.reversed_by) {
-      try { rev = await selectTransactionById(db, txColumns, focal.reversed_by); } catch { /* */ }
+      try { rev = await selectTransactionById(db, txColumns, focal.reversed_by, userId); } catch { /* */ }
     }
     if (!rev) {
       try {
         const cols = selectTransactionColumns(txColumns);
+        const scoped = txColumns.has('user_id');
         rev = await db.prepare(
-          `SELECT ${cols.join(', ')} FROM transactions WHERE notes LIKE ? LIMIT 1`
-        ).bind('%' + REVERSAL_PREFIX + focal.id + ']%').first();
+          `SELECT ${cols.join(', ')} FROM transactions WHERE notes LIKE ?${scoped ? ' AND user_id = ?' : ''} LIMIT 1`
+        ).bind(...(scoped ? ['%' + REVERSAL_PREFIX + focal.id + ']%', userId] : ['%' + REVERSAL_PREFIX + focal.id + ']%'])).first();
       } catch { /* search failed */ }
     }
     if (rev) {
@@ -1006,20 +1015,23 @@ async function buildReversal(db, txColumns, focal, accountMap) {
   };
 }
 
-async function buildRelated(db, focal) {
+async function buildRelated(db, focal, userId) {
   const related = { bill: null, debt: null, import_batch: null };
 
   try {
     const cols = await tableColumns(db, 'bill_payments');
     if (cols.has('transaction_id')) {
-      const bp = await db.prepare(`SELECT * FROM bill_payments WHERE transaction_id = ? LIMIT 1`).bind(focal.id).first();
+      const scoped = cols.has('user_id');
+      const bp = await db.prepare(
+        `SELECT * FROM bill_payments WHERE transaction_id = ?${scoped ? ' AND user_id = ?' : ''} LIMIT 1`
+      ).bind(...(scoped ? [focal.id, userId] : [focal.id])).first();
       if (bp) {
         related.bill = {
           bill_id: bp.bill_id || null,
           amount: Number(bp.amount != null ? bp.amount : (bp.amount_paid || 0)),
           status: bp.status || null,
           paid_date: bp.paid_date || bp.created_at || null,
-          name: await lookupName(db, 'bills', bp.bill_id, ['name', 'biller_name', 'label'])
+          name: await lookupName(db, 'bills', bp.bill_id, ['name', 'biller_name', 'label'], userId)
         };
       }
     }
@@ -1031,14 +1043,17 @@ async function buildRelated(db, focal) {
       ? 'transaction_id'
       : (cols.has('payment_transaction_id') ? 'payment_transaction_id' : null);
     if (txCol) {
-      const dp = await db.prepare(`SELECT * FROM debt_payments WHERE ${txCol} = ? LIMIT 1`).bind(focal.id).first();
+      const scoped = cols.has('user_id');
+      const dp = await db.prepare(
+        `SELECT * FROM debt_payments WHERE ${txCol} = ?${scoped ? ' AND user_id = ?' : ''} LIMIT 1`
+      ).bind(...(scoped ? [focal.id, userId] : [focal.id])).first();
       if (dp) {
         related.debt = {
           debt_id: dp.debt_id || null,
           amount: Number(dp.amount || 0),
           status: dp.status || null,
           paid_date: dp.paid_date || dp.created_at || null,
-          counterparty: await lookupName(db, 'debts', dp.debt_id, ['counterparty', 'name', 'lender', 'borrower'])
+          counterparty: await lookupName(db, 'debts', dp.debt_id, ['counterparty', 'name', 'lender', 'borrower'], userId)
         };
       }
     }
@@ -1049,7 +1064,10 @@ async function buildRelated(db, focal) {
     try {
       const cols = await tableColumns(db, 'statement_imports');
       if (cols.has('id')) {
-        const imp = await db.prepare(`SELECT * FROM statement_imports WHERE id = ? LIMIT 1`).bind(focal.import_batch_id).first();
+        const scoped = cols.has('user_id');
+        const imp = await db.prepare(
+          `SELECT * FROM statement_imports WHERE id = ?${scoped ? ' AND user_id = ?' : ''} LIMIT 1`
+        ).bind(...(scoped ? [focal.import_batch_id, userId] : [focal.import_batch_id])).first();
         if (imp) {
           related.import_batch.imported_at = imp.imported_at || imp.created_at || null;
           related.import_batch.row_count = imp.row_count != null ? Number(imp.row_count) : null;
@@ -1063,12 +1081,15 @@ async function buildRelated(db, focal) {
   return related;
 }
 
-async function lookupName(db, table, id, candidateColumns) {
+async function lookupName(db, table, id, candidateColumns, userId) {
   if (!id) return null;
   try {
     const cols = await tableColumns(db, table);
     if (!cols.has('id')) return null;
-    const row = await db.prepare(`SELECT * FROM ${safeIdentifier(table)} WHERE id = ? LIMIT 1`).bind(id).first();
+    const scoped = cols.has('user_id');
+    const row = await db.prepare(
+      `SELECT * FROM ${safeIdentifier(table)} WHERE id = ?${scoped ? ' AND user_id = ?' : ''} LIMIT 1`
+    ).bind(...(scoped ? [id, userId] : [id])).first();
     if (!row) return null;
     for (const col of candidateColumns) {
       if (row[col]) return String(row[col]);
@@ -1079,7 +1100,7 @@ async function lookupName(db, table, id, candidateColumns) {
   }
 }
 
-async function buildTimeline(db, focal, reversal) {
+async function buildTimeline(db, focal, reversal, userId) {
   const events = [];
   try {
     const cols = await tableColumns(db, 'audit_log');
@@ -1095,13 +1116,14 @@ async function buildTimeline(db, focal, reversal) {
 
     const wanted = ['id', 'action', 'kind', 'entity', 'entity_id', 'created_by', tsCol, detailCol].filter(Boolean);
     const placeholders = ids.map(() => '?').join(', ');
+    const scoped = cols.has('user_id');
 
     const res = await db.prepare(
       `SELECT ${wanted.join(', ')} FROM audit_log
-       WHERE entity_id IN (${placeholders})
+       WHERE entity_id IN (${placeholders})${scoped ? ' AND user_id = ?' : ''}
        ORDER BY ${orderCol} ASC
        LIMIT 100`
-    ).bind(...ids).all();
+    ).bind(...(scoped ? [...ids, userId] : ids)).all();
 
     for (const ev of res.results || []) {
       events.push({
