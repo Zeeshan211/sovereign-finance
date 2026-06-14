@@ -175,8 +175,8 @@ export async function onRequestPost(context) {
 
     const slug = makeAccountSlug(name);
     const existing = await db.prepare(
-      `SELECT id FROM accounts WHERE id = ? AND user_id = ? LIMIT 1`
-    ).bind(slug, userId).first();
+      `SELECT id FROM accounts WHERE id = ? LIMIT 1`
+    ).bind(slug).first();
 
     const id = existing ? slug + '_' + randomSuffix() : slug;
 
