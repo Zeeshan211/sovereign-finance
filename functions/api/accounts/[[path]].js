@@ -12,7 +12,7 @@
  * - Reversal rows and reversed originals are excluded.
  */
 
-import { getUserId } from '../_lib.js';
+import { getUserId, uuid } from '../_lib.js';
 
 const VERSION = 'v0.3.1-accounts-number-closed';
 
@@ -173,12 +173,14 @@ export async function onRequestPost(context) {
 
     const cols = await tableColumns(db, 'accounts');
 
-    const slug = makeAccountSlug(name);
-    const existing = await db.prepare(
-      `SELECT id FROM accounts WHERE id = ? AND user_id = ? LIMIT 1`
-    ).bind(slug, userId).first();
-
-    const id = existing ? slug + '_' + randomSuffix() : slug;
+    // accounts.id is a GLOBAL primary key (shared across every user), so the id
+    // must be unique across ALL users, not just this one. A name-derived slug
+    // ("cash", "meezan") collides on that shared PK the moment a second user
+    // adds an account with the same name — that is the onboarding
+    // "UNIQUE constraint failed: accounts.id" error. Use a readable slug prefix
+    // plus a globally-unique uuid() suffix (the id strategy already used by the
+    // onboarding category seeder) so a collision is impossible by construction.
+    const id = makeAccountSlug(name) + '_' + uuid();
 
     const opening_balance = roundMoney(body.opening_balance || 0);
     const currency = safeText(body.currency || 'PKR', 'PKR', 10).toUpperCase();
@@ -637,10 +639,6 @@ function makeAccountSlug(name) {
     .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '')
     .slice(0, 40) || 'account';
-}
-
-function randomSuffix() {
-  return Math.random().toString(36).slice(2, 6);
 }
 
 async function readJSON(request) {
