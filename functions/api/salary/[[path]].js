@@ -31,7 +31,7 @@ export async function onRequestGet(context) {
 
     if (path[0] === 'forecast') return handleForecastGet(db, 6, hh);
     if (path[0] && path[0] !== 'forecast') return handleContractDetail(db, path[0], hh);
-    return handleList(db, hh);
+    return await handleList(db, hh);
   } catch (err) {
     return json({ ok: false, version: VERSION, error: { code: 'GET_FAILED', message: err.message } }, 500);
   }
@@ -419,7 +419,7 @@ async function loadContractPayslips(db, cols, contractId) {
   if (!cols.has('id')) return [];
   const wanted = ['id','contract_id','period','gross','net','bonus','deposit_date',
     'deposit_account_id','transaction_id','notes','created_at','updated_at'].filter(c => cols.has(c));
-  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_payslips WHERE contract_id = ? ORDER BY period DESC`).bind(contractId).all();
+  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_payslips WHERE contract_id = ? ${cols.has('period') ? 'ORDER BY period' : (cols.has('created_at') ? 'ORDER BY created_at' : 'ORDER BY id')} DESC`).bind(contractId).all();
   return result.results || [];
 }
 
@@ -430,7 +430,7 @@ async function loadRecentPayslips(db, cols, limit, hh) {
   const useHH = hh && cols.has('user_id');
   const where = useHH ? 'WHERE user_id = ?' : '';
   const binds = useHH ? [hh, limit] : [limit];
-  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_payslips ${where} ORDER BY period DESC LIMIT ?`).bind(...binds).all();
+  const result = await db.prepare(`SELECT ${wanted.join(', ')} FROM salary_payslips ${where} ${cols.has('period') ? 'ORDER BY period' : (cols.has('created_at') ? 'ORDER BY created_at' : 'ORDER BY id')} DESC LIMIT ?`).bind(...binds).all();
   return result.results || [];
 }
 
