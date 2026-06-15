@@ -104,7 +104,7 @@ export async function onRequestGet(context) {
     }
 
     if (url.searchParams.get('view') === 'provenance') {
-      const provenance = await buildProvenance(context.env.DB, row);
+      const provenance = await buildProvenance(context.env.DB, row, { userId });
       return json({
         ok: true,
         version: VERSION,
