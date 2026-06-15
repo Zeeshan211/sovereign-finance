@@ -823,13 +823,13 @@ function cleanText(value, fallback = '', maxLen = 500) {
  * failing the request. Append-only ledger is untouched — reads only.
  * ───────────────────────────────────────────────────────────────────────── */
 
-async function buildTransactionTrace(db, txColumns, row) {
+async function buildTransactionTrace(db, txColumns, row, userId) {
   const focal = decorateTransaction(row);
   const accountMap = await fetchAllAccounts(db);
 
   const flow = buildFlow(focal, accountMap);
-  const chunk = await buildChunk(db, txColumns, focal, accountMap);
-  const reversal = await buildReversal(db, txColumns, focal, accountMap);
+  const chunk = await buildChunk(db, txColumns, focal, accountMap, userId);
+  const reversal = await buildReversal(db, txColumns, focal, accountMap, userId);
   const related = await buildRelated(db, focal);
   const timeline = await buildTimeline(db, focal, reversal);
 
@@ -916,7 +916,7 @@ function memberNode(t, role, accountMap) {
   };
 }
 
-async function buildChunk(db, txColumns, focal, accountMap) {
+async function buildChunk(db, txColumns, focal, accountMap, userId) {
   const members = [memberNode(focal, 'self', accountMap)];
   let intlPackage = null;
   let chunkType = focal.group_type || 'single';
@@ -924,7 +924,7 @@ async function buildChunk(db, txColumns, focal, accountMap) {
   const linkedId = focal.linked_txn_id || extractLinkedId(focal.notes);
   if (linkedId && String(linkedId) !== String(focal.id)) {
     try {
-      const peer = await selectTransactionById(db, txColumns, linkedId);
+      const peer = await selectTransactionById(db, txColumns, linkedId, userId);
       if (peer) members.push(memberNode(decorateTransaction(peer), 'peer', accountMap));
     } catch { /* peer unreadable */ }
   }
@@ -933,8 +933,8 @@ async function buildChunk(db, txColumns, focal, accountMap) {
     try {
       const cols = selectTransactionColumns(txColumns);
       const res = await db.prepare(
-        `SELECT ${cols.join(', ')} FROM transactions WHERE intl_package_id = ? AND id != ?`
-      ).bind(focal.intl_package_id, focal.id).all();
+        `SELECT ${cols.join(', ')} FROM transactions WHERE intl_package_id = ? AND id != ? AND user_id = ?`
+      ).bind(focal.intl_package_id, focal.id, userId).all();
       for (const leg of res.results || []) {
         members.push(memberNode(decorateTransaction(leg), 'leg', accountMap));
       }
@@ -963,7 +963,7 @@ async function fetchIntlPackage(db, id) {
   }
 }
 
-async function buildReversal(db, txColumns, focal, accountMap) {
+async function buildReversal(db, txColumns, focal, accountMap, userId) {
   let role = 'none';
   let original = null;
   let reversedBy = null;
@@ -973,7 +973,7 @@ async function buildReversal(db, txColumns, focal, accountMap) {
     const originalId = extractReversalOriginalId(focal.notes);
     if (originalId) {
       try {
-        const o = await selectTransactionById(db, txColumns, originalId);
+        const o = await selectTransactionById(db, txColumns, originalId, userId);
         if (o) original = memberNode(decorateTransaction(o), 'original', accountMap);
       } catch { /* original unreadable */ }
     }
@@ -983,14 +983,14 @@ async function buildReversal(db, txColumns, focal, accountMap) {
     role = focal.is_reversal ? 'both' : 'reversed';
     let rev = null;
     if (focal.reversed_by) {
-      try { rev = await selectTransactionById(db, txColumns, focal.reversed_by); } catch { /* */ }
+      try { rev = await selectTransactionById(db, txColumns, focal.reversed_by, userId); } catch { /* */ }
     }
     if (!rev) {
       try {
         const cols = selectTransactionColumns(txColumns);
         rev = await db.prepare(
-          `SELECT ${cols.join(', ')} FROM transactions WHERE notes LIKE ? LIMIT 1`
-        ).bind('%' + REVERSAL_PREFIX + focal.id + ']%').first();
+          `SELECT ${cols.join(', ')} FROM transactions WHERE notes LIKE ? AND user_id = ? LIMIT 1`
+        ).bind('%' + REVERSAL_PREFIX + focal.id + ']%', userId).first();
       } catch { /* search failed */ }
     }
     if (rev) {
