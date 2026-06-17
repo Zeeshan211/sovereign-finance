@@ -27,10 +27,14 @@ Universal rules apply UNLESS explicitly overridden here.
 ### Migration naming
 - Format: NN_descriptive_name.sql (e.g. 17_statement_files.sql)
 - Always IF NOT EXISTS for tables; NULLABLE or DEFAULT for new columns on existing tables
-- Sequential numbering (no gaps, no duplicates)
+- Sequential numbering (no gaps, no duplicates) — note: 14-16 are missing from history
+  (jumps from 13_auth_rate_limits.sql to 17_statement_files.sql); don't reuse those
+  numbers, keep numbering forward from the latest file
+- Latest migration: check `ls migrations/ | sort | tail -1` — don't hardcode a number here
 
 ### Required helpers
-- Use functions/api/_lib.js: json(), uuid(), audit(), snapshot()
+- Use functions/api/_lib.js: json(), uuid(), audit(), snapshot(), getUserId(context),
+  householdOf(context)
 - Never reimplement these inline
 
 ### User scoping (strict)
@@ -41,19 +45,31 @@ Universal rules apply UNLESS explicitly overridden here.
 ## Bindings (keep in sync with wrangler.toml)
 - DB → D1 database "sovereign-finance"
 - STATEMENTS → R2 bucket "liquidityos-statements"
-- GEMINI_API_KEY → secret
-- MIGRATION_SECRET → secret
+- AI → Cloudflare Workers AI binding
+- GOOGLE_CLIENT_ID → var (in wrangler.toml `[vars]`, not a secret)
+- GEMINI_API_KEY → secret (set via Cloudflare Pages dashboard, not wrangler.toml)
+- MIGRATION_SECRET → secret (set via Cloudflare Pages dashboard, not wrangler.toml)
 
 ## Session docs to read (at session start)
-1. BACKEND_AUDIT.md (if exists — definitive endpoint inventory)
-2. BACKEND_FIX_PLAN.md (if exists — prioritized fix list)
+1. BACKEND_COMPLETE_PLAN.md (definitive build plan / endpoint inventory)
+2. BACKEND_AUDIT.md / BACKEND_FIX_PLAN.md (if they exist — they don't currently)
 
 ## Key D1 tables
-accounts, transactions, categories, merchants, bills, debts, snapshots
+Core finance: accounts, transactions, categories, merchants, bills, debts, snapshots
+Auth: users, sessions, login_attempts, password_reset_tokens, oauth_identities, user_2fa
+Statements/reconciliation: statement_files, statement_imports, statement_transactions,
+  reconciliation_sessions, reconciliation_plans, reconciliation_exceptions
+Credit cards: credit_cards, card_statements, card_statement_transactions, card_fees,
+  card_interest_accruals, card_subscriptions, card_disputes, card_trips, card_benefit_usage
+Household: households, household_members, household_settlements
+Other: salary_config, salary_payslips, idempotency_keys, transaction_dry_runs,
+  onboarding_completed
+Run `grep -h "CREATE TABLE" migrations/*.sql` for the authoritative current list.
 
 ## Known bugs (unfixed — carry forward until resolved)
-1. /api/add/dry-run returns plain JS object, not Response → Cloudflare falls back to GET → "Unsupported GET route." Frontend workaround: bypass to /api/transactions?dry_run=1
-2. transactions missing idempotency_key column → backend rejects field. Frontend workaround: not sending it.
+None currently tracked. The two previously-listed bugs are fixed:
+dry-run returns a proper Response via json() (functions/api/add/[[path]].js), and
+idempotency_key was added to transactions in migration 04_known_bugs.sql.
 
 ## Stop conditions specific
 - wrangler.toml change → verify ALL existing bindings preserved before push
