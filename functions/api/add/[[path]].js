@@ -11,7 +11,8 @@
 
 import { getUserId } from '../_lib.js';
 
-const VERSION = 'v2.0.0-contract-v1';
+const VERSION = 'v2.1.0-contract-v1';
+const AI_MODEL = '@cf/meta/llama-3.1-8b-instruct';
 
 const CATEGORY_ALIASES = {
   grocery: 'grocery', groceries: 'grocery', food: 'food', food_dining: 'food',
@@ -53,6 +54,7 @@ export async function onRequestPost(context) {
     if (route === 'preview')                      return await preview(context, body);
     if (route === 'dry-run' || route === 'dry_run') return await dryRun(context, body);
     if (route === 'commit'  || route === 'save')   return await commit(context, body);
+    if (route === 'parse'   || route === 'nl-parse' || route === 'quick-add') return await parseQuickAdd(context, body);
     return json({ ok: false, version: VERSION, error: 'Unsupported POST route' }, 404);
   } catch (err) {
     return json({ ok: false, version: VERSION, error: err.message }, 500);
@@ -550,6 +552,194 @@ async function commit(context, body) {
     ok: true, version: VERSION, action: 'commit',
     written: normalizeWrittenResult(result), ...result,
   });
+}
+
+/* ─────────────────────────
+ * NL quick-add (parse only — never commits)
+ * ───────────────────────── */
+
+async function parseQuickAdd(context, body) {
+  const db = context.env.DB;
+  const userId = getUserId(context);
+  if (!userId) return json({ ok: false, version: VERSION, error: 'Unauthorized' }, 401);
+
+  const text = cleanText(body.text || body.input || body.query, '', 300);
+  if (!text) return json({ ok: false, version: VERSION, error: 'text is required' }, 400);
+
+  const [accounts, allCategories, merchants] = await Promise.all([
+    loadAccountsWithInlineBalances(db, userId),
+    loadCategoriesDirect(db),
+    loadMerchantsDirect(db),
+  ]);
+  const categories = splitCategoriesByType(allCategories);
+
+  const draft = context.env.AI
+    ? await parseWithAI(context.env.AI, text, accounts, categories, merchants)
+    : parseWithHeuristics(text, accounts, categories, merchants);
+
+  const normalized = normalizeAddPayload({
+    type: draft.type,
+    date: draft.date,
+    amount: draft.amount,
+    account_id: draft.account_id,
+    category_id: draft.category_id,
+    merchant: draft.merchant,
+    notes: draft.notes,
+    source_module: 'add',
+    source_action: 'nl_quick_add',
+  });
+
+  return json({
+    ok: true, version: VERSION, action: 'parse',
+    writes_performed: false,
+    draft, normalized_payload: normalized,
+    confidence: draft.confidence, warnings: draft.warnings || [],
+    input_text: text,
+  });
+}
+
+async function parseWithAI(ai, text, accounts, categories, merchants) {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const accountList  = accounts.map(a => `${a.id}: ${a.name}`).join('\n');
+    const categoryList = [...categories.expense, ...categories.income].map(c => `${c.id}: ${c.name}`).join('\n');
+    const merchantList = merchants.slice(0, 30).map(m => m.name).join(', ');
+
+    const systemPrompt = `You convert a short free-text transaction note into structured JSON for a personal finance app. Return ONLY valid JSON, no markdown, no commentary.
+
+Schema:
+{
+  "type": "expense" | "income" | "transfer",
+  "amount": number,
+  "account_id": string,
+  "category_id": string,
+  "merchant": string|null,
+  "notes": string|null,
+  "date": "YYYY-MM-DD",
+  "confidence": "high" | "medium" | "low"
+}
+
+Known accounts (id: name):
+${accountList || '(none)'}
+
+Known categories (id: name):
+${categoryList || '(none)'}
+
+Known merchants: ${merchantList || '(none)'}
+
+Rules:
+1. Pick the account_id that best matches any account mentioned in the text. If none mentioned, pick the most plausible default (first listed) and set confidence to "low".
+2. Pick the category_id that best matches the spending/income type. If unsure, use "other" for expenses or "salary" for income.
+3. amount must be a positive number, parsed from digits in the text (handle "k" as thousand, e.g. "2k" = 2000).
+4. Default type is "expense" unless the text clearly indicates income (e.g. "received", "got paid", "salary", "income").
+5. date defaults to ${today} unless a relative date is mentioned ("yesterday", "monday", etc) — resolve relative to ${today}.
+6. notes should be a short cleanup of the original text (remove the amount), or null.
+7. If you cannot determine an amount, return {"error": "no amount found"}.`;
+
+    const aiResp = await ai.run(AI_MODEL, {
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: text },
+      ],
+      max_tokens: 512,
+    });
+
+    const raw = aiResp.response || aiResp.result || '';
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return parseWithHeuristics(text, accounts, categories, merchants);
+
+    const parsed = JSON.parse(match[0]);
+    if (parsed.error) return parseWithHeuristics(text, accounts, categories, merchants);
+
+    return finalizeDraft(parsed, accounts, categories, merchants, text);
+  } catch (_) {
+    return parseWithHeuristics(text, accounts, categories, merchants);
+  }
+}
+
+function finalizeDraft(parsed, accounts, categories, merchants, originalText) {
+  const allCategories = [...categories.expense, ...categories.income];
+  const type   = ['expense', 'income', 'transfer'].includes(parsed.type) ? parsed.type : 'expense';
+  const amount = roundMoney(parseAmountLoose(parsed.amount));
+  const resolvedAccountId  = resolveByNameOrId(accounts, parsed.account_id);
+  const resolvedCategoryId = resolveByNameOrId(allCategories, parsed.category_id) || canonicalCategory(parsed.category_id || '');
+  const accountId  = resolvedAccountId || (accounts[0] && accounts[0].id) || '';
+  const categoryId = resolvedCategoryId || (type === 'income' ? 'salary' : 'other');
+  const merchant = cleanText(parsed.merchant, '', 160) || resolveMerchantName(merchants, originalText);
+
+  const warnings = [];
+  if (!amount || amount <= 0) warnings.push('Could not confidently parse an amount — please verify');
+  if (!resolvedAccountId) warnings.push('Account guessed — please verify');
+
+  return {
+    type, amount, account_id: accountId, category_id: categoryId,
+    merchant: merchant || null,
+    notes: cleanText(parsed.notes, '', 300) || null,
+    date: normalizeDate(parsed.date),
+    confidence: warnings.length ? 'low' : (parsed.confidence === 'high' ? 'high' : 'medium'),
+    warnings,
+  };
+}
+
+function parseWithHeuristics(text, accounts, categories, merchants) {
+  const lower = text.toLowerCase();
+  const amount = roundMoney(extractAmount(text));
+  const isIncome = /\b(received|got paid|salary|income|deposit(ed)?|credited)\b/.test(lower);
+  const type = isIncome ? 'income' : 'expense';
+  const account = accounts.find(a => lower.includes(String(a.name).toLowerCase())) || accounts[0] || null;
+  const merchant = merchants.find(m => lower.includes(String(m.name).toLowerCase()))
+    || merchants.find(m => (m.aliases || []).some(alias => lower.includes(String(alias).toLowerCase())));
+  const allCategories = [...categories.expense, ...categories.income];
+  const matchedCategory = allCategories.find(c => lower.includes(String(c.name).toLowerCase()));
+  const categoryId = matchedCategory ? matchedCategory.id : (isIncome ? 'salary' : 'other');
+  const notes = text.replace(/\d+([.,]\d+)?\s*(k|rs\.?|pkr)?/gi, '').trim().slice(0, 300) || null;
+
+  const warnings = [];
+  if (!amount) warnings.push('Could not detect an amount — please verify');
+  if (!account) warnings.push('Could not detect an account — please verify');
+
+  return {
+    type, amount: amount || 0,
+    account_id: account ? account.id : '',
+    category_id: categoryId,
+    merchant: merchant ? merchant.name : null,
+    notes,
+    date: new Date().toISOString().slice(0, 10),
+    confidence: warnings.length ? 'low' : 'medium',
+    warnings,
+  };
+}
+
+function extractAmount(text) {
+  const kMatch = text.match(/(\d+(?:\.\d+)?)\s*k\b/i);
+  if (kMatch) return parseFloat(kMatch[1]) * 1000;
+  const numMatch = text.match(/(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)/);
+  if (numMatch) return parseFloat(numMatch[1].replace(/,/g, ''));
+  return 0;
+}
+
+function parseAmountLoose(value) {
+  if (typeof value === 'number') return value;
+  return extractAmount(String(value || ''));
+}
+
+function resolveByNameOrId(items, hint) {
+  if (!hint) return '';
+  const direct = items.find(i => i.id === hint);
+  if (direct) return direct.id;
+  const t = token(hint);
+  if (!t) return '';
+  const byToken = items.find(i => {
+    const it = token(i.name);
+    return it === t || it.includes(t) || t.includes(it);
+  });
+  return byToken ? byToken.id : '';
+}
+
+function resolveMerchantName(merchants, text) {
+  const lower = text.toLowerCase();
+  const found = merchants.find(m => lower.includes(String(m.name).toLowerCase()));
+  return found ? found.name : null;
 }
 
 async function executeCommittablePayload(db, payload) {
