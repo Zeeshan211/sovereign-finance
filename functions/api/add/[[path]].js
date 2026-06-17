@@ -287,6 +287,8 @@ async function dryRun(context, body) {
   const warnings    = computeWarnings(normalized, fromAccount, toAccount);
   const dryPreview  = buildPreview(normalized, fromAccount, toAccount);
 
+  const balanceProof = await fetchBalanceProof(context, normalized);
+
   const idempotencyKey = normalized.idempotency_key || makeId('IDEM');
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
@@ -294,12 +296,14 @@ async function dryRun(context, body) {
     await db.prepare(
       `INSERT OR REPLACE INTO transaction_dry_runs
        (id, idempotency_key, payload_hash, committable_payload,
-        computed_preview, warnings, committed, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'), ?)`
+        computed_preview, warnings, requires_override, override_reason,
+        override_token, committed, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), ?)`
     ).bind(
       makeId('DRY'), idempotencyKey, payloadHash,
       JSON.stringify(committable), JSON.stringify(dryPreview),
-      JSON.stringify(warnings), expiresAt
+      JSON.stringify(warnings), balanceProof.requires_override ? 1 : 0,
+      balanceProof.override_reason, balanceProof.override_token, expiresAt
     ).run();
   } catch (_) { /* table not yet migrated — continue without cache */ }
 
@@ -311,11 +315,34 @@ async function dryRun(context, body) {
     expires_at: expiresAt,
     preview: dryPreview,
     warnings,
-    requires_override: false,
-    override_token: null,
+    requires_override: balanceProof.requires_override,
+    override_reason: balanceProof.override_reason,
+    override_token: balanceProof.override_token,
     account_balance_before: fromAccount ? fromAccount.balance : null,
     account_balance_after: dryPreview.from_after,
   });
+}
+
+/* Delegates to /api/transactions' canonical balance-proof check (the same
+ * logic that blocks asset-overdraft / cc-overlimit commits) so the Add
+ * Orchestrator's dry-run reflects a real, enforceable override decision
+ * instead of a hardcoded pass. Fails open (no override required) if the
+ * canonical endpoint is unreachable or rejects the shape — dry-run preview
+ * must never hard-fail just because the proof check failed.
+ */
+async function fetchBalanceProof(context, normalized) {
+  try {
+    const result = await internalPost(
+      context, '/api/transactions?dry_run=1', directTransactionPayload(normalized)
+    );
+    return {
+      requires_override: result.requires_override === true,
+      override_reason: result.override_reason || null,
+      override_token: result.override_token || null,
+    };
+  } catch (_) {
+    return { requires_override: false, override_reason: null, override_token: null };
+  }
 }
 
 async function dryRunIntl(context, normalized) {
@@ -521,6 +548,30 @@ async function commit(context, body) {
             error: 'Payload changed after dry-run. Please re-preview.',
             code: 'HASH_MISMATCH',
           }, 409);
+        }
+
+        if (cached.requires_override) {
+          const suppliedOverride = cleanText(body.override_token, '', 300);
+          if (!suppliedOverride) {
+            return json({
+              ok: false, version: VERSION, action: 'commit',
+              error: 'This transaction requires override confirmation before it can be committed.',
+              code: 'OVERRIDE_TOKEN_REQUIRED',
+              committed: false,
+              requires_override: true,
+              override_reason: cached.override_reason,
+            }, 409);
+          }
+          if (suppliedOverride !== cached.override_token) {
+            return json({
+              ok: false, version: VERSION, action: 'commit',
+              error: 'override_token does not match the previewed transaction.',
+              code: 'INVALID_OVERRIDE_TOKEN',
+              committed: false,
+              requires_override: true,
+              override_reason: cached.override_reason,
+            }, 409);
+          }
         }
 
         const committable = JSON.parse(cached.committable_payload);
