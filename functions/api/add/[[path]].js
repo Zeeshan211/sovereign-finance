@@ -252,6 +252,13 @@ async function preview(context, body) {
     const pkg = await buildIntlPreview(context.env.DB, normalized);
     return json({ ok: true, version: VERSION, route: 'intl-package', package_preview: pkg, normalized_payload: normalized });
   }
+  if (isDebtOriginMode(normalized)) {
+    return json({
+      ok: true, version: VERSION, route: 'debt-package',
+      debt_payload: buildDebtPayload(normalized), normalized_payload: normalized,
+      expected_writes: [{ model: 'debts', rows: 1 }, { model: 'transactions', rows: 1 }],
+    });
+  }
   return json({
     ok: true, version: VERSION, route: 'transactions', normalized_payload: normalized,
     expected_writes: normalized.type === 'transfer'
@@ -271,6 +278,7 @@ async function dryRun(context, body) {
   const normalized = normalizeAddPayload(body);
 
   if (isInternationalMode(normalized)) return dryRunIntl(context, normalized);
+  if (isDebtOriginMode(normalized)) return dryRunDebt(context, normalized);
 
   const validationError = validateNormalized(normalized);
   if (validationError) return json({ ok: false, version: VERSION, error: validationError }, 400);
@@ -362,6 +370,82 @@ async function dryRunIntl(context, normalized) {
       { model: 'intl_package', rows: 1 },
       { model: 'transactions', rows: packagePreview.components.length },
     ],
+  });
+}
+
+/* ─────────────────────────
+ * Debt origination (debt_in / debt_out)
+ * Thin wrapper over the canonical /api/debts endpoint — never writes
+ * directly to the ledger, so the debts table stays the single source of
+ * truth for outstanding balances and forecast.
+ * ───────────────────────── */
+
+const DEBT_ORIGIN_TYPES = new Set(['debt_in', 'debt_out']);
+
+function isDebtOriginMode(payload) {
+  return DEBT_ORIGIN_TYPES.has(payload.type) || DEBT_ORIGIN_TYPES.has(payload.ui_mode);
+}
+
+function validateDebtOriginPayload(normalized) {
+  if (!normalized.account_id) return 'account_id is required';
+  if (!(normalized.amount > 0)) return 'amount must be greater than zero';
+  if (!normalized.merchant || !normalized.merchant.trim()) return 'Counterparty name is required';
+  return null;
+}
+
+function buildDebtPayload(normalized) {
+  return {
+    action: 'create',
+    direction: normalized.type === 'debt_in' ? 'i_owe' : 'owed_to_me',
+    counterparty_name: normalized.merchant,
+    original_amount: normalized.amount,
+    paid_amount: 0,
+    movement_now: true,
+    account_id: normalized.account_id,
+    movement_date: normalized.date,
+    notes: normalized.notes || null,
+    idempotency_key: normalized.idempotency_key || null,
+    created_by: normalized.created_by || 'web-add',
+  };
+}
+
+async function dryRunDebt(context, normalized) {
+  const validationError = validateDebtOriginPayload(normalized);
+  if (validationError) return json({ ok: false, version: VERSION, error: validationError }, 400);
+
+  const debtPayload = buildDebtPayload(normalized);
+  const result = await internalPost(context, '/api/debts?dry_run=1', debtPayload);
+  const payloadHash = await hashPayload({ route: 'add.debt.commit', normalized_payload: normalized, debt_payload: debtPayload });
+
+  return json({
+    ok: true, version: VERSION, route: 'debt-package', dry_run: true,
+    writes_performed: false, payload_hash: payloadHash,
+    idempotency_key: normalized.idempotency_key || null,
+    requires_override: false, override_reason: null, override_token: null,
+    debt_preview: result, normalized_payload: normalized,
+    expected_writes: [
+      { model: 'debts', rows: 1 },
+      { model: 'transactions', rows: result.ledger && result.ledger.created ? 1 : 0 },
+    ],
+  });
+}
+
+async function commitDebt(context, normalized, suppliedHash) {
+  const debtPayload = buildDebtPayload(normalized);
+  const expectedHash = await hashPayload({ route: 'add.debt.commit', normalized_payload: normalized, debt_payload: debtPayload });
+  if (expectedHash !== suppliedHash) {
+    return json({ ok: false, version: VERSION, error: 'Payload changed after dry-run. Please re-preview.', code: 'HASH_MISMATCH' }, 409);
+  }
+
+  const result = await internalPost(context, '/api/debts', debtPayload);
+  return json({
+    ok: true, version: VERSION, action: 'commit', committed: true,
+    written: {
+      transaction_id: result.ledger ? result.ledger.transaction_id : null,
+      ids: result.ledger && result.ledger.transaction_id ? [result.ledger.transaction_id] : [],
+      row_count: result.ledger && result.ledger.created ? 1 : 0,
+    },
+    debt: result.debt, ledger: result.ledger, ...result,
   });
 }
 
@@ -516,6 +600,12 @@ async function commit(context, body) {
     const suppliedHash = cleanText(body.dry_run_payload_hash || body.payload_hash || body.hash, '', 300);
     if (!suppliedHash) return json({ ok: false, version: VERSION, error: 'dry_run_payload_hash required before commit' }, 428);
     return commitInternational(context, normalized, suppliedHash);
+  }
+
+  if (isDebtOriginMode(normalized)) {
+    const suppliedHash = cleanText(body.payload_hash || body.dry_run_payload_hash || body.hash, '', 300);
+    if (!suppliedHash) return json({ ok: false, version: VERSION, error: 'payload_hash required before commit' }, 428);
+    return commitDebt(context, normalized, suppliedHash);
   }
 
   const suppliedHash    = cleanText(body.payload_hash || body.dry_run_payload_hash || body.hash, '', 300);
