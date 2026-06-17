@@ -252,6 +252,13 @@ async function preview(context, body) {
     const pkg = await buildIntlPreview(context.env.DB, normalized);
     return json({ ok: true, version: VERSION, route: 'intl-package', package_preview: pkg, normalized_payload: normalized });
   }
+  if (isDebtOriginMode(normalized)) {
+    return json({
+      ok: true, version: VERSION, route: 'debt-package',
+      debt_payload: buildDebtPayload(normalized), normalized_payload: normalized,
+      expected_writes: [{ model: 'debts', rows: 1 }, { model: 'transactions', rows: 1 }],
+    });
+  }
   return json({
     ok: true, version: VERSION, route: 'transactions', normalized_payload: normalized,
     expected_writes: normalized.type === 'transfer'
@@ -271,6 +278,7 @@ async function dryRun(context, body) {
   const normalized = normalizeAddPayload(body);
 
   if (isInternationalMode(normalized)) return dryRunIntl(context, normalized);
+  if (isDebtOriginMode(normalized)) return dryRunDebt(context, normalized);
 
   const validationError = validateNormalized(normalized);
   if (validationError) return json({ ok: false, version: VERSION, error: validationError }, 400);
@@ -287,6 +295,8 @@ async function dryRun(context, body) {
   const warnings    = computeWarnings(normalized, fromAccount, toAccount);
   const dryPreview  = buildPreview(normalized, fromAccount, toAccount);
 
+  const balanceProof = await fetchBalanceProof(context, normalized);
+
   const idempotencyKey = normalized.idempotency_key || makeId('IDEM');
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
@@ -294,12 +304,14 @@ async function dryRun(context, body) {
     await db.prepare(
       `INSERT OR REPLACE INTO transaction_dry_runs
        (id, idempotency_key, payload_hash, committable_payload,
-        computed_preview, warnings, committed, created_at, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, 0, datetime('now'), ?)`
+        computed_preview, warnings, requires_override, override_reason,
+        override_token, committed, created_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, datetime('now'), ?)`
     ).bind(
       makeId('DRY'), idempotencyKey, payloadHash,
       JSON.stringify(committable), JSON.stringify(dryPreview),
-      JSON.stringify(warnings), expiresAt
+      JSON.stringify(warnings), balanceProof.requires_override ? 1 : 0,
+      balanceProof.override_reason, balanceProof.override_token, expiresAt
     ).run();
   } catch (_) { /* table not yet migrated — continue without cache */ }
 
@@ -311,11 +323,34 @@ async function dryRun(context, body) {
     expires_at: expiresAt,
     preview: dryPreview,
     warnings,
-    requires_override: false,
-    override_token: null,
+    requires_override: balanceProof.requires_override,
+    override_reason: balanceProof.override_reason,
+    override_token: balanceProof.override_token,
     account_balance_before: fromAccount ? fromAccount.balance : null,
     account_balance_after: dryPreview.from_after,
   });
+}
+
+/* Delegates to /api/transactions' canonical balance-proof check (the same
+ * logic that blocks asset-overdraft / cc-overlimit commits) so the Add
+ * Orchestrator's dry-run reflects a real, enforceable override decision
+ * instead of a hardcoded pass. Fails open (no override required) if the
+ * canonical endpoint is unreachable or rejects the shape — dry-run preview
+ * must never hard-fail just because the proof check failed.
+ */
+async function fetchBalanceProof(context, normalized) {
+  try {
+    const result = await internalPost(
+      context, '/api/transactions?dry_run=1', directTransactionPayload(normalized)
+    );
+    return {
+      requires_override: result.requires_override === true,
+      override_reason: result.override_reason || null,
+      override_token: result.override_token || null,
+    };
+  } catch (_) {
+    return { requires_override: false, override_reason: null, override_token: null };
+  }
 }
 
 async function dryRunIntl(context, normalized) {
@@ -335,6 +370,82 @@ async function dryRunIntl(context, normalized) {
       { model: 'intl_package', rows: 1 },
       { model: 'transactions', rows: packagePreview.components.length },
     ],
+  });
+}
+
+/* ─────────────────────────
+ * Debt origination (debt_in / debt_out)
+ * Thin wrapper over the canonical /api/debts endpoint — never writes
+ * directly to the ledger, so the debts table stays the single source of
+ * truth for outstanding balances and forecast.
+ * ───────────────────────── */
+
+const DEBT_ORIGIN_TYPES = new Set(['debt_in', 'debt_out']);
+
+function isDebtOriginMode(payload) {
+  return DEBT_ORIGIN_TYPES.has(payload.type) || DEBT_ORIGIN_TYPES.has(payload.ui_mode);
+}
+
+function validateDebtOriginPayload(normalized) {
+  if (!normalized.account_id) return 'account_id is required';
+  if (!(normalized.amount > 0)) return 'amount must be greater than zero';
+  if (!normalized.merchant || !normalized.merchant.trim()) return 'Counterparty name is required';
+  return null;
+}
+
+function buildDebtPayload(normalized) {
+  return {
+    action: 'create',
+    direction: normalized.type === 'debt_in' ? 'i_owe' : 'owed_to_me',
+    counterparty_name: normalized.merchant,
+    original_amount: normalized.amount,
+    paid_amount: 0,
+    movement_now: true,
+    account_id: normalized.account_id,
+    movement_date: normalized.date,
+    notes: normalized.notes || null,
+    idempotency_key: normalized.idempotency_key || null,
+    created_by: normalized.created_by || 'web-add',
+  };
+}
+
+async function dryRunDebt(context, normalized) {
+  const validationError = validateDebtOriginPayload(normalized);
+  if (validationError) return json({ ok: false, version: VERSION, error: validationError }, 400);
+
+  const debtPayload = buildDebtPayload(normalized);
+  const result = await internalPost(context, '/api/debts?dry_run=1', debtPayload);
+  const payloadHash = await hashPayload({ route: 'add.debt.commit', normalized_payload: normalized, debt_payload: debtPayload });
+
+  return json({
+    ok: true, version: VERSION, route: 'debt-package', dry_run: true,
+    writes_performed: false, payload_hash: payloadHash,
+    idempotency_key: normalized.idempotency_key || null,
+    requires_override: false, override_reason: null, override_token: null,
+    debt_preview: result, normalized_payload: normalized,
+    expected_writes: [
+      { model: 'debts', rows: 1 },
+      { model: 'transactions', rows: result.ledger && result.ledger.created ? 1 : 0 },
+    ],
+  });
+}
+
+async function commitDebt(context, normalized, suppliedHash) {
+  const debtPayload = buildDebtPayload(normalized);
+  const expectedHash = await hashPayload({ route: 'add.debt.commit', normalized_payload: normalized, debt_payload: debtPayload });
+  if (expectedHash !== suppliedHash) {
+    return json({ ok: false, version: VERSION, error: 'Payload changed after dry-run. Please re-preview.', code: 'HASH_MISMATCH' }, 409);
+  }
+
+  const result = await internalPost(context, '/api/debts', debtPayload);
+  return json({
+    ok: true, version: VERSION, action: 'commit', committed: true,
+    written: {
+      transaction_id: result.ledger ? result.ledger.transaction_id : null,
+      ids: result.ledger && result.ledger.transaction_id ? [result.ledger.transaction_id] : [],
+      row_count: result.ledger && result.ledger.created ? 1 : 0,
+    },
+    debt: result.debt, ledger: result.ledger, ...result,
   });
 }
 
@@ -491,6 +602,12 @@ async function commit(context, body) {
     return commitInternational(context, normalized, suppliedHash);
   }
 
+  if (isDebtOriginMode(normalized)) {
+    const suppliedHash = cleanText(body.payload_hash || body.dry_run_payload_hash || body.hash, '', 300);
+    if (!suppliedHash) return json({ ok: false, version: VERSION, error: 'payload_hash required before commit' }, 428);
+    return commitDebt(context, normalized, suppliedHash);
+  }
+
   const suppliedHash    = cleanText(body.payload_hash || body.dry_run_payload_hash || body.hash, '', 300);
   const idempotencyKey  = cleanText(body.idempotency_key || body.client_request_id, '', 220);
 
@@ -521,6 +638,30 @@ async function commit(context, body) {
             error: 'Payload changed after dry-run. Please re-preview.',
             code: 'HASH_MISMATCH',
           }, 409);
+        }
+
+        if (cached.requires_override) {
+          const suppliedOverride = cleanText(body.override_token, '', 300);
+          if (!suppliedOverride) {
+            return json({
+              ok: false, version: VERSION, action: 'commit',
+              error: 'This transaction requires override confirmation before it can be committed.',
+              code: 'OVERRIDE_TOKEN_REQUIRED',
+              committed: false,
+              requires_override: true,
+              override_reason: cached.override_reason,
+            }, 409);
+          }
+          if (suppliedOverride !== cached.override_token) {
+            return json({
+              ok: false, version: VERSION, action: 'commit',
+              error: 'override_token does not match the previewed transaction.',
+              code: 'INVALID_OVERRIDE_TOKEN',
+              committed: false,
+              requires_override: true,
+              override_reason: cached.override_reason,
+            }, 409);
+          }
         }
 
         const committable = JSON.parse(cached.committable_payload);
