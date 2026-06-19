@@ -94,6 +94,13 @@ export async function onRequestPost(context) {
 
     const plan = runMatchingEngine(stmtRows, ledgerRows, ledgerOtherRows, fuzzyDays);
 
+    // Known-accounts transfer detection (Phase 3b, §20): if a row that needs
+    // adding names one of the user's OWN other accounts (by owner_aliases),
+    // suggest a Transfer instead of Income/Expense. Suggestion only — never
+    // changes the classification or auto-commits.
+    const ownAccounts = await loadOwnAccounts(db, userId, accountId);
+    annotateTransferSuggestions(plan, ownAccounts);
+
     const matchedLedgerIds = new Set(plan.filter(p => p.matched_ledger_id).map(p => p.matched_ledger_id));
     const today          = todayISO();
     const pendingSince   = addDays(today, -pendingDays);
@@ -278,6 +285,68 @@ function runMatchingEngine(stmtRows, ledgerRows, ledgerOtherRows, fuzzyDays = 5)
   }
 
   return plan;
+}
+
+/* ─── Known-accounts transfer detection (Phase 3b, §20) ─── */
+
+// Load the user's other accounts with their owner_aliases. Tolerates the
+// owner_aliases column being absent (migration 30 not yet run) → no aliases.
+async function loadOwnAccounts(db, userId, currentAccountId) {
+  try {
+    const res = await db.prepare(
+      `SELECT id, name, owner_aliases FROM accounts
+       WHERE user_id = ? AND id != ? AND (status IS NULL OR status != 'deleted')`
+    ).bind(userId, currentAccountId).all();
+    return (res.results || []).map(a => ({
+      id: a.id,
+      name: a.name,
+      aliases: parseAliases(a.owner_aliases, a.name)
+    }));
+  } catch (_) {
+    return [];
+  }
+}
+
+function parseAliases(raw, name) {
+  const list = [];
+  if (raw) {
+    try {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) for (const x of arr) if (x) list.push(String(x));
+    } catch (_) { /* not JSON — ignore */ }
+  }
+  if (name) list.push(String(name)); // the account's own name is an implicit alias
+  return list.map(normalizeName).filter(s => s.length >= 4);
+}
+
+function normalizeName(s) {
+  return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+// Attach a transfer_suggestion to any "needs adding" row whose description
+// names one of the user's own accounts. Does not change the classification.
+function annotateTransferSuggestions(plan, ownAccounts) {
+  if (!ownAccounts.length) return;
+  for (const item of plan) {
+    if (item.classification !== 'MISSING_SAFE_TO_IMPORT') continue;
+    const stmt = item.statement_row;
+    if (!stmt) continue;
+    const descNorm = normalizeName(stmt.description);
+    if (!descNorm) continue;
+    for (const acc of ownAccounts) {
+      const hit = acc.aliases.find(alias => descNorm.includes(alias));
+      if (hit) {
+        item.transfer_suggestion = {
+          to_account_id:   acc.id,
+          to_account_name: acc.name,
+          matched_alias:   hit,
+          confidence:      'high',
+          reason:          `Description names your account "${acc.name}" — likely a transfer between your own accounts`
+        };
+        break;
+      }
+    }
+  }
 }
 
 function findTransfer(stmt, stmtAmount, isDebit, ledgerOtherRows, usedLedgerIds, fuzzyDays = 5) {
