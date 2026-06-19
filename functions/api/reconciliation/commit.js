@@ -62,6 +62,13 @@ export async function onRequestPost(context) {
       ? new Set(rawCls.filter(c => COMMIT_SAFE.has(c)))
       : COMMIT_SAFE;
 
+    // Per-row user decisions (Phase 3). Keyed by statement-row id; each entry is
+    // { intent, params }. When present, the user's explicit choice overrides the
+    // engine's classification and routes the row to debts/bills/salary/transfer
+    // or plain expense/income. Rows without an override keep the legacy
+    // safe-classification behavior.
+    const rowOverrides = buildOverrideMap(body.row_overrides || body.row_decisions);
+
     if (!planId)    return json(errBody('plan_id is required',         'PLAN_ID_REQUIRED'),         400);
     if (!confirmed) return json(errBody('confirm must be true',        'CONFIRM_REQUIRED'),         400);
     if (!idemKey)   return json(errBody('idempotency_key is required', 'IDEMPOTENCY_KEY_REQUIRED'), 400);
@@ -123,6 +130,47 @@ export async function onRequestPost(context) {
 
     for (const item of planItems) {
       const cls = item.classification;
+
+      // Phase 3: explicit per-row user decision wins over the engine's class.
+      const override = lookupOverride(rowOverrides, item.statement_row);
+      if (override) {
+        if (override.intent === 'skip') continue;
+        const routed = await routeIntent({
+          origin, override, stmt: item.statement_row,
+          accountId: planRow.account_id, planId
+        });
+        if (routed.ok) {
+          if (routed.id) committedIds.push(routed.id);
+          rowResults.push({
+            posted_date: item.statement_row?.posted_date,
+            description: item.statement_row?.description || null,
+            amount:      routed.signed_amount,
+            intent:      override.intent,
+            status:      routed.already_existed ? 'already_existed' : 'committed',
+            transaction_id: routed.id || null
+          });
+        } else {
+          const excId = `exc_${Date.now()}_${rand()}`;
+          await writeException(db, {
+            id: excId, plan_id: planId, account_id: planRow.account_id,
+            user_id: excHhClause ? hh : undefined,
+            stmt_tx_id: item.statement_row?.id || null, ledger_tx_id: null,
+            type: 'ROUTE_FAILED', severity: 'high',
+            amount: routed.signed_amount != null ? Math.abs(routed.signed_amount) : null,
+            description: item.statement_row?.description || null,
+            reason: routed.error || `Failed to add as ${override.intent}`,
+            action: 'Review the chosen category and the linked debt/bill, then retry', now
+          });
+          exceptionIds.push(excId);
+          rowResults.push({
+            posted_date: item.statement_row?.posted_date,
+            description: item.statement_row?.description || null,
+            amount: routed.signed_amount, intent: override.intent,
+            status: 'failed', reason: routed.error || `Failed to add as ${override.intent}`
+          });
+        }
+        continue;
+      }
 
       // Non-safe items: write exceptions for items that need attention
       if (!selectedCls.has(cls) || !COMMIT_SAFE.has(cls)) {
@@ -462,6 +510,160 @@ function buildProof(appBalance, stmtClosing) {
       ? 'App balance equals the statement closing balance — every transaction accounted for.'
       : 'App balance does NOT equal the statement closing balance — a row is likely missing or doubled.'
   };
+}
+
+/* ─── Per-row intent routing (Phase 3) ─── */
+
+// Normalize body.row_overrides (object keyed by row id, or array of
+// {row_id|key, intent, params}) into a Map<string, {intent, params}>.
+function buildOverrideMap(raw) {
+  const map = new Map();
+  if (!raw) return map;
+  const add = (key, intent, params) => {
+    const k = clean(key);
+    if (k && intent) map.set(k, { intent: clean(intent), params: params || {} });
+  };
+  if (Array.isArray(raw)) {
+    for (const o of raw) add(o.row_id || o.key || o.id, o.intent, o.params);
+  } else if (typeof raw === 'object') {
+    for (const [k, v] of Object.entries(raw)) {
+      if (v && typeof v === 'object') add(k, v.intent, v.params);
+    }
+  }
+  return map;
+}
+
+// A row may be keyed by its statement-row id, or (fallback) by posted_date:amount.
+function lookupOverride(map, stmt) {
+  if (!map.size || !stmt) return null;
+  if (stmt.id && map.has(stmt.id)) return map.get(stmt.id);
+  const amt = stmt.debit != null ? stmt.debit : stmt.credit;
+  const alt = `${stmt.posted_date}:${amt}`;
+  return map.has(alt) ? map.get(alt) : null;
+}
+
+// Route one row to the correct domain endpoint based on the user's chosen
+// intent. Every self-call carries a content-based idempotency key so a
+// re-paste is a no-op across all intents (salary excepted — see note).
+async function routeIntent({ origin, override, stmt, accountId, planId }) {
+  const { intent, params } = override;
+  const isDebit = stmt.debit != null;
+  const amount  = Math.abs((isDebit ? stmt.debit : stmt.credit) ?? 0);
+  const signed  = isDebit ? -amount : amount;
+  if (amount <= 0) return { ok: false, error: 'Row has no amount', signed_amount: signed };
+
+  const idem = await contentIdemKey(accountId, stmt, isDebit, amount);
+  const base = {
+    idempotency_key: idem,
+    source_module: 'reconciliation', source_id: planId, source_action: 'commit',
+    created_by: 'reconciliation-commit-v0.3'
+  };
+  const date  = stmt.posted_date;
+  const notes = stmt.description || null;
+
+  switch (intent) {
+    case 'expense':
+    case 'income': {
+      const r = await postJson(`${origin}/api/transactions`, {
+        ...base, type: intent, amount, account_id: accountId, date, notes
+      }, true);
+      return txResult(r, signed, idem);
+    }
+    case 'transfer': {
+      const to = clean(params.transfer_to_account_id || params.to_account_id);
+      if (!to) return { ok: false, error: 'transfer needs a destination account', signed_amount: signed };
+      const r = await postJson(`${origin}/api/transactions`, {
+        ...base, type: 'transfer', amount, account_id: accountId,
+        transfer_to_account_id: to, date, notes
+      }, true);
+      return txResult(r, signed, idem);
+    }
+    case 'debt_borrow':   // credit in: new loan I'm taking
+    case 'debt_lend': {   // debit out: new loan I'm giving
+      const direction = intent === 'debt_borrow' ? 'i_owe' : 'owed_to_me';
+      const r = await postJson(`${origin}/api/debts`, {
+        ...base, action: 'create', direction,
+        counterparty_name: clean(params.counterparty_name) || notes || 'Reconciled debt',
+        amount, // Rs; the debts API converts to paisa
+        funds_moved_at_creation: true,
+        date_originated: date,
+        ...(direction === 'i_owe'
+          ? { destination_account_id: accountId }
+          : { source_account_id: accountId }),
+        description: notes
+      });
+      // createDebt writes the origination ledger entry itself — do NOT also
+      // post a transaction.
+      return debtResult(r, signed);
+    }
+    case 'debt_pay': {      // debit out: paying down an existing i_owe debt
+      const debtId = clean(params.debt_id);
+      if (!debtId) return { ok: false, error: 'debt_pay needs a debt_id', signed_amount: signed };
+      const r = await postJson(`${origin}/api/debts`, {
+        ...base, action: 'pay', debt_id: debtId, account_id: accountId, amount, date
+      });
+      return debtResult(r, signed);
+    }
+    case 'debt_receive': {  // credit in: someone repaid an owed_to_me debt
+      const debtId = clean(params.debt_id);
+      if (!debtId) return { ok: false, error: 'debt_receive needs a debt_id', signed_amount: signed };
+      const r = await postJson(`${origin}/api/debts`, {
+        ...base, action: 'receive_payment', debt_id: debtId,
+        destination_account_id: accountId, account_id: accountId, amount, date
+      });
+      return debtResult(r, signed);
+    }
+    case 'bill_pay': {      // debit out: paying an existing bill
+      const billId = clean(params.bill_id);
+      if (!billId) return { ok: false, error: 'bill_pay needs a bill_id', signed_amount: signed };
+      const r = await postJson(`${origin}/api/bills`, {
+        ...base, action: 'pay', bill_id: billId, account_id: accountId,
+        amount, payment_date: date
+      });
+      return { ok: !!(r.ok || r.idempotent_replay), id: r.payment_id || r.id || idem,
+        already_existed: !!r.idempotent_replay, error: r.error || r.code, signed_amount: signed };
+    }
+    case 'salary': {        // credit in: a payslip deposit
+      const r = await postJson(`${origin}/api/salary`, {
+        ...base, action: 'add_payslip',
+        gross_amount: amount, net_amount_estimate: amount,
+        deposit_account_id: accountId, pay_date: date, notes
+      });
+      return { ok: !!r.ok, id: r.id || (r.data && r.data.id) || idem,
+        error: r.error || r.code, signed_amount: signed };
+    }
+    default:
+      return { ok: false, error: `Unknown intent "${intent}"`, signed_amount: signed };
+  }
+}
+
+function txResult(r, signed, idem) {
+  const ok = !!(r.ok || r.idempotent_replay);
+  const id = r.id || r.transaction_id || (Array.isArray(r.ids) ? r.ids[0] : null) || idem;
+  return { ok, id, already_existed: !!r.idempotent_replay, error: r.error || r.code, signed_amount: signed };
+}
+
+function debtResult(r, signed) {
+  const ok = !!(r.ok || r.idempotent_replay || r.duplicate || r.already_exists);
+  const id = (r.data && (r.data.id || r.data.debt_id)) || r.debt_id || r.id || r.payment_id || null;
+  return { ok, id, already_existed: !!(r.idempotent_replay || r.duplicate),
+    error: r.error || r.code, signed_amount: signed };
+}
+
+// POST helper. When dryThenCommit is true (ledger writes via /api/transactions),
+// reuse the existing dry-run→override→commit dance.
+async function postJson(url, payload, dryThenCommit = false) {
+  if (dryThenCommit) return commitOneTransaction(url.replace(/\/api\/transactions$/, ''), payload);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return await res.json().catch(() => ({ ok: false, error: 'Invalid JSON response', code: 'BAD_RESPONSE' }));
+  } catch (e) {
+    return { ok: false, error: e.message || 'fetch error', code: 'FETCH_ERROR' };
+  }
 }
 
 /* ─── Content-based idempotency key (Phase 0) ─── */
