@@ -71,7 +71,7 @@ export async function onRequestPost(context) {
     // Scope reconciliation_plans SELECT by household_id when column exists
     const plansHhClause = await colExists(db, 'reconciliation_plans', 'user_id');
     const planRow = await db.prepare(
-      `SELECT id, account_id, plan_json, committed_at
+      `SELECT id, account_id, import_id, plan_json, committed_at
        FROM reconciliation_plans
        WHERE id = ?${plansHhClause ? ' AND user_id = ?' : ''}
        LIMIT 1`
@@ -100,7 +100,15 @@ export async function onRequestPost(context) {
     try   { planData = JSON.parse(planRow.plan_json || '{}'); }
     catch (_) { planData = {}; }
 
-    const planItems = Array.isArray(planData.plan) ? planData.plan : [];
+    // Deterministic commit order (Phase 2): oldest first, and within the same
+    // date, entity-creating rows before rows that pay against an existing
+    // entity — so a "borrow" always commits before a payment that depends on
+    // it. Stable sort preserves statement order for ties. (Dependency-aware
+    // halt-on-failure lands with the create/pay row types in Phase 3; today's
+    // safe rows — plain expense/income — are mutually independent.)
+    const planItems = orderForCommit(
+      Array.isArray(planData.plan) ? planData.plan : []
+    );
     const origin    = new URL(context.request.url).origin;
     const now       = nowSql();
 
@@ -108,6 +116,7 @@ export async function onRequestPost(context) {
 
     const committedIds = [];
     const exceptionIds = [];
+    const rowResults   = [];
 
     // Check household_id column existence once for exceptions table
     const excHhClause = await colExists(db, 'reconciliation_exceptions', 'user_id');
@@ -179,6 +188,13 @@ export async function onRequestPost(context) {
           || (Array.isArray(result.ids) ? result.ids[0] : null)
           || rowIdem;
         committedIds.push(txId);
+        rowResults.push({
+          posted_date: stmt.posted_date,
+          description: stmt.description || null,
+          amount:      isDebit ? -amount : amount,
+          status:      result.idempotent_replay ? 'already_existed' : 'committed',
+          transaction_id: txId
+        });
       } else {
         const excId = `exc_${Date.now()}_${rand()}`;
         await writeException(db, {
@@ -197,6 +213,13 @@ export async function onRequestPost(context) {
           now
         });
         exceptionIds.push(excId);
+        rowResults.push({
+          posted_date: stmt.posted_date,
+          description: stmt.description || null,
+          amount:      isDebit ? -amount : amount,
+          status:      'failed',
+          reason:      result.error || result.code || 'Transaction creation failed'
+        });
       }
     }
 
@@ -206,6 +229,12 @@ export async function onRequestPost(context) {
     ).bind(now, planId).run().catch(() => {});
 
     const balanceAfter = await computeAppBalance(db, planRow.account_id, hh);
+
+    // Proof line (Phase 2): does the app balance now equal the statement's
+    // closing balance? Equal → zero drift, every row accounted for. Not equal
+    // → a row was missed or doubled; surface it now, not next month.
+    const stmtClosing = await statementClosingBalance(db, planRow.import_id, hh);
+    const proof = buildProof(balanceAfter, stmtClosing);
 
     return json({
       ok:                        true,
@@ -217,7 +246,11 @@ export async function onRequestPost(context) {
       skipped_to_exceptions:     exceptionIds,
       projected_balance_before:  balanceBefore,
       projected_balance_after:   balanceAfter,
-      warnings:                  []
+      row_results:               rowResults,
+      proof,
+      warnings:                  proof.matches === false
+        ? ['Drift: app balance does not equal the statement closing balance — a transaction may be missing or doubled.']
+        : []
     });
 
   } catch (e) {
@@ -364,6 +397,71 @@ async function colExists(db, table, column) {
     _colCache.set(key, false);
     return false;
   }
+}
+
+/* ─── Deterministic commit ordering + proof (Phase 2) ─── */
+
+// Priority within the same date: lower commits first. Entity-creating rows
+// (a new debt/bill) must precede rows that pay against an existing entity, so
+// a same-day create-then-pay never references something not yet written.
+// Today's safe classifications are independent; the create/pay types arrive
+// in Phase 3 and slot into this table without changing the sort.
+const COMMIT_PRIORITY = {
+  MISSING_SAFE_TO_IMPORT: 1,
+  TRANSFER_PAIR_FOUND:    1,
+};
+
+function orderForCommit(items) {
+  return items
+    .map((item, i) => ({ item, i }))
+    .sort((a, b) => {
+      const da = a.item?.statement_row?.posted_date || '';
+      const db = b.item?.statement_row?.posted_date || '';
+      if (da !== db) return da < db ? -1 : 1;            // oldest first
+      const pa = COMMIT_PRIORITY[a.item?.classification] ?? 5;
+      const pb = COMMIT_PRIORITY[b.item?.classification] ?? 5;
+      if (pa !== pb) return pa - pb;                      // creates before pays
+      return a.i - b.i;                                   // stable: statement order
+    })
+    .map(x => x.item);
+}
+
+// The bank's closing balance for this statement, looked up via the plan's
+// import. Returns null if unavailable (older plans without an import link).
+async function statementClosingBalance(db, importId, hh) {
+  if (!importId) return null;
+  try {
+    const hhClause = await colExists(db, 'statement_imports', 'user_id');
+    const row = await db.prepare(
+      `SELECT statement_closing_balance AS bal
+       FROM statement_imports
+       WHERE id = ?${hhClause ? ' AND user_id = ?' : ''}
+       LIMIT 1`
+    ).bind(...(hhClause ? [importId, hh] : [importId])).first();
+    return row && row.bal != null ? Number(row.bal) : null;
+  } catch (_) { return null; }
+}
+
+function buildProof(appBalance, stmtClosing) {
+  if (stmtClosing == null) {
+    return {
+      app_balance: round2(appBalance),
+      statement_closing_balance: null,
+      matches: null,
+      difference: null,
+      note: 'No statement closing balance on file — cannot prove zero drift for this plan.'
+    };
+  }
+  const matches = Math.round(appBalance * 100) === Math.round(stmtClosing * 100);
+  return {
+    app_balance: round2(appBalance),
+    statement_closing_balance: round2(stmtClosing),
+    matches,
+    difference: round2(appBalance - stmtClosing),
+    note: matches
+      ? 'App balance equals the statement closing balance — every transaction accounted for.'
+      : 'App balance does NOT equal the statement closing balance — a row is likely missing or doubled.'
+  };
 }
 
 /* ─── Content-based idempotency key (Phase 0) ─── */
