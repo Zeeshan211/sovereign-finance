@@ -151,7 +151,13 @@ export async function onRequestPost(context) {
       if (amount <= 0) continue;
 
       const txType  = isDebit ? 'expense' : 'income';
-      const rowIdem = `recon:${planId}:${stmt.id || (stmt.posted_date + ':' + String(amount))}`;
+      // Content-based idempotency key (Phase 0 — no-flaw guard).
+      // Keyed on the transaction's own identity (account + date + signed
+      // amount + running balance), NOT the plan_id. This makes re-pasting the
+      // same statement a guaranteed no-op even though it produces a new
+      // plan_id, while the running balance disambiguates genuinely-distinct
+      // same-day/same-amount transactions (they cannot share one balance).
+      const rowIdem = await contentIdemKey(planRow.account_id, stmt, isDebit, amount);
 
       const txPayload = {
         type:            txType,
@@ -358,6 +364,33 @@ async function colExists(db, table, column) {
     _colCache.set(key, false);
     return false;
   }
+}
+
+/* ─── Content-based idempotency key (Phase 0) ─── */
+
+// Deterministic, plan-independent key for a statement row's ledger write.
+// sha256(account_id | posted_date | signed_amount_paisa | running_balance_paisa)
+// Re-pasting the same statement yields identical keys → the /api/transactions
+// hard guard replays instead of writing a duplicate. When the running balance
+// is absent (CSV fallback without a balance column), we fall back to
+// account+date+signed-amount, which still de-dupes re-pastes for the common
+// case but loses same-day/same-amount disambiguation.
+async function contentIdemKey(accountId, stmt, isDebit, amount) {
+  const signedPaisa  = Math.round((isDebit ? -amount : amount) * 100);
+  const balancePaisa = (stmt && stmt.balance != null)
+    ? String(Math.round(stmt.balance * 100))
+    : 'nobal';
+  const basis = `${accountId}|${stmt.posted_date}|${signedPaisa}|${balancePaisa}`;
+  const hash  = await sha256Hex(basis);
+  return `recon:v2:${hash}`;
+}
+
+async function sha256Hex(text) {
+  const data   = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(digest))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 /* ─── Generic helpers ─── */
