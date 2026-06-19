@@ -1,15 +1,23 @@
-/* Sovereign Finance — Statement Reconciliation v0.2
+/* Sovereign Finance — Statement Reconciliation v0.3
  * POST /api/reconciliation/import-statement
  * contract_version: reconciliation-v0.2
  *
- * Accepts CSV paste: date,description,debit,credit,balance
+ * Accepts two paste formats:
+ *   1. Pipe (preferred, self-verifying):
+ *        DATE | DESCRIPTION | AMOUNT | BALANCE     (AMOUNT signed: - out, + in)
+ *        # count=N opening=O closing=C             (optional checksum footer)
+ *      Verified by continuity (balance[i]-balance[i-1] == amount[i]) and
+ *      envelope (opening + Σamount == closing, rowcount == count) BEFORE any
+ *      storage. A failed checksum rejects the whole paste and names the row.
+ *   2. CSV (fallback): date,description,debit,credit,balance
+ *
  * Stores rows in statement_imports + statement_transactions.
  * NEVER writes to ledger. Period.
  */
 
 import { getUserId } from '../_lib.js';
 
-const VERSION = 'v0.2.0-statement-reconciliation';
+const VERSION = 'v0.3.0-checksum-verified-parser';
 const CONTRACT_VERSION = 'reconciliation-v0.2';
 
 export async function onRequestPost(context) {
@@ -22,20 +30,21 @@ export async function onRequestPost(context) {
 
     const body = await readJson(context.request);
     const accountId = clean(body.account_id);
-    const csvText   = clean(body.csv_text || body.csv || '');
+    const csvText   = clean(body.statement_text || body.text || body.csv_text || body.csv || '');
     const createdBy = clean(body.created_by || 'web');
 
     if (!accountId) return json(validErr('account_id is required', 'ACCOUNT_ID_REQUIRED'), 400);
-    if (!csvText)   return json(validErr('csv_text is required',   'CSV_REQUIRED'), 400);
+    if (!csvText)   return json(validErr('statement_text is required', 'STATEMENT_REQUIRED'), 400);
 
     const account = await db.prepare(
       'SELECT id, name FROM accounts WHERE id = ? AND user_id = ? LIMIT 1'
     ).bind(accountId, userId).first();
     if (!account) return json(validErr(`Account not found: ${accountId}`, 'ACCOUNT_NOT_FOUND'), 404);
 
-    const parsed = parseCsv(csvText);
-    if (!parsed.ok) return json(validErr(parsed.error, 'CSV_PARSE_ERROR'), 400);
-    if (!parsed.rows.length) return json(validErr('CSV contains no data rows', 'CSV_EMPTY'), 400);
+    const fmt    = detectFormat(body.format, csvText);
+    const parsed = fmt === 'pipe' ? parsePipe(csvText) : parseCsv(csvText);
+    if (!parsed.ok) return json(validErr(parsed.error, parsed.code || 'PARSE_ERROR'), 400);
+    if (!parsed.rows.length) return json(validErr('Statement contains no data rows', 'STATEMENT_EMPTY'), 400);
 
     await ensureStatementTables(db);
 
@@ -95,6 +104,8 @@ export async function onRequestPost(context) {
       import_id:                importId,
       account_id:               accountId,
       account_name:             account.name,
+      format:                   fmt,
+      checksum:                 parsed.checksum || null,
       row_count:                rows.length,
       date_from:                dateFrom,
       date_to:                  dateTo,
@@ -210,6 +221,164 @@ function parseAmount(val) {
   if (!s || s === '-' || s === '') return null;
   const n = parseFloat(s);
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+}
+
+/* ─── Pipe format + checksum verification (Phase 1) ─── */
+
+// Auto-detect: explicit body.format wins; otherwise a '|' in the first
+// non-comment line means pipe, else CSV.
+function detectFormat(explicit, text) {
+  const f = clean(explicit).toLowerCase();
+  if (f === 'pipe' || f === 'csv') return f;
+  const firstData = String(text).split(/\r?\n/)
+    .map(l => l.trim())
+    .find(l => l && !l.startsWith('#'));
+  return firstData && firstData.includes('|') ? 'pipe' : 'csv';
+}
+
+const paisa = (x) => Math.round((x || 0) * 100);
+
+// Parse + verify the pipe format. Returns rows in the SAME internal shape as
+// parseCsv (posted_date/description/debit/credit/balance) so all downstream
+// storage code is unchanged. On any checksum failure, returns ok:false with a
+// message naming the exact offending row — and writes nothing.
+function parsePipe(text) {
+  const allLines = String(text).split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  let footer = null;
+  const dataLines = [];
+
+  for (const line of allLines) {
+    if (line.startsWith('#')) {
+      const m = line.match(/count\s*=\s*(\d+)/i);
+      const o = line.match(/opening\s*=\s*(-?[\d.,]+)/i);
+      const c = line.match(/closing\s*=\s*(-?[\d.,]+)/i);
+      footer = {
+        count:   m ? parseInt(m[1], 10) : null,
+        opening: o ? parseAmount(o[1]) : null,
+        closing: c ? parseAmount(c[1]) : null
+      };
+      continue;
+    }
+    dataLines.push(line);
+  }
+
+  const parsed = [];
+  for (let i = 0; i < dataLines.length; i++) {
+    const parts = dataLines[i].split('|').map(p => p.trim());
+    if (parts.length < 3) {
+      // Tolerate a header row at the very top (no parseable date).
+      if (i === 0 && !normalizeDate(parts[0])) continue;
+      return { ok: false, code: 'PIPE_MALFORMED_ROW',
+        error: `Row ${i + 1} ("${dataLines[i]}") must be DATE | DESCRIPTION | AMOUNT | BALANCE` };
+    }
+    const posted_date = normalizeDate(parts[0]);
+    if (!posted_date) {
+      if (i === 0) continue; // header row — skip silently
+      return { ok: false, code: 'PIPE_BAD_DATE',
+        error: `Row ${i + 1} ("${dataLines[i]}") has an unrecognized date "${parts[0]}"` };
+    }
+    const amount = parseAmount(parts[2]);
+    if (amount === null) {
+      return { ok: false, code: 'PIPE_BAD_AMOUNT',
+        error: `Row ${i + 1} (${posted_date}) has an unreadable AMOUNT "${parts[2]}". Use a signed number, e.g. -850.00 or +3000.00` };
+    }
+    const balance = parts.length >= 4 ? parseAmount(parts[3]) : null;
+    parsed.push({ posted_date, description: parts[1] || '', amount, balance, line: dataLines[i] });
+  }
+
+  if (!parsed.length) return { ok: true, rows: [], checksum: null };
+
+  const verify = verifyChecksum(parsed, footer);
+  if (!verify.ok) return verify;
+
+  const rows = parsed.map(r => ({
+    posted_date: r.posted_date,
+    description: r.description,
+    debit:  r.amount < 0 ? Math.abs(r.amount) : null,
+    credit: r.amount >= 0 ? r.amount : null,
+    balance: r.balance
+  }));
+
+  return { ok: true, rows, checksum: verify.checksum };
+}
+
+// Continuity: balance[i] - balance[i-1] == amount[i] (in integer paisa).
+// Envelope: opening + Σamount == closing; rowcount == count.
+// Any mismatch means the external AI duplicated, dropped, or mis-signed a row.
+function verifyChecksum(parsed, footer) {
+  const haveAllBalances = parsed.every(r => r.balance != null);
+
+  // Row-to-row continuity (needs balances on consecutive rows).
+  if (haveAllBalances) {
+    for (let i = 1; i < parsed.length; i++) {
+      const prev = paisa(parsed[i - 1].balance);
+      const curr = paisa(parsed[i].balance);
+      const amt  = paisa(parsed[i].amount);
+      if (curr - prev !== amt) {
+        return { ok: false, code: 'CHECKSUM_CONTINUITY_FAILED',
+          error: `Balance break at row ${i + 1} (${parsed[i].posted_date} "${parsed[i].description}"): ` +
+                 `previous balance Rs ${parsed[i - 1].balance.toFixed(2)} ${parsed[i].amount < 0 ? '−' : '+'} ` +
+                 `Rs ${Math.abs(parsed[i].amount).toFixed(2)} should equal Rs ${((prev + amt) / 100).toFixed(2)}, ` +
+                 `but the statement shows Rs ${parsed[i].balance.toFixed(2)}. A row is likely duplicated, dropped, or mis-signed.` };
+      }
+    }
+  }
+
+  // Envelope checks (need the footer).
+  if (footer) {
+    if (footer.count != null && footer.count !== parsed.length) {
+      return { ok: false, code: 'CHECKSUM_COUNT_MISMATCH',
+        error: `Row count mismatch: the footer says count=${footer.count} but ${parsed.length} rows were pasted. A row is missing or duplicated.` };
+    }
+    const sumAmt = parsed.reduce((s, r) => s + paisa(r.amount), 0);
+    if (footer.opening != null && footer.closing != null) {
+      const expected = paisa(footer.opening) + sumAmt;
+      if (expected !== paisa(footer.closing)) {
+        return { ok: false, code: 'CHECKSUM_ENVELOPE_FAILED',
+          error: `Envelope check failed: opening Rs ${footer.opening.toFixed(2)} + total movement Rs ${(sumAmt / 100).toFixed(2)} ` +
+                 `= Rs ${((paisa(footer.opening) + sumAmt) / 100).toFixed(2)}, but the footer's closing is Rs ${footer.closing.toFixed(2)}. ` +
+                 `The pasted rows do not add up to the statement's closing balance.` };
+      }
+    }
+    // Opening must lead into the first row's balance too.
+    if (footer.opening != null && haveAllBalances) {
+      const expectFirst = paisa(footer.opening) + paisa(parsed[0].amount);
+      if (expectFirst !== paisa(parsed[0].balance)) {
+        return { ok: false, code: 'CHECKSUM_OPENING_FAILED',
+          error: `Opening check failed: opening Rs ${footer.opening.toFixed(2)} ${parsed[0].amount < 0 ? '−' : '+'} ` +
+                 `Rs ${Math.abs(parsed[0].amount).toFixed(2)} should equal the first row's balance, ` +
+                 `but it shows Rs ${parsed[0].balance.toFixed(2)}. The first row or the opening balance is wrong.` };
+      }
+    }
+    // Closing must equal the last row's balance.
+    if (footer.closing != null && haveAllBalances) {
+      const last = parsed[parsed.length - 1].balance;
+      if (paisa(last) !== paisa(footer.closing)) {
+        return { ok: false, code: 'CHECKSUM_CLOSING_FAILED',
+          error: `Closing check failed: footer closing is Rs ${footer.closing.toFixed(2)} but the last row's balance is Rs ${last.toFixed(2)}.` };
+      }
+    }
+  }
+
+  const verified = haveAllBalances && !!footer &&
+    footer.count != null && footer.opening != null && footer.closing != null;
+
+  return {
+    ok: true,
+    checksum: {
+      verified,
+      continuity_checked: haveAllBalances,
+      envelope_checked:   !!footer,
+      rows: parsed.length,
+      opening: footer ? footer.opening : null,
+      closing: footer ? footer.closing : (haveAllBalances ? parsed[parsed.length - 1].balance : null),
+      note: verified
+        ? 'Fully verified: every row balances and the statement adds up end-to-end.'
+        : (haveAllBalances
+            ? 'Row-to-row balances verified; add a "# count=N opening=O closing=C" footer for full end-to-end proof.'
+            : 'No running balance present — rows accepted without checksum (duplicate guard still applies at commit).')
+    }
+  };
 }
 
 /* ─── Idempotency Key ─── */
