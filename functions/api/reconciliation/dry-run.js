@@ -19,7 +19,7 @@
 
 import { getUserId } from '../_lib.js';
 
-const VERSION          = 'v0.2.0-statement-reconciliation';
+const VERSION          = 'v0.3.0-adaptive-window';
 const CONTRACT_VERSION = 'reconciliation-v0.2';
 
 const POSITIVE_TYPES = new Set(['income', 'salary', 'opening', 'borrow', 'debt_in']);
@@ -53,8 +53,23 @@ export async function onRequestPost(context) {
     const stmtRows = stmtRes.results || [];
     if (!stmtRows.length) return json(validErr('No statement rows found for this import', 'NO_STATEMENT_ROWS'), 400);
 
-    const dateFrom = addDays(importRow.date_from, -5);
-    const dateTo   = addDays(importRow.date_to,    5);
+    const prevImport = await db.prepare(
+      `SELECT date_to FROM statement_imports
+       WHERE account_id = ? AND user_id = ? AND id != ? AND date_to IS NOT NULL AND date_to < ?
+       ORDER BY date_to DESC LIMIT 1`
+    ).bind(accountId, userId, importId, importRow.date_from).first().catch(() => null);
+
+    // Adaptive buffer: widen the lookup window and fuzzy-match tolerance based on
+    // how long it's been since the account's last statement import. A user who
+    // batches transactions for days/weeks needs more slack than a same-day reconciler,
+    // but cap it so distant, unrelated transactions never get pulled in.
+    const gapDays    = prevImport ? Math.max(0, dateDiff(prevImport.date_to, importRow.date_from)) : 5;
+    const bufferDays = Math.min(21, Math.max(5, gapDays));
+    const fuzzyDays  = bufferDays;
+    const pendingDays = Math.min(7, Math.max(3, bufferDays));
+
+    const dateFrom = addDays(importRow.date_from, -bufferDays);
+    const dateTo   = addDays(importRow.date_to,    bufferDays);
 
     const ledgerRes = await db.prepare(
       `SELECT id, type, amount, date, notes, account_id, transfer_to_account_id,
@@ -77,14 +92,14 @@ export async function onRequestPost(context) {
     const account    = await db.prepare('SELECT id, name FROM accounts WHERE id = ? AND user_id = ? LIMIT 1').bind(accountId, userId).first().catch(() => null);
     const appBalance = await computeAppBalance(db, accountId, userId);
 
-    const plan = runMatchingEngine(stmtRows, ledgerRows, ledgerOtherRows);
+    const plan = runMatchingEngine(stmtRows, ledgerRows, ledgerOtherRows, fuzzyDays);
 
     const matchedLedgerIds = new Set(plan.filter(p => p.matched_ledger_id).map(p => p.matched_ledger_id));
-    const today        = todayISO();
-    const threeDaysAgo = addDays(today, -3);
+    const today          = todayISO();
+    const pendingSince   = addDays(today, -pendingDays);
     for (const l of ledgerRows) {
       if (matchedLedgerIds.has(l.id)) continue;
-      if (l.date >= threeDaysAgo && l.date <= today) {
+      if (l.date >= pendingSince && l.date <= today) {
         plan.push({
           classification:    'PENDING_UNPOSTED',
           statement_row:     null,
@@ -124,6 +139,8 @@ export async function onRequestPost(context) {
       account_name:          account?.name || accountId,
       statement_rows:        stmtRows.length,
       ledger_rows_checked:   ledgerRows.length,
+      match_window_days:     bufferDays,
+      gap_since_last_import_days: gapDays,
       projected_balance:     closingBalance,
       app_balance_now:       appBalance,
       drift,
@@ -160,7 +177,7 @@ export async function onRequestOptions() {
 
 /* ─── Matching Engine ─── */
 
-function runMatchingEngine(stmtRows, ledgerRows, ledgerOtherRows) {
+function runMatchingEngine(stmtRows, ledgerRows, ledgerOtherRows, fuzzyDays = 5) {
   const plan           = [];
   const usedLedgerIds  = new Set();
   const ledgerMatchMap = new Map(); // ledgerId → count of stmt rows that can match it
@@ -184,7 +201,7 @@ function runMatchingEngine(stmtRows, ledgerRows, ledgerOtherRows) {
 
   for (const { stmt, stmtAmount, isDebit, candidates } of stmtCandidates) {
     if (!candidates.length) {
-      const transferResult = findTransfer(stmt, stmtAmount, isDebit, ledgerOtherRows, usedLedgerIds);
+      const transferResult = findTransfer(stmt, stmtAmount, isDebit, ledgerOtherRows, usedLedgerIds, fuzzyDays);
       if (transferResult) {
         plan.push({
           classification:    transferResult.classification,
@@ -227,7 +244,7 @@ function runMatchingEngine(stmtRows, ledgerRows, ledgerOtherRows) {
     if (!bestMatch) {
       for (const l of candidates) {
         if (usedLedgerIds.has(l.id)) continue;
-        if (Math.abs(dateDiff(stmt.posted_date, l.date)) <= 5) {
+        if (Math.abs(dateDiff(stmt.posted_date, l.date)) <= fuzzyDays) {
           bestMatch = l;
           matchType = 'fuzzy';
           break;
@@ -263,7 +280,7 @@ function runMatchingEngine(stmtRows, ledgerRows, ledgerOtherRows) {
   return plan;
 }
 
-function findTransfer(stmt, stmtAmount, isDebit, ledgerOtherRows, usedLedgerIds) {
+function findTransfer(stmt, stmtAmount, isDebit, ledgerOtherRows, usedLedgerIds, fuzzyDays = 5) {
   const candidates = ledgerOtherRows.filter(l => {
     if (usedLedgerIds.has(l.id)) return false;
     if (Math.abs(Math.abs(l.amount || 0) - stmtAmount) > 0.005) return false;
@@ -279,7 +296,7 @@ function findTransfer(stmt, stmtAmount, isDebit, ledgerOtherRows, usedLedgerIds)
     }
   }
   for (const l of candidates) {
-    if (Math.abs(dateDiff(stmt.posted_date, l.date)) <= 5) {
+    if (Math.abs(dateDiff(stmt.posted_date, l.date)) <= fuzzyDays) {
       return { classification: 'TRANSFER_PAIR_FOUND', ledger: l, reason: 'Fuzzy date match' };
     }
   }
