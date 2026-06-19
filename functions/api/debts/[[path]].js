@@ -2561,8 +2561,8 @@ async function recalculateDebtPaidAmount(db, debtId, userId) {
 function normalizeDebt(row) {
   const original = Number(row?.principal_amount || (row?.original_amount ? Math.round(row.original_amount * 100) : 0));
   const paid = Number(row?.paid_amount || 0);
-  // paid_amount is stored as Rs (REAL), principal_amount as paisas — normalise to paisas
-  const paidPaisa = paid < 1000 && original > 10000 ? Math.round(paid * 100) : paid;
+  // paid_amount is stored as Rs (REAL), principal_amount as paisas — always normalise to paisas
+  const paidPaisa = Math.round(paid * 100);
   const remaining = Math.max(0, original - paidPaisa);
   const dueDate = normalizeDate(row?.due_date);
   const dueDay = normalizeDueDay(row?.due_day);
