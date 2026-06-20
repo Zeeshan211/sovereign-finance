@@ -1,8 +1,19 @@
-/* Sovereign Finance — Statement Reconciliation v0.3
+/* Sovereign Finance — Statement Reconciliation v0.4
  * POST /api/reconciliation/import-statement
- * contract_version: reconciliation-v0.2
+ * contract_version: reconciliation-v0.3
  *
- * Accepts two paste formats:
+ * Accepts two paste formats, either as a single block (legacy, account_id
+ * given in the request body) or as a MULTI-ACCOUNT paste with one block per
+ * account, delimited by a "## ACCOUNT: <Name>" header line:
+ *
+ *   ## ACCOUNT: Meezan Current
+ *   DATE | DESCRIPTION | AMOUNT | BALANCE
+ *   ...
+ *   # count=N opening=O closing=C
+ *
+ *   ## ACCOUNT: HBL Savings
+ *   ...
+ *
  *   1. Pipe (preferred, self-verifying):
  *        DATE | DESCRIPTION | AMOUNT | BALANCE     (AMOUNT signed: - out, + in)
  *        # count=N opening=O closing=C             (optional checksum footer)
@@ -11,14 +22,20 @@
  *      storage. A failed checksum rejects the whole paste and names the row.
  *   2. CSV (fallback): date,description,debit,credit,balance
  *
+ * Each detected account block is resolved against the user's own accounts by
+ * name (case-insensitive substring match). Unresolvable blocks are returned
+ * as per-block errors WITHOUT aborting the other blocks in the same paste.
+ *
  * Stores rows in statement_imports + statement_transactions.
  * NEVER writes to ledger. Period.
  */
 
 import { getUserId } from '../_lib.js';
 
-const VERSION = 'v0.3.0-checksum-verified-parser';
-const CONTRACT_VERSION = 'reconciliation-v0.2';
+const VERSION = 'v0.4.0-multi-account-paste';
+const CONTRACT_VERSION = 'reconciliation-v0.3';
+
+const ACCOUNT_HEADER_RE = /^##\s*ACCOUNT\s*:\s*(.+?)\s*$/im;
 
 export async function onRequestPost(context) {
   try {
@@ -28,82 +45,186 @@ export async function onRequestPost(context) {
     const db = context.env.DB;
     if (!db) return json(dbErr(), 500);
 
-    const body = await readJson(context.request);
-    const accountId = clean(body.account_id);
-    const csvText   = clean(body.statement_text || body.text || body.csv_text || body.csv || '');
-    const createdBy = clean(body.created_by || 'web');
+    const body       = await readJson(context.request);
+    const rawAccountId = clean(body.account_id);
+    const csvText    = clean(body.statement_text || body.text || body.csv_text || body.csv || '');
+    const createdBy  = clean(body.created_by || 'web');
+    const explicitFmt = body.format;
 
-    if (!accountId) return json(validErr('account_id is required', 'ACCOUNT_ID_REQUIRED'), 400);
-    if (!csvText)   return json(validErr('statement_text is required', 'STATEMENT_REQUIRED'), 400);
-
-    const account = await db.prepare(
-      'SELECT id, name FROM accounts WHERE id = ? AND user_id = ? LIMIT 1'
-    ).bind(accountId, userId).first();
-    if (!account) return json(validErr(`Account not found: ${accountId}`, 'ACCOUNT_NOT_FOUND'), 404);
-
-    const fmt    = detectFormat(body.format, csvText);
-    const parsed = fmt === 'pipe' ? parsePipe(csvText) : parseCsv(csvText);
-    if (!parsed.ok) return json(validErr(parsed.error, parsed.code || 'PARSE_ERROR'), 400);
-    if (!parsed.rows.length) return json(validErr('Statement contains no data rows', 'STATEMENT_EMPTY'), 400);
+    if (!csvText) return json(validErr('statement_text is required', 'STATEMENT_REQUIRED'), 400);
 
     await ensureStatementTables(db);
 
-    const now      = nowSql();
-    const importId = `stmt_${Date.now()}_${rand()}`;
-    const rows     = parsed.rows;
-    const dateFrom = rows[0].posted_date;
-    const dateTo   = rows[rows.length - 1].posted_date;
-    const closingBalance = rows[rows.length - 1].balance;
+    const ownAccounts = await db.prepare(
+      'SELECT id, name FROM accounts WHERE user_id = ? AND (status = \'active\' OR status IS NULL)'
+    ).bind(userId).all().then(r => r.results || []).catch(() => []);
 
-    const stmtRows = rows.map((row, i) => {
-      const amount = row.debit != null ? row.debit : (row.credit ?? 0);
-      return {
-        id:              `stmtx_${Date.now()}_${i}_${rand()}`,
-        import_id:       importId,
-        account_id:      accountId,
-        posted_date:     row.posted_date,
-        description:     row.description,
-        debit:           row.debit  ?? null,
-        credit:          row.credit ?? null,
-        balance:         row.balance ?? null,
-        idempotency_key: buildIdemKey(accountId, row.posted_date, amount, row.description, importId, i)
-      };
-    });
+    const blocks = splitAccountBlocks(csvText);
 
-    const insertImport = db.prepare(
-      `INSERT INTO statement_imports
-         (id, account_id, imported_at, row_count, date_from, date_to,
-          statement_closing_balance, raw_csv, created_by, created_at, user_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(
-      importId, accountId, now, rows.length,
-      dateFrom, dateTo, closingBalance,
-      csvText.slice(0, 50000), createdBy, now, userId
-    );
+    // Single legacy block with no "## ACCOUNT:" header — resolve via account_id.
+    if (blocks.length === 1 && blocks[0].accountName === null) {
+      if (!rawAccountId) return json(validErr('account_id is required', 'ACCOUNT_ID_REQUIRED'), 400);
+      const account = ownAccounts.find(a => a.id === rawAccountId);
+      if (!account) return json(validErr(`Account not found: ${rawAccountId}`, 'ACCOUNT_NOT_FOUND'), 404);
+      const result = await processBlock(db, {
+        userId, createdBy, accountId: account.id, accountName: account.name,
+        text: blocks[0].text, explicitFmt
+      });
+      if (!result.ok) return json(validErr(result.error, result.code || 'PARSE_ERROR'), 400);
+      return json(singleResultBody(result.value));
+    }
 
-    const insertRowStmts = stmtRows.map(r =>
-      db.prepare(
-        `INSERT OR IGNORE INTO statement_transactions
-           (id, import_id, account_id, posted_date, description,
-            debit, credit, balance, idempotency_key, created_at, user_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(
-        r.id, r.import_id, r.account_id, r.posted_date, r.description,
-        r.debit, r.credit, r.balance, r.idempotency_key, now, userId
-      )
-    );
+    // Multi-account paste: resolve each block's header name against the
+    // user's own accounts; process independently so one bad block doesn't
+    // sink the others.
+    const results = [];
+    for (const block of blocks) {
+      const account = resolveAccountByName(ownAccounts, block.accountName);
+      if (!account) {
+        results.push({
+          ok: false, account_name: block.accountName,
+          error: `No account found matching "${block.accountName}"`,
+          code: 'ACCOUNT_NOT_FOUND'
+        });
+        continue;
+      }
+      const result = await processBlock(db, {
+        userId, createdBy, accountId: account.id, accountName: account.name,
+        text: block.text, explicitFmt
+      });
+      results.push(result.ok
+        ? { ok: true, ...result.value }
+        : { ok: false, account_id: account.id, account_name: account.name, error: result.error, code: result.code || 'PARSE_ERROR' });
+    }
 
-    await db.batch([insertImport, ...insertRowStmts]);
+    const succeeded = results.filter(r => r.ok);
+    const failed    = results.filter(r => !r.ok);
 
     return json({
-      ok:                       true,
-      version:                  VERSION,
-      contract_version:         CONTRACT_VERSION,
-      action:                   'import_statement',
-      writes_performed:         true,
+      ok:                succeeded.length > 0,
+      version:           VERSION,
+      contract_version:  CONTRACT_VERSION,
+      action:            'import_statement_batch',
+      writes_performed:  succeeded.length > 0,
+      imports:           results,
+      imported_count:    succeeded.length,
+      failed_count:       failed.length,
+      next_step: succeeded.length ? {
+        endpoint: 'POST /api/reconciliation/dry-run',
+        body: { import_ids: succeeded.map(r => r.import_id) }
+      } : null,
+      contract: {
+        mutates_ledger:              false,
+        mutates_accounts:            false,
+        mutates_transactions:        false,
+        writes_statement_imports:    true,
+        writes_statement_transactions: true
+      }
+    });
+  } catch (e) {
+    return json(srvErr(e), 500);
+  }
+}
+
+// Split a paste into blocks. If no "## ACCOUNT:" header is present anywhere,
+// returns a single block with accountName: null (legacy single-account mode).
+function splitAccountBlocks(text) {
+  const lines = String(text).split(/\r?\n/);
+  const headerIdxs = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(ACCOUNT_HEADER_RE);
+    if (m) headerIdxs.push({ i, name: m[1].trim() });
+  }
+  if (!headerIdxs.length) return [{ accountName: null, text }];
+
+  const blocks = [];
+  for (let h = 0; h < headerIdxs.length; h++) {
+    const start = headerIdxs[h].i + 1;
+    const end   = h + 1 < headerIdxs.length ? headerIdxs[h + 1].i : lines.length;
+    blocks.push({ accountName: headerIdxs[h].name, text: lines.slice(start, end).join('\n') });
+  }
+  return blocks;
+}
+
+// Case-insensitive substring match, either direction (header name may be a
+// shortened/longer form of the account's stored name).
+function resolveAccountByName(accounts, headerName) {
+  const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const target = norm(headerName);
+  if (!target) return null;
+  let best = null;
+  for (const a of accounts) {
+    const n = norm(a.name);
+    if (n === target) return a;
+    if ((n.includes(target) || target.includes(n)) && !best) best = a;
+  }
+  return best;
+}
+
+// Parse + verify + store a single account's block. Returns {ok, value} or
+// {ok:false, error, code}.
+async function processBlock(db, { userId, createdBy, accountId, accountName, text, explicitFmt }) {
+  const blockText = clean(text);
+  if (!blockText) return { ok: false, error: 'Statement contains no data rows', code: 'STATEMENT_EMPTY' };
+
+  const fmt    = detectFormat(explicitFmt, blockText);
+  const parsed = fmt === 'pipe' ? parsePipe(blockText) : parseCsv(blockText);
+  if (!parsed.ok) return { ok: false, error: parsed.error, code: parsed.code };
+  if (!parsed.rows.length) return { ok: false, error: 'Statement contains no data rows', code: 'STATEMENT_EMPTY' };
+
+  const now      = nowSql();
+  const importId = `stmt_${Date.now()}_${rand()}`;
+  const rows     = parsed.rows;
+  const dateFrom = rows[0].posted_date;
+  const dateTo   = rows[rows.length - 1].posted_date;
+  const closingBalance = rows[rows.length - 1].balance;
+
+  const stmtRows = rows.map((row, i) => {
+    const amount = row.debit != null ? row.debit : (row.credit ?? 0);
+    return {
+      id:              `stmtx_${Date.now()}_${i}_${rand()}`,
+      import_id:       importId,
+      account_id:      accountId,
+      posted_date:     row.posted_date,
+      description:     row.description,
+      debit:           row.debit  ?? null,
+      credit:          row.credit ?? null,
+      balance:         row.balance ?? null,
+      idempotency_key: buildIdemKey(accountId, row.posted_date, amount, row.description, importId, i)
+    };
+  });
+
+  const insertImport = db.prepare(
+    `INSERT INTO statement_imports
+       (id, account_id, imported_at, row_count, date_from, date_to,
+        statement_closing_balance, raw_csv, created_by, created_at, user_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    importId, accountId, now, rows.length,
+    dateFrom, dateTo, closingBalance,
+    blockText.slice(0, 50000), createdBy, now, userId
+  );
+
+  const insertRowStmts = stmtRows.map(r =>
+    db.prepare(
+      `INSERT OR IGNORE INTO statement_transactions
+         (id, import_id, account_id, posted_date, description,
+          debit, credit, balance, idempotency_key, created_at, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      r.id, r.import_id, r.account_id, r.posted_date, r.description,
+      r.debit, r.credit, r.balance, r.idempotency_key, now, userId
+    )
+  );
+
+  await db.batch([insertImport, ...insertRowStmts]);
+
+  return {
+    ok: true,
+    value: {
       import_id:                importId,
       account_id:               accountId,
-      account_name:             account.name,
+      account_name:             accountName,
       format:                   fmt,
       checksum:                 parsed.checksum || null,
       row_count:                rows.length,
@@ -118,22 +239,31 @@ export async function onRequestPost(context) {
         balance:         r.balance,
         amount:          r.debit != null ? -r.debit : (r.credit ?? 0),
         idempotency_key: r.idempotency_key
-      })),
-      next_step: {
-        endpoint: 'POST /api/reconciliation/dry-run',
-        body:     { import_id: importId, account_id: accountId }
-      },
-      contract: {
-        mutates_ledger:              false,
-        mutates_accounts:            false,
-        mutates_transactions:        false,
-        writes_statement_imports:    true,
-        writes_statement_transactions: true
-      }
-    });
-  } catch (e) {
-    return json(srvErr(e), 500);
-  }
+      }))
+    }
+  };
+}
+
+function singleResultBody(value) {
+  return {
+    ok:                true,
+    version:           VERSION,
+    contract_version:  CONTRACT_VERSION,
+    action:            'import_statement',
+    writes_performed:  true,
+    ...value,
+    next_step: {
+      endpoint: 'POST /api/reconciliation/dry-run',
+      body:     { import_id: value.import_id, account_id: value.account_id }
+    },
+    contract: {
+      mutates_ledger:              false,
+      mutates_accounts:            false,
+      mutates_transactions:        false,
+      writes_statement_imports:    true,
+      writes_statement_transactions: true
+    }
+  };
 }
 
 export async function onRequestOptions() {

@@ -19,8 +19,8 @@
 
 import { getUserId } from '../_lib.js';
 
-const VERSION          = 'v0.3.0-adaptive-window';
-const CONTRACT_VERSION = 'reconciliation-v0.2';
+const VERSION          = 'v0.4.0-batch-cross-statement';
+const CONTRACT_VERSION = 'reconciliation-v0.3';
 
 const POSITIVE_TYPES = new Set(['income', 'salary', 'opening', 'borrow', 'debt_in']);
 const NEGATIVE_TYPES = new Set(['expense', 'transfer', 'cc_spend', 'repay', 'atm', 'debt_out', 'cc_payment']);
@@ -36,139 +36,289 @@ export async function onRequestPost(context) {
     const body      = await readJson(context.request);
     const importId  = clean(body.import_id);
     const accountId = clean(body.account_id);
+    const importIds = Array.isArray(body.import_ids)
+      ? body.import_ids.map(clean).filter(Boolean)
+      : null;
+
+    await ensureStatementTables(db);
+
+    if (importIds && importIds.length) {
+      return await runBatch(db, userId, importIds);
+    }
 
     if (!importId)  return json(validErr('import_id is required',  'IMPORT_ID_REQUIRED'),  400);
     if (!accountId) return json(validErr('account_id is required', 'ACCOUNT_ID_REQUIRED'), 400);
 
-    await ensureStatementTables(db);
+    const single = await buildAccountPlan(db, userId, importId, accountId);
+    if (!single.ok) return json(validErr(single.error, single.code), single.code === 'IMPORT_NOT_FOUND' || single.code === 'NO_STATEMENT_ROWS' ? (single.code === 'IMPORT_NOT_FOUND' ? 404 : 400) : 400);
 
-    const importRow = await db.prepare(
-      `SELECT * FROM statement_imports WHERE id = ? AND account_id = ? AND user_id = ? LIMIT 1`
-    ).bind(importId, accountId, userId).first().catch(() => null);
-    if (!importRow) return json(validErr(`Import not found: ${importId}`, 'IMPORT_NOT_FOUND'), 404);
+    const planId = await savePlan(db, userId, single);
 
-    const stmtRes  = await db.prepare(
-      `SELECT * FROM statement_transactions WHERE import_id = ? ORDER BY posted_date, id`
-    ).bind(importId).all();
-    const stmtRows = stmtRes.results || [];
-    if (!stmtRows.length) return json(validErr('No statement rows found for this import', 'NO_STATEMENT_ROWS'), 400);
-
-    const prevImport = await db.prepare(
-      `SELECT date_to FROM statement_imports
-       WHERE account_id = ? AND user_id = ? AND id != ? AND date_to IS NOT NULL AND date_to < ?
-       ORDER BY date_to DESC LIMIT 1`
-    ).bind(accountId, userId, importId, importRow.date_from).first().catch(() => null);
-
-    // Adaptive buffer: widen the lookup window and fuzzy-match tolerance based on
-    // how long it's been since the account's last statement import. A user who
-    // batches transactions for days/weeks needs more slack than a same-day reconciler,
-    // but cap it so distant, unrelated transactions never get pulled in.
-    const gapDays    = prevImport ? Math.max(0, dateDiff(prevImport.date_to, importRow.date_from)) : 5;
-    const bufferDays = Math.min(21, Math.max(5, gapDays));
-    const fuzzyDays  = bufferDays;
-    const pendingDays = Math.min(7, Math.max(3, bufferDays));
-
-    const dateFrom = addDays(importRow.date_from, -bufferDays);
-    const dateTo   = addDays(importRow.date_to,    bufferDays);
-
-    const ledgerRes = await db.prepare(
-      `SELECT id, type, amount, date, notes, account_id, transfer_to_account_id,
-              reversed_by, reversed_at
-       FROM transactions
-       WHERE account_id = ? AND user_id = ? AND date >= ? AND date <= ?
-       ORDER BY date, id`
-    ).bind(accountId, userId, dateFrom, dateTo).all();
-    const ledgerRows = (ledgerRes.results || []).filter(l => !isReversed(l));
-
-    const ledgerOtherRes = await db.prepare(
-      `SELECT id, type, amount, date, notes, account_id, transfer_to_account_id,
-              reversed_by, reversed_at
-       FROM transactions
-       WHERE account_id != ? AND user_id = ? AND date >= ? AND date <= ?
-       ORDER BY date, id`
-    ).bind(accountId, userId, dateFrom, dateTo).all();
-    const ledgerOtherRows = (ledgerOtherRes.results || []).filter(l => !isReversed(l));
-
-    const account    = await db.prepare('SELECT id, name FROM accounts WHERE id = ? AND user_id = ? LIMIT 1').bind(accountId, userId).first().catch(() => null);
-    const appBalance = await computeAppBalance(db, accountId, userId);
-
-    const plan = runMatchingEngine(stmtRows, ledgerRows, ledgerOtherRows, fuzzyDays);
-
-    // Known-accounts transfer detection (Phase 3b, §20): if a row that needs
-    // adding names one of the user's OWN other accounts (by owner_aliases),
-    // suggest a Transfer instead of Income/Expense. Suggestion only — never
-    // changes the classification or auto-commits.
-    const ownAccounts = await loadOwnAccounts(db, userId, accountId);
-    annotateTransferSuggestions(plan, ownAccounts);
-
-    const matchedLedgerIds = new Set(plan.filter(p => p.matched_ledger_id).map(p => p.matched_ledger_id));
-    const today          = todayISO();
-    const pendingSince   = addDays(today, -pendingDays);
-    for (const l of ledgerRows) {
-      if (matchedLedgerIds.has(l.id)) continue;
-      if (l.date >= pendingSince && l.date <= today) {
-        plan.push({
-          classification:    'PENDING_UNPOSTED',
-          statement_row:     null,
-          matched_ledger_id: l.id,
-          matched_ledger:    fmtLedger(l),
-          match_type:        'pending_unposted',
-          reason:            'Ledger entry posted in last 3 days with no statement counterpart'
-        });
-      }
-    }
-
-    const classification_counts = {};
-    for (const item of plan) {
-      classification_counts[item.classification] = (classification_counts[item.classification] || 0) + 1;
-    }
-
-    const closingBalance = importRow.statement_closing_balance;
-    const drift = closingBalance != null ? round2(appBalance - closingBalance) : null;
-
-    const planId = `recon_plan_${Date.now()}_${rand()}`;
-    try {
-      await db.prepare(
-        `INSERT INTO reconciliation_plans (id, import_id, account_id, plan_json, created_at, user_id)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      ).bind(planId, importId, accountId, JSON.stringify({ plan, classification_counts }), nowSql(), userId).run();
-    } catch (_) {}
-
-    return json({
-      ok:                    true,
-      version:               VERSION,
-      contract_version:      CONTRACT_VERSION,
-      action:                'reconciliation.dry_run',
-      writes_performed:      false,
-      plan_id:               planId,
-      import_id:             importId,
-      account_id:            accountId,
-      account_name:          account?.name || accountId,
-      statement_rows:        stmtRows.length,
-      ledger_rows_checked:   ledgerRows.length,
-      match_window_days:     bufferDays,
-      gap_since_last_import_days: gapDays,
-      projected_balance:     closingBalance,
-      app_balance_now:       appBalance,
-      drift,
-      classification_counts,
-      plan,
-      contract: {
-        mutates_ledger:       false,
-        mutates_accounts:     false,
-        mutates_transactions: false,
-        dry_run:              true,
-        commit_supported:     false,
-        classifications: [
-          'MATCHED_EXISTING', 'MISSING_SAFE_TO_IMPORT', 'POSSIBLE_DUPLICATE',
-          'TRANSFER_PAIR_FOUND', 'TRANSFER_PAIR_MISSING',
-          'NEEDS_REVIEW', 'PENDING_UNPOSTED', 'DO_NOT_IMPORT'
-        ]
-      }
-    });
+    return json(singlePlanBody(planId, single));
   } catch (e) {
     return json(srvErr(e), 500);
   }
+}
+
+// Run dry-run independently for each import in the batch, then layer
+// cross-statement transfer matching across the WHOLE batch: a debit row in
+// one account's statement and a credit row in another account's statement,
+// same amount, close in date, both still MISSING_SAFE_TO_IMPORT, is hard
+// evidence of an own-account transfer — stronger than the alias-name guess
+// (which still runs per-account and is preserved as a separate signal).
+async function runBatch(db, userId, importIds) {
+  const accountResults = [];
+  for (const importId of importIds) {
+    const importRow = await db.prepare(
+      `SELECT account_id FROM statement_imports WHERE id = ? AND user_id = ? LIMIT 1`
+    ).bind(importId, userId).first().catch(() => null);
+    if (!importRow) {
+      accountResults.push({ ok: false, import_id: importId, error: `Import not found: ${importId}`, code: 'IMPORT_NOT_FOUND' });
+      continue;
+    }
+    const single = await buildAccountPlan(db, userId, importId, importRow.account_id);
+    accountResults.push(single.ok ? single : { ok: false, import_id: importId, account_id: importRow.account_id, error: single.error, code: single.code });
+  }
+
+  const succeeded = accountResults.filter(r => r.ok);
+  annotateCrossStatementTransfers(succeeded);
+
+  const saved = [];
+  for (const single of succeeded) {
+    const planId = await savePlan(db, userId, single);
+    saved.push(singlePlanBody(planId, single));
+  }
+
+  const failed = accountResults.filter(r => !r.ok);
+
+  return json({
+    ok:                saved.length > 0,
+    version:           VERSION,
+    contract_version:  CONTRACT_VERSION,
+    action:            'reconciliation.dry_run_batch',
+    writes_performed:  false,
+    plans:             saved,
+    failed,
+    contract: {
+      mutates_ledger:       false,
+      mutates_accounts:     false,
+      mutates_transactions: false,
+      dry_run:              true,
+      commit_supported:     false,
+      classifications: [
+        'MATCHED_EXISTING', 'MISSING_SAFE_TO_IMPORT', 'POSSIBLE_DUPLICATE',
+        'TRANSFER_PAIR_FOUND', 'TRANSFER_PAIR_MISSING',
+        'NEEDS_REVIEW', 'PENDING_UNPOSTED', 'DO_NOT_IMPORT'
+      ]
+    }
+  });
+}
+
+// Cross-statement transfer matching (batch only): compares MISSING_SAFE_TO_IMPORT
+// items across DIFFERENT accounts in this batch for opposite-sign, same-amount,
+// date-proximate pairs. Annotates both sides non-bindingly with
+// transfer_suggestion (confidence: 'very_high' — hard amount/date evidence,
+// not a name guess) without changing classification or auto-committing.
+function annotateCrossStatementTransfers(accountResults) {
+  const candidates = [];
+  for (const result of accountResults) {
+    for (const item of result.plan) {
+      if (item.classification !== 'MISSING_SAFE_TO_IMPORT') continue;
+      const stmt = item.statement_row;
+      if (!stmt) continue;
+      candidates.push({ result, item, stmt });
+    }
+  }
+
+  const used = new Set();
+  for (let i = 0; i < candidates.length; i++) {
+    const a = candidates[i];
+    if (used.has(a)) continue;
+    for (let j = i + 1; j < candidates.length; j++) {
+      const b = candidates[j];
+      if (used.has(b)) continue;
+      if (a.result.account_id === b.result.account_id) continue;
+      const aDebit = a.stmt.amount < 0;
+      const bDebit = b.stmt.amount < 0;
+      if (aDebit === bDebit) continue; // need opposite signs (one out, one in)
+      if (Math.abs(Math.abs(a.stmt.amount) - Math.abs(b.stmt.amount)) > 0.005) continue;
+      if (Math.abs(dateDiff(a.stmt.posted_date, b.stmt.posted_date)) > 3) continue;
+
+      const from = aDebit ? a : b;
+      const to   = aDebit ? b : a;
+      from.item.transfer_suggestion = {
+        to_account_id:   to.result.account_id,
+        to_account_name: to.result.account_name,
+        matched_alias:   null,
+        confidence:      'very_high',
+        reason:          'Cross-statement match: same amount and date in another pasted statement'
+      };
+      to.item.transfer_suggestion = {
+        to_account_id:   from.result.account_id,
+        to_account_name: from.result.account_name,
+        matched_alias:   null,
+        confidence:      'very_high',
+        reason:          'Cross-statement match: same amount and date in another pasted statement'
+      };
+      used.add(a); used.add(b);
+      break;
+    }
+  }
+}
+
+// Core per-account dry-run logic, extracted so both the legacy single-import
+// path and the batch path share it identically. Returns the in-memory plan
+// WITHOUT persisting it — callers persist via savePlan() once any
+// cross-statement annotation pass (batch only) has run.
+async function buildAccountPlan(db, userId, importId, accountId) {
+  const importRow = await db.prepare(
+    `SELECT * FROM statement_imports WHERE id = ? AND account_id = ? AND user_id = ? LIMIT 1`
+  ).bind(importId, accountId, userId).first().catch(() => null);
+  if (!importRow) return { ok: false, error: `Import not found: ${importId}`, code: 'IMPORT_NOT_FOUND' };
+
+  const stmtRes  = await db.prepare(
+    `SELECT * FROM statement_transactions WHERE import_id = ? ORDER BY posted_date, id`
+  ).bind(importId).all();
+  const stmtRows = stmtRes.results || [];
+  if (!stmtRows.length) return { ok: false, error: 'No statement rows found for this import', code: 'NO_STATEMENT_ROWS' };
+
+  const prevImport = await db.prepare(
+    `SELECT date_to FROM statement_imports
+     WHERE account_id = ? AND user_id = ? AND id != ? AND date_to IS NOT NULL AND date_to < ?
+     ORDER BY date_to DESC LIMIT 1`
+  ).bind(accountId, userId, importId, importRow.date_from).first().catch(() => null);
+
+  // Adaptive buffer: widen the lookup window and fuzzy-match tolerance based on
+  // how long it's been since the account's last statement import. A user who
+  // batches transactions for days/weeks needs more slack than a same-day reconciler,
+  // but cap it so distant, unrelated transactions never get pulled in.
+  const gapDays    = prevImport ? Math.max(0, dateDiff(prevImport.date_to, importRow.date_from)) : 5;
+  const bufferDays = Math.min(21, Math.max(5, gapDays));
+  const fuzzyDays  = bufferDays;
+  const pendingDays = Math.min(7, Math.max(3, bufferDays));
+
+  const dateFrom = addDays(importRow.date_from, -bufferDays);
+  const dateTo   = addDays(importRow.date_to,    bufferDays);
+
+  const ledgerRes = await db.prepare(
+    `SELECT id, type, amount, date, notes, account_id, transfer_to_account_id,
+            reversed_by, reversed_at
+     FROM transactions
+     WHERE account_id = ? AND user_id = ? AND date >= ? AND date <= ?
+     ORDER BY date, id`
+  ).bind(accountId, userId, dateFrom, dateTo).all();
+  const ledgerRows = (ledgerRes.results || []).filter(l => !isReversed(l));
+
+  const ledgerOtherRes = await db.prepare(
+    `SELECT id, type, amount, date, notes, account_id, transfer_to_account_id,
+            reversed_by, reversed_at
+     FROM transactions
+     WHERE account_id != ? AND user_id = ? AND date >= ? AND date <= ?
+     ORDER BY date, id`
+  ).bind(accountId, userId, dateFrom, dateTo).all();
+  const ledgerOtherRows = (ledgerOtherRes.results || []).filter(l => !isReversed(l));
+
+  const account    = await db.prepare('SELECT id, name FROM accounts WHERE id = ? AND user_id = ? LIMIT 1').bind(accountId, userId).first().catch(() => null);
+  const appBalance = await computeAppBalance(db, accountId, userId);
+
+  const plan = runMatchingEngine(stmtRows, ledgerRows, ledgerOtherRows, fuzzyDays);
+
+  // Known-accounts transfer detection (Phase 3b, §20): if a row that needs
+  // adding names one of the user's OWN other accounts (by owner_aliases),
+  // suggest a Transfer instead of Income/Expense. Suggestion only — never
+  // changes the classification or auto-commits. Preserved alongside the
+  // (stronger) cross-statement signal applied later for batch dry-runs.
+  const ownAccounts = await loadOwnAccounts(db, userId, accountId);
+  annotateTransferSuggestions(plan, ownAccounts);
+
+  const matchedLedgerIds = new Set(plan.filter(p => p.matched_ledger_id).map(p => p.matched_ledger_id));
+  const today          = todayISO();
+  const pendingSince   = addDays(today, -pendingDays);
+  for (const l of ledgerRows) {
+    if (matchedLedgerIds.has(l.id)) continue;
+    if (l.date >= pendingSince && l.date <= today) {
+      plan.push({
+        classification:    'PENDING_UNPOSTED',
+        statement_row:     null,
+        matched_ledger_id: l.id,
+        matched_ledger:    fmtLedger(l),
+        match_type:        'pending_unposted',
+        reason:            'Ledger entry posted in last 3 days with no statement counterpart'
+      });
+    }
+  }
+
+  const classification_counts = {};
+  for (const item of plan) {
+    classification_counts[item.classification] = (classification_counts[item.classification] || 0) + 1;
+  }
+
+  const closingBalance = importRow.statement_closing_balance;
+  const drift = closingBalance != null ? round2(appBalance - closingBalance) : null;
+
+  return {
+    ok: true,
+    import_id: importId,
+    account_id: accountId,
+    account_name: account?.name || accountId,
+    statement_rows: stmtRows.length,
+    ledger_rows_checked: ledgerRows.length,
+    match_window_days: bufferDays,
+    gap_since_last_import_days: gapDays,
+    projected_balance: closingBalance,
+    app_balance_now: appBalance,
+    drift,
+    classification_counts,
+    plan
+  };
+}
+
+async function savePlan(db, userId, single) {
+  const planId = `recon_plan_${Date.now()}_${rand()}`;
+  try {
+    await db.prepare(
+      `INSERT INTO reconciliation_plans (id, import_id, account_id, plan_json, created_at, user_id)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).bind(planId, single.import_id, single.account_id,
+      JSON.stringify({ plan: single.plan, classification_counts: single.classification_counts }),
+      nowSql(), userId).run();
+  } catch (_) {}
+  return planId;
+}
+
+function singlePlanBody(planId, single) {
+  return {
+    ok:                    true,
+    version:               VERSION,
+    contract_version:      CONTRACT_VERSION,
+    action:                'reconciliation.dry_run',
+    writes_performed:      false,
+    plan_id:               planId,
+    import_id:             single.import_id,
+    account_id:            single.account_id,
+    account_name:          single.account_name,
+    statement_rows:        single.statement_rows,
+    ledger_rows_checked:   single.ledger_rows_checked,
+    match_window_days:     single.match_window_days,
+    gap_since_last_import_days: single.gap_since_last_import_days,
+    projected_balance:     single.projected_balance,
+    app_balance_now:       single.app_balance_now,
+    drift:                 single.drift,
+    classification_counts: single.classification_counts,
+    plan:                  single.plan,
+    contract: {
+      mutates_ledger:       false,
+      mutates_accounts:     false,
+      mutates_transactions: false,
+      dry_run:              true,
+      commit_supported:     false,
+      classifications: [
+        'MATCHED_EXISTING', 'MISSING_SAFE_TO_IMPORT', 'POSSIBLE_DUPLICATE',
+        'TRANSFER_PAIR_FOUND', 'TRANSFER_PAIR_MISSING',
+        'NEEDS_REVIEW', 'PENDING_UNPOSTED', 'DO_NOT_IMPORT'
+      ]
+    }
+  };
 }
 
 export async function onRequestOptions() {
