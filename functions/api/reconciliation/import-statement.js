@@ -66,7 +66,7 @@ export async function onRequestPost(context) {
         debit:           row.debit  ?? null,
         credit:          row.credit ?? null,
         balance:         row.balance ?? null,
-        idempotency_key: buildIdemKey(accountId, row.posted_date, amount, row.description)
+        idempotency_key: buildIdemKey(accountId, row.posted_date, amount, row.description, importId, i)
       };
     });
 
@@ -383,13 +383,18 @@ function verifyChecksum(parsed, footer) {
 
 /* ─── Idempotency Key ─── */
 
-function buildIdemKey(accountId, date, amount, description) {
+// statement_transactions is a per-import SNAPSHOT, not a dedup target — the
+// real duplicate guard lives at commit (content key on the append-only ledger).
+// So this key MUST be unique per import + row, or re-pasting a statement you've
+// imported before collides on the global UNIQUE(idempotency_key) index, all
+// rows get INSERT-OR-IGNORE'd away, and the import lands with zero rows.
+function buildIdemKey(accountId, date, amount, description, importId, rowIndex) {
   const normalizedDesc = String(description || '')
     .toLowerCase()
     .replace(/[^a-z0-9]/g, '')
     .slice(0, 32);
   const hash = simpleHash(normalizedDesc).toString(16).padStart(8, '0');
-  return `recon:${accountId}:${date}:${amount}:${hash}`;
+  return `recon:${importId}:${rowIndex}:${accountId}:${date}:${amount}:${hash}`;
 }
 
 function simpleHash(str) {
